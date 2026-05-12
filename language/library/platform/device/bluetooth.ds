@@ -1,4 +1,3 @@
-import { Array, Slice } from "core";
 import type { PlatformError } from "../error/index.ds";
 import {
     BluetoothAdapterWatchHandle,
@@ -6,60 +5,6 @@ import {
     BluetoothScanHandle,
     BluetoothSubscriptionHandle,
 } from "../resource/index.ds";
-
-/// Bluetooth adapter descriptor.
-export struct BluetoothAdapterDescriptor {
-    /// Stable adapter identifier.
-    id: string;
-    /// Host-visible adapter name.
-    name: string;
-    /// Whether the adapter is powered.
-    powered: boolean;
-    /// Whether the adapter is currently scanning or discovering when known.
-    discovering?: boolean;
-    /// Whether the adapter supports extended advertising when known.
-    extendedAdvertising?: boolean;
-}
-
-/// Shared metadata for Bluetooth adapter events.
-export struct BluetoothAdapterEventMetadata {
-    /// Event timestamp in nanoseconds.
-    timestampNs: uint64;
-    /// Monotonic sequence number for this adapter-watch stream.
-    sequence: uint64;
-    /// Adapter descriptor payload for this event.
-    adapter: BluetoothAdapterDescriptor;
-}
-
-/// Bluetooth adapter attached event.
-export struct BluetoothAdapterAttachedEvent {
-    /// Discriminator for this Bluetooth adapter event variant.
-    kind: "attached";
-    /// Shared event metadata.
-    metadata: BluetoothAdapterEventMetadata;
-}
-
-/// Bluetooth adapter changed event.
-export struct BluetoothAdapterChangedEvent {
-    /// Discriminator for this Bluetooth adapter event variant.
-    kind: "changed";
-    /// Shared event metadata.
-    metadata: BluetoothAdapterEventMetadata;
-}
-
-/// Bluetooth adapter detached event.
-export struct BluetoothAdapterDetachedEvent {
-    /// Discriminator for this Bluetooth adapter event variant.
-    kind: "detached";
-    /// Shared event metadata.
-    metadata: BluetoothAdapterEventMetadata;
-}
-
-/// Bluetooth adapter event payload.
-export newtype BluetoothAdapterEvent =
-    | BluetoothAdapterAttachedEvent
-    | BluetoothAdapterChangedEvent
-    | BluetoothAdapterDetachedEvent;
 
 /// Bluetooth scan mode.
 export enum BluetoothScanMode {
@@ -70,50 +15,57 @@ export enum BluetoothScanMode {
 }
 
 /// Bluetooth LE transport classification.
-export enum BluetoothLeTransport {
-    /// Host did not provide a stronger transport classification.
-    Unknown = 1,
-    /// LE-only device or session.
-    LowEnergy = 2,
-    /// Dual-mode device that also exposes LE transport.
-    DualMode = 3,
+export enum BluetoothTransport {
+    /// Host did not classify the transport.
+    Unknown = 0,
+    /// LE-only transport.
+    LowEnergy = 1,
+    /// Dual-mode transport.
+    DualMode = 2,
 }
 
 /// Bluetooth LE PHY selector.
 export enum BluetoothPhy {
+    /// Host default PHY policy.
+    Any = 0,
     /// LE 1M PHY.
     Le1M = 1,
     /// LE 2M PHY.
     Le2M = 2,
     /// LE coded PHY.
     LeCoded = 3,
-    /// Host default PHY policy.
-    Any = 4,
 }
 
-/// Bluetooth advertisement data filter.
-export struct BluetoothDataFilter {
-    /// Required leading bytes in the payload.
-    dataPrefix: Slice<uint8>;
-    /// Optional bit mask applied to `dataPrefix`.
-    mask?: Slice<uint8>;
+/// Bluetooth pairing state.
+export enum BluetoothPairing {
+    /// Pairing state is unknown.
+    Unknown = 0,
+    /// Device is not paired.
+    Unpaired = 1,
+    /// Pairing is in progress.
+    Pairing = 2,
+    /// Device is paired.
+    Paired = 3,
 }
 
-/// Bluetooth advertisement manufacturer-data filter.
-export struct BluetoothManufacturerDataFilter {
-    /// Bluetooth company identifier.
-    companyId: uint16;
-    /// Optional manufacturer payload filter.
-    data?: BluetoothDataFilter;
-}
+/// Bluetooth GATT characteristic property flags.
+export newtype BluetoothGattProperties = uint32;
 
-/// Bluetooth advertisement service-data filter.
-export struct BluetoothServiceDataFilter {
-    /// Service UUID.
-    serviceUuid: string;
-    /// Optional service payload filter.
-    data?: BluetoothDataFilter;
-}
+/// Characteristic supports reads.
+export const BLUETOOTH_GATT_READ: BluetoothGattProperties = BluetoothGattProperties(0x0001);
+
+/// Characteristic supports writes with response.
+export const BLUETOOTH_GATT_WRITE: BluetoothGattProperties = BluetoothGattProperties(0x0002);
+
+/// Characteristic supports writes without response.
+export const BLUETOOTH_GATT_WRITE_WITHOUT_RESPONSE: BluetoothGattProperties =
+    BluetoothGattProperties(0x0004);
+
+/// Characteristic supports notifications.
+export const BLUETOOTH_GATT_NOTIFY: BluetoothGattProperties = BluetoothGattProperties(0x0008);
+
+/// Characteristic supports indications.
+export const BLUETOOTH_GATT_INDICATE: BluetoothGattProperties = BluetoothGattProperties(0x0010);
 
 /// Bluetooth GATT write mode.
 export enum BluetoothGattWriteMode {
@@ -123,85 +75,66 @@ export enum BluetoothGattWriteMode {
     WithoutResponse = 2,
 }
 
-/// Bluetooth advertisement manufacturer payload.
-export struct BluetoothAdvertisementManufacturerData {
+/// Bluetooth adapter.
+export struct BluetoothAdapter {
+    /// Stable adapter identifier.
+    id: string;
+    /// Host-visible adapter name.
+    name: string;
+    /// Whether the adapter is powered.
+    isPowered: boolean;
+    /// Whether the adapter is currently scanning when known.
+    isScanning?: boolean;
+}
+
+/// Bluetooth adapter topology event.
+export newtype BluetoothAdapterEvent =
+    | { kind: "attached"; timestampNs: uint64; sequence: uint64; adapter: BluetoothAdapter }
+    | { kind: "changed"; timestampNs: uint64; sequence: uint64; adapter: BluetoothAdapter }
+    | { kind: "detached"; timestampNs: uint64; sequence: uint64; adapter: BluetoothAdapter }
+    | { kind: "overflow"; timestampNs: uint64; sequence: uint64; droppedCount: uint64 };
+
+/// Bluetooth payload filter.
+export struct BluetoothDataFilter {
+    /// Required leading payload bytes.
+    prefix: [uint8];
+    /// Optional bit mask applied to the prefix.
+    mask?: [uint8];
+}
+
+/// Bluetooth manufacturer-data filter.
+export struct BluetoothManufacturerFilter {
     /// Bluetooth company identifier.
     companyId: uint16;
-    /// Manufacturer payload bytes.
-    data: Slice<uint8>;
+    /// Optional manufacturer payload filter.
+    data?: BluetoothDataFilter;
 }
 
-/// Bluetooth advertisement service payload.
-export struct BluetoothAdvertisementServiceData {
+/// Bluetooth service-data filter.
+export struct BluetoothServiceFilter {
     /// Service UUID.
     serviceUuid: string;
-    /// Service payload bytes.
-    data: Slice<uint8>;
+    /// Optional service payload filter.
+    data?: BluetoothDataFilter;
 }
 
-/// Bluetooth advertisement payload.
-export struct BluetoothAdvertisementData {
-    /// Advertised local name when available.
-    localName?: string;
-    /// Advertised transmit power in dBm when available.
-    txPower?: int16;
-    /// Service UUID list.
-    serviceUuids: Array<string>;
-    /// Manufacturer payload entries.
-    manufacturerData: Array<BluetoothAdvertisementManufacturerData>;
-    /// Service payload entries.
-    serviceData: Array<BluetoothAdvertisementServiceData>;
-}
-
-/// Bluetooth pairing state.
-export enum BluetoothPairState {
-    /// Pairing state is unknown.
-    Unknown = 1,
-    /// Device is not paired.
-    Unpaired = 2,
-    /// Pairing is in progress.
-    Pairing = 3,
-    /// Device is paired.
-    Paired = 4,
-}
-
-/// Bluetooth device descriptor.
-export struct BluetoothDeviceDescriptor {
-    /// Stable device identifier.
-    id: string;
-    /// Device address string when the host exposes one.
-    address?: string;
-    /// Host-visible device name when available.
-    name?: string;
-    /// Signal strength in dBm when available.
-    rssi?: int32;
-    /// Pairing state when reported by host.
-    pairState?: BluetoothPairState;
-    /// Whether the device is currently connected.
-    connected: boolean;
-    /// Whether this advertisement indicates connectable state when known.
-    connectable?: boolean;
-    /// Host-reported transport classification when available.
-    transport?: BluetoothLeTransport;
-    /// Advertisement payload.
-    advertisement: BluetoothAdvertisementData;
-}
-
-/// Bluetooth scan filter.
-export struct BluetoothScanFilter {
+/// Bluetooth scan options.
+export struct BluetoothScanOptions {
+    /// Adapter identifier, or absent for host default.
+    adapterId?: string;
     /// Service UUID filters.
-    serviceUuids: Array<string>;
-    /// Exact device name filter.
+    serviceUuids: [string];
+    /// Exact local-name filter.
     name?: string;
-    /// Device name prefix filter.
+    /// Local-name prefix filter.
     namePrefix?: string;
     /// Manufacturer-data filters.
-    manufacturerData: Array<BluetoothManufacturerDataFilter>;
+    manufacturerData: [BluetoothManufacturerFilter];
     /// Service-data filters.
-    serviceData: Array<BluetoothServiceDataFilter>;
-    /// Whether to retain repeated advertisements.
+    serviceData: [BluetoothServiceFilter];
+    /// Whether repeated advertisements should be delivered.
     keepRepeatedDevices: boolean;
-    /// Minimum RSSI filter in dBm.
+    /// Minimum signal strength in dBm.
     minimumRssi?: int32;
     /// Preferred scan mode.
     scanMode?: BluetoothScanMode;
@@ -211,493 +144,394 @@ export struct BluetoothScanFilter {
     secondaryPhy?: BluetoothPhy;
 }
 
-/// GATT characteristic property set.
-export struct BluetoothGattCharacteristicProperties {
-    /// Whether broadcast writes are supported.
-    broadcast: boolean;
-    /// Whether characteristic reads are supported.
-    read: boolean;
-    /// Whether writes without response are supported.
-    writeWithoutResponse: boolean;
-    /// Whether writes with response are supported.
-    write: boolean;
-    /// Whether notifications are supported.
-    notify: boolean;
-    /// Whether indications are supported.
-    indicate: boolean;
-    /// Whether signed writes are supported.
-    authenticatedSignedWrites: boolean;
-    /// Whether reliable writes are supported.
-    reliableWrite: boolean;
-    /// Whether writable auxiliaries are supported.
-    writableAuxiliaries: boolean;
+/// Bluetooth advertisement manufacturer payload.
+export struct BluetoothManufacturerData {
+    /// Bluetooth company identifier.
+    companyId: uint16;
+    /// Manufacturer payload bytes.
+    data: [uint8];
 }
 
-/// GATT value notification event.
-export struct BluetoothGattValueEvent {
-    /// Event timestamp in nanoseconds.
-    timestampNs: uint64;
-    /// Stable service identifier within this device session.
-    serviceId: string;
-    /// Stable characteristic identifier within this device session.
-    characteristicId: string;
+/// Bluetooth advertisement service payload.
+export struct BluetoothServiceData {
     /// Service UUID.
     serviceUuid: string;
-    /// Characteristic UUID.
-    characteristicUuid: string;
-    /// Characteristic value bytes.
-    value: Slice<uint8>;
+    /// Service payload bytes.
+    data: [uint8];
 }
 
-/// Shared metadata for Bluetooth scan events.
-export struct BluetoothScanEventMetadata {
-    /// Event timestamp in nanoseconds.
-    timestampNs: uint64;
-    /// Monotonic sequence number for this scan stream.
-    sequence: uint64;
-    /// Device descriptor payload for this event.
-    device: BluetoothDeviceDescriptor;
+/// Bluetooth advertisement payload.
+export struct BluetoothAdvertisement {
+    /// Advertised local name when available.
+    localName?: string;
+    /// Advertised transmit power in dBm when available.
+    txPower?: int16;
+    /// Service UUIDs.
+    serviceUuids: [string];
+    /// Manufacturer payload entries.
+    manufacturerData: [BluetoothManufacturerData];
+    /// Service payload entries.
+    serviceData: [BluetoothServiceData];
 }
 
-/// Bluetooth scan discovered event.
-export struct BluetoothScanDiscoveredEvent {
-    /// Discriminator for this Bluetooth scan event variant.
-    kind: "discovered";
-    /// Shared event metadata.
-    metadata: BluetoothScanEventMetadata;
+/// Bluetooth device.
+export struct BluetoothDevice {
+    /// Stable device identifier.
+    id: string;
+    /// Device address string when the host exposes one.
+    address?: string;
+    /// Host-visible device name when available.
+    name?: string;
+    /// Signal strength in dBm when available.
+    rssi?: int32;
+    /// Pairing state when reported by host.
+    pairing?: BluetoothPairing;
+    /// Whether the device is currently connected.
+    isConnected: boolean;
+    /// Whether the advertisement indicates connectability when known.
+    isConnectable?: boolean;
+    /// Host-reported transport classification when available.
+    transport?: BluetoothTransport;
+    /// Advertisement payload.
+    advertisement: BluetoothAdvertisement;
 }
 
-/// Bluetooth scan updated event.
-export struct BluetoothScanUpdatedEvent {
-    /// Discriminator for this Bluetooth scan event variant.
-    kind: "updated";
-    /// Shared event metadata.
-    metadata: BluetoothScanEventMetadata;
-}
-
-/// Bluetooth scan lost event.
-export struct BluetoothScanLostEvent {
-    /// Discriminator for this Bluetooth scan event variant.
-    kind: "lost";
-    /// Shared event metadata.
-    metadata: BluetoothScanEventMetadata;
-}
-
-/// Bluetooth scan event payload.
+/// Bluetooth scan event.
+@derive(Tagged)
 export newtype BluetoothScanEvent =
-    | BluetoothScanDiscoveredEvent
-    | BluetoothScanUpdatedEvent
-    | BluetoothScanLostEvent;
+    | { kind: "discovered"; timestampNs: uint64; sequence: uint64; device: BluetoothDevice }
+    | { kind: "updated"; timestampNs: uint64; sequence: uint64; device: BluetoothDevice }
+    | { kind: "lost"; timestampNs: uint64; sequence: uint64; deviceId: string }
+    | { kind: "overflow"; timestampNs: uint64; sequence: uint64; droppedCount: uint64 };
 
-/// Shared metadata for Bluetooth session events.
-export struct BluetoothSessionEventMetadata {
-    /// Event timestamp in nanoseconds.
-    timestampNs: uint64;
-    /// Monotonic sequence number for this session event stream.
-    sequence: uint64;
-}
-
-/// Bluetooth session disconnected event.
-export struct BluetoothSessionDisconnectedEvent {
-    /// Discriminator for this Bluetooth session event variant.
-    kind: "disconnected";
-    /// Shared event metadata.
-    metadata: BluetoothSessionEventMetadata;
-}
-
-/// Bluetooth session pair-state-changed event.
-export struct BluetoothSessionPairStateChangedEvent {
-    /// Discriminator for this Bluetooth session event variant.
-    kind: "pairStateChanged";
-    /// Shared event metadata.
-    metadata: BluetoothSessionEventMetadata;
-    /// Current pairing state.
-    pairState: BluetoothPairState;
-}
-
-/// Bluetooth session GATT-database-changed event.
-export struct BluetoothSessionGattDatabaseChangedEvent {
-    /// Discriminator for this Bluetooth session event variant.
-    kind: "gattDatabaseChanged";
-    /// Shared event metadata.
-    metadata: BluetoothSessionEventMetadata;
-}
-
-/// Bluetooth session event payload.
+/// Bluetooth session event.
+@derive(Tagged)
 export newtype BluetoothSessionEvent =
-    | BluetoothSessionDisconnectedEvent
-    | BluetoothSessionPairStateChangedEvent
-    | BluetoothSessionGattDatabaseChangedEvent;
+    | { kind: "disconnected"; timestampNs: uint64; sequence: uint64 }
+    | { kind: "pairingChanged"; timestampNs: uint64; sequence: uint64; pairing: BluetoothPairing }
+    | { kind: "gattChanged"; timestampNs: uint64; sequence: uint64 }
+    | { kind: "overflow"; timestampNs: uint64; sequence: uint64; droppedCount: uint64 };
 
-/// GATT service metadata.
+/// Bluetooth GATT service.
 export struct BluetoothGattService {
     /// Stable service identifier within this device session.
     id: string;
     /// Service UUID.
     uuid: string;
-    /// Whether this service is primary.
-    primary: boolean;
+    /// Whether this is a primary service.
+    isPrimary: boolean;
     /// Included service identifiers.
-    includedServiceIds: Array<string>;
+    includedServiceIds: [string];
 }
 
-/// GATT characteristic metadata.
+/// Bluetooth GATT characteristic.
 export struct BluetoothGattCharacteristic {
     /// Stable characteristic identifier within this device session.
     id: string;
-    /// Parent service identifier.
+    /// Owning service identifier.
     serviceId: string;
     /// Characteristic UUID.
     uuid: string;
-    /// Characteristic property set.
-    properties: BluetoothGattCharacteristicProperties;
+    /// Characteristic property flags.
+    properties: BluetoothGattProperties;
 }
 
-/// GATT descriptor metadata.
+/// Bluetooth GATT descriptor.
 export struct BluetoothGattDescriptor {
     /// Stable descriptor identifier within this device session.
     id: string;
-    /// Parent service identifier.
-    serviceId: string;
-    /// Parent characteristic identifier.
+    /// Owning characteristic identifier.
     characteristicId: string;
     /// Descriptor UUID.
     uuid: string;
 }
 
+/// Bluetooth GATT value event.
+export struct BluetoothGattValueEvent {
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Monotonic sequence number for this subscription.
+    sequence: uint64;
+    /// Characteristic identifier.
+    characteristicId: string;
+    /// Value bytes written.
+    bytes: uint64;
+}
+
 /// List Bluetooth adapters.
-@binding("destack.device.bluetooth.adapterList", {
+@binding("destack.device.bluetooth.adapter.list", {
     effect: "external",
-    requires: ["device.bluetooth.scan"],
+    requires: ["device.bluetooth.list"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function bluetoothAdapterList(): Result<
-    Slice<BluetoothAdapterDescriptor>,
+export declare function listBluetoothAdapters(): Result<^Array<BluetoothAdapter>, PlatformError>;
+
+/// Open a Bluetooth adapter topology watch.
+@binding("destack.device.bluetooth.adapter.watch.open", {
+    effect: "external",
+    requires: ["device.bluetooth.list"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function openBluetoothAdapterWatch(): Result<
+    BluetoothAdapterWatchHandle,
     PlatformError
 >;
 
-/// Open a Bluetooth adapter watch stream.
-@binding("destack.device.bluetooth.adapterWatchOpen", {
+/// Close a Bluetooth adapter topology watch.
+@binding("destack.device.bluetooth.adapter.watch.close", {
     effect: "external",
-    requires: ["device.bluetooth.scan"],
+    requires: ["device.bluetooth.list"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function bluetoothAdapterWatchOpen(): Result<BluetoothAdapterWatchHandle, PlatformError>;
-
-/// Close a Bluetooth adapter watch stream.
-@binding("destack.device.bluetooth.adapterWatchClose", {
-    effect: "external",
-    requires: ["device.bluetooth.scan"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function bluetoothAdapterWatchClose(
-    handle: BluetoothAdapterWatchHandle,
+export declare function closeBluetoothAdapterWatch(
+    watch: BluetoothAdapterWatchHandle,
 ): Result<void, PlatformError>;
 
-/// Read one Bluetooth adapter event.
-@binding("destack.device.bluetooth.adapterWatchRead", {
+/// Read one Bluetooth adapter topology event.
+@binding("destack.device.bluetooth.adapter.watch.read", {
     effect: "external",
-    requires: ["device.bluetooth.scan"],
+    requires: ["device.bluetooth.list"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function bluetoothAdapterWatchRead(
-    handle: BluetoothAdapterWatchHandle,
-    timeoutNs: uint64,
+export declare function readBluetoothAdapterWatch(
+    watch: BluetoothAdapterWatchHandle,
+    timeoutNs?: uint64,
 ): Result<BluetoothAdapterEvent, PlatformError>;
 
-/// Poll one Bluetooth adapter event without blocking.
-@binding("destack.device.bluetooth.adapterWatchTryRead", {
-    effect: "external",
-    requires: ["device.bluetooth.scan"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function bluetoothAdapterWatchTryRead(
-    handle: BluetoothAdapterWatchHandle,
-): Result<BluetoothAdapterEvent, PlatformError>;
-
-/// Open a Bluetooth scan session.
+/// Open a Bluetooth LE scan.
 @binding("destack.device.bluetooth.scan.open", {
     effect: "external",
     requires: ["device.bluetooth.scan"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function bluetoothScanOpen(
-    adapterId: string,
-    filter?: BluetoothScanFilter,
+export declare function openBluetoothScan(
+    options: &readonly BluetoothScanOptions,
 ): Result<BluetoothScanHandle, PlatformError>;
 
-/// Close a Bluetooth scan session.
+/// Close a Bluetooth LE scan.
 @binding("destack.device.bluetooth.scan.close", {
     effect: "external",
     requires: ["device.bluetooth.scan"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function bluetoothScanClose(handle: BluetoothScanHandle): Result<void, PlatformError>;
+export declare function closeBluetoothScan(scan: BluetoothScanHandle): Result<void, PlatformError>;
 
 /// Read one Bluetooth scan event.
-@binding("destack.device.bluetooth.scan.readEvent", {
+@binding("destack.device.bluetooth.scan.read", {
     effect: "external",
     requires: ["device.bluetooth.scan"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function bluetoothScanReadEvent(
-    handle: BluetoothScanHandle,
-    timeoutNs: uint64,
-): Result<BluetoothScanEvent, PlatformError>;
-
-/// Poll one Bluetooth scan event without blocking.
-@binding("destack.device.bluetooth.scan.tryReadEvent", {
-    effect: "external",
-    requires: ["device.bluetooth.scan"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function bluetoothScanTryReadEvent(
-    handle: BluetoothScanHandle,
+export declare function readBluetoothScan(
+    scan: BluetoothScanHandle,
+    timeoutNs?: uint64,
 ): Result<BluetoothScanEvent, PlatformError>;
 
 /// Open a Bluetooth device session.
-@binding("destack.device.bluetooth.session.open", {
+@binding("destack.device.bluetooth.open", {
     effect: "external",
     requires: ["device.bluetooth.connect"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function bluetoothOpen(
-    adapterId: string,
-    deviceId: string,
+export declare function openBluetoothDevice(
+    id: &readonly string,
 ): Result<BluetoothDeviceHandle, PlatformError>;
 
 /// Close a Bluetooth device session.
-@binding("destack.device.bluetooth.session.close", {
+@binding("destack.device.bluetooth.close", {
     effect: "external",
     requires: ["device.bluetooth.connect"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function bluetoothClose(handle: BluetoothDeviceHandle): Result<void, PlatformError>;
+export declare function closeBluetoothDevice(
+    device: BluetoothDeviceHandle,
+): Result<void, PlatformError>;
 
-/// Read the current Bluetooth device descriptor.
-@binding("destack.device.bluetooth.session.descriptor", {
+/// Describe a Bluetooth device session.
+@binding("destack.device.bluetooth.describe", {
     effect: "external",
     requires: ["device.bluetooth.connect"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function bluetoothDescriptor(
-    handle: BluetoothDeviceHandle,
-): Result<BluetoothDeviceDescriptor, PlatformError>;
+export declare function describeBluetoothDevice(
+    device: BluetoothDeviceHandle,
+): Result<BluetoothDevice, PlatformError>;
 
 /// Read one Bluetooth session event.
-@binding("destack.device.bluetooth.session.readEvent", {
+@binding("destack.device.bluetooth.event.read", {
     effect: "external",
     requires: ["device.bluetooth.connect"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function bluetoothSessionReadEvent(
-    handle: BluetoothDeviceHandle,
-    timeoutNs: uint64,
+export declare function readBluetoothEvent(
+    device: BluetoothDeviceHandle,
+    timeoutNs?: uint64,
 ): Result<BluetoothSessionEvent, PlatformError>;
 
-/// Poll one Bluetooth session event without blocking.
-@binding("destack.device.bluetooth.session.tryReadEvent", {
+/// Pair a Bluetooth device.
+@binding("destack.device.bluetooth.pair", {
     effect: "external",
     requires: ["device.bluetooth.connect"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function bluetoothSessionTryReadEvent(
-    handle: BluetoothDeviceHandle,
-): Result<BluetoothSessionEvent, PlatformError>;
-
-/// Pair one Bluetooth device.
-@binding("destack.device.bluetooth.session.pair", {
-    effect: "external",
-    replay: "forbidden",
-    requires: ["device.bluetooth.connect"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function bluetoothPair(
-    handle: BluetoothDeviceHandle,
-    timeoutNs: uint64,
+export declare function pairBluetoothDevice(
+    device: BluetoothDeviceHandle,
 ): Result<void, PlatformError>;
 
-/// Remove one Bluetooth device bond.
-@binding("destack.device.bluetooth.session.unpair", {
+/// Unpair a Bluetooth device.
+@binding("destack.device.bluetooth.unpair", {
     effect: "external",
-    replay: "forbidden",
     requires: ["device.bluetooth.connect"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function bluetoothUnpair(
-    adapterId: string,
-    deviceId: string,
+export declare function unpairBluetoothDevice(
+    device: BluetoothDeviceHandle,
 ): Result<void, PlatformError>;
 
-/// Read link RSSI for one Bluetooth device session.
-@binding("destack.device.bluetooth.session.rssi", {
+/// Read Bluetooth signal strength.
+@binding("destack.device.bluetooth.rssi", {
     effect: "external",
     requires: ["device.bluetooth.connect"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function bluetoothReadRssi(
-    handle: BluetoothDeviceHandle,
-    timeoutNs: uint64,
+export declare function readBluetoothRssi(
+    device: BluetoothDeviceHandle,
 ): Result<int32, PlatformError>;
 
-/// List discovered GATT services.
-@binding("destack.device.bluetooth.gatt.serviceList", {
+/// List Bluetooth GATT services.
+@binding("destack.device.bluetooth.gatt.service.list", {
     effect: "external",
     requires: ["device.bluetooth.gatt"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function bluetoothGattServiceList(
-    handle: BluetoothDeviceHandle,
-): Result<Slice<BluetoothGattService>, PlatformError>;
+export declare function listBluetoothGattServices(
+    device: BluetoothDeviceHandle,
+): Result<^Array<BluetoothGattService>, PlatformError>;
 
-/// List discovered GATT characteristics for one service.
-@binding("destack.device.bluetooth.gatt.characteristicList", {
+/// List Bluetooth GATT characteristics.
+@binding("destack.device.bluetooth.gatt.characteristic.list", {
     effect: "external",
     requires: ["device.bluetooth.gatt"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function bluetoothGattCharacteristicList(
-    handle: BluetoothDeviceHandle,
-    serviceId: string,
-): Result<Slice<BluetoothGattCharacteristic>, PlatformError>;
+export declare function listBluetoothGattCharacteristics(
+    device: BluetoothDeviceHandle,
+    serviceId: &readonly string,
+): Result<^Array<BluetoothGattCharacteristic>, PlatformError>;
 
-/// List discovered GATT descriptors for one characteristic.
-@binding("destack.device.bluetooth.gatt.descriptorList", {
+/// List Bluetooth GATT descriptors.
+@binding("destack.device.bluetooth.gatt.descriptor.list", {
     effect: "external",
     requires: ["device.bluetooth.gatt"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function bluetoothGattDescriptorList(
-    handle: BluetoothDeviceHandle,
-    characteristicId: string,
-): Result<Slice<BluetoothGattDescriptor>, PlatformError>;
+export declare function listBluetoothGattDescriptors(
+    device: BluetoothDeviceHandle,
+    characteristicId: &readonly string,
+): Result<^Array<BluetoothGattDescriptor>, PlatformError>;
 
-/// Read one GATT descriptor value.
-@binding("destack.device.bluetooth.gatt.readDescriptor", {
+/// Read a Bluetooth GATT characteristic.
+@binding("destack.device.bluetooth.gatt.characteristic.read", {
     effect: "external",
     requires: ["device.bluetooth.gatt"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function bluetoothGattReadDescriptor(
-    handle: BluetoothDeviceHandle,
-    descriptorId: string,
-    timeoutNs: uint64,
-): Result<Slice<uint8>, PlatformError>;
+export declare function readBluetoothGattCharacteristic(
+    device: BluetoothDeviceHandle,
+    characteristicId: &readonly string,
+    buffer: &[uint8],
+): Result<uint64, PlatformError>;
 
-/// Write one GATT descriptor value.
-@binding("destack.device.bluetooth.gatt.writeDescriptor", {
+/// Write a Bluetooth GATT characteristic.
+@binding("destack.device.bluetooth.gatt.characteristic.write", {
     effect: "external",
     requires: ["device.bluetooth.gatt"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function bluetoothGattWriteDescriptor(
-    handle: BluetoothDeviceHandle,
-    descriptorId: string,
-    value: Slice<uint8>,
-    timeoutNs: uint64,
-): Result<void, PlatformError>;
-
-/// Read current ATT MTU.
-@binding("destack.device.bluetooth.gatt.mtu", {
-    effect: "external",
-    requires: ["device.bluetooth.gatt"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function bluetoothGattMtu(handle: BluetoothDeviceHandle): Result<uint16, PlatformError>;
-
-/// Read one GATT characteristic value.
-@binding("destack.device.bluetooth.gatt.read", {
-    effect: "external",
-    requires: ["device.bluetooth.gatt"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function bluetoothGattRead(
-    handle: BluetoothDeviceHandle,
-    characteristicId: string,
-    timeoutNs: uint64,
-): Result<Slice<uint8>, PlatformError>;
-
-/// Write one GATT characteristic value.
-@binding("destack.device.bluetooth.gatt.write", {
-    effect: "external",
-    requires: ["device.bluetooth.gatt"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function bluetoothGattWrite(
-    handle: BluetoothDeviceHandle,
-    characteristicId: string,
-    value: Slice<uint8>,
+export declare function writeBluetoothGattCharacteristic(
+    device: BluetoothDeviceHandle,
+    characteristicId: &readonly string,
+    value: &readonly [uint8],
     mode: BluetoothGattWriteMode,
-    timeoutNs: uint64,
 ): Result<void, PlatformError>;
 
-/// Subscribe one GATT characteristic.
+/// Read a Bluetooth GATT descriptor.
+@binding("destack.device.bluetooth.gatt.descriptor.read", {
+    effect: "external",
+    requires: ["device.bluetooth.gatt"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function readBluetoothGattDescriptor(
+    device: BluetoothDeviceHandle,
+    descriptorId: &readonly string,
+    buffer: &[uint8],
+): Result<uint64, PlatformError>;
+
+/// Write a Bluetooth GATT descriptor.
+@binding("destack.device.bluetooth.gatt.descriptor.write", {
+    effect: "external",
+    requires: ["device.bluetooth.gatt"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function writeBluetoothGattDescriptor(
+    device: BluetoothDeviceHandle,
+    descriptorId: &readonly string,
+    value: &readonly [uint8],
+): Result<void, PlatformError>;
+
+/// Subscribe to Bluetooth GATT value notifications.
 @binding("destack.device.bluetooth.gatt.subscribe", {
     effect: "external",
     requires: ["device.bluetooth.gatt"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function bluetoothGattSubscribe(
-    handle: BluetoothDeviceHandle,
-    characteristicId: string,
+export declare function subscribeBluetoothGatt(
+    device: BluetoothDeviceHandle,
+    characteristicId: &readonly string,
 ): Result<BluetoothSubscriptionHandle, PlatformError>;
 
-/// Unsubscribe one GATT characteristic.
+/// Unsubscribe from Bluetooth GATT value notifications.
 @binding("destack.device.bluetooth.gatt.unsubscribe", {
     effect: "external",
     requires: ["device.bluetooth.gatt"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function bluetoothGattUnsubscribe(
-    handle: BluetoothSubscriptionHandle,
+export declare function unsubscribeBluetoothGatt(
+    subscription: BluetoothSubscriptionHandle,
 ): Result<void, PlatformError>;
 
-/// Read one GATT value event.
-@binding("destack.device.bluetooth.gatt.readEvent", {
+/// Read one Bluetooth GATT value notification.
+@binding("destack.device.bluetooth.gatt.event.read", {
     effect: "external",
     requires: ["device.bluetooth.gatt"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function bluetoothGattReadEvent(
-    handle: BluetoothSubscriptionHandle,
-    timeoutNs: uint64,
-): Result<BluetoothGattValueEvent, PlatformError>;
-
-/// Poll one GATT value event without blocking.
-@binding("destack.device.bluetooth.gatt.tryReadEvent", {
-    effect: "external",
-    requires: ["device.bluetooth.gatt"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function bluetoothGattTryReadEvent(
-    handle: BluetoothSubscriptionHandle,
+export declare function readBluetoothGattEvent(
+    subscription: BluetoothSubscriptionHandle,
+    buffer: &[uint8],
+    timeoutNs?: uint64,
 ): Result<BluetoothGattValueEvent, PlatformError>;
