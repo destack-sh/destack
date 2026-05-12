@@ -6,25 +6,25 @@ use destack_parser::{Parser, ParserOptions};
 use destack_source::{File, LanguageType, ModuleId, PackageId, Span};
 use destack_workspace::ProviderContext;
 
-use crate::{SessionError, SessionProviderContext, SessionState};
+use crate::{ProviderAttempt, SessionError, SessionState};
 
 impl SessionState {
     /// Provide one AST artifact from source.
     pub(crate) fn provide_ast(
         &self,
         module_id: ModuleId,
-        context: &SessionProviderContext,
+        attempt: &ProviderAttempt,
     ) -> Result<ArtifactPayload, SessionError> {
-        let revision = context.revision();
+        let revision = attempt.revision();
         let module = self
             .repository()
             .module(revision, module_id)?
             .ok_or(SessionError::ModuleNotTracked { module_id })?;
-        let file = self.file(revision, module.file_id, context)?;
+        let file = self.file(revision, module.file_id, attempt)?;
 
         // parse real code modules only
         let ast = if module.loader.is_code() && file.ty.is_code() {
-            self.parse_code_ast(file.clone(), module.package_id, context)?
+            self.parse_code_ast(file.clone(), module.package_id, attempt)?
         } else {
             self.empty_ast(file.as_ref())
         };
@@ -49,7 +49,7 @@ impl SessionState {
         &self,
         file: Arc<File>,
         _package_id: PackageId,
-        context: &SessionProviderContext,
+        attempt: &ProviderAttempt,
     ) -> Result<Ast, SessionError> {
         // figure out language
         let language_type =
@@ -64,7 +64,7 @@ impl SessionState {
             self.repository().string_pool().clone(),
         );
         let expressions = parser.parse();
-        context.emit_collection(parser.diagnostics.collect());
+        attempt.emit_collection(parser.diagnostics.collect());
 
         // preserve parser side data in the artifact payload
         let (tokens, side_tokens) = parser.take_tokens();

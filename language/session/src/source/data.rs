@@ -3,21 +3,21 @@ use destack_css::parse_css;
 use destack_html::parse_html;
 use destack_source::{File, FileId, FileType, ModuleId, Span};
 
-use crate::{SessionError, SessionProviderContext, SessionState};
+use crate::{ProviderAttempt, SessionError, SessionState};
 
 impl SessionState {
     /// Provide one data artifact from source.
     pub(crate) fn provide_data(
         &self,
         module_id: ModuleId,
-        context: &SessionProviderContext,
+        attempt: &ProviderAttempt,
     ) -> Result<ArtifactPayload, SessionError> {
-        let revision = context.revision();
+        let revision = attempt.revision();
         let module = self
             .repository()
             .module(revision, module_id)?
             .ok_or(SessionError::ModuleNotTracked { module_id })?;
-        let file = self.file(revision, module.file_id, context)?;
+        let file = self.file(revision, module.file_id, attempt)?;
         let data = match file.ty {
             FileType::Html => self.parse_html_data(file.as_ref()),
             FileType::Css => self.parse_css_data(file.as_ref())?,
