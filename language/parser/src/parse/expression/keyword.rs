@@ -191,10 +191,7 @@ impl Parser {
             let is_type_relation = is_type_relation_keyword(next_keyword);
             let starts_alias_head = matches!(
                 following_token_type,
-                TokenType::Assign
-                    | TokenType::LessThan
-                    | TokenType::ShiftLeft
-                    | TokenType::SaturatingShiftLeft
+                TokenType::Assign | TokenType::LessThan | TokenType::ShiftLeft
             );
 
             is_type_relation && !starts_alias_head

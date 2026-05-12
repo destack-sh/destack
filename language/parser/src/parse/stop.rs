@@ -467,7 +467,7 @@ impl Parser {
                     TokenType::GreaterThan if track_angle => {
                         angle_depth = angle_depth.saturating_sub(1);
                     }
-                    TokenType::ShiftLeft | TokenType::SaturatingShiftLeft if track_angle => {
+                    TokenType::ShiftLeft if track_angle => {
                         angle_depth += 2;
                     }
                     TokenType::ShiftRight if track_angle => {

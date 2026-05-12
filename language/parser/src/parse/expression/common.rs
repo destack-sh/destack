@@ -28,10 +28,9 @@ pub static PATTERN_START_TOKENS: [TokenType; 6] = [
 
 // can't use anything with `<` or `>` in generic arguments
 // (to avoid parsing ambiguity with `<>` brackets)
-pub(super) static NOT_IN_GENERIC_ARGUMENT_BINARY_OPERATORS: [BinaryOperator; 8] = [
+pub(super) static NOT_IN_GENERIC_ARGUMENT_BINARY_OPERATORS: [BinaryOperator; 7] = [
     // shift
     BinaryOperator::ShiftLeft,
-    BinaryOperator::SaturatingShiftLeft,
     BinaryOperator::ShiftRight,
     BinaryOperator::UnsignedShiftRight,
     // comparison
@@ -42,10 +41,9 @@ pub(super) static NOT_IN_GENERIC_ARGUMENT_BINARY_OPERATORS: [BinaryOperator; 8] 
 ];
 
 // can't use anything with `<` or `>` in tree fragments
-pub(super) static NOT_IN_TREE_BINARY_OPERATORS: [BinaryOperator; 9] = [
+pub(super) static NOT_IN_TREE_BINARY_OPERATORS: [BinaryOperator; 8] = [
     // shift
     BinaryOperator::ShiftLeft,
-    BinaryOperator::SaturatingShiftLeft,
     BinaryOperator::ShiftRight,
     BinaryOperator::UnsignedShiftRight,
     // comparison

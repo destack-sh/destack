@@ -1195,7 +1195,7 @@ impl Parser {
 
             match token_type {
                 TokenType::LessThan => angle_depth += 1,
-                TokenType::ShiftLeft | TokenType::SaturatingShiftLeft => angle_depth += 2,
+                TokenType::ShiftLeft => angle_depth += 2,
                 TokenType::ShiftRight => {
                     if angle_depth == 2 {
                         found_close = true;

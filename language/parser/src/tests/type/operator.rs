@@ -74,6 +74,7 @@ fn test_parse_type_unary_prefix_operator_span() {
     });
 }
 
+#[test]
 fn test_parse_typescript_type_expression_keeps_shared_as_identifier() {
     let mut test = TestParser::new_with_language("shared Value", LanguageType::TypeScript);
     let mut parser = test.prepare();

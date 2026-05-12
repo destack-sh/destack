@@ -41,21 +41,12 @@ pub const EXPRESSION_START_TOKEN_TYPES: &[TokenType] = &[
     TokenType::Not,
     TokenType::ElementwiseNot,
     TokenType::Multiply,
-    TokenType::WrappingMultiply,
-    TokenType::SaturatingMultiply,
     TokenType::Exponent,
-    TokenType::WrappingExponent,
-    TokenType::SaturatingExponent,
     TokenType::Divide,
     TokenType::Remainder,
     TokenType::Add,
-    TokenType::WrappingAdd,
-    TokenType::SaturatingAdd,
     TokenType::Subtract,
-    TokenType::WrappingSubtract,
-    TokenType::SaturatingSubtract,
     TokenType::ShiftLeft,
-    TokenType::SaturatingShiftLeft,
     TokenType::ShiftRight,
     TokenType::UnsignedShiftRight,
     TokenType::ElementwiseAnd,
@@ -81,21 +72,12 @@ pub const EXPRESSION_START_TOKEN_TYPES: &[TokenType] = &[
     TokenType::Arrow,
     TokenType::ArrowWide,
     TokenType::MultiplyAssign,
-    TokenType::WrappingMultiplyAssign,
-    TokenType::SaturatingMultiplyAssign,
     TokenType::ExponentAssign,
-    TokenType::WrappingExponentAssign,
-    TokenType::SaturatingExponentAssign,
     TokenType::DivideAssign,
     TokenType::RemainderAssign,
     TokenType::AddAssign,
-    TokenType::WrappingAddAssign,
-    TokenType::SaturatingAddAssign,
     TokenType::SubtractAssign,
-    TokenType::WrappingSubtractAssign,
-    TokenType::SaturatingSubtractAssign,
     TokenType::ShiftLeftAssign,
-    TokenType::SaturatingShiftLeftAssign,
     TokenType::ShiftRightAssign,
     TokenType::UnsignedShiftRightAssign,
     TokenType::ElementwiseAndAssign,
@@ -453,32 +435,6 @@ impl Lexer {
                     self.eat();
                     (TokenType::Arrow, None)
                 }
-                // -%
-                else if self.peek() == '%' {
-                    self.eat();
-                    // -%=
-                    if self.peek() == '=' {
-                        self.eat();
-                        (TokenType::WrappingSubtractAssign, None)
-                    }
-                    // -%
-                    else {
-                        (TokenType::WrappingSubtract, None)
-                    }
-                }
-                // -|
-                else if self.peek() == '|' {
-                    self.eat();
-                    // -|=
-                    if self.peek() == '=' {
-                        self.eat();
-                        (TokenType::SaturatingSubtractAssign, None)
-                    }
-                    // -|
-                    else {
-                        (TokenType::SaturatingSubtract, None)
-                    }
-                }
                 // -=
                 else if self.peek() == '=' {
                     self.eat();
@@ -569,15 +525,7 @@ impl Lexer {
             '<' => {
                 if self.peek() == '<' {
                     self.eat();
-                    if self.peek() == '|' {
-                        self.eat();
-                        if self.peek() == '=' {
-                            self.eat();
-                            (TokenType::SaturatingShiftLeftAssign, None)
-                        } else {
-                            (TokenType::SaturatingShiftLeft, None)
-                        }
-                    } else if self.peek() == '=' {
+                    if self.peek() == '=' {
                         self.eat();
                         (TokenType::ShiftLeftAssign, None)
                     } else {
@@ -635,34 +583,8 @@ impl Lexer {
 
             // add
             '+' => {
-                // +%
-                if self.peek() == '%' {
-                    self.eat();
-                    // +%=
-                    if self.peek() == '=' {
-                        self.eat();
-                        (TokenType::WrappingAddAssign, None)
-                    }
-                    // +%
-                    else {
-                        (TokenType::WrappingAdd, None)
-                    }
-                }
-                // +|
-                else if self.peek() == '|' {
-                    self.eat();
-                    // +|=
-                    if self.peek() == '=' {
-                        self.eat();
-                        (TokenType::SaturatingAddAssign, None)
-                    }
-                    // +|
-                    else {
-                        (TokenType::SaturatingAdd, None)
-                    }
-                }
                 // +=
-                else if self.peek() == '=' {
+                if self.peek() == '=' {
                     self.eat();
                     (TokenType::AddAssign, None)
                 }
@@ -679,69 +601,17 @@ impl Lexer {
 
             // multiply
             '*' => {
-                // ** (exponent, exponent assign, wrapping/saturating exponent, etc)
+                // ** and **=
                 if self.peek() == '*' {
                     self.eat();
-                    // **%
-                    if self.peek() == '%' {
-                        self.eat();
-                        // **%=
-                        if self.peek() == '=' {
-                            self.eat();
-                            (TokenType::WrappingExponentAssign, None)
-                        }
-                        // **%
-                        else {
-                            (TokenType::WrappingExponent, None)
-                        }
-                    }
-                    // **|
-                    else if self.peek() == '|' {
-                        self.eat();
-                        // **|=
-                        if self.peek() == '=' {
-                            self.eat();
-                            (TokenType::SaturatingExponentAssign, None)
-                        }
-                        // **|
-                        else {
-                            (TokenType::SaturatingExponent, None)
-                        }
-                    }
                     // **=
-                    else if self.peek() == '=' {
+                    if self.peek() == '=' {
                         self.eat();
                         (TokenType::ExponentAssign, None)
                     }
                     // **
                     else {
                         (TokenType::Exponent, None)
-                    }
-                }
-                // *%
-                else if self.peek() == '%' {
-                    self.eat();
-                    // *%=
-                    if self.peek() == '=' {
-                        self.eat();
-                        (TokenType::WrappingMultiplyAssign, None)
-                    }
-                    // *%
-                    else {
-                        (TokenType::WrappingMultiply, None)
-                    }
-                }
-                // *|
-                else if self.peek() == '|' {
-                    self.eat();
-                    // *|=
-                    if self.peek() == '=' {
-                        self.eat();
-                        (TokenType::SaturatingMultiplyAssign, None)
-                    }
-                    // *|
-                    else {
-                        (TokenType::SaturatingMultiply, None)
                     }
                 }
                 // *=
