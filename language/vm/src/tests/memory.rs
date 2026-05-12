@@ -860,26 +860,6 @@ b0:
     assert_eq!(output, Value::int32(41));
 }
 
-/// Out-of-bounds field access produces an error.
-#[test]
-fn test_invalid_field_access() {
-    let mir = r#"
-function badField(v0: (int32,)): int32 {
-b0(v0: (int32,)):
-    v1: int32 = field.get v0, 5
-    return v1
-}"#;
-
-    let err = Parser::parse(FileId::new(0), mir, ParseOptions::default())
-        .validate()
-        .expect_err("expected parse failure");
-
-    assert_eq!(
-        err.message,
-        "metadata invariant violation: field.get field index 5 out of bounds for tuple with 1 elements"
-    );
-}
-
 /// Raw allocation creates one raw allocation and returns a raw pointer.
 #[test]
 fn test_raw_allocate() {

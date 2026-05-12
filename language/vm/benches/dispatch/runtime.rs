@@ -33,7 +33,7 @@ impl Runtime {
     pub(crate) fn new(program: &str, entry: &str) -> Self {
         // parse the benchmark program
         let (tree, strings) = Parser::parse(FileId::new(0), program, ParseOptions::default())
-            .validate()
+            .finish()
             .expect("benchmark MIR should parse");
 
         // build the VM isolate
