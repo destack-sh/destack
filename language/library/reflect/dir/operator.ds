@@ -14,8 +14,6 @@ export enum UnaryOperator {
     Plus,
     /// `-`
     Negate,
-    /// `-%`
-    WrappingNegate,
     /// `~`
     ElementwiseNot,
     /// `typeof`
@@ -32,36 +30,18 @@ export enum UnaryOperator {
 export enum BinaryOperator {
     /// `*`
     Multiply,
-    /// `*%`
-    WrappingMultiply,
-    /// `*|`
-    SaturatingMultiply,
     /// `**`
     Exponent,
-    /// `**%`
-    WrappingExponent,
-    /// `**|`
-    SaturatingExponent,
     /// `/`
     Divide,
     /// `%`
     Remainder,
     /// `+`
     Add,
-    /// `+%`
-    WrappingAdd,
-    /// `+|`
-    SaturatingAdd,
     /// `-`
     Subtract,
-    /// `-%`
-    WrappingSubtract,
-    /// `-|`
-    SaturatingSubtract,
     /// `<<`
     ShiftLeft,
-    /// `<<|`
-    SaturatingShiftLeft,
     /// `>>`
     ShiftRight,
     /// `>>>`
@@ -102,36 +82,18 @@ export enum BinaryOperator {
 export enum AssignOperator {
     /// `*=`
     MultiplyAssign,
-    /// `*%=`
-    WrappingMultiplyAssign,
-    /// `*|=`
-    SaturatingMultiplyAssign,
     /// `**=`
     ExponentAssign,
-    /// `**%=`
-    WrappingExponentAssign,
-    /// `**|=`
-    SaturatingExponentAssign,
     /// `/=`
     DivideAssign,
     /// `%=`
     RemainderAssign,
     /// `+=`
     AddAssign,
-    /// `+%=`
-    WrappingAddAssign,
-    /// `+|=`
-    SaturatingAddAssign,
     /// `-=`
     SubtractAssign,
-    /// `-%=`
-    WrappingSubtractAssign,
-    /// `-|=`
-    SaturatingSubtractAssign,
     /// `<<=`
     ShiftLeftAssign,
-    /// `<<|=`
-    SaturatingShiftLeftAssign,
     /// `>>=`
     ShiftRightAssign,
     /// `>>>=`
