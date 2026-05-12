@@ -222,15 +222,3 @@ const cat: Cat = getDog();
 ```
 
 - contains: not assignable
-
-## rejections
-
-### structs reject extends
-
-```ds
-struct Base {}
-
-struct Counter extends Base {}
-```
-
-- contains: invalid lineage
