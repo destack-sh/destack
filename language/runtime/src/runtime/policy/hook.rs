@@ -12,9 +12,7 @@ use crate::platform::{
 use crate::runtime::WorkerId;
 use crate::runtime::binding::{BindingDescriptor, BindingEngine};
 use crate::runtime::trace::Observation;
-use crate::runtime::world::{
-    RuntimeId, WorldEntityKind, WorldResource, WorldResourceId, WorldState,
-};
+use crate::runtime::world::{EntityKind, RuntimeId, WorldResource, WorldResourceId, WorldState};
 use destack_source::matches as glob_matches;
 use destack_workspace::ExecutionMode;
 
@@ -745,7 +743,7 @@ impl Hooks {
     ) -> RuntimeResult<()> {
         let resource = WorldResource::new(
             WorldResourceId::new(self.worker_id, resource_id),
-            WorldEntityKind::from(resource_kind.kind_id()),
+            EntityKind::from(resource_kind.kind_id()),
             resource_label.map(ToString::to_string),
             resource_backing,
             resource_capture,

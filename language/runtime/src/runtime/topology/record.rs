@@ -2,13 +2,13 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
-use super::{WorldEdgeId, WorldEdgeKind, WorldEntityId, WorldEntityKind};
+use super::{EdgeId, EdgeKind, EntityId, EntityKind};
 
 /// Topology entity-kind registration payload.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct WorldEntityKindDefinition {
+pub struct EntityDefinition {
     /// Stable kind identifier.
-    pub kind: WorldEntityKind,
+    pub kind: EntityKind,
     /// Kind labels for selector matching.
     pub labels: BTreeMap<String, String>,
     /// Fault verbs supported by this kind.
@@ -16,9 +16,9 @@ pub struct WorldEntityKindDefinition {
     pub supported_faults: BTreeSet<String>,
 }
 
-impl WorldEntityKindDefinition {
+impl EntityDefinition {
     /// Create one entity kind definition.
-    pub fn new(kind: impl Into<WorldEntityKind>) -> Self {
+    pub fn new(kind: impl Into<EntityKind>) -> Self {
         Self {
             kind: kind.into(),
             labels: BTreeMap::new(),
@@ -53,9 +53,9 @@ impl WorldEntityKindDefinition {
 
 /// Topology edge-kind registration payload.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct WorldEdgeKindDefinition {
+pub struct EdgeDefinition {
     /// Stable kind identifier.
-    pub kind: WorldEdgeKind,
+    pub kind: EdgeKind,
     /// Kind labels for selector matching.
     pub labels: BTreeMap<String, String>,
     /// Fault verbs supported by this kind.
@@ -63,9 +63,9 @@ pub struct WorldEdgeKindDefinition {
     pub supported_faults: BTreeSet<String>,
 }
 
-impl WorldEdgeKindDefinition {
+impl EdgeDefinition {
     /// Create one edge kind definition.
-    pub fn new(kind: impl Into<WorldEdgeKind>) -> Self {
+    pub fn new(kind: impl Into<EdgeKind>) -> Self {
         Self {
             kind: kind.into(),
             labels: BTreeMap::new(),
@@ -100,18 +100,18 @@ impl WorldEdgeKindDefinition {
 
 /// Topology entity payload.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct WorldEntity {
+pub struct Entity {
     /// Stable entity identifier.
-    pub id: WorldEntityId,
+    pub id: EntityId,
     /// Stable entity kind identifier.
-    pub kind: WorldEntityKind,
+    pub kind: EntityKind,
     /// Entity labels.
     pub labels: BTreeMap<String, String>,
 }
 
-impl WorldEntity {
+impl Entity {
     /// Create one entity payload.
-    pub fn new(id: impl Into<WorldEntityId>, kind: impl Into<WorldEntityKind>) -> Self {
+    pub fn new(id: impl Into<EntityId>, kind: impl Into<EntityKind>) -> Self {
         Self {
             id: id.into(),
             kind: kind.into(),
@@ -134,26 +134,26 @@ impl WorldEntity {
 
 /// Topology edge payload.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct WorldEdge {
+pub struct Edge {
     /// Stable edge identifier.
-    pub id: WorldEdgeId,
+    pub id: EdgeId,
     /// Stable edge kind identifier.
-    pub kind: WorldEdgeKind,
+    pub kind: EdgeKind,
     /// Source entity identifier.
-    pub from: WorldEntityId,
+    pub from: EntityId,
     /// Destination entity identifier.
-    pub to: WorldEntityId,
+    pub to: EntityId,
     /// Edge labels.
     pub labels: BTreeMap<String, String>,
 }
 
-impl WorldEdge {
+impl Edge {
     /// Create one edge payload.
     pub fn new(
-        id: impl Into<WorldEdgeId>,
-        kind: impl Into<WorldEdgeKind>,
-        from: impl Into<WorldEntityId>,
-        to: impl Into<WorldEntityId>,
+        id: impl Into<EdgeId>,
+        kind: impl Into<EdgeKind>,
+        from: impl Into<EntityId>,
+        to: impl Into<EntityId>,
     ) -> Self {
         Self {
             id: id.into(),

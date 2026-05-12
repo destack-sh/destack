@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::world::topology::Topology;
-use crate::runtime::world::{WorldEdgeId, WorldEdgeKind, WorldEntityId, WorldEntityKind};
+use crate::runtime::world::{EdgeId, EdgeKind, EntityId, EntityKind};
 use destack_workspace as workspace;
 
 use super::{Rule, RuleAction};
@@ -101,18 +101,18 @@ pub enum FaultResourceKind {
 /// Selector for one simulation-world entity target.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub enum WorldEntitySelector {
+pub enum EntitySelector {
     /// Match all entities of this class.
     Any,
     /// Match one entity by stable id.
     Id {
         /// Stable simulation-world entity identifier.
-        entity_id: WorldEntityId,
+        entity_id: EntityId,
     },
     /// Match a fixed set of entities by stable id.
     Ids {
         /// Stable simulation-world entity identifiers.
-        entity_ids: Vec<WorldEntityId>,
+        entity_ids: Vec<EntityId>,
     },
     /// Match entities by label constraints.
     Labels {
@@ -122,25 +122,25 @@ pub enum WorldEntitySelector {
     /// Match one deterministically chosen entity from one selector result set.
     ChooseOne {
         /// Source selector for deterministic sampling.
-        selector: Box<WorldEntitySelector>,
+        selector: Box<EntitySelector>,
     },
 }
 
-impl WorldEntitySelector {
+impl EntitySelector {
     /// Match all entities.
     pub fn any() -> Self {
         Self::Any
     }
 
     /// Match one entity id.
-    pub fn id(entity_id: impl Into<WorldEntityId>) -> Self {
+    pub fn id(entity_id: impl Into<EntityId>) -> Self {
         Self::Id {
             entity_id: entity_id.into(),
         }
     }
 
     /// Match many entity ids.
-    pub fn ids(entity_ids: Vec<WorldEntityId>) -> Self {
+    pub fn ids(entity_ids: Vec<EntityId>) -> Self {
         Self::Ids { entity_ids }
     }
 
@@ -167,7 +167,7 @@ impl WorldEntitySelector {
     }
 
     /// Select one deterministic entity from one selector result set.
-    pub fn choose_one(selector: WorldEntitySelector) -> Self {
+    pub fn choose_one(selector: EntitySelector) -> Self {
         Self::ChooseOne {
             selector: Box::new(selector),
         }
@@ -177,30 +177,30 @@ impl WorldEntitySelector {
 /// Selector for one simulation-world edge target.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub enum WorldEdgeSelector {
+pub enum EdgeSelector {
     /// Match all edges of this class.
     Any,
     /// Match one edge by stable id.
     Id {
         /// Stable simulation-world edge identifier.
-        edge_id: WorldEdgeId,
+        edge_id: EdgeId,
     },
     /// Match a fixed set of edges by stable id.
     Ids {
         /// Stable simulation-world edge identifiers.
-        edge_ids: Vec<WorldEdgeId>,
+        edge_ids: Vec<EdgeId>,
     },
     /// Match edges incident to one entity selector.
     Incident {
         /// Incident entity selector expression.
-        entity: WorldEntitySelector,
+        entity: EntitySelector,
     },
     /// Match edges by source and destination entity selectors.
     Between {
         /// Source entity selector expression.
-        from: WorldEntitySelector,
+        from: EntitySelector,
         /// Destination entity selector expression.
-        to: WorldEntitySelector,
+        to: EntitySelector,
     },
     /// Match edges by label constraints.
     Labels {
@@ -209,31 +209,31 @@ pub enum WorldEdgeSelector {
     },
 }
 
-impl WorldEdgeSelector {
+impl EdgeSelector {
     /// Match all edges.
     pub fn any() -> Self {
         Self::Any
     }
 
     /// Match one edge id.
-    pub fn id(edge_id: impl Into<WorldEdgeId>) -> Self {
+    pub fn id(edge_id: impl Into<EdgeId>) -> Self {
         Self::Id {
             edge_id: edge_id.into(),
         }
     }
 
     /// Match many edge ids.
-    pub fn ids(edge_ids: Vec<WorldEdgeId>) -> Self {
+    pub fn ids(edge_ids: Vec<EdgeId>) -> Self {
         Self::Ids { edge_ids }
     }
 
     /// Match edges incident to one entity selector.
-    pub fn incident(entity: WorldEntitySelector) -> Self {
+    pub fn incident(entity: EntitySelector) -> Self {
         Self::Incident { entity }
     }
 
     /// Match edges between one source and destination entity selector.
-    pub fn between(from: WorldEntitySelector, to: WorldEntitySelector) -> Self {
+    pub fn between(from: EntitySelector, to: EntitySelector) -> Self {
         Self::Between { from, to }
     }
 
@@ -262,16 +262,16 @@ pub enum FaultTarget {
     /// Target one simulation-world entity.
     Entity {
         /// Entity kind selector.
-        kind: WorldEntityKind,
+        kind: EntityKind,
         /// Entity selector.
-        selector: WorldEntitySelector,
+        selector: EntitySelector,
     },
     /// Target one simulation-world edge.
     Edge {
         /// Edge kind selector.
-        kind: WorldEdgeKind,
+        kind: EdgeKind,
         /// Edge selector.
-        selector: WorldEdgeSelector,
+        selector: EdgeSelector,
         /// Optional edge direction selector.
         direction: Option<FaultDirection>,
     },
@@ -284,7 +284,7 @@ impl FaultTarget {
     }
 
     /// Target one entity selector for one entity kind.
-    pub fn entity(kind: impl Into<WorldEntityKind>, selector: WorldEntitySelector) -> Self {
+    pub fn entity(kind: impl Into<EntityKind>, selector: EntitySelector) -> Self {
         Self::Entity {
             kind: kind.into(),
             selector,
@@ -293,8 +293,8 @@ impl FaultTarget {
 
     /// Target one edge selector for one edge kind.
     pub fn edge(
-        kind: impl Into<WorldEdgeKind>,
-        selector: WorldEdgeSelector,
+        kind: impl Into<EdgeKind>,
+        selector: EdgeSelector,
         direction: Option<FaultDirection>,
     ) -> Self {
         Self::Edge {

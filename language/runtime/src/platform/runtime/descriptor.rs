@@ -16,7 +16,7 @@ use crate::runtime::control::{ObservationEntry, SnapshotEntry, WorldViewEntry};
 use crate::runtime::engine::Image;
 use crate::runtime::scheduler::EventLoopSnapshot;
 use crate::runtime::trace::{ObservationCategory, ObservationRecord, Outcome, TraceRecord};
-use crate::runtime::world::{Revision, RevisionState, World, WorldEdge, WorldEntity, WorldImage};
+use crate::runtime::world::{Edge, Entity, Revision, RevisionState, World, WorldImage};
 use postcard::to_allocvec;
 
 use super::{ObservationHandleEntry, PinnedWorldView, RuntimeHandleCodec, SnapshotHandleEntry};
@@ -226,7 +226,7 @@ impl RuntimeDescriptorCodec {
     }
 
     /// Build one owned topology entity descriptor from runtime state.
-    pub(crate) fn entity_descriptor(entity: &WorldEntity) -> TopologyEntityValue {
+    pub(crate) fn entity_descriptor(entity: &Entity) -> TopologyEntityValue {
         TopologyEntityValue {
             id: TopologyEntityIdValue(entity.id.to_string()),
             kind: TopologyEntityKindValue(entity.kind.to_string()),
@@ -235,7 +235,7 @@ impl RuntimeDescriptorCodec {
     }
 
     /// Build one owned topology edge descriptor from runtime state.
-    pub(crate) fn edge_descriptor(edge: &WorldEdge) -> TopologyEdgeValue {
+    pub(crate) fn edge_descriptor(edge: &Edge) -> TopologyEdgeValue {
         TopologyEdgeValue {
             id: TopologyEdgeIdValue(edge.id.to_string()),
             kind: TopologyEdgeKindValue(edge.kind.to_string()),

@@ -25,7 +25,7 @@ use crate::runtime::scheduler::{
     Microtask, MicrotaskId, Task, TaskId, TaskStatus, Timer, TimerDeadline,
 };
 use crate::runtime::time::{HostClockSource, Nanos};
-use crate::runtime::world::{Branch, CheckpointId, Revision, WorldEntityKindDefinition};
+use crate::runtime::world::{Branch, CheckpointId, EntityDefinition, Revision};
 use crate::runtime::{
     BindingCallContext, DropCounts, Runtime, RuntimeId, SharedHeap, TickResult, Worker, WorkerId,
     WorkerOptions, World, WorldState,
@@ -522,7 +522,7 @@ impl TestWorld {
     /// Record one simple entity-kind topology mutation.
     pub(super) fn record_world_entity_kind(&mut self, suffix: &str) {
         self.world_mut()
-            .define_entity_kind(WorldEntityKindDefinition {
+            .define_entity_kind(EntityDefinition {
                 kind: format!("app.record.shared_heap.{suffix}").into(),
                 labels: Default::default(),
                 supported_faults: Default::default(),

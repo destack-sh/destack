@@ -10,7 +10,7 @@ use crate::runtime::binding::BindingReplayPayload;
 use crate::runtime::policy::{Policy, PolicyState};
 use crate::runtime::random::RandomImage;
 use crate::runtime::time::ClockImage;
-use crate::runtime::topology::{RuntimeId, Topology, WorldEdge, WorldEntity};
+use crate::runtime::topology::{Edge, Entity, RuntimeId, Topology};
 use crate::runtime::world::{World, WorldResource, WorldResourceId};
 use crate::runtime::{Runtime, RuntimeImage, WorkerId, WorkerImage};
 use crate::simulation::Simulation;
@@ -268,12 +268,12 @@ impl WorldImage {
     }
 
     /// Return one topology entity by id.
-    pub fn entity(&self, entity_id: &str) -> Option<&WorldEntity> {
+    pub fn entity(&self, entity_id: &str) -> Option<&Entity> {
         self.topology.entities().get(entity_id)
     }
 
     /// Return one topology edge by id.
-    pub fn edge(&self, edge_id: &str) -> Option<&WorldEdge> {
+    pub fn edge(&self, edge_id: &str) -> Option<&Edge> {
         self.topology.edges().get(edge_id)
     }
 }

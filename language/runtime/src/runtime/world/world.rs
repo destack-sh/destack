@@ -21,8 +21,8 @@ use destack_workspace::{RandomMode, ReplayPayloadMode, RuntimeOptions, TimeMode}
 use super::lineage::{Lineage, ROOT_BRANCH};
 use super::topology::Topology;
 pub(crate) use super::topology::{
-    RuntimeId, WorldEdge, WorldEdgeId, WorldEdgeKind, WorldEdgeKindDefinition, WorldEntity,
-    WorldEntityId, WorldEntityKind, WorldEntityKindDefinition,
+    Edge, EdgeDefinition, EdgeId, EdgeKind, Entity, EntityDefinition, EntityId, EntityKind,
+    RuntimeId,
 };
 use super::{
     BranchId, Command, INITIAL_RUNTIME_ID, INITIAL_WORKER_ID, WorldImage, WorldResource,
@@ -197,17 +197,17 @@ impl World {
     }
 
     /// Snapshot world entity kind definitions.
-    pub fn entity_kinds(&self) -> BTreeMap<WorldEntityKind, WorldEntityKindDefinition> {
+    pub fn entity_kinds(&self) -> BTreeMap<EntityKind, EntityDefinition> {
         self.state.topology.entity_kinds().clone()
     }
 
     /// Snapshot world edge kind definitions.
-    pub fn edge_kinds(&self) -> BTreeMap<WorldEdgeKind, WorldEdgeKindDefinition> {
+    pub fn edge_kinds(&self) -> BTreeMap<EdgeKind, EdgeDefinition> {
         self.state.topology.edge_kinds().clone()
     }
 
     /// Snapshot world entities.
-    pub fn entities(&self) -> BTreeMap<WorldEntityId, WorldEntity> {
+    pub fn entities(&self) -> BTreeMap<EntityId, Entity> {
         self.state.topology.entities().clone()
     }
 
@@ -236,7 +236,7 @@ impl World {
     }
 
     /// Snapshot world edges.
-    pub fn edges(&self) -> BTreeMap<WorldEdgeId, WorldEdge> {
+    pub fn edges(&self) -> BTreeMap<EdgeId, Edge> {
         self.state.topology.edges().clone()
     }
 

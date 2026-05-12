@@ -4,7 +4,7 @@ use crate::platform::ResourceKind;
 use crate::platform::resource::ResourceFacet;
 use crate::runtime::world::LABEL_TOPOLOGY_KIND;
 
-use super::{WorldEdgeKindDefinition, WorldEntityKindDefinition};
+use super::{EdgeDefinition, EntityDefinition};
 
 /// Base fault verbs supported by all entity kinds.
 const BASE_ENTITY_FAULTS: &[&str] = &[
@@ -266,11 +266,11 @@ const BUILTIN_EDGE_KIND_SPECS: &[BuiltinEdgeKindSpec] = &[
 ];
 
 /// Return builtin entity kind definitions.
-pub(super) fn builtin_entity_kinds() -> Vec<WorldEntityKindDefinition> {
+pub(super) fn builtin_entity_kinds() -> Vec<EntityDefinition> {
     BUILTIN_ENTITY_KIND_SPECS
         .iter()
         .map(|spec| {
-            WorldEntityKindDefinition::new(spec.kind_id)
+            EntityDefinition::new(spec.kind_id)
                 .labels(labels_for_kind(spec.kind_id))
                 .supports_faults(faults_for_facets(BASE_ENTITY_FAULTS, spec.facets))
         })
@@ -278,12 +278,12 @@ pub(super) fn builtin_entity_kinds() -> Vec<WorldEntityKindDefinition> {
 }
 
 /// Return builtin resource entity kind definitions.
-pub(super) fn builtin_resource_entity_kinds() -> Vec<WorldEntityKindDefinition> {
+pub(super) fn builtin_resource_entity_kinds() -> Vec<EntityDefinition> {
     ResourceKind::all()
         .iter()
         .map(|resource_kind| {
             let kind_id = resource_kind.kind_id();
-            WorldEntityKindDefinition::new(kind_id)
+            EntityDefinition::new(kind_id)
                 .labels(labels_for_kind(kind_id))
                 .supports_faults(resource_faults(*resource_kind))
         })
@@ -291,11 +291,11 @@ pub(super) fn builtin_resource_entity_kinds() -> Vec<WorldEntityKindDefinition> 
 }
 
 /// Return builtin edge kind definitions.
-pub(super) fn builtin_edge_kinds() -> Vec<WorldEdgeKindDefinition> {
+pub(super) fn builtin_edge_kinds() -> Vec<EdgeDefinition> {
     BUILTIN_EDGE_KIND_SPECS
         .iter()
         .map(|spec| {
-            WorldEdgeKindDefinition::new(spec.kind_id)
+            EdgeDefinition::new(spec.kind_id)
                 .labels(labels_for_kind(spec.kind_id))
                 .supports_faults(faults_for_facets(BASE_EDGE_FAULTS, spec.facets))
         })

@@ -4,7 +4,7 @@ use crate::platform::{ResourceBacking, ResourceCapture, ResourceId, ResourcePort
 use crate::runtime::WorkerId;
 use serde::{Deserialize, Serialize};
 
-use super::topology::{WorldEdgeId, WorldEntityId, WorldEntityKind};
+use super::topology::{EdgeId, EntityId, EntityKind};
 
 /// Logical world resource record.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -12,7 +12,7 @@ pub struct WorldResource {
     /// Stable world resource identifier.
     pub id: WorldResourceId,
     /// Resource kind identifier.
-    pub kind: WorldEntityKind,
+    pub kind: EntityKind,
     /// Optional resource label.
     pub label: Option<String>,
     /// Backing model for this resource.
@@ -27,7 +27,7 @@ impl WorldResource {
     /// Create one logical world resource record.
     pub fn new(
         id: WorldResourceId,
-        kind: impl Into<WorldEntityKind>,
+        kind: impl Into<EntityKind>,
         label: Option<String>,
         backing: ResourceBacking,
         capture: ResourceCapture,
@@ -63,16 +63,16 @@ impl WorldResourceId {
     }
 
     /// Return the canonical topology entity id for this resource.
-    pub fn entity_id(self) -> WorldEntityId {
-        WorldEntityId::new(format!(
+    pub fn entity_id(self) -> EntityId {
+        EntityId::new(format!(
             "resource.{}.{}",
             self.worker_id.0, self.resource_id.0
         ))
     }
 
     /// Return the canonical ownership edge id for this resource.
-    pub fn ownership_edge_id(self) -> WorldEdgeId {
-        WorldEdgeId::new(format!(
+    pub fn ownership_edge_id(self) -> EdgeId {
+        EdgeId::new(format!(
             "worker.{}.owns.resource.{}",
             self.worker_id.0, self.resource_id.0
         ))

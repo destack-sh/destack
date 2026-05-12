@@ -2,7 +2,7 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
-use super::{WorldEdgeId, WorldEdgeKind, WorldEntityId, WorldEntityKind};
+use super::{EdgeId, EdgeKind, EntityId, EntityKind};
 
 /// Error type for world topology definition and mutation failures.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -12,39 +12,39 @@ pub(crate) enum TopologyError {
     /// One topology entity was already defined.
     DuplicateEntity {
         /// The duplicated entity identifier.
-        entity_id: WorldEntityId,
+        entity_id: EntityId,
     },
     /// One topology edge was already defined.
     DuplicateEdge {
         /// The duplicated edge identifier.
-        edge_id: WorldEdgeId,
+        edge_id: EdgeId,
     },
     /// One entity kind was already defined.
     DuplicateEntityKind {
         /// The duplicated kind identifier.
-        kind: WorldEntityKind,
+        kind: EntityKind,
     },
     /// One edge kind was already defined.
     DuplicateEdgeKind {
         /// The duplicated kind identifier.
-        kind: WorldEdgeKind,
+        kind: EdgeKind,
     },
     /// One entity kind was not defined.
     UnknownEntityKind {
         /// The missing kind identifier.
-        kind: WorldEntityKind,
+        kind: EntityKind,
     },
     /// One edge kind was not defined.
     UnknownEdgeKind {
         /// The missing kind identifier.
-        kind: WorldEdgeKind,
+        kind: EdgeKind,
     },
     /// One topology entity was missing.
     UnknownEntity {
         /// The missing entity identifier.
-        entity_id: WorldEntityId,
+        entity_id: EntityId,
         /// The entity role in the failed relation.
-        role: TopologyEntityRole,
+        role: EntityRole,
     },
 }
 
@@ -53,18 +53,18 @@ pub(crate) type TopologyResult<T> = Result<T, TopologyError>;
 
 /// Role of one referenced topology entity.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) enum TopologyEntityRole {
+pub(crate) enum EntityRole {
     /// The source side of one edge.
     Source,
     /// The destination side of one edge.
     Destination,
 }
 
-impl fmt::Display for TopologyEntityRole {
+impl fmt::Display for EntityRole {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let role = match self {
-            TopologyEntityRole::Source => "source",
-            TopologyEntityRole::Destination => "destination",
+            EntityRole::Source => "source",
+            EntityRole::Destination => "destination",
         };
 
         f.write_str(role)

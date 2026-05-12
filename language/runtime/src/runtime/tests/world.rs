@@ -32,9 +32,8 @@ use crate::runtime::trace::{
     Observation, ObservationCategory, ObservationOptions, Trace, TraceRecord, TraceSequence,
 };
 use crate::runtime::{
-    BranchId, Command, TickResult, Worker, WorkerId, WorkerOptions, World, WorldEdge,
-    WorldEdgeKindDefinition, WorldEntity, WorldEntityKindDefinition, WorldResourceId,
-    WorldSnapshot,
+    BranchId, Command, Edge, EdgeDefinition, Entity, EntityDefinition, TickResult, Worker,
+    WorkerId, WorkerOptions, World, WorldResourceId, WorldSnapshot,
 };
 
 /// Return one byte payload shape for runtime tests.
@@ -2205,14 +2204,14 @@ fn test_world_topology_control_mutates_graph() {
 
     // define one custom entity and edge kind
     world
-        .define_entity_kind(WorldEntityKindDefinition {
+        .define_entity_kind(EntityDefinition {
             kind: "app.node".into(),
             labels: std::collections::BTreeMap::new(),
             supported_faults: Default::default(),
         })
         .expect("entity kind should define");
     world
-        .define_edge_kind(WorldEdgeKindDefinition {
+        .define_edge_kind(EdgeDefinition {
             kind: "app.link".into(),
             labels: std::collections::BTreeMap::new(),
             supported_faults: Default::default(),
@@ -2221,21 +2220,21 @@ fn test_world_topology_control_mutates_graph() {
 
     // insert two entities and one connecting edge
     world
-        .upsert_entity(WorldEntity {
+        .upsert_entity(Entity {
             id: "node-a".into(),
             kind: "app.node".into(),
             labels: std::collections::BTreeMap::new(),
         })
         .expect("first entity should upsert");
     world
-        .upsert_entity(WorldEntity {
+        .upsert_entity(Entity {
             id: "node-b".into(),
             kind: "app.node".into(),
             labels: std::collections::BTreeMap::new(),
         })
         .expect("second entity should upsert");
     world
-        .upsert_edge(WorldEdge {
+        .upsert_edge(Edge {
             id: "link-a-b".into(),
             kind: "app.link".into(),
             from: "node-a".into(),
@@ -2260,7 +2259,7 @@ fn test_world_topology_command_failure_does_not_revert_prior_commands() {
 
     // apply one valid command first
     world
-        .define_entity_kind(WorldEntityKindDefinition {
+        .define_entity_kind(EntityDefinition {
             kind: "app.atomic.node".into(),
             labels: std::collections::BTreeMap::new(),
             supported_faults: Default::default(),
@@ -2268,7 +2267,7 @@ fn test_world_topology_command_failure_does_not_revert_prior_commands() {
         .expect("entity kind should define");
 
     // apply one invalid command next
-    let result = world.upsert_entity(WorldEntity {
+    let result = world.upsert_entity(Entity {
         id: "bad-node".into(),
         kind: "app.missing.kind".into(),
         labels: std::collections::BTreeMap::new(),
@@ -2399,7 +2398,7 @@ fn test_world_apply_record_failure_does_not_append_replay_events() {
 
     // apply one successful command first
     world
-        .define_entity_kind(WorldEntityKindDefinition {
+        .define_entity_kind(EntityDefinition {
             kind: "app.record.atomic.node".into(),
             labels: Default::default(),
             supported_faults: Default::default(),
@@ -2409,7 +2408,7 @@ fn test_world_apply_record_failure_does_not_append_replay_events() {
     assert_eq!(sequence_after_success, 1);
 
     // apply one failing command after that
-    let result = world.upsert_entity(WorldEntity {
+    let result = world.upsert_entity(Entity {
         id: "missing-kind-node".into(),
         kind: "app.record.atomic.missing".into(),
         labels: Default::default(),

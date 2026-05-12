@@ -4,8 +4,7 @@ use std::sync::Arc;
 use crate::diagnostic::RuntimeResult;
 use crate::runtime::policy::Policy;
 use crate::runtime::topology::{
-    RuntimeId, WorldEdge, WorldEdgeKind, WorldEdgeKindDefinition, WorldEntity, WorldEntityKind,
-    WorldEntityKindDefinition,
+    Edge, EdgeDefinition, EdgeKind, Entity, EntityDefinition, EntityKind, RuntimeId,
 };
 use crate::runtime::world::{WorldResource, WorldResourceId};
 use crate::runtime::{RuntimeImage, WorkerId, WorkerImage};
@@ -157,32 +156,32 @@ impl WorldView {
     }
 
     /// Return one topology entity by id when present.
-    pub fn entity(&self, entity_id: &str) -> Option<&WorldEntity> {
+    pub fn entity(&self, entity_id: &str) -> Option<&Entity> {
         self.image.entity(entity_id)
     }
 
     /// Return all topology entity kinds visible at this moment.
-    pub fn entity_kinds(&self) -> &BTreeMap<WorldEntityKind, WorldEntityKindDefinition> {
+    pub fn entity_kinds(&self) -> &BTreeMap<EntityKind, EntityDefinition> {
         self.image.topology.entity_kinds()
     }
 
     /// Return one topology entity kind by id when present.
-    pub fn entity_kind(&self, kind_id: &str) -> Option<&WorldEntityKindDefinition> {
+    pub fn entity_kind(&self, kind_id: &str) -> Option<&EntityDefinition> {
         self.image.topology.entity_kinds().get(kind_id)
     }
 
     /// Return one topology edge by id when present.
-    pub fn edge(&self, edge_id: &str) -> Option<&WorldEdge> {
+    pub fn edge(&self, edge_id: &str) -> Option<&Edge> {
         self.image.edge(edge_id)
     }
 
     /// Return all topology edge kinds visible at this moment.
-    pub fn edge_kinds(&self) -> &BTreeMap<WorldEdgeKind, WorldEdgeKindDefinition> {
+    pub fn edge_kinds(&self) -> &BTreeMap<EdgeKind, EdgeDefinition> {
         self.image.topology.edge_kinds()
     }
 
     /// Return one topology edge kind by id when present.
-    pub fn edge_kind(&self, kind_id: &str) -> Option<&WorldEdgeKindDefinition> {
+    pub fn edge_kind(&self, kind_id: &str) -> Option<&EdgeDefinition> {
         self.image.topology.edge_kinds().get(kind_id)
     }
 }

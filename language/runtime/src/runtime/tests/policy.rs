@@ -6,13 +6,13 @@ use crate::runtime::binding::{
     BindingReplayPayload, RuntimeAccess,
 };
 use crate::runtime::policy::{
-    ActivationWindow, Fault, FaultTarget, FaultType, Hook, HookEvent, Lifetime, Policy,
-    PolicyCallId, PolicyState, Rule, RuleAction, RuleId, RuntimeSelector, Trigger,
-    WorldEdgeSelector, WorldEntitySelector,
+    ActivationWindow, EdgeSelector, EntitySelector, Fault, FaultTarget, FaultType, Hook, HookEvent,
+    Lifetime, Policy, PolicyCallId, PolicyState, Rule, RuleAction, RuleId, RuntimeSelector,
+    Trigger,
 };
 use crate::runtime::random::Random;
 use crate::runtime::world::topology::Topology;
-use crate::runtime::{WorkerId, WorldEdgeKind, WorldEntityKind};
+use crate::runtime::{EdgeKind, EntityKind, WorkerId};
 use destack_workspace::ExecutionMode;
 
 /// Stable runtime name used by policy tests.
@@ -394,8 +394,8 @@ fn test_policy_validate_rejects_unknown_entity_kind() {
             action: RuleAction::Fault {
                 fault: Fault {
                     target: FaultTarget::Entity {
-                        kind: WorldEntityKind("unknown.kind".to_string()),
-                        selector: WorldEntitySelector::Any,
+                        kind: EntityKind("unknown.kind".to_string()),
+                        selector: EntitySelector::Any,
                     },
                     fault_type: FaultType::Drop {},
                 },
@@ -421,8 +421,8 @@ fn test_policy_validate_accepts_registered_compatible_fault_kind() {
             action: RuleAction::Fault {
                 fault: Fault {
                     target: FaultTarget::Entity {
-                        kind: WorldEntityKind("net.socket".to_string()),
-                        selector: WorldEntitySelector::Any,
+                        kind: EntityKind("net.socket".to_string()),
+                        selector: EntitySelector::Any,
                     },
                     fault_type: FaultType::Drop {},
                 },
@@ -448,8 +448,8 @@ fn test_policy_validate_rejects_registered_incompatible_fault_kind() {
             action: RuleAction::Fault {
                 fault: Fault {
                     target: FaultTarget::Entity {
-                        kind: WorldEntityKind("fs.inode".to_string()),
-                        selector: WorldEntitySelector::Any,
+                        kind: EntityKind("fs.inode".to_string()),
+                        selector: EntitySelector::Any,
                     },
                     fault_type: FaultType::Drop {},
                 },
@@ -475,8 +475,8 @@ fn test_policy_validate_accepts_registered_compatible_fault_edge_kind() {
             action: RuleAction::Fault {
                 fault: Fault {
                     target: FaultTarget::Edge {
-                        kind: WorldEdgeKind("net.stream_link".to_string()),
-                        selector: WorldEdgeSelector::Any,
+                        kind: EdgeKind("net.stream_link".to_string()),
+                        selector: EdgeSelector::Any,
                         direction: None,
                     },
                     fault_type: FaultType::Drop {},
@@ -503,8 +503,8 @@ fn test_policy_validate_rejects_registered_incompatible_fault_edge_kind() {
             action: RuleAction::Fault {
                 fault: Fault {
                     target: FaultTarget::Edge {
-                        kind: WorldEdgeKind("fs.parent_child".to_string()),
-                        selector: WorldEdgeSelector::Any,
+                        kind: EdgeKind("fs.parent_child".to_string()),
+                        selector: EdgeSelector::Any,
                         direction: None,
                     },
                     fault_type: FaultType::Drop {},
