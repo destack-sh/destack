@@ -41,6 +41,7 @@ Some JS/TS syntax and legacy behavior is either ambiguous, obsolete, or just not
   Locals and fields must be actually initialized before use, either by an initializer or by ordinary definite assignment analysis.
 - **XML namespace resolution**: Destack does not implement XML `xmlns` namespace binding semantics.
   Namespaced tree tags like `<svg:path />` are treated as intrinsic string tag names (`"svg:path"`).
+- **Type-only imports and exports**: `.ds` accepts `import type` and `export type` for TypeScript familiarity, but they behave the same.
 
 ### Shapes
 
@@ -387,8 +388,8 @@ final class PacketHeader {
 ### Arrays, Slices and Tuples
 
 Destack supports richer sequence forms beyond the classic dynamic arrays - `T[]` / `Array<T>` with explicit slice, fixed array, and tuple forms.
-Unfortunately, not much syntax was left here, so we had to adopt the slightly non-TS-y syntax forms of `[T]` and `[T; N]`.
-(This is also why `.ds` does not support `.ts`-style array tuples `[A, B]` and tuples must be explicit `(A, B)`)
+Unfortunately, not much syntax was left here, so we had to adopt the slightly non-TS-y syntax forms of `[T]` and `[T; N]` for slices and fixed arrays, respectively.
+(This is also why `.ds` does not support `.ts`-style array tuples `[A, B]` and tuples in `.ds` must always be explicit `(A, B)`)
 
 | Forms | Representation | Meaning |
 |------|----------------|---------|
@@ -485,9 +486,9 @@ It does not freeze the runtime value.
 
 ### Generics
 
-Destack keeps TypeScript-shaped generics: inference, constraints, defaults, conditional types, mapped types, indexed access types, and the rest of the usual machinery.
-The main addition is that generic parameters can also be _values_ that are then substituted into expressions and are available during inference.
-To distinguish static value parameters from static type parameters, we use the `comptime` modifier (akin to Rust's `const` modifier, alas this was already taken in TypeScript):
+Destack supports classic TypeScript-shaped generics: inference, constraints, defaults, conditional types, mapped types, indexed access types, and the rest of the usual machinery.
+The main addition is that generic parameters can also be _values_ that are then substituted into expressions and are also available during inference.
+To distinguish static value parameters from static type parameters (and literal value types), we use the `comptime` modifier (akin to Rust's `const` modifier, alas this was already taken in TypeScript):
 
 ```ds
 type Buffer<comptime N: uint> = [uint8; N];
