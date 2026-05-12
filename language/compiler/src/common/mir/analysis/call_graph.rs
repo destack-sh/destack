@@ -1863,7 +1863,7 @@ b0(v0: fn(int32) -> int32, v1: int32):
         assert_eq!(unknown[0].dispatch, CallDispatchKind::Indirect);
     }
 
-    /// Exceptional direct call terminators still produce precise call edges.
+    /// Direct call terminators produce precise call edges.
     #[test]
     fn test_call_graph_call_terminator_direct() {
         let test = TestProgram::new(
@@ -1958,7 +1958,7 @@ b0(v0: int32):
         assert_eq!(callgraph.unknown_calls(test_id)[0].callee, Some(callee_id));
     }
 
-    /// Exceptional class call terminators keep the declared target and unknown edge.
+    /// Class call terminators keep the declared target and unknown edge.
     #[test]
     fn test_call_graph_call_class_terminator_is_partial() {
         let mut test = TestProgram::new(

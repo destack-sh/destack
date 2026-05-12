@@ -1460,6 +1460,7 @@ fn instruction_cost(instruction: &mir::Instruction, tree: &mir::Tree) -> u64 {
         | mir::Instruction::NewSlice { .. }
         | mir::Instruction::RawAlloc { .. }
         | mir::Instruction::RawFree { .. }
+        | mir::Instruction::Free { .. }
         | mir::Instruction::Pin { .. }
         | mir::Instruction::Unpin { .. }
         | mir::Instruction::Drop { .. }

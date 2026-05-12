@@ -628,35 +628,12 @@ impl<'a> FunctionLowerer<'a> {
                 ));
             }
 
-            // drop: retain stack and managed no-op behavior for now
-            mir::Instruction::Drop { value } => {
-                let value_id = self.value_id(*value, "drop value")?;
-                let value_type_id =
-                    self.value_type_or_error(value_id, instruction_id.into_any())?;
-                let value_type = self.tree.get(value_type_id);
-                let is_stack_drop = matches!(
-                    value_type,
-                    mir::Type::Reference {
-                        address_space: mir::AddressSpace::Stack,
-                        ..
-                    }
-                );
-                let is_managed_drop = matches!(
-                    value_type,
-                    mir::Type::Reference {
-                        kind: mir::ReferenceKind::Managed,
-                        ..
-                    }
-                );
-
-                // stack and managed drops are currently logical markers only
-                if !is_stack_drop && !is_managed_drop {
-                    let _ = self.lowered_value(*value, value_map, "drop value")?;
-                    return Err(CodegenCraneliftError::unsupported_instruction(
-                        "drop",
-                        instruction_id.into_any(),
-                    ));
-                }
+            // drop markers must be elaborated before codegen
+            mir::Instruction::Drop { .. } => {
+                return Err(CodegenCraneliftError::unsupported_instruction(
+                    "drop",
+                    instruction_id.into_any(),
+                ));
             }
 
             // assume: no op for codegen (optimizer handled it)
@@ -1025,8 +1002,10 @@ impl<'a> FunctionLowerer<'a> {
                 ));
             }
 
-            // raw_allocate, raw_free: all require runtime/external support, not implemented
-            mir::Instruction::RawAlloc { .. } | mir::Instruction::RawFree { .. } => {
+            // raw allocation and unique free require runtime or allocator support
+            mir::Instruction::RawAlloc { .. }
+            | mir::Instruction::RawFree { .. }
+            | mir::Instruction::Free { .. } => {
                 return Err(CodegenCraneliftError::unsupported_instruction(
                     "require allocator support",
                     instruction_id.into_any(),

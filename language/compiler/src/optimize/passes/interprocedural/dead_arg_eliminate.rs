@@ -524,7 +524,7 @@ b0(v0: int32):
         test.assert_output(expected);
     }
 
-    /// Exceptional direct call terminators are trimmed for unused parameters.
+    /// Direct call terminators are trimmed for unused parameters.
     #[test]
     fn test_dead_arg_eliminate_updates_call_terminator() {
         let input = r#"

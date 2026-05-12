@@ -158,8 +158,6 @@ impl MemoryEffectBuilder {
 struct CallBehaviorBuilder {
     /// Effect class for the function.
     effect_class: mir::EffectClass,
-    /// Whether any operation may unwind.
-    unwind_behavior: mir::UnwindBehavior,
     /// Whether any callee may suspend execution.
     may_suspend: bool,
     /// Whether any callee must not be duplicated.
@@ -184,7 +182,6 @@ impl CallBehaviorBuilder {
         // seed the builder with no behavior flags
         Self {
             effect_class: mir::EffectClass::Deterministic,
-            unwind_behavior: mir::UnwindBehavior::CannotUnwind,
             may_suspend: false,
             must_not_duplicate: false,
             allocates: false,
@@ -201,9 +198,6 @@ impl CallBehaviorBuilder {
         // merge effect class and behavior flags
         if behavior.effect_class == mir::EffectClass::NonDeterministic {
             self.effect_class = mir::EffectClass::NonDeterministic;
-        }
-        if behavior.unwind == mir::UnwindBehavior::MayUnwind {
-            self.unwind_behavior = mir::UnwindBehavior::MayUnwind;
         }
         self.may_suspend |= behavior.suspend.may_suspend();
 
@@ -234,7 +228,6 @@ impl CallBehaviorBuilder {
         // assemble the final call behavior summary
         mir::CallBehavior {
             effect_class: self.effect_class,
-            unwind: self.unwind_behavior,
             suspend: if self.may_suspend {
                 mir::SuspendBehavior::MaySuspend
             } else {
@@ -498,9 +491,6 @@ fn merge_call_behavior(
         (mir::EffectClass::Pure, mir::EffectClass::Pure) => mir::EffectClass::Pure,
         _ => mir::EffectClass::Deterministic,
     };
-    if inferred.unwind == mir::UnwindBehavior::MayUnwind {
-        merged.unwind = mir::UnwindBehavior::MayUnwind;
-    }
     if inferred.suspend.may_suspend() {
         merged.suspend = mir::SuspendBehavior::MaySuspend;
     }
@@ -732,6 +722,11 @@ fn effects_for_instruction(
         mir::Instruction::RawFree { .. } => {
             let effect = heap_effect(mir::MemoryEffect::write_only(mir::MemorySpaceSet::RAW_HEAP));
             let behavior = free_behavior(mir::MemorySpaceSet::RAW_HEAP, None);
+            (effect, behavior)
+        }
+        mir::Instruction::Free { .. } => {
+            let effect = heap_effect(mir::MemoryEffect::write_only(mir::MemorySpaceSet::HEAP));
+            let behavior = free_behavior(mir::MemorySpaceSet::HEAP, None);
             (effect, behavior)
         }
         mir::Instruction::StackAlloc { .. } => {
@@ -1076,7 +1071,7 @@ b0(v0: fn(int32) -> int32, v1: int32) -> v2: int32 = call.indirect v0(v1): (int3
         assert!(effects.writes);
     }
 
-    /// Exceptional direct call terminators contribute callee summaries.
+    /// Direct call terminators contribute callee summaries.
     #[test]
     fn test_function_attrs_call_terminator_effects() {
         let input = r#"

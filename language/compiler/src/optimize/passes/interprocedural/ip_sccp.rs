@@ -745,8 +745,7 @@ fn call_is_pure(
     }
 
     // reject calls with non local behavior
-    if behavior.unwind.may_unwind()
-        || behavior.return_behavior.is_no_return()
+    if behavior.return_behavior.is_no_return()
         || behavior.must_not_duplicate
         || behavior.allocation.allocate.is_some()
         || behavior.allocation.free.is_some()
@@ -909,7 +908,7 @@ b0:
         test.assert_output(expected);
     }
 
-    /// Exceptional direct call terminators participate in interprocedural SCCP.
+    /// Direct call terminators participate in interprocedural SCCP.
     #[test]
     fn test_ip_sccp_propagates_call_terminator() {
         let input = r#"

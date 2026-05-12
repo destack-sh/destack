@@ -120,7 +120,7 @@ pub fn instruction_is_pure(instruction: &Instruction) -> bool {
         | Instruction::StackAlloc { .. } => false,
 
         // deallocation has side effects
-        Instruction::RawFree { .. } => false,
+        Instruction::RawFree { .. } | Instruction::Free { .. } => false,
 
         // intrinsics may have side effects
         Instruction::Intrinsic { .. } => false,
@@ -283,7 +283,7 @@ pub fn instruction_has_side_effects(instruction: &Instruction) -> bool {
         | Instruction::StackAlloc { .. } => true,
 
         // deallocation has side effects
-        Instruction::RawFree { .. } => true,
+        Instruction::RawFree { .. } | Instruction::Free { .. } => true,
 
         // intrinsics may have side effects (check purity for safe removal)
         Instruction::Intrinsic { intrinsic, .. } => {
@@ -339,6 +339,7 @@ pub fn instruction_may_affect_memory(instruction: &Instruction) -> bool {
             | Instruction::NewSlice { .. }
             | Instruction::RawAlloc { .. }
             | Instruction::RawFree { .. }
+            | Instruction::Free { .. }
             | Instruction::Pin { .. }
             | Instruction::Unpin { .. }
             | Instruction::Drop { .. }
@@ -400,8 +401,7 @@ pub fn instruction_allows_read_only_motion(
     let Some(behavior) = instruction.call_behavior() else {
         return false;
     };
-    if behavior.unwind.may_unwind()
-        || behavior.must_not_duplicate
+    if behavior.must_not_duplicate
         || behavior.return_behavior.is_no_return()
         || behavior.allocation.allocate.is_some()
         || behavior.allocation.free.is_some()
@@ -623,6 +623,9 @@ pub fn instruction_substitute_uses(
             result_type: *result_type,
         },
         mir::Instruction::Unpin { value } => mir::Instruction::Unpin {
+            value: substitute(value),
+        },
+        mir::Instruction::Free { value } => mir::Instruction::Free {
             value: substitute(value),
         },
         mir::Instruction::Drop { value } => mir::Instruction::Drop {
@@ -2073,6 +2076,9 @@ pub fn instruction_map(
         mir::Instruction::Unpin { value } => mir::Instruction::Unpin {
             value: remap(*value),
         },
+        mir::Instruction::Free { value } => mir::Instruction::Free {
+            value: remap(*value),
+        },
         mir::Instruction::Drop { value } => mir::Instruction::Drop {
             value: remap(*value),
         },
@@ -3273,6 +3279,9 @@ pub fn instruction_map_with_locals(
             result_type: *result_type,
         },
         mir::Instruction::Unpin { value } => mir::Instruction::Unpin {
+            value: remap(*value),
+        },
+        mir::Instruction::Free { value } => mir::Instruction::Free {
             value: remap(*value),
         },
         mir::Instruction::Drop { value } => mir::Instruction::Drop {
