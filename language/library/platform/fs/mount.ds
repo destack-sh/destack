@@ -1,8 +1,9 @@
+import { Array } from "core";
 import type { PlatformError } from "../error/index.ds";
-import { Path } from "../fs/path.ds";
+import { Path } from "./path.ds";
 
-/// Mount table entry.
-export struct MountEntry {
+/// Filesystem mount entry.
+export struct FileMount {
     /// Source device or backing object when the host exposes one.
     source?: string;
     /// Target mount path.
@@ -13,11 +14,11 @@ export struct MountEntry {
     hostFlags?: uint64;
 }
 
-/// Enumerate mount table entries.
-@binding("destack.os.mount.list", {
+/// List filesystem mounts.
+@binding("destack.fs.mount.list", {
     effect: "external",
-    requires: ["os.mount"],
+    requires: ["fs.mount.list"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function mountList(): Result<Array<MountEntry>, PlatformError>;
+export declare function listFileMounts(): Result<Array<FileMount>, PlatformError>;

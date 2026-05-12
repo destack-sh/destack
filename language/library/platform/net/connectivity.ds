@@ -1,8 +1,8 @@
 import type { PlatformError } from "../error/index.ds";
 import { NetworkWatchHandle } from "../resource/index.ds";
 
-/// Host network connection class.
-export enum NetworkConnectionType {
+/// Network connectivity class.
+export enum NetworkConnectivityKind {
     /// No active network route.
     None = 1,
     /// Unknown or backend-specific route class.
@@ -35,10 +35,10 @@ export enum NetworkCellularGeneration {
     G5 = 5,
 }
 
-/// Host network state snapshot.
-export struct NetworkState {
+/// Network connectivity snapshot.
+export struct NetworkConnectivity {
     /// Route connection class.
-    connectionType: NetworkConnectionType;
+    kind: NetworkConnectivityKind;
     /// Whether one route to a local network is available.
     connected: boolean;
     /// Whether one route to the public internet is available.
@@ -49,7 +49,7 @@ export struct NetworkState {
     constrained?: boolean;
     /// Whether the active route is roaming when the host can determine it.
     roaming?: boolean;
-    /// Cellular generation when `connectionType` is `Cellular` and the host can determine it.
+    /// Cellular generation when `kind` is `Cellular` and the host can determine it.
     cellularGeneration?: NetworkCellularGeneration;
     /// Estimated downstream bandwidth in megabits per second when the host can determine it.
     downlinkMbps?: float64;
@@ -57,62 +57,64 @@ export struct NetworkState {
     uplinkMbps?: float64;
 }
 
-/// Host network event payload.
-export struct NetworkEvent {
+/// Network connectivity event.
+export struct NetworkConnectivityEvent {
     /// Monotonic event timestamp in nanoseconds.
     timestampNs: uint64;
     /// Monotonic sequence number for this watch stream.
     sequence: uint64;
-    /// Network state snapshot.
-    state: NetworkState;
+    /// Network connectivity snapshot.
+    connectivity: NetworkConnectivity;
 }
 
-/// Read host network state.
-@binding("destack.os.network.state", {
+/// Read network connectivity.
+@binding("destack.net.connectivity.read", {
     effect: "external",
-    requires: ["os.network.read"],
+    requires: ["net.connectivity.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function networkState(): Result<NetworkState, PlatformError>;
+export declare function readNetworkConnectivity(): Result<NetworkConnectivity, PlatformError>;
 
-/// Open host network watch stream.
-@binding("destack.os.network.watchOpen", {
+/// Open network connectivity watch stream.
+@binding("destack.net.connectivity.watch.open", {
     effect: "external",
-    requires: ["os.network.watch"],
+    requires: ["net.connectivity.watch"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function networkWatchOpen(): Result<NetworkWatchHandle, PlatformError>;
+export declare function openNetworkConnectivityWatch(): Result<NetworkWatchHandle, PlatformError>;
 
-/// Close host network watch stream.
-@binding("destack.os.network.watchClose", {
+/// Close network connectivity watch stream.
+@binding("destack.net.connectivity.watch.close", {
     effect: "external",
-    requires: ["os.network.watch"],
+    requires: ["net.connectivity.watch"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function networkWatchClose(handle: NetworkWatchHandle): Result<void, PlatformError>;
+export declare function closeNetworkConnectivityWatch(
+    watch: NetworkWatchHandle,
+): Result<void, PlatformError>;
 
-/// Wait for one host network event.
-@binding("destack.os.network.watchRead", {
+/// Wait for one network connectivity event.
+@binding("destack.net.connectivity.watch.read", {
     effect: "external",
-    requires: ["os.network.watch"],
+    requires: ["net.connectivity.watch"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function networkWatchRead(
-    handle: NetworkWatchHandle,
+export declare function readNetworkConnectivityWatch(
+    watch: NetworkWatchHandle,
     timeoutNs: uint64,
-): Result<NetworkEvent, PlatformError>;
+): Result<NetworkConnectivityEvent, PlatformError>;
 
-/// Poll one host network event without blocking.
-@binding("destack.os.network.watchTryRead", {
+/// Poll one network connectivity event without blocking.
+@binding("destack.net.connectivity.watch.tryRead", {
     effect: "external",
-    requires: ["os.network.watch"],
+    requires: ["net.connectivity.watch"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function networkWatchTryRead(
-    handle: NetworkWatchHandle,
-): Result<NetworkEvent, PlatformError>;
+export declare function tryReadNetworkConnectivityWatch(
+    watch: NetworkWatchHandle,
+): Result<NetworkConnectivityEvent, PlatformError>;

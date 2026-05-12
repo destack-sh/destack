@@ -2,6 +2,7 @@ export * from "./attribute.ds";
 export * from "./directory.ds";
 export * from "./entry.ds";
 export * from "./file.ds";
+export * from "./mount.ds";
 export * from "./namespace.ds";
 export * from "./path.ds";
 export * from "./range.ds";

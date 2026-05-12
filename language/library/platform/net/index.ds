@@ -1,4 +1,5 @@
 export * from "./address.ds";
+export * from "./connectivity.ds";
 export * from "./interface.ds";
 export * from "./options.ds";
 export * from "./raw.ds";

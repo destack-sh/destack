@@ -1,0 +1,28 @@
+import type { PlatformError } from "../error/index.ds";
+
+/// Operating-system load-average tuple.
+export struct OsLoadAverage {
+    /// One-minute load average.
+    one: float64;
+    /// Five-minute load average.
+    five: float64;
+    /// Fifteen-minute load average.
+    fifteen: float64;
+}
+
+/// Operating-system pressure snapshot.
+export struct OsPressure {
+    /// Available physical memory bytes.
+    availableMemoryBytes: uint64;
+    /// Load average when available.
+    loadAverage?: OsLoadAverage;
+}
+
+/// Read operating-system pressure.
+@binding("destack.os.pressure.read", {
+    effect: "external",
+    requires: ["os.pressure.read"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function readOsPressure(): Result<OsPressure, PlatformError>;
