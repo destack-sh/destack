@@ -14,8 +14,8 @@
 - Avoid using hyphens inside comments, instead prefer colons or commas (except for proper compound words)
 - Inline comments may also just be single words or sequences of words if the "scoping" is clear; i.e., not every inline comment needs to be a sentence.
 - Comments serve to organize the reader's mental model of the code, so they can be just anything from a one-word summary, a three word phrase, or a short explanatory note.
-- For anything more than one/two words, most comments should be verb shaped, e.g.:
-"// build drop plan for each function" is much better than ""// each function gets an independent drop plan"
+- Most logic block comments of more than one/two words should be action / verb shaped, e.g.:
+"// build drop plan for each function" is much better than ""// each function gets an independent drop plan" (begin with a verb!)
 - Trivial functions (<3-4 lines) do not _need_ comments / blank lines, especially when the comments just repeat the documentation above.
 - Also, tests don't need quite the same level of comments, especially within obvious test cases.
 - Documentation comments for functions/types/etc. should be proper sentences with punctuation.
