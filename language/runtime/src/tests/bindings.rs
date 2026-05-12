@@ -12,7 +12,7 @@ fn build_random_call_module(
     stream_arg: Option<u64>,
 ) -> (destack_mir::Tree, destack_core::StringPool) {
     // core types
-    let mut module = ModuleBuilder::checked();
+    let mut module = ModuleBuilder::new();
     let u64_type = module.type_u64();
 
     // extern function signature

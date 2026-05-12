@@ -323,7 +323,7 @@ impl TestRuntime {
 /// Build the minimal MIR module required for one VM binding test isolate.
 fn test_vm_isolate_module() -> (Tree, StringPool) {
     let (tree, strings) = Parser::parse(FileId::new(0), STRING_TYPE_ALIAS, ParseOptions::default())
-        .validate()
+        .finish()
         .expect("runtime vm test isolate should parse");
 
     (tree, strings)
