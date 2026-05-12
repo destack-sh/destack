@@ -1,6 +1,6 @@
 import type { PlatformError } from "../error/index.ds";
 import { FileHandle } from "../resource/index.ds";
-import { Entry } from "./entry.ds";
+import { FilesystemEntry } from "./entry.ds";
 
 /// Extended attribute creation flags.
 export newtype XattrFlags = uint32;
@@ -13,7 +13,7 @@ export const XATTR_REPLACE: XattrFlags = XattrFlags(0x2);
 
 /// Target for extended attribute operations.
 export newtype XattrTarget =
-    | { kind: "entry"; entry: Entry; isFollowing: boolean }
+    | { kind: "entry"; entry: FilesystemEntry; isFollowing: boolean }
     | { kind: "file"; file: FileHandle };
 
 /// Read one extended attribute into an output buffer.

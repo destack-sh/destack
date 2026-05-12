@@ -1,8 +1,8 @@
 /// Raw byte path on byte-oriented hosts.
-export newtype PathBytes = uint8[];
+export newtype PathBytes = [uint8];
 
 /// UTF-16 path on UTF-16-oriented hosts.
-export newtype PathUtf16 = uint16[];
+export newtype PathUtf16 = [uint16];
 
 /// Raw byte path output buffer.
 export newtype PathByteBuffer = [uint8];

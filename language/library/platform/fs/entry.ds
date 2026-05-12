@@ -2,7 +2,7 @@ import { DirectoryHandle } from "../resource/index.ds";
 import { Path } from "./path.ds";
 
 /// Filesystem entry addressed by an optional directory root and host path.
-export struct Entry {
+export struct FilesystemEntry {
     /// Directory root for relative resolution.
     directory?: DirectoryHandle;
     /// Host path payload.
@@ -10,15 +10,15 @@ export struct Entry {
 }
 
 /// Build an entry resolved from the ambient process namespace.
-export function entry(path: Path): Entry {
-    Entry {
+export function filesystemEntry(path: Path): FilesystemEntry {
+    FilesystemEntry {
         path,
     }
 }
 
 /// Build an entry resolved relative to a directory handle.
-export function entryAt(directory: DirectoryHandle, path: Path): Entry {
-    Entry {
+export function filesystemEntryAt(directory: DirectoryHandle, path: Path): FilesystemEntry {
+    FilesystemEntry {
         directory,
         path,
     }

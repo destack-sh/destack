@@ -1,11 +1,11 @@
-import { AsyncResult, Slice } from "core";
+import { AsyncResult } from "core";
 import type { PlatformError } from "../platform/error/index.ds";
 import { SocketHandle } from "../platform/resource/index.ds";
 import {
-    LookupAddress,
-    LookupQuery,
-    MessageFlags,
-    ReceiveFromResult,
+    AddressLookupQuery,
+    AddressLookupResult,
+    SocketMessageFlags,
+    SocketReceiveFromResult,
     SocketAddress,
     SocketFamily,
 } from "../platform/net/index.ds";
@@ -47,7 +47,7 @@ export struct DatagramOptions {
     /// Socket address family.
     family: SocketFamily;
     /// Local address to bind when present.
-    address: SocketAddress | void;
+    address?: SocketAddress;
 }
 
 /// Open one stream connection.
@@ -76,29 +76,31 @@ export declare function closeDatagram(socket: ^DatagramSocket): AsyncResult<void
 /// Read from one stream connection.
 export declare function read(
     connection: &Connection,
-    buffer: Slice<uint8>,
+    buffer: &[uint8],
 ): AsyncResult<uint64, PlatformError>;
 
 /// Write to one stream connection.
 export declare function write(
     connection: &Connection,
-    buffer: Slice<uint8>,
+    buffer: &readonly [uint8],
 ): AsyncResult<uint64, PlatformError>;
 
 /// Receive one datagram from a socket.
 export declare function receiveFrom(
     socket: &DatagramSocket,
-    buffer: Slice<uint8>,
-    flags: MessageFlags,
-): AsyncResult<ReceiveFromResult, PlatformError>;
+    buffer: &[uint8],
+    flags: SocketMessageFlags,
+): AsyncResult<SocketReceiveFromResult, PlatformError>;
 
 /// Send one datagram to a remote endpoint.
 export declare function sendTo(
     socket: &DatagramSocket,
     address: SocketAddress,
-    buffer: Slice<uint8>,
-    flags: MessageFlags,
+    buffer: &readonly [uint8],
+    flags: SocketMessageFlags,
 ): AsyncResult<uint64, PlatformError>;
 
 /// Resolve a host and service.
-export declare function lookup(query: LookupQuery): AsyncResult<LookupAddress[], PlatformError>;
+export declare function lookup(
+    query: AddressLookupQuery,
+): AsyncResult<^Array<AddressLookupResult>, PlatformError>;

@@ -10,8 +10,8 @@ export struct IpPrefix {
     length: uint8;
 }
 
-/// Route entry kind.
-export enum RouteKind {
+/// Network route entry kind.
+export enum NetworkRouteKind {
     /// Unicast route.
     Unicast = 1,
     /// Local route.
@@ -24,8 +24,8 @@ export enum RouteKind {
     Blackhole = 5,
 }
 
-/// Route table entry.
-export struct RouteEntry {
+/// Network route table entry.
+export struct NetworkRouteEntry {
     /// Route family.
     family: SocketFamily;
     /// Destination prefix.
@@ -37,7 +37,7 @@ export struct RouteEntry {
     /// Route metric.
     metric: uint32;
     /// Route kind.
-    kind: RouteKind;
+    kind: NetworkRouteKind;
 }
 
 /// List route table entries.
@@ -47,7 +47,9 @@ export struct RouteEntry {
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function listRoutes(family: SocketFamily): Result<^Array<RouteEntry>, PlatformError>;
+export declare function listNetworkRoutes(
+    family: SocketFamily,
+): Result<^Array<NetworkRouteEntry>, PlatformError>;
 
 /// Add a route table entry.
 @binding("destack.net.route.add", {
@@ -56,7 +58,7 @@ export declare function listRoutes(family: SocketFamily): Result<^Array<RouteEnt
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function addRoute(route: RouteEntry): Result<void, PlatformError>;
+export declare function addNetworkRoute(route: NetworkRouteEntry): Result<void, PlatformError>;
 
 /// Remove a route table entry.
 @binding("destack.net.route.remove", {
@@ -65,4 +67,4 @@ export declare function addRoute(route: RouteEntry): Result<void, PlatformError>
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function removeRoute(route: RouteEntry): Result<void, PlatformError>;
+export declare function removeNetworkRoute(route: NetworkRouteEntry): Result<void, PlatformError>;

@@ -12,9 +12,9 @@ export struct EnvironmentVariable {
 /// Raw environment variable.
 export struct RawEnvironmentVariable {
     /// Variable name bytes.
-    name: uint8[];
+    name: [uint8];
     /// Variable value bytes.
-    value: uint8[];
+    value: [uint8];
 }
 
 /// Read an environment variable.

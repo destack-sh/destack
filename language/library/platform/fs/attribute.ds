@@ -1,22 +1,22 @@
 import type { PlatformError } from "../error/index.ds";
 import { FileHandle } from "../resource/index.ds";
-import { Entry } from "./entry.ds";
+import { FilesystemEntry } from "./entry.ds";
 import { FileMode, FileOwner, FileTimes } from "./status.ds";
 
 /// Access check bitset.
-export newtype AccessMask = uint32;
+export newtype FileAccessMask = uint32;
 
 /// Check only for entry existence.
-export const ACCESS_EXISTS: AccessMask = AccessMask(0);
+export const FILE_ACCESS_EXISTS: FileAccessMask = FileAccessMask(0);
 
 /// Check for execute permission.
-export const ACCESS_EXECUTE: AccessMask = AccessMask(0x1);
+export const FILE_ACCESS_EXECUTE: FileAccessMask = FileAccessMask(0x1);
 
 /// Check for write permission.
-export const ACCESS_WRITE: AccessMask = AccessMask(0x2);
+export const FILE_ACCESS_WRITE: FileAccessMask = FileAccessMask(0x2);
 
 /// Check for read permission.
-export const ACCESS_READ: AccessMask = AccessMask(0x4);
+export const FILE_ACCESS_READ: FileAccessMask = FileAccessMask(0x4);
 
 /// Check access to a filesystem entry.
 @binding("destack.fs.attribute.checkAccess", {
@@ -25,9 +25,9 @@ export const ACCESS_READ: AccessMask = AccessMask(0x4);
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function checkAccess(
-    entry: &readonly Entry,
-    access: AccessMask,
+export declare function checkFileAccess(
+    entry: &readonly FilesystemEntry,
+    access: FileAccessMask,
 ): Result<void, PlatformError>;
 
 /// Set the permission mode for an entry.
@@ -37,8 +37,8 @@ export declare function checkAccess(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function setMode(
-    entry: &readonly Entry,
+export declare function setEntryMode(
+    entry: &readonly FilesystemEntry,
     mode: FileMode,
     isFollowing: boolean,
 ): Result<void, PlatformError>;
@@ -59,8 +59,8 @@ export declare function setFileMode(file: FileHandle, mode: FileMode): Result<vo
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function setOwner(
-    entry: &readonly Entry,
+export declare function setEntryOwner(
+    entry: &readonly FilesystemEntry,
     owner: &readonly FileOwner,
     isFollowing: boolean,
 ): Result<void, PlatformError>;
@@ -84,8 +84,8 @@ export declare function setFileOwner(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function setTimes(
-    entry: &readonly Entry,
+export declare function setEntryTimes(
+    entry: &readonly FilesystemEntry,
     times: FileTimes,
     isFollowing: boolean,
 ): Result<void, PlatformError>;

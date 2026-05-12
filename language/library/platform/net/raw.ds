@@ -3,8 +3,8 @@ import type { PlatformError } from "../error/index.ds";
 import { PacketHandle, SocketHandle } from "../resource/index.ds";
 import { SocketFamily } from "./address.ds";
 
-/// Packet backend selector.
-export enum PacketBackend {
+/// Network packet backend selector.
+export enum NetworkPacketBackend {
     /// Select the best backend for the current host.
     Auto = 0,
     /// Linux AF_PACKET backend.
@@ -15,31 +15,35 @@ export enum PacketBackend {
     WindowsRawSocket = 3,
 }
 
-/// Packet backend features.
-export newtype PacketBackendFeatures = uint64;
+/// Network packet backend features.
+export newtype NetworkPacketBackendFeatures = uint64;
 
 /// Backend supports packet capture.
-export const PACKET_CAPTURE: PacketBackendFeatures = PacketBackendFeatures(0x1);
+export const NETWORK_PACKET_CAPTURE: NetworkPacketBackendFeatures =
+    NetworkPacketBackendFeatures(0x1);
 
 /// Backend supports packet injection.
-export const PACKET_SEND: PacketBackendFeatures = PacketBackendFeatures(0x2);
+export const NETWORK_PACKET_SEND: NetworkPacketBackendFeatures = NetworkPacketBackendFeatures(0x2);
 
 /// Backend supports packet timestamps.
-export const PACKET_TIMESTAMP: PacketBackendFeatures = PacketBackendFeatures(0x4);
+export const NETWORK_PACKET_TIMESTAMP: NetworkPacketBackendFeatures =
+    NetworkPacketBackendFeatures(0x4);
 
 /// Backend supports packet filters.
-export const PACKET_FILTER: PacketBackendFeatures = PacketBackendFeatures(0x8);
+export const NETWORK_PACKET_FILTER: NetworkPacketBackendFeatures =
+    NetworkPacketBackendFeatures(0x8);
 
 /// Backend supports fanout groups.
-export const PACKET_FANOUT: PacketBackendFeatures = PacketBackendFeatures(0x10);
+export const NETWORK_PACKET_FANOUT: NetworkPacketBackendFeatures =
+    NetworkPacketBackendFeatures(0x10);
 
 /// Backend supports packet rings.
-export const PACKET_RING: PacketBackendFeatures = PacketBackendFeatures(0x20);
+export const NETWORK_PACKET_RING: NetworkPacketBackendFeatures = NetworkPacketBackendFeatures(0x20);
 
-/// Packet backend status.
-export struct PacketBackendStatus {
+/// Network packet backend status.
+export struct NetworkPacketBackendStatus {
     /// Backend selector.
-    backend: PacketBackend;
+    backend: NetworkPacketBackend;
     /// Stable backend name.
     name: string;
     /// Whether this backend is available.
@@ -47,11 +51,11 @@ export struct PacketBackendStatus {
     /// Priority in auto-selection order.
     priority: uint16;
     /// Backend features.
-    features: PacketBackendFeatures;
+    features: NetworkPacketBackendFeatures;
 }
 
-/// Packet timestamp clock domain.
-export enum PacketTimestampClock {
+/// Network packet timestamp clock domain.
+export enum NetworkPacketTimestampClock {
     /// No packet timestamp is present.
     None = 0,
     /// Timestamp is in the host wall-clock domain.
@@ -62,10 +66,10 @@ export enum PacketTimestampClock {
     Hardware = 3,
 }
 
-/// Packet endpoint options.
-export struct PacketOpenOptions {
+/// Network packet endpoint options.
+export struct NetworkPacketOpenOptions {
     /// Preferred packet backend.
-    backend: PacketBackend;
+    backend: NetworkPacketBackend;
     /// Interface index for capture or injection.
     interfaceIndex: uint32;
     /// Maximum frame bytes per packet.
@@ -76,22 +80,22 @@ export struct PacketOpenOptions {
     isPromiscuous: boolean;
 }
 
-/// Captured packet metadata.
-export struct PacketRecord {
+/// Captured network packet metadata.
+export struct NetworkPacketRecord {
     /// Packet bytes written to the payload buffer.
     bytes: uint64;
     /// Interface index that produced the packet.
     interfaceIndex: uint32;
     /// Packet timestamp clock domain.
-    timestampClock: PacketTimestampClock;
+    timestampClock: NetworkPacketTimestampClock;
     /// Capture timestamp in nanoseconds for `timestampClock`.
     timestampNanoseconds: uint64;
     /// Whether packet bytes were truncated.
     isTruncated: boolean;
 }
 
-/// Packet capture statistics.
-export struct PacketStats {
+/// Network packet capture statistics.
+export struct NetworkPacketStats {
     /// Packets received by the backend.
     receivedPackets: uint64;
     /// Packets dropped by the backend.
@@ -100,8 +104,8 @@ export struct PacketStats {
     interfaceDroppedPackets: uint64;
 }
 
-/// Packet fanout mode.
-export enum PacketFanoutMode {
+/// Network packet fanout mode.
+export enum NetworkPacketFanoutMode {
     /// Hash packets across sockets.
     Hash = 0,
     /// Load balance packets across sockets.
@@ -116,18 +120,18 @@ export enum PacketFanoutMode {
     QueueMap = 5,
 }
 
-/// Packet fanout options.
-export struct PacketFanoutOptions {
+/// Network packet fanout options.
+export struct NetworkPacketFanoutOptions {
     /// Fanout group identifier.
     groupId: uint16;
     /// Fanout mode.
-    mode: PacketFanoutMode;
+    mode: NetworkPacketFanoutMode;
     /// Mode-specific flags.
     flags: uint16;
 }
 
-/// Packet ring options.
-export struct PacketRingOptions {
+/// Network packet ring options.
+export struct NetworkPacketRingOptions {
     /// Ring block size in bytes.
     blockSize: uint32;
     /// Number of blocks in the ring.
@@ -147,7 +151,10 @@ export struct PacketRingOptions {
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function listPacketBackends(): Result<^Array<PacketBackendStatus>, PlatformError>;
+export declare function listPacketBackends(): Result<
+    ^Array<NetworkPacketBackendStatus>,
+    PlatformError,
+>;
 
 /// Open a raw IP socket.
 @binding("destack.net.raw.socket", {
@@ -181,7 +188,7 @@ export declare function setHeaderIncluded(
     simulation: true,
 })
 export declare function openPacketEndpoint(
-    options: PacketOpenOptions,
+    options: NetworkPacketOpenOptions,
 ): Result<PacketHandle, PlatformError>;
 
 /// Receive one packet from a packet endpoint.
@@ -194,7 +201,7 @@ export declare function openPacketEndpoint(
 export declare function receivePacket(
     packet: PacketHandle,
     payload: &[uint8],
-): Result<PacketRecord, PlatformError>;
+): Result<NetworkPacketRecord, PlatformError>;
 
 /// Send one packet through a packet endpoint.
 @binding("destack.net.raw.packetSend", {
@@ -238,7 +245,7 @@ export declare function clearPacketFilter(packet: PacketHandle): Result<void, Pl
 })
 export declare function setPacketFanout(
     packet: PacketHandle,
-    options: PacketFanoutOptions,
+    options: NetworkPacketFanoutOptions,
 ): Result<void, PlatformError>;
 
 /// Clear packet fanout from an endpoint.
@@ -259,7 +266,7 @@ export declare function clearPacketFanout(packet: PacketHandle): Result<void, Pl
 })
 export declare function setPacketReceiveRing(
     packet: PacketHandle,
-    options: PacketRingOptions,
+    options: NetworkPacketRingOptions,
 ): Result<void, PlatformError>;
 
 /// Configure one packet transmit ring.
@@ -271,7 +278,7 @@ export declare function setPacketReceiveRing(
 })
 export declare function setPacketSendRing(
     packet: PacketHandle,
-    options: PacketRingOptions,
+    options: NetworkPacketRingOptions,
 ): Result<void, PlatformError>;
 
 /// Clear packet ring configuration.
@@ -290,4 +297,7 @@ export declare function clearPacketRing(packet: PacketHandle): Result<void, Plat
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function packetStats(packet: PacketHandle): Result<PacketStats, PlatformError>;
+export declare function packetStats(packet: PacketHandle): Result<
+    NetworkPacketStats,
+    PlatformError,
+>;

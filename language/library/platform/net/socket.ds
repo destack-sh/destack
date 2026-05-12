@@ -38,29 +38,29 @@ export struct SocketOpenOptions {
     flags: SocketFlags;
 }
 
-/// Accept flags.
-export newtype AcceptFlags = uint32;
+/// Socket accept flags.
+export newtype SocketAcceptFlags = uint32;
 
 /// Accept the socket in nonblocking mode.
-export const ACCEPT_NONBLOCK: AcceptFlags = AcceptFlags(0x1);
+export const SOCKET_ACCEPT_NONBLOCK: SocketAcceptFlags = SocketAcceptFlags(0x1);
 
 /// Accept the socket as close-on-exec or non-inheritable.
-export const ACCEPT_CLOEXEC: AcceptFlags = AcceptFlags(0x2);
+export const SOCKET_ACCEPT_CLOEXEC: SocketAcceptFlags = SocketAcceptFlags(0x2);
 
 /// Message flags for send and receive operations.
-export newtype MessageFlags = uint32;
+export newtype SocketMessageFlags = uint32;
 
 /// Read without consuming queued data.
-export const MESSAGE_PEEK: MessageFlags = MessageFlags(0x1);
+export const SOCKET_MESSAGE_PEEK: SocketMessageFlags = SocketMessageFlags(0x1);
 
 /// Process out-of-band data.
-export const MESSAGE_OUT_OF_BAND: MessageFlags = MessageFlags(0x2);
+export const SOCKET_MESSAGE_OUT_OF_BAND: SocketMessageFlags = SocketMessageFlags(0x2);
 
 /// Send without routing table lookup where supported.
-export const MESSAGE_DONT_ROUTE: MessageFlags = MessageFlags(0x4);
+export const SOCKET_MESSAGE_DONT_ROUTE: SocketMessageFlags = SocketMessageFlags(0x4);
 
 /// Wait until the receive buffer is full where supported.
-export const MESSAGE_WAIT_ALL: MessageFlags = MessageFlags(0x8);
+export const SOCKET_MESSAGE_WAIT_ALL: SocketMessageFlags = SocketMessageFlags(0x8);
 
 /// Shutdown mode for sockets.
 export enum SocketShutdown {
@@ -81,7 +81,7 @@ export struct SocketPair {
 }
 
 /// Accepted socket result.
-export struct AcceptedSocket {
+export struct SocketAcceptResult {
     /// Accepted socket handle.
     socket: SocketHandle;
     /// Peer address captured during accept.
@@ -99,7 +99,7 @@ export struct SocketCredentials {
 }
 
 /// Outbound message metadata.
-export struct SendMessage {
+export struct SocketSendMessage {
     /// Destination address for unconnected sockets.
     address?: SocketAddress;
     /// Ancillary control bytes.
@@ -109,25 +109,25 @@ export struct SendMessage {
     /// Credentials to send when enabled.
     credentials?: SocketCredentials;
     /// Per-message flags.
-    flags: MessageFlags;
+    flags: SocketMessageFlags;
 }
 
 /// Inbound message options.
-export struct ReceiveMessageOptions {
+export struct SocketReceiveMessageOptions {
     /// Per-message flags.
-    flags: MessageFlags;
+    flags: SocketMessageFlags;
     /// Whether peer credentials should be captured.
     wantsCredentials: boolean;
 }
 
 /// Inbound message result.
-export struct ReceiveMessageResult {
+export struct SocketReceiveMessageResult {
     /// Payload bytes received.
     bytes: uint64;
     /// Source address when returned by the host.
     address?: SocketAddress;
     /// Flags returned by the host.
-    flags: MessageFlags;
+    flags: SocketMessageFlags;
     /// Ancillary control bytes written.
     controlBytes: uint64;
     /// Resource handles written.
@@ -141,19 +141,19 @@ export struct ReceiveMessageResult {
 }
 
 /// Inbound datagram result.
-export struct ReceiveFromResult {
+export struct SocketReceiveFromResult {
     /// Payload bytes received.
     bytes: uint64;
     /// Source address when returned by the host.
     address?: SocketAddress;
     /// Flags returned by the host.
-    flags: MessageFlags;
+    flags: SocketMessageFlags;
     /// Whether payload bytes were truncated.
     isPayloadTruncated: boolean;
 }
 
 /// Receive request for one batch slot.
-export struct ReceiveBatchEntry {
+export struct SocketReceiveBatchEntry {
     /// Payload output buffer.
     payload: [uint8];
     /// Ancillary control output buffer.
@@ -161,15 +161,15 @@ export struct ReceiveBatchEntry {
     /// Resource handle output buffer.
     handles: [TransferredHandle];
     /// Per-message options.
-    options: ReceiveMessageOptions;
+    options: SocketReceiveMessageOptions;
 }
 
 /// Send request for one batch slot.
-export struct SendBatchEntry {
+export struct SocketSendBatchEntry {
     /// Payload input buffer.
     payload: [uint8];
     /// Per-message metadata.
-    message: SendMessage;
+    message: SocketSendMessage;
 }
 
 /// Create a socket.
@@ -227,8 +227,8 @@ export declare function listenSocket(
 })
 export declare function acceptSocket(
     socket: SocketHandle,
-    flags: AcceptFlags,
-): Result<AcceptedSocket, PlatformError>;
+    flags: SocketAcceptFlags,
+): Result<SocketAcceptResult, PlatformError>;
 
 /// Connect a socket to a remote address.
 @binding("destack.net.socket.connect", {
@@ -282,7 +282,9 @@ export declare function setSocketNonblocking(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function localAddress(socket: SocketHandle): Result<SocketAddress, PlatformError>;
+export declare function localSocketAddress(
+    socket: SocketHandle,
+): Result<SocketAddress, PlatformError>;
 
 /// Read the remote socket address.
 @binding("destack.net.socket.peerAddress", {
@@ -291,7 +293,9 @@ export declare function localAddress(socket: SocketHandle): Result<SocketAddress
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function peerAddress(socket: SocketHandle): Result<SocketAddress, PlatformError>;
+export declare function peerSocketAddress(
+    socket: SocketHandle,
+): Result<SocketAddress, PlatformError>;
 
 /// Receive bytes from a socket.
 @binding("destack.net.socket.receive", {
@@ -300,10 +304,10 @@ export declare function peerAddress(socket: SocketHandle): Result<SocketAddress,
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function receive(
+export declare function receiveSocket(
     socket: SocketHandle,
     buffer: &[uint8],
-    flags: MessageFlags,
+    flags: SocketMessageFlags,
 ): Result<uint64, PlatformError>;
 
 /// Send bytes to a socket.
@@ -313,10 +317,10 @@ export declare function receive(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function send(
+export declare function sendSocket(
     socket: SocketHandle,
     buffer: &readonly [uint8],
-    flags: MessageFlags,
+    flags: SocketMessageFlags,
 ): Result<uint64, PlatformError>;
 
 /// Receive bytes and source address from a socket.
@@ -326,11 +330,11 @@ export declare function send(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function receiveFrom(
+export declare function receiveSocketFrom(
     socket: SocketHandle,
     buffer: &[uint8],
-    flags: MessageFlags,
-): Result<ReceiveFromResult, PlatformError>;
+    flags: SocketMessageFlags,
+): Result<SocketReceiveFromResult, PlatformError>;
 
 /// Send bytes to a destination address.
 @binding("destack.net.socket.sendTo", {
@@ -339,11 +343,11 @@ export declare function receiveFrom(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function sendTo(
+export declare function sendSocketTo(
     socket: SocketHandle,
     buffer: &readonly [uint8],
     address: &readonly SocketAddress,
-    flags: MessageFlags,
+    flags: SocketMessageFlags,
 ): Result<uint64, PlatformError>;
 
 /// Receive one message with ancillary data.
@@ -353,13 +357,13 @@ export declare function sendTo(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function receiveMessage(
+export declare function receiveSocketMessage(
     socket: SocketHandle,
     payload: &[uint8],
     control: &[uint8],
     handles: &[TransferredHandle],
-    options: ReceiveMessageOptions,
-): Result<ReceiveMessageResult, PlatformError>;
+    options: SocketReceiveMessageOptions,
+): Result<SocketReceiveMessageResult, PlatformError>;
 
 /// Send one message with ancillary data.
 @binding("destack.net.socket.sendMessage", {
@@ -368,10 +372,10 @@ export declare function receiveMessage(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function sendMessage(
+export declare function sendSocketMessage(
     socket: SocketHandle,
     payload: &readonly [uint8],
-    message: &readonly SendMessage,
+    message: &readonly SocketSendMessage,
 ): Result<uint64, PlatformError>;
 
 /// Receive multiple messages into caller-owned buffers.
@@ -381,10 +385,10 @@ export declare function sendMessage(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function receiveBatch(
+export declare function receiveSocketBatch(
     socket: SocketHandle,
-    requests: &[ReceiveBatchEntry],
-    results: &[ReceiveMessageResult],
+    requests: &[SocketReceiveBatchEntry],
+    results: &[SocketReceiveMessageResult],
 ): Result<uint64, PlatformError>;
 
 /// Send multiple messages from caller-owned buffers.
@@ -394,7 +398,7 @@ export declare function receiveBatch(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function sendBatch(
+export declare function sendSocketBatch(
     socket: SocketHandle,
-    messages: &readonly [SendBatchEntry],
+    messages: &readonly [SocketSendBatchEntry],
 ): Result<uint64, PlatformError>;

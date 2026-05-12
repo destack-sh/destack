@@ -25,6 +25,7 @@ export struct Ipv6Address {
 }
 
 /// IP address payload.
+@derive(Tagged)
 export newtype IpAddress =
     | { kind: "ipv4"; address: Ipv4Address }
     | { kind: "ipv6"; address: Ipv6Address };
@@ -38,9 +39,10 @@ export struct IpEndpoint {
 }
 
 /// Unix domain socket address payload.
+@derive(Tagged)
 export newtype UnixAddress =
     | { kind: "path"; path: string }
-    | { kind: "abstract"; name: uint8[] }
+    | { kind: "abstract"; name: [uint8] }
     | { kind: "unnamed" };
 
 /// Raw socket address payload for host-specific address families.
@@ -48,7 +50,7 @@ export struct RawSocketAddress {
     /// Socket address family.
     family: uint16;
     /// Raw sockaddr bytes.
-    bytes: uint8[];
+    bytes: [uint8];
 }
 
 /// Socket address payload.

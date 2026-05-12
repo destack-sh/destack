@@ -1,28 +1,28 @@
 import type { PlatformError } from "../error/index.ds";
-import { Entry } from "./entry.ds";
+import { FilesystemEntry } from "./entry.ds";
 import { Path, PathBuffer } from "./path.ds";
 import { FileMode } from "./status.ds";
 
 /// Rename operation flags.
-export newtype RenameFlags = uint32;
+export newtype FilesystemRenameFlags = uint32;
 
 /// Reject replacing an existing destination.
-export const RENAME_NO_REPLACE: RenameFlags = RenameFlags(0x1);
+export const FILESYSTEM_RENAME_NO_REPLACE: FilesystemRenameFlags = FilesystemRenameFlags(0x1);
 
 /// Exchange the source and destination entries atomically.
-export const RENAME_EXCHANGE: RenameFlags = RenameFlags(0x2);
+export const FILESYSTEM_RENAME_EXCHANGE: FilesystemRenameFlags = FilesystemRenameFlags(0x2);
 
 /// Create a whiteout entry as part of the rename when supported.
-export const RENAME_WHITEOUT: RenameFlags = RenameFlags(0x4);
+export const FILESYSTEM_RENAME_WHITEOUT: FilesystemRenameFlags = FilesystemRenameFlags(0x4);
 
 /// Link operation flags.
-export newtype LinkFlags = uint32;
+export newtype FilesystemLinkFlags = uint32;
 
 /// Follow a symlink source where the host operation supports it.
-export const LINK_FOLLOW: LinkFlags = LinkFlags(0x1);
+export const FILESYSTEM_LINK_FOLLOW: FilesystemLinkFlags = FilesystemLinkFlags(0x1);
 
 /// Symlink target type hint.
-export enum SymlinkKind {
+export enum FilesystemSymlinkKind {
     /// Let the runtime infer the target type.
     Auto = 0,
     /// Create a symlink to a file.
@@ -32,14 +32,14 @@ export enum SymlinkKind {
 }
 
 /// Node device identifier.
-export newtype NodeDevice = uint64;
+export newtype FilesystemNodeDevice = uint64;
 
 /// Host filesystem node creation options.
-export struct NodeOptions {
+export struct FilesystemNodeOptions {
     /// File mode including file type bits.
     mode: FileMode;
     /// Device identifier for device nodes.
-    device: NodeDevice;
+    device: FilesystemNodeDevice;
 }
 
 /// Rename or exchange one filesystem entry.
@@ -49,10 +49,10 @@ export struct NodeOptions {
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function rename(
-    from: &readonly Entry,
-    to: &readonly Entry,
-    flags: RenameFlags,
+export declare function renameEntry(
+    from: &readonly FilesystemEntry,
+    to: &readonly FilesystemEntry,
+    flags: FilesystemRenameFlags,
 ): Result<void, PlatformError>;
 
 /// Remove one non-directory filesystem entry.
@@ -62,7 +62,9 @@ export declare function rename(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function unlink(entry: &readonly Entry): Result<void, PlatformError>;
+export declare function unlinkEntry(
+    entry: &readonly FilesystemEntry,
+): Result<void, PlatformError>;
 
 /// Create one hard link.
 @binding("destack.fs.namespace.link", {
@@ -71,10 +73,10 @@ export declare function unlink(entry: &readonly Entry): Result<void, PlatformErr
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function link(
-    existing: &readonly Entry,
-    created: &readonly Entry,
-    flags: LinkFlags,
+export declare function linkEntry(
+    existing: &readonly FilesystemEntry,
+    created: &readonly FilesystemEntry,
+    flags: FilesystemLinkFlags,
 ): Result<void, PlatformError>;
 
 /// Create one symbolic link.
@@ -84,10 +86,10 @@ export declare function link(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function symlink(
+export declare function symlinkEntry(
     target: &readonly Path,
-    created: &readonly Entry,
-    kind: SymlinkKind,
+    created: &readonly FilesystemEntry,
+    kind: FilesystemSymlinkKind,
 ): Result<void, PlatformError>;
 
 /// Read a symbolic link into an output buffer.
@@ -97,8 +99,8 @@ export declare function symlink(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function readLink(
-    entry: &readonly Entry,
+export declare function readSymlink(
+    entry: &readonly FilesystemEntry,
     buffer: &PathBuffer,
 ): Result<uint64, PlatformError>;
 
@@ -109,8 +111,8 @@ export declare function readLink(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function canonicalize(
-    entry: &readonly Entry,
+export declare function canonicalizeEntry(
+    entry: &readonly FilesystemEntry,
     buffer: &PathBuffer,
 ): Result<uint64, PlatformError>;
 
@@ -121,8 +123,8 @@ export declare function canonicalize(
     families: ["unix"],
     simulation: true,
 })
-export declare function createFifo(
-    entry: &readonly Entry,
+export declare function createFifoEntry(
+    entry: &readonly FilesystemEntry,
     mode: FileMode,
 ): Result<void, PlatformError>;
 
@@ -133,7 +135,7 @@ export declare function createFifo(
     families: ["unix"],
     simulation: true,
 })
-export declare function createNode(
-    entry: &readonly Entry,
-    options: NodeOptions,
+export declare function createNodeEntry(
+    entry: &readonly FilesystemEntry,
+    options: FilesystemNodeOptions,
 ): Result<void, PlatformError>;
