@@ -931,7 +931,6 @@ impl Parser {
     /// // field
     /// x: int32
     /// x
-    /// ...Bar
     /// a: T
     /// a?: T
     /// private b: int32 = 4
@@ -1643,7 +1642,6 @@ impl Parser {
     /// // field
     /// x: int32
     /// x
-    /// ...Bar
     /// a: T
     /// a?: T
     /// private b: int32 = 4
@@ -1661,21 +1659,6 @@ impl Parser {
     /// ```
     pub fn eat_member(&mut self) -> ParseResult<LocalNodeId<Member>> {
         let start = self.span_start();
-
-        // embed (type embedding via ...Type)
-        if self.peek_is(TokenType::Spread) {
-            let embed_start = self.span_start();
-            self.bump(); // eat spread
-            let value = self.eat_member_type_expression()?;
-            let member = Member::Embed {
-                value,
-                visibility: None,
-                is_ambient: false,
-                is_static: false,
-            };
-
-            return Ok(self.insert_node(member, self.get_span_from(&embed_start)));
-        }
 
         // modifiers prefix
         let modifiers =
@@ -2459,6 +2442,29 @@ port2 = {
         assert_node!(parser.tree, members[0], Member::Error);
         assert_node!(parser.tree, members[1], Member::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(value), default: None, .. } => {
             assert_string!(parser, *name, "y");
+            assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+                assert_eq!(
+                    *value,
+                    TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true,
+                    })
+                );
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_members_rejects_embedded_type_and_recovers() {
+        let mut test = TestParser::new("...Transform\nx: int32");
+        let mut parser = test.prepare();
+        let members = parser.eat_members(false).unwrap();
+
+        assert_eq!(parser.errors.len(), 1);
+        assert_eq!(parser.get_span_str(parser.errors[0].leaf_span()), "...");
+        assert_eq!(members.len(), 2);
+
+        assert_node!(parser.tree, members[0], Member::Error);
+        assert_node!(parser.tree, members[1], Member::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(value), default: None, .. } => {
+            assert_string!(parser, *name, "x");
             assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
                 assert_eq!(
                     *value,
