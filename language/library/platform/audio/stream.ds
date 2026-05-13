@@ -1,232 +1,157 @@
-import { Slice } from "destack:collections";
 import { PlatformError } from "destack:platform/error";
-import { AudioDeviceHandle, AudioStreamHandle } from "destack:platform/resource";
-import { AudioBackend } from "./backend.ds";
-import { AudioChannelLayout, AudioSampleFormat, AudioShareMode } from "./device.ds";
+import { AudioStreamHandle } from "destack:platform/resource";
+import { AudioBackendKind, AudioBackendSelection } from "./backend.ds";
+import {
+    AudioDirection,
+    AudioFormat,
+    AudioShareMode,
+} from "./device.ds";
 
-/// Stream option flags.
+/// Audio stream option flags.
 export newtype AudioStreamFlags = uint32;
 
-/// Stream requirement flags.
-export newtype AudioStreamRequirementFlags = uint32;
+/// No stream flags.
+export const AUDIO_STREAM_NONE: AudioStreamFlags = AudioStreamFlags(0x0);
 
-/// Stream status flags.
-export newtype AudioStreamStatusFlags = uint32;
+/// Request raw backend format without automatic conversion.
+export const AUDIO_STREAM_RAW: AudioStreamFlags = AudioStreamFlags(0x1);
 
-/// Stream transfer mode selector.
-export enum AudioStreamTransferMode {
-    /// Runtime pushes packets to the host stream.
-    Push = 1,
+/// Request xrun diagnostics.
+export const AUDIO_STREAM_REPORT_XRUN: AudioStreamFlags = AudioStreamFlags(0x2);
+
+/// Require exact format matching.
+export const AUDIO_STREAM_EXACT_FORMAT: AudioStreamFlags = AudioStreamFlags(0x4);
+
+/// Audio stream transfer contract.
+export enum AudioStreamMode {
+    /// Caller moves audio through read and write calls.
+    Buffered = 1,
+    /// Runtime processes audio on the host audio deadline.
+    Realtime = 2,
 }
 
-/// Stream run-state selector.
-export enum AudioStreamStateKind {
+/// Audio stream state.
+export enum AudioStreamState {
     /// Stream is stopped.
     Stopped = 1,
-    /// Stream is starting.
-    Starting = 2,
     /// Stream is running.
-    Running = 3,
+    Running = 2,
     /// Stream is paused.
-    Paused = 4,
+    Paused = 3,
     /// Stream is draining queued playback data.
-    Draining = 5,
-    /// Stream is stopping.
-    Stopping = 6,
-    /// Stream reported one underrun or overrun.
-    XRun = 7,
-    /// Stream lost the underlying device.
-    DeviceLost = 8,
-    /// Stream backend was disconnected.
-    BackendDisconnected = 9,
-    /// Stream is interrupted by host policy.
-    Interrupted = 10,
+    Draining = 4,
+    /// Stream lost its host device.
+    DeviceLost = 5,
+    /// Stream was interrupted by host policy.
+    Interrupted = 6,
+    /// Stream backend failed.
+    Failed = 7,
 }
 
-/// Audio stream configuration.
-export struct AudioStreamConfig {
-    /// Sample rate in hertz.
-    sampleRate: uint32;
-    /// Channel count.
-    channels: uint16;
-    /// Requested channel layout.
-    channelLayout: AudioChannelLayout;
-    /// Requested speaker channel mask, zero to use backend defaults.
-    channelMask: uint64;
-    /// Audio sample format.
-    format: AudioSampleFormat;
-    /// Target period size in frames.
-    periodFrames: uint32;
-    /// Stream transfer mode.
-    transferMode: AudioStreamTransferMode;
-}
-
-/// Audio stream open options.
-export struct AudioStreamOpenOptions {
-    /// Requested stream option flags.
+/// Audio stream open request.
+export struct AudioStreamRequest {
+    /// Backend selection.
+    backend: AudioBackendSelection;
+    /// Device identifier, omitted for the backend default device.
+    deviceId?: string;
+    /// Stream direction.
+    direction: AudioDirection;
+    /// Share mode.
+    shareMode: AudioShareMode;
+    /// Stream transfer contract.
+    mode: AudioStreamMode;
+    /// Requested audio format.
+    format: AudioFormat;
+    /// Requested processing quantum in frames, or zero for backend default.
+    quantumFrames: uint32;
+    /// Requested buffering in frames, or zero for backend default.
+    bufferFrames: uint32;
+    /// Stream flags.
     flags: AudioStreamFlags;
-    /// Requested strict requirement flags.
-    /// Any unsatisfied requirement must fail open with `notSupported`.
-    requirements: AudioStreamRequirementFlags;
+}
+
+/// Opened audio stream descriptor.
+export struct AudioStreamDescriptor {
+    /// Host backend.
+    backend: AudioBackendKind;
+    /// Stream device identifier.
+    deviceId: string;
+    /// Stream direction.
+    direction: AudioDirection;
+    /// Share mode.
+    shareMode: AudioShareMode;
+    /// Stream transfer contract.
+    mode: AudioStreamMode;
+    /// Negotiated audio format.
+    format: AudioFormat;
+    /// Buffer size in frames.
+    bufferFrames: uint32;
+    /// Processing quantum in frames.
+    quantumFrames: uint32;
+    /// Backend buffer count.
+    bufferCount: uint32;
+    /// Bytes per sample.
+    sampleBytes: uint16;
+    /// Bytes per interleaved frame.
+    frameBytes: uint32;
+    /// Bytes per channel plane when using planar buffers.
+    planeBytes: uint32;
+    /// Effective stream flags.
+    flags: AudioStreamFlags;
+}
+
+/// Audio stream status.
+export struct AudioStreamStatus {
+    /// Current stream state.
+    state: AudioStreamState;
+    /// Readable capture frames.
+    readableFrames: uint64;
+    /// Writable playback frames.
+    writableFrames: uint64;
+    /// Buffered playback frames.
+    bufferedFrames: uint64;
+    /// Input latency in nanoseconds.
+    inputLatencyNs: uint64;
+    /// Output latency in nanoseconds.
+    outputLatencyNs: uint64;
+    /// Total underflow or overflow count.
+    xrunCount: uint64;
+    /// Total frames accepted by or delivered from the backend.
+    processedFrames: uint64;
+    /// Realtime process load as a fraction of the quantum budget.
+    processLoad: float64;
+    /// Last status sample timestamp in monotonic nanoseconds.
+    timestampNs: uint64;
 }
 
 /// Audio stream support result.
 export struct AudioStreamSupport {
-    /// Whether the requested stream configuration is fully supported.
-    supported: boolean;
-    /// Negotiated stream descriptor for this support check.
-    /// When `supported` is false this is the closest backend-supported candidate.
+    /// Whether the request can be opened exactly.
+    isExact: boolean;
+    /// Negotiated stream descriptor.
     descriptor: AudioStreamDescriptor;
-    /// Requirement flags satisfied by this support result.
-    satisfiedRequirements: AudioStreamRequirementFlags;
-    /// Requirement flags not satisfied by this support result.
-    unsatisfiedRequirements: AudioStreamRequirementFlags;
 }
 
-/// Audio stream state.
-export struct AudioStreamState {
-    /// Stream run-state selector.
-    state: AudioStreamStateKind;
-    /// Whether the stream is currently running.
-    running: boolean;
-    /// Whether the stream is currently paused.
-    paused: boolean;
-    /// Frames buffered by the host backend.
-    bufferedFrames: uint64;
-    /// Estimated input latency in nanoseconds.
-    inputLatencyNs: uint64;
-    /// Estimated output latency in nanoseconds.
-    outputLatencyNs: uint64;
-    /// Estimated total latency in nanoseconds.
-    totalLatencyNs: uint64;
-    /// Current stream status flags.
-    statusFlags: AudioStreamStatusFlags;
-    /// Total xrun count observed by the backend.
-    xrunCount: uint64;
-    /// Total input underflow count observed by the backend.
-    inputUnderflowCount: uint64;
-    /// Total input overflow count observed by the backend.
-    inputOverflowCount: uint64;
-    /// Total output underflow count observed by the backend.
-    outputUnderflowCount: uint64;
-    /// Total output overflow count observed by the backend.
-    outputOverflowCount: uint64;
-    /// Backend callback CPU load estimate in [0, +inf) when available.
-    callbackCpuLoad: float64;
-}
-
-/// Audio stream negotiated format descriptor.
-export struct AudioStreamDescriptor {
-    /// Host backend for this stream instance.
-    backend: AudioBackend;
-    /// Backend identifier for this stream instance.
-    backendId: string;
-    /// Current device identifier for this stream instance.
-    deviceId: string;
-    /// Effective sample rate in hertz.
-    sampleRate: uint32;
-    /// Effective channel count.
-    channels: uint16;
-    /// Effective channel layout.
-    channelLayout: AudioChannelLayout;
-    /// Effective speaker channel mask when available.
-    channelMask: uint64;
-    /// Effective sample format.
-    format: AudioSampleFormat;
-    /// Effective period size in frames.
-    periodFrames: uint32;
-    /// Stream transfer mode selected by backend.
-    transferMode: AudioStreamTransferMode;
-    /// Effective share mode selected by backend.
-    shareMode: AudioShareMode;
-    /// Requested stream option flags from open time.
-    requestedFlags: AudioStreamFlags;
-    /// Requested stream requirement flags from open time.
-    requestedRequirements: AudioStreamRequirementFlags;
-    /// Effective stream option flags after backend negotiation.
-    effectiveFlags: AudioStreamFlags;
-    /// Effective stream requirement flags satisfied by the backend.
-    effectiveRequirements: AudioStreamRequirementFlags;
-    /// Backend period jitter estimate in nanoseconds.
-    /// Zero indicates unavailable timing history or insufficient callback samples.
-    periodJitterNs: uint64;
-    /// Whether this stream currently uses non-interleaved backend buffers.
-    nonInterleaved: boolean;
-    /// Whether scheduled write submission is supported.
-    supportsWriteAt: boolean;
-    /// Whether pause and resume operations are supported.
-    supportsPause: boolean;
-    /// Whether non-interleaved operation is supported.
-    supportsNonInterleaved: boolean;
-    /// Whether stream gain control is supported.
-    supportsVolume: boolean;
-    /// Whether stream mute control is supported.
-    supportsMute: boolean;
-    /// Whether hardware timestamp correlation is supported.
-    supportsHardwareTimestamps: boolean;
-}
-
-/// Audio stream timing.
-export struct AudioStreamTiming {
-    /// Stream position in frames.
-    streamFrames: uint64;
-    /// Stream clock in nanoseconds when available.
-    streamTimeNs: uint64;
-    /// ADC capture timestamp in nanoseconds when available.
-    inputAdcTimeNs: uint64 | void;
-    /// DAC presentation timestamp in nanoseconds when available.
-    outputDacTimeNs: uint64 | void;
-    /// Callback invocation timestamp in nanoseconds when available.
-    callbackTimeNs: uint64 | void;
-    /// Host device clock in nanoseconds when available.
-    deviceClockNs: uint64 | void;
-    /// Runtime monotonic clock in nanoseconds.
-    monotonicClockNs: uint64;
-    /// Estimated drift in parts-per-million.
-    /// Zero indicates unavailable timing history or insufficient callback samples.
-    driftPpm: float64;
-    /// Backend callback CPU load estimate in [0, +inf) when available.
-    callbackCpuLoad: float64;
-}
-
-/// Audio stream availability.
-export struct AudioStreamAvailability {
-    /// Immediately readable frames in the backend capture buffer.
-    readableFrames: uint64;
-    /// Immediately writable frames in the backend playback buffer.
-    writableFrames: uint64;
-    /// Minimum transfer frame count for the current callback quantum.
-    minTransferFrames: uint32;
-    /// Maximum transfer frame count for the current callback quantum.
-    maxTransferFrames: uint32;
-    /// Snapshot timestamp in nanoseconds.
-    timestampNs: uint64;
-}
-
-/// Check one audio stream configuration for backend support.
+/// Check whether one audio stream can be opened.
 @binding("destack.audio.stream.support", {
     effect: "external",
     requires: ["host.audio.stream"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function streamSupport(
-    device: AudioDeviceHandle,
-    config: AudioStreamConfig,
-    options: AudioStreamOpenOptions,
+export declare function supportAudioStream(
+    request: &readonly AudioStreamRequest,
 ): Result<AudioStreamSupport, PlatformError>;
 
-/// Open one audio stream on one device.
+/// Open one audio stream.
 @binding("destack.audio.stream.open", {
     effect: "external",
     requires: ["host.audio.stream"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function streamOpen(
-    device: AudioDeviceHandle,
-    config: AudioStreamConfig,
-    options: AudioStreamOpenOptions,
+export declare function openAudioStream(
+    request: &readonly AudioStreamRequest,
 ): Result<AudioStreamHandle, PlatformError>;
 
 /// Close one audio stream.
@@ -236,7 +161,7 @@ export declare function streamOpen(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function streamClose(handle: AudioStreamHandle): Result<void, PlatformError>;
+export declare function closeAudioStream(stream: AudioStreamHandle): Result<void, PlatformError>;
 
 /// Start one audio stream.
 @binding("destack.audio.stream.start", {
@@ -245,19 +170,25 @@ export declare function streamClose(handle: AudioStreamHandle): Result<void, Pla
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function streamStart(handle: AudioStreamHandle): Result<void, PlatformError>;
+export declare function startAudioStream(stream: AudioStreamHandle): Result<void, PlatformError>;
 
-/// Pause or resume one audio stream.
+/// Pause one audio stream.
 @binding("destack.audio.stream.pause", {
     effect: "external",
     requires: ["host.audio.stream"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function streamPause(
-    handle: AudioStreamHandle,
-    pause: boolean,
-): Result<void, PlatformError>;
+export declare function pauseAudioStream(stream: AudioStreamHandle): Result<void, PlatformError>;
+
+/// Resume one audio stream.
+@binding("destack.audio.stream.resume", {
+    effect: "external",
+    requires: ["host.audio.stream"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function resumeAudioStream(stream: AudioStreamHandle): Result<void, PlatformError>;
 
 /// Stop one audio stream.
 @binding("destack.audio.stream.stop", {
@@ -266,289 +197,88 @@ export declare function streamPause(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function streamStop(handle: AudioStreamHandle): Result<void, PlatformError>;
+export declare function stopAudioStream(stream: AudioStreamHandle): Result<void, PlatformError>;
 
-/// Abort one audio stream immediately.
-@binding("destack.audio.stream.abort", {
+/// Drain queued playback data.
+@binding("destack.audio.stream.drain", {
+    effect: "external",
+    requires: ["host.audio.write"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function drainAudioStream(
+    stream: AudioStreamHandle,
+    timeoutNs?: uint64,
+): Result<void, PlatformError>;
+
+/// Read one opened stream descriptor.
+@binding("destack.audio.stream.describe", {
     effect: "external",
     requires: ["host.audio.stream"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function streamAbort(handle: AudioStreamHandle): Result<void, PlatformError>;
-
-/// Read one stream state.
-@binding("destack.audio.stream.state", {
-    effect: "external",
-    requires: ["host.audio.control"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function streamState(handle: AudioStreamHandle): Result<AudioStreamState, PlatformError>;
-
-/// Read one stream negotiated configuration descriptor.
-@binding("destack.audio.stream.descriptor", {
-    effect: "external",
-    requires: ["host.audio.control"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function streamDescriptor(
-    handle: AudioStreamHandle,
+export declare function describeAudioStream(
+    stream: AudioStreamHandle,
 ): Result<AudioStreamDescriptor, PlatformError>;
 
-/// Read one stream timing sample.
-@binding("destack.audio.stream.timing", {
+/// Read one stream status sample.
+@binding("destack.audio.stream.status", {
     effect: "external",
-    requires: ["host.audio.control"],
+    requires: ["host.audio.stream"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function streamTiming(
-    handle: AudioStreamHandle,
-): Result<AudioStreamTiming, PlatformError>;
+export declare function audioStreamStatus(
+    stream: AudioStreamHandle,
+): Result<AudioStreamStatus, PlatformError>;
 
-/// Read one stream immediate availability sample.
-@binding("destack.audio.stream.availability", {
+/// Read buffered capture frames into one buffer.
+@binding("destack.audio.stream.read", {
     effect: "external",
-    requires: ["host.audio.control"],
+    requires: ["host.audio.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function streamAvailability(
-    handle: AudioStreamHandle,
-): Result<AudioStreamAvailability, PlatformError>;
+export declare function readAudioStream(
+    stream: AudioStreamHandle,
+    buffer: &[uint8],
+    timeoutNs?: uint64,
+): Result<uint64, PlatformError>;
 
-/// Flush buffered stream data.
-@binding("destack.audio.stream.flush", {
+/// Write buffered playback frames from one buffer.
+@binding("destack.audio.stream.write", {
     effect: "external",
-    requires: ["host.audio.control"],
+    requires: ["host.audio.write"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function streamFlush(handle: AudioStreamHandle): Result<void, PlatformError>;
-
-/// Drain one playback stream.
-@binding("destack.audio.stream.drain", {
-    effect: "external",
-    requires: ["host.audio.playback"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function streamDrain(
-    handle: AudioStreamHandle,
-    timeoutNs: uint64,
-): Result<void, PlatformError>;
-
-/// Set one stream name.
-@binding("destack.audio.stream.setName", {
-    effect: "external",
-    requires: ["host.audio.control"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function streamSetName(
-    handle: AudioStreamHandle,
-    name: string,
-): Result<void, PlatformError>;
+export declare function writeAudioStream(
+    stream: AudioStreamHandle,
+    bytes: &readonly [uint8],
+    timeoutNs?: uint64,
+): Result<uint64, PlatformError>;
 
 /// Set one stream gain multiplier.
-@binding("destack.audio.stream.setVolume", {
+@binding("destack.audio.stream.gain", {
     effect: "external",
-    requires: ["host.audio.control"],
+    requires: ["host.audio.stream"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function streamSetVolume(
-    handle: AudioStreamHandle,
-    linearGain: float64,
+export declare function setAudioStreamGain(
+    stream: AudioStreamHandle,
+    gain: float64,
 ): Result<void, PlatformError>;
 
 /// Set one stream mute state.
-@binding("destack.audio.stream.setMute", {
+@binding("destack.audio.stream.mute", {
     effect: "external",
-    requires: ["host.audio.control"],
+    requires: ["host.audio.stream"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function streamSetMute(
-    handle: AudioStreamHandle,
-    muted: boolean,
+export declare function setAudioStreamMute(
+    stream: AudioStreamHandle,
+    isMuted: boolean,
 ): Result<void, PlatformError>;
-
-/// Write one packet of audio frames.
-@binding("destack.audio.stream.write", {
-    effect: "external",
-    requires: ["host.audio.playback"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function streamWrite(
-    handle: AudioStreamHandle,
-    data: Slice<uint8>,
-): Result<uint64, PlatformError>;
-
-/// Try to write one packet of audio frames without blocking.
-@binding("destack.audio.stream.tryWrite", {
-    effect: "external",
-    requires: ["host.audio.playback"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function streamTryWrite(
-    handle: AudioStreamHandle,
-    data: Slice<uint8>,
-): Result<uint64, PlatformError>;
-
-/// Write one packet from vectorized buffers.
-@binding("destack.audio.stream.writev", {
-    effect: "external",
-    requires: ["host.audio.playback"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function streamWritev(
-    handle: AudioStreamHandle,
-    buffers: Slice<Slice<uint8>>,
-): Result<uint64, PlatformError>;
-
-/// Try to write one packet from vectorized buffers without blocking.
-@binding("destack.audio.stream.tryWritev", {
-    effect: "external",
-    requires: ["host.audio.playback"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function streamTryWritev(
-    handle: AudioStreamHandle,
-    buffers: Slice<Slice<uint8>>,
-): Result<uint64, PlatformError>;
-
-/// Write one packet for one target presentation time.
-@binding("destack.audio.stream.writeAt", {
-    effect: "external",
-    requires: ["host.audio.playback.schedule"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function streamWriteAt(
-    handle: AudioStreamHandle,
-    data: Slice<uint8>,
-    presentationTimeNs: uint64,
-): Result<uint64, PlatformError>;
-
-/// Write one vectorized packet for one target presentation time.
-@binding("destack.audio.stream.writeAtv", {
-    effect: "external",
-    requires: ["host.audio.playback.schedule"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function streamWriteAtv(
-    handle: AudioStreamHandle,
-    buffers: Slice<Slice<uint8>>,
-    presentationTimeNs: uint64,
-): Result<uint64, PlatformError>;
-
-/// Read one packet of captured audio frames.
-@binding("destack.audio.stream.read", {
-    effect: "external",
-    requires: ["host.audio.capture"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function streamRead(
-    handle: AudioStreamHandle,
-    maxBytes: uint32,
-): Result<Slice<uint8>, PlatformError>;
-
-/// Try to read one packet of captured audio frames without blocking.
-@binding("destack.audio.stream.tryRead", {
-    effect: "external",
-    requires: ["host.audio.capture"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function streamTryRead(
-    handle: AudioStreamHandle,
-    maxBytes: uint32,
-): Result<Slice<uint8>, PlatformError>;
-
-/// Read one packet into vectorized buffers.
-@binding("destack.audio.stream.readv", {
-    effect: "external",
-    requires: ["host.audio.capture"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function streamReadv(
-    handle: AudioStreamHandle,
-    buffers: Slice<Slice<uint8>>,
-): Result<uint64, PlatformError>;
-
-/// Try to read one packet into vectorized buffers without blocking.
-@binding("destack.audio.stream.tryReadv", {
-    effect: "external",
-    requires: ["host.audio.capture"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function streamTryReadv(
-    handle: AudioStreamHandle,
-    buffers: Slice<Slice<uint8>>,
-): Result<uint64, PlatformError>;
-
-/// Default stream behavior.
-export const AUDIO_STREAM_NONE: AudioStreamFlags = AudioStreamFlags(0x0);
-/// Request non-interleaved channel buffers.
-export const AUDIO_STREAM_NON_INTERLEAVED: AudioStreamFlags = AudioStreamFlags(0x1);
-/// Request minimal callback period and latency.
-export const AUDIO_STREAM_MINIMIZE_LATENCY: AudioStreamFlags = AudioStreamFlags(0x2);
-/// Request strict sample-format matching with no backend substitution.
-export const AUDIO_STREAM_EXPLICIT_SAMPLE_FORMAT: AudioStreamFlags = AudioStreamFlags(0x8);
-/// Disable backend-side automatic sample-rate conversion where possible.
-export const AUDIO_STREAM_NO_AUTO_CONVERT: AudioStreamFlags = AudioStreamFlags(0x10);
-/// Request stream status updates for xrun diagnostics.
-export const AUDIO_STREAM_REPORT_XRUN: AudioStreamFlags = AudioStreamFlags(0x20);
-
-/// Default stream requirement behavior.
-export const AUDIO_STREAM_REQUIRE_NONE: AudioStreamRequirementFlags =
-    AudioStreamRequirementFlags(0x0);
-/// Require non-interleaved stream buffers.
-export const AUDIO_STREAM_REQUIRE_NON_INTERLEAVED: AudioStreamRequirementFlags =
-    AudioStreamRequirementFlags(0x1);
-/// Require scheduled write submission support.
-export const AUDIO_STREAM_REQUIRE_SCHEDULED_WRITE: AudioStreamRequirementFlags =
-    AudioStreamRequirementFlags(0x2);
-/// Require pause and resume support.
-export const AUDIO_STREAM_REQUIRE_PAUSE: AudioStreamRequirementFlags =
-    AudioStreamRequirementFlags(0x4);
-/// Require hardware timestamp correlation support.
-export const AUDIO_STREAM_REQUIRE_HARDWARE_TIMESTAMPS: AudioStreamRequirementFlags =
-    AudioStreamRequirementFlags(0x8);
-/// Require bit-exact PCM with no backend-side conversion.
-export const AUDIO_STREAM_REQUIRE_BIT_EXACT_PCM: AudioStreamRequirementFlags =
-    AudioStreamRequirementFlags(0x10);
-
-/// Input underflow status bit.
-export const AUDIO_STREAM_STATUS_INPUT_UNDERFLOW: AudioStreamStatusFlags =
-    AudioStreamStatusFlags(0x1);
-/// Input overflow status bit.
-export const AUDIO_STREAM_STATUS_INPUT_OVERFLOW: AudioStreamStatusFlags =
-    AudioStreamStatusFlags(0x2);
-/// Output underflow status bit.
-export const AUDIO_STREAM_STATUS_OUTPUT_UNDERFLOW: AudioStreamStatusFlags =
-    AudioStreamStatusFlags(0x4);
-/// Output overflow status bit.
-export const AUDIO_STREAM_STATUS_OUTPUT_OVERFLOW: AudioStreamStatusFlags =
-    AudioStreamStatusFlags(0x8);
-/// Output priming status bit.
-export const AUDIO_STREAM_STATUS_PRIMING_OUTPUT: AudioStreamStatusFlags =
-    AudioStreamStatusFlags(0x10);
-/// Device-changed status bit.
-export const AUDIO_STREAM_STATUS_DEVICE_CHANGED: AudioStreamStatusFlags =
-    AudioStreamStatusFlags(0x20);
-/// Rerouted status bit.
-export const AUDIO_STREAM_STATUS_REROUTED: AudioStreamStatusFlags = AudioStreamStatusFlags(0x40);
-/// Interrupted status bit.
-export const AUDIO_STREAM_STATUS_INTERRUPTED: AudioStreamStatusFlags = AudioStreamStatusFlags(0x80);

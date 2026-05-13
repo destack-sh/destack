@@ -1,41 +1,40 @@
-import { Slice } from "destack:collections";
+import { Array } from "destack:collections";
 import { PlatformError } from "destack:platform/error";
-import { AudioDeviceHandle } from "destack:platform/resource";
-import {
-    AudioBackend,
-    AudioBackendSelectionPolicy,
-    AudioDeviceListFlags,
-    AudioDeviceOpenFlags,
-    AudioSupportedEventSubscriptionFlags,
-    AudioSupportedStreamClockDomains,
-    AudioSupportedStreamFlags,
-    AudioSupportedStreamRequirementFlags,
-} from "./backend.ds";
+import { AudioBackendKind, AudioBackendSelection } from "./backend.ds";
 
-/// Audio device direction.
-export enum AudioDeviceDirection {
-    /// Playback-only device.
+/// Audio device list flags.
+export newtype AudioDeviceListFlags = uint32;
+
+/// Include disconnected endpoints when the host reports them.
+export const AUDIO_DEVICE_LIST_DISCONNECTED: AudioDeviceListFlags = AudioDeviceListFlags(0x01);
+
+/// Include raw endpoints separately from mixer endpoints.
+export const AUDIO_DEVICE_LIST_RAW: AudioDeviceListFlags = AudioDeviceListFlags(0x02);
+
+/// Include host loopback endpoints.
+export const AUDIO_DEVICE_LIST_LOOPBACK: AudioDeviceListFlags = AudioDeviceListFlags(0x04);
+
+/// Audio stream direction.
+export enum AudioDirection {
+    /// Playback output.
     Playback = 1,
-    /// Capture-only device.
+    /// Capture input.
     Capture = 2,
-    /// Duplex playback and capture device.
+    /// Simultaneous playback and capture.
     Duplex = 3,
-    /// Capture endpoint for host loopback or monitor channels.
+    /// Host loopback capture.
     Loopback = 4,
 }
 
-/// Audio stream share mode selector.
+/// Audio stream share mode.
 export enum AudioShareMode {
-    /// Shared mode with host mixing.
+    /// Shared host mixer mode.
     Shared = 1,
-    /// Exclusive mode with direct endpoint access.
+    /// Exclusive endpoint mode.
     Exclusive = 2,
 }
 
-/// Device action flags.
-export newtype AudioDeviceCapabilityFlags = uint64;
-
-/// Audio sample format selector.
+/// PCM sample format.
 export enum AudioSampleFormat {
     /// Unsigned 8-bit PCM.
     U8 = 1,
@@ -51,240 +50,150 @@ export enum AudioSampleFormat {
     F64 = 6,
 }
 
-/// Standard channel-layout selector.
+/// Audio buffer layout.
+export enum AudioBufferLayout {
+    /// Samples for each frame are adjacent.
+    Interleaved = 1,
+    /// Each channel is stored in one contiguous plane.
+    Planar = 2,
+}
+
+/// Standard channel layout.
 export enum AudioChannelLayout {
     /// Backend did not report one canonical layout.
     Unknown = 0,
-    /// Mono layout.
+    /// Mono.
     Mono = 1,
-    /// Stereo layout.
+    /// Stereo.
     Stereo = 2,
-    /// Quadraphonic layout.
+    /// Quadraphonic.
     Quad = 3,
-    /// 4.1 surround layout.
-    Surround41 = 4,
-    /// 5.1 surround layout.
-    Surround51 = 5,
-    /// 6.1 surround layout.
-    Surround61 = 6,
-    /// 7.1 surround layout.
-    Surround71 = 7,
-    /// One custom layout described by a channel mask.
+    /// 5.1 surround.
+    Surround51 = 4,
+    /// 7.1 surround.
+    Surround71 = 5,
+    /// Custom channel mask.
     Custom = 255,
 }
 
-/// Audio device list request.
-export struct AudioDeviceListRequest {
-    /// Device direction filter.
-    direction: AudioDeviceDirection;
-    /// Preferred backend selector.
-    backend: AudioBackend;
-    /// Backend selection policy.
-    backendPolicy: AudioBackendSelectionPolicy;
-    /// Request option flags.
-    flags: AudioDeviceListFlags;
+/// Audio format.
+export struct AudioFormat {
+    /// Sample rate in hertz.
+    sampleRate: uint32;
+    /// Channel count.
+    channels: uint16;
+    /// Sample format.
+    sampleFormat: AudioSampleFormat;
+    /// Buffer layout.
+    bufferLayout: AudioBufferLayout;
+    /// Channel layout.
+    channelLayout: AudioChannelLayout;
+    /// Host channel mask, or zero when unavailable.
+    channelMask: uint64;
 }
 
-/// Audio device open options.
-export struct AudioDeviceOpenOptions {
-    /// Stream direction for the opened endpoint.
-    direction: AudioDeviceDirection;
-    /// Preferred backend selector.
-    backend: AudioBackend;
-    /// Backend selection policy.
-    backendPolicy: AudioBackendSelectionPolicy;
-    /// Shared or exclusive endpoint mode.
-    shareMode: AudioShareMode;
-    /// Open option flags.
-    flags: AudioDeviceOpenFlags;
-}
-
-/// Audio device information.
-export struct AudioDeviceDescriptor {
-    /// Stable runtime device identifier.
-    id: string;
-    /// Stable group identifier used to correlate related endpoints.
-    groupId: string;
-    /// Host-facing device name.
-    name: string;
-    /// Backend transport name when available.
-    transport: string;
-    /// Host backend for this device.
-    backend: AudioBackend;
-    /// Device direction action.
-    direction: AudioDeviceDirection;
-    /// Whether this device is currently connected.
-    connected: boolean;
-    /// Whether this device exposes raw or direct endpoint mode.
-    isRaw: boolean;
-    /// Whether this device is the default playback endpoint.
-    isDefaultPlayback: boolean;
-    /// Whether this device is the default capture endpoint.
-    isDefaultCapture: boolean;
-    /// Whether this device is the default loopback endpoint.
-    isDefaultLoopback: boolean;
-    /// Device-level action flags.
-    /// These are coarse feature categories.
-    /// Use `supported*` masks for fine-grained support decisions.
-    capabilityFlags: AudioDeviceCapabilityFlags;
-    /// Supported device-open flags for this device.
-    supportedDeviceOpenFlags: AudioDeviceOpenFlags;
-    /// Supported stream-option flags for this device.
-    supportedStreamFlags: AudioSupportedStreamFlags;
-    /// Supported stream-requirement flags for this device.
-    supportedStreamRequirementFlags: AudioSupportedStreamRequirementFlags;
-    /// Supported event-subscription flags for this device.
-    supportedEventSubscriptionFlags: AudioSupportedEventSubscriptionFlags;
-    /// Supported stream-clock domains for this device.
-    supportedStreamClockDomains: AudioSupportedStreamClockDomains;
-    /// Preferred sample rate in hertz.
-    preferredSampleRate: uint32;
+/// Audio format range.
+export struct AudioFormatRange {
     /// Minimum sample rate in hertz.
     minSampleRate: uint32;
     /// Maximum sample rate in hertz.
     maxSampleRate: uint32;
-    /// Preferred period in frames.
-    preferredPeriodFrames: uint32;
     /// Minimum channel count.
     minChannels: uint16;
     /// Maximum channel count.
     maxChannels: uint16;
-    /// Preferred channel layout.
-    preferredLayout: AudioChannelLayout;
-    /// Preferred speaker channel mask when available.
-    preferredChannelMask: uint64;
-    /// Supported speaker channel mask when available.
-    supportedChannelMask: uint64;
-    /// Minimum low-latency period in frames.
-    minPeriodFrames: uint32;
-    /// Maximum period in frames.
-    maxPeriodFrames: uint32;
-    /// Supported sample format bitmask.
-    formatMask: uint32;
-    /// Supported share mode bitmask.
-    /// Bit 0 is shared mode.
-    /// Bit 1 is exclusive mode.
-    shareModeMask: uint32;
+    /// Supported sample formats.
+    sampleFormats: Array<AudioSampleFormat>;
+    /// Supported buffer layouts.
+    bufferLayouts: Array<AudioBufferLayout>;
+    /// Supported channel layouts.
+    channelLayouts: Array<AudioChannelLayout>;
 }
 
-/// Trigger one backend rescan.
-@binding("destack.audio.device.rescan", {
-    effect: "external",
-    requires: ["host.audio.device.monitor"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function deviceRescan(
-    backend: AudioBackend,
-    backendPolicy: AudioBackendSelectionPolicy,
-): Result<void, PlatformError>;
+/// Audio device query.
+export struct AudioDeviceQuery {
+    /// Backend selection.
+    backend: AudioBackendSelection;
+    /// Direction filter.
+    direction?: AudioDirection;
+    /// List behavior flags.
+    flags: AudioDeviceListFlags;
+}
 
-/// List available audio devices.
+/// Audio device descriptor.
+export struct AudioDevice {
+    /// Stable device identifier.
+    id: string;
+    /// Related endpoint group identifier.
+    groupId?: string;
+    /// Display name.
+    name: string;
+    /// Host backend.
+    backend: AudioBackendKind;
+    /// Device direction.
+    direction: AudioDirection;
+    /// Transport or driver name.
+    transport?: string;
+    /// Whether the device is currently connected.
+    isConnected: boolean;
+    /// Whether this is a raw endpoint.
+    isRaw: boolean;
+    /// Whether this is the default playback endpoint.
+    isDefaultPlayback: boolean;
+    /// Whether this is the default capture endpoint.
+    isDefaultCapture: boolean;
+    /// Whether this is the default loopback endpoint.
+    isDefaultLoopback: boolean;
+    /// Supported share modes.
+    shareModes: Array<AudioShareMode>;
+    /// Preferred format.
+    preferredFormat: AudioFormat;
+    /// Supported format ranges.
+    formats: Array<AudioFormatRange>;
+}
+
+/// List audio devices.
 @binding("destack.audio.device.list", {
     effect: "external",
     requires: ["host.audio.device"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function deviceList(
-    request: AudioDeviceListRequest,
-): Result<Slice<AudioDeviceDescriptor>, PlatformError>;
+export declare function listAudioDevices(
+    query: &readonly AudioDeviceQuery,
+): Result<^Array<AudioDevice>, PlatformError>;
 
-/// Read one default device identifier for the selected direction.
+/// Return the default device identifier for one direction.
 @binding("destack.audio.device.default", {
     effect: "external",
     requires: ["host.audio.device"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function deviceDefault(
-    direction: AudioDeviceDirection,
-    backend: AudioBackend,
-    backendPolicy: AudioBackendSelectionPolicy,
-): Result<string, PlatformError>;
+export declare function defaultAudioDevice(
+    backend: &readonly AudioBackendSelection,
+    direction: AudioDirection,
+): Result<^string, PlatformError>;
 
-/// Open one audio device endpoint.
-@binding("destack.audio.device.open", {
+/// Describe one audio device.
+@binding("destack.audio.device.describe", {
     effect: "external",
     requires: ["host.audio.device"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function deviceOpen(
-    id: string,
-    options: AudioDeviceOpenOptions,
-): Result<AudioDeviceHandle, PlatformError>;
+export declare function describeAudioDevice(
+    backend: &readonly AudioBackendSelection,
+    deviceId: &readonly string,
+): Result<AudioDevice, PlatformError>;
 
-/// Read metadata for one opened device endpoint.
-@binding("destack.audio.device.descriptor", {
+/// Trigger one backend device rescan.
+@binding("destack.audio.device.rescan", {
     effect: "external",
-    requires: ["host.audio.device"],
+    requires: ["host.audio.device.watch"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function deviceDescriptor(
-    handle: AudioDeviceHandle,
-): Result<AudioDeviceDescriptor, PlatformError>;
-
-/// Close one audio device endpoint.
-@binding("destack.audio.device.close", {
-    effect: "external",
-    requires: ["host.audio.device"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function deviceClose(handle: AudioDeviceHandle): Result<void, PlatformError>;
-
-/// Default list behavior.
-export const AUDIO_DEVICE_LIST_NONE: AudioDeviceListFlags = AudioDeviceListFlags(0x0);
-/// Include disconnected or unavailable endpoints when possible.
-export const AUDIO_DEVICE_LIST_INCLUDE_DISCONNECTED: AudioDeviceListFlags =
-    AudioDeviceListFlags(0x1);
-/// Include raw endpoints when the backend exposes separate raw rows.
-export const AUDIO_DEVICE_LIST_INCLUDE_RAW: AudioDeviceListFlags = AudioDeviceListFlags(0x2);
-/// Include loopback endpoints when the backend exposes loopback rows.
-export const AUDIO_DEVICE_LIST_INCLUDE_LOOPBACK: AudioDeviceListFlags = AudioDeviceListFlags(0x4);
-/// Include duplicate aliases when backend identity is ambiguous.
-export const AUDIO_DEVICE_LIST_INCLUDE_DUPLICATES: AudioDeviceListFlags = AudioDeviceListFlags(0x8);
-
-/// Default open behavior.
-export const AUDIO_DEVICE_OPEN_NONE: AudioDeviceOpenFlags = AudioDeviceOpenFlags(0x0);
-/// Request raw endpoint mode where available.
-export const AUDIO_DEVICE_OPEN_RAW: AudioDeviceOpenFlags = AudioDeviceOpenFlags(0x8);
-
-/// Device supports shared stream mode.
-export const AUDIO_DEVICE_CAP_SHARED_MODE: AudioDeviceCapabilityFlags =
-    AudioDeviceCapabilityFlags(0x1);
-/// Device supports exclusive stream mode.
-export const AUDIO_DEVICE_CAP_EXCLUSIVE_MODE: AudioDeviceCapabilityFlags =
-    AudioDeviceCapabilityFlags(0x2);
-/// Device supports loopback capture.
-export const AUDIO_DEVICE_CAP_LOOPBACK: AudioDeviceCapabilityFlags =
-    AudioDeviceCapabilityFlags(0x4);
-/// Device supports full-duplex streams.
-export const AUDIO_DEVICE_CAP_FULL_DUPLEX: AudioDeviceCapabilityFlags =
-    AudioDeviceCapabilityFlags(0x8);
-/// Device supports stream gain controls.
-export const AUDIO_DEVICE_CAP_STREAM_VOLUME: AudioDeviceCapabilityFlags =
-    AudioDeviceCapabilityFlags(0x10);
-/// Device supports stream mute controls.
-export const AUDIO_DEVICE_CAP_STREAM_MUTE: AudioDeviceCapabilityFlags =
-    AudioDeviceCapabilityFlags(0x20);
-/// Device supports scheduled write submission.
-export const AUDIO_DEVICE_CAP_SCHEDULED_WRITE: AudioDeviceCapabilityFlags =
-    AudioDeviceCapabilityFlags(0x40);
-/// Device supports device-clock or hardware timestamp correlation.
-export const AUDIO_DEVICE_CAP_DEVICE_CLOCK: AudioDeviceCapabilityFlags =
-    AudioDeviceCapabilityFlags(0x80);
-/// Device supports backend reroute notifications.
-export const AUDIO_DEVICE_CAP_REROUTE_EVENTS: AudioDeviceCapabilityFlags =
-    AudioDeviceCapabilityFlags(0x100);
-/// Device supports interruption notifications.
-export const AUDIO_DEVICE_CAP_INTERRUPTION_EVENTS: AudioDeviceCapabilityFlags =
-    AudioDeviceCapabilityFlags(0x200);
-/// Device supports backend disconnect notifications.
-export const AUDIO_DEVICE_CAP_BACKEND_DISCONNECT_EVENTS: AudioDeviceCapabilityFlags =
-    AudioDeviceCapabilityFlags(0x400);
-/// Device supports bit-exact PCM without backend-side format conversion.
-export const AUDIO_DEVICE_CAP_BIT_EXACT_PCM: AudioDeviceCapabilityFlags =
-    AudioDeviceCapabilityFlags(0x800);
+export declare function rescanAudioDevices(
+    backend: &readonly AudioBackendSelection,
+): Result<void, PlatformError>;

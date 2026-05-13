@@ -1,85 +1,41 @@
 import { PlatformError } from "destack:platform/error";
 import { AudioStreamHandle } from "destack:platform/resource";
 
-/// Audio clock domain selector.
-export enum AudioClockDomain {
-    /// Runtime monotonic clock domain.
-    Monotonic = 1,
-    /// Host wall clock domain.
-    Wall = 2,
-}
-
-/// Stream clock domain selector.
-export enum AudioStreamClockDomain {
-    /// Runtime monotonic clock domain.
-    Monotonic = 1,
-    /// Host wall clock domain.
-    Wall = 2,
-    /// Host audio device clock domain.
-    Device = 3,
-    /// Stream callback clock domain.
-    Callback = 4,
-    /// Input ADC capture clock domain.
-    InputAdc = 5,
-    /// Output DAC presentation clock domain.
-    OutputDac = 6,
-}
-
-/// Clock sample quality selector.
+/// Audio stream clock quality.
 export enum AudioClockQuality {
-    /// No clock sample was available.
+    /// No timestamp is available.
     None = 0,
-    /// Clock sample was estimated from software timing.
+    /// Timestamp is estimated from software state.
     Estimated = 1,
-    /// Clock sample came from one hardware-correlated timeline.
+    /// Timestamp is correlated with a device or hardware clock.
     Hardware = 2,
 }
 
-/// Audio clock snapshot.
-export struct AudioClockSnapshot {
+/// Audio stream clock sample.
+export struct AudioClockSample {
     /// Stream position in frames.
-    streamFrames: uint64;
-    /// Selected clock timestamp in nanoseconds.
-    clockNs: uint64;
-    /// Selected clock sample quality.
-    clockQuality: AudioClockQuality;
-    /// Callback timestamp in nanoseconds when available.
-    callbackNs: uint64 | void;
-    /// Callback timestamp quality.
-    callbackQuality: AudioClockQuality;
-    /// ADC capture timestamp in nanoseconds when available.
-    inputAdcNs: uint64 | void;
-    /// ADC capture timestamp quality.
-    inputAdcQuality: AudioClockQuality;
-    /// DAC presentation timestamp in nanoseconds when available.
-    outputDacNs: uint64 | void;
-    /// DAC presentation timestamp quality.
-    outputDacQuality: AudioClockQuality;
-    /// Device timeline timestamp in nanoseconds when available.
-    deviceNs: uint64 | void;
-    /// Device timeline timestamp quality.
-    deviceQuality: AudioClockQuality;
+    frames: uint64;
     /// Runtime monotonic timestamp in nanoseconds.
     monotonicNs: uint64;
+    /// Device clock timestamp in nanoseconds.
+    deviceNs?: uint64;
+    /// Input ADC timestamp in nanoseconds.
+    inputAdcNs?: uint64;
+    /// Output DAC timestamp in nanoseconds.
+    outputDacNs?: uint64;
+    /// Timestamp quality.
+    quality: AudioClockQuality;
+    /// Estimated drift in parts per million.
+    driftPpm?: float64;
 }
 
-/// Read one timestamp in one selected clock domain.
-@binding("destack.audio.clock.now", {
-    effect: "external",
-    requires: ["host.audio.control"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function clockNow(domain: AudioClockDomain): Result<uint64, PlatformError>;
-
-/// Read one stream clock snapshot.
+/// Read one stream clock sample.
 @binding("destack.audio.clock.stream", {
     effect: "external",
-    requires: ["host.audio.control"],
+    requires: ["host.audio.clock"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function streamClock(
-    handle: AudioStreamHandle,
-    domain: AudioStreamClockDomain,
-): Result<AudioClockSnapshot, PlatformError>;
+export declare function audioStreamClock(
+    stream: AudioStreamHandle,
+): Result<AudioClockSample, PlatformError>;
