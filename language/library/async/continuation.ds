@@ -37,6 +37,7 @@ export struct ContinuationThrow {
 }
 
 /// Result of resuming a continuation.
+@derive(Tagged)
 export type ContinuationResult<TYield, TReturn> =
     | ContinuationYield<TYield>
     | ContinuationReturn<TReturn>
