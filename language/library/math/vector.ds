@@ -1,6 +1,6 @@
 /// Fixed-width SIMD vector type.
 @languageItem("Vector")
-export newtype Vector<T, comptime N: int> = T;
+export newtype Vector<T, comptime N: int> = intrinsic;
 
 /// Broadcast scalar to all lanes.
 ///

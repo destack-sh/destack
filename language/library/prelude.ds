@@ -14,7 +14,7 @@ export {
     Any,
     Box,
     Pin,
-    Phantom,
+    PhantomData,
     MaybeUninit,
     Managed,
     Borrowed,
