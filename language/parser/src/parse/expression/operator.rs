@@ -9,7 +9,8 @@ use super::common::{
 
 use destack_ast::{
     AssignOperator, AssignPattern, BinaryOperator, Expression, Keyword, LocalNodeId,
-    OperatorPrecedence, TokenSpan, TokenType, TypeExpression, TypePredicateSubject, UnaryOperator,
+    OperatorPrecedence, RangeEnd, TokenSpan, TokenType, TypeExpression, TypePredicateSubject,
+    UnaryOperator,
 };
 use destack_source::{NodeSpanBoundary, NodeSpanRegion, NodeSpanType, Span};
 
@@ -105,6 +106,8 @@ impl TypeBinaryOperator {
 pub(super) enum ParseInfixOperator {
     /// A binary operator continuation.
     Binary(BinaryOperator),
+    /// A range operator continuation.
+    Range(RangeEnd),
     /// One `is` guard continuation.
     Is,
     /// One `instanceof` guard continuation.
@@ -125,6 +128,7 @@ impl ParseInfixOperator {
     pub(super) fn precedence(self) -> u16 {
         match self {
             ParseInfixOperator::Binary(binary_operator) => binary_operator.precedence(),
+            ParseInfixOperator::Range(_) => OperatorPrecedence::Range as u16,
             ParseInfixOperator::Is => IS_PREDICATE_PRECEDENCE,
             ParseInfixOperator::InstanceOf => OperatorPrecedence::Comparison as u16,
             ParseInfixOperator::As => AS_ASSERTION_PRECEDENCE,
@@ -223,6 +227,20 @@ impl Parser {
                 || !NOT_IN_FOR_EACH_BINARY_OPERATORS.contains(&binary_operator))
         {
             return Ok((ParseInfixOperator::Binary(binary_operator), 1));
+        }
+
+        // range operator
+        if self.language.is_destack()
+            && matches!(token.token.ty, TokenType::Range | TokenType::RangeInclusive)
+            && !has_newline
+        {
+            let end_kind = if token.token.ty == TokenType::RangeInclusive {
+                RangeEnd::Inclusive
+            } else {
+                RangeEnd::Open
+            };
+
+            return Ok((ParseInfixOperator::Range(end_kind), 1));
         }
 
         // type predicate and runtime `is` guard
@@ -413,6 +431,11 @@ impl Parser {
         if AssignOperator::from_token(token_type).is_some() {
             return true;
         }
+        if self.language.is_destack()
+            && matches!(token_type, TokenType::Range | TokenType::RangeInclusive)
+        {
+            return true;
+        }
         if token_type != TokenType::Identifier {
             return BinaryOperator::from_token("", token_type).is_some();
         }
@@ -500,6 +523,9 @@ impl Parser {
                 operator: binary_operator,
                 right,
             },
+            ParseInfixOperator::Range(_) => {
+                unreachable!("range operators parse optional right sides in continuation parsing")
+            }
             ParseInfixOperator::Is => {
                 return Err(ParseError::unexpected(self.tree.get_span(right)));
             }
@@ -560,6 +586,11 @@ impl Parser {
                 );
 
                 Ok(type_expression_id)
+            }
+
+            // range types parse optional right sides in continuation parsing
+            ParseInfixOperator::Range(_) => {
+                unreachable!("range types parse optional right sides in continuation parsing")
             }
 
             // `value is T`

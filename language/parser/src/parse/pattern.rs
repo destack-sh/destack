@@ -2,8 +2,8 @@ use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
 
 use destack_ast::{
-    Expression, LiteralType, LocalNodeId, Name, NodeType, Pattern, PatternField, ScalarLiteral,
-    TokenType, TypeExpression, TypeLiteral,
+    Expression, LiteralType, LocalNodeId, Name, NodeType, OperatorPrecedence, Pattern,
+    PatternField, RangeEnd, ScalarLiteral, TokenType, TypeExpression, TypeLiteral,
 };
 use destack_source::Span;
 
@@ -28,8 +28,17 @@ impl Parser {
         // Primary patterns
         // ------------------------------------------------------------
         let mut pattern_id = {
+            // startless range pattern
+            if self.language.is_destack()
+                && matches!(
+                    self.peek_token_type(),
+                    TokenType::Range | TokenType::RangeInclusive
+                )
+            {
+                self.eat_startless_range_pattern(&start)?
+            }
             // wildcard
-            if self.language.is_destack() && self.peek_identifier_str_is("_") {
+            else if self.language.is_destack() && self.peek_identifier_str_is("_") {
                 self.bump(); // eat wildcard
                 self.tree
                     .insert(Pattern::Wildcard, self.get_span_from(&start))
@@ -110,12 +119,16 @@ impl Parser {
                     Expression::ScalarLiteral(scalar_literal_id),
                     self.get_span_from(&start),
                 );
-                self.insert_node(
-                    Pattern::Expression {
-                        value: expression_id,
-                    },
-                    self.get_span_from(&start),
-                )
+                if let Some(end_kind) = self.peek_range_pattern_end_kind() {
+                    self.eat_range_pattern_with_start(&start, expression_id, end_kind)?
+                } else {
+                    self.insert_node(
+                        Pattern::Expression {
+                            value: expression_id,
+                        },
+                        self.get_span_from(&start),
+                    )
+                }
             }
             // null and undefined literals
             else if self.peek_identifier_str_is("null")
@@ -174,6 +187,7 @@ impl Parser {
                 let (path, segment_spans, last_span) = self
                     .eat_path_with_endpoint_spans()
                     .for_node_type(NodeType::Pattern)?;
+                let range_end_kind = self.peek_range_pattern_end_kind();
                 // tuple with path
                 if self.peek_is(TokenType::OpenParenthesis) {
                     self.bump(); // eat open parenthesis
@@ -216,6 +230,31 @@ impl Parser {
                         NodeType::Pattern,
                     )?;
                     self.insert_node(pattern, self.get_span_from(&start))
+                }
+                // range with path or identifier start
+                else if let Some(end_kind) = range_end_kind {
+                    let expression_id = if path.segments.len() > 1 {
+                        let expression_id = self.insert_node(
+                            Expression::QualifiedReference {
+                                path,
+                                generic_arguments: vec![],
+                            },
+                            self.get_span_from(&start),
+                        );
+                        self.set_path_expression_spans(expression_id, &segment_spans);
+                        expression_id
+                    } else {
+                        let expression_id = self.insert_node(
+                            Expression::Identifier {
+                                name: path.segments[0],
+                            },
+                            self.get_span_from(&start),
+                        );
+                        self.tree.set_main_span(expression_id, last_span);
+                        expression_id
+                    };
+
+                    self.eat_range_pattern_with_start(&start, expression_id, end_kind)?
                 }
                 // path
                 else if path.segments.len() > 1 {
@@ -307,6 +346,110 @@ impl Parser {
         else {
             Ok(pattern_id)
         }
+    }
+
+    /// Return the range end kind when the next token continues a pattern range.
+    fn peek_range_pattern_end_kind(&mut self) -> Option<RangeEnd> {
+        if !self.language.is_destack() || self.current_token_is_on_new_line() {
+            return None;
+        }
+
+        match self.peek_token_type() {
+            TokenType::Range => Some(RangeEnd::Open),
+            TokenType::RangeInclusive => Some(RangeEnd::Inclusive),
+            _ => None,
+        }
+    }
+
+    /// Return whether the current range pattern end is omitted.
+    fn range_pattern_end_is_omitted(&mut self) -> bool {
+        if self.current_token_is_on_new_line() {
+            return true;
+        }
+
+        matches!(
+            self.peek_token_type(),
+            TokenType::ArrowWide | TokenType::ElementwiseOr
+        ) || Self::is_expression_slot_boundary_token(self.peek_token_type())
+    }
+
+    /// Eat one range pattern endpoint after a range operator.
+    fn eat_range_pattern_end_maybe(
+        &mut self,
+        end_kind: RangeEnd,
+    ) -> ParseResult<Option<LocalNodeId<Expression>>> {
+        let is_omitted = self.range_pattern_end_is_omitted();
+
+        // open-ended ranges may omit the right endpoint
+        if is_omitted && end_kind == RangeEnd::Open {
+            return Ok(None);
+        }
+
+        // inclusive ranges require a syntactic right endpoint
+        if is_omitted {
+            let missing_id = self.recover_missing_expression_here(NodeType::Pattern);
+
+            return Ok(Some(missing_id));
+        }
+
+        let right_flags = self
+            .flags
+            .not_in_position()
+            .in_left_precedence(OperatorPrecedence::Range as u16);
+        let end_id = self
+            .with_flags(self.flags.with_expression_context(right_flags), |parser| {
+                parser.eat_expression_in_scope()
+            })?;
+
+        Ok(Some(end_id))
+    }
+
+    /// Eat one startless range pattern.
+    fn eat_startless_range_pattern(
+        &mut self,
+        start: &ParserSpanStart,
+    ) -> ParseResult<LocalNodeId<Pattern>> {
+        let end_kind = match self.peek_token_type() {
+            TokenType::Range => RangeEnd::Open,
+            TokenType::RangeInclusive => RangeEnd::Inclusive,
+            _ => unreachable!("checked range token"),
+        };
+        self.bump(); // eat range operator
+
+        let mut end = self.eat_range_pattern_end_maybe(end_kind)?;
+        if end.is_none() {
+            let missing_id = self.recover_missing_expression_here(NodeType::Pattern);
+            end = Some(missing_id);
+        }
+
+        Ok(self.insert_node(
+            Pattern::Range {
+                start: None,
+                end,
+                end_kind,
+            },
+            self.get_span_from(start),
+        ))
+    }
+
+    /// Eat one range pattern after a parsed start expression.
+    fn eat_range_pattern_with_start(
+        &mut self,
+        start: &ParserSpanStart,
+        start_id: LocalNodeId<Expression>,
+        end_kind: RangeEnd,
+    ) -> ParseResult<LocalNodeId<Pattern>> {
+        self.bump(); // eat range operator
+        let end = self.eat_range_pattern_end_maybe(end_kind)?;
+
+        Ok(self.insert_node(
+            Pattern::Range {
+                start: Some(start_id),
+                end,
+                end_kind,
+            },
+            self.get_span_from(start),
+        ))
     }
 
     /// Eat a pattern field list (like `x, y, z` or `1 | 2`).
@@ -719,13 +862,24 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Expression, Mutability, Name, Pattern, PatternField, ScalarLiteral, TypeExpression,
+        Expression, LocalNodeId, Mutability, Name, Pattern, PatternField, RangeEnd, ScalarLiteral,
+        TokenType, TypeExpression,
     };
     use destack_source::LanguageType;
 
     use crate::{
         TestParser, assert_expression_path, assert_name, assert_node, assert_path, assert_string,
     };
+
+    fn assert_integer_expression(
+        tree: &destack_ast::Tree,
+        id: LocalNodeId<Expression>,
+        value: i64,
+    ) {
+        assert_node!(tree, id, Expression::ScalarLiteral(ScalarLiteral::Integer(actual)) => {
+            assert_eq!(*actual, value);
+        });
+    }
 
     #[test]
     fn test_parse_pattern_wildcard() {
@@ -839,6 +993,183 @@ mod tests {
         let pattern_id = parser.eat_pattern().unwrap();
         assert_node!(parser.tree, pattern_id, Pattern::Expression { value } => {
             assert_expression_path!(parser, parser.tree.get(*value), "MyEnum.A");
+        });
+    }
+
+    #[test]
+    fn test_parse_pattern_range_half_open() {
+        let mut test = TestParser::new("0..10");
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+
+        assert_node!(parser.tree, pattern_id, Pattern::Range { start: Some(start), end: Some(end), end_kind } => {
+            assert_eq!(*end_kind, RangeEnd::Open);
+            assert_integer_expression(&parser.tree, *start, 0);
+            assert_integer_expression(&parser.tree, *end, 10);
+        });
+        test.assert_no_errors(&parser);
+    }
+
+    #[test]
+    fn test_parse_pattern_range_inclusive() {
+        let mut test = TestParser::new("0..=10");
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+
+        assert_node!(parser.tree, pattern_id, Pattern::Range { start: Some(start), end: Some(end), end_kind } => {
+            assert_eq!(*end_kind, RangeEnd::Inclusive);
+            assert_integer_expression(&parser.tree, *start, 0);
+            assert_integer_expression(&parser.tree, *end, 10);
+        });
+        test.assert_no_errors(&parser);
+    }
+
+    #[test]
+    fn test_parse_pattern_range_open_ended() {
+        let mut test = TestParser::new("0..");
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+
+        assert_node!(parser.tree, pattern_id, Pattern::Range { start: Some(start), end: None, end_kind } => {
+            assert_eq!(*end_kind, RangeEnd::Open);
+            assert_integer_expression(&parser.tree, *start, 0);
+        });
+        test.assert_no_errors(&parser);
+    }
+
+    #[test]
+    fn test_parse_pattern_range_startless() {
+        let mut test = TestParser::new("..10");
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+
+        assert_node!(parser.tree, pattern_id, Pattern::Range { start: None, end: Some(end), end_kind } => {
+            assert_eq!(*end_kind, RangeEnd::Open);
+            assert_integer_expression(&parser.tree, *end, 10);
+        });
+        test.assert_no_errors(&parser);
+    }
+
+    #[test]
+    fn test_parse_pattern_range_startless_inclusive() {
+        let mut test = TestParser::new("..=10");
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+
+        assert_node!(parser.tree, pattern_id, Pattern::Range { start: None, end: Some(end), end_kind } => {
+            assert_eq!(*end_kind, RangeEnd::Inclusive);
+            assert_integer_expression(&parser.tree, *end, 10);
+        });
+        test.assert_no_errors(&parser);
+    }
+
+    #[test]
+    fn test_parse_pattern_range_identifier_bounds() {
+        let mut test = TestParser::new("MIN..MAX");
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+
+        assert_node!(parser.tree, pattern_id, Pattern::Range { start: Some(start), end: Some(end), end_kind } => {
+            assert_eq!(*end_kind, RangeEnd::Open);
+            assert_node!(parser.tree, *start, Expression::Identifier { name } => {
+                assert_string!(parser, *name, "MIN");
+            });
+            assert_node!(parser.tree, *end, Expression::Identifier { name } => {
+                assert_string!(parser, *name, "MAX");
+            });
+        });
+        test.assert_no_errors(&parser);
+    }
+
+    #[test]
+    fn test_parse_pattern_range_path_bounds() {
+        let mut test = TestParser::new("Limits.Min..=Limits.Max");
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+
+        assert_node!(parser.tree, pattern_id, Pattern::Range { start: Some(start), end: Some(end), end_kind } => {
+            assert_eq!(*end_kind, RangeEnd::Inclusive);
+            assert_expression_path!(parser, parser.tree.get(*start), "Limits.Min");
+            assert_expression_path!(parser, parser.tree.get(*end), "Limits.Max");
+        });
+        test.assert_no_errors(&parser);
+    }
+
+    #[test]
+    fn test_parse_pattern_range_union() {
+        let mut test = TestParser::new("0..10 | 20..30");
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+
+        assert_node!(parser.tree, pattern_id, Pattern::Union { patterns } => {
+            assert_eq!(patterns.len(), 2);
+            assert_node!(parser.tree, patterns[0], Pattern::Range { start: Some(start), end: Some(end), end_kind } => {
+                assert_eq!(*end_kind, RangeEnd::Open);
+                assert_integer_expression(&parser.tree, *start, 0);
+                assert_integer_expression(&parser.tree, *end, 10);
+            });
+            assert_node!(parser.tree, patterns[1], Pattern::Range { start: Some(start), end: Some(end), end_kind } => {
+                assert_eq!(*end_kind, RangeEnd::Open);
+                assert_integer_expression(&parser.tree, *start, 20);
+                assert_integer_expression(&parser.tree, *end, 30);
+            });
+        });
+        test.assert_no_errors(&parser);
+    }
+
+    #[test]
+    fn test_parse_pattern_range_stops_before_match_arrow() {
+        let mut test = TestParser::new("0.. => value");
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+
+        assert_node!(parser.tree, pattern_id, Pattern::Range { start: Some(start), end: None, end_kind } => {
+            assert_eq!(*end_kind, RangeEnd::Open);
+            assert_integer_expression(&parser.tree, *start, 0);
+        });
+        assert!(parser.errors.is_empty());
+        assert!(parser.peek_is(TokenType::ArrowWide));
+    }
+
+    #[test]
+    fn test_parse_pattern_range_recovers_inclusive_end_before_union() {
+        let mut test = TestParser::new("0..= | 1");
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+
+        assert_eq!(parser.errors.len(), 1);
+        assert_node!(parser.tree, pattern_id, Pattern::Union { patterns } => {
+            assert_eq!(patterns.len(), 2);
+            assert_node!(parser.tree, patterns[0], Pattern::Range { start: Some(_), end: Some(_), end_kind } => {
+                assert_eq!(*end_kind, RangeEnd::Inclusive);
+            });
+            assert_node!(parser.tree, patterns[1], Pattern::Expression { value } => {
+                assert_integer_expression(&parser.tree, *value, 1);
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_pattern_range_recovers_bare_range() {
+        let mut test = TestParser::new("..");
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+
+        assert_eq!(parser.errors.len(), 1);
+        assert_node!(parser.tree, pattern_id, Pattern::Range { start: None, end: Some(_), end_kind } => {
+            assert_eq!(*end_kind, RangeEnd::Open);
+        });
+    }
+
+    #[test]
+    fn test_parse_pattern_range_recovers_missing_inclusive_end() {
+        let mut test = TestParser::new("0..=");
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+
+        assert_eq!(parser.errors.len(), 1);
+        assert_node!(parser.tree, pattern_id, Pattern::Range { start: Some(_), end: Some(_), end_kind } => {
+            assert_eq!(*end_kind, RangeEnd::Inclusive);
         });
     }
 

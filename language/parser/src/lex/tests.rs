@@ -253,10 +253,8 @@ fn test_lex_random_symbols() {
         "a..b => c->d x _ : ? ! @ ~",
         // a
         Token::new(TokenType::Identifier, 1, None),
-        // .
-        Token::new(TokenType::Dot, 1, None),
-        // .
-        Token::new(TokenType::Dot, 1, None),
+        // ..
+        Token::new(TokenType::Range, 2, None),
         // b
         Token::new(TokenType::Identifier, 1, None),
         // (space)
@@ -299,6 +297,38 @@ fn test_lex_random_symbols() {
         Token::new(TokenType::Whitespace, 1, None),
         // ~
         Token::new(TokenType::ElementwiseNot, 1, None),
+    );
+}
+
+#[test]
+fn test_lex_range_tokens_in_destack_only() {
+    let (semantic_tokens, _) = lex_source_tokens("a..b ..= c", LanguageType::default());
+    assert_eq!(
+        semantic_tokens,
+        vec![
+            Token::new(TokenType::Identifier, 1, None),
+            Token::new(TokenType::Range, 2, None),
+            Token::new(TokenType::Identifier, 1, None),
+            Token::new(TokenType::RangeInclusive, 3, None),
+            Token::new(TokenType::Identifier, 1, None),
+            Token::end(),
+        ],
+    );
+
+    let (semantic_tokens, _) = lex_source_tokens("a..b ..= c", LanguageType::TypeScript);
+    assert_eq!(
+        semantic_tokens,
+        vec![
+            Token::new(TokenType::Identifier, 1, None),
+            Token::new(TokenType::Dot, 1, None),
+            Token::new(TokenType::Dot, 1, None),
+            Token::new(TokenType::Identifier, 1, None),
+            Token::new(TokenType::Dot, 1, None),
+            Token::new(TokenType::Dot, 1, None),
+            Token::new(TokenType::Assign, 1, None),
+            Token::new(TokenType::Identifier, 1, None),
+            Token::end(),
+        ],
     );
 }
 

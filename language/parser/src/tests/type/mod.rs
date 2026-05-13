@@ -6,4 +6,5 @@ mod index;
 mod literal;
 mod mapped;
 mod operator;
+mod range;
 mod sequence;

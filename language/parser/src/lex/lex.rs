@@ -38,6 +38,8 @@ pub const EXPRESSION_START_TOKEN_TYPES: &[TokenType] = &[
     TokenType::Colon,
     TokenType::Semicolon,
     TokenType::Spread,
+    TokenType::Range,
+    TokenType::RangeInclusive,
     TokenType::Not,
     TokenType::ElementwiseNot,
     TokenType::Multiply,
@@ -315,6 +317,20 @@ impl Lexer {
                     self.eat();
                     self.eat();
                     (TokenType::Spread, None)
+                }
+                // ..=
+                else if self.language.is_destack()
+                    && self.peek() == '.'
+                    && self.peek_next() == '='
+                {
+                    self.eat();
+                    self.eat();
+                    (TokenType::RangeInclusive, None)
+                }
+                // ..
+                else if self.language.is_destack() && self.peek() == '.' {
+                    self.eat();
+                    (TokenType::Range, None)
                 }
                 // decimal literal starting with .
                 else if self.peek().is_ascii_digit() {

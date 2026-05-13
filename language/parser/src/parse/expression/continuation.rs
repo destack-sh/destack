@@ -5,8 +5,8 @@ use super::operator::{ParseInfixOperator, TypeBinaryOperator, TypeUnaryOperator}
 use destack_ast::{
     Argument, AssignOperator, AssignPattern, AssignPatternField, BinaryOperator, Declaration,
     Expression, FunctionDeclaration, FunctionForm, GenericArgument, IfCondition, IfForm, Key,
-    Keyword, LiteralType, LocalNodeId, Name, NodeType, PostfixPosition, Property, TokenType,
-    TypeExpression, UnaryOperator,
+    Keyword, LiteralType, LocalNodeId, Name, NodeType, PostfixPosition, Property, RangeEnd,
+    TokenType, TypeExpression, UnaryOperator,
 };
 use destack_source::{Span, StringId};
 
@@ -66,6 +66,7 @@ impl InfixRightKind {
     ) -> Self {
         match operator {
             ParseInfixOperator::As | ParseInfixOperator::Satisfies => Self::Assertion,
+            ParseInfixOperator::Range(_) => Self::Value,
             ParseInfixOperator::Is if !left_is_type_expression => Self::ValuePredicate,
             ParseInfixOperator::Is if allows_type_predicate => Self::TypeOperator,
             ParseInfixOperator::Is => Self::InvalidValueTypeOperator,
@@ -305,6 +306,76 @@ impl Parser {
             // all other lhs forms are handled by assignment target validation later
             _ => false,
         }
+    }
+
+    /// Return whether the current range end is omitted.
+    #[inline]
+    fn range_end_is_omitted(&mut self) -> bool {
+        if self.current_token_is_on_new_line() {
+            return true;
+        }
+
+        let token_type = self.peek_token_type();
+        Self::is_expression_slot_boundary_token(token_type)
+    }
+
+    /// Eat one value range end after a range operator.
+    fn eat_value_range_end_maybe(
+        &mut self,
+        end_kind: RangeEnd,
+        right_context: ParserFlags,
+    ) -> ParseResult<Option<LocalNodeId<Expression>>> {
+        let is_omitted = self.range_end_is_omitted();
+
+        // open-ended ranges omit the right endpoint at expression boundaries
+        if is_omitted && end_kind == RangeEnd::Open {
+            return Ok(None);
+        }
+
+        // inclusive ranges require a syntactic right endpoint
+        if is_omitted {
+            let missing_id = self.recover_missing_expression_here(NodeType::Expression);
+
+            return Ok(Some(missing_id));
+        }
+
+        let end_id = self.with_flags(
+            self.flags.with_expression_context(right_context),
+            |parser| parser.eat_expression_in_scope(),
+        )?;
+
+        Ok(Some(end_id))
+    }
+
+    /// Eat one type range end after a range operator.
+    fn eat_type_range_end_maybe(
+        &mut self,
+        end_kind: RangeEnd,
+        right_context: ParserFlags,
+    ) -> ParseResult<Option<LocalNodeId<TypeExpression>>> {
+        let is_omitted = self.current_token_is_on_new_line() || self.is_type_expression_boundary();
+
+        // open-ended ranges omit the right endpoint at type boundaries
+        if is_omitted && end_kind == RangeEnd::Open {
+            return Ok(None);
+        }
+
+        // inclusive ranges require a syntactic right endpoint
+        if is_omitted {
+            let missing_id = self.recover_missing_type_expression_here(NodeType::TypeExpression);
+
+            return Ok(Some(missing_id));
+        }
+
+        let right_ambient_context = self.flags.with_type(true);
+        let end_id = self.with_flags(
+            self.flags
+                .with_ambient_context(right_ambient_context)
+                .with_expression_context(right_context),
+            |parser| parser.eat_type_expression(),
+        )?;
+
+        Ok(Some(end_id))
     }
 
     /// Convert one assignment lhs expression into one assign pattern.
@@ -1502,6 +1573,7 @@ impl Parser {
                 self.current_token_can_start_infix_or_assign_operator()
             } else {
                 BinaryOperator::from_token("", token_type).is_some()
+                    || matches!(token_type, TokenType::Range | TokenType::RangeInclusive)
             };
             if !can_start_operator {
                 break;
@@ -1538,7 +1610,8 @@ impl Parser {
                 right_operator,
                 ParseInfixOperator::Binary(
                     BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd
-                ) | ParseInfixOperator::Is
+                ) | ParseInfixOperator::Range(_)
+                    | ParseInfixOperator::Is
                     | ParseInfixOperator::TypeBinary(_)
             );
             if !is_supported_type_operator {
@@ -1585,6 +1658,19 @@ impl Parser {
                     self.eat_type_conditional_expression(start, left_type_id, right_context)?
                 } else if right_operator == ParseInfixOperator::Is && !is_allowed_type_predicate {
                     return Err(ParseError::unexpected(operator_span));
+                } else if let ParseInfixOperator::Range(end_kind) = right_operator {
+                    let end_id = self.eat_type_range_end_maybe(end_kind, right_context)?;
+                    let expression_id = self.insert_node(
+                        TypeExpression::Range {
+                            start: Some(left_type_id),
+                            end: end_id,
+                            end_kind,
+                        },
+                        self.get_span_from(start),
+                    );
+                    self.tree.set_head_span(expression_id, head_span);
+
+                    expression_id
                 } else {
                     let right_ambient_context = self.flags.with_type(true);
                     let right_type_id = if self.is_type_expression_boundary() {
@@ -1764,6 +1850,7 @@ impl Parser {
             } else {
                 AssignOperator::from_token(token_type).is_some()
                     || BinaryOperator::from_token("", token_type).is_some()
+                    || matches!(token_type, TokenType::Range | TokenType::RangeInclusive)
             };
 
             if !can_start_operator {
@@ -1918,16 +2005,26 @@ impl Parser {
 
                 // normal value infix expressions
                 InfixRightKind::Value => {
-                    let right_expression_id = self.with_flags(
-                        self.flags.with_expression_context(right_context),
-                        |parser| parser.eat_expression_in_scope(),
-                    )?;
+                    if let ParseInfixOperator::Range(end_kind) = right_operator {
+                        let end_id = self.eat_value_range_end_maybe(end_kind, right_context)?;
 
-                    self.make_value_infix_expression(
-                        left_expression_id,
-                        right_operator,
-                        right_expression_id,
-                    )?
+                        Expression::RangeExpression {
+                            start: Some(left_expression_id),
+                            end: end_id,
+                            end_kind,
+                        }
+                    } else {
+                        let right_expression_id = self.with_flags(
+                            self.flags.with_expression_context(right_context),
+                            |parser| parser.eat_expression_in_scope(),
+                        )?;
+
+                        self.make_value_infix_expression(
+                            left_expression_id,
+                            right_operator,
+                            right_expression_id,
+                        )?
+                    }
                 }
             };
 
