@@ -1,17 +1,54 @@
-/// Input-output error kind.
-export type IoErrorKind =
-    | "aborted"
-    | "again"
-    | "closed"
-    | "interrupted"
-    | "invalid"
-    | "notFound"
-    | "permission"
-    | "timedOut"
-    | "unexpectedEof"
-    | "unknown";
+import { Any } from "destack:memory";
+import { Error } from "./error.ds";
+import { todo } from "./panic.ds";
 
-/// Input-output failure.
+/// Portable I/O error category.
+export enum IoErrorKind {
+    /// The requested entity does not exist.
+    NotFound,
+    /// Permission was denied.
+    PermissionDenied,
+    /// The requested entity already exists.
+    AlreadyExists,
+    /// The input parameter is invalid.
+    InvalidInput,
+    /// The input data is malformed.
+    InvalidData,
+    /// The operation timed out.
+    TimedOut,
+    /// The operation was interrupted.
+    Interrupted,
+    /// The operation would block.
+    WouldBlock,
+    /// The stream ended before the operation completed.
+    UnexpectedEof,
+    /// The operation wrote zero bytes when progress was required.
+    WriteZero,
+    /// The peer closed the connection.
+    BrokenPipe,
+    /// The connection was refused.
+    ConnectionRefused,
+    /// The connection was reset.
+    ConnectionReset,
+    /// The connection was aborted.
+    ConnectionAborted,
+    /// The socket is not connected.
+    NotConnected,
+    /// The address is already in use.
+    AddressInUse,
+    /// The address is not available.
+    AddressNotAvailable,
+    /// The resource is busy.
+    ResourceBusy,
+    /// The operation is not supported.
+    Unsupported,
+    /// The operation failed because memory could not be allocated.
+    OutOfMemory,
+    /// The error does not fit another category.
+    Other,
+}
+
+/// Portable I/O failure.
 export struct IoError {
     /// The failure kind.
     kind: IoErrorKind;
@@ -19,6 +56,45 @@ export struct IoError {
     /// Platform-specific error code.
     code?: int32;
 
-    /// Diagnostic message.
+    /// User-facing detail.
     message?: string;
+
+    /// Underlying cause.
+    cause?: Any<Error>;
+}
+
+extension of IoError implements Error {
+    /// Format this error for users.
+    display(): string {
+        this.message ?? "I/O error"
+    }
+
+    /// Return the underlying cause.
+    source(): Any<Error> | undefined {
+        this.cause
+    }
+}
+
+/// I/O failure attached to a path operation.
+export struct PathError {
+    /// Operation being performed.
+    operation: string;
+
+    /// Path involved in the operation.
+    path: string;
+
+    /// I/O failure from the operation.
+    error: IoError;
+}
+
+extension of PathError implements Error {
+    /// Format this error for users.
+    display(): string {
+        todo("PathError.display")
+    }
+
+    /// Return the underlying I/O error.
+    source(): Any<Error> | undefined {
+        this.error
+    }
 }

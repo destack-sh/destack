@@ -1,3 +1,5 @@
+import { Error } from "./error.ds";
+
 /// Error code returned by host bindings.
 export enum HostErrorCode {
     /// Unclassified invalid argument.
@@ -488,10 +490,17 @@ export newtype HostErrorContext =
 export newtype HostError = {
     code: HostErrorCode;
     op?: string;
-    source?: HostSystemSource;
+    systemSource?: HostSystemSource;
     context?: HostErrorContext;
     message?: string;
 };
+
+extension of HostError implements Error {
+    /// Format this error for users.
+    display(): string {
+        this.message ?? "host error"
+    }
+}
 
 /// Error bindings for runtime error propagation.
 @binding("destack.error.error.takeHostError", {

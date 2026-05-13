@@ -112,6 +112,7 @@ export {
 // control flow
 export {
     Error,
+    Report,
     abort,
     panic,
     trap,

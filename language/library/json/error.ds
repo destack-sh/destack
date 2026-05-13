@@ -1,11 +1,20 @@
+import { Error } from "destack:error";
+
 /// JSON error category.
-export type JsonErrorKind =
-    | "syntax"
-    | "depth"
-    | "number"
-    | "unsupported"
-    | "encode"
-    | "decode";
+export enum JsonErrorKind {
+    /// The input is not valid JSON.
+    Syntax,
+    /// The input exceeds the configured nesting depth.
+    Depth,
+    /// A number cannot be represented.
+    Number,
+    /// The value is unsupported by JSON.
+    Unsupported,
+    /// Encoding failed.
+    Encode,
+    /// Decoding failed.
+    Decode,
+}
 
 /// JSON object key or array index.
 export type JsonPathSegment = string | usize;
@@ -23,4 +32,11 @@ export struct JsonError {
 
     /// The decoded value path when known.
     path?: readonly JsonPathSegment[];
+}
+
+extension of JsonError implements Error {
+    /// Format this error for users.
+    display(): string {
+        this.message
+    }
 }

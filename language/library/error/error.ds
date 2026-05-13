@@ -1,15 +1,13 @@
-/// Standard error protocol.
+import { Any } from "destack:memory";
+
+/// Recoverable failure protocol.
 @languageItem("Error")
 export newtype interface Error {
-    /// Error name.
-    name: string;
+    /// Format this error for users.
+    display(): string;
 
-    /// Human-readable error message.
-    message: string;
-
-    /// Original cause, when this error wraps another failure.
-    cause?: unknown;
-
-    /// Stack trace or debugging detail.
-    stack?: string;
+    /// Return the underlying cause.
+    source(): Any<Error> | undefined {
+        undefined
+    }
 }
