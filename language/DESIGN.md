@@ -458,7 +458,7 @@ let x: [int32] = [1, 2, 3]; // slice of int32
 let x: Slice<int32> = [1, 2, 3]; // slice of int32
 
 let x: [int32; 3] = [1, 2, 3]; // fixed array of int32
-let x: FixedArray<int32; 3> = [1, 2, 3]; // fixed array of int32
+let x: FixedArray<int32, 3> = [1, 2, 3]; // fixed array of int32
 
 let x: (int32, int32, int32) = (1, 2, 3); // tuple of int32
 ```
@@ -475,8 +475,7 @@ let rgb: [uint8; 3] = [255, 128, 0];
 let zeroes: [uint8; 32] = [0; 32];
 ```
 
-Fixed arrays and slices also work directly in patterns.
-Fixed array patterns know their length statically, while slice patterns can use a rest binding for the tail:
+Fixed arrays and slices also work directly in patterns: fixed array patterns already know their length statically, while slice patterns can use a rest binding for the tail / head:
 
 ```ds
 declare const rgb: [uint8; 3];
@@ -535,20 +534,19 @@ It does not freeze the runtime value.
 ### Generics
 
 Destack supports classic TypeScript-shaped generics: inference, constraints, defaults, conditional types, mapped types, indexed access types, and the rest of the usual machinery.
-The main addition is that generic parameters can also be _values_ that are then substituted into expressions and are also available during inference.
-To distinguish static value parameters from static type parameters (and literal value types), we use the `comptime` modifier (akin to Rust's `const` modifier, alas this was already taken in TypeScript):
+The main addition is that generic parameters can also be _values_ that are then substituted into expressions _and_ are also available during inference.
+To distinguish static value parameters from static type parameters (and literal value types), we use the `comptime` modifier on the generic parameter declaration (akin to Rust's `const` modifier, alas this was already taken in TypeScript):
 
 ```ds
 type Buffer<comptime N: uint> = [uint8; N];
 ```
 
 Generic bounds can use the cleaner `<T: Constraint>` form, just like dynamic parameters.
-Unlike with `comptime <expr>` (discussed later), the `comptime` modifier merely means that `N` is a generic value parameter that has to be evaluatable during inference.
+Unlike with `comptime <expr>` (discussed later), the `comptime` modifier merely means that `N` is a generic value parameter that has to be evaluatable as a static term during inference.
 
 ```ds
 function copy<T, comptime N: uint>(src: [T; N]): [T; N] {
     let dst: [T; N];
-
     for (let i = 0; i < N; i++) {
         dst[i] = src[i];
     }
@@ -556,7 +554,7 @@ function copy<T, comptime N: uint>(src: [T; N]): [T; N] {
 }
 ```
 
-Type inference is local and flows outward - you can "import" inference from other modules, but this only goes one way: each module can infer static types and values from its own declarations and imports, and downstream modules can use what it exports.
+Type inference is local and flows outward - we can "import" inference from other modules, but this only works one way; each module can infer static types and values from its own declarations and imports, and downstream modules can use what it exports.
 Downstream uses do not feed back into upstream inference in any way.
 
 ```ds:a.ds
@@ -581,18 +579,17 @@ M satisfies 6;
 
 ### Static
 
-One fundamental task of the language is turning text into something executable, and along the way we have to decide what every symbol actually means.
-More specifically, since unlike TypeScript, Destack actually _compiles_, we need to figure out during "compile time" the final type of each value and fill in values for all the known constants.
-To do this, the "evaluation time" of the program is conceptually split into three worlds (that only flow forward):
+Unlike TypeScript, Destack actually _compiles_, so we need to figure out during "compile time" the final type of each value and fill in values for all the known constants.
+To do this, the "evaluation time" of the program is conceptually split into three successive worlds that only flow forward:
 
 | World | Meaning | Example |
 |-------|---------|---------|
-| Static | types, values, and relations known while checking | `T`, `N`, `this.Width`, `T extends string` |
+| Static | types, values, and relations known while checking | `T`, `N`, `this.Width`, `T extends string? A : B` |
 | Comptime | ordinary code explicitly evaluated by the compiler | `comptime factorial(10)` |
 | Runtime | ordinary program execution | `readFile(path)`, `worker.postMessage(msg)` |
 
-The statically known forms known to inference are called **static terms**: static evaluation is what we do automatically during inference, and it is restricted to a small subset of the language (like TypeScript type operators), and it can _not_ execute `comptime <expr>` expressions.
-Static terms can include primitive inputs, imported facts, and expressions built from other static terms:
+The statically known language forms known to inference are called **static terms**: static evaluation is done automatic during inference, and it is restricted to a small subset of the language (like TypeScript type operators), and it can _not_ execute `comptime <expr>` expressions.
+That keeps compilation fast and predictable, and thanks to TypeScript's flexible type algebra, static terms are still pretty powerful:
 
 | Input | Example |
 |-------|---------|
@@ -606,8 +603,8 @@ Static terms can include primitive inputs, imported facts, and expressions built
 | Static operators | `N * 2`, `Mode == "inline"` |
 | Contextual type form | `PlaceOf<this>` inside a type declaration |
 | Module and profile metadata | `import.meta.platform` |
-| Type operators and relations | `keyof T`, `T[K]`, `T extends string`, `T implements I` |
-| Type/layout intrinsics | `sizeOf<T>()`, `alignOf<T>()` |
+| Type operators | `keyof T`, `T[K]`, `T extends string`, `T implements I` |
+| Layout intrinsics | `sizeOf<T>()`, `alignOf<T>()` |
 
 Static terms are required wherever the language needs an inference-known answer: fixed array lengths, conditional types, associated members, static decorators, layout queries, and placement algebra.
 Type inference may flow _out_ of modules, but Destack does not support circular static inference or inference across modules in any way.
@@ -636,16 +633,16 @@ function size<comptime Wide: bool>(): Wide extends true ? 8 : 4 {
     @if(Wide)
     return 8;
 
-    @if(Wide == false)
+    @if(!Wide)
     return 4;
 }
 ```
 
 ### Associated Types and Constants
 
-Associated types and constants contribute static members to a type that can be reused within the type and implementors but does not need to be exposed to every single caller.
-Both associated types and constants also work in abstract types, and they do not occupy any instance space on the type.
-As described above, all statically known types and constants use the same static evaluation logic, and thus associated types and constants also mix with generic parameters, conditional types, decorators, and so on.
+Associated types and constants contribute static members to a type that can be reused within the type and its implementors but do not need to be exposed to every single caller.
+Both associated types and constants also work in abstract types, and as they are associated with the type directly, they do not occupy any instance space on the type.
+All statically known types and constants share the same static evaluation logic, and thus associated types and constants also mix with generic parameters, conditional types, decorators, and so on.
 
 ```ds
 interface Iterator {
@@ -669,7 +666,7 @@ interface Allocator {
 }
 ```
 
-Associated types can have their _own_ generic parameters with the same generic parameter forms as ordinary declarations, including type parameters and `comptime` value parameters (these are generic associated types, often called GATs.)
+Associated types can have their _own_ generic parameters with the same generic parameter forms as ordinary declarations, including type parameters and `comptime` value parameters (these are generic associated types, often called GATs).
 
 ```ds
 interface Storage {
@@ -684,7 +681,7 @@ struct SharedStorage implements Storage {
 ```
 
 In addition to associated types, nominal type declarations also support associated constant members as static compile-time values.
-Like `static` members, `comptime const`s require no instance storage, but unlike `static` members, `comptime const`s are statically evaluated during compilation.
+Like `static` members, `comptime const`s require no instance storage, but unlike `static` members, `comptime const`s are statically evaluated _during_ compilation.
 
 ```ds
 interface RegisterBlock {
@@ -695,20 +692,19 @@ interface RegisterBlock {
 }
 ```
 
-As described above, associated members participate in the same static evaluation world, and so associated members can express dependent types and values.
+Associated members participate in the same static evaluation world, and so associated members can express dependent types and values.
 
 ```ds
 interface Matrix<Row> {
     comptime const Width: uint = Row extends string ? 8 : 4;
     type Bytes = [uint8; this.Width];
 }
-
-function read<M: Matrix<unknown>>(bytes: M.Bytes): [uint8; M.Width] { ... }
 ```
 
 ### Constraints
 
-`where` clauses for readable generic constraints in complex types:
+Sometimes defining the constraints and relations for type parameters can become unwieldy or outright impossible with only type annotations for each individual term.
+Destack supports explicit `where` clauses to define additional cosntraints for complex types and signatures:
 
 ```ds
 function merge<T: int, U>(): T where (
@@ -754,9 +750,7 @@ type InlineBytes<T> = [uint8; sizeOf<T>()];
 
 ### Values
 
-In TypeScript, control flow forms like `if` are statements, and you need a ternary or temporary to get a value out.
-That's fine but makes match-like patterns more complex to express, so Destack lets block forms like `if` and `match` produce values.
-The last expression (no trailing `;`) becomes the value of the overall expression.
+Destack supports "expressions as values" where (almost) all statements are expressions that produce values, and the last expression (no trailing `;`) becomes the value of the overall expression.
 
 ```ds
 const result = if (condition) {
@@ -772,8 +766,8 @@ function add(a: int, b: int): int {
 }
 ```
 
-Building on statements-as-expressions, if-let expressions enable nice sugar for matching a value with a refutable pattern in a conditional.
-Bindings from the pattern are then available in the positive branch, and this composes with TS flow typing as you would expect.
+If-let expressions enable nice sugar for matching a value with a refutable pattern in a conditional.
+Bindings from the pattern are available in the positive branch:
 
 ```ds
 const result = if (let Some(value) = maybe) {
@@ -787,13 +781,10 @@ if (let (x, y) = point) {
 }
 ```
 
-`switch` remains the TypeScript statement form with fallthrough, `case`, `default`, and ordinary `break`.
-Use `match` when you want patterns, exhaustiveness, guards, or a value.
-
 ### Closures
 
-Closures generally work like TypeScript closures: capture the surrounding lexical environment and preserve lexical `this`.
-Destack supports an additional `@capture` annotation for controlling how the environment is captured (both per closure and per binding):
+Closures generally work like TypeScript closures, capturing the surrounding lexical environment and preserving lexical `this`.
+Destack supports an additional `@capture` annotation for controlling _how_ the environment is captured (both per closure and per binding):
  - `"borrow"`: captures borrowed access to the original binding (same as `&expr`)
  - `"copy"`: captures a copied value of the original binding (same as `expr.copy()` where `expr: Copy`)
  - `"move"`: transfer the binding into the closure, original becomes unavailable afterwards (same as `^expr`)
@@ -819,7 +810,7 @@ const send = (message: string) => socket.write(message);
 ```
 
 The short form sets the default for every captured binding.
-Object form can override individual bindings, including `this`:
+For more complex cases, the object form of `capture` can override individual bindings, including `this`:
 
 ```ds
 class Client {
@@ -842,9 +833,8 @@ class Client {
 
 ### Continuations
 
-Async functions and generators are closures that can pause and be resumed at a later point via `Continuation`s.
-When paused, the runtime parks the live frame in a Worker-local continuation handle.
-`Promise`, `Generator`, and `AsyncGenerator` are (well known) standard library types around the simpler `Continuation` primitive:
+Async functions and generators are closures that can pause and be resumed at a later point via `Continuation`s and runtime just parks the live frame in a Worker-local "continuation handle".
+`Promise`, `Generator`, and `AsyncGenerator` are "just" standard library types around this simpler `Continuation` primitive:
 
 | Form | Meaning |
 |------|---------|
@@ -855,8 +845,8 @@ When paused, the runtime parks the live frame in a Worker-local continuation han
 | produced `T` | value eventually produced by async code |
 
 As in TypeScript, `await` and `yield` are the suspension points for the `Promise`s and `Generator` (and `AsyncGenerator`) coroutines where the entire stack up to that point is parked, and some other task is run.
-In standard managed land, this works as before of course, and managed values can be stored in parked frames just fine.
-Borrows are valid only when the origin value is kept alive during suspension:
+In standard managed land, this works as before, and managed values can be stored in parked frames just fine.
+Because borrows must always point into valid memory and cannot change, borrows are valid only when the origin value is kept alive during suspension:
 
 ```ds
 async function read(user: User): Promise<string> {
@@ -2152,7 +2142,7 @@ PlaceOf<typeof localBuffer> satisfies "ambient";
 PlaceOf<typeof sharedBuffer> satisfies "shared";
 ```
 
-### Form Polymorphism
+### Polymorphism
 
 Since ownership, access, lifetime, and placement are all part of `Form`, contracts and implementors get to be polymorphic and (somewhat) conditional over their ownership, space, and access, even on the receiver type.
 That lets types expose one natural operation when only the projected form changes, and separate operations when the semantics actually differ.
