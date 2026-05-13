@@ -1,0 +1,295 @@
+import { ResourceId } from "destack:runtime/resource";
+import { Array, PackedArray } from "destack:collections";
+import { HostError } from "destack:error/host";
+import { DisplayBackendKind, DisplayBackendSelection } from "./backend.ds";
+
+/// Handle for one monitor endpoint.
+export newtype MonitorHandle = ResourceId;
+
+/// Display output orientation.
+export enum MonitorOrientation {
+    /// Backend did not report one orientation.
+    Unknown = 0,
+    /// Landscape orientation.
+    Landscape = 1,
+    /// Portrait orientation.
+    Portrait = 2,
+    /// Inverted landscape orientation.
+    LandscapeFlipped = 3,
+    /// Inverted portrait orientation.
+    PortraitFlipped = 4,
+}
+
+/// Display support status.
+export enum MonitorSupport {
+    /// Backend cannot determine support.
+    Unknown = 0,
+    /// Backend reports unsupported.
+    Unsupported = 1,
+    /// Backend reports supported.
+    Supported = 2,
+}
+
+/// Display mode pixel format.
+export newtype MonitorPixelFormat = uint32;
+
+/// Display mode.
+export struct MonitorMode {
+    /// Pixel width.
+    width: uint32;
+    /// Pixel height.
+    height: uint32;
+    /// Refresh rate in millihertz.
+    refreshMilliHz: uint32;
+    /// Pixel format.
+    format: MonitorPixelFormat;
+    /// Color depth in bits per pixel.
+    bitDepth: uint16;
+}
+
+/// Display HDR policy.
+export enum DisplayHdrMode {
+    /// Backend did not report one concrete HDR policy.
+    Unknown = 0,
+    /// Use host default HDR policy.
+    System = 1,
+    /// Use SDR output.
+    Sdr = 2,
+    /// Use HDR output.
+    Hdr = 3,
+}
+
+/// Display color space.
+export enum DisplayColorSpace {
+    /// Backend did not report one concrete color space.
+    Unknown = 0,
+    /// Standard RGB color space.
+    Srgb = 1,
+    /// Display P3 color space.
+    DisplayP3 = 2,
+    /// BT.2020 color space.
+    Bt2020 = 3,
+    /// scRGB color space.
+    ScRgb = 4,
+    /// HDR10 transfer and primaries.
+    Hdr10 = 5,
+}
+
+/// Display color state.
+export struct MonitorColorState {
+    /// Current HDR policy.
+    hdrMode: DisplayHdrMode;
+    /// Current output color space.
+    colorSpace: DisplayColorSpace;
+    /// Effective color channel depth in bits.
+    bitsPerChannel?: uint16;
+}
+
+/// Display gamma ramp.
+export struct MonitorGammaRamp {
+    /// Red channel gamma table entries.
+    red: Array<uint16>;
+    /// Green channel gamma table entries.
+    green: Array<uint16>;
+    /// Blue channel gamma table entries.
+    blue: Array<uint16>;
+}
+
+/// Display output rectangle in desktop pixels.
+export struct MonitorRect {
+    /// Desktop x coordinate.
+    x: int32;
+    /// Desktop y coordinate.
+    y: int32;
+    /// Pixel width.
+    width: uint32;
+    /// Pixel height.
+    height: uint32;
+}
+
+/// Display output.
+export struct Monitor {
+    /// Stable monitor identifier.
+    id: string;
+    /// Display name.
+    name: string;
+    /// Host backend.
+    backend: DisplayBackendKind;
+    /// Whether this monitor is primary.
+    isPrimary: boolean;
+    /// Desktop bounds.
+    bounds: MonitorRect;
+    /// Work area excluding host chrome.
+    workArea: MonitorRect;
+    /// Physical width in millimeters.
+    widthMm?: uint32;
+    /// Physical height in millimeters.
+    heightMm?: uint32;
+    /// Scale factor in milli-scale units.
+    scaleFactorMilli: uint32;
+    /// Current orientation.
+    orientation: MonitorOrientation;
+    /// Current display mode.
+    currentMode: MonitorMode;
+    /// Desktop-preferred display mode.
+    desktopMode: MonitorMode;
+    /// Current color state.
+    colorState?: MonitorColorState;
+    /// Whether this monitor is a built-in panel.
+    builtinPanel: MonitorSupport;
+    /// Variable-refresh support.
+    variableRefresh: MonitorSupport;
+    /// HDR support.
+    hdr: MonitorSupport;
+}
+
+/// Monitor query.
+export struct MonitorQuery {
+    /// Backend selection.
+    backend: DisplayBackendSelection;
+}
+
+/// List monitors.
+@binding("destack.display.monitor.list", {
+    effect: "external",
+    requires: ["host.display.monitor"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
+})
+export declare function listMonitors(
+    query: &readonly MonitorQuery,
+): Result<PackedArray<Monitor>, HostError>;
+
+/// Return the primary monitor handle.
+@binding("destack.display.monitor.primary", {
+    effect: "external",
+    requires: ["host.display.monitor"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
+})
+export declare function primaryMonitor(
+    query: &readonly MonitorQuery,
+): Result<MonitorHandle, HostError>;
+
+/// Open one monitor endpoint.
+@binding("destack.display.monitor.open", {
+    effect: "external",
+    requires: ["host.display.monitor"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
+})
+export declare function openMonitor(
+    id: &readonly string,
+    query: &readonly MonitorQuery,
+): Result<MonitorHandle, HostError>;
+
+/// Close one monitor endpoint.
+@binding("destack.display.monitor.close", {
+    effect: "external",
+    requires: ["host.display.monitor"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
+})
+export declare function closeMonitor(monitor: MonitorHandle): Result<void, HostError>;
+
+/// Describe one monitor.
+@binding("destack.display.monitor.describe", {
+    effect: "external",
+    requires: ["host.display.monitor"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
+})
+export declare function describeMonitor(monitor: MonitorHandle): Result<Monitor, HostError>;
+
+/// List supported monitor modes.
+@binding("destack.display.monitor.mode.list", {
+    effect: "external",
+    requires: ["host.display.monitor.mode"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
+})
+export declare function listMonitorModes(
+    monitor: MonitorHandle,
+): Result<PackedArray<MonitorMode>, HostError>;
+
+/// Select the closest supported monitor mode.
+@binding("destack.display.monitor.mode.closest", {
+    effect: "external",
+    requires: ["host.display.monitor.mode"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
+})
+export declare function closestMonitorMode(
+    monitor: MonitorHandle,
+    mode: &readonly MonitorMode,
+): Result<MonitorMode, HostError>;
+
+/// Set one monitor mode.
+@binding("destack.display.monitor.mode.set", {
+    effect: "external",
+    requires: ["host.display.monitor.mode"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
+})
+export declare function setMonitorMode(
+    monitor: MonitorHandle,
+    mode: &readonly MonitorMode,
+): Result<void, HostError>;
+
+/// Read one monitor color state.
+@binding("destack.display.monitor.color", {
+    effect: "external",
+    requires: ["host.display.monitor"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
+})
+export declare function monitorColorState(
+    monitor: MonitorHandle,
+): Result<MonitorColorState, HostError>;
+
+/// Set one monitor HDR policy.
+@binding("destack.display.monitor.hdr", {
+    effect: "external",
+    requires: ["host.display.monitor.mode"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
+})
+export declare function setMonitorHdrMode(
+    monitor: MonitorHandle,
+    mode: DisplayHdrMode,
+): Result<void, HostError>;
+
+/// Read one monitor gamma ramp.
+@binding("destack.display.monitor.gamma.read", {
+    effect: "external",
+    requires: ["host.display.monitor"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
+})
+export declare function readMonitorGamma(
+    monitor: MonitorHandle,
+): Result<MonitorGammaRamp, HostError>;
+
+/// Set one monitor gamma ramp.
+@binding("destack.display.monitor.gamma.write", {
+    effect: "external",
+    requires: ["host.display.monitor.mode"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
+})
+export declare function writeMonitorGamma(
+    monitor: MonitorHandle,
+    gamma: &readonly MonitorGammaRamp,
+): Result<void, HostError>;

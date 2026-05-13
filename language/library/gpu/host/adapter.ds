@@ -1,0 +1,489 @@
+import { Array, PackedArray } from "destack:collections";
+import { HostError } from "destack:error/host";
+import { GpuTextureFormat, GpuTextureUsage } from "./resource.ds";
+import { GpuAdapterHandle, GpuSurfaceHandle } from "destack:gpu/host";
+
+/// GPU backend selector.
+export enum GpuBackend {
+    /// Select the best backend for the current host.
+    Auto = 0,
+    /// Vulkan backend.
+    Vulkan = 1,
+    /// Metal backend.
+    Metal = 2,
+    /// Direct3D 12 backend.
+    Dx12 = 3,
+    /// OpenGL or OpenGL ES backend.
+    Gl = 4,
+    /// Browser WebGPU backend.
+    BrowserWebGpu = 5,
+    /// No-op backend for tests and simulation.
+    Noop = 255,
+}
+
+/// GPU adapter category.
+export enum GpuAdapterType {
+    /// Other or unknown adapter type.
+    Other = 0,
+    /// Integrated GPU.
+    Integrated = 1,
+    /// Discrete GPU.
+    Discrete = 2,
+    /// Virtual or passthrough adapter.
+    Virtual = 3,
+    /// Software or CPU adapter.
+    Cpu = 4,
+}
+
+/// Power preference for adapter selection.
+export enum GpuPowerPreference {
+    /// Do not request a specific preference.
+    None = 0,
+    /// Prefer lower power adapters.
+    LowPower = 1,
+    /// Prefer higher performance adapters.
+    HighPerformance = 2,
+}
+
+/// Stable GPU feature identifier.
+///
+/// These identifiers map one-to-one to WebGPU and `wgpu` feature names.
+/// Values are grouped into one web feature bank and one native feature bank.
+export enum GpuFeatureId {
+    /// Enables depth clip control.
+    DepthClipControl = 0x10000,
+    /// Enables `depth32float-stencil8`.
+    Depth32FloatStencil8 = 0x10001,
+    /// Enables BC texture compression.
+    TextureCompressionBc = 0x10002,
+    /// Enables 3D BC texture compression.
+    TextureCompressionBcSliced3D = 0x10003,
+    /// Enables ETC2 texture compression.
+    TextureCompressionEtc2 = 0x10004,
+    /// Enables ASTC texture compression.
+    TextureCompressionAstc = 0x10005,
+    /// Enables 3D ASTC texture compression.
+    TextureCompressionAstcSliced3D = 0x10006,
+    /// Enables timestamp queries.
+    TimestampQuery = 0x10007,
+    /// Enables nonzero indirect first instance.
+    IndirectFirstInstance = 0x10008,
+    /// Enables shader `f16`.
+    ShaderF16 = 0x10009,
+    /// Enables `rg11b10ufloat` render targets.
+    Rg11B10UfloatRenderable = 0x1000a,
+    /// Enables `bgra8unorm` storage textures.
+    Bgra8UnormStorage = 0x1000b,
+    /// Enables filterable 32-bit float textures.
+    Float32Filterable = 0x1000c,
+    /// Enables blendable 32-bit float textures.
+    Float32Blendable = 0x1000d,
+    /// Enables dual-source blending.
+    DualSourceBlending = 0x1000e,
+    /// Enables clip distances.
+    ClipDistances = 0x1000f,
+    /// Enables immediate data.
+    Immediates = 0x10010,
+
+    /// Enables shader `atomic<f32>`.
+    ShaderFloat32Atomic = 0x20000,
+    /// Enables 16-bit normalized texture formats.
+    TextureFormat16BitNorm = 0x20001,
+    /// Enables ASTC HDR texture formats.
+    TextureCompressionAstcHdr = 0x20002,
+    /// Enables adapter-specific texture format features.
+    TextureAdapterSpecificFormatFeatures = 0x20003,
+    /// Enables pipeline statistics queries.
+    PipelineStatisticsQuery = 0x20004,
+    /// Enables timestamp writes inside command encoders.
+    TimestampQueryInsideEncoders = 0x20005,
+    /// Enables timestamp writes inside passes.
+    TimestampQueryInsidePasses = 0x20006,
+    /// Enables mappable primary buffers.
+    MappablePrimaryBuffers = 0x20007,
+    /// Enables texture binding arrays.
+    TextureBindingArray = 0x20008,
+    /// Enables buffer binding arrays.
+    BufferBindingArray = 0x20009,
+    /// Enables storage resource binding arrays.
+    StorageResourceBindingArray = 0x2000a,
+    /// Enables nonuniform indexing for sampled-texture and storage-buffer arrays.
+    SampledTextureAndStorageBufferArrayNonUniformIndexing = 0x2000b,
+    /// Enables nonuniform indexing for storage-texture arrays.
+    StorageTextureArrayNonUniformIndexing = 0x2000c,
+    /// Enables partially bound binding arrays.
+    PartiallyBoundBindingArray = 0x2000d,
+    /// Enables multi-draw indirect count.
+    MultiDrawIndirectCount = 0x2000f,
+    /// Enables clamp-to-zero address mode.
+    AddressModeClampToZero = 0x20011,
+    /// Enables clamp-to-border address mode.
+    AddressModeClampToBorder = 0x20012,
+    /// Enables line polygon mode.
+    PolygonModeLine = 0x20013,
+    /// Enables point polygon mode.
+    PolygonModePoint = 0x20014,
+    /// Enables conservative rasterization.
+    ConservativeRasterization = 0x20015,
+    /// Enables writable storage from vertex shaders.
+    VertexWritableStorage = 0x20016,
+    /// Enables explicit texture clears.
+    ClearTexture = 0x20017,
+    /// Enables multiview rendering.
+    Multiview = 0x2001a,
+    /// Enables 64-bit vertex attributes.
+    VertexAttribute64Bit = 0x2001b,
+    /// Enables texture atomics.
+    TextureAtomic = 0x2001c,
+    /// Enables NV12 texture format support.
+    TextureFormatNv12 = 0x2001d,
+    /// Enables P010 texture format support.
+    TextureFormatP010 = 0x2001e,
+    /// Enables external textures.
+    ExternalTexture = 0x2001f,
+    /// Enables experimental ray queries.
+    ExperimentalRayQuery = 0x20020,
+    /// Enables shader `f64`.
+    ShaderF64 = 0x20021,
+    /// Enables shader `i16`.
+    ShaderI16 = 0x20022,
+    /// Enables shader primitive index builtins.
+    ShaderPrimitiveIndex = 0x20023,
+    /// Enables early depth tests in shaders.
+    ShaderEarlyDepthTest = 0x20024,
+    /// Enables shader `i64`.
+    ShaderInt64 = 0x20025,
+    /// Enables subgroup operations.
+    Subgroup = 0x20026,
+    /// Enables subgroup operations in vertex shaders.
+    SubgroupVertex = 0x20027,
+    /// Enables subgroup barriers.
+    SubgroupBarrier = 0x20028,
+    /// Enables pipeline caches.
+    PipelineCache = 0x20029,
+    /// Enables `i64` atomic min and max.
+    ShaderInt64AtomicMinMax = 0x2002a,
+    /// Enables full `i64` atomic operations.
+    ShaderInt64AtomicAllOps = 0x2002b,
+    /// Enables Vulkan Google display timing.
+    VulkanGoogleDisplayTiming = 0x2002c,
+    /// Enables Vulkan external memory on Win32.
+    VulkanExternalMemoryWin32 = 0x2002d,
+    /// Enables 64-bit texture atomics.
+    TextureInt64Atomic = 0x2002e,
+    /// Enables uniform buffer binding arrays.
+    UniformBufferBindingArrays = 0x2002f,
+    /// Enables experimental mesh shaders.
+    ExperimentalMeshShader = 0x20030,
+    /// Enables experimental ray hit vertex return.
+    ExperimentalRayHitVertexReturn = 0x20031,
+    /// Enables experimental mesh-shader multiview.
+    ExperimentalMeshShaderMultiview = 0x20032,
+    /// Enables extended acceleration-structure vertex formats.
+    ExtendedAccelerationStructureVertexFormats = 0x20033,
+    /// Enables experimental passthrough shaders.
+    ExperimentalPassthroughShaders = 0x20034,
+    /// Enables shader barycentrics.
+    ShaderBarycentrics = 0x20035,
+    /// Enables selective multiview.
+    SelectiveMultiview = 0x20036,
+    /// Enables experimental mesh-shader points.
+    ExperimentalMeshShaderPoints = 0x20037,
+    /// Enables multisample arrays.
+    MultisampleArray = 0x20038,
+    /// Enables experimental cooperative matrices.
+    ExperimentalCooperativeMatrix = 0x20039,
+    /// Enables per-vertex shader outputs.
+    ShaderPerVertex = 0x2003a,
+    /// Enables shader draw index builtins.
+    ShaderDrawIndex = 0x2003b,
+}
+
+/// Texture-format feature bitset.
+export newtype GpuTextureFormatFeatureFlags = uint32;
+
+/// Texture-format feature bit for filterable sampling.
+export const GPU_TEXTURE_FORMAT_FEATURE_FILTERABLE: GpuTextureFormatFeatureFlags =
+    GpuTextureFormatFeatureFlags(0x1);
+/// Texture-format feature bit for sample count 2.
+export const GPU_TEXTURE_FORMAT_FEATURE_MULTISAMPLE_X2: GpuTextureFormatFeatureFlags =
+    GpuTextureFormatFeatureFlags(0x2);
+/// Texture-format feature bit for sample count 4.
+export const GPU_TEXTURE_FORMAT_FEATURE_MULTISAMPLE_X4: GpuTextureFormatFeatureFlags =
+    GpuTextureFormatFeatureFlags(0x4);
+/// Texture-format feature bit for sample count 8.
+export const GPU_TEXTURE_FORMAT_FEATURE_MULTISAMPLE_X8: GpuTextureFormatFeatureFlags =
+    GpuTextureFormatFeatureFlags(0x8);
+/// Texture-format feature bit for sample count 16.
+export const GPU_TEXTURE_FORMAT_FEATURE_MULTISAMPLE_X16: GpuTextureFormatFeatureFlags =
+    GpuTextureFormatFeatureFlags(0x10);
+/// Texture-format feature bit for multisample resolve targets.
+export const GPU_TEXTURE_FORMAT_FEATURE_MULTISAMPLE_RESOLVE: GpuTextureFormatFeatureFlags =
+    GpuTextureFormatFeatureFlags(0x20);
+/// Texture-format feature bit for read-only storage access.
+export const GPU_TEXTURE_FORMAT_FEATURE_STORAGE_READ_ONLY: GpuTextureFormatFeatureFlags =
+    GpuTextureFormatFeatureFlags(0x40);
+/// Texture-format feature bit for write-only storage access.
+export const GPU_TEXTURE_FORMAT_FEATURE_STORAGE_WRITE_ONLY: GpuTextureFormatFeatureFlags =
+    GpuTextureFormatFeatureFlags(0x80);
+/// Texture-format feature bit for read-write storage access.
+export const GPU_TEXTURE_FORMAT_FEATURE_STORAGE_READ_WRITE: GpuTextureFormatFeatureFlags =
+    GpuTextureFormatFeatureFlags(0x100);
+/// Texture-format feature bit for atomic storage access.
+export const GPU_TEXTURE_FORMAT_FEATURE_STORAGE_ATOMIC: GpuTextureFormatFeatureFlags =
+    GpuTextureFormatFeatureFlags(0x200);
+/// Texture-format feature bit for blendable render attachments.
+export const GPU_TEXTURE_FORMAT_FEATURE_BLENDABLE: GpuTextureFormatFeatureFlags =
+    GpuTextureFormatFeatureFlags(0x400);
+
+/// Adapter discovery options.
+export struct GpuAdapterRequest {
+    /// Preferred backend.
+    backend: GpuBackend;
+    /// Preferred power profile.
+    powerPreference: GpuPowerPreference;
+    /// Whether only one fallback adapter should be selected.
+    forceFallbackAdapter: boolean;
+    /// Surface compatibility constraint when provided.
+    compatibleSurface?: GpuSurfaceHandle;
+}
+
+/// Normalized adapter limits.
+export struct GpuAdapterLimits {
+    /// Maximum bind groups.
+    maxBindGroups: uint32;
+    /// Maximum bindings allowed in one bind group.
+    maxBindingsPerBindGroup: uint32;
+    /// Maximum push constant bytes.
+    maxPushConstantBytes: uint32;
+    /// Maximum 1D texture dimension.
+    maxTextureDimension1D: uint32;
+    /// Maximum 2D texture dimension.
+    maxTextureDimension2D: uint32;
+    /// Maximum 3D texture dimension.
+    maxTextureDimension3D: uint32;
+    /// Maximum texture array layers.
+    maxTextureArrayLayers: uint32;
+    /// Maximum color attachments in one render pass.
+    maxColorAttachments: uint32;
+    /// Maximum color-attachment bytes written per sample.
+    maxColorAttachmentBytesPerSample: uint32;
+    /// Maximum sampled textures per shader stage.
+    maxSampledTexturesPerShaderStage: uint32;
+    /// Maximum samplers per shader stage.
+    maxSamplersPerShaderStage: uint32;
+    /// Maximum storage buffers per shader stage.
+    maxStorageBuffersPerShaderStage: uint32;
+    /// Maximum storage textures per shader stage.
+    maxStorageTexturesPerShaderStage: uint32;
+    /// Maximum uniform buffers per shader stage.
+    maxUniformBuffersPerShaderStage: uint32;
+    /// Maximum non-sampler binding-array elements per shader stage.
+    maxBindingArrayElementsPerShaderStage: uint32;
+    /// Maximum sampler binding-array elements per shader stage.
+    maxBindingArraySamplerElementsPerShaderStage: uint32;
+    /// Maximum dynamic uniform buffers per pipeline layout.
+    maxDynamicUniformBuffersPerPipelineLayout: uint32;
+    /// Maximum dynamic storage buffers per pipeline layout.
+    maxDynamicStorageBuffersPerPipelineLayout: uint32;
+    /// Maximum uniform buffer binding size.
+    maxUniformBufferBindingSize: uint64;
+    /// Maximum storage buffer binding size.
+    maxStorageBufferBindingSize: uint64;
+    /// Minimum storage buffer offset alignment.
+    minStorageBufferOffsetAlignment: uint32;
+    /// Minimum uniform buffer offset alignment.
+    minUniformBufferOffsetAlignment: uint32;
+    /// Maximum vertex buffers.
+    maxVertexBuffers: uint32;
+    /// Maximum vertex attributes.
+    maxVertexAttributes: uint32;
+    /// Maximum vertex-buffer array stride in bytes.
+    maxVertexBufferArrayStride: uint32;
+    /// Maximum storage for one GPU buffer in bytes.
+    maxBufferSize: uint64;
+    /// Maximum inter-stage shader components.
+    maxInterStageShaderComponents: uint32;
+    /// Maximum inter-stage shader variables.
+    maxInterStageShaderVariables: uint32;
+    /// Maximum compute workgroup storage in bytes.
+    maxComputeWorkgroupStorageSize: uint32;
+    /// Maximum compute invocations per workgroup.
+    maxComputeInvocationsPerWorkgroup: uint32;
+    /// Maximum compute workgroup size on x axis.
+    maxComputeWorkgroupSizeX: uint32;
+    /// Maximum compute workgroup size on y axis.
+    maxComputeWorkgroupSizeY: uint32;
+    /// Maximum compute workgroup size on z axis.
+    maxComputeWorkgroupSizeZ: uint32;
+    /// Maximum compute workgroups per dispatch dimension.
+    maxComputeWorkgroupsPerDimension: uint32;
+    /// Maximum immediate-data bytes.
+    maxImmediateSize: uint32;
+    /// Maximum live non-sampler bindings.
+    maxNonSamplerBindings: uint32;
+    /// Maximum total mesh-task workgroup count.
+    maxTaskMeshWorkgroupTotalCount: uint32;
+    /// Maximum mesh-task workgroups per dimension.
+    maxTaskMeshWorkgroupsPerDimension: uint32;
+    /// Maximum task-shader invocations per workgroup.
+    maxTaskInvocationsPerWorkgroup: uint32;
+    /// Maximum task-shader invocations per dimension.
+    maxTaskInvocationsPerDimension: uint32;
+    /// Maximum mesh-shader invocations per workgroup.
+    maxMeshInvocationsPerWorkgroup: uint32;
+    /// Maximum mesh-shader invocations per dimension.
+    maxMeshInvocationsPerDimension: uint32;
+    /// Maximum task-shader payload size in bytes.
+    maxTaskPayloadSize: uint32;
+    /// Maximum mesh-shader output vertices.
+    maxMeshOutputVertices: uint32;
+    /// Maximum mesh-shader output primitives.
+    maxMeshOutputPrimitives: uint32;
+    /// Maximum mesh-shader output layers.
+    maxMeshOutputLayers: uint32;
+    /// Maximum mesh-shader multiview view count.
+    maxMeshMultiviewViewCount: uint32;
+    /// Maximum bottom-level acceleration-structure primitive count.
+    maxBlasPrimitiveCount: uint32;
+    /// Maximum bottom-level acceleration-structure geometry count.
+    maxBlasGeometryCount: uint32;
+    /// Maximum top-level acceleration-structure instance count.
+    maxTlasInstanceCount: uint32;
+    /// Maximum acceleration structures per shader stage.
+    maxAccelerationStructuresPerShaderStage: uint32;
+    /// Maximum multiview view count.
+    maxMultiviewViewCount: uint32;
+}
+
+/// GPU adapter.
+export struct GpuAdapter {
+    /// Stable runtime adapter identifier.
+    id: string;
+    /// Host adapter name.
+    name: string;
+    /// Host vendor name when available.
+    vendor: string;
+    /// Host driver name when available.
+    driver: string;
+    /// Host driver version when available.
+    driverVersion: string;
+    /// Additional driver metadata when available.
+    driverInfo: string;
+    /// Backend API kind.
+    backend: GpuBackend;
+    /// Adapter category.
+    adapterType: GpuAdapterType;
+    /// Vendor identifier when available.
+    vendorId: uint32;
+    /// Device identifier when available.
+    deviceId: uint32;
+    /// Backend-specific PCI bus identifier when available.
+    pciBusId: string;
+    /// Minimum subgroup size when available.
+    subgroupMinSize: uint32;
+    /// Maximum subgroup size when available.
+    subgroupMaxSize: uint32;
+    /// Whether transient attachments can reduce backing-memory usage on this adapter.
+    transientSavesMemory: boolean;
+    /// Whether this adapter is a fallback implementation.
+    isFallback: boolean;
+    /// Supported feature identifiers.
+    features: [GpuFeatureId];
+    /// Supported adapter limits.
+    limits: GpuAdapterLimits;
+}
+
+/// Adapter texture format capabilities.
+export struct GpuAdapterFormatCapabilities {
+    /// Texture format identifier.
+    format: GpuTextureFormat;
+    /// Allowed usages for this format.
+    allowedUsages: GpuTextureUsage;
+    /// Additional texture-format feature flags.
+    flags: GpuTextureFormatFeatureFlags;
+}
+
+/// List available GPU adapters.
+@binding("destack.gpu.adapter.list", {
+    effect: "external",
+    requires: ["host.gpu.adapter"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function listAdapters(
+    request: &readonly GpuAdapterRequest,
+): Result<PackedArray<GpuAdapter>, HostError>;
+
+/// Open a GPU adapter.
+@binding("destack.gpu.adapter.open", {
+    effect: "external",
+    requires: ["host.gpu.adapter"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function openAdapter(id: &readonly string): Result<GpuAdapterHandle, HostError>;
+
+/// Read adapter metadata.
+@binding("destack.gpu.adapter.read", {
+    effect: "external",
+    requires: ["host.gpu.adapter"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function readAdapter(adapter: GpuAdapterHandle): Result<GpuAdapter, HostError>;
+
+/// Read an adapter feature snapshot.
+@binding("destack.gpu.adapter.features.read", {
+    effect: "external",
+    requires: ["host.gpu.adapter"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function readAdapterFeatures(
+    adapter: GpuAdapterHandle,
+): Result<PackedArray<GpuFeatureId>, HostError>;
+
+/// Read an adapter limits snapshot.
+@binding("destack.gpu.adapter.limits.read", {
+    effect: "external",
+    requires: ["host.gpu.adapter"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function readAdapterLimits(
+    adapter: GpuAdapterHandle,
+): Result<GpuAdapterLimits, HostError>;
+
+/// Check whether an adapter supports a feature.
+@binding("destack.gpu.adapter.feature.has", {
+    effect: "external",
+    requires: ["host.gpu.adapter"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function hasAdapterFeature(
+    adapter: GpuAdapterHandle,
+    feature: GpuFeatureId,
+): Result<boolean, HostError>;
+
+/// Read texture format capabilities for an adapter.
+@binding("destack.gpu.adapter.format.capabilities", {
+    effect: "external",
+    requires: ["host.gpu.adapter"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function readAdapterFormatCapabilities(
+    adapter: GpuAdapterHandle,
+    format: GpuTextureFormat,
+): Result<GpuAdapterFormatCapabilities, HostError>;
+
+/// Close a GPU adapter.
+@binding("destack.gpu.adapter.close", {
+    effect: "external",
+    requires: ["host.gpu.adapter"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function closeAdapter(adapter: GpuAdapterHandle): Result<void, HostError>;

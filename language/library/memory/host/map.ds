@@ -1,0 +1,92 @@
+import { HostError } from "destack:error/host";
+import { MemoryProtection, VirtualMemoryRange } from "./virtual.ds";
+import { FileHandle } from "destack:fs/host";
+
+/// File mapping visibility.
+export enum MappedMemoryVisibility {
+    /// Share writes with the backing object.
+    Shared = 1,
+    /// Keep writes private to this process.
+    Private = 2,
+}
+
+/// Flags for file and anonymous memory mappings.
+export newtype MappedMemoryFlags = uint32;
+
+/// Flags for flushing mapped memory.
+export newtype MappedMemorySyncFlags = uint32;
+
+/// No mapped memory flags.
+export const MAPPED_MEMORY_NONE: MappedMemoryFlags = MappedMemoryFlags(0x0);
+
+/// Request a fixed virtual address when the host supports it.
+export const MAPPED_MEMORY_FIXED: MappedMemoryFlags = MappedMemoryFlags(0x10);
+
+/// Request large page backing where supported.
+export const MAPPED_MEMORY_LARGE_PAGES: MappedMemoryFlags = MappedMemoryFlags(0x20);
+
+/// No mapped memory synchronization flags.
+export const MAPPED_MEMORY_SYNC_NONE: MappedMemorySyncFlags = MappedMemorySyncFlags(0x0);
+
+/// Schedule asynchronous writeback for dirty mapping pages.
+export const MAPPED_MEMORY_SYNC_ASYNC: MappedMemorySyncFlags = MappedMemorySyncFlags(0x1);
+
+/// Invalidate cached mapping pages after synchronization.
+export const MAPPED_MEMORY_SYNC_INVALIDATE: MappedMemorySyncFlags =
+    MappedMemorySyncFlags(0x2);
+
+/// Wait for dirty mapping pages to be written back.
+export const MAPPED_MEMORY_SYNC_WAIT: MappedMemorySyncFlags = MappedMemorySyncFlags(0x4);
+
+/// Map a file backed memory range.
+@binding("destack.memory.map.file", {
+    effect: "external",
+    requires: ["host.memory.map"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function mapFileMemory(
+    file: FileHandle,
+    offset: uint64,
+    length: uint64,
+    protection: MemoryProtection,
+    visibility: MappedMemoryVisibility,
+    flags: MappedMemoryFlags,
+    addressHint?: uint64,
+): Result<VirtualMemoryRange, HostError>;
+
+/// Map an anonymous memory range.
+@binding("destack.memory.map.anonymous", {
+    effect: "external",
+    requires: ["host.memory.map"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function mapAnonymousMemory(
+    length: uint64,
+    protection: MemoryProtection,
+    visibility: MappedMemoryVisibility,
+    flags: MappedMemoryFlags,
+    addressHint?: uint64,
+): Result<VirtualMemoryRange, HostError>;
+
+/// Unmap a mapped memory range.
+@binding("destack.memory.map.unmap", {
+    effect: "external",
+    requires: ["host.memory.map"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function unmapMemory(range: VirtualMemoryRange): Result<void, HostError>;
+
+/// Flush mapped memory to backing storage.
+@binding("destack.memory.map.sync", {
+    effect: "external",
+    requires: ["host.memory.map"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function syncMappedMemory(
+    range: VirtualMemoryRange,
+    flags: MappedMemorySyncFlags,
+): Result<void, HostError>;

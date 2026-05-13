@@ -1,0 +1,307 @@
+import { ResourceId } from "destack:runtime/resource";
+import { Array, PackedArray } from "destack:collections";
+import { HostError } from "destack:error/host";
+import { SocketFamily } from "./address.ds";
+import { SocketHandle } from "destack:net/host";
+
+/// Handle for a packet capture or injection endpoint.
+export newtype PacketHandle = ResourceId;
+
+/// Network packet backend selector.
+export enum NetworkPacketBackend {
+    /// Select the best backend for the current host.
+    Auto = 0,
+    /// Linux AF_PACKET backend.
+    AfPacket = 1,
+    /// BSD BPF device backend.
+    Bpf = 2,
+    /// Windows raw socket backend.
+    WindowsRawSocket = 3,
+}
+
+/// Network packet backend features.
+export newtype NetworkPacketBackendFeatures = uint64;
+
+/// Backend supports packet capture.
+export const NETWORK_PACKET_CAPTURE: NetworkPacketBackendFeatures =
+    NetworkPacketBackendFeatures(0x1);
+
+/// Backend supports packet injection.
+export const NETWORK_PACKET_SEND: NetworkPacketBackendFeatures = NetworkPacketBackendFeatures(0x2);
+
+/// Backend supports packet timestamps.
+export const NETWORK_PACKET_TIMESTAMP: NetworkPacketBackendFeatures =
+    NetworkPacketBackendFeatures(0x4);
+
+/// Backend supports packet filters.
+export const NETWORK_PACKET_FILTER: NetworkPacketBackendFeatures =
+    NetworkPacketBackendFeatures(0x8);
+
+/// Backend supports fanout groups.
+export const NETWORK_PACKET_FANOUT: NetworkPacketBackendFeatures =
+    NetworkPacketBackendFeatures(0x10);
+
+/// Backend supports packet rings.
+export const NETWORK_PACKET_RING: NetworkPacketBackendFeatures = NetworkPacketBackendFeatures(0x20);
+
+/// Network packet backend status.
+export struct NetworkPacketBackendStatus {
+    /// Backend selector.
+    backend: NetworkPacketBackend;
+    /// Stable backend name.
+    name: string;
+    /// Whether this backend is available.
+    isAvailable: boolean;
+    /// Priority in auto-selection order.
+    priority: uint16;
+    /// Backend features.
+    features: NetworkPacketBackendFeatures;
+}
+
+/// Network packet timestamp clock domain.
+export enum NetworkPacketTimestampClock {
+    /// No packet timestamp is present.
+    None = 0,
+    /// Timestamp is in the host wall-clock domain.
+    Wall = 1,
+    /// Timestamp is in the host monotonic clock domain.
+    Monotonic = 2,
+    /// Timestamp is in one backend-specific hardware clock domain.
+    Hardware = 3,
+}
+
+/// Network packet endpoint options.
+export struct NetworkPacketOpenOptions {
+    /// Preferred packet backend.
+    backend: NetworkPacketBackend;
+    /// Interface index for capture or injection.
+    interfaceIndex: uint32;
+    /// Maximum frame bytes per packet.
+    snapLength: uint32;
+    /// Capture timeout in milliseconds.
+    timeoutMilliseconds?: uint32;
+    /// Whether promiscuous mode is requested.
+    isPromiscuous: boolean;
+}
+
+/// Captured network packet metadata.
+export struct NetworkPacketRecord {
+    /// Packet bytes written to the payload buffer.
+    bytes: uint64;
+    /// Interface index that produced the packet.
+    interfaceIndex: uint32;
+    /// Packet timestamp clock domain.
+    timestampClock: NetworkPacketTimestampClock;
+    /// Capture timestamp in nanoseconds for `timestampClock`.
+    timestampNanoseconds: uint64;
+    /// Whether packet bytes were truncated.
+    isTruncated: boolean;
+}
+
+/// Network packet capture statistics.
+export struct NetworkPacketStats {
+    /// Packets received by the backend.
+    receivedPackets: uint64;
+    /// Packets dropped by the backend.
+    droppedPackets: uint64;
+    /// Packets dropped by the interface.
+    interfaceDroppedPackets: uint64;
+}
+
+/// Network packet fanout mode.
+export enum NetworkPacketFanoutMode {
+    /// Hash packets across sockets.
+    Hash = 0,
+    /// Load balance packets across sockets.
+    LoadBalance = 1,
+    /// Forward packets to the same CPU socket.
+    Cpu = 2,
+    /// Use round-robin packet distribution.
+    RoundRobin = 3,
+    /// Use rollover failover packet distribution.
+    Rollover = 4,
+    /// Keep flows and load balance across sockets.
+    QueueMap = 5,
+}
+
+/// Network packet fanout options.
+export struct NetworkPacketFanoutOptions {
+    /// Fanout group identifier.
+    groupId: uint16;
+    /// Fanout mode.
+    mode: NetworkPacketFanoutMode;
+    /// Mode-specific flags.
+    flags: uint16;
+}
+
+/// Network packet ring options.
+export struct NetworkPacketRingOptions {
+    /// Ring block size in bytes.
+    blockSize: uint32;
+    /// Number of blocks in the ring.
+    blockCount: uint32;
+    /// Frame size in bytes.
+    frameSize: uint32;
+    /// Number of frames in the ring.
+    frameCount: uint32;
+    /// Block retire timeout in milliseconds.
+    retireTimeoutMilliseconds: uint32;
+}
+
+/// List host packet backends.
+@binding("destack.net.raw.packetBackends", {
+    effect: "external",
+    requires: ["host.net.raw"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function listPacketBackends(): Result<
+    PackedArray<NetworkPacketBackendStatus>,
+    HostError,
+>;
+
+/// Open a raw IP socket.
+@binding("destack.net.raw.socket", {
+    effect: "external",
+    requires: ["host.net.raw"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function openRawSocket(
+    family: SocketFamily,
+    protocol: int32,
+): Result<SocketHandle, HostError>;
+
+/// Enable or disable IP header inclusion on a raw socket.
+@binding("destack.net.raw.headerIncluded", {
+    effect: "external",
+    requires: ["host.net.raw"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function setHeaderIncluded(
+    socket: SocketHandle,
+    isEnabled: boolean,
+): Result<void, HostError>;
+
+/// Open a packet capture or injection endpoint.
+@binding("destack.net.raw.packetOpen", {
+    effect: "external",
+    requires: ["host.net.raw"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function openPacketEndpoint(
+    options: NetworkPacketOpenOptions,
+): Result<PacketHandle, HostError>;
+
+/// Receive one packet from a packet endpoint.
+@binding("destack.net.raw.packetReceive", {
+    effect: "external",
+    requires: ["host.net.raw"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function receivePacket(
+    packet: PacketHandle,
+    payload: &[uint8],
+): Result<NetworkPacketRecord, HostError>;
+
+/// Send one packet through a packet endpoint.
+@binding("destack.net.raw.packetSend", {
+    effect: "external",
+    requires: ["host.net.raw"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function sendPacket(
+    packet: PacketHandle,
+    payload: &readonly [uint8],
+): Result<uint64, HostError>;
+
+/// Attach one packet filter program to an endpoint.
+@binding("destack.net.raw.packetFilter", {
+    effect: "external",
+    requires: ["host.net.raw"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function setPacketFilter(
+    packet: PacketHandle,
+    program: &readonly [uint8],
+): Result<void, HostError>;
+
+/// Clear the active packet filter program.
+@binding("destack.net.raw.packetClearFilter", {
+    effect: "external",
+    requires: ["host.net.raw"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function clearPacketFilter(packet: PacketHandle): Result<void, HostError>;
+
+/// Set packet fanout on an endpoint.
+@binding("destack.net.raw.packetFanout", {
+    effect: "external",
+    requires: ["host.net.raw"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function setPacketFanout(
+    packet: PacketHandle,
+    options: NetworkPacketFanoutOptions,
+): Result<void, HostError>;
+
+/// Clear packet fanout from an endpoint.
+@binding("destack.net.raw.packetClearFanout", {
+    effect: "external",
+    requires: ["host.net.raw"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function clearPacketFanout(packet: PacketHandle): Result<void, HostError>;
+
+/// Configure one packet receive ring.
+@binding("destack.net.raw.packetReceiveRing", {
+    effect: "external",
+    requires: ["host.net.raw"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function setPacketReceiveRing(
+    packet: PacketHandle,
+    options: NetworkPacketRingOptions,
+): Result<void, HostError>;
+
+/// Configure one packet transmit ring.
+@binding("destack.net.raw.packetSendRing", {
+    effect: "external",
+    requires: ["host.net.raw"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function setPacketSendRing(
+    packet: PacketHandle,
+    options: NetworkPacketRingOptions,
+): Result<void, HostError>;
+
+/// Clear packet ring configuration.
+@binding("destack.net.raw.packetClearRing", {
+    effect: "external",
+    requires: ["host.net.raw"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function clearPacketRing(packet: PacketHandle): Result<void, HostError>;
+
+/// Read packet endpoint statistics.
+@binding("destack.net.raw.packetStats", {
+    effect: "external",
+    requires: ["host.net.raw"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function packetStats(packet: PacketHandle): Result<
+    NetworkPacketStats,
+    HostError,
+>;

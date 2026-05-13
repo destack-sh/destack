@@ -1,0 +1,20 @@
+import { HostError } from "destack:error/host";
+import { Path } from "destack:fs/host";
+
+/// Return the current working directory.
+@binding("destack.process.workdir.get", {
+    effect: "external",
+    requires: ["host.process.workdir.read"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function getCurrentDirectory(): Result<^Path, HostError>;
+
+/// Change the current working directory.
+@binding("destack.process.workdir.set", {
+    effect: "external",
+    requires: ["host.process.workdir.write"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function setCurrentDirectory(path: &readonly Path): Result<void, HostError>;

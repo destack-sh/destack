@@ -1,0 +1,105 @@
+import { Array, PackedArray } from "destack:collections";
+import { HostError } from "destack:error/host";
+
+/// Environment variable.
+export struct EnvironmentVariable {
+    /// Variable name.
+    name: string;
+    /// Variable value.
+    value: string;
+}
+
+/// Raw environment variable.
+export struct RawEnvironmentVariable {
+    /// Variable name bytes.
+    name: [uint8];
+    /// Variable value bytes.
+    value: [uint8];
+}
+
+/// Read an environment variable.
+@binding("destack.process.environment.get", {
+    effect: "external",
+    requires: ["host.process.environment.read"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function getEnvironment(
+    name: &readonly string,
+): Result<^string | undefined, HostError>;
+
+/// List environment variables.
+@binding("destack.process.environment.list", {
+    effect: "external",
+    requires: ["host.process.environment.read"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function listEnvironment(): Result<PackedArray<EnvironmentVariable>, HostError>;
+
+/// Set an environment variable.
+@binding("destack.process.environment.set", {
+    effect: "external",
+    requires: ["host.process.environment.write"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function setEnvironment(
+    name: &readonly string,
+    value: &readonly string,
+): Result<void, HostError>;
+
+/// Remove an environment variable.
+@binding("destack.process.environment.remove", {
+    effect: "external",
+    requires: ["host.process.environment.write"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function removeEnvironment(name: &readonly string): Result<void, HostError>;
+
+/// Read a raw Unix environment variable.
+@binding("destack.process.environment.getRaw", {
+    effect: "external",
+    requires: ["host.process.environment.read"],
+    families: ["unix"],
+    simulation: true,
+})
+export declare function getRawEnvironment(
+    name: &readonly [uint8],
+): Result<PackedArray<uint8> | undefined, HostError>;
+
+/// List raw Unix environment variables.
+@binding("destack.process.environment.listRaw", {
+    effect: "external",
+    requires: ["host.process.environment.read"],
+    families: ["unix"],
+    simulation: true,
+})
+export declare function listRawEnvironment(): Result<
+    PackedArray<RawEnvironmentVariable>,
+    HostError
+>;
+
+/// Set a raw Unix environment variable.
+@binding("destack.process.environment.setRaw", {
+    effect: "external",
+    requires: ["host.process.environment.write"],
+    families: ["unix"],
+    simulation: true,
+})
+export declare function setRawEnvironment(
+    name: &readonly [uint8],
+    value: &readonly [uint8],
+): Result<void, HostError>;
+
+/// Remove a raw Unix environment variable.
+@binding("destack.process.environment.removeRaw", {
+    effect: "external",
+    requires: ["host.process.environment.write"],
+    families: ["unix"],
+    simulation: true,
+})
+export declare function removeRawEnvironment(
+    name: &readonly [uint8],
+): Result<void, HostError>;

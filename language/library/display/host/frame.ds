@@ -1,0 +1,83 @@
+import { ResourceId } from "destack:runtime/resource";
+import { Array, PackedArray } from "destack:collections";
+import { HostError } from "destack:error/host";
+import { DisplayBackendKind, DisplayBackendSelection } from "./backend.ds";
+import { DisplayEventOverflowPolicy } from "./event.ds";
+import { WindowHandle } from "destack:display/host";
+
+/// Handle for one display frame timing stream.
+export newtype DisplayFrameHandle = ResourceId;
+
+/// Display frame timing event.
+export struct DisplayFrameEvent {
+    /// Host backend.
+    backend: DisplayBackendKind;
+    /// Window associated with this frame.
+    window: WindowHandle;
+    /// Monotonic frame identifier for this window.
+    frameId: uint64;
+    /// Host scheduling timestamp in nanoseconds.
+    scheduledAtNs: uint64;
+    /// Earliest suggested wakeup timestamp in nanoseconds.
+    wakeupNs?: uint64;
+    /// Predicted presentation timestamp in nanoseconds.
+    presentNs?: uint64;
+    /// Predicted render deadline in nanoseconds.
+    deadlineNs?: uint64;
+    /// Predicted frame interval in nanoseconds.
+    intervalNs?: uint64;
+    /// Event delivery timestamp in nanoseconds.
+    deliveredAtNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Dropped event count before this event.
+    droppedCount: uint64;
+}
+
+/// Display frame subscription.
+export struct DisplayFrameSubscription {
+    /// Backend selection.
+    backend: DisplayBackendSelection;
+    /// Window filter.
+    window?: WindowHandle;
+    /// Queue capacity in events, or zero for backend default.
+    capacity: uint32;
+    /// Queue overflow policy.
+    overflow: DisplayEventOverflowPolicy;
+}
+
+/// Open one display frame timing stream.
+@binding("destack.display.frame.open", {
+    effect: "external",
+    requires: ["host.display.frame"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
+})
+export declare function openDisplayFrames(
+    subscription: &readonly DisplayFrameSubscription,
+): Result<DisplayFrameHandle, HostError>;
+
+/// Close one display frame timing stream.
+@binding("destack.display.frame.close", {
+    effect: "external",
+    requires: ["host.display.frame"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
+})
+export declare function closeDisplayFrames(frames: DisplayFrameHandle): Result<void, HostError>;
+
+/// Read display frame timing events.
+@binding("destack.display.frame.read", {
+    effect: "external",
+    requires: ["host.display.frame"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
+})
+export declare function readDisplayFrames(
+    frames: DisplayFrameHandle,
+    maxEvents: uint32,
+    timeoutNs?: uint64,
+): Result<PackedArray<DisplayFrameEvent>, HostError>;

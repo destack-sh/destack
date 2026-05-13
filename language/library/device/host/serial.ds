@@ -1,0 +1,465 @@
+import { PackedArray } from "destack:collections";
+import { ResourceId } from "destack:runtime/resource";
+import { HostError } from "destack:error/host";
+import { Path } from "destack:fs/host";
+
+/// Handle for one serial-port endpoint.
+export newtype SerialPortHandle = ResourceId;
+
+/// Handle for one serial watch.
+export newtype SerialWatchHandle = ResourceId;
+
+/// Serial port creation flags.
+export newtype SerialOpenFlags = uint32;
+
+/// Open the port in nonblocking mode.
+export const SERIAL_OPEN_NONBLOCK: SerialOpenFlags = SerialOpenFlags(0x01);
+
+/// Request exclusive access to the port.
+export const SERIAL_OPEN_EXCLUSIVE: SerialOpenFlags = SerialOpenFlags(0x02);
+
+/// Serial flow-control flags.
+export newtype SerialFlowControl = uint32;
+
+/// Disable flow control.
+export const SERIAL_FLOW_NONE: SerialFlowControl = SerialFlowControl(0x00);
+
+/// Enable RTS/CTS hardware flow control.
+export const SERIAL_FLOW_RTS_CTS: SerialFlowControl = SerialFlowControl(0x01);
+
+/// Enable DTR/DSR hardware flow control.
+export const SERIAL_FLOW_DTR_DSR: SerialFlowControl = SerialFlowControl(0x02);
+
+/// Enable XON/XOFF software flow control.
+export const SERIAL_FLOW_XON_XOFF: SerialFlowControl = SerialFlowControl(0x04);
+
+/// Serial flush flags.
+export newtype SerialFlushFlags = uint32;
+
+/// Flush queued input bytes.
+export const SERIAL_FLUSH_INPUT: SerialFlushFlags = SerialFlushFlags(0x01);
+
+/// Flush queued output bytes.
+export const SERIAL_FLUSH_OUTPUT: SerialFlushFlags = SerialFlushFlags(0x02);
+
+/// Serial parity mode.
+export enum SerialParity {
+    /// No parity bit.
+    None = 1,
+    /// Odd parity bit.
+    Odd = 2,
+    /// Even parity bit.
+    Even = 3,
+    /// Mark parity bit.
+    Mark = 4,
+    /// Space parity bit.
+    Space = 5,
+}
+
+/// Serial stop-bit mode.
+export enum SerialStopBits {
+    /// One stop bit.
+    One = 1,
+    /// One and one-half stop bits.
+    OnePointFive = 2,
+    /// Two stop bits.
+    Two = 3,
+}
+
+/// Serial data-bit count.
+export enum SerialDataBits {
+    /// Five data bits per frame.
+    Five = 5,
+    /// Six data bits per frame.
+    Six = 6,
+    /// Seven data bits per frame.
+    Seven = 7,
+    /// Eight data bits per frame.
+    Eight = 8,
+}
+
+/// Serial port transport kind.
+export enum SerialTransport {
+    /// Native serial controller transport.
+    Native = 1,
+    /// USB-backed serial transport.
+    Usb = 2,
+    /// Bluetooth-backed serial transport.
+    Bluetooth = 3,
+    /// Host did not classify the transport.
+    Unknown = 4,
+}
+
+/// Serial port configuration.
+export struct SerialConfig {
+    /// Baud rate in bits per second.
+    baudRate: uint32;
+    /// Number of data bits per frame.
+    dataBits: SerialDataBits;
+    /// Parity mode.
+    parity: SerialParity;
+    /// Stop-bit mode.
+    stopBits: SerialStopBits;
+    /// Flow-control mode.
+    flowControl: SerialFlowControl;
+}
+
+/// Serial port open options.
+export struct SerialOpenOptions {
+    /// Serial line configuration to apply before use.
+    config: SerialConfig;
+    /// Open behavior flags.
+    flags: SerialOpenFlags;
+    /// Preferred inbound host buffer size in bytes.
+    readBufferBytes?: uint32;
+    /// Preferred outbound host buffer size in bytes.
+    writeBufferBytes?: uint32;
+}
+
+/// Serial port.
+export struct SerialPort {
+    /// Stable serial endpoint identifier.
+    id: string;
+    /// Host-classified transport kind.
+    transport: SerialTransport;
+    /// Host-visible endpoint name.
+    name: string;
+    /// Device path for the endpoint.
+    path: Path;
+    /// Host-visible manufacturer string when available.
+    manufacturer?: string;
+    /// Host-visible product string when available.
+    product?: string;
+    /// Host-visible serial number when available.
+    serialNumber?: string;
+    /// USB vendor identifier when the endpoint is USB backed.
+    usbVendorId?: uint16;
+    /// USB product identifier when the endpoint is USB backed.
+    usbProductId?: uint16;
+    /// Bluetooth service-class identifier when the endpoint is Bluetooth backed.
+    bluetoothServiceClassId?: string;
+}
+
+/// Serial attached watch event.
+export struct SerialWatchEventAttached {
+    /// Event discriminator.
+    kind: "attached";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Serial port.
+    port: SerialPort;
+}
+
+/// Serial detached watch event.
+export struct SerialWatchEventDetached {
+    /// Event discriminator.
+    kind: "detached";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Serial port.
+    port: SerialPort;
+}
+
+/// Serial overflow watch event.
+export struct SerialWatchEventOverflow {
+    /// Event discriminator.
+    kind: "overflow";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Number of dropped events.
+    droppedCount: uint64;
+}
+
+/// Serial topology event.
+export newtype SerialWatchEvent =
+    | SerialWatchEventAttached
+    | SerialWatchEventDetached
+    | SerialWatchEventOverflow;
+
+/// Serial input signal state.
+export struct SerialInputSignals {
+    /// Clear-to-send line state.
+    clearToSend: boolean;
+    /// Data-set-ready line state.
+    dataSetReady: boolean;
+    /// Data-carrier-detect line state.
+    dataCarrierDetect: boolean;
+    /// Ring-indicator line state.
+    ringIndicator: boolean;
+}
+
+/// Serial output signal patch.
+export struct SerialOutputSignals {
+    /// Data-terminal-ready output line state when updated.
+    dataTerminalReady?: boolean;
+    /// Request-to-send output line state when updated.
+    requestToSend?: boolean;
+    /// Break signaling state when updated.
+    breakActive?: boolean;
+}
+
+/// Serial error kind.
+export enum SerialErrorKind {
+    /// Host did not provide a stronger error classification.
+    Unknown = 1,
+    /// Break condition was detected on the line.
+    Break = 2,
+    /// Framing error was detected on the line.
+    Framing = 3,
+    /// Parity error was detected on the line.
+    Parity = 4,
+    /// Receiver overrun was detected on the line.
+    Overrun = 5,
+    /// Host receive buffer overflow was detected.
+    BufferOverflow = 6,
+}
+
+/// Serial readable event.
+export struct SerialEventReadable {
+    /// Event discriminator.
+    kind: "readable";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Available byte count when known.
+    availableBytes?: uint64;
+}
+
+/// Serial signals event.
+export struct SerialEventSignals {
+    /// Event discriminator.
+    kind: "signals";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Input signal state.
+    signals: SerialInputSignals;
+}
+
+/// Serial error event.
+export struct SerialEventError {
+    /// Event discriminator.
+    kind: "error";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Serial error kind.
+    error: SerialErrorKind;
+    /// Host error code when available.
+    code?: int32;
+}
+
+/// Serial disconnected event.
+export struct SerialEventDisconnected {
+    /// Event discriminator.
+    kind: "disconnected";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+}
+
+/// Serial overflow event.
+export struct SerialEventOverflow {
+    /// Event discriminator.
+    kind: "overflow";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Number of dropped events.
+    droppedCount: uint64;
+}
+
+/// Serial port event.
+export newtype SerialEvent =
+    | SerialEventReadable
+    | SerialEventSignals
+    | SerialEventError
+    | SerialEventDisconnected
+    | SerialEventOverflow;
+
+/// List serial ports.
+@binding("destack.device.serial.list", {
+    effect: "external",
+    requires: ["host.device.serial.list"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function listSerialPorts(): Result<PackedArray<SerialPort>, HostError>;
+
+/// Open a serial topology watch.
+@binding("destack.device.serial.watch.open", {
+    effect: "external",
+    requires: ["host.device.serial.list"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function openSerialWatch(): Result<SerialWatchHandle, HostError>;
+
+/// Close a serial topology watch.
+@binding("destack.device.serial.watch.close", {
+    effect: "external",
+    requires: ["host.device.serial.list"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function closeSerialWatch(watch: SerialWatchHandle): Result<void, HostError>;
+
+/// Read one serial topology event.
+@binding("destack.device.serial.watch.read", {
+    effect: "external",
+    requires: ["host.device.serial.list"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function readSerialWatch(
+    watch: SerialWatchHandle,
+    timeoutNs?: uint64,
+): Result<SerialWatchEvent, HostError>;
+
+/// Open a serial port.
+@binding("destack.device.serial.open", {
+    effect: "external",
+    requires: ["host.device.serial.open"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function openSerialPort(
+    id: &readonly string,
+    options: &readonly SerialOpenOptions,
+): Result<SerialPortHandle, HostError>;
+
+/// Close a serial port.
+@binding("destack.device.serial.close", {
+    effect: "external",
+    requires: ["host.device.serial.open"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function closeSerialPort(port: SerialPortHandle): Result<void, HostError>;
+
+/// Describe a serial port.
+@binding("destack.device.serial.describe", {
+    effect: "external",
+    requires: ["host.device.serial.open"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function describeSerialPort(
+    port: SerialPortHandle,
+): Result<SerialPort, HostError>;
+
+/// Read serial port configuration.
+@binding("destack.device.serial.config.get", {
+    effect: "external",
+    requires: ["host.device.serial.open"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function getSerialConfig(
+    port: SerialPortHandle,
+): Result<SerialConfig, HostError>;
+
+/// Update serial port configuration.
+@binding("destack.device.serial.config.set", {
+    effect: "external",
+    requires: ["host.device.serial.configure"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function setSerialConfig(
+    port: SerialPortHandle,
+    config: &readonly SerialConfig,
+): Result<void, HostError>;
+
+/// Read bytes from a serial port.
+@binding("destack.device.serial.read", {
+    effect: "external",
+    requires: ["host.device.serial.read"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function readSerial(
+    port: SerialPortHandle,
+    buffer: &[uint8],
+    timeoutNs?: uint64,
+): Result<uint64, HostError>;
+
+/// Write bytes to a serial port.
+@binding("destack.device.serial.write", {
+    effect: "external",
+    requires: ["host.device.serial.write"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function writeSerial(
+    port: SerialPortHandle,
+    bytes: &readonly [uint8],
+    timeoutNs?: uint64,
+): Result<uint64, HostError>;
+
+/// Wait for queued serial output to drain.
+@binding("destack.device.serial.drain", {
+    effect: "external",
+    requires: ["host.device.serial.write"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function drainSerial(port: SerialPortHandle): Result<void, HostError>;
+
+/// Flush queued serial bytes.
+@binding("destack.device.serial.flush", {
+    effect: "external",
+    requires: ["host.device.serial.configure"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function flushSerial(
+    port: SerialPortHandle,
+    buffers: SerialFlushFlags,
+): Result<void, HostError>;
+
+/// Read serial input signals.
+@binding("destack.device.serial.signals.get", {
+    effect: "external",
+    requires: ["host.device.serial.open"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function getSerialSignals(
+    port: SerialPortHandle,
+): Result<SerialInputSignals, HostError>;
+
+/// Update serial output signals.
+@binding("destack.device.serial.signals.set", {
+    effect: "external",
+    requires: ["host.device.serial.configure"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function setSerialSignals(
+    port: SerialPortHandle,
+    signals: &readonly SerialOutputSignals,
+): Result<void, HostError>;
+
+/// Read one serial port event.
+@binding("destack.device.serial.event.read", {
+    effect: "external",
+    requires: ["host.device.serial.observe"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function readSerialEvent(
+    port: SerialPortHandle,
+    timeoutNs?: uint64,
+): Result<SerialEvent, HostError>;

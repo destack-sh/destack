@@ -1,0 +1,346 @@
+import { ResourceId } from "destack:runtime/resource";
+import { Array, PackedArray } from "destack:collections";
+import { HostError } from "destack:error/host";
+import { DisplayDragTransfer, WindowHandle } from "destack:display/host";
+import { ClipboardItem } from "./clipboard.ds";
+import { InputEventAction, InputEventHeader } from "./event.ds";
+
+/// Handle for one text input session.
+export newtype InputTextSessionHandle = ResourceId;
+
+/// Text input type hint.
+export enum TextInputKind {
+    /// General free-form text.
+    Text = 0,
+    /// Numeric text input.
+    Number = 1,
+    /// Email text input.
+    Email = 2,
+    /// URL text input.
+    Url = 3,
+    /// Password text input.
+    Password = 4,
+    /// Phone number text input.
+    Phone = 5,
+    /// Search text input.
+    Search = 6,
+}
+
+/// Text offset range in UTF-16 code units.
+export struct TextRange {
+    /// Inclusive start offset.
+    startOffset: uint32;
+    /// Exclusive end offset.
+    endOffset: uint32;
+}
+
+/// Text input rectangle in local logical units.
+export struct TextRectangle {
+    /// Rectangle left coordinate.
+    x: float64;
+    /// Rectangle top coordinate.
+    y: float64;
+    /// Rectangle width.
+    width: float64;
+    /// Rectangle height.
+    height: float64;
+}
+
+/// Text input affine transform into target-local coordinates.
+export struct TextTransform {
+    /// Matrix first-row x coefficient.
+    xx: float64;
+    /// Matrix first-row y coefficient.
+    xy: float64;
+    /// Matrix second-row x coefficient.
+    yx: float64;
+    /// Matrix second-row y coefficient.
+    yy: float64;
+    /// Translation x component.
+    tx: float64;
+    /// Translation y component.
+    ty: float64;
+}
+
+/// Text input geometry hints.
+export struct TextGeometry {
+    /// Transform from local editor geometry into target-local coordinates.
+    localToTarget: TextTransform;
+    /// Full editor rectangle in local logical units.
+    editor: TextRectangle;
+    /// Caret rectangle in local logical units when known.
+    caret?: TextRectangle;
+    /// Composing rectangle in local logical units when known.
+    composing?: TextRectangle;
+}
+
+/// Text input session descriptor.
+export struct TextSessionDescriptor {
+    /// Window that owns the text session.
+    window: WindowHandle;
+    /// Text input type hint.
+    inputKind: TextInputKind;
+    /// Whether the session is multiline.
+    isMultiline: boolean;
+    /// Whether the session is secure or password-like.
+    isSecure: boolean;
+}
+
+/// Text input session state.
+export struct TextSessionState {
+    /// Full text state.
+    text: string;
+    /// Current selection range in UTF-16 code units.
+    selection: TextRange;
+    /// Current composing range in UTF-16 code units when composition is active.
+    composing?: TextRange;
+}
+
+/// Edit intent kind aligned with web `beforeinput` input types.
+export enum EditIntent {
+    /// `insertText`.
+    InsertText = 1,
+    /// `insertReplacementText`.
+    InsertReplacementText = 2,
+    /// `insertLineBreak`.
+    InsertLineBreak = 3,
+    /// `insertParagraph`.
+    InsertParagraph = 4,
+    /// `insertOrderedList`.
+    InsertOrderedList = 5,
+    /// `insertUnorderedList`.
+    InsertUnorderedList = 6,
+    /// `insertHorizontalRule`.
+    InsertHorizontalRule = 7,
+    /// `insertLink`.
+    InsertLink = 8,
+    /// `insertFromYank`.
+    InsertFromYank = 9,
+    /// `insertFromDrop`.
+    InsertFromDrop = 10,
+    /// `insertFromPaste`.
+    InsertFromPaste = 11,
+    /// `insertFromPasteAsQuotation`.
+    InsertFromPasteAsQuotation = 12,
+    /// `insertTranspose`.
+    InsertTranspose = 13,
+    /// `insertCompositionText`.
+    InsertCompositionText = 14,
+    /// `deleteWordBackward`.
+    DeleteWordBackward = 15,
+    /// `deleteWordForward`.
+    DeleteWordForward = 16,
+    /// `deleteSoftLineBackward`.
+    DeleteSoftLineBackward = 17,
+    /// `deleteSoftLineForward`.
+    DeleteSoftLineForward = 18,
+    /// `deleteEntireSoftLine`.
+    DeleteEntireSoftLine = 19,
+    /// `deleteHardLineBackward`.
+    DeleteHardLineBackward = 20,
+    /// `deleteHardLineForward`.
+    DeleteHardLineForward = 21,
+    /// `deleteByDrag`.
+    DeleteByDrag = 22,
+    /// `deleteByCut`.
+    DeleteByCut = 23,
+    /// `deleteContent`.
+    DeleteContent = 24,
+    /// `deleteContentBackward`.
+    DeleteContentBackward = 25,
+    /// `deleteContentForward`.
+    DeleteContentForward = 26,
+    /// `historyUndo`.
+    HistoryUndo = 27,
+    /// `historyRedo`.
+    HistoryRedo = 28,
+    /// `formatBold`.
+    FormatBold = 29,
+    /// `formatItalic`.
+    FormatItalic = 30,
+    /// `formatUnderline`.
+    FormatUnderline = 31,
+    /// `formatStrikeThrough`.
+    FormatStrikeThrough = 32,
+    /// `formatSuperscript`.
+    FormatSuperscript = 33,
+    /// `formatSubscript`.
+    FormatSubscript = 34,
+    /// `formatJustifyCenter`.
+    FormatJustifyCenter = 35,
+    /// `formatJustifyFull`.
+    FormatJustifyFull = 36,
+    /// `formatJustifyLeft`.
+    FormatJustifyLeft = 37,
+    /// `formatJustifyRight`.
+    FormatJustifyRight = 38,
+    /// `formatIndent`.
+    FormatIndent = 39,
+    /// `formatOutdent`.
+    FormatOutdent = 40,
+    /// `formatRemove`.
+    FormatRemove = 41,
+    /// `formatSetBlockTextDirection`.
+    FormatSetBlockTextDirection = 42,
+    /// `formatSetInlineTextDirection`.
+    FormatSetInlineTextDirection = 43,
+    /// `formatBackColor`.
+    FormatBackColor = 44,
+    /// `formatFontColor`.
+    FormatFontColor = 45,
+    /// `formatFontName`.
+    FormatFontName = 46,
+}
+
+/// Clipboard command kind.
+export enum ClipboardCommand {
+    /// Copy the current selection.
+    Copy = 1,
+    /// Cut the current selection.
+    Cut = 2,
+    /// Paste from the clipboard.
+    Paste = 3,
+}
+
+/// Text session state event.
+export struct TextSessionEventState {
+    /// Event discriminator.
+    kind: "state";
+    /// Shared event header.
+    header: InputEventHeader;
+    /// Text session state.
+    state: TextSessionState;
+}
+
+/// Text session composition event.
+export struct TextSessionEventComposition {
+    /// Event discriminator.
+    kind: "composition";
+    /// Shared event header.
+    header: InputEventHeader;
+    /// Event action.
+    action: InputEventAction;
+    /// Composition text payload.
+    text: string;
+    /// Selection start in UTF-16 code units when available.
+    selectionStart?: uint32;
+    /// Selection end in UTF-16 code units when available.
+    selectionEnd?: uint32;
+}
+
+/// Text session edit event.
+export struct TextSessionEventEdit {
+    /// Event discriminator.
+    kind: "edit";
+    /// Shared event header.
+    header: InputEventHeader;
+    /// Edit intent.
+    intent: EditIntent;
+    /// Text payload when available.
+    text?: string;
+    /// Target text ranges in source order.
+    ranges: Array<TextRange>;
+    /// Clipboard item descriptors when available.
+    clipboardItems?: Array<ClipboardItem>;
+    /// Drag transfer metadata when available.
+    drag?: DisplayDragTransfer;
+    /// Whether the edit belongs to active composition.
+    isComposing: boolean;
+}
+
+/// Text session clipboard event.
+export struct TextSessionEventClipboard {
+    /// Event discriminator.
+    kind: "clipboard";
+    /// Shared event header.
+    header: InputEventHeader;
+    /// Clipboard command.
+    command: ClipboardCommand;
+    /// Clipboard item descriptors when available.
+    clipboardItems?: Array<ClipboardItem>;
+    /// Whether the command belongs to active composition.
+    isComposing: boolean;
+}
+
+/// Text session event.
+@derive(Tagged)
+export newtype TextSessionEvent =
+    | TextSessionEventState
+    | TextSessionEventComposition
+    | TextSessionEventEdit
+    | TextSessionEventClipboard;
+
+/// Open one text input session.
+@binding("destack.input.text.open", {
+    effect: "external",
+    requires: ["host.input.text"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
+})
+export declare function openTextSession(
+    descriptor: &readonly TextSessionDescriptor,
+    state: &readonly TextSessionState,
+): Result<InputTextSessionHandle, HostError>;
+
+/// Close one text input session.
+@binding("destack.input.text.close", {
+    effect: "external",
+    requires: ["host.input.text"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
+})
+export declare function closeTextSession(session: InputTextSessionHandle): Result<void, HostError>;
+
+/// Set text input geometry.
+@binding("destack.input.text.geometry.set", {
+    effect: "external",
+    requires: ["host.input.text"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
+})
+export declare function setTextGeometry(
+    session: InputTextSessionHandle,
+    geometry: &readonly TextGeometry,
+): Result<void, HostError>;
+
+/// Read text input geometry.
+@binding("destack.input.text.geometry.read", {
+    effect: "external",
+    requires: ["host.input.text"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
+})
+export declare function readTextGeometry(
+    session: InputTextSessionHandle,
+): Result<TextGeometry, HostError>;
+
+/// Set text input state.
+@binding("destack.input.text.state.set", {
+    effect: "external",
+    requires: ["host.input.text"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
+})
+export declare function setTextState(
+    session: InputTextSessionHandle,
+    state: &readonly TextSessionState,
+): Result<void, HostError>;
+
+/// Read text-session events.
+@binding("destack.input.text.event.read", {
+    effect: "external",
+    requires: ["host.input.text"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
+})
+export declare function readTextEvents(
+    session: InputTextSessionHandle,
+    maxEvents: uint32,
+    timeoutNs?: uint64,
+): Result<PackedArray<TextSessionEvent>, HostError>;

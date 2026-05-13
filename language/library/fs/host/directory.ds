@@ -1,0 +1,115 @@
+import { ResourceId } from "destack:runtime/resource";
+import { HostError } from "destack:error/host";
+import { FilesystemEntry } from "./entry.ds";
+import { PathBuffer, PathSpan } from "./path.ds";
+import { FileMode } from "./status.ds";
+
+/// Handle for an open directory.
+export newtype DirectoryHandle = ResourceId;
+
+/// File type for directory entries.
+export enum DirectoryEntryKind {
+    /// An unknown file type.
+    Unknown = 0,
+    /// A FIFO or pipe.
+    Fifo = 1,
+    /// A character device.
+    CharacterDevice = 2,
+    /// A directory.
+    Directory = 4,
+    /// A block device.
+    BlockDevice = 6,
+    /// A regular file.
+    File = 8,
+    /// A symbolic link.
+    Symlink = 10,
+    /// A socket.
+    Socket = 12,
+    /// A whiteout entry.
+    Whiteout = 14,
+}
+
+/// Directory entry metadata.
+export struct DirectoryEntry {
+    /// Entry name span inside the path output buffer.
+    name: PathSpan;
+    /// Entry kind.
+    kind: DirectoryEntryKind;
+}
+
+/// Directory entries written by one read operation.
+export struct DirectoryBatch {
+    /// Number of entries written into the output slice.
+    count: uint64;
+    /// Path buffer length consumed by entry names.
+    pathLength: uint64;
+    /// Whether the directory stream reached the end.
+    hasEnded: boolean;
+}
+
+/// Create one directory entry.
+@binding("destack.fs.directory.create", {
+    effect: "external",
+    requires: ["host.fs.write"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function createDirectory(
+    entry: &readonly FilesystemEntry,
+    mode: FileMode,
+): Result<void, HostError>;
+
+/// Remove one empty directory entry.
+@binding("destack.fs.directory.remove", {
+    effect: "external",
+    requires: ["host.fs.write"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function removeDirectory(
+    entry: &readonly FilesystemEntry,
+): Result<void, HostError>;
+
+/// Open one directory stream.
+@binding("destack.fs.directory.open", {
+    effect: "external",
+    requires: ["host.fs.read"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function openDirectory(
+    entry: &readonly FilesystemEntry,
+): Result<DirectoryHandle, HostError>;
+
+/// Read directory entries into an output slice.
+@binding("destack.fs.directory.read", {
+    effect: "external",
+    requires: ["host.fs.read"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function readDirectory(
+    directory: DirectoryHandle,
+    entries: &[DirectoryEntry],
+    names: &PathBuffer,
+): Result<DirectoryBatch, HostError>;
+
+/// Reset a directory stream to the first entry.
+@binding("destack.fs.directory.rewind", {
+    effect: "external",
+    requires: ["host.fs.read"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function rewindDirectory(directory: DirectoryHandle): Result<void, HostError>;
+
+/// Create one unique directory from a caller supplied template.
+@binding("destack.fs.directory.temporary", {
+    effect: "external",
+    requires: ["host.fs.temp"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function createTemporaryDirectory(
+    template: &readonly FilesystemEntry,
+): Result<FilesystemEntry, HostError>;

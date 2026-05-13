@@ -1,0 +1,57 @@
+import { HostError } from "destack:error/host";
+
+/// Linux cgroup path.
+export newtype CgroupPath = string;
+
+/// Linux cgroup v2 controller.
+export enum CgroupController {
+    /// CPU controller.
+    Cpu = 0,
+    /// Memory controller.
+    Memory = 1,
+    /// I/O controller.
+    Io = 2,
+    /// Process-count controller.
+    Pids = 3,
+    /// CPU-set controller.
+    Cpuset = 4,
+}
+
+/// Join one Linux control group.
+@binding("destack.process.cgroup.join", {
+    effect: "external",
+    replay: "forbidden",
+    requires: ["host.process.cgroup.write"],
+    platforms: ["linux"],
+    simulation: true,
+})
+export declare function joinCgroup(path: &readonly CgroupPath): Result<void, HostError>;
+
+/// Read one Linux cgroup v2 control file.
+@binding("destack.process.cgroup.read", {
+    effect: "external",
+    replay: "forbidden",
+    requires: ["host.process.cgroup.read"],
+    platforms: ["linux"],
+    simulation: true,
+})
+export declare function readCgroup(
+    path: &readonly CgroupPath,
+    controller: CgroupController,
+    file: &readonly string,
+): Result<^string, HostError>;
+
+/// Write one Linux cgroup v2 control file.
+@binding("destack.process.cgroup.write", {
+    effect: "external",
+    replay: "forbidden",
+    requires: ["host.process.cgroup.write"],
+    platforms: ["linux"],
+    simulation: true,
+})
+export declare function writeCgroup(
+    path: &readonly CgroupPath,
+    controller: CgroupController,
+    file: &readonly string,
+    value: &readonly string,
+): Result<void, HostError>;
