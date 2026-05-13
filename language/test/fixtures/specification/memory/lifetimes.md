@@ -176,7 +176,7 @@ function pick<A: Lifetime, B: Lifetime>(
 
 ### owned borrow across await is allowed
 
-The async frame stores owned values that are used after suspension.
+Owned locals stay alive in a suspended async frame.
 
 ```ds
 declare function ready(): Promise<void>;
@@ -191,7 +191,7 @@ async function read(value: int32): Promise<int32> {
 
 ### managed borrow across await is allowed
 
-The async frame keeps managed handles live for interior borrows.
+Managed owners stay rooted while their interior borrows are live.
 
 ```ds
 class User {
@@ -205,6 +205,34 @@ async function read(user: User): Promise<string> {
     await ready();
     name satisfies &readonly string;
     return name.clone();
+}
+```
+
+### mutable borrow across await is allowed
+
+Ordinary borrowed access may cross suspension.
+
+```ds
+declare function ready(): Promise<void>;
+
+async function read(value: &int32): Promise<int32> {
+    await ready();
+    value satisfies &int32;
+    return *value;
+}
+```
+
+### readonly borrow across await is allowed
+
+Readonly borrowed access may cross suspension.
+
+```ds
+declare function ready(): Promise<void>;
+
+async function read(value: &readonly int32): Promise<int32> {
+    await ready();
+    value satisfies &readonly int32;
+    return *value;
 }
 ```
 
@@ -242,7 +270,7 @@ async function read(value: int32): Promise<int32> {
 
 ### exclusive borrow across await is rejected
 
-Exclusive borrowed access cannot cross a reentrant suspension point.
+Exclusive borrowed access must not cross suspension.
 
 ```ds
 declare function ready(): Promise<void>;
@@ -255,9 +283,39 @@ async function write(value: &exclusive int32): Promise<void> {
 
 - contains: exclusive
 
+### local exclusive borrow across await is rejected
+
+Exclusive borrowed access from a local value must not cross suspension.
+
+```ds
+declare function ready(): Promise<void>;
+
+async function write(value: int32): Promise<void> {
+    let exclusive = &exclusive value;
+    await ready();
+    *exclusive = 1;
+}
+```
+
+- contains: exclusive
+
+### exclusive borrow after await is allowed
+
+Exclusive access can begin after resuming.
+
+```ds
+declare function ready(): Promise<void>;
+
+async function write(value: int32): Promise<void> {
+    await ready();
+    let exclusive = &exclusive value;
+    *exclusive = 1;
+}
+```
+
 ### owned borrow across yield is allowed
 
-The generator frame stores owned values that are used after suspension.
+Owned locals stay alive in a suspended generator frame.
 
 ```ds
 function* read(value: int32): Generator<int32, void, unknown> {
@@ -269,7 +327,7 @@ function* read(value: int32): Generator<int32, void, unknown> {
 
 ### borrow after yield is allowed
 
-Borrow again after the generator resumes.
+Borrowed access can begin after resuming.
 
 ```ds
 function* read(value: int32): Generator<int32, void, unknown> {
@@ -278,3 +336,30 @@ function* read(value: int32): Generator<int32, void, unknown> {
     borrow satisfies &int32;
 }
 ```
+
+### exclusive borrow across yield is rejected
+
+Exclusive borrowed access must not cross generator suspension.
+
+```ds
+function* write(value: &exclusive int32): Generator<void, void, unknown> {
+    yield;
+    *value = 1;
+}
+```
+
+- contains: exclusive
+
+### local exclusive borrow across yield is rejected
+
+Exclusive borrowed access from a local value must not cross generator suspension.
+
+```ds
+function* write(value: int32): Generator<void, void, unknown> {
+    let exclusive = &exclusive value;
+    yield;
+    *exclusive = 1;
+}
+```
+
+- contains: exclusive
