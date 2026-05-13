@@ -341,7 +341,7 @@ impl<Parser: LexHandler> Lexer<Parser> {
         input: &mut HtmlString,
     ) -> Option<SetResult> {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-        let (mut i, mut n_newlines) = self.data_state_sse2_fast_path(input);
+        let (mut i, mut n_newlines) = unsafe { self.data_state_sse2_fast_path(input) };
 
         #[cfg(target_arch = "aarch64")]
         let (mut i, mut n_newlines) = unsafe { self.data_state_neon_fast_path(input) };
@@ -419,7 +419,7 @@ impl<Parser: LexHandler> Lexer<Parser> {
         let mut n_newlines = 0;
         while i + STRIDE <= raw_bytes.len() {
             // chunk load
-            let data = _mm_loadu_si128(start.add(i) as *const __m128i);
+            let data = unsafe { _mm_loadu_si128(start.add(i) as *const __m128i) };
 
             // mask comparisons
             let quotes = _mm_cmpeq_epi8(data, quote_mask);
@@ -436,7 +436,7 @@ impl<Parser: LexHandler> Lexer<Parser> {
             let bitmask = _mm_movemask_epi8(test_result);
             let newline_mask = _mm_movemask_epi8(newlines);
 
-            if (bitmask != 0) {
+            if bitmask != 0 {
                 // first transition byte
                 let position = if cfg!(target_endian = "little") {
                     bitmask.trailing_zeros() as usize

@@ -1,6 +1,6 @@
-#[cfg(any(target_os = "linux", target_os = "android"))]
+#[cfg(target_os = "linux")]
 mod linux;
-#[cfg(all(unix, not(any(target_os = "linux", target_os = "android"))))]
+#[cfg(all(unix, not(target_os = "linux")))]
 mod posix;
 #[cfg(unix)]
 mod unix;
@@ -9,9 +9,9 @@ mod wasm;
 #[cfg(windows)]
 mod windows;
 
-#[cfg(any(target_os = "linux", target_os = "android"))]
+#[cfg(target_os = "linux")]
 pub(crate) use linux::*;
-#[cfg(all(unix, not(any(target_os = "linux", target_os = "android"))))]
+#[cfg(all(unix, not(target_os = "linux")))]
 pub(crate) use posix::*;
 #[cfg(target_arch = "wasm32")]
 pub(crate) use wasm::*;
