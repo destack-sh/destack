@@ -192,7 +192,7 @@ fn resolve_single_file_path(workspace_root: &Path) -> PathBuf {
     }
 
     // fall back to a representative library file
-    workspace_root.join("language/library/platform/fs/file.ds")
+    workspace_root.join("language/library/fs/host/file.ds")
 }
 
 /// Load a single source file for benchmarking.

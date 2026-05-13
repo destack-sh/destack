@@ -227,9 +227,7 @@ export type PlatformTag =
     | "haiku"
     | "fuchsia"
     | "redox"
-    | "hermit"
-    | "ios"
-    | "android";
+    | "hermit";
 
 /// Platform family selectors accepted by runtime bindings.
 export type PlatformFamilyTag = "windows" | "unix" | "wasm";

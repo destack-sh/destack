@@ -78,7 +78,6 @@ fn collect_sources_from_directory(
 /// Render embedded source arrays.
 fn render_sources(sources: &[String]) -> String {
     let core_sources = sources.iter().filter(|source| is_core_source(source));
-    let platform_sources = sources.iter().filter(|source| is_platform_source(source));
     let standard_sources = sources.iter().filter(|source| is_standard_source(source));
 
     let mut output = String::new();
@@ -96,7 +95,6 @@ fn render_sources(sources: &[String]) -> String {
     output.push_str("];\n\n");
 
     render_source_array(&mut output, "CORE_SOURCES", core_sources, false);
-    render_source_array(&mut output, "PLATFORM_SOURCES", platform_sources, true);
     render_source_array(&mut output, "STANDARD_SOURCES", standard_sources, true);
 
     output
@@ -122,7 +120,10 @@ fn render_source_array<'a>(
 
 /// Render one source entry.
 fn render_source(output: &mut String, source: &str, is_native_only: bool) {
-    let (path, name) = source.rsplit_once('/').unwrap_or(("", source));
+    let (path, name) = match source.rsplit_once('/') {
+        Some((path, name)) => (path, name),
+        None => ("", source),
+    };
     let include_path = format!("/../library/{source}");
 
     if is_native_only {
@@ -158,14 +159,9 @@ fn is_core_source(source: &str) -> bool {
             .any(|root| source.starts_with(&format!("{root}/")))
 }
 
-/// Return whether a source belongs to the platform package.
-fn is_platform_source(source: &str) -> bool {
-    source.starts_with("platform/")
-}
-
 /// Return whether a source belongs to the standard package.
 fn is_standard_source(source: &str) -> bool {
-    !is_core_source(source) && !is_platform_source(source)
+    !is_core_source(source)
 }
 
 /// Return core symbols known directly to the compiler.
