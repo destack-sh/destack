@@ -2017,6 +2017,10 @@ pub fn expression_has_side_effects(
         ast::Expression::Binary { left, right, .. } => {
             expression_has_side_effects(ctx, *left) || expression_has_side_effects(ctx, *right)
         }
+        ast::Expression::RangeExpression { start, end, .. } => {
+            start.is_some_and(|start| expression_has_side_effects(ctx, start))
+                || end.is_some_and(|end| expression_has_side_effects(ctx, end))
+        }
 
         // pure: type operations
         ast::Expression::As {
@@ -2189,6 +2193,10 @@ pub fn type_expression_has_side_effects(
         | ast::TypeExpression::Intersection { elements } => elements
             .iter()
             .any(|element_id| type_expression_has_side_effects(ctx, *element_id)),
+        ast::TypeExpression::Range { start, end, .. } => {
+            start.is_some_and(|start| type_expression_has_side_effects(ctx, start))
+                || end.is_some_and(|end| type_expression_has_side_effects(ctx, end))
+        }
         ast::TypeExpression::Conditional {
             left,
             extends_type,

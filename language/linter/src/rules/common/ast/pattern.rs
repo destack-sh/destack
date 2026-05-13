@@ -65,6 +65,7 @@ fn pattern_assignment_value_expression_id(
         ast::Pattern::Wildcard
         | ast::Pattern::Binding { pattern: None, .. }
         | ast::Pattern::Expression { .. }
+        | ast::Pattern::Range { .. }
         | ast::Pattern::TypeExpression { .. }
         | ast::Pattern::Tuple { .. }
         | ast::Pattern::TaggedTuple { .. }
@@ -201,6 +202,24 @@ pub fn pattern_subsumes(
             },
         ) => expression_is_equal(ctx, *left_expression_id, *right_expression_id),
 
+        // exact range equality
+        (
+            ast::Pattern::Range {
+                start: left_start,
+                end: left_end,
+                end_kind: left_end_kind,
+            },
+            ast::Pattern::Range {
+                start: right_start,
+                end: right_end,
+                end_kind: right_end_kind,
+            },
+        ) => {
+            left_end_kind == right_end_kind
+                && optional_pattern_expression_is_equal(ctx, *left_start, *right_start)
+                && optional_pattern_expression_is_equal(ctx, *left_end, *right_end)
+        }
+
         // must wrappers are comparable only when wrapper shape matches
         (ast::Pattern::Must(left_inner), ast::Pattern::Must(right_inner)) => {
             pattern_subsumes(ctx, *left_inner, *right_inner)
@@ -234,6 +253,19 @@ pub fn pattern_subsumes(
             left_mutability == right_mutability && pattern_subsumes(ctx, *left_inner, *right_inner)
         }
 
+        _ => false,
+    }
+}
+
+/// Return true when two optional pattern expressions are equal.
+fn optional_pattern_expression_is_equal(
+    ctx: &mut LintAstContext<'_>,
+    left: Option<ast::LocalNodeId<ast::Expression>>,
+    right: Option<ast::LocalNodeId<ast::Expression>>,
+) -> bool {
+    match (left, right) {
+        (Some(left), Some(right)) => expression_is_equal(ctx, left, right),
+        (None, None) => true,
         _ => false,
     }
 }
