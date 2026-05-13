@@ -1,0 +1,199 @@
+import { Array, PackedArray } from "destack:collections";
+import { HostError } from "destack:error/host";
+import { AudioBackendKind, AudioBackendSelection } from "./backend.ds";
+
+/// Audio device list flags.
+export newtype AudioDeviceListFlags = uint32;
+
+/// Include disconnected endpoints when the host reports them.
+export const AUDIO_DEVICE_LIST_DISCONNECTED: AudioDeviceListFlags = AudioDeviceListFlags(0x01);
+
+/// Include raw endpoints separately from mixer endpoints.
+export const AUDIO_DEVICE_LIST_RAW: AudioDeviceListFlags = AudioDeviceListFlags(0x02);
+
+/// Include host loopback endpoints.
+export const AUDIO_DEVICE_LIST_LOOPBACK: AudioDeviceListFlags = AudioDeviceListFlags(0x04);
+
+/// Audio stream direction.
+export enum AudioDirection {
+    /// Playback output.
+    Playback = 1,
+    /// Capture input.
+    Capture = 2,
+    /// Simultaneous playback and capture.
+    Duplex = 3,
+    /// Host loopback capture.
+    Loopback = 4,
+}
+
+/// Audio stream share mode.
+export enum AudioShareMode {
+    /// Shared host mixer mode.
+    Shared = 1,
+    /// Exclusive endpoint mode.
+    Exclusive = 2,
+}
+
+/// PCM sample format.
+export enum AudioSampleFormat {
+    /// Unsigned 8-bit PCM.
+    U8 = 1,
+    /// Signed 16-bit PCM.
+    S16 = 2,
+    /// Signed 24-bit PCM in 32-bit containers.
+    S24 = 3,
+    /// Signed 32-bit PCM.
+    S32 = 4,
+    /// 32-bit floating-point PCM.
+    F32 = 5,
+    /// 64-bit floating-point PCM.
+    F64 = 6,
+}
+
+/// Audio buffer layout.
+export enum AudioBufferLayout {
+    /// Samples for each frame are adjacent.
+    Interleaved = 1,
+    /// Each channel is stored in one contiguous plane.
+    Planar = 2,
+}
+
+/// Standard channel layout.
+export enum AudioChannelLayout {
+    /// Backend did not report one canonical layout.
+    Unknown = 0,
+    /// Mono.
+    Mono = 1,
+    /// Stereo.
+    Stereo = 2,
+    /// Quadraphonic.
+    Quad = 3,
+    /// 5.1 surround.
+    Surround51 = 4,
+    /// 7.1 surround.
+    Surround71 = 5,
+    /// Custom channel mask.
+    Custom = 255,
+}
+
+/// Audio format.
+export struct AudioFormat {
+    /// Sample rate in hertz.
+    sampleRate: uint32;
+    /// Channel count.
+    channels: uint16;
+    /// Sample format.
+    sampleFormat: AudioSampleFormat;
+    /// Buffer layout.
+    bufferLayout: AudioBufferLayout;
+    /// Channel layout.
+    channelLayout: AudioChannelLayout;
+    /// Host channel mask, or zero when unavailable.
+    channelMask: uint64;
+}
+
+/// Audio format range.
+export struct AudioFormatRange {
+    /// Minimum sample rate in hertz.
+    minSampleRate: uint32;
+    /// Maximum sample rate in hertz.
+    maxSampleRate: uint32;
+    /// Minimum channel count.
+    minChannels: uint16;
+    /// Maximum channel count.
+    maxChannels: uint16;
+    /// Supported sample formats.
+    sampleFormats: Array<AudioSampleFormat>;
+    /// Supported buffer layouts.
+    bufferLayouts: Array<AudioBufferLayout>;
+    /// Supported channel layouts.
+    channelLayouts: Array<AudioChannelLayout>;
+}
+
+/// Audio device query.
+export struct AudioDeviceQuery {
+    /// Backend selection.
+    backend: AudioBackendSelection;
+    /// Direction filter.
+    direction?: AudioDirection;
+    /// List behavior flags.
+    flags: AudioDeviceListFlags;
+}
+
+/// Audio device.
+export struct AudioDevice {
+    /// Stable device identifier.
+    id: string;
+    /// Related endpoint group identifier.
+    groupId?: string;
+    /// Display name.
+    name: string;
+    /// Host backend.
+    backend: AudioBackendKind;
+    /// Device direction.
+    direction: AudioDirection;
+    /// Transport or driver name.
+    transport?: string;
+    /// Whether the device is currently connected.
+    isConnected: boolean;
+    /// Whether this is a raw endpoint.
+    isRaw: boolean;
+    /// Whether this is the default playback endpoint.
+    isDefaultPlayback: boolean;
+    /// Whether this is the default capture endpoint.
+    isDefaultCapture: boolean;
+    /// Whether this is the default loopback endpoint.
+    isDefaultLoopback: boolean;
+    /// Supported share modes.
+    shareModes: Array<AudioShareMode>;
+    /// Preferred format.
+    preferredFormat: AudioFormat;
+    /// Supported format ranges.
+    formats: Array<AudioFormatRange>;
+}
+
+/// List audio devices.
+@binding("destack.audio.device.list", {
+    effect: "external",
+    requires: ["host.audio.device"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function listAudioDevices(
+    query: &readonly AudioDeviceQuery,
+): Result<PackedArray<AudioDevice>, HostError>;
+
+/// Return the default device identifier for one direction.
+@binding("destack.audio.device.default", {
+    effect: "external",
+    requires: ["host.audio.device"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function defaultAudioDevice(
+    backend: &readonly AudioBackendSelection,
+    direction: AudioDirection,
+): Result<^string, HostError>;
+
+/// Describe one audio device.
+@binding("destack.audio.device.describe", {
+    effect: "external",
+    requires: ["host.audio.device"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function describeAudioDevice(
+    backend: &readonly AudioBackendSelection,
+    deviceId: &readonly string,
+): Result<AudioDevice, HostError>;
+
+/// Trigger one backend device rescan.
+@binding("destack.audio.device.rescan", {
+    effect: "external",
+    requires: ["host.audio.device.watch"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function rescanAudioDevices(
+    backend: &readonly AudioBackendSelection,
+): Result<void, HostError>;

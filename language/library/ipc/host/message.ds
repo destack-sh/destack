@@ -1,0 +1,90 @@
+import { ResourceId } from "destack:runtime/resource";
+import { HostError } from "destack:error/host";
+
+/// Handle for an IPC message queue.
+export newtype MessageQueueHandle = ResourceId;
+
+/// Message queue creation flags.
+export newtype MessageQueueFlags = uint32;
+
+/// Create the queue only when it does not already exist.
+export const MESSAGE_QUEUE_CREATE_EXCLUSIVE: MessageQueueFlags = MessageQueueFlags(0x1);
+
+/// Message queue open options.
+export struct MessageQueueOpenOptions {
+    /// Open or creation flags.
+    flags: MessageQueueFlags;
+    /// File mode for a newly created queue.
+    mode: uint32;
+    /// Maximum queued messages.
+    maxMessages: uint32;
+    /// Maximum bytes per message.
+    maxMessageBytes: uint32;
+}
+
+/// Message queue receive result.
+export struct MessageQueueMessage {
+    /// Payload bytes copied into the caller buffer.
+    bytes: uint32;
+    /// Message priority.
+    priority: uint32;
+}
+
+/// Open or create one POSIX message queue.
+@binding("destack.ipc.message.open", {
+    effect: "external",
+    requires: ["host.ipc.message"],
+    families: ["unix"],
+    simulation: true,
+})
+export declare function openMessageQueue(
+    name: &readonly string,
+    options: MessageQueueOpenOptions,
+): Result<MessageQueueHandle, HostError>;
+
+/// Close one message queue handle.
+@binding("destack.ipc.message.close", {
+    effect: "external",
+    requires: ["host.ipc.message"],
+    families: ["unix"],
+    simulation: true,
+})
+export declare function closeMessageQueue(
+    queue: MessageQueueHandle,
+): Result<void, HostError>;
+
+/// Remove one named message queue.
+@binding("destack.ipc.message.remove", {
+    effect: "external",
+    requires: ["host.ipc.message"],
+    families: ["unix"],
+    simulation: true,
+})
+export declare function removeMessageQueue(name: &readonly string): Result<void, HostError>;
+
+/// Send one message to a queue.
+@binding("destack.ipc.message.send", {
+    effect: "external",
+    requires: ["host.ipc.message"],
+    families: ["unix"],
+    simulation: true,
+})
+export declare function sendMessageQueue(
+    queue: MessageQueueHandle,
+    priority: uint32,
+    payload: &readonly [uint8],
+    timeoutNanoseconds?: uint64,
+): Result<void, HostError>;
+
+/// Receive one message from a queue.
+@binding("destack.ipc.message.receive", {
+    effect: "external",
+    requires: ["host.ipc.message"],
+    families: ["unix"],
+    simulation: true,
+})
+export declare function receiveMessageQueue(
+    queue: MessageQueueHandle,
+    buffer: &[uint8],
+    timeoutNanoseconds?: uint64,
+): Result<MessageQueueMessage, HostError>;

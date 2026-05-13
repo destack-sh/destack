@@ -1,0 +1,29 @@
+import { HostError } from "destack:error/host";
+import { FileHandle } from "destack:fs/host";
+
+/// Open the current process standard input stream.
+@binding("destack.process.stdio.input", {
+    effect: "external",
+    requires: ["host.process.stdio"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function openStandardInput(): Result<FileHandle, HostError>;
+
+/// Open the current process standard output stream.
+@binding("destack.process.stdio.output", {
+    effect: "external",
+    requires: ["host.process.stdio"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function openStandardOutput(): Result<FileHandle, HostError>;
+
+/// Open the current process standard error stream.
+@binding("destack.process.stdio.error", {
+    effect: "external",
+    requires: ["host.process.stdio"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function openStandardError(): Result<FileHandle, HostError>;

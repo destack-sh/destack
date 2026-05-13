@@ -1,0 +1,126 @@
+import { Array, PackedArray } from "destack:collections";
+import { HostError } from "destack:error/host";
+import { InputDeviceHandle } from "destack:input/host";
+
+/// Input sensor kind.
+export enum SensorKind {
+    /// Acceleration including gravity in meters per second squared.
+    Accelerometer = 1,
+    /// Angular velocity in radians per second.
+    Gyroscope = 2,
+    /// Magnetic field in microtesla.
+    Magnetometer = 3,
+    /// Gravity vector in meters per second squared.
+    Gravity = 4,
+    /// Linear acceleration without gravity in meters per second squared.
+    LinearAcceleration = 5,
+    /// Orientation quaternion.
+    Orientation = 6,
+    /// Barometric pressure in hectopascal.
+    Barometer = 7,
+    /// Ambient light level in lux.
+    AmbientLight = 8,
+    /// Proximity distance in centimeters.
+    Proximity = 9,
+    /// Step count since the host-defined epoch.
+    StepCounter = 10,
+}
+
+/// Sensor option flags.
+export newtype SensorFlags = uint32;
+
+/// Allow the sensor to wake a suspended host queue.
+export const SENSOR_WAKE: SensorFlags = SensorFlags(0x01);
+
+/// Sensor descriptor.
+export struct Sensor {
+    /// Sensor kind.
+    kind: SensorKind;
+    /// Minimum supported sample rate in hertz.
+    minSampleRateHz: float64;
+    /// Maximum supported sample rate in hertz.
+    maxSampleRateHz: float64;
+    /// Nominal sensor resolution.
+    resolution: float64;
+    /// Supported option flags.
+    flags: SensorFlags;
+}
+
+/// Sensor sample.
+export struct SensorSample {
+    /// Sensor kind.
+    kind: SensorKind;
+    /// Monotonic sample timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Vector or quaternion x component.
+    x: float64;
+    /// Vector or quaternion y component.
+    y: float64;
+    /// Vector or quaternion z component.
+    z: float64;
+    /// Quaternion w component for orientation samples.
+    w?: float64;
+    /// Host-specific sample status bits.
+    hostFlags: uint32;
+}
+
+/// Sensor stream options.
+export struct SensorStream {
+    /// Whether the sensor stream is enabled.
+    isEnabled: boolean;
+    /// Requested sample rate in hertz.
+    sampleRateHz: float64;
+    /// Requested maximum batching latency in milliseconds.
+    batchLatencyMs: uint32;
+    /// Requested option flags.
+    flags: SensorFlags;
+}
+
+/// Effective sensor stream state.
+export struct SensorStreamState {
+    /// Whether the sensor stream is enabled.
+    isEnabled: boolean;
+    /// Effective sample rate in hertz.
+    sampleRateHz: float64;
+    /// Effective batching latency in milliseconds.
+    batchLatencyMs: uint32;
+    /// Effective option flags.
+    flags: SensorFlags;
+}
+
+/// List supported sensors for one input device.
+@binding("destack.input.sensor.list", {
+    effect: "external",
+    requires: ["host.input.sensor"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function listSensors(
+    device: InputDeviceHandle,
+): Result<PackedArray<Sensor>, HostError>;
+
+/// Set one sensor stream state.
+@binding("destack.input.sensor.stream.set", {
+    effect: "external",
+    requires: ["host.input.sensor"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function setSensorStream(
+    device: InputDeviceHandle,
+    kind: SensorKind,
+    stream: &readonly SensorStream,
+): Result<SensorStreamState, HostError>;
+
+/// Read one sensor sample.
+@binding("destack.input.sensor.read", {
+    effect: "external",
+    requires: ["host.input.sensor"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function readSensor(
+    device: InputDeviceHandle,
+    kind: SensorKind,
+    timeoutNs?: uint64,
+): Result<SensorSample, HostError>;

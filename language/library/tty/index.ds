@@ -1,1 +1,2 @@
 export * from "./tty.ds";
+export * as host from "./host";

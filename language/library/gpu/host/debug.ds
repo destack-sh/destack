@@ -1,0 +1,11 @@
+import { HostError } from "destack:error/host";
+import { ResourceId } from "destack:runtime/resource";
+
+/// Set a debug label on a GPU resource object.
+@binding("destack.gpu.debug.label.set", {
+    effect: "external",
+    requires: ["host.gpu.debug"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function setLabel(handle: ResourceId, label: &readonly string): Result<void, HostError>;

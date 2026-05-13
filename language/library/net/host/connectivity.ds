@@ -1,0 +1,123 @@
+import { ResourceId } from "destack:runtime/resource";
+import { HostError } from "destack:error/host";
+
+/// Handle for one network watch stream.
+export newtype NetworkWatchHandle = ResourceId;
+
+/// Network connectivity class.
+export enum NetworkConnectivityKind {
+    /// No active network route.
+    None = 1,
+    /// Unknown or backend-specific route class.
+    Unknown = 2,
+    /// Wi-Fi route.
+    Wifi = 3,
+    /// Cellular route.
+    Cellular = 4,
+    /// Ethernet route.
+    Ethernet = 5,
+    /// Bluetooth PAN route.
+    Bluetooth = 6,
+    /// VPN tunnel route.
+    Vpn = 7,
+    /// Other route class.
+    Other = 8,
+}
+
+/// Cellular radio generation class.
+export enum NetworkCellularGeneration {
+    /// Generation is unknown.
+    Unknown = 1,
+    /// Second-generation cellular network.
+    G2 = 2,
+    /// Third-generation cellular network.
+    G3 = 3,
+    /// Fourth-generation cellular network.
+    G4 = 4,
+    /// Fifth-generation cellular network.
+    G5 = 5,
+}
+
+/// Network connectivity snapshot.
+export struct NetworkConnectivity {
+    /// Route connection class.
+    kind: NetworkConnectivityKind;
+    /// Whether one route to a local network is available.
+    connected: boolean;
+    /// Whether one route to the public internet is available.
+    internetReachable: boolean;
+    /// Whether the route is metered or expensive when the host can determine it.
+    expensive?: boolean;
+    /// Whether the route is constrained by low-data mode when the host can determine it.
+    constrained?: boolean;
+    /// Whether the active route is roaming when the host can determine it.
+    roaming?: boolean;
+    /// Cellular generation when `kind` is `Cellular` and the host can determine it.
+    cellularGeneration?: NetworkCellularGeneration;
+    /// Estimated downstream bandwidth in megabits per second when the host can determine it.
+    downlinkMbps?: float64;
+    /// Estimated upstream bandwidth in megabits per second when the host can determine it.
+    uplinkMbps?: float64;
+}
+
+/// Network connectivity event.
+export struct NetworkConnectivityEvent {
+    /// Monotonic event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Monotonic sequence number for this watch stream.
+    sequence: uint64;
+    /// Network connectivity snapshot.
+    connectivity: NetworkConnectivity;
+}
+
+/// Read network connectivity.
+@binding("destack.net.connectivity.read", {
+    effect: "external",
+    requires: ["host.net.connectivity.read"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function readNetworkConnectivity(): Result<NetworkConnectivity, HostError>;
+
+/// Open network connectivity watch stream.
+@binding("destack.net.connectivity.watch.open", {
+    effect: "external",
+    requires: ["host.net.connectivity.watch"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function openNetworkConnectivityWatch(): Result<NetworkWatchHandle, HostError>;
+
+/// Close network connectivity watch stream.
+@binding("destack.net.connectivity.watch.close", {
+    effect: "external",
+    requires: ["host.net.connectivity.watch"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function closeNetworkConnectivityWatch(
+    watch: NetworkWatchHandle,
+): Result<void, HostError>;
+
+/// Wait for one network connectivity event.
+@binding("destack.net.connectivity.watch.read", {
+    effect: "external",
+    requires: ["host.net.connectivity.watch"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function readNetworkConnectivityWatch(
+    watch: NetworkWatchHandle,
+    timeoutNs: uint64,
+): Result<NetworkConnectivityEvent, HostError>;
+
+/// Poll one network connectivity event without blocking.
+@binding("destack.net.connectivity.watch.tryRead", {
+    effect: "external",
+    requires: ["host.net.connectivity.watch"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function tryReadNetworkConnectivityWatch(
+    watch: NetworkWatchHandle,
+): Result<NetworkConnectivityEvent, HostError>;

@@ -1,0 +1,56 @@
+import { HostError } from "destack:error/host";
+
+/// Process resource limit selector.
+export enum ProcessLimitKind {
+    /// CPU time.
+    Cpu = 0,
+    /// Maximum file size.
+    FileSize = 1,
+    /// Maximum data segment size.
+    Data = 2,
+    /// Maximum stack size.
+    Stack = 3,
+    /// Maximum core dump size.
+    Core = 4,
+    /// Maximum resident set size.
+    ResidentSet = 5,
+    /// Maximum open file count.
+    OpenFiles = 6,
+    /// Maximum address space size.
+    AddressSpace = 7,
+    /// Maximum process count.
+    Processes = 8,
+    /// Maximum locked memory size.
+    LockedMemory = 9,
+}
+
+/// Process resource limit payload.
+export struct ProcessLimit {
+    /// Soft limit value.
+    soft: uint64;
+    /// Hard limit value.
+    hard: uint64;
+}
+
+/// Read a process resource limit.
+@binding("destack.process.limit.get", {
+    effect: "external",
+    requires: ["host.process.limit.read"],
+    families: ["unix"],
+    simulation: true,
+})
+export declare function getProcessLimit(
+    kind: ProcessLimitKind,
+): Result<ProcessLimit, HostError>;
+
+/// Set a process resource limit.
+@binding("destack.process.limit.set", {
+    effect: "external",
+    requires: ["host.process.limit.write"],
+    families: ["unix"],
+    simulation: true,
+})
+export declare function setProcessLimit(
+    kind: ProcessLimitKind,
+    limit: ProcessLimit,
+): Result<void, HostError>;

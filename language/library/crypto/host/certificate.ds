@@ -1,0 +1,252 @@
+import { ResourceId } from "destack:runtime/resource";
+import { Array, PackedArray } from "destack:collections";
+import { HostError } from "destack:error/host";
+import { CryptoStoreIdentity } from "./store.ds";
+import { CryptoStoreHandle } from "destack:crypto/host";
+
+/// Handle for one cryptographic certificate object.
+export newtype CryptoCertificateHandle = ResourceId;
+
+/// Certificate encoding format.
+export enum CryptoCertificateFormat {
+    /// PEM encoded certificate bytes.
+    Pem = 1,
+    /// DER encoded certificate bytes.
+    Der = 2,
+}
+
+/// Certificate verification purpose.
+export enum CryptoCertificatePurpose {
+    /// Server TLS authentication.
+    ServerAuth = 1,
+    /// Client TLS authentication.
+    ClientAuth = 2,
+    /// Code signing validation.
+    CodeSigning = 3,
+    /// Email protection validation.
+    EmailProtection = 4,
+}
+
+/// Revocation policy for certificate verification.
+export enum CryptoCertificateRevocationMode {
+    /// Use host default revocation behavior.
+    Default = 1,
+    /// Require successful revocation checks.
+    Strict = 2,
+    /// Skip revocation checks.
+    Disabled = 3,
+}
+
+/// Certificate identity kind.
+export enum CryptoCertificateIdentityKind {
+    /// DNS hostname identity.
+    DnsName = 1,
+    /// IP address identity in textual form.
+    IpAddress = 2,
+    /// URI identity.
+    Uri = 3,
+    /// Email address identity.
+    EmailAddress = 4,
+}
+
+/// Certificate identity used during verification.
+export struct CryptoCertificateIdentity {
+    /// Identity kind.
+    kind: CryptoCertificateIdentityKind;
+    /// Identity value string.
+    value: string;
+}
+
+/// Certificate verification error.
+export enum CryptoCertificateVerifyError {
+    /// Verification succeeded.
+    None = 0,
+    /// Verification failed for one reason not mapped to a specific class.
+    Unknown = 1,
+    /// Certificate validity period has expired.
+    Expired = 2,
+    /// Certificate validity period has not started.
+    NotYetValid = 3,
+    /// Certificate chain ends at one untrusted root.
+    UntrustedRoot = 4,
+    /// Certificate was revoked.
+    Revoked = 5,
+    /// Certificate name does not match the requested verification identity.
+    NameMismatch = 6,
+    /// Certificate signature validation failed.
+    InvalidSignature = 7,
+    /// Host policy rejected the chain.
+    PolicyRejected = 8,
+    /// Certificate contains one unsupported critical extension.
+    UnsupportedCriticalExtension = 9,
+}
+
+/// Certificate key usage flags.
+export newtype CryptoCertificateKeyUsageFlags = uint32;
+
+/// Certificate key usage: digital signature.
+export const CRYPTO_CERTIFICATE_KEY_USAGE_DIGITAL_SIGNATURE: CryptoCertificateKeyUsageFlags =
+    CryptoCertificateKeyUsageFlags(1 << 0);
+
+/// Certificate key usage: non-repudiation.
+export const CRYPTO_CERTIFICATE_KEY_USAGE_NON_REPUDIATION: CryptoCertificateKeyUsageFlags =
+    CryptoCertificateKeyUsageFlags(1 << 1);
+
+/// Certificate key usage: key encipherment.
+export const CRYPTO_CERTIFICATE_KEY_USAGE_KEY_ENCIPHERMENT: CryptoCertificateKeyUsageFlags =
+    CryptoCertificateKeyUsageFlags(1 << 2);
+
+/// Certificate key usage: data encipherment.
+export const CRYPTO_CERTIFICATE_KEY_USAGE_DATA_ENCIPHERMENT: CryptoCertificateKeyUsageFlags =
+    CryptoCertificateKeyUsageFlags(1 << 3);
+
+/// Certificate key usage: key agreement.
+export const CRYPTO_CERTIFICATE_KEY_USAGE_KEY_AGREEMENT: CryptoCertificateKeyUsageFlags =
+    CryptoCertificateKeyUsageFlags(1 << 4);
+
+/// Certificate key usage: certificate signing.
+export const CRYPTO_CERTIFICATE_KEY_USAGE_CERTIFICATE_SIGN: CryptoCertificateKeyUsageFlags =
+    CryptoCertificateKeyUsageFlags(1 << 5);
+
+/// Certificate key usage: CRL signing.
+export const CRYPTO_CERTIFICATE_KEY_USAGE_CRL_SIGN: CryptoCertificateKeyUsageFlags =
+    CryptoCertificateKeyUsageFlags(1 << 6);
+
+/// Certificate key usage: encipher only.
+export const CRYPTO_CERTIFICATE_KEY_USAGE_ENCIPHER_ONLY: CryptoCertificateKeyUsageFlags =
+    CryptoCertificateKeyUsageFlags(1 << 7);
+
+/// Certificate key usage: decipher only.
+export const CRYPTO_CERTIFICATE_KEY_USAGE_DECIPHER_ONLY: CryptoCertificateKeyUsageFlags =
+    CryptoCertificateKeyUsageFlags(1 << 8);
+
+/// Certificate validity window.
+export struct CryptoCertificateValidity {
+    /// Not-before timestamp in Unix seconds.
+    notBeforeUnixSeconds: uint64;
+    /// Not-after timestamp in Unix seconds.
+    notAfterUnixSeconds: uint64;
+}
+
+/// Certificate descriptor.
+export struct CryptoCertificateDescriptor {
+    /// Distinguished subject name.
+    subject: string;
+    /// Distinguished issuer name.
+    issuer: string;
+    /// Serial number string.
+    serialNumber: string;
+    /// Subject alternative names.
+    subjectAlternativeNames: Array<string>;
+    /// SHA-256 fingerprint bytes.
+    fingerprintSha256: Array<uint8>;
+    /// Certificate validity window.
+    validity: CryptoCertificateValidity;
+    /// Whether this certificate is a certificate authority.
+    isCertificateAuthority: boolean;
+    /// Key usage flags.
+    keyUsage: CryptoCertificateKeyUsageFlags;
+    /// Store that owns the certificate.
+    store: CryptoStoreIdentity;
+}
+
+/// Certificate chain verify request.
+export struct CryptoCertificateVerifyRequest {
+    /// Leaf certificate handle.
+    leaf: CryptoCertificateHandle;
+    /// Intermediate certificate handles.
+    intermediates: [CryptoCertificateHandle];
+    /// Trust anchor certificate handles.
+    trustAnchors: [CryptoCertificateHandle];
+    /// Whether host system trust anchors should be included.
+    useSystemTrustAnchors: boolean;
+    /// Verification purpose.
+    purpose: CryptoCertificatePurpose;
+    /// Optional identity value for name-constrained verification.
+    identity?: CryptoCertificateIdentity;
+    /// Verification time in Unix seconds.
+    verificationTimeUnixSeconds?: uint64;
+    /// Revocation policy.
+    revocationMode: CryptoCertificateRevocationMode;
+}
+
+/// Certificate chain verify result.
+export struct CryptoCertificateVerifyResult {
+    /// Whether the chain validates.
+    isValid: boolean;
+    /// Normalized verification error class.
+    error: CryptoCertificateVerifyError;
+    /// Provider or runtime error code when validation fails.
+    errorCode: uint32;
+    /// Index of the first failing certificate in the evaluated chain.
+    failedCertificateIndex?: uint32;
+    /// Subject string of the first failing certificate when available.
+    failedCertificateSubject?: string;
+    /// Number of certificates in the verified chain.
+    chainLength: uint32;
+    /// Whether one system trust anchor was used.
+    usedSystemTrustAnchor: boolean;
+}
+
+/// Import one certificate into one store.
+@binding("destack.crypto.certificate.import", {
+    effect: "external",
+    replay: "forbidden",
+    requires: ["host.crypto.certificate.write"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function importCertificate(
+    store: CryptoStoreHandle,
+    format: CryptoCertificateFormat,
+    certificate: &readonly [uint8],
+): Result<CryptoCertificateHandle, HostError>;
+
+/// Export one certificate from one handle.
+@binding("destack.crypto.certificate.export", {
+    effect: "external",
+    replay: "forbidden",
+    requires: ["host.crypto.certificate.read"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function exportCertificate(
+    certificate: CryptoCertificateHandle,
+    format: CryptoCertificateFormat,
+): Result<PackedArray<uint8>, HostError>;
+
+/// Describe one certificate.
+@binding("destack.crypto.certificate.describe", {
+    effect: "external",
+    replay: "forbidden",
+    requires: ["host.crypto.certificate.read"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function describeCertificate(
+    certificate: CryptoCertificateHandle,
+): Result<CryptoCertificateDescriptor, HostError>;
+
+/// Verify one certificate chain against one trust policy.
+@binding("destack.crypto.certificate.verify", {
+    effect: "external",
+    replay: "forbidden",
+    requires: ["host.crypto.certificate.read"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function verifyCertificateChain(
+    request: &readonly CryptoCertificateVerifyRequest,
+): Result<CryptoCertificateVerifyResult, HostError>;
+
+/// Delete one certificate from one store when allowed.
+@binding("destack.crypto.certificate.delete", {
+    effect: "external",
+    replay: "forbidden",
+    requires: ["host.crypto.certificate.write"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function deleteCertificate(
+    certificate: CryptoCertificateHandle,
+): Result<void, HostError>;

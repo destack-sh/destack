@@ -1,0 +1,67 @@
+import { ResourceId } from "destack:runtime/resource";
+import { Array, PackedArray } from "destack:collections";
+import { HostError } from "destack:error/host";
+import { CryptoDigestAlgorithm } from "./algorithm.ds";
+
+/// Handle for one cryptographic digest context.
+export newtype CryptoDigestHandle = ResourceId;
+
+/// Compute one digest in one shot.
+@binding("destack.crypto.digest.compute", {
+    effect: "external",
+    replay: "forbidden",
+    requires: ["host.crypto.digest"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function computeDigest(
+    algorithm: CryptoDigestAlgorithm,
+    payload: &readonly [uint8],
+): Result<PackedArray<uint8>, HostError>;
+
+/// Open one streaming digest context.
+@binding("destack.crypto.digest.open", {
+    effect: "external",
+    replay: "forbidden",
+    requires: ["host.crypto.digest"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function openDigest(
+    algorithm: CryptoDigestAlgorithm,
+): Result<CryptoDigestHandle, HostError>;
+
+/// Update one streaming digest context.
+@binding("destack.crypto.digest.update", {
+    effect: "external",
+    replay: "forbidden",
+    requires: ["host.crypto.digest"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function updateDigest(
+    digest: CryptoDigestHandle,
+    payload: &readonly [uint8],
+): Result<void, HostError>;
+
+/// Finalize one streaming digest context and return one digest output.
+@binding("destack.crypto.digest.finish", {
+    effect: "external",
+    replay: "forbidden",
+    requires: ["host.crypto.digest"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function finishDigest(
+    digest: CryptoDigestHandle,
+): Result<PackedArray<uint8>, HostError>;
+
+/// Close one streaming digest context.
+@binding("destack.crypto.digest.close", {
+    effect: "external",
+    replay: "forbidden",
+    requires: ["host.crypto.digest"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function closeDigest(digest: CryptoDigestHandle): Result<void, HostError>;

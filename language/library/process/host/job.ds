@@ -1,0 +1,76 @@
+import { ResourceId } from "destack:runtime/resource";
+import { HostError } from "destack:error/host";
+import { ProcessHandle } from "destack:process/host";
+
+/// Handle for a Windows job object.
+export newtype JobHandle = ResourceId;
+
+/// Windows job limit flags.
+export newtype JobLimitFlags = uint64;
+
+/// Limit per-process user-mode execution time.
+export const JOB_LIMIT_PROCESS_TIME: JobLimitFlags = JobLimitFlags(0x1);
+
+/// Limit total user-mode execution time for the job.
+export const JOB_LIMIT_JOB_TIME: JobLimitFlags = JobLimitFlags(0x2);
+
+/// Limit active process count.
+export const JOB_LIMIT_ACTIVE_PROCESSES: JobLimitFlags = JobLimitFlags(0x4);
+
+/// Limit per-process memory usage.
+export const JOB_LIMIT_PROCESS_MEMORY: JobLimitFlags = JobLimitFlags(0x8);
+
+/// Limit total job memory usage.
+export const JOB_LIMIT_JOB_MEMORY: JobLimitFlags = JobLimitFlags(0x10);
+
+/// Windows job limit payload.
+export struct JobLimit {
+    /// Enabled limit fields.
+    flags: JobLimitFlags;
+    /// Per-process CPU time limit in nanoseconds.
+    processTimeNanoseconds?: uint64;
+    /// Total job CPU time limit in nanoseconds.
+    jobTimeNanoseconds?: uint64;
+    /// Maximum active processes.
+    activeProcesses?: uint32;
+    /// Per-process memory limit in bytes.
+    processMemoryBytes?: uint64;
+    /// Total job memory limit in bytes.
+    jobMemoryBytes?: uint64;
+}
+
+/// Create one Windows job object.
+@binding("destack.process.job.create", {
+    effect: "external",
+    replay: "forbidden",
+    requires: ["host.process.job"],
+    platforms: ["windows"],
+    simulation: true,
+})
+export declare function createJob(name?: &readonly string): Result<JobHandle, HostError>;
+
+/// Assign one process to a Windows job object.
+@binding("destack.process.job.assign", {
+    effect: "external",
+    replay: "forbidden",
+    requires: ["host.process.job"],
+    platforms: ["windows"],
+    simulation: true,
+})
+export declare function assignJob(
+    job: JobHandle,
+    process: ProcessHandle,
+): Result<void, HostError>;
+
+/// Set Windows job object limits.
+@binding("destack.process.job.limit", {
+    effect: "external",
+    replay: "forbidden",
+    requires: ["host.process.job"],
+    platforms: ["windows"],
+    simulation: true,
+})
+export declare function setJobLimit(
+    job: JobHandle,
+    limit: JobLimit,
+): Result<void, HostError>;

@@ -1,0 +1,20 @@
+import { HostError } from "destack:error/host";
+import { VirtualMemoryRange } from "./virtual.ds";
+
+/// Lock one memory range into physical memory.
+@binding("destack.memory.lock", {
+    effect: "external",
+    requires: ["host.memory.lock"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function lockMemory(range: VirtualMemoryRange): Result<void, HostError>;
+
+/// Unlock one memory range.
+@binding("destack.memory.unlock", {
+    effect: "external",
+    requires: ["host.memory.lock"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function unlockMemory(range: VirtualMemoryRange): Result<void, HostError>;

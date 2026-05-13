@@ -1,0 +1,151 @@
+import { ResourceId } from "destack:runtime/resource";
+import { Array, PackedArray } from "destack:collections";
+import { HostError } from "destack:error/host";
+import { AudioBackendKind, AudioBackendSelection } from "./backend.ds";
+import { AudioDirection } from "./device.ds";
+import { AudioStreamState } from "./stream.ds";
+import { AudioStreamHandle } from "destack:audio/host";
+
+/// Handle for one audio event subscription endpoint.
+export newtype AudioEventHandle = ResourceId;
+
+/// Audio event subscription flags.
+export newtype AudioEventFlags = uint32;
+
+/// Subscribe to device hotplug events.
+export const AUDIO_EVENT_DEVICE: AudioEventFlags = AudioEventFlags(0x1);
+
+/// Subscribe to default-route change events.
+export const AUDIO_EVENT_ROUTE: AudioEventFlags = AudioEventFlags(0x2);
+
+/// Subscribe to stream state and xrun events.
+export const AUDIO_EVENT_STREAM: AudioEventFlags = AudioEventFlags(0x4);
+
+/// Subscribe to backend availability events.
+export const AUDIO_EVENT_BACKEND: AudioEventFlags = AudioEventFlags(0x8);
+
+/// Audio event overflow policy.
+export enum AudioEventOverflowPolicy {
+    /// Drop oldest queued events first.
+    DropOldest = 1,
+    /// Drop newest incoming events first.
+    DropNewest = 2,
+    /// Report queue overflow as an error.
+    Error = 3,
+}
+
+/// Audio event subscription.
+export struct AudioEventSubscription {
+    /// Backend selection.
+    backend: AudioBackendSelection;
+    /// Event flags.
+    flags: AudioEventFlags;
+    /// Stream to monitor, omitted for backend and device events.
+    stream?: AudioStreamHandle;
+    /// Queue capacity in events, or zero for backend default.
+    capacity: uint32;
+    /// Queue overflow policy.
+    overflow: AudioEventOverflowPolicy;
+}
+
+/// Audio device event.
+export struct AudioEventDevice {
+    /// Event discriminator.
+    kind: "device";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Audio backend.
+    backend: AudioBackendKind;
+    /// Device identifier.
+    deviceId: string;
+    /// Device direction.
+    direction: AudioDirection;
+    /// Whether the device is present.
+    isPresent: boolean;
+    /// Whether the device is the default route.
+    isDefault: boolean;
+}
+
+/// Audio stream event.
+export struct AudioEventStream {
+    /// Event discriminator.
+    kind: "stream";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Stream handle.
+    stream: AudioStreamHandle;
+    /// Stream state.
+    state: AudioStreamState;
+    /// Number of xruns reported so far.
+    xrunCount: uint64;
+}
+
+/// Audio backend event.
+export struct AudioEventBackend {
+    /// Event discriminator.
+    kind: "backend";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Audio backend.
+    backend: AudioBackendKind;
+    /// Whether the backend is available.
+    isAvailable: boolean;
+}
+
+/// Audio overflow event.
+export struct AudioEventOverflow {
+    /// Event discriminator.
+    kind: "overflow";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Number of dropped events.
+    droppedCount: uint64;
+}
+
+/// Audio event.
+export newtype AudioEvent =
+    | AudioEventDevice
+    | AudioEventStream
+    | AudioEventBackend
+    | AudioEventOverflow;
+
+/// Open one audio event subscription.
+@binding("destack.audio.event.open", {
+    effect: "external",
+    requires: ["host.audio.event"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function openAudioEvents(
+    subscription: &readonly AudioEventSubscription,
+): Result<AudioEventHandle, HostError>;
+
+/// Close one audio event subscription.
+@binding("destack.audio.event.close", {
+    effect: "external",
+    requires: ["host.audio.event"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function closeAudioEvents(events: AudioEventHandle): Result<void, HostError>;
+
+/// Read audio events.
+@binding("destack.audio.event.read", {
+    effect: "external",
+    requires: ["host.audio.event"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function readAudioEvents(
+    events: AudioEventHandle,
+    maxEvents: uint32,
+    timeoutNs?: uint64,
+): Result<PackedArray<AudioEvent>, HostError>;

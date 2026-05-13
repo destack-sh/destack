@@ -1,0 +1,103 @@
+import { Array, PackedArray } from "destack:collections";
+import { HostBackendStatus } from "destack:runtime/binding";
+import { HostError } from "destack:error/host";
+
+/// Host audio backend kind.
+export enum AudioBackendKind {
+    /// Use the host-preferred backend.
+    Auto = 0,
+    /// Advanced Linux Sound Architecture.
+    Alsa = 1,
+    /// PulseAudio server.
+    PulseAudio = 2,
+    /// PipeWire server.
+    PipeWire = 3,
+    /// JACK audio server.
+    Jack = 4,
+    /// Apple Core Audio.
+    CoreAudio = 5,
+    /// Windows Audio Session API.
+    Wasapi = 6,
+    /// ASIO driver host.
+    Asio = 7,
+    /// Android AAudio.
+    AAudio = 8,
+    /// Android OpenSL ES.
+    OpenSLES = 9,
+    /// Deterministic runtime simulation backend.
+    Simulation = 250,
+    /// Silent test backend.
+    Null = 255,
+}
+
+/// Audio backend selection policy.
+export enum AudioBackendSelectionPolicy {
+    /// Use another backend when the requested backend is unavailable.
+    Fallback = 1,
+    /// Fail unless the requested backend is available.
+    Exact = 2,
+}
+
+/// Audio backend selection.
+export struct AudioBackendSelection {
+    /// Requested backend.
+    backend: AudioBackendKind;
+    /// Selection behavior.
+    policy: AudioBackendSelectionPolicy;
+}
+
+/// Audio backend capability flags.
+export newtype AudioBackendFlags = uint64;
+
+/// Backend can report device hotplug events.
+export const AUDIO_BACKEND_DEVICE_EVENTS: AudioBackendFlags = AudioBackendFlags(0x01);
+
+/// Backend can report default-route changes.
+export const AUDIO_BACKEND_ROUTE_EVENTS: AudioBackendFlags = AudioBackendFlags(0x02);
+
+/// Backend can open full-duplex streams.
+export const AUDIO_BACKEND_DUPLEX: AudioBackendFlags = AudioBackendFlags(0x04);
+
+/// Backend can capture host loopback output.
+export const AUDIO_BACKEND_LOOPBACK: AudioBackendFlags = AudioBackendFlags(0x08);
+
+/// Backend can open shared mixer streams.
+export const AUDIO_BACKEND_SHARED: AudioBackendFlags = AudioBackendFlags(0x10);
+
+/// Backend can open exclusive endpoint streams.
+export const AUDIO_BACKEND_EXCLUSIVE: AudioBackendFlags = AudioBackendFlags(0x20);
+
+/// Backend can open raw device-format streams.
+export const AUDIO_BACKEND_RAW: AudioBackendFlags = AudioBackendFlags(0x40);
+
+/// Backend can transfer non-interleaved buffers.
+export const AUDIO_BACKEND_PLANAR: AudioBackendFlags = AudioBackendFlags(0x80);
+
+/// Backend can report hardware or device timeline timestamps.
+export const AUDIO_BACKEND_DEVICE_CLOCK: AudioBackendFlags = AudioBackendFlags(0x100);
+
+/// Backend can drive realtime streams.
+export const AUDIO_BACKEND_REALTIME: AudioBackendFlags = AudioBackendFlags(0x200);
+
+/// Audio backend.
+export struct AudioBackend {
+    /// Backend kind.
+    backend: AudioBackendKind;
+    /// Host availability status.
+    status: HostBackendStatus;
+    /// Display name.
+    name: string;
+    /// Selection priority for `AudioBackendKind.Auto`.
+    priority: uint16;
+    /// Backend capability flags.
+    flags: AudioBackendFlags;
+}
+
+/// List host audio backends.
+@binding("destack.audio.backend.list", {
+    effect: "external",
+    requires: ["host.audio.backend"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function listAudioBackends(): Result<PackedArray<AudioBackend>, HostError>;

@@ -1,0 +1,24 @@
+import { Array } from "destack:collections";
+import { HostError } from "destack:error/host";
+import { Path } from "./path.ds";
+
+/// Filesystem mount entry.
+export struct FileMount {
+    /// Source device or backing object when the host exposes one.
+    source?: string;
+    /// Target mount path.
+    target: Path;
+    /// Filesystem type name when the host exposes one.
+    fileSystem?: string;
+    /// Host-defined mount flags bitmask when the host exposes one.
+    hostFlags?: uint64;
+}
+
+/// List filesystem mounts.
+@binding("destack.fs.mount.list", {
+    effect: "external",
+    requires: ["host.fs.mount.list"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function listFileMounts(): Result<Array<FileMount>, HostError>;

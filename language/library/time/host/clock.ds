@@ -1,0 +1,33 @@
+import { HostError } from "destack:error/host";
+
+/// Nanosecond duration.
+export newtype Duration = uint64;
+
+/// Nanosecond timestamp on a clock-defined epoch.
+export newtype Timestamp = int64;
+
+/// Clock exposed by the host time provider.
+export enum Clock {
+    /// Realtime clock, usually Unix epoch time.
+    Realtime = 1,
+    /// Monotonic clock for measuring elapsed time.
+    Monotonic = 2,
+}
+
+/// Read one host-provided clock.
+@binding("destack.time.clock.now", {
+    effect: "external",
+    requires: ["host.time.clock.read"],
+    families: ["windows", "unix", "wasm"],
+    simulation: true,
+})
+export declare function readClock(clock: Clock): Result<Timestamp, HostError>;
+
+/// Read one host-provided clock resolution.
+@binding("destack.time.clock.resolution", {
+    effect: "external",
+    requires: ["host.time.clock.read"],
+    families: ["windows", "unix", "wasm"],
+    simulation: true,
+})
+export declare function readClockResolution(clock: Clock): Result<Duration, HostError>;

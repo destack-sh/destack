@@ -1,0 +1,381 @@
+import { ResourceId } from "destack:runtime/resource";
+import { Array, PackedArray } from "destack:collections";
+import { HostError } from "destack:error/host";
+import {
+    CryptoAsymmetricEncryptionAlgorithm,
+import { CryptoStoreHandle } from "destack:crypto/host";
+
+/// Handle for one cryptographic key object.
+export newtype CryptoKeyHandle = ResourceId;
+
+    CryptoDigestAlgorithm,
+    CryptoKeyFormat,
+    CryptoKeyKind,
+    CryptoKeyResidency,
+    CryptoKeyUsageFlags,
+    CryptoKeyWrapAlgorithm,
+    CryptoNamedCurve,
+    CryptoSignatureAlgorithm,
+} from "./algorithm.ds";
+import { CryptoStoreIdentity } from "./store.ds";
+
+/// RSA key shape.
+export struct CryptoRsaKeyShape {
+    /// Shape discriminator.
+    algorithm: "rsa";
+    /// RSA modulus size in bits.
+    modulusBits: uint32;
+    /// RSA public exponent.
+    publicExponent: uint32;
+}
+
+/// Elliptic-curve key shape.
+export struct CryptoEcKeyShape {
+    /// Shape discriminator.
+    algorithm: "ec";
+    /// Named curve.
+    curve: CryptoNamedCurve;
+}
+
+/// Ed25519 key shape.
+export struct CryptoEd25519KeyShape {
+    /// Shape discriminator.
+    algorithm: "ed25519";
+}
+
+/// Ed448 key shape.
+export struct CryptoEd448KeyShape {
+    /// Shape discriminator.
+    algorithm: "ed448";
+}
+
+/// X25519 key shape.
+export struct CryptoX25519KeyShape {
+    /// Shape discriminator.
+    algorithm: "x25519";
+}
+
+/// X448 key shape.
+export struct CryptoX448KeyShape {
+    /// Shape discriminator.
+    algorithm: "x448";
+}
+
+/// AES key shape.
+export struct CryptoAesKeyShape {
+    /// Shape discriminator.
+    algorithm: "aes";
+    /// Key size in bits.
+    sizeBits: uint32;
+}
+
+/// ChaCha20 key shape.
+export struct CryptoChaCha20KeyShape {
+    /// Shape discriminator.
+    algorithm: "chacha20";
+}
+
+/// HMAC key shape.
+export struct CryptoHmacKeyShape {
+    /// Shape discriminator.
+    algorithm: "hmac";
+    /// Key size in bits.
+    sizeBits: uint32;
+    /// Default digest algorithm.
+    digest?: CryptoDigestAlgorithm;
+}
+
+/// Key shape for generation, import, and descriptor reads.
+export newtype CryptoKeyShape =
+    | CryptoRsaKeyShape
+    | CryptoEcKeyShape
+    | CryptoEd25519KeyShape
+    | CryptoEd448KeyShape
+    | CryptoX25519KeyShape
+    | CryptoX448KeyShape
+    | CryptoAesKeyShape
+    | CryptoChaCha20KeyShape
+    | CryptoHmacKeyShape;
+
+/// Key storage and usage policy.
+export struct CryptoKeyPolicy {
+    /// Allowed key operations.
+    usage: CryptoKeyUsageFlags;
+    /// User-visible key label.
+    label: string;
+    /// Whether key material may be exported.
+    isExtractable: boolean;
+    /// Requested key residency.
+    residency: CryptoKeyResidency;
+}
+
+/// Output key requested from a derivation operation.
+export struct CryptoDerivedKey {
+    /// Derived key shape.
+    shape: CryptoKeyShape;
+    /// Derived key policy.
+    policy: CryptoKeyPolicy;
+}
+
+/// Key import request.
+export struct CryptoKeyImport {
+    /// Imported key shape.
+    shape: CryptoKeyShape;
+    /// Imported key object kind.
+    keyKind: CryptoKeyKind;
+    /// Encoded key format.
+    format: CryptoKeyFormat;
+    /// Import policy.
+    policy: CryptoKeyPolicy;
+    /// Passphrase for encrypted private-key formats.
+    passphrase?: &readonly [uint8];
+}
+
+/// Key descriptor.
+export struct CryptoKeyDescriptor {
+    /// Effective key shape.
+    shape: CryptoKeyShape;
+    /// Effective key object kind.
+    keyKind: CryptoKeyKind;
+    /// Effective key policy.
+    policy: CryptoKeyPolicy;
+    /// Store that owns the key.
+    store: CryptoStoreIdentity;
+}
+
+/// Generated key pair.
+export struct CryptoKeyPair {
+    /// Public key handle.
+    publicKey: CryptoKeyHandle;
+    /// Private key handle.
+    privateKey: CryptoKeyHandle;
+}
+
+/// Signature parameters.
+export struct CryptoSignatureParameters {
+    /// Signature algorithm.
+    algorithm: CryptoSignatureAlgorithm;
+    /// Digest algorithm.
+    digest?: CryptoDigestAlgorithm;
+    /// RSA-PSS salt length in bytes.
+    saltLengthBytes?: uint32;
+}
+
+/// Asymmetric encryption parameters.
+export struct CryptoAsymmetricEncryptionParameters {
+    /// Asymmetric encryption algorithm.
+    algorithm: CryptoAsymmetricEncryptionAlgorithm;
+    /// Digest algorithm.
+    digest?: CryptoDigestAlgorithm;
+    /// OAEP label bytes.
+    label: &readonly [uint8];
+}
+
+/// Private-key export request.
+export struct CryptoPrivateKeyExport {
+    /// Requested output format.
+    format: CryptoKeyFormat;
+    /// Passphrase for encrypted private-key formats.
+    passphrase?: &readonly [uint8];
+}
+
+/// Key-wrap parameters.
+export struct CryptoKeyWrapParameters {
+    /// Key-wrap algorithm.
+    algorithm: CryptoKeyWrapAlgorithm;
+    /// Digest algorithm for RSA-OAEP wrapping.
+    digest?: CryptoDigestAlgorithm;
+    /// OAEP label for RSA-OAEP wrapping.
+    label: &readonly [uint8];
+}
+
+/// Generate one secret key.
+@binding("destack.crypto.key.secret.generate", {
+    effect: "external",
+    replay: "forbidden",
+    requires: ["host.crypto.key.generate"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function generateSecretKey(
+    store: CryptoStoreHandle,
+    shape: &readonly CryptoKeyShape,
+    policy: &readonly CryptoKeyPolicy,
+): Result<CryptoKeyHandle, HostError>;
+
+/// Generate one asymmetric key pair.
+@binding("destack.crypto.key.pair.generate", {
+    effect: "external",
+    replay: "forbidden",
+    requires: ["host.crypto.key.generate"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function generateKeyPair(
+    store: CryptoStoreHandle,
+    shape: &readonly CryptoKeyShape,
+    policy: &readonly CryptoKeyPolicy,
+): Result<CryptoKeyPair, HostError>;
+
+/// Import one key.
+@binding("destack.crypto.key.import", {
+    effect: "external",
+    replay: "forbidden",
+    requires: ["host.crypto.key.import", "host.crypto.store.write"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function importKey(
+    store: CryptoStoreHandle,
+    request: &readonly CryptoKeyImport,
+    bytes: &readonly [uint8],
+): Result<CryptoKeyHandle, HostError>;
+
+/// Export one public key.
+@binding("destack.crypto.key.public.export", {
+    effect: "external",
+    replay: "forbidden",
+    requires: ["host.crypto.key.export", "host.crypto.store.read"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function exportPublicKey(
+    key: CryptoKeyHandle,
+    format: CryptoKeyFormat,
+): Result<PackedArray<uint8>, HostError>;
+
+/// Export one private key.
+@binding("destack.crypto.key.private.export", {
+    effect: "external",
+    replay: "forbidden",
+    requires: ["host.crypto.key.export", "host.crypto.store.read"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function exportPrivateKey(
+    key: CryptoKeyHandle,
+    request: &readonly CryptoPrivateKeyExport,
+): Result<PackedArray<uint8>, HostError>;
+
+/// Export one secret key.
+@binding("destack.crypto.key.secret.export", {
+    effect: "external",
+    replay: "forbidden",
+    requires: ["host.crypto.key.export", "host.crypto.store.read"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function exportSecretKey(
+    key: CryptoKeyHandle,
+    format: CryptoKeyFormat,
+): Result<PackedArray<uint8>, HostError>;
+
+/// Describe one key.
+@binding("destack.crypto.key.describe", {
+    effect: "external",
+    replay: "forbidden",
+    requires: ["host.crypto.store.read"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function describeKey(
+    key: CryptoKeyHandle,
+): Result<CryptoKeyDescriptor, HostError>;
+
+/// Sign one payload.
+@binding("destack.crypto.key.sign", {
+    effect: "external",
+    replay: "forbidden",
+    requires: ["host.crypto.key.sign"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function signWithKey(
+    key: CryptoKeyHandle,
+    parameters: &readonly CryptoSignatureParameters,
+    payload: &readonly [uint8],
+): Result<PackedArray<uint8>, HostError>;
+
+/// Verify one signature.
+@binding("destack.crypto.key.verify", {
+    effect: "external",
+    replay: "forbidden",
+    requires: ["host.crypto.key.verify"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function verifyWithKey(
+    key: CryptoKeyHandle,
+    parameters: &readonly CryptoSignatureParameters,
+    payload: &readonly [uint8],
+    signature: &readonly [uint8],
+): Result<boolean, HostError>;
+
+/// Encrypt one payload with one asymmetric key.
+@binding("destack.crypto.key.encrypt", {
+    effect: "external",
+    replay: "forbidden",
+    requires: ["host.crypto.key.encrypt"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function encryptWithKey(
+    key: CryptoKeyHandle,
+    parameters: &readonly CryptoAsymmetricEncryptionParameters,
+    payload: &readonly [uint8],
+): Result<PackedArray<uint8>, HostError>;
+
+/// Decrypt one payload with one asymmetric key.
+@binding("destack.crypto.key.decrypt", {
+    effect: "external",
+    replay: "forbidden",
+    requires: ["host.crypto.key.decrypt"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function decryptWithKey(
+    key: CryptoKeyHandle,
+    parameters: &readonly CryptoAsymmetricEncryptionParameters,
+    payload: &readonly [uint8],
+): Result<PackedArray<uint8>, HostError>;
+
+/// Wrap one key.
+@binding("destack.crypto.key.wrap", {
+    effect: "external",
+    replay: "forbidden",
+    requires: ["host.crypto.key.wrap"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function wrapKey(
+    wrappingKey: CryptoKeyHandle,
+    keyToWrap: CryptoKeyHandle,
+    format: CryptoKeyFormat,
+    parameters: &readonly CryptoKeyWrapParameters,
+): Result<PackedArray<uint8>, HostError>;
+
+/// Unwrap one key.
+@binding("destack.crypto.key.unwrap", {
+    effect: "external",
+    replay: "forbidden",
+    requires: ["host.crypto.key.unwrap", "host.crypto.store.write"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function unwrapKey(
+    store: CryptoStoreHandle,
+    wrappingKey: CryptoKeyHandle,
+    wrappedKey: &readonly [uint8],
+    parameters: &readonly CryptoKeyWrapParameters,
+    importRequest: &readonly CryptoKeyImport,
+): Result<CryptoKeyHandle, HostError>;
+
+/// Delete one key.
+@binding("destack.crypto.key.delete", {
+    effect: "external",
+    replay: "forbidden",
+    requires: ["host.crypto.key.delete", "host.crypto.store.write"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function deleteKey(key: CryptoKeyHandle): Result<void, HostError>;

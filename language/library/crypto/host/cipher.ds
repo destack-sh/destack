@@ -1,0 +1,129 @@
+import { ResourceId } from "destack:runtime/resource";
+import { Array, PackedArray } from "destack:collections";
+import { HostError } from "destack:error/host";
+import { CryptoCipherAlgorithm } from "./algorithm.ds";
+import { CryptoKeyHandle } from "destack:crypto/host";
+
+/// Handle for one cryptographic symmetric-cipher context.
+export newtype CryptoCipherHandle = ResourceId;
+
+/// Cipher direction.
+export enum CryptoCipherDirection {
+    /// Encrypt payload bytes.
+    Encrypt = 1,
+    /// Decrypt payload bytes.
+    Decrypt = 2,
+}
+
+/// Cipher parameters.
+export struct CryptoCipherParameters {
+    /// Symmetric cipher algorithm.
+    algorithm: CryptoCipherAlgorithm;
+    /// Nonce or IV bytes.
+    nonce: &readonly [uint8];
+    /// Additional authenticated data bytes.
+    additionalData?: &readonly [uint8];
+    /// Authentication tag bytes for decryption.
+    tag?: &readonly [uint8];
+    /// Authentication tag length in bytes for encryption.
+    tagLength?: uint32;
+}
+
+/// Cipher output.
+export struct CryptoCipherOutput {
+    /// Cipher output bytes.
+    bytes: Array<uint8>;
+    /// Authentication tag for AEAD encryption.
+    tag?: Array<uint8>;
+}
+
+/// Encrypt one payload in one shot.
+@binding("destack.crypto.cipher.encrypt", {
+    effect: "external",
+    replay: "forbidden",
+    requires: ["host.crypto.cipher"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function encryptCipher(
+    key: CryptoKeyHandle,
+    parameters: &readonly CryptoCipherParameters,
+    payload: &readonly [uint8],
+): Result<CryptoCipherOutput, HostError>;
+
+/// Decrypt one payload in one shot.
+@binding("destack.crypto.cipher.decrypt", {
+    effect: "external",
+    replay: "forbidden",
+    requires: ["host.crypto.cipher"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function decryptCipher(
+    key: CryptoKeyHandle,
+    parameters: &readonly CryptoCipherParameters,
+    payload: &readonly [uint8],
+): Result<PackedArray<uint8>, HostError>;
+
+/// Open one streaming cipher context.
+@binding("destack.crypto.cipher.open", {
+    effect: "external",
+    replay: "forbidden",
+    requires: ["host.crypto.cipher"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function openCipher(
+    key: CryptoKeyHandle,
+    direction: CryptoCipherDirection,
+    parameters: &readonly CryptoCipherParameters,
+): Result<CryptoCipherHandle, HostError>;
+
+/// Add authenticated data to one streaming cipher context.
+@binding("destack.crypto.cipher.additionalData.update", {
+    effect: "external",
+    replay: "forbidden",
+    requires: ["host.crypto.cipher"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function updateCipherAdditionalData(
+    cipher: CryptoCipherHandle,
+    additionalData: &readonly [uint8],
+): Result<void, HostError>;
+
+/// Update one streaming cipher context with one payload chunk.
+@binding("destack.crypto.cipher.update", {
+    effect: "external",
+    replay: "forbidden",
+    requires: ["host.crypto.cipher"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function updateCipher(
+    cipher: CryptoCipherHandle,
+    payload: &readonly [uint8],
+): Result<PackedArray<uint8>, HostError>;
+
+/// Finalize one streaming cipher context.
+@binding("destack.crypto.cipher.finish", {
+    effect: "external",
+    replay: "forbidden",
+    requires: ["host.crypto.cipher"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function finishCipher(
+    cipher: CryptoCipherHandle,
+    finalPayload: &readonly [uint8],
+): Result<CryptoCipherOutput, HostError>;
+
+/// Close one streaming cipher context.
+@binding("destack.crypto.cipher.close", {
+    effect: "external",
+    replay: "forbidden",
+    requires: ["host.crypto.cipher"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function closeCipher(cipher: CryptoCipherHandle): Result<void, HostError>;

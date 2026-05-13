@@ -1,0 +1,10 @@
+import { HostError } from "destack:error/host";
+
+/// Exit the current process with the given code.
+@binding("destack.process.exit", {
+    effect: "external",
+    requires: ["host.process.exit"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function exit(code: uint32): Result<void, HostError>;

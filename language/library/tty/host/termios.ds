@@ -1,0 +1,143 @@
+import { HostError } from "destack:error/host";
+import { ProcessId } from "destack:process/host";
+import { TtyHandle } from "destack:tty/host";
+
+/// Termios attribute set timing selector.
+export enum TermiosSetAction {
+    /// Apply changes immediately.
+    Now = 1,
+    /// Apply changes after queued output drains.
+    Drain = 2,
+    /// Apply changes after queued output drains and discard pending input.
+    Flush = 3,
+}
+
+/// Termios flush queue selector.
+export enum TermiosQueue {
+    /// Flush pending input bytes.
+    Input = 1,
+    /// Flush pending output bytes.
+    Output = 2,
+    /// Flush pending input and output bytes.
+    InputAndOutput = 3,
+}
+
+/// Termios flow control action.
+export enum TermiosFlowAction {
+    /// Suspend output transmission.
+    SuspendOutput = 1,
+    /// Resume output transmission.
+    ResumeOutput = 2,
+    /// Send stop control character to pause remote transmission.
+    SuspendInput = 3,
+    /// Send start control character to resume remote transmission.
+    ResumeInput = 4,
+}
+
+/// Full POSIX termios attributes payload.
+export struct TermiosAttributes {
+    /// Input mode bit flags.
+    inputFlags: uint64;
+    /// Output mode bit flags.
+    outputFlags: uint64;
+    /// Control mode bit flags.
+    controlFlags: uint64;
+    /// Local mode bit flags.
+    localFlags: uint64;
+    /// Control character table bytes in host order.
+    controlCharacters: [uint8];
+    /// Input speed code from host termios representation.
+    inputSpeedCode: uint64;
+    /// Output speed code from host termios representation.
+    outputSpeedCode: uint64;
+}
+
+/// Read full POSIX termios attributes.
+@binding("destack.tty.termios.attributes.read", {
+    effect: "external",
+    requires: ["host.tty.termios"],
+    families: ["unix"],
+    simulation: true,
+})
+export declare function readTermiosAttributes(
+    tty: TtyHandle,
+): Result<TermiosAttributes, HostError>;
+
+/// Apply full termios attributes to one terminal handle.
+@binding("destack.tty.termios.attributes.set", {
+    effect: "external",
+    requires: ["host.tty.termios"],
+    families: ["unix"],
+    simulation: true,
+})
+export declare function setTermiosAttributes(
+    tty: TtyHandle,
+    attributes: &readonly TermiosAttributes,
+    action: TermiosSetAction,
+): Result<void, HostError>;
+
+/// Wait for pending output to drain on one terminal handle.
+@binding("destack.tty.termios.drain", {
+    effect: "external",
+    requires: ["host.tty.termios"],
+    families: ["unix"],
+    simulation: true,
+})
+export declare function drainTermios(tty: TtyHandle): Result<void, HostError>;
+
+/// Flush one terminal queue.
+@binding("destack.tty.termios.flush", {
+    effect: "external",
+    requires: ["host.tty.termios"],
+    families: ["unix"],
+    simulation: true,
+})
+export declare function flushTermios(
+    tty: TtyHandle,
+    queue: TermiosQueue,
+): Result<void, HostError>;
+
+/// Apply terminal flow control action.
+@binding("destack.tty.termios.flow", {
+    effect: "external",
+    requires: ["host.tty.termios"],
+    families: ["unix"],
+    simulation: true,
+})
+export declare function flowTermios(
+    tty: TtyHandle,
+    action: TermiosFlowAction,
+): Result<void, HostError>;
+
+/// Send one terminal break condition.
+@binding("destack.tty.termios.break.send", {
+    effect: "external",
+    requires: ["host.tty.termios"],
+    families: ["unix"],
+    simulation: true,
+})
+export declare function sendTermiosBreak(
+    tty: TtyHandle,
+    duration: uint32,
+): Result<void, HostError>;
+
+/// Read controlling terminal process group id.
+@binding("destack.tty.termios.processGroup.read", {
+    effect: "external",
+    requires: ["host.tty.termios"],
+    families: ["unix"],
+    simulation: true,
+})
+export declare function readTermiosProcessGroup(tty: TtyHandle): Result<ProcessId, HostError>;
+
+/// Set controlling terminal process group id.
+@binding("destack.tty.termios.processGroup.set", {
+    effect: "external",
+    requires: ["host.tty.termios"],
+    families: ["unix"],
+    simulation: true,
+})
+export declare function setTermiosProcessGroup(
+    tty: TtyHandle,
+    processGroupId: ProcessId,
+): Result<void, HostError>;

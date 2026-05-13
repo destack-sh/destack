@@ -1,0 +1,20 @@
+import { HostError } from "destack:error/host";
+
+/// Operating-system capacity.
+export struct OsCapacity {
+    /// Logical processor count.
+    logicalProcessorCount: uint32;
+    /// Total physical memory bytes.
+    totalMemoryBytes: uint64;
+    /// Virtual-memory page size bytes.
+    pageSizeBytes: uint64;
+}
+
+/// Read operating-system capacity.
+@binding("destack.os.capacity.read", {
+    effect: "external",
+    requires: ["host.os.capacity.read"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function readOsCapacity(): Result<OsCapacity, HostError>;

@@ -1,0 +1,74 @@
+import { Array, PackedArray } from "destack:collections";
+import { HostError } from "destack:error/host";
+import { IpAddress } from "./address.ds";
+
+/// Network interface flags.
+export newtype NetworkInterfaceFlags = uint64;
+
+/// Interface is administratively up.
+export const NETWORK_INTERFACE_UP: NetworkInterfaceFlags = NetworkInterfaceFlags(0x1);
+
+/// Interface is a loopback interface.
+export const NETWORK_INTERFACE_LOOPBACK: NetworkInterfaceFlags = NetworkInterfaceFlags(0x2);
+
+/// Interface supports broadcast.
+export const NETWORK_INTERFACE_BROADCAST: NetworkInterfaceFlags = NetworkInterfaceFlags(0x4);
+
+/// Interface supports multicast.
+export const NETWORK_INTERFACE_MULTICAST: NetworkInterfaceFlags = NetworkInterfaceFlags(0x8);
+
+/// Interface is point-to-point.
+export const NETWORK_INTERFACE_POINT_TO_POINT: NetworkInterfaceFlags = NetworkInterfaceFlags(0x10);
+
+/// Network interface address.
+export struct NetworkInterfaceAddress {
+    /// Interface address.
+    address: IpAddress;
+    /// Prefix length in bits.
+    prefixLength: uint8;
+}
+
+/// Network interface descriptor.
+export struct NetworkInterface {
+    /// Interface name.
+    name: string;
+    /// Interface index.
+    index: uint32;
+    /// Interface flags.
+    flags: NetworkInterfaceFlags;
+    /// Interface MTU in bytes.
+    mtu: uint32;
+    /// Link-layer hardware address.
+    hardwareAddress: [uint8];
+    /// Interface addresses.
+    addresses: Array<NetworkInterfaceAddress>;
+}
+
+/// List network interfaces.
+@binding("destack.net.interface.list", {
+    effect: "external",
+    requires: ["host.net.interface"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function listNetworkInterfaces(): Result<PackedArray<NetworkInterface>, HostError>;
+
+/// Resolve an interface name to an index.
+@binding("destack.net.interface.index", {
+    effect: "external",
+    requires: ["host.net.interface"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function networkInterfaceIndex(
+    name: &readonly string,
+): Result<uint32, HostError>;
+
+/// Resolve an interface index to a name.
+@binding("destack.net.interface.name", {
+    effect: "external",
+    requires: ["host.net.interface"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function networkInterfaceName(index: uint32): Result<^string, HostError>;

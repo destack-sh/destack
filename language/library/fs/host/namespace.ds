@@ -1,0 +1,141 @@
+import { HostError } from "destack:error/host";
+import { FilesystemEntry } from "./entry.ds";
+import { Path, PathBuffer } from "./path.ds";
+import { FileMode } from "./status.ds";
+
+/// Rename operation flags.
+export newtype FilesystemRenameFlags = uint32;
+
+/// Reject replacing an existing destination.
+export const FILESYSTEM_RENAME_NO_REPLACE: FilesystemRenameFlags = FilesystemRenameFlags(0x1);
+
+/// Exchange the source and destination entries atomically.
+export const FILESYSTEM_RENAME_EXCHANGE: FilesystemRenameFlags = FilesystemRenameFlags(0x2);
+
+/// Create a whiteout entry as part of the rename when supported.
+export const FILESYSTEM_RENAME_WHITEOUT: FilesystemRenameFlags = FilesystemRenameFlags(0x4);
+
+/// Link operation flags.
+export newtype FilesystemLinkFlags = uint32;
+
+/// Follow a symlink source where the host operation supports it.
+export const FILESYSTEM_LINK_FOLLOW: FilesystemLinkFlags = FilesystemLinkFlags(0x1);
+
+/// Symlink target type hint.
+export enum FilesystemSymlinkKind {
+    /// Let the runtime infer the target type.
+    Auto = 0,
+    /// Create a symlink to a file.
+    File = 1,
+    /// Create a symlink to a directory.
+    Directory = 2,
+}
+
+/// Node device identifier.
+export newtype FilesystemNodeDevice = uint64;
+
+/// Host filesystem node creation options.
+export struct FilesystemNodeOptions {
+    /// File mode including file type bits.
+    mode: FileMode;
+    /// Device identifier for device nodes.
+    device: FilesystemNodeDevice;
+}
+
+/// Rename or exchange one filesystem entry.
+@binding("destack.fs.namespace.rename", {
+    effect: "external",
+    requires: ["host.fs.write"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function renameEntry(
+    from: &readonly FilesystemEntry,
+    to: &readonly FilesystemEntry,
+    flags: FilesystemRenameFlags,
+): Result<void, HostError>;
+
+/// Remove one non-directory filesystem entry.
+@binding("destack.fs.namespace.unlink", {
+    effect: "external",
+    requires: ["host.fs.write"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function unlinkEntry(
+    entry: &readonly FilesystemEntry,
+): Result<void, HostError>;
+
+/// Create one hard link.
+@binding("destack.fs.namespace.link", {
+    effect: "external",
+    requires: ["host.fs.link"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function linkEntry(
+    existing: &readonly FilesystemEntry,
+    created: &readonly FilesystemEntry,
+    flags: FilesystemLinkFlags,
+): Result<void, HostError>;
+
+/// Create one symbolic link.
+@binding("destack.fs.namespace.symlink", {
+    effect: "external",
+    requires: ["host.fs.link"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function symlinkEntry(
+    target: &readonly Path,
+    created: &readonly FilesystemEntry,
+    kind: FilesystemSymlinkKind,
+): Result<void, HostError>;
+
+/// Read a symbolic link into an output buffer.
+@binding("destack.fs.namespace.readLink", {
+    effect: "external",
+    requires: ["host.fs.read"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function readSymlink(
+    entry: &readonly FilesystemEntry,
+    buffer: &PathBuffer,
+): Result<uint64, HostError>;
+
+/// Resolve an entry into an output buffer.
+@binding("destack.fs.namespace.canonicalize", {
+    effect: "external",
+    requires: ["host.fs.metadata"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function canonicalizeEntry(
+    entry: &readonly FilesystemEntry,
+    buffer: &PathBuffer,
+): Result<uint64, HostError>;
+
+/// Create one FIFO node.
+@binding("destack.fs.namespace.fifo", {
+    effect: "external",
+    requires: ["host.fs.node"],
+    families: ["unix"],
+    simulation: true,
+})
+export declare function createFifoEntry(
+    entry: &readonly FilesystemEntry,
+    mode: FileMode,
+): Result<void, HostError>;
+
+/// Create one host filesystem node.
+@binding("destack.fs.namespace.node", {
+    effect: "external",
+    requires: ["host.fs.node"],
+    families: ["unix"],
+    simulation: true,
+})
+export declare function createNodeEntry(
+    entry: &readonly FilesystemEntry,
+    options: FilesystemNodeOptions,
+): Result<void, HostError>;
