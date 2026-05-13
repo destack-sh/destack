@@ -359,11 +359,9 @@ fn collect_emit_diagnostics(
             diagnostics.merge_from(&artifact_diagnostics);
         }
 
+        let key = ArtifactKey::package_output(package_id, target_id);
         let artifact_diagnostics = repository
-            .artifact_diagnostics(
-                revision,
-                &ArtifactKey::package_output(package_id, target_id),
-            )
+            .diagnostics(revision, Some(key))
             .unwrap_or_else(|error| panic!("failed to read package diagnostics: {error}"));
         diagnostics.merge_from(&artifact_diagnostics);
     }

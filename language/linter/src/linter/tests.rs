@@ -119,15 +119,15 @@ impl TestProviderContext {
     }
 }
 
-/// Seed one source-derived artifact for linter compiler tests.
-fn provide_source_artifact(compiler: &Compiler, context: &TestProviderContext) -> ArtifactPayload {
+/// Seed one loader-owned artifact for linter compiler tests.
+fn provide_loader_artifact(compiler: &Compiler, context: &TestProviderContext) -> ArtifactPayload {
     match context.artifact_key() {
         ArtifactKey::Ast { module } => provide_ast(compiler, module, context),
         ArtifactKey::Data { module } => {
-            panic!("data artifact reached linter test source provider for {module:?}")
+            panic!("data artifact reached linter test loader provider for {module:?}")
         }
         artifact_key => {
-            panic!("non source artifact reached linter test source provider: {artifact_key:?}")
+            panic!("non loader artifact reached linter test loader provider: {artifact_key:?}")
         }
     }
 }
@@ -920,8 +920,8 @@ impl TestProgram {
             ));
 
             match artifact_key.provider() {
-                ArtifactProvider::Source => {
-                    let payload = provide_source_artifact(self.compiler.as_ref(), context.as_ref());
+                ArtifactProvider::Loader => {
+                    let payload = provide_loader_artifact(self.compiler.as_ref(), context.as_ref());
                     context.publish(payload);
 
                     continue;
@@ -992,7 +992,7 @@ impl TestProgram {
             for artifact_key in artifact_keys {
                 let artifact_diagnostics = self
                     .repository
-                    .artifact_diagnostics(revision, &artifact_key)
+                    .diagnostics(revision, Some(artifact_key))
                     .unwrap_or_else(|error| {
                         panic!("failed to read diagnostics for {artifact_key:?}: {error}")
                     });

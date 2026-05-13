@@ -24,7 +24,7 @@ pub(super) fn diagnostics_by_file(
     repository: &Repository,
     revision: Revision,
 ) -> Result<HashMap<FileId, Vec<Diagnostic>>, LanguageServiceError> {
-    let diagnostics = repository.diagnostics(revision)?;
+    let diagnostics = repository.diagnostics(revision, None)?;
     let mut diagnostics_by_file = HashMap::new();
 
     // group diagnostics by the file that owns the primary label

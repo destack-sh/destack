@@ -84,12 +84,18 @@ impl Compiler {
             TargetDiscoveryError::RepositoryRead {
                 package,
                 target,
-                message,
+                error,
             } => LinkError::InvalidTarget {
                 anchor: package.into(),
                 package,
                 target,
-                message,
+                message: error.to_string(),
+            },
+            TargetDiscoveryError::MissingPackage { package, target } => LinkError::InvalidTarget {
+                anchor: package.into(),
+                package,
+                target,
+                message: "target package not found".to_string(),
             },
             TargetDiscoveryError::MissingPackagePath { package, target } => {
                 LinkError::InvalidTarget {

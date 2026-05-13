@@ -360,7 +360,7 @@ impl CompilerContext {
     fn collect_module_diagnostics(&self, revision: Revision) -> CliResult<DiagnosticCollection> {
         let diagnostics = self
             .repository
-            .diagnostics(revision)
+            .diagnostics(revision, None)
             .map_err(|error| CliError::message(error.to_string()))?;
 
         Ok(diagnostics)
