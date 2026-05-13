@@ -6,7 +6,7 @@ use destack_source::{File, FileId, FileType, ModuleId, Span};
 use crate::{ProviderAttempt, SessionError, SessionState};
 
 impl SessionState {
-    /// Provide one data artifact from source.
+    /// Provide one data artifact through the selected loader.
     pub(crate) fn provide_data(
         &self,
         module_id: ModuleId,
@@ -17,20 +17,20 @@ impl SessionState {
             .repository()
             .module(revision, module_id)?
             .ok_or(SessionError::ModuleNotTracked { module_id })?;
-        let file = self.file(revision, module.file_id, attempt)?;
+        let file = self.source_file(revision, module.file_id, attempt)?;
         let data = match file.ty {
-            FileType::Html => self.parse_html_data(file.as_ref()),
-            FileType::Css => self.parse_css_data(file.as_ref())?,
+            FileType::Html => Self::parse_html_data(file.as_ref()),
+            FileType::Css => Self::parse_css_data(file.as_ref())?,
             FileType::Json => {
-                let value = self.parse_json_value(file.as_ref())?;
+                let value = Self::parse_json_value(file.as_ref())?;
                 Data::Json(value)
             }
             FileType::Toml => {
-                let value = self.parse_toml_value(file.id, file.text())?;
+                let value = Self::parse_toml_value(file.id, file.text())?;
                 Data::Json(value)
             }
             FileType::Yaml => {
-                let value = self.parse_yaml_value(file.id, file.text())?;
+                let value = Self::parse_yaml_value(file.id, file.text())?;
                 Data::Json(value)
             }
             file_type => {
@@ -44,7 +44,7 @@ impl SessionState {
     }
 
     /// Parse HTML content into a data artifact.
-    pub(crate) fn parse_html_data(&self, file: &File) -> Data {
+    fn parse_html_data(file: &File) -> Data {
         let source = file.text().to_string();
         let (tree, document) = parse_html(file, &source);
 
@@ -52,7 +52,7 @@ impl SessionState {
     }
 
     /// Parse CSS content into a data artifact.
-    pub(crate) fn parse_css_data(&self, file: &File) -> Result<Data, SessionError> {
+    fn parse_css_data(file: &File) -> Result<Data, SessionError> {
         let source = file.text().to_string();
         let (tree, stylesheet) =
             parse_css(file, &source).map_err(|error| SessionError::Internal {
@@ -66,7 +66,7 @@ impl SessionState {
     }
 
     /// Parse JSON content into a JSON value.
-    pub(crate) fn parse_json_value(&self, file: &File) -> Result<serde_json::Value, SessionError> {
+    fn parse_json_value(file: &File) -> Result<serde_json::Value, SessionError> {
         serde_json::from_str(file.text()).map_err(|error| {
             let offset = File::byte_offset_from_position(file.text(), error.line(), error.column());
             let span = Span::at(file.id, offset, 1);
@@ -78,11 +78,7 @@ impl SessionState {
     }
 
     /// Parse YAML content into a JSON value.
-    pub(crate) fn parse_yaml_value(
-        &self,
-        file_id: FileId,
-        content: &str,
-    ) -> Result<serde_json::Value, SessionError> {
+    fn parse_yaml_value(file_id: FileId, content: &str) -> Result<serde_json::Value, SessionError> {
         serde_yaml_ng::from_str(content).map_err(|error| {
             let span = error
                 .location()
@@ -105,11 +101,7 @@ impl SessionState {
 
     /// Parse TOML content into a JSON value.
     #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) fn parse_toml_value(
-        &self,
-        file_id: FileId,
-        content: &str,
-    ) -> Result<serde_json::Value, SessionError> {
+    fn parse_toml_value(file_id: FileId, content: &str) -> Result<serde_json::Value, SessionError> {
         let value: toml::Value = toml::from_str(content).map_err(|error| {
             let span = error
                 .span()
@@ -121,13 +113,12 @@ impl SessionState {
             }
         })?;
 
-        self.toml_to_json(value)
+        Self::toml_to_json(value)
     }
 
     /// Parse TOML content into a JSON value on wasm.
     #[cfg(target_arch = "wasm32")]
-    pub(crate) fn parse_toml_value(
-        &self,
+    fn parse_toml_value(
         file_id: FileId,
         _content: &str,
     ) -> Result<serde_json::Value, SessionError> {
@@ -141,7 +132,7 @@ impl SessionState {
 
     /// Convert a TOML value to a JSON value.
     #[cfg(not(target_arch = "wasm32"))]
-    fn toml_to_json(&self, toml: toml::Value) -> Result<serde_json::Value, SessionError> {
+    fn toml_to_json(toml: toml::Value) -> Result<serde_json::Value, SessionError> {
         match toml {
             toml::Value::String(string) => Ok(serde_json::Value::String(string)),
             toml::Value::Integer(integer) => Ok(serde_json::Value::Number(integer.into())),
@@ -158,7 +149,7 @@ impl SessionState {
             toml::Value::Array(array) => {
                 let array = array
                     .into_iter()
-                    .map(|value| self.toml_to_json(value))
+                    .map(Self::toml_to_json)
                     .collect::<Result<_, _>>()?;
 
                 Ok(serde_json::Value::Array(array))
@@ -166,7 +157,7 @@ impl SessionState {
             toml::Value::Table(table) => {
                 let table = table
                     .into_iter()
-                    .map(|(key, value)| Ok((key, self.toml_to_json(value)?)))
+                    .map(|(key, value)| Ok((key, Self::toml_to_json(value)?)))
                     .collect::<Result<_, SessionError>>()?;
 
                 Ok(serde_json::Value::Object(table))

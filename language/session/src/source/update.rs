@@ -2,11 +2,9 @@ use std::collections::HashSet;
 use std::path::Path;
 
 use destack_source::{FileContent, FileId, Uri};
-use destack_workspace::{Edit, Ref, Repository, Revision};
+use destack_workspace::{Edit, Ref, Repository, RepositoryChange, Revision};
 
-use crate::{
-    FileChange, FileUpdate, FileUpdateKind, Session, SessionError, apply_edits, edit_file_ids,
-};
+use crate::{FileChange, FileUpdate, FileUpdateKind, Session, SessionError};
 
 impl Session {
     /// Apply one explicit file change through one ref.
@@ -19,9 +17,10 @@ impl Session {
         let _mutation_guard = self.enter_mutation();
         let repository = self.repository();
         let before = self.revision(reference)?;
-        let edits = self.edits_for_file(repository.as_ref(), path, update);
-        let file_ids = edit_file_ids(&edits);
-        let revision = apply_edits(repository.as_ref(), before, edits)?;
+        let edit = Self::edit_for_file(repository.as_ref(), path, update);
+        let change = RepositoryChange::from_edit(edit);
+        let file_ids = change.file_ids().to_vec();
+        let revision = repository.commit_change(before, change)?;
         let files = self.project_file_updates(before, revision, file_ids)?;
 
         self.set_ref(reference, revision)?;
@@ -30,24 +29,16 @@ impl Session {
     }
 
     /// Build source edits from one file change.
-    fn edits_for_file(
-        &self,
-        repository: &Repository,
-        path: &Path,
-        update: FileChange,
-    ) -> Vec<Edit> {
-        // build the repository edit
+    fn edit_for_file(repository: &Repository, path: &Path, update: FileChange) -> Edit {
         let logical_path = repository.logical_path(path);
-        let edit = match update {
+        match update {
             FileChange::Text { content } => Edit::set_text(logical_path, content),
             FileChange::Bytes { content } => Edit::SetFile {
                 logical_path,
                 content: FileContent::Binary { content },
             },
             FileChange::Removed => Edit::remove_file(logical_path),
-        };
-
-        vec![edit]
+        }
     }
 
     /// Project repository file changes into session file updates.

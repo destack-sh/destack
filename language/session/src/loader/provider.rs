@@ -7,8 +7,8 @@ use destack_workspace::{ProviderContext, Revision};
 use crate::{ProviderAttempt, SessionError, SessionState};
 
 impl SessionState {
-    /// Provide one source-derived artifact for a fixed revision.
-    pub(crate) fn provide_source(
+    /// Provide one loader-owned artifact for a fixed revision.
+    pub(crate) fn provide_loader(
         &self,
         attempt: &ProviderAttempt,
     ) -> Result<ArtifactPayload, SessionError> {
@@ -16,24 +16,23 @@ impl SessionState {
             ArtifactKey::Ast { module } => self.provide_ast(module, attempt),
             ArtifactKey::Data { module } => self.provide_data(module, attempt),
             artifact_key => Err(SessionError::Internal {
-                detail: format!("non source artifact reached source provider: {artifact_key:?}"),
+                detail: format!("non loader artifact reached loader provider: {artifact_key:?}"),
             }),
         }
     }
 
     /// Load one source file and record its exact content dependency.
-    pub(super) fn file(
+    pub(super) fn source_file(
         &self,
         revision: Revision,
         file_id: FileId,
         attempt: &ProviderAttempt,
     ) -> Result<Arc<File>, SessionError> {
-        let content_id = self
-            .repository()
+        let repository = self.repository();
+        let content_id = repository
             .file_content_id(revision, file_id)?
             .ok_or(SessionError::FileNotTracked { file_id })?;
-        let file = self
-            .repository()
+        let file = repository
             .file(revision, file_id)?
             .ok_or(SessionError::FileNotTracked { file_id })?;
 

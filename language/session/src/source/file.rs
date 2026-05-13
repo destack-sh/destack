@@ -17,32 +17,32 @@ pub enum FileChange {
 /// One coarse kind for a file change.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum FileUpdateKind {
-    /// One unknown or ordinary source change.
-    Unknown,
+    /// One ordinary source change.
+    Source,
     /// One `destack.json` change.
-    Destack,
+    Config,
 }
 
 impl FileUpdateKind {
     /// Return the coarse change kind for one path.
     pub(crate) fn for_path(path: &Path) -> Self {
         let Some(file_name) = path.file_name().and_then(|name| name.to_str()) else {
-            return Self::Unknown;
+            return Self::Source;
         };
 
         // destack manifest
         if file_name == "destack.json" {
-            Self::Destack
+            Self::Config
         }
         // ordinary source
         else {
-            Self::Unknown
+            Self::Source
         }
     }
 
     /// Return true when this kind is one config change.
     pub(crate) fn is_config_change(&self) -> bool {
-        matches!(self, Self::Destack)
+        matches!(self, Self::Config)
     }
 }
 

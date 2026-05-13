@@ -46,11 +46,6 @@ impl Run {
         &self.roots
     }
 
-    /// Return true when one worker has aborted this run.
-    pub(super) fn is_aborted(&self) -> bool {
-        self.error.lock().is_some()
-    }
-
     /// Record the first infrastructure error for this run.
     pub(super) fn abort(&self, error: SessionError) {
         let mut existing_error = self.error.lock();

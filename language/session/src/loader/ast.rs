@@ -9,7 +9,7 @@ use destack_workspace::ProviderContext;
 use crate::{ProviderAttempt, SessionError, SessionState};
 
 impl SessionState {
-    /// Provide one AST artifact from source.
+    /// Provide one AST artifact through the selected loader.
     pub(crate) fn provide_ast(
         &self,
         module_id: ModuleId,
@@ -20,20 +20,20 @@ impl SessionState {
             .repository()
             .module(revision, module_id)?
             .ok_or(SessionError::ModuleNotTracked { module_id })?;
-        let file = self.file(revision, module.file_id, attempt)?;
+        let file = self.source_file(revision, module.file_id, attempt)?;
 
         // parse real code modules only
         let ast = if module.loader.is_code() && file.ty.is_code() {
             self.parse_code_ast(file.clone(), module.package_id, attempt)?
         } else {
-            self.empty_ast(file.as_ref())
+            Self::make_empty_ast(file.as_ref())
         };
 
         Ok(ArtifactPayload::Ast(ast))
     }
 
     /// Build one empty AST for non-code source.
-    fn empty_ast(&self, file: &File) -> Ast {
+    fn make_empty_ast(file: &File) -> Ast {
         let mut tree = ast::Tree::new();
         let span = Span::empty(file.id);
         let root_expression = tree.insert(
@@ -51,6 +51,8 @@ impl SessionState {
         _package_id: PackageId,
         attempt: &ProviderAttempt,
     ) -> Result<Ast, SessionError> {
+        let repository = self.repository();
+
         // figure out language
         let language_type =
             LanguageType::try_from(file.ty).map_err(|_| SessionError::Internal {
@@ -61,7 +63,7 @@ impl SessionState {
             file.clone(),
             language_type,
             ParserOptions::default(),
-            self.repository().string_pool().clone(),
+            repository.string_pool().clone(),
         );
         let expressions = parser.parse();
         attempt.emit_collection(parser.diagnostics.collect());

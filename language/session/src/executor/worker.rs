@@ -203,9 +203,9 @@ impl Worker {
     /// Call the provider that owns one artifact key.
     fn call_provider(&self, attempt: &ProviderAttempt) -> ProviderResult<ArtifactPayload> {
         match attempt.key().provider() {
-            ArtifactProvider::Source => self
+            ArtifactProvider::Loader => self
                 .session
-                .provide_source(attempt)
+                .provide_loader(attempt)
                 .map_err(|error| ProviderError::internal(error.to_string()).into()),
             ArtifactProvider::Compiler => self.session.compiler().provide(attempt),
             ArtifactProvider::Linter => self.session.linter().provide(attempt),
