@@ -47,9 +47,9 @@ export type StackTraceOptions = {
 };
 
 /// Capture a structured stack trace for the current Worker.
-@intrinsic("stack.capture")
+@intrinsic("error.stack.capture")
 export declare function captureStackTrace(options?: StackTraceOptions): StackTrace;
 
 /// Format a structured stack trace as diagnostic text.
-@intrinsic("stack.format")
+@intrinsic("error.stack.format")
 export declare function formatStackTrace(trace: StackTrace): string;

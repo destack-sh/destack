@@ -1,7 +1,7 @@
 /// Trigger a debugger breakpoint.
-@intrinsic("breakpoint")
+@intrinsic("error.debug.breakpoint")
 export declare function breakpoint(): void;
 
 /// Hide a value from optimization.
-@intrinsic("blackBox")
+@intrinsic("error.debug.blackBox")
 export declare function blackBox<T>(value: T): T;

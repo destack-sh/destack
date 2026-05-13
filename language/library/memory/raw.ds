@@ -1,129 +1,129 @@
 /// Return a well-aligned dangling raw pointer.
 @unsafe
-@intrinsic("ptr.dangling")
+@intrinsic("memory.ptr.dangling")
 export declare function dangling<T>(): *T;
 
 /// Cast `pointer` to another element type.
 @unsafe
-@intrinsic("ptr.cast")
+@intrinsic("memory.ptr.cast")
 export declare function cast<T, U>(pointer: *T): *U;
 
 /// Offset `pointer` by `count` elements.
 @unsafe
-@intrinsic("ptr.offset")
+@intrinsic("memory.ptr.offset")
 export declare function offset<T>(pointer: *T, count: int): *T;
 
 /// Return the element offset from `origin` to `pointer`.
 @unsafe
-@intrinsic("ptr.offsetFrom")
+@intrinsic("memory.ptr.offsetFrom")
 export declare function offsetFrom<T>(pointer: *T, origin: *T): int;
 
 /// Borrow the pointed-to value.
 @unsafe
-@intrinsic("ptr.asReference")
+@intrinsic("memory.ptr.asReference")
 export declare function asReference<T>(pointer: *T): &T;
 
 /// Borrow the pointed-to value with readonly access.
 @unsafe
-@intrinsic("ptr.asReadonlyReference")
+@intrinsic("memory.ptr.asReadonlyReference")
 export declare function asReadonlyReference<T>(pointer: *T): &readonly T;
 
 /// Borrow the pointed-to value with exclusive access.
 @unsafe
-@intrinsic("ptr.asExclusive")
+@intrinsic("memory.ptr.asExclusive")
 export declare function asExclusive<T>(pointer: *T): &exclusive T;
 
 /// Read a value from `source`.
 @unsafe
-@intrinsic("ptr.read")
+@intrinsic("memory.ptr.read")
 export declare function read<T>(source: *T): ^T;
 
 /// Perform a volatile read from `source`.
 @unsafe
-@intrinsic("ptr.readVolatile")
+@intrinsic("memory.ptr.readVolatile")
 export declare function readVolatile<T>(source: *T): ^T;
 
 /// Write `value` into `destination`.
 @unsafe
-@intrinsic("ptr.write")
+@intrinsic("memory.ptr.write")
 export declare function write<T>(destination: *T, value: ^T): void;
 
 /// Perform a volatile write to `destination`.
 @unsafe
-@intrinsic("ptr.writeVolatile")
+@intrinsic("memory.ptr.writeVolatile")
 export declare function writeVolatile<T>(destination: *T, value: ^T): void;
 
 /// Replace the value at `destination`.
 @unsafe
-@intrinsic("ptr.replace")
+@intrinsic("memory.ptr.replace")
 export declare function replace<T>(destination: *T, value: ^T): ^T;
 
 /// Swap the values at `a` and `b`.
 @unsafe
-@intrinsic("ptr.swap")
+@intrinsic("memory.ptr.swap")
 export declare function swap<T>(a: *T, b: *T): void;
 
 /// Drop the value at `destination`.
 @unsafe
-@intrinsic("ptr.dropInPlace")
+@intrinsic("memory.ptr.dropInPlace")
 export declare function dropInPlace<T>(destination: *T): void;
 
 /// Copy non-overlapping bytes from `source` to `destination`.
 @unsafe
-@intrinsic("memcpy")
+@intrinsic("memory.raw.copyBytes")
 export declare function memcpy(destination: *void, source: *void, length: usize): void;
 
 /// Copy bytes from `source` to `destination`, allowing overlap.
 @unsafe
-@intrinsic("memmove")
+@intrinsic("memory.raw.moveBytes")
 export declare function memmove(destination: *void, source: *void, length: usize): void;
 
 /// Fill bytes at `destination` with `value`.
 @unsafe
-@intrinsic("memset")
+@intrinsic("memory.raw.setBytes")
 export declare function memset(destination: *void, value: uint8, length: usize): void;
 
 /// Compare raw bytes lexicographically.
 @unsafe
-@intrinsic("memcmp")
+@intrinsic("memory.raw.compareBytes")
 export declare function memcmp(a: *void, b: *void, length: usize): int32;
 
 /// Copy `count` values from `source` to `destination`, allowing overlap.
 @unsafe
-@intrinsic("ptr.copy")
+@intrinsic("memory.ptr.copy")
 export declare function copy<T>(destination: *T, source: *T, count: usize): void;
 
 /// Copy `count` values from `source` to `destination` without overlap.
 @unsafe
-@intrinsic("ptr.copyNonOverlapping")
+@intrinsic("memory.ptr.copyNonOverlapping")
 export declare function copyNonOverlapping<T>(destination: *T, source: *T, count: usize): void;
 
 /// Fill `count` values at `destination` with byte `value`.
 @unsafe
-@intrinsic("ptr.writeBytes")
+@intrinsic("memory.ptr.writeBytes")
 export declare function writeBytes<T>(destination: *T, value: uint8, count: usize): void;
 
 /// Hint that `address` will be read soon.
 @unsafe
-@intrinsic("prefetch.read")
+@intrinsic("memory.raw.prefetchRead")
 export declare function prefetchRead(address: *void): void;
 
 /// Hint that `address` will be written soon.
 @unsafe
-@intrinsic("prefetch.write")
+@intrinsic("memory.raw.prefetchWrite")
 export declare function prefetchWrite(address: *void): void;
 
 /// Reinterpret `value` as `U` without conversion.
 @unsafe
-@intrinsic("transmute")
+@intrinsic("memory.raw.transmute")
 export declare function transmute<T, U>(value: T): U;
 
 /// Return the byte offset from `start` to `end`.
 @unsafe
-@intrinsic("ptr_offset_from")
+@intrinsic("memory.ptr.byteOffsetFrom")
 export declare function ptrOffsetFrom(start: *void, end: *void): int;
 
 /// Return whether two values have identical raw bytes.
 @unsafe
-@intrinsic("raw_eq")
+@intrinsic("memory.raw.eq")
 export declare function rawEq<T>(a: T, b: T): boolean;

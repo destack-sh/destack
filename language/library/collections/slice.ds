@@ -20,7 +20,7 @@ extension<T> of Slice<T> implements
 
     /// Build a raw slice from raw storage.
     @unsafe
-    @intrinsic("slice.fromRaw")
+    @intrinsic("collections.slice.fromRaw")
     static fromRaw(data: *T, length: usize): Raw<Slice<T>>;
 
     /// Return the number of elements.
@@ -29,7 +29,7 @@ extension<T> of Slice<T> implements
     }
 
     /// Return the number of elements.
-    @intrinsic("slice.length")
+    @intrinsic("collections.slice.length")
     get size(): usize;
 
     /// Return whether this slice has no elements.
@@ -39,12 +39,12 @@ extension<T> of Slice<T> implements
 
     /// Load one element without bounds checks.
     @unsafe
-    @intrinsic("slice.get")
+    @intrinsic("collections.slice.get")
     unsafeGet(this: &readonly Slice<T>, index: usize): T;
 
     /// Store one element without bounds checks.
     @unsafe
-    @intrinsic("slice.set")
+    @intrinsic("collections.slice.set")
     unsafeSet(this: &exclusive Slice<T>, index: usize, value: T): void;
 
     /// Return the element at `index` by value.
@@ -123,15 +123,15 @@ extension<T> of Slice<T> implements
     }
 
     /// Borrow a contiguous range.
-    @intrinsic("slice.subslice")
+    @intrinsic("collections.slice.subslice")
     subslice(this: &Slice<T>, start: usize, length: usize): &Slice<T>;
 
     /// Borrow a readonly contiguous range.
-    @intrinsic("slice.subslice")
+    @intrinsic("collections.slice.subslice")
     subslice(this: &readonly Slice<T>, start: usize, length: usize): &readonly Slice<T>;
 
     /// Borrow an exclusive contiguous range.
-    @intrinsic("slice.subslice")
+    @intrinsic("collections.slice.subslice")
     subslice(this: &exclusive Slice<T>, start: usize, length: usize): &exclusive Slice<T>;
 
     /// Borrow a selected range.

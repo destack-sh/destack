@@ -3,11 +3,11 @@
 /// Saturating float to signed integer conversion.
 ///
 /// NaN converts to 0 and out of range values clamp to bounds.
-@intrinsic("fcvt_to_sint.sat")
+@intrinsic("math.cast.floatToSignedInt.saturating")
 export declare function floatToSignedIntSaturating<T: int, F: float>(value: F): T;
 
 /// Saturating float to unsigned integer conversion.
 ///
 /// NaN converts to 0 and out of range values clamp to bounds.
-@intrinsic("fcvt_to_uint.sat")
+@intrinsic("math.cast.floatToUnsignedInt.saturating")
 export declare function floatToUnsignedIntSaturating<T: int, F: float>(value: F): T;

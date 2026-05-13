@@ -5,24 +5,23 @@ export newtype Vector<T, comptime N: int> = T;
 /// Broadcast scalar to all lanes.
 ///
 /// Creates a vector with all lanes set to the same scalar value.
-@intrinsic("splat")
+@intrinsic("math.vector.splat")
 export declare function splat<T, comptime N: int>(value: T): Vector<T, N>;
 
 /// Shuffle vector lanes.
 ///
 /// Rearranges elements from two input vectors according to a mask.
 /// Each element in the result comes from either `a` or `b` as specified by the mask.
-@intrinsic("shuffle")
-export declare function shuffle<T, comptime N: int, comptime M: int>(
+@intrinsic("math.vector.shuffle")
+export declare function shuffle<T, comptime N: int, comptime M: int, comptime Mask: [uint32; M]>(
     a: Vector<T, N>,
     b: Vector<T, N>,
-    mask: Vector<int, M>,
 ): Vector<T, M>;
 
 /// Per-lane conditional select.
 ///
 /// Returns a[i] if mask[i] is true, otherwise b[i], for each lane.
-@intrinsic("select")
+@intrinsic("math.vector.select")
 export declare function select<T, comptime N: int>(
     mask: Vector<boolean, N>,
     a: Vector<T, N>,
@@ -30,29 +29,29 @@ export declare function select<T, comptime N: int>(
 ): Vector<T, N>;
 
 /// Horizontal reduction: sum all lanes.
-@intrinsic("reduce.add")
+@intrinsic("math.vector.reduce.add")
 export declare function reduceAdd<T, comptime N: int>(v: Vector<T, N>): T;
 
 /// Horizontal reduction: multiply all lanes.
-@intrinsic("reduce.mul")
+@intrinsic("math.vector.reduce.mul")
 export declare function reduceMul<T, comptime N: int>(v: Vector<T, N>): T;
 
 /// Horizontal reduction: minimum of all lanes.
-@intrinsic("reduce.min")
+@intrinsic("math.vector.reduce.min")
 export declare function reduceMin<T, comptime N: int>(v: Vector<T, N>): T;
 
 /// Horizontal reduction: maximum of all lanes.
-@intrinsic("reduce.max")
+@intrinsic("math.vector.reduce.max")
 export declare function reduceMax<T, comptime N: int>(v: Vector<T, N>): T;
 
 /// Horizontal reduction: bitwise AND of all lanes.
-@intrinsic("reduce.and")
+@intrinsic("math.vector.reduce.and")
 export declare function reduceAnd<T: int, comptime N: int>(v: Vector<T, N>): T;
 
 /// Horizontal reduction: bitwise OR of all lanes.
-@intrinsic("reduce.or")
+@intrinsic("math.vector.reduce.or")
 export declare function reduceOr<T: int, comptime N: int>(v: Vector<T, N>): T;
 
 /// Horizontal reduction: bitwise XOR of all lanes.
-@intrinsic("reduce.xor")
+@intrinsic("math.vector.reduce.xor")
 export declare function reduceXor<T: int, comptime N: int>(v: Vector<T, N>): T;

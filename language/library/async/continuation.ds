@@ -5,15 +5,15 @@ export newtype ContinuationHandle = uint64;
 
 extension of ContinuationHandle implements Drop {
     /// Resume this suspended execution frame.
-    @intrinsic("continuation.resume")
+    @intrinsic("async.continuation.resume")
     resume<TInput, TYield, TReturn>(value: TInput): ContinuationResult<TYield, TReturn>;
 
     /// Throw into this suspended execution frame.
-    @intrinsic("continuation.throw")
+    @intrinsic("async.continuation.throw")
     throw<TYield, TReturn>(error: unknown): ContinuationResult<TYield, TReturn>;
 
     /// Drop this suspended execution frame.
-    @intrinsic("continuation.drop")
+    @intrinsic("async.continuation.drop")
     drop(): void;
 }
 
@@ -44,11 +44,11 @@ export type ContinuationResult<TYield, TReturn> =
     | ContinuationThrow;
 
 /// Suspend the current continuation and register its handle.
-@intrinsic("continuation.suspend")
+@intrinsic("async.continuation.suspend")
 export declare function suspendContinuation<T>(
     register: (handle: ContinuationHandle) => void,
 ): T;
 
 /// Queue one Worker-local microtask.
-@intrinsic("microtask.queue")
+@intrinsic("async.microtask.queue")
 export declare function queueMicrotask(task: () => void): void;
