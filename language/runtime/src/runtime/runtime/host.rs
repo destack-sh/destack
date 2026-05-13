@@ -5,13 +5,11 @@ use crate::host::Session;
 use crate::runtime::poller::HostPoller;
 use crate::runtime::runtime::poller_for_backend;
 use crate::runtime::world::RuntimeId;
-use destack_workspace::{AppOptions, HostOptions, HostOsOptions, PollerBackend, RuntimeOptions};
+use destack_workspace::{AppOptions, HostOsOptions, PollerBackend, RuntimeOptions};
 
-/// Immutable runtime host reconstruction settings.
+/// Immutable runtime host settings captured for restore and fork.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RuntimeHostOptions {
-    /// Captured host options for runtime restore.
-    pub host_options: HostOptions,
     /// Captured OS service options for runtime restore.
     pub os_options: HostOsOptions,
     /// Captured app declaration for runtime restore.
@@ -21,13 +19,11 @@ pub struct RuntimeHostOptions {
 }
 
 impl RuntimeHostOptions {
-    /// Build one runtime host reconstruction configuration from runtime options.
+    /// Build one runtime host settings snapshot from runtime options.
     pub(crate) fn from_runtime_options(options: &RuntimeOptions) -> Self {
-        let (host_options, os_options, app_declaration) =
-            Session::restore_config_from_runtime_options(options);
+        let (os_options, app_declaration) = Session::host_options_from_runtime_options(options);
 
         Self {
-            host_options,
             os_options,
             app_declaration,
             poller_backend: options.scheduler_options().poller_backend,
@@ -36,15 +32,14 @@ impl RuntimeHostOptions {
 
     /// Build one host session for the given runtime id.
     pub(crate) fn host_session(&self, runtime_id: RuntimeId) -> Session {
-        Session::from_restore_config(
+        Session::from_runtime_host_options(
             runtime_id,
-            self.host_options.clone(),
             self.os_options.clone(),
             self.app_declaration.clone(),
         )
     }
 
-    /// Build one poller for this runtime configuration.
+    /// Build one poller for this runtime host settings snapshot.
     pub(crate) fn poller(&self) -> RuntimeResult<Box<dyn HostPoller>> {
         poller_for_backend(self.poller_backend)
     }

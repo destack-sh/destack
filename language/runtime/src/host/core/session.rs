@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use destack_artifact::Platform;
-use destack_workspace::{AppOptions, HostOptions, HostOsOptions, RuntimeOptions};
+use destack_workspace::{AppOptions, HostOsOptions, RuntimeOptions};
 
 use crate::diagnostic::RuntimeResult;
 use crate::host::core::adapter::{HostAdapter, PollResult};
@@ -39,8 +39,6 @@ pub struct Session {
 
     /// Static host action set reported by the host adapter.
     adapter_actions: ActionSet,
-    /// Resolved host integration options for this runtime target.
-    host_options: HostOptions,
     /// Resolved OS runtime options for host-backed services.
     os_options: HostOsOptions,
     /// Resolved target app declaration for request availability checks.
@@ -64,44 +62,21 @@ impl std::fmt::Debug for Session {
 }
 
 impl Session {
-    /// Capture host restore configuration from runtime options.
-    pub(crate) fn restore_config_from_runtime_options(
+    /// Capture runtime host options from runtime options.
+    pub(crate) fn host_options_from_runtime_options(
         options: &RuntimeOptions,
-    ) -> (HostOptions, HostOsOptions, AppOptions) {
-        let host_options = options.host.clone();
+    ) -> (HostOsOptions, AppOptions) {
         let os_options = options.host.os.clone();
-        let app_declaration = options.app.clone();
+        let app_declaration = AppOptions::default();
 
-        (host_options, os_options, app_declaration)
+        (os_options, app_declaration)
     }
 
-    /// Create one session from one explicit host adapter and host options.
-    pub(crate) fn new_with_options(
+    /// Create one session from one explicit host adapter.
+    pub(crate) fn new(
         adapter: Arc<dyn HostAdapter>,
         cleanup: Option<HostCleanup>,
         runtime_id: RuntimeId,
-        host_options: HostOptions,
-        os_options: HostOsOptions,
-        app_declaration: AppOptions,
-        is_native_ingress_enabled: bool,
-    ) -> Self {
-        Self::new_with_options_inner(
-            adapter,
-            cleanup,
-            runtime_id,
-            host_options,
-            os_options,
-            app_declaration,
-            is_native_ingress_enabled,
-        )
-    }
-
-    /// Create one session from one explicit host adapter and host options.
-    fn new_with_options_inner(
-        adapter: Arc<dyn HostAdapter>,
-        cleanup: Option<HostCleanup>,
-        runtime_id: RuntimeId,
-        host_options: HostOptions,
         os_options: HostOsOptions,
         app_declaration: AppOptions,
         is_native_ingress_enabled: bool,
@@ -128,7 +103,6 @@ impl Session {
             is_native_ingress_enabled,
             next_host_request_id: AtomicU64::new(1),
             adapter_actions,
-            host_options,
             os_options,
             app_declaration,
         }
@@ -138,35 +112,31 @@ impl Session {
     pub fn from_runtime_options(options: &RuntimeOptions, runtime_id: RuntimeId) -> Self {
         // resolve compile-target host integration once
         let (_platform, adapter, cleanup) = default_compile_target_parts();
-        let (host_options, os_options, app_declaration) =
-            Self::restore_config_from_runtime_options(options);
+        let (os_options, app_declaration) = Self::host_options_from_runtime_options(options);
 
-        Self::new_with_options(
+        Self::new(
             adapter,
             cleanup,
             runtime_id,
-            host_options,
             os_options,
             app_declaration,
             true,
         )
     }
 
-    /// Create one session from one captured host-restore configuration.
-    pub(crate) fn from_restore_config(
+    /// Create one session from captured runtime host options.
+    pub(crate) fn from_runtime_host_options(
         runtime_id: RuntimeId,
-        host_options: HostOptions,
         os_options: HostOsOptions,
         app_declaration: AppOptions,
     ) -> Self {
         // resolve compile-target host integration once
         let (_platform, adapter, cleanup) = default_compile_target_parts();
 
-        Self::new_with_options(
+        Self::new(
             adapter,
             cleanup,
             runtime_id,
-            host_options,
             os_options,
             app_declaration,
             true,
@@ -181,14 +151,12 @@ impl Session {
     ) -> Self {
         // resolve compile-target host integration once
         let (_platform, adapter, cleanup) = default_compile_target_parts();
-        let (host_options, os_options, app_declaration) =
-            Self::restore_config_from_runtime_options(options);
+        let (os_options, app_declaration) = Self::host_options_from_runtime_options(options);
 
-        Self::new_with_options_inner(
+        Self::new(
             adapter,
             cleanup,
             runtime_id,
-            host_options,
             os_options,
             app_declaration,
             is_native_ingress_enabled,
@@ -362,8 +330,8 @@ mod tests {
     use destack_workspace::{AppIntentOptions, AppNotificationOptions, AppOptions, HostOsOptions};
 
     use super::{
-        HostAdapter, HostCleanup, HostOptions, HostRequest, HostRequestOutcome, Platform,
-        RequestContext, RuntimeId, RuntimeResult, Session,
+        HostAdapter, HostCleanup, HostRequest, HostRequestOutcome, Platform, RequestContext,
+        RuntimeId, RuntimeResult, Session,
     };
     use crate::host::{HostRequestResult, HostSessionId};
     use crate::platform::os::abi_generated::DocumentPickOptionsValue;
@@ -435,17 +403,8 @@ mod tests {
         });
         let cleanup: Option<HostCleanup> = None;
         let runtime_id = RuntimeId(91);
-        let host_options = HostOptions::default();
         let os_options = HostOsOptions::default();
-        let session = Session::new_with_options(
-            adapter,
-            cleanup,
-            runtime_id,
-            host_options,
-            os_options,
-            app,
-            true,
-        );
+        let session = Session::new(adapter, cleanup, runtime_id, os_options, app, true);
 
         (session, submit_count)
     }
