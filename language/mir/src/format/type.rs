@@ -275,10 +275,10 @@ fn format_type_inner<'a>(
             access,
         } => {
             let kind_token = match kind {
-                ReferenceKind::Managed => None,
-                ReferenceKind::Unique => Some("unique"),
-                ReferenceKind::Borrowed => Some("borrowed"),
-                ReferenceKind::Raw => Some("raw"),
+                ReferenceKind::Managed => "managed",
+                ReferenceKind::Unique => "unique",
+                ReferenceKind::Borrowed => "borrowed",
+                ReferenceKind::Raw => "raw",
             };
             let address_space_token = if address_space.is_local() {
                 None
@@ -287,9 +287,7 @@ fn format_type_inner<'a>(
             };
 
             write!(f, [token("slice"), token("<"), element])?;
-            if let Some(kind_token) = kind_token {
-                write!(f, [token(","), space(), token(kind_token)])?;
-            }
+            write!(f, [token(","), space(), token(kind_token)])?;
             format_lifetime(lifetime, f)?;
             format_access(*access, f)?;
             if let Some(address_space) = address_space_token {

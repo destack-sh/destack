@@ -8,11 +8,25 @@ fn test_format_allocation_family() {
 function allocFamily(value0: int64): ref<int32, raw, space(stack)> {
 entry0(value0: int64):
     value1: ref<int32, managed> = new int32
-    value2: slice<int32> = new.slice int32, value0
+    value2: slice<int32, managed> = new.slice int32, value0
     value3: ref<int32, raw> = raw.alloc int32
     raw.free value3
     value4: ref<int32, raw, space(stack)> = stack.alloc int32
     return value4
+}
+"#,
+    );
+}
+
+/// Formats slice descriptors canonically.
+#[test]
+fn test_format_slice_descriptor() {
+    assert_format(
+        r#"
+function subslice(value0: slice<int32, borrowed, lifetime(0)>, value1: int64, value2: int64): slice<int32, borrowed, lifetime(0)> {
+entry0(value0: slice<int32, borrowed, lifetime(0)>, value1: int64, value2: int64):
+    value3: slice<int32, borrowed, lifetime(0)> = slice value0, value1, value2
+    return value3
 }
 "#,
     );
@@ -111,6 +125,20 @@ entry0(value0: ref<int32, managed>):
     value1: ref<int32, managed> = pin value0
     unpin value1
     drop value0
+    return
+}
+"#,
+    );
+}
+
+/// Formats projected drops canonically.
+#[test]
+fn test_format_projected_drop() {
+    assert_format(
+        r#"
+function cleanup(value0: slice<int32, unique>, value1: int64, value2: int64): void {
+entry0(value0: slice<int32, unique>, value1: int64, value2: int64):
+    drop place(value0, range(value1, value2))
     return
 }
 "#,

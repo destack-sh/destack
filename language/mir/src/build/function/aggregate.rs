@@ -99,6 +99,34 @@ impl<'a> FunctionBuilder<'a> {
         destination
     }
 
+    /// Construct a non-owning slice descriptor from a contiguous source region.
+    pub fn slice(
+        &mut self,
+        source: Value,
+        start: Value,
+        length: Value,
+        result_type: LocalNodeId<Type>,
+    ) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::Slice {
+            destination: destination.into(),
+            source: source.into(),
+            start: start.into(),
+            length: length.into(),
+            result_type: result_type.into(),
+        });
+        self.define_value_from_projection(
+            destination,
+            result_type,
+            source,
+            PlaceProjection::Range {
+                start: start.into(),
+                length: length.into(),
+            },
+        );
+        destination
+    }
+
     /// Insert a value into an array element.
     pub fn element_set(&mut self, array: Value, index: u32, value: Value) -> Value {
         let destination = self.allocate_value();

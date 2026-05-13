@@ -322,7 +322,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
 
             Instruction::Free { value } => write!(f, [token("free"), space(), value]),
 
-            Instruction::Drop { value } => write!(f, [token("drop"), space(), value]),
+            Instruction::Drop { place } => write!(f, [token("drop"), space(), place]),
 
             Instruction::BarrierWrite {
                 object,
@@ -459,6 +459,33 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         token(","),
                         space(),
                         index
+                    ]
+                )
+            }
+
+            Instruction::Slice {
+                destination,
+                source,
+                start,
+                length,
+                ..
+            } => {
+                format_typed_destination(*destination, f)?;
+                write!(
+                    f,
+                    [
+                        space(),
+                        token("="),
+                        space(),
+                        token("slice"),
+                        space(),
+                        source,
+                        token(","),
+                        space(),
+                        start,
+                        token(","),
+                        space(),
+                        length
                     ]
                 )
             }

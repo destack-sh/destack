@@ -7,11 +7,11 @@ use smallvec::{SmallVec, smallvec};
 use crate::{
     AllocationSize, ArgumentAttribute, AtomicAccess, AtomicRmwOperator, BinaryOperator, Call,
     CallBehavior, CompareExchangeAccess, Constant, DispatchSlot, FenceAccess, FunctionReference,
-    GlobalReference, Intrinsic, LocalReference, MemoryEffect, Node, NodeType, PointerAttribute,
-    TensorConvertMode, TensorConvolutionDimensionNumbers, TensorConvolutionWindow,
-    TensorDotDimensionNumbers, TensorGatherDimensionNumbers, TensorReduceOperator,
-    TensorScatterDimensionNumbers, TensorScatterMode, TypeReference, UnaryOperator, ValueReference,
-    VectorConvertMode, VectorReduceOperator,
+    GlobalReference, Intrinsic, LocalReference, MemoryEffect, Node, NodeType, Place,
+    PointerAttribute, TensorConvertMode, TensorConvolutionDimensionNumbers,
+    TensorConvolutionWindow, TensorDotDimensionNumbers, TensorGatherDimensionNumbers,
+    TensorReduceOperator, TensorScatterDimensionNumbers, TensorScatterMode, TypeReference,
+    UnaryOperator, ValueReference, VectorConvertMode, VectorReduceOperator,
 };
 
 /// Compact representation of an argument slice stored in an external buffer.
@@ -308,6 +308,19 @@ pub enum Instruction {
         ty: TypeReference,
         /// The element values (stored in Tree's argument buffer).
         elements: ArgumentSlice,
+    },
+    /// Construct a non-owning slice descriptor from a contiguous source region.
+    Slice {
+        /// The SSA value to define with the constructed slice.
+        destination: ValueReference,
+        /// The source slice value.
+        source: ValueReference,
+        /// The start index inside the source slice.
+        start: ValueReference,
+        /// The number of elements in the result.
+        length: ValueReference,
+        /// The result slice type.
+        result_type: TypeReference,
     },
 
     // vector operations (vector.splat, vector.extract, vector.insert, vector.shuffle, vector.reduce)
@@ -753,13 +766,12 @@ pub enum Instruction {
     },
 
     // ownership end
-    /// End ownership of a value (`drop`).
+    /// End ownership of a place (`drop`).
     ///
-    /// Drop work is represented by explicit MIR before this marker.
-    /// The marker consumes the value and makes later use invalid.
+    /// Drop elaboration consumes this instruction before runtime lowering.
     Drop {
-        /// The value to drop.
-        value: ValueReference,
+        /// The place to drop.
+        place: Place,
     },
 
     // address stability
@@ -901,6 +913,7 @@ impl Instruction {
             Instruction::Struct { destination, .. } => Some(*destination),
             Instruction::Tuple { destination, .. } => Some(*destination),
             Instruction::Array { destination, .. } => Some(*destination),
+            Instruction::Slice { destination, .. } => Some(*destination),
             Instruction::VectorSplat { destination, .. } => Some(*destination),
             Instruction::VectorExtract { destination, .. } => Some(*destination),
             Instruction::VectorInsert { destination, .. } => Some(*destination),
@@ -989,6 +1002,12 @@ impl Instruction {
             Instruction::ElementGet { array, .. } => smallvec![*array],
             Instruction::ElementAddr { array, index, .. } => smallvec![*array, *index],
             Instruction::ElementSet { array, value, .. } => smallvec![*array, *value],
+            Instruction::Slice {
+                source,
+                start,
+                length,
+                ..
+            } => smallvec![*source, *start, *length],
             // arguments stored externally - return empty
             Instruction::Struct { .. } => smallvec![],
             Instruction::Tuple { .. } => smallvec![],
@@ -1060,7 +1079,7 @@ impl Instruction {
             Instruction::RawAlloc { .. } => smallvec![],
             Instruction::RawFree { pointer } => smallvec![*pointer],
             Instruction::Free { value } => smallvec![*value],
-            Instruction::Drop { value } => smallvec![*value],
+            Instruction::Drop { place } => place.value_references(),
             Instruction::Pin { value, .. } => smallvec![*value],
             Instruction::Unpin { value } => smallvec![*value],
             Instruction::BarrierWrite {

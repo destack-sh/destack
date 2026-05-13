@@ -447,6 +447,29 @@ impl Tree {
 
                 places.set_projection(value, base, PlaceProjection::Dynamic { index: *index });
             }
+            Instruction::Slice {
+                destination,
+                source,
+                start,
+                length,
+                ..
+            } => {
+                let Some(value) = destination.value() else {
+                    return;
+                };
+                let Some(base) = source.value() else {
+                    return;
+                };
+
+                places.set_projection(
+                    value,
+                    base,
+                    PlaceProjection::Range {
+                        start: *start,
+                        length: *length,
+                    },
+                );
+            }
             Instruction::Cast {
                 destination,
                 argument,

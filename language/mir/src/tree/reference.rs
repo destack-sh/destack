@@ -34,6 +34,14 @@ impl ValueReference {
             Self::Missing | Self::Error => None,
         }
     }
+
+    /// Replace this reference when it points at one value.
+    #[inline]
+    pub fn replace_value(&mut self, from: Value, to: Value) {
+        if *self == Self::Value(from) {
+            *self = Self::Value(to);
+        }
+    }
 }
 
 /// One type reference.

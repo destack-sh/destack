@@ -547,7 +547,7 @@ impl Parser {
     fn parse_slice_qualifiers(
         &mut self,
     ) -> ParseResult<(ReferenceKind, Lifetime, AddressSpace, Access)> {
-        let mut kind = ReferenceKind::Managed;
+        let mut kind = None;
         let mut address_space = AddressSpace::Local;
         let mut access = Access::Mutable;
         let mut lifetime = Lifetime::empty();
@@ -569,10 +569,10 @@ impl Parser {
 
             if matches!(qualifier.ty, TokenType::Ownership | TokenType::Identifier) {
                 match qualifier_text {
-                    "managed" => kind = ReferenceKind::Managed,
-                    "unique" => kind = ReferenceKind::Unique,
-                    "borrowed" => kind = ReferenceKind::Borrowed,
-                    "raw" => kind = ReferenceKind::Raw,
+                    "managed" => kind = Some(ReferenceKind::Managed),
+                    "unique" => kind = Some(ReferenceKind::Unique),
+                    "borrowed" => kind = Some(ReferenceKind::Borrowed),
+                    "raw" => kind = Some(ReferenceKind::Raw),
                     _ => {}
                 }
                 if matches!(qualifier_text, "managed" | "unique" | "borrowed" | "raw") {
@@ -621,6 +621,7 @@ impl Parser {
             return Err(ParseError::invalid("slice qualifier", self.pos()));
         }
 
+        let kind = kind.ok_or_else(|| ParseError::invalid("slice kind", self.pos()))?;
         if kind != ReferenceKind::Borrowed && !lifetime.is_empty() {
             return Err(ParseError::invalid("borrowed lifetime", self.pos()));
         }

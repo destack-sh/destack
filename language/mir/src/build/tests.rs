@@ -818,10 +818,50 @@ fn test_build_new_slice() {
     let (tree, strings) = module.finish();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-function allocArrayTest(value0: int64): slice<int32> {
+function allocArrayTest(value0: int64): slice<int32, managed> {
 entry0(value0: int64):
-    value1: slice<int32> = new.slice int32, value0
+    value1: slice<int32, managed> = new.slice int32, value0
     return value1
+}";
+    assert_eq!(output, expected);
+}
+
+/// Slice descriptor instruction: slice.
+#[test]
+fn test_build_slice_descriptor() {
+    // setup
+    let mut module = ModuleBuilder::new();
+    let i32_type = module.type_i32();
+    let i64_type = module.type_i64();
+    let source_type = module.type_slice(i32_type);
+    let slice_type = module.type_slice_with_lifetime(
+        ReferenceKind::Borrowed,
+        i32_type,
+        Lifetime::parameter(0),
+        Access::Mutable,
+        AddressSpace::Local,
+    );
+
+    // build function with slice
+    let mut builder = module.function("sliceTest", &[source_type, i64_type, i64_type], slice_type);
+    let entry_block = builder.block();
+    builder.switch_to_block(entry_block);
+    let source_value = builder.function_parameter(0);
+    let start_value = builder.function_parameter(1);
+    let length_value = builder.function_parameter(2);
+    let slice_value = builder.slice(source_value, start_value, length_value, slice_type);
+    builder.return_(Some(slice_value));
+    builder.seal_block(entry_block);
+    builder.finish();
+
+    // verify output
+    let (tree, strings) = module.finish();
+    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let expected = "\
+function sliceTest(value0: slice<int32, managed>, value1: int64, value2: int64): slice<int32, borrowed, lifetime(0)> {
+entry0(value0: slice<int32, managed>, value1: int64, value2: int64):
+    value3: slice<int32, borrowed, lifetime(0)> = slice value0, value1, value2
+    return value3
 }";
     assert_eq!(output, expected);
 }

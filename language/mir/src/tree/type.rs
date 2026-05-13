@@ -431,30 +431,12 @@ impl Type {
 
     /// Whether this type is a raw pointer.
     pub fn is_raw_pointer(&self) -> bool {
-        matches!(
-            self,
-            Type::Reference {
-                kind: ReferenceKind::Raw,
-                ..
-            } | Type::TensorView {
-                kind: ReferenceKind::Raw,
-                ..
-            }
-        )
+        self.reference_kind() == Some(ReferenceKind::Raw)
     }
 
     /// Whether this type is a managed reference.
     pub fn is_managed_reference(&self) -> bool {
-        matches!(
-            self,
-            Type::Reference {
-                kind: ReferenceKind::Managed,
-                ..
-            } | Type::TensorView {
-                kind: ReferenceKind::Managed,
-                ..
-            }
-        )
+        self.reference_kind() == Some(ReferenceKind::Managed)
     }
 
     /// Whether this type is any kind of pointer or reference.
@@ -467,32 +449,47 @@ impl Type {
 
     /// Whether this type is a borrowed reference.
     pub fn is_borrowed_reference(&self) -> bool {
-        matches!(
-            self,
-            Type::Reference {
-                kind: ReferenceKind::Borrowed,
-                ..
-            } | Type::TensorView {
-                kind: ReferenceKind::Borrowed,
-                ..
-            }
-        )
+        self.reference_kind() == Some(ReferenceKind::Borrowed)
     }
 
     /// Whether this type is an exclusive borrowed reference.
     pub fn is_exclusive_borrowed_reference(&self) -> bool {
-        matches!(
-            self,
-            Type::Reference {
-                kind: ReferenceKind::Borrowed,
-                access: Access::Exclusive,
-                ..
-            } | Type::TensorView {
-                kind: ReferenceKind::Borrowed,
-                access: Access::Exclusive,
-                ..
-            }
-        )
+        self.is_borrowed_reference() && self.reference_access() == Some(Access::Exclusive)
+    }
+
+    /// Whether this type is a unique reference.
+    pub fn is_unique_reference(&self) -> bool {
+        self.reference_kind() == Some(ReferenceKind::Unique)
+    }
+
+    /// Return the reference kind for reference-like values.
+    pub fn reference_kind(&self) -> Option<ReferenceKind> {
+        match self {
+            Type::Reference { kind, .. }
+            | Type::Slice { kind, .. }
+            | Type::TensorView { kind, .. } => Some(*kind),
+            _ => None,
+        }
+    }
+
+    /// Return the lifetime for reference-like values.
+    pub fn reference_lifetime(&self) -> Option<&Lifetime> {
+        match self {
+            Type::Reference { lifetime, .. }
+            | Type::Slice { lifetime, .. }
+            | Type::TensorView { lifetime, .. } => Some(lifetime),
+            _ => None,
+        }
+    }
+
+    /// Return the access for reference-like values.
+    pub fn reference_access(&self) -> Option<Access> {
+        match self {
+            Type::Reference { access, .. }
+            | Type::Slice { access, .. }
+            | Type::TensorView { access, .. } => Some(*access),
+            _ => None,
+        }
     }
 
     /// Return the copy property of this type.
