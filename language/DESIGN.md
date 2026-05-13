@@ -116,6 +116,41 @@ const initial: char = 'A';
 const input: unknown = readInput();
 ```
 
+### Intervals
+
+Ranges in type position define an interval type over bounded sets like `int`, `bigint`, or `char`; basically, an interval type is a static subset of its scalar type.
+Assignments to interval-typed places must already have an interval-compatible type - the compiler does _not_ prove arithmetic expressions stay inside intervals and we do not insert implicit runtime checks for interval assignments.
+
+```ds
+type Digit = 0..=9;
+type LowerAscii = 'a'..='z';
+type UserPort = 1024..=65535;
+
+let digit: Digit = 7;
+let letter: LowerAscii = 'm';
+let port: UserPort = 8080;
+
+digit satisfies int;
+letter satisfies char;
+port satisfies int;
+```
+
+Interval types also compose with unions, aliases, and newtypes:
+
+```ds
+type HexDigit = 0..=9 | "a" | "b" | "c" | "d" | "e" | "f";
+type NonZeroByte = 1..=255;
+newtype Port = 1..=65535;
+```
+
+Intervals can also constrain static parameters:
+
+```ds
+struct InlineBuffer<T, comptime N: 0..=4096> {
+    storage: [T; N];
+}
+```
+
 ### Newtypes
 
 TypeScript is structurally typed: an interface is satisfied by any value matching its shape, regardless of whether it explicitly `implement`s it.
@@ -875,6 +910,7 @@ TypeScript has pattern based destructuring for arguments and assignment-like exp
 | Wildcard | `_` | match and ignore the value |
 | Binding | `value` | bind the matched value |
 | Literal | `"ok"`, `0`, `true` | match one literal value |
+| Range | `0..10`, `..=255` | match an integer, `bigint`, or `char` interval |
 | Tuple | `(x, y)` | destructure a tuple value |
 | Array, slice, fixed array | `[head, ...tail]` | destructure indexed elements |
 | Object | `{ kind: "ok", value }` | destructure a structural object |
@@ -1063,6 +1099,31 @@ extension<T> of Box<T> implements Dereference {
 Explicit `*box` uses `ReadonlyDereference`, while assignment through `*box` needs mutable `Dereference`.
 Member lookup and method calls may autoderef through `ReadonlyDereference` / `Dereference`, but only after checking the wrapper's own members first.
 Autoderef does not make `Box<T>` generally assignable to `T`; it is just member lookup ergonomics for smart pointers and view-like wrappers.
+
+### Ranges
+
+Range expressions like `a..b` produce range values for slicing, indexing, iteration, and any APIs that want to think in terms of bounds.
+Like Rust and Python, the default range is half-open, and all range forms implement `RangeBounds<T>`, whose `startBound()` and `endBound()` methods return `Bound<T>`:
+
+| Expression | Type | Meaning |
+|------------|------|---------|
+| `start..end` | `Range<T>` | Include `start`, exclude `end` |
+| `start..=end` | `RangeInclusive<T>` | Include both bounds |
+| `start..` | `RangeFrom<T>` | Include `start`, no end bound |
+| `..end` | `RangeTo<T>` | No start bound, exclude `end` |
+| `..=end` | `RangeToInclusive<T>` | No start bound, include `end` |
+| `..` | `RangeFull` | No start or end bound |
+
+Ranges work in patterns and subscripts exactly like one would expect from other languages::
+
+```ds
+let values: Slice<int32> = [1, 2, 3, 4, 5];
+
+values[1..4] satisfies Slice<int32>;
+(&values)[1..4] satisfies &Slice<int32>;
+(&readonly values)[1..4] satisfies &readonly Slice<int32>;
+(&exclusive values)[1..4] satisfies &exclusive Slice<int32>;
+```
 
 ### Dispatch
 
