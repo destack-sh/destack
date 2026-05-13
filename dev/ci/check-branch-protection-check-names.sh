@@ -7,7 +7,6 @@ repository_root="$(cd "${script_directory}/../.." && pwd)"
 required_checks_file="${script_directory}/required-checks.txt"
 ci_file="${repository_root}/.github/workflows/ci.yml"
 runtime_linux_file="${repository_root}/.github/workflows/runtime-linux-check.yml"
-targets_file="${repository_root}/TARGETS.md"
 
 read_required_checks() {
 	sed '/^[[:space:]]*$/d' "${required_checks_file}" | sort -u
@@ -37,19 +36,6 @@ read_workflow_checks() {
 	done <"${linux_arches_file}"
 
 	rm -f "${linux_arches_file}"
-}
-
-read_targets_tier1_checks() {
-	awk -F'|' '
-    $0 ~ /^### Mainline required checks$/ { in_checks = 1; next }
-    in_checks && $0 ~ /^### / { in_checks = 0 }
-    in_checks && $0 ~ /^\| `[^`]+` \|$/ {
-        check_name = $2
-        gsub(/^[ \t]+|[ \t]+$/, "", check_name)
-        gsub(/`/, "", check_name)
-        print check_name
-    }
-    ' "${targets_file}" | sort -u
 }
 
 compare_check_sets() {
@@ -86,26 +72,17 @@ fi
 
 required_checks_sorted_file="$(mktemp)"
 workflow_checks_sorted_file="$(mktemp)"
-targets_checks_sorted_file="$(mktemp)"
 missing_file="$(mktemp)"
 extra_file="$(mktemp)"
 
-trap 'rm -f "${required_checks_sorted_file}" "${workflow_checks_sorted_file}" "${targets_checks_sorted_file}" "${missing_file}" "${extra_file}"' EXIT
+trap 'rm -f "${required_checks_sorted_file}" "${workflow_checks_sorted_file}" "${missing_file}" "${extra_file}"' EXIT
 
 read_required_checks >"${required_checks_sorted_file}"
 read_workflow_checks | sort -u >"${workflow_checks_sorted_file}"
-read_targets_tier1_checks >"${targets_checks_sorted_file}"
 
 compare_check_sets \
 	"branch protection required checks vs workflow-derived checks" \
 	"${required_checks_sorted_file}" \
 	"${workflow_checks_sorted_file}" \
-	"${missing_file}" \
-	"${extra_file}"
-
-compare_check_sets \
-	"branch protection required checks vs TARGETS.md mainline required checks" \
-	"${required_checks_sorted_file}" \
-	"${targets_checks_sorted_file}" \
 	"${missing_file}" \
 	"${extra_file}"

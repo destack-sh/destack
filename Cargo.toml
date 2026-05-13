@@ -48,7 +48,6 @@ members = [
 	"language/query",
 	"language/resolver",
 	"language/runtime",
-	"language/runtime/abi",
 	"language/session",
 	"language/lsp",
 	"language/lsp/server",
@@ -109,7 +108,6 @@ destack_qir = { path = "language/qir" }
 destack_query = { path = "language/query" }
 destack_resolver = { path = "language/resolver" }
 destack_runtime = { path = "language/runtime" }
-destack_runtime_abi = { path = "language/runtime/abi" }
 destack_session = { path = "language/session" }
 destack_source = { path = "language/source" }
 destack_test = { path = "language/test" }

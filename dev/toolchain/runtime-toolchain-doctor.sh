@@ -2,7 +2,6 @@
 set -euo pipefail
 
 script_directory="$(cd "$(dirname "$0")" && pwd)"
-repo_root="$(cd "${script_directory}/../.." && pwd)"
 
 # shellcheck source=./dev/toolchain/versions.sh
 source "${script_directory}/versions.sh"
@@ -89,30 +88,11 @@ fi
 if [ "${host_kernel}" = "Darwin" ]; then
 	check_command xcrun required "xcode sdk tools"
 	check_command xcodebuild required "xcode build tools"
-
-	ios_host_destinations="$(
-		cd "${repo_root}/language/runtime/apple"
-		xcodebuild -scheme RuntimeHostIOS -showdestinations 2>/dev/null || true
-	)"
-
-	if printf '%s\n' "${ios_host_destinations}" | grep -Eq 'error:iOS .* is not installed'; then
-		print_error "ios host platform bundle: missing iPhoneOS platform components in Xcode"
-	else
-		print_ok "ios host platform bundle: available"
-	fi
 fi
 
 # rust targets used by runtime lanes
-check_rust_target aarch64-linux-android required
 check_rust_target aarch64-unknown-linux-gnu required
 check_rust_target x86_64-pc-windows-gnu required
-
-# ios checks only apply on macos hosts
-if [ "${host_kernel}" = "Darwin" ]; then
-	check_rust_target aarch64-apple-ios required
-else
-	check_rust_target aarch64-apple-ios optional
-fi
 
 # linux host checks apply on linux hosts
 if [ "${host_kernel}" = "Linux" ]; then
@@ -123,28 +103,6 @@ fi
 
 # zig powers the runtime cross target lanes on all supported hosts
 check_command zig required "zig cross compiler"
-
-# android host shell checks
-check_command java required "android host java runtime"
-if [ -x "${repo_root}/language/runtime/android/gradlew" ]; then
-	print_ok "android host gradle wrapper: ${repo_root}/language/runtime/android/gradlew"
-else
-	check_command gradle required "android host gradle"
-fi
-
-# android ndk resolution
-if sdk_root="$("${script_directory}"/resolve-android-sdk-root.sh 2>/dev/null)"; then
-	print_ok "android sdk root: ${sdk_root}"
-else
-	print_error "android sdk root: not found, run just language/install-runtime-android-ndk"
-fi
-
-# android ndk resolution
-if ndk_root="$("${script_directory}"/resolve-android-ndk-root.sh 2>/dev/null)"; then
-	print_ok "android ndk root: ${ndk_root}"
-else
-	print_error "android ndk root: not found, run just language/install-toolchain"
-fi
 
 if [ "${has_error}" = "1" ]; then
 	printf 'runtime toolchain doctor: failed\n'

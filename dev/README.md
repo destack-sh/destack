@@ -7,7 +7,7 @@ Internal engineering automation for the Destack monorepo.
 | Project                  | Summary                                                                                            |
 | ------------------------ | -------------------------------------------------------------------------------------------------- |
 | [`ci`](ci)               | Repository policy checks, workflow validation, release automation, and project metadata validation |
-| [`toolchain`](toolchain) | Runtime host setup, SDK and NDK setup, target tooling, and local environment support               |
+| [`toolchain`](toolchain) | Runtime host setup, target tooling, and local environment support                                  |
 |                          |                                                                                                    |
 
 ## Commands

@@ -98,9 +98,6 @@ just language/lint-toolchain
 just language/check-runtime-linux
 just language/check-runtime-macos
 just language/check-runtime-windows-msvc
-just language/check-runtime-ios
-just language/check-runtime-android
-just language/install-runtime-android-ndk
 
 # language performance tools
 just language/bench

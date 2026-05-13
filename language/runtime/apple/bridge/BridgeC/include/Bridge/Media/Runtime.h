@@ -1,6 +1,0 @@
-#ifndef RUNTIME_HOST_APPLE_BRIDGE_MEDIA_RUNTIME_H
-#define RUNTIME_HOST_APPLE_BRIDGE_MEDIA_RUNTIME_H
-
-#include "../Types.h"
-
-#endif

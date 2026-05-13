@@ -1,5 +1,0 @@
-.build/
-.swiftpm/
-/*.d
-/*.o
-/*.swiftdeps
