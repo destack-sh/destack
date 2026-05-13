@@ -866,8 +866,6 @@ async function read(user: ^User): Promise<string> {
 }
 ```
 
-```
-
 ### Patterns
 
 TypeScript has pattern based destructuring for arguments and assignment-like expressions, and Destack extends that idea into `match`, `if (let ...)`, `let ... else`, and `catch match` with a full suite of patterns for every type family:
@@ -2013,6 +2011,51 @@ function borrowInput<L: Lifetime>(point: Borrowed<Point, L>): Borrowed<Point, L>
     return point;
 }
 ```
+
+### Drop
+
+Whenever the lifetime of a value ends and it is deallocated, Destack supports running a `Drop` finalizer (similar to Rust's `Drop`)
+This happens both when the compiler inserted a drop for an owned local after its last use, when an owned field is being destroyed, and because the runtime is reclaiming an unreachable managed allocation.
+
+```ds
+function run(): void {
+    let buffer: ^Buffer = Buffer.open();
+    process(&buffer);
+    // `buffer` is dropped immediately after its last use
+}
+```
+
+The same `Drop` also works for managed references, where it is run before they are freed:
+
+```ds
+class Image {
+    pixels: Unique<[uint8]>;
+}
+
+let image: Image = new Image();
+// when `image` is collected, the GC runs drop glue for `pixels`
+```
+
+Unlike Rust (and C++ RAII), Destack models  `Drop` and `Dispose` / `AsyncDispose` separately as two different axis (`Drop` is lifetime, `using` is lexical).
+Indeed, because of this split `Drop` _can_ be performed eagler, improving efficiency, but also effectively precludes using `Drop` for lexical RAII style applications.  
+In general, in Destack, `Drop` should be used to manage memory and memory-related cleanup, while `using` should be used for richer resource finalisation:
+
+| Protocol | Purpose | Timing |
+|----------|---------|--------|
+| `Drop` | ownership finalization for memory and owned fields | deterministic for owned values, GC-timed for managed values |
+| `Dispose` | explicit synchronous resource cleanup | lexical `using` scope exit |
+| `AsyncDispose` | explicit asynchronous resource cleanup | lexical `await using` scope exit |
+
+External resources such as files, locks, sockets, transactions, and temporary runtime registrations should use `Dispose` or `AsyncDispose`, not `Drop`.
+This keeps RAII-style cleanup explicit and predictable even though ordinary TS++ values are "managed" by default:
+
+```ds
+using file = File.open(path)?;
+await using connection = await pool.connect();
+```
+
+Low-level code can of course still control finalization explicitly:
+`drop(value)` ends ownership immediately, `forget(value)` intentionally suppresses automatic drop, `ManuallyDrop<T>` stores a value outside automatic drop handling, and `Box<T>.leak()` turns one owned allocation into a static borrow.
 
 ### Algebra
 
