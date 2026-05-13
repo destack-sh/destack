@@ -1,9 +1,10 @@
-import { Slice } from "destack:collections";
+import { Array } from "destack:collections";
 import { PlatformError } from "destack:platform/error";
 import { Path } from "destack:platform/fs";
 import { DisplayDragSessionHandle, WindowHandle } from "destack:platform/resource";
+import { WindowPoint } from "./window.ds";
 
-/// Drag operation selector.
+/// Drag operation.
 export enum DisplayDragOperation {
     /// No accepted operation.
     None = 1,
@@ -15,190 +16,167 @@ export enum DisplayDragOperation {
     Link = 4,
 }
 
-/// Drag operation mask.
-export newtype DisplayDragOperationMask = uint32;
+/// Drag operation flags.
+export newtype DisplayDragOperationFlags = uint32;
 
-/// No allowed operations.
-export const DISPLAY_DRAG_OPERATION_NONE: DisplayDragOperationMask = DisplayDragOperationMask(0x0);
+/// No drag operations.
+export const DISPLAY_DRAG_NONE: DisplayDragOperationFlags = DisplayDragOperationFlags(0x0);
 
-/// Copy operation.
-export const DISPLAY_DRAG_OPERATION_COPY: DisplayDragOperationMask = DisplayDragOperationMask(0x1);
+/// Copy drag operation.
+export const DISPLAY_DRAG_COPY: DisplayDragOperationFlags = DisplayDragOperationFlags(0x1);
 
-/// Move operation.
-export const DISPLAY_DRAG_OPERATION_MOVE: DisplayDragOperationMask = DisplayDragOperationMask(0x2);
+/// Move drag operation.
+export const DISPLAY_DRAG_MOVE: DisplayDragOperationFlags = DisplayDragOperationFlags(0x2);
 
-/// Link operation.
-export const DISPLAY_DRAG_OPERATION_LINK: DisplayDragOperationMask = DisplayDragOperationMask(0x4);
+/// Link drag operation.
+export const DISPLAY_DRAG_LINK: DisplayDragOperationFlags = DisplayDragOperationFlags(0x4);
 
-/// Item kind for one drag-transfer entry.
+/// Drag item kind.
 export enum DisplayDragItemKind {
-    /// One textual payload.
-    String = 1,
-    /// One filesystem payload.
+    /// Text payload.
+    Text = 1,
+    /// Filesystem payload.
     File = 2,
-    /// One arbitrary binary payload.
+    /// Binary payload.
     Binary = 3,
 }
 
-/// Drag position in window-local logical coordinates.
-export struct DisplayDragPosition {
-    /// Window-local logical x coordinate.
-    x: int32;
-    /// Window-local logical y coordinate.
-    y: int32;
-}
-
-/// One lazily readable drag-transfer item descriptor.
-export struct DisplayDragItemDescriptor {
+/// Drag item descriptor.
+export struct DisplayDragItem {
     /// Item kind.
     kind: DisplayDragItemKind;
-    /// MIME type or platform-native type identifier when available.
-    itemType: string | void;
-    /// Suggested display name for file or binary payloads.
-    name: string | void;
-    /// Whether one file payload refers to one directory.
+    /// MIME type or platform-native type.
+    itemType?: string;
+    /// Suggested display name.
+    name?: string;
+    /// Whether a file item refers to one directory.
     isDirectory: boolean;
-    /// Payload length in bytes when available.
-    byteLength: uint64 | void;
+    /// Payload length in bytes.
+    byteLength?: uint64;
 }
 
-/// Shared drag-transfer metadata.
+/// Inbound drag transfer.
 export struct DisplayDragTransfer {
-    /// Stable drag session handle.
+    /// Drag session handle.
     session: DisplayDragSessionHandle;
-    /// Whether the transfer originated outside the current runtime.
+    /// Whether the transfer originated outside the runtime.
     isExternal: boolean;
-    /// Operations offered by the drag source.
-    allowedOperations: DisplayDragOperationMask;
-    /// Host-proposed operation from source state and gesture modifiers when known.
-    proposedOperation: DisplayDragOperation | void;
-    /// Transfer position in window-local logical coordinates when available.
-    position: DisplayDragPosition | void;
-    /// Offered transfer items in source order.
-    items: Slice<DisplayDragItemDescriptor>;
+    /// Offered operations.
+    operations: DisplayDragOperationFlags;
+    /// Host-proposed operation.
+    proposedOperation?: DisplayDragOperation;
+    /// Window-local position.
+    position?: WindowPoint;
+    /// Offered items.
+    items: Array<DisplayDragItem>;
 }
 
-/// One source-side drag item.
-export struct DisplayDragSourceItem {
-    /// Item kind.
-    kind: DisplayDragItemKind;
-    /// MIME type for this payload.
-    itemType: string | void;
-    /// Suggested display name for file or binary payloads.
-    name: string | void;
-    /// Text payload for string items.
-    text: string | void;
-    /// Filesystem payload for file items.
-    path: Path | void;
-    /// Binary payload for binary items.
-    bytes: Slice<uint8> | void;
-}
-
-/// One source-side drag preview image.
+/// Source-side drag preview.
 export struct DisplayDragPreview {
-    /// Preview pixel format identifier.
-    pixelFormat: uint32;
-    /// Preview width in pixels.
+    /// Pixel width.
     width: uint32;
-    /// Preview height in pixels.
+    /// Pixel height.
     height: uint32;
-    /// Pixel data in row-major order.
-    pixels: Slice<uint8>;
+    /// RGBA8 pixel bytes.
+    rgba: Array<uint8>;
     /// Cursor hotspot x coordinate in pixels.
     hotspotX: int32;
     /// Cursor hotspot y coordinate in pixels.
     hotspotY: int32;
 }
 
-/// Source-side drag options.
-export struct DisplayDragBeginOptions {
-    /// Source window when one explicit window scope is required.
-    /// When omitted, the active backend focus context is used.
-    window: WindowHandle | void;
-    /// Operations offered to the drop destination.
-    allowedOperations: DisplayDragOperationMask;
-    /// Drag items in source order.
-    items: Slice<DisplayDragSourceItem>;
-    /// Suggested starting position in window-local logical coordinates.
-    position: DisplayDragPosition | void;
+/// Source-side drag item.
+export newtype DisplayDragSourceItem =
+    | { kind: "text"; itemType?: string; name?: string; text: string }
+    | { kind: "file"; name?: string; path: Path }
+    | { kind: "binary"; itemType: string; name?: string; bytes: Array<uint8> };
+
+/// Source-side drag request.
+export struct DisplayDragRequest {
+    /// Source window.
+    window?: WindowHandle;
+    /// Offered operations.
+    operations: DisplayDragOperationFlags;
+    /// Drag items.
+    items: Array<DisplayDragSourceItem>;
+    /// Starting window-local position.
+    position?: WindowPoint;
     /// Optional preview image.
-    preview: DisplayDragPreview | void;
+    preview?: DisplayDragPreview;
 }
 
-/// Read one text item from one drag session.
-@binding("destack.display.drag.sessionReadText", {
+/// Read one drag text item.
+@binding("destack.display.drag.text.read", {
     effect: "external",
-    requires: ["host.display.window.events"],
+    requires: ["host.display.drag"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
 })
-export declare function dragSessionReadText(
+export declare function readDragText(
     session: DisplayDragSessionHandle,
     itemIndex: uint32,
-): Result<string, PlatformError>;
+): Result<^string, PlatformError>;
 
-/// Read one binary item from one drag session.
-@binding("destack.display.drag.sessionReadBytes", {
+/// Read one drag binary item.
+@binding("destack.display.drag.bytes.read", {
     effect: "external",
-    requires: ["host.display.window.events"],
+    requires: ["host.display.drag"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
 })
-export declare function dragSessionReadBytes(
+export declare function readDragBytes(
     session: DisplayDragSessionHandle,
     itemIndex: uint32,
-): Result<Slice<uint8>, PlatformError>;
+): Result<^Array<uint8>, PlatformError>;
 
-/// Read one filesystem item from one drag session.
-@binding("destack.display.drag.sessionReadPath", {
+/// Read one drag filesystem item.
+@binding("destack.display.drag.path.read", {
     effect: "external",
-    requires: ["host.display.window.events"],
+    requires: ["host.display.drag"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
 })
-export declare function dragSessionReadPath(
+export declare function readDragPath(
     session: DisplayDragSessionHandle,
     itemIndex: uint32,
 ): Result<Path, PlatformError>;
 
-/// Select one accepted operation for one drag session.
-@binding("destack.display.drag.sessionSetOperation", {
+/// Accept one drag operation.
+@binding("destack.display.drag.accept", {
     effect: "external",
     replay: "forbidden",
-    requires: ["host.display.window.events"],
+    requires: ["host.display.drag"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
 })
-export declare function dragSessionSetOperation(
+export declare function acceptDrag(
     session: DisplayDragSessionHandle,
     operation: DisplayDragOperation,
 ): Result<void, PlatformError>;
 
-/// Close one drag session handle.
-@binding("destack.display.drag.sessionClose", {
+/// Close one drag session.
+@binding("destack.display.drag.close", {
     effect: "external",
-    requires: ["host.display.window.events"],
+    requires: ["host.display.drag"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
 })
-export declare function dragSessionClose(
-    session: DisplayDragSessionHandle,
-): Result<void, PlatformError>;
+export declare function closeDrag(session: DisplayDragSessionHandle): Result<void, PlatformError>;
 
 /// Begin one source-side drag session.
 @binding("destack.display.drag.begin", {
     effect: "external",
     replay: "forbidden",
-    requires: ["host.display.window"],
+    requires: ["host.display.drag"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
 })
-export declare function dragBegin(
-    options: DisplayDragBeginOptions,
+export declare function beginDrag(
+    request: &readonly DisplayDragRequest,
 ): Result<DisplayDragOperation, PlatformError>;
