@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use smallvec::SmallVec;
 
 use crate::{GlobalReference, LocalReference, Value, ValueReference};
 
@@ -39,16 +40,16 @@ impl PlaceOrigin {
             return;
         };
 
-        if *value == ValueReference::Value(from) {
-            *value = ValueReference::Value(to);
-        }
+        value.replace_value(from, to);
     }
 }
 
 /// One projection applied to a MIR place.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum PlaceProjection {
-    /// A fixed field/element projection.
+    /// A fixed concrete field/element projection.
+    ///
+    /// Union alternatives must not be encoded as disjoint static projections.
     Static {
         /// The zero-based field index.
         index: u32,
@@ -58,17 +59,37 @@ pub enum PlaceProjection {
         /// The runtime index value.
         index: ValueReference,
     },
+    /// A runtime contiguous range projection.
+    Range {
+        /// The runtime start index value.
+        start: ValueReference,
+        /// The runtime length value.
+        length: ValueReference,
+    },
 }
 
 impl PlaceProjection {
     /// Replace value references inside this projection.
     fn replace_value(&mut self, from: Value, to: Value) {
-        let Self::Dynamic { index } = self else {
-            return;
-        };
+        match self {
+            Self::Static { .. } => {}
+            Self::Dynamic { index } => index.replace_value(from, to),
+            Self::Range { start, length } => {
+                start.replace_value(from, to);
+                length.replace_value(from, to);
+            }
+        }
+    }
 
-        if *index == ValueReference::Value(from) {
-            *index = ValueReference::Value(to);
+    /// Append value references used by this projection.
+    fn append_value_references(&self, values: &mut SmallVec<[ValueReference; 4]>) {
+        match self {
+            Self::Static { .. } => {}
+            Self::Dynamic { index } => values.push(*index),
+            Self::Range { start, length } => {
+                values.push(*start);
+                values.push(*length);
+            }
         }
     }
 }
@@ -145,6 +166,17 @@ impl Place {
         false
     }
 
+    /// Return whether this place contains another place.
+    pub fn contains(&self, other: &Self) -> bool {
+        self.origin == other.origin
+            && self.projections.len() <= other.projections.len()
+            && self
+                .projections
+                .iter()
+                .zip(&other.projections)
+                .all(|(left, right)| left == right)
+    }
+
     /// Return whether this place may overlap another place.
     #[inline]
     pub fn may_overlap(&self, other: &Self) -> bool {
@@ -158,6 +190,23 @@ impl Place {
         for projection in &mut self.projections {
             projection.replace_value(from, to);
         }
+    }
+
+    /// Return value references used by this place.
+    pub fn value_references(&self) -> SmallVec<[ValueReference; 4]> {
+        let mut values = SmallVec::new();
+
+        // include value origins
+        if let PlaceOrigin::Value(value) = self.origin {
+            values.push(value);
+        }
+
+        // include dynamic projection operands
+        for projection in &self.projections {
+            projection.append_value_references(&mut values);
+        }
+
+        values
     }
 }
 
@@ -326,5 +375,19 @@ mod tests {
 
         assert!(!dynamic.is_definitely_disjoint(&fixed));
         assert!(dynamic.may_overlap(&fixed));
+    }
+
+    #[test]
+    fn test_range_projection_tracks_operands() {
+        let local = LocalNodeId::<Local>::new(0);
+        let place = Place::local(local.into()).with_projection(PlaceProjection::Range {
+            start: Value::new(0).into(),
+            length: Value::new(1).into(),
+        });
+
+        assert_eq!(
+            place.value_references().as_slice(),
+            &[Value::new(0).into(), Value::new(1).into()]
+        );
     }
 }

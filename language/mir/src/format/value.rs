@@ -4,7 +4,8 @@ use destack_fir::write;
 
 use crate::{
     BlockReference, Constant, FunctionReference, GlobalReference, IntegerReference, LocalReference,
-    MirFormatContext, MirFormatter, TypeReference, Value, ValueReference,
+    MirFormatContext, MirFormatter, Place, PlaceOrigin, PlaceProjection, TypeReference, Value,
+    ValueReference,
 };
 
 fn write_recovery_token<'a>(is_missing: bool, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
@@ -27,6 +28,24 @@ impl<'a> Format<MirFormatContext<'a>> for ValueReference {
             ValueReference::Missing => write_recovery_token(true, f),
             ValueReference::Error => write_recovery_token(false, f),
         }
+    }
+}
+
+impl<'a> Format<MirFormatContext<'a>> for Place {
+    fn format(&self, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+        if let PlaceOrigin::Value(value) = self.origin
+            && self.projections.is_empty()
+        {
+            return value.format(f);
+        }
+
+        write!(f, [token("place"), token("(")])?;
+        format_place_origin(&self.origin, f)?;
+        for projection in &self.projections {
+            write!(f, [token(","), space()])?;
+            format_place_projection(projection, f)?;
+        }
+        write!(f, [token(")")])
     }
 }
 
@@ -136,5 +155,47 @@ impl<'a> Format<MirFormatContext<'a>> for Constant {
                 write!(f, [text(&format!("{value:?}"))])
             }
         }
+    }
+}
+
+/// Format one MIR place origin.
+fn format_place_origin<'a>(origin: &PlaceOrigin, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+    match origin {
+        PlaceOrigin::Local(local) => local.format(f),
+        PlaceOrigin::Global(global) => global.format(f),
+        PlaceOrigin::Value(value) => value.format(f),
+    }
+}
+
+/// Format one MIR place projection.
+fn format_place_projection<'a>(
+    projection: &PlaceProjection,
+    f: &mut MirFormatter<'a, '_>,
+) -> FormatResult<()> {
+    match projection {
+        PlaceProjection::Static { index } => write!(
+            f,
+            [
+                token("static"),
+                token("("),
+                text(&index.to_string()),
+                token(")")
+            ]
+        ),
+        PlaceProjection::Dynamic { index } => {
+            write!(f, [token("dynamic"), token("("), index, token(")")])
+        }
+        PlaceProjection::Range { start, length } => write!(
+            f,
+            [
+                token("range"),
+                token("("),
+                start,
+                token(","),
+                space(),
+                length,
+                token(")")
+            ]
+        ),
     }
 }

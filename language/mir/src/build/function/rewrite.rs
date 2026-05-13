@@ -118,7 +118,6 @@ impl<'a> FunctionBuilder<'a> {
                 }
                 | Instruction::RawFree { pointer: argument }
                 | Instruction::Free { value: argument }
-                | Instruction::Drop { value: argument }
                 | Instruction::Pin {
                     value: argument, ..
                 }
@@ -136,6 +135,9 @@ impl<'a> FunctionBuilder<'a> {
                     Self::replace_value_in_slot(object, from, to);
                     Self::replace_value_in_slot(offset, from, to);
                     Self::replace_value_in_slot(byte_len, from, to);
+                }
+                Instruction::Drop { place } => {
+                    place.replace_value(from, to);
                 }
                 Instruction::CallIndirect { callee, .. } => {
                     Self::replace_value_in_slot(callee, from, to);
@@ -274,6 +276,16 @@ impl<'a> FunctionBuilder<'a> {
                 Instruction::ElementAddr { array, index, .. } => {
                     Self::replace_value_in_slot(array, from, to);
                     Self::replace_value_in_slot(index, from, to);
+                }
+                Instruction::Slice {
+                    source,
+                    start,
+                    length,
+                    ..
+                } => {
+                    Self::replace_value_in_slot(source, from, to);
+                    Self::replace_value_in_slot(start, from, to);
+                    Self::replace_value_in_slot(length, from, to);
                 }
                 Instruction::ElementSet { array, value, .. } => {
                     Self::replace_value_in_slot(array, from, to);

@@ -685,7 +685,7 @@ fn type_key_for_alias_inner(
             let element_key = type_key_for_alias_reference(tree, strings, *element, active_types);
             let mut result = format!("slice<{element_key}");
             match kind {
-                ReferenceKind::Managed => {}
+                ReferenceKind::Managed => result.push_str(", managed"),
                 ReferenceKind::Unique => result.push_str(", unique"),
                 ReferenceKind::Borrowed => result.push_str(", borrowed"),
                 ReferenceKind::Raw => result.push_str(", raw"),
@@ -989,6 +989,9 @@ fn collect_type_uses(tree: &Tree) -> HashMap<LocalNodeId<Type>, u32> {
                 record_type_use(tree, *result_type, &mut counts);
             }
             Instruction::ElementAddr { result_type, .. } => {
+                record_type_use(tree, *result_type, &mut counts);
+            }
+            Instruction::Slice { result_type, .. } => {
                 record_type_use(tree, *result_type, &mut counts);
             }
             Instruction::Struct { ty, .. } => {

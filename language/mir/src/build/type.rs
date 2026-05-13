@@ -327,9 +327,21 @@ impl ModuleBuilder {
         access: Access,
         address_space: AddressSpace,
     ) -> LocalNodeId<Type> {
+        self.type_slice_with_lifetime(kind, element, Lifetime::empty(), access, address_space)
+    }
+
+    /// Create a slice type with explicit storage semantics and lifetime.
+    pub fn type_slice_with_lifetime(
+        &mut self,
+        kind: ReferenceKind,
+        element: LocalNodeId<Type>,
+        lifetime: Lifetime,
+        access: Access,
+        address_space: AddressSpace,
+    ) -> LocalNodeId<Type> {
         self.tree.insert_type(Type::Slice {
             kind,
-            lifetime: Lifetime::empty(),
+            lifetime,
             element: element.into(),
             address_space,
             access,

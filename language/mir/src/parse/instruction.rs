@@ -5,11 +5,11 @@ use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 use crate::{
     ArgumentSlice, AtomicAccess, AtomicRmwOperator, BinaryOperator, Call, CastOperator,
     CompareExchangeAccess, DispatchSlot, FenceAccess, FunctionReference, Instruction, LocalNodeId,
-    MemoryFlags, MemoryOrdering, MemoryScope, MemorySpaceSet, SyncScope, TensorConvertMode,
-    TensorConvolutionDimensionNumbers, TensorConvolutionWindow, TensorDotDimensionNumbers,
-    TensorGatherDimensionNumbers, TensorReduceOperator, TensorScatterDimensionNumbers,
-    TensorScatterMode, Type, TypeReference, UnaryOperator, ValueReference, VectorConvertMode,
-    VectorReduceOperator,
+    MemoryFlags, MemoryOrdering, MemoryScope, MemorySpaceSet, Place, PlaceOrigin, PlaceProjection,
+    SyncScope, TensorConvertMode, TensorConvolutionDimensionNumbers, TensorConvolutionWindow,
+    TensorDotDimensionNumbers, TensorGatherDimensionNumbers, TensorReduceOperator,
+    TensorScatterDimensionNumbers, TensorScatterMode, Type, TypeReference, UnaryOperator,
+    ValueReference, VectorConvertMode, VectorReduceOperator,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -127,8 +127,9 @@ impl Parser {
                 Instruction::Unpin { value }
             }
             "drop" => {
-                let value = self.parse_value_segment(&mut segment_spans)?;
-                Instruction::Drop { value }
+                let (place, span) = self.parse_place_part()?;
+                segment_spans.push(span);
+                Instruction::Drop { place }
             }
             "free" => {
                 let value = self.parse_value_segment(&mut segment_spans)?;
@@ -442,6 +443,20 @@ impl Parser {
                             destination,
                             array,
                             index,
+                            result_type: destination_type.into(),
+                        }
+                    }
+                    "slice" => {
+                        let source = self.parse_value_segment(&mut segment_spans)?;
+                        self.eat_token(TokenType::Comma)?;
+                        let start = self.parse_value_segment(&mut segment_spans)?;
+                        self.eat_token(TokenType::Comma)?;
+                        let length = self.parse_value_segment(&mut segment_spans)?;
+                        Instruction::Slice {
+                            destination,
+                            source,
+                            start,
+                            length,
                             result_type: destination_type.into(),
                         }
                     }
@@ -1184,6 +1199,95 @@ impl Parser {
         };
 
         Ok(*value)
+    }
+
+    /// Parse one MIR place.
+    fn parse_place_part(&mut self) -> ParseResult<(Place, Span)> {
+        let start = self.pos();
+        if !self.eat_identifier_text("place") {
+            let (value, span) = self.parse_value_reference_part()?;
+
+            return Ok((Place::value(value), span));
+        }
+
+        self.eat_token(TokenType::OpenParen)?;
+        let origin = self.parse_place_origin()?;
+        let mut place = Place::new(origin);
+
+        while self.eat_token_maybe(TokenType::Comma) {
+            let projection = self.parse_place_projection()?;
+            place.push(projection);
+        }
+
+        self.eat_token(TokenType::CloseParen)?;
+
+        Ok((place, self.span_from_parse_start(start)))
+    }
+
+    /// Parse one MIR place origin.
+    fn parse_place_origin(&mut self) -> ParseResult<PlaceOrigin> {
+        let token = self
+            .peek()
+            .ok_or_else(|| ParseError::unexpected_end("place origin", self.pos()))?;
+
+        match token.ty {
+            TokenType::Value => {
+                let (value, _) = self.parse_value_reference_part()?;
+
+                Ok(PlaceOrigin::Value(value))
+            }
+            TokenType::LocalReference => {
+                let (local, _) = self.parse_local_ref_part()?;
+
+                Ok(PlaceOrigin::Local(local))
+            }
+            TokenType::Identifier => {
+                let name = self.tree.source_text(token.span).to_string();
+                if let Some(value) = self.value_name_map.get(&name).copied() {
+                    self.bump();
+
+                    return Ok(PlaceOrigin::Value(value.into()));
+                }
+
+                let (global, _) = self.parse_global_reference_part()?;
+
+                Ok(PlaceOrigin::Global(global))
+            }
+            _ => Err(ParseError::unexpected_token("place origin", token)),
+        }
+    }
+
+    /// Parse one MIR place projection.
+    fn parse_place_projection(&mut self) -> ParseResult<PlaceProjection> {
+        if self.eat_identifier_text("static") {
+            self.eat_token(TokenType::OpenParen)?;
+            let index = self.parse_int_literal()?;
+            let index =
+                u32::try_from(index).map_err(|_| ParseError::invalid("place index", self.pos()))?;
+            self.eat_token(TokenType::CloseParen)?;
+
+            return Ok(PlaceProjection::Static { index });
+        }
+
+        if self.eat_identifier_text("dynamic") {
+            self.eat_token(TokenType::OpenParen)?;
+            let index = self.parse_value()?;
+            self.eat_token(TokenType::CloseParen)?;
+
+            return Ok(PlaceProjection::Dynamic { index });
+        }
+
+        if self.eat_identifier_text("range") {
+            self.eat_token(TokenType::OpenParen)?;
+            let start = self.parse_value()?;
+            self.eat_token(TokenType::Comma)?;
+            let length = self.parse_value()?;
+            self.eat_token(TokenType::CloseParen)?;
+
+            return Ok(PlaceProjection::Range { start, length });
+        }
+
+        Err(ParseError::invalid("place projection", self.pos()))
     }
 
     /// Parse one named group header like `name(`.
