@@ -4,6 +4,7 @@
 /// @noManaged
 /// function processFrame() { }
 /// ```
+@languageItem("NoManaged")
 export newtype noManaged = ();
 
 /// Forbid managed values and raw heap allocations in a function.
@@ -12,4 +13,5 @@ export newtype noManaged = ();
 /// @noHeap
 /// function processFrame() { }
 /// ```
+@languageItem("NoHeap")
 export newtype noHeap = ();

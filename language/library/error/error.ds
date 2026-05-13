@@ -1,4 +1,5 @@
 /// Standard error protocol.
+@languageItem("Error")
 export newtype interface Error {
     /// Error name.
     name: string;

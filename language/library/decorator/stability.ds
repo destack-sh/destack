@@ -6,6 +6,7 @@
 /// @deprecated("use read instead")
 /// function readOld(): string;
 /// ```
+@languageItem("Deprecated")
 export newtype deprecated = (string,) | ();
 
 /// Marks a declaration as experimental.
@@ -14,4 +15,5 @@ export newtype deprecated = (string,) | ();
 /// @experimental
 /// function preview(): void;
 /// ```
+@languageItem("Experimental")
 export newtype experimental = (string,) | ();

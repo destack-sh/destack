@@ -1,6 +1,7 @@
 /// Interface for the `%` operator.
 ///
 /// `a % b` becomes `a.remainder(b)`.
+@languageItem("Remainder")
 export newtype interface Remainder<T = this> {
     /// The result type.
     type Output;

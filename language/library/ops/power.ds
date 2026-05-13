@@ -1,6 +1,7 @@
 /// Interface for the `**` operator.
 ///
 /// `a ** b` becomes `a.power(b)`.
+@languageItem("Power")
 export newtype interface Power<T = this> {
     /// The result type.
     type Output;

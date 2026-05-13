@@ -260,4 +260,5 @@ export type BindingOptions = {
 };
 
 /// Marks one declaration as a runtime binding.
+@languageItem("Binding")
 export newtype binding = (string, BindingOptions,);

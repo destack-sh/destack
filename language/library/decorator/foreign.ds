@@ -4,4 +4,5 @@
 /// @extern("C")
 /// function open(path: *uint8): int32;
 /// ```
+@languageItem("Extern")
 export newtype extern = (string,) | ();

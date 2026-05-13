@@ -64,7 +64,6 @@ export interface ExpressionKey {
 /// A symbol key.
 export type SymbolKey =
     | UniqueSymbolKey
-    | WellKnownSymbolKey
     | RegistrySymbolKey;
 
 /// A unique symbol key from a declaration.
@@ -73,14 +72,6 @@ export interface UniqueSymbolKey {
     kind: "unique";
     /// The symbol declaration.
     symbol: Symbol;
-}
-
-/// A well-known `Symbol.*` key.
-export interface WellKnownSymbolKey {
-    /// The key kind.
-    kind: "wellKnown";
-    /// The well-known symbol name.
-    name: string;
 }
 
 /// A `Symbol.for` registry key.

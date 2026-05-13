@@ -7,6 +7,7 @@
 /// @intrinsic
 /// declare function typeOf<T>(value: T): Type<T>;
 /// ```
+@languageItem("Intrinsic")
 export newtype intrinsic = (string,) | ();
 
 /// Compiler language item marker.
@@ -19,4 +20,5 @@ export newtype intrinsic = (string,) | ();
 /// @languageItem("Type")
 /// declare function typeOf<T>(value: T): Type<T>;
 /// ```
+@languageItem("LanguageItem")
 export newtype languageItem = (string,) | ();

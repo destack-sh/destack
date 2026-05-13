@@ -1,6 +1,7 @@
 import { type Layout, type Type } from "./type.ds";
 
 /// Static reflection namespace.
+@languageItem("Reflect")
 export class Reflect {
     /// Return the reflected type for a value.
     @intrinsic("reflect.typeOf")

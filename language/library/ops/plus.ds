@@ -1,6 +1,7 @@
 /// Interface for the `+` operator.
 ///
 /// `a + b` becomes `a.add(b)`.
+@languageItem("Add")
 export newtype interface Add<T = this> {
     /// The result type.
     type Output;
@@ -12,6 +13,7 @@ export newtype interface Add<T = this> {
 /// Interface for unary `+`.
 ///
 /// `+a` becomes `a.plus()`.
+@languageItem("Plus")
 export newtype interface Plus {
     /// The result type.
     type Output;

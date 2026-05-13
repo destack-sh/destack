@@ -6,9 +6,11 @@ import { From } from "destack:convert";
 import { PackedArray } from "./packed-array.ds";
 
 /// Readonly view of a dynamic array.
+@languageItem("ReadonlyArray")
 export type ReadonlyArray<T> = readonly T[];
 
 /// Fixed-size array alias.
+@languageItem("FixedArray")
 export type FixedArray<T, comptime N: number> = [T; N];
 
 /// One stable array segment.
@@ -24,6 +26,7 @@ struct ArraySegment<T> {
 }
 
 /// A growable borrow-stable array.
+@languageItem("Array")
 export class Array<T> {
     /// The segment table.
     segments: Unique<[MaybeUninit<ArraySegment<T>>]>;

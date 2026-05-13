@@ -6,6 +6,7 @@ import { Map } from "./map.ds";
 import { PackedSet } from "./packed-set.ds";
 
 /// A borrow-stable hash set.
+@languageItem("Set")
 export class Set<T> {
     /// The backing map.
     map: Map<T, void>;

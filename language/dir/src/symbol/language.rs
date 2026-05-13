@@ -475,12 +475,12 @@ define_language_items! {
         }
     }
 
-    /// Platform types.
-    platform {
-        /// `destack:platform/core/binding`.
+    /// Runtime types.
+    runtime {
+        /// `destack:runtime/binding`.
         binding {
             /// `@binding` marker
-            Binding => (Newtype, "platform/core/binding", "binding"),
+            Binding => (Newtype, "runtime/binding", "binding"),
         }
     }
 

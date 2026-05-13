@@ -23,4 +23,5 @@ export type CaptureDirective =
 /// @capture("move")
 /// const f = () => resource.use();
 /// ```
+@languageItem("Capture")
 export newtype capture = (CaptureDirective,) | ();

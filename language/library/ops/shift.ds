@@ -1,6 +1,7 @@
 /// Interface for the `<<` operator.
 ///
 /// `a << b` becomes `a.shiftLeft(b)`.
+@languageItem("ShiftLeft")
 export newtype interface ShiftLeft<T = this> {
     /// The result type.
     type Output;
@@ -12,6 +13,7 @@ export newtype interface ShiftLeft<T = this> {
 /// Interface for the `>>` operator.
 ///
 /// `a >> b` becomes `a.shiftRight(b)`.
+@languageItem("ShiftRight")
 export newtype interface ShiftRight<T = this> {
     /// The result type.
     type Output;
@@ -23,6 +25,7 @@ export newtype interface ShiftRight<T = this> {
 /// Interface for the `>>>` operator.
 ///
 /// `a >>> b` becomes `a.shiftRightUnsigned(b)`.
+@languageItem("ShiftRightUnsigned")
 export newtype interface ShiftRightUnsigned<T = this> {
     /// The result type.
     type Output;
