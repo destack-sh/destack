@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use destack_artifact::{Ast, DirExported, DirImported, GlobalEnvironment, WellKnownSymbols};
+use destack_artifact::{Ast, DirExported, DirImported, GlobalEnvironment};
 use destack_ast::StringId;
-use destack_dir::{self as dir, WellKnownSymbol};
+use destack_dir::{self as dir, LanguageItem};
 use destack_source::{File, FileId, ModuleId, PackageId};
 use destack_workspace::{
     ArtifactCache, LintSeverity, LinterOptions, Module, Package, ProfileId, Repository, Revision,
@@ -267,21 +267,15 @@ impl LintWorkspaceDirContext {
     /// Get a cached declared library symbol for the active profile and name.
     pub fn get_declared_library_symbol(&self, name: StringId) -> Option<dir::GlobalSymbolId> {
         let environment = self.global_environment()?;
-        let key = dir::StaticKey::Name(name);
 
-        environment.symbol_from_key(key, dir::SymbolSpace::Value)
+        environment.language.symbols.get(&name).copied()
     }
 
-    /// Get well-known symbols for the active profile.
-    pub fn get_well_known_symbols(&self) -> Option<WellKnownSymbols> {
+    /// Get a specific language item for the active profile.
+    pub fn get_language_item(&self, symbol: LanguageItem) -> Option<dir::GlobalSymbolId> {
         let environment = self.global_environment()?;
-        Some(environment.well_known_symbols())
-    }
 
-    /// Get a specific well-known symbol for the active profile.
-    pub fn get_well_known_symbol(&self, symbol: WellKnownSymbol) -> Option<dir::GlobalSymbolId> {
-        let well_known_symbols = self.get_well_known_symbols()?;
-        well_known_symbols.get_symbol(symbol)
+        environment.language.item(symbol)
     }
 
     /// Check if a requirement is met.
@@ -295,8 +289,8 @@ impl LintWorkspaceDirContext {
                 let name = StringId::for_text(name);
                 self.get_declared_library_symbol(name).is_some()
             }
-            LintRequirement::RequireWellKnownSymbol(symbol) => {
-                self.get_well_known_symbol(*symbol).is_some()
+            LintRequirement::RequireLanguageItem(symbol) => {
+                self.get_language_item(*symbol).is_some()
             }
         }
     }

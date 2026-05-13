@@ -1,7 +1,7 @@
-use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol, walk_expression};
+use destack_dir::{self as dir, LanguageItem, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
-use crate::LintRequirement::RequireWellKnownSymbol;
+use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::{
     CallLikeExpressionInfo, expression_call_like, expression_target_symbol,
     expression_unwrap_parenthesized, is_async_function_type, remove_first_async_keyword,
@@ -18,7 +18,7 @@ declare_lint! {
         code = "LC005",
         category = Correctness,
         level = Dir,
-        requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Promise)],
+        requires_all = [RequireLanguageItem(LanguageItem::Promise)],
         requires_any = [],
         fixable = Sometimes,
         recommended = Always,
@@ -51,7 +51,7 @@ struct AsyncPromiseExecutorVisitor<'a, 'b> {
     ctx: &'a mut LintModuleDirContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
-    /// The well known Promise symbol for this module.
+    /// The language item Promise symbol for this module.
     promise_symbol: dir::GlobalSymbolId,
     /// The visitor options.
     options: NodeVisitorOptions,
@@ -60,7 +60,7 @@ struct AsyncPromiseExecutorVisitor<'a, 'b> {
 impl<'a, 'b> AsyncPromiseExecutorVisitor<'a, 'b> {
     /// Build a visitor for async Promise executor checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        let promise_symbol = ctx.well_known_symbol(WellKnownSymbol::Promise);
+        let promise_symbol = ctx.language_item(LanguageItem::Promise);
         Self {
             ctx,
             meta,

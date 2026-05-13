@@ -1,7 +1,7 @@
-use destack_dir::{self as dir, WellKnownSymbol};
+use destack_dir::{self as dir, LanguageItem};
 use destack_workspace::LintSeverity;
 
-use crate::LintRequirement::RequireWellKnownSymbol;
+use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::{
     expression_type_or_call_return_type_map, is_template_interpolation_type,
 };
@@ -17,7 +17,7 @@ declare_lint! {
         code = "LY081",
         category = Style,
         level = Dir,
-        requires_all = [RequireWellKnownSymbol(WellKnownSymbol::String)],
+        requires_all = [RequireLanguageItem(LanguageItem::String)],
         requires_any = [],
         fixable = No,
         recommended = Strict,
@@ -36,7 +36,7 @@ impl LintRule for RestrictTemplateExpressions {
     /// Check module DIR nodes for disallowed template interpolation types.
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
-        let string_symbol = ctx.well_known_symbol(WellKnownSymbol::String);
+        let string_symbol = ctx.language_item(LanguageItem::String);
 
         for (_expression_id, expression) in ctx.tree.iter_nodes_of_type::<dir::Expression>() {
             let dir::Expression::TemplateExpression { value } = expression else {

@@ -1,8 +1,8 @@
 use destack_core::StringId;
-use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol, walk_expression};
+use destack_dir::{self as dir, LanguageItem, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
-use crate::LintRequirement::RequireWellKnownSymbol;
+use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::{
     expression_is_standalone_statement, is_array_type, is_async_function_type,
     strip_dot_member_suffix,
@@ -20,7 +20,7 @@ declare_lint! {
         code = "LU002",
         category = Suspicious,
         level = Dir,
-        requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Array)],
+        requires_all = [RequireLanguageItem(LanguageItem::Array)],
         requires_any = [],
         fixable = Sometimes,
         recommended = Always,
@@ -50,7 +50,7 @@ struct AsyncForeachVisitor<'a, 'b> {
     ctx: &'a mut LintModuleDirContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
-    /// The well known Array symbol for this module.
+    /// The language item Array symbol for this module.
     array_symbol: dir::GlobalSymbolId,
     /// The forEach method name.
     foreach_name: StringId,
@@ -61,7 +61,7 @@ struct AsyncForeachVisitor<'a, 'b> {
 impl<'a, 'b> AsyncForeachVisitor<'a, 'b> {
     /// Build a visitor for async forEach checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        let array_symbol = ctx.well_known_symbol(WellKnownSymbol::Array);
+        let array_symbol = ctx.language_item(LanguageItem::Array);
         let foreach_name = ctx.string_id("forEach");
 
         Self {

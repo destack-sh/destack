@@ -1,7 +1,7 @@
-use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol, walk_expression};
+use destack_dir::{self as dir, LanguageItem, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
-use crate::LintRequirement::RequireWellKnownSymbol;
+use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::expression_target_symbol;
 use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
@@ -15,7 +15,7 @@ declare_lint! {
         code = "LY065",
         category = Style,
         level = Dir,
-        requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Symbol)],
+        requires_all = [RequireLanguageItem(LanguageItem::Symbol)],
         requires_any = [],
         fixable = Always,
         recommended = Strict,
@@ -52,7 +52,7 @@ struct SymbolDescriptionVisitor<'a, 'b> {
 impl<'a, 'b> SymbolDescriptionVisitor<'a, 'b> {
     /// Build a visitor for symbol description checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        let symbol_symbol = ctx.well_known_symbol(WellKnownSymbol::Symbol);
+        let symbol_symbol = ctx.language_item(LanguageItem::Symbol);
         Self {
             ctx,
             meta,

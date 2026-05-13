@@ -1,4 +1,3 @@
-use destack_artifact::WellKnownSymbols;
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_source::ModuleId;
@@ -288,26 +287,6 @@ fn decorator_string_arguments(
     }
 
     values
-}
-
-/// Return all symbol candidates for one well known symbol id.
-pub fn well_known_symbol_candidates(
-    well_known_symbols: &WellKnownSymbols,
-    symbol: dir::WellKnownSymbol,
-) -> Vec<dir::GlobalSymbolId> {
-    let Some(group) = well_known_symbols.get_pair(symbol) else {
-        return Vec::new();
-    };
-
-    let mut symbols = Vec::new();
-    if let Some(type_symbol) = group.ty {
-        push_unique_symbol(&mut symbols, type_symbol);
-    }
-    if let Some(value_symbol) = group.value {
-        push_unique_symbol(&mut symbols, value_symbol);
-    }
-
-    symbols
 }
 
 /// Read one symbol entry from local or remote module tables.

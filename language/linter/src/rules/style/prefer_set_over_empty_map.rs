@@ -1,12 +1,11 @@
 use std::collections::HashSet;
 
-use destack_dir::{self as dir, WellKnownSymbol};
+use destack_dir::{self as dir, LanguageItem};
 use destack_workspace::LintSeverity;
 
-use crate::LintRequirement::RequireWellKnownSymbol;
+use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::{
     contains_map_with_empty_value_type, expression_type_map, is_void_or_never_type,
-    well_known_symbol_candidates,
 };
 use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
@@ -20,7 +19,7 @@ declare_lint! {
         code = "LY079",
         category = Style,
         level = Dir,
-        requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Map)],
+        requires_all = [RequireLanguageItem(LanguageItem::Map)],
         requires_any = [],
         fixable = No,
         recommended = Strict,
@@ -39,10 +38,9 @@ impl LintRule for PreferSetOverEmptyMap {
     /// Check module DIR nodes for `Map<K, void | never>` usage.
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
-        let map_symbols = resolve_map_symbols(ctx);
-        if map_symbols.is_empty() {
+        let Some(map_symbol) = ctx.get_language_item(LanguageItem::Map) else {
             return;
-        }
+        };
         let mut reported_source_ids = HashSet::new();
 
         // type aliases: query alias target types directly from the type table
@@ -55,7 +53,7 @@ impl LintRule for PreferSetOverEmptyMap {
             let Some(alias_target_type_id) = ctx.types.get_alias_target_type_id(type_symbol) else {
                 continue;
             };
-            if !contains_map_with_empty_value_type(ctx.types, alias_target_type_id, &map_symbols) {
+            if !contains_map_with_empty_value_type(ctx.types, alias_target_type_id, map_symbol) {
                 continue;
             }
             let source_id = ctx.tree.get_source(declaration.value.id);
@@ -78,7 +76,7 @@ impl LintRule for PreferSetOverEmptyMap {
                     .types
                     .get_declared_or_inferred_type_id(value.into_global_any(ctx.module_id()))
                     .is_some_and(|type_id| {
-                        contains_map_with_empty_value_type(ctx.types, type_id, &map_symbols)
+                        contains_map_with_empty_value_type(ctx.types, type_id, map_symbol)
                     }),
                 // type references can carry map generic arguments directly
                 dir::Expression::Path {
@@ -90,7 +88,7 @@ impl LintRule for PreferSetOverEmptyMap {
                             ctx,
                             target_symbol,
                             generic_arguments.as_slice(),
-                            &map_symbols,
+                            map_symbol,
                         )
                     }),
                 // constructor calls keep generic arguments on the new expression
@@ -98,7 +96,7 @@ impl LintRule for PreferSetOverEmptyMap {
                     left,
                     generic_arguments,
                     ..
-                } => new_map_has_empty_value_argument(ctx, *left, generic_arguments, &map_symbols),
+                } => new_map_has_empty_value_argument(ctx, *left, generic_arguments, map_symbol),
                 _ => false,
             };
             if !should_report {
@@ -112,15 +110,6 @@ impl LintRule for PreferSetOverEmptyMap {
             report_prefer_set_over_empty_map(ctx, meta, expression_id, ctx.get_span(expression_id));
         }
     }
-}
-
-/// Resolve all concrete `Map` symbols from type and value spaces.
-fn resolve_map_symbols(ctx: &LintModuleDirContext<'_>) -> Vec<dir::GlobalSymbolId> {
-    let Some(well_known_symbols) = ctx.get_well_known_symbols() else {
-        return Vec::new();
-    };
-
-    well_known_symbol_candidates(&well_known_symbols, WellKnownSymbol::Map)
 }
 
 /// Report one prefer-set-over-empty-map diagnostic.
@@ -153,12 +142,12 @@ fn new_map_has_empty_value_argument(
     ctx: &LintModuleDirContext<'_>,
     callee_expression_id: dir::LocalNodeId<dir::Expression>,
     generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
-    map_symbols: &[dir::GlobalSymbolId],
+    map_symbol: dir::GlobalSymbolId,
 ) -> bool {
     let Some(target_symbol) = ctx.expression_target_symbol(callee_expression_id) else {
         return false;
     };
-    if !symbol_is_map(target_symbol, map_symbols) {
+    if target_symbol != map_symbol {
         return false;
     }
 
@@ -179,9 +168,9 @@ fn reference_has_empty_value_argument(
     ctx: &LintModuleDirContext<'_>,
     target_symbol: dir::GlobalSymbolId,
     generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
-    map_symbols: &[dir::GlobalSymbolId],
+    map_symbol: dir::GlobalSymbolId,
 ) -> bool {
-    if !symbol_is_map(target_symbol, map_symbols) {
+    if target_symbol != map_symbol {
         return false;
     }
 
@@ -235,11 +224,6 @@ fn expression_is_void_or_never_type(
         is_void_or_never_type,
     )
     .unwrap_or(false)
-}
-
-/// Return true when one symbol resolves to one map symbol candidate.
-fn symbol_is_map(symbol_id: dir::GlobalSymbolId, map_symbols: &[dir::GlobalSymbolId]) -> bool {
-    map_symbols.contains(&symbol_id)
 }
 
 #[cfg(test)]

@@ -1,8 +1,8 @@
 use destack_core::StringId;
-use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol, walk_expression};
+use destack_dir::{self as dir, LanguageItem, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
-use crate::LintRequirement::RequireWellKnownSymbol;
+use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::{
     expand_span_to_statement_terminator, expression_method_call, is_array_type,
     member_receiver_text, statement_expression_ancestor,
@@ -18,7 +18,7 @@ declare_lint! {
         code = "LY029",
         category = Style,
         level = Dir,
-        requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Array)],
+        requires_all = [RequireLanguageItem(LanguageItem::Array)],
         requires_any = [],
         fixable = Sometimes,
         recommended = Strict,
@@ -81,7 +81,7 @@ struct PreferArrayFilterVisitor<'a, 'b> {
 impl<'a, 'b> PreferArrayFilterVisitor<'a, 'b> {
     /// Build a visitor for prefer-array-filter checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        let array_symbol = ctx.well_known_symbol(WellKnownSymbol::Array);
+        let array_symbol = ctx.language_item(LanguageItem::Array);
         let for_each_name = ctx.string_id("forEach");
         let push_name = ctx.string_id("push");
 

@@ -1,12 +1,11 @@
 use destack_dir as dir;
-use destack_dir::WellKnownSymbol;
+use destack_dir::LanguageItem;
 use destack_workspace::{LintSeverity, ReturnAwaitMode};
 
 use crate::rules::common::{
     expression_affects_error_handling_context, expression_affects_resource_management_context,
     expression_is_any_typed, expression_is_inside_async_callable, expression_is_promise_like,
     expression_type_or_call_return_type_map, expression_unwrap_parenthesized,
-    well_known_symbol_candidates,
 };
 use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
@@ -38,7 +37,7 @@ impl LintRule for ReturnAwait {
 
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
-        let promise_symbols = resolve_promise_symbols(ctx);
+        let promise_symbol = ctx.get_language_item(LanguageItem::Promise);
         let configuration = return_await_configuration(ctx.options.correctness.return_await_mode);
 
         // inspect return expressions
@@ -79,7 +78,7 @@ impl LintRule for ReturnAwait {
                 check_return_value_expression(
                     ctx,
                     meta,
-                    &promise_symbols,
+                    promise_symbol,
                     configuration,
                     return_expression_id,
                     possible_return_value_id,
@@ -104,7 +103,7 @@ impl LintRule for ReturnAwait {
                 check_return_value_expression(
                     ctx,
                     meta,
-                    &promise_symbols,
+                    promise_symbol,
                     configuration,
                     body_expression_id,
                     possible_return_value_id,
@@ -194,15 +193,6 @@ impl ReturnValueKind {
     }
 }
 
-/// Resolve Promise symbols for the current module profile.
-fn resolve_promise_symbols(ctx: &LintModuleDirContext<'_>) -> Vec<dir::GlobalSymbolId> {
-    let Some(well_known_symbols) = ctx.get_well_known_symbols() else {
-        return Vec::new();
-    };
-
-    well_known_symbol_candidates(&well_known_symbols, WellKnownSymbol::Promise)
-}
-
 /// Classify one return value expression as awaited or plain.
 fn classify_return_value(
     tree: &dir::Tree,
@@ -225,7 +215,7 @@ fn classify_return_value(
 fn check_return_value_expression(
     ctx: &mut LintModuleDirContext<'_>,
     meta: &LintMeta,
-    promise_symbols: &[dir::GlobalSymbolId],
+    promise_symbol: Option<dir::GlobalSymbolId>,
     configuration: ReturnAwaitConfiguration,
     report_node_id: dir::LocalNodeId<dir::Expression>,
     value_expression_id: dir::LocalNodeId<dir::Expression>,
@@ -240,7 +230,7 @@ fn check_return_value_expression(
     // classify the returned expression shape
     let returned_value_kind = classify_return_value(ctx.tree, value_expression_id);
     let return_value_id = returned_value_kind.value_expression_id();
-    let thenable_certainty = expression_thenable_certainty(ctx, return_value_id, promise_symbols);
+    let thenable_certainty = expression_thenable_certainty(ctx, return_value_id, promise_symbol);
 
     // always disallow awaiting non-thenables
     if let ReturnValueKind::Awaited {
@@ -443,18 +433,18 @@ fn async_callable_expression_bodies(tree: &dir::Tree) -> Vec<dir::LocalNodeId<di
 fn expression_thenable_certainty(
     ctx: &LintModuleDirContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
-    promise_symbols: &[dir::GlobalSymbolId],
+    promise_symbol: Option<dir::GlobalSymbolId>,
 ) -> ThenableCertainty {
     // normalize wrappers once for type checks
     let expression_id = expression_unwrap_parenthesized(ctx.tree, expression_id);
 
     // keep known promise-like expressions at highest certainty
-    if promise_symbols.iter().any(|promise_symbol| {
+    if promise_symbol.is_some_and(|promise_symbol| {
         expression_is_promise_like(
             ctx.module_id(),
             ctx.tree,
             ctx.types,
-            *promise_symbol,
+            promise_symbol,
             expression_id,
         )
     }) {

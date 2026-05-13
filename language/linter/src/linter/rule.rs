@@ -1,4 +1,4 @@
-use destack_dir::WellKnownSymbol;
+use destack_dir::LanguageItem;
 use destack_source::{DiagnosticSeverity, FileType};
 use destack_workspace::{LintCategory, LintSeverity};
 
@@ -35,8 +35,8 @@ pub enum LintRequirement {
     /// A symbol provided by a builtin lib, resolved by name.
     /// If libs are provided (second argument), at least one of them must be available.
     RequireLibSymbol(&'static str, &'static [&'static str]),
-    /// A well-known symbol provided by the language runtime.
-    RequireWellKnownSymbol(WellKnownSymbol),
+    /// A language item provided by the standard library.
+    RequireLanguageItem(LanguageItem),
 }
 
 /// Whether a lint is part of the recommended set.

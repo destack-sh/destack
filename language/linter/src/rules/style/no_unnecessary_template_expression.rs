@@ -1,9 +1,9 @@
 use destack_dir::{
-    self as dir, NodeVisitor, NodeVisitorOptions, TemplateLiteral, WellKnownSymbol, walk_expression,
+    self as dir, LanguageItem, NodeVisitor, NodeVisitorOptions, TemplateLiteral, walk_expression,
 };
 use destack_workspace::LintSeverity;
 
-use crate::LintRequirement::RequireWellKnownSymbol;
+use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::{expression_type_or_call_return_type_map, is_string_type};
 use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
@@ -17,7 +17,7 @@ declare_lint! {
         code = "LY068",
         category = Style,
         level = Dir,
-        requires_all = [RequireWellKnownSymbol(WellKnownSymbol::String)],
+        requires_all = [RequireLanguageItem(LanguageItem::String)],
         requires_any = [],
         fixable = Always,
         recommended = Strict,
@@ -47,7 +47,7 @@ struct NoUnnecessaryTemplateExpressionVisitor<'a, 'b> {
     ctx: &'a mut LintModuleDirContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
-    /// The well known String symbol for this module.
+    /// The language item String symbol for this module.
     string_symbol: dir::GlobalSymbolId,
     /// The visitor options.
     options: NodeVisitorOptions,
@@ -56,7 +56,7 @@ struct NoUnnecessaryTemplateExpressionVisitor<'a, 'b> {
 impl<'a, 'b> NoUnnecessaryTemplateExpressionVisitor<'a, 'b> {
     /// Build a visitor for no-unnecessary-template-expression checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        let string_symbol = ctx.well_known_symbol(WellKnownSymbol::String);
+        let string_symbol = ctx.language_item(LanguageItem::String);
 
         Self {
             ctx,

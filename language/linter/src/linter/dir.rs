@@ -2,10 +2,9 @@ use std::sync::Arc;
 
 use destack_artifact::{
     Ast, DirChecked, DirDeclared, DirExpanded, DirExported, DirImported, GlobalEnvironment,
-    WellKnownSymbols,
 };
 use destack_ast::{StringId, StringPool};
-use destack_dir::{LanguageItem, WellKnownSymbol};
+use destack_dir::LanguageItem;
 use destack_source::{EditBuilder, File, FileId, ModuleId, PackageId, Span};
 use destack_workspace::{
     ArtifactCache, LintSeverity, LinterOptions, Module, Package, Profile, ProfileId, Repository,
@@ -298,47 +297,14 @@ impl<'a> LintModuleDirContext<'a> {
     /// Get a cached declared library symbol for the module profile and name.
     pub fn get_declared_library_symbol(&self, name: StringId) -> Option<dir::GlobalSymbolId> {
         let environment = self.global_environment()?;
-        let key = dir::StaticKey::Name(name);
 
-        environment.symbol_from_key(key, dir::SymbolSpace::Value)
+        environment.language.symbols.get(&name).copied()
     }
 
     /// Get a declared library symbol from the cache, panicking if not found.
     pub fn declared_library_symbol(&self, name: StringId) -> dir::GlobalSymbolId {
         self.get_declared_library_symbol(name)
             .unwrap_or_else(|| panic!("declared library symbol {name} not available"))
-    }
-
-    /// Get well-known symbols for the module profile.
-    pub fn get_well_known_symbols(&self) -> Option<WellKnownSymbols> {
-        let environment = self.global_environment()?;
-        Some(environment.well_known_symbols())
-    }
-
-    /// Get well-known symbols for the module profile, panicking if not found.
-    pub fn well_known_symbols(&self) -> WellKnownSymbols {
-        self.get_well_known_symbols().unwrap_or_else(|| {
-            panic!(
-                "well-known symbols not available for profile {:?}",
-                self.profile_id
-            )
-        })
-    }
-
-    /// Get a specific well-known symbol for the module profile.
-    pub fn get_well_known_symbol(&self, symbol: WellKnownSymbol) -> Option<dir::GlobalSymbolId> {
-        let well_known_symbols = self.get_well_known_symbols()?;
-        well_known_symbols.get_symbol(symbol)
-    }
-
-    /// Get a specific well-known symbol for the module profile, panicking if not found.
-    pub fn well_known_symbol(&self, symbol: WellKnownSymbol) -> dir::GlobalSymbolId {
-        self.get_well_known_symbol(symbol).unwrap_or_else(|| {
-            panic!(
-                "well-known symbol {symbol:?} not available for profile {:?}",
-                self.profile_id
-            )
-        })
     }
 
     /// Resolve severity for a rule.
@@ -362,8 +328,8 @@ impl<'a> LintModuleDirContext<'a> {
                 let name = self.string_id(name);
                 self.get_declared_library_symbol(name).is_some()
             }
-            LintRequirement::RequireWellKnownSymbol(symbol) => {
-                self.get_well_known_symbol(*symbol).is_some()
+            LintRequirement::RequireLanguageItem(symbol) => {
+                self.get_language_item(*symbol).is_some()
             }
         }
     }

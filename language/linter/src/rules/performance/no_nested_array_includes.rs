@@ -1,8 +1,8 @@
 use destack_core::StringId;
-use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol, walk_expression};
+use destack_dir::{self as dir, LanguageItem, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
-use crate::LintRequirement::RequireWellKnownSymbol;
+use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::{
     expression_enters_nested_declaration_scope, expression_method_call, is_array_type,
 };
@@ -18,7 +18,7 @@ declare_lint! {
         code = "LP007",
         category = Performance,
         level = Dir,
-        requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Array)],
+        requires_all = [RequireLanguageItem(LanguageItem::Array)],
         requires_any = [],
         fixable = No,
         recommended = Strict,
@@ -46,7 +46,7 @@ struct NoNestedArrayIncludesVisitor<'a, 'b> {
     ctx: &'a mut LintModuleDirContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
-    /// The well known Array symbol for this module.
+    /// The language item Array symbol for this module.
     array_symbol: dir::GlobalSymbolId,
     /// The string id for the includes method name.
     includes_name: StringId,
@@ -63,7 +63,7 @@ struct NoNestedArrayIncludesVisitor<'a, 'b> {
 impl<'a, 'b> NoNestedArrayIncludesVisitor<'a, 'b> {
     /// Build a visitor for no-nested-array-includes checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        let array_symbol = ctx.well_known_symbol(WellKnownSymbol::Array);
+        let array_symbol = ctx.language_item(LanguageItem::Array);
         let includes_name = ctx.string_id("includes");
         let index_of_name = ctx.string_id("indexOf");
         let last_index_of_name = ctx.string_id("lastIndexOf");

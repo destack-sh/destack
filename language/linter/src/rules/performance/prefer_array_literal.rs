@@ -2,12 +2,12 @@ use std::collections::HashMap;
 
 use destack_core::StringId;
 use destack_dir::{
-    self as dir, GlobalSymbolId, LocalNodeId, NodeVisitor, NodeVisitorOptions, WellKnownSymbol,
+    self as dir, GlobalSymbolId, LanguageItem, LocalNodeId, NodeVisitor, NodeVisitorOptions,
     walk_expression,
 };
 use destack_workspace::LintSeverity;
 
-use crate::LintRequirement::RequireWellKnownSymbol;
+use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::{
     assign_pattern_contains_expression, expand_span_to_statement_terminator, expression_method_call,
 };
@@ -23,7 +23,7 @@ declare_lint! {
         code = "LP013",
         category = Performance,
         level = Dir,
-        requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Array)],
+        requires_all = [RequireLanguageItem(LanguageItem::Array)],
         requires_any = [],
         fixable = Sometimes,
         recommended = Strict,

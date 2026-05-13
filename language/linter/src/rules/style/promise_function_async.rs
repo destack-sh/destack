@@ -1,10 +1,8 @@
-use destack_dir::{self as dir, Asynchrony, WellKnownSymbol};
+use destack_dir::{self as dir, Asynchrony, LanguageItem};
 use destack_workspace::LintSeverity;
 
-use crate::LintRequirement::RequireWellKnownSymbol;
-use crate::rules::common::{
-    function_return_type, is_promise_type_with_candidates, well_known_symbol_candidates,
-};
+use crate::LintRequirement::RequireLanguageItem;
+use crate::rules::common::{function_return_type, is_promise_type};
 use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
@@ -17,7 +15,7 @@ declare_lint! {
         code = "LY080",
         category = Style,
         level = Dir,
-        requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Promise)],
+        requires_all = [RequireLanguageItem(LanguageItem::Promise)],
         requires_any = [],
         fixable = No,
         recommended = Strict,
@@ -36,10 +34,9 @@ impl LintRule for PromiseFunctionAsync {
     /// Check module DIR nodes for Promise-returning non-async functions.
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
-        let promise_symbols = resolve_promise_symbols(ctx);
-        if promise_symbols.is_empty() {
+        let Some(promise_symbol) = ctx.get_language_item(LanguageItem::Promise) else {
             return;
-        }
+        };
 
         // function declarations
         for (declaration_id, declaration) in ctx.tree.iter_nodes_of_type::<dir::Declaration>() {
@@ -54,11 +51,11 @@ impl LintRule for PromiseFunctionAsync {
             if declaration.signature.asynchrony == Asynchrony::Async {
                 continue;
             }
-            if !function_symbol_returns_promise(ctx, function_symbol, &promise_symbols)
+            if !function_symbol_returns_promise(ctx, function_symbol, promise_symbol)
                 && !signature_returns_promise(
                     ctx,
                     declaration.signature.return_type,
-                    &promise_symbols,
+                    promise_symbol,
                 )
             {
                 continue;
@@ -86,8 +83,8 @@ impl LintRule for PromiseFunctionAsync {
             if signature.asynchrony == Asynchrony::Async {
                 continue;
             }
-            if !function_symbol_returns_promise(ctx, function_symbol, &promise_symbols)
-                && !signature_returns_promise(ctx, signature.return_type, &promise_symbols)
+            if !function_symbol_returns_promise(ctx, function_symbol, promise_symbol)
+                && !signature_returns_promise(ctx, signature.return_type, promise_symbol)
             {
                 continue;
             }
@@ -114,8 +111,8 @@ impl LintRule for PromiseFunctionAsync {
             if signature.asynchrony == Asynchrony::Async {
                 continue;
             }
-            if !function_symbol_returns_promise(ctx, function_symbol, &promise_symbols)
-                && !signature_returns_promise(ctx, signature.return_type, &promise_symbols)
+            if !function_symbol_returns_promise(ctx, function_symbol, promise_symbol)
+                && !signature_returns_promise(ctx, signature.return_type, promise_symbol)
             {
                 continue;
             }
@@ -125,29 +122,20 @@ impl LintRule for PromiseFunctionAsync {
     }
 }
 
-/// Resolve all concrete Promise symbols from type and value spaces.
-fn resolve_promise_symbols(ctx: &LintModuleDirContext<'_>) -> Vec<dir::GlobalSymbolId> {
-    let Some(well_known_symbols) = ctx.get_well_known_symbols() else {
-        return Vec::new();
-    };
-
-    well_known_symbol_candidates(&well_known_symbols, WellKnownSymbol::Promise)
-}
-
 /// Return true when one type resolves to Promise.
-fn type_is_promise_with_symbols(
+fn type_is_promise_symbol(
     types: &dir::TypeTable,
     type_id: dir::LocalTypeId,
-    promise_symbols: &[dir::GlobalSymbolId],
+    promise_symbol: dir::GlobalSymbolId,
 ) -> bool {
-    is_promise_type_with_candidates(types, type_id, promise_symbols)
+    is_promise_type(types, type_id, Some(promise_symbol))
 }
 
 /// Return true when one function symbol returns Promise.
 fn function_symbol_returns_promise(
     ctx: &LintModuleDirContext<'_>,
     symbol_id: dir::GlobalSymbolId,
-    promise_symbols: &[dir::GlobalSymbolId],
+    promise_symbol: dir::GlobalSymbolId,
 ) -> bool {
     let Some(function_type_id) = ctx.types.symbol_type_id(ctx.symbols, symbol_id) else {
         return false;
@@ -156,14 +144,14 @@ fn function_symbol_returns_promise(
         return false;
     };
 
-    type_is_promise_with_symbols(ctx.types, return_type_id, promise_symbols)
+    type_is_promise_symbol(ctx.types, return_type_id, promise_symbol)
 }
 
 /// Return true when one signature return annotation resolves to Promise.
 fn signature_returns_promise(
     ctx: &LintModuleDirContext<'_>,
     return_type_expression_id: Option<dir::LocalNodeId<dir::TypeExpression>>,
-    promise_symbols: &[dir::GlobalSymbolId],
+    promise_symbol: dir::GlobalSymbolId,
 ) -> bool {
     let Some(return_type_expression_id) = return_type_expression_id else {
         return false;
@@ -174,7 +162,7 @@ fn signature_returns_promise(
         return false;
     };
 
-    type_is_promise_with_symbols(ctx.types, return_type_id, promise_symbols)
+    type_is_promise_symbol(ctx.types, return_type_id, promise_symbol)
 }
 
 /// Report one Promise-function-async diagnostic.
