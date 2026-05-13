@@ -109,6 +109,20 @@ export {
     Dereference,
 } from "destack:ops";
 
+// ranges
+export {
+    Bound,
+    Step,
+    RangeIterator,
+    RangeBounds,
+    Range,
+    RangeInclusive,
+    RangeFrom,
+    RangeTo,
+    RangeToInclusive,
+    RangeFull,
+} from "destack:range";
+
 // control flow
 export {
     Error,

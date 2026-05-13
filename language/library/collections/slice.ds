@@ -1,23 +1,19 @@
-import { todo } from "destack:error";
+import { panic, todo } from "destack:error";
 import { Iterable, Iterator } from "destack:iter";
-import { Raw } from "destack:memory";
+import { Copy, Raw } from "destack:memory";
 import { Index, IndexSet } from "destack:ops";
+import { Bound, RangeBounds } from "destack:range";
 
 /// Well-known library type for the builtin slice form `[T]`.
 @languageItem("Slice")
 export newtype Slice<T> = [T];
 
 extension<T> of Slice<T> implements
-    Index<number>,
-    IndexSet<number, T>,
     Iterable<T>,
     Iterable<&T>,
     Iterable<&readonly T>,
     Iterable<&exclusive T>
 {
-    /// The indexed output type.
-    type Output = T;
-
     /// Build a raw slice from raw storage.
     @unsafe
     @intrinsic("collections.slice.fromRaw")
@@ -46,31 +42,6 @@ extension<T> of Slice<T> implements
     @unsafe
     @intrinsic("collections.slice.set")
     unsafeSet(this: &exclusive Slice<T>, index: usize, value: T): void;
-
-    /// Return the element at `index` by value.
-    index(index: number): T {
-        todo("Slice.index")
-    }
-
-    /// Borrow the element at `index`.
-    index(this: &Slice<T>, index: number): &T {
-        todo("Slice.index")
-    }
-
-    /// Borrow the element at `index` with readonly access.
-    index(this: &readonly Slice<T>, index: number): &readonly T {
-        todo("Slice.index")
-    }
-
-    /// Borrow the element at `index` with exclusive access.
-    index(this: &exclusive Slice<T>, index: number): &exclusive T {
-        todo("Slice.index")
-    }
-
-    /// Replace the element at `index`.
-    indexSet(this: &exclusive Slice<T>, index: number, value: T): void {
-        todo("Slice.indexSet")
-    }
 
     /// Return the first element by value.
     first(): T | undefined {
@@ -169,9 +140,16 @@ extension<T> of Slice<T> implements
         todo("Slice.fill")
     }
 
-    /// Copy from another slice.
-    copyFrom(this: &exclusive Slice<T>, source: &readonly Slice<T>): void {
-        todo("Slice.copyFrom")
+    /// Copy elements from `source` into this slice.
+    copyFrom(this: &exclusive Slice<T>, source: &readonly Slice<T>): void
+    where T implements Copy {
+        if (source.size != this.size) {
+            panic("slice copy length mismatch")
+        }
+
+        for (let index: usize = 0; index < this.size; index += 1) {
+            this.unsafeSet(index, source.unsafeGet(index))
+        }
     }
 
     /// Swap two elements.
@@ -207,5 +185,107 @@ extension<T> of Slice<T> implements
     /// Return an iterator over exclusive borrowed values.
     iterator(this: &exclusive Slice<T>): Iterator<&exclusive T> {
         todo("Slice.iterator")
+    }
+}
+
+extension<T> of Slice<T> implements Index<number>, IndexSet<number, T> {
+    /// The indexed output type.
+    type Output = T;
+
+    /// Return the element at `index` by value.
+    index(index: number): T {
+        todo("Slice.index")
+    }
+
+    /// Borrow the element at `index`.
+    index(this: &Slice<T>, index: number): &T {
+        todo("Slice.index")
+    }
+
+    /// Borrow the element at `index` with readonly access.
+    index(this: &readonly Slice<T>, index: number): &readonly T {
+        todo("Slice.index")
+    }
+
+    /// Borrow the element at `index` with exclusive access.
+    index(this: &exclusive Slice<T>, index: number): &exclusive T {
+        todo("Slice.index")
+    }
+
+    /// Replace the element at `index`.
+    indexSet(this: &exclusive Slice<T>, index: number, value: T): void {
+        todo("Slice.indexSet")
+    }
+}
+
+extension<T, R: RangeBounds<usize>> of Slice<T> implements Index<R> {
+    /// The indexed output type.
+    type Output = Slice<T>;
+
+    /// Return the normalized start and length for `range`.
+    rangeSpan(this: &readonly Slice<T>, range: R): (usize, usize) {
+        let start = match (range.startBound()) {
+            Bound { kind: "included", value } => value
+            Bound { kind: "excluded", value } => value + 1
+            Bound { kind: "unbounded" } => 0
+        };
+
+        let end = match (range.endBound()) {
+            Bound { kind: "included", value } => value + 1
+            Bound { kind: "excluded", value } => value
+            Bound { kind: "unbounded" } => this.size
+        };
+
+        if (start > end || end > this.size) {
+            panic("slice range out of bounds")
+        }
+
+        (start, end - start)
+    }
+
+    /// Return the selected range by value.
+    index(range: R): Slice<T> {
+        todo("Slice.indexRange")
+    }
+
+    /// Borrow the selected range.
+    index(this: &Slice<T>, range: R): &Slice<T> {
+        let (start, length) = this.rangeSpan(range);
+
+        this.subslice(start, length)
+    }
+
+    /// Borrow the selected range with readonly access.
+    index(this: &readonly Slice<T>, range: R): &readonly Slice<T> {
+        let (start, length) = this.rangeSpan(range);
+
+        this.subslice(start, length)
+    }
+
+    /// Borrow the selected range with exclusive access.
+    index(this: &exclusive Slice<T>, range: R): &exclusive Slice<T> {
+        let (start, length) = this.rangeSpan(range);
+
+        this.subslice(start, length)
+    }
+}
+
+extension<T, R: RangeBounds<usize>> of Slice<T> implements IndexSet<R, Slice<T>>
+where T implements Copy {
+    /// Copy `source` into the selected range.
+    indexSet(this: &exclusive Slice<T>, range: R, source: Slice<T>): void {
+        let target = this.index(range);
+
+        target.copyFrom(&readonly source)
+    }
+}
+
+extension<T, R: RangeBounds<usize>> of Slice<T> implements IndexSet<R, &readonly Slice<T>>
+where T implements Copy {
+    /// Copy `source` into the selected range.
+    indexSet(this: &exclusive Slice<T>, range: R, source: &readonly Slice<T>): void {
+        let target = this.index(range);
+
+        target.copyFrom(source)
     }
 }

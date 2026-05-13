@@ -1,6 +1,7 @@
 import { type Expression } from "./expression.ds";
 import { type Name } from "./key.ds";
 import { type Mutability, type Node } from "./node.ds";
+import { RangeEnd } from "./operator.ds";
 import { type Symbol } from "./symbol.ds";
 import { type TypeExpression } from "./type-expression.ds";
 
@@ -13,6 +14,7 @@ export type Pattern =
     | ValueOfPattern
     | BindingPattern
     | ExpressionPattern
+    | RangePattern
     | TypeExpressionPattern
     | TuplePattern
     | TaggedTuplePattern
@@ -99,6 +101,20 @@ export interface ExpressionPattern extends Node {
     kind: "expression";
     /// The matched expression.
     value: Expression;
+}
+
+/// Ordered scalar interval pattern.
+export interface RangePattern extends Node {
+    /// The node kind.
+    nodeKind: "pattern";
+    /// The pattern kind.
+    kind: "range";
+    /// The lower bound when present.
+    start?: Expression;
+    /// The upper bound when present.
+    end?: Expression;
+    /// Whether the upper bound is included.
+    endKind: RangeEnd;
 }
 
 /// Type-space pattern.

@@ -1,0 +1,143 @@
+import { todo } from "destack:error";
+import { Iterable, Iterator } from "destack:iter";
+
+import { Bound, RangeBounds } from "./bound.ds";
+import { Step } from "./step.ds";
+
+/// Half-open range `start..end`.
+@languageItem("Range")
+export struct Range<T> {
+    /// The included start value.
+    start: T;
+
+    /// The excluded end value.
+    end: T;
+}
+
+extension<T: Step<T>> of Range<T> implements Iterable<T> {
+    /// Return an iterator over this range.
+    iterator(): Iterator<T> {
+        todo("Range.iterator")
+    }
+}
+
+extension<T> of Range<T> implements RangeBounds<T> {
+    /// Return the start bound.
+    startBound(): Bound<T> {
+        Bound.Included({ value: this.start })
+    }
+
+    /// Return the end bound.
+    endBound(): Bound<T> {
+        Bound.Excluded({ value: this.end })
+    }
+}
+
+/// Inclusive range `start..=end`.
+@languageItem("RangeInclusive")
+export struct RangeInclusive<T> {
+    /// The included start value.
+    start: T;
+
+    /// The included end value.
+    end: T;
+}
+
+extension<T: Step<T>> of RangeInclusive<T> implements Iterable<T> {
+    /// Return an iterator over this range.
+    iterator(): Iterator<T> {
+        todo("RangeInclusive.iterator")
+    }
+}
+
+extension<T> of RangeInclusive<T> implements RangeBounds<T> {
+    /// Return the start bound.
+    startBound(): Bound<T> {
+        Bound.Included({ value: this.start })
+    }
+
+    /// Return the end bound.
+    endBound(): Bound<T> {
+        Bound.Included({ value: this.end })
+    }
+}
+
+/// Range from `start..`.
+@languageItem("RangeFrom")
+export struct RangeFrom<T> {
+    /// The included start value.
+    start: T;
+}
+
+extension<T: Step<T>> of RangeFrom<T> implements Iterable<T> {
+    /// Return an iterator over this range.
+    iterator(): Iterator<T> {
+        todo("RangeFrom.iterator")
+    }
+}
+
+extension<T> of RangeFrom<T> implements RangeBounds<T> {
+    /// Return the start bound.
+    startBound(): Bound<T> {
+        Bound.Included({ value: this.start })
+    }
+
+    /// Return the end bound.
+    endBound(): Bound<T> {
+        Bound.Unbounded({})
+    }
+}
+
+/// Range to `..end`.
+@languageItem("RangeTo")
+export struct RangeTo<T> {
+    /// The excluded end value.
+    end: T;
+}
+
+extension<T> of RangeTo<T> implements RangeBounds<T> {
+    /// Return the start bound.
+    startBound(): Bound<T> {
+        Bound.Unbounded({})
+    }
+
+    /// Return the end bound.
+    endBound(): Bound<T> {
+        Bound.Excluded({ value: this.end })
+    }
+}
+
+/// Inclusive range to `..=end`.
+@languageItem("RangeToInclusive")
+export struct RangeToInclusive<T> {
+    /// The included end value.
+    end: T;
+}
+
+extension<T> of RangeToInclusive<T> implements RangeBounds<T> {
+    /// Return the start bound.
+    startBound(): Bound<T> {
+        Bound.Unbounded({})
+    }
+
+    /// Return the end bound.
+    endBound(): Bound<T> {
+        Bound.Included({ value: this.end })
+    }
+}
+
+/// Full range `..`.
+@languageItem("RangeFull")
+export struct RangeFull {}
+
+extension<T> of RangeFull implements RangeBounds<T> {
+    /// Return the start bound.
+    startBound(): Bound<T> {
+        Bound.Unbounded({})
+    }
+
+    /// Return the end bound.
+    endBound(): Bound<T> {
+        Bound.Unbounded({})
+    }
+}

@@ -78,6 +78,14 @@ export enum BinaryOperator {
     In,
 }
 
+/// The end-bound spelling of a range.
+export enum RangeEnd {
+    /// Exclude the end bound when present.
+    Open,
+    /// Include the end bound.
+    Inclusive,
+}
+
 /// An assignment operator.
 export enum AssignOperator {
     /// `*=`

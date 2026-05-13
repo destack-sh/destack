@@ -1,6 +1,6 @@
 import { type Argument, type GenericArgument, type StaticArgument } from "./argument.ds";
 import { type Block } from "./block.ds";
-import { type CastOperator, type CastSource, type UnaryOperator, type BinaryOperator, type AssignOperator } from "./operator.ds";
+import { type CastOperator, type CastSource, type UnaryOperator, type BinaryOperator, RangeEnd, type AssignOperator } from "./operator.ds";
 import { type Declaration } from "./declaration.ds";
 import { type Declarator } from "./declarator.ds";
 import { type DependencyItem, type DependencyKind, type ExportMode, type ModuleTarget, type SymbolSpaceOrder } from "./dependency.ds";
@@ -244,6 +244,7 @@ export type Expression =
     | ReferenceOfExpression
     | PointerOfExpression
     | BinaryExpression
+    | RangeExpression
     | AssignExpression
     | AssignBinaryExpression
     | MemberExpression
@@ -597,6 +598,20 @@ export interface BinaryExpression extends Node {
     operator: BinaryOperator;
     /// The right operand.
     right: Expression;
+}
+
+/// Range expression.
+export interface RangeExpression extends Node {
+    /// The node kind.
+    nodeKind: "expression";
+    /// The expression kind.
+    kind: "range";
+    /// The start expression when present.
+    start?: Expression;
+    /// The end expression when present.
+    end?: Expression;
+    /// Whether the end expression is included.
+    endKind: RangeEnd;
 }
 
 /// Assignment.

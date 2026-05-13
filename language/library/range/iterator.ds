@@ -1,0 +1,21 @@
+import { todo } from "destack:error";
+import { Iterator, IteratorResult } from "destack:iter";
+
+import { Bound } from "./bound.ds";
+import { Step } from "./step.ds";
+
+/// Iterator over a stepped range.
+export struct RangeIterator<T: Step<T>> {
+    /// The next value to yield.
+    current?: T;
+
+    /// The end bound.
+    end: Bound<T>;
+}
+
+extension<T: Step<T>> of RangeIterator<T> implements Iterator<T> {
+    /// Advance the iterator.
+    next(): IteratorResult<T> {
+        todo("RangeIterator.next")
+    }
+}

@@ -1,0 +1,10 @@
+import { Compare } from "destack:ops";
+
+/// Protocol for values that can advance through a range.
+export newtype interface Step<T = this> extends Compare<T> {
+    /// Return the next value.
+    next(): T | undefined;
+
+    /// Return the previous value.
+    previous(): T | undefined;
+}

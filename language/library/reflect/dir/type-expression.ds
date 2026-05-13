@@ -6,6 +6,7 @@ import { type FunctionSignature } from "./function.ds";
 import { type Key } from "./key.ds";
 import { type ScalarLiteral } from "./literal.ds";
 import { type Mutability, type Node } from "./node.ds";
+import { RangeEnd } from "./operator.ds";
 import { type Symbol } from "./symbol.ds";
 import { type Type, type TypeLiteral, type VarianceBound } from "./type.ds";
 
@@ -264,6 +265,7 @@ export type TypeExpression =
     | ValueOfTypeExpression
     | ReferenceOfTypeExpression
     | PointerOfTypeExpression
+    | RangeTypeExpression
     | UnionTypeExpression
     | IntersectionTypeExpression
     | ConditionalTypeExpression
@@ -583,6 +585,20 @@ export interface PointerOfTypeExpression extends Node {
     mutability?: Mutability;
     /// The target type.
     targetType: TypeExpression;
+}
+
+/// Range type expression.
+export interface RangeTypeExpression extends Node {
+    /// The node kind.
+    nodeKind: "typeExpression";
+    /// The type-expression kind.
+    kind: "range";
+    /// The start type when present.
+    start?: TypeExpression;
+    /// The end type when present.
+    end?: TypeExpression;
+    /// Whether the end type is included.
+    endKind: RangeEnd;
 }
 
 /// Union type.
