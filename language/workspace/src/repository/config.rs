@@ -18,9 +18,20 @@ impl Repository {
             return Ok(None);
         };
 
-        // already cached
-        if let Some(config) = self.file_cache.destack_configs.get(&content_id) {
-            return Ok(config.value().as_ref().ok().cloned());
+        // cached parse result
+        if let Some(config) = self
+            .file_cache
+            .destack_config_by_content_id
+            .get(&content_id)
+        {
+            return config
+                .value()
+                .as_ref()
+                .map(|config| Some(Arc::clone(config)))
+                .map_err(|message| RepositoryError::InvalidConfig {
+                    file: file_id,
+                    message: message.clone(),
+                });
         }
 
         // parse from source
@@ -30,12 +41,20 @@ impl Repository {
         let config = DestackConfig::parse(&file)
             .map(Arc::new)
             .map_err(|error| error.to_string());
-        let destack_config = config.as_ref().ok().cloned();
+        let destack_config = config
+            .as_ref()
+            .map(|config| Some(Arc::clone(config)))
+            .map_err(|message| RepositoryError::InvalidConfig {
+                file: file_id,
+                message: message.clone(),
+            });
 
         // populate cache
-        self.file_cache.destack_configs.insert(content_id, config);
+        self.file_cache
+            .destack_config_by_content_id
+            .insert(content_id, config);
 
-        Ok(destack_config)
+        destack_config
     }
 
     /// Return the parsed root workspace config for one revision.

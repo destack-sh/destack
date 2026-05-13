@@ -143,7 +143,7 @@ impl Repository {
         }
 
         let revision_state = self.revision(revision)?;
-        let revision_cache = self.revision_cache(revision);
+        let revision_cache = revision_state.cache();
         let normalized_path = path.normalize();
         let directory_paths = revision_cache
             .directory_paths

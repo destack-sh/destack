@@ -2,7 +2,8 @@ use std::error::Error;
 use std::fmt;
 use std::path::PathBuf;
 
-use destack_source::{FileContentId, ModuleId, PackageId, ProfileId, TargetId};
+use destack_artifact::ArtifactVersion;
+use destack_source::{FileContentId, FileId, ModuleId, PackageId, ProfileId, TargetId};
 
 use crate::repository::{Ref, Revision};
 
@@ -23,12 +24,21 @@ pub enum RepositoryError {
     MissingTarget { target: TargetId },
     /// The requested profile does not exist in the repository.
     MissingProfile { profile: ProfileId },
+    /// The requested artifact entry does not exist in the repository store.
+    MissingArtifact { version: ArtifactVersion },
     /// The requested file does not exist in the base revision.
     MissingFile { path: String },
     /// The requested file already exists in the base revision.
     FileAlreadyExists { path: String },
     /// The requested edit path is not writable through generic repository edits.
     InvalidEditPath { path: String, message: String },
+    /// Repository config is invalid.
+    InvalidConfig {
+        /// The config file id.
+        file: FileId,
+        /// The parse error message.
+        message: String,
+    },
     /// One attached file system operation failed.
     FileSystem {
         operation: &'static str,
@@ -63,6 +73,9 @@ impl fmt::Display for RepositoryError {
             Self::MissingProfile { profile } => {
                 write!(formatter, "missing repository profile '{profile}'")
             }
+            Self::MissingArtifact { version } => {
+                write!(formatter, "missing repository artifact '{version:?}'")
+            }
             Self::MissingFile { path } => {
                 write!(formatter, "missing file '{path}'")
             }
@@ -73,6 +86,12 @@ impl fmt::Display for RepositoryError {
                 write!(
                     formatter,
                     "invalid repository edit path '{path}': {message}"
+                )
+            }
+            Self::InvalidConfig { file, message } => {
+                write!(
+                    formatter,
+                    "invalid repository config for '{file}': {message}"
                 )
             }
             Self::FileSystem {

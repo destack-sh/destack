@@ -3,12 +3,11 @@ use std::sync::Arc;
 use destack_artifact::ProfileKey;
 use destack_source::{ModuleId, PackageId, ProfileId, TargetId};
 use im::OrdMap;
-use indexmap::IndexMap;
 
 use crate::repository::key::profile_key_for_target;
 use crate::{
-    CompilerOptions, HostEnvironment, ModeOptions, Module, Package, ProfileEnvironment,
-    ProfileOptions, Repository, RepositoryError, Revision, Target, builtin_modes,
+    CompilerOptions, DestackConfig, HostEnvironment, ProfileEnvironment, ProfileOptions,
+    Repository, RepositoryError, Revision, Target,
 };
 
 /// One resolved semantic profile.
@@ -50,34 +49,20 @@ impl Repository {
         let Some(module) = self.module(revision, module_id)? else {
             return Err(RepositoryError::MissingModule { module: module_id });
         };
-        let Some(package) = self.package(revision, module.package_id)? else {
-            return Err(RepositoryError::MissingPackage {
-                package: module.package_id,
-            });
-        };
 
-        let compiler_options = self.module_compiler_options(revision, &package, &module)?;
-        let config = self.destack_config_for_package_id(revision, package.id)?;
+        // package profile inputs
+        let (config, compiler_options) =
+            self.package_config_and_compiler_options(revision, module.package_id)?;
+        let target = self
+            .package_default_target(revision, module.package_id)?
+            .map(|(_, target)| target)
+            .unwrap_or_default();
 
-        let (target, profile_config, modes) = if let Some(config) = config.as_ref() {
-            let target = self
-                .package_default_target(revision, package.id)?
-                .map(|(_, target)| target)
-                .unwrap_or_default();
-            let profile_config = compiler_options
-                .profile
-                .as_ref()
-                .and_then(|name| config.profiles.get(name));
-            (target, profile_config, &config.modes)
-        } else {
-            (Target::default(), None, default_modes())
-        };
-
+        // profile identity
         let profile = self.profile_from_target(
             &target,
             &compiler_options,
-            profile_config,
-            modes,
+            config.as_deref(),
             &revision_state.host,
         );
 
@@ -91,39 +76,20 @@ impl Repository {
         package_id: PackageId,
     ) -> Result<Arc<Profile>, RepositoryError> {
         let revision_state = self.revision(revision)?;
-        let Some(package) = self.package(revision, package_id)? else {
-            return Err(RepositoryError::MissingPackage {
-                package: package_id,
-            });
-        };
-        let config = self.destack_config_for_package_id(revision, package.id)?;
-        let compiler_options = config
-            .as_ref()
-            .map(|config| config.compiler.clone())
-            .unwrap_or_default();
 
+        // package profile inputs
+        let (config, compiler_options) =
+            self.package_config_and_compiler_options(revision, package_id)?;
         let target = self
-            .package_default_target(revision, package.id)?
+            .package_default_target(revision, package_id)?
             .map(|(_, target)| target)
             .unwrap_or_default();
-        let profile_config = config.as_ref().and_then(|config| {
-            target
-                .profile
-                .as_ref()
-                .or(compiler_options.profile.as_ref())
-                .and_then(|name| config.profiles.get(name))
-        });
 
-        let modes = if let Some(config) = config.as_ref() {
-            &config.modes
-        } else {
-            default_modes()
-        };
+        // profile identity
         let profile = self.profile_from_target(
             &target,
             &compiler_options,
-            profile_config,
-            modes,
+            config.as_deref(),
             &revision_state.host,
         );
 
@@ -141,39 +107,26 @@ impl Repository {
         let Some(module) = self.module(revision, module_id)? else {
             return Err(RepositoryError::MissingModule { module: module_id });
         };
-        let Some(package) = self.package(revision, module.package_id)? else {
-            return Err(RepositoryError::MissingPackage {
-                package: module.package_id,
-            });
-        };
+
+        // target must belong to the module package
         if target_id.package_id() != module.package_id {
             return Ok(None);
         }
 
+        // explicit or implicit target
         let Some(target) = self.effective_target(revision, target_id)? else {
             return Ok(None);
         };
 
-        let compiler_options = self.module_compiler_options(revision, &package, &module)?;
-        let config = self.destack_config_for_package_id(revision, package.id)?;
-        let profile_config = config.as_ref().and_then(|config| {
-            target
-                .profile
-                .as_ref()
-                .or(compiler_options.profile.as_ref())
-                .and_then(|name| config.profiles.get(name))
-        });
+        // target profile inputs
+        let (config, compiler_options) =
+            self.package_config_and_compiler_options(revision, module.package_id)?;
 
-        let modes = if let Some(config) = config.as_ref() {
-            &config.modes
-        } else {
-            default_modes()
-        };
+        // profile identity
         let profile = self.profile_from_target(
             &target,
             &compiler_options,
-            profile_config,
-            modes,
+            config.as_deref(),
             &revision_state.host,
         );
 
@@ -185,8 +138,8 @@ impl Repository {
         &self,
         revision: Revision,
     ) -> Result<Arc<OrdMap<ProfileId, Arc<Profile>>>, RepositoryError> {
-        let _revision_state = self.revision(revision)?;
-        let revision_cache = self.revision_cache(revision);
+        let revision_state = self.revision(revision)?;
+        let revision_cache = revision_state.cache();
 
         if let Some(profiles) = revision_cache.profiles.get() {
             return Ok(Arc::clone(profiles));
@@ -296,19 +249,19 @@ impl Repository {
         Ok(None)
     }
 
-    /// Build profile compiler options for one module.
-    fn module_compiler_options(
+    /// Return package config and compiler options.
+    fn package_config_and_compiler_options(
         &self,
         revision: Revision,
-        package: &Package,
-        _module: &Module,
-    ) -> Result<CompilerOptions, RepositoryError> {
-        let compiler_options = self
-            .destack_config_for_package_id(revision, package.id)?
+        package_id: PackageId,
+    ) -> Result<(Option<Arc<DestackConfig>>, CompilerOptions), RepositoryError> {
+        let config = self.destack_config_for_package_id(revision, package_id)?;
+        let compiler_options = config
+            .as_ref()
             .map(|config| config.compiler.clone())
             .unwrap_or_default();
 
-        Ok(compiler_options)
+        Ok((config, compiler_options))
     }
 
     /// Build one resolved profile from one target and effective option set.
@@ -316,25 +269,33 @@ impl Repository {
         &self,
         target: &Target,
         compiler_options: &CompilerOptions,
-        profile_config: Option<&ProfileOptions>,
-        mode_options: &IndexMap<String, ModeOptions>,
+        config: Option<&DestackConfig>,
         environment: &HostEnvironment,
     ) -> Arc<Profile> {
+        let profile_config = Self::profile_options_for_target(target, compiler_options, config);
         let key = profile_key_for_target(
             target,
             compiler_options,
             profile_config,
-            mode_options,
+            config,
             environment,
         );
 
         Arc::new(Profile::from_key(key, environment))
     }
-}
 
-/// Return the shared default mode definition map.
-fn default_modes() -> &'static IndexMap<String, ModeOptions> {
-    static MODES: std::sync::OnceLock<IndexMap<String, ModeOptions>> = std::sync::OnceLock::new();
+    /// Return profile options selected by one target and compiler option set.
+    fn profile_options_for_target<'a>(
+        target: &'a Target,
+        compiler_options: &'a CompilerOptions,
+        config: Option<&'a DestackConfig>,
+    ) -> Option<&'a ProfileOptions> {
+        let config = config?;
+        let profile_name = target
+            .profile
+            .as_ref()
+            .or(compiler_options.profile.as_ref())?;
 
-    MODES.get_or_init(builtin_modes)
+        config.profiles.get(profile_name)
+    }
 }
