@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use {destack_dir as dir, destack_mir as mir};
 
-use destack_artifact::{DiagnosticAnchor, DirChecked, DirDeclared, WellKnownIntrinsics};
+use destack_artifact::{DiagnosticAnchor, DirChecked, DirDeclared, LanguageIntrinsics};
 use destack_core::{StringId, StringPool};
 use destack_dir::GuardTable;
 use destack_source::ModuleId;
@@ -42,8 +42,8 @@ pub(crate) struct FunctionLoweringContext<'a> {
     pub(crate) captures: &'a dir::CaptureTable,
     /// Provide access to the program string pool for name resolution.
     pub(crate) strings: &'a StringPool,
-    /// Well-known intrinsic bindings for this profile.
-    pub(crate) well_known_intrinsics: Option<&'a WellKnownIntrinsics>,
+    /// Language intrinsic bindings for this profile.
+    pub(crate) language_intrinsics: Option<&'a LanguageIntrinsics>,
     /// Runtime check configuration for this target.
     pub(crate) checks: RuntimeCheckConfig,
     /// Lower and cache DIR types into MIR types.
@@ -421,7 +421,7 @@ impl<'a> FunctionLowerer<'a> {
 
         // resolve the string type for the literal
         let ty = self.context.type_lowerer.string_type().ok_or_else(|| {
-            let message = "missing well known String layout (load core)".to_string();
+            let message = "missing language item String layout (load core)".to_string();
             match anchor {
                 Some(anchor) => LowerError::UnsupportedConstruct {
                     anchor: self.diagnostic_anchor(anchor),

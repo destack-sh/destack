@@ -480,7 +480,7 @@ impl<'a> TypeLowerer<'a> {
                 self.ty_string
                     .ok_or_else(|| LowerError::UnsupportedConstruct {
                         anchor: self.diagnostic_anchor(node),
-                        message: "missing well known String layout (load core)".to_string(),
+                        message: "missing language item String layout (load core)".to_string(),
                     })
             }
         }

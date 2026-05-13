@@ -2,7 +2,7 @@ use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 use {destack_dir as dir, destack_mir as mir};
 
-use destack_artifact::{DiagnosticAnchor, DirDeclared, GlobalEnvironment, WellKnownIntrinsics};
+use destack_artifact::{DiagnosticAnchor, DirDeclared, GlobalEnvironment, LanguageIntrinsics};
 use destack_ast::StringId;
 use destack_core::StringPool;
 use destack_dir::{GuardTable, LanguageItem};
@@ -17,20 +17,6 @@ use crate::lower::{
     InterfaceEntry, MethodKey, RUNTIME_CHECK_MESSAGES, RuntimeCheckConfig, RuntimeStatusLayout,
     TypeCacheEntry, TypeLowerer,
 };
-
-/// Resolve one well-known symbol from a global environment.
-fn well_known_symbol_from_environment(
-    environment: &GlobalEnvironment,
-    symbol: dir::WellKnownSymbol,
-    space: dir::SymbolSpace,
-) -> Option<dir::GlobalSymbolId> {
-    let pair = environment.well_known_symbols().get_pair(symbol)?;
-
-    match space {
-        dir::SymbolSpace::Type => pair.ty.or(pair.value),
-        dir::SymbolSpace::Value | dir::SymbolSpace::Label => pair.value.or(pair.ty),
-    }
-}
 
 /// Context for lowering a DIR module to MIR.
 #[allow(dead_code)]
@@ -63,8 +49,8 @@ pub(crate) struct ModuleLowerer<'a> {
     pub(crate) captures: &'a dir::CaptureTable,
     /// Runtime check configuration for this target.
     pub(crate) runtime_checks: RuntimeCheckConfig,
-    /// Well-known intrinsic bindings for this profile.
-    pub(crate) well_known_intrinsics: Option<WellKnownIntrinsics>,
+    /// Language intrinsic bindings for this profile.
+    pub(crate) language_intrinsics: Option<LanguageIntrinsics>,
 
     /// Build MIR nodes for this module.
     pub(crate) builder: mir::ModuleBuilder,
@@ -174,13 +160,8 @@ impl<'a> ModuleLowerer<'a> {
         builder.strings().ensure_all_from(strings);
 
         // resolve vector builtin symbols for SIMD lowering
-        let vector_symbol = Self::well_known_symbol_for(
-            compiler,
-            context,
-            profile,
-            dir::WellKnownSymbol::Vector,
-            dir::SymbolSpace::Type,
-        )?;
+        let vector_symbol =
+            Self::language_item_for(compiler, context, profile, dir::LanguageItem::Vector)?;
 
         // create the type lowerer
         let type_lowerer = TypeLowerer::new(
@@ -206,7 +187,7 @@ impl<'a> ModuleLowerer<'a> {
         let runtime_checks = RuntimeCheckConfig::from_target(&target_config, debug);
         let binding_abi_lowering = target_config.emit.is_native();
 
-        let well_known_intrinsics = Self::well_known_intrinsics(compiler, context, profile)?;
+        let language_intrinsics = Self::language_intrinsics(compiler, context, profile)?;
 
         Ok(Self {
             compiler,
@@ -223,7 +204,7 @@ impl<'a> ModuleLowerer<'a> {
             guards,
             captures,
             runtime_checks,
-            well_known_intrinsics,
+            language_intrinsics,
             builder,
             functions_by_instance: HashMap::new(),
             function_signature_types: HashMap::new(),
@@ -262,16 +243,16 @@ impl<'a> ModuleLowerer<'a> {
     }
 
     /// Build the intrinsic binding registry for the active profile.
-    fn well_known_intrinsics(
+    fn language_intrinsics(
         compiler: &Compiler,
         context: &dyn ProviderContext,
         profile: ProfileId,
-    ) -> CompilerResult<Option<WellKnownIntrinsics>> {
+    ) -> CompilerResult<Option<LanguageIntrinsics>> {
         let environment = compiler
             .global_environment(context, profile)
             .map_err(CompilerError::from)?;
 
-        let mut intrinsics = WellKnownIntrinsics::new();
+        let mut intrinsics = LanguageIntrinsics::new();
         for module_id in &environment.modules {
             let declared = compiler
                 .dir_declared(context, *module_id, profile)
@@ -298,11 +279,10 @@ impl<'a> ModuleLowerer<'a> {
     pub(crate) fn declared_global_symbol(
         &self,
         name: &str,
-        space: dir::SymbolSpace,
     ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
         let environment = self.global_environment()?;
 
-        Ok(environment.symbol_from(name, space))
+        Ok(environment.language.symbol(name))
     }
 
     /// Resolve one compiler language symbol in this lowerer.
@@ -315,23 +295,18 @@ impl<'a> ModuleLowerer<'a> {
         Ok(environment.language.item(symbol))
     }
 
-    /// Resolve one well-known symbol before the lowerer has been constructed.
-    fn well_known_symbol_for(
+    /// Resolve one language item before the lowerer has been constructed.
+    fn language_item_for(
         compiler: &Compiler,
         context: &dyn ProviderContext,
         profile: ProfileId,
-        symbol: dir::WellKnownSymbol,
-        order: dir::SymbolSpace,
+        symbol: dir::LanguageItem,
     ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
         let environment = compiler
             .global_environment(context, profile)
             .map_err(CompilerError::from)?;
 
-        Ok(well_known_symbol_from_environment(
-            &environment,
-            symbol,
-            order,
-        ))
+        Ok(environment.language.item(symbol))
     }
 
     /// Collect intrinsic bindings from one declared DIR module.
@@ -339,7 +314,7 @@ impl<'a> ModuleLowerer<'a> {
         module_id: ModuleId,
         declared: &DirDeclared,
         strings: &StringPool,
-        intrinsics: &mut WellKnownIntrinsics,
+        intrinsics: &mut LanguageIntrinsics,
     ) {
         for symbol_id in declared.bindings.symbol_ids() {
             let symbol = declared.bindings.get_symbol(symbol_id);
@@ -923,7 +898,7 @@ impl<'a> ModuleLowerer<'a> {
             return Ok(());
         }
 
-        // require the well known string layout
+        // require the language item string layout
         let Some(anchor) = anchor else {
             return Err(LowerError::Internal {
                 anchor: (self.module_id).into(),
@@ -946,7 +921,7 @@ impl<'a> ModuleLowerer<'a> {
                 .string_type_for_builtin(anchor)?
                 .ok_or_else(|| LowerError::UnsupportedConstruct {
                     anchor: self.diagnostic_anchor(anchor),
-                    message: "missing well known String layout (load core)".to_string(),
+                    message: "missing language item String layout (load core)".to_string(),
                 })
                 .map_err(CompilerError::from)?
         };

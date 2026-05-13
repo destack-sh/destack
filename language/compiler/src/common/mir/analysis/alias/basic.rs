@@ -1067,7 +1067,7 @@ b0:
     v1: ref<int32, raw, space(stack)> = stack.alloc int32
     v2: int8 = 0int8
     v3: int64 = 4int64
-    intrinsic.memset(v1, v2, v3)
+    intrinsic.memory.raw.setBytes(v1, v2, v3)
     return
 }"#,
         );
@@ -1107,7 +1107,7 @@ function test(v0: ref<int32, raw>, v1: ref<int32, raw>): void {
 b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
     v2: int8 = 0int8
     v3: int64 = 4int64
-    intrinsic.memset(v1, v2, v3)
+    intrinsic.memory.raw.setBytes(v1, v2, v3)
     return
 }"#,
         );
@@ -1153,7 +1153,7 @@ function test(v0: ref<int32, raw>, v1: ref<int32, raw>): void {
 b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
     v2: int8 = 0int8
     v3: int64 = 4int64
-    intrinsic.memset(v1, v2, v3)
+    intrinsic.memory.raw.setBytes(v1, v2, v3)
     return
 }"#,
         );
@@ -1204,7 +1204,7 @@ b0:
     v0: ref<int32, raw, space(frame)> = local.address local0
     v1: int8 = 0int8
     v2: int64 = 4int64
-    intrinsic.memset(v0, v1, v2)
+    intrinsic.memory.raw.setBytes(v0, v1, v2)
     return
 }"#,
         );

@@ -50,7 +50,7 @@ declare_mir_pass! {
     ///     v3 = 1uint32
     ///     v9 = 0uint8
     ///     v10 = element.address v0, v2
-    ///     intrinsic.memset(v10, v9, v1)
+    ///     intrinsic.memory.raw.setBytes(v10, v9, v1)
     ///     jump b3
     /// b1(v4: uint32):
     ///     v5 = int.lt.u v4, v1
@@ -916,7 +916,7 @@ fn insert_bound_guard(
     Some(guard_inst)
 }
 
-/// Emit an intrinsic.memset for the loop idiom.
+/// Emit an intrinsic.memory.raw.setBytes for the loop idiom.
 // allow explicit context parameters for memset emission
 #[allow(clippy::too_many_arguments)]
 fn emit_memset(
@@ -1379,7 +1379,7 @@ mod tests {
     use super::*;
     use crate::optimize::common::tests::TestProgram;
 
-    /// Memset loops are lowered to intrinsic.memset.
+    /// Memset loops are lowered to intrinsic.memory.raw.setBytes.
     #[test]
     fn test_loop_idiom_memset() {
         let input = r#"
@@ -1408,7 +1408,7 @@ b0(v0: uint8[8], v1: uint32):
     v3: uint32 = 1uint32
     v4: uint8 = 0uint8
     v5: ref<uint8, borrowed> = element.address v0, v2
-    intrinsic.memset(v5, v4, v1)
+    intrinsic.memory.raw.setBytes(v5, v4, v1)
     jump b3
 b1(v6: uint32):
     v7: boolean = int.lt.u v6, v1
@@ -1459,7 +1459,7 @@ b0(v0: uint8[8], v1: uint32):
     v3: uint32 = 1uint32
     v4: uint8 = 0uint8
     v5: ref<uint8, borrowed> = element.address v0, v2
-    intrinsic.memset(v5, v4, v1)
+    intrinsic.memory.raw.setBytes(v5, v4, v1)
     jump b4
 b1(v6: uint32):
     v7: boolean = int.lt.u v6, v1
@@ -1544,7 +1544,7 @@ b3:
         test.assert_unchanged(input);
     }
 
-    /// Memcpy loops are lowered to intrinsic.memcpy.
+    /// Memcpy loops are lowered to intrinsic.memory.raw.copyBytes.
     #[test]
     fn test_loop_idiom_memcpy() {
         let input = r#"
@@ -1574,7 +1574,7 @@ b0(v0: uint8[8], v1: uint8[8], v2: uint32):
     v4: uint32 = 1uint32
     v5: ref<uint8, borrowed> = element.address v0, v3
     v6: ref<uint8, borrowed> = element.address v1, v3
-    intrinsic.memcpy(v5, v6, v2)
+    intrinsic.memory.raw.copyBytes(v5, v6, v2)
     jump b3
 b1(v7: uint32):
     v8: boolean = int.lt.u v7, v2
@@ -1624,7 +1624,7 @@ b0(v0: uint8[8], v1: uint32):
     v3: uint32 = 1uint32
     v4: ref<uint8, borrowed> = element.address v0, v2
     v5: ref<uint8, borrowed> = element.address v0, v2
-    intrinsic.memmove(v4, v5, v1)
+    intrinsic.memory.raw.moveBytes(v4, v5, v1)
     jump b3
 b1(v6: uint32):
     v7: boolean = int.lt.u v6, v1
@@ -1678,7 +1678,7 @@ b0(v0: uint32[8], v1: uint32[8]):
     v6: uint32 = int.mul v4, v5
     v7: ref<uint32, borrowed> = element.address v0, v2
     v8: ref<uint32, borrowed> = element.address v1, v2
-    intrinsic.memcpy(v7, v8, v6)
+    intrinsic.memory.raw.copyBytes(v7, v8, v6)
     jump b3
 b1(v9: uint32):
     v10: boolean = int.lt.u v9, v4
@@ -1734,7 +1734,7 @@ b0(v0: uint32[8], v1: uint32[8]):
     v7: uint32 = int.mul v5, v6
     v8: ref<uint32, borrowed> = element.address v0, v2
     v9: ref<uint32, borrowed> = element.address v1, v2
-    intrinsic.memcpy(v8, v9, v7)
+    intrinsic.memory.raw.copyBytes(v8, v9, v7)
     jump b3
 b1(v10: uint32):
     v11: boolean = int.lt.u v10, v4
@@ -1799,7 +1799,7 @@ b4:
     v10: uint32 = int.sub v1, v2
     v11: uint8 = 0uint8
     v12: ref<uint8, borrowed> = element.address v0, v2
-    intrinsic.memset(v12, v11, v10)
+    intrinsic.memory.raw.setBytes(v12, v11, v10)
     jump b3
 }"#;
 
@@ -1852,7 +1852,7 @@ b4:
     v12: uint32 = int.sub v3, v2
     v13: ref<uint8, borrowed> = element.address v0, v2
     v14: ref<uint8, borrowed> = element.address v1, v2
-    intrinsic.memcpy(v13, v14, v12)
+    intrinsic.memory.raw.copyBytes(v13, v14, v12)
     jump b3
 }"#;
 
@@ -1903,7 +1903,7 @@ b4:
     v10: uint32 = int.sub v1, v2
     v11: ref<uint8, borrowed> = element.address v0, v2
     v12: ref<uint8, borrowed> = element.address v0, v2
-    intrinsic.memmove(v11, v12, v10)
+    intrinsic.memory.raw.moveBytes(v11, v12, v10)
     jump b3
 }"#;
 

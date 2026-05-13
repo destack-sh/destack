@@ -874,7 +874,7 @@ b2:
     jump b3
 b3:
     v4: int64 = 4int64
-    v5: int32 = intrinsic.memcmp(v1, v1, v4)
+    v5: int32 = intrinsic.memory.raw.compareBytes(v1, v1, v4)
     v6: int32 = load v1
     return v6
 }"#;
@@ -896,7 +896,7 @@ b2:
     jump b3(v5)
 b3(v6: int32):
     v7: int64 = 4int64
-    v8: int32 = intrinsic.memcmp(v1, v1, v7)
+    v8: int32 = intrinsic.memory.raw.compareBytes(v1, v1, v7)
     return v6
 }"#;
 

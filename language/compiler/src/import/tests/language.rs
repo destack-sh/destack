@@ -1,10 +1,7 @@
 use super::*;
 use crate::{LANGUAGE_LIBS, LIBRARY_PACKAGES, LibraryPackage, run_to_completion};
 use destack_artifact::ArtifactKey;
-use destack_dir::{
-    Declaration, LanguageItem, StaticKey, SymbolSpace, SymbolForm, WellKnownSymbol,
-    WellKnownSymbolKey,
-};
+use destack_dir::{Declaration, LanguageItem, SymbolForm};
 use destack_source::DiagnosticSeverity;
 
 /// Check one library package and summarize any diagnostics.
@@ -103,75 +100,66 @@ fn test_analyze_library_packages_clean() {
     analyze_library_registry_clean(LIBRARY_PACKAGES);
 }
 
-/// Resolve well known symbols from library packages.
+/// Resolve language items from library packages.
 #[test]
-fn test_resolve_well_known_symbols() {
+fn test_resolve_language_items() {
     let test = TestProgram::memory_sequential_with_prelude();
     test.resolve_language_environment();
     test.resolve_libs();
     test.compile();
 
     let profile = test.default_profile_id_for_root();
-    let well_known = test
-        .compiler
-        .get_well_known_symbols(test.program.current_revision(), profile)
-        .unwrap_or_else(|| panic!("missing well known symbols for test profile"));
+    let revision = test.program.current_revision();
+    let language = test
+        .repository
+        .language_environment(revision, profile)
+        .unwrap_or_else(|| panic!("missing language environment for test profile"));
 
     // verify common baseline symbols
     let required_symbols = [
-        WellKnownSymbol::Array,
-        WellKnownSymbol::ReadonlyArray,
-        WellKnownSymbol::Map,
-        WellKnownSymbol::Set,
-        WellKnownSymbol::Slice,
-        WellKnownSymbol::String,
-        WellKnownSymbol::Number,
-        WellKnownSymbol::BigInt,
-        WellKnownSymbol::Function,
-        WellKnownSymbol::Eval,
-        WellKnownSymbol::Reflect,
-        WellKnownSymbol::Promise,
-        WellKnownSymbol::Iterable,
-        WellKnownSymbol::Iterator,
-        WellKnownSymbol::AsyncIterable,
-        WellKnownSymbol::AsyncIterator,
-        WellKnownSymbol::Symbol,
+        LanguageItem::Array,
+        LanguageItem::ReadonlyArray,
+        LanguageItem::Map,
+        LanguageItem::Set,
+        LanguageItem::Slice,
+        LanguageItem::String,
+        LanguageItem::Number,
+        LanguageItem::BigInt,
+        LanguageItem::Function,
+        LanguageItem::Eval,
+        LanguageItem::Reflect,
+        LanguageItem::Promise,
+        LanguageItem::Iterable,
+        LanguageItem::Iterator,
+        LanguageItem::AsyncIterable,
+        LanguageItem::AsyncIterator,
+        LanguageItem::Symbol,
     ];
     for symbol in required_symbols {
         assert!(
-            well_known.get_symbol(symbol).is_some(),
-            "missing well-known symbol {symbol:?}"
+            language.item(symbol).is_some(),
+            "missing language symbol {symbol:?}"
         );
-    }
-
-    // verify symbol key metadata
-    for symbol in WellKnownSymbolKey::all() {
-        let key = well_known
-            .get_key(symbol)
-            .unwrap_or_else(|| panic!("missing well-known key {symbol:?}"));
-        assert_eq!(key.member, symbol.member_name());
-        assert_eq!(key.global_name, symbol.global_symbol_name());
     }
 }
 
 /// Resolve fixed array from the core library.
 #[test]
-fn test_resolve_core_well_known_fixed_array_symbol() {
+fn test_resolve_core_fixed_array_language_symbol() {
     let test = TestProgram::memory_sequential_with_prelude();
     test.resolve_language_environment();
     test.resolve_libs();
     test.compile();
 
     let profile = test.default_profile_id_for_root();
-    let well_known = test
-        .compiler
-        .get_well_known_symbols(test.program.current_revision(), profile)
-        .unwrap_or_else(|| panic!("missing well known symbols for test profile"));
+    let revision = test.program.current_revision();
+    let language = test
+        .repository
+        .language_environment(revision, profile)
+        .unwrap_or_else(|| panic!("missing language environment for test profile"));
     assert!(
-        well_known
-            .get_type_symbol(WellKnownSymbol::FixedArray)
-            .is_some(),
-        "missing core FixedArray well-known symbol"
+        language.item(LanguageItem::FixedArray).is_some(),
+        "missing core FixedArray language symbol"
     );
 }
 
@@ -194,9 +182,9 @@ export const appValue = [infinityValue, nanValue, rootValue];
     test.compile_check_clean();
 }
 
-/// Resolve the core String well-known symbol for an implicit target profile.
+/// Resolve the core String language symbol for an implicit target profile.
 #[test]
-fn test_resolve_core_well_known_string_symbol_from_target_profile() {
+fn test_resolve_core_string_language_symbol_from_target_profile() {
     let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
@@ -223,21 +211,20 @@ function main(): int32 {
     .unwrap_or_else(|error| panic!("failed to resolve core library environment: {error:?}"));
     test.compile();
 
-    let well_known = test
-        .compiler
-        .get_well_known_symbols(test.program.current_revision(), profile)
-        .unwrap_or_else(|| panic!("missing well known symbols for target profile"));
+    let revision = test.program.current_revision();
+    let language = test
+        .repository
+        .language_environment(revision, profile)
+        .unwrap_or_else(|| panic!("missing language environment for target profile"));
     assert!(
-        well_known
-            .get_type_symbol(WellKnownSymbol::String)
-            .is_some(),
-        "missing core String well-known symbol"
+        language.item(LanguageItem::String).is_some(),
+        "missing core String language symbol"
     );
 }
 
-/// Resolve the core String well-known symbol to one concrete struct declaration.
+/// Resolve the core String language symbol to one concrete class declaration.
 #[test]
-fn test_resolve_native_well_known_string_concrete_symbol() {
+fn test_resolve_native_string_language_symbol() {
     let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
@@ -264,29 +251,18 @@ function main(): int32 {
     .unwrap_or_else(|error| panic!("failed to resolve native library environment: {error:?}"));
     test.compile();
 
-    let string_name = test.program.strings.intern("String");
-    let string_sources = test
-        .compiler
-        .get_library_symbol_sources(
-            test.program.current_revision(),
-            profile,
-            StaticKey::Name(string_name),
-            SymbolSpace::Type,
-        )
-        .unwrap_or_default();
-    let string_symbol = test
-        .compiler
-        .get_well_known_concrete_symbol_from(
-            test.program.current_revision(),
-            profile,
-            WellKnownSymbol::String,
-            destack_dir::SymbolSpace::Type,
-        )
-        .unwrap_or_else(|| panic!("missing core String well-known symbol"));
+    let revision = test.program.current_revision();
+    let language = test
+        .repository
+        .language_environment(revision, profile)
+        .unwrap_or_else(|| panic!("missing language environment for native profile"));
+    let string_symbol = language
+        .item(LanguageItem::String)
+        .unwrap_or_else(|| panic!("missing core String language symbol"));
 
     run_to_completion(
         &test.compiler,
-        test.program.current_revision(),
+        revision,
         |_, context| context.require(ArtifactKey::dir_declared(string_symbol.module_id, profile)),
     )
     .unwrap_or_else(|error| panic!("failed to declare core String owner module: {error:?}"));
@@ -307,15 +283,15 @@ function main(): int32 {
     let declared_symbol = declared.bindings.get_symbol(string_symbol.local_id);
     assert_eq!(
         declared_symbol.ty,
-        SymbolForm::Struct,
-        "core String symbol: {string_symbol:?}, type sources: {string_sources:?}"
+        SymbolForm::Class,
+        "core String symbol: {string_symbol:?}"
     );
 
     let declaration_id = declared_symbol
         .declaration
         .and_then(|node| node.local_id.try_into_typed::<Declaration>().ok())
-        .unwrap_or_else(|| panic!("core String symbol missing struct declaration"));
-    let Declaration::Struct { .. } = declared.tree.get(declaration_id) else {
-        panic!("core String symbol does not point to a struct declaration");
+        .unwrap_or_else(|| panic!("core String symbol missing class declaration"));
+    let Declaration::Class { .. } = declared.tree.get(declaration_id) else {
+        panic!("core String symbol does not point to a class declaration");
     };
 }

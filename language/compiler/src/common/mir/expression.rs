@@ -655,6 +655,7 @@ pub fn expression_key_from_instruction(
         | mir::Instruction::BarrierWrite { .. }
         | mir::Instruction::FieldSet { .. }
         | mir::Instruction::ElementSet { .. }
+        | mir::Instruction::Slice { .. }
         | mir::Instruction::GlobalAddr { .. }
         | mir::Instruction::FunctionAddr { .. }
         | mir::Instruction::CallableBind { .. }

@@ -13,6 +13,40 @@ fn clone_call_with_arguments<A: Clone>(call: &mir::Call<A>, arguments: A) -> mir
     }
 }
 
+/// Substitute values inside one place.
+fn place_substitute_uses(
+    place: &mir::Place,
+    substitutions: &HashMap<mir::Value, mir::Value>,
+) -> mir::Place {
+    let mut place = place.clone();
+
+    // apply value substitutions to origins and dynamic projections
+    for (from, to) in substitutions {
+        place.replace_value(*from, *to);
+    }
+
+    place
+}
+
+/// Remap values and locals inside one place.
+fn place_map_values_and_locals(
+    place: &mir::Place,
+    value_map: &HashMap<mir::Value, mir::Value>,
+    local_map: &HashMap<mir::LocalNodeId<mir::Local>, mir::LocalNodeId<mir::Local>>,
+) -> mir::Place {
+    let mut place = place_substitute_uses(place, value_map);
+
+    // remap local origins
+    if let mir::PlaceOrigin::Local(local) = &mut place.origin
+        && let Some(local_id) = local.local()
+        && let Some(mapped) = local_map.get(&local_id)
+    {
+        *local = (*mapped).into();
+    }
+
+    place
+}
+
 /// Check if an instruction is pure (result depends only on operands).
 ///
 /// A pure instruction has no side effects AND does not read mutable state.
@@ -40,6 +74,7 @@ pub fn instruction_is_pure(instruction: &Instruction) -> bool {
         Instruction::Struct { .. }
         | Instruction::Tuple { .. }
         | Instruction::Array { .. }
+        | Instruction::Slice { .. }
         | Instruction::VectorSplat { .. }
         | Instruction::VectorExtract { .. }
         | Instruction::VectorInsert { .. }
@@ -209,6 +244,7 @@ pub fn instruction_has_side_effects(instruction: &Instruction) -> bool {
         | Instruction::Struct { .. }
         | Instruction::Tuple { .. }
         | Instruction::Array { .. }
+        | Instruction::Slice { .. }
         | Instruction::VectorSplat { .. }
         | Instruction::VectorExtract { .. }
         | Instruction::VectorInsert { .. }
@@ -628,8 +664,8 @@ pub fn instruction_substitute_uses(
         mir::Instruction::Free { value } => mir::Instruction::Free {
             value: substitute(value),
         },
-        mir::Instruction::Drop { value } => mir::Instruction::Drop {
-            value: substitute(value),
+        mir::Instruction::Drop { place } => mir::Instruction::Drop {
+            place: place_substitute_uses(place, substitutions),
         },
         mir::Instruction::FieldGet {
             destination,
@@ -692,6 +728,19 @@ pub fn instruction_substitute_uses(
             array: substitute(array),
             index: *index,
             value: substitute(value),
+        },
+        mir::Instruction::Slice {
+            destination,
+            source,
+            start,
+            length,
+            result_type,
+        } => mir::Instruction::Slice {
+            destination: *destination,
+            source: substitute(source),
+            start: substitute(start),
+            length: substitute(length),
+            result_type: *result_type,
         },
         mir::Instruction::VectorSplat { destination, value } => mir::Instruction::VectorSplat {
             destination: *destination,
@@ -2079,8 +2128,8 @@ pub fn instruction_map(
         mir::Instruction::Free { value } => mir::Instruction::Free {
             value: remap(*value),
         },
-        mir::Instruction::Drop { value } => mir::Instruction::Drop {
-            value: remap(*value),
+        mir::Instruction::Drop { place } => mir::Instruction::Drop {
+            place: place_substitute_uses(place, value_map),
         },
         mir::Instruction::FieldGet {
             destination,
@@ -2143,6 +2192,19 @@ pub fn instruction_map(
             array: remap(*array),
             index: *index,
             value: remap(*value),
+        },
+        mir::Instruction::Slice {
+            destination,
+            source,
+            start,
+            length,
+            result_type,
+        } => mir::Instruction::Slice {
+            destination: remap(*destination),
+            source: remap(*source),
+            start: remap(*start),
+            length: remap(*length),
+            result_type: *result_type,
         },
         mir::Instruction::LocalGet { destination, local } => mir::Instruction::LocalGet {
             destination: remap(*destination),
@@ -3237,6 +3299,19 @@ pub fn instruction_map_with_locals(
             index: *index,
             value: remap(*value),
         },
+        mir::Instruction::Slice {
+            destination,
+            source,
+            start,
+            length,
+            result_type,
+        } => mir::Instruction::Slice {
+            destination: remap(*destination),
+            source: remap(*source),
+            start: remap(*start),
+            length: remap(*length),
+            result_type: *result_type,
+        },
         mir::Instruction::New {
             destination,
             layout,
@@ -3284,8 +3359,8 @@ pub fn instruction_map_with_locals(
         mir::Instruction::Free { value } => mir::Instruction::Free {
             value: remap(*value),
         },
-        mir::Instruction::Drop { value } => mir::Instruction::Drop {
-            value: remap(*value),
+        mir::Instruction::Drop { place } => mir::Instruction::Drop {
+            place: place_map_values_and_locals(place, value_map, local_map),
         },
         mir::Instruction::StackAlloc {
             destination,

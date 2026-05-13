@@ -866,6 +866,7 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Instruction::Struct { .. }
             | mir::Instruction::Tuple { .. }
             | mir::Instruction::Array { .. }
+            | mir::Instruction::Slice { .. }
             | mir::Instruction::VectorSplat { .. }
             | mir::Instruction::VectorExtract { .. }
             | mir::Instruction::VectorInsert { .. }
@@ -3120,7 +3121,7 @@ b0:
     v0: ref<int32, raw, space(stack)> = stack.alloc int32
     v1: ref<int32, raw, space(stack)> = stack.alloc int32
     v2: int64 = 4int64
-    intrinsic.memcpy(v0, v1, v2)
+    intrinsic.memory.raw.copyBytes(v0, v1, v2)
     v3: int32 = load v0
     return v3
 }"#,
@@ -3175,7 +3176,7 @@ b0:
     v0: ref<int32, raw, space(stack)> = stack.alloc int32
     v1: ref<int32, raw, space(stack)> = stack.alloc int32
     v2: int64 = 4int64
-    v3: int32 = intrinsic.memcmp(v0, v1, v2)
+    v3: int32 = intrinsic.memory.raw.compareBytes(v0, v1, v2)
     return v3
 }"#,
         );

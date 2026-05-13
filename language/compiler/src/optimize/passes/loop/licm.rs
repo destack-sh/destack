@@ -1115,7 +1115,7 @@ b0(v0: boolean):
     v2: int64 = 4int64
     jump b1
 b1:
-    v3: int32 = intrinsic.memcmp(v1, v1, v2)
+    v3: int32 = intrinsic.memory.raw.compareBytes(v1, v1, v2)
     branch v0, b1, b2
 b2:
     return v3
@@ -1126,7 +1126,7 @@ function test(v0: boolean): int32 {
 b0(v0: boolean):
     v1: ref<int32, raw, space(stack)> = stack.alloc int32
     v2: int64 = 4int64
-    v3: int32 = intrinsic.memcmp(v1, v1, v2)
+    v3: int32 = intrinsic.memory.raw.compareBytes(v1, v1, v2)
     jump b1
 b1:
     branch v0, b1, b2
