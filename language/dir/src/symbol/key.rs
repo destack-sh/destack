@@ -1,4 +1,4 @@
-use crate::{GlobalSymbolId, WellKnownSymbolKey};
+use crate::GlobalSymbolId;
 use destack_core::{StringId, StringPool};
 use serde::{Deserialize, Serialize};
 
@@ -7,8 +7,6 @@ use serde::{Deserialize, Serialize};
 pub enum SymbolKey {
     /// Unique symbol key from a declaration.
     Unique(GlobalSymbolId),
-    /// Well known Symbol.* key.
-    WellKnown(WellKnownSymbolKey),
     /// Symbol.for registry key (string is the content of `Symbol.for`).
     Registry(StringId),
 }
@@ -20,7 +18,7 @@ pub enum StaticKey {
     Name(StringId),
     /// Numeric name key (like `1` or `1e3`).
     Number(StringId),
-    /// Symbol key (unique, well known, registry).
+    /// Symbol key.
     Symbol(SymbolKey),
 }
 
@@ -86,9 +84,6 @@ impl SymbolKey {
     pub fn debug_string(&self, strings: &StringPool) -> String {
         match self {
             SymbolKey::Unique(_) => "<unique symbol>".to_string(),
-            SymbolKey::WellKnown(symbol) => {
-                format!("'{}'", symbol.global_symbol_name())
-            }
             SymbolKey::Registry(name) => {
                 let name = &*strings.get(*name);
                 format!("'Symbol.for(\"{name}\")'")
