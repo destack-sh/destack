@@ -856,7 +856,7 @@ async function read(user: User): Promise<string> {
 }
 ```
 
-For the same reason, frame-owned values can also be borrowed across suspension points:
+Frame-owned values can also be borrowed across suspension points:
 
 ```ds
 async function read(user: ^User): Promise<string> {
@@ -866,10 +866,20 @@ async function read(user: ^User): Promise<string> {
 }
 ```
 
+Externally borrowed values can _not_ be borrowed across suspension points:
+
+```ds
+async function read(user: &User): Promise<string> {
+    const name = &readonly user.name;
+    await tick();
+    return name.clone(); // error
+}
+
+```
+
 ### Patterns
 
-TypeScript already has pattern based destructuring for arguments and assignment-like expressions, so richer patterns fit in quite naturally.
-Destack extends that idea into `match`, `if (let ...)`, `let ... else`, and `catch match` with a full suite of patterns for every type family:
+TypeScript has pattern based destructuring for arguments and assignment-like expressions, and Destack extends that idea into `match`, `if (let ...)`, `let ... else`, and `catch match` with a full suite of patterns for every type family:
 
 | Family | Example | Meaning |
 |--------|---------|---------|
@@ -899,7 +909,7 @@ match (result /* Result<T, E> */) {
 }
 ```
 
-Like with other conditional expressions, the resulting type of a match expression is the union of its arm bodies types.
+Like with other conditional expressions, the resulting type of a match expression is the union of its arms' types.
 
 ```ds
 declare const point: Point;
@@ -909,8 +919,8 @@ match (point) {
 }
 ```
 
-Some patterns are irrefutable, which means they always match, and then we do not need any alternative branches, like with `_` or destructuring of known shapes.
-Refutable patterns require some fallback such that all branches are covered: a `match` fallback arm, an `else` branch for `if (let ...)`, or an `else` continuation for `let ... else`.
+Some patterns are irrefutable, which means they always match, and then we do not need any alternative branches, so no need for `_` or destructuring of known shapes.
+Refutable patterns require some fallback such that all branches are always covered: a `match` fallback arm, an `else` branch for `if (let ...)`, or an `else` continuation for `let ... else`.
 
 ```ds
 declare const point: Point;
@@ -928,11 +938,10 @@ let Some(value) = maybe else {
 
 ### Guards
 
-Guards are boolean expressions that can refine types in the branch where they are known.
-TypeScript runtime type checks support the familiar `typeof value == "string"`, `"name" in value`, and `instanceof`:
- - `typeof` only works with primitive types (`"string"`, `"number"`, `"boolean"`, `"bigint"`, `"symbol"`, and `"undefined"`).
- - `"name" in value` only works with object types, and is quite imprecise.
- - `instanceof` only works with classes.
+Guards are boolean expressions that can refine types, like the familiar `typeof value == "string"`, `"name" in value`, and `instanceof` checks:
+ - `typeof` for primitive families (`"string"`, `"number"`, `"boolean"`, `"bigint"`, `"symbol"`, and `"undefined"`).
+ - `"name" in value` for object types, and is quite imprecise.
+ - `instanceof` for classes.
 
 Destack adds an additional `value is T` check, which asks whether the current runtime representation of `value` carries the case or identity for `T`:
 
@@ -983,8 +992,7 @@ const line = loop {
 
 ### Using
 
-The `using` (and `await using`) feature - officially known as explicit resource management - follows the [TC39 explicit resource management proposal](https://github.com/tc39/proposal-explicit-resource-management).
-We just follow that proposal with `using` / `await using` as explicit scoped cleanup, but of course using nominal interfaces instead of `Symbol`s:
+Explicit resource management - `using` and `await using` - follows the [TC39 explicit resource management proposal](https://github.com/tc39/proposal-explicit-resource-management) with `using` / `await using` as explicit scoped cleanup, but of course using nominal interfaces instead of magic `Symbol` keys:
 - `using` accepts `Dispose | null | undefined`.
 - `await using` accepts `AsyncDispose | Dispose | null | undefined`, and falls back to synchronous disposal when the resource only implements `Dispose`.
 - `null` and `undefined` are ignored, following the spec.
@@ -1069,13 +1077,12 @@ Autoderef does not make `Box<T>` generally assignable to `T`; it is just member 
 
 ### Dispatch
 
-"Dispatch" is how calls, member accesses, and overloadable operators select an implementation to invoke.
-The selection rule is TS-derived: build the candidate set, keep candidates compatible with the arguments as written, then pick the first one in declaration order:
+"Dispatch" is how calls, member accesses, and overloadable operators select the specific field or method to use.
+Destack's overload resolution rule is based on TypeScript: build the candidate set, keep candidates compatible with the arguments as written, then pick the first match _in declaration order_:
 
 #### Overloads
 
-Overload resolution follows source order.
-Unlike in TypeScript, there may be multiple overloaded _implementations_ for the same name, but the selection rule is the same as in TypeScript.
+Unlike in TypeScript, there may be multiple overloaded _implementations_ for the same name and scope:
 
 ```ds
 function parse(input: string): int32 {
@@ -1088,15 +1095,14 @@ function parse(input: int32): int32 {
 }
 ```
 
-Members work in much the same way (after receiver lookup): inherent members first, then visible extension members in declaration order.
-Unlike in TypeScript, because we have strict sound types, property access and method calls use different access paths - this means a field and method can share a source name: `value.name` resolves the field/accessor projection, while `value.name()` resolves the method-call projection.
+Members work in the same way (after receiver lookup): inherent members first, then visible extension members in declaration order.
+Because Destack has strict types, property access and method calls may use different access paths; that is, a field and method can share a source name: `value.name` resolves the field/accessor projection, while `value.name()` resolves the method-call projection.
 (Fields and accessors share the property projection and therefore cannot share a name.)
 
 #### Operators
 
 For overloadable operators, the operator decides the interface to check, and the left operand is the receiver (matching how it is written in the interface implementation).
-Binary operators do not fall back to the right operand.
-If both operand orders should work, both receiver implementations must exist.
+Binary operators do not fall back to the right operand, so if both operand orders are desired - `a + b` and `b + a`, both receiver implementations must exist.
 
 ```ds
 newtype interface Add<T = this> {
