@@ -45,6 +45,8 @@ impl Token {
             TokenType::Semicolon => ";".to_string(),
             TokenType::Comma => ",".to_string(),
             TokenType::Dot => ".".to_string(),
+            TokenType::Range => "..".to_string(),
+            TokenType::RangeInclusive => "..=".to_string(),
             TokenType::Spread => "...".to_string(),
             TokenType::Arrow => "->".to_string(),
             TokenType::ArrowWide => "=>".to_string(),

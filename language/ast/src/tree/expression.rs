@@ -5,7 +5,8 @@ use crate::{
     Argument, AssignOperator, AssignPattern, Asynchrony, BinaryOperator, Block, Declaration,
     Declarator, DependencyItem, DependencySpace, ExportKind, GenericArgument,
     ImportAttributeClause, Keyword, LocalNodeId, MatchCase, MatchForm, Mutability, Node, NodeType,
-    Path, Pattern, Property, ScalarLiteral, TemplateLiteral, TypeExpression, UnaryOperator,
+    Path, Pattern, Property, RangeEnd, ScalarLiteral, TemplateLiteral, TypeExpression,
+    UnaryOperator,
 };
 
 // NOTE #Performance: reduce Expression size to <=64B
@@ -420,6 +421,23 @@ pub enum Expression {
     /// 0x1234
     /// ```
     ScalarLiteral(ScalarLiteral),
+
+    /// Range expression.
+    ///
+    /// Examples:
+    /// ```
+    /// start..end
+    /// start..=end
+    /// start..
+    /// ..end
+    /// ..=end
+    /// ..
+    /// ```
+    RangeExpression {
+        start: Option<LocalNodeId<Expression>>,
+        end: Option<LocalNodeId<Expression>>,
+        end_kind: RangeEnd,
+    },
 
     /// Template expression. May include interpolation arguments.
     ///

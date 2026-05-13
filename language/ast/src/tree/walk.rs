@@ -354,6 +354,21 @@ pub fn walk_type_expression<V: NodeVisitor + ?Sized>(
                 visitor.visit_generic_argument(tree, *argument_id, argument);
             }
         }
+        TypeExpression::Range {
+            start,
+            end,
+            end_kind: _,
+        } => {
+            if let Some(start_id) = start {
+                let start_node = tree.get(*start_id);
+                visitor.visit_type_expression(tree, *start_id, start_node);
+            }
+
+            if let Some(end_id) = end {
+                let end_node = tree.get(*end_id);
+                visitor.visit_type_expression(tree, *end_id, end_node);
+            }
+        }
         TypeExpression::Const => {}
         TypeExpression::This => {}
         TypeExpression::Readonly { target_type }
@@ -949,6 +964,22 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             // no child nodes to visit
         }
 
+        Expression::RangeExpression {
+            start,
+            end,
+            end_kind: _,
+        } => {
+            if let Some(start_id) = start {
+                let start_node = tree.get(*start_id);
+                visitor.visit_expression(tree, *start_id, start_node);
+            }
+
+            if let Some(end_id) = end {
+                let end_node = tree.get(*end_id);
+                visitor.visit_expression(tree, *end_id, end_node);
+            }
+        }
+
         Expression::TemplateExpression { value } => match value {
             TemplateLiteral::String { .. } => {}
             TemplateLiteral::InterpolatedString { arguments, .. } => {
@@ -981,7 +1012,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 }
             }
         }
-
         Expression::ArrayExpression { elements } => {
             for argument_id in elements {
                 let argument = tree.get(*argument_id);
@@ -1841,6 +1871,21 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
         Pattern::Expression { value } => {
             let value_expression = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expression);
+        }
+        Pattern::Range {
+            start,
+            end,
+            end_kind: _,
+        } => {
+            if let Some(start_id) = start {
+                let start_expression = tree.get(*start_id);
+                visitor.visit_expression(tree, *start_id, start_expression);
+            }
+
+            if let Some(end_id) = end {
+                let end_expression = tree.get(*end_id);
+                visitor.visit_expression(tree, *end_id, end_expression);
+            }
         }
         Pattern::TypeExpression { value } => {
             let value_expression = tree.get(*value);
