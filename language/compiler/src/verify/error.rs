@@ -19,6 +19,13 @@ pub enum VerifyError {
         moved_at: DiagnosticAnchor,
     },
 
+    /// Cannot partially move a type with custom drop glue.
+    #[diagnostic(
+        code = "EV102",
+        message = "cannot partially move value with custom drop"
+    )]
+    PartialMoveOfDropType { anchor: DiagnosticAnchor },
+
     /// A new borrow conflicts with an active borrow.
     #[diagnostic(code = "EV200", message = "borrow conflicts with active borrow")]
     ConflictingLoan {
@@ -37,20 +44,14 @@ pub enum VerifyError {
     #[diagnostic(code = "EV202", message = "cannot write through readonly access")]
     ReadonlyWrite { anchor: DiagnosticAnchor },
 
-    /// An escaping borrow is not covered by the required lifetime.
-    #[diagnostic(
-        code = "EV300",
-        message = "borrow from {origin} does not live long enough"
-    )]
-    BorrowOutlivesOrigin {
-        anchor: DiagnosticAnchor,
-        origin: String,
-    },
-
-    /// A borrowed value remains live across a suspension point.
-    #[diagnostic(code = "EV301", message = "borrow crosses suspension point")]
-    BorrowAcrossSuspend {
+    /// Exclusive borrowed access cannot cross a suspension point.
+    #[diagnostic(code = "EV203", message = "exclusive borrow cannot cross suspension")]
+    ExclusiveLoanAcrossSuspension {
         anchor: DiagnosticAnchor,
         borrowed_at: DiagnosticAnchor,
     },
+
+    /// An escaping borrow is not covered by the required lifetime.
+    #[diagnostic(code = "EV300", message = "borrow does not live long enough")]
+    BorrowOutlivesOrigin { anchor: DiagnosticAnchor },
 }
