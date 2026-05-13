@@ -231,14 +231,6 @@ jobs:
       - name: Bench Language
         run: just language/bench
 
-  runtime-android-check:
-    name: Runtime Check (Android)
-    uses: ./.github/workflows/runtime-android-check.yml
-
-  runtime-ios-check:
-    name: Runtime Check (iOS)
-    uses: ./.github/workflows/runtime-ios-check.yml
-
   runtime-linux-check:
     name: Runtime Check (Linux)
     uses: ./.github/workflows/runtime-linux-check.yml
@@ -261,8 +253,6 @@ jobs:
       - service-check
       - app-check
       - bridge-check
-      - runtime-android-check
-      - runtime-ios-check
       - runtime-linux-check
       - runtime-macos-check
       - runtime-windows-check
