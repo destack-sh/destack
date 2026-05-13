@@ -79,14 +79,24 @@ function main(): Result<int, Error | null | undefined> {
 A union of Results unwraps to the union of success values and propagates the union of errors.
 
 ```ds
-struct MissingError implements Error {
-    name: "MissingError";
+struct MissingError {
     message: string;
 }
 
-struct BadError implements Error {
-    name: "BadError";
+extension of MissingError implements Error {
+    display(): string {
+        this.message
+    }
+}
+
+struct BadError {
     message: string;
+}
+
+extension of BadError implements Error {
+    display(): string {
+        this.message
+    }
 }
 
 declare function read(): Result<int, MissingError> | Result<string, BadError>;

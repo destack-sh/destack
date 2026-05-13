@@ -1,4 +1,4 @@
-import { todo, Result } from "destack:error";
+import { Error, Result, todo } from "destack:error";
 import { alignOf, sizeOf } from "destack:reflect";
 import { Space, WithSpace } from "./form.ds";
 
@@ -11,10 +11,14 @@ export struct AllocationLayout {
 }
 
 /// Failure kind returned by an allocator.
-export type AllocationErrorKind =
-    | "outOfMemory"
-    | "invalidLayout"
-    | "unsupportedLayout";
+export enum AllocationErrorKind {
+    /// The allocator could not reserve enough memory.
+    OutOfMemory,
+    /// The requested layout is invalid.
+    InvalidLayout,
+    /// The allocator does not support the requested layout.
+    UnsupportedLayout,
+}
 
 /// Allocation failure.
 export struct AllocationError {
@@ -22,6 +26,13 @@ export struct AllocationError {
     kind: AllocationErrorKind;
     /// Human-readable detail when available.
     message?: string;
+}
+
+extension of AllocationError implements Error {
+    /// Format this error for users.
+    display(): string {
+        this.message ?? "allocation failed"
+    }
 }
 
 export extension of AllocationLayout {

@@ -1208,6 +1208,20 @@ Banishing exceptions is Destack's biggest divergence from TypeScript: Destack us
 Recoverable errors use `Result<T, E>`, integrate with `try` / `catch`, and can be opened with `?`, `??`, and postfix `!`.
 (JavaScript exceptions remain valid _syntax_ because we need to integrate with JS targets directly, but in regular userland, exceptions are basically forbidden.)
 
+#### Error
+
+Like in Rust, types that want to be handled as general errors explicitly implement the nominal `Error` interface:
+
+```ds
+newtype interface Error {
+    display(): string;
+
+    source(): Any<Error> | undefined {
+        undefined
+    }
+}
+```
+
 #### Result
 
 Destack provides `Result<T, E>` as the primary error handling mechanism:
@@ -1385,8 +1399,8 @@ try {
     readConfig()?; // -> Result<void, MissingError>
     parseConfig()?; // -> Result<void, FormatError>
 } catch match (failure) { // failure: MissingError | FormatError
-    MissingError { path } => Error(`missing config: ${path}`)
-    FormatError { line } => Error(`bad format on line ${line}`)
+    MissingError { path } => Report.wrap(failure, `missing config: ${path}`)
+    FormatError { line } => Report.wrap(failure, `bad format on line ${line}`)
 }
 ```
 

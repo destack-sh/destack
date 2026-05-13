@@ -1,10 +1,22 @@
-import { type AsyncResult, type Result } from "destack:error";
+import { AsyncResult, Error, Result } from "destack:error";
 
 /// Channel send failure kind.
-export type SendErrorKind = "closed" | "full";
+export enum SendErrorKind {
+    /// The receiver endpoint is closed.
+    Closed,
+    /// The bounded channel is full.
+    Full,
+}
 
 /// Channel receive failure kind.
-export type ReceiveErrorKind = "closed" | "empty" | "lagged";
+export enum ReceiveErrorKind {
+    /// The sender endpoint is closed.
+    Closed,
+    /// The channel has no message available.
+    Empty,
+    /// The receiver skipped messages.
+    Lagged,
+}
 
 /// Failed send operation.
 export struct SendError<T> {
@@ -15,6 +27,13 @@ export struct SendError<T> {
     value: T;
 }
 
+extension<T> of SendError<T> implements Error {
+    /// Format this error for users.
+    display(): string {
+        "channel send failed"
+    }
+}
+
 /// Failed receive operation.
 export struct ReceiveError {
     /// The failure kind.
@@ -22,6 +41,13 @@ export struct ReceiveError {
 
     /// The number of skipped messages for lagged broadcast receivers.
     skipped?: usize;
+}
+
+extension of ReceiveError implements Error {
+    /// Format this error for users.
+    display(): string {
+        "channel receive failed"
+    }
 }
 
 /// Channel buffer options.

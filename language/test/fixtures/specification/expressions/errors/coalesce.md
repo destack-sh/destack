@@ -89,14 +89,24 @@ value satisfies Result<int, Error> | int;
 Coalescing can open a union when every non-nullish arm is a Try carrier.
 
 ```ds
-struct MissingError implements Error {
-    name: "MissingError";
+struct MissingError {
     message: string;
 }
 
-struct FormatError implements Error {
-    name: "FormatError";
+extension of MissingError implements Error {
+    display(): string {
+        this.message
+    }
+}
+
+struct FormatError {
     message: string;
+}
+
+extension of FormatError implements Error {
+    display(): string {
+        this.message
+    }
 }
 
 declare function getResult(): Result<int, MissingError> | Result<string, FormatError>;

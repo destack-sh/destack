@@ -1,0 +1,41 @@
+import { Any } from "destack:memory";
+import { Error } from "./error.ds";
+import { todo } from "./panic.ds";
+
+/// Erased error value for application boundaries.
+export struct Report {
+    /// The erased error.
+    error: Any<Error>;
+
+    /// Additional user-facing context.
+    context?: string;
+}
+
+extension of Report {
+    /// Create a report from a typed error.
+    static from<E: Error>(error: E): Report {
+        todo("Report.from")
+    }
+
+    /// Create a report with context from a typed error.
+    static wrap<E: Error>(error: E, context: string): Report {
+        todo("Report.wrap")
+    }
+
+    /// Add context to this report.
+    withContext(context: string): Report {
+        todo("Report.withContext")
+    }
+}
+
+extension of Report implements Error {
+    /// Format this report for users.
+    display(): string {
+        todo("Report.display")
+    }
+
+    /// Return the wrapped error.
+    source(): Any<Error> | undefined {
+        this.error
+    }
+}

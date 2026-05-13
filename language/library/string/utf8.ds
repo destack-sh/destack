@@ -1,5 +1,5 @@
-import { type Result, todo } from "destack:error";
-import { type Bytes } from "destack:bytes";
+import { Bytes } from "destack:bytes";
+import { Error, Result, todo } from "destack:error";
 
 /// Byte decoding failure.
 export struct DecodeError {
@@ -8,6 +8,13 @@ export struct DecodeError {
 
     /// The error message.
     message: string;
+}
+
+extension of DecodeError implements Error {
+    /// Format this error for users.
+    display(): string {
+        this.message
+    }
 }
 
 /// Encode text as UTF-8 bytes.

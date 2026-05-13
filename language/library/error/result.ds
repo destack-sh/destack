@@ -1,6 +1,6 @@
-import { type Promise } from "destack:async";
-import { type Equal } from "destack:ops";
-import { type FromFailure, type Try, type TryBranch, TryContinue, TryFailure } from "destack:ops";
+import { Promise } from "destack:async";
+import { Equal } from "destack:ops";
+import { FromFailure, Try, TryBranch, TryContinue, TryFailure } from "destack:ops";
 import { panic } from "./panic.ds";
 
 /// Successful result variant.
