@@ -1,6 +1,7 @@
 use std::fmt::{self, Display, Formatter};
 use std::path::Path;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use destack_core::stable_hash_value_256;
 use im::OrdMap;
@@ -8,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use destack_source::{FileContentId, FileId};
 
-use crate::repository::{FileEntry, HostEnvironment};
+use crate::repository::{FileEntry, HostEnvironment, RevisionCache};
 
 /// Content identity for one immutable repository revision state.
 #[repr(transparent)]
@@ -93,19 +94,73 @@ impl From<&str> for Ref {
     }
 }
 
+/// One retained repository revision.
+#[derive(Debug)]
+pub(crate) struct RevisionEntry {
+    /// The immutable revision state.
+    state: Arc<RevisionState>,
+    /// The active anonymous pin count.
+    pin_count: AtomicUsize,
+}
+
+impl RevisionEntry {
+    /// Build one revision entry from immutable state.
+    pub(crate) fn new(state: Arc<RevisionState>) -> Self {
+        Self {
+            state,
+            pin_count: AtomicUsize::new(0),
+        }
+    }
+
+    /// Return the immutable revision state.
+    pub(crate) fn state(&self) -> Arc<RevisionState> {
+        Arc::clone(&self.state)
+    }
+
+    /// Increment the anonymous pin count.
+    pub(crate) fn pin(&self) {
+        self.pin_count.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Decrement the anonymous pin count.
+    pub(crate) fn unpin(&self) {
+        let _ = self
+            .pin_count
+            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |count| {
+                (count > 0).then_some(count - 1)
+            });
+    }
+
+    /// Return whether this revision has active anonymous pins.
+    pub(crate) fn is_pinned(&self) -> bool {
+        self.pin_count.load(Ordering::Relaxed) > 0
+    }
+}
+
 /// Source and host inputs addressed by one revision identity.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub(crate) struct RevisionState {
     /// File bindings included in this revision.
     pub files: Arc<OrdMap<FileId, FileEntry>>,
     /// Host inputs captured in this revision.
     pub host: Arc<HostEnvironment>,
+    /// Lazily derived data for this revision.
+    pub cache: RevisionCache,
 }
 
 impl RevisionState {
     /// Build one revision state from explicit parts.
     pub(crate) fn new(files: Arc<OrdMap<FileId, FileEntry>>, host: Arc<HostEnvironment>) -> Self {
-        Self { files, host }
+        Self {
+            files,
+            host,
+            cache: RevisionCache::new(),
+        }
+    }
+
+    /// Return the derived cache for this revision.
+    pub(crate) fn cache(&self) -> &RevisionCache {
+        &self.cache
     }
 
     /// Return the file content id for one file.

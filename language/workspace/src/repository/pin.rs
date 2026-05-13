@@ -10,33 +10,29 @@ use crate::{Module, Package, Workspace};
 impl Repository {
     /// Pin one revision for the lifetime of the returned guard.
     pub fn pin(self: &Arc<Self>, revision: Revision) -> Result<RevisionPin, RepositoryError> {
-        let _revision_state = self.revision(revision)?;
-        self.increment_revision_pin(revision);
+        let Some(entry) = self.revisions.get(&revision) else {
+            return Err(RepositoryError::MissingRevision { revision });
+        };
+        entry.pin();
+
+        drop(entry);
 
         Ok(RevisionPin::new(revision, Arc::clone(self)))
     }
 
     /// Increment one revision pin count.
     pub(crate) fn increment_revision_pin(&self, revision: Revision) {
-        self.revision_pins
-            .entry(revision)
-            .and_modify(|count| *count += 1)
-            .or_insert(1);
+        if let Some(entry) = self.revisions.get(&revision) {
+            entry.pin();
+        }
     }
 
     /// Decrement one revision pin count.
     pub(crate) fn decrement_revision_pin(&self, revision: Revision) {
-        let Some(mut entry) = self.revision_pins.get_mut(&revision) else {
-            return;
-        };
-
-        if *entry > 1 {
-            *entry -= 1;
+        if let Some(entry) = self.revisions.get(&revision) {
+            entry.unpin();
             return;
         }
-
-        drop(entry);
-        self.revision_pins.remove(&revision);
     }
 
     /// Prune file revisions and file contents that are no longer reachable.
@@ -48,8 +44,6 @@ impl Repository {
             .retain(|revision, _| reachable_revisions.contains(revision));
         self.artifact_versions
             .retain(|(revision, _), _| reachable_revisions.contains(revision));
-        self.revision_caches
-            .retain(|revision, _| reachable_revisions.contains(revision));
         self.file_cache
             .retain_file_contents(&reachable_file_contents);
         self.files.retain_reachable(&reachable_file_contents);
@@ -74,11 +68,12 @@ impl Repository {
         let mut reachable = HashSet::new();
 
         for revision in reachable_revisions {
-            let Some(revision_data) = self.revisions.get(revision) else {
+            let Some(revision_entry) = self.revisions.get(revision) else {
                 continue;
             };
+            let revision_state = revision_entry.state();
 
-            for entry in revision_data.files.values() {
+            for entry in revision_state.files.values() {
                 reachable.insert(entry.content_id);
             }
         }
@@ -95,7 +90,12 @@ impl Repository {
             .collect::<Vec<_>>();
 
         // revision pins
-        retained_revisions.extend(self.revision_pins.iter().map(|entry| *entry.key()));
+        retained_revisions.extend(
+            self.revisions
+                .iter()
+                .filter(|entry| entry.value().is_pinned())
+                .map(|entry| *entry.key()),
+        );
 
         retained_revisions
     }

@@ -5,7 +5,7 @@ use destack_source::{FileContent, FileId, FileType};
 use im::OrdMap;
 
 use crate::repository::{
-    Edit, FileEntry, Ref, Repository, RepositoryError, Revision, RevisionState,
+    Edit, FileEntry, Ref, Repository, RepositoryError, Revision, RevisionEntry, RevisionState,
     normalize_logical_path,
 };
 
@@ -52,7 +52,7 @@ impl Repository {
 
         self.revisions
             .entry(revision_id)
-            .or_insert_with(|| Arc::clone(&revision));
+            .or_insert_with(|| Arc::new(RevisionEntry::new(Arc::clone(&revision))));
 
         Ok(revision_id)
     }

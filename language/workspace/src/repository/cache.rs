@@ -34,8 +34,9 @@ impl RevisionCache {
 /// Parsed file data keyed by exact file content.
 #[derive(Debug, Default)]
 pub(crate) struct FileCache {
-    /// The destack config parse result by exact content.
-    pub(crate) destack_configs: DashMap<FileContentId, Result<Arc<DestackConfig>, String>>,
+    /// The config parse result by exact content.
+    pub(crate) destack_config_by_content_id:
+        DashMap<FileContentId, Result<Arc<DestackConfig>, String>>,
 }
 
 impl FileCache {
@@ -46,7 +47,7 @@ impl FileCache {
 
     /// Drop entries for file contents that are no longer reachable.
     pub(crate) fn retain_file_contents(&self, reachable: &HashSet<FileContentId>) {
-        self.destack_configs
+        self.destack_config_by_content_id
             .retain(|content_id, _| reachable.contains(content_id));
     }
 }

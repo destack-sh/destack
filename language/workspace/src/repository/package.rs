@@ -146,7 +146,7 @@ impl Repository {
         revision: Revision,
     ) -> Result<Arc<PackageIndex>, RepositoryError> {
         let revision_state = self.revision(revision)?;
-        let revision_cache = self.revision_cache(revision);
+        let revision_cache = revision_state.cache();
 
         if let Some(packages) = revision_cache.packages.get() {
             return Ok(Arc::clone(packages));

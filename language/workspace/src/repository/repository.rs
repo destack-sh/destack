@@ -12,7 +12,7 @@ use im::OrdMap;
 
 use crate::repository::{
     FileCache, FileEntry, FileStore, HostEnvironment, Ref, RepositoryError, Revision,
-    RevisionCache, RevisionState,
+    RevisionEntry, RevisionState,
 };
 use crate::{Workspace, WorkspaceKind, resolve_cache_root};
 
@@ -25,11 +25,7 @@ pub struct Repository {
     /// Movable refs pointing at revision identities.
     pub(crate) refs: DashMap<Ref, Revision>,
     /// Immutable source states keyed by revision identity.
-    pub(crate) revisions: DashMap<Revision, Arc<RevisionState>>,
-    /// Active anonymous revision retain counts.
-    pub(crate) revision_pins: DashMap<Revision, usize>,
-    /// Derived indexes keyed by revision identity.
-    pub(crate) revision_caches: DashMap<Revision, Arc<RevisionCache>>,
+    pub(crate) revisions: DashMap<Revision, Arc<RevisionEntry>>,
     /// Exact artifact versions bound to revision-local artifact keys.
     pub(crate) artifact_versions: DashMap<(Revision, ArtifactKey), ArtifactVersion>,
 
@@ -59,9 +55,7 @@ impl Repository {
 
         let revisions = DashMap::new();
         let refs = DashMap::new();
-        let revision_pins = DashMap::new();
         let artifact_versions = DashMap::new();
-        let revision_caches = DashMap::new();
         let file_cache = FileCache::new();
         let workspace_reference = Ref::for_workspace_root(&root);
 
@@ -71,10 +65,8 @@ impl Repository {
             revisions,
             refs,
             artifact_versions,
-            revision_caches,
             file_cache,
             files: file_contents,
-            revision_pins,
             artifacts: Arc::new(ArtifactStore::default()),
             strings: Arc::new(StringPool::new()),
             cache,
@@ -86,9 +78,10 @@ impl Repository {
             Arc::new(host),
         ));
         let initial_revision_id = initial_revision.revision();
-        repository
-            .revisions
-            .insert(initial_revision_id, initial_revision);
+        repository.revisions.insert(
+            initial_revision_id,
+            Arc::new(RevisionEntry::new(initial_revision)),
+        );
         repository
             .refs
             .insert(workspace_reference, initial_revision_id);
@@ -129,8 +122,8 @@ impl Repository {
 
     /// Return workspace metadata for one revision.
     pub fn workspace(&self, revision: Revision) -> Result<Arc<Workspace>, RepositoryError> {
-        let _revision_state = self.revision(revision)?;
-        let revision_cache = self.revision_cache(revision);
+        let revision_state = self.revision(revision)?;
+        let revision_cache = revision_state.cache();
 
         if let Some(workspace) = revision_cache.workspace.get() {
             return Ok(Arc::clone(workspace));
@@ -202,16 +195,8 @@ impl Repository {
     ) -> Result<Arc<RevisionState>, RepositoryError> {
         self.revisions
             .get(&revision)
-            .map(|entry| Arc::clone(entry.value()))
+            .map(|entry| entry.value().state())
             .ok_or(RepositoryError::MissingRevision { revision })
-    }
-
-    /// Return the derived cache for one revision.
-    pub(crate) fn revision_cache(&self, revision: Revision) -> Arc<RevisionCache> {
-        self.revision_caches
-            .entry(revision)
-            .or_insert_with(|| Arc::new(RevisionCache::new()))
-            .clone()
     }
 
     /// Return one shared file content payload by exact content id.

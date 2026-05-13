@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use destack_source::{FileId, LanguageType, Loader, ModuleId, PackageId, Uri};
 use im::OrdMap;
+use rustc_hash::FxHashMap;
 
 /// One source module.
 #[derive(Debug, Clone)]
@@ -172,12 +173,40 @@ impl ModuleFile {
 pub(crate) struct ModuleIndex {
     /// Modules keyed by module id.
     modules: OrdMap<ModuleId, Arc<Module>>,
+    /// Module ids keyed by contributing file id.
+    module_by_file: FxHashMap<FileId, ModuleId>,
+    /// Module ids keyed by contributing file uri.
+    module_by_uri: FxHashMap<Uri, ModuleId>,
+    /// Module ids keyed by package id.
+    module_by_package: FxHashMap<PackageId, Vec<ModuleId>>,
 }
 
 impl ModuleIndex {
     /// Create one module index.
     pub(crate) fn new(modules: OrdMap<ModuleId, Arc<Module>>) -> Self {
-        Self { modules }
+        let mut module_by_file = FxHashMap::default();
+        let mut module_by_uri = FxHashMap::default();
+        let mut module_by_package = FxHashMap::default();
+
+        // derive lookup indexes from canonical modules
+        for (module_id, module) in &modules {
+            module_by_package
+                .entry(module.package_id)
+                .or_insert_with(Vec::new)
+                .push(*module_id);
+
+            for file in &module.files {
+                module_by_file.insert(file.file_id, *module_id);
+                module_by_uri.insert(file.uri.clone(), *module_id);
+            }
+        }
+
+        Self {
+            modules,
+            module_by_file,
+            module_by_uri,
+            module_by_package,
+        }
     }
 
     /// Return one module by id.
@@ -190,8 +219,21 @@ impl ModuleIndex {
         self.modules.keys().copied()
     }
 
-    /// Iterate all modules.
-    pub(crate) fn iter(&self) -> impl Iterator<Item = (&ModuleId, &Arc<Module>)> {
-        self.modules.iter()
+    /// Return module ids for one package.
+    pub(crate) fn package_module_ids(&self, package_id: PackageId) -> &[ModuleId] {
+        self.module_by_package
+            .get(&package_id)
+            .map(Vec::as_slice)
+            .unwrap_or_default()
+    }
+
+    /// Return the module id for one contributing file id.
+    pub(crate) fn module_id_for_file(&self, file_id: FileId) -> Option<ModuleId> {
+        self.module_by_file.get(&file_id).copied()
+    }
+
+    /// Return the module id for one contributing file uri.
+    pub(crate) fn module_id_for_uri(&self, uri: &Uri) -> Option<ModuleId> {
+        self.module_by_uri.get(uri).copied()
     }
 }

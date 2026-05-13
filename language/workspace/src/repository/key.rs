@@ -1,8 +1,7 @@
 use destack_artifact::ProfileKey;
-use indexmap::IndexMap;
 
 use crate::{
-    CompilerOptions, HostEnvironment, ModeOptions, ProfileOptions, Target,
+    CompilerOptions, DestackConfig, HostEnvironment, ProfileOptions, Target,
     profile_flags_for_compiler_options,
 };
 
@@ -11,10 +10,12 @@ pub(crate) fn profile_key_for_target(
     target: &Target,
     compiler_options: &CompilerOptions,
     profile_config: Option<&ProfileOptions>,
-    mode_options: &IndexMap<String, ModeOptions>,
+    config: Option<&DestackConfig>,
     environment: &HostEnvironment,
 ) -> ProfileKey {
     let mut compiler_options = compiler_options.clone();
+
+    // profile compiler overrides
     if let Some(profile_config) = profile_config {
         if profile_config.tree.is_some() {
             compiler_options.tree = profile_config.tree.clone();
@@ -50,17 +51,22 @@ pub(crate) fn profile_key_for_target(
 
     let mut modes = Vec::new();
     for mode in &compiler_options.modes {
-        if let Some(options) = mode_options.get(mode) {
+        // declared parent modes
+        if let Some(options) = config.and_then(|config| config.modes.get(mode)) {
             for parent in &options.extends {
-                if !modes.iter().any(|active| active == parent) {
+                if !modes.contains(parent) {
                     modes.push(parent.clone());
                 }
             }
         }
-        if !modes.iter().any(|active| active == mode) {
+
+        // selected mode
+        if !modes.contains(mode) {
             modes.push(mode.clone());
         }
     }
+
+    // compiler flags
     let flags = profile_flags_for_compiler_options(&compiler_options);
     let globals = compiler_options
         .globals

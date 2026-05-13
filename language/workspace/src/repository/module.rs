@@ -1,8 +1,10 @@
+use std::collections::hash_map::Entry;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+
 use destack_source::{FileId, FileType, LanguageType, Loader, ModuleId, PackageId, Uri};
 use im::OrdMap;
 use rustc_hash::{FxHashMap, FxHashSet};
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
 use crate::repository::{FileEntry, Repository, RepositoryError, Revision};
 use crate::{Module, ModuleFile, ModuleIndex, PackageIndex, builtin_mode_names};
@@ -46,8 +48,11 @@ impl Repository {
             };
 
             if let Some(mode) = candidate.mode.as_ref() {
-                let base_path = Self::mode_base_path(&candidate.path, candidate.file_type, mode);
-                mode_files.entry(base_path).or_default().push(candidate);
+                if let Some(base_path) =
+                    Self::mode_base_path(&candidate.path, candidate.file_type, mode)
+                {
+                    mode_files.entry(base_path).or_default().push(candidate);
+                }
             } else {
                 base_files.insert(candidate.path.clone(), candidate);
             }
@@ -94,14 +99,15 @@ impl Repository {
         let Some(package) = packages.nearest_package(&path) else {
             return Ok(None);
         };
-        if !known_modes.contains_key(&package.id) {
-            let modes = self.known_modes_for_package(revision, package.id)?;
-            known_modes.insert(package.id, modes);
-        }
-        let known_modes = known_modes
-            .get(&package.id)
-            .expect("known modes should be cached for package");
-        let mode = Self::mode_for_path(&path, file_type, &known_modes);
+        let known_modes = match known_modes.entry(package.id) {
+            Entry::Occupied(entry) => entry.into_mut(),
+            Entry::Vacant(entry) => {
+                let modes = self.known_modes_for_package(revision, package.id)?;
+
+                entry.insert(modes)
+            }
+        };
+        let mode = Self::mode_for_path(&path, file_type, known_modes);
 
         Ok(Some(ModuleFileCandidate {
             file_id,
@@ -185,17 +191,13 @@ impl Repository {
     }
 
     /// Return the base path for one mode file.
-    fn mode_base_path(path: &Path, file_type: FileType, mode: &str) -> PathBuf {
-        let extension = file_type
-            .extension()
-            .expect("module mode file should have a concrete extension");
+    fn mode_base_path(path: &Path, file_type: FileType, mode: &str) -> Option<PathBuf> {
+        let extension = file_type.extension()?;
         let path_text = path.as_os_str().to_string_lossy();
         let mode_suffix = format!(".{mode}.{extension}");
-        let base = path_text
-            .strip_suffix(&mode_suffix)
-            .expect("mode file should end in its mode suffix");
+        let base = path_text.strip_suffix(&mode_suffix)?;
 
-        PathBuf::from(format!("{base}.{extension}"))
+        Some(PathBuf::from(format!("{base}.{extension}")))
     }
 
     /// Return the module index for one revision.
@@ -204,7 +206,7 @@ impl Repository {
         revision: Revision,
     ) -> Result<Arc<ModuleIndex>, RepositoryError> {
         let revision_state = self.revision(revision)?;
-        let revision_cache = self.revision_cache(revision);
+        let revision_cache = revision_state.cache();
 
         if let Some(modules) = revision_cache.modules.get() {
             return Ok(Arc::clone(modules));
@@ -261,14 +263,9 @@ impl Repository {
         revision: Revision,
         package_id: PackageId,
     ) -> Result<Vec<ModuleId>, RepositoryError> {
-        let mut module_ids = self
-            .module_ids(revision)?
-            .into_iter()
-            .filter(|module_id| module_id.package_id == package_id)
-            .collect::<Vec<_>>();
-        module_ids.sort_unstable();
-        module_ids.dedup();
-        Ok(module_ids)
+        let modules = self.module_index(revision)?;
+
+        Ok(modules.package_module_ids(package_id).to_vec())
     }
 
     /// Return the module id for one file in one revision when present.
@@ -279,13 +276,7 @@ impl Repository {
     ) -> Result<Option<ModuleId>, RepositoryError> {
         let modules = self.module_index(revision)?;
 
-        for (module_id, module) in modules.iter() {
-            if module.files.iter().any(|file| file.file_id == file_id) {
-                return Ok(Some(*module_id));
-            }
-        }
-
-        Ok(None)
+        Ok(modules.module_id_for_file(file_id))
     }
 
     /// Return the module id for one workspace path in one revision when present.
@@ -307,13 +298,7 @@ impl Repository {
     ) -> Result<Option<ModuleId>, RepositoryError> {
         let modules = self.module_index(revision)?;
 
-        for (module_id, module) in modules.iter() {
-            if module.files.iter().any(|file| &file.uri == uri) {
-                return Ok(Some(*module_id));
-            }
-        }
-
-        Ok(None)
+        Ok(modules.module_id_for_uri(uri))
     }
 
     /// Return whether one workspace file should materialize as a module.
