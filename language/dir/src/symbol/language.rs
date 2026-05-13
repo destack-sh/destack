@@ -439,6 +439,24 @@ define_language_items! {
         drop {
             /// Ownership finalization protocol.
             Drop => (NewtypeInterface, "memory/drop", "Drop"),
+
+            /// Owned storage without automatic drop.
+            ManuallyDrop => (Newtype, "memory/drop", "ManuallyDrop"),
+
+            /// Suppress automatic drop for one value.
+            Forget => (Function, "memory/drop", "forget"),
+        }
+
+        /// `destack:memory/init`.
+        init {
+            /// Possibly uninitialized storage.
+            MaybeUninit => (Newtype, "memory/init", "MaybeUninit"),
+        }
+
+        /// `destack:memory/phantom`.
+        phantom {
+            /// Zero-sized ownership marker.
+            PhantomData => (Newtype, "memory/phantom", "PhantomData"),
         }
 
         /// `destack:memory/dispose`.
