@@ -631,7 +631,10 @@ fn declarator_pattern_has_default_assignment(
         Pattern::Assign { .. } => true,
 
         // leaf patterns
-        Pattern::Wildcard | Pattern::Expression { .. } | Pattern::TypeExpression { .. } => false,
+        Pattern::Wildcard
+        | Pattern::Expression { .. }
+        | Pattern::Range { .. }
+        | Pattern::TypeExpression { .. } => false,
 
         // transparent wrappers
         Pattern::Must(inner_pattern_id)

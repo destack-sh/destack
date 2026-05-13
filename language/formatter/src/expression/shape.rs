@@ -45,6 +45,9 @@ impl ExpressionLeftSide {
             | Expression::Satisfies {
                 expression: left, ..
             }
+            | Expression::RangeExpression {
+                start: Some(left), ..
+            }
             | Expression::Binary { left, .. } => Some(*left),
             Expression::Assign { left, .. } => assign_pattern_target_expression(context, *left),
             Expression::Is { value, .. } | Expression::InstanceOf { value, .. } => Some(*value),
@@ -192,6 +195,7 @@ pub fn is_expression_breakable(tree: &Tree, expression: &Expression) -> bool {
         | Expression::While { .. }
         | Expression::Import { .. }
         | Expression::Export { .. }
+        | Expression::RangeExpression { .. }
         | Expression::Binary { .. }
         | Expression::As { .. }
         | Expression::Satisfies { .. }

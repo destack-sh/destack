@@ -39,6 +39,7 @@ fn class_extends_expression_needs_parentheses(expression: &Expression) -> bool {
             | Expression::Await { .. }
             | Expression::AwaitMaybe { .. }
             | Expression::AwaitMust { .. }
+            | Expression::RangeExpression { .. }
             | Expression::Binary { .. }
             | Expression::Is { .. }
             | Expression::InstanceOf { .. }
@@ -421,6 +422,7 @@ fn expression_lambda_needs_parentheses_in_parent(
             | Expression::Await { .. }
             | Expression::AwaitMaybe { .. }
             | Expression::AwaitMust { .. }
+            | Expression::RangeExpression { .. }
             | Expression::Binary { .. }
             | Expression::Is { .. }
             | Expression::InstanceOf { .. }
@@ -492,7 +494,10 @@ fn expression_as_or_satisfies_needs_parentheses_in_parent(
         } => true,
 
         // binary-like expressions
-        Expression::Binary { .. } | Expression::Is { .. } | Expression::InstanceOf { .. } => true,
+        Expression::RangeExpression { .. }
+        | Expression::Binary { .. }
+        | Expression::Is { .. }
+        | Expression::InstanceOf { .. } => true,
 
         // default
         _ => type_cast_like_needs_parentheses(parent_expression, parent_child_id),
@@ -516,6 +521,7 @@ fn expression_await_like_needs_parentheses_in_parent(
         Expression::Unary { .. }
             | Expression::As { .. }
             | Expression::Satisfies { .. }
+            | Expression::RangeExpression { .. }
             | Expression::Binary { .. }
             | Expression::Is { .. }
             | Expression::InstanceOf { .. }
@@ -645,6 +651,34 @@ fn expression_is_binary_like(expression: &Expression) -> bool {
     )
 }
 
+/// Return whether one range expression needs parentheses in its parent.
+fn expression_range_needs_parentheses_in_parent(
+    context: &DestackFormatContext<'_>,
+    parent_expression_id: LocalNodeId<Expression>,
+    parent_expression: &Expression,
+    parent_child_id: LocalNodeId<Expression>,
+) -> bool {
+    if type_cast_like_needs_parentheses(parent_expression, parent_child_id)
+        || expression_is_call_like_callee(context, parent_expression_id, parent_child_id)
+    {
+        return true;
+    }
+
+    matches!(
+        parent_expression,
+        Expression::RangeExpression { .. }
+            | Expression::Binary { .. }
+            | Expression::Is { .. }
+            | Expression::InstanceOf { .. }
+            | Expression::As { .. }
+            | Expression::Satisfies { .. }
+            | Expression::If {
+                form: IfForm::Ternary,
+                ..
+            }
+    )
+}
+
 /// Return whether one expression is the direct callee of a `new` expression.
 fn expression_is_new_callee(
     parent_expression: &Expression,
@@ -717,6 +751,7 @@ fn expression_is_update_or_lower_precedence(
             | Expression::AwaitMaybe { .. }
             | Expression::AwaitMust { .. }
             | Expression::Comptime { .. }
+            | Expression::RangeExpression { .. }
             | Expression::Binary { .. }
             | Expression::Is { .. }
             | Expression::InstanceOf { .. }
@@ -752,7 +787,10 @@ fn statement_like_value_needs_parentheses_in_parent(
         || expression_is_call_like_callee(context, parent_expression_id, parent_child_id)
         || matches!(
             parent_expression,
-            Expression::Binary { .. } | Expression::Is { .. } | Expression::InstanceOf { .. }
+            Expression::RangeExpression { .. }
+                | Expression::Binary { .. }
+                | Expression::Is { .. }
+                | Expression::InstanceOf { .. }
         )
 }
 
@@ -1072,6 +1110,19 @@ pub(crate) fn expression_needs_parentheses_in_parent(
             context,
             parent_id,
             parent_type,
+            parent_expression,
+            parent_child_id,
+        );
+    }
+
+    // range expressions need parentheses in tighter expression positions
+    if matches!(
+        context.tree.get(node_id),
+        Expression::RangeExpression { .. }
+    ) {
+        return expression_range_needs_parentheses_in_parent(
+            context,
+            parent_expression_id,
             parent_expression,
             parent_child_id,
         );

@@ -92,6 +92,7 @@ fn write_expression_trailing_annotations<'ast>(
         | Expression::New { .. }
         | Expression::Maybe { .. }
         | Expression::Must { .. }
+        | Expression::RangeExpression { .. }
         | Expression::Binary { .. }
         | Expression::Assign { .. }
         | Expression::Debugger
@@ -258,6 +259,7 @@ fn format_expression_body<'ast>(
         | Expression::New { .. }
         | Expression::Maybe { .. }
         | Expression::Must { .. }
+        | Expression::RangeExpression { .. }
         | Expression::Binary { .. }
         | Expression::Assign { .. }
         | Expression::Debugger

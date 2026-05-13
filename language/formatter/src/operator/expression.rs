@@ -19,7 +19,9 @@ use crate::operator::r#type::{
 };
 use crate::operator::write_postfix_base_expression;
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_ast::{Expression, LocalNodeId, Mutability, NodeType, PostfixPosition, UnaryOperator};
+use destack_ast::{
+    Expression, LocalNodeId, Mutability, NodeType, PostfixPosition, RangeEnd, UnaryOperator,
+};
 use destack_fir::format::{Buffer, FormatError, FormatResult};
 use destack_fir::prelude::{format_with, group, soft_block_indent, space, token};
 use destack_fir::write;
@@ -222,6 +224,33 @@ fn write_prefix_expression_operand<'ast>(
     Ok(())
 }
 
+/// Write one range expression.
+fn format_range_expression<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    start: Option<LocalNodeId<Expression>>,
+    end: Option<LocalNodeId<Expression>>,
+    end_kind: RangeEnd,
+) -> FormatResult<()> {
+    // start bound
+    if let Some(start) = start {
+        write!(f, [start])?;
+    }
+
+    // range operator
+    let token_value = match end_kind {
+        RangeEnd::Open => "..",
+        RangeEnd::Inclusive => "..=",
+    };
+    write!(f, [token(token_value)])?;
+
+    // end bound
+    if let Some(end) = end {
+        write!(f, [end])?;
+    }
+
+    Ok(())
+}
+
 /// Format operator and chain expression variants.
 pub(crate) fn format_operator_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -363,6 +392,15 @@ pub(crate) fn format_operator_expression<'ast>(
             right,
         } => {
             format_binary_expression(f, node_id, *left, operator, *right)?;
+        }
+
+        // range
+        Expression::RangeExpression {
+            start,
+            end,
+            end_kind,
+        } => {
+            format_range_expression(f, *start, *end, *end_kind)?;
         }
 
         // assertions

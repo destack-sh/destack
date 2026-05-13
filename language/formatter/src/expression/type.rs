@@ -26,9 +26,9 @@ use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
     Comment, ConstructorTypeDeclaration, Declaration, Expression, FunctionForm, FunctionSignature,
     FunctionTypeDeclaration, GenericArgument, GenericParameter, Key, Keyword, LocalNodeId,
-    MappedTypeModifier, Member, Mutability, Node, NodeType, Parameter, Property, TokenType, Tree,
-    TreeImpl, TupleElement, TypeExpression, TypeLiteral, TypeMember, TypePredicateSubject,
-    VarianceBound, WhereClause,
+    MappedTypeModifier, Member, Mutability, Node, NodeType, Parameter, Property, RangeEnd,
+    TokenType, Tree, TreeImpl, TupleElement, TypeExpression, TypeLiteral, TypeMember,
+    TypePredicateSubject, VarianceBound, WhereClause,
 };
 use destack_fir::format::{Buffer, FormatError, FormatResult};
 use destack_fir::prelude::{space, token, *};
@@ -73,6 +73,7 @@ fn type_needs_postfix_parentheses(
         | TypeExpression::TypeOfValue { .. }
         | TypeExpression::Must { .. }
         | TypeExpression::AsComptime { .. }
+        | TypeExpression::Range { .. }
         | TypeExpression::Not { .. }
         | TypeExpression::OwnedOf { .. }
         | TypeExpression::BorrowedOf { .. }
@@ -1481,6 +1482,33 @@ fn write_postfix_type_operand<'ast>(
     }
 }
 
+/// Write one range type expression.
+fn write_range_type<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    start: Option<LocalNodeId<TypeExpression>>,
+    end: Option<LocalNodeId<TypeExpression>>,
+    end_kind: RangeEnd,
+) -> FormatResult<()> {
+    // start bound
+    if let Some(start) = start {
+        write!(f, [start])?;
+    }
+
+    // range operator
+    let token_value = match end_kind {
+        RangeEnd::Open => "..",
+        RangeEnd::Inclusive => "..=",
+    };
+    write!(f, [token(token_value)])?;
+
+    // end bound
+    if let Some(end) = end {
+        write!(f, [end])?;
+    }
+
+    Ok(())
+}
+
 /// Return one effective parent plus the outermost transparent child it sees.
 fn effective_type_parent(
     context: &DestackFormatContext<'_>,
@@ -1558,6 +1586,7 @@ fn type_parent_requires_parentheses(
                         if elements.len() > 1
                 )
         }
+        TypeExpression::Range { .. } => true,
 
         _ => false,
     }
@@ -1747,6 +1776,10 @@ pub(crate) fn type_expression_needs_parentheses_in_parent(
             TypeExpression::Union { elements } | TypeExpression::Intersection { elements } => {
                 elements.len() > 1
             }
+            _ => type_parent_requires_parentheses(context, parent_id, parent_child_id),
+        },
+        TypeExpression::Range { .. } => match context.tree.get(parent_id) {
+            TypeExpression::Range { .. } => true,
             _ => type_parent_requires_parentheses(context, parent_id, parent_child_id),
         },
         TypeExpression::Readonly { .. }
@@ -2569,6 +2602,13 @@ pub(crate) fn write_type_expression_body<'ast>(
             if !generic_arguments.is_empty() {
                 format_generic_argument_list(f, generic_arguments)?;
             }
+        }
+        TypeExpression::Range {
+            start,
+            end,
+            end_kind,
+        } => {
+            write_range_type(f, *start, *end, *end_kind)?;
         }
         TypeExpression::Const => {
             write!(f, [Keyword::Const])?;
