@@ -9,12 +9,11 @@ use {destack_engine as engine, destack_heap as heap};
 
 use super::{Microtask, MicrotaskId, Task, TaskId, Timer, TimerHandle, TimerQueue};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::{HostEvent, HostEventKind};
-use crate::platform::{PlatformError, ResourceId};
+use crate::host::poller::{PollerEvent, PollerToken};
+use crate::host::{HostError, HostEvent, HostEventKind, ResourceId};
 use crate::runtime::engine::{ContinuationImage, Engine};
 use crate::runtime::heap::RootSink;
-use crate::runtime::poller::{PollerEvent, PollerToken};
-use crate::runtime::{DropCounts, ExecutionContext, ExecutionContextId};
+use crate::runtime::{ExecutionContext, ExecutionContextId};
 
 /// Watch payload that can be dispatched as one event loop task.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -27,16 +26,16 @@ pub struct EventLoopWatch {
     pub priority: u8,
 }
 
-/// Event loop for task queues, microtasks, timers, and platform events.
+/// Event loop for task queues, microtasks, timers, and host events.
 #[derive(Debug, Default)]
 pub struct EventLoop {
     /// Pending macrotasks.
     pub(super) tasks: VecDeque<Task>,
     /// Pending microtasks that drain before macrotasks.
     pub(super) microtasks: VecDeque<Microtask>,
-    /// Pending platform events.
+    /// Pending poller events.
     pub(super) poller_events: VecDeque<PollerEvent>,
-    /// Pending host semantic events.
+    /// Pending host events.
     pub(super) host_events: VecDeque<HostEvent>,
     /// Ready timers waiting for dispatch.
     pub(super) ready_timers: Mutex<VecDeque<Timer>>,
@@ -58,9 +57,7 @@ pub struct EventLoop {
     pub(super) next_task_id: u64,
     /// Next microtask identifier to issue.
     pub(super) next_microtask_id: u64,
-    /// Drop accounting at the event-loop boundary.
-    pub(super) drop_counts: DropCounts,
-    /// Number of host semantic events dispatched since the last poller event.
+    /// Number of host events dispatched since the last poller event.
     pub(super) host_events_since_poller: u64,
     /// Canonical execution context identifier for this event loop.
     pub(super) execution_context_id: OnceLock<ExecutionContextId>,
@@ -134,11 +131,11 @@ impl EventLoop {
     /// Enqueue external events.
     pub fn enqueue_events(&mut self, events: Vec<PollerEvent>) {
         let mut events = events;
-        self.sort_platform_events(&mut events);
+        self.sort_host_events(&mut events);
         self.poller_events.extend(events);
     }
 
-    /// Enqueue host semantic events.
+    /// Enqueue host events.
     pub fn enqueue_host_events(&mut self, events: Vec<HostEvent>) {
         self.host_events.extend(events);
     }
@@ -269,7 +266,7 @@ impl EventLoop {
     fn validate_scheduler_options(&self, options: &SchedulerOptions) -> RuntimeResult<()> {
         // enforce the currently implemented queue policy
         if options.policy != SchedulerPolicy::Fifo {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            return Err(RuntimeError::from(HostError::invalid_argument_value(
                 "options.scheduler.policy",
                 "only fifo scheduling policy is currently supported",
             ))
@@ -278,7 +275,7 @@ impl EventLoop {
 
         // reject unsupported access limits until task throttling lands
         if options.task_limit.is_some() {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            return Err(RuntimeError::from(HostError::invalid_argument_value(
                 "options.scheduler.task_limit",
                 "task limit is not implemented yet",
             ))
@@ -287,7 +284,7 @@ impl EventLoop {
 
         // reject unsupported preemption until engine preempt points land
         if options.preempt_interval_ns.is_some() {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            return Err(RuntimeError::from(HostError::invalid_argument_value(
                 "options.scheduler.preempt_interval_ns",
                 "preempt interval is not implemented yet",
             ))
@@ -302,7 +299,7 @@ impl EventLoop {
             || matches!(options.timer_resolution_ns, Some(0))
             || matches!(options.max_timer_coalesce_ns, Some(0))
         {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            return Err(RuntimeError::from(HostError::invalid_argument_value(
                 "options.scheduler",
                 "scheduler budget and timer values must be greater than zero",
             ))

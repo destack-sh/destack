@@ -1,13 +1,16 @@
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::host::random::HostRandom;
 use destack_core::{Capture, CaptureMode};
 use destack_workspace::RandomOptions;
 
-use super::HostRandom;
 #[cfg(test)]
 use super::r#virtual::StreamStateDecodeError;
 use super::r#virtual::VirtualRandom;
+
+/// Default deterministic random seed.
+const DEFAULT_RANDOM_SEED: u64 = 0;
 
 /// Materialized random state captured in one world image.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -74,10 +77,11 @@ impl Default for Random {
 impl Random {
     /// Create a random source from runtime options.
     pub fn from_options(options: &RandomOptions) -> Self {
-        // resolve seed
-        let root_seed = options.seed.unwrap_or(0);
+        let root_seed = match options.seed {
+            Some(seed) => seed,
+            None => DEFAULT_RANDOM_SEED,
+        };
 
-        // construct the random source
         Self::new(root_seed)
     }
 

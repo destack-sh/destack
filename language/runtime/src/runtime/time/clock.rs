@@ -2,9 +2,13 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
-use crate::runtime::time::{HostClock, HostClockSource, Instant, Nanos, VirtualClock};
+use crate::host::time::{HostClock, HostClockSource};
+use crate::runtime::time::{Instant, Nanos, VirtualClock};
 use destack_core::{Capture, CaptureMode};
 use destack_workspace::TimeOptions;
+
+/// Default virtual clock epoch.
+const DEFAULT_TIME_EPOCH_NANOS: u64 = 0;
 
 /// Materialized clock state captured in one world image.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -29,8 +33,10 @@ pub struct Clock {
 impl Clock {
     /// Create a clock from runtime time options.
     pub fn from_options(options: &TimeOptions) -> Self {
-        // resolve virtual clock configuration
-        let epoch_nanos = options.epoch_ns.unwrap_or(0);
+        let epoch_nanos = match options.epoch_ns {
+            Some(epoch_nanos) => epoch_nanos,
+            None => DEFAULT_TIME_EPOCH_NANOS,
+        };
         let virtual_clock = VirtualClock::new(epoch_nanos);
 
         Self {
@@ -45,8 +51,10 @@ impl Clock {
         options: &TimeOptions,
         host_clock_source: Arc<dyn HostClockSource>,
     ) -> Self {
-        // resolve virtual clock configuration
-        let epoch_nanos = options.epoch_ns.unwrap_or(0);
+        let epoch_nanos = match options.epoch_ns {
+            Some(epoch_nanos) => epoch_nanos,
+            None => DEFAULT_TIME_EPOCH_NANOS,
+        };
         let virtual_clock = VirtualClock::new(epoch_nanos);
 
         Self {

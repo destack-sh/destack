@@ -6,11 +6,10 @@ use super::{
     EventLoop, EventLoopWatch, Microtask, MicrotaskId, Task, TaskId, TaskStatus, Timer, TimerHandle,
 };
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::{HostEvent, HostEventKind};
-use crate::platform::ResourceId;
+use crate::host::poller::{PollerEvent, PollerToken};
+use crate::host::{HostEvent, HostEventKind, ResourceId};
 use crate::runtime::ExecutionContextId;
 use crate::runtime::engine::{Continuation, ContinuationImage, Engine};
-use crate::runtime::poller::{PollerEvent, PollerToken};
 
 /// Scalar event-loop state needed for restore.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -43,9 +42,9 @@ pub struct EventLoopActiveSnapshot {
     pub tasks: Vec<TaskImage>,
     /// Captured pending microtasks.
     pub microtasks: Vec<MicrotaskImage>,
-    /// Captured pending platform events.
+    /// Captured pending host events.
     pub events: Vec<PollerEvent>,
-    /// Captured pending host semantic events.
+    /// Captured pending host events.
     pub host_events: Vec<HostEvent>,
     /// Captured ready timers waiting for dispatch.
     pub ready_timers: Vec<Timer>,
@@ -128,7 +127,6 @@ impl EventLoop {
 
         // scheduler options
         forked.configure(self.options.clone())?;
-        forked.drop_counts = self.drop_counts;
 
         // execution context
         if let Some(execution_context_id) = self.execution_context_id.get().copied() {

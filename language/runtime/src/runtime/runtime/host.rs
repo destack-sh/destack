@@ -1,19 +1,17 @@
+use std::sync::Arc;
+
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::Session;
-use crate::runtime::poller::HostPoller;
+use crate::host::poller::HostPoller;
+use crate::host::{Host, HostSession};
 use crate::runtime::runtime::poller_for_backend;
-use crate::runtime::world::RuntimeId;
-use destack_workspace::{AppOptions, HostOsOptions, PollerBackend, RuntimeOptions};
+use crate::world::RuntimeId;
+use destack_workspace::{PollerBackend, RuntimeOptions};
 
 /// Immutable runtime host settings captured for restore and fork.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RuntimeHostOptions {
-    /// Captured OS service options for runtime restore.
-    pub os_options: HostOsOptions,
-    /// Captured app declaration for runtime restore.
-    pub app_declaration: AppOptions,
     /// Captured poller backend for runtime restore.
     pub poller_backend: PollerBackend,
 }
@@ -21,22 +19,14 @@ pub struct RuntimeHostOptions {
 impl RuntimeHostOptions {
     /// Build one runtime host settings snapshot from runtime options.
     pub(crate) fn from_runtime_options(options: &RuntimeOptions) -> Self {
-        let (os_options, app_declaration) = Session::host_options_from_runtime_options(options);
-
         Self {
-            os_options,
-            app_declaration,
             poller_backend: options.scheduler_options().poller_backend,
         }
     }
 
     /// Build one host session for the given runtime id.
-    pub(crate) fn host_session(&self, runtime_id: RuntimeId) -> Session {
-        Session::from_runtime_host_options(
-            runtime_id,
-            self.os_options.clone(),
-            self.app_declaration.clone(),
-        )
+    pub(crate) fn host_session(&self, host: Arc<dyn Host>, runtime_id: RuntimeId) -> HostSession {
+        HostSession::new(host, runtime_id)
     }
 
     /// Build one poller for this runtime host settings snapshot.

@@ -1,45 +1,38 @@
 use std::time::Duration;
 
 use crate::diagnostic::{DiagnosticStore, RuntimeError, RuntimeResult};
-use crate::host::Session;
-use crate::platform::abi::{NativeSlice, NativeStringRef, NativeStringSlice};
-use crate::platform::{NativeArray, PlatformError, core as core_platform};
-use crate::runtime::binding::{
+use crate::host::binding::{
     BindingAccess, BindingAffinity, BindingDescriptor, BindingEngine, BindingReplayPayload,
     RuntimeAccess, RuntimeWorld,
 };
-use crate::runtime::policy::BindingDecision;
+use crate::host::{HostError, HostSession, core as host_core};
 use crate::runtime::random::RandomStreamId;
 use crate::runtime::scheduler::{EventLoop, MicrotaskId, TaskId};
-use crate::runtime::trace::{EntropySubject, Trace};
-use crate::runtime::world::WorldState;
-use crate::runtime::{Hooks, PolicyCallId};
 use crate::simulation::Simulation;
+use crate::world::WorldState;
+use crate::world::policy::{BindingDecision, Hooks, PolicyCallId};
+use crate::world::trace::{EntropySubject, Trace};
 
-use super::{
-    ExecutionContext, ExecutionContextId, NativeCallBuilder, RunnableScope, Worker,
-    WorkerCallbackControl, WorkerCallbackHandle, binding_affinity_name, current_runnable_scope,
-    current_worker_context, with_native_call_arena,
-};
+use super::{ExecutionContext, ExecutionContextId, RunnableScope, Worker, binding_affinity_name};
 use destack_workspace::{RuntimeDiagnosticLevel, TimeMode};
 
 /// TLS payload for native runtime calls.
 #[derive(Debug, Clone)]
 pub struct BindingCallContext {
-    /// Worker state for platform bindings.
-    worker: *mut Worker,
+    /// Worker state for host bindings.
+    pub(crate) worker: *mut Worker,
     /// Event loop for task queues and timers.
-    event_loop: *const EventLoop,
-    /// Host state for platform callbacks.
-    host: *const Session,
+    pub(crate) event_loop: *const EventLoop,
+    /// Host event boundary for callbacks.
+    pub(crate) host: *const HostSession,
     /// Shared world for replay, time, random, and policy.
-    world: *mut WorldState,
+    pub(crate) world: *mut WorldState,
     /// Engine kind for this binding call.
-    engine: BindingEngine,
+    pub(crate) engine: BindingEngine,
     /// Currently running task or microtask.
-    scope: RunnableScope,
+    pub(crate) scope: RunnableScope,
     /// Execution-affinity context for the current call.
-    execution_context: ExecutionContext,
+    pub(crate) execution_context: ExecutionContext,
 }
 
 /// Scope guard that runs after-binding hooks when one binding call completes.
@@ -61,67 +54,10 @@ impl Drop for BindingHookGuard<'_> {
 }
 
 impl BindingCallContext {
-    /// Create a binding call context from raw pointers.
-    pub(crate) fn from_raw(
-        worker: *mut Worker,
-        event_loop: *const EventLoop,
-        host: *const Session,
-        world: *mut WorldState,
-        engine: BindingEngine,
-    ) -> Self {
-        let event_loop = unsafe { &*event_loop };
-        let host = unsafe { &*host };
-        let execution_context = event_loop.execution_context(host.is_process_main_context());
-
-        Self {
-            worker,
-            event_loop: event_loop as *const EventLoop,
-            host: host as *const Session,
-            world,
-            engine,
-            scope: current_runnable_scope(),
-            execution_context,
-        }
-    }
-
-    /// Create one native binding call context from the current-worker execution scope.
-    pub(crate) fn from_current_worker_for_native() -> RuntimeResult<Self> {
-        Self::from_current_worker(BindingEngine::Native)
-    }
-
-    /// Create one binding call context from the current-worker execution scope.
-    fn from_current_worker(engine: BindingEngine) -> RuntimeResult<Self> {
-        let context = current_worker_context()
-            .ok_or_else(|| RuntimeError::BindingCallContextMissing.boxed())?;
-        Ok(Self::from_raw(
-            context.worker,
-            context.event_loop,
-            context.host,
-            context.world,
-            engine,
-        )
-        .with_execution_context(ExecutionContext::new(
-            context.execution_context_id,
-            context.is_process_main,
-        )))
-    }
-
-    /// Override the execution context for one raw binding call context.
-    fn with_execution_context(mut self, execution_context: ExecutionContext) -> Self {
-        self.execution_context = execution_context;
-        self
-    }
-
     /// Borrow the worker state.
     #[inline]
     pub fn worker(&self) -> &Worker {
         unsafe { &*self.worker }
-    }
-
-    /// Borrow the worker mutably.
-    #[inline]
-    pub(crate) fn worker_mut(&self) -> &mut Worker {
-        unsafe { &mut *self.worker }
     }
 
     /// Borrow the runtime diagnostics store.
@@ -204,7 +140,7 @@ impl BindingCallContext {
 
     /// Borrow the runtime host state.
     #[inline]
-    pub fn host(&self) -> &Session {
+    pub fn host(&self) -> &HostSession {
         unsafe { &*self.host }
     }
 
@@ -237,29 +173,7 @@ impl BindingCallContext {
 
     /// Advance host and runtime wait progress for one blocked binding path.
     pub(crate) fn advance_wait_progress(&self) -> RuntimeResult<()> {
-        // host owned ingress
-        self.host().advance_ingress()?;
-
-        // worker local callbacks
-        self.worker_mut().service_worker_callbacks(self)
-    }
-
-    /// Schedule one worker-local callback.
-    pub(crate) fn schedule_worker_callback(
-        &self,
-        delay_ns: u64,
-        interval_ns: Option<u64>,
-        callback: impl FnMut(&BindingCallContext) -> RuntimeResult<WorkerCallbackControl>
-        + Send
-        + 'static,
-    ) -> RuntimeResult<WorkerCallbackHandle> {
-        self.worker_mut()
-            .schedule_worker_callback(self, delay_ns, interval_ns, callback)
-    }
-
-    /// Cancel one worker-local callback.
-    pub(crate) fn cancel_worker_callback(&self, handle: WorkerCallbackHandle) -> RuntimeResult<()> {
-        self.worker_mut().cancel_worker_callback(self, handle)
+        self.host().advance_ingress()
     }
 
     /// Wait for one binding result while runtime-owned host ingress makes progress.
@@ -284,11 +198,11 @@ impl BindingCallContext {
                 return Ok(result);
             }
 
-            let now = core_platform::monotonic_now_ns();
+            let now = host_core::monotonic_now_ns();
 
             // stop once the timeout budget is exhausted
             if now >= deadline_ns {
-                return Err(core_platform::io_would_block(operation, timeout_message));
+                return Err(host_core::io_would_block(operation, timeout_message));
             }
 
             // wait until the next backend publication or the overall deadline
@@ -393,88 +307,6 @@ impl BindingCallContext {
         self.engine
     }
 
-    /// Clear call-local storage for native bindings.
-    pub fn clear_values(&self) {
-        with_native_call_arena(|arena| arena.clear());
-    }
-
-    /// Store a string for the duration of the current call.
-    pub fn store_string(&self, value: &str) -> NativeStringRef {
-        with_native_call_arena(|arena| arena.store_string(value))
-    }
-
-    /// Store one owned string for the duration of the current call.
-    pub fn store_string_owned(&self, value: String) -> NativeStringRef {
-        with_native_call_arena(|arena| arena.store_string_owned(value))
-    }
-
-    /// Store an optional string for the duration of the current call.
-    pub fn store_string_option(&self, value: Option<&String>) -> NativeStringRef {
-        with_native_call_arena(|arena| arena.store_string_option(value))
-    }
-
-    /// Store a slice for the duration of the current call.
-    pub fn store_slice<T: 'static>(&self, values: Vec<T>) -> NativeSlice<T> {
-        with_native_call_arena(|arena| arena.store_slice(values))
-    }
-
-    /// Build and store one slice for the duration of the current call.
-    pub fn store_slice_with<T: 'static>(
-        &self,
-        capacity: usize,
-        fill: impl FnOnce(&mut NativeCallBuilder<T>) -> RuntimeResult<()>,
-    ) -> RuntimeResult<NativeSlice<T>> {
-        with_native_call_arena(|arena| arena.store_slice_with(capacity, fill))
-    }
-
-    /// Copy a slice for the duration of the current call.
-    pub fn store_slice_copy<T: Copy + 'static>(&self, values: &[T]) -> NativeSlice<T> {
-        with_native_call_arena(|arena| arena.store_slice_copy(values))
-    }
-
-    /// Store one zeroed byte slice for the duration of the current call.
-    pub fn store_zeroed_byte_slice(&self, len: usize) -> NativeSlice<u8> {
-        with_native_call_arena(|arena| arena.store_zeroed_byte_slice(len))
-    }
-
-    /// Store an array for the duration of the current call.
-    pub fn store_array<T: 'static>(&self, values: Vec<T>) -> NativeArray<T> {
-        with_native_call_arena(|arena| arena.store_array(values))
-    }
-
-    /// Build and store one array for the duration of the current call.
-    pub fn store_array_with<T: 'static>(
-        &self,
-        capacity: usize,
-        fill: impl FnOnce(&mut NativeCallBuilder<T>) -> RuntimeResult<()>,
-    ) -> RuntimeResult<NativeArray<T>> {
-        with_native_call_arena(|arena| arena.store_array_with(capacity, fill))
-    }
-
-    /// Copy an array for the duration of the current call.
-    pub fn store_array_copy<T: Copy + 'static>(&self, values: &[T]) -> NativeArray<T> {
-        with_native_call_arena(|arena| arena.store_array_copy(values))
-    }
-
-    /// Store one zeroed byte array for the duration of the current call.
-    pub fn store_zeroed_byte_array(&self, len: usize) -> NativeArray<u8> {
-        with_native_call_arena(|arena| arena.store_zeroed_byte_array(len))
-    }
-
-    /// Store a string slice for the duration of the current call.
-    pub fn store_string_slice(&self, values: Vec<NativeStringRef>) -> NativeStringSlice {
-        with_native_call_arena(|arena| arena.store_string_slice(values))
-    }
-
-    /// Build and store one string slice for the duration of the current call.
-    pub fn store_string_slice_with(
-        &self,
-        capacity: usize,
-        fill: impl FnOnce(&mut NativeCallBuilder<NativeStringRef>) -> RuntimeResult<()>,
-    ) -> RuntimeResult<NativeStringSlice> {
-        with_native_call_arena(|arena| arena.store_string_slice_with(capacity, fill))
-    }
-
     /// Return one policy-violation error for one binding descriptor.
     fn policy_violation_error(&self, spec: BindingDescriptor) -> RuntimeError {
         RuntimeError::PolicyViolation {
@@ -565,7 +397,7 @@ impl BindingCallContext {
 
         // reject unavailable host bindings before entering the call
         if world == RuntimeWorld::Host && !spec.supports_current_target() {
-            return Err(RuntimeError::from(PlatformError::not_supported(spec.name)).boxed());
+            return Err(RuntimeError::from(HostError::not_supported(spec.name)).boxed());
         }
 
         let call_id = self

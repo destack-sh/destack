@@ -1,18 +1,18 @@
 use std::collections::BTreeMap;
 
 use crate::diagnostic::RuntimeResult;
-use crate::runtime::binding::{
+use crate::host::binding::{
     BindingAffinity, BindingDescriptor, BindingEffect, BindingProvider, BindingReplayKind,
     BindingReplayPayload, RuntimeAccess,
 };
-use crate::runtime::policy::{
+use crate::runtime::random::Random;
+use crate::runtime::{EdgeKind, EntityKind, WorkerId};
+use crate::world::policy::{
     ActivationWindow, CallSelector, EdgeSelector, EntitySelector, Fault, FaultTarget, FaultType,
     Hook, HookEvent, Lifetime, Policy, PolicyCallId, PolicyState, Rule, RuleAction, RuleId,
     Trigger,
 };
-use crate::runtime::random::Random;
-use crate::runtime::world::topology::Topology;
-use crate::runtime::{EdgeKind, EntityKind, WorkerId};
+use crate::world::topology::Topology;
 use destack_workspace::ExecutionMode;
 
 /// Stable runtime name used by policy tests.

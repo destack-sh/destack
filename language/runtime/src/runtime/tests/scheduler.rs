@@ -4,19 +4,19 @@ use destack_core::{Capture, CaptureMode};
 use destack_workspace::{RuntimeOptions, SchedulerOptions, TimeMode};
 use {destack_engine as engine, destack_native as native};
 
-use crate::host::{HostEventKind, HostLifecycleState};
-use crate::platform::ResourceId;
-use crate::platform::time::TimerClock;
-use crate::runtime::engine::{Continuation, Engine};
-use crate::runtime::poller::{
+use crate::host::poller::{
     PollerEvent, PollerEventFlags, PollerEventMask, PollerEventPayload, PollerEventSource,
     PollerToken,
 };
+use crate::host::time::TimerClock;
+use crate::host::{HostEventKind, LifecycleState, ResourceId};
+use crate::runtime::engine::{Continuation, Engine};
 use crate::runtime::scheduler::{
     EventLoop, Microtask, MicrotaskId, Runnable, Task, TaskId, TaskStatus, Timer, TimerDeadline,
 };
 use crate::runtime::time::{Instant, Nanos};
-use crate::runtime::{DropReason, TickResult, Worker, WorkerOptions, World};
+use crate::runtime::{TickResult, Worker};
+use crate::world::World;
 
 use super::tests::{
     TestEngine, TestHostClockSource, TestMultiAgentRuntime, TestPoller, TestRuntime,
@@ -103,13 +103,13 @@ fn test_tick_dispatches_event_watch_task() {
     );
 }
 
-/// Dispatches registered host semantic events through the runtime tick path.
+/// Dispatches registered host events through the runtime tick path.
 #[test]
 fn test_tick_dispatches_host_event_watch_task() {
     // create runtime state with one lifecycle host-event watch registration
     let mut runtime = TestRuntime::new();
     runtime.watch_host_event_native(HostEventKind::Lifecycle, 42, 0);
-    runtime.enqueue_lifecycle_host_event(HostLifecycleState::Running);
+    runtime.enqueue_lifecycle_host_event(LifecycleState::Running);
 
     // execute one tick and verify one watched resume
     let progressed = runtime.tick();
@@ -146,9 +146,9 @@ fn test_tick_routes_event_watch_through_task_priority() {
     );
 }
 
-/// Drops queued events that have no registered dispatch watch.
+/// Ignores queued events that have no registered dispatch watch.
 #[test]
-fn test_tick_drops_event_without_watch() {
+fn test_tick_ignores_event_without_watch() {
     // create runtime state with one unregistered event token
     let mut runtime =
         TestRuntime::with_options_and_engine(&RuntimeOptions::default(), TestEngine::default());
@@ -158,59 +158,29 @@ fn test_tick_drops_event_without_watch() {
     let progressed = runtime.tick();
     assert!(
         progressed,
-        "dropping one queued event should count as progress"
-    );
-    assert_eq!(
-        runtime.drop_counts().total(),
-        1,
-        "dropped external events should be counted for observability"
-    );
-    assert_eq!(
-        runtime.drop_counts().count(DropReason::UnwatchedDispatch),
-        1,
-        "unwatched dropped events should be tracked separately"
-    );
-    assert_eq!(
-        runtime.drop_counts().count(DropReason::QueuePressure),
-        0,
-        "host queue pressure should not be counted in this case"
+        "unwatched queued events should still count as progress"
     );
 }
 
-/// Drops queued host semantic events that have no registered dispatch watch.
+/// Ignores queued host events that have no registered dispatch watch.
 #[test]
-fn test_tick_drops_host_event_without_watch() {
+fn test_tick_ignores_host_event_without_watch() {
     // create runtime state with one unregistered lifecycle host event
     let mut runtime =
         TestRuntime::with_options_and_engine(&RuntimeOptions::default(), TestEngine::default());
-    runtime.enqueue_lifecycle_host_event(HostLifecycleState::Running);
+    runtime.enqueue_lifecycle_host_event(LifecycleState::Running);
 
     // executing one tick should drop the stale event without crashing
     let progressed = runtime.tick();
     assert!(
         progressed,
-        "dropping one queued host event should count as progress"
-    );
-    assert_eq!(
-        runtime.drop_counts().total(),
-        1,
-        "dropped host events should be counted for observability"
-    );
-    assert_eq!(
-        runtime.drop_counts().count(DropReason::UnwatchedDispatch),
-        1,
-        "unwatched dropped host events should be tracked separately"
-    );
-    assert_eq!(
-        runtime.drop_counts().count(DropReason::QueuePressure),
-        0,
-        "host queue pressure should not be counted in this case"
+        "unwatched queued host events should still count as progress"
     );
 }
 
-/// Records unmatched runtime ingress explicitly instead of rerouting it.
+/// Ignores unmatched runtime ingress instead of rerouting it.
 #[test]
-fn test_runtime_tick_records_unmatched_poller_ingress() {
+fn test_runtime_tick_ignores_unmatched_poller_ingress() {
     // create one multi-worker runtime with no poller watches
     let mut runtime = TestMultiAgentRuntime::with_options_and_engine(
         &RuntimeOptions::default(),
@@ -225,20 +195,10 @@ fn test_runtime_tick_records_unmatched_poller_ingress() {
         payload: PollerEventPayload::Io { data: 7 },
     }])));
 
-    // one runtime tick should account for the unmatched ingress without resuming work
+    // one runtime tick should consume unmatched ingress without resuming work
     let outcome = runtime.tick();
 
     assert_eq!(outcome, TickResult::Worked);
-    assert_eq!(
-        runtime.drop_counts().count(DropReason::UnmatchedIngress),
-        1,
-        "unmatched ingress should be counted explicitly"
-    );
-    assert_eq!(
-        runtime.drop_counts().count(DropReason::QueuePressure),
-        0,
-        "queue pressure should stay unchanged in this case"
-    );
 }
 
 /// Stops draining when one microtask budget is configured.

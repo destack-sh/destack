@@ -3,18 +3,19 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use crate::runtime::policy::CallSelector;
+use crate::world::policy::CallSelector;
 use destack_engine as engine;
 use destack_workspace::RuntimeOptions;
 
 use crate::diagnostic::RuntimeError;
-use crate::host::Session;
-use crate::runtime::binding::{
+use crate::host::HostSession;
+use crate::host::binding::{
     BindingAffinity, BindingDescriptor, BindingEffect, BindingProvider, BindingReplayKind,
     BindingReplayPayload,
 };
-use crate::runtime::policy::{CustomAction, Rule, Trigger};
-use crate::runtime::{Hook, HookDecision, HookSelector, Worker, WorkerOptions, World};
+use crate::runtime::{Worker, WorkerOptions};
+use crate::world::policy::{CustomAction, Rule, Trigger};
+use crate::world::{Hook, HookDecision, HookSelector, World};
 
 /// Ensures before-binding callbacks can deny one matching binding call.
 #[test]
@@ -33,7 +34,7 @@ fn test_on_before_binding_allows_hook_callback_deny() {
         super::tests::TestEngine::default(),
     )
     .expect("worker should construct in world");
-    let host = Session::from_runtime_options(&options, worker.runtime_id);
+    let host = HostSession::from_runtime_id(worker.runtime_id);
 
     // register one deny callback for matching binding names
     let callback_id =
@@ -98,7 +99,7 @@ fn test_on_before_binding_respects_hook_selector_binding_glob() {
         super::tests::TestEngine::default(),
     )
     .expect("worker should construct in world");
-    let host = Session::from_runtime_options(&options, worker.runtime_id);
+    let host = HostSession::from_runtime_id(worker.runtime_id);
 
     // register one deny callback with one non-matching binding pattern
     let callback_id = worker.hooks.on_before(
@@ -149,7 +150,7 @@ fn test_on_before_binding_runs_custom_action_handler() {
         super::tests::TestEngine::default(),
     )
     .expect("worker should construct in world");
-    let host = Session::from_runtime_options(&options, worker.runtime_id);
+    let host = HostSession::from_runtime_id(worker.runtime_id);
 
     // install one custom-action rule for one binding pattern
     world

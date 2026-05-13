@@ -4,26 +4,22 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 use {destack_engine as engine, destack_heap as heap};
 
-use super::{
-    BindingCallContext, WorkerCallbackControl, WorkerCallbackHandle, WorkerCallbackRegistry,
-};
 use crate::diagnostic::{DiagnosticSnapshot, DiagnosticStore, RuntimeError, RuntimeResult};
-use crate::host::HostEventKind;
-use crate::platform::resource::{ResourceRebinders, ResourceTableSnapshot};
-use crate::platform::{ResourceId, ResourceTable};
-use crate::runtime::binding::{BindingAccess, BindingRegistry};
+use crate::host::binding::{BindingAccess, BindingRegistry};
+use crate::host::poller::PollerToken;
+use crate::host::resource::{ResourceRebinders, ResourceTableSnapshot};
+use crate::host::{HostEventKind, ResourceId, ResourceTable};
 use crate::runtime::engine::{Context, Continuation, Engine, Image};
 use crate::runtime::heap::{
     HeapHandle, HeapHandleTable, RootSet, RootSink, resolve_local_heap_options,
 };
-use crate::runtime::policy::HookSnapshot;
-use crate::runtime::poller::PollerToken;
 use crate::runtime::scheduler::{EventLoop, EventLoopSnapshot, EventLoopWatch};
-use crate::runtime::world::{RuntimeId, WorldState};
 use crate::runtime::{
-    DropCounts, DropReason, ExecutionContextId, Hooks, PlatformState, PlatformStateImage,
-    RuntimeFinalizers, RuntimeFinalizersImage, SharedHeap,
+    ExecutionContextId, Hooks, HostState, HostStateImage, RuntimeFinalizers,
+    RuntimeFinalizersImage, SharedHeap,
 };
+use crate::world::policy::HookSnapshot;
+use crate::world::{RuntimeId, WorldState};
 use destack_workspace::{ExecutionMode, RuntimeOptions};
 
 /// Execution worker owned by one runtime.
@@ -34,7 +30,7 @@ pub struct Worker {
     pub(crate) name: String,
     /// Runtime owner identifier in world topology.
     pub(crate) runtime_id: RuntimeId,
-    /// Immutable process arguments for platform bindings.
+    /// Immutable process arguments for host bindings.
     pub(crate) process_args: Arc<[String]>,
     /// Immutable runtime options.
     pub(crate) options: Arc<RuntimeOptions>,
@@ -45,14 +41,10 @@ pub struct Worker {
     pub(crate) hooks: Arc<Hooks>,
     /// Worker-level finalizer registry for module services.
     pub(crate) finalizers: RuntimeFinalizers,
-    /// Worker-local scheduled callbacks.
-    pub(crate) worker_callbacks: WorkerCallbackRegistry,
-    /// Worker-owned platform state store.
-    pub(crate) platform_state: PlatformState,
+    /// Worker-owned host state store.
+    pub(crate) host_state: HostState,
     /// Diagnostics storage for runtime errors and warning events.
     pub(crate) diagnostics: Arc<DiagnosticStore>,
-    /// Coordinator-owned drop accounting for standalone worker flows.
-    pub(crate) drop_counts: DropCounts,
     /// External binding registry and policy enforcement.
     pub(crate) bindings: BindingRegistry,
     /// Runtime-owned handles for host-retained local heap references.
@@ -68,7 +60,7 @@ pub struct Worker {
     pub(crate) statics: engine::StaticSpace,
     /// Worker-owned execution engine.
     pub(crate) engine: Engine,
-    /// Event loop for tasks, microtasks, and timers.
+    /// HostEvent loop for tasks, microtasks, and timers.
     pub(crate) event_loop: Box<EventLoop>,
 }
 
@@ -98,8 +90,8 @@ pub struct WorkerImage {
     pub resources: ResourceTableSnapshot,
     /// Captured finalizer lifecycle state.
     pub finalizers: RuntimeFinalizersImage,
-    /// Captured platform-state lifecycle state.
-    pub platform_state: PlatformStateImage,
+    /// Captured host-state lifecycle state.
+    pub host_state: HostStateImage,
     /// Captured event-loop state.
     pub event_loop: EventLoopSnapshot,
     /// Captured authoritative heap snapshot.
@@ -136,7 +128,7 @@ impl PartialEq for WorkerImage {
             && self.hooks == other.hooks
             && self.resources == other.resources
             && self.finalizers == other.finalizers
-            && self.platform_state == other.platform_state
+            && self.host_state == other.host_state
             && self.event_loop == other.event_loop
             && heap.is_ok()
             && heap == other_heap
@@ -197,7 +189,7 @@ impl std::fmt::Debug for Worker {
             .field("resources", &self.resources)
             .field("hooks", &self.hooks)
             .field("finalizers", &self.finalizers)
-            .field("platform_state", &self.platform_state)
+            .field("host_state", &self.host_state)
             .field("diagnostics", &self.diagnostics)
             .field("bindings", &self.bindings)
             .field("handles", &self.handles.len())
@@ -292,12 +284,10 @@ impl Worker {
         // hooks and resources
         let hooks = Arc::new(Hooks::new(runtime_id, worker_id, world.trace().mode()));
         let resources = ResourceTable::new(worker_id);
-        resources.set_hooks(hooks.clone());
 
         // bindings
         let mut bindings = BindingRegistry::new();
         bindings.set_access(BindingAccess::new(world.trace().mode()));
-        bindings.install_native_defaults()?;
         bindings.apply_runtime_defaults(options);
 
         // heap and statics
@@ -338,10 +328,8 @@ impl Worker {
             resources,
             hooks,
             finalizers: RuntimeFinalizers::default(),
-            worker_callbacks: WorkerCallbackRegistry::default(),
-            platform_state: PlatformState::default(),
+            host_state: HostState::default(),
             diagnostics: Arc::new(DiagnosticStore::from_options(&options.diagnostic)),
-            drop_counts: DropCounts::default(),
             bindings,
             handles: HeapHandleTable::default(),
             shared_gc_worker,
@@ -353,7 +341,7 @@ impl Worker {
         })
     }
 
-    /// Return immutable process arguments exposed to platform bindings.
+    /// Return immutable process arguments exposed to host bindings.
     pub fn process_args(&self) -> &[String] {
         self.process_args.as_ref()
     }
@@ -461,65 +449,6 @@ impl Worker {
         self.event_loop.unwatch_timer(handle)
     }
 
-    /// Schedule one worker callback on the owning event loop thread.
-    pub(crate) fn schedule_worker_callback(
-        &mut self,
-        binding: &BindingCallContext,
-        delay_ns: u64,
-        interval_ns: Option<u64>,
-        callback: impl FnMut(&BindingCallContext) -> RuntimeResult<WorkerCallbackControl>
-        + Send
-        + 'static,
-    ) -> RuntimeResult<WorkerCallbackHandle> {
-        self.worker_callbacks
-            .schedule(binding, delay_ns, interval_ns, callback)
-    }
-
-    /// Cancel one scheduled worker callback.
-    pub(crate) fn cancel_worker_callback(
-        &mut self,
-        binding: &BindingCallContext,
-        handle: WorkerCallbackHandle,
-    ) -> RuntimeResult<()> {
-        self.worker_callbacks.cancel(binding, handle)
-    }
-
-    /// Service due worker callbacks on the owning event loop thread.
-    pub(crate) fn service_worker_callbacks(
-        &mut self,
-        binding: &BindingCallContext,
-    ) -> RuntimeResult<()> {
-        // skip the timer scan when no worker callback is registered
-        if !self.worker_callbacks.has_active_callbacks() {
-            return Ok(());
-        }
-
-        // collect only worker owned timers from the shared ready set
-        let wall_now = binding.world().wall();
-        let mono_now = binding.world().mono();
-        let due_timers =
-            binding
-                .event_loop()
-                .take_due_timers_matching(wall_now, mono_now, |handle| {
-                    handle.internal_id().is_some_and(|handle| {
-                        self.worker_callbacks
-                            .contains(WorkerCallbackHandle::from_internal_id(handle))
-                    })
-                })?;
-
-        // run only worker owned timer callbacks in this blocked wait path
-        for timer in due_timers {
-            let Some(handle) = timer.handle.internal_id() else {
-                continue;
-            };
-
-            self.worker_callbacks
-                .service_due_callback(binding, WorkerCallbackHandle::from_internal_id(handle))?;
-        }
-
-        Ok(())
-    }
-
     /// Register one event watch.
     pub fn watch_event(
         &mut self,
@@ -542,7 +471,7 @@ impl Worker {
         self.event_loop.watches_event(token)
     }
 
-    /// Register one host semantic event watch.
+    /// Register one host event watch.
     pub fn watch_host_event(
         &mut self,
         kind: HostEventKind,
@@ -559,7 +488,7 @@ impl Worker {
         self.event_loop.unwatch_host_event(kind)
     }
 
-    /// Return whether one host semantic watch is registered for the given kind.
+    /// Return whether one host watch is registered for the given kind.
     pub fn watches_host_event(&self, kind: HostEventKind) -> bool {
         self.event_loop.watches_host_event(kind)
     }
@@ -582,31 +511,6 @@ impl Worker {
     /// Return the current local heap reference retained by one handle.
     pub fn heap_reference(&self, handle: HeapHandle) -> RuntimeResult<heap::HeapReference> {
         self.handles.reference(handle)
-    }
-
-    /// Return drop accounting observed by this worker event loop.
-    pub fn drop_counts(&self) -> DropCounts {
-        let event_loop_drops = self.event_loop.drop_counts();
-
-        DropCounts {
-            queue_pressure: self
-                .drop_counts
-                .queue_pressure
-                .saturating_add(event_loop_drops.queue_pressure),
-            unmatched_ingress: self
-                .drop_counts
-                .unmatched_ingress
-                .saturating_add(event_loop_drops.unmatched_ingress),
-            unwatched_dispatch: self
-                .drop_counts
-                .unwatched_dispatch
-                .saturating_add(event_loop_drops.unwatched_dispatch),
-        }
-    }
-
-    /// Record one coordinator-owned drop in standalone worker flows.
-    pub(crate) fn record_drop(&mut self, reason: DropReason, count: u64) {
-        self.drop_counts.record(reason, count);
     }
 
     /// Visit roots from engine, scheduler, and registered providers.
@@ -711,11 +615,6 @@ impl Worker {
         shared: &SharedHeap,
         runtime_static: &engine::StaticSpace,
     ) -> RuntimeResult<WorkerImage> {
-        // worker callback barrier
-        if self.worker_callbacks.has_active_callbacks() {
-            return Err(self.worker_callbacks.capture_barrier_error(mode));
-        }
-
         // host-retained local handles cannot be materialized without the owning host state
         if !self.handles.is_empty() {
             return Err(RuntimeError::CaptureBarrier {
@@ -733,7 +632,7 @@ impl Worker {
         let hooks = self.hooks.snapshot()?;
 
         // runtime-owned service state
-        let platform_state = self.platform_state.capture_image(mode, ())?;
+        let host_state = self.host_state.capture_image(mode, ())?;
         let finalizers = self.finalizers.capture_image(mode, ())?;
 
         // capture the worker-local image payload
@@ -743,7 +642,7 @@ impl Worker {
             hooks,
             resources,
             finalizers,
-            platform_state,
+            host_state,
             event_loop,
             heap: self
                 .heap
@@ -777,11 +676,6 @@ impl Worker {
         runtime_static: &engine::StaticSpace,
         shared_gc_worker: heap::SharedGcWorker,
     ) -> RuntimeResult<Option<Self>> {
-        // worker callbacks
-        if self.worker_callbacks.has_active_callbacks() {
-            return Ok(None);
-        }
-
         // host-retained handles need their owning host resource to fork them
         if !self.handles.is_empty() {
             return Ok(None);
@@ -798,7 +692,7 @@ impl Worker {
         };
 
         // resources, finalizers, and event loop
-        let resources = match self.resources.try_fork(hooks.clone()) {
+        let resources = match self.resources.try_fork() {
             Some(resources) => resources,
             None => return Ok(None),
         };
@@ -810,7 +704,6 @@ impl Worker {
         // bindings and heap
         let mut bindings = BindingRegistry::new();
         bindings.set_access(BindingAccess::new(execution_mode));
-        bindings.install_native_defaults()?;
         bindings.apply_runtime_defaults(&self.options);
 
         let mut heap = self.heap.fork()?;
@@ -826,8 +719,8 @@ impl Worker {
         })?;
         let event_loop = Box::new(self.event_loop.fork(&mut self.engine, &mut engine)?);
 
-        // platform state
-        let platform_state = self.platform_state.fork()?;
+        // host state
+        let host_state = self.host_state.fork()?;
 
         Ok(Some(Self {
             id: self.id,
@@ -838,10 +731,8 @@ impl Worker {
             resources,
             hooks,
             finalizers,
-            worker_callbacks: WorkerCallbackRegistry::default(),
-            platform_state,
+            host_state,
             diagnostics,
-            drop_counts: self.drop_counts,
             bindings,
             handles: HeapHandleTable::default(),
             shared_gc_worker,
@@ -872,12 +763,10 @@ impl Worker {
         // hooks and resources
         let hooks = Arc::new(Hooks::new(runtime_id, worker_id, world.trace().mode()));
         let resources = ResourceTable::new(worker_id);
-        resources.set_hooks(hooks.clone());
 
         // bindings
         let mut bindings = BindingRegistry::new();
         bindings.set_access(BindingAccess::new(world.trace().mode()));
-        bindings.install_native_defaults()?;
         bindings.apply_runtime_defaults(&options);
 
         // diagnostics and event loop
@@ -943,14 +832,12 @@ impl Worker {
                 finalizers.restore_image(&image.finalizers, ())?;
                 finalizers
             },
-            worker_callbacks: WorkerCallbackRegistry::default(),
-            platform_state: {
-                let mut platform_state = PlatformState::default();
-                platform_state.restore_image(&image.platform_state, ())?;
-                platform_state
+            host_state: {
+                let mut host_state = HostState::default();
+                host_state.restore_image(&image.host_state, ())?;
+                host_state
             },
             diagnostics,
-            drop_counts: DropCounts::default(),
             bindings,
             handles: HeapHandleTable::default(),
             shared_gc_worker,

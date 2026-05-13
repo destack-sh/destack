@@ -1,14 +1,13 @@
 use super::Runnable;
 use crate::diagnostic::RuntimeResult;
-use crate::runtime::poller::{
+use crate::host::poller::{
     HostPoller, PollerEvent, PollerEventPayload, PollerEventSource, PollerProcessStatus,
 };
 use crate::runtime::time::{Instant, Nanos};
-use crate::runtime::{DropCounts, DropReason};
 
 use super::EventLoop;
 
-/// Default host semantic dispatch batch size before forcing one poller event.
+/// Default host dispatch batch size before forcing one poller event.
 const DEFAULT_HOST_EVENT_BUDGET: u64 = 32;
 
 impl EventLoop {
@@ -34,7 +33,7 @@ impl EventLoop {
             return Ok(Some(Runnable::Timer(timer)));
         }
 
-        // dispatch host semantic events first while under the fairness budget
+        // dispatch host events first while under the fairness budget
         if self.should_dispatch_host_event_first()
             && let Some(host_event) = self.host_events.pop_front()
         {
@@ -48,7 +47,7 @@ impl EventLoop {
             return Ok(Some(Runnable::PollerEvent(event)));
         }
 
-        // dispatch remaining host semantic events when no poller event is pending
+        // dispatch remaining host events when no poller event is pending
         if let Some(host_event) = self.host_events.pop_front() {
             self.host_events_since_poller = self.host_events_since_poller.saturating_add(1);
             return Ok(Some(Runnable::HostEvent(host_event)));
@@ -79,7 +78,7 @@ impl EventLoop {
         queue.has_pending_timers()
     }
 
-    /// Poll the platform poller and enqueue events.
+    /// Poll the host poller and enqueue events.
     pub fn poll_poller(
         &mut self,
         poller: &mut dyn HostPoller,
@@ -128,16 +127,6 @@ impl EventLoop {
             .map(|deadline| deadline.saturating_sub(Instant::from_nanos(wall_now)))
     }
 
-    /// Record one or more drops observed by the event loop.
-    pub fn record_drop(&mut self, reason: DropReason, count: u64) {
-        self.drop_counts.record(reason, count);
-    }
-
-    /// Return drop accounting observed by the event loop.
-    pub const fn drop_counts(&self) -> DropCounts {
-        self.drop_counts
-    }
-
     /// Return whether one ready timer remains dispatchable after cancelation filtering.
     fn has_dispatchable_ready_timers(&self) -> bool {
         let ready_timers = self.ready_timers.lock();
@@ -151,9 +140,9 @@ impl EventLoop {
             .any(|timer| !canceled_timers.contains(&timer.handle))
     }
 
-    /// Sort platform events into a deterministic order.
-    pub(super) fn sort_platform_events(&self, events: &mut [PollerEvent]) {
-        // ensure deterministic ordering for platform events
+    /// Sort host events into a deterministic order.
+    pub(super) fn sort_host_events(&self, events: &mut [PollerEvent]) {
+        // ensure deterministic ordering for host events
         events.sort_by_key(|event| {
             (
                 self.source_order(event.source),
@@ -166,7 +155,7 @@ impl EventLoop {
         });
     }
 
-    /// Return whether host semantic events should dispatch before poller events.
+    /// Return whether host events should dispatch before poller events.
     pub(super) fn should_dispatch_host_event_first(&self) -> bool {
         if self.host_events.is_empty() {
             return false;
@@ -220,14 +209,13 @@ mod tests {
     use destack_workspace::SchedulerOptions;
 
     use super::EventLoop;
-    use crate::host::{HostEvent, HostLifecycleEvent, HostLifecycleSourceKind, HostLifecycleState};
-    use crate::platform::ResourceId;
-    use crate::runtime::poller::{
+    use crate::host::poller::{
         PollerEvent, PollerEventFlags, PollerEventMask, PollerEventPayload, PollerEventSource,
         PollerToken,
     };
+    use crate::host::{HostEvent, LifecycleEvent, LifecycleSourceKind, LifecycleState, ResourceId};
+    use crate::runtime::WorkerId;
     use crate::runtime::scheduler::Runnable;
-    use crate::runtime::{DropReason, WorkerId};
 
     const TEST_WORKER_ID: WorkerId = WorkerId(1);
 
@@ -247,9 +235,9 @@ mod tests {
         let mut event_loop = EventLoop::default();
 
         event_loop.enqueue_events(vec![io_poller_event(8)]);
-        event_loop.enqueue_host_events(vec![HostEvent::Lifecycle(HostLifecycleEvent {
-            source_kind: HostLifecycleSourceKind::Application,
-            state: HostLifecycleState::Running,
+        event_loop.enqueue_host_events(vec![HostEvent::Lifecycle(LifecycleEvent {
+            source_kind: LifecycleSourceKind::Application,
+            state: LifecycleState::Running,
         })]);
 
         let first = event_loop.next_runnable(0, 0).unwrap();
@@ -257,12 +245,10 @@ mod tests {
 
         assert!(matches!(
             first,
-            Some(Runnable::HostEvent(HostEvent::Lifecycle(
-                HostLifecycleEvent {
-                    source_kind: HostLifecycleSourceKind::Application,
-                    state: HostLifecycleState::Running
-                }
-            )))
+            Some(Runnable::HostEvent(HostEvent::Lifecycle(LifecycleEvent {
+                source_kind: LifecycleSourceKind::Application,
+                state: LifecycleState::Running
+            })))
         ));
         assert!(matches!(second, Some(Runnable::PollerEvent(_))));
     }
@@ -278,13 +264,13 @@ mod tests {
             .unwrap();
 
         event_loop.enqueue_host_events(vec![
-            HostEvent::Lifecycle(HostLifecycleEvent {
-                source_kind: HostLifecycleSourceKind::Application,
-                state: HostLifecycleState::Running,
+            HostEvent::Lifecycle(LifecycleEvent {
+                source_kind: LifecycleSourceKind::Application,
+                state: LifecycleState::Running,
             }),
-            HostEvent::Lifecycle(HostLifecycleEvent {
-                source_kind: HostLifecycleSourceKind::Application,
-                state: HostLifecycleState::Stopped,
+            HostEvent::Lifecycle(LifecycleEvent {
+                source_kind: LifecycleSourceKind::Application,
+                state: LifecycleState::Stopped,
             }),
         ]);
         event_loop.enqueue_events(vec![io_poller_event(9)]);
@@ -296,17 +282,5 @@ mod tests {
         assert!(matches!(first, Some(Runnable::HostEvent(_))));
         assert!(matches!(second, Some(Runnable::PollerEvent(_))));
         assert!(matches!(third, Some(Runnable::HostEvent(_))));
-    }
-
-    #[test]
-    fn test_drop_counts_tracks_unwatched_dispatch() {
-        let mut event_loop = EventLoop::default();
-
-        event_loop.record_drop(DropReason::UnwatchedDispatch, 1);
-
-        let drop_counts = event_loop.drop_counts();
-        assert_eq!(drop_counts.count(DropReason::UnwatchedDispatch), 1);
-        assert_eq!(drop_counts.count(DropReason::QueuePressure), 0);
-        assert_eq!(drop_counts.total(), 1);
     }
 }
