@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Expression, LocalNodeId, LocalSymbolId, Mutability, Name, Node, NodeType, StringId,
+    Expression, LocalNodeId, LocalSymbolId, Mutability, Name, Node, NodeType, RangeEnd, StringId,
     TypeExpression,
 };
 
@@ -35,6 +35,12 @@ pub enum Pattern {
     },
     /// Literal value, type or path pattern (like `4`, `int32`, `Vector2`, `MyEnum.A`).
     Expression { value: LocalNodeId<Expression> },
+    /// Ordered scalar interval pattern like `0..10` or `..=255`.
+    Range {
+        start: Option<LocalNodeId<Expression>>,
+        end: Option<LocalNodeId<Expression>>,
+        end_kind: RangeEnd,
+    },
     /// Type-space literal or reference pattern.
     TypeExpression { value: LocalNodeId<TypeExpression> },
     /// Anonymous tuple pattern (like `(x, 0)`).
