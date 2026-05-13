@@ -3,7 +3,7 @@ import { PlatformError } from "destack:platform/error";
 import { InputDeviceHandle } from "destack:platform/resource";
 
 /// Input sensor kind.
-export enum InputSensorKind {
+export enum SensorKind {
     /// Acceleration including gravity in meters per second squared.
     Accelerometer = 1,
     /// Angular velocity in radians per second.
@@ -22,28 +22,34 @@ export enum InputSensorKind {
     AmbientLight = 8,
     /// Proximity distance in centimeters.
     Proximity = 9,
-    /// Step count since backend-defined epoch.
+    /// Step count since the host-defined epoch.
     StepCounter = 10,
 }
 
-/// Sensor action metadata.
-export struct InputSensorDescriptor {
+/// Sensor option flags.
+export newtype SensorFlags = uint32;
+
+/// Allow the sensor to wake a suspended host queue.
+export const SENSOR_WAKE: SensorFlags = SensorFlags(0x01);
+
+/// Sensor descriptor.
+export struct Sensor {
     /// Sensor kind.
-    kind: InputSensorKind;
+    kind: SensorKind;
     /// Minimum supported sample rate in hertz.
     minSampleRateHz: float64;
     /// Maximum supported sample rate in hertz.
     maxSampleRateHz: float64;
     /// Nominal sensor resolution.
     resolution: float64;
-    /// Whether this sensor can wake one suspended backend queue.
-    supportsWake: boolean;
+    /// Supported option flags.
+    flags: SensorFlags;
 }
 
-/// Sensor sample snapshot.
-export struct InputSensorSample {
+/// Sensor sample.
+export struct SensorSample {
     /// Sensor kind.
-    kind: InputSensorKind;
+    kind: SensorKind;
     /// Monotonic sample timestamp in nanoseconds.
     timestampNs: uint64;
     /// Vector or quaternion x component.
@@ -52,80 +58,69 @@ export struct InputSensorSample {
     y: float64;
     /// Vector or quaternion z component.
     z: float64;
-    /// Quaternion w component for orientation samples, zero for vector samples.
-    w: float64;
-    /// Backend-specific sample status bits.
-    flags: uint32;
+    /// Quaternion w component for orientation samples.
+    w?: float64;
+    /// Host-specific sample status bits.
+    hostFlags: uint32;
 }
 
-/// Sensor stream configuration.
-export struct InputSensorConfig {
+/// Sensor stream options.
+export struct SensorStream {
     /// Whether the sensor stream is enabled.
-    enabled: boolean;
+    isEnabled: boolean;
     /// Requested sample rate in hertz.
     sampleRateHz: float64;
     /// Requested maximum batching latency in milliseconds.
     batchLatencyMs: uint32;
-    /// Sensor option flags.
-    flags: uint32;
+    /// Requested option flags.
+    flags: SensorFlags;
 }
 
-/// Effective sensor stream configuration.
-export struct InputSensorEffectiveConfig {
+/// Effective sensor stream state.
+export struct SensorStreamState {
     /// Whether the sensor stream is enabled.
-    enabled: boolean;
+    isEnabled: boolean;
     /// Effective sample rate in hertz.
     sampleRateHz: float64;
     /// Effective batching latency in milliseconds.
     batchLatencyMs: uint32;
-    /// Effective sensor option flags.
-    flags: uint32;
+    /// Effective option flags.
+    flags: SensorFlags;
 }
 
-/// List supported sensors for one opened input device.
+/// List supported sensors for one input device.
 @binding("destack.input.sensor.list", {
     effect: "external",
-    requires: ["host.input.read"],
+    requires: ["host.input.sensor"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function sensorList(
-    handle: InputDeviceHandle,
-): Result<Array<InputSensorDescriptor>, PlatformError>;
+export declare function listSensors(
+    device: InputDeviceHandle,
+): Result<^Array<Sensor>, PlatformError>;
 
-/// Configure one sensor stream.
-@binding("destack.input.sensor.configure", {
+/// Set one sensor stream state.
+@binding("destack.input.sensor.stream.set", {
     effect: "external",
-    requires: ["host.input.control"],
+    requires: ["host.input.sensor"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function sensorConfigure(
-    handle: InputDeviceHandle,
-    kind: InputSensorKind,
-    config: InputSensorConfig,
-): Result<InputSensorEffectiveConfig, PlatformError>;
+export declare function setSensorStream(
+    device: InputDeviceHandle,
+    kind: SensorKind,
+    stream: &readonly SensorStream,
+): Result<SensorStreamState, PlatformError>;
 
 /// Read one sensor sample.
 @binding("destack.input.sensor.read", {
     effect: "external",
-    requires: ["host.input.read"],
+    requires: ["host.input.sensor"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function sensorRead(
-    handle: InputDeviceHandle,
-    kind: InputSensorKind,
-): Result<InputSensorSample, PlatformError>;
-
-/// Poll one sensor sample without blocking.
-@binding("destack.input.sensor.tryRead", {
-    effect: "external",
-    requires: ["host.input.read"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function sensorTryRead(
-    handle: InputDeviceHandle,
-    kind: InputSensorKind,
-): Result<InputSensorSample, PlatformError>;
+export declare function readSensor(
+    device: InputDeviceHandle,
+    kind: SensorKind,
+    timeoutNs?: uint64,
+): Result<SensorSample, PlatformError>;

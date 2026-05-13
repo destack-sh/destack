@@ -1,232 +1,204 @@
-import { Array, Slice } from "destack:collections";
+import { Array } from "destack:collections";
 import { PlatformError } from "destack:platform/error";
 import { InputDeviceHandle } from "destack:platform/resource";
 
 /// Input device kind.
 export enum InputDeviceKind {
-    /// Keyboard input source.
+    /// Keyboard device.
     Keyboard = 1,
-    /// Mouse input source.
+    /// Mouse device.
     Mouse = 2,
-    /// Touch input source.
+    /// Touch device.
     Touch = 3,
-    /// Gamepad input source.
+    /// Gamepad or joystick device.
     Gamepad = 4,
-    /// Pen or stylus input source.
+    /// Pen or tablet device.
     Pen = 5,
-    /// Raw or vendor-specific input source.
-    Raw = 255,
+    /// Motion or environment sensor attached to input hardware.
+    Sensor = 6,
+    /// Host did not classify the device.
+    Unknown = 255,
 }
 
-/// Input device information.
-export struct InputDeviceDescriptor {
-    /// Stable runtime input device identifier.
+/// Input device list flags.
+export newtype InputDeviceListFlags = uint32;
+
+/// Include disconnected devices when the host reports them.
+export const INPUT_DEVICE_LIST_DISCONNECTED: InputDeviceListFlags = InputDeviceListFlags(0x01);
+
+/// Include virtual and emulated devices.
+export const INPUT_DEVICE_LIST_VIRTUAL: InputDeviceListFlags = InputDeviceListFlags(0x02);
+
+/// Include raw devices separately from translated endpoints.
+export const INPUT_DEVICE_LIST_RAW: InputDeviceListFlags = InputDeviceListFlags(0x04);
+
+/// Input device capability flags.
+export newtype InputDeviceCapabilities = uint64;
+
+/// Device can emit keyboard events.
+export const INPUT_DEVICE_KEYBOARD: InputDeviceCapabilities = InputDeviceCapabilities(0x0001);
+
+/// Device can emit pointer events.
+export const INPUT_DEVICE_POINTER: InputDeviceCapabilities = InputDeviceCapabilities(0x0002);
+
+/// Device can emit touch events.
+export const INPUT_DEVICE_TOUCH: InputDeviceCapabilities = InputDeviceCapabilities(0x0004);
+
+/// Device can emit pen events.
+export const INPUT_DEVICE_PEN: InputDeviceCapabilities = InputDeviceCapabilities(0x0008);
+
+/// Device can emit gamepad state.
+export const INPUT_DEVICE_GAMEPAD: InputDeviceCapabilities = InputDeviceCapabilities(0x0010);
+
+/// Device can emit text or composition events.
+export const INPUT_DEVICE_TEXT: InputDeviceCapabilities = InputDeviceCapabilities(0x0020);
+
+/// Device can emit sensor samples.
+export const INPUT_DEVICE_SENSOR: InputDeviceCapabilities = InputDeviceCapabilities(0x0040);
+
+/// Device can play haptic effects.
+export const INPUT_DEVICE_HAPTICS: InputDeviceCapabilities = InputDeviceCapabilities(0x0080);
+
+/// Device can be exclusively grabbed.
+export const INPUT_DEVICE_EXCLUSIVE: InputDeviceCapabilities = InputDeviceCapabilities(0x0100);
+
+/// Input device query.
+export struct InputDeviceQuery {
+    /// Device kind filter when present.
+    kind?: InputDeviceKind;
+    /// List behavior flags.
+    flags: InputDeviceListFlags;
+}
+
+/// Input device descriptor.
+export struct InputDevice {
+    /// Stable input device identifier.
     id: string;
-    /// Stable runtime instance identifier for this connection.
-    instanceId: string;
-    /// Stable backend hardware identifier when available.
-    hardwareId: string;
-    /// Stable backend serial number when available.
-    serialNumber: string | void;
-    /// Stable backend location identifier when available.
-    locationId: string | void;
-    /// Stable gamepad-style guid when available.
-    guid: string | void;
-    /// Host device name.
+    /// Stable instance identifier for the current connection.
+    instanceId?: string;
+    /// Host hardware identifier when available.
+    hardwareId?: string;
+    /// Host serial number when available.
+    serialNumber?: string;
+    /// Host location identifier when available.
+    locationId?: string;
+    /// Gamepad-style GUID when available.
+    guid?: string;
+    /// Host-visible device name.
     name: string;
-    /// Backend transport name when available.
-    transport: string;
+    /// Host transport name when available.
+    transport?: string;
     /// Device kind.
     kind: InputDeviceKind;
-    /// Vendor identifier when available.
-    /// Zero when the backend does not report one vendor id.
-    vendorId: uint16;
-    /// Product identifier when available.
-    /// Zero when the backend does not report one product id.
-    productId: uint16;
-    /// Number of logical keys when reported by the backend.
-    /// Zero when the backend does not report key topology.
-    keyCount: uint16;
-    /// Number of logical buttons when reported by the backend.
-    /// Zero when the backend does not report button topology.
-    buttonCount: uint16;
-    /// Number of logical axes when reported by the backend.
-    /// Zero when the backend does not report axis topology.
-    axisCount: uint16;
+    /// USB or Bluetooth vendor identifier when available.
+    vendorId?: uint16;
+    /// USB or Bluetooth product identifier when available.
+    productId?: uint16;
+    /// Logical key count when reported by the host.
+    keyCount?: uint16;
+    /// Logical button count when reported by the host.
+    buttonCount?: uint16;
+    /// Logical axis count when reported by the host.
+    axisCount?: uint16;
+    /// Capability flags.
+    capabilities: InputDeviceCapabilities;
     /// Whether this device is currently connected.
-    connected: boolean;
-    /// Whether this endpoint supports exclusive-grab mode.
-    supportsExclusiveGrab: boolean;
-    /// Whether this endpoint can emit raw host-native events.
-    supportsRaw: boolean;
-    /// Whether this endpoint can emit text events.
-    supportsText: boolean;
-    /// Whether this endpoint can provide haptic output.
-    supportsRumble: boolean;
-    /// Whether this endpoint reports battery metadata.
-    supportsBattery: boolean;
-    /// Whether this endpoint supports light-control output.
-    supportsLight: boolean;
-    /// Whether this endpoint supports raw-hid reports.
-    supportsRawHid: boolean;
-    /// Whether this endpoint is virtual or emulated.
+    isConnected: boolean;
+    /// Whether this device is virtual or emulated.
     isVirtual: boolean;
-    /// Whether this endpoint is provided by the system stack.
+    /// Whether this device is provided by the system stack.
     isSystem: boolean;
 }
 
-/// Input device action kind.
-export enum InputDeviceCapabilityKind {
-    /// Keyboard key and modifier actions.
-    Keyboard = 1,
-    /// Pointer motion, button, and wheel actions.
-    Pointer = 2,
-    /// Touch contact actions.
-    Touch = 3,
-    /// Pen and stylus actions.
-    Pen = 4,
-    /// Gamepad and joystick actions.
-    Gamepad = 5,
-    /// Sensor actions.
-    Sensor = 6,
-    /// Haptic actuator actions.
-    Haptics = 7,
-    /// Text input and composition actions.
-    TextInput = 8,
-}
-
-/// Action metadata origin kind.
-export enum InputCapabilityMetadataOrigin {
-    /// Metadata was read from backend action tables.
-    BackendDescriptor = 1,
-    /// Metadata was derived from device summary fields.
-    DeviceSummary = 2,
-    /// Metadata was derived from count-only topology fallback.
-    CountDerived = 3,
-    /// Metadata was merged from multiple origin kinds.
-    Mixed = 255,
-}
-
-/// Action metadata fidelity level.
-export enum InputCapabilityMetadataFidelity {
-    /// Metadata contains full backend detail for this field family.
-    Full = 1,
-    /// Metadata contains partial backend detail with normalized defaults.
-    Partial = 2,
-    /// Metadata contains minimal count-derived placeholders only.
-    Minimal = 3,
-}
-
-/// Input axis action entry.
-export struct InputAxisMetadata {
-    /// Backend-native axis code.
+/// Input axis descriptor.
+export struct InputAxis {
+    /// Host-native axis code.
     code: uint32;
     /// Minimum normalized axis value.
     minimum: float64;
     /// Maximum normalized axis value.
     maximum: float64;
-    /// Neutral deadzone width when reported by backend.
+    /// Neutral dead-zone width when reported by the host.
     flat: float64;
-    /// Noise threshold when reported by backend.
+    /// Noise threshold when reported by the host.
     fuzz: float64;
-    /// Unit resolution when reported by backend.
+    /// Unit resolution when reported by the host.
     resolution: float64;
 }
 
-/// Input button action entry.
-export struct InputButtonMetadata {
-    /// Backend-native button code.
+/// Input button descriptor.
+export struct InputButton {
+    /// Host-native button code.
     code: uint32;
     /// Whether this button reports analog values.
-    analog: boolean;
+    isAnalog: boolean;
 }
 
-/// Full input device action descriptor.
-export struct InputDeviceCapabilities {
-    /// High-level action categories for the device.
-    kinds: Array<InputDeviceCapabilityKind>;
-    /// Axis action entries when reported by backend.
-    axes: Array<InputAxisMetadata>;
-    /// Button action entries when reported by backend.
-    buttons: Array<InputButtonMetadata>;
-    /// Aggregate metadata origin for this action snapshot.
-    metadataOrigin: InputCapabilityMetadataOrigin;
-    /// Aggregate axis metadata fidelity for this action snapshot.
-    axisMetadataFidelity: InputCapabilityMetadataFidelity;
-    /// Aggregate button metadata fidelity for this action snapshot.
-    buttonMetadataFidelity: InputCapabilityMetadataFidelity;
-    /// Whether relative-pointer mode can be enabled.
-    supportsRelativePointer: boolean;
-    /// Whether pointer confinement or locking is supported.
-    supportsPointerGrab: boolean;
-    /// Whether pointer capture outside one window is supported.
-    supportsPointerCapture: boolean;
-    /// Whether pointer warping is supported.
-    supportsPointerWarp: boolean;
-    /// Whether text input activation is supported.
-    supportsTextInput: boolean;
-    /// Whether composition events are supported.
-    supportsComposition: boolean;
-    /// Whether edit-intent events are supported.
-    supportsEditIntents: boolean;
-    /// Whether whole-device rumble is supported.
-    supportsRumble: boolean;
-    /// Whether trigger rumble is supported.
-    supportsTriggerRumble: boolean;
-    /// Whether device-side sensors are supported.
-    supportsSensors: boolean;
-    /// Whether gamepad or controller battery state is supported.
-    supportsBatteryState: boolean;
-    /// Whether controller or device light-control output is supported.
-    supportsLightControl: boolean;
-    /// Whether raw-hid reports are supported.
-    supportsRawHid: boolean;
-    /// Whether player-index assignment is supported.
-    supportsPlayerIndex: boolean;
-    /// Whether pointer-event coalescing metadata is supported.
-    supportsPointerCoalescing: boolean;
-    /// Whether predicted pointer updates are supported.
-    supportsPointerPrediction: boolean;
-    /// Whether stylus hover distance is supported.
-    supportsPenHoverDistance: boolean;
-    /// Whether stylus azimuth and altitude angles are supported.
-    supportsPenOrientationAngles: boolean;
+/// Input device controls.
+export struct InputDeviceControls {
+    /// Axis descriptors in host order.
+    axes: Array<InputAxis>;
+    /// Button descriptors in host order.
+    buttons: Array<InputButton>;
 }
 
-/// List available input devices.
+/// List input devices.
 @binding("destack.input.device.list", {
     effect: "external",
-    requires: ["host.input.read"],
+    requires: ["host.input.device"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function list(): Result<Slice<InputDeviceDescriptor>, PlatformError>;
+export declare function listInputDevices(
+    query: &readonly InputDeviceQuery,
+): Result<^Array<InputDevice>, PlatformError>;
 
 /// Open one input device.
 @binding("destack.input.device.open", {
     effect: "external",
-    requires: ["host.input.read"],
+    requires: ["host.input.device"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function open(id: string): Result<InputDeviceHandle, PlatformError>;
+export declare function openInputDevice(id: &readonly string): Result<InputDeviceHandle, PlatformError>;
 
 /// Close one input device.
 @binding("destack.input.device.close", {
     effect: "external",
-    requires: ["host.input.read"],
+    requires: ["host.input.device"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function close(handle: InputDeviceHandle): Result<void, PlatformError>;
+export declare function closeInputDevice(device: InputDeviceHandle): Result<void, PlatformError>;
 
-/// Query actions for one opened input device.
-@binding("destack.input.device.actions", {
+/// Describe one input device.
+@binding("destack.input.device.describe", {
     effect: "external",
-    requires: ["host.input.read"],
+    requires: ["host.input.device"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function actions(
-    handle: InputDeviceHandle,
-): Result<InputDeviceCapabilities, PlatformError>;
+export declare function describeInputDevice(device: InputDeviceHandle): Result<InputDevice, PlatformError>;
+
+/// Query controls for one input device.
+@binding("destack.input.device.controls.read", {
+    effect: "external",
+    requires: ["host.input.device"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function readInputDeviceControls(
+    device: InputDeviceHandle,
+): Result<InputDeviceControls, PlatformError>;
+
+/// Enable or disable exclusive device grab.
+@binding("destack.input.device.grab", {
+    effect: "external",
+    requires: ["host.input.grab"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function grabInputDevice(
+    device: InputDeviceHandle,
+    isEnabled: boolean,
+): Result<void, PlatformError>;

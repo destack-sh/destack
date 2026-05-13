@@ -53,11 +53,10 @@ export type BindingOptions = {
 /// Marks something as a runtime binding.
 ///
 /// ```
-/// @binding("destack.fs.open", {
+/// @binding("destack.fs.file.open", {
 ///   effect: "external",
 ///   requires: ["host.fs.open"],
-///   families: ["wasm"],
-///   hosts: ["wasi"],
+///   families: ["windows", "unix"],
 ///   simulation: true,
 /// })
 /// function open() { }
