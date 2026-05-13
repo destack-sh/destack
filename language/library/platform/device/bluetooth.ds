@@ -87,12 +87,60 @@ export struct BluetoothAdapter {
     isScanning?: boolean;
 }
 
+/// Bluetooth adapter attached event.
+export struct BluetoothAdapterEventAttached {
+    /// Event discriminator.
+    kind: "attached";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Bluetooth adapter.
+    adapter: BluetoothAdapter;
+}
+
+/// Bluetooth adapter changed event.
+export struct BluetoothAdapterEventChanged {
+    /// Event discriminator.
+    kind: "changed";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Bluetooth adapter.
+    adapter: BluetoothAdapter;
+}
+
+/// Bluetooth adapter detached event.
+export struct BluetoothAdapterEventDetached {
+    /// Event discriminator.
+    kind: "detached";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Bluetooth adapter.
+    adapter: BluetoothAdapter;
+}
+
+/// Bluetooth adapter overflow event.
+export struct BluetoothAdapterEventOverflow {
+    /// Event discriminator.
+    kind: "overflow";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Number of dropped events.
+    droppedCount: uint64;
+}
+
 /// Bluetooth adapter topology event.
 export newtype BluetoothAdapterEvent =
-    | { kind: "attached"; timestampNs: uint64; sequence: uint64; adapter: BluetoothAdapter }
-    | { kind: "changed"; timestampNs: uint64; sequence: uint64; adapter: BluetoothAdapter }
-    | { kind: "detached"; timestampNs: uint64; sequence: uint64; adapter: BluetoothAdapter }
-    | { kind: "overflow"; timestampNs: uint64; sequence: uint64; droppedCount: uint64 };
+    | BluetoothAdapterEventAttached
+    | BluetoothAdapterEventChanged
+    | BluetoothAdapterEventDetached
+    | BluetoothAdapterEventOverflow;
 
 /// Bluetooth payload filter.
 export struct BluetoothDataFilter {
@@ -196,21 +244,113 @@ export struct BluetoothDevice {
     advertisement: BluetoothAdvertisement;
 }
 
+/// Bluetooth scan discovered event.
+export struct BluetoothScanEventDiscovered {
+    /// Event discriminator.
+    kind: "discovered";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Bluetooth device.
+    device: BluetoothDevice;
+}
+
+/// Bluetooth scan updated event.
+export struct BluetoothScanEventUpdated {
+    /// Event discriminator.
+    kind: "updated";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Bluetooth device.
+    device: BluetoothDevice;
+}
+
+/// Bluetooth scan lost event.
+export struct BluetoothScanEventLost {
+    /// Event discriminator.
+    kind: "lost";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Bluetooth device identifier.
+    deviceId: string;
+}
+
+/// Bluetooth scan overflow event.
+export struct BluetoothScanEventOverflow {
+    /// Event discriminator.
+    kind: "overflow";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Number of dropped events.
+    droppedCount: uint64;
+}
+
 /// Bluetooth scan event.
 @derive(Tagged)
 export newtype BluetoothScanEvent =
-    | { kind: "discovered"; timestampNs: uint64; sequence: uint64; device: BluetoothDevice }
-    | { kind: "updated"; timestampNs: uint64; sequence: uint64; device: BluetoothDevice }
-    | { kind: "lost"; timestampNs: uint64; sequence: uint64; deviceId: string }
-    | { kind: "overflow"; timestampNs: uint64; sequence: uint64; droppedCount: uint64 };
+    | BluetoothScanEventDiscovered
+    | BluetoothScanEventUpdated
+    | BluetoothScanEventLost
+    | BluetoothScanEventOverflow;
+
+/// Bluetooth session disconnected event.
+export struct BluetoothSessionEventDisconnected {
+    /// Event discriminator.
+    kind: "disconnected";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+}
+
+/// Bluetooth session pairing changed event.
+export struct BluetoothSessionEventPairingChanged {
+    /// Event discriminator.
+    kind: "pairingChanged";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Pairing state.
+    pairing: BluetoothPairing;
+}
+
+/// Bluetooth session GATT changed event.
+export struct BluetoothSessionEventGattChanged {
+    /// Event discriminator.
+    kind: "gattChanged";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+}
+
+/// Bluetooth session overflow event.
+export struct BluetoothSessionEventOverflow {
+    /// Event discriminator.
+    kind: "overflow";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Number of dropped events.
+    droppedCount: uint64;
+}
 
 /// Bluetooth session event.
 @derive(Tagged)
 export newtype BluetoothSessionEvent =
-    | { kind: "disconnected"; timestampNs: uint64; sequence: uint64 }
-    | { kind: "pairingChanged"; timestampNs: uint64; sequence: uint64; pairing: BluetoothPairing }
-    | { kind: "gattChanged"; timestampNs: uint64; sequence: uint64 }
-    | { kind: "overflow"; timestampNs: uint64; sequence: uint64; droppedCount: uint64 };
+    | BluetoothSessionEventDisconnected
+    | BluetoothSessionEventPairingChanged
+    | BluetoothSessionEventGattChanged
+    | BluetoothSessionEventOverflow;
 
 /// Bluetooth GATT service.
 export struct BluetoothGattService {

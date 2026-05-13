@@ -219,13 +219,73 @@ export struct MidiWatchOptions {
     flags: MidiWatchFlags;
 }
 
+/// MIDI attached event.
+export struct MidiEventAttached {
+    /// Event discriminator.
+    kind: "attached";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// MIDI port.
+    port: MidiPort;
+}
+
+/// MIDI detached event.
+export struct MidiEventDetached {
+    /// Event discriminator.
+    kind: "detached";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// MIDI port.
+    port: MidiPort;
+}
+
+/// MIDI changed event.
+export struct MidiEventChanged {
+    /// Event discriminator.
+    kind: "changed";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// MIDI port.
+    port: MidiPort;
+}
+
+/// MIDI backend detached event.
+export struct MidiEventBackendDetached {
+    /// Event discriminator.
+    kind: "backendDetached";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// MIDI backend.
+    backend: MidiBackendKind;
+}
+
+/// MIDI overflow event.
+export struct MidiEventOverflow {
+    /// Event discriminator.
+    kind: "overflow";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Number of dropped events.
+    droppedCount: uint64;
+}
+
 /// MIDI topology event.
 export newtype MidiEvent =
-    | { kind: "attached"; timestampNs: uint64; sequence: uint64; port: MidiPort }
-    | { kind: "detached"; timestampNs: uint64; sequence: uint64; port: MidiPort }
-    | { kind: "changed"; timestampNs: uint64; sequence: uint64; port: MidiPort }
-    | { kind: "backendDetached"; timestampNs: uint64; sequence: uint64; backend: MidiBackendKind }
-    | { kind: "overflow"; timestampNs: uint64; sequence: uint64; droppedCount: uint64 };
+    | MidiEventAttached
+    | MidiEventDetached
+    | MidiEventChanged
+    | MidiEventBackendDetached
+    | MidiEventOverflow;
 
 /// Open a MIDI topology watch.
 @binding("destack.device.midi.event.open", {

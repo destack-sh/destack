@@ -32,42 +32,177 @@ export enum SocketPacketTimestampMode {
 }
 
 /// Socket option key.
-@derive(Tagged)
-export newtype SocketOption =
-    | { kind: "reuseAddress" }
-    | { kind: "reusePort" }
-    | { kind: "broadcast" }
-    | { kind: "receiveBufferBytes" }
-    | { kind: "sendBufferBytes" }
-    | { kind: "receiveTimeoutMilliseconds" }
-    | { kind: "sendTimeoutMilliseconds" }
-    | { kind: "linger" }
-    | { kind: "ttl" }
-    | { kind: "trafficClass" }
-    | { kind: "ipv6Only" }
-    | { kind: "tcpNoDelay" }
-    | { kind: "tcpKeepAlive" }
-    | { kind: "packetMark" }
-    | { kind: "packetTimestamp" };
+export enum SocketOption {
+    /// Reuse local addresses.
+    ReuseAddress = 1,
+    /// Reuse local ports.
+    ReusePort = 2,
+    /// Allow broadcast packets.
+    Broadcast = 3,
+    /// Receive buffer size in bytes.
+    ReceiveBufferBytes = 4,
+    /// Send buffer size in bytes.
+    SendBufferBytes = 5,
+    /// Receive timeout in milliseconds.
+    ReceiveTimeoutMilliseconds = 6,
+    /// Send timeout in milliseconds.
+    SendTimeoutMilliseconds = 7,
+    /// Linger settings.
+    Linger = 8,
+    /// IPv4 time-to-live or IPv6 hop limit.
+    Ttl = 9,
+    /// Traffic class or type-of-service value.
+    TrafficClass = 10,
+    /// Whether IPv6 sockets accept only IPv6 traffic.
+    Ipv6Only = 11,
+    /// Disable Nagle's algorithm.
+    TcpNoDelay = 12,
+    /// TCP keepalive settings.
+    TcpKeepAlive = 13,
+    /// Packet mark value.
+    PacketMark = 14,
+    /// Packet timestamping mode.
+    PacketTimestamp = 15,
+}
+
+/// Reuse address socket option value.
+export struct SocketOptionReuseAddress {
+    /// Option discriminator.
+    kind: "reuseAddress";
+    /// Option value.
+    value: boolean;
+}
+
+/// Reuse port socket option value.
+export struct SocketOptionReusePort {
+    /// Option discriminator.
+    kind: "reusePort";
+    /// Option value.
+    value: boolean;
+}
+
+/// Broadcast socket option value.
+export struct SocketOptionBroadcast {
+    /// Option discriminator.
+    kind: "broadcast";
+    /// Option value.
+    value: boolean;
+}
+
+/// Receive buffer socket option value.
+export struct SocketOptionReceiveBufferBytes {
+    /// Option discriminator.
+    kind: "receiveBufferBytes";
+    /// Buffer size in bytes.
+    value: uint32;
+}
+
+/// Send buffer socket option value.
+export struct SocketOptionSendBufferBytes {
+    /// Option discriminator.
+    kind: "sendBufferBytes";
+    /// Buffer size in bytes.
+    value: uint32;
+}
+
+/// Receive timeout socket option value.
+export struct SocketOptionReceiveTimeoutMilliseconds {
+    /// Option discriminator.
+    kind: "receiveTimeoutMilliseconds";
+    /// Timeout in milliseconds.
+    value: uint32;
+}
+
+/// Send timeout socket option value.
+export struct SocketOptionSendTimeoutMilliseconds {
+    /// Option discriminator.
+    kind: "sendTimeoutMilliseconds";
+    /// Timeout in milliseconds.
+    value: uint32;
+}
+
+/// Linger socket option value.
+export struct SocketOptionLinger {
+    /// Option discriminator.
+    kind: "linger";
+    /// Linger settings.
+    value: SocketLinger;
+}
+
+/// TTL socket option value.
+export struct SocketOptionTtl {
+    /// Option discriminator.
+    kind: "ttl";
+    /// TTL or hop limit.
+    value: uint32;
+}
+
+/// Traffic class socket option value.
+export struct SocketOptionTrafficClass {
+    /// Option discriminator.
+    kind: "trafficClass";
+    /// Traffic class or type-of-service value.
+    value: uint32;
+}
+
+/// IPv6 only socket option value.
+export struct SocketOptionIpv6Only {
+    /// Option discriminator.
+    kind: "ipv6Only";
+    /// Option value.
+    value: boolean;
+}
+
+/// TCP no delay socket option value.
+export struct SocketOptionTcpNoDelay {
+    /// Option discriminator.
+    kind: "tcpNoDelay";
+    /// Option value.
+    value: boolean;
+}
+
+/// TCP keepalive socket option value.
+export struct SocketOptionTcpKeepAlive {
+    /// Option discriminator.
+    kind: "tcpKeepAlive";
+    /// Keepalive settings.
+    value: TcpKeepAlive;
+}
+
+/// Packet mark socket option value.
+export struct SocketOptionPacketMark {
+    /// Option discriminator.
+    kind: "packetMark";
+    /// Packet mark.
+    value: uint32;
+}
+
+/// Packet timestamp socket option value.
+export struct SocketOptionPacketTimestamp {
+    /// Option discriminator.
+    kind: "packetTimestamp";
+    /// Packet timestamping mode.
+    value: SocketPacketTimestampMode;
+}
 
 /// Socket option value.
 @derive(Tagged)
 export newtype SocketOptionValue =
-    | { kind: "reuseAddress"; value: boolean }
-    | { kind: "reusePort"; value: boolean }
-    | { kind: "broadcast"; value: boolean }
-    | { kind: "receiveBufferBytes"; value: uint32 }
-    | { kind: "sendBufferBytes"; value: uint32 }
-    | { kind: "receiveTimeoutMilliseconds"; value: uint32 }
-    | { kind: "sendTimeoutMilliseconds"; value: uint32 }
-    | { kind: "linger"; value: SocketLinger }
-    | { kind: "ttl"; value: uint32 }
-    | { kind: "trafficClass"; value: uint32 }
-    | { kind: "ipv6Only"; value: boolean }
-    | { kind: "tcpNoDelay"; value: boolean }
-    | { kind: "tcpKeepAlive"; value: TcpKeepAlive }
-    | { kind: "packetMark"; value: uint32 }
-    | { kind: "packetTimestamp"; value: SocketPacketTimestampMode };
+    | SocketOptionReuseAddress
+    | SocketOptionReusePort
+    | SocketOptionBroadcast
+    | SocketOptionReceiveBufferBytes
+    | SocketOptionSendBufferBytes
+    | SocketOptionReceiveTimeoutMilliseconds
+    | SocketOptionSendTimeoutMilliseconds
+    | SocketOptionLinger
+    | SocketOptionTtl
+    | SocketOptionTrafficClass
+    | SocketOptionIpv6Only
+    | SocketOptionTcpNoDelay
+    | SocketOptionTcpKeepAlive
+    | SocketOptionPacketMark
+    | SocketOptionPacketTimestamp;
 
 /// Raw socket option key.
 export struct RawSocketOption {

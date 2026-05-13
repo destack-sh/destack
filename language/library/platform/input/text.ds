@@ -199,39 +199,73 @@ export enum ClipboardCommand {
     Paste = 3,
 }
 
+/// Text session state event.
+export struct TextSessionEventState {
+    /// Event discriminator.
+    kind: "state";
+    /// Shared event header.
+    header: InputEventHeader;
+    /// Text session state.
+    state: TextSessionState;
+}
+
+/// Text session composition event.
+export struct TextSessionEventComposition {
+    /// Event discriminator.
+    kind: "composition";
+    /// Shared event header.
+    header: InputEventHeader;
+    /// Event action.
+    action: InputEventAction;
+    /// Composition text payload.
+    text: string;
+    /// Selection start in UTF-16 code units when available.
+    selectionStart?: uint32;
+    /// Selection end in UTF-16 code units when available.
+    selectionEnd?: uint32;
+}
+
+/// Text session edit event.
+export struct TextSessionEventEdit {
+    /// Event discriminator.
+    kind: "edit";
+    /// Shared event header.
+    header: InputEventHeader;
+    /// Edit intent.
+    intent: EditIntent;
+    /// Text payload when available.
+    text?: string;
+    /// Target text ranges in source order.
+    ranges: Array<TextRange>;
+    /// Clipboard item descriptors when available.
+    clipboardItems?: Array<ClipboardItem>;
+    /// Drag transfer metadata when available.
+    drag?: DisplayDragTransfer;
+    /// Whether the edit belongs to active composition.
+    isComposing: boolean;
+}
+
+/// Text session clipboard event.
+export struct TextSessionEventClipboard {
+    /// Event discriminator.
+    kind: "clipboard";
+    /// Shared event header.
+    header: InputEventHeader;
+    /// Clipboard command.
+    command: ClipboardCommand;
+    /// Clipboard item descriptors when available.
+    clipboardItems?: Array<ClipboardItem>;
+    /// Whether the command belongs to active composition.
+    isComposing: boolean;
+}
+
 /// Text session event.
 @derive(Tagged)
 export newtype TextSessionEvent =
-    | {
-          kind: "state";
-          header: InputEventHeader;
-          state: TextSessionState;
-      }
-    | {
-          kind: "composition";
-          header: InputEventHeader;
-          action: InputEventAction;
-          text: string;
-          selectionStart?: uint32;
-          selectionEnd?: uint32;
-      }
-    | {
-          kind: "edit";
-          header: InputEventHeader;
-          intent: EditIntent;
-          text?: string;
-          ranges: Array<TextRange>;
-          clipboardItems?: Array<ClipboardItem>;
-          drag?: DisplayDragTransfer;
-          isComposing: boolean;
-      }
-    | {
-          kind: "clipboard";
-          header: InputEventHeader;
-          command: ClipboardCommand;
-          clipboardItems?: Array<ClipboardItem>;
-          isComposing: boolean;
-      };
+    | TextSessionEventState
+    | TextSessionEventComposition
+    | TextSessionEventEdit
+    | TextSessionEventClipboard;
 
 /// Open one text input session.
 @binding("destack.input.text.open", {

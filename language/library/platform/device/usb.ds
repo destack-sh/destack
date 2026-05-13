@@ -193,12 +193,48 @@ export struct UsbIsochronousPacket {
     bytes: uint32;
 }
 
+/// USB attached watch event.
+export struct UsbWatchEventAttached {
+    /// Event discriminator.
+    kind: "attached";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// USB device.
+    device: UsbDevice;
+}
+
+/// USB detached watch event.
+export struct UsbWatchEventDetached {
+    /// Event discriminator.
+    kind: "detached";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// USB device.
+    device: UsbDevice;
+}
+
+/// USB overflow watch event.
+export struct UsbWatchEventOverflow {
+    /// Event discriminator.
+    kind: "overflow";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Number of dropped events.
+    droppedCount: uint64;
+}
+
 /// USB topology event.
 @derive(Tagged)
 export newtype UsbWatchEvent =
-    | { kind: "attached"; timestampNs: uint64; sequence: uint64; device: UsbDevice }
-    | { kind: "detached"; timestampNs: uint64; sequence: uint64; device: UsbDevice }
-    | { kind: "overflow"; timestampNs: uint64; sequence: uint64; droppedCount: uint64 };
+    | UsbWatchEventAttached
+    | UsbWatchEventDetached
+    | UsbWatchEventOverflow;
 
 /// List USB devices.
 @binding("destack.device.usb.list", {

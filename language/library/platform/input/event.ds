@@ -122,134 +122,269 @@ export struct InputEventHeader {
     window?: WindowHandle;
 }
 
+/// Input device event.
+export struct InputEventDevice {
+    /// Event discriminator.
+    kind: "device";
+    /// Shared event header.
+    header: InputEventHeader;
+    /// Event action.
+    action: InputEventAction;
+    /// Device descriptor.
+    device: InputDevice;
+}
+
+/// Input key event.
+export struct InputEventKey {
+    /// Event discriminator.
+    kind: "key";
+    /// Shared event header.
+    header: InputEventHeader;
+    /// Event action.
+    action: InputEventAction;
+    /// Logical key value when available.
+    key?: string;
+    /// Physical key code when available.
+    code?: string;
+    /// Key location.
+    location: KeyLocation;
+    /// Host-native key code.
+    hostCode: uint32;
+    /// Host-native scan code when available.
+    hostScanCode?: uint32;
+    /// Host-native key value.
+    hostValue: int64;
+    /// Host-native modifier bitset.
+    hostModifiers: uint32;
+    /// Canonical modifier state.
+    modifiers: ModifierState;
+    /// Whether the event is a repeat.
+    isRepeat: boolean;
+    /// Whether the key event belongs to composition.
+    isComposing: boolean;
+}
+
+/// Input pointer move event.
+export struct InputEventPointerMove {
+    /// Event discriminator.
+    kind: "pointerMove";
+    /// Shared event header.
+    header: InputEventHeader;
+    /// Stable pointer identifier.
+    pointerId: uint64;
+    /// Pointer kind.
+    pointerKind: PointerKind;
+    /// Whether this is the primary pointer for its kind.
+    isPrimary: boolean;
+    /// Coordinate space.
+    space: CoordinateSpace;
+    /// Pointer x coordinate.
+    x: float64;
+    /// Pointer y coordinate.
+    y: float64;
+    /// Relative x delta.
+    deltaX: float64;
+    /// Relative y delta.
+    deltaY: float64;
+    /// Canonical pressed-button bitset.
+    buttons: uint32;
+    /// Host-native pressed-button bitset.
+    hostButtons: uint32;
+    /// Keyboard modifier and lock state.
+    modifiers: ModifierState;
+    /// Contact geometry when available.
+    contact?: PointerContact;
+    /// Pen state when available.
+    pen?: PenState;
+    /// Coalesced pointer samples.
+    coalesced: Array<PointerSample>;
+    /// Predicted pointer samples.
+    predicted: Array<PointerSample>;
+}
+
+/// Input pointer button event.
+export struct InputEventPointerButton {
+    /// Event discriminator.
+    kind: "pointerButton";
+    /// Shared event header.
+    header: InputEventHeader;
+    /// Event action.
+    action: InputEventAction;
+    /// Stable pointer identifier.
+    pointerId: uint64;
+    /// Pointer kind.
+    pointerKind: PointerKind;
+    /// Whether this is the primary pointer for its kind.
+    isPrimary: boolean;
+    /// Canonical button index when available.
+    button?: int16;
+    /// Canonical pressed-button bitset.
+    buttons: uint32;
+    /// Host-native button code.
+    hostCode: uint32;
+    /// Host-native button value.
+    hostValue: int64;
+    /// Pointer x coordinate.
+    x: float64;
+    /// Pointer y coordinate.
+    y: float64;
+    /// Coordinate space.
+    space: CoordinateSpace;
+    /// Keyboard modifier and lock state.
+    modifiers: ModifierState;
+    /// Contact geometry when available.
+    contact?: PointerContact;
+    /// Pen state when available.
+    pen?: PenState;
+}
+
+/// Input wheel event.
+export struct InputEventWheel {
+    /// Event discriminator.
+    kind: "wheel";
+    /// Shared event header.
+    header: InputEventHeader;
+    /// Stable pointer identifier when available.
+    pointerId?: uint64;
+    /// Pointer kind when available.
+    pointerKind?: PointerKind;
+    /// Wheel delta unit.
+    unit: WheelUnit;
+    /// Wheel x delta.
+    deltaX: float64;
+    /// Wheel y delta.
+    deltaY: float64;
+    /// Pointer x coordinate.
+    x: float64;
+    /// Pointer y coordinate.
+    y: float64;
+    /// Coordinate space.
+    space: CoordinateSpace;
+    /// Canonical pressed-button bitset.
+    buttons: uint32;
+    /// Keyboard modifier and lock state.
+    modifiers: ModifierState;
+}
+
+/// Input touch event.
+export struct InputEventTouch {
+    /// Event discriminator.
+    kind: "touch";
+    /// Shared event header.
+    header: InputEventHeader;
+    /// Event action.
+    action: InputEventAction;
+    /// Stable pointer identifier.
+    pointerId: uint64;
+    /// Whether this is the primary touch point.
+    isPrimary: boolean;
+    /// Touch x coordinate.
+    x: float64;
+    /// Touch y coordinate.
+    y: float64;
+    /// Coordinate space.
+    space: CoordinateSpace;
+    /// Touch pressure when available.
+    pressure?: float64;
+    /// Contact geometry when available.
+    contact?: PointerContact;
+    /// Touch tilt around the x axis when available.
+    tiltX?: float64;
+    /// Touch tilt around the y axis when available.
+    tiltY?: float64;
+    /// Touch rotation when available.
+    twist?: float64;
+}
+
+/// Input gamepad event.
+export struct InputEventGamepad {
+    /// Event discriminator.
+    kind: "gamepad";
+    /// Shared event header.
+    header: InputEventHeader;
+    /// Event action.
+    action: InputEventAction;
+    /// Gamepad control kind.
+    controlKind: GamepadControlKind;
+    /// Gamepad control selector.
+    control: GamepadControl;
+    /// Host-native control code.
+    hostCode: uint32;
+    /// Host-native control value.
+    hostValue: int64;
+    /// Normalized control value.
+    value: float64;
+    /// Whether the control is pressed.
+    isPressed: boolean;
+    /// Whether the control is touched.
+    isTouched: boolean;
+}
+
+/// Input sensor event.
+export struct InputEventSensor {
+    /// Event discriminator.
+    kind: "sensor";
+    /// Shared event header.
+    header: InputEventHeader;
+    /// Event action.
+    action: InputEventAction;
+    /// Sensor kind.
+    sensor: SensorKind;
+    /// Host-native sensor code.
+    hostCode: uint32;
+    /// Host-native sensor value.
+    hostValue: int64;
+    /// Sensor x component.
+    x: float64;
+    /// Sensor y component.
+    y: float64;
+    /// Sensor z component.
+    z: float64;
+    /// Sensor w component.
+    w: float64;
+}
+
+/// Input text event.
+export struct InputEventText {
+    /// Event discriminator.
+    kind: "text";
+    /// Shared event header.
+    header: InputEventHeader;
+    /// Text payload.
+    text: string;
+    /// Whether the text belongs to composition.
+    isComposing: boolean;
+}
+
+/// Input composition event.
+export struct InputEventComposition {
+    /// Event discriminator.
+    kind: "composition";
+    /// Shared event header.
+    header: InputEventHeader;
+    /// Event action.
+    action: InputEventAction;
+    /// Composition text payload.
+    text: string;
+    /// Selection start in UTF-16 code units when available.
+    selectionStart?: uint32;
+    /// Selection end in UTF-16 code units when available.
+    selectionEnd?: uint32;
+}
+
 /// Input event.
 @derive(Tagged)
 export newtype InputEvent =
-    | {
-          kind: "device";
-          header: InputEventHeader;
-          action: InputEventAction;
-          device: InputDevice;
-      }
-    | {
-          kind: "key";
-          header: InputEventHeader;
-          action: InputEventAction;
-          key?: string;
-          code?: string;
-          location: KeyLocation;
-          hostCode: uint32;
-          hostScanCode?: uint32;
-          hostValue: int64;
-          hostModifiers: uint32;
-          modifiers: ModifierState;
-          isRepeat: boolean;
-          isComposing: boolean;
-      }
-    | {
-          kind: "pointerMove";
-          header: InputEventHeader;
-          pointerId: uint64;
-          pointerKind: PointerKind;
-          isPrimary: boolean;
-          space: CoordinateSpace;
-          x: float64;
-          y: float64;
-          deltaX: float64;
-          deltaY: float64;
-          buttons: uint32;
-          hostButtons: uint32;
-          modifiers: ModifierState;
-          contact?: PointerContact;
-          pen?: PenState;
-          coalesced: Array<PointerSample>;
-          predicted: Array<PointerSample>;
-      }
-    | {
-          kind: "pointerButton";
-          header: InputEventHeader;
-          action: InputEventAction;
-          pointerId: uint64;
-          pointerKind: PointerKind;
-          isPrimary: boolean;
-          button?: int16;
-          buttons: uint32;
-          hostCode: uint32;
-          hostValue: int64;
-          x: float64;
-          y: float64;
-          space: CoordinateSpace;
-          modifiers: ModifierState;
-          contact?: PointerContact;
-          pen?: PenState;
-      }
-    | {
-          kind: "wheel";
-          header: InputEventHeader;
-          pointerId?: uint64;
-          pointerKind?: PointerKind;
-          unit: WheelUnit;
-          deltaX: float64;
-          deltaY: float64;
-          x: float64;
-          y: float64;
-          space: CoordinateSpace;
-          buttons: uint32;
-          modifiers: ModifierState;
-      }
-    | {
-          kind: "touch";
-          header: InputEventHeader;
-          action: InputEventAction;
-          pointerId: uint64;
-          isPrimary: boolean;
-          x: float64;
-          y: float64;
-          space: CoordinateSpace;
-          pressure?: float64;
-          contact?: PointerContact;
-          tiltX?: float64;
-          tiltY?: float64;
-          twist?: float64;
-      }
-    | {
-          kind: "gamepad";
-          header: InputEventHeader;
-          action: InputEventAction;
-          controlKind: GamepadControlKind;
-          control: GamepadControl;
-          hostCode: uint32;
-          hostValue: int64;
-          value: float64;
-          isPressed: boolean;
-          isTouched: boolean;
-      }
-    | {
-          kind: "sensor";
-          header: InputEventHeader;
-          action: InputEventAction;
-          sensor: SensorKind;
-          hostCode: uint32;
-          hostValue: int64;
-          x: float64;
-          y: float64;
-          z: float64;
-          w: float64;
-      }
-    | {
-          kind: "text";
-          header: InputEventHeader;
-          text: string;
-          isComposing: boolean;
-      }
-    | {
-          kind: "composition";
-          header: InputEventHeader;
-          action: InputEventAction;
-          text: string;
-          selectionStart?: uint32;
-          selectionEnd?: uint32;
-      };
+    | InputEventDevice
+    | InputEventKey
+    | InputEventPointerMove
+    | InputEventPointerButton
+    | InputEventWheel
+    | InputEventTouch
+    | InputEventGamepad
+    | InputEventSensor
+    | InputEventText
+    | InputEventComposition;
 
 /// Open an input event subscription.
 @binding("destack.input.event.open", {

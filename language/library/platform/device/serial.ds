@@ -133,11 +133,47 @@ export struct SerialPort {
     bluetoothServiceClassId?: string;
 }
 
+/// Serial attached watch event.
+export struct SerialWatchEventAttached {
+    /// Event discriminator.
+    kind: "attached";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Serial port.
+    port: SerialPort;
+}
+
+/// Serial detached watch event.
+export struct SerialWatchEventDetached {
+    /// Event discriminator.
+    kind: "detached";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Serial port.
+    port: SerialPort;
+}
+
+/// Serial overflow watch event.
+export struct SerialWatchEventOverflow {
+    /// Event discriminator.
+    kind: "overflow";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Number of dropped events.
+    droppedCount: uint64;
+}
+
 /// Serial topology event.
 export newtype SerialWatchEvent =
-    | { kind: "attached"; timestampNs: uint64; sequence: uint64; port: SerialPort }
-    | { kind: "detached"; timestampNs: uint64; sequence: uint64; port: SerialPort }
-    | { kind: "overflow"; timestampNs: uint64; sequence: uint64; droppedCount: uint64 };
+    | SerialWatchEventAttached
+    | SerialWatchEventDetached
+    | SerialWatchEventOverflow;
 
 /// Serial input signal state.
 export struct SerialInputSignals {
@@ -177,13 +213,73 @@ export enum SerialErrorKind {
     BufferOverflow = 6,
 }
 
+/// Serial readable event.
+export struct SerialEventReadable {
+    /// Event discriminator.
+    kind: "readable";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Available byte count when known.
+    availableBytes?: uint64;
+}
+
+/// Serial signals event.
+export struct SerialEventSignals {
+    /// Event discriminator.
+    kind: "signals";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Input signal state.
+    signals: SerialInputSignals;
+}
+
+/// Serial error event.
+export struct SerialEventError {
+    /// Event discriminator.
+    kind: "error";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Serial error kind.
+    error: SerialErrorKind;
+    /// Host error code when available.
+    code?: int32;
+}
+
+/// Serial disconnected event.
+export struct SerialEventDisconnected {
+    /// Event discriminator.
+    kind: "disconnected";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+}
+
+/// Serial overflow event.
+export struct SerialEventOverflow {
+    /// Event discriminator.
+    kind: "overflow";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Number of dropped events.
+    droppedCount: uint64;
+}
+
 /// Serial port event.
 export newtype SerialEvent =
-    | { kind: "readable"; timestampNs: uint64; sequence: uint64; availableBytes?: uint64 }
-    | { kind: "signals"; timestampNs: uint64; sequence: uint64; signals: SerialInputSignals }
-    | { kind: "error"; timestampNs: uint64; sequence: uint64; error: SerialErrorKind; code?: int32 }
-    | { kind: "disconnected"; timestampNs: uint64; sequence: uint64 }
-    | { kind: "overflow"; timestampNs: uint64; sequence: uint64; droppedCount: uint64 };
+    | SerialEventReadable
+    | SerialEventSignals
+    | SerialEventError
+    | SerialEventDisconnected
+    | SerialEventOverflow;
 
 /// List serial ports.
 @binding("destack.device.serial.list", {

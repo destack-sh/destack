@@ -173,17 +173,89 @@ export struct RawDnsRecord {
     bytes: [uint8];
 }
 
+/// DNS address record payload.
+export struct DnsRecordAddress {
+    /// Record discriminator.
+    kind: "address";
+    /// IP address.
+    address: IpAddress;
+}
+
+/// DNS name record payload.
+export struct DnsRecordName {
+    /// Record discriminator.
+    kind: "name";
+    /// DNS name.
+    name: string;
+}
+
+/// DNS text record payload.
+export struct DnsRecordText {
+    /// Record discriminator.
+    kind: "text";
+    /// Text chunks.
+    chunks: Array<string>;
+}
+
+/// DNS mail exchange record payload.
+export struct DnsRecordMailExchange {
+    /// Record discriminator.
+    kind: "mx";
+    /// Mail exchange record.
+    record: DnsMxRecord;
+}
+
+/// DNS start-of-authority record payload.
+export struct DnsRecordStartOfAuthority {
+    /// Record discriminator.
+    kind: "soa";
+    /// Start of authority record.
+    record: DnsSoaRecord;
+}
+
+/// DNS service locator record payload.
+export struct DnsRecordService {
+    /// Record discriminator.
+    kind: "srv";
+    /// Service locator record.
+    record: DnsSrvRecord;
+}
+
+/// DNS naming authority pointer record payload.
+export struct DnsRecordNamingAuthorityPointer {
+    /// Record discriminator.
+    kind: "naptr";
+    /// Naming authority pointer record.
+    record: DnsNaptrRecord;
+}
+
+/// DNS certification authority authorization record payload.
+export struct DnsRecordCertificationAuthority {
+    /// Record discriminator.
+    kind: "caa";
+    /// Certification authority authorization record.
+    record: DnsCaaRecord;
+}
+
+/// Raw DNS record payload.
+export struct DnsRecordRaw {
+    /// Record discriminator.
+    kind: "raw";
+    /// Raw DNS record.
+    record: RawDnsRecord;
+}
+
 /// DNS record payload.
 export newtype DnsRecord =
-    | { kind: "address"; address: IpAddress }
-    | { kind: "name"; name: string }
-    | { kind: "text"; chunks: Array<string> }
-    | { kind: "mx"; record: DnsMxRecord }
-    | { kind: "soa"; record: DnsSoaRecord }
-    | { kind: "srv"; record: DnsSrvRecord }
-    | { kind: "naptr"; record: DnsNaptrRecord }
-    | { kind: "caa"; record: DnsCaaRecord }
-    | { kind: "raw"; record: RawDnsRecord };
+    | DnsRecordAddress
+    | DnsRecordName
+    | DnsRecordText
+    | DnsRecordMailExchange
+    | DnsRecordStartOfAuthority
+    | DnsRecordService
+    | DnsRecordNamingAuthorityPointer
+    | DnsRecordCertificationAuthority
+    | DnsRecordRaw;
 
 /// Reverse lookup flags.
 export newtype ReverseAddressLookupFlags = uint32;

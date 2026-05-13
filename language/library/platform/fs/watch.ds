@@ -37,14 +37,74 @@ export struct FileWatchOptions {
     isFollowing: boolean;
 }
 
+/// Filesystem create watch event.
+export struct FileWatchEventCreate {
+    /// Event discriminator.
+    kind: "create";
+    /// Host event cookie.
+    cookie: uint64;
+    /// Event path.
+    path: PathSpan;
+}
+
+/// Filesystem remove watch event.
+export struct FileWatchEventRemove {
+    /// Event discriminator.
+    kind: "remove";
+    /// Host event cookie.
+    cookie: uint64;
+    /// Event path.
+    path: PathSpan;
+}
+
+/// Filesystem modify watch event.
+export struct FileWatchEventModify {
+    /// Event discriminator.
+    kind: "modify";
+    /// Host event cookie.
+    cookie: uint64;
+    /// Event path.
+    path: PathSpan;
+}
+
+/// Filesystem rename watch event.
+export struct FileWatchEventRename {
+    /// Event discriminator.
+    kind: "rename";
+    /// Host event cookie.
+    cookie: uint64;
+    /// Event path.
+    path: PathSpan;
+    /// Related path.
+    related: PathSpan;
+}
+
+/// Filesystem metadata watch event.
+export struct FileWatchEventMetadata {
+    /// Event discriminator.
+    kind: "metadata";
+    /// Host event cookie.
+    cookie: uint64;
+    /// Event path.
+    path: PathSpan;
+}
+
+/// Filesystem overflow watch event.
+export struct FileWatchEventOverflow {
+    /// Event discriminator.
+    kind: "overflow";
+    /// Host event cookie.
+    cookie: uint64;
+}
+
 /// Filesystem watch event.
 export newtype FileWatchEvent =
-    | { kind: "create"; cookie: uint64; path: PathSpan }
-    | { kind: "remove"; cookie: uint64; path: PathSpan }
-    | { kind: "modify"; cookie: uint64; path: PathSpan }
-    | { kind: "rename"; cookie: uint64; path: PathSpan; related: PathSpan }
-    | { kind: "metadata"; cookie: uint64; path: PathSpan }
-    | { kind: "overflow"; cookie: uint64 };
+    | FileWatchEventCreate
+    | FileWatchEventRemove
+    | FileWatchEventModify
+    | FileWatchEventRename
+    | FileWatchEventMetadata
+    | FileWatchEventOverflow;
 
 /// Watch events written by one read operation.
 export struct FileWatchBatch {

@@ -2,7 +2,7 @@ import { Array } from "destack:collections";
 import { PlatformError } from "destack:platform/error";
 import { DisplayFrameHandle, WindowHandle } from "destack:platform/resource";
 import { DisplayBackendKind, DisplayBackendSelection } from "./backend.ds";
-import { DisplayEventOverflow } from "./event.ds";
+import { DisplayEventOverflowPolicy } from "./event.ds";
 
 /// Display frame timing event.
 export struct DisplayFrameEvent {
@@ -39,7 +39,7 @@ export struct DisplayFrameSubscription {
     /// Queue capacity in events, or zero for backend default.
     capacity: uint32;
     /// Queue overflow policy.
-    overflow: DisplayEventOverflow;
+    overflow: DisplayEventOverflowPolicy;
 }
 
 /// Open one display frame timing stream.

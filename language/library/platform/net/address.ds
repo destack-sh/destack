@@ -24,11 +24,27 @@ export struct Ipv6Address {
     scopeId: uint32;
 }
 
+/// IPv4 address payload.
+export struct IpAddressIpv4 {
+    /// Address discriminator.
+    kind: "ipv4";
+    /// IPv4 address.
+    address: Ipv4Address;
+}
+
+/// IPv6 address payload.
+export struct IpAddressIpv6 {
+    /// Address discriminator.
+    kind: "ipv6";
+    /// IPv6 address.
+    address: Ipv6Address;
+}
+
 /// IP address payload.
 @derive(Tagged)
 export newtype IpAddress =
-    | { kind: "ipv4"; address: Ipv4Address }
-    | { kind: "ipv6"; address: Ipv6Address };
+    | IpAddressIpv4
+    | IpAddressIpv6;
 
 /// IP socket endpoint.
 export struct IpEndpoint {
@@ -38,12 +54,34 @@ export struct IpEndpoint {
     port: uint16;
 }
 
+/// Filesystem path Unix socket address.
+export struct UnixAddressPath {
+    /// Address discriminator.
+    kind: "path";
+    /// Filesystem socket path.
+    path: string;
+}
+
+/// Abstract Unix socket address.
+export struct UnixAddressAbstract {
+    /// Address discriminator.
+    kind: "abstract";
+    /// Abstract socket name.
+    name: [uint8];
+}
+
+/// Unnamed Unix socket address.
+export struct UnixAddressUnnamed {
+    /// Address discriminator.
+    kind: "unnamed";
+}
+
 /// Unix domain socket address payload.
 @derive(Tagged)
 export newtype UnixAddress =
-    | { kind: "path"; path: string }
-    | { kind: "abstract"; name: [uint8] }
-    | { kind: "unnamed" };
+    | UnixAddressPath
+    | UnixAddressAbstract
+    | UnixAddressUnnamed;
 
 /// Raw socket address payload for host-specific address families.
 export struct RawSocketAddress {
@@ -53,8 +91,32 @@ export struct RawSocketAddress {
     bytes: [uint8];
 }
 
+/// IP socket address payload.
+export struct SocketAddressIp {
+    /// Address discriminator.
+    kind: "ip";
+    /// IP endpoint.
+    endpoint: IpEndpoint;
+}
+
+/// Unix socket address payload.
+export struct SocketAddressUnix {
+    /// Address discriminator.
+    kind: "unix";
+    /// Unix socket address.
+    address: UnixAddress;
+}
+
+/// Raw socket address payload.
+export struct SocketAddressRaw {
+    /// Address discriminator.
+    kind: "raw";
+    /// Raw socket address.
+    address: RawSocketAddress;
+}
+
 /// Socket address payload.
 export newtype SocketAddress =
-    | { kind: "ip"; endpoint: IpEndpoint }
-    | { kind: "unix"; address: UnixAddress }
-    | { kind: "raw"; address: RawSocketAddress };
+    | SocketAddressIp
+    | SocketAddressUnix
+    | SocketAddressRaw;
