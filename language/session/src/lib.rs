@@ -1,4 +1,5 @@
 mod executor;
+mod loader;
 mod session;
 mod source;
 

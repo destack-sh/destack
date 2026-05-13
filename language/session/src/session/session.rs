@@ -10,7 +10,7 @@ use destack_workspace::{Ref, Repository, Revision};
 use parking_lot::{RwLockReadGuard, RwLockWriteGuard};
 
 use crate::executor::Executor;
-use crate::{FileSystemSource, SessionError, Source, SourceSync, apply_edits};
+use crate::{FileSystemSource, RepositorySource, RepositorySourceFilter, SessionError};
 
 use super::{SessionEventHandler, SessionState};
 
@@ -200,8 +200,12 @@ impl Session {
         };
 
         // apply the selected source file
-        let edits = SourceSync::new(repository.as_ref(), revision, &mut source).files([file])?;
-        let revision = apply_edits(repository.as_ref(), revision, edits)?;
+        let change = source.poll(
+            repository.as_ref(),
+            revision,
+            RepositorySourceFilter::files([file]),
+        )?;
+        let revision = repository.commit_change(revision, change)?;
 
         // require the applied file to produce a module
         let module_id = repository.module_id_for_path(revision, path)?;

@@ -127,14 +127,7 @@ impl Executor {
     /// Wait until one run's roots are terminal or aborted.
     fn wait_for_run(&self, run: &Run) -> Result<(), SessionError> {
         self.scheduler.wait_until(|| {
-            if run.is_aborted() {
-                let error = match run.take_error() {
-                    Some(error) => error,
-                    None => SessionError::Internal {
-                        detail: "session run aborted without an error".to_string(),
-                    },
-                };
-
+            if let Some(error) = run.take_error() {
                 return Err(error);
             }
 

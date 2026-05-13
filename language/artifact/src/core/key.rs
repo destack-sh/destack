@@ -5,8 +5,8 @@ use destack_source::{ModuleId, PackageId, ProfileId, TargetId};
 /// Provider family for one artifact key.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum ArtifactProvider {
-    /// Source artifacts derived directly from repository file contents.
-    Source,
+    /// Loader artifacts derived directly from repository file contents.
+    Loader,
     /// Compiler artifacts derived by compiler phases.
     Compiler,
     /// Linter artifacts derived by lint rules.
@@ -112,7 +112,7 @@ impl ArtifactKey {
     /// Return the provider family responsible for this artifact.
     pub fn provider(self) -> ArtifactProvider {
         match self {
-            Self::Ast { .. } | Self::Data { .. } => ArtifactProvider::Source,
+            Self::Ast { .. } | Self::Data { .. } => ArtifactProvider::Loader,
             Self::GlobalEnvironment { .. }
             | Self::DirDeclared { .. }
             | Self::DirImported { .. }

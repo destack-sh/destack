@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use destack_source::{FileContent, FileMetadata, FileType, IgnoreSet};
 use destack_workspace::Repository;
 
-use super::{Source, SourceError};
+use super::{RepositorySource, SourceError};
 
 /// Filesystem-backed repository source.
 pub(crate) struct FileSystemSource<'a> {
@@ -228,7 +228,7 @@ impl<'a> FileSystemSource<'a> {
     }
 }
 
-impl Source for FileSystemSource<'_> {
+impl RepositorySource for FileSystemSource<'_> {
     type File = FileSystemFile;
 
     fn list(&mut self) -> Result<Vec<Self::File>, SourceError> {

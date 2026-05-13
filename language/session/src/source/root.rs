@@ -7,7 +7,7 @@ use destack_source::{File, FileId, FileSystem, FileType, Uri};
 use destack_workspace::{DestackConfig, HostEnvironment, Ref, Repository, RepositoryError};
 
 use super::reload::{RELOAD_EXCLUDED_DIRECTORY_NAMES, is_reload_path};
-use super::{FileSystemSource, SourceSync, apply_edits};
+use super::{FileSystemSource, RepositorySource, RepositorySourceFilter};
 use crate::SessionError;
 
 /// Open one repository after discovering the workspace root from one path.
@@ -32,8 +32,8 @@ pub fn open_repository_from_fs(
     let mut source = FileSystemSource::new(&repository, &root)
         .with_excluded_directory_names(RELOAD_EXCLUDED_DIRECTORY_NAMES)
         .with_include_path(is_reload_path);
-    let edits = SourceSync::new(&repository, base_revision, &mut source).all()?;
-    let revision = apply_edits(&repository, base_revision, edits)?;
+    let change = source.poll(&repository, base_revision, RepositorySourceFilter::All)?;
+    let revision = repository.commit_change(base_revision, change)?;
 
     repository.set_ref(&workspace_ref, revision)?;
 
@@ -48,7 +48,13 @@ fn find_source_root_from_fs(fs: &dyn FileSystem, path: &Path) -> Result<PathBuf,
             .parent()
             .map(Path::to_path_buf)
             .unwrap_or_else(|| path.to_path_buf()),
-        _ => path.to_path_buf(),
+        Ok(_) => path.to_path_buf(),
+        Err(error) => {
+            return Err(RepositoryError::WorkspaceRootDiscovery {
+                path: path.to_path_buf(),
+                message: error.to_string(),
+            });
+        }
     };
     let mut current = input_directory.clone();
 
@@ -102,7 +108,7 @@ fn read_source_destack_config(
 
     // parse with the normal Destack config parser
     let file = File::from_text(
-        FileId::from_logical_path(&path),
+        FileId::from_logical_str("destack.json"),
         "destack.json".to_string(),
         Uri::from_path(&path),
         Some(path.clone()),

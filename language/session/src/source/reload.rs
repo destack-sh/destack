@@ -5,8 +5,8 @@ use destack_source::FileType;
 use destack_workspace::Ref;
 
 use crate::{
-    FileChange, FileSystemSource, FileUpdate, FileUpdateKind, Session, SessionError, SourceSync,
-    apply_edits, edit_file_ids,
+    FileChange, FileSystemSource, FileUpdate, FileUpdateKind, RepositorySource,
+    RepositorySourceFilter, Session, SessionError,
 };
 
 /// Directory names excluded by filesystem reload scans.
@@ -39,9 +39,9 @@ impl Session {
             .with_include_path(is_reload_path);
 
         // apply repository source changes
-        let edits = SourceSync::new(repository.as_ref(), before, &mut source).all()?;
-        let file_ids = edit_file_ids(&edits);
-        let revision = apply_edits(repository.as_ref(), before, edits)?;
+        let change = source.poll(repository.as_ref(), before, RepositorySourceFilter::All)?;
+        let file_ids = change.file_ids().to_vec();
+        let revision = repository.commit_change(before, change)?;
 
         // project repository changes for callers
         let files = self.project_file_updates(before, revision, file_ids)?;
