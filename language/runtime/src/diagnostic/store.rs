@@ -123,12 +123,12 @@ impl Default for DiagnosticStore {
 impl DiagnosticStore {
     /// Create one diagnostics store from runtime diagnostic options.
     pub fn from_options(options: &RuntimeDiagnosticOptions) -> Self {
-        let capacity = options
-            .capacity
-            .unwrap_or(DEFAULT_DIAGNOSTIC_CAPACITY as u64)
-            .try_into()
-            .unwrap_or(usize::MAX)
-            .max(MIN_DIAGNOSTIC_CAPACITY);
+        let capacity = match options.capacity {
+            Some(capacity) => capacity,
+            None => DEFAULT_DIAGNOSTIC_CAPACITY as u64,
+        };
+        let capacity = capacity.min(usize::MAX as u64) as usize;
+        let capacity = capacity.max(MIN_DIAGNOSTIC_CAPACITY);
 
         Self {
             minimum_level: options.level,
@@ -371,7 +371,8 @@ fn unix_now_ns() -> u64 {
         Ok(duration) => duration,
         Err(_) => return 0,
     };
-    now.as_nanos().try_into().unwrap_or(u64::MAX)
+
+    now.as_nanos().min(u128::from(u64::MAX)) as u64
 }
 
 #[cfg(test)]

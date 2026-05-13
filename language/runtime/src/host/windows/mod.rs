@@ -1,17 +1,7 @@
-#[cfg(any(test, windows))]
-pub(crate) mod abi;
-#[cfg(windows)]
-mod action;
-#[cfg(windows)]
-mod adapter;
-#[cfg(windows)]
-pub(crate) mod identity;
-#[cfg(any(test, windows))]
-pub(crate) mod ingress;
-#[cfg(windows)]
-pub(crate) mod request;
-#[cfg(test)]
-pub(crate) mod tests;
+mod host;
+mod win32;
+mod winsock;
 
-#[cfg(windows)]
-pub(crate) use adapter::WindowsHost;
+pub(crate) use host::WindowsHost;
+pub(crate) use win32::{error_message, io_error, last_wsa_error_code, qpc_process_monotonic_nanos};
+pub(crate) use winsock::initialize_winsock;

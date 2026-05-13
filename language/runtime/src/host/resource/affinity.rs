@@ -1,0 +1,45 @@
+use serde::{Deserialize, Serialize};
+
+use crate::host::binding::BindingAffinity;
+use crate::runtime::{ExecutionContext, ExecutionContextId, execution_context_satisfies};
+
+/// Stored resource-affinity requirement for one live resource entry.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ResourceAffinity {
+    /// Require the owning worker context.
+    Worker,
+    /// Require the process main execution context.
+    Main,
+}
+
+impl ResourceAffinity {
+    /// Build one resource-affinity requirement from one binding affinity.
+    pub const fn from_binding_affinity(affinity: BindingAffinity) -> Option<Self> {
+        match affinity {
+            BindingAffinity::None => None,
+            BindingAffinity::Worker => Some(Self::Worker),
+            BindingAffinity::Main => Some(Self::Main),
+        }
+    }
+
+    /// Return the binding-affinity class represented by this resource requirement.
+    pub const fn binding_affinity(self) -> BindingAffinity {
+        match self {
+            Self::Worker => BindingAffinity::Worker,
+            Self::Main => BindingAffinity::Main,
+        }
+    }
+
+    /// Return whether one execution context satisfies this resource requirement.
+    pub const fn satisfies(
+        self,
+        execution_context: ExecutionContext,
+        event_loop_context_id: ExecutionContextId,
+    ) -> bool {
+        execution_context_satisfies(
+            execution_context,
+            event_loop_context_id,
+            self.binding_affinity(),
+        )
+    }
+}

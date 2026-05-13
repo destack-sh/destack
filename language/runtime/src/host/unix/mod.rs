@@ -1,10 +1,11 @@
-#[cfg(any(test, target_os = "linux",))]
-pub(crate) mod abi;
-#[cfg(any(target_os = "linux",))]
-pub(crate) mod identity;
-#[cfg(any(test, target_os = "linux",))]
-pub(crate) mod ingress;
-#[cfg(any(test, target_os = "linux", target_os = "macos",))]
-pub(crate) mod request;
-#[cfg(test)]
-mod tests;
+#[cfg(target_os = "macos")]
+mod apple;
+#[cfg(not(target_os = "macos"))]
+mod clock;
+mod error;
+
+#[cfg(target_os = "macos")]
+pub(crate) use apple::apple_process_monotonic_nanos;
+#[cfg(not(target_os = "macos"))]
+pub(crate) use clock::unix_process_monotonic_nanos;
+pub(crate) use error::io_error;
