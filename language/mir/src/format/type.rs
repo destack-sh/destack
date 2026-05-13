@@ -5,9 +5,10 @@ use destack_fir::write;
 use super::attribute::{write_attributes, write_attributes_before_anchor, write_inline_attributes};
 
 use crate::{
-    Access, AddressSpace, Attribute, Field, FieldSpan, FormatMirNode, Lifetime, LifetimeOrigin,
-    LocalNodeId, MirFormatContext, MirFormatter, ReferenceKind, TensorDimension, TensorLayout,
-    Type, TypeAlias, TypeDeclarationSpans, TypeReference, write_comments_before,
+    Access, AddressSpace, Attribute, AttributeIdentifier, Copy, Field, FieldSpan, FormatMirNode,
+    Lifetime, LifetimeOrigin, LocalNodeId, MirFormatContext, MirFormatter, ReferenceKind,
+    TensorDimension, TensorLayout, Type, TypeAlias, TypeDeclarationSpans, TypeReference,
+    write_comments_before,
 };
 
 impl<'a> FormatMirNode<'a, Type> for Type {
@@ -32,10 +33,18 @@ pub(super) fn format_type_declaration<'a>(
     ty: &Type,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
+    let attributes = alias_id
+        .map(|alias_id| f.context().tree.attributes(alias_id))
+        .unwrap_or(attributes);
+
+    // synthetic copy marker
+    if type_copy(ty) == Some(Copy::No) && !has_copy_marker(attributes, f) {
+        write!(f, [token("@moveOnly"), hard_line_break()])?;
+    }
+
     // declaration attributes
     if let Some(alias_id) = alias_id {
         let tree = f.context().tree;
-        let attributes = tree.attributes(alias_id);
 
         if !attributes.is_empty() {
             if let Some(keyword_span) = tree.keyword_span(alias_id) {
@@ -72,6 +81,31 @@ pub(super) fn format_type_declaration<'a>(
             write!(f, [token(";")])
         }
     }
+}
+
+/// Return the explicit copy property carried by one aggregate type.
+fn type_copy(ty: &Type) -> Option<Copy> {
+    match ty {
+        Type::Array { copy, .. }
+        | Type::Tuple { copy, .. }
+        | Type::Struct { copy, .. }
+        | Type::Newtype { copy, .. }
+        | Type::Union { copy, .. }
+        | Type::Vector { copy, .. }
+        | Type::Tensor { copy, .. } => Some(*copy),
+        _ => None,
+    }
+}
+
+/// Return whether attributes already include an explicit copy marker.
+fn has_copy_marker(attributes: &[Attribute], f: &MirFormatter<'_, '_>) -> bool {
+    attributes.iter().any(|attribute| {
+        let AttributeIdentifier::Identifier(name) = attribute.name else {
+            return false;
+        };
+
+        matches!(f.context().strings.get(name), "copy" | "moveOnly")
+    })
 }
 
 /// Format one struct type declaration.

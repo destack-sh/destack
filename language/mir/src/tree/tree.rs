@@ -336,7 +336,14 @@ impl Tree {
                 ))
                 .filter(|lifetime| !lifetime.is_empty())
             }
-            Type::Array { element, .. } => self.type_reference_lifetime_inner(*element, visited),
+            Type::Array { element, .. }
+            | Type::Slice { element, .. }
+            | Type::Vector { element, .. }
+            | Type::Tensor { element, .. }
+            | Type::TensorView { element, .. }
+            | Type::Atomic { value: element } => {
+                self.type_reference_lifetime_inner(*element, visited)
+            }
             _ => None,
         }
     }
@@ -384,7 +391,14 @@ impl Tree {
             Type::Tuple { elements, .. } => elements
                 .iter()
                 .any(|element| self.type_reference_contains_borrowed_refs(*element)),
-            Type::Array { element, .. } => self.type_reference_contains_borrowed_refs(*element),
+            Type::Array { element, .. }
+            | Type::Slice { element, .. }
+            | Type::Vector { element, .. }
+            | Type::Tensor { element, .. }
+            | Type::TensorView { element, .. }
+            | Type::Atomic { value: element } => {
+                self.type_reference_contains_borrowed_refs(*element)
+            }
             _ => false,
         }
     }
@@ -430,7 +444,7 @@ impl Tree {
                     return;
                 };
 
-                places.set_projection(value, base, PlaceProjection::Static { index: *index });
+                places.set_projection(value, base, PlaceProjection::Field { index: *index });
             }
             Instruction::ElementAddr {
                 destination,
@@ -445,7 +459,7 @@ impl Tree {
                     return;
                 };
 
-                places.set_projection(value, base, PlaceProjection::Dynamic { index: *index });
+                places.set_projection(value, base, PlaceProjection::Index { index: *index });
             }
             Instruction::Slice {
                 destination,

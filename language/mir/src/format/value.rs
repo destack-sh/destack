@@ -173,17 +173,26 @@ fn format_place_projection<'a>(
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
     match projection {
-        PlaceProjection::Static { index } => write!(
+        PlaceProjection::Field { index } => write!(
             f,
             [
-                token("static"),
+                token("field"),
                 token("("),
                 text(&index.to_string()),
                 token(")")
             ]
         ),
-        PlaceProjection::Dynamic { index } => {
-            write!(f, [token("dynamic"), token("("), index, token(")")])
+        PlaceProjection::Element { index } => write!(
+            f,
+            [
+                token("element"),
+                token("("),
+                text(&index.to_string()),
+                token(")")
+            ]
+        ),
+        PlaceProjection::Index { index } => {
+            write!(f, [token("index"), token("("), index, token(")")])
         }
         PlaceProjection::Range { start, length } => write!(
             f,

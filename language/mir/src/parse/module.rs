@@ -1,9 +1,10 @@
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use crate::{
-    AllocationMode, Attribute, CallBehavior, Function, Global, GlobalInitializer, Lifetime,
-    Linkage, LocalNodeId, MemoryEffect, Mutability, PlaceTable, PointerAttribute, Type, TypeAlias,
-    TypeDeclarationSpans, TypeReference, Value, ValueReference,
+    AllocationMode, Attribute, AttributeArgs, AttributeIdentifier, CallBehavior, Copy, Function,
+    Global, GlobalInitializer, Lifetime, Linkage, LocalNodeId, MemoryEffect, Mutability,
+    PlaceTable, PointerAttribute, Type, TypeAlias, TypeDeclarationSpans, TypeReference, Value,
+    ValueReference,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -420,7 +421,10 @@ impl Parser {
         self.tree.set_type_declaration_spans(id, declaration_spans);
 
         if ty != placeholder_id {
-            let resolved = self.tree.get(ty).clone();
+            let mut resolved = self.tree.get(ty).clone();
+            if let Some(copy) = self.copy_attribute(&attributes, item_start)? {
+                set_type_copy(&mut resolved, copy, item_start)?;
+            }
             *self.tree.get_mut(placeholder_id) = resolved;
             self.tree.metadata.copy_type_metadata(ty, placeholder_id);
         }
@@ -435,6 +439,45 @@ impl Parser {
         }
 
         Ok(id)
+    }
+
+    /// Return the explicit copy attribute when present.
+    fn copy_attribute(
+        &self,
+        attributes: &[Attribute],
+        position: usize,
+    ) -> ParseResult<Option<Copy>> {
+        let mut copy = None;
+
+        // find one explicit copy marker at most once
+        for attribute in attributes {
+            let AttributeIdentifier::Identifier(name) = attribute.name else {
+                continue;
+            };
+            let name = self.strings.get(name);
+            let next = match name {
+                "copy" => Some(Copy::Yes),
+                "moveOnly" => Some(Copy::No),
+                _ => None,
+            };
+            let Some(next) = next else {
+                continue;
+            };
+            if copy.is_some() {
+                return Err(ParseError::new("duplicate copy marker", position));
+            }
+
+            if !matches!(attribute.args, AttributeArgs::None) {
+                return Err(ParseError::new(
+                    "copy marker does not take arguments",
+                    position,
+                ));
+            }
+
+            copy = Some(next);
+        }
+
+        Ok(copy)
     }
 
     /// Parse a global definition or declaration.
@@ -610,5 +653,25 @@ impl Parser {
                 token.start,
             )),
         }
+    }
+}
+
+/// Set the copy property on one explicit aggregate type.
+fn set_type_copy(ty: &mut Type, copy: Copy, position: usize) -> ParseResult<()> {
+    match ty {
+        Type::Array { copy: target, .. }
+        | Type::Tuple { copy: target, .. }
+        | Type::Struct { copy: target, .. }
+        | Type::Newtype { copy: target, .. }
+        | Type::Union { copy: target, .. }
+        | Type::Vector { copy: target, .. }
+        | Type::Tensor { copy: target, .. } => {
+            *target = copy;
+            Ok(())
+        }
+        _ => Err(ParseError::new(
+            "copy attribute requires an aggregate type",
+            position,
+        )),
     }
 }
