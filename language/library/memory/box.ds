@@ -2,7 +2,7 @@ import { todo, Result } from "destack:error";
 import { Dereference } from "destack:ops";
 import { AllocationError } from "./allocator.ds";
 import { Clone, Unpin, Zeroable } from "./capability.ds";
-import { Access, Unique, WithAccess } from "./form.ds";
+import { Access, Borrowed, Unique, WithAccess } from "./form.ds";
 import { MaybeUninit } from "./init.ds";
 import { Pin } from "./pin.ds";
 
@@ -64,6 +64,10 @@ extension<T, A: Access = "readonly"> of Box<T> implements Dereference<A> {
     intoInner(this: ^Box<T>): ^T {
         todo("Box.intoInner")
     }
+
+    /// Leak this box and borrow its allocation for static lifetime.
+    @intrinsic("memory.box.leak")
+    leak(this: ^Box<T>): Borrowed<T, "static">;
 
     /// Move this box into its unique heap handle.
     intoUnique(this: ^Box<T>): Unique<T> {

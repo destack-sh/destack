@@ -1,12 +1,14 @@
 import { Promise } from "destack:async";
 
 /// Deterministic synchronous cleanup capability, called at the end of a `using` scope.
+@languageItem("Dispose")
 export newtype interface Dispose {
     /// Dispose this value.
     dispose(): void;
 }
 
 /// Deterministic asynchronous cleanup capability, called at the end of an `await using` scope.
+@languageItem("AsyncDispose")
 export newtype interface AsyncDispose {
     /// Dispose this value asynchronously.
     asyncDispose(): Promise<void>;

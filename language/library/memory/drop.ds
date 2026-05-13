@@ -1,10 +1,12 @@
-/// Deterministic ownership finalization capability.
+/// Ownership finalization capability.
+@languageItem("Drop")
 export newtype interface Drop {
     /// Drop this value.
     drop(): void;
 }
 
 /// Owned storage whose `Drop` does not run automatically.
+@languageItem("ManuallyDrop")
 export newtype ManuallyDrop<T> = intrinsic;
 
 export extension<T> of ManuallyDrop<T> {
@@ -40,3 +42,8 @@ export extension<T> of ManuallyDrop<T> {
 /// End ownership of `value` at this point.
 @intrinsic("drop")
 export declare function drop<T>(value: ^T): void;
+
+/// End ownership of `value` without running its destructor.
+@languageItem("Forget")
+@intrinsic("memory.forget")
+export declare function forget<T>(value: ^T): void;
