@@ -1,4 +1,4 @@
-# Range Indexing
+# Range Subscripts
 
 Range subscripts use index-expression spacing.
 
