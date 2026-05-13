@@ -1,39 +1,7 @@
-import { Slice } from "destack:collections";
-import { PlatformError } from "destack:platform/error";
-import * as platform from "destack:platform";
+import { HostError } from "destack:error/host";
+import * as host from "./host";
 
-/// Opaque identifier for a deterministic random stream.
-export type RandomStream = platform.random.RandomStream;
-
-/// Allocate a deterministic random stream identifier.
-export function stream(): Result<RandomStream, PlatformError> {
-    platform.random.stream();
-}
-
-/// Return a deterministic random uint64 from the current stream.
-export function nextU64(): Result<uint64, PlatformError> {
-    platform.random.nextU64();
-}
-
-/// Return a deterministic random uint64 from a stream.
-export function nextU64From(stream: RandomStream): Result<uint64, PlatformError> {
-    platform.random.nextU64From(stream);
-}
-
-/// Fill a slice with random bytes.
-export function fillBytes(buffer: Slice<uint8>): Result<void, PlatformError> {
-    platform.random.fillBytes(buffer);
-}
-
-/// Fill a slice with random bytes from a stream.
-export function fillBytesFrom(
-    stream: RandomStream,
-    buffer: Slice<uint8>,
-): Result<void, PlatformError> {
-    platform.random.fillBytesFrom(stream, buffer);
-}
-
-/// Fill a slice with cryptographically secure random bytes.
-export function secureBytes(buffer: Slice<uint8>): Result<void, PlatformError> {
-    platform.random.secureBytes(buffer);
+/// Fill a buffer with host-provided random bytes.
+export function fillBytes(buffer: &[uint8]): Result<void, HostError> {
+    host.fillRandomBytes(buffer);
 }

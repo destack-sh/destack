@@ -1,8 +1,7 @@
-import { Slice } from "destack:collections";
-import * as platform from "destack:platform";
-import { PlatformError } from "destack:platform/error";
+import { HostError } from "destack:error/host";
+import * as host from "./host";
 
 /// Return the process arguments.
-export function args(): Result<Slice<string>, PlatformError> {
-    platform.process.args();
+export function args(): Result<^Array<^string>, HostError> {
+    host.listArguments();
 }

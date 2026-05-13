@@ -1,12 +1,12 @@
-/// Error code returned by platform bindings.
-export enum PlatformErrorCode {
+/// Error code returned by host bindings.
+export enum HostErrorCode {
     /// Unclassified invalid argument.
     InvalidArgument = 1000,
     /// Invalid argument type.
     InvalidArgumentType = 1001,
     /// Invalid argument value.
     InvalidArgumentValue = 1002,
-    /// Null pointer passed across the platform boundary.
+    /// Null pointer passed across the host boundary.
     NullPointer = 1100,
     /// Feature is not supported.
     NotSupported = 1200,
@@ -197,12 +197,12 @@ export enum PlatformErrorCode {
     /// I/O operation canceled.
     IoCancelled = 8012,
 
-    /// Generic platform error.
+    /// Generic host error.
     Generic = 9000,
 }
 
 /// POSIX errno source payload.
-export struct PlatformSystemSourceErrno {
+export struct HostSystemSourceErrno {
     /// Discriminator for this system-source variant.
     kind: "errno";
     /// Numeric errno value.
@@ -212,7 +212,7 @@ export struct PlatformSystemSourceErrno {
 }
 
 /// Winsock source payload.
-export struct PlatformSystemSourceWinsock {
+export struct HostSystemSourceWinsock {
     /// Discriminator for this system-source variant.
     kind: "winsock";
     /// Numeric WSA error value.
@@ -222,7 +222,7 @@ export struct PlatformSystemSourceWinsock {
 }
 
 /// HRESULT source payload.
-export struct PlatformSystemSourceHResult {
+export struct HostSystemSourceHResult {
     /// Discriminator for this system-source variant.
     kind: "hresult";
     /// Numeric HRESULT value.
@@ -232,7 +232,7 @@ export struct PlatformSystemSourceHResult {
 }
 
 /// EAI source payload.
-export struct PlatformSystemSourceEai {
+export struct HostSystemSourceEai {
     /// Discriminator for this system-source variant.
     kind: "eai";
     /// Numeric getaddrinfo/getnameinfo error value.
@@ -242,7 +242,7 @@ export struct PlatformSystemSourceEai {
 }
 
 /// Signal source payload.
-export struct PlatformSystemSourceSignal {
+export struct HostSystemSourceSignal {
     /// Discriminator for this system-source variant.
     kind: "signal";
     /// Numeric signal value.
@@ -252,7 +252,7 @@ export struct PlatformSystemSourceSignal {
 }
 
 /// Other source payload.
-export struct PlatformSystemSourceOther {
+export struct HostSystemSourceOther {
     /// Discriminator for this system-source variant.
     kind: "other";
     /// Numeric source value.
@@ -262,16 +262,16 @@ export struct PlatformSystemSourceOther {
 }
 
 /// Host-level system source metadata.
-export newtype PlatformSystemSource =
-    | PlatformSystemSourceErrno
-    | PlatformSystemSourceWinsock
-    | PlatformSystemSourceHResult
-    | PlatformSystemSourceEai
-    | PlatformSystemSourceSignal
-    | PlatformSystemSourceOther;
+export newtype HostSystemSource =
+    | HostSystemSourceErrno
+    | HostSystemSourceWinsock
+    | HostSystemSourceHResult
+    | HostSystemSourceEai
+    | HostSystemSourceSignal
+    | HostSystemSourceOther;
 
 /// Byte-path payload attached to an error context.
-export struct PlatformPathPayloadBytes {
+export struct HostPathPayloadBytes {
     /// Discriminator for this path-payload variant.
     kind: "bytes";
     /// Raw path bytes.
@@ -279,7 +279,7 @@ export struct PlatformPathPayloadBytes {
 }
 
 /// UTF-16 path payload attached to an error context.
-export struct PlatformPathPayloadUtf16 {
+export struct HostPathPayloadUtf16 {
     /// Discriminator for this path-payload variant.
     kind: "utf16";
     /// UTF-16 path code units.
@@ -287,10 +287,10 @@ export struct PlatformPathPayloadUtf16 {
 }
 
 /// Path payload attached to an error context.
-export newtype PlatformPathPayload = PlatformPathPayloadBytes | PlatformPathPayloadUtf16;
+export newtype HostPathPayload = HostPathPayloadBytes | HostPathPayloadUtf16;
 
-/// Generic platform-error context payload.
-export struct PlatformErrorContextGeneric {
+/// Generic host-error context payload.
+export struct HostErrorContextGeneric {
     /// Discriminator for this error-context variant.
     kind: "generic";
     /// Optional syscall or host API name.
@@ -303,16 +303,16 @@ export struct PlatformErrorContextGeneric {
     feature?: string;
 }
 
-/// I/O platform-error context payload.
-export struct PlatformErrorContextIo {
+/// I/O host-error context payload.
+export struct HostErrorContextIo {
     /// Discriminator for this error-context variant.
     kind: "io";
     /// Optional syscall or host API name.
     syscall?: string;
     /// Optional primary path payload.
-    path?: PlatformPathPayload;
+    path?: HostPathPayload;
     /// Optional destination path payload.
-    dest?: PlatformPathPayload;
+    dest?: HostPathPayload;
     /// Optional primary path text fallback.
     pathText?: string;
     /// Optional destination path text fallback.
@@ -321,8 +321,8 @@ export struct PlatformErrorContextIo {
     fd?: int32;
 }
 
-/// Network platform-error context payload.
-export struct PlatformErrorContextNet {
+/// Network host-error context payload.
+export struct HostErrorContextNet {
     /// Discriminator for this error-context variant.
     kind: "net";
     /// Optional syscall or host API name.
@@ -335,8 +335,8 @@ export struct PlatformErrorContextNet {
     hostname?: string;
 }
 
-/// Process platform-error context payload.
-export struct PlatformErrorContextProcess {
+/// Process host-error context payload.
+export struct HostErrorContextProcess {
     /// Discriminator for this error-context variant.
     kind: "process";
     /// Optional syscall or host API name.
@@ -349,8 +349,8 @@ export struct PlatformErrorContextProcess {
     exitCode?: int32;
 }
 
-/// Timer platform-error context payload.
-export struct PlatformErrorContextTimer {
+/// Timer host-error context payload.
+export struct HostErrorContextTimer {
     /// Discriminator for this error-context variant.
     kind: "timer";
     /// Optional syscall or host API name.
@@ -361,8 +361,8 @@ export struct PlatformErrorContextTimer {
     deadlineNs?: uint64;
 }
 
-/// Resource platform-error context payload.
-export struct PlatformErrorContextResource {
+/// Resource host-error context payload.
+export struct HostErrorContextResource {
     /// Discriminator for this error-context variant.
     kind: "resource";
     /// Optional syscall or host API name.
@@ -373,8 +373,8 @@ export struct PlatformErrorContextResource {
     resourceKind?: string;
 }
 
-/// Security platform-error context payload.
-export struct PlatformErrorContextSecurity {
+/// Security host-error context payload.
+export struct HostErrorContextSecurity {
     /// Discriminator for this error-context variant.
     kind: "security";
     /// Optional syscall or host API name.
@@ -385,8 +385,8 @@ export struct PlatformErrorContextSecurity {
     policy?: string;
 }
 
-/// FFI platform-error context payload.
-export struct PlatformErrorContextFfi {
+/// FFI host-error context payload.
+export struct HostErrorContextFfi {
     /// Discriminator for this error-context variant.
     kind: "ffi";
     /// Optional syscall or host API name.
@@ -397,36 +397,36 @@ export struct PlatformErrorContextFfi {
     symbol?: string;
 }
 
-/// IPC platform-error context payload.
-export struct PlatformErrorContextIpc {
+/// IPC host-error context payload.
+export struct HostErrorContextIpc {
     /// Discriminator for this error-context variant.
     kind: "ipc";
     /// Optional syscall or host API name.
     syscall?: string;
     /// Optional primary path payload.
-    path?: PlatformPathPayload;
+    path?: HostPathPayload;
     /// Optional primary path text fallback.
     pathText?: string;
     /// Optional file descriptor.
     fd?: int32;
 }
 
-/// Device platform-error context payload.
-export struct PlatformErrorContextDevice {
+/// Device host-error context payload.
+export struct HostErrorContextDevice {
     /// Discriminator for this error-context variant.
     kind: "device";
     /// Optional syscall or host API name.
     syscall?: string;
     /// Optional primary path payload.
-    path?: PlatformPathPayload;
+    path?: HostPathPayload;
     /// Optional primary path text fallback.
     pathText?: string;
     /// Optional feature identifier.
     feature?: string;
 }
 
-/// Display platform-error context payload.
-export struct PlatformErrorContextDisplay {
+/// Display host-error context payload.
+export struct HostErrorContextDisplay {
     /// Discriminator for this error-context variant.
     kind: "display";
     /// Optional syscall or host API name.
@@ -435,8 +435,8 @@ export struct PlatformErrorContextDisplay {
     feature?: string;
 }
 
-/// Audio platform-error context payload.
-export struct PlatformErrorContextAudio {
+/// Audio host-error context payload.
+export struct HostErrorContextAudio {
     /// Discriminator for this error-context variant.
     kind: "audio";
     /// Optional syscall or host API name.
@@ -445,8 +445,8 @@ export struct PlatformErrorContextAudio {
     feature?: string;
 }
 
-/// GPU platform-error context payload.
-export struct PlatformErrorContextGpu {
+/// GPU host-error context payload.
+export struct HostErrorContextGpu {
     /// Discriminator for this error-context variant.
     kind: "gpu";
     /// Optional syscall or host API name.
@@ -455,8 +455,8 @@ export struct PlatformErrorContextGpu {
     feature?: string;
 }
 
-/// I/O-driver platform-error context payload.
-export struct PlatformErrorContextIoDriver {
+/// I/O-driver host-error context payload.
+export struct HostErrorContextIoDriver {
     /// Discriminator for this error-context variant.
     kind: "ioDriver";
     /// Optional syscall or host API name.
@@ -467,38 +467,38 @@ export struct PlatformErrorContextIoDriver {
     feature?: string;
 }
 
-/// Typed context for platform error metadata.
-export newtype PlatformErrorContext =
-    | PlatformErrorContextGeneric
-    | PlatformErrorContextIo
-    | PlatformErrorContextNet
-    | PlatformErrorContextProcess
-    | PlatformErrorContextTimer
-    | PlatformErrorContextResource
-    | PlatformErrorContextSecurity
-    | PlatformErrorContextFfi
-    | PlatformErrorContextIpc
-    | PlatformErrorContextDevice
-    | PlatformErrorContextDisplay
-    | PlatformErrorContextAudio
-    | PlatformErrorContextGpu
-    | PlatformErrorContextIoDriver;
+/// Typed context for host error metadata.
+export newtype HostErrorContext =
+    | HostErrorContextGeneric
+    | HostErrorContextIo
+    | HostErrorContextNet
+    | HostErrorContextProcess
+    | HostErrorContextTimer
+    | HostErrorContextResource
+    | HostErrorContextSecurity
+    | HostErrorContextFfi
+    | HostErrorContextIpc
+    | HostErrorContextDevice
+    | HostErrorContextDisplay
+    | HostErrorContextAudio
+    | HostErrorContextGpu
+    | HostErrorContextIoDriver;
 
-/// Error returned by platform bindings.
-export newtype PlatformError = {
-    code: PlatformErrorCode;
+/// Error returned by host bindings.
+export newtype HostError = {
+    code: HostErrorCode;
     op?: string;
-    source?: PlatformSystemSource;
-    context?: PlatformErrorContext;
+    source?: HostSystemSource;
+    context?: HostErrorContext;
     message?: string;
 };
 
 /// Error bindings for runtime error propagation.
-@binding("destack.error.error.takePlatformError", {
+@binding("destack.error.error.takeHostError", {
     effect: "deterministic",
-    requires: ["runtime.diagnostic.read"],
+    requires: ["runtime.trace.read"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",
 })
-export declare function takePlatformError(errorId: uint64): Result<PlatformError, PlatformError>;
+export declare function takeHostError(errorId: uint64): Result<HostError, HostError>;

@@ -1,3 +1,0 @@
-export { resource } from "./id.ds";
-export * from "./handles.ds";
-export * from "./id.ds";
