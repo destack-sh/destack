@@ -4,8 +4,6 @@ use destack_source::ModuleId;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use super::LanguageSymbols;
-
 /// Compiler-known language environment for one profile.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct LanguageEnvironment {
@@ -41,11 +39,33 @@ impl GlobalEnvironment {
     pub fn supporting_modules(&self) -> Vec<ModuleId> {
         self.modules.clone()
     }
+}
 
-    /// Return the resolved language symbol table.
-    pub fn language_symbols(&self) -> LanguageSymbols {
-        LanguageSymbols {
-            symbols: self.language.items.clone(),
+/// Resolved compiler-known intrinsic bindings for a profile.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct LanguageIntrinsics {
+    /// Intrinsic names keyed by symbol id.
+    pub names_by_symbol: IndexMap<GlobalSymbolId, String>,
+    /// Intrinsic symbols keyed by name.
+    pub symbols_by_name: IndexMap<String, GlobalSymbolId>,
+}
+
+impl LanguageIntrinsics {
+    /// Create an empty intrinsic map.
+    pub fn new() -> Self {
+        Self {
+            names_by_symbol: IndexMap::new(),
+            symbols_by_name: IndexMap::new(),
         }
+    }
+
+    /// Resolve an intrinsic name for a symbol.
+    pub fn name_for_symbol(&self, symbol: GlobalSymbolId) -> Option<&str> {
+        self.names_by_symbol.get(&symbol).map(String::as_str)
+    }
+
+    /// Resolve a symbol for an intrinsic name.
+    pub fn symbol_for_name(&self, name: &str) -> Option<GlobalSymbolId> {
+        self.symbols_by_name.get(name).copied()
     }
 }

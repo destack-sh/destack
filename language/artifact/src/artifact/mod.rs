@@ -14,7 +14,6 @@ mod output;
 mod payload;
 mod query;
 mod script;
-mod symbol;
 
 pub use ast::*;
 pub use binary::*;
@@ -32,4 +31,3 @@ pub use output::*;
 pub use payload::*;
 pub use query::*;
 pub use script::*;
-pub use symbol::*;
