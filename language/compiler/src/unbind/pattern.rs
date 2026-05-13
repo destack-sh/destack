@@ -118,6 +118,43 @@ impl Compiler {
                 );
                 ast::Pattern::Expression { value }
             }
+            dir::Pattern::Range {
+                start,
+                end,
+                end_kind,
+            } => {
+                let start = start.map(|start| {
+                    self.unbind_expression(
+                        module,
+                        start,
+                        tree,
+                        symbols,
+                        types,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    )
+                });
+                let end = end.map(|end| {
+                    self.unbind_expression(
+                        module,
+                        end,
+                        tree,
+                        symbols,
+                        types,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    )
+                });
+                let end_kind = self.unbind_range_end(*end_kind);
+
+                ast::Pattern::Range {
+                    start,
+                    end,
+                    end_kind,
+                }
+            }
             dir::Pattern::TypeExpression { value } => {
                 let value = self.unbind_type_expression(
                     module,

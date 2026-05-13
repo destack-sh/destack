@@ -1331,6 +1331,54 @@ impl Compiler {
                     },
                 )
             }
+            ast::TypeExpression::Range {
+                start,
+                end,
+                end_kind,
+            } => {
+                let start = start.map(|start| {
+                    self.bind_type_expression(
+                        module,
+                        ast,
+                        namespace_scope,
+                        global_scope,
+                        declared_modules,
+                        scope,
+                        start,
+                        Some(type_expression_id.into()),
+                        tree,
+                        symbols,
+                        types,
+                        space,
+                    )
+                });
+                let end = end.map(|end| {
+                    self.bind_type_expression(
+                        module,
+                        ast,
+                        namespace_scope,
+                        global_scope,
+                        declared_modules,
+                        scope,
+                        end,
+                        Some(type_expression_id.into()),
+                        tree,
+                        symbols,
+                        types,
+                        space,
+                    )
+                });
+                let end_kind = self.bind_range_end(*end_kind);
+
+                tree.insert(
+                    type_expression_id,
+                    TypeExpression::Range {
+                        start,
+                        end,
+                        end_kind,
+                    },
+                )
+            }
             ast::TypeExpression::Const => tree.insert(type_expression_id, TypeExpression::Const),
             ast::TypeExpression::This => tree.insert(type_expression_id, TypeExpression::This),
             ast::TypeExpression::Readonly { target_type } => {

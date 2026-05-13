@@ -7,6 +7,14 @@ use super::UnbindContext;
 use crate::Compiler;
 
 impl Compiler {
+    /// Unbind one DIR range end spelling to AST.
+    pub(super) fn unbind_range_end(&self, end: dir::RangeEnd) -> ast::RangeEnd {
+        match end {
+            dir::RangeEnd::Open => ast::RangeEnd::Open,
+            dir::RangeEnd::Inclusive => ast::RangeEnd::Inclusive,
+        }
+    }
+
     /// Unbind a DIR export kind to an AST export kind.
     pub(super) fn unbind_export_kind(&self, export: dir::ExportKind) -> ast::ExportKind {
         match export {
@@ -654,6 +662,44 @@ impl Compiler {
                     let operator = self.unbind_binary_operator(context, *operator);
                     let right = self.unbind_expression(module, *right, tree, symbols, types, ast_tree, ast_strings, context);
                     ast::Expression::Binary { left, operator, right }
+                }
+
+                dir::Expression::RangeExpression {
+                    start,
+                    end,
+                    end_kind,
+                } => {
+                    let start = start.map(|start| {
+                        self.unbind_expression(
+                            module,
+                            start,
+                            tree,
+                            symbols,
+                            types,
+                            ast_tree,
+                            ast_strings,
+                            context,
+                        )
+                    });
+                    let end = end.map(|end| {
+                        self.unbind_expression(
+                            module,
+                            end,
+                            tree,
+                            symbols,
+                            types,
+                            ast_tree,
+                            ast_strings,
+                            context,
+                        )
+                    });
+                    let end_kind = self.unbind_range_end(*end_kind);
+
+                    ast::Expression::RangeExpression {
+                        start,
+                        end,
+                        end_kind,
+                    }
                 }
 
                 dir::Expression::Assign { left, right } => {

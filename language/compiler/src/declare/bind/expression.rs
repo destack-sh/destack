@@ -5,8 +5,8 @@ use destack_dir::{
     AssignPattern, AssignPatternField, BindingKeyword, BindingTable, CastOrigin, Declarator,
     DeclaredModule, ExportKind, Expression, ForEachBinding, ForEachOperator, IfCondition, IfForm,
     LetKind, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, LoopKind, MatchForm,
-    MatchOrigin, Mutability, NodeType, Path, ScopeKind, StaticKey, SymbolBinding, SymbolForm,
-    SymbolRole, SymbolSpace, Tree, Type, TypeTable, UnevaluatedType, YieldCardinality,
+    MatchOrigin, Mutability, NodeType, Path, RangeEnd, ScopeKind, StaticKey, SymbolBinding,
+    SymbolForm, SymbolRole, SymbolSpace, Tree, Type, TypeTable, UnevaluatedType, YieldCardinality,
 };
 use destack_workspace::Module;
 use smallvec::smallvec;
@@ -15,6 +15,14 @@ use super::dependency::DependencySite;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Bind one AST range end spelling into DIR.
+    pub(super) fn bind_range_end(&self, end: ast::RangeEnd) -> RangeEnd {
+        match end {
+            ast::RangeEnd::Open => RangeEnd::Open,
+            ast::RangeEnd::Inclusive => RangeEnd::Inclusive,
+        }
+    }
+
     /// Bind if form into a DIR if form.
     #[inline]
     pub(super) fn bind_if_form(&self, form: ast::IfForm) -> IfForm {
@@ -1027,6 +1035,51 @@ impl Compiler {
                     left,
                     operator,
                     right,
+                }
+            }
+            ast::Expression::RangeExpression {
+                start,
+                end,
+                end_kind,
+            } => {
+                let start = start.map(|start| {
+                    self.bind_expression(
+                        module,
+                        ast,
+                        namespace_scope,
+                        global_scope,
+                        declared_modules,
+                        scope,
+                        start,
+                        Some(expression_id),
+                        tree,
+                        symbols,
+                        types,
+                        space,
+                    )
+                });
+                let end = end.map(|end| {
+                    self.bind_expression(
+                        module,
+                        ast,
+                        namespace_scope,
+                        global_scope,
+                        declared_modules,
+                        scope,
+                        end,
+                        Some(expression_id),
+                        tree,
+                        symbols,
+                        types,
+                        space,
+                    )
+                });
+                let end_kind = self.bind_range_end(*end_kind);
+
+                Expression::RangeExpression {
+                    start,
+                    end,
+                    end_kind,
                 }
             }
             ast::Expression::Assign {
