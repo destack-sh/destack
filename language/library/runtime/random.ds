@@ -1,0 +1,62 @@
+import { HostError } from "destack:error/host";
+import { ResourceId } from "./resource.ds";
+import { WorldHandle } from "./world.ds";
+
+/// Deterministic random stream handle.
+export newtype RandomHandle = ResourceId;
+
+/// Deterministic random stream seed.
+export struct RandomSeed {
+    /// Seed bytes.
+    bytes: [uint8];
+}
+
+/// Open one deterministic random stream.
+@binding("destack.runtime.random.open", {
+    effect: "deterministic",
+    requires: ["runtime.random.control"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function openRandom(
+    world: WorldHandle,
+    seed?: &readonly RandomSeed,
+): Result<RandomHandle, HostError>;
+
+/// Close one deterministic random stream.
+@binding("destack.runtime.random.close", {
+    effect: "deterministic",
+    requires: ["runtime.random.control"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function closeRandom(random: RandomHandle): Result<void, HostError>;
+
+/// Split one deterministic random stream.
+@binding("destack.runtime.random.split", {
+    effect: "deterministic",
+    requires: ["runtime.random.control"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function splitRandom(random: RandomHandle): Result<RandomHandle, HostError>;
+
+/// Fill one buffer from a deterministic random stream.
+@binding("destack.runtime.random.fill", {
+    effect: "deterministic",
+    requires: ["runtime.random.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function fillRandom(
+    random: RandomHandle,
+    buffer: &[uint8],
+): Result<void, HostError>;

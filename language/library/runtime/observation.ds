@@ -1,0 +1,97 @@
+import { PackedArray } from "destack:collections";
+import { HostError } from "destack:error/host";
+import { ResourceId } from "./resource.ds";
+import { TraceSequence } from "./lineage.ds";
+import { WorldHandle } from "./world.ds";
+
+/// Runtime observation handle.
+export newtype ObservationHandle = ResourceId;
+
+/// Observation event class.
+export enum ObservationEventKind {
+    /// Trace-adjacent event.
+    Trace = 1,
+    /// Entity graph change event.
+    Entity = 2,
+    /// Resource lifecycle event.
+    Resource = 3,
+    /// Scheduler or execution event.
+    Scheduler = 4,
+    /// Diagnostic or policy event.
+    Diagnostic = 5,
+    /// Profiler event.
+    Profile = 6,
+}
+
+/// Open options for one observation subscription.
+export struct ObservationOptions {
+    /// Include trace-adjacent events.
+    trace?: boolean;
+    /// Include entity graph change events.
+    entities?: boolean;
+    /// Include resource lifecycle events.
+    resources?: boolean;
+    /// Include scheduler events.
+    scheduler?: boolean;
+    /// Include diagnostics and policy events.
+    diagnostics?: boolean;
+    /// Include profiler events.
+    profiles?: boolean;
+}
+
+/// One observation record.
+export struct ObservationRecord {
+    /// Observation class.
+    kind: ObservationEventKind;
+    /// Optional associated trace sequence.
+    sequence?: TraceSequence;
+    /// Optional encoded payload.
+    payload?: [uint8];
+}
+
+/// Observation record page.
+export struct ObservationRecordPage {
+    /// Observation records in this page.
+    records: PackedArray<ObservationRecord>;
+    /// Whether more records are immediately available.
+    hasMore: boolean;
+}
+
+/// Open one runtime observation subscription.
+@binding("destack.runtime.observation.open", {
+    effect: "deterministic",
+    requires: ["runtime.trace.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function observationOpen(
+    world: WorldHandle,
+    options?: ObservationOptions,
+): Result<ObservationHandle, HostError>;
+
+/// Close one runtime observation subscription.
+@binding("destack.runtime.observation.close", {
+    effect: "deterministic",
+    requires: ["runtime.trace.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function observationClose(handle: ObservationHandle): Result<void, HostError>;
+
+/// Read the next batch of observation records.
+@binding("destack.runtime.observation.next", {
+    effect: "deterministic",
+    requires: ["runtime.trace.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function observationNext(
+    handle: ObservationHandle,
+    limit: uint32,
+): Result<ObservationRecordPage, HostError>;

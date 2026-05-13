@@ -1,3 +1,5 @@
+import { RuntimeAction } from "./action.ds";
+
 /// Actions that touch host-provided facilities.
 export type HostAction =
     | "host.audio.backend"
@@ -69,10 +71,6 @@ export type HostAction =
     | "host.device.usb.list"
     | "host.device.usb.open"
     | "host.device.usb.transfer"
-    | "host.ffi.call"
-    | "host.ffi.load"
-    | "host.ffi.pointer"
-    | "host.ffi.symbol"
     | "host.fs.link"
     | "host.fs.lock"
     | "host.fs.metadata"
@@ -174,12 +172,9 @@ export type HostAction =
     | "host.process.wait"
     | "host.process.workdir.read"
     | "host.process.workdir.write"
-    | "host.random.secure"
-    | "host.time.monotonic.read"
+    | "host.random.bytes"
+    | "host.time.clock.read"
     | "host.time.timer"
-    | "host.time.timerfd"
-    | "host.time.wall.read"
-    | "host.time.wall.sleep"
     | "host.tls.certificate.read"
     | "host.tls.connection"
     | "host.tls.context"
@@ -202,3 +197,67 @@ export type HostAction =
     | "host.tty.status"
     | "host.tty.termios"
     | "host.tty.write";
+
+/// Host backend availability status.
+export enum HostBackendStatus {
+    /// The backend integration is available on the current host.
+    Available = 0,
+    /// The backend is not supported on the active target platform.
+    UnsupportedTarget = 1,
+    /// The backend was disabled in this runtime build.
+    DisabledByBuild = 2,
+    /// The backend exists for this target, but the host prerequisite is unavailable.
+    HostUnavailable = 3,
+}
+
+/// Actions for binding policy and sandboxing.
+export type Action = HostAction | RuntimeAction;
+
+/// Platform tags accepted by runtime bindings.
+export type PlatformTag =
+    | "windows"
+    | "macos"
+    | "linux"
+    | "freebsd"
+    | "openbsd"
+    | "netbsd"
+    | "dragonfly"
+    | "solaris"
+    | "illumos"
+    | "haiku"
+    | "fuchsia"
+    | "redox"
+    | "hermit"
+    | "ios"
+    | "android";
+
+/// Platform family selectors accepted by runtime bindings.
+export type PlatformFamilyTag = "windows" | "unix" | "wasm";
+
+/// Host tags accepted by runtime bindings.
+export type HostTag = "native" | "browser" | "wasi" | "emscripten" | "freestanding";
+
+/// Options for runtime bindings.
+export type BindingOptions = {
+    /// Effect kind for the binding.
+    effect: "pure" | "deterministic" | "external";
+    /// Actions required by this binding.
+    requires: Action[];
+    /// Platforms that support this binding.
+    platforms?: PlatformTag[];
+    /// Platform families that support this binding.
+    families?: PlatformFamilyTag[];
+    /// Hosts that support this binding.
+    hosts?: HostTag[];
+    /// Marks bindings implemented by runtime state instead of the host.
+    provider?: "runtime";
+    /// Replay override for external effects.
+    replay?: "forbidden";
+    /// Execution context required by this binding.
+    affinity?: "worker" | "main";
+    /// Whether this binding can execute against a simulated world.
+    simulation?: boolean;
+};
+
+/// Marks one declaration as a runtime binding.
+export newtype binding = (string, BindingOptions,);

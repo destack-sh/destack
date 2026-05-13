@@ -1,0 +1,112 @@
+import { PackedArray } from "destack:collections";
+import { HostError } from "destack:error/host";
+import { WorldViewHandle, WorkerId } from "./world.ds";
+
+/// Runtime frame identifier.
+export newtype FrameId = uint64;
+
+/// Runtime frame kind.
+export enum FrameKind {
+    /// VM frame.
+    Vm = 1,
+    /// Native frame.
+    Native = 2,
+    /// Host binding frame.
+    Host = 3,
+}
+
+/// Runtime frame.
+export struct Frame {
+    /// Frame identifier.
+    id: FrameId;
+    /// Frame kind.
+    kind: FrameKind;
+    /// Owning worker.
+    worker: WorkerId;
+    /// Optional parent frame.
+    parent?: FrameId;
+}
+
+/// Frame list page.
+export struct FramePage {
+    /// Frame records in this page.
+    frames: PackedArray<Frame>;
+    /// Next frame cursor when more records exist.
+    next?: FrameId;
+}
+
+/// Runtime frame slot identifier.
+export newtype FrameSlotId = uint32;
+
+/// Runtime frame slot.
+export struct FrameSlot {
+    /// Slot identifier.
+    id: FrameSlotId;
+    /// Slot name when source metadata names it.
+    name?: string;
+    /// Slot byte size.
+    sizeBytes: uint32;
+}
+
+/// Frame slot list page.
+export struct FrameSlotPage {
+    /// Frame slot records in this page.
+    slots: PackedArray<FrameSlot>;
+    /// Next slot cursor when more records exist.
+    next?: FrameSlotId;
+}
+
+/// Runtime frame slot value.
+export struct FrameValue {
+    /// Slot identifier.
+    slot: FrameSlotId;
+    /// Encoded value bytes.
+    bytes: [uint8];
+}
+
+/// List frames for one worker.
+@binding("destack.runtime.frame.list", {
+    effect: "deterministic",
+    requires: ["runtime.entity.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function listFrames(
+    view: WorldViewHandle,
+    worker: WorkerId,
+    limit: uint32,
+    after?: FrameId,
+): Result<FramePage, HostError>;
+
+/// List slots for one frame.
+@binding("destack.runtime.frame.slots", {
+    effect: "deterministic",
+    requires: ["runtime.entity.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function listFrameSlots(
+    view: WorldViewHandle,
+    frame: FrameId,
+    limit: uint32,
+    after?: FrameSlotId,
+): Result<FrameSlotPage, HostError>;
+
+/// Read values from one frame.
+@binding("destack.runtime.frame.values", {
+    effect: "deterministic",
+    requires: ["runtime.entity.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function readFrameValues(
+    view: WorldViewHandle,
+    frame: FrameId,
+    slots: &readonly [FrameSlotId],
+): Result<PackedArray<FrameValue>, HostError>;

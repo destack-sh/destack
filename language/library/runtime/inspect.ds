@@ -1,36 +1,86 @@
-import { PlatformError } from "destack:platform/error";
+import { HostError } from "destack:error/host";
 import {
-    WorkerDescriptor,
+    Edge,
+    EdgeFilter,
+    EdgeId,
+    EdgePage,
+    Entity,
+    EntityFilter,
+    EntityId,
+    EntityPage,
+    LabelSelector,
+} from "./entity.ds";
+import { Image } from "./lineage.ds";
+import { Resource, ResourceId, ResourceKind, ResourcePage } from "./resource.ds";
+import { Revision } from "./lineage.ds";
+import { Trace } from "./trace.ds";
+import {
+    RuntimeFilter,
+    Runtime,
+    RuntimeId,
+    RuntimePage,
+    Worker,
     WorkerFilter,
     WorkerId,
-    EngineDescriptor,
-    EventLoopDescriptor,
-    HeapDescriptor,
-    ImageDescriptor,
-    ResourceDescriptor,
-    ResourceFilter,
-    RuntimeFilter,
-    RevisionDescriptor,
-    RuntimeDescriptor,
-    RuntimeId,
-    TopologyEdge,
-    TopologyEdgeFilter,
-    TopologyEdgeId,
-    TopologyEntity,
-    TopologyEntityFilter,
-    TopologyEntityId,
-    TraceDescriptor,
-    WorldDescriptor,
+    WorkerPage,
+    World,
     WorldHandle,
-    ResourceId,
     WorldViewHandle,
     WorldViewOptions,
-} from "./types.ds";
+} from "./world.ds";
+
+/// Filter for runtime resources.
+export struct ResourceFilter {
+    /// Optional owning runtime selector.
+    runtime?: RuntimeId;
+    /// Optional owning worker selector.
+    worker?: WorkerId;
+    /// Optional resource kind selector.
+    kind?: ResourceKind;
+    /// Optional label selector clauses.
+    labels?: [LabelSelector];
+}
+
+/// Event loop state for one worker.
+export struct EventLoop {
+    /// Ready task count.
+    taskCount: uint32;
+    /// Pending microtask count.
+    microtaskCount: uint32;
+    /// Timer count.
+    timerCount: uint32;
+    /// Watch count.
+    watchCount: uint32;
+    /// Whether pending work exists.
+    hasPendingWork: boolean;
+}
+
+/// Engine view kind for one worker.
+export enum EngineViewKind {
+    /// VM isolate-backed execution.
+    Isolate = 1,
+    /// Native engine-backed execution.
+    Native = 2,
+}
+
+/// Engine state for one worker.
+export struct EngineView {
+    /// Engine implementation kind.
+    kind: EngineViewKind;
+    /// Call stack depth.
+    callStackDepth?: uint32;
+    /// Value stack length.
+    valueStackDepth?: uint32;
+    /// Local stack length.
+    localStackDepth?: uint32;
+    /// Image backing size in bytes.
+    imageBytes?: uint64;
+}
 
 /// Open one pinned world view.
 @binding("destack.runtime.inspect.worldViewOpen", {
     effect: "deterministic",
-    requires: ["runtime.inspect.read"],
+    requires: ["runtime.entity.read"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",
@@ -39,67 +89,67 @@ import {
 export declare function worldViewOpen(
     world: WorldHandle,
     options?: WorldViewOptions,
-): Result<WorldViewHandle, PlatformError>;
+): Result<WorldViewHandle, HostError>;
 
 /// Close one pinned world view.
 @binding("destack.runtime.inspect.worldViewClose", {
     effect: "deterministic",
-    requires: ["runtime.inspect.read"],
+    requires: ["runtime.entity.read"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",
     affinity: "worker",
 })
-export declare function worldViewClose(view: WorldViewHandle): Result<void, PlatformError>;
+export declare function worldViewClose(view: WorldViewHandle): Result<void, HostError>;
 
 /// Describe the world visible through one pinned world view.
 @binding("destack.runtime.inspect.worldView", {
     effect: "deterministic",
-    requires: ["runtime.inspect.read"],
+    requires: ["runtime.entity.read"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",
     affinity: "worker",
 })
-export declare function worldView(view: WorldViewHandle): Result<WorldDescriptor, PlatformError>;
+export declare function worldView(view: WorldViewHandle): Result<World, HostError>;
 
 /// Describe the pinned revision for one world view.
 @binding("destack.runtime.inspect.revisionView", {
     effect: "deterministic",
-    requires: ["runtime.inspect.read"],
+    requires: ["runtime.entity.read"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",
     affinity: "worker",
 })
-export declare function revisionView(view: WorldViewHandle): Result<RevisionDescriptor, PlatformError>;
+export declare function revisionView(view: WorldViewHandle): Result<Revision, HostError>;
 
 /// Describe the pinned image for one world view.
 @binding("destack.runtime.inspect.imageView", {
     effect: "deterministic",
-    requires: ["runtime.inspect.read"],
+    requires: ["runtime.entity.read"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",
     affinity: "worker",
 })
-export declare function imageView(view: WorldViewHandle): Result<ImageDescriptor, PlatformError>;
+export declare function imageView(view: WorldViewHandle): Result<Image, HostError>;
 
 /// Describe the pinned trace state for one world view.
 @binding("destack.runtime.inspect.traceView", {
     effect: "deterministic",
-    requires: ["runtime.inspect.read"],
+    requires: ["runtime.entity.read"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",
     affinity: "worker",
 })
-export declare function traceView(view: WorldViewHandle): Result<TraceDescriptor, PlatformError>;
+export declare function traceView(view: WorldViewHandle): Result<Trace, HostError>;
 
 /// List runtimes visible through one pinned world view.
 @binding("destack.runtime.inspect.runtimeList", {
     effect: "deterministic",
-    requires: ["runtime.inspect.read"],
+    requires: ["runtime.entity.read"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",
@@ -107,15 +157,15 @@ export declare function traceView(view: WorldViewHandle): Result<TraceDescriptor
 })
 export declare function runtimeList(
     view: WorldViewHandle,
+    limit: uint32,
     filter?: RuntimeFilter,
     after?: RuntimeId,
-    limit?: uint32,
-): Result<Array<RuntimeDescriptor>, PlatformError>;
+): Result<RuntimePage, HostError>;
 
 /// Describe one runtime visible through one pinned world view.
 @binding("destack.runtime.inspect.runtimeView", {
     effect: "deterministic",
-    requires: ["runtime.inspect.read"],
+    requires: ["runtime.entity.read"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",
@@ -124,12 +174,12 @@ export declare function runtimeList(
 export declare function runtimeView(
     view: WorldViewHandle,
     runtimeId: RuntimeId,
-): Result<RuntimeDescriptor, PlatformError>;
+): Result<Runtime, HostError>;
 
 /// List workers visible through one pinned world view.
 @binding("destack.runtime.inspect.workerList", {
     effect: "deterministic",
-    requires: ["runtime.inspect.read"],
+    requires: ["runtime.entity.read"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",
@@ -137,15 +187,15 @@ export declare function runtimeView(
 })
 export declare function workerList(
     view: WorldViewHandle,
+    limit: uint32,
     filter?: WorkerFilter,
     after?: WorkerId,
-    limit?: uint32,
-): Result<Array<WorkerDescriptor>, PlatformError>;
+): Result<WorkerPage, HostError>;
 
 /// Describe one worker visible through one pinned world view.
 @binding("destack.runtime.inspect.workerView", {
     effect: "deterministic",
-    requires: ["runtime.inspect.read"],
+    requires: ["runtime.entity.read"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",
@@ -154,12 +204,12 @@ export declare function workerList(
 export declare function workerView(
     view: WorldViewHandle,
     workerId: WorkerId,
-): Result<WorkerDescriptor, PlatformError>;
+): Result<Worker, HostError>;
 
 /// List logical world resources visible through one pinned world view.
 @binding("destack.runtime.inspect.resourceList", {
     effect: "deterministic",
-    requires: ["runtime.inspect.read"],
+    requires: ["runtime.entity.read"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",
@@ -167,15 +217,15 @@ export declare function workerView(
 })
 export declare function resourceList(
     view: WorldViewHandle,
+    limit: uint32,
     filter?: ResourceFilter,
     after?: ResourceId,
-    limit?: uint32,
-): Result<Array<ResourceDescriptor>, PlatformError>;
+): Result<ResourcePage, HostError>;
 
 /// Describe one logical world resource visible through one pinned world view.
 @binding("destack.runtime.inspect.resourceView", {
     effect: "deterministic",
-    requires: ["runtime.inspect.read"],
+    requires: ["runtime.entity.read"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",
@@ -184,12 +234,12 @@ export declare function resourceList(
 export declare function resourceView(
     view: WorldViewHandle,
     resourceId: ResourceId,
-): Result<ResourceDescriptor, PlatformError>;
+): Result<Resource, HostError>;
 
-/// List topology entities visible through one pinned world view.
+/// List entities visible through one pinned world view.
 @binding("destack.runtime.inspect.entityList", {
     effect: "deterministic",
-    requires: ["runtime.inspect.read"],
+    requires: ["runtime.entity.read"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",
@@ -197,15 +247,15 @@ export declare function resourceView(
 })
 export declare function entityList(
     view: WorldViewHandle,
-    filter?: TopologyEntityFilter,
-    after?: TopologyEntityId,
-    limit?: uint32,
-): Result<Array<TopologyEntity>, PlatformError>;
+    limit: uint32,
+    filter?: EntityFilter,
+    after?: EntityId,
+): Result<EntityPage, HostError>;
 
-/// Describe one topology entity visible through one pinned world view.
+/// Describe one entity visible through one pinned world view.
 @binding("destack.runtime.inspect.entityView", {
     effect: "deterministic",
-    requires: ["runtime.inspect.read"],
+    requires: ["runtime.entity.read"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",
@@ -213,13 +263,13 @@ export declare function entityList(
 })
 export declare function entityView(
     view: WorldViewHandle,
-    entityId: TopologyEntityId,
-): Result<TopologyEntity, PlatformError>;
+    entityId: EntityId,
+): Result<Entity, HostError>;
 
-/// List topology edges visible through one pinned world view.
+/// List edges visible through one pinned world view.
 @binding("destack.runtime.inspect.edgeList", {
     effect: "deterministic",
-    requires: ["runtime.inspect.read"],
+    requires: ["runtime.entity.read"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",
@@ -227,15 +277,15 @@ export declare function entityView(
 })
 export declare function edgeList(
     view: WorldViewHandle,
-    filter?: TopologyEdgeFilter,
-    after?: TopologyEdgeId,
-    limit?: uint32,
-): Result<Array<TopologyEdge>, PlatformError>;
+    limit: uint32,
+    filter?: EdgeFilter,
+    after?: EdgeId,
+): Result<EdgePage, HostError>;
 
-/// Describe one topology edge visible through one pinned world view.
+/// Describe one edge visible through one pinned world view.
 @binding("destack.runtime.inspect.edgeView", {
     effect: "deterministic",
-    requires: ["runtime.inspect.read"],
+    requires: ["runtime.entity.read"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",
@@ -243,13 +293,13 @@ export declare function edgeList(
 })
 export declare function edgeView(
     view: WorldViewHandle,
-    edgeId: TopologyEdgeId,
-): Result<TopologyEdge, PlatformError>;
+    edgeId: EdgeId,
+): Result<Edge, HostError>;
 
 /// Describe the event loop for one worker visible through one pinned world view.
 @binding("destack.runtime.inspect.eventLoopView", {
     effect: "deterministic",
-    requires: ["runtime.inspect.read"],
+    requires: ["runtime.entity.read"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",
@@ -258,26 +308,12 @@ export declare function edgeView(
 export declare function eventLoopView(
     view: WorldViewHandle,
     workerId: WorkerId,
-): Result<EventLoopDescriptor, PlatformError>;
-
-/// Describe the heap for one worker visible through one pinned world view.
-@binding("destack.runtime.inspect.heapView", {
-    effect: "deterministic",
-    requires: ["runtime.inspect.read"],
-    families: ["windows", "unix"],
-    hosts: ["wasi"],
-    provider: "runtime",
-    affinity: "worker",
-})
-export declare function heapView(
-    view: WorldViewHandle,
-    workerId: WorkerId,
-): Result<HeapDescriptor, PlatformError>;
+): Result<EventLoop, HostError>;
 
 /// Describe the execution engine for one worker visible through one pinned world view.
 @binding("destack.runtime.inspect.engineView", {
     effect: "deterministic",
-    requires: ["runtime.inspect.read"],
+    requires: ["runtime.entity.read"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",
@@ -286,4 +322,4 @@ export declare function heapView(
 export declare function engineView(
     view: WorldViewHandle,
     workerId: WorkerId,
-): Result<EngineDescriptor, PlatformError>;
+): Result<EngineView, HostError>;

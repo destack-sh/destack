@@ -1,0 +1,93 @@
+import { PackedArray } from "destack:collections";
+import { HostError } from "destack:error/host";
+import { Action } from "./binding.ds";
+import { EntitySelector, Label } from "./entity.ds";
+import { WorldHandle } from "./world.ds";
+
+/// Runtime policy rule cursor.
+export newtype PolicyRuleCursor = uint64;
+
+/// Runtime policy decision.
+export enum PolicyDecision {
+    /// Allow matching operations.
+    Allow = 1,
+    /// Deny matching operations.
+    Deny = 2,
+    /// Allow matching operations and record them.
+    Audit = 3,
+}
+
+/// Runtime policy rule.
+export struct PolicyRule {
+    /// Subject entity selector.
+    subject: EntitySelector;
+    /// Runtime or host action.
+    action: Action;
+    /// Target entity selector.
+    target: EntitySelector;
+    /// Rule decision.
+    decision: PolicyDecision;
+    /// Rule labels.
+    labels?: [Label];
+}
+
+/// Runtime policy rule page.
+export struct PolicyRulePage {
+    /// Policy rules in this page.
+    rules: PackedArray<PolicyRule>;
+    /// Next rule cursor when more records exist.
+    next?: PolicyRuleCursor;
+}
+
+/// Runtime policy query.
+export struct PolicyQuery {
+    /// Subject entity selector.
+    subject: EntitySelector;
+    /// Runtime or host action.
+    action: Action;
+    /// Target entity selector.
+    target: EntitySelector;
+}
+
+/// Read one world's policy rules.
+@binding("destack.runtime.policy.read", {
+    effect: "deterministic",
+    requires: ["runtime.policy.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function readPolicy(
+    world: WorldHandle,
+    limit: uint32,
+    after?: PolicyRuleCursor,
+): Result<PolicyRulePage, HostError>;
+
+/// Replace one world's policy rules.
+@binding("destack.runtime.policy.replace", {
+    effect: "deterministic",
+    requires: ["runtime.policy.write"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function replacePolicy(
+    world: WorldHandle,
+    rules: &readonly [PolicyRule],
+): Result<void, HostError>;
+
+/// Test one policy query against one world.
+@binding("destack.runtime.policy.test", {
+    effect: "deterministic",
+    requires: ["runtime.policy.test"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function testPolicy(
+    world: WorldHandle,
+    query: &readonly PolicyQuery,
+): Result<PolicyDecision, HostError>;

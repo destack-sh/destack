@@ -1,47 +1,159 @@
-import { PlatformError } from "destack:platform/error";
-import {
-    BranchDescriptor,
-    BranchFilter,
-    BranchId,
-    CheckpointFilter,
-    CheckpointDescriptor,
-    CheckpointId,
-    ImageFilter,
-    ImageDescriptor,
-    ImageId,
-    RevisionFilter,
-    RevisionDescriptor,
-    RevisionId,
-    RuntimeLabel,
-    WorldHandle,
-} from "./types.ds";
+import { PackedArray } from "destack:collections";
+import { HostError } from "destack:error/host";
+import { Label, LabelSelector } from "./entity.ds";
+import { WorldHandle } from "./world.ds";
+
+/// Branch identifier in one world lineage.
+export newtype BranchId = uint64;
+
+/// Revision identifier in one world lineage.
+export newtype RevisionId = uint64;
+
+/// Checkpoint identifier in one world lineage.
+export newtype CheckpointId = uint64;
+
+/// Materialized image identifier.
+export newtype ImageId = uint64;
+
+/// Monotonic trace sequence number.
+export newtype TraceSequence = uint64;
+
+/// Branch state.
+export struct Branch {
+    /// Branch identifier.
+    id: BranchId;
+    /// Head revision.
+    head: RevisionId;
+    /// Optional branch name.
+    name?: string;
+    /// Branch labels.
+    labels?: [Label];
+}
+
+/// Revision state.
+export struct Revision {
+    /// Revision identifier.
+    id: RevisionId;
+    /// Owning branch.
+    branch: BranchId;
+    /// Parent revision when present.
+    parent?: RevisionId;
+    /// Trace sequence captured by this revision.
+    sequence: TraceSequence;
+    /// Materialized image reference.
+    image: ImageId;
+}
+
+/// Checkpoint state.
+export struct Checkpoint {
+    /// Checkpoint identifier.
+    id: CheckpointId;
+    /// Revision anchored by this checkpoint.
+    revision: RevisionId;
+    /// Optional checkpoint name.
+    name?: string;
+    /// Checkpoint labels.
+    labels?: [Label];
+}
+
+/// Image state.
+export struct Image {
+    /// Image identifier.
+    id: ImageId;
+    /// Revision materialized by this image.
+    revision: RevisionId;
+    /// Optional shared backing size in bytes.
+    sharedBytes?: uint64;
+}
+
+/// Branch list page.
+export struct BranchPage {
+    /// Branch records in this page.
+    branches: PackedArray<Branch>;
+    /// Next branch cursor when more records exist.
+    next?: BranchId;
+}
+
+/// Revision list page.
+export struct RevisionPage {
+    /// Revision records in this page.
+    revisions: PackedArray<Revision>;
+    /// Next revision cursor when more records exist.
+    next?: RevisionId;
+}
+
+/// Checkpoint list page.
+export struct CheckpointPage {
+    /// Checkpoint records in this page.
+    checkpoints: PackedArray<Checkpoint>;
+    /// Next checkpoint cursor when more records exist.
+    next?: CheckpointId;
+}
+
+/// Image list page.
+export struct ImagePage {
+    /// Image records in this page.
+    images: PackedArray<Image>;
+    /// Next image cursor when more records exist.
+    next?: ImageId;
+}
+
+/// Filter for branch lists.
+export struct BranchFilter {
+    /// Optional exact branch name.
+    name?: string;
+    /// Optional label selector clauses.
+    labels?: [LabelSelector];
+}
+
+/// Filter for revision lists.
+export struct RevisionFilter {
+    /// Optional owning branch selector.
+    branch?: BranchId;
+}
+
+/// Filter for checkpoint lists.
+export struct CheckpointFilter {
+    /// Optional anchored revision selector.
+    revision?: RevisionId;
+    /// Optional exact checkpoint name.
+    name?: string;
+    /// Optional label selector clauses.
+    labels?: [LabelSelector];
+}
+
+/// Filter for image lists.
+export struct ImageFilter {
+    /// Optional owning revision selector.
+    revision?: RevisionId;
+}
 
 /// Return the active branch for one world.
 @binding("destack.runtime.lineage.worldBranch", {
     effect: "deterministic",
-    requires: ["runtime.lineage.read"],
+    requires: ["runtime.branch.read"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",
     affinity: "worker",
 })
-export declare function worldBranch(world: WorldHandle): Result<BranchId, PlatformError>;
+export declare function worldBranch(world: WorldHandle): Result<BranchId, HostError>;
 
 /// Return the active revision for one world.
 @binding("destack.runtime.lineage.worldRevision", {
     effect: "deterministic",
-    requires: ["runtime.lineage.read"],
+    requires: ["runtime.branch.read"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",
     affinity: "worker",
 })
-export declare function worldRevision(world: WorldHandle): Result<RevisionId, PlatformError>;
+export declare function worldRevision(world: WorldHandle): Result<RevisionId, HostError>;
 
 /// Describe one branch.
 @binding("destack.runtime.lineage.branchDescribe", {
     effect: "deterministic",
-    requires: ["runtime.lineage.read"],
+    requires: ["runtime.branch.read"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",
@@ -50,12 +162,12 @@ export declare function worldRevision(world: WorldHandle): Result<RevisionId, Pl
 export declare function branchDescribe(
     world: WorldHandle,
     branchId: BranchId,
-): Result<BranchDescriptor, PlatformError>;
+): Result<Branch, HostError>;
 
 /// List branches in one world lineage.
 @binding("destack.runtime.lineage.branchList", {
     effect: "deterministic",
-    requires: ["runtime.lineage.read"],
+    requires: ["runtime.branch.read"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",
@@ -63,15 +175,15 @@ export declare function branchDescribe(
 })
 export declare function branchList(
     world: WorldHandle,
+    limit: uint32,
     filter?: BranchFilter,
     after?: BranchId,
-    limit?: uint32,
-): Result<Array<BranchDescriptor>, PlatformError>;
+): Result<BranchPage, HostError>;
 
 /// Describe one revision.
 @binding("destack.runtime.lineage.revisionDescribe", {
     effect: "deterministic",
-    requires: ["runtime.lineage.read"],
+    requires: ["runtime.branch.read"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",
@@ -80,12 +192,12 @@ export declare function branchList(
 export declare function revisionDescribe(
     world: WorldHandle,
     revisionId: RevisionId,
-): Result<RevisionDescriptor, PlatformError>;
+): Result<Revision, HostError>;
 
 /// List revisions in one world lineage.
 @binding("destack.runtime.lineage.revisionList", {
     effect: "deterministic",
-    requires: ["runtime.lineage.read"],
+    requires: ["runtime.branch.read"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",
@@ -93,15 +205,15 @@ export declare function revisionDescribe(
 })
 export declare function revisionList(
     world: WorldHandle,
+    limit: uint32,
     filter?: RevisionFilter,
     after?: RevisionId,
-    limit?: uint32,
-): Result<Array<RevisionDescriptor>, PlatformError>;
+): Result<RevisionPage, HostError>;
 
 /// Create one checkpoint on the active branch.
 @binding("destack.runtime.lineage.checkpointCreate", {
     effect: "deterministic",
-    requires: ["runtime.lineage.control"],
+    requires: ["runtime.branch.control"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",
@@ -110,13 +222,13 @@ export declare function revisionList(
 export declare function checkpointCreate(
     world: WorldHandle,
     name?: string,
-    labels?: Array<RuntimeLabel>,
-): Result<CheckpointId, PlatformError>;
+    labels?: [Label],
+): Result<CheckpointId, HostError>;
 
 /// Describe one checkpoint.
 @binding("destack.runtime.lineage.checkpointDescribe", {
     effect: "deterministic",
-    requires: ["runtime.lineage.read"],
+    requires: ["runtime.branch.read"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",
@@ -125,12 +237,12 @@ export declare function checkpointCreate(
 export declare function checkpointDescribe(
     world: WorldHandle,
     checkpointId: CheckpointId,
-): Result<CheckpointDescriptor, PlatformError>;
+): Result<Checkpoint, HostError>;
 
 /// List checkpoints in one world lineage.
 @binding("destack.runtime.lineage.checkpointList", {
     effect: "deterministic",
-    requires: ["runtime.lineage.read"],
+    requires: ["runtime.branch.read"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",
@@ -138,15 +250,15 @@ export declare function checkpointDescribe(
 })
 export declare function checkpointList(
     world: WorldHandle,
+    limit: uint32,
     filter?: CheckpointFilter,
     after?: CheckpointId,
-    limit?: uint32,
-): Result<Array<CheckpointDescriptor>, PlatformError>;
+): Result<CheckpointPage, HostError>;
 
 /// Rewind one world to one revision.
 @binding("destack.runtime.lineage.worldRewindRevision", {
     effect: "deterministic",
-    requires: ["runtime.lineage.control"],
+    requires: ["runtime.branch.control"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",
@@ -155,12 +267,12 @@ export declare function checkpointList(
 export declare function worldRewindRevision(
     world: WorldHandle,
     revisionId: RevisionId,
-): Result<void, PlatformError>;
+): Result<void, HostError>;
 
 /// Rewind one world to one checkpoint.
 @binding("destack.runtime.lineage.worldRewindCheckpoint", {
     effect: "deterministic",
-    requires: ["runtime.lineage.control"],
+    requires: ["runtime.branch.control"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",
@@ -169,7 +281,7 @@ export declare function worldRewindRevision(
 export declare function worldRewindCheckpoint(
     world: WorldHandle,
     checkpointId: CheckpointId,
-): Result<void, PlatformError>;
+): Result<void, HostError>;
 
 /// Fork one child world from one revision.
 @binding("destack.runtime.lineage.worldFork", {
@@ -184,8 +296,8 @@ export declare function worldFork(
     world: WorldHandle,
     revisionId: RevisionId,
     name?: string,
-    labels?: Array<RuntimeLabel>,
-): Result<WorldHandle, PlatformError>;
+    labels?: [Label],
+): Result<WorldHandle, HostError>;
 
 /// Capture one image at the active revision.
 @binding("destack.runtime.lineage.imageCapture", {
@@ -196,7 +308,7 @@ export declare function worldFork(
     provider: "runtime",
     affinity: "worker",
 })
-export declare function imageCapture(world: WorldHandle): Result<ImageId, PlatformError>;
+export declare function imageCapture(world: WorldHandle): Result<ImageId, HostError>;
 
 /// Describe one image.
 @binding("destack.runtime.lineage.imageDescribe", {
@@ -210,7 +322,7 @@ export declare function imageCapture(world: WorldHandle): Result<ImageId, Platfo
 export declare function imageDescribe(
     world: WorldHandle,
     imageId: ImageId,
-): Result<ImageDescriptor, PlatformError>;
+): Result<Image, HostError>;
 
 /// List images in one world lineage.
 @binding("destack.runtime.lineage.imageList", {
@@ -223,7 +335,7 @@ export declare function imageDescribe(
 })
 export declare function imageList(
     world: WorldHandle,
+    limit: uint32,
     filter?: ImageFilter,
     after?: ImageId,
-    limit?: uint32,
-): Result<Array<ImageDescriptor>, PlatformError>;
+): Result<ImagePage, HostError>;

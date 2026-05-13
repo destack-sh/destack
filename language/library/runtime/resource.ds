@@ -1,0 +1,74 @@
+import { PackedArray } from "destack:collections";
+import { HostError } from "destack:error/host";
+import { EntityId } from "./entity.ds";
+
+/// Runtime-owned resource identifier.
+export struct ResourceId {
+    /// Owning worker identifier.
+    workerId: uint64;
+    /// Worker-local resource identifier.
+    localId: uint64;
+}
+
+/// Runtime resource kind.
+export newtype ResourceKind = string;
+
+/// Runtime resource lifecycle state.
+export enum ResourceState {
+    /// The resource is open.
+    Open = 1,
+    /// The resource is closing.
+    Closing = 2,
+    /// The resource is closed.
+    Closed = 3,
+}
+
+/// Runtime resource.
+export struct Resource {
+    /// Resource identifier.
+    id: ResourceId;
+    /// Entity represented by this resource.
+    entity: EntityId;
+    /// Resource kind.
+    kind: ResourceKind;
+    /// Resource state.
+    state: ResourceState;
+}
+
+/// Resource list page.
+export struct ResourcePage {
+    /// Resource records in this page.
+    resources: PackedArray<Resource>;
+    /// Next resource cursor when more records exist.
+    next?: ResourceId;
+}
+
+/// Read one resource kind.
+@binding("destack.runtime.resource.kind", {
+    effect: "deterministic",
+    requires: ["runtime.resource.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+})
+export declare function readResourceKind(resource: ResourceId): Result<ResourceKind, HostError>;
+
+/// Read one resource state.
+@binding("destack.runtime.resource.state", {
+    effect: "deterministic",
+    requires: ["runtime.resource.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+})
+export declare function readResourceState(resource: ResourceId): Result<ResourceState, HostError>;
+
+/// Close one runtime resource.
+@binding("destack.runtime.resource.close", {
+    effect: "external",
+    requires: ["runtime.resource.close"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+})
+export declare function closeResource(resource: ResourceId): Result<void, HostError>;
