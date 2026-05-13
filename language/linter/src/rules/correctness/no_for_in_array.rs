@@ -1,7 +1,7 @@
-use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol, walk_expression};
+use destack_dir::{self as dir, LanguageItem, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
-use crate::LintRequirement::RequireWellKnownSymbol;
+use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::is_array_like_iteration_type;
 use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
@@ -15,7 +15,7 @@ declare_lint! {
         code = "LC017",
         category = Correctness,
         level = Dir,
-        requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Array)],
+        requires_all = [RequireLanguageItem(LanguageItem::Array)],
         requires_any = [],
         fixable = No,
         recommended = Always,
@@ -45,7 +45,7 @@ struct ForInArrayVisitor<'a, 'b> {
     ctx: &'a mut LintModuleDirContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
-    /// The well known Array symbol for this module.
+    /// The language item Array symbol for this module.
     array_symbol: dir::GlobalSymbolId,
     /// The visitor options.
     options: NodeVisitorOptions,
@@ -54,7 +54,7 @@ struct ForInArrayVisitor<'a, 'b> {
 impl<'a, 'b> ForInArrayVisitor<'a, 'b> {
     /// Build a visitor for for-in array checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        let array_symbol = ctx.well_known_symbol(WellKnownSymbol::Array);
+        let array_symbol = ctx.language_item(LanguageItem::Array);
         Self {
             ctx,
             meta,

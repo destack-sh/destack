@@ -1,8 +1,8 @@
 use destack_core::StringId;
-use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol, walk_expression};
+use destack_dir::{self as dir, LanguageItem, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
-use crate::LintRequirement::RequireWellKnownSymbol;
+use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::{
     const_i64, expression_regex_literal, expression_unwrap_parenthesized, flip_binary_operator,
     is_array_type, is_string_type, single_quoted_string_literal, strip_dot_member_suffix,
@@ -20,8 +20,8 @@ declare_lint! {
         category = Performance,
         level = Dir,
         requires_all = [
-            RequireWellKnownSymbol(WellKnownSymbol::Array),
-            RequireWellKnownSymbol(WellKnownSymbol::String),
+            RequireLanguageItem(LanguageItem::Array),
+            RequireLanguageItem(LanguageItem::String),
         ],
         requires_any = [],
         fixable = Sometimes,
@@ -92,9 +92,9 @@ struct PreferIncludesVisitor<'a, 'b> {
     ctx: &'a mut LintModuleDirContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
-    /// The well known Array symbol for this module.
+    /// The language item Array symbol for this module.
     array_symbol: dir::GlobalSymbolId,
-    /// The well known String symbol for this module.
+    /// The language item String symbol for this module.
     string_symbol: dir::GlobalSymbolId,
     /// The string id for the indexOf method name.
     index_of_name: StringId,
@@ -111,8 +111,8 @@ struct PreferIncludesVisitor<'a, 'b> {
 impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
     /// Build a visitor for prefer-includes checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        let array_symbol = ctx.well_known_symbol(WellKnownSymbol::Array);
-        let string_symbol = ctx.well_known_symbol(WellKnownSymbol::String);
+        let array_symbol = ctx.language_item(LanguageItem::Array);
+        let string_symbol = ctx.language_item(LanguageItem::String);
         let index_of_name = ctx.string_id("indexOf");
         let last_index_of_name = ctx.string_id("lastIndexOf");
         let includes_name = ctx.string_id("includes");

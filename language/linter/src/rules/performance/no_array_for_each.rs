@@ -1,8 +1,8 @@
 use destack_core::StringId;
-use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol, walk_expression};
+use destack_dir::{self as dir, LanguageItem, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
-use crate::LintRequirement::RequireWellKnownSymbol;
+use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::{
     collect_local_symbol_direct_reference_expression_ids, expression_method_call, is_array_type,
     is_simple_identifier, statement_expression_ancestor, strip_dot_member_suffix,
@@ -20,7 +20,7 @@ declare_lint! {
         code = "LP002",
         category = Performance,
         level = Dir,
-        requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Array)],
+        requires_all = [RequireLanguageItem(LanguageItem::Array)],
         requires_any = [],
         fixable = Sometimes,
         recommended = Strict,
@@ -48,7 +48,7 @@ struct NoArrayForEachVisitor<'a, 'b> {
     ctx: &'a mut LintModuleDirContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
-    /// The well known Array symbol for this module.
+    /// The language item Array symbol for this module.
     array_symbol: dir::GlobalSymbolId,
     /// The string id for the forEach method name.
     for_each_name: StringId,
@@ -59,7 +59,7 @@ struct NoArrayForEachVisitor<'a, 'b> {
 impl<'a, 'b> NoArrayForEachVisitor<'a, 'b> {
     /// Build a visitor for no-array-for-each checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        let array_symbol = ctx.well_known_symbol(WellKnownSymbol::Array);
+        let array_symbol = ctx.language_item(LanguageItem::Array);
         let for_each_name = ctx.string_id("forEach");
 
         Self {

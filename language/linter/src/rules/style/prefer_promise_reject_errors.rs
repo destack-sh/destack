@@ -1,7 +1,7 @@
-use destack_dir::{self as dir, LanguageItem, WellKnownSymbol};
+use destack_dir::{self as dir, LanguageItem};
 use destack_workspace::LintSeverity;
 
-use crate::LintRequirement::RequireWellKnownSymbol;
+use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::{
     collect_local_symbol_direct_reference_expression_ids, expression_method_call,
     expression_target_symbol, expression_type_map, is_definitely_non_error_value_type,
@@ -19,7 +19,7 @@ declare_lint! {
         code = "LY076",
         category = Style,
         level = Dir,
-        requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Promise)],
+        requires_all = [RequireLanguageItem(LanguageItem::Promise)],
         requires_any = [],
         fixable = No,
         recommended = Strict,
@@ -55,7 +55,7 @@ struct PromiseRejectVisitor<'a, 'b> {
     ok_name: destack_core::StringId,
     /// The interned `err` name.
     err_name: destack_core::StringId,
-    /// The well known Promise symbol.
+    /// The language item Promise symbol.
     promise_symbol: dir::GlobalSymbolId,
     /// The built in Error symbol when available.
     error_symbol: Option<dir::GlobalSymbolId>,
@@ -70,7 +70,7 @@ impl<'a, 'b> PromiseRejectVisitor<'a, 'b> {
             reject_name: ctx.string_id("reject"),
             ok_name: ctx.string_id("ok"),
             err_name: ctx.string_id("err"),
-            promise_symbol: ctx.well_known_symbol(WellKnownSymbol::Promise),
+            promise_symbol: ctx.language_item(LanguageItem::Promise),
             error_symbol: ctx.get_language_item(LanguageItem::Error),
             result_symbol: ctx.get_language_item(LanguageItem::Result),
             ctx,

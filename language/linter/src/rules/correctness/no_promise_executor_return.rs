@@ -1,7 +1,7 @@
-use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol, walk_expression};
+use destack_dir::{self as dir, LanguageItem, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
-use crate::LintRequirement::RequireWellKnownSymbol;
+use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::{
     callable_return_usage, expression_target_symbol, expression_unwrap_transparent,
 };
@@ -16,7 +16,7 @@ declare_lint! {
         code = "LC024",
         category = Correctness,
         level = Dir,
-        requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Promise)],
+        requires_all = [RequireLanguageItem(LanguageItem::Promise)],
         requires_any = [],
         fixable = Sometimes,
         recommended = Always,
@@ -46,7 +46,7 @@ struct PromiseExecutorReturnVisitor<'a, 'b> {
     ctx: &'a mut LintModuleDirContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
-    /// The well known Promise symbol for this module.
+    /// The language item Promise symbol for this module.
     promise_symbol: dir::GlobalSymbolId,
     /// Allow explicit `void` returns from Promise executors.
     allow_void: bool,
@@ -57,7 +57,7 @@ struct PromiseExecutorReturnVisitor<'a, 'b> {
 impl<'a, 'b> PromiseExecutorReturnVisitor<'a, 'b> {
     /// Build a visitor for Promise executor return checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        let promise_symbol = ctx.well_known_symbol(WellKnownSymbol::Promise);
+        let promise_symbol = ctx.language_item(LanguageItem::Promise);
         let allow_void = ctx
             .options
             .correctness

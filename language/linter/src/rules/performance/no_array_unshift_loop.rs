@@ -1,8 +1,8 @@
 use destack_core::StringId;
-use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol, walk_expression};
+use destack_dir::{self as dir, LanguageItem, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
-use crate::LintRequirement::RequireWellKnownSymbol;
+use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::{
     expression_enters_nested_declaration_scope, expression_method_call, is_array_type,
 };
@@ -18,7 +18,7 @@ declare_lint! {
         code = "LP003",
         category = Performance,
         level = Dir,
-        requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Array)],
+        requires_all = [RequireLanguageItem(LanguageItem::Array)],
         requires_any = [],
         fixable = No,
         recommended = Strict,
@@ -46,7 +46,7 @@ struct NoArrayUnshiftLoopVisitor<'a, 'b> {
     ctx: &'a mut LintModuleDirContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
-    /// The well known Array symbol for this module.
+    /// The language item Array symbol for this module.
     array_symbol: dir::GlobalSymbolId,
     /// The string id for the unshift method name.
     unshift_name: StringId,
@@ -59,7 +59,7 @@ struct NoArrayUnshiftLoopVisitor<'a, 'b> {
 impl<'a, 'b> NoArrayUnshiftLoopVisitor<'a, 'b> {
     /// Build a visitor for no-array-unshift-loop checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        let array_symbol = ctx.well_known_symbol(WellKnownSymbol::Array);
+        let array_symbol = ctx.language_item(LanguageItem::Array);
         let unshift_name = ctx.string_id("unshift");
 
         Self {

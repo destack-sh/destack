@@ -1,11 +1,11 @@
 use std::collections::HashSet;
 
 use destack_ast as ast;
-use destack_dir::{self as dir, WellKnownSymbol};
+use destack_dir::{self as dir, LanguageItem};
 use destack_workspace::{ArrayTypeStyle, LintSeverity};
 
-use crate::LintRequirement::RequireWellKnownSymbol;
-use crate::rules::common::{expression_type_map, is_array_type, well_known_symbol_candidates};
+use crate::LintRequirement::RequireLanguageItem;
+use crate::rules::common::{expression_type_map, is_array_type};
 use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
@@ -19,7 +19,7 @@ declare_lint! {
         code = "LY070",
         category = Style,
         level = Dir,
-        requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Array)],
+        requires_all = [RequireLanguageItem(LanguageItem::Array)],
         requires_any = [],
         fixable = Always,
         recommended = Strict,
@@ -40,10 +40,9 @@ impl LintRule for ArrayType {
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
         let preferred_style = ctx.options.style.array_type;
-        let array_symbols = resolve_array_symbols(ctx);
-        if array_symbols.is_empty() {
+        let Some(array_symbol) = ctx.get_language_item(LanguageItem::Array) else {
             return;
-        }
+        };
         let mut reported_source_ids = HashSet::new();
 
         for expression_id in ctx.tree.iter_node_ids_of_type::<dir::Expression>() {
@@ -56,7 +55,7 @@ impl LintRule for ArrayType {
             let Some(form) = source_array_form(ctx.ast, source_expression_id) else {
                 continue;
             };
-            if !expression_is_array_semantic(ctx, expression_id, &array_symbols) {
+            if !expression_is_array_semantic(ctx, expression_id, array_symbol) {
                 continue;
             }
 
@@ -99,15 +98,6 @@ impl LintRule for ArrayType {
             ctx.report(diagnostic);
         }
     }
-}
-
-/// Resolve all concrete `Array` symbols from type and value spaces.
-fn resolve_array_symbols(ctx: &LintModuleDirContext<'_>) -> Vec<dir::GlobalSymbolId> {
-    let Some(well_known_symbols) = ctx.get_well_known_symbols() else {
-        return Vec::new();
-    };
-
-    well_known_symbol_candidates(&well_known_symbols, WellKnownSymbol::Array)
 }
 
 /// Array type source form.
@@ -202,7 +192,7 @@ fn form_matches_preference(form: ArrayTypeForm, preferred_style: ArrayTypeStyle)
 fn expression_is_array_semantic(
     ctx: &LintModuleDirContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
-    array_symbols: &[dir::GlobalSymbolId],
+    array_symbol: dir::GlobalSymbolId,
 ) -> bool {
     let expression = ctx.tree.get(expression_id);
     if let dir::Expression::Type { value } = expression
@@ -210,10 +200,7 @@ fn expression_is_array_semantic(
             .types
             .get_declared_or_inferred_type_id(value.into_global_any(ctx.module_id()))
     {
-        return array_symbols
-            .iter()
-            .copied()
-            .any(|array_symbol| is_array_type(ctx.types, type_id, Some(array_symbol)));
+        return is_array_type(ctx.types, type_id, Some(array_symbol));
     }
 
     expression_type_map(
@@ -223,12 +210,7 @@ fn expression_is_array_semantic(
         ctx.tree,
         ctx.types,
         expression_id,
-        |types, type_id| {
-            array_symbols
-                .iter()
-                .copied()
-                .any(|array_symbol| is_array_type(types, type_id, Some(array_symbol)))
-        },
+        |types, type_id| is_array_type(types, type_id, Some(array_symbol)),
     )
     .unwrap_or(false)
 }

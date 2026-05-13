@@ -186,8 +186,8 @@ enum TypeBooleanQuery<'a> {
     },
     /// Check map references with empty value type arguments.
     MapWithEmptyValue {
-        /// Candidate map symbols.
-        map_symbols: &'a [dir::GlobalSymbolId],
+        /// Map symbol for declared library references.
+        map_symbol: dir::GlobalSymbolId,
     },
     /// Check whether one type declares a `this` parameter.
     HasThisParameter,
@@ -412,8 +412,8 @@ fn evaluate_reference_boolean_type_query(
                 return true;
             }
         }
-        TypeBooleanQuery::MapWithEmptyValue { map_symbols } => {
-            if map_symbols.contains(&symbol)
+        TypeBooleanQuery::MapWithEmptyValue { map_symbol } => {
+            if symbol == map_symbol
                 && generic_arguments_contain_empty_map_value(types, generic_arguments)
             {
                 return true;
@@ -1186,18 +1186,6 @@ pub fn is_promise_type(
     evaluate_boolean_type_query(types, type_id, TypeBooleanQuery::Promise { promise_symbol })
 }
 
-/// Return true when one type resolves to Promise for any candidate symbol.
-pub fn is_promise_type_with_candidates(
-    types: &dir::TypeTable,
-    type_id: dir::LocalTypeId,
-    promise_symbols: &[dir::GlobalSymbolId],
-) -> bool {
-    promise_symbols
-        .iter()
-        .copied()
-        .any(|symbol| is_promise_type(types, type_id, Some(symbol)))
-}
-
 /// Return true when the type is Promise or any-like.
 pub fn is_promise_or_any_type(
     types: &dir::TypeTable,
@@ -1236,12 +1224,12 @@ pub fn supports_promise_spread_elements(
 pub fn contains_map_with_empty_value_type(
     types: &dir::TypeTable,
     type_id: dir::LocalTypeId,
-    map_symbols: &[dir::GlobalSymbolId],
+    map_symbol: dir::GlobalSymbolId,
 ) -> bool {
     evaluate_boolean_type_query(
         types,
         type_id,
-        TypeBooleanQuery::MapWithEmptyValue { map_symbols },
+        TypeBooleanQuery::MapWithEmptyValue { map_symbol },
     )
 }
 

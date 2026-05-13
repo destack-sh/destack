@@ -1,5 +1,5 @@
 use destack_ast::StringId;
-use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol, walk_expression};
+use destack_dir::{self as dir, LanguageItem, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
@@ -37,12 +37,12 @@ impl LintRule for NoBaseToString {
 
     /// Check module DIR nodes for base toString calls.
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
-        // resolve lint metadata and well known names
+        // resolve lint metadata and language item names
         let meta = self.meta();
         let to_string_name = ctx.string_id("toString");
         let to_locale_string_name = ctx.string_id("toLocaleString");
         let join_name = ctx.string_id("join");
-        let string_symbol = ctx.get_well_known_symbol(WellKnownSymbol::String);
+        let string_symbol = ctx.get_language_item(LanguageItem::String);
 
         // walk module expressions
         let mut visitor = BaseToStringVisitor::new(
@@ -69,7 +69,7 @@ struct BaseToStringVisitor<'a, 'b> {
     to_locale_string_name: StringId,
     /// The interned "join" name.
     join_name: StringId,
-    /// The optional well known String symbol.
+    /// The optional language item String symbol.
     string_symbol: Option<dir::GlobalSymbolId>,
     /// The visitor options.
     options: NodeVisitorOptions,

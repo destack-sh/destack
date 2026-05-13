@@ -1,5 +1,5 @@
 use destack_core::StringId;
-use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol, walk_expression};
+use destack_dir::{self as dir, LanguageItem, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLibSymbol;
@@ -52,7 +52,7 @@ struct NoImpliedEvalVisitor<'a, 'b> {
     ctx: &'a mut LintModuleDirContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
-    /// The String well known symbol when available.
+    /// The String language item symbol when available.
     string_symbol: Option<dir::GlobalSymbolId>,
     /// The Function member name.
     function_name: StringId,
@@ -69,7 +69,7 @@ struct NoImpliedEvalVisitor<'a, 'b> {
 impl<'a, 'b> NoImpliedEvalVisitor<'a, 'b> {
     /// Build a visitor for no-implied-eval checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        let string_symbol = ctx.get_well_known_symbol(WellKnownSymbol::String);
+        let string_symbol = ctx.get_language_item(LanguageItem::String);
         let function_name = ctx.string_id("Function");
         let set_timeout_name = ctx.string_id("setTimeout");
         let set_interval_name = ctx.string_id("setInterval");

@@ -1,7 +1,7 @@
-use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol, walk_expression};
+use destack_dir::{self as dir, LanguageItem, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
-use crate::LintRequirement::RequireWellKnownSymbol;
+use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::{
     ReferencePath, assign_pattern_reference_path, assign_pattern_target_expression,
     expression_enters_nested_declaration_scope, expression_reference_path,
@@ -19,7 +19,7 @@ declare_lint! {
         code = "LP010",
         category = Performance,
         level = Dir,
-        requires_all = [RequireWellKnownSymbol(WellKnownSymbol::String)],
+        requires_all = [RequireLanguageItem(LanguageItem::String)],
         requires_any = [],
         fixable = No,
         recommended = Strict,
@@ -49,7 +49,7 @@ struct NoStringConcatInLoopVisitor<'a, 'b> {
     ctx: &'a mut LintModuleDirContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
-    /// The well known String symbol for this module.
+    /// The language item String symbol for this module.
     string_symbol: dir::GlobalSymbolId,
     /// Whether the current traversal is inside a loop.
     is_in_loop: bool,
@@ -60,7 +60,7 @@ struct NoStringConcatInLoopVisitor<'a, 'b> {
 impl<'a, 'b> NoStringConcatInLoopVisitor<'a, 'b> {
     /// Build a visitor for string concatenation in loops.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        let string_symbol = ctx.well_known_symbol(WellKnownSymbol::String);
+        let string_symbol = ctx.language_item(LanguageItem::String);
         Self {
             ctx,
             meta,

@@ -1,5 +1,5 @@
 use destack_dir::{
-    self as dir, Asynchrony, Expression, NodeVisitor, NodeVisitorOptions, WellKnownSymbol,
+    self as dir, Asynchrony, Expression, LanguageItem, NodeVisitor, NodeVisitorOptions,
     walk_expression,
 };
 use destack_source::{ModuleId, Span};
@@ -10,7 +10,6 @@ use crate::rules::common::{
     collect_pattern_value_binding_symbols, expression_enters_nested_declaration_scope,
     expression_is_promise_like, expression_type_or_call_return_type_map,
     expression_unwrap_parenthesized, is_promise_type, remove_first_async_keyword,
-    well_known_symbol_candidates,
 };
 use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
@@ -42,9 +41,9 @@ impl LintRule for RequireAwait {
 
     /// Check module DIR nodes for async callables without await or Promise like returns.
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
-        // resolve metadata and Promise symbols once
+        // resolve metadata and Promise symbol once
         let meta = self.meta();
-        let promise_symbols = resolve_promise_symbols(ctx);
+        let promise_symbol = ctx.get_language_item(LanguageItem::Promise);
         let async_function_symbols = collect_async_function_symbols(ctx);
 
         // check function declarations
@@ -59,7 +58,7 @@ impl LintRule for RequireAwait {
                 declaration_id,
                 &declaration.signature,
                 declaration.body,
-                &promise_symbols,
+                promise_symbol,
                 &async_function_symbols,
             );
         }
@@ -79,7 +78,7 @@ impl LintRule for RequireAwait {
                 member_id,
                 signature,
                 *body,
-                &promise_symbols,
+                promise_symbol,
                 &async_function_symbols,
             );
         }
@@ -99,20 +98,11 @@ impl LintRule for RequireAwait {
                 property_id,
                 signature,
                 *body,
-                &promise_symbols,
+                promise_symbol,
                 &async_function_symbols,
             );
         }
     }
-}
-
-/// Resolve concrete Promise symbols when the module has typed well known symbols.
-fn resolve_promise_symbols(ctx: &LintModuleDirContext<'_>) -> Vec<dir::GlobalSymbolId> {
-    let Some(well_known_symbols) = ctx.get_well_known_symbols() else {
-        return Vec::new();
-    };
-
-    well_known_symbol_candidates(&well_known_symbols, WellKnownSymbol::Promise)
 }
 
 /// Collect async callable symbols for Promise call checks.
@@ -165,7 +155,7 @@ fn check_async_callable<T: dir::Node>(
     node_id: dir::LocalNodeId<T>,
     signature: &dir::FunctionSignature,
     body_id: Option<dir::LocalNodeId<dir::Expression>>,
-    promise_symbols: &[dir::GlobalSymbolId],
+    promise_symbol: Option<dir::GlobalSymbolId>,
     async_function_symbols: &HashSet<dir::GlobalSymbolId>,
 ) {
     // keep only async callables with bodies
@@ -190,7 +180,7 @@ fn check_async_callable<T: dir::Node>(
         ctx.types,
         body_id,
         signature.is_generator,
-        promise_symbols,
+        promise_symbol,
         async_function_symbols,
     );
     if analysis.has_await || analysis.has_thenable_return {
@@ -248,7 +238,7 @@ fn analyze_async_callable_body(
     types: &dir::TypeTable,
     body_id: dir::LocalNodeId<dir::Expression>,
     is_generator: bool,
-    promise_symbols: &[dir::GlobalSymbolId],
+    promise_symbol: Option<dir::GlobalSymbolId>,
     async_function_symbols: &HashSet<dir::GlobalSymbolId>,
 ) -> RequireAwaitBodyAnalysis {
     // run body traversal analysis
@@ -258,7 +248,7 @@ fn analyze_async_callable_body(
         module_id,
         types,
         is_generator,
-        promise_symbols,
+        promise_symbol,
         async_function_symbols,
     );
     visitor.run(tree, body_id);
@@ -271,7 +261,7 @@ fn analyze_async_callable_body(
             module_id,
             tree,
             types,
-            promise_symbols,
+            promise_symbol,
             async_function_symbols,
             body_id,
         )
@@ -310,8 +300,8 @@ struct RequireAwaitBodyVisitor<'a> {
     types: &'a dir::TypeTable,
     /// Whether this callable is a generator.
     is_generator: bool,
-    /// Known Promise symbols in this module profile.
-    promise_symbols: &'a [dir::GlobalSymbolId],
+    /// Known Promise symbol in this module profile.
+    promise_symbol: Option<dir::GlobalSymbolId>,
     /// Async callable symbols in this module.
     async_function_symbols: &'a HashSet<dir::GlobalSymbolId>,
     /// Whether an await signal has been seen.
@@ -332,7 +322,7 @@ impl<'a> RequireAwaitBodyVisitor<'a> {
         module_id: ModuleId,
         types: &'a dir::TypeTable,
         is_generator: bool,
-        promise_symbols: &'a [dir::GlobalSymbolId],
+        promise_symbol: Option<dir::GlobalSymbolId>,
         async_function_symbols: &'a HashSet<dir::GlobalSymbolId>,
     ) -> Self {
         Self {
@@ -342,7 +332,7 @@ impl<'a> RequireAwaitBodyVisitor<'a> {
             module_id,
             types,
             is_generator,
-            promise_symbols,
+            promise_symbol,
             async_function_symbols,
             has_await: false,
             has_thenable_return: false,
@@ -392,7 +382,7 @@ impl NodeVisitor for RequireAwaitBodyVisitor<'_> {
                     self.module_id,
                     tree,
                     self.types,
-                    self.promise_symbols,
+                    self.promise_symbol,
                     self.async_function_symbols,
                     *value_id,
                 )
@@ -409,7 +399,7 @@ impl NodeVisitor for RequireAwaitBodyVisitor<'_> {
                     self.module_id,
                     tree,
                     self.types,
-                    self.promise_symbols,
+                    self.promise_symbol,
                     self.async_function_symbols,
                     *value_id,
                 )
@@ -444,19 +434,19 @@ fn expression_is_thenable_return_value(
     module_id: ModuleId,
     tree: &dir::Tree,
     types: &dir::TypeTable,
-    promise_symbols: &[dir::GlobalSymbolId],
+    promise_symbol: Option<dir::GlobalSymbolId>,
     async_function_symbols: &HashSet<dir::GlobalSymbolId>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     // keep typed Promise like checks first
-    if promise_symbols.iter().any(|promise_symbol| {
-        expression_is_promise_like(module_id, tree, types, *promise_symbol, expression_id)
+    if promise_symbol.is_some_and(|promise_symbol| {
+        expression_is_promise_like(module_id, tree, types, promise_symbol, expression_id)
     }) {
         return true;
     }
 
     // keep symbol backed Promise checks for expression types
-    let has_symbol_backed_promise_type = promise_symbols.iter().any(|promise_symbol| {
+    let has_symbol_backed_promise_type = promise_symbol.is_some_and(|promise_symbol| {
         expression_type_or_call_return_type_map(
             artifacts,
             profile_id,
@@ -464,7 +454,7 @@ fn expression_is_thenable_return_value(
             tree,
             types,
             expression_id,
-            |types, type_id| is_promise_type(types, type_id, Some(*promise_symbol)),
+            |types, type_id| is_promise_type(types, type_id, Some(promise_symbol)),
         )
         .unwrap_or(false)
     });
@@ -489,7 +479,7 @@ fn expression_is_implicit_thenable_return(
     module_id: ModuleId,
     tree: &dir::Tree,
     types: &dir::TypeTable,
-    promise_symbols: &[dir::GlobalSymbolId],
+    promise_symbol: Option<dir::GlobalSymbolId>,
     async_function_symbols: &HashSet<dir::GlobalSymbolId>,
     body_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
@@ -504,7 +494,7 @@ fn expression_is_implicit_thenable_return(
         module_id,
         tree,
         types,
-        promise_symbols,
+        promise_symbol,
         async_function_symbols,
         body_id,
     )

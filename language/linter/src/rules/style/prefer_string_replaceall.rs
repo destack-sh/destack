@@ -1,12 +1,12 @@
 use std::collections::HashSet;
 
 use destack_core::StringId;
-use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol, walk_expression};
+use destack_dir::{self as dir, LanguageItem, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_source::Span;
 use destack_workspace::LintSeverity;
 use regex_syntax::hir::HirKind;
 
-use crate::LintRequirement::RequireWellKnownSymbol;
+use crate::LintRequirement::RequireLanguageItem;
 use crate::analysis::LintRegexParse;
 use crate::rules::common::{
     expression_is_symbol, expression_static_string_literal, expression_target_symbol,
@@ -24,7 +24,7 @@ declare_lint! {
         code = "LY054",
         category = Style,
         level = Dir,
-        requires_all = [RequireWellKnownSymbol(WellKnownSymbol::String)],
+        requires_all = [RequireLanguageItem(LanguageItem::String)],
         requires_any = [],
         fixable = Sometimes,
         recommended = Strict,
@@ -54,7 +54,7 @@ struct PreferStringReplaceAllVisitor<'a, 'b> {
     ctx: &'a mut LintModuleDirContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
-    /// The well known String symbol for this module.
+    /// The language item String symbol for this module.
     string_symbol: dir::GlobalSymbolId,
     /// The string id for the replace method name.
     replace_name: StringId,
@@ -69,7 +69,7 @@ struct PreferStringReplaceAllVisitor<'a, 'b> {
 impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
     /// Build a visitor for prefer-string-replaceall checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        let string_symbol = ctx.well_known_symbol(WellKnownSymbol::String);
+        let string_symbol = ctx.language_item(LanguageItem::String);
         let replace_name = ctx.string_id("replace");
         let replace_all_name = ctx.string_id("replaceAll");
         let regexp_name = ctx.string_id("RegExp");

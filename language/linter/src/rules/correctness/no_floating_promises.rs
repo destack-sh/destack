@@ -1,8 +1,8 @@
 use destack_ast::StringId;
-use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol, walk_expression};
+use destack_dir::{self as dir, LanguageItem, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
-use crate::LintRequirement::RequireWellKnownSymbol;
+use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::{
     expression_is_promise_like, expression_is_standalone_statement,
     expression_unwrap_parenthesized, is_function_type, supports_promise_spread_elements,
@@ -19,7 +19,7 @@ declare_lint! {
         code = "LC016",
         category = Correctness,
         level = Dir,
-        requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Promise)],
+        requires_all = [RequireLanguageItem(LanguageItem::Promise)],
         requires_any = [],
         fixable = Sometimes,
         recommended = Always,
@@ -66,10 +66,7 @@ struct FloatingPromiseVisitor<'a, 'b> {
 impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
     /// Build a visitor for floating Promise checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        let promise_symbol = ctx
-            .well_known_symbols()
-            .get_type_symbol(WellKnownSymbol::Promise)
-            .unwrap_or_else(|| ctx.well_known_symbol(WellKnownSymbol::Promise));
+        let promise_symbol = ctx.language_item(LanguageItem::Promise);
         let ignore_void = ctx.options.correctness.no_floating_promises_ignore_void;
         let then_name = ctx.string_id("then");
         let catch_name = ctx.string_id("catch");

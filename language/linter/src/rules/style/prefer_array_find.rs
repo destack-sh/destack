@@ -1,9 +1,9 @@
 use destack_core::StringId;
-use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol, walk_expression};
+use destack_dir::{self as dir, LanguageItem, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_source::Span;
 use destack_workspace::LintSeverity;
 
-use crate::LintRequirement::RequireWellKnownSymbol;
+use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::{
     const_i64, expression_method_call, is_array_type, member_receiver_text,
 };
@@ -19,7 +19,7 @@ declare_lint! {
         code = "LY030",
         category = Style,
         level = Dir,
-        requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Array)],
+        requires_all = [RequireLanguageItem(LanguageItem::Array)],
         requires_any = [],
         fixable = Sometimes,
         recommended = Strict,
@@ -79,7 +79,7 @@ struct PreferArrayFindVisitor<'a, 'b> {
 impl<'a, 'b> PreferArrayFindVisitor<'a, 'b> {
     /// Build a visitor for prefer-array-find checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        let array_symbol = ctx.well_known_symbol(WellKnownSymbol::Array);
+        let array_symbol = ctx.language_item(LanguageItem::Array);
         let filter_name = ctx.string_id("filter");
         let shift_name = ctx.string_id("shift");
         let at_name = ctx.string_id("at");

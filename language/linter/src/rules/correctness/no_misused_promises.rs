@@ -1,10 +1,10 @@
 use destack_dir::{
-    self as dir, MatchSelector, NodeVisitor, NodeVisitorOptions, WellKnownSymbol, walk_expression,
+    self as dir, LanguageItem, MatchSelector, NodeVisitor, NodeVisitorOptions, walk_expression,
     walk_match_case,
 };
 use destack_workspace::LintSeverity;
 
-use crate::LintRequirement::RequireWellKnownSymbol;
+use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::{
     expression_declared_or_inferred_type_id, expression_is_promise_like,
     function_parameter_types_at, function_return_type, is_any_type, is_async_function_type,
@@ -22,7 +22,7 @@ declare_lint! {
         code = "LC023",
         category = Correctness,
         level = Dir,
-        requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Promise)],
+        requires_all = [RequireLanguageItem(LanguageItem::Promise)],
         requires_any = [],
         fixable = No,
         recommended = Always,
@@ -67,10 +67,7 @@ struct MisusedPromiseVisitor<'a, 'b> {
 impl<'a, 'b> MisusedPromiseVisitor<'a, 'b> {
     /// Build a visitor for misused Promise checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        let promise_symbol = ctx
-            .well_known_symbols()
-            .get_type_symbol(WellKnownSymbol::Promise)
-            .unwrap_or_else(|| ctx.well_known_symbol(WellKnownSymbol::Promise));
+        let promise_symbol = ctx.language_item(LanguageItem::Promise);
         let check_conditionals = ctx
             .options
             .correctness

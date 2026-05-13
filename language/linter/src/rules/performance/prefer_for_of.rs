@@ -1,11 +1,11 @@
 use destack_core::StringId;
 use destack_dir::{
-    self as dir, GlobalSymbolId, LocalNodeId, Mutability, NodeVisitor, NodeVisitorOptions,
-    WellKnownSymbol, walk_expression,
+    self as dir, GlobalSymbolId, LanguageItem, LocalNodeId, Mutability, NodeVisitor,
+    NodeVisitorOptions, walk_expression,
 };
 use destack_workspace::LintSeverity;
 
-use crate::LintRequirement::RequireWellKnownSymbol;
+use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::{
     assign_pattern_contains_expression, assign_pattern_target_symbol,
     fresh_name_in_expression_scope, is_array_type, strip_dot_member_suffix,
@@ -22,7 +22,7 @@ declare_lint! {
         code = "LP014",
         category = Performance,
         level = Dir,
-        requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Array)],
+        requires_all = [RequireLanguageItem(LanguageItem::Array)],
         requires_any = [],
         fixable = Sometimes,
         recommended = Strict,
@@ -61,7 +61,7 @@ struct PreferForOfVisitor<'a, 'b> {
     ctx: &'a mut LintModuleDirContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
-    /// The well known Array symbol for this module.
+    /// The language item Array symbol for this module.
     array_symbol: dir::GlobalSymbolId,
     /// The string id for the length property.
     length_name: StringId,
@@ -72,7 +72,7 @@ struct PreferForOfVisitor<'a, 'b> {
 impl<'a, 'b> PreferForOfVisitor<'a, 'b> {
     /// Build a visitor for prefer-for-of checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        let array_symbol = ctx.well_known_symbol(WellKnownSymbol::Array);
+        let array_symbol = ctx.language_item(LanguageItem::Array);
         let length_name = ctx.string_id("length");
 
         Self {

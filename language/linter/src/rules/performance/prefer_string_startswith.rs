@@ -1,8 +1,8 @@
 use destack_core::StringId;
-use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol, walk_expression};
+use destack_dir::{self as dir, LanguageItem, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
-use crate::LintRequirement::RequireWellKnownSymbol;
+use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::{
     const_i64, expression_regex_literal, expression_unwrap_parenthesized, flip_binary_operator,
     is_string_type, regex_prefix_literal, single_quoted_string_literal, strip_dot_member_suffix,
@@ -19,7 +19,7 @@ declare_lint! {
         code = "LP017",
         category = Performance,
         level = Dir,
-        requires_all = [RequireWellKnownSymbol(WellKnownSymbol::String)],
+        requires_all = [RequireLanguageItem(LanguageItem::String)],
         requires_any = [],
         fixable = Sometimes,
         recommended = Strict,
@@ -49,7 +49,7 @@ struct PreferStringStartsWithVisitor<'a, 'b> {
     ctx: &'a mut LintModuleDirContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
-    /// The well known String symbol for this module.
+    /// The language item String symbol for this module.
     string_symbol: dir::GlobalSymbolId,
     /// The string id for the indexOf method name.
     index_of_name: StringId,
@@ -64,7 +64,7 @@ struct PreferStringStartsWithVisitor<'a, 'b> {
 impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
     /// Build a visitor for prefer-string-startswith checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        let string_symbol = ctx.well_known_symbol(WellKnownSymbol::String);
+        let string_symbol = ctx.language_item(LanguageItem::String);
         let index_of_name = ctx.string_id("indexOf");
         let starts_with_name = ctx.string_id("startsWith");
         let test_name = ctx.string_id("test");

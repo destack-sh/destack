@@ -1,8 +1,8 @@
 use destack_core::StringId;
-use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol, walk_expression};
+use destack_dir::{self as dir, LanguageItem, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
-use crate::LintRequirement::RequireWellKnownSymbol;
+use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::{
     const_i64, expression_regex_literal, expression_target_symbol, expression_unwrap_parenthesized,
     is_string_type, regex_suffix_literal, single_quoted_string_literal,
@@ -19,7 +19,7 @@ declare_lint! {
         code = "LP016",
         category = Performance,
         level = Dir,
-        requires_all = [RequireWellKnownSymbol(WellKnownSymbol::String)],
+        requires_all = [RequireLanguageItem(LanguageItem::String)],
         requires_any = [],
         fixable = Sometimes,
         recommended = Strict,
@@ -49,7 +49,7 @@ struct PreferStringEndsWithVisitor<'a, 'b> {
     ctx: &'a mut LintModuleDirContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
-    /// The well known String symbol for this module.
+    /// The language item String symbol for this module.
     string_symbol: dir::GlobalSymbolId,
     /// The string id for the slice method name.
     slice_name: StringId,
@@ -66,8 +66,8 @@ struct PreferStringEndsWithVisitor<'a, 'b> {
 impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
     /// Build a visitor for prefer-string-endswith checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        // resolve the well known String symbol for this module
-        let string_symbol = ctx.well_known_symbol(WellKnownSymbol::String);
+        // resolve the language item String symbol for this module
+        let string_symbol = ctx.language_item(LanguageItem::String);
 
         // intern commonly used names
         let slice_name = ctx.string_id("slice");

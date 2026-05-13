@@ -1,8 +1,8 @@
 use destack_core::StringId;
-use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol, walk_expression};
+use destack_dir::{self as dir, LanguageItem, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
-use crate::LintRequirement::RequireWellKnownSymbol;
+use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::{is_array_type, is_string_array_type};
 use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
@@ -17,7 +17,7 @@ declare_lint! {
         code = "LC040",
         category = Correctness,
         level = Dir,
-        requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Array)],
+        requires_all = [RequireLanguageItem(LanguageItem::Array)],
         requires_any = [],
         fixable = No,
         recommended = Always,
@@ -47,13 +47,13 @@ struct ArraySortVisitor<'a, 'b> {
     ctx: &'a mut LintModuleDirContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
-    /// The well known Array symbol for this module.
+    /// The language item Array symbol for this module.
     array_symbol: dir::GlobalSymbolId,
     /// The sort method name.
     sort_name: StringId,
     /// The toSorted method name.
     to_sorted_name: StringId,
-    /// The well known String symbol for this module.
+    /// The language item String symbol for this module.
     string_symbol: dir::GlobalSymbolId,
     /// The visitor options.
     options: NodeVisitorOptions,
@@ -62,10 +62,10 @@ struct ArraySortVisitor<'a, 'b> {
 impl<'a, 'b> ArraySortVisitor<'a, 'b> {
     /// Build a visitor for array sort checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        let array_symbol = ctx.well_known_symbol(WellKnownSymbol::Array);
+        let array_symbol = ctx.language_item(LanguageItem::Array);
         let sort_name = ctx.string_id("sort");
         let to_sorted_name = ctx.string_id("toSorted");
-        let string_symbol = ctx.well_known_symbol(WellKnownSymbol::String);
+        let string_symbol = ctx.language_item(LanguageItem::String);
 
         Self {
             ctx,

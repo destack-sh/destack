@@ -1,9 +1,9 @@
 use destack_core::StringId;
-use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol, walk_expression};
+use destack_dir::{self as dir, LanguageItem, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_source::Span;
 use destack_workspace::LintSeverity;
 
-use crate::LintRequirement::RequireWellKnownSymbol;
+use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::{const_i64, flip_binary_operator, is_array_type, member_receiver_text};
 use crate::{
     ConstValue, LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint,
@@ -19,7 +19,7 @@ declare_lint! {
         code = "LY032",
         category = Style,
         level = Dir,
-        requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Array)],
+        requires_all = [RequireLanguageItem(LanguageItem::Array)],
         requires_any = [],
         fixable = Sometimes,
         recommended = Strict,
@@ -103,7 +103,7 @@ struct PreferArraySomeVisitor<'a, 'b> {
 impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
     /// Build a visitor for prefer-array-some checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        let array_symbol = ctx.well_known_symbol(WellKnownSymbol::Array);
+        let array_symbol = ctx.language_item(LanguageItem::Array);
         let filter_name = ctx.string_id("filter");
         let find_index_name = ctx.string_id("findIndex");
         let find_last_index_name = ctx.string_id("findLastIndex");

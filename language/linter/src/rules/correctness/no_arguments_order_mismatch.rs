@@ -221,9 +221,7 @@ fn type_pair_has_string_mismatch(
     left_type_id: dir::LocalTypeId,
     right_type_id: dir::LocalTypeId,
 ) -> bool {
-    let string_symbol = ctx
-        .well_known_symbols()
-        .get_type_symbol(dir::WellKnownSymbol::String);
+    let string_symbol = ctx.get_language_item(dir::LanguageItem::String);
     let left_is_string = is_string_type(ctx.types, left_type_id, string_symbol);
     let right_is_string = is_string_type(ctx.types, right_type_id, string_symbol);
     left_is_string != right_is_string
