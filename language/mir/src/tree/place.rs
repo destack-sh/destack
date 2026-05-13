@@ -47,15 +47,18 @@ impl PlaceOrigin {
 /// One projection applied to a MIR place.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum PlaceProjection {
-    /// A fixed concrete field/element projection.
-    ///
-    /// Union alternatives must not be encoded as disjoint static projections.
-    Static {
+    /// A fixed concrete field projection.
+    Field {
         /// The zero-based field index.
         index: u32,
     },
-    /// A runtime dynamic projection.
-    Dynamic {
+    /// A fixed concrete element projection.
+    Element {
+        /// The zero-based element index.
+        index: u32,
+    },
+    /// A runtime element projection.
+    Index {
         /// The runtime index value.
         index: ValueReference,
     },
@@ -72,8 +75,8 @@ impl PlaceProjection {
     /// Replace value references inside this projection.
     fn replace_value(&mut self, from: Value, to: Value) {
         match self {
-            Self::Static { .. } => {}
-            Self::Dynamic { index } => index.replace_value(from, to),
+            Self::Field { .. } | Self::Element { .. } => {}
+            Self::Index { index } => index.replace_value(from, to),
             Self::Range { start, length } => {
                 start.replace_value(from, to);
                 length.replace_value(from, to);
@@ -84,8 +87,8 @@ impl PlaceProjection {
     /// Append value references used by this projection.
     fn append_value_references(&self, values: &mut SmallVec<[ValueReference; 4]>) {
         match self {
-            Self::Static { .. } => {}
-            Self::Dynamic { index } => values.push(*index),
+            Self::Field { .. } | Self::Element { .. } => {}
+            Self::Index { index } => values.push(*index),
             Self::Range { start, length } => {
                 values.push(*start);
                 values.push(*length);
@@ -152,14 +155,22 @@ impl Place {
         }
 
         for (left, right) in self.projections.iter().zip(&other.projections) {
+            // separate fields are disjoint
             if let (
-                PlaceProjection::Static { index: left },
-                PlaceProjection::Static { index: right },
+                PlaceProjection::Field { index: left },
+                PlaceProjection::Field { index: right },
             ) = (left, right)
             {
-                if left != right {
-                    return true;
-                }
+                return left != right;
+            }
+
+            // separate fixed elements are disjoint
+            if let (
+                PlaceProjection::Element { index: left },
+                PlaceProjection::Element { index: right },
+            ) = (left, right)
+            {
+                return left != right;
             }
         }
 
@@ -342,11 +353,10 @@ mod tests {
     use crate::{Local, LocalNodeId};
 
     #[test]
-    fn test_static_fields_are_disjoint() {
+    fn test_fields_are_disjoint() {
         let local = LocalNodeId::<Local>::new(0);
-        let left = Place::local(local.into()).with_projection(PlaceProjection::Static { index: 0 });
-        let right =
-            Place::local(local.into()).with_projection(PlaceProjection::Static { index: 1 });
+        let left = Place::local(local.into()).with_projection(PlaceProjection::Field { index: 0 });
+        let right = Place::local(local.into()).with_projection(PlaceProjection::Field { index: 1 });
 
         assert!(left.is_definitely_disjoint(&right));
         assert!(!left.may_overlap(&right));
@@ -358,20 +368,20 @@ mod tests {
         let root = Place::local(local.into());
         let field = root
             .clone()
-            .with_projection(PlaceProjection::Static { index: 0 });
+            .with_projection(PlaceProjection::Field { index: 0 });
 
         assert!(!root.is_definitely_disjoint(&field));
         assert!(root.may_overlap(&field));
     }
 
     #[test]
-    fn test_dynamic_projection_is_conservative() {
+    fn test_index_projection_is_conservative() {
         let local = LocalNodeId::<Local>::new(0);
-        let dynamic = Place::local(local.into()).with_projection(PlaceProjection::Dynamic {
+        let dynamic = Place::local(local.into()).with_projection(PlaceProjection::Index {
             index: Value::new(0).into(),
         });
         let fixed =
-            Place::local(local.into()).with_projection(PlaceProjection::Static { index: 0 });
+            Place::local(local.into()).with_projection(PlaceProjection::Element { index: 0 });
 
         assert!(!dynamic.is_definitely_disjoint(&fixed));
         assert!(dynamic.may_overlap(&fixed));

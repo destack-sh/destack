@@ -41,7 +41,7 @@ impl<'a> FunctionBuilder<'a> {
             destination,
             result_type,
             aggregate,
-            PlaceProjection::Static { index },
+            PlaceProjection::Field { index },
         );
         destination
     }
@@ -92,7 +92,7 @@ impl<'a> FunctionBuilder<'a> {
             destination,
             result_type,
             array,
-            PlaceProjection::Dynamic {
+            PlaceProjection::Index {
                 index: index.into(),
             },
         );

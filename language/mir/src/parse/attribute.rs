@@ -34,7 +34,11 @@ impl Parser {
         self.eat_token(TokenType::At)?;
 
         // name and arguments
-        let name_token = self.eat_token(TokenType::Identifier)?;
+        let name_token = if self.peek_token(TokenType::Ownership) {
+            self.eat_token(TokenType::Ownership)?
+        } else {
+            self.eat_token(TokenType::Identifier)?
+        };
         let name_text = self.tree.source_text(name_token.span).to_string();
         let name = AttributeIdentifier::Identifier(self.strings.intern(&name_text));
 

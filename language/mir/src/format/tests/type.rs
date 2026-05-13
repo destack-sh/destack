@@ -178,6 +178,70 @@ entry0(value0: ref<Point, managed>, value1: ref<Node, managed>):
     );
 }
 
+/// Formats copy markers canonically.
+#[test]
+fn test_format_type_copy_markers() {
+    assert_format(
+        r#"
+@moveOnly
+type OwnedPair {
+    ref<int32, unique>;
+    ref<int32, unique>;
+}
+
+@copy
+type CopyPair {
+    int32;
+    int32;
+}
+"#,
+    );
+}
+
+/// Formats synthetic move-only markers for built types.
+#[test]
+fn test_format_synthetic_move_only_marker() {
+    let mut tree = Tree::new();
+    let strings = StringPool::new();
+
+    let int32_type = tree.insert_type(Type::Int {
+        width: 32,
+        is_signed: true,
+    });
+    let alias_name = strings.intern("Pair");
+
+    let left = tree.insert(Field {
+        name: None,
+        ty: int32_type.into(),
+    });
+    let right = tree.insert(Field {
+        name: None,
+        ty: int32_type.into(),
+    });
+    let struct_type = tree.insert_type(Type::Struct {
+        fields: vec![left, right],
+        copy: Copy::No,
+    });
+    tree.insert(TypeAlias {
+        name: alias_name,
+        ty: struct_type.into(),
+    });
+
+    let output = format_tree_with_options(&tree, &strings, MirFormatOptions::default());
+
+    assert_output_eq(
+        r#"
+@moveOnly
+type Pair {
+    int32;
+    int32;
+}
+"#
+        .trim(),
+        output,
+    );
+}
+
 /// Formats attributed struct fields without parsed field spans.
 #[test]
 fn test_format_struct_fields_with_attributes_without_parsed_spans() {

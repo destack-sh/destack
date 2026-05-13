@@ -1259,22 +1259,32 @@ impl Parser {
 
     /// Parse one MIR place projection.
     fn parse_place_projection(&mut self) -> ParseResult<PlaceProjection> {
-        if self.eat_identifier_text("static") {
+        if self.eat_identifier_text("field") {
             self.eat_token(TokenType::OpenParen)?;
             let index = self.parse_int_literal()?;
             let index =
                 u32::try_from(index).map_err(|_| ParseError::invalid("place index", self.pos()))?;
             self.eat_token(TokenType::CloseParen)?;
 
-            return Ok(PlaceProjection::Static { index });
+            return Ok(PlaceProjection::Field { index });
         }
 
-        if self.eat_identifier_text("dynamic") {
+        if self.eat_identifier_text("element") {
+            self.eat_token(TokenType::OpenParen)?;
+            let index = self.parse_int_literal()?;
+            let index =
+                u32::try_from(index).map_err(|_| ParseError::invalid("place index", self.pos()))?;
+            self.eat_token(TokenType::CloseParen)?;
+
+            return Ok(PlaceProjection::Element { index });
+        }
+
+        if self.eat_identifier_text("index") {
             self.eat_token(TokenType::OpenParen)?;
             let index = self.parse_value()?;
             self.eat_token(TokenType::CloseParen)?;
 
-            return Ok(PlaceProjection::Dynamic { index });
+            return Ok(PlaceProjection::Index { index });
         }
 
         if self.eat_identifier_text("range") {

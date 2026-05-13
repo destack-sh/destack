@@ -509,19 +509,19 @@ impl Parser {
             return false;
         }
 
-        let mut saw_label_marker = false;
+        let mut saw_colon = false;
         let mut next_index = token_index + 1;
         while let Some(next_token) = tokens.get(next_index) {
             match next_token.ty {
                 TokenType::Newline | TokenType::End => break,
                 TokenType::Equals => return false,
-                TokenType::Colon | TokenType::OpenParen => saw_label_marker = true,
+                TokenType::Colon => saw_colon = true,
                 _ => {}
             }
 
             next_index += 1;
         }
 
-        saw_label_marker
+        saw_colon
     }
 }
