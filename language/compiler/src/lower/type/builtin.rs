@@ -1,10 +1,9 @@
 use destack_artifact::{ArtifactKey, DiagnosticAnchor, DirChecked, DirDeclared, GlobalEnvironment};
 use destack_core::StringPool;
-use destack_dir::{self as dir};
-use destack_mir as mir;
 use destack_source::ModuleId;
 use destack_workspace::{ProfileId, ProviderContext};
 use std::sync::Arc;
+use {destack_dir as dir, destack_mir as mir};
 
 use crate::{Compiler, CompilerError, CompilerResult, LowerError};
 
@@ -83,9 +82,7 @@ impl<'a, 'b> BuiltinTypeLayouts<'a, 'b> {
         }
 
         // resolve the builtin string symbol
-        let Some(string_symbol) =
-            self.resolve_well_known_symbol(dir::WellKnownSymbol::String, dir::SymbolSpace::Type)?
-        else {
+        let Some(string_symbol) = self.resolve_language_item(dir::LanguageItem::String)? else {
             return Ok(None);
         };
 
@@ -96,7 +93,7 @@ impl<'a, 'b> BuiltinTypeLayouts<'a, 'b> {
             return Ok(None);
         };
 
-        // name the well known string type metadata
+        // name the language string type metadata
         self.assign_metadata_name_for_symbol(ty_struct, string_symbol);
 
         // cache the managed reference type
@@ -106,18 +103,17 @@ impl<'a, 'b> BuiltinTypeLayouts<'a, 'b> {
         Ok(Some(ty_string))
     }
 
-    /// Resolve a well-known symbol for this profile.
-    pub(crate) fn resolve_well_known_symbol(
+    /// Resolve a language item for this profile.
+    pub(crate) fn resolve_language_item(
         &self,
-        symbol: dir::WellKnownSymbol,
-        order: dir::SymbolSpace,
+        symbol: dir::LanguageItem,
     ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
         let environment = self.global_environment()?;
-        let resolved = self.well_known_symbol(symbol, order)?;
+        let resolved = environment.language.item(symbol);
 
         // fall back to selected global symbols when not registered
         let Some(resolved) = resolved else {
-            return Ok(environment.symbol_from(symbol.export_name(), order));
+            return Ok(environment.language.symbol(symbol.export_name()));
         };
 
         Ok(Some(resolved))
@@ -128,21 +124,6 @@ impl<'a, 'b> BuiltinTypeLayouts<'a, 'b> {
         self.compiler
             .global_environment(self.context, self.profile)
             .map_err(CompilerError::from)
-    }
-
-    /// Resolve one well-known symbol from the global environment.
-    fn well_known_symbol(
-        &self,
-        symbol: dir::WellKnownSymbol,
-        space: dir::SymbolSpace,
-    ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
-        let environment = self.global_environment()?;
-        let pair = environment.well_known_symbols().get_pair(symbol);
-
-        Ok(pair.and_then(|pair| match space {
-            dir::SymbolSpace::Type => pair.ty.or(pair.value),
-            dir::SymbolSpace::Value | dir::SymbolSpace::Label => pair.value.or(pair.ty),
-        }))
     }
 
     /// Ensure the module has been checked for this profile.
@@ -203,8 +184,7 @@ impl<'a, 'b> BuiltinTypeLayouts<'a, 'b> {
         let mut field_inputs = Vec::new();
         let pointer_bytes = self.type_lowerer.pointer_bytes();
 
-        let vector_symbol =
-            self.well_known_symbol(dir::WellKnownSymbol::Vector, dir::SymbolSpace::Type)?;
+        let vector_symbol = self.resolve_language_item(dir::LanguageItem::Vector)?;
         let mut field_lowerer = TypeLowerer::new(
             self.builder,
             pointer_bytes,

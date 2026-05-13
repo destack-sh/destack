@@ -124,13 +124,26 @@ impl FunctionLowerer<'_> {
         let resolution_receiver = *resolution_receiver;
         let target_symbol = target.symbol;
 
+        // resolve intrinsic binding before mutable lowering
+        let intrinsic_name = self
+            .resolve_intrinsic_binding_name_id(target_symbol)?
+            .map(|name_id| self.context.strings.get(name_id).to_string());
+
         // lower intrinsic bindings directly
-        if let Some(result) = self.lower_intrinsic_binding_call(
-            expression_id,
-            target_symbol,
-            resolution_receiver,
-            arguments,
-        )? {
+        if let Some(intrinsic_name) = intrinsic_name {
+            let static_arguments = target
+                .signature
+                .as_ref()
+                .map(|signature| signature.generic_arguments.clone())
+                .unwrap_or_default();
+            let result = self.lower_intrinsic_binding_call(
+                expression_id,
+                &intrinsic_name,
+                resolution_receiver,
+                &static_arguments,
+                arguments,
+            )?;
+
             return Ok(result);
         }
 

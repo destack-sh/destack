@@ -47,9 +47,6 @@ impl ModuleLowerer<'_> {
         key: dir::SymbolKey,
     ) -> CodegenJsResult<js::LocalNodeId<js::Expression>> {
         let expression_id = match key {
-            dir::SymbolKey::WellKnown(symbol) => {
-                self.insert_path_expression(source_id, &["Symbol", symbol.member_name()])
-            }
             dir::SymbolKey::Registry(name) => {
                 let callee = self.insert_path_expression(source_id, &["Symbol", "for"]);
                 let value = self.insert_string_literal_expression(source_id, name);

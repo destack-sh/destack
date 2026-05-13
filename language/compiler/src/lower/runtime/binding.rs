@@ -240,7 +240,7 @@ impl ModuleLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<dir::GlobalSymbolId> {
         let symbol = self
-            .declared_global_symbol("takePlatformError", dir::SymbolSpace::Value)?
+            .declared_global_symbol("takePlatformError")?
             .ok_or_else(|| LowerError::UnsupportedConstruct {
                 anchor: self.diagnostic_anchor(
                     expression_id
@@ -257,7 +257,7 @@ impl ModuleLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<dir::GlobalSymbolId> {
         let symbol = self
-            .declared_global_symbol("PlatformError", dir::SymbolSpace::Value)?
+            .declared_global_symbol("PlatformError")?
             .ok_or_else(|| LowerError::UnsupportedConstruct {
                 anchor: self.diagnostic_anchor(
                     expression_id

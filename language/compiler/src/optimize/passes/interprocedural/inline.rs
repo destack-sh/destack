@@ -1397,6 +1397,7 @@ fn instruction_cost(instruction: &mir::Instruction, tree: &mir::Tree) -> u64 {
         | mir::Instruction::CallableBind { .. }
         | mir::Instruction::CallableEnvironment { .. }
         | mir::Instruction::LocalAddr { .. }
+        | mir::Instruction::Slice { .. }
         | mir::Instruction::Assume { .. } => INLINE_COST_SIMPLE,
         mir::Instruction::VectorSplat { .. }
         | mir::Instruction::VectorExtract { .. }

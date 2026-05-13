@@ -43,9 +43,6 @@ fn static_key_string(key: &dir::StaticKey, strings: &StringPool) -> String {
             strings.get(*name_id).to_string()
         }
         dir::StaticKey::Symbol(symbol_key) => match symbol_key {
-            dir::SymbolKey::WellKnown(well_known) => {
-                format!("@{}", well_known.global_symbol_name())
-            }
             dir::SymbolKey::Registry(name_id) => {
                 let name = strings.get(*name_id);
                 format!("@Symbol.for({name})")
@@ -1300,19 +1297,6 @@ mod tests {
 
         let result = static_key_to_field_name(&key, &mut builder);
         assert_eq!(result, num);
-    }
-
-    /// Well-known symbol keys get synthetic names with @ prefix.
-    #[test]
-    fn test_static_key_well_known_symbol() {
-        let mut builder = mir::ModuleBuilder::new();
-        let key = dir::StaticKey::Symbol(dir::SymbolKey::WellKnown(
-            dir::WellKnownSymbolKey::SymbolIterator,
-        ));
-
-        let result = static_key_to_field_name(&key, &mut builder);
-        let result_str = builder.strings().get(result);
-        assert_eq!(&*result_str, "@Symbol.iterator");
     }
 
     /// Registry symbol keys get synthetic names with @ prefix.

@@ -300,10 +300,9 @@ fn collect_written_globals(
                     continue;
                 }
 
-                // detect frees or drops through global pointers
+                // detect frees through global pointers
                 if let mir::Instruction::RawFree { pointer }
-                | mir::Instruction::Free { value: pointer }
-                | mir::Instruction::Drop { value: pointer } = instruction
+                | mir::Instruction::Free { value: pointer } = instruction
                     && let Some(global_id) = pointer.value().and_then(|pointer| {
                         global_addr_base(pointer, &definitions, addr_info, tree)
                     })

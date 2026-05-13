@@ -30,7 +30,7 @@ ${string_alias}
 global ${integer_overflow}: ref<String, managed, readonly>, readonly = "integer overflow"
 function sum(value0: int32, value1: int32): int32 {
 entry0(value0: int32, value1: int32):
-    value2: (int32, boolean) = intrinsic.add.overflow(value0, value1)
+    value2: (int32, boolean) = intrinsic.math.arithmetic.add.overflow(value0, value1)
     value3: int32 = field.get value2, 0
     value4: boolean = field.get value2, 1
     check int.add.overflow.s value0, value1 -> block2, block1
@@ -73,7 +73,7 @@ function sum(a: int32, b: int32): int32 {
         r#"
 function sum(value0: int32, value1: int32): int32 {
 entry0(value0: int32, value1: int32):
-    value2: (int32, boolean) = intrinsic.add.overflow(value0, value1)
+    value2: (int32, boolean) = intrinsic.math.arithmetic.add.overflow(value0, value1)
     value3: int32 = field.get value2, 0
     value4: boolean = field.get value2, 1
     check int.add.overflow.s value0, value1 -> block2, block1
@@ -115,7 +115,7 @@ ${string_alias}
 global ${integer_overflow}: ref<String, managed, readonly>, readonly = "integer overflow"
 function sum(value0: uint32, value1: uint32): uint32 {
 entry0(value0: uint32, value1: uint32):
-    value2: (uint32, boolean) = intrinsic.add.overflow(value0, value1)
+    value2: (uint32, boolean) = intrinsic.math.arithmetic.add.overflow(value0, value1)
     value3: uint32 = field.get value2, 0
     value4: boolean = field.get value2, 1
     check int.add.overflow.u value0, value1 -> block2, block1

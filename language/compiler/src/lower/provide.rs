@@ -131,7 +131,7 @@ impl Compiler {
             .require(ArtifactKey::dir_elaborated(module_id, profile))
             .map_err(CompilerError::from)?;
 
-        // lowering depends on the selected library surface for well known layouts
+        // lowering depends on the selected library surface for language item layouts
         context
             .require(ArtifactKey::global_environment(profile))
             .map_err(CompilerError::from)?;

@@ -1166,6 +1166,9 @@ impl<'a> FunctionLowerer<'a> {
                 value_map.insert(destination, slot_addr);
             }
 
+            // slice views require descriptor lowering
+            mir::Instruction::Slice { .. } => return unsupported("slice"),
+
             // vector ops: lower only after explicit lowering (#Incomplete)
             mir::Instruction::VectorSplat { .. } => return unsupported("vector.splat"),
             mir::Instruction::VectorExtract { .. } => return unsupported("vector.extract"),

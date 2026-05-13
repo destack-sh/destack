@@ -4,6 +4,9 @@ use {destack_dir as dir, destack_mir as mir};
 use crate::lower::FunctionLowerer;
 use crate::{CompilerError, CompilerResult};
 
+/// The static argument index of the vector shuffle mask.
+const VECTOR_SHUFFLE_MASK_ARGUMENT: usize = 3;
+
 /// The ordered atomic metadata arguments appended to intrinsic calls.
 const ATOMIC_METADATA_SLOTS: [AtomicMetadataSlot; 7] = [
     AtomicMetadataSlot::Ordering,
@@ -60,50 +63,50 @@ impl AtomicIntrinsicKind {
     /// Parse an atomic intrinsic binding name.
     fn parse(name: &str) -> Option<Self> {
         match name {
-            "atomic.load" => Some(Self::Load),
-            "atomic.store" => Some(Self::Store),
-            "atomic.cas" => Some(Self::CompareExchange { is_weak: false }),
-            "atomic.cas.weak" => Some(Self::CompareExchange { is_weak: true }),
-            "atomic.xchg" => Some(Self::Rmw {
+            "sync.atomic.load" => Some(Self::Load),
+            "sync.atomic.store" => Some(Self::Store),
+            "sync.atomic.cas" => Some(Self::CompareExchange { is_weak: false }),
+            "sync.atomic.cas.weak" => Some(Self::CompareExchange { is_weak: true }),
+            "sync.atomic.xchg" => Some(Self::Rmw {
                 operator: mir::AtomicRmwOperator::Exchange,
             }),
-            "atomic.fetch.add" => Some(Self::Rmw {
+            "sync.atomic.fetch.add" => Some(Self::Rmw {
                 operator: mir::AtomicRmwOperator::Add,
             }),
-            "atomic.fetch.sub" => Some(Self::Rmw {
+            "sync.atomic.fetch.sub" => Some(Self::Rmw {
                 operator: mir::AtomicRmwOperator::Sub,
             }),
-            "atomic.fetch.and" => Some(Self::Rmw {
+            "sync.atomic.fetch.and" => Some(Self::Rmw {
                 operator: mir::AtomicRmwOperator::And,
             }),
-            "atomic.fetch.or" => Some(Self::Rmw {
+            "sync.atomic.fetch.or" => Some(Self::Rmw {
                 operator: mir::AtomicRmwOperator::Or,
             }),
-            "atomic.fetch.xor" => Some(Self::Rmw {
+            "sync.atomic.fetch.xor" => Some(Self::Rmw {
                 operator: mir::AtomicRmwOperator::Xor,
             }),
-            "atomic.fetch.min" => Some(Self::Rmw {
+            "sync.atomic.fetch.min" => Some(Self::Rmw {
                 operator: mir::AtomicRmwOperator::Min,
             }),
-            "atomic.fetch.max" => Some(Self::Rmw {
+            "sync.atomic.fetch.max" => Some(Self::Rmw {
                 operator: mir::AtomicRmwOperator::Max,
             }),
-            "atomic.fetch.umin" => Some(Self::Rmw {
+            "sync.atomic.fetch.umin" => Some(Self::Rmw {
                 operator: mir::AtomicRmwOperator::Umin,
             }),
-            "atomic.fetch.umax" => Some(Self::Rmw {
+            "sync.atomic.fetch.umax" => Some(Self::Rmw {
                 operator: mir::AtomicRmwOperator::Umax,
             }),
-            "atomic.fetch.float.add" => Some(Self::Rmw {
+            "sync.atomic.fetch.fadd" => Some(Self::Rmw {
                 operator: mir::AtomicRmwOperator::Fadd,
             }),
-            "atomic.fetch.fmin" => Some(Self::Rmw {
+            "sync.atomic.fetch.fmin" => Some(Self::Rmw {
                 operator: mir::AtomicRmwOperator::Fmin,
             }),
-            "atomic.fetch.fmax" => Some(Self::Rmw {
+            "sync.atomic.fetch.fmax" => Some(Self::Rmw {
                 operator: mir::AtomicRmwOperator::Fmax,
             }),
-            "atomic.fence" => Some(Self::Fence),
+            "sync.atomic.fence" => Some(Self::Fence),
             _ => None,
         }
     }
@@ -125,17 +128,11 @@ impl FunctionLowerer<'_> {
     pub(super) fn lower_intrinsic_binding_call(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        target_symbol: dir::GlobalSymbolId,
+        name: &str,
         resolution_receiver: Option<dir::LocalTypeId>,
+        static_arguments: &[dir::StaticArgument],
         arguments: &[dir::LocalNodeId<dir::Argument>],
-    ) -> CompilerResult<Option<(Option<mir::Value>, mir::LocalNodeId<mir::Type>)>> {
-        // resolve the intrinsic binding name
-        let name_id = match self.resolve_intrinsic_binding_name_id(target_symbol)? {
-            Some(name_id) => name_id,
-            None => return Ok(None),
-        };
-        let name = self.context.strings.get(name_id);
-
+    ) -> CompilerResult<(Option<mir::Value>, mir::LocalNodeId<mir::Type>)> {
         // intrinsic bindings are free functions
         if resolution_receiver.is_some() {
             return Err(self
@@ -146,10 +143,15 @@ impl FunctionLowerer<'_> {
         // resolve the result type
         let result_type = self.lower_type_for_expression(expression_id)?;
 
-        let result =
-            self.lower_intrinsic_by_name(expression_id, name.as_ref(), result_type, arguments)?;
+        let result = self.lower_intrinsic_by_name(
+            expression_id,
+            name,
+            result_type,
+            static_arguments,
+            arguments,
+        )?;
 
-        Ok(Some(result))
+        Ok(result)
     }
 
     /// Lower an intrinsic binding by name.
@@ -158,39 +160,50 @@ impl FunctionLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         name: &str,
         result_type: mir::LocalNodeId<mir::Type>,
+        static_arguments: &[dir::StaticArgument],
         arguments: &[dir::LocalNodeId<dir::Argument>],
     ) -> CompilerResult<(Option<mir::Value>, mir::LocalNodeId<mir::Type>)> {
         // numeric cast intrinsics
-        if name == "fcvt_to_sint.sat" {
+        if name == "math.cast.floatToSignedInt.saturating" {
             return self
                 .lower_saturating_cast_intrinsic(
                     expression_id,
                     arguments,
                     result_type,
                     mir::CastOperator::FloatToSignedIntSaturating,
-                    "fcvt_to_sint.sat",
+                    "math.cast.floatToSignedInt.saturating",
                 )
                 .map(|(value, ty)| (Some(value), ty));
         }
-        if name == "fcvt_to_uint.sat" {
+        if name == "math.cast.floatToUnsignedInt.saturating" {
             return self
                 .lower_saturating_cast_intrinsic(
                     expression_id,
                     arguments,
                     result_type,
                     mir::CastOperator::FloatToUnsignedIntSaturating,
-                    "fcvt_to_uint.sat",
+                    "math.cast.floatToUnsignedInt.saturating",
                 )
                 .map(|(value, ty)| (Some(value), ty));
         }
 
         // vector intrinsics
-        if name == "splat" {
+        if name == "math.vector.splat" {
             return self
                 .lower_vector_splat_intrinsic(expression_id, arguments, result_type)
                 .map(|(value, ty)| (Some(value), ty));
         }
-        if name == "select" {
+        if name == "math.vector.shuffle" {
+            return self
+                .lower_vector_shuffle_intrinsic(
+                    expression_id,
+                    arguments,
+                    result_type,
+                    static_arguments,
+                )
+                .map(|(value, ty)| (Some(value), ty));
+        }
+        if name == "math.vector.select" {
             return self
                 .lower_vector_select_intrinsic(expression_id, arguments, result_type)
                 .map(|(value, ty)| (Some(value), ty));
@@ -266,6 +279,151 @@ impl FunctionLowerer<'_> {
         let value = self.state.builder.vector_splat(result_type, argument);
 
         Ok((value, result_type))
+    }
+
+    /// Lower a vector shuffle intrinsic.
+    fn lower_vector_shuffle_intrinsic(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        arguments: &[dir::LocalNodeId<dir::Argument>],
+        result_type: mir::LocalNodeId<mir::Type>,
+        static_arguments: &[dir::StaticArgument],
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+        let argument_ids = match arguments {
+            [left_id, right_id] => (*left_id, *right_id),
+            _ => {
+                return Err(self
+                    .error(expression_id, "shuffle expects two vector values")
+                    .into());
+            }
+        };
+
+        // load vector operands
+        let left_expression = self.argument_expression(expression_id, argument_ids.0)?;
+        let (left, left_type) = self.lower_value_expression(left_expression)?;
+        let right_expression = self.argument_expression(expression_id, argument_ids.1)?;
+        let (right, right_type) = self.lower_value_expression(right_expression)?;
+
+        // require matching input vectors
+        let (left_element, left_lanes) =
+            self.vector_type_info(expression_id, left_type, "shuffle")?;
+        let (right_element, right_lanes) =
+            self.vector_type_info(expression_id, right_type, "shuffle")?;
+
+        if left_element != right_element || left_lanes != right_lanes {
+            return Err(self
+                .error(
+                    expression_id,
+                    "shuffle values must have matching vector types",
+                )
+                .into());
+        }
+
+        // validate result vector
+        let (result_element, result_lanes) =
+            self.vector_type_info(expression_id, result_type, "shuffle")?;
+        if result_element != left_element {
+            return Err(self
+                .error(
+                    expression_id,
+                    "shuffle result element type must match vector operands",
+                )
+                .into());
+        }
+
+        // build constant shuffle
+        let mask =
+            self.vector_shuffle_mask(expression_id, static_arguments, left_lanes, result_lanes)?;
+        let value = self
+            .state
+            .builder
+            .vector_shuffle(result_type, left, right, mask);
+
+        Ok((value, result_type))
+    }
+
+    /// Resolve the constant lane mask for a vector shuffle.
+    fn vector_shuffle_mask(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        static_arguments: &[dir::StaticArgument],
+        input_lanes: u32,
+        result_lanes: u32,
+    ) -> CompilerResult<Vec<u32>> {
+        // read resolved static mask
+        let Some(mask_argument) = static_arguments.get(VECTOR_SHUFFLE_MASK_ARGUMENT) else {
+            return Err(self
+                .error(expression_id, "shuffle requires a comptime mask argument")
+                .into());
+        };
+
+        let dir::StaticArgument::Evaluated {
+            value: dir::StaticExpression::ArrayExpression { elements },
+            ..
+        } = mask_argument
+        else {
+            return Err(self
+                .error(expression_id, "shuffle mask must be a comptime array")
+                .into());
+        };
+
+        // require one lane per result lane
+        if elements.len() != result_lanes as usize {
+            return Err(self
+                .error(
+                    expression_id,
+                    "shuffle mask length must match result lane count",
+                )
+                .into());
+        }
+
+        // check each lane while building the mask
+        let max_lane = input_lanes
+            .checked_mul(2)
+            .ok_or_else(|| self.error(expression_id, "shuffle input lane count is too large"))?;
+        let mut mask = Vec::with_capacity(elements.len());
+        for element in elements {
+            let lane = self.vector_shuffle_lane(expression_id, element, max_lane)?;
+            mask.push(lane);
+        }
+
+        Ok(mask)
+    }
+
+    /// Resolve one constant vector shuffle lane.
+    fn vector_shuffle_lane(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        element: &dir::StaticExpression,
+        max_lane: u32,
+    ) -> CompilerResult<u32> {
+        // require scalar integer lane
+        let dir::StaticExpression::ScalarLiteral { value } = element else {
+            return Err(self
+                .error(expression_id, "shuffle mask lanes must be integers")
+                .into());
+        };
+        let lane = match value {
+            dir::ScalarLiteral::Integer(value) | dir::ScalarLiteral::Bigint(value) => *value,
+            _ => {
+                return Err(self
+                    .error(expression_id, "shuffle mask lanes must be integers")
+                    .into());
+            }
+        };
+
+        // encode lane as MIR mask index
+        let lane = u32::try_from(lane)
+            .map_err(|_| self.error(expression_id, "shuffle mask lane is out of range"))?;
+
+        // reject lanes outside both input vectors
+        if lane >= max_lane {
+            return Err(self
+                .error(expression_id, "shuffle mask lane is out of range")
+                .into());
+        }
+
+        Ok(lane)
     }
 
     /// Lower a vector select intrinsic.
@@ -351,6 +509,11 @@ impl FunctionLowerer<'_> {
         result_type: mir::LocalNodeId<mir::Type>,
         arguments: &[dir::LocalNodeId<dir::Argument>],
     ) -> CompilerResult<Option<(mir::Value, mir::LocalNodeId<mir::Type>)>> {
+        let name = match name.strip_prefix("math.vector.reduce.") {
+            Some(name) => name,
+            None => return Ok(None),
+        };
+
         let operator = match mir::VectorReduceOperator::try_from(name) {
             Ok(operator) => operator,
             Err(_) => return Ok(None),
@@ -522,7 +685,7 @@ impl FunctionLowerer<'_> {
             return Err(self
                 .error(
                     expression_id,
-                    "atomic intrinsic arguments must include explicit synchronization metadata",
+                    "sync.atomic intrinsic arguments must include explicit synchronization metadata",
                 )
                 .into());
         }
@@ -535,7 +698,7 @@ impl FunctionLowerer<'_> {
             AtomicIntrinsicKind::Load => {
                 let [pointer] = arguments.as_slice() else {
                     return Err(self
-                        .error(expression_id, "atomic.load expects one pointer")
+                        .error(expression_id, "sync.atomic.load expects one pointer")
                         .into());
                 };
 
@@ -548,7 +711,7 @@ impl FunctionLowerer<'_> {
             AtomicIntrinsicKind::Store => {
                 let [pointer, value] = arguments.as_slice() else {
                     return Err(self
-                        .error(expression_id, "atomic.store expects pointer and value")
+                        .error(expression_id, "sync.atomic.store expects pointer and value")
                         .into());
                 };
 
@@ -562,7 +725,7 @@ impl FunctionLowerer<'_> {
                     return Err(self
                         .error(
                             expression_id,
-                            "atomic.cas expects pointer, expected, and new value",
+                            "sync.atomic.cas expects pointer, expected, and new value",
                         )
                         .into());
                 };
@@ -579,7 +742,7 @@ impl FunctionLowerer<'_> {
             AtomicIntrinsicKind::Rmw { operator } => {
                 let [pointer, value] = arguments.as_slice() else {
                     return Err(self
-                        .error(expression_id, "atomic.rmw expects pointer and value")
+                        .error(expression_id, "sync.atomic.* expects pointer and value")
                         .into());
                 };
 

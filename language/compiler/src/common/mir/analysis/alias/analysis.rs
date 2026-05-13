@@ -482,7 +482,7 @@ function test(v0: ref<int32, raw>, v1: ref<int32, raw>): void {
 b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
     v2: int8 = 0int8
     v3: int64 = 4int64
-    intrinsic.memset(v1, v2, v3)
+    intrinsic.memory.raw.setBytes(v1, v2, v3)
     return
 }"#,
         );
@@ -521,7 +521,7 @@ function test(v0: ref<int32, raw>, v1: ref<int32, raw>): void {
 b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
     v2: int8 = 0int8
     v3: int64 = 4int64
-    intrinsic.memset(v1, v2, v3)
+    intrinsic.memory.raw.setBytes(v1, v2, v3)
     return
 }"#,
         );
@@ -564,7 +564,7 @@ function test(v0: ref<int32, raw>, v1: ref<int32, raw>): void {
 b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
     v2: int8 = 0int8
     v3: int64 = 4int64
-    intrinsic.memset(v1, v2, v3)
+    intrinsic.memory.raw.setBytes(v1, v2, v3)
     return
 }"#,
         );
@@ -603,7 +603,7 @@ function test(v0: ref<int32, raw>, v1: ref<int32, raw>): void {
 b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
     v2: int8 = 0int8
     v3: int64 = 16int64
-    intrinsic.memset(v1, v2, v3)
+    intrinsic.memory.raw.setBytes(v1, v2, v3)
     return
 }"#,
         );

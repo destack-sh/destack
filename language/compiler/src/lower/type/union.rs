@@ -813,15 +813,12 @@ impl TypeLowerer<'_> {
         use std::cmp::Ordering;
 
         match (left, right) {
-            (dir::SymbolKey::WellKnown(left), dir::SymbolKey::WellKnown(right)) => left.cmp(&right),
             (dir::SymbolKey::Registry(left), dir::SymbolKey::Registry(right)) => {
                 strings.get(left).cmp(&strings.get(right))
             }
             (dir::SymbolKey::Unique(left), dir::SymbolKey::Unique(right)) => {
                 self.compare_unique_symbol_keys(left, right, strings)
             }
-            (dir::SymbolKey::WellKnown(_), _) => Ordering::Less,
-            (dir::SymbolKey::Registry(_), dir::SymbolKey::WellKnown(_)) => Ordering::Greater,
             (dir::SymbolKey::Registry(_), dir::SymbolKey::Unique(_)) => Ordering::Less,
             (dir::SymbolKey::Unique(_), _) => Ordering::Greater,
         }

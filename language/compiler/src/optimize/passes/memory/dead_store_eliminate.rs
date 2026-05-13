@@ -1157,7 +1157,7 @@ b0:
     v0: ref<int32, raw, space(stack)> = stack.alloc int32
     v1: int8 = 0int8
     v2: int64 = 4int64
-    intrinsic.memset(v0, v1, v2)
+    intrinsic.memory.raw.setBytes(v0, v1, v2)
     return
 }"#;
         let expected = r#"
@@ -1183,7 +1183,7 @@ b0:
     v0: ref<int32, raw, space(stack)> = stack.alloc int32
     v1: int8 = 0int8
     v2: int64 = 4int64
-    intrinsic.memset(v0, v1, v2)
+    intrinsic.memory.raw.setBytes(v0, v1, v2)
     v3: int32 = load v0
     return v3
 }"#;
@@ -1204,7 +1204,7 @@ b0:
     v0: ref<int32, raw, space(stack)> = stack.alloc int32
     v1: ref<int32, raw, space(stack)> = stack.alloc int32
     v2: int64 = 4int64
-    intrinsic.memcpy(v0, v1, v2)
+    intrinsic.memory.raw.copyBytes(v0, v1, v2)
     return
 }"#;
         let expected = r#"
@@ -1232,7 +1232,7 @@ b0:
     v0: ref<int32, raw, space(stack)> = stack.alloc int32
     v1: ref<int32, raw, space(stack)> = stack.alloc int32
     v2: int64 = 4int64
-    intrinsic.memcpy(v0, v1, v2)
+    intrinsic.memory.raw.copyBytes(v0, v1, v2)
     v3: int32 = load v0
     return v3
 }"#;
@@ -1254,7 +1254,7 @@ b0:
     v0: ref<int32, raw, space(stack)> = stack.alloc int32
     v1: ref<int32, raw, space(stack)> = stack.alloc int32
     v2: int64 = 4int64
-    intrinsic.memmove(v0, v1, v2)
+    intrinsic.memory.raw.moveBytes(v0, v1, v2)
     return
 }"#;
         let expected = r#"
@@ -1282,7 +1282,7 @@ b0:
     v0: ref<int32, raw, space(stack)> = stack.alloc int32
     v1: ref<int32, raw, space(stack)> = stack.alloc int32
     v2: int64 = 4int64
-    intrinsic.memmove(v0, v1, v2)
+    intrinsic.memory.raw.moveBytes(v0, v1, v2)
     v3: int32 = load v0
     return v3
 }"#;
