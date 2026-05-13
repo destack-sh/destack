@@ -2059,7 +2059,7 @@ Low-level code can of course still control finalization explicitly:
 
 ### Algebra
 
-Type "algebra" here is just a fancy way of saying Destack supports querying and manipulating ownership and placement in its type system, because _they_ are part of the type system. 
+Type "algebra" is just a fancy way of saying that Destack supports querying and manipulating ownership and placement in its TypeScript-based type system, because _they_ are part of the type system.
 Qualified surface forms like `readonly T`, `^T`, `&T`, `*T`, and `shared T` are sugar over a single normalized `Form`.
 Plain `T` may remain unqualified, but algebra operators treat it as managed, mutable, and ambient when they need a default.
 Unlike `Place`, `Access` is always concrete: plain `T` has access `"mutable"`, not some ambient access.
@@ -2071,7 +2071,7 @@ newtype Form<
     P: Place = "ambient",
     L: Lifetime = never,
     A: Access = "mutable",
-> = unknown;
+> = intrinsic;
 ```
 
 All `Form`s are based on the common static evaluation machinery, and code can be generic over `Form<T, O, P, L, A>`, `WithSpace<T, S>`, or `PlaceIn<T, S>` without choosing a final address space, ownership, or access mode.
@@ -2168,7 +2168,9 @@ Inside a type declaration, `this` in type or static position also carries the cu
 
 ```ds
 struct Buffer<T> {
-    @if(PlaceOf<this> == "shared")
+    comptime const IsShared = PlaceOf<this> == "shared";
+
+    @if(this.IsShared)
     lock: SharedLock;
 
     value: T;
