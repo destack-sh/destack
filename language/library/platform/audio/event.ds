@@ -1,329 +1,107 @@
-import { Slice } from "destack:collections";
+import { Array } from "destack:collections";
 import { PlatformError } from "destack:platform/error";
 import { AudioEventHandle, AudioStreamHandle } from "destack:platform/resource";
-import { AudioBackend, AudioBackendSelectionPolicy } from "./backend.ds";
-import { AudioStreamStatusFlags } from "./stream.ds";
+import { AudioBackendKind, AudioBackendSelection } from "./backend.ds";
+import { AudioDirection } from "./device.ds";
+import { AudioStreamState } from "./stream.ds";
 
-/// Event subscription flags.
-export newtype AudioEventSubscriptionFlags = uint32;
+/// Audio event subscription flags.
+export newtype AudioEventFlags = uint32;
 
-/// Event delivery mode selector.
-export enum AudioEventDeliveryMode {
-    /// Use native backend events when available, otherwise synthesize from polling.
-    Auto = 1,
-    /// Require native backend events and fail when unavailable.
-    NativeOnly = 2,
-    /// Force synthesized polling-driven events.
-    PollOnly = 3,
-}
+/// Subscribe to device hotplug events.
+export const AUDIO_EVENT_DEVICE: AudioEventFlags = AudioEventFlags(0x1);
 
-/// Event queue overflow policy selector.
-export enum AudioEventOverflowPolicy {
+/// Subscribe to default-route change events.
+export const AUDIO_EVENT_ROUTE: AudioEventFlags = AudioEventFlags(0x2);
+
+/// Subscribe to stream state and xrun events.
+export const AUDIO_EVENT_STREAM: AudioEventFlags = AudioEventFlags(0x4);
+
+/// Subscribe to backend availability events.
+export const AUDIO_EVENT_BACKEND: AudioEventFlags = AudioEventFlags(0x8);
+
+/// Audio event overflow policy.
+export enum AudioEventOverflow {
     /// Drop oldest queued events first.
     DropOldest = 1,
     /// Drop newest incoming events first.
     DropNewest = 2,
-    /// Report overflow as an error.
+    /// Report queue overflow as an error.
     Error = 3,
 }
 
-/// Event source selector.
-export enum AudioEventSource {
-    /// Event came from one native backend notification feed.
-    Native = 1,
-    /// Event was synthesized from runtime polling snapshots.
-    SyntheticPoll = 2,
-}
-
-/// Shared metadata for all audio events.
-export struct AudioEventMetadata {
-    /// Event timestamp in nanoseconds.
-    timestampNs: uint64;
-    /// Event sequence number for one subscription queue.
-    sequence: uint64;
-    /// Number of events dropped before this event.
-    droppedCount: uint64;
-    /// Event source selector.
-    source: AudioEventSource;
-    /// Backend selector for this event.
-    backend: AudioBackend;
+/// Audio event subscription.
+export struct AudioEventSubscription {
+    /// Backend selection.
+    backend: AudioBackendSelection;
     /// Event flags.
-    flags: uint32;
-}
-
-/// Device-added event.
-export struct AudioDeviceAddedEvent {
-    /// Discriminator for this audio event variant.
-    kind: "deviceAdded";
-    /// Shared event metadata.
-    metadata: AudioEventMetadata;
-    /// Target device identifier when present.
-    deviceId: string | void;
-}
-
-/// Device-removed event.
-export struct AudioDeviceRemovedEvent {
-    /// Discriminator for this audio event variant.
-    kind: "deviceRemoved";
-    /// Shared event metadata.
-    metadata: AudioEventMetadata;
-    /// Target device identifier when present.
-    deviceId: string | void;
-}
-
-/// Default-playback-changed event.
-export struct AudioDefaultPlaybackChangedEvent {
-    /// Discriminator for this audio event variant.
-    kind: "defaultPlaybackChanged";
-    /// Shared event metadata.
-    metadata: AudioEventMetadata;
-    /// Target device identifier when present.
-    deviceId: string | void;
-}
-
-/// Default-capture-changed event.
-export struct AudioDefaultCaptureChangedEvent {
-    /// Discriminator for this audio event variant.
-    kind: "defaultCaptureChanged";
-    /// Shared event metadata.
-    metadata: AudioEventMetadata;
-    /// Target device identifier when present.
-    deviceId: string | void;
-}
-
-/// Default-loopback-changed event.
-export struct AudioDefaultLoopbackChangedEvent {
-    /// Discriminator for this audio event variant.
-    kind: "defaultLoopbackChanged";
-    /// Shared event metadata.
-    metadata: AudioEventMetadata;
-    /// Target device identifier when present.
-    deviceId: string | void;
-}
-
-/// Device-format-changed event.
-export struct AudioDeviceFormatChangedEvent {
-    /// Discriminator for this audio event variant.
-    kind: "deviceFormatChanged";
-    /// Shared event metadata.
-    metadata: AudioEventMetadata;
-    /// Target device identifier when present.
-    deviceId: string | void;
-}
-
-/// Device-rerouted event.
-export struct AudioDeviceReroutedEvent {
-    /// Discriminator for this audio event variant.
-    kind: "deviceRerouted";
-    /// Shared event metadata.
-    metadata: AudioEventMetadata;
-    /// Target device identifier when present.
-    deviceId: string | void;
-}
-
-/// Interruption-began event.
-export struct AudioInterruptionBeganEvent {
-    /// Discriminator for this audio event variant.
-    kind: "interruptionBegan";
-    /// Shared event metadata.
-    metadata: AudioEventMetadata;
-    /// Target stream handle when present.
-    stream: AudioStreamHandle | void;
-}
-
-/// Interruption-ended event.
-export struct AudioInterruptionEndedEvent {
-    /// Discriminator for this audio event variant.
-    kind: "interruptionEnded";
-    /// Shared event metadata.
-    metadata: AudioEventMetadata;
-    /// Target stream handle when present.
-    stream: AudioStreamHandle | void;
-}
-
-/// Backend-disconnected event.
-export struct AudioBackendDisconnectedEvent {
-    /// Discriminator for this audio event variant.
-    kind: "backendDisconnected";
-    /// Shared event metadata.
-    metadata: AudioEventMetadata;
-    /// Target stream handle when present.
-    stream: AudioStreamHandle | void;
-}
-
-/// Stream-xrun event.
-export struct AudioStreamXRunEvent {
-    /// Discriminator for this audio event variant.
-    kind: "streamXRun";
-    /// Shared event metadata.
-    metadata: AudioEventMetadata;
-    /// Target stream handle when present.
-    stream: AudioStreamHandle | void;
-    /// Current stream status flags.
-    statusFlags: AudioStreamStatusFlags;
-    /// Xrun count delta for this event.
-    xrunCountDelta: uint64;
-    /// Target device identifier when present.
-    deviceId: string | void;
-}
-
-/// Stream-device-changed event.
-export struct AudioStreamDeviceChangedEvent {
-    /// Discriminator for this audio event variant.
-    kind: "streamDeviceChanged";
-    /// Shared event metadata.
-    metadata: AudioEventMetadata;
-    /// Target stream handle when present.
-    stream: AudioStreamHandle | void;
-    /// Current stream status flags.
-    statusFlags: AudioStreamStatusFlags;
-    /// Target device identifier when present.
-    deviceId: string | void;
-}
-
-/// Stream-state-changed event.
-export struct AudioStreamStateChangedEvent {
-    /// Discriminator for this audio event variant.
-    kind: "streamStateChanged";
-    /// Shared event metadata.
-    metadata: AudioEventMetadata;
-    /// Target stream handle when present.
-    stream: AudioStreamHandle | void;
-    /// Current stream status flags.
-    statusFlags: AudioStreamStatusFlags;
-}
-
-/// Backend-reset event.
-export struct AudioBackendResetEvent {
-    /// Discriminator for this audio event variant.
-    kind: "backendReset";
-    /// Shared event metadata.
-    metadata: AudioEventMetadata;
-    /// Target stream handle when present.
-    stream: AudioStreamHandle | void;
-}
-
-/// Event subscription options.
-export struct AudioEventSubscriptionOptions {
-    /// Backend selector for this subscription.
-    backend: AudioBackend;
-    /// Backend selection policy.
-    backendPolicy: AudioBackendSelectionPolicy;
-    /// Subscription behavior flags.
-    flags: AudioEventSubscriptionFlags;
-    /// Event delivery mode.
-    deliveryMode: AudioEventDeliveryMode;
+    flags: AudioEventFlags;
+    /// Stream to monitor, omitted for backend and device events.
+    stream?: AudioStreamHandle;
+    /// Queue capacity in events, or zero for backend default.
+    capacity: uint32;
     /// Queue overflow policy.
-    overflowPolicy: AudioEventOverflowPolicy;
-    /// Stream to monitor when provided.
-    stream: AudioStreamHandle | void;
-    /// Requested queue capacity, or zero for backend default.
-    queueCapacity: uint32;
-    /// Requested backend poll interval in nanoseconds, or zero for backend default.
-    pollIntervalNs: uint64;
+    overflow: AudioEventOverflow;
 }
 
-/// Audio event payload.
+/// Audio event.
 export newtype AudioEvent =
-    | AudioDeviceAddedEvent
-    | AudioDeviceRemovedEvent
-    | AudioDefaultPlaybackChangedEvent
-    | AudioDefaultCaptureChangedEvent
-    | AudioDefaultLoopbackChangedEvent
-    | AudioDeviceFormatChangedEvent
-    | AudioDeviceReroutedEvent
-    | AudioInterruptionBeganEvent
-    | AudioInterruptionEndedEvent
-    | AudioBackendDisconnectedEvent
-    | AudioStreamXRunEvent
-    | AudioStreamDeviceChangedEvent
-    | AudioStreamStateChangedEvent
-    | AudioBackendResetEvent;
+    | {
+          kind: "device";
+          timestampNs: uint64;
+          sequence: uint64;
+          backend: AudioBackendKind;
+          deviceId: string;
+          direction: AudioDirection;
+          isPresent: boolean;
+          isDefault: boolean;
+      }
+    | {
+          kind: "stream";
+          timestampNs: uint64;
+          sequence: uint64;
+          stream: AudioStreamHandle;
+          state: AudioStreamState;
+          xrunCount: uint64;
+      }
+    | {
+          kind: "backend";
+          timestampNs: uint64;
+          sequence: uint64;
+          backend: AudioBackendKind;
+          isAvailable: boolean;
+      }
+    | { kind: "overflow"; timestampNs: uint64; sequence: uint64; droppedCount: uint64 };
 
 /// Open one audio event subscription.
 @binding("destack.audio.event.open", {
     effect: "external",
-    requires: ["host.audio.device.monitor"],
+    requires: ["host.audio.event"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function eventOpen(
-    options: AudioEventSubscriptionOptions,
+export declare function openAudioEvents(
+    subscription: &readonly AudioEventSubscription,
 ): Result<AudioEventHandle, PlatformError>;
 
 /// Close one audio event subscription.
 @binding("destack.audio.event.close", {
     effect: "external",
-    requires: ["host.audio.device.monitor"],
+    requires: ["host.audio.event"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function eventClose(handle: AudioEventHandle): Result<void, PlatformError>;
+export declare function closeAudioEvents(events: AudioEventHandle): Result<void, PlatformError>;
 
-/// Wait for one audio event.
+/// Read audio events.
 @binding("destack.audio.event.read", {
     effect: "external",
-    requires: ["host.audio.device.monitor"],
+    requires: ["host.audio.event"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function eventRead(
-    handle: AudioEventHandle,
-    timeoutNs: uint64,
-): Result<AudioEvent, PlatformError>;
-
-/// Wait for one batch of audio events.
-@binding("destack.audio.event.readBatch", {
-    effect: "external",
-    requires: ["host.audio.device.monitor"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function eventReadBatch(
-    handle: AudioEventHandle,
+export declare function readAudioEvents(
+    events: AudioEventHandle,
     maxEvents: uint32,
-    timeoutNs: uint64,
-): Result<Slice<AudioEvent>, PlatformError>;
-
-/// Poll one audio event without blocking.
-@binding("destack.audio.event.tryRead", {
-    effect: "external",
-    requires: ["host.audio.device.monitor"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function eventTryRead(handle: AudioEventHandle): Result<AudioEvent, PlatformError>;
-
-/// Poll one batch of audio events without blocking.
-@binding("destack.audio.event.tryReadBatch", {
-    effect: "external",
-    requires: ["host.audio.device.monitor"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function eventTryReadBatch(
-    handle: AudioEventHandle,
-    maxEvents: uint32,
-): Result<Slice<AudioEvent>, PlatformError>;
-
-/// Subscribe to device hotplug add and remove events.
-export const AUDIO_EVENT_SUBSCRIBE_DEVICE_HOTPLUG: AudioEventSubscriptionFlags =
-    AudioEventSubscriptionFlags(0x1);
-/// Subscribe to default-route change events.
-export const AUDIO_EVENT_SUBSCRIBE_DEFAULT_ROUTE: AudioEventSubscriptionFlags =
-    AudioEventSubscriptionFlags(0x2);
-/// Subscribe to format-change events.
-export const AUDIO_EVENT_SUBSCRIBE_FORMAT_CHANGE: AudioEventSubscriptionFlags =
-    AudioEventSubscriptionFlags(0x4);
-/// Subscribe to reroute events.
-export const AUDIO_EVENT_SUBSCRIBE_REROUTE: AudioEventSubscriptionFlags =
-    AudioEventSubscriptionFlags(0x8);
-/// Subscribe to interruption begin and end events.
-export const AUDIO_EVENT_SUBSCRIBE_INTERRUPTION: AudioEventSubscriptionFlags =
-    AudioEventSubscriptionFlags(0x10);
-/// Subscribe to backend disconnect and reset events.
-export const AUDIO_EVENT_SUBSCRIBE_BACKEND: AudioEventSubscriptionFlags =
-    AudioEventSubscriptionFlags(0x20);
-/// Subscribe to stream xrun, state, and device-change events.
-export const AUDIO_EVENT_SUBSCRIBE_STREAM: AudioEventSubscriptionFlags =
-    AudioEventSubscriptionFlags(0x40);
+    timeoutNs?: uint64,
+): Result<^Array<AudioEvent>, PlatformError>;
