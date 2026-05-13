@@ -146,7 +146,7 @@ extension<T: int> of Atomic<T> {
 /// Atomic load.
 ///
 /// Atomically reads the value at `ptr` with the specified memory ordering.
-@intrinsic("atomic.load")
+@intrinsic("sync.atomic.load")
 export declare function atomicLoad<T>(
     ptr: *T,
     order: MemoryOrdering,
@@ -161,7 +161,7 @@ export declare function atomicLoad<T>(
 /// Atomic store.
 ///
 /// Atomically writes `value` to `ptr` with the specified memory ordering.
-@intrinsic("atomic.store")
+@intrinsic("sync.atomic.store")
 export declare function atomicStore<T>(
     ptr: *T,
     value: T,
@@ -179,7 +179,7 @@ export declare function atomicStore<T>(
 /// Atomically compares the value at `ptr` with `expected`.
 /// If equal, stores `desired` and returns `[oldValue, true]`.
 /// If not equal, returns `[currentValue, false]`.
-@intrinsic("atomic.cas")
+@intrinsic("sync.atomic.cas")
 export declare function atomicCas<T>(
     ptr: *T,
     expected: T,
@@ -196,7 +196,7 @@ export declare function atomicCas<T>(
 /// Atomic compare-and-swap (weak).
 ///
 /// Like `atomicCas`, but may fail spuriously even if the comparison succeeds.
-@intrinsic("atomic.cas.weak")
+@intrinsic("sync.atomic.cas.weak")
 export declare function atomicCasWeak<T>(
     ptr: *T,
     expected: T,
@@ -214,7 +214,7 @@ export declare function atomicCasWeak<T>(
 ///
 /// Atomically replaces the value at `ptr` with `value`.
 /// Returns the previous value.
-@intrinsic("atomic.xchg")
+@intrinsic("sync.atomic.xchg")
 export declare function atomicExchange<T>(
     ptr: *T,
     value: T,
@@ -231,7 +231,7 @@ export declare function atomicExchange<T>(
 ///
 /// Atomically adds `value` to the value at `ptr`.
 /// Returns the previous value before the addition.
-@intrinsic("atomic.fetch.add")
+@intrinsic("sync.atomic.fetch.add")
 export declare function atomicFetchAdd<T: int>(
     ptr: *T,
     value: T,
@@ -248,7 +248,7 @@ export declare function atomicFetchAdd<T: int>(
 ///
 /// Atomically subtracts `value` from the value at `ptr`.
 /// Returns the previous value before the subtraction.
-@intrinsic("atomic.fetch.sub")
+@intrinsic("sync.atomic.fetch.sub")
 export declare function atomicFetchSub<T: int>(
     ptr: *T,
     value: T,
@@ -265,7 +265,7 @@ export declare function atomicFetchSub<T: int>(
 ///
 /// Atomically performs bitwise AND of `value` with the value at `ptr`.
 /// Returns the previous value before the operation.
-@intrinsic("atomic.fetch.and")
+@intrinsic("sync.atomic.fetch.and")
 export declare function atomicFetchAnd<T: int>(
     ptr: *T,
     value: T,
@@ -282,7 +282,7 @@ export declare function atomicFetchAnd<T: int>(
 ///
 /// Atomically performs bitwise OR of `value` with the value at `ptr`.
 /// Returns the previous value before the operation.
-@intrinsic("atomic.fetch.or")
+@intrinsic("sync.atomic.fetch.or")
 export declare function atomicFetchOr<T: int>(
     ptr: *T,
     value: T,
@@ -299,7 +299,7 @@ export declare function atomicFetchOr<T: int>(
 ///
 /// Atomically performs bitwise XOR of `value` with the value at `ptr`.
 /// Returns the previous value before the operation.
-@intrinsic("atomic.fetch.xor")
+@intrinsic("sync.atomic.fetch.xor")
 export declare function atomicFetchXor<T: int>(
     ptr: *T,
     value: T,
@@ -316,7 +316,7 @@ export declare function atomicFetchXor<T: int>(
 ///
 /// Atomically stores the minimum of the current value and `value`.
 /// Returns the previous value before the operation.
-@intrinsic("atomic.fetch.min")
+@intrinsic("sync.atomic.fetch.min")
 export declare function atomicFetchMin<T: int>(
     ptr: *T,
     value: T,
@@ -333,7 +333,7 @@ export declare function atomicFetchMin<T: int>(
 ///
 /// Atomically stores the maximum of the current value and `value`.
 /// Returns the previous value before the operation.
-@intrinsic("atomic.fetch.max")
+@intrinsic("sync.atomic.fetch.max")
 export declare function atomicFetchMax<T: int>(
     ptr: *T,
     value: T,
@@ -350,7 +350,7 @@ export declare function atomicFetchMax<T: int>(
 ///
 /// Atomically stores the unsigned minimum of the current value and `value`.
 /// Returns the previous value before the operation.
-@intrinsic("atomic.fetch.umin")
+@intrinsic("sync.atomic.fetch.umin")
 export declare function atomicFetchUmin<T: int>(
     ptr: *T,
     value: T,
@@ -367,7 +367,7 @@ export declare function atomicFetchUmin<T: int>(
 ///
 /// Atomically stores the unsigned maximum of the current value and `value`.
 /// Returns the previous value before the operation.
-@intrinsic("atomic.fetch.umax")
+@intrinsic("sync.atomic.fetch.umax")
 export declare function atomicFetchUmax<T: int>(
     ptr: *T,
     value: T,
@@ -384,7 +384,7 @@ export declare function atomicFetchUmax<T: int>(
 ///
 /// Atomically adds `value` to the value at `ptr`.
 /// Returns the previous value before the addition.
-@intrinsic("atomic.fetch.fadd")
+@intrinsic("sync.atomic.fetch.fadd")
 export declare function atomicFetchFadd<T: float>(
     ptr: *T,
     value: T,
@@ -401,7 +401,7 @@ export declare function atomicFetchFadd<T: float>(
 ///
 /// Atomically stores the minimum of the current value and `value`.
 /// Returns the previous value before the operation.
-@intrinsic("atomic.fetch.fmin")
+@intrinsic("sync.atomic.fetch.fmin")
 export declare function atomicFetchFmin<T: float>(
     ptr: *T,
     value: T,
@@ -418,7 +418,7 @@ export declare function atomicFetchFmin<T: float>(
 ///
 /// Atomically stores the maximum of the current value and `value`.
 /// Returns the previous value before the operation.
-@intrinsic("atomic.fetch.fmax")
+@intrinsic("sync.atomic.fetch.fmax")
 export declare function atomicFetchFmax<T: float>(
     ptr: *T,
     value: T,
@@ -435,7 +435,7 @@ export declare function atomicFetchFmax<T: float>(
 ///
 /// Establishes a memory ordering constraint without an associated atomic operation.
 /// Prevents reordering of memory accesses across the fence.
-@intrinsic("atomic.fence")
+@intrinsic("sync.atomic.fence")
 export declare function atomicFence(
     order: MemoryOrdering,
     scope: AtomicScope,

@@ -1,103 +1,103 @@
 /// Square root.
-@intrinsic("sqrt")
+@intrinsic("math.float.sqrt")
 export declare function sqrt<T: float>(x: T): T;
 
 /// Absolute value.
-@intrinsic("abs")
+@intrinsic("math.float.abs")
 export declare function abs<T: float>(x: T): T;
 
 /// Sine.
-@intrinsic("sin")
+@intrinsic("math.float.sin")
 export declare function sin<T: float>(x: T): T;
 
 /// Cosine.
-@intrinsic("cos")
+@intrinsic("math.float.cos")
 export declare function cos<T: float>(x: T): T;
 
 /// Tangent.
-@intrinsic("tan")
+@intrinsic("math.float.tan")
 export declare function tan<T: float>(x: T): T;
 
 /// Arc sine (inverse sine).
-@intrinsic("asin")
+@intrinsic("math.float.asin")
 export declare function asin<T: float>(x: T): T;
 
 /// Arc cosine (inverse cosine).
-@intrinsic("acos")
+@intrinsic("math.float.acos")
 export declare function acos<T: float>(x: T): T;
 
 /// Arc tangent (inverse tangent).
-@intrinsic("atan")
+@intrinsic("math.float.atan")
 export declare function atan<T: float>(x: T): T;
 
 /// Natural exponential (e^x).
-@intrinsic("exp")
+@intrinsic("math.float.exp")
 export declare function exp<T: float>(x: T): T;
 
 /// Base-2 exponential (2^x).
-@intrinsic("exp2")
+@intrinsic("math.float.exp2")
 export declare function exp2<T: float>(x: T): T;
 
 /// Natural logarithm (ln).
-@intrinsic("log")
+@intrinsic("math.float.log")
 export declare function log<T: float>(x: T): T;
 
 /// Base-2 logarithm.
-@intrinsic("log2")
+@intrinsic("math.float.log2")
 export declare function log2<T: float>(x: T): T;
 
 /// Base-10 logarithm.
-@intrinsic("log10")
+@intrinsic("math.float.log10")
 export declare function log10<T: float>(x: T): T;
 
 /// Round toward negative infinity.
-@intrinsic("floor")
+@intrinsic("math.float.floor")
 export declare function floor<T: float>(x: T): T;
 
 /// Round toward positive infinity.
-@intrinsic("ceil")
+@intrinsic("math.float.ceil")
 export declare function ceil<T: float>(x: T): T;
 
 /// Round toward zero (truncate).
-@intrinsic("trunc")
+@intrinsic("math.float.trunc")
 export declare function trunc<T: float>(x: T): T;
 
 /// Round to nearest integer, ties to even.
-@intrinsic("round")
+@intrinsic("math.float.round")
 export declare function round<T: float>(x: T): T;
 
 /// Arc tangent of y/x (two-argument form).
 ///
 /// Returns the angle in radians between the positive x-axis and the point (x, y).
 /// Handles quadrant determination correctly.
-@intrinsic("atan2")
+@intrinsic("math.float.atan2")
 export declare function atan2<T: float>(y: T, x: T): T;
 
 /// Power (base^exponent).
-@intrinsic("pow")
+@intrinsic("math.float.pow")
 export declare function pow<T: float>(base: T, exponent: T): T;
 
 /// Copy sign.
 ///
 /// Returns a value with the magnitude of `magnitude` and the sign of `sign`.
-@intrinsic("copysign")
+@intrinsic("math.float.copySign")
 export declare function copysign<T: float>(magnitude: T, sign: T): T;
 
 /// Minimum of two floats.
 ///
 /// Returns the smaller of two values (IEEE 754 minNum semantics).
-@intrinsic("min")
+@intrinsic("math.float.min")
 export declare function min<T: float>(a: T, b: T): T;
 
 /// Maximum of two floats.
 ///
 /// Returns the larger of two values (IEEE 754 maxNum semantics).
-@intrinsic("max")
+@intrinsic("math.float.max")
 export declare function max<T: float>(a: T, b: T): T;
 
 /// Fused multiply-add.
 ///
 /// Computes (a * b) + c with a single rounding operation.
 /// More accurate than separate multiply and add operations.
-@intrinsic("fma")
+@intrinsic("math.float.fma")
 export declare function fma<T: float>(a: T, b: T, c: T): T;

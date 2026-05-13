@@ -40,7 +40,7 @@ export extension<T> of ManuallyDrop<T> {
 }
 
 /// End ownership of `value` at this point.
-@intrinsic("drop")
+@intrinsic("memory.drop")
 export declare function drop<T>(value: ^T): void;
 
 /// End ownership of `value` without running its destructor.
