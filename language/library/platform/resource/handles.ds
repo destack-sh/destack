@@ -174,8 +174,8 @@ export newtype InputDeviceHandle = ResourceId;
 /// Handle for one text input session.
 export newtype InputTextSessionHandle = ResourceId;
 
-/// Handle for one global input monitor stream.
-export newtype InputMonitorHandle = ResourceId;
+/// Handle for one input event subscription.
+export newtype InputEventHandle = ResourceId;
 
 /// Handle for one display drag-transfer session.
 export newtype DisplayDragSessionHandle = ResourceId;
@@ -257,6 +257,9 @@ export newtype SerialWatchHandle = ResourceId;
 
 /// Handle for one USB device endpoint.
 export newtype UsbDeviceHandle = ResourceId;
+
+/// Handle for one HID device endpoint.
+export newtype HidDeviceHandle = ResourceId;
 
 /// Handle for one USB topology watch.
 export newtype UsbWatchHandle = ResourceId;

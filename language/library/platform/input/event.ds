@@ -1,538 +1,288 @@
-import { Array, Slice } from "destack:collections";
+import { Array } from "destack:collections";
 import { PlatformError } from "destack:platform/error";
-import { InputDeviceHandle, InputMonitorHandle, WindowHandle } from "destack:platform/resource";
-import { InputDeviceKind } from "./device.ds";
-import { InputKeyLocation, InputModifierState } from "./keyboard.ds";
+import { InputDeviceHandle, InputEventHandle, WindowHandle } from "destack:platform/resource";
+import { InputDevice, InputDeviceKind } from "./device.ds";
+import { GamepadControl, GamepadControlKind } from "./gamepad.ds";
+import { KeyLocation, ModifierState } from "./keyboard.ds";
 import {
-    InputCoordinateSpace,
-    InputPointerMotionSample,
-    InputPenState,
-    InputPointerContactGeometry,
-    InputPointerType,
-    InputWheelDeltaMode,
+    CoordinateSpace,
+    PenState,
+    PointerContact,
+    PointerKind,
+    PointerSample,
+    WheelUnit,
 } from "./pointer.ds";
+import { SensorKind } from "./sensor.ds";
 
-/// Input event action.
-export enum InputEventAction {
-    /// One input control became active.
-    Press = 1,
-    /// One input control became inactive.
-    Release = 2,
-    /// One input control repeated while held.
-    Repeat = 3,
-    /// One continuous control moved.
-    Move = 4,
-    /// One scroll axis changed.
-    Scroll = 5,
-    /// One analog axis changed.
-    Axis = 6,
-    /// One text payload was emitted.
-    Text = 7,
-    /// One source became available.
-    Connect = 8,
-    /// One source became unavailable.
-    Disconnect = 9,
-    /// One active gesture or contact was canceled.
-    Cancel = 10,
-    /// One composite operation started.
-    Begin = 11,
-    /// One composite operation updated.
-    Update = 12,
-    /// One composite operation committed.
-    Commit = 13,
-    /// One composite operation ended.
-    End = 14,
+/// Input event flags.
+export newtype InputEventFlags = uint64;
+
+/// Subscribe to device topology events.
+export const INPUT_EVENT_DEVICE: InputEventFlags = InputEventFlags(0x0001);
+
+/// Subscribe to keyboard events.
+export const INPUT_EVENT_KEYBOARD: InputEventFlags = InputEventFlags(0x0002);
+
+/// Subscribe to pointer events.
+export const INPUT_EVENT_POINTER: InputEventFlags = InputEventFlags(0x0004);
+
+/// Subscribe to touch events.
+export const INPUT_EVENT_TOUCH: InputEventFlags = InputEventFlags(0x0008);
+
+/// Subscribe to gamepad events.
+export const INPUT_EVENT_GAMEPAD: InputEventFlags = InputEventFlags(0x0010);
+
+/// Subscribe to sensor events.
+export const INPUT_EVENT_SENSOR: InputEventFlags = InputEventFlags(0x0020);
+
+/// Subscribe to text events.
+export const INPUT_EVENT_TEXT: InputEventFlags = InputEventFlags(0x0040);
+
+/// Input event overflow policy.
+export enum InputEventOverflow {
+    /// Drop oldest queued events first.
+    DropOldest = 1,
+    /// Drop newest incoming events first.
+    DropNewest = 2,
+    /// Report queue overflow as an error.
+    Error = 3,
 }
 
-/// Input read mode.
-export enum InputReadMode {
-    /// Read translated events where the host backend applies keymap and composition behavior when applicable.
-    Cooked = 1,
-    /// Read raw hardware-style events where available.
+/// Input event decoding mode.
+export enum InputEventMode {
+    /// Host-translated event stream.
+    Translated = 1,
+    /// Raw hardware-style event stream.
     Raw = 2,
 }
 
-/// Gamepad control kind.
-export enum InputGamepadControlKind {
-    /// One gamepad button.
-    Button = 1,
-    /// One gamepad axis.
-    Axis = 2,
-    /// One gamepad touch contact.
-    Touch = 3,
+/// Input event subscription.
+export struct InputEventSubscription {
+    /// Event flags.
+    flags: InputEventFlags;
+    /// Device filter.
+    device?: InputDeviceHandle;
+    /// Device kind filter.
+    deviceKind?: InputDeviceKind;
+    /// Window filter.
+    window?: WindowHandle;
+    /// Event decoding mode.
+    mode: InputEventMode;
+    /// Queue capacity in events, or zero for the host default.
+    capacity: uint32;
+    /// Queue overflow policy.
+    overflow: InputEventOverflow;
 }
 
-/// Key event payload.
-export struct InputKeyEventPayload {
-    /// Key action.
-    action: InputEventAction;
-    /// Normalized logical key value when available.
-    key: string | void;
-    /// Normalized physical code value when available.
-    code: string | void;
-    /// Physical key location.
-    location: InputKeyLocation;
-    /// Backend-native key code.
-    backendCode: uint32;
-    /// Backend-native scan code when available.
-    backendScanCode: uint32;
-    /// Backend-native key value.
-    backendValue: int64;
-    /// Backend modifier bitset.
-    backendModifiers: uint32;
-    /// Normalized modifier and lock state.
-    modifierState: InputModifierState;
-    /// Whether this key event is a repeat.
-    repeat: boolean;
-    /// Whether this key event belongs to one active composition session.
-    isComposing: boolean;
+/// Input event action.
+export enum InputEventAction {
+    /// A control became active.
+    Press = 1,
+    /// A control became inactive.
+    Release = 2,
+    /// A control repeated while held.
+    Repeat = 3,
+    /// A continuous control moved.
+    Move = 4,
+    /// A scroll axis changed.
+    Scroll = 5,
+    /// An analog axis changed.
+    Axis = 6,
+    /// A text payload was emitted.
+    Text = 7,
+    /// A source became available.
+    Connect = 8,
+    /// A source became unavailable.
+    Disconnect = 9,
+    /// A source changed.
+    Change = 10,
+    /// A gesture, composition, or contact was canceled.
+    Cancel = 11,
+    /// A composite operation started.
+    Begin = 12,
+    /// A composite operation updated.
+    Update = 13,
+    /// A composite operation committed.
+    Commit = 14,
+    /// A composite operation ended.
+    End = 15,
 }
 
-/// Pointer motion event payload.
-export struct InputPointerMotionEventPayload {
-    /// Stable pointer identifier.
-    pointerId: uint64;
-    /// Pointer device family.
-    pointerType: InputPointerType;
-    /// Whether this is the primary pointer for its type.
-    isPrimary: boolean;
-    /// Coordinate space for the reported position.
-    coordinateSpace: InputCoordinateSpace;
-    /// Absolute x coordinate when available.
-    positionX: float64;
-    /// Absolute y coordinate when available.
-    positionY: float64;
-    /// Relative x delta when available.
-    deltaX: float64;
-    /// Relative y delta when available.
-    deltaY: float64;
-    /// Canonical pressed-button bitset.
-    buttons: uint32;
-    /// Backend button bitset.
-    backendButtons: uint32;
-    /// Normalized modifier and lock state.
-    modifierState: InputModifierState;
-    /// Contact geometry when available.
-    contact: InputPointerContactGeometry | void;
-    /// Pen-specific state when available.
-    pen: InputPenState | void;
-    /// Coalesced motion samples represented by this update.
-    coalescedSamples: Slice<InputPointerMotionSample>;
-    /// Predicted motion samples when the backend exposes them.
-    predictedSamples: Slice<InputPointerMotionSample>;
-}
-
-/// Pointer button event payload.
-export struct InputPointerButtonEventPayload {
-    /// Button action.
-    action: InputEventAction;
-    /// Stable pointer identifier.
-    pointerId: uint64;
-    /// Pointer device family.
-    pointerType: InputPointerType;
-    /// Whether this is the primary pointer for its type.
-    isPrimary: boolean;
-    /// Canonical button index when available.
-    button: int16;
-    /// Canonical pressed-button bitset after this event.
-    buttons: uint32;
-    /// Backend-native button code.
-    backendCode: uint32;
-    /// Backend-native button value.
-    backendValue: int64;
-    /// Pointer x coordinate.
-    positionX: float64;
-    /// Pointer y coordinate.
-    positionY: float64;
-    /// Coordinate space for the reported position.
-    coordinateSpace: InputCoordinateSpace;
-    /// Normalized modifier and lock state.
-    modifierState: InputModifierState;
-    /// Contact geometry when available.
-    contact: InputPointerContactGeometry | void;
-    /// Pen-specific state when available.
-    pen: InputPenState | void;
-}
-
-/// Scroll event payload.
-export struct InputScrollEventPayload {
-    /// Stable pointer identifier when available.
-    pointerId: uint64 | void;
-    /// Pointer device family when available.
-    pointerType: InputPointerType | void;
-    /// Scroll delta unit.
-    deltaMode: InputWheelDeltaMode;
-    /// Horizontal wheel delta.
-    deltaX: float64;
-    /// Vertical wheel delta.
-    deltaY: float64;
-    /// Pointer x coordinate.
-    positionX: float64;
-    /// Pointer y coordinate.
-    positionY: float64;
-    /// Coordinate space for the reported position.
-    coordinateSpace: InputCoordinateSpace;
-    /// Canonical pressed-button bitset.
-    buttons: uint32;
-    /// Normalized modifier and lock state.
-    modifierState: InputModifierState;
-}
-
-/// Touch event payload.
-export struct InputTouchEventPayload {
-    /// Touch action.
-    action: InputEventAction;
-    /// Stable pointer identifier for this contact.
-    pointerId: uint64;
-    /// Whether this is the primary touch contact.
-    isPrimary: boolean;
-    /// Contact x coordinate.
-    positionX: float64;
-    /// Contact y coordinate.
-    positionY: float64;
-    /// Coordinate space for the reported position.
-    coordinateSpace: InputCoordinateSpace;
-    /// Contact pressure when available.
-    pressure: float64;
-    /// Contact geometry when available.
-    contact: InputPointerContactGeometry | void;
-    /// Contact tilt around x axis in degrees when available.
-    tiltX: float64;
-    /// Contact tilt around y axis in degrees when available.
-    tiltY: float64;
-    /// Contact twist in degrees when available.
-    twist: float64;
-}
-
-/// Gamepad event payload.
-export struct InputGamepadEventPayload {
-    /// Gamepad action.
-    action: InputEventAction;
-    /// Control kind.
-    controlKind: InputGamepadControlKind;
-    /// Canonical control index when available.
-    controlIndex: uint32;
-    /// Backend-native control code.
-    backendCode: uint32;
-    /// Backend-native control value.
-    backendValue: int64;
-    /// Normalized control value.
-    value: float64;
-    /// Whether the control is pressed after this event when applicable.
-    pressed: boolean;
-    /// Whether the control is touched after this event when applicable.
-    touched: boolean;
-}
-
-/// Text event payload.
-export struct InputTextEventPayload {
-    /// UTF-8 text payload.
-    text: string;
-    /// Whether this text emission belongs to one active composition session.
-    isComposing: boolean;
-}
-
-/// Device event payload.
-export struct InputDeviceEventPayload {
-    /// Device action.
-    action: InputEventAction;
-    /// Backend-native device code.
-    backendCode: uint32;
-    /// Backend-native device value.
-    backendValue: int64;
-}
-
-/// Sensor event payload.
-export struct InputSensorEventPayload {
-    /// Sensor action.
-    action: InputEventAction;
-    /// Backend-native sensor code.
-    backendCode: uint32;
-    /// Backend-native sensor value.
-    backendValue: int64;
-    /// Sensor x component when available.
-    x: float64;
-    /// Sensor y component when available.
-    y: float64;
-    /// Sensor z component when available.
-    z: float64;
-    /// Sensor w component when available.
-    w: float64;
-}
-
-/// Composition event payload.
-export struct InputCompositionEventPayload {
-    /// Composition action.
-    action: InputEventAction;
-    /// UTF-8 composition text.
-    text: string;
-    /// Selection start offset when available.
-    selectionStart: int32;
-    /// Selection end offset when available.
-    selectionEnd: int32;
-}
-
-/// Shared metadata for all input events.
-export struct InputEventMetadata {
+/// Input event header.
+export struct InputEventHeader {
     /// Monotonic event timestamp in nanoseconds.
     timestampNs: uint64;
-    /// Monotonic sequence number generated by the backend stream.
+    /// Monotonic sequence number generated by the stream.
     sequence: uint64;
+    /// Number of events dropped before this event.
+    droppedCount: uint64;
     /// Stable source device identifier.
-    deviceId: string;
-    /// Target window when this input event is routed to one concrete window.
-    targetWindow: WindowHandle | void;
+    deviceId?: string;
+    /// Target window when the event was routed to a window.
+    window?: WindowHandle;
 }
 
-/// Key input event.
-export struct InputKeyEvent {
-    /// Discriminator for this input event variant.
-    kind: "key";
-    /// Shared event metadata.
-    metadata: InputEventMetadata;
-    /// Key payload.
-    payload: InputKeyEventPayload;
-}
-
-/// Pointer-motion input event.
-export struct InputPointerMotionEvent {
-    /// Discriminator for this input event variant.
-    kind: "pointerMotion";
-    /// Shared event metadata.
-    metadata: InputEventMetadata;
-    /// Pointer-motion payload.
-    payload: InputPointerMotionEventPayload;
-}
-
-/// Pointer-button input event.
-export struct InputPointerButtonEvent {
-    /// Discriminator for this input event variant.
-    kind: "pointerButton";
-    /// Shared event metadata.
-    metadata: InputEventMetadata;
-    /// Pointer-button payload.
-    payload: InputPointerButtonEventPayload;
-}
-
-/// Scroll input event.
-export struct InputScrollEvent {
-    /// Discriminator for this input event variant.
-    kind: "scroll";
-    /// Shared event metadata.
-    metadata: InputEventMetadata;
-    /// Scroll payload.
-    payload: InputScrollEventPayload;
-}
-
-/// Touch input event.
-export struct InputTouchEvent {
-    /// Discriminator for this input event variant.
-    kind: "touch";
-    /// Shared event metadata.
-    metadata: InputEventMetadata;
-    /// Touch payload.
-    payload: InputTouchEventPayload;
-}
-
-/// Gamepad input event.
-export struct InputGamepadEvent {
-    /// Discriminator for this input event variant.
-    kind: "gamepad";
-    /// Shared event metadata.
-    metadata: InputEventMetadata;
-    /// Gamepad payload.
-    payload: InputGamepadEventPayload;
-}
-
-/// Text input event.
-export struct InputTextEvent {
-    /// Discriminator for this input event variant.
-    kind: "text";
-    /// Shared event metadata.
-    metadata: InputEventMetadata;
-    /// Text payload.
-    payload: InputTextEventPayload;
-}
-
-/// Device input event.
-export struct InputDeviceEvent {
-    /// Discriminator for this input event variant.
-    kind: "device";
-    /// Shared event metadata.
-    metadata: InputEventMetadata;
-    /// Device payload.
-    payload: InputDeviceEventPayload;
-}
-
-/// Sensor input event.
-export struct InputSensorEvent {
-    /// Discriminator for this input event variant.
-    kind: "sensor";
-    /// Shared event metadata.
-    metadata: InputEventMetadata;
-    /// Sensor payload.
-    payload: InputSensorEventPayload;
-}
-
-/// Composition input event.
-export struct InputCompositionEvent {
-    /// Discriminator for this input event variant.
-    kind: "composition";
-    /// Shared event metadata.
-    metadata: InputEventMetadata;
-    /// Composition payload.
-    payload: InputCompositionEventPayload;
-}
-
-/// Input event payload.
+/// Input event.
+@derive(Tagged)
 export newtype InputEvent =
-    | InputKeyEvent
-    | InputPointerMotionEvent
-    | InputPointerButtonEvent
-    | InputScrollEvent
-    | InputTouchEvent
-    | InputGamepadEvent
-    | InputTextEvent
-    | InputDeviceEvent
-    | InputSensorEvent
-    | InputCompositionEvent;
+    | {
+          kind: "device";
+          header: InputEventHeader;
+          action: InputEventAction;
+          device: InputDevice;
+      }
+    | {
+          kind: "key";
+          header: InputEventHeader;
+          action: InputEventAction;
+          key?: string;
+          code?: string;
+          location: KeyLocation;
+          hostCode: uint32;
+          hostScanCode?: uint32;
+          hostValue: int64;
+          hostModifiers: uint32;
+          modifiers: ModifierState;
+          isRepeat: boolean;
+          isComposing: boolean;
+      }
+    | {
+          kind: "pointerMove";
+          header: InputEventHeader;
+          pointerId: uint64;
+          pointerKind: PointerKind;
+          isPrimary: boolean;
+          space: CoordinateSpace;
+          x: float64;
+          y: float64;
+          deltaX: float64;
+          deltaY: float64;
+          buttons: uint32;
+          hostButtons: uint32;
+          modifiers: ModifierState;
+          contact?: PointerContact;
+          pen?: PenState;
+          coalesced: Array<PointerSample>;
+          predicted: Array<PointerSample>;
+      }
+    | {
+          kind: "pointerButton";
+          header: InputEventHeader;
+          action: InputEventAction;
+          pointerId: uint64;
+          pointerKind: PointerKind;
+          isPrimary: boolean;
+          button?: int16;
+          buttons: uint32;
+          hostCode: uint32;
+          hostValue: int64;
+          x: float64;
+          y: float64;
+          space: CoordinateSpace;
+          modifiers: ModifierState;
+          contact?: PointerContact;
+          pen?: PenState;
+      }
+    | {
+          kind: "wheel";
+          header: InputEventHeader;
+          pointerId?: uint64;
+          pointerKind?: PointerKind;
+          unit: WheelUnit;
+          deltaX: float64;
+          deltaY: float64;
+          x: float64;
+          y: float64;
+          space: CoordinateSpace;
+          buttons: uint32;
+          modifiers: ModifierState;
+      }
+    | {
+          kind: "touch";
+          header: InputEventHeader;
+          action: InputEventAction;
+          pointerId: uint64;
+          isPrimary: boolean;
+          x: float64;
+          y: float64;
+          space: CoordinateSpace;
+          pressure?: float64;
+          contact?: PointerContact;
+          tiltX?: float64;
+          tiltY?: float64;
+          twist?: float64;
+      }
+    | {
+          kind: "gamepad";
+          header: InputEventHeader;
+          action: InputEventAction;
+          controlKind: GamepadControlKind;
+          control: GamepadControl;
+          hostCode: uint32;
+          hostValue: int64;
+          value: float64;
+          isPressed: boolean;
+          isTouched: boolean;
+      }
+    | {
+          kind: "sensor";
+          header: InputEventHeader;
+          action: InputEventAction;
+          sensor: SensorKind;
+          hostCode: uint32;
+          hostValue: int64;
+          x: float64;
+          y: float64;
+          z: float64;
+          w: float64;
+      }
+    | {
+          kind: "text";
+          header: InputEventHeader;
+          text: string;
+          isComposing: boolean;
+      }
+    | {
+          kind: "composition";
+          header: InputEventHeader;
+          action: InputEventAction;
+          text: string;
+          selectionStart?: uint32;
+          selectionEnd?: uint32;
+      };
 
-/// Shared metadata for all monitor events.
-export struct InputMonitorEventMetadata {
-    /// Monotonic event timestamp in nanoseconds.
-    timestampNs: uint64;
-    /// Monotonic sequence number generated by the monitor stream.
-    sequence: uint64;
-    /// Stable source device identifier.
-    deviceId: string;
-    /// Stable source instance identifier when available.
-    instanceId: string | void;
-    /// Device kind when available.
-    deviceKind: InputDeviceKind;
-    /// Whether the device is connected after this event.
-    connected: boolean;
-}
-
-/// Device-connected monitor event.
-export struct InputMonitorConnectEvent {
-    /// Discriminator for this input monitor event variant.
-    kind: "connect";
-    /// Shared monitor event metadata.
-    metadata: InputMonitorEventMetadata;
-}
-
-/// Device-disconnected monitor event.
-export struct InputMonitorDisconnectEvent {
-    /// Discriminator for this input monitor event variant.
-    kind: "disconnect";
-    /// Shared monitor event metadata.
-    metadata: InputMonitorEventMetadata;
-}
-
-/// Device-changed monitor event.
-export struct InputMonitorChangeEvent {
-    /// Discriminator for this input monitor event variant.
-    kind: "change";
-    /// Shared monitor event metadata.
-    metadata: InputMonitorEventMetadata;
-}
-
-/// Device monitor event payload.
-export newtype InputMonitorEvent =
-    | InputMonitorConnectEvent
-    | InputMonitorDisconnectEvent
-    | InputMonitorChangeEvent;
-
-/// Open one global input event monitor.
-@binding("destack.input.event.monitorOpen", {
+/// Open an input event subscription.
+@binding("destack.input.event.open", {
     effect: "external",
-    requires: ["host.input.read"],
+    requires: ["host.input.event"],
     families: ["windows", "unix"],
     simulation: true,
+    affinity: "worker",
 })
-export declare function monitorOpen(): Result<InputMonitorHandle, PlatformError>;
+export declare function openInputEvents(
+    subscription: &readonly InputEventSubscription,
+): Result<InputEventHandle, PlatformError>;
 
-/// Close one global input event monitor.
-@binding("destack.input.event.monitorClose", {
+/// Close an input event subscription.
+@binding("destack.input.event.close", {
     effect: "external",
-    requires: ["host.input.read"],
+    requires: ["host.input.event"],
     families: ["windows", "unix"],
     simulation: true,
+    affinity: "worker",
 })
-export declare function monitorClose(handle: InputMonitorHandle): Result<void, PlatformError>;
+export declare function closeInputEvents(events: InputEventHandle): Result<void, PlatformError>;
 
-/// Read one global input monitor event.
-@binding("destack.input.event.monitorRead", {
-    effect: "external",
-    requires: ["host.input.read"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function monitorRead(
-    handle: InputMonitorHandle,
-): Result<InputMonitorEvent, PlatformError>;
-
-/// Poll one global input monitor event without blocking.
-@binding("destack.input.event.monitorTryRead", {
-    effect: "external",
-    requires: ["host.input.read"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function monitorTryRead(
-    handle: InputMonitorHandle,
-): Result<InputMonitorEvent, PlatformError>;
-
-/// Read one input event.
+/// Read input events.
 @binding("destack.input.event.read", {
     effect: "external",
-    requires: ["host.input.read"],
+    requires: ["host.input.event"],
     families: ["windows", "unix"],
     simulation: true,
+    affinity: "worker",
 })
-export declare function read(handle: InputDeviceHandle): Result<InputEvent, PlatformError>;
-
-/// Poll one input event without blocking.
-@binding("destack.input.event.tryRead", {
-    effect: "external",
-    requires: ["host.input.read"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function tryRead(handle: InputDeviceHandle): Result<InputEvent, PlatformError>;
-
-/// Read one batch of input events.
-@binding("destack.input.event.readBatch", {
-    effect: "external",
-    requires: ["host.input.read"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function readBatch(
-    handle: InputDeviceHandle,
+export declare function readInputEvents(
+    events: InputEventHandle,
     maxEvents: uint32,
-): Result<Array<InputEvent>, PlatformError>;
-
-/// Enable or disable exclusive device grab.
-@binding("destack.input.event.setExclusiveGrab", {
-    effect: "external",
-    requires: ["host.input.grab"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setExclusiveGrab(
-    handle: InputDeviceHandle,
-    enable: boolean,
-): Result<void, PlatformError>;
-
-/// Select event decoding mode for one input stream.
-@binding("destack.input.event.setReadMode", {
-    effect: "external",
-    requires: ["host.input.control"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setReadMode(
-    handle: InputDeviceHandle,
-    mode: InputReadMode,
-): Result<void, PlatformError>;
+    timeoutNs?: uint64,
+): Result<^Array<InputEvent>, PlatformError>;

@@ -1,8 +1,0 @@
-import { WindowHandle } from "destack:platform/resource";
-
-/// Optional window target for input operations.
-export struct InputWindowTarget {
-    /// Window target handle when one explicit window scope is required.
-    /// When omitted, the active backend input focus context is used.
-    window?: WindowHandle;
-}

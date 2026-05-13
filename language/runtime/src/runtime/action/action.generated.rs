@@ -83,6 +83,16 @@ pub enum Action {
     DeviceCameraList,
     /// `host.device.camera.open`.
     DeviceCameraOpen,
+    /// `host.device.hid.feature`.
+    DeviceHidFeature,
+    /// `host.device.hid.list`.
+    DeviceHidList,
+    /// `host.device.hid.open`.
+    DeviceHidOpen,
+    /// `host.device.hid.read`.
+    DeviceHidRead,
+    /// `host.device.hid.write`.
+    DeviceHidWrite,
     /// `host.device.midi.list`.
     DeviceMidiList,
     /// `host.device.midi.observe`.
@@ -189,18 +199,26 @@ pub enum Action {
     InputClipboardRead,
     /// `host.input.clipboard.write`.
     InputClipboardWrite,
-    /// `host.input.control`.
-    InputControl,
+    /// `host.input.device`.
+    InputDevice,
+    /// `host.input.event`.
+    InputEvent,
+    /// `host.input.gamepad`.
+    InputGamepad,
     /// `host.input.grab`.
     InputGrab,
     /// `host.input.haptics`.
     InputHaptics,
-    /// `host.input.read`.
-    InputRead,
+    /// `host.input.keyboard`.
+    InputKeyboard,
+    /// `host.input.pointer`.
+    InputPointer,
+    /// `host.input.sensor`.
+    InputSensor,
     /// `host.input.text`.
     InputText,
-    /// `host.input.write`.
-    InputWrite,
+    /// `host.input.touch`.
+    InputTouch,
     /// `host.io.completion`.
     IoCompletion,
     /// `host.io.control`.
@@ -502,6 +520,11 @@ impl Action {
         Self::DeviceCameraConfigure,
         Self::DeviceCameraList,
         Self::DeviceCameraOpen,
+        Self::DeviceHidFeature,
+        Self::DeviceHidList,
+        Self::DeviceHidOpen,
+        Self::DeviceHidRead,
+        Self::DeviceHidWrite,
         Self::DeviceMidiList,
         Self::DeviceMidiObserve,
         Self::DeviceMidiOpen,
@@ -555,12 +578,16 @@ impl Action {
         Self::GpuSync,
         Self::InputClipboardRead,
         Self::InputClipboardWrite,
-        Self::InputControl,
+        Self::InputDevice,
+        Self::InputEvent,
+        Self::InputGamepad,
         Self::InputGrab,
         Self::InputHaptics,
-        Self::InputRead,
+        Self::InputKeyboard,
+        Self::InputPointer,
+        Self::InputSensor,
         Self::InputText,
-        Self::InputWrite,
+        Self::InputTouch,
         Self::IoCompletion,
         Self::IoControl,
         Self::IoPoll,
@@ -734,6 +761,11 @@ impl Action {
             Self::DeviceCameraConfigure => "host.device.camera.configure",
             Self::DeviceCameraList => "host.device.camera.list",
             Self::DeviceCameraOpen => "host.device.camera.open",
+            Self::DeviceHidFeature => "host.device.hid.feature",
+            Self::DeviceHidList => "host.device.hid.list",
+            Self::DeviceHidOpen => "host.device.hid.open",
+            Self::DeviceHidRead => "host.device.hid.read",
+            Self::DeviceHidWrite => "host.device.hid.write",
             Self::DeviceMidiList => "host.device.midi.list",
             Self::DeviceMidiObserve => "host.device.midi.observe",
             Self::DeviceMidiOpen => "host.device.midi.open",
@@ -787,12 +819,16 @@ impl Action {
             Self::GpuSync => "host.gpu.sync",
             Self::InputClipboardRead => "host.input.clipboard.read",
             Self::InputClipboardWrite => "host.input.clipboard.write",
-            Self::InputControl => "host.input.control",
+            Self::InputDevice => "host.input.device",
+            Self::InputEvent => "host.input.event",
+            Self::InputGamepad => "host.input.gamepad",
             Self::InputGrab => "host.input.grab",
             Self::InputHaptics => "host.input.haptics",
-            Self::InputRead => "host.input.read",
+            Self::InputKeyboard => "host.input.keyboard",
+            Self::InputPointer => "host.input.pointer",
+            Self::InputSensor => "host.input.sensor",
             Self::InputText => "host.input.text",
-            Self::InputWrite => "host.input.write",
+            Self::InputTouch => "host.input.touch",
             Self::IoCompletion => "host.io.completion",
             Self::IoControl => "host.io.control",
             Self::IoPoll => "host.io.poll",
@@ -972,6 +1008,11 @@ impl Action {
             "host.device.camera.configure" => Some(Self::DeviceCameraConfigure),
             "host.device.camera.list" => Some(Self::DeviceCameraList),
             "host.device.camera.open" => Some(Self::DeviceCameraOpen),
+            "host.device.hid.feature" => Some(Self::DeviceHidFeature),
+            "host.device.hid.list" => Some(Self::DeviceHidList),
+            "host.device.hid.open" => Some(Self::DeviceHidOpen),
+            "host.device.hid.read" => Some(Self::DeviceHidRead),
+            "host.device.hid.write" => Some(Self::DeviceHidWrite),
             "host.device.midi.list" => Some(Self::DeviceMidiList),
             "host.device.midi.observe" => Some(Self::DeviceMidiObserve),
             "host.device.midi.open" => Some(Self::DeviceMidiOpen),
@@ -1025,12 +1066,16 @@ impl Action {
             "host.gpu.sync" => Some(Self::GpuSync),
             "host.input.clipboard.read" => Some(Self::InputClipboardRead),
             "host.input.clipboard.write" => Some(Self::InputClipboardWrite),
-            "host.input.control" => Some(Self::InputControl),
+            "host.input.device" => Some(Self::InputDevice),
+            "host.input.event" => Some(Self::InputEvent),
+            "host.input.gamepad" => Some(Self::InputGamepad),
             "host.input.grab" => Some(Self::InputGrab),
             "host.input.haptics" => Some(Self::InputHaptics),
-            "host.input.read" => Some(Self::InputRead),
+            "host.input.keyboard" => Some(Self::InputKeyboard),
+            "host.input.pointer" => Some(Self::InputPointer),
+            "host.input.sensor" => Some(Self::InputSensor),
             "host.input.text" => Some(Self::InputText),
-            "host.input.write" => Some(Self::InputWrite),
+            "host.input.touch" => Some(Self::InputTouch),
             "host.io.completion" => Some(Self::IoCompletion),
             "host.io.control" => Some(Self::IoControl),
             "host.io.poll" => Some(Self::IoPoll),

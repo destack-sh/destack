@@ -2,19 +2,19 @@ import { Array } from "destack:collections";
 import { PlatformError } from "destack:platform/error";
 import { InputDeviceHandle } from "destack:platform/resource";
 
-/// Gamepad mapping type.
-export enum InputGamepadMappingType {
+/// Gamepad mapping.
+export enum GamepadMapping {
     /// No canonical mapping is available.
     None = 0,
-    /// Standard gamepad mapping.
+    /// Standard web gamepad mapping.
     Standard = 1,
-    /// XR standard gamepad mapping.
+    /// Standard XR gamepad mapping.
     XrStandard = 2,
 }
 
-/// Gamepad connection type.
-export enum InputGamepadConnectionType {
-    /// Connection type is unknown.
+/// Gamepad connection kind.
+export enum GamepadConnection {
+    /// Host did not classify the connection.
     Unknown = 0,
     /// Wired transport.
     Wired = 1,
@@ -25,7 +25,7 @@ export enum InputGamepadConnectionType {
 }
 
 /// Gamepad battery state.
-export enum InputGamepadBatteryState {
+export enum GamepadBatteryState {
     /// Battery state is unknown.
     Unknown = 0,
     /// Battery is charging.
@@ -38,40 +38,58 @@ export enum InputGamepadBatteryState {
     NotPresent = 4,
 }
 
-/// Gamepad battery information.
-export struct InputGamepadBatteryStatus {
+/// Gamepad control selector.
+export struct GamepadControl {
+    /// Canonical control index when available.
+    index?: uint32;
+    /// Host-native control code.
+    hostCode: uint32;
+}
+
+/// Gamepad control kind.
+export enum GamepadControlKind {
+    /// Gamepad button.
+    Button = 1,
+    /// Gamepad axis.
+    Axis = 2,
+    /// Gamepad touch contact.
+    Touch = 3,
+}
+
+/// Gamepad battery status.
+export struct GamepadBattery {
     /// Battery state.
-    state: InputGamepadBatteryState;
-    /// Battery level in the range [0, 1] when available.
-    level: float64;
+    state: GamepadBatteryState;
+    /// Battery level in the range `[0, 1]` when available.
+    level?: float64;
 }
 
 /// Gamepad button state.
-export struct InputGamepadButtonState {
+export struct GamepadButton {
     /// Whether the button is currently pressed.
-    pressed: boolean;
+    isPressed: boolean;
     /// Whether the button is currently touched.
-    touched: boolean;
-    /// Analog button value in the normalized range [0, 1].
+    isTouched: boolean;
+    /// Analog button value in the normalized range `[0, 1]`.
     value: float64;
 }
 
 /// Gamepad touch contact state.
-export struct InputGamepadTouchState {
-    /// Touch identifier in backend contact space.
+export struct GamepadTouch {
+    /// Touch identifier in host contact space.
     touchId: uint32;
     /// Touch surface identifier.
     surfaceId: uint32;
-    /// Normalized x coordinate in the range [-1, 1] when reported by backend.
+    /// Normalized x coordinate in the range `[-1, 1]` when reported by the host.
     x: float64;
-    /// Normalized y coordinate in the range [-1, 1] when reported by backend.
+    /// Normalized y coordinate in the range `[-1, 1]` when reported by the host.
     y: float64;
-    /// Normalized pressure in the range [0, 1] when reported by backend.
-    pressure: float64;
+    /// Normalized pressure in the range `[0, 1]` when reported by the host.
+    pressure?: float64;
 }
 
 /// Gamepad motion state snapshot.
-export struct InputGamepadMotionState {
+export struct GamepadMotion {
     /// Monotonic update timestamp in nanoseconds.
     timestampNs: uint64;
     /// Linear acceleration x component in meters per second squared.
@@ -81,11 +99,11 @@ export struct InputGamepadMotionState {
     /// Linear acceleration z component in meters per second squared.
     accelerationZ: float64;
     /// Gravity x component in meters per second squared when available.
-    gravityX: float64;
+    gravityX?: float64;
     /// Gravity y component in meters per second squared when available.
-    gravityY: float64;
+    gravityY?: float64;
     /// Gravity z component in meters per second squared when available.
-    gravityZ: float64;
+    gravityZ?: float64;
     /// Rotation rate around x in radians per second.
     gyroscopeX: float64;
     /// Rotation rate around y in radians per second.
@@ -95,112 +113,112 @@ export struct InputGamepadMotionState {
 }
 
 /// Gamepad state snapshot.
-export struct InputGamepadState {
+export struct GamepadState {
     /// Monotonic update timestamp in nanoseconds.
     timestampNs: uint64;
     /// Whether the gamepad is currently connected.
-    connected: boolean;
+    isConnected: boolean;
     /// Stable source device identifier.
     deviceId: string;
     /// Stable instance identifier when available.
-    instanceId: string | void;
-    /// Stable gamepad guid when available.
-    guid: string | void;
-    /// Raw backend device name when available.
-    rawName: string | void;
+    instanceId?: string;
+    /// Stable gamepad GUID when available.
+    guid?: string;
+    /// Host device name when available.
+    hostName?: string;
     /// Active mapping display name when available.
-    mappingName: string | void;
-    /// Active gamepad mapping type.
-    mapping: InputGamepadMappingType;
-    /// Connection type when available.
-    connectionType: InputGamepadConnectionType;
-    /// Player index in the range [0, 15] when available.
-    playerIndex: uint8 | void;
-    /// Stable web-style slot index when the backend or runtime assigns one.
-    slotIndex: uint8 | void;
-    /// Battery information snapshot.
-    battery: InputGamepadBatteryStatus;
+    mappingName?: string;
+    /// Active gamepad mapping.
+    mapping: GamepadMapping;
+    /// Connection kind when available.
+    connection: GamepadConnection;
+    /// Player index in the range `[0, 15]` when available.
+    playerIndex?: uint8;
+    /// Stable web-style slot index when assigned.
+    slotIndex?: uint8;
+    /// Battery status.
+    battery: GamepadBattery;
     /// Whether this device supports whole-device rumble.
     supportsRumble: boolean;
     /// Whether this device supports trigger rumble.
     supportsTriggerRumble: boolean;
     /// Whether this device exposes motion sensors.
-    supportsMotionSensors: boolean;
+    supportsMotion: boolean;
     /// Whether this device exposes touch surfaces.
     supportsTouch: boolean;
     /// Whether this device supports light control.
     supportsLight: boolean;
     /// Whether motion sensors are currently enabled.
-    motionSensorsEnabled: boolean;
-    /// Effective motion sensor sample rate in hertz when available.
-    motionSampleRateHz: float64 | void;
-    /// Axis values in normalized backend order.
+    isMotionEnabled: boolean;
+    /// Effective motion sample rate in hertz when available.
+    motionSampleRateHz?: float64;
+    /// Axis values in normalized host order.
     axes: Array<float64>;
-    /// Button values in normalized backend order.
-    buttons: Array<InputGamepadButtonState>;
+    /// Button values in normalized host order.
+    buttons: Array<GamepadButton>;
     /// Touch contacts when the device exposes touch surfaces.
-    touches: Array<InputGamepadTouchState>;
-    /// Motion state when sensors are enabled and data is available.
-    motion: InputGamepadMotionState | void;
+    touches: Array<GamepadTouch>;
+    /// Motion state when sensors are enabled.
+    motion?: GamepadMotion;
 }
 
 /// Read one gamepad state snapshot.
-@binding("destack.input.gamepad.state", {
+@binding("destack.input.gamepad.state.read", {
     effect: "external",
-    requires: ["host.input.read"],
+    requires: ["host.input.gamepad"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function gamepadState(
-    handle: InputDeviceHandle,
-): Result<InputGamepadState, PlatformError>;
+export declare function readGamepadState(
+    device: InputDeviceHandle,
+): Result<GamepadState, PlatformError>;
 
 /// Set one gamepad player index.
-@binding("destack.input.gamepad.setPlayerIndex", {
+@binding("destack.input.gamepad.player.index.set", {
     effect: "external",
-    requires: ["host.input.control"],
+    requires: ["host.input.gamepad"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function gamepadSetPlayerIndex(
-    handle: InputDeviceHandle,
+export declare function setGamepadPlayerIndex(
+    device: InputDeviceHandle,
     playerIndex: uint8,
 ): Result<void, PlatformError>;
 
 /// Set one gamepad light color.
-@binding("destack.input.gamepad.setLight", {
+@binding("destack.input.gamepad.light.set", {
     effect: "external",
-    requires: ["host.input.control"],
+    requires: ["host.input.gamepad"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function gamepadSetLight(
-    handle: InputDeviceHandle,
+export declare function setGamepadLight(
+    device: InputDeviceHandle,
     red: uint8,
     green: uint8,
     blue: uint8,
 ): Result<void, PlatformError>;
 
 /// Enable or disable gamepad motion sensors.
-@binding("destack.input.gamepad.setMotionSensorsEnabled", {
+@binding("destack.input.gamepad.motion.set", {
     effect: "external",
-    requires: ["host.input.control"],
+    requires: ["host.input.gamepad"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function gamepadSetMotionSensorsEnabled(
-    handle: InputDeviceHandle,
-    enabled: boolean,
+export declare function setGamepadMotion(
+    device: InputDeviceHandle,
+    isEnabled: boolean,
 ): Result<void, PlatformError>;
 
 /// Set the gamepad motion sensor sample rate.
-@binding("destack.input.gamepad.setMotionSensorSampleRate", {
+@binding("destack.input.gamepad.motion.rate.set", {
     effect: "external",
-    requires: ["host.input.control"],
+    requires: ["host.input.gamepad"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function gamepadSetMotionSensorSampleRate(
-    handle: InputDeviceHandle,
+export declare function setGamepadMotionRate(
+    device: InputDeviceHandle,
     sampleRateHz: float64,
 ): Result<void, PlatformError>;

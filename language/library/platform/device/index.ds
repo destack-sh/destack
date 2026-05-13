@@ -1,5 +1,6 @@
 export * from "./bluetooth.ds";
 export * from "./camera.ds";
+export * from "./hid.ds";
 export * from "./midi.ds";
 export * from "./serial.ds";
 export * from "./usb.ds";

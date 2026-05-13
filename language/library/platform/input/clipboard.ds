@@ -1,166 +1,159 @@
-import { Slice } from "destack:collections";
+import { Array } from "destack:collections";
 import { PlatformError } from "destack:platform/error";
 import { Path } from "destack:platform/fs";
 
 /// Clipboard item representation kind.
-export enum ClipboardItemRepresentationKind {
-    /// One textual representation.
-    String = 1,
-    /// One filesystem representation.
+export enum ClipboardRepresentationKind {
+    /// Text payload.
+    Text = 1,
+    /// Filesystem payload.
     File = 2,
-    /// One arbitrary binary representation.
-    Binary = 3,
+    /// Arbitrary byte payload.
+    Bytes = 3,
 }
 
 /// Clipboard presentation style.
 export enum ClipboardPresentationStyle {
-    /// No presentation preference is declared.
+    /// No presentation preference.
     Unspecified = 0,
-    /// The item prefers inline presentation.
+    /// Inline presentation.
     Inline = 1,
-    /// The item prefers attachment presentation.
+    /// Attachment presentation.
     Attachment = 2,
 }
 
-/// One clipboard item representation descriptor.
-export struct ClipboardItemRepresentationDescriptor {
-    /// MIME type or platform-native format identifier.
+/// Clipboard representation descriptor.
+export struct ClipboardRepresentation {
+    /// MIME type or host-native format identifier.
     mimeType: string;
     /// Representation kind.
-    kind: ClipboardItemRepresentationKind;
+    kind: ClipboardRepresentationKind;
     /// Suggested representation name when available.
-    name: string | void;
-    /// Whether one filesystem representation refers to one directory.
+    name?: string;
+    /// Whether a filesystem representation refers to a directory.
     isDirectory: boolean;
     /// Representation length in bytes when available.
-    byteLength: uint64 | void;
+    byteLength?: uint64;
 }
 
-/// One clipboard item descriptor.
-export struct ClipboardItemDescriptor {
-    /// Item presentation style.
-    presentationStyle: ClipboardPresentationStyle;
-    /// Item representations in provider order.
-    representations: Slice<ClipboardItemRepresentationDescriptor>;
-}
-
-/// One clipboard item representation payload.
-export struct ClipboardItemRepresentation {
-    /// MIME type or platform-native format identifier.
-    mimeType: string;
-    /// Representation kind.
-    kind: ClipboardItemRepresentationKind;
-    /// Suggested representation name when available.
-    name: string | void;
-    /// Text payload for string representations.
-    text: string | void;
-    /// Filesystem payload for file representations.
-    path: Path | void;
-    /// Binary payload for binary representations.
-    bytes: Slice<uint8> | void;
-}
-
-/// One clipboard item payload.
+/// Clipboard item descriptor.
 export struct ClipboardItem {
-    /// Item presentation style.
+    /// Presentation preference.
     presentationStyle: ClipboardPresentationStyle;
-    /// Item representations in provider order.
-    representations: Slice<ClipboardItemRepresentation>;
+    /// Available representations in provider order.
+    representations: Array<ClipboardRepresentation>;
+}
+
+/// Clipboard representation payload.
+@derive(Tagged)
+export newtype ClipboardPayload =
+    | { kind: "text"; mimeType: string; name?: string; text: string }
+    | { kind: "file"; mimeType: string; name?: string; path: Path; isDirectory: boolean }
+    | { kind: "bytes"; mimeType: string; name?: string; bytes: Array<uint8> };
+
+/// Clipboard item payload.
+export struct ClipboardWriteItem {
+    /// Presentation preference.
+    presentationStyle: ClipboardPresentationStyle;
+    /// Representations to publish in provider order.
+    payloads: Array<ClipboardPayload>;
 }
 
 /// Query whether text clipboard payload exists.
-@binding("destack.input.clipboard.hasText", {
+@binding("destack.input.clipboard.text.has", {
     effect: "external",
     requires: ["host.input.clipboard.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function clipboardHasText(): Result<boolean, PlatformError>;
+export declare function hasClipboardText(): Result<boolean, PlatformError>;
 
 /// List clipboard items.
-@binding("destack.input.clipboard.listItems", {
+@binding("destack.input.clipboard.items.list", {
     effect: "external",
     requires: ["host.input.clipboard.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function clipboardListItems(): Result<Slice<ClipboardItemDescriptor>, PlatformError>;
+export declare function listClipboardItems(): Result<^Array<ClipboardItem>, PlatformError>;
 
 /// Read one text clipboard payload.
-@binding("destack.input.clipboard.readText", {
+@binding("destack.input.clipboard.text.read", {
     effect: "external",
     requires: ["host.input.clipboard.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function clipboardReadText(): Result<string, PlatformError>;
+export declare function readClipboardText(): Result<^string, PlatformError>;
 
-/// Read one text clipboard item representation.
-@binding("destack.input.clipboard.readItemText", {
+/// Read one clipboard item representation as text.
+@binding("destack.input.clipboard.item.text.read", {
     effect: "external",
     requires: ["host.input.clipboard.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function clipboardReadItemText(
+export declare function readClipboardItemText(
     itemIndex: uint32,
     representationIndex: uint32,
-): Result<string, PlatformError>;
+): Result<^string, PlatformError>;
 
-/// Read one binary clipboard item representation.
-@binding("destack.input.clipboard.readItemBytes", {
+/// Read one clipboard item representation as bytes.
+@binding("destack.input.clipboard.item.bytes.read", {
     effect: "external",
     requires: ["host.input.clipboard.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function clipboardReadItemBytes(
+export declare function readClipboardItemBytes(
     itemIndex: uint32,
     representationIndex: uint32,
-): Result<Slice<uint8>, PlatformError>;
+): Result<^Array<uint8>, PlatformError>;
 
-/// Read one filesystem clipboard item representation.
-@binding("destack.input.clipboard.readItemPath", {
+/// Read one clipboard item representation as a filesystem path.
+@binding("destack.input.clipboard.item.path.read", {
     effect: "external",
     requires: ["host.input.clipboard.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function clipboardReadItemPath(
+export declare function readClipboardItemPath(
     itemIndex: uint32,
     representationIndex: uint32,
 ): Result<Path, PlatformError>;
 
 /// Write one text clipboard payload.
-@binding("destack.input.clipboard.writeText", {
+@binding("destack.input.clipboard.text.write", {
     effect: "external",
     replay: "forbidden",
     requires: ["host.input.clipboard.write"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function clipboardWriteText(text: string): Result<void, PlatformError>;
+export declare function writeClipboardText(text: &readonly string): Result<void, PlatformError>;
 
 /// Write clipboard items.
-@binding("destack.input.clipboard.writeItems", {
+@binding("destack.input.clipboard.items.write", {
     effect: "external",
     replay: "forbidden",
     requires: ["host.input.clipboard.write"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function clipboardWriteItems(items: Slice<ClipboardItem>): Result<void, PlatformError>;
+export declare function writeClipboardItems(
+    items: &readonly [ClipboardWriteItem],
+): Result<void, PlatformError>;
 
-/// Read clipboard sequence number.
-@binding("destack.input.clipboard.sequence", {
+/// Read the clipboard sequence number.
+@binding("destack.input.clipboard.sequence.read", {
     effect: "external",
     requires: ["host.input.clipboard.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function clipboardSequence(): Result<uint64, PlatformError>;
+export declare function readClipboardSequence(): Result<uint64, PlatformError>;
 
-/// Clear clipboard payload.
+/// Clear clipboard payloads.
 @binding("destack.input.clipboard.clear", {
     effect: "external",
     replay: "forbidden",
@@ -168,4 +161,4 @@ export declare function clipboardSequence(): Result<uint64, PlatformError>;
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function clipboardClear(): Result<void, PlatformError>;
+export declare function clearClipboard(): Result<void, PlatformError>;

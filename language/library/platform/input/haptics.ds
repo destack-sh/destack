@@ -2,8 +2,8 @@ import { Array } from "destack:collections";
 import { PlatformError } from "destack:platform/error";
 import { InputDeviceHandle } from "destack:platform/resource";
 
-/// Haptic effect type.
-export enum InputHapticEffectType {
+/// Haptic effect kind.
+export enum HapticEffect {
     /// Whole-device dual-rumble effect.
     DualRumble = 1,
     /// Trigger-localized rumble effect.
@@ -11,39 +11,39 @@ export enum InputHapticEffectType {
 }
 
 /// Haptic playback result.
-export enum InputHapticsResult {
+export enum HapticResult {
     /// Playback request completed.
     Complete = 1,
-    /// Playback request was preempted by one newer request.
+    /// Playback request was preempted by a newer request.
     Preempted = 2,
 }
 
 /// Haptic effect parameters.
-export struct InputHapticEffectParameters {
+export struct HapticParameters {
     /// Effect duration in milliseconds.
     durationMs: uint64;
     /// Effect start delay in milliseconds.
     startDelayMs: uint64;
-    /// Low-frequency or strong-motor magnitude in the range [0, 1].
+    /// Low-frequency or strong-motor magnitude in the range `[0, 1]`.
     strongMagnitude: float64;
-    /// High-frequency or weak-motor magnitude in the range [0, 1].
+    /// High-frequency or weak-motor magnitude in the range `[0, 1]`.
     weakMagnitude: float64;
-    /// Left trigger rumble magnitude in the range [0, 1].
+    /// Left trigger rumble magnitude in the range `[0, 1]`.
     leftTrigger: float64;
-    /// Right trigger rumble magnitude in the range [0, 1].
+    /// Right trigger rumble magnitude in the range `[0, 1]`.
     rightTrigger: float64;
 }
 
 /// List supported haptic effects.
-@binding("destack.input.haptics.effects", {
+@binding("destack.input.haptics.effects.list", {
     effect: "external",
     requires: ["host.input.haptics"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function hapticsEffects(
-    handle: InputDeviceHandle,
-): Result<Array<InputHapticEffectType>, PlatformError>;
+export declare function listHapticEffects(
+    device: InputDeviceHandle,
+): Result<^Array<HapticEffect>, PlatformError>;
 
 /// Play one haptic effect.
 @binding("destack.input.haptics.play", {
@@ -52,11 +52,11 @@ export declare function hapticsEffects(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function hapticsPlay(
-    handle: InputDeviceHandle,
-    effect: InputHapticEffectType,
-    parameters: InputHapticEffectParameters,
-): Result<InputHapticsResult, PlatformError>;
+export declare function playHaptics(
+    device: InputDeviceHandle,
+    effect: HapticEffect,
+    parameters: &readonly HapticParameters,
+): Result<HapticResult, PlatformError>;
 
 /// Stop active haptic effects.
 @binding("destack.input.haptics.stop", {
@@ -65,4 +65,4 @@ export declare function hapticsPlay(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function hapticsStop(handle: InputDeviceHandle): Result<void, PlatformError>;
+export declare function stopHaptics(device: InputDeviceHandle): Result<void, PlatformError>;
