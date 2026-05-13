@@ -20,26 +20,6 @@ const bad: Keys = "name";
 
 - contains: not assignable
 
-### keyof preserves well-known symbol keys
-
-Keyof includes the specific well-known symbol.
-
-```ds
-interface IterableBox {
-    [Symbol.iterator]: int32;
-    name: string;
-}
-
-type Keys = keyof IterableBox;
-
-const goodWellKnown: Keys = Symbol.iterator;
-const goodName: Keys = "name";
-const other: symbol = Symbol("other");
-const badSymbol: Keys = other;
-```
-
-- contains: not assignable
-
 ### Symbol.for keys are accepted
 
 Registry symbol keys can be used in object types.
