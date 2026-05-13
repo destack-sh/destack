@@ -6,9 +6,7 @@
 
 pub mod diagnostic;
 pub mod host;
-pub mod platform;
+pub mod launch;
 pub mod runtime;
 pub mod simulation;
-
-#[cfg(test)]
-mod tests;
+pub mod world;

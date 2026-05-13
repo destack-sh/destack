@@ -1,7 +1,7 @@
 mod error;
-mod status;
+mod host;
 mod store;
 
 pub use error::*;
-pub use status::*;
+pub use host::*;
 pub use store::*;

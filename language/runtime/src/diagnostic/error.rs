@@ -2,16 +2,16 @@ use std::fmt;
 
 use {destack_heap as heap, destack_vm as vm};
 
-use crate::platform::diagnostic::PlatformError;
+use crate::diagnostic::HostError;
 
-/// Error type for runtime execution and platform binding failures.
+/// Error type for runtime execution and host binding failures.
 #[derive(Debug, Clone)]
 #[repr(u16)]
 pub enum RuntimeError {
     /// VM runtime error bubbled through the runtime boundary.
     Vm(Box<vm::Error>) = 1,
-    /// Platform binding failure.
-    Platform(Box<PlatformError>) = 2,
+    /// Host binding failure.
+    Host(Box<HostError>) = 2,
     /// Binding name was not found in the registry.
     BindingNotFound {
         /// Fully qualified binding name.
@@ -60,8 +60,6 @@ pub enum RuntimeError {
         /// Binding name for the mismatch.
         name: String,
     } = 109,
-    /// Binding call context was not available.
-    BindingCallContextMissing = 110,
     /// Trace payload failed to encode.
     TraceEncodeFailed {
         /// Binding name for the failed payload.
@@ -256,7 +254,7 @@ impl RuntimeError {
     pub fn message(&self) -> String {
         match self {
             RuntimeError::Vm(error) => error.message(),
-            RuntimeError::Platform(error) => error.message(),
+            RuntimeError::Host(error) => error.message(),
             RuntimeError::BindingNotFound { name } => format!("binding not found: {name}"),
             RuntimeError::PolicyViolation { name } => {
                 format!("binding forbidden by policy: {name}")
@@ -289,7 +287,6 @@ impl RuntimeError {
             RuntimeError::TracePayloadUnsupported { name } => {
                 format!("trace payload unsupported for {name}")
             }
-            RuntimeError::BindingCallContextMissing => "binding call context missing".to_string(),
             RuntimeError::TraceEncodeFailed { name } => {
                 format!("failed to encode trace payload for {name}")
             }
@@ -445,15 +442,15 @@ impl RuntimeError {
     pub fn sub_code(&self) -> u32 {
         match self {
             RuntimeError::Vm(error) => error.sub_code() as u32,
-            RuntimeError::Platform(error) => error.code.number(),
+            RuntimeError::Host(error) => error.code.number(),
             _ => self.code() as u32,
         }
     }
 
-    /// Return the platform error if this is a platform failure.
-    pub fn platform_error(&self) -> Option<&PlatformError> {
+    /// Return the host error if this is a host failure.
+    pub fn host_error(&self) -> Option<&HostError> {
         match self {
-            RuntimeError::Platform(error) => Some(error.as_ref()),
+            RuntimeError::Host(error) => Some(error.as_ref()),
             _ => None,
         }
     }
@@ -490,8 +487,8 @@ impl From<vm::Error> for Box<RuntimeError> {
     }
 }
 
-impl From<PlatformError> for Box<RuntimeError> {
-    fn from(error: PlatformError) -> Self {
+impl From<HostError> for Box<RuntimeError> {
+    fn from(error: HostError) -> Self {
         Box::new(RuntimeError::from(error))
     }
 }
@@ -561,25 +558,25 @@ impl From<heap::HeapError> for Box<RuntimeError> {
     }
 }
 
-impl From<PlatformError> for RuntimeError {
-    fn from(error: PlatformError) -> Self {
-        RuntimeError::Platform(Box::new(error))
+impl From<HostError> for RuntimeError {
+    fn from(error: HostError) -> Self {
+        RuntimeError::Host(Box::new(error))
     }
 }
 
-impl From<&RuntimeError> for PlatformError {
+impl From<&RuntimeError> for HostError {
     fn from(error: &RuntimeError) -> Self {
-        if let RuntimeError::Platform(error) = error {
+        if let RuntimeError::Host(error) = error {
             return error.as_ref().clone();
         }
 
-        PlatformError::generic(None, error.message())
+        HostError::generic(None, error.message())
     }
 }
 
-impl From<RuntimeError> for PlatformError {
+impl From<RuntimeError> for HostError {
     fn from(error: RuntimeError) -> Self {
-        PlatformError::from(&error)
+        HostError::from(&error)
     }
 }
 
@@ -587,7 +584,7 @@ impl From<Box<RuntimeError>> for vm::Error {
     fn from(error: Box<RuntimeError>) -> Self {
         match *error {
             RuntimeError::Vm(error) => *error,
-            RuntimeError::Platform(error) => (*error).into(),
+            RuntimeError::Host(error) => (*error).into(),
             RuntimeError::BindingNotFound { name } => vm::Error::BindingFunctionNotFound { name },
             RuntimeError::PolicyViolation { name } => vm::Error::BindingCallForbidden { name },
             RuntimeError::ActionDenied { name, action } => vm::Error::BindingCallForbidden {
