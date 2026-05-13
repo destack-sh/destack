@@ -845,8 +845,8 @@ Async functions and generators are closures that can pause and be resumed at a l
 | produced `T` | value eventually produced by async code |
 
 As in TypeScript, `await` and `yield` are the suspension points for the `Promise`s and `Generator` (and `AsyncGenerator`) coroutines where the entire stack up to that point is parked, and some other task is run.
-In standard managed land, this works as before, and managed values can be stored in parked frames just fine.
-Because borrows must always point into valid memory and cannot change, borrows are valid only when the origin value is kept alive during suspension:
+In managed land, suspension works as before, and managed values can be stored in parked frames because it's all - well - managed.
+Borrowed access can _also_ cross suspension, but only when the compiler can keep its origin alive and at a stable address in the parked continuation:
 
 ```ds
 async function read(user: User): Promise<string> {
@@ -1769,7 +1769,7 @@ The two axes compose and commute freely, e.g. `shared ^T` and `^shared T` both m
 ### Ownership
 
 Ownership determines who keeps a value alive, who is allowed to mutate it, and when and how it is eventually freed.
-The usual explanation of "ownership" sounds more complex than it is, especially to developers uesd to "managed" languages, and _especially_ because Rust tradition conflates "exclusivity" and "mutability".
+The usual explanation of "ownership" sounds more complex than it is, especially to developers used to "managed" languages, and _especially_ because Rust tradition conflates "exclusivity" and "mutability".
 Unlike in Rust, in Destack we support _both_ multiple mutable borrows (`&T`) and exclusive mutable borrows (`&exclusive T`):
 
 | Form | Meaning | Mutable? | Exclusive? |
@@ -1970,7 +1970,7 @@ let exclusiveX = &exclusive point.x;
 *exclusiveX = 4;
 ```
 
-Sometimes we need to spell out explicit lifetimes to clarify the relationship between owners and borrowsers, and for that purpose we have explicit `<L: Lifetime>` and `Borrowed<T, L>` generics. 
+Sometimes we need to spell out explicit lifetimes to clarify the relationship between owners and borrowed access, and for that purpose we have explicit `<L: Lifetime>` and `Borrowed<T, L>` generics.
 Instead of reifying lifetimes as special `'a`-style lifetime parameters, Destack's `<L: Lifetime>`s are standard static parameters that are also available to regular TypeScript-style type algebra:
 
 ```ds
@@ -2014,8 +2014,8 @@ function borrowInput<L: Lifetime>(point: Borrowed<Point, L>): Borrowed<Point, L>
 
 ### Drop
 
-Whenever the lifetime of a value ends and it is deallocated, Destack supports running a `Drop` finalizer (similar to Rust's `Drop`)
-This happens both when the compiler inserted a drop for an owned local after its last use, when an owned field is being destroyed, and because the runtime is reclaiming an unreachable managed allocation.
+Whenever the lifetime of a value ends and it is deallocated, Destack supports running a `Drop` finalizer, similar to Rust's `Drop`.
+This happens when the compiler inserts a drop for an owned local after its last use, when an owned field is being destroyed, and when the runtime reclaims an unreachable managed allocation.
 
 ```ds
 function run(): void {
@@ -2036,9 +2036,9 @@ let image: Image = new Image();
 // when `image` is collected, the GC runs drop glue for `pixels`
 ```
 
-Unlike Rust (and C++ RAII), Destack models  `Drop` and `Dispose` / `AsyncDispose` separately as two different axis (`Drop` is lifetime, `using` is lexical).
-Indeed, because of this split `Drop` _can_ be performed eagler, improving efficiency, but also effectively precludes using `Drop` for lexical RAII style applications.  
-In general, in Destack, `Drop` should be used to manage memory and memory-related cleanup, while `using` should be used for richer resource finalisation:
+Unlike Rust and C++ RAII, Destack models `Drop` and `Dispose` / `AsyncDispose` separately: `Drop` follows lifetime, while `using` is lexical.
+Because of this split, `Drop` _can_ run eagerly after last use, which is great for memory pressure, but also means Destack's `Drop` is not the right fit for lexical RAII-style cleanup.
+In general, `Drop` should manage memory and memory-shaped cleanup, while `using` should manage richer resource finalization:
 
 | Protocol | Purpose | Timing |
 |----------|---------|--------|
