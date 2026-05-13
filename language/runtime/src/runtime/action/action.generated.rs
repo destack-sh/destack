@@ -9,20 +9,22 @@ pub enum Action {
     AccessibilityNotify,
     /// `host.accessibility.publish`.
     AccessibilityPublish,
-    /// `host.audio.capture`.
-    AudioCapture,
-    /// `host.audio.control`.
-    AudioControl,
+    /// `host.audio.backend`.
+    AudioBackend,
+    /// `host.audio.clock`.
+    AudioClock,
     /// `host.audio.device`.
     AudioDevice,
-    /// `host.audio.device.monitor`.
-    AudioDeviceMonitor,
-    /// `host.audio.playback`.
-    AudioPlayback,
-    /// `host.audio.playback.schedule`.
-    AudioPlaybackSchedule,
+    /// `host.audio.device.watch`.
+    AudioDeviceWatch,
+    /// `host.audio.event`.
+    AudioEvent,
+    /// `host.audio.read`.
+    AudioRead,
     /// `host.audio.stream`.
     AudioStream,
+    /// `host.audio.write`.
+    AudioWrite,
     /// `host.console.write`.
     ConsoleWrite,
     /// `host.crypto.capability.read`.
@@ -113,18 +115,20 @@ pub enum Action {
     DeviceUsbOpen,
     /// `host.device.usb.transfer`.
     DeviceUsbTransfer,
-    /// `host.display.mode`.
-    DisplayMode,
-    /// `host.display.read`.
-    DisplayRead,
+    /// `host.display.backend`.
+    DisplayBackend,
+    /// `host.display.drag`.
+    DisplayDrag,
+    /// `host.display.event`.
+    DisplayEvent,
+    /// `host.display.frame`.
+    DisplayFrame,
+    /// `host.display.monitor`.
+    DisplayMonitor,
+    /// `host.display.monitor.mode`.
+    DisplayMonitorMode,
     /// `host.display.window`.
     DisplayWindow,
-    /// `host.display.window.events`.
-    DisplayWindowEvents,
-    /// `host.display.window.modal`.
-    DisplayWindowModal,
-    /// `host.display.window.parenting`.
-    DisplayWindowParenting,
     /// `host.ffi.call`.
     FfiCall,
     /// `host.ffi.load`.
@@ -165,32 +169,22 @@ pub enum Action {
     GpuAdapter,
     /// `host.gpu.bind`.
     GpuBind,
-    /// `host.gpu.compute`.
-    GpuCompute,
+    /// `host.gpu.command`.
+    GpuCommand,
     /// `host.gpu.debug`.
     GpuDebug,
     /// `host.gpu.device`.
     GpuDevice,
-    /// `host.gpu.memory`.
-    GpuMemory,
     /// `host.gpu.present`.
     GpuPresent,
+    /// `host.gpu.pipeline`.
+    GpuPipeline,
     /// `host.gpu.queue`.
     GpuQueue,
-    /// `host.gpu.render`.
-    GpuRender,
-    /// `host.gpu.render.multi.draw`.
-    GpuRenderMultiDraw,
-    /// `host.gpu.render.multi.draw.count`.
-    GpuRenderMultiDrawCount,
-    /// `host.gpu.shader`.
-    GpuShader,
-    /// `host.gpu.surface`.
-    GpuSurface,
+    /// `host.gpu.resource`.
+    GpuResource,
     /// `host.gpu.sync`.
     GpuSync,
-    /// `host.gpu.sync.pipeline.statistics`.
-    GpuSyncPipelineStatistics,
     /// `host.input.clipboard.read`.
     InputClipboardRead,
     /// `host.input.clipboard.write`.
@@ -471,13 +465,14 @@ impl Action {
         Self::AccessibilityActions,
         Self::AccessibilityNotify,
         Self::AccessibilityPublish,
-        Self::AudioCapture,
-        Self::AudioControl,
+        Self::AudioBackend,
+        Self::AudioClock,
         Self::AudioDevice,
-        Self::AudioDeviceMonitor,
-        Self::AudioPlayback,
-        Self::AudioPlaybackSchedule,
+        Self::AudioDeviceWatch,
+        Self::AudioEvent,
+        Self::AudioRead,
         Self::AudioStream,
+        Self::AudioWrite,
         Self::ConsoleWrite,
         Self::CryptoCapabilityRead,
         Self::CryptoCertificateRead,
@@ -523,12 +518,13 @@ impl Action {
         Self::DeviceUsbList,
         Self::DeviceUsbOpen,
         Self::DeviceUsbTransfer,
-        Self::DisplayMode,
-        Self::DisplayRead,
+        Self::DisplayBackend,
+        Self::DisplayDrag,
+        Self::DisplayEvent,
+        Self::DisplayFrame,
+        Self::DisplayMonitor,
+        Self::DisplayMonitorMode,
         Self::DisplayWindow,
-        Self::DisplayWindowEvents,
-        Self::DisplayWindowModal,
-        Self::DisplayWindowParenting,
         Self::FfiCall,
         Self::FfiLoad,
         Self::FfiPointer,
@@ -549,19 +545,14 @@ impl Action {
         Self::FsXattr,
         Self::GpuAdapter,
         Self::GpuBind,
-        Self::GpuCompute,
+        Self::GpuCommand,
         Self::GpuDebug,
         Self::GpuDevice,
-        Self::GpuMemory,
         Self::GpuPresent,
+        Self::GpuPipeline,
         Self::GpuQueue,
-        Self::GpuRender,
-        Self::GpuRenderMultiDraw,
-        Self::GpuRenderMultiDrawCount,
-        Self::GpuShader,
-        Self::GpuSurface,
+        Self::GpuResource,
         Self::GpuSync,
-        Self::GpuSyncPipelineStatistics,
         Self::InputClipboardRead,
         Self::InputClipboardWrite,
         Self::InputControl,
@@ -706,13 +697,14 @@ impl Action {
             Self::AccessibilityActions => "host.accessibility.actions",
             Self::AccessibilityNotify => "host.accessibility.notify",
             Self::AccessibilityPublish => "host.accessibility.publish",
-            Self::AudioCapture => "host.audio.capture",
-            Self::AudioControl => "host.audio.control",
+            Self::AudioBackend => "host.audio.backend",
+            Self::AudioClock => "host.audio.clock",
             Self::AudioDevice => "host.audio.device",
-            Self::AudioDeviceMonitor => "host.audio.device.monitor",
-            Self::AudioPlayback => "host.audio.playback",
-            Self::AudioPlaybackSchedule => "host.audio.playback.schedule",
+            Self::AudioDeviceWatch => "host.audio.device.watch",
+            Self::AudioEvent => "host.audio.event",
+            Self::AudioRead => "host.audio.read",
             Self::AudioStream => "host.audio.stream",
+            Self::AudioWrite => "host.audio.write",
             Self::ConsoleWrite => "host.console.write",
             Self::CryptoCapabilityRead => "host.crypto.capability.read",
             Self::CryptoCertificateRead => "host.crypto.certificate.read",
@@ -758,12 +750,13 @@ impl Action {
             Self::DeviceUsbList => "host.device.usb.list",
             Self::DeviceUsbOpen => "host.device.usb.open",
             Self::DeviceUsbTransfer => "host.device.usb.transfer",
-            Self::DisplayMode => "host.display.mode",
-            Self::DisplayRead => "host.display.read",
+            Self::DisplayBackend => "host.display.backend",
+            Self::DisplayDrag => "host.display.drag",
+            Self::DisplayEvent => "host.display.event",
+            Self::DisplayFrame => "host.display.frame",
+            Self::DisplayMonitor => "host.display.monitor",
+            Self::DisplayMonitorMode => "host.display.monitor.mode",
             Self::DisplayWindow => "host.display.window",
-            Self::DisplayWindowEvents => "host.display.window.events",
-            Self::DisplayWindowModal => "host.display.window.modal",
-            Self::DisplayWindowParenting => "host.display.window.parenting",
             Self::FfiCall => "host.ffi.call",
             Self::FfiLoad => "host.ffi.load",
             Self::FfiPointer => "host.ffi.pointer",
@@ -784,19 +777,14 @@ impl Action {
             Self::FsXattr => "host.fs.xattr",
             Self::GpuAdapter => "host.gpu.adapter",
             Self::GpuBind => "host.gpu.bind",
-            Self::GpuCompute => "host.gpu.compute",
+            Self::GpuCommand => "host.gpu.command",
             Self::GpuDebug => "host.gpu.debug",
             Self::GpuDevice => "host.gpu.device",
-            Self::GpuMemory => "host.gpu.memory",
             Self::GpuPresent => "host.gpu.present",
+            Self::GpuPipeline => "host.gpu.pipeline",
             Self::GpuQueue => "host.gpu.queue",
-            Self::GpuRender => "host.gpu.render",
-            Self::GpuRenderMultiDraw => "host.gpu.render.multi.draw",
-            Self::GpuRenderMultiDrawCount => "host.gpu.render.multi.draw.count",
-            Self::GpuShader => "host.gpu.shader",
-            Self::GpuSurface => "host.gpu.surface",
+            Self::GpuResource => "host.gpu.resource",
             Self::GpuSync => "host.gpu.sync",
-            Self::GpuSyncPipelineStatistics => "host.gpu.sync.pipeline.statistics",
             Self::InputClipboardRead => "host.input.clipboard.read",
             Self::InputClipboardWrite => "host.input.clipboard.write",
             Self::InputControl => "host.input.control",
@@ -947,13 +935,14 @@ impl Action {
             "host.accessibility.actions" => Some(Self::AccessibilityActions),
             "host.accessibility.notify" => Some(Self::AccessibilityNotify),
             "host.accessibility.publish" => Some(Self::AccessibilityPublish),
-            "host.audio.capture" => Some(Self::AudioCapture),
-            "host.audio.control" => Some(Self::AudioControl),
+            "host.audio.backend" => Some(Self::AudioBackend),
+            "host.audio.clock" => Some(Self::AudioClock),
             "host.audio.device" => Some(Self::AudioDevice),
-            "host.audio.device.monitor" => Some(Self::AudioDeviceMonitor),
-            "host.audio.playback" => Some(Self::AudioPlayback),
-            "host.audio.playback.schedule" => Some(Self::AudioPlaybackSchedule),
+            "host.audio.device.watch" => Some(Self::AudioDeviceWatch),
+            "host.audio.event" => Some(Self::AudioEvent),
+            "host.audio.read" => Some(Self::AudioRead),
             "host.audio.stream" => Some(Self::AudioStream),
+            "host.audio.write" => Some(Self::AudioWrite),
             "host.console.write" => Some(Self::ConsoleWrite),
             "host.crypto.capability.read" => Some(Self::CryptoCapabilityRead),
             "host.crypto.certificate.read" => Some(Self::CryptoCertificateRead),
@@ -999,12 +988,13 @@ impl Action {
             "host.device.usb.list" => Some(Self::DeviceUsbList),
             "host.device.usb.open" => Some(Self::DeviceUsbOpen),
             "host.device.usb.transfer" => Some(Self::DeviceUsbTransfer),
-            "host.display.mode" => Some(Self::DisplayMode),
-            "host.display.read" => Some(Self::DisplayRead),
+            "host.display.backend" => Some(Self::DisplayBackend),
+            "host.display.drag" => Some(Self::DisplayDrag),
+            "host.display.event" => Some(Self::DisplayEvent),
+            "host.display.frame" => Some(Self::DisplayFrame),
+            "host.display.monitor" => Some(Self::DisplayMonitor),
+            "host.display.monitor.mode" => Some(Self::DisplayMonitorMode),
             "host.display.window" => Some(Self::DisplayWindow),
-            "host.display.window.events" => Some(Self::DisplayWindowEvents),
-            "host.display.window.modal" => Some(Self::DisplayWindowModal),
-            "host.display.window.parenting" => Some(Self::DisplayWindowParenting),
             "host.ffi.call" => Some(Self::FfiCall),
             "host.ffi.load" => Some(Self::FfiLoad),
             "host.ffi.pointer" => Some(Self::FfiPointer),
@@ -1025,19 +1015,14 @@ impl Action {
             "host.fs.xattr" => Some(Self::FsXattr),
             "host.gpu.adapter" => Some(Self::GpuAdapter),
             "host.gpu.bind" => Some(Self::GpuBind),
-            "host.gpu.compute" => Some(Self::GpuCompute),
+            "host.gpu.command" => Some(Self::GpuCommand),
             "host.gpu.debug" => Some(Self::GpuDebug),
             "host.gpu.device" => Some(Self::GpuDevice),
-            "host.gpu.memory" => Some(Self::GpuMemory),
             "host.gpu.present" => Some(Self::GpuPresent),
+            "host.gpu.pipeline" => Some(Self::GpuPipeline),
             "host.gpu.queue" => Some(Self::GpuQueue),
-            "host.gpu.render" => Some(Self::GpuRender),
-            "host.gpu.render.multi.draw" => Some(Self::GpuRenderMultiDraw),
-            "host.gpu.render.multi.draw.count" => Some(Self::GpuRenderMultiDrawCount),
-            "host.gpu.shader" => Some(Self::GpuShader),
-            "host.gpu.surface" => Some(Self::GpuSurface),
+            "host.gpu.resource" => Some(Self::GpuResource),
             "host.gpu.sync" => Some(Self::GpuSync),
-            "host.gpu.sync.pipeline.statistics" => Some(Self::GpuSyncPipelineStatistics),
             "host.input.clipboard.read" => Some(Self::InputClipboardRead),
             "host.input.clipboard.write" => Some(Self::InputClipboardWrite),
             "host.input.control" => Some(Self::InputControl),

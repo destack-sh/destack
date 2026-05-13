@@ -21,28 +21,28 @@ export enum GpuFenceMode {
 /// Pipeline-statistics query bitset.
 export newtype GpuPipelineStatisticsMask = uint64;
 
-/// Pipeline-statistics query flags.
-export enum GpuPipelineStatisticsFlag {
-    /// Count vertex-shader invocations.
-    VertexShaderInvocations = 1,
-    /// Count clipper invocations.
-    ClipperInvocations = 2,
-    /// Count unclipped primitives.
-    ClipperPrimitivesOut = 4,
-    /// Count fragment-shader invocations.
-    FragmentShaderInvocations = 8,
-    /// Count compute-shader invocations.
-    ComputeShaderInvocations = 16,
-}
+/// Pipeline-statistics bit for vertex-shader invocations.
+export const GPU_PIPELINE_STATISTICS_VERTEX_SHADER_INVOCATIONS: GpuPipelineStatisticsMask =
+    GpuPipelineStatisticsMask(0x1);
+/// Pipeline-statistics bit for clipper invocations.
+export const GPU_PIPELINE_STATISTICS_CLIPPER_INVOCATIONS: GpuPipelineStatisticsMask =
+    GpuPipelineStatisticsMask(0x2);
+/// Pipeline-statistics bit for unclipped primitives.
+export const GPU_PIPELINE_STATISTICS_CLIPPER_PRIMITIVES_OUT: GpuPipelineStatisticsMask =
+    GpuPipelineStatisticsMask(0x4);
+/// Pipeline-statistics bit for fragment-shader invocations.
+export const GPU_PIPELINE_STATISTICS_FRAGMENT_SHADER_INVOCATIONS: GpuPipelineStatisticsMask =
+    GpuPipelineStatisticsMask(0x8);
+/// Pipeline-statistics bit for compute-shader invocations.
+export const GPU_PIPELINE_STATISTICS_COMPUTE_SHADER_INVOCATIONS: GpuPipelineStatisticsMask =
+    GpuPipelineStatisticsMask(0x10);
 
-/// Fence creation options.
-export struct GpuFenceOptions {
+/// Fence descriptor.
+export struct GpuFenceDescriptor {
     /// Fence mode selector.
     mode: GpuFenceMode;
     /// Initial timeline value in timeline mode.
     initialValue: uint64;
-    /// Fence option flags.
-    flags: uint32;
 }
 
 /// Timestamp query-set type.
@@ -71,20 +71,18 @@ export newtype GpuQuerySetType =
     | GpuOcclusionQueryType
     | GpuPipelineStatisticsQueryType;
 
-/// Query set creation options.
-export struct GpuQuerySetOptions {
+/// Query set descriptor.
+export struct GpuQuerySetDescriptor {
     /// Debug label.
     label: string;
     /// Query-set type payload.
     queryType: GpuQuerySetType;
     /// Query count.
     count: uint32;
-    /// Query set option flags.
-    flags: uint32;
 }
 
-/// Query-set metadata snapshot.
-export struct GpuQuerySetInfo {
+/// Query set state.
+export struct GpuQuerySetState {
     /// Query-set type payload.
     queryType: GpuQuerySetType;
     /// Query count.
@@ -92,47 +90,47 @@ export struct GpuQuerySetInfo {
 }
 
 /// Create a synchronization fence.
-@binding("destack.gpu.sync.fenceCreate", {
+@binding("destack.gpu.sync.fence.create", {
     effect: "external",
     requires: ["host.gpu.sync"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function fenceCreate(
+export declare function createFence(
     device: GpuDeviceHandle,
-    options: GpuFenceOptions,
+    descriptor: &readonly GpuFenceDescriptor,
 ): Result<GpuFenceHandle, PlatformError>;
 
 /// Destroy a synchronization fence.
-@binding("destack.gpu.sync.fenceDestroy", {
+@binding("destack.gpu.sync.fence.destroy", {
     effect: "external",
     requires: ["host.gpu.sync"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function fenceDestroy(handle: GpuFenceHandle): Result<void, PlatformError>;
+export declare function destroyFence(fence: GpuFenceHandle): Result<void, PlatformError>;
 
 /// Signal a fence value from a queue.
-@binding("destack.gpu.sync.queueSignal", {
+@binding("destack.gpu.sync.queue.signal", {
     effect: "external",
     requires: ["host.gpu.sync"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function queueSignal(
+export declare function signalQueue(
     queue: GpuQueueHandle,
     fence: GpuFenceHandle,
     value: uint64,
 ): Result<void, PlatformError>;
 
 /// Wait for a fence value.
-@binding("destack.gpu.sync.queueWait", {
+@binding("destack.gpu.sync.queue.wait", {
     effect: "external",
     requires: ["host.gpu.sync"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function queueWait(
+export declare function waitQueue(
     queue: GpuQueueHandle,
     fence: GpuFenceHandle,
     value: uint64,
@@ -140,150 +138,150 @@ export declare function queueWait(
 ): Result<void, PlatformError>;
 
 /// Wait for all previously submitted queue work.
-@binding("destack.gpu.sync.queueWorkDone", {
+@binding("destack.gpu.sync.queue.done.wait", {
     effect: "external",
     requires: ["host.gpu.sync"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function queueWorkDone(
+export declare function waitQueueDone(
     queue: GpuQueueHandle,
     timeoutNs: uint64,
 ): Result<void, PlatformError>;
 
 /// Read a queue timestamp period.
-@binding("destack.gpu.sync.queueTimestampPeriod", {
+@binding("destack.gpu.sync.queue.timestamp.period", {
     effect: "external",
     requires: ["host.gpu.sync"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function queueTimestampPeriod(queue: GpuQueueHandle): Result<float64, PlatformError>;
+export declare function readQueueTimestampPeriod(queue: GpuQueueHandle): Result<float64, PlatformError>;
 
 /// Create a query set.
-@binding("destack.gpu.sync.querySetCreate", {
+@binding("destack.gpu.sync.query.set.create", {
     effect: "external",
     requires: ["host.gpu.sync"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function querySetCreate(
+export declare function createQuerySet(
     device: GpuDeviceHandle,
-    options: GpuQuerySetOptions,
+    descriptor: &readonly GpuQuerySetDescriptor,
 ): Result<GpuQuerySetHandle, PlatformError>;
 
 /// Destroy a query set.
-@binding("destack.gpu.sync.querySetDestroy", {
+@binding("destack.gpu.sync.query.set.destroy", {
     effect: "external",
     requires: ["host.gpu.sync"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function querySetDestroy(handle: GpuQuerySetHandle): Result<void, PlatformError>;
+export declare function destroyQuerySet(querySet: GpuQuerySetHandle): Result<void, PlatformError>;
 
 /// Read a query-set metadata snapshot.
-@binding("destack.gpu.sync.querySetInfo", {
+@binding("destack.gpu.sync.query.set.state.read", {
     effect: "external",
     requires: ["host.gpu.sync"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function querySetInfo(handle: GpuQuerySetHandle): Result<GpuQuerySetInfo, PlatformError>;
+export declare function readQuerySet(querySet: GpuQuerySetHandle): Result<GpuQuerySetState, PlatformError>;
 
 /// Write a timestamp query from a command encoder.
-@binding("destack.gpu.sync.commandWriteTimestamp", {
+@binding("destack.gpu.sync.command.timestamp.write", {
     effect: "external",
     requires: ["host.gpu.sync"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function commandWriteTimestamp(
-    commandEncoder: GpuCommandEncoderHandle,
+export declare function writeCommandTimestamp(
+    encoder: GpuCommandEncoderHandle,
     querySet: GpuQuerySetHandle,
     queryIndex: uint32,
 ): Result<void, PlatformError>;
 
 /// Begin an occlusion query.
-@binding("destack.gpu.sync.commandBeginOcclusionQuery", {
+@binding("destack.gpu.sync.command.occlusion.begin", {
     effect: "external",
     requires: ["host.gpu.sync"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function commandBeginOcclusionQuery(
+export declare function beginOcclusionQuery(
     renderPass: GpuRenderPassHandle,
     querySet: GpuQuerySetHandle,
     queryIndex: uint32,
 ): Result<void, PlatformError>;
 
 /// End an occlusion query.
-@binding("destack.gpu.sync.commandEndOcclusionQuery", {
+@binding("destack.gpu.sync.command.occlusion.end", {
     effect: "external",
     requires: ["host.gpu.sync"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function commandEndOcclusionQuery(
+export declare function endOcclusionQuery(
     renderPass: GpuRenderPassHandle,
 ): Result<void, PlatformError>;
 
 /// Begin a pipeline-statistics query in a render pass.
-@binding("destack.gpu.sync.commandBeginRenderPipelineStatisticsQuery", {
+@binding("destack.gpu.sync.command.render.statistics.begin", {
     effect: "external",
-    requires: ["host.gpu.sync.pipeline.statistics"],
+    requires: ["host.gpu.sync"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function commandBeginRenderPipelineStatisticsQuery(
+export declare function beginRenderStatisticsQuery(
     renderPass: GpuRenderPassHandle,
     querySet: GpuQuerySetHandle,
     queryIndex: uint32,
 ): Result<void, PlatformError>;
 
 /// End a pipeline-statistics query in a render pass.
-@binding("destack.gpu.sync.commandEndRenderPipelineStatisticsQuery", {
+@binding("destack.gpu.sync.command.render.statistics.end", {
     effect: "external",
-    requires: ["host.gpu.sync.pipeline.statistics"],
+    requires: ["host.gpu.sync"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function commandEndRenderPipelineStatisticsQuery(
+export declare function endRenderStatisticsQuery(
     renderPass: GpuRenderPassHandle,
 ): Result<void, PlatformError>;
 
 /// Begin a pipeline-statistics query in a compute pass.
-@binding("destack.gpu.sync.commandBeginComputePipelineStatisticsQuery", {
+@binding("destack.gpu.sync.command.compute.statistics.begin", {
     effect: "external",
-    requires: ["host.gpu.sync.pipeline.statistics"],
+    requires: ["host.gpu.sync"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function commandBeginComputePipelineStatisticsQuery(
+export declare function beginComputeStatisticsQuery(
     computePass: GpuComputePassHandle,
     querySet: GpuQuerySetHandle,
     queryIndex: uint32,
 ): Result<void, PlatformError>;
 
 /// End a pipeline-statistics query in a compute pass.
-@binding("destack.gpu.sync.commandEndComputePipelineStatisticsQuery", {
-    effect: "external",
-    requires: ["host.gpu.sync.pipeline.statistics"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function commandEndComputePipelineStatisticsQuery(
-    computePass: GpuComputePassHandle,
-): Result<void, PlatformError>;
-
-/// Resolve one query range into one destination buffer.
-@binding("destack.gpu.sync.commandResolveQueries", {
+@binding("destack.gpu.sync.command.compute.statistics.end", {
     effect: "external",
     requires: ["host.gpu.sync"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function commandResolveQueries(
-    commandEncoder: GpuCommandEncoderHandle,
+export declare function endComputeStatisticsQuery(
+    computePass: GpuComputePassHandle,
+): Result<void, PlatformError>;
+
+/// Resolve one query range into one destination buffer.
+@binding("destack.gpu.sync.command.queries.resolve", {
+    effect: "external",
+    requires: ["host.gpu.sync"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function resolveQueries(
+    encoder: GpuCommandEncoderHandle,
     querySet: GpuQuerySetHandle,
     firstQuery: uint32,
     queryCount: uint32,

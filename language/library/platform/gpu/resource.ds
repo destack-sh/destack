@@ -1,4 +1,4 @@
-import { Slice } from "destack:collections";
+import { Array } from "destack:collections";
 import { PlatformError } from "destack:platform/error";
 import {
     GpuBufferHandle,
@@ -10,50 +10,50 @@ import {
 } from "destack:platform/resource";
 
 /// GPU buffer usage bitset.
-export newtype GpuBufferUsageMask = uint32;
+export newtype GpuBufferUsage = uint32;
 
 /// Buffer usage bit for read mapping.
-export const GPU_BUFFER_USAGE_MAP_READ: GpuBufferUsageMask = GpuBufferUsageMask(0x1);
+export const GPU_BUFFER_USAGE_MAP_READ: GpuBufferUsage = GpuBufferUsage(0x1);
 /// Buffer usage bit for write mapping.
-export const GPU_BUFFER_USAGE_MAP_WRITE: GpuBufferUsageMask = GpuBufferUsageMask(0x2);
+export const GPU_BUFFER_USAGE_MAP_WRITE: GpuBufferUsage = GpuBufferUsage(0x2);
 /// Buffer usage bit for copy source.
-export const GPU_BUFFER_USAGE_COPY_SRC: GpuBufferUsageMask = GpuBufferUsageMask(0x4);
+export const GPU_BUFFER_USAGE_COPY_SRC: GpuBufferUsage = GpuBufferUsage(0x4);
 /// Buffer usage bit for copy destination.
-export const GPU_BUFFER_USAGE_COPY_DST: GpuBufferUsageMask = GpuBufferUsageMask(0x8);
+export const GPU_BUFFER_USAGE_COPY_DST: GpuBufferUsage = GpuBufferUsage(0x8);
 /// Buffer usage bit for index input.
-export const GPU_BUFFER_USAGE_INDEX: GpuBufferUsageMask = GpuBufferUsageMask(0x10);
+export const GPU_BUFFER_USAGE_INDEX: GpuBufferUsage = GpuBufferUsage(0x10);
 /// Buffer usage bit for vertex input.
-export const GPU_BUFFER_USAGE_VERTEX: GpuBufferUsageMask = GpuBufferUsageMask(0x20);
+export const GPU_BUFFER_USAGE_VERTEX: GpuBufferUsage = GpuBufferUsage(0x20);
 /// Buffer usage bit for uniform binding.
-export const GPU_BUFFER_USAGE_UNIFORM: GpuBufferUsageMask = GpuBufferUsageMask(0x40);
+export const GPU_BUFFER_USAGE_UNIFORM: GpuBufferUsage = GpuBufferUsage(0x40);
 /// Buffer usage bit for storage binding.
-export const GPU_BUFFER_USAGE_STORAGE: GpuBufferUsageMask = GpuBufferUsageMask(0x80);
+export const GPU_BUFFER_USAGE_STORAGE: GpuBufferUsage = GpuBufferUsage(0x80);
 /// Buffer usage bit for indirect input.
-export const GPU_BUFFER_USAGE_INDIRECT: GpuBufferUsageMask = GpuBufferUsageMask(0x100);
+export const GPU_BUFFER_USAGE_INDIRECT: GpuBufferUsage = GpuBufferUsage(0x100);
 /// Buffer usage bit for query resolve.
-export const GPU_BUFFER_USAGE_QUERY_RESOLVE: GpuBufferUsageMask = GpuBufferUsageMask(0x200);
+export const GPU_BUFFER_USAGE_QUERY_RESOLVE: GpuBufferUsage = GpuBufferUsage(0x200);
 /// Buffer usage bit for bottom-level acceleration-structure input.
-export const GPU_BUFFER_USAGE_BLAS_INPUT: GpuBufferUsageMask = GpuBufferUsageMask(0x400);
+export const GPU_BUFFER_USAGE_BLAS_INPUT: GpuBufferUsage = GpuBufferUsage(0x400);
 /// Buffer usage bit for top-level acceleration-structure input.
-export const GPU_BUFFER_USAGE_TLAS_INPUT: GpuBufferUsageMask = GpuBufferUsageMask(0x800);
+export const GPU_BUFFER_USAGE_TLAS_INPUT: GpuBufferUsage = GpuBufferUsage(0x800);
 
 /// GPU texture usage bitset.
-export newtype GpuTextureUsageMask = uint32;
+export newtype GpuTextureUsage = uint32;
 
 /// Texture usage bit for copy source.
-export const GPU_TEXTURE_USAGE_COPY_SRC: GpuTextureUsageMask = GpuTextureUsageMask(0x1);
+export const GPU_TEXTURE_USAGE_COPY_SRC: GpuTextureUsage = GpuTextureUsage(0x1);
 /// Texture usage bit for copy destination.
-export const GPU_TEXTURE_USAGE_COPY_DST: GpuTextureUsageMask = GpuTextureUsageMask(0x2);
+export const GPU_TEXTURE_USAGE_COPY_DST: GpuTextureUsage = GpuTextureUsage(0x2);
 /// Texture usage bit for sampled-texture binding.
-export const GPU_TEXTURE_USAGE_TEXTURE_BINDING: GpuTextureUsageMask = GpuTextureUsageMask(0x4);
+export const GPU_TEXTURE_USAGE_TEXTURE_BINDING: GpuTextureUsage = GpuTextureUsage(0x4);
 /// Texture usage bit for storage-texture binding.
-export const GPU_TEXTURE_USAGE_STORAGE_BINDING: GpuTextureUsageMask = GpuTextureUsageMask(0x8);
+export const GPU_TEXTURE_USAGE_STORAGE_BINDING: GpuTextureUsage = GpuTextureUsage(0x8);
 /// Texture usage bit for render attachment.
-export const GPU_TEXTURE_USAGE_RENDER_ATTACHMENT: GpuTextureUsageMask = GpuTextureUsageMask(0x10);
+export const GPU_TEXTURE_USAGE_RENDER_ATTACHMENT: GpuTextureUsage = GpuTextureUsage(0x10);
 /// Texture usage bit for storage atomics.
-export const GPU_TEXTURE_USAGE_STORAGE_ATOMIC: GpuTextureUsageMask = GpuTextureUsageMask(0x10000);
+export const GPU_TEXTURE_USAGE_STORAGE_ATOMIC: GpuTextureUsage = GpuTextureUsage(0x10000);
 /// Texture usage bit for transient attachments.
-export const GPU_TEXTURE_USAGE_TRANSIENT: GpuTextureUsageMask = GpuTextureUsageMask(0x20000);
+export const GPU_TEXTURE_USAGE_TRANSIENT: GpuTextureUsage = GpuTextureUsage(0x20000);
 
 /// Typed GPU texture-format identifier.
 export newtype GpuTextureFormat = uint32;
@@ -315,22 +315,20 @@ export enum GpuCompareFunction {
     Always = 8,
 }
 
-/// GPU buffer creation options.
-export struct GpuBufferOptions {
+/// GPU buffer descriptor.
+export struct GpuBufferDescriptor {
     /// Debug label.
     label: string;
     /// Buffer size in bytes.
     size: uint64;
     /// Buffer usage bitset.
-    usage: GpuBufferUsageMask;
+    usage: GpuBufferUsage;
     /// Whether the buffer starts mapped for host access.
     mappedAtCreation: boolean;
-    /// Buffer option flags.
-    flags: uint32;
 }
 
-/// GPU texture creation options.
-export struct GpuTextureOptions {
+/// GPU texture descriptor.
+export struct GpuTextureDescriptor {
     /// Debug label.
     label: string;
     /// Texture width in texels.
@@ -348,39 +346,35 @@ export struct GpuTextureOptions {
     /// Texture dimension selector.
     dimension: GpuTextureDimension;
     /// Texture usage bitset.
-    usage: GpuTextureUsageMask;
+    usage: GpuTextureUsage;
     /// Additional compatible texture-view format identifiers.
-    viewFormats: Slice<GpuTextureFormat>;
-    /// Texture option flags.
-    flags: uint32;
+    viewFormats: [GpuTextureFormat];
 }
 
-/// GPU texture-view creation options.
-export struct GpuTextureViewOptions {
+/// GPU texture view descriptor.
+export struct GpuTextureViewDescriptor {
     /// Debug label.
     label: string;
     /// View format identifier when one compatible view format is selected.
-    format: GpuTextureFormat | void;
-    /// View usage bitset, or `void` to inherit the full texture usage set.
-    usage: GpuTextureUsageMask | void;
+    format?: GpuTextureFormat;
+    /// View usage bitset when the view narrows the texture usage set.
+    usage?: GpuTextureUsage;
     /// View dimension selector.
-    dimension: GpuTextureViewDimension | void;
+    dimension?: GpuTextureViewDimension;
     /// Base mip-level index.
     baseMipLevel: uint32;
     /// Mip-level count when the view does not cover the remaining mip range.
-    mipLevelCount: uint32 | void;
+    mipLevelCount?: uint32;
     /// Base array-layer index.
     baseArrayLayer: uint32;
     /// Array-layer count when the view does not cover the remaining layer range.
-    arrayLayerCount: uint32 | void;
+    arrayLayerCount?: uint32;
     /// Texture aspect selector.
     aspect: GpuTextureAspect;
-    /// Texture-view option flags.
-    flags: uint32;
 }
 
-/// GPU sampler creation options.
-export struct GpuSamplerOptions {
+/// GPU sampler descriptor.
+export struct GpuSamplerDescriptor {
     /// Debug label.
     label: string;
     /// Minification filter selector.
@@ -400,13 +394,11 @@ export struct GpuSamplerOptions {
     /// Sampler LOD maximum clamp.
     lodMaxClamp: float64;
     /// Compare-function selector when comparison is enabled.
-    compare: GpuCompareFunction | void;
+    compare?: GpuCompareFunction;
     /// Maximum anisotropy level.
     maxAnisotropy: uint16;
     /// Border color when one address mode clamps to border.
-    borderColor: GpuSamplerBorderColor | void;
-    /// Sampler option flags.
-    flags: uint32;
+    borderColor?: GpuSamplerBorderColor;
 }
 
 /// Buffer mapping mode.
@@ -509,61 +501,61 @@ export enum GpuSamplerBorderColor {
     Zero = 4,
 }
 
-/// Buffer transition state bitset.
-export newtype GpuBufferUseMask = uint32;
+/// Buffer access bitset for explicit resource transitions.
+export newtype GpuBufferAccess = uint32;
 
-/// Texture transition state bitset.
-export newtype GpuTextureUseMask = uint32;
+/// Texture access bitset for explicit resource transitions.
+export newtype GpuTextureAccess = uint32;
 
-/// Buffer use bit for read mapping.
-export const GPU_BUFFER_USE_MAP_READ: GpuBufferUseMask = GpuBufferUseMask(0x1);
-/// Buffer use bit for write mapping.
-export const GPU_BUFFER_USE_MAP_WRITE: GpuBufferUseMask = GpuBufferUseMask(0x2);
-/// Buffer use bit for copy source.
-export const GPU_BUFFER_USE_COPY_SRC: GpuBufferUseMask = GpuBufferUseMask(0x4);
-/// Buffer use bit for copy destination.
-export const GPU_BUFFER_USE_COPY_DST: GpuBufferUseMask = GpuBufferUseMask(0x8);
-/// Buffer use bit for index input.
-export const GPU_BUFFER_USE_INDEX: GpuBufferUseMask = GpuBufferUseMask(0x10);
-/// Buffer use bit for vertex input.
-export const GPU_BUFFER_USE_VERTEX: GpuBufferUseMask = GpuBufferUseMask(0x20);
-/// Buffer use bit for uniform binding.
-export const GPU_BUFFER_USE_UNIFORM: GpuBufferUseMask = GpuBufferUseMask(0x40);
-/// Buffer use bit for read-only storage binding.
-export const GPU_BUFFER_USE_STORAGE_READ_ONLY: GpuBufferUseMask = GpuBufferUseMask(0x80);
-/// Buffer use bit for read-write storage binding.
-export const GPU_BUFFER_USE_STORAGE_READ_WRITE: GpuBufferUseMask = GpuBufferUseMask(0x100);
-/// Buffer use bit for indirect input.
-export const GPU_BUFFER_USE_INDIRECT: GpuBufferUseMask = GpuBufferUseMask(0x200);
-/// Buffer use bit for query resolve.
-export const GPU_BUFFER_USE_QUERY_RESOLVE: GpuBufferUseMask = GpuBufferUseMask(0x400);
+/// Buffer access bit for read mapping.
+export const GPU_BUFFER_ACCESS_MAP_READ: GpuBufferAccess = GpuBufferAccess(0x1);
+/// Buffer access bit for write mapping.
+export const GPU_BUFFER_ACCESS_MAP_WRITE: GpuBufferAccess = GpuBufferAccess(0x2);
+/// Buffer access bit for copy source.
+export const GPU_BUFFER_ACCESS_COPY_SRC: GpuBufferAccess = GpuBufferAccess(0x4);
+/// Buffer access bit for copy destination.
+export const GPU_BUFFER_ACCESS_COPY_DST: GpuBufferAccess = GpuBufferAccess(0x8);
+/// Buffer access bit for index input.
+export const GPU_BUFFER_ACCESS_INDEX: GpuBufferAccess = GpuBufferAccess(0x10);
+/// Buffer access bit for vertex input.
+export const GPU_BUFFER_ACCESS_VERTEX: GpuBufferAccess = GpuBufferAccess(0x20);
+/// Buffer access bit for uniform binding.
+export const GPU_BUFFER_ACCESS_UNIFORM: GpuBufferAccess = GpuBufferAccess(0x40);
+/// Buffer access bit for read-only storage binding.
+export const GPU_BUFFER_ACCESS_STORAGE_READ_ONLY: GpuBufferAccess = GpuBufferAccess(0x80);
+/// Buffer access bit for read-write storage binding.
+export const GPU_BUFFER_ACCESS_STORAGE_READ_WRITE: GpuBufferAccess = GpuBufferAccess(0x100);
+/// Buffer access bit for indirect input.
+export const GPU_BUFFER_ACCESS_INDIRECT: GpuBufferAccess = GpuBufferAccess(0x200);
+/// Buffer access bit for query resolve.
+export const GPU_BUFFER_ACCESS_QUERY_RESOLVE: GpuBufferAccess = GpuBufferAccess(0x400);
 
-/// Texture use bit for uninitialized state.
-export const GPU_TEXTURE_USE_UNINITIALIZED: GpuTextureUseMask = GpuTextureUseMask(0x1);
-/// Texture use bit for presentable state.
-export const GPU_TEXTURE_USE_PRESENT: GpuTextureUseMask = GpuTextureUseMask(0x2);
-/// Texture use bit for copy source.
-export const GPU_TEXTURE_USE_COPY_SRC: GpuTextureUseMask = GpuTextureUseMask(0x4);
-/// Texture use bit for copy destination.
-export const GPU_TEXTURE_USE_COPY_DST: GpuTextureUseMask = GpuTextureUseMask(0x8);
-/// Texture use bit for sampled or fetched resource access.
-export const GPU_TEXTURE_USE_RESOURCE: GpuTextureUseMask = GpuTextureUseMask(0x10);
-/// Texture use bit for color render targets.
-export const GPU_TEXTURE_USE_COLOR_TARGET: GpuTextureUseMask = GpuTextureUseMask(0x20);
-/// Texture use bit for read-only depth-stencil access.
-export const GPU_TEXTURE_USE_DEPTH_STENCIL_READ: GpuTextureUseMask = GpuTextureUseMask(0x40);
-/// Texture use bit for writable depth-stencil access.
-export const GPU_TEXTURE_USE_DEPTH_STENCIL_WRITE: GpuTextureUseMask = GpuTextureUseMask(0x80);
-/// Texture use bit for read-only storage access.
-export const GPU_TEXTURE_USE_STORAGE_READ_ONLY: GpuTextureUseMask = GpuTextureUseMask(0x100);
-/// Texture use bit for write-only storage access.
-export const GPU_TEXTURE_USE_STORAGE_WRITE_ONLY: GpuTextureUseMask = GpuTextureUseMask(0x200);
-/// Texture use bit for read-write storage access.
-export const GPU_TEXTURE_USE_STORAGE_READ_WRITE: GpuTextureUseMask = GpuTextureUseMask(0x400);
-/// Texture use bit for atomic storage access.
-export const GPU_TEXTURE_USE_STORAGE_ATOMIC: GpuTextureUseMask = GpuTextureUseMask(0x800);
-/// Texture use bit for transient render-attachment allocation.
-export const GPU_TEXTURE_USE_TRANSIENT: GpuTextureUseMask = GpuTextureUseMask(0x1000);
+/// Texture access bit for uninitialized state.
+export const GPU_TEXTURE_ACCESS_UNINITIALIZED: GpuTextureAccess = GpuTextureAccess(0x1);
+/// Texture access bit for presentation.
+export const GPU_TEXTURE_ACCESS_PRESENT: GpuTextureAccess = GpuTextureAccess(0x2);
+/// Texture access bit for copy source.
+export const GPU_TEXTURE_ACCESS_COPY_SRC: GpuTextureAccess = GpuTextureAccess(0x4);
+/// Texture access bit for copy destination.
+export const GPU_TEXTURE_ACCESS_COPY_DST: GpuTextureAccess = GpuTextureAccess(0x8);
+/// Texture access bit for sampled or fetched resources.
+export const GPU_TEXTURE_ACCESS_RESOURCE: GpuTextureAccess = GpuTextureAccess(0x10);
+/// Texture access bit for color render targets.
+export const GPU_TEXTURE_ACCESS_COLOR_TARGET: GpuTextureAccess = GpuTextureAccess(0x20);
+/// Texture access bit for read-only depth-stencil use.
+export const GPU_TEXTURE_ACCESS_DEPTH_STENCIL_READ: GpuTextureAccess = GpuTextureAccess(0x40);
+/// Texture access bit for writable depth-stencil use.
+export const GPU_TEXTURE_ACCESS_DEPTH_STENCIL_WRITE: GpuTextureAccess = GpuTextureAccess(0x80);
+/// Texture access bit for read-only storage use.
+export const GPU_TEXTURE_ACCESS_STORAGE_READ_ONLY: GpuTextureAccess = GpuTextureAccess(0x100);
+/// Texture access bit for write-only storage use.
+export const GPU_TEXTURE_ACCESS_STORAGE_WRITE_ONLY: GpuTextureAccess = GpuTextureAccess(0x200);
+/// Texture access bit for read-write storage use.
+export const GPU_TEXTURE_ACCESS_STORAGE_READ_WRITE: GpuTextureAccess = GpuTextureAccess(0x400);
+/// Texture access bit for atomic storage use.
+export const GPU_TEXTURE_ACCESS_STORAGE_ATOMIC: GpuTextureAccess = GpuTextureAccess(0x800);
+/// Texture access bit for transient render-attachment allocation.
+export const GPU_TEXTURE_ACCESS_TRANSIENT: GpuTextureAccess = GpuTextureAccess(0x1000);
 
 /// Texture subresource selector for one transition.
 export struct GpuTextureSubresourceRange {
@@ -581,8 +573,8 @@ export struct GpuTextureSubresourceRange {
 export struct GpuBufferTransition {
     /// Buffer handle.
     buffer: GpuBufferHandle;
-    /// Target buffer use state.
-    state: GpuBufferUseMask;
+    /// Target buffer access.
+    access: GpuBufferAccess;
 }
 
 /// Texture transition descriptor.
@@ -590,9 +582,9 @@ export struct GpuTextureTransition {
     /// Texture handle.
     texture: GpuTextureHandle;
     /// Optional subresource selector.
-    subresources: GpuTextureSubresourceRange | void;
-    /// Target texture use state.
-    state: GpuTextureUseMask;
+    subresources?: GpuTextureSubresourceRange;
+    /// Target texture access.
+    access: GpuTextureAccess;
 }
 
 /// External-texture format selector.
@@ -617,8 +609,8 @@ export struct GpuExternalTextureTransferFunction {
     k: float32;
 }
 
-/// External-texture creation options.
-export struct GpuExternalTextureOptions {
+/// External texture descriptor.
+export struct GpuExternalTextureDescriptor {
     /// Debug label.
     label: string;
     /// External-texture width visible to shaders.
@@ -639,8 +631,6 @@ export struct GpuExternalTextureOptions {
     sampleTransform: float32[6 as comptime];
     /// Load-coordinate transform in column-major order.
     loadTransform: float32[6 as comptime];
-    /// External-texture option flags.
-    flags: uint32;
 }
 
 /// GPU mapped buffer range.
@@ -653,18 +643,18 @@ export struct GpuMappedBufferRange {
     coherent: boolean;
 }
 
-/// Buffer metadata snapshot.
-export struct GpuBufferInfo {
+/// GPU buffer state.
+export struct GpuBufferState {
     /// Buffer size in bytes.
     size: uint64;
     /// Buffer usage bitset.
-    usage: GpuBufferUsageMask;
+    usage: GpuBufferUsage;
     /// Current map-state selector.
     mapState: GpuBufferMapState;
 }
 
-/// Texture metadata snapshot.
-export struct GpuTextureInfo {
+/// GPU texture state.
+export struct GpuTextureState {
     /// Texture width in texels.
     width: uint32;
     /// Texture height in texels.
@@ -678,182 +668,182 @@ export struct GpuTextureInfo {
     /// Texture format identifier.
     format: GpuTextureFormat;
     /// Texture usage bitset.
-    usage: GpuTextureUsageMask;
+    usage: GpuTextureUsage;
     /// Texture dimension selector.
     dimension: GpuTextureDimension;
 }
 
 /// Create a GPU buffer.
-@binding("destack.gpu.resource.bufferCreate", {
+@binding("destack.gpu.resource.buffer.create", {
     effect: "external",
-    requires: ["host.gpu.memory"],
+    requires: ["host.gpu.resource"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function bufferCreate(
+export declare function createBuffer(
     device: GpuDeviceHandle,
-    options: GpuBufferOptions,
+    descriptor: &readonly GpuBufferDescriptor,
 ): Result<GpuBufferHandle, PlatformError>;
 
 /// Destroy a GPU buffer.
-@binding("destack.gpu.resource.bufferDestroy", {
+@binding("destack.gpu.resource.buffer.destroy", {
     effect: "external",
-    requires: ["host.gpu.memory"],
+    requires: ["host.gpu.resource"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function bufferDestroy(handle: GpuBufferHandle): Result<void, PlatformError>;
+export declare function destroyBuffer(buffer: GpuBufferHandle): Result<void, PlatformError>;
 
 /// Write a byte range to a GPU buffer.
-@binding("destack.gpu.resource.bufferWrite", {
+@binding("destack.gpu.resource.buffer.write", {
     effect: "external",
-    requires: ["host.gpu.memory"],
+    requires: ["host.gpu.resource"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function bufferWrite(
-    handle: GpuBufferHandle,
+export declare function writeBuffer(
+    buffer: GpuBufferHandle,
     offset: uint64,
-    bytes: Slice<uint8>,
+    bytes: &readonly [uint8],
 ): Result<void, PlatformError>;
 
 /// Read a byte range from a GPU buffer.
-@binding("destack.gpu.resource.bufferRead", {
+@binding("destack.gpu.resource.buffer.read", {
     effect: "external",
-    requires: ["host.gpu.memory"],
+    requires: ["host.gpu.resource"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function bufferRead(
-    handle: GpuBufferHandle,
+export declare function readBuffer(
+    buffer: GpuBufferHandle,
     offset: uint64,
     length: uint64,
-): Result<Slice<uint8>, PlatformError>;
+): Result<^Array<uint8>, PlatformError>;
 
 /// Map a buffer range.
-@binding("destack.gpu.resource.bufferMap", {
+@binding("destack.gpu.resource.buffer.map", {
     effect: "external",
-    requires: ["host.gpu.memory"],
+    requires: ["host.gpu.resource"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function bufferMap(
-    handle: GpuBufferHandle,
+export declare function mapBuffer(
+    buffer: GpuBufferHandle,
     offset: uint64,
     length: uint64,
     mode: GpuMapMode,
 ): Result<GpuMappedBufferRange, PlatformError>;
 
 /// Unmap a mapped buffer.
-@binding("destack.gpu.resource.bufferUnmap", {
+@binding("destack.gpu.resource.buffer.unmap", {
     effect: "external",
-    requires: ["host.gpu.memory"],
+    requires: ["host.gpu.resource"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function bufferUnmap(handle: GpuBufferHandle): Result<void, PlatformError>;
+export declare function unmapBuffer(buffer: GpuBufferHandle): Result<void, PlatformError>;
 
-/// Read a buffer metadata snapshot.
-@binding("destack.gpu.resource.bufferInfo", {
+/// Read a buffer state snapshot.
+@binding("destack.gpu.resource.buffer.state.read", {
     effect: "external",
-    requires: ["host.gpu.memory"],
+    requires: ["host.gpu.resource"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function bufferInfo(handle: GpuBufferHandle): Result<GpuBufferInfo, PlatformError>;
+export declare function readBufferState(buffer: GpuBufferHandle): Result<GpuBufferState, PlatformError>;
 
 /// Create a texture resource.
-@binding("destack.gpu.resource.textureCreate", {
+@binding("destack.gpu.resource.texture.create", {
     effect: "external",
-    requires: ["host.gpu.memory"],
+    requires: ["host.gpu.resource"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function textureCreate(
+export declare function createTexture(
     device: GpuDeviceHandle,
-    options: GpuTextureOptions,
+    descriptor: &readonly GpuTextureDescriptor,
 ): Result<GpuTextureHandle, PlatformError>;
 
 /// Destroy a texture resource.
-@binding("destack.gpu.resource.textureDestroy", {
+@binding("destack.gpu.resource.texture.destroy", {
     effect: "external",
-    requires: ["host.gpu.memory"],
+    requires: ["host.gpu.resource"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function textureDestroy(handle: GpuTextureHandle): Result<void, PlatformError>;
+export declare function destroyTexture(texture: GpuTextureHandle): Result<void, PlatformError>;
 
-/// Read a texture metadata snapshot.
-@binding("destack.gpu.resource.textureInfo", {
+/// Read a texture state snapshot.
+@binding("destack.gpu.resource.texture.state.read", {
     effect: "external",
-    requires: ["host.gpu.memory"],
+    requires: ["host.gpu.resource"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function textureInfo(handle: GpuTextureHandle): Result<GpuTextureInfo, PlatformError>;
+export declare function readTextureState(texture: GpuTextureHandle): Result<GpuTextureState, PlatformError>;
 
 /// Create a texture view.
-@binding("destack.gpu.resource.textureViewCreate", {
+@binding("destack.gpu.resource.texture.view.create", {
     effect: "external",
-    requires: ["host.gpu.memory"],
+    requires: ["host.gpu.resource"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function textureViewCreate(
+export declare function createTextureView(
     texture: GpuTextureHandle,
-    options: GpuTextureViewOptions,
+    descriptor: &readonly GpuTextureViewDescriptor,
 ): Result<GpuTextureViewHandle, PlatformError>;
 
 /// Destroy a texture view.
-@binding("destack.gpu.resource.textureViewDestroy", {
+@binding("destack.gpu.resource.texture.view.destroy", {
     effect: "external",
-    requires: ["host.gpu.memory"],
+    requires: ["host.gpu.resource"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function textureViewDestroy(handle: GpuTextureViewHandle): Result<void, PlatformError>;
+export declare function destroyTextureView(view: GpuTextureViewHandle): Result<void, PlatformError>;
 
 /// Create a sampler resource.
-@binding("destack.gpu.resource.samplerCreate", {
+@binding("destack.gpu.resource.sampler.create", {
     effect: "external",
-    requires: ["host.gpu.memory"],
+    requires: ["host.gpu.resource"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function samplerCreate(
+export declare function createSampler(
     device: GpuDeviceHandle,
-    options: GpuSamplerOptions,
+    descriptor: &readonly GpuSamplerDescriptor,
 ): Result<GpuSamplerHandle, PlatformError>;
 
 /// Destroy a sampler resource.
-@binding("destack.gpu.resource.samplerDestroy", {
+@binding("destack.gpu.resource.sampler.destroy", {
     effect: "external",
-    requires: ["host.gpu.memory"],
+    requires: ["host.gpu.resource"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function samplerDestroy(handle: GpuSamplerHandle): Result<void, PlatformError>;
+export declare function destroySampler(sampler: GpuSamplerHandle): Result<void, PlatformError>;
 
 /// Create an external texture resource.
-@binding("destack.gpu.resource.externalTextureCreate", {
+@binding("destack.gpu.resource.external.texture.create", {
     effect: "external",
-    requires: ["host.gpu.memory"],
+    requires: ["host.gpu.resource"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function externalTextureCreate(
+export declare function createExternalTexture(
     device: GpuDeviceHandle,
-    planeViews: Slice<GpuTextureViewHandle>,
-    options: GpuExternalTextureOptions,
+    descriptor: &readonly GpuExternalTextureDescriptor,
+    planeViews: &readonly [GpuTextureViewHandle],
 ): Result<GpuExternalTextureHandle, PlatformError>;
 
 /// Destroy an external texture resource.
-@binding("destack.gpu.resource.externalTextureDestroy", {
+@binding("destack.gpu.resource.external.texture.destroy", {
     effect: "external",
-    requires: ["host.gpu.memory"],
+    requires: ["host.gpu.resource"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function externalTextureDestroy(
-    handle: GpuExternalTextureHandle,
+export declare function destroyExternalTexture(
+    externalTexture: GpuExternalTextureHandle,
 ): Result<void, PlatformError>;

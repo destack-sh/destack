@@ -1,7 +1,7 @@
-import { Array, Slice } from "destack:collections";
+import { Array } from "destack:collections";
 import { PlatformError } from "destack:platform/error";
 import { GpuAdapterHandle, GpuSurfaceHandle } from "destack:platform/resource";
-import { GpuTextureFormat, GpuTextureUsageMask } from "./resource.ds";
+import { GpuTextureFormat, GpuTextureUsage } from "./resource.ds";
 
 /// GPU backend selector.
 export enum GpuBackend {
@@ -245,9 +245,7 @@ export struct GpuAdapterRequest {
     /// Whether only one fallback adapter should be selected.
     forceFallbackAdapter: boolean;
     /// Surface compatibility constraint when provided.
-    compatibleSurface: GpuSurfaceHandle | void;
-    /// Request flags.
-    flags: uint32;
+    compatibleSurface?: GpuSurfaceHandle;
 }
 
 /// Normalized adapter limits.
@@ -358,8 +356,8 @@ export struct GpuAdapterLimits {
     maxMultiviewViewCount: uint32;
 }
 
-/// GPU adapter information.
-export struct GpuAdapterInfo {
+/// GPU adapter.
+export struct GpuAdapter {
     /// Stable runtime adapter identifier.
     id: string;
     /// Host adapter name.
@@ -391,17 +389,17 @@ export struct GpuAdapterInfo {
     /// Whether this adapter is a fallback implementation.
     isFallback: boolean;
     /// Supported feature identifiers.
-    features: Slice<GpuFeatureId>;
+    features: [GpuFeatureId];
     /// Supported adapter limits.
     limits: GpuAdapterLimits;
 }
 
-/// Adapter texture-format action snapshot.
+/// Adapter texture format capabilities.
 export struct GpuAdapterFormatCapabilities {
     /// Texture format identifier.
     format: GpuTextureFormat;
     /// Allowed usages for this format.
-    allowedUsages: GpuTextureUsageMask;
+    allowedUsages: GpuTextureUsage;
     /// Additional texture-format feature flags.
     flags: GpuTextureFormatFeatureFlags;
 }
@@ -413,9 +411,9 @@ export struct GpuAdapterFormatCapabilities {
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function adapterList(
-    request: GpuAdapterRequest,
-): Result<Array<GpuAdapterInfo>, PlatformError>;
+export declare function listAdapters(
+    request: &readonly GpuAdapterRequest,
+): Result<^Array<GpuAdapter>, PlatformError>;
 
 /// Open a GPU adapter.
 @binding("destack.gpu.adapter.open", {
@@ -424,60 +422,60 @@ export declare function adapterList(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function adapterOpen(id: string): Result<GpuAdapterHandle, PlatformError>;
+export declare function openAdapter(id: &readonly string): Result<GpuAdapterHandle, PlatformError>;
 
 /// Read adapter metadata.
-@binding("destack.gpu.adapter.info", {
+@binding("destack.gpu.adapter.read", {
     effect: "external",
     requires: ["host.gpu.adapter"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function adapterInfo(handle: GpuAdapterHandle): Result<GpuAdapterInfo, PlatformError>;
+export declare function readAdapter(adapter: GpuAdapterHandle): Result<GpuAdapter, PlatformError>;
 
 /// Read an adapter feature snapshot.
-@binding("destack.gpu.adapter.features", {
+@binding("destack.gpu.adapter.features.read", {
     effect: "external",
     requires: ["host.gpu.adapter"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function adapterFeatures(
-    handle: GpuAdapterHandle,
-): Result<Slice<GpuFeatureId>, PlatformError>;
+export declare function readAdapterFeatures(
+    adapter: GpuAdapterHandle,
+): Result<^Array<GpuFeatureId>, PlatformError>;
 
 /// Read an adapter limits snapshot.
-@binding("destack.gpu.adapter.limits", {
+@binding("destack.gpu.adapter.limits.read", {
     effect: "external",
     requires: ["host.gpu.adapter"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function adapterLimits(
-    handle: GpuAdapterHandle,
+export declare function readAdapterLimits(
+    adapter: GpuAdapterHandle,
 ): Result<GpuAdapterLimits, PlatformError>;
 
 /// Check whether an adapter supports a feature.
-@binding("destack.gpu.adapter.hasFeature", {
+@binding("destack.gpu.adapter.feature.has", {
     effect: "external",
     requires: ["host.gpu.adapter"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function adapterHasFeature(
-    handle: GpuAdapterHandle,
+export declare function hasAdapterFeature(
+    adapter: GpuAdapterHandle,
     feature: GpuFeatureId,
 ): Result<boolean, PlatformError>;
 
-/// Query texture-format actions for an adapter.
-@binding("destack.gpu.adapter.formatCapabilities", {
+/// Read texture format capabilities for an adapter.
+@binding("destack.gpu.adapter.format.capabilities", {
     effect: "external",
     requires: ["host.gpu.adapter"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function adapterFormatCapabilities(
-    handle: GpuAdapterHandle,
+export declare function readAdapterFormatCapabilities(
+    adapter: GpuAdapterHandle,
     format: GpuTextureFormat,
 ): Result<GpuAdapterFormatCapabilities, PlatformError>;
 
@@ -488,4 +486,4 @@ export declare function adapterFormatCapabilities(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function adapterClose(handle: GpuAdapterHandle): Result<void, PlatformError>;
+export declare function closeAdapter(adapter: GpuAdapterHandle): Result<void, PlatformError>;

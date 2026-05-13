@@ -1,4 +1,3 @@
-import { Slice } from "destack:collections";
 import { PlatformError } from "destack:platform/error";
 import {
     GpuBindGroupLayoutHandle,
@@ -9,18 +8,16 @@ import {
 } from "destack:platform/resource";
 import { GpuCompareFunction, GpuTextureFormat } from "./resource.ds";
 
-/// GPU shader module options.
-export struct GpuShaderOptions {
+/// GPU shader module descriptor.
+export struct GpuShaderDescriptor {
     /// Shader binary format selector.
     format: GpuShaderFormat;
-    /// Shader option flags.
-    flags: uint32;
     /// Debug label.
     label: string;
     /// Native workgroup counts for passthrough shader formats when required.
-    numWorkgroups: uint32[3 as comptime] | void;
+    numWorkgroups?: uint32[3 as comptime];
     /// Shader runtime-check policy when one nondefault policy is requested.
-    runtimeChecks: GpuShaderRuntimeChecks | void;
+    runtimeChecks?: GpuShaderRuntimeChecks;
 }
 
 /// Shader binary format selector.
@@ -66,7 +63,7 @@ export struct GpuCompilationMessage {
 /// Shader-compilation information snapshot.
 export struct GpuCompilationInfo {
     /// Compilation diagnostics emitted by backend validation or translation.
-    messages: Slice<GpuCompilationMessage>;
+    messages: [GpuCompilationMessage];
 }
 
 /// Shader runtime-check policy.
@@ -196,7 +193,7 @@ export struct GpuVertexBufferLayout {
     /// Vertex layout step mode selector.
     stepMode: GpuVertexStepMode;
     /// Vertex attributes consumed from this buffer.
-    attributes: Slice<GpuVertexAttribute>;
+    attributes: [GpuVertexAttribute];
 }
 
 /// Vertex layout step mode selector.
@@ -340,7 +337,7 @@ export struct GpuColorTargetState {
     /// Render-target texture format identifier.
     format: GpuTextureFormat;
     /// Blend-state descriptor when provided.
-    blend: GpuBlendState | void;
+    blend?: GpuBlendState;
     /// Color-write channel mask.
     writeMask: GpuColorWriteMask;
 }
@@ -350,7 +347,7 @@ export struct GpuPrimitiveState {
     /// Primitive topology selector.
     topology: GpuPrimitiveTopology;
     /// Strip index format selector when one strip topology uses indices.
-    stripIndexFormat: GpuIndexFormat | void;
+    stripIndexFormat?: GpuIndexFormat;
     /// Front-face winding selector.
     frontFace: GpuFrontFace;
     /// Face-culling selector.
@@ -450,11 +447,11 @@ export struct GpuFragmentState {
     /// Fragment shader-module handle.
     module: GpuShaderHandle;
     /// Fragment entry point when provided.
-    entry: string | void;
+    entry?: string;
     /// Fragment-stage specialization constants.
-    constants: Slice<GpuPipelineConstant>;
+    constants: [GpuPipelineConstant];
     /// Color-target states.
-    targets: Slice<GpuColorTargetState>;
+    targets: [GpuColorTargetState];
 }
 
 /// Vertex-state descriptor.
@@ -462,11 +459,11 @@ export struct GpuVertexState {
     /// Vertex shader-module handle.
     module: GpuShaderHandle;
     /// Vertex entry point when provided.
-    entry: string | void;
+    entry?: string;
     /// Vertex-stage specialization constants.
-    constants: Slice<GpuPipelineConstant>;
+    constants: [GpuPipelineConstant];
     /// Vertex buffer layouts.
-    buffers: Slice<GpuVertexBufferLayout>;
+    buffers: [GpuVertexBufferLayout];
 }
 
 /// Compute-state descriptor.
@@ -474,9 +471,9 @@ export struct GpuComputeState {
     /// Compute shader-module handle.
     module: GpuShaderHandle;
     /// Compute entry point when provided.
-    entry: string | void;
+    entry?: string;
     /// Compute-stage specialization constants.
-    constants: Slice<GpuPipelineConstant>;
+    constants: [GpuPipelineConstant];
 }
 
 /// Render-state descriptor.
@@ -484,101 +481,97 @@ export struct GpuRenderState {
     /// Primitive-state descriptor.
     primitive: GpuPrimitiveState;
     /// Depth-stencil-state descriptor when enabled.
-    depthStencil: GpuDepthStencilState | void;
+    depthStencil?: GpuDepthStencilState;
     /// Multisample-state descriptor.
     multisample: GpuMultisampleState;
 }
 
-/// Compute pipeline creation options.
-export struct GpuComputePipelineOptions {
+/// Compute pipeline descriptor.
+export struct GpuComputePipelineDescriptor {
     /// Debug label.
     label: string;
     /// Explicit pipeline layout handle when provided.
-    layout: GpuPipelineLayoutHandle | void;
+    layout?: GpuPipelineLayoutHandle;
     /// Compute stage descriptor.
     compute: GpuComputeState;
-    /// Pipeline option flags.
-    flags: uint32;
 }
 
-/// Render pipeline creation options.
-export struct GpuRenderPipelineOptions {
+/// Render pipeline descriptor.
+export struct GpuRenderPipelineDescriptor {
     /// Debug label.
     label: string;
     /// Explicit pipeline layout handle when provided.
-    layout: GpuPipelineLayoutHandle | void;
+    layout?: GpuPipelineLayoutHandle;
     /// Vertex stage descriptor.
     vertex: GpuVertexState;
     /// Fragment stage descriptor when configured.
-    fragment: GpuFragmentState | void;
+    fragment?: GpuFragmentState;
     /// Render-state descriptor.
     render: GpuRenderState;
     /// Multiview mask when configured.
-    multiviewMask: uint32 | void;
-    /// Pipeline option flags.
-    flags: uint32;
+    multiviewMask?: uint32;
 }
 
 /// Create a shader module.
-@binding("destack.gpu.pipeline.shaderCreate", {
+@binding("destack.gpu.pipeline.shader.create", {
     effect: "external",
-    requires: ["host.gpu.shader"],
+    requires: ["host.gpu.pipeline"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function shaderCreate(
+export declare function createShader(
     device: GpuDeviceHandle,
-    options: GpuShaderOptions,
-    bytes: Slice<uint8>,
+    descriptor: &readonly GpuShaderDescriptor,
+    bytes: &readonly [uint8],
 ): Result<GpuShaderHandle, PlatformError>;
 
 /// Destroy a shader module.
-@binding("destack.gpu.pipeline.shaderDestroy", {
+@binding("destack.gpu.pipeline.shader.destroy", {
     effect: "external",
-    requires: ["host.gpu.shader"],
+    requires: ["host.gpu.pipeline"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function shaderDestroy(handle: GpuShaderHandle): Result<void, PlatformError>;
+export declare function destroyShader(shader: GpuShaderHandle): Result<void, PlatformError>;
 
 /// Read a shader-compilation diagnostics snapshot.
-@binding("destack.gpu.pipeline.shaderCompilationInfo", {
+@binding("destack.gpu.pipeline.shader.compilation", {
     effect: "external",
-    requires: ["host.gpu.shader"],
+    requires: ["host.gpu.pipeline"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function shaderCompilationInfo(
-    handle: GpuShaderHandle,
+export declare function readShaderCompilation(
+    shader: GpuShaderHandle,
     timeoutNs: uint64,
 ): Result<GpuCompilationInfo, PlatformError>;
 
 /// Create a compute pipeline.
-@binding("destack.gpu.pipeline.computeCreate", {
+@binding("destack.gpu.pipeline.compute.create", {
     effect: "external",
-    requires: ["host.gpu.compute"],
+    requires: ["host.gpu.pipeline"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function computePipelineCreate(
+export declare function createComputePipeline(
     device: GpuDeviceHandle,
-    options: GpuComputePipelineOptions,
+    descriptor: &readonly GpuComputePipelineDescriptor,
 ): Result<GpuPipelineHandle, PlatformError>;
 
 /// Create a render pipeline.
-@binding("destack.gpu.pipeline.renderCreate", {
+@binding("destack.gpu.pipeline.render.create", {
     effect: "external",
-    requires: ["host.gpu.render"],
+    requires: ["host.gpu.pipeline"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function renderPipelineCreate(
+export declare function createRenderPipeline(
     device: GpuDeviceHandle,
-    options: GpuRenderPipelineOptions,
+    descriptor: &readonly GpuRenderPipelineDescriptor,
 ): Result<GpuPipelineHandle, PlatformError>;
 
 /// Resolve one bind-group layout from one pipeline.
-@binding("destack.gpu.pipeline.bindGroupLayout", {
+@binding("destack.gpu.pipeline.bind.group.layout", {
     effect: "external",
     requires: ["host.gpu.bind"],
     families: ["windows", "unix"],
@@ -592,8 +585,8 @@ export declare function pipelineBindGroupLayout(
 /// Destroy a pipeline object.
 @binding("destack.gpu.pipeline.destroy", {
     effect: "external",
-    requires: ["host.gpu.compute", "host.gpu.render"],
+    requires: ["host.gpu.pipeline"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function pipelineDestroy(handle: GpuPipelineHandle): Result<void, PlatformError>;
+export declare function destroyPipeline(pipeline: GpuPipelineHandle): Result<void, PlatformError>;
