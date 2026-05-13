@@ -1,7 +1,7 @@
 import { type Result } from "destack:error";
 import { todo } from "destack:error";
 import { type Writer } from "destack:sync";
-import { PlatformError } from "destack:platform/error";
+import { HostError } from "destack:error/host";
 
 /// Console output options.
 export interface ConsoleOptions {
@@ -21,72 +21,72 @@ export class Console {
     constructor(options?: ConsoleOptions);
 
     /// Write a line to stdout.
-    log(...values: unknown[]): Result<void, PlatformError> {
+    log(...values: unknown[]): Result<void, HostError> {
         todo("Console.log")
     }
 
     /// Write an info line to stdout.
-    info(...values: unknown[]): Result<void, PlatformError> {
+    info(...values: unknown[]): Result<void, HostError> {
         todo("Console.info")
     }
 
     /// Write a debug line to stdout.
-    debug(...values: unknown[]): Result<void, PlatformError> {
+    debug(...values: unknown[]): Result<void, HostError> {
         todo("Console.debug")
     }
 
     /// Write a warning line to stderr.
-    warn(...values: unknown[]): Result<void, PlatformError> {
+    warn(...values: unknown[]): Result<void, HostError> {
         todo("Console.warn")
     }
 
     /// Write an error line to stderr.
-    error(...values: unknown[]): Result<void, PlatformError> {
+    error(...values: unknown[]): Result<void, HostError> {
         todo("Console.error")
     }
 
     /// Write the current stack trace to stderr.
-    trace(...values: unknown[]): Result<void, PlatformError> {
+    trace(...values: unknown[]): Result<void, HostError> {
         todo("Console.trace")
     }
 
     /// Write an assertion failure when `condition` is false.
-    assert(condition: boolean, ...values: unknown[]): Result<void, PlatformError> {
+    assert(condition: boolean, ...values: unknown[]): Result<void, HostError> {
         todo("Console.assert")
     }
 
     /// Start a named timer.
-    time(label?: string): Result<void, PlatformError> {
+    time(label?: string): Result<void, HostError> {
         todo("Console.time")
     }
 
     /// Write and stop a named timer.
-    timeEnd(label?: string): Result<void, PlatformError> {
+    timeEnd(label?: string): Result<void, HostError> {
         todo("Console.timeEnd")
     }
 
     /// Write a named timer without stopping it.
-    timeLog(label?: string, ...values: unknown[]): Result<void, PlatformError> {
+    timeLog(label?: string, ...values: unknown[]): Result<void, HostError> {
         todo("Console.timeLog")
     }
 
     /// Increase output indentation.
-    group(...values: unknown[]): Result<void, PlatformError> {
+    group(...values: unknown[]): Result<void, HostError> {
         todo("Console.group")
     }
 
     /// Increase output indentation for a collapsed group.
-    groupCollapsed(...values: unknown[]): Result<void, PlatformError> {
+    groupCollapsed(...values: unknown[]): Result<void, HostError> {
         todo("Console.groupCollapsed")
     }
 
     /// Decrease output indentation.
-    groupEnd(): Result<void, PlatformError> {
+    groupEnd(): Result<void, HostError> {
         todo("Console.groupEnd")
     }
 
     /// Write tabular data.
-    table(value: unknown): Result<void, PlatformError> {
+    table(value: unknown): Result<void, HostError> {
         todo("Console.table")
     }
 }
@@ -97,71 +97,71 @@ export function defaultConsole(): Console {
 }
 
 /// Write a line to stdout.
-export function log(...values: unknown[]): Result<void, PlatformError> {
+export function log(...values: unknown[]): Result<void, HostError> {
     defaultConsole().log(...values)
 }
 
 /// Write an info line to stdout.
-export function info(...values: unknown[]): Result<void, PlatformError> {
+export function info(...values: unknown[]): Result<void, HostError> {
     defaultConsole().info(...values)
 }
 
 /// Write a debug line to stdout.
-export function debug(...values: unknown[]): Result<void, PlatformError> {
+export function debug(...values: unknown[]): Result<void, HostError> {
     defaultConsole().debug(...values)
 }
 
 /// Write a warning line to stderr.
-export function warn(...values: unknown[]): Result<void, PlatformError> {
+export function warn(...values: unknown[]): Result<void, HostError> {
     defaultConsole().warn(...values)
 }
 
 /// Write an error line to stderr.
-export function error(...values: unknown[]): Result<void, PlatformError> {
+export function error(...values: unknown[]): Result<void, HostError> {
     defaultConsole().error(...values)
 }
 
 /// Write the current stack trace to stderr.
-export function trace(...values: unknown[]): Result<void, PlatformError> {
+export function trace(...values: unknown[]): Result<void, HostError> {
     defaultConsole().trace(...values)
 }
 
 /// Write an assertion failure when `condition` is false.
-export function assert(condition: boolean, ...values: unknown[]): Result<void, PlatformError> {
+export function assert(condition: boolean, ...values: unknown[]): Result<void, HostError> {
     defaultConsole().assert(condition, ...values)
 }
 
 /// Start a named timer.
-export function time(label?: string): Result<void, PlatformError> {
+export function time(label?: string): Result<void, HostError> {
     defaultConsole().time(label)
 }
 
 /// Write and stop a named timer.
-export function timeEnd(label?: string): Result<void, PlatformError> {
+export function timeEnd(label?: string): Result<void, HostError> {
     defaultConsole().timeEnd(label)
 }
 
 /// Write a named timer without stopping it.
-export function timeLog(label?: string, ...values: unknown[]): Result<void, PlatformError> {
+export function timeLog(label?: string, ...values: unknown[]): Result<void, HostError> {
     defaultConsole().timeLog(label, ...values)
 }
 
 /// Increase output indentation.
-export function group(...values: unknown[]): Result<void, PlatformError> {
+export function group(...values: unknown[]): Result<void, HostError> {
     defaultConsole().group(...values)
 }
 
 /// Increase output indentation for a collapsed group.
-export function groupCollapsed(...values: unknown[]): Result<void, PlatformError> {
+export function groupCollapsed(...values: unknown[]): Result<void, HostError> {
     defaultConsole().groupCollapsed(...values)
 }
 
 /// Decrease output indentation.
-export function groupEnd(): Result<void, PlatformError> {
+export function groupEnd(): Result<void, HostError> {
     defaultConsole().groupEnd()
 }
 
 /// Write tabular data.
-export function table(value: unknown): Result<void, PlatformError> {
+export function table(value: unknown): Result<void, HostError> {
     defaultConsole().table(value)
 }

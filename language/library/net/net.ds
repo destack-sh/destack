@@ -1,14 +1,6 @@
 import { AsyncResult } from "destack:error";
-import { PlatformError } from "destack:platform/error";
-import { SocketHandle } from "destack:platform/resource";
-import {
-    AddressLookupQuery,
-    AddressLookupResult,
-    SocketMessageFlags,
-    SocketReceiveFromResult,
-    SocketAddress,
-    SocketFamily,
-} from "destack:platform/net";
+import { HostError } from "destack:error/host";
+import { AddressLookupQuery, AddressLookupResult, SocketAddress, SocketFamily, SocketHandle, SocketMessageFlags, SocketReceiveFromResult } from "destack:net/host";
 
 /// Owned stream socket.
 export struct Connection {
@@ -51,46 +43,46 @@ export struct DatagramOptions {
 }
 
 /// Open one stream connection.
-export declare function connect(options: ConnectOptions): AsyncResult<Connection, PlatformError>;
+export declare function connect(options: ConnectOptions): AsyncResult<Connection, HostError>;
 
 /// Listen for stream connections.
-export declare function listen(options: ListenOptions): AsyncResult<Listener, PlatformError>;
+export declare function listen(options: ListenOptions): AsyncResult<Listener, HostError>;
 
 /// Open one datagram socket.
 export declare function openDatagram(
     options: DatagramOptions,
-): AsyncResult<DatagramSocket, PlatformError>;
+): AsyncResult<DatagramSocket, HostError>;
 
 /// Accept one stream connection.
-export declare function accept(listener: &Listener): AsyncResult<Connection, PlatformError>;
+export declare function accept(listener: &Listener): AsyncResult<Connection, HostError>;
 
 /// Close one stream connection.
-export declare function close(connection: ^Connection): AsyncResult<void, PlatformError>;
+export declare function close(connection: ^Connection): AsyncResult<void, HostError>;
 
 /// Close one stream listener.
-export declare function closeListener(listener: ^Listener): AsyncResult<void, PlatformError>;
+export declare function closeListener(listener: ^Listener): AsyncResult<void, HostError>;
 
 /// Close one datagram socket.
-export declare function closeDatagram(socket: ^DatagramSocket): AsyncResult<void, PlatformError>;
+export declare function closeDatagram(socket: ^DatagramSocket): AsyncResult<void, HostError>;
 
 /// Read from one stream connection.
 export declare function read(
     connection: &Connection,
     buffer: &[uint8],
-): AsyncResult<uint64, PlatformError>;
+): AsyncResult<uint64, HostError>;
 
 /// Write to one stream connection.
 export declare function write(
     connection: &Connection,
     buffer: &readonly [uint8],
-): AsyncResult<uint64, PlatformError>;
+): AsyncResult<uint64, HostError>;
 
 /// Receive one datagram from a socket.
 export declare function receiveFrom(
     socket: &DatagramSocket,
     buffer: &[uint8],
     flags: SocketMessageFlags,
-): AsyncResult<SocketReceiveFromResult, PlatformError>;
+): AsyncResult<SocketReceiveFromResult, HostError>;
 
 /// Send one datagram to a remote endpoint.
 export declare function sendTo(
@@ -98,9 +90,9 @@ export declare function sendTo(
     address: SocketAddress,
     buffer: &readonly [uint8],
     flags: SocketMessageFlags,
-): AsyncResult<uint64, PlatformError>;
+): AsyncResult<uint64, HostError>;
 
 /// Resolve a host and service.
 export declare function lookup(
     query: AddressLookupQuery,
-): AsyncResult<^Array<AddressLookupResult>, PlatformError>;
+): AsyncResult<^Array<AddressLookupResult>, HostError>;

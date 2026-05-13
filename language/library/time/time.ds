@@ -1,39 +1,42 @@
-import * as platform from "destack:platform";
-import { type TimerHandle } from "destack:resource";
-import { PlatformError } from "destack:platform/error";
+import { HostError } from "destack:error/host";
+import * as host from "./host";
 
-/// Return wall clock time in nanoseconds since the runtime epoch.
-export function wallNs(): Result<uint64, PlatformError> {
-    platform.time.wallNs();
+/// Read realtime clock time.
+export function realtime(): Result<host.Timestamp, HostError> {
+    host.readClock(host.Clock.Realtime);
 }
 
-/// Return monotonic time in nanoseconds since process start.
-export function monoNs(): Result<uint64, PlatformError> {
-    platform.time.monoNs();
+/// Read monotonic clock time.
+export function monotonic(): Result<host.Timestamp, HostError> {
+    host.readClock(host.Clock.Monotonic);
 }
 
-/// Sleep for at least the given duration in nanoseconds.
-export function sleepNs(duration: uint64): Result<void, PlatformError> {
-    platform.time.sleepNs(duration);
+/// Read one clock resolution.
+export function resolution(clock: host.Clock): Result<host.Duration, HostError> {
+    host.readClockResolution(clock);
 }
 
-/// Schedule a one-shot timer.
-export function once(delayNs: uint64): Result<TimerHandle, PlatformError> {
-    platform.time.timerOnce(delayNs, {
-        clock: platform.time.TimerClock.Monotonic,
-        flags: platform.time.TimerFlags(0),
-    });
+/// Open one timer.
+export function timer(
+    schedule: &readonly host.TimerSchedule,
+): Result<host.TimerHandle, HostError> {
+    host.openTimer(schedule);
 }
 
-/// Schedule a repeating timer.
-export function interval(periodNs: uint64): Result<TimerHandle, PlatformError> {
-    platform.time.timerInterval(periodNs, {
-        clock: platform.time.TimerClock.Monotonic,
-        flags: platform.time.TimerFlags(0),
-    });
+/// Arm one timer.
+export function arm(
+    handle: host.TimerHandle,
+    schedule: &readonly host.TimerSchedule,
+): Result<void, HostError> {
+    host.armTimer(handle, schedule);
 }
 
-/// Cancel a scheduled timer.
-export function cancel(handle: TimerHandle): Result<void, PlatformError> {
-    platform.time.timerCancel(handle);
+/// Read elapsed timer firings.
+export function read(handle: host.TimerHandle): Result<uint64, HostError> {
+    host.readTimer(handle);
+}
+
+/// Close one timer.
+export function close(handle: host.TimerHandle): Result<void, HostError> {
+    host.closeTimer(handle);
 }

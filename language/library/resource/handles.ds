@@ -1,8 +1,0 @@
-export {
-    DirectoryHandle,
-    FileHandle,
-    PacketHandle,
-    ProcessHandle,
-    SocketHandle,
-    TimerHandle,
-} from "destack:platform/resource";
