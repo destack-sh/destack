@@ -13,6 +13,7 @@ use crate::{Keyword, TokenType};
 /// + -                              // addition
 /// << >>                            // shift
 /// < > <= >= in instanceof          // comparison
+/// .. ..=                           // range
 /// == != === !==                    // equality
 /// &                                // bitwise and
 /// ^                                // bitwise xor
@@ -45,6 +46,9 @@ pub enum OperatorPrecedence {
     /// Comparison-related binary operators.
     /// `< > <= >= in instanceof`
     Comparison = 1400,
+    /// Range expressions.
+    /// `.. ..=`
+    Range = 1350,
     /// Equality-related binary operators.
     /// `== != === !==`
     Equality = 1300,
@@ -69,6 +73,15 @@ pub enum OperatorPrecedence {
     /// Assignment-related binary operators.
     /// `= += -= *= /= %= **= <<= >>= >>>= &= ^= |= &&= ||= ??=`
     Assignment = 800,
+}
+
+/// The end-bound spelling of one range.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum RangeEnd {
+    /// `..`, excluding the end when present.
+    Open,
+    /// `..=`, including the end.
+    Inclusive,
 }
 
 /// A UnaryOperator is unary operator.

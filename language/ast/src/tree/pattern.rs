@@ -1,7 +1,7 @@
 use destack_core::StringId;
 use serde::{Deserialize, Serialize};
 
-use crate::{Expression, LocalNodeId, Mutability, Name, Node, NodeType, TypeExpression};
+use crate::{Expression, LocalNodeId, Mutability, Name, Node, NodeType, RangeEnd, TypeExpression};
 
 /// A Pattern is a pattern to match something and unwrap it.
 /// Guards are handled only for match cases (see MatchCase).
@@ -48,6 +48,12 @@ pub enum Pattern {
     },
     /// Literal value or value-space path pattern.
     Expression { value: LocalNodeId<Expression> },
+    /// Ordered scalar interval pattern like `0..10` or `..=255`.
+    Range {
+        start: Option<LocalNodeId<Expression>>,
+        end: Option<LocalNodeId<Expression>>,
+        end_kind: RangeEnd,
+    },
     /// Type-space literal or reference pattern.
     TypeExpression { value: LocalNodeId<TypeExpression> },
     /// Tuple pattern (like `(x, 0)`).
