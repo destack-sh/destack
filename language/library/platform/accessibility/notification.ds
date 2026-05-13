@@ -1,8 +1,9 @@
 import { PlatformError } from "destack:platform/error";
 import { WindowHandle } from "destack:platform/resource";
+import { AccessibilityNodeId } from "./node.ds";
 import { AccessibilityLiveRegionPoliteness } from "./state.ds";
-import { AccessibilityNodeId } from "./role.ds";
-import { AccessibilityTextRange } from "./text.ds";
+import { AccessibilityTextRange, AccessibilityTextRevision } from "./text.ds";
+import { AccessibilityTreeRevision } from "./tree.ds";
 
 /// Accessibility notification kind.
 export enum AccessibilityNotificationKind {
@@ -12,7 +13,7 @@ export enum AccessibilityNotificationKind {
     FocusChanged = 2,
     /// One live region changed.
     LiveRegionChanged = 3,
-    /// One screen or top-level semantic context changed.
+    /// One screen or top level semantic context changed.
     ScreenChanged = 4,
     /// One layout subtree changed.
     LayoutChanged = 5,
@@ -38,28 +39,33 @@ export enum AccessibilityNotificationKind {
     RowCountChanged = 15,
 }
 
-/// One accessibility notification payload.
+/// Accessibility notification.
 export struct AccessibilityNotification {
     /// Notification kind.
     kind: AccessibilityNotificationKind;
     /// Target node when the notification applies to one node.
-    nodeId: AccessibilityNodeId | void;
+    nodeId?: AccessibilityNodeId;
+    /// Tree revision current when the notification was posted.
+    treeRevision?: AccessibilityTreeRevision;
+    /// Text revision current when the notification targets text.
+    textRevision?: AccessibilityTextRevision;
     /// Announcement or replacement text payload.
-    text: string | void;
-    /// Live-region politeness when the backend distinguishes it.
-    politeness: AccessibilityLiveRegionPoliteness | void;
-    /// Text range for notifications that target one text span.
-    textRange: AccessibilityTextRange | void;
+    text?: string;
+    /// Live region politeness when relevant.
+    politeness?: AccessibilityLiveRegionPoliteness;
+    /// Text range when the notification targets one text span.
+    textRange?: AccessibilityTextRange;
 }
 
-/// Post one accessibility notification for one window.
+/// Post one accessibility notification.
 @binding("destack.accessibility.notification.post", {
     effect: "external",
-    requires: ["host.accessibility.notify"],
+    requires: ["host.accessibility.notification"],
     families: ["windows", "unix"],
     simulation: true,
+    affinity: "worker",
 })
-export declare function notificationPost(
+export declare function postAccessibilityNotification(
     window: WindowHandle,
-    notification: AccessibilityNotification,
+    notification: &readonly AccessibilityNotification,
 ): Result<void, PlatformError>;

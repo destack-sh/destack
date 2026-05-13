@@ -1,22 +1,157 @@
-import { Slice } from "destack:collections";
-import { AccessibilityNodeRelations } from "./relation.ds";
-import { AccessibilityNodeId, AccessibilityRole } from "./role.ds";
+import { AccessibilityRole } from "./role.ds";
 import { AccessibilityNodeState } from "./state.ds";
-import { AccessibilityTextState } from "./text.ds";
 
-/// Window-local logical bounds for one accessibility node.
+/// Stable identifier for one accessibility tree node.
+export newtype AccessibilityNodeId = uint64;
+
+/// Bounds for one accessibility node in window coordinates.
 export struct AccessibilityNodeBounds {
-    /// Logical x coordinate in window coordinates.
-    x: int32;
-    /// Logical y coordinate in window coordinates.
-    y: int32;
-    /// Logical width in window coordinates.
-    width: uint32;
-    /// Logical height in window coordinates.
-    height: uint32;
+    /// Logical x coordinate.
+    x: float64;
+    /// Logical y coordinate.
+    y: float64;
+    /// Logical width.
+    width: float64;
+    /// Logical height.
+    height: float64;
 }
 
-/// One custom accessibility action.
+/// Standard accessibility actions supported by one node.
+export newtype AccessibilityNodeActionFlags = uint64;
+
+/// No standard accessibility actions.
+export const ACCESSIBILITY_NODE_ACTION_NONE: AccessibilityNodeActionFlags =
+    AccessibilityNodeActionFlags(0x0);
+
+/// Activate the node.
+export const ACCESSIBILITY_NODE_ACTION_ACTIVATE: AccessibilityNodeActionFlags =
+    AccessibilityNodeActionFlags(0x1);
+
+/// Long press the node.
+export const ACCESSIBILITY_NODE_ACTION_LONG_PRESS: AccessibilityNodeActionFlags =
+    AccessibilityNodeActionFlags(0x2);
+
+/// Focus the node.
+export const ACCESSIBILITY_NODE_ACTION_FOCUS: AccessibilityNodeActionFlags =
+    AccessibilityNodeActionFlags(0x4);
+
+/// Blur the node.
+export const ACCESSIBILITY_NODE_ACTION_BLUR: AccessibilityNodeActionFlags =
+    AccessibilityNodeActionFlags(0x8);
+
+/// Select the node.
+export const ACCESSIBILITY_NODE_ACTION_SELECT: AccessibilityNodeActionFlags =
+    AccessibilityNodeActionFlags(0x10);
+
+/// Add the node to the current selection.
+export const ACCESSIBILITY_NODE_ACTION_ADD_TO_SELECTION: AccessibilityNodeActionFlags =
+    AccessibilityNodeActionFlags(0x20);
+
+/// Remove the node from the current selection.
+export const ACCESSIBILITY_NODE_ACTION_REMOVE_FROM_SELECTION: AccessibilityNodeActionFlags =
+    AccessibilityNodeActionFlags(0x40);
+
+/// Toggle the node.
+export const ACCESSIBILITY_NODE_ACTION_TOGGLE: AccessibilityNodeActionFlags =
+    AccessibilityNodeActionFlags(0x80);
+
+/// Scroll the node into view.
+export const ACCESSIBILITY_NODE_ACTION_SCROLL_INTO_VIEW: AccessibilityNodeActionFlags =
+    AccessibilityNodeActionFlags(0x100);
+
+/// Scroll the node to one point.
+export const ACCESSIBILITY_NODE_ACTION_SCROLL_TO_POINT: AccessibilityNodeActionFlags =
+    AccessibilityNodeActionFlags(0x200);
+
+/// Set the node scroll offset.
+export const ACCESSIBILITY_NODE_ACTION_SET_SCROLL_OFFSET: AccessibilityNodeActionFlags =
+    AccessibilityNodeActionFlags(0x400);
+
+/// Scroll the node or its content by direction.
+export const ACCESSIBILITY_NODE_ACTION_SCROLL: AccessibilityNodeActionFlags =
+    AccessibilityNodeActionFlags(0x800);
+
+/// Clear node selection.
+export const ACCESSIBILITY_NODE_ACTION_CLEAR_SELECTION: AccessibilityNodeActionFlags =
+    AccessibilityNodeActionFlags(0x1000);
+
+/// Copy selected node text.
+export const ACCESSIBILITY_NODE_ACTION_COPY: AccessibilityNodeActionFlags =
+    AccessibilityNodeActionFlags(0x2000);
+
+/// Cut selected node text.
+export const ACCESSIBILITY_NODE_ACTION_CUT: AccessibilityNodeActionFlags =
+    AccessibilityNodeActionFlags(0x4000);
+
+/// Paste text into the node.
+export const ACCESSIBILITY_NODE_ACTION_PASTE: AccessibilityNodeActionFlags =
+    AccessibilityNodeActionFlags(0x8000);
+
+/// Dismiss the node.
+export const ACCESSIBILITY_NODE_ACTION_DISMISS: AccessibilityNodeActionFlags =
+    AccessibilityNodeActionFlags(0x10000);
+
+/// Show the node context menu.
+export const ACCESSIBILITY_NODE_ACTION_CONTEXT_MENU: AccessibilityNodeActionFlags =
+    AccessibilityNodeActionFlags(0x20000);
+
+/// Show the node tooltip.
+export const ACCESSIBILITY_NODE_ACTION_SHOW_TOOLTIP: AccessibilityNodeActionFlags =
+    AccessibilityNodeActionFlags(0x40000);
+
+/// Hide the node tooltip.
+export const ACCESSIBILITY_NODE_ACTION_HIDE_TOOLTIP: AccessibilityNodeActionFlags =
+    AccessibilityNodeActionFlags(0x80000);
+
+/// Increment the node value.
+export const ACCESSIBILITY_NODE_ACTION_INCREMENT: AccessibilityNodeActionFlags =
+    AccessibilityNodeActionFlags(0x100000);
+
+/// Decrement the node value.
+export const ACCESSIBILITY_NODE_ACTION_DECREMENT: AccessibilityNodeActionFlags =
+    AccessibilityNodeActionFlags(0x200000);
+
+/// Collapse the node.
+export const ACCESSIBILITY_NODE_ACTION_COLLAPSE: AccessibilityNodeActionFlags =
+    AccessibilityNodeActionFlags(0x400000);
+
+/// Expand the node.
+export const ACCESSIBILITY_NODE_ACTION_EXPAND: AccessibilityNodeActionFlags =
+    AccessibilityNodeActionFlags(0x800000);
+
+/// Set the node numeric value.
+export const ACCESSIBILITY_NODE_ACTION_SET_NUMERIC_VALUE: AccessibilityNodeActionFlags =
+    AccessibilityNodeActionFlags(0x1000000);
+
+/// Set the node text value.
+export const ACCESSIBILITY_NODE_ACTION_SET_TEXT_VALUE: AccessibilityNodeActionFlags =
+    AccessibilityNodeActionFlags(0x2000000);
+
+/// Set the node selected text range.
+export const ACCESSIBILITY_NODE_ACTION_SET_TEXT_RANGE: AccessibilityNodeActionFlags =
+    AccessibilityNodeActionFlags(0x4000000);
+
+/// Set the node selected text ranges.
+export const ACCESSIBILITY_NODE_ACTION_SET_TEXT_RANGES: AccessibilityNodeActionFlags =
+    AccessibilityNodeActionFlags(0x8000000);
+
+/// Replace the selected text in the node.
+export const ACCESSIBILITY_NODE_ACTION_REPLACE_TEXT: AccessibilityNodeActionFlags =
+    AccessibilityNodeActionFlags(0x10000000);
+
+/// Scroll a node text range into view.
+export const ACCESSIBILITY_NODE_ACTION_SCROLL_TEXT_RANGE: AccessibilityNodeActionFlags =
+    AccessibilityNodeActionFlags(0x20000000);
+
+/// Move the node text selection.
+export const ACCESSIBILITY_NODE_ACTION_TEXT_SELECTION: AccessibilityNodeActionFlags =
+    AccessibilityNodeActionFlags(0x40000000);
+
+/// Set the sequential focus start node.
+export const ACCESSIBILITY_NODE_ACTION_SET_SEQUENTIAL_FOCUS: AccessibilityNodeActionFlags =
+    AccessibilityNodeActionFlags(0x80000000);
+
+/// Custom accessibility action exposed by one node.
 export struct AccessibilityCustomAction {
     /// Stable custom action identifier.
     id: string;
@@ -24,38 +159,66 @@ export struct AccessibilityCustomAction {
     label: string;
 }
 
-/// One accessibility node descriptor.
+/// Accessibility relations for one node.
+export struct AccessibilityNodeRelations {
+    /// `aria-activedescendant`.
+    activeDescendantId?: AccessibilityNodeId;
+    /// `aria-controls`.
+    controlledIds: [AccessibilityNodeId];
+    /// Header nodes for the current column.
+    columnHeaderIds: [AccessibilityNodeId];
+    /// `aria-describedby`.
+    describedByIds: [AccessibilityNodeId];
+    /// `aria-details`.
+    detailsIds: [AccessibilityNodeId];
+    /// `aria-errormessage`.
+    errorMessageIds: [AccessibilityNodeId];
+    /// `aria-flowto`.
+    flowToIds: [AccessibilityNodeId];
+    /// `aria-labelledby`.
+    labeledByIds: [AccessibilityNodeId];
+    /// `aria-owns`.
+    ownedIds: [AccessibilityNodeId];
+    /// Header nodes for the current row.
+    rowHeaderIds: [AccessibilityNodeId];
+}
+
+/// Accessibility node descriptor.
 export struct AccessibilityNode {
     /// Stable node identifier.
     id: AccessibilityNodeId;
-    /// WAI-ARIA role selector.
+    /// Semantic role.
     role: AccessibilityRole;
-    /// Accessibility-tree child order for this node.
-    childIds: Slice<AccessibilityNodeId>;
-    /// Window-local bounds in logical points.
-    bounds: AccessibilityNodeBounds | void;
+    /// Child order for this node.
+    childIds: [AccessibilityNodeId];
+    /// Bounds in logical window coordinates.
+    bounds?: AccessibilityNodeBounds;
     /// Accessible name.
-    name: string | void;
+    name?: string;
     /// Accessible description.
-    description: string | void;
+    description?: string;
     /// User-visible help or tooltip text.
-    help: string | void;
-    /// Accessible value when the node exposes one nontext current value.
-    value: string | void;
+    help?: string;
+    /// Accessible value for nontext current values.
+    value?: string;
     /// `aria-roledescription`.
-    roleDescription: string | void;
+    roleDescription?: string;
+    /// `aria-braillelabel`.
+    brailleLabel?: string;
+    /// `aria-brailleroledescription`.
+    brailleRoleDescription?: string;
     /// `aria-keyshortcuts`.
-    keyShortcuts: string | void;
-    /// BCP 47 language tag for the node's content when available.
-    languageTag: string | void;
-    /// Canonical URL for link and document nodes when available.
-    url: string | void;
-    /// Shared state for this node.
+    keyShortcuts?: string;
+    /// BCP 47 language tag for this node's content.
+    languageTag?: string;
+    /// Canonical URL for link and document nodes.
+    url?: string;
+    /// Shared node state.
     state: AccessibilityNodeState;
-    /// Text state for text and editable nodes.
-    text: AccessibilityTextState | void;
+    /// Standard actions exposed by this node.
+    actions: AccessibilityNodeActionFlags;
     /// ARIA relation state.
     relations: AccessibilityNodeRelations;
-    /// Backend-visible custom actions.
-    customActions: Slice<AccessibilityCustomAction>;
+    /// Custom actions exposed by this node.
+    customActions: [AccessibilityCustomAction];
 }
