@@ -643,7 +643,6 @@ pub fn format_static_key(key: &dir::StaticKey, strings: &StringPool) -> String {
 pub fn format_symbol_key(key: &dir::SymbolKey, strings: &StringPool) -> String {
     match key {
         dir::SymbolKey::Unique(_) => "<unique symbol>".to_string(),
-        dir::SymbolKey::WellKnown(symbol) => format!("[{}]", symbol.global_symbol_name()),
         dir::SymbolKey::Registry(name_id) => {
             let name = &*strings.get(*name_id);
             format!("[Symbol.for(\"{name}\")]")
