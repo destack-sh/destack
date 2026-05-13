@@ -11,7 +11,8 @@ use crate::context::MemoizeFormatExt;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
     AssignPattern, AssignPatternField, Declarator, DecoratorPosition, Expression, LocalNodeId,
-    Mutability, Node, NodeType, Parameter, Pattern, PatternField, Tree, TreeImpl, TypeExpression,
+    Mutability, Node, NodeType, Parameter, Pattern, PatternField, RangeEnd, Tree, TreeImpl,
+    TypeExpression,
 };
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
@@ -77,6 +78,30 @@ fn format_prefixed_pattern<'ast>(
     }
 
     write!(f, [right])?;
+
+    Ok(())
+}
+
+/// Format one ordered range pattern.
+fn format_range_pattern<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    start: Option<LocalNodeId<Expression>>,
+    end: Option<LocalNodeId<Expression>>,
+    end_kind: RangeEnd,
+) -> FormatResult<()> {
+    if let Some(start) = start {
+        write!(f, [start])?;
+    }
+
+    let operator = match end_kind {
+        RangeEnd::Open => "..",
+        RangeEnd::Inclusive => "..=",
+    };
+    write!(f, [token(operator)])?;
+
+    if let Some(end) = end {
+        write!(f, [end])?;
+    }
 
     Ok(())
 }
@@ -355,6 +380,7 @@ fn pattern_is_direct_object_or_array_like(tree: &Tree, pattern_id: LocalNodeId<P
         }
         | Pattern::Wildcard
         | Pattern::Expression { .. }
+        | Pattern::Range { .. }
         | Pattern::TypeExpression { .. }
         | Pattern::Union { .. } => false,
     }
@@ -794,6 +820,13 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
             }
 
             Pattern::Expression { value } => write!(f, [value])?,
+            Pattern::Range {
+                start,
+                end,
+                end_kind,
+            } => {
+                format_range_pattern(f, *start, *end, *end_kind)?;
+            }
             Pattern::TypeExpression { value } => write!(f, [value])?,
 
             Pattern::Tuple { fields } => {
