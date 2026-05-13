@@ -301,7 +301,7 @@ pub fn module_artifact_diagnostics(
     // gather the module scoped diagnostics currently published for this revision
     for key in keys {
         let artifact_diagnostics = repository
-            .artifact_diagnostics(revision, &key)
+            .diagnostics(revision, Some(key))
             .unwrap_or_else(|error| panic!("failed to read artifact diagnostics: {error}"));
         diagnostics.merge_from(&artifact_diagnostics);
     }
@@ -327,7 +327,7 @@ pub fn module_target_artifact_diagnostics(
     // gather target scoped diagnostics after the profile scoped surface
     for key in keys {
         let artifact_diagnostics = repository
-            .artifact_diagnostics(revision, &key)
+            .diagnostics(revision, Some(key))
             .unwrap_or_else(|error| panic!("failed to read artifact diagnostics: {error}"));
         diagnostics.merge_from(&artifact_diagnostics);
     }

@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use destack_source::{ModuleId, PackageId, TargetId, matches as glob_matches};
 
-use crate::repository::{Repository, Revision};
+use crate::repository::{Repository, RepositoryError, Revision};
 use crate::{DestackConfig, Package, Target, TargetDiscovery};
 
 /// Describe a failure while discovering target modules.
@@ -15,8 +15,15 @@ pub enum TargetDiscoveryError {
         package: PackageId,
         /// Target id for the discovery.
         target: TargetId,
-        /// The repository error message.
-        message: String,
+        /// The repository failure.
+        error: RepositoryError,
+    },
+    /// Missing package for target discovery.
+    MissingPackage {
+        /// Package id for the discovery.
+        package: PackageId,
+        /// Target id for the discovery.
+        target: TargetId,
     },
     /// Missing package path for entry based discovery.
     MissingPackagePath {
@@ -111,9 +118,9 @@ impl Repository {
             .map_err(|error| TargetDiscoveryError::RepositoryRead {
                 package: package_id,
                 target: target_id,
-                message: error.to_string(),
+                error,
             })?
-            .ok_or(TargetDiscoveryError::MissingPackagePath {
+            .ok_or(TargetDiscoveryError::MissingPackage {
                 package: package_id,
                 target: target_id,
             })
@@ -130,7 +137,7 @@ impl Repository {
             .map_err(|error| TargetDiscoveryError::RepositoryRead {
                 package: package_id,
                 target: target_id,
-                message: error.to_string(),
+                error,
             })?
             .ok_or(TargetDiscoveryError::MissingTarget {
                 package: package_id,
@@ -149,7 +156,7 @@ impl Repository {
             .map_err(|error| TargetDiscoveryError::RepositoryRead {
                 package: package_id,
                 target: target_id,
-                message: error.to_string(),
+                error,
             })
     }
 
@@ -176,13 +183,15 @@ impl Repository {
         // target paths
         for target_path in target_paths {
             let resolved_path = package_directory.join(target_path);
-            let module_id = self
-                .package_module_id_for_path(revision, package_id, &resolved_path)
-                .ok_or(TargetDiscoveryError::MissingModulePath {
+            let Some(module_id) =
+                self.package_module_id_for_path(revision, package_id, target_id, &resolved_path)?
+            else {
+                return Err(TargetDiscoveryError::MissingModulePath {
                     package: package_id,
                     target: target_id,
                     path: resolved_path,
-                })?;
+                });
+            };
 
             module_ids.push(module_id);
         }
@@ -195,17 +204,36 @@ impl Repository {
         &self,
         revision: Revision,
         package_id: PackageId,
+        target_id: TargetId,
         path: &Path,
-    ) -> Option<ModuleId> {
-        let module_id = self.module_id_for_path(revision, path).ok()??;
-        let module = self.module(revision, module_id).ok()??;
+    ) -> Result<Option<ModuleId>, TargetDiscoveryError> {
+        let Some(module_id) = self.module_id_for_path(revision, path).map_err(|error| {
+            TargetDiscoveryError::RepositoryRead {
+                package: package_id,
+                target: target_id,
+                error,
+            }
+        })?
+        else {
+            return Ok(None);
+        };
+        let Some(module) = self.module(revision, module_id).map_err(|error| {
+            TargetDiscoveryError::RepositoryRead {
+                package: package_id,
+                target: target_id,
+                error,
+            }
+        })?
+        else {
+            return Ok(None);
+        };
 
         // package boundary
         if module.package_id != package_id {
-            return None;
+            return Ok(None);
         }
 
-        Some(module_id)
+        Ok(Some(module_id))
     }
 
     /// Discover modules selected by target include rules.
@@ -223,7 +251,7 @@ impl Repository {
             .map_err(|error| TargetDiscoveryError::RepositoryRead {
                 package: package_id,
                 target: target_id,
-                message: error.to_string(),
+                error,
             })?;
 
         // package modules
@@ -232,7 +260,7 @@ impl Repository {
                 TargetDiscoveryError::RepositoryRead {
                     package: package_id,
                     target: target_id,
-                    message: error.to_string(),
+                    error,
                 }
             })?
             else {

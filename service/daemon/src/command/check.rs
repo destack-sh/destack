@@ -57,7 +57,7 @@ impl CommandContext<'_> {
             .map_err(|error| error.to_string())?;
         let diagnostics = self
             .repository
-            .diagnostics(revision)
+            .diagnostics(revision, None)
             .map_err(|error| error.to_string())?;
         self.apply_diagnostic_suggestions(revision, &diagnostics, &options.lint_options)?;
         let exit_code = diagnostics.get_status_code();
@@ -94,7 +94,7 @@ impl CommandContext<'_> {
             .map_err(|error| error.to_string())?;
         let diagnostics = self
             .repository
-            .diagnostics(revision)
+            .diagnostics(revision, None)
             .map_err(|error| error.to_string())?;
         self.apply_diagnostic_suggestions(revision, &diagnostics, options)?;
         let exit_code = diagnostics.get_status_code();

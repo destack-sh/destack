@@ -230,30 +230,32 @@ impl Repository {
         Ok(())
     }
 
-    /// Return diagnostics for one exact revision scoped artifact key.
-    pub fn artifact_diagnostics(
+    /// Return diagnostics for one revision, optionally filtered to one artifact key.
+    pub fn diagnostics(
         &self,
         revision: Revision,
-        artifact_key: &ArtifactKey,
+        artifact_key: Option<ArtifactKey>,
     ) -> Result<DiagnosticCollection, RepositoryError> {
-        let Some(version) = self.artifact_version(revision, artifact_key)? else {
-            return Ok(DiagnosticCollection::new());
-        };
-
-        let diagnostics = self
-            .artifact_store()
-            .diagnostics(&version)
-            .map(|diagnostics| diagnostics.as_ref().clone())
-            .unwrap_or_default();
-
-        Ok(diagnostics)
-    }
-
-    /// Return diagnostics for every recorded artifact in one revision.
-    pub fn diagnostics(&self, revision: Revision) -> Result<DiagnosticCollection, RepositoryError> {
         let _revision = self.revision(revision)?;
         let mut diagnostics = DiagnosticCollection::new();
 
+        // exact artifact
+        if let Some(artifact_key) = artifact_key {
+            let Some(version) = self.artifact_version(revision, &artifact_key)? else {
+                return Ok(diagnostics);
+            };
+            let artifact_diagnostics = self
+                .artifact_store()
+                .diagnostics(&version)
+                .map(|diagnostics| diagnostics.as_ref().clone())
+                .ok_or(RepositoryError::MissingArtifact { version })?;
+
+            diagnostics.merge_from(&artifact_diagnostics);
+
+            return Ok(diagnostics);
+        }
+
+        // all artifacts in this revision
         for entry in self.artifact_versions.iter() {
             let ((entry_revision, _artifact_key), version) = entry.pair();
             if *entry_revision != revision {
@@ -264,7 +266,7 @@ impl Repository {
                 .artifact_store()
                 .diagnostics(version)
                 .map(|diagnostics| diagnostics.as_ref().clone())
-                .unwrap_or_default();
+                .ok_or_else(|| RepositoryError::MissingArtifact { version: *version })?;
             diagnostics.merge_from(&artifact_diagnostics);
         }
 
