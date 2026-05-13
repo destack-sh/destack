@@ -5,13 +5,12 @@ use destack_artifact::{
 use destack_core::StringPool;
 use destack_mir as mir;
 use destack_source::{
-    DiagnosticCollection, DiagnosticLabel, FileContentId, FileId, ModuleId, PackageId, ProfileId,
-    Span, TargetId,
+    DiagnosticCollection, DiagnosticLabel, DiffOptions, FileContentId, FileId, ModuleId, PackageId,
+    ProfileId, Span, TargetId, print_diff,
 };
 use destack_workspace::{ProviderContext, ProviderError, Revision};
-use mir::parse::ParseOptions;
 
-use crate::verify::{DropInsert, MemoryCheck, VerifyError, VerifyState};
+use crate::verify::{DropInsert, OwnershipCheck, VerifyError, VerifyState};
 
 /// Placeholder module id for verify tests.
 fn test_module_id() -> ModuleId {
@@ -98,7 +97,7 @@ impl VerifyProgram {
     /// Parse one MIR program.
     pub(super) fn new(source: &str) -> Self {
         let (tree, strings) =
-            mir::parse::Parser::parse(FileId::new(0), source, ParseOptions::default())
+            mir::parse::Parser::parse(FileId::new(0), source, mir::parse::ParseOptions::default())
                 .finish()
                 .expect("failed to parse MIR");
 
@@ -109,15 +108,15 @@ impl VerifyProgram {
         }
     }
 
-    /// Run memory verification.
-    pub(super) fn run_memory(&mut self) -> Vec<VerifyError> {
+    /// Run ownership verification.
+    pub(super) fn run_ownership(&mut self) -> Vec<VerifyError> {
         let mut state = VerifyState::new(
             test_module_id(),
             test_profile_id(),
             test_target_id(),
             &self.provider,
         );
-        MemoryCheck.run(&mut self.tree, &mut state);
+        OwnershipCheck.run(&mut self.tree, &mut state);
 
         collect_errors(&state)
     }
@@ -133,6 +132,43 @@ impl VerifyProgram {
         DropInsert.run(&mut self.tree, &mut state);
 
         mir::format_mir(&self.tree, &self.strings, mir::MirFormatOptions::default())
+    }
+
+    /// Assert the MIR produced by drop insertion.
+    #[track_caller]
+    pub(super) fn assert_dropped_mir(&mut self, expected: &str) {
+        let actual = self.run_drop();
+
+        if actual != expected {
+            print_diff(
+                expected,
+                &actual,
+                &DiffOptions::new().with_path("verify/drop.mir"),
+            );
+            panic!("dropped MIR mismatch");
+        }
+    }
+
+    /// Return the type id with the given display name.
+    #[track_caller]
+    pub(super) fn type_by_name(&self, name: &str) -> mir::LocalNodeId<mir::Type> {
+        self.tree
+            .iter_nodes::<mir::Type>()
+            .find_map(|(id, _)| {
+                let display_name = self.tree.type_display_name(id)?;
+                (self.strings.get(display_name) == name).then_some(id)
+            })
+            .unwrap_or_else(|| panic!("missing MIR type {name}"))
+    }
+
+    /// Mark one type as having dynamic drop glue.
+    pub(super) fn mark_dynamic_drop(&mut self, name: &str) {
+        let ty = self.type_by_name(name);
+        let glue = mir::DropGlue::Dynamic {
+            slot: mir::DispatchSlot::new(0),
+        };
+
+        self.tree.metadata.drop.set_drop_glue(ty, glue);
     }
 }
 

@@ -2,7 +2,7 @@ use destack_artifact::{ArtifactKey, ArtifactPayload, MirVerified};
 use destack_source::{ModuleId, TargetId};
 use destack_workspace::{ProfileId, ProviderContext};
 
-use crate::verify::{DropInsert, MemoryCheck, VerifyState};
+use crate::verify::{DropInsert, OwnershipCheck, VerifyState};
 use crate::{Compiler, CompilerError, CompilerResult};
 
 impl Compiler {
@@ -29,7 +29,7 @@ impl Compiler {
             .map_err(CompilerError::from)?;
         let mut tree = lowered.tree.clone();
 
-        MemoryCheck.run(&mut tree, &mut state);
+        OwnershipCheck.run(&mut tree, &mut state);
         if !state.has_errors() {
             DropInsert.run(&mut tree, &mut state);
         }
