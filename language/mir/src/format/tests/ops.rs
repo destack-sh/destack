@@ -113,10 +113,10 @@ entry0(value0: int32, value1: int32, value2: boolean, value3: float64):
     value7: int32 = int.not value6
     value8: float64 = float.negate value3
     value9: int64 = cast.extend.s value7 -> int64
-    value10: float64 = intrinsic.sqrt(value3)
-    value11: float64 = intrinsic.min(value8, value3)
-    value12: float64 = intrinsic.fma(value8, value3, value11)
-    value13: (int32, boolean) = intrinsic.add.overflow(value0, value1)
+    value10: float64 = intrinsic.math.float.sqrt(value3)
+    value11: float64 = intrinsic.math.float.min(value8, value3)
+    value12: float64 = intrinsic.math.float.fma(value8, value3, value11)
+    value13: (int32, boolean) = intrinsic.math.arithmetic.add.overflow(value0, value1)
     return value9
 }
 "#,

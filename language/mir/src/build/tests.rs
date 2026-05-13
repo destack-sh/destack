@@ -970,9 +970,9 @@ fn test_build_intrinsics() {
     let expected = "\
 function intrinsicTest(value0: float64, value1: float64): float64 {
 entry0(value0: float64, value1: float64):
-    value2: float64 = intrinsic.sqrt(value0)
-    value3: float64 = intrinsic.min(value2, value1)
-    value4: float64 = intrinsic.abs(value3)
+    value2: float64 = intrinsic.math.float.sqrt(value0)
+    value3: float64 = intrinsic.math.float.min(value2, value1)
+    value4: float64 = intrinsic.math.float.abs(value3)
     return value4
 }";
     assert_eq!(output, expected);

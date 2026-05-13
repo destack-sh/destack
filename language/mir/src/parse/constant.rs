@@ -467,7 +467,7 @@ impl Parser {
         Some(result)
     }
 
-    /// Parse an intrinsic name from an opcode like `intrinsic.sqrt`.
+    /// Parse an intrinsic name from an opcode like `intrinsic.math.float.sqrt`.
     pub(super) fn parse_intrinsic_name(
         &self,
         opcode_text: &str,
