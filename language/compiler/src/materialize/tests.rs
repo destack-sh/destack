@@ -58,12 +58,11 @@ const VALUE = "hello";
     );
 }
 
-/// Materialize the builtin ipc unix module cleanly through the patched DIR boundary.
+/// Materialize the builtin IPC host module cleanly through the patched DIR boundary.
 #[test]
-fn test_execute_builtin_platform_ipc_unix_module() {
-    let test = TestProgram::memory_sequential_with_prelude()
-        ;
-    let module_id = builtin_module_id_with_uri_suffix(&test, "platform/ipc/unix.ds");
+fn test_execute_builtin_ipc_host_unix_module() {
+    let test = TestProgram::memory_sequential_with_prelude();
+    let module_id = builtin_module_id_with_uri_suffix(&test, "ipc/host/unix.ds");
 
     test.execute_module(module_id);
     test.compile_check_clean();

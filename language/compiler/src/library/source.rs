@@ -66,10 +66,6 @@ pub enum LibraryPlatform {
     Redox,
     /// Hermit.
     Hermit,
-    /// iOS.
-    IOS,
-    /// Android.
-    Android,
     /// No operating system.
     None,
 }
@@ -89,8 +85,6 @@ impl LibraryPlatform {
                 | Self::Solaris
                 | Self::Illumos
                 | Self::Haiku
-                | Self::IOS
-                | Self::Android
         )
     }
 
@@ -141,8 +135,6 @@ impl From<Platform> for LibraryPlatform {
             Platform::Fuchsia => Self::Fuchsia,
             Platform::Redox => Self::Redox,
             Platform::Hermit => Self::Hermit,
-            Platform::IOS => Self::IOS,
-            Platform::Android => Self::Android,
             Platform::None => Self::None,
         }
     }

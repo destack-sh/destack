@@ -14,8 +14,6 @@ export type Platform =
     | "fuchsia"
     | "redox"
     | "hermit"
-    | "ios"
-    | "android"
     | "wasi"
     | "emscripten"
     | "bare-metal"

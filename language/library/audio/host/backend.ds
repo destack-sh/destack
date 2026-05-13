@@ -20,10 +20,6 @@ export enum AudioBackendKind {
     Wasapi = 6,
     /// ASIO driver host.
     Asio = 7,
-    /// Android AAudio.
-    AAudio = 8,
-    /// Android OpenSL ES.
-    OpenSLES = 9,
     /// Deterministic runtime simulation backend.
     Simulation = 250,
     /// Silent test backend.
