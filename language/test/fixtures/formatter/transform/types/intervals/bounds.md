@@ -1,17 +1,16 @@
-# Range Types
+# Interval Bounds
 
-Range type expressions use the same spelling as range values.
+Interval type expressions use range spelling in type position.
 
 ## bounds
 
-### type range bounds
+### interval bounds
 
 ```ds
 type Window = Start .. End
 type Inclusive = Start ..= End
 type From = Start ..
 type To = .. End
-type Full = ..
 ```
 
 ```ds expected
@@ -19,5 +18,4 @@ type Window = Start..End;
 type Inclusive = Start..=End;
 type From = Start..;
 type To = ..End;
-type Full = ..;
 ```
