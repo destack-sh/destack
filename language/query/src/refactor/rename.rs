@@ -492,6 +492,7 @@ fn rename_pattern_binding_name(
         | dir::Pattern::Union { .. }
         | dir::Pattern::Wildcard
         | dir::Pattern::Expression { .. }
+        | dir::Pattern::Range { .. }
         | dir::Pattern::TypeExpression { .. } => None,
     }
 }

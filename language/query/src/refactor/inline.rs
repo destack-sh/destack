@@ -422,6 +422,7 @@ fn collect_pattern_bindings(
         }
         dir::Pattern::Wildcard
         | dir::Pattern::Expression { .. }
+        | dir::Pattern::Range { .. }
         | dir::Pattern::TypeExpression { .. } => {}
     }
 }
@@ -512,6 +513,7 @@ fn pattern_access_path(
         }
         dir::Pattern::Wildcard
         | dir::Pattern::Expression { .. }
+        | dir::Pattern::Range { .. }
         | dir::Pattern::TypeExpression { .. } => None,
     }
 }
