@@ -105,9 +105,6 @@ export newtype TransferredHandle = ResourceId;
 /// Handle for an IPC message queue.
 export newtype MessageQueueHandle = ResourceId;
 
-/// Handle for one audio device endpoint.
-export newtype AudioDeviceHandle = ResourceId;
-
 /// Handle for one audio stream endpoint.
 export newtype AudioStreamHandle = ResourceId;
 
@@ -123,20 +120,17 @@ export newtype MidiOutputPortHandle = ResourceId;
 /// Handle for one MIDI topology watch.
 export newtype MidiWatchHandle = ResourceId;
 
-/// Handle for one display device endpoint.
-export newtype DisplayHandle = ResourceId;
+/// Handle for one monitor endpoint.
+export newtype MonitorHandle = ResourceId;
 
 /// Handle for one window or surface host object.
 export newtype WindowHandle = ResourceId;
 
-/// Handle for one display window-event stream.
-export newtype WindowEventHandle = ResourceId;
-
-/// Handle for one display monitor-event stream.
+/// Handle for one display event subscription.
 export newtype DisplayEventHandle = ResourceId;
 
-/// Handle for one display begin-frame stream.
-export newtype DisplayBeginFrameHandle = ResourceId;
+/// Handle for one display frame timing stream.
+export newtype DisplayFrameHandle = ResourceId;
 
 /// Handle for one inbound accessibility-action stream.
 export newtype AccessibilityActionHandle = ResourceId;
@@ -198,8 +192,8 @@ export newtype GpuQueueHandle = ResourceId;
 /// Handle for one GPU surface endpoint.
 export newtype GpuSurfaceHandle = ResourceId;
 
-/// Handle for one GPU presentation stream.
-export newtype GpuSurfacePresentationHandle = ResourceId;
+/// Handle for one GPU presentation event subscription.
+export newtype GpuPresentationHandle = ResourceId;
 
 /// Handle for one GPU command encoder.
 export newtype GpuCommandEncoderHandle = ResourceId;
@@ -233,9 +227,6 @@ export newtype GpuFenceHandle = ResourceId;
 
 /// Handle for one GPU query set endpoint.
 export newtype GpuQuerySetHandle = ResourceId;
-
-/// Handle for one GPU memory allocation endpoint.
-export newtype GpuMemoryHandle = ResourceId;
 
 /// Handle for one GPU buffer endpoint.
 export newtype GpuBufferHandle = ResourceId;

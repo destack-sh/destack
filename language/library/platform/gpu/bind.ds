@@ -1,4 +1,3 @@
-import { Slice } from "destack:collections";
 import { PlatformError } from "destack:platform/error";
 import {
     GpuBindGroupHandle,
@@ -15,17 +14,12 @@ import { GpuTextureFormat, GpuTextureViewDimension } from "./resource.ds";
 /// Shader stage visibility bitset.
 export newtype GpuShaderVisibilityMask = uint32;
 
-/// Shader stage visibility flags.
-export enum GpuShaderVisibilityFlag {
-    /// No shader visibility.
-    None = 0,
-    /// Vertex shader visibility.
-    Vertex = 1,
-    /// Fragment shader visibility.
-    Fragment = 2,
-    /// Compute shader visibility.
-    Compute = 4,
-}
+/// Shader visibility bit for vertex shaders.
+export const GPU_SHADER_VISIBILITY_VERTEX: GpuShaderVisibilityMask = GpuShaderVisibilityMask(0x1);
+/// Shader visibility bit for fragment shaders.
+export const GPU_SHADER_VISIBILITY_FRAGMENT: GpuShaderVisibilityMask = GpuShaderVisibilityMask(0x2);
+/// Shader visibility bit for compute shaders.
+export const GPU_SHADER_VISIBILITY_COMPUTE: GpuShaderVisibilityMask = GpuShaderVisibilityMask(0x4);
 
 /// Buffer binding layout selector.
 export enum GpuBufferBindingType {
@@ -138,7 +132,7 @@ export struct GpuBindGroupLayoutEntry {
     /// Shader stage visibility mask.
     visibility: GpuShaderVisibilityMask;
     /// Binding array length when this entry is array-backed.
-    bindingArrayCount: uint32 | void;
+    bindingArrayCount?: uint32;
     /// Typed resource payload.
     resource: GpuBindGroupLayoutResource;
 }
@@ -191,105 +185,99 @@ export struct GpuBindGroupEntry {
     /// Binding index.
     binding: uint32;
     /// Binding array element index when this entry targets one array element.
-    bindingArrayElement: uint32 | void;
+    bindingArrayElement?: uint32;
     /// Typed resource payload.
     resource: GpuBindGroupResource;
 }
 
-/// Bind-group-layout creation options.
-export struct GpuBindGroupLayoutOptions {
+/// Bind group layout descriptor.
+export struct GpuBindGroupLayoutDescriptor {
     /// Debug label.
     label: string;
-    /// Bind-group-layout option flags.
-    flags: uint32;
 }
 
-/// Pipeline layout options.
-export struct GpuPipelineLayoutOptions {
+/// Pipeline layout descriptor.
+export struct GpuPipelineLayoutDescriptor {
     /// Debug label.
     label: string;
     /// Ordered bind group layouts for this pipeline layout.
-    bindGroupLayouts: Slice<GpuBindGroupLayoutHandle>;
+    bindGroupLayouts: [GpuBindGroupLayoutHandle];
     /// Immediate-data byte size when supported.
     immediateSize: uint32;
-    /// Pipeline layout option flags.
-    flags: uint32;
 }
 
-/// Bind-group creation options.
-export struct GpuBindGroupOptions {
+/// Bind group descriptor.
+export struct GpuBindGroupDescriptor {
     /// Debug label.
     label: string;
-    /// Bind-group option flags.
-    flags: uint32;
 }
 
 /// Create a bind group layout.
-@binding("destack.gpu.bind.groupLayoutCreate", {
+@binding("destack.gpu.bind.group.layout.create", {
     effect: "external",
     requires: ["host.gpu.bind"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function bindGroupLayoutCreate(
+export declare function createBindGroupLayout(
     device: GpuDeviceHandle,
-    entries: Slice<GpuBindGroupLayoutEntry>,
-    options: GpuBindGroupLayoutOptions,
+    entries: &readonly [GpuBindGroupLayoutEntry],
+    descriptor: &readonly GpuBindGroupLayoutDescriptor,
 ): Result<GpuBindGroupLayoutHandle, PlatformError>;
 
 /// Destroy a bind group layout.
-@binding("destack.gpu.bind.groupLayoutDestroy", {
+@binding("destack.gpu.bind.group.layout.destroy", {
     effect: "external",
     requires: ["host.gpu.bind"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function bindGroupLayoutDestroy(
-    handle: GpuBindGroupLayoutHandle,
+export declare function destroyBindGroupLayout(
+    layout: GpuBindGroupLayoutHandle,
 ): Result<void, PlatformError>;
 
 /// Create a pipeline layout.
-@binding("destack.gpu.bind.pipelineLayoutCreate", {
+@binding("destack.gpu.bind.pipeline.layout.create", {
     effect: "external",
     requires: ["host.gpu.bind"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function pipelineLayoutCreate(
+export declare function createPipelineLayout(
     device: GpuDeviceHandle,
-    options: GpuPipelineLayoutOptions,
+    descriptor: &readonly GpuPipelineLayoutDescriptor,
 ): Result<GpuPipelineLayoutHandle, PlatformError>;
 
 /// Destroy a pipeline layout.
-@binding("destack.gpu.bind.pipelineLayoutDestroy", {
+@binding("destack.gpu.bind.pipeline.layout.destroy", {
     effect: "external",
     requires: ["host.gpu.bind"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function pipelineLayoutDestroy(
-    handle: GpuPipelineLayoutHandle,
+export declare function destroyPipelineLayout(
+    layout: GpuPipelineLayoutHandle,
 ): Result<void, PlatformError>;
 
 /// Create a bind group.
-@binding("destack.gpu.bind.groupCreate", {
+@binding("destack.gpu.bind.group.create", {
     effect: "external",
     requires: ["host.gpu.bind"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function bindGroupCreate(
+export declare function createBindGroup(
     device: GpuDeviceHandle,
     layout: GpuBindGroupLayoutHandle,
-    entries: Slice<GpuBindGroupEntry>,
-    options: GpuBindGroupOptions,
+    entries: &readonly [GpuBindGroupEntry],
+    descriptor: &readonly GpuBindGroupDescriptor,
 ): Result<GpuBindGroupHandle, PlatformError>;
 
 /// Destroy a bind group.
-@binding("destack.gpu.bind.groupDestroy", {
+@binding("destack.gpu.bind.group.destroy", {
     effect: "external",
     requires: ["host.gpu.bind"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function bindGroupDestroy(handle: GpuBindGroupHandle): Result<void, PlatformError>;
+export declare function destroyBindGroup(bindGroup: GpuBindGroupHandle): Result<void, PlatformError>;
