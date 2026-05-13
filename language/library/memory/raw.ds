@@ -38,10 +38,20 @@ export declare function asExclusive<T>(pointer: *T): &exclusive T;
 @intrinsic("ptr.read")
 export declare function read<T>(source: *T): ^T;
 
+/// Perform a volatile read from `source`.
+@unsafe
+@intrinsic("ptr.readVolatile")
+export declare function readVolatile<T>(source: *T): ^T;
+
 /// Write `value` into `destination`.
 @unsafe
 @intrinsic("ptr.write")
 export declare function write<T>(destination: *T, value: ^T): void;
+
+/// Perform a volatile write to `destination`.
+@unsafe
+@intrinsic("ptr.writeVolatile")
+export declare function writeVolatile<T>(destination: *T, value: ^T): void;
 
 /// Replace the value at `destination`.
 @unsafe

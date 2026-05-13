@@ -57,8 +57,9 @@ export {
 } from "./allocator.ds";
 export { Copy, Clone, Send, Sync, Unpin, Zeroable } from "./capability.ds";
 export { Pin } from "./pin.ds";
-export { Drop, ManuallyDrop, drop } from "./drop.ds";
+export { Drop, ManuallyDrop, drop, forget } from "./drop.ds";
 export { Dispose, AsyncDispose } from "./dispose.ds";
+export { Phantom } from "./phantom.ds";
 export * as arena from "./arena";
 export * as arc from "./arc";
 export * as cell from "./cell";
@@ -82,11 +83,13 @@ export {
     prefetchRead,
     prefetchWrite,
     read,
+    readVolatile,
     replace,
     swap,
     transmute,
     write,
     writeBytes,
+    writeVolatile,
     ptrOffsetFrom,
     rawEq,
 } from "./raw.ds";
