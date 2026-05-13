@@ -1,6 +1,3 @@
-/// Stable identifier for one accessibility-tree node.
-export newtype AccessibilityNodeId = uint64;
-
 /// WAI-ARIA role selector.
 export enum AccessibilityRole {
     /// `alert`.

@@ -86,6 +86,16 @@ export enum AccessibilitySortDirection {
     Other = 3,
 }
 
+/// Expanded state selector.
+export enum AccessibilityExpandedState {
+    /// Collapsed.
+    Collapsed = 1,
+    /// Expanded.
+    Expanded = 2,
+    /// Partially expanded.
+    Partial = 3,
+}
+
 /// `aria-relevant` flags.
 export newtype AccessibilityRelevantFlags = uint32;
 
@@ -109,46 +119,89 @@ export const ACCESSIBILITY_RELEVANT_TEXT: AccessibilityRelevantFlags =
 export const ACCESSIBILITY_RELEVANT_ALL: AccessibilityRelevantFlags =
     AccessibilityRelevantFlags(0x7);
 
+/// Boolean accessibility state flags.
+export newtype AccessibilityStateFlags = uint32;
+
+/// No boolean accessibility states.
+export const ACCESSIBILITY_STATE_NONE: AccessibilityStateFlags = AccessibilityStateFlags(0x0);
+
+/// `aria-atomic`.
+export const ACCESSIBILITY_STATE_ATOMIC: AccessibilityStateFlags = AccessibilityStateFlags(0x1);
+
+/// `aria-busy`.
+export const ACCESSIBILITY_STATE_BUSY: AccessibilityStateFlags = AccessibilityStateFlags(0x2);
+
+/// `aria-disabled`.
+export const ACCESSIBILITY_STATE_DISABLED: AccessibilityStateFlags = AccessibilityStateFlags(0x4);
+
+/// Hidden from the accessibility tree.
+export const ACCESSIBILITY_STATE_HIDDEN: AccessibilityStateFlags = AccessibilityStateFlags(0x8);
+
+/// Able to receive accessibility focus.
+export const ACCESSIBILITY_STATE_FOCUSABLE: AccessibilityStateFlags =
+    AccessibilityStateFlags(0x10);
+
+/// Currently owns accessibility focus.
+export const ACCESSIBILITY_STATE_FOCUSED: AccessibilityStateFlags = AccessibilityStateFlags(0x20);
+
+/// `aria-modal`.
+export const ACCESSIBILITY_STATE_MODAL: AccessibilityStateFlags = AccessibilityStateFlags(0x40);
+
+/// Accepts editable text input.
+export const ACCESSIBILITY_STATE_EDITABLE: AccessibilityStateFlags = AccessibilityStateFlags(0x80);
+
+/// `aria-readonly`.
+export const ACCESSIBILITY_STATE_READ_ONLY: AccessibilityStateFlags =
+    AccessibilityStateFlags(0x100);
+
+/// `aria-required`.
+export const ACCESSIBILITY_STATE_REQUIRED: AccessibilityStateFlags =
+    AccessibilityStateFlags(0x200);
+
+/// Visited link target.
+export const ACCESSIBILITY_STATE_VISITED: AccessibilityStateFlags =
+    AccessibilityStateFlags(0x400);
+
 /// Numeric range value for widgets such as sliders, meters, and spin buttons.
 export struct AccessibilityRangeValue {
     /// `aria-valuemin`.
-    min: float64 | void;
+    min?: float64;
     /// `aria-valuemax`.
-    max: float64 | void;
+    max?: float64;
     /// `aria-valuenow`.
-    now: float64 | void;
+    now?: float64;
     /// `aria-valuetext`.
-    text: string | void;
+    text?: string;
 }
 
-/// Grid or list metadata for collection style widgets.
-export struct AccessibilityCollectionInfo {
+/// Grid or list state for collection widgets.
+export struct AccessibilityCollection {
     /// `aria-rowcount`.
-    rowCount: int32 | void;
+    rowCount?: int32;
     /// `aria-colcount`.
-    columnCount: int32 | void;
+    columnCount?: int32;
     /// Whether the collection supports multiple selection.
     isMultiselectable: boolean;
     /// Whether the collection requires at least one selected item.
     isSelectionRequired: boolean;
 }
 
-/// Grid or list item metadata for collection members.
-export struct AccessibilityCollectionItemInfo {
+/// Grid or list item state for collection members.
+export struct AccessibilityCollectionItem {
     /// `aria-level`.
-    level: uint32 | void;
+    level?: uint32;
     /// `aria-posinset`.
-    positionInSet: uint32 | void;
+    positionInSet?: uint32;
     /// `aria-setsize`.
-    setSize: uint32 | void;
+    setSize?: uint32;
     /// `aria-rowindex`.
-    rowIndex: uint32 | void;
+    rowIndex?: uint32;
     /// `aria-colindex`.
-    columnIndex: uint32 | void;
+    columnIndex?: uint32;
     /// `aria-rowspan`.
-    rowSpan: uint32 | void;
+    rowSpan?: uint32;
     /// `aria-colspan`.
-    columnSpan: uint32 | void;
+    columnSpan?: uint32;
 }
 
 /// Scroll state for one scrollable accessibility node.
@@ -156,77 +209,57 @@ export struct AccessibilityScrollState {
     /// Whether the node is currently scrollable.
     isScrollable: boolean;
     /// Horizontal scroll offset when available.
-    x: float64 | void;
+    x?: float64;
     /// Vertical scroll offset when available.
-    y: float64 | void;
+    y?: float64;
     /// Horizontal scroll range maximum when available.
-    maxX: float64 | void;
+    maxX?: float64;
     /// Vertical scroll range maximum when available.
-    maxY: float64 | void;
+    maxY?: float64;
     /// Horizontal viewport size when available.
-    viewportWidth: float64 | void;
+    viewportWidth?: float64;
     /// Vertical viewport size when available.
-    viewportHeight: float64 | void;
+    viewportHeight?: float64;
 }
 
 /// Shared node state derived from ARIA and platform accessibility properties.
 export struct AccessibilityNodeState {
+    /// Boolean accessibility states.
+    flags: AccessibilityStateFlags;
     /// `aria-checked`.
-    checked: AccessibilityTristate | void;
+    checked?: AccessibilityTristate;
     /// `aria-pressed`.
-    pressed: AccessibilityTristate | void;
+    pressed?: AccessibilityTristate;
     /// `aria-current`.
-    current: AccessibilityCurrentKind | void;
+    current?: AccessibilityCurrentKind;
     /// `aria-invalid`.
-    invalid: AccessibilityInvalidKind | void;
+    invalid?: AccessibilityInvalidKind;
     /// `aria-autocomplete`.
-    autoComplete: AccessibilityAutoComplete | void;
+    autoComplete?: AccessibilityAutoComplete;
     /// `aria-haspopup`.
-    hasPopup: AccessibilityHasPopup | void;
+    hasPopup?: AccessibilityHasPopup;
     /// `aria-orientation`.
-    orientation: AccessibilityOrientation | void;
+    orientation?: AccessibilityOrientation;
     /// `aria-live`.
-    live: AccessibilityLiveRegionPoliteness | void;
+    live?: AccessibilityLiveRegionPoliteness;
     /// `aria-relevant`.
     relevant: AccessibilityRelevantFlags;
     /// `aria-sort`.
-    sort: AccessibilitySortDirection | void;
+    sort?: AccessibilitySortDirection;
     /// `aria-level`.
-    level: uint32 | void;
+    level?: uint32;
     /// `aria-valuetext`.
-    valueText: string | void;
+    valueText?: string;
     /// `aria-valuenow`, `aria-valuemin`, and `aria-valuemax`.
-    rangeValue: AccessibilityRangeValue | void;
+    rangeValue?: AccessibilityRangeValue;
     /// Collection metadata for containers such as grids and lists.
-    collection: AccessibilityCollectionInfo | void;
+    collection?: AccessibilityCollection;
     /// Collection metadata for collection members.
-    collectionItem: AccessibilityCollectionItemInfo | void;
+    collectionItem?: AccessibilityCollectionItem;
     /// Scroll metadata for scrollable nodes.
-    scroll: AccessibilityScrollState | void;
-    /// Whether `aria-atomic` is true.
-    isAtomic: boolean;
-    /// Whether `aria-busy` is true.
-    isBusy: boolean;
-    /// Whether `aria-disabled` is true.
-    isDisabled: boolean;
-    /// Whether the node is hidden from the accessibility tree.
-    isHidden: boolean;
-    /// Whether `aria-expanded` is true.
-    isExpanded: boolean;
-    /// Whether the node can receive accessibility focus.
-    isFocusable: boolean;
-    /// Whether the node currently owns accessibility focus.
-    isFocused: boolean;
-    /// Whether `aria-modal` is true.
-    isModal: boolean;
-    /// Whether the node accepts editable text input.
-    isEditable: boolean;
-    /// Whether `aria-readonly` is true.
-    isReadOnly: boolean;
-    /// Whether `aria-required` is true.
-    isRequired: boolean;
-    /// Whether `aria-selected` is true.
-    isSelected: boolean;
-    /// Whether the node represents one visited link target.
-    isVisited: boolean;
+    scroll?: AccessibilityScrollState;
+    /// Expanded state.
+    expanded?: AccessibilityExpandedState;
+    /// `aria-selected`.
+    isSelected?: boolean;
 }

@@ -1,52 +1,58 @@
-import { Slice } from "destack:collections";
 import { PlatformError } from "destack:platform/error";
 import { WindowHandle } from "destack:platform/resource";
-import { AccessibilityNode } from "./node.ds";
-import { AccessibilityNodeId } from "./role.ds";
+import { AccessibilityNode, AccessibilityNodeId } from "./node.ds";
 
-/// One tree update payload.
+/// Monotonic accessibility tree version.
+export newtype AccessibilityTreeRevision = uint64;
+
+/// Accessibility tree update.
 export struct AccessibilityTreeUpdate {
-    /// Root node identifier for this window, or void to clear the tree.
-    rootNodeId: AccessibilityNodeId | void;
-    /// Focused node identifier for this window, or void when nothing is focused.
-    focusedNodeId: AccessibilityNodeId | void;
+    /// Monotonic tree revision.
+    revision: AccessibilityTreeRevision;
+    /// Root node identifier.
+    rootNodeId: AccessibilityNodeId;
+    /// Focused node identifier, or the root when nothing else is focused.
+    focusedNodeId: AccessibilityNodeId;
     /// Added or replaced node descriptors.
-    /// Each listed node replaces the previously published descriptor for the same `id`.
-    nodes: Slice<AccessibilityNode>;
+    /// Each node replaces the previous descriptor for the same identifier.
+    nodes: [AccessibilityNode];
     /// Removed node identifiers.
-    removedNodeIds: Slice<AccessibilityNodeId>;
+    removedNodeIds: [AccessibilityNodeId];
 }
 
-/// Apply one accessibility-tree update for one window.
+/// Apply one accessibility tree update.
 @binding("destack.accessibility.tree.apply", {
     effect: "external",
-    requires: ["host.accessibility.publish"],
+    requires: ["host.accessibility.tree"],
     families: ["windows", "unix"],
     simulation: true,
+    affinity: "worker",
 })
-export declare function treeApply(
+export declare function applyAccessibilityTree(
     window: WindowHandle,
-    update: AccessibilityTreeUpdate,
+    update: &readonly AccessibilityTreeUpdate,
 ): Result<void, PlatformError>;
 
-/// Clear the published accessibility tree for one window.
+/// Clear the published accessibility tree.
 @binding("destack.accessibility.tree.clear", {
     effect: "external",
-    requires: ["host.accessibility.publish"],
+    requires: ["host.accessibility.tree"],
     families: ["windows", "unix"],
     simulation: true,
+    affinity: "worker",
 })
-export declare function treeClear(window: WindowHandle): Result<void, PlatformError>;
+export declare function clearAccessibilityTree(window: WindowHandle): Result<void, PlatformError>;
 
-/// Resolve one accessibility node at one window-local point.
+/// Resolve one accessibility node at one point.
 @binding("destack.accessibility.tree.hitTest", {
     effect: "external",
-    requires: ["host.accessibility.publish"],
+    requires: ["host.accessibility.tree"],
     families: ["windows", "unix"],
     simulation: true,
+    affinity: "worker",
 })
-export declare function treeHitTest(
+export declare function hitTestAccessibilityTree(
     window: WindowHandle,
     x: float64,
     y: float64,
-): Result<AccessibilityNodeId | void, PlatformError>;
+): Result<AccessibilityNodeId | undefined, PlatformError>;
