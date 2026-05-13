@@ -964,7 +964,7 @@ fn pattern_symbol_at_offset(
 
             None
         }
-        Pattern::Wildcard | Pattern::Expression { .. } => None,
+        Pattern::Wildcard | Pattern::Expression { .. } | Pattern::Range { .. } => None,
     }
 }
 

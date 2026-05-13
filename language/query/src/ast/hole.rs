@@ -647,6 +647,7 @@ fn collect_pattern_binding_names(
         }
         ast::Pattern::Wildcard
         | ast::Pattern::Expression { .. }
+        | ast::Pattern::Range { .. }
         | ast::Pattern::TypeExpression { .. } => {}
     }
 }
