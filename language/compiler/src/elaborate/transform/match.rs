@@ -259,6 +259,28 @@ impl Compiler {
                 match_type_id,
             );
         }
+        // range patterns: emit ordered bound checks
+        else if let Pattern::Range {
+            start,
+            end,
+            end_kind,
+        } = &pattern
+        {
+            return self.handle_range_pattern(
+                state,
+                match_id,
+                value,
+                body,
+                *start,
+                *end,
+                *end_kind,
+                guard,
+                cases,
+                index,
+                scope,
+                match_type_id,
+            );
+        }
         // tagged tuple patterns: emit type check and index access
         else if let Pattern::TaggedTuple { ty, fields } = &pattern {
             return self.handle_tagged_tuple_pattern(
@@ -524,6 +546,52 @@ impl Compiler {
         let else_block = self.wrap_else_branch(state, match_id, else_expr, scope)?;
 
         // build the if expression
+        let if_expr = self.build_if_expression(
+            state,
+            match_id,
+            condition,
+            then_block,
+            else_block,
+            scope,
+            match_type_id,
+        );
+
+        Ok(Some(if_expr))
+    }
+
+    /// Handle a range pattern by emitting ordered bound checks.
+    fn handle_range_pattern(
+        &self,
+        state: &mut ElaborateState<'_>,
+        match_id: LocalNodeId<Expression>,
+        value: LocalNodeId<Expression>,
+        body: LocalNodeId<Expression>,
+        start: Option<LocalNodeId<Expression>>,
+        end: Option<LocalNodeId<Expression>>,
+        end_kind: dir::RangeEnd,
+        guard: Option<LocalNodeId<Expression>>,
+        cases: &[LocalNodeId<MatchCase>],
+        index: usize,
+        scope: dir::LocalScope,
+        match_type_id: LocalTypeId,
+    ) -> ElaborateResult<Option<LocalNodeId<Expression>>> {
+        let else_expr = self.build_match_chain(
+            state,
+            match_id,
+            value,
+            cases,
+            index + 1,
+            scope,
+            match_type_id,
+        )?;
+
+        let condition =
+            self.build_range_check(state, match_id, value, start, end, end_kind, scope)?;
+        let condition = self.combine_with_guard(state, match_id, condition, guard, scope)?;
+
+        let then_block = self.wrap_in_block(state, match_id, body, scope)?;
+        let else_block = self.wrap_else_branch(state, match_id, else_expr, scope)?;
+
         let if_expr = self.build_if_expression(
             state,
             match_id,
@@ -1007,6 +1075,13 @@ impl Compiler {
                 value: pattern_value,
             } => self.build_equality_check(state, match_id, value, pattern_value, scope),
 
+            // range patterns use ordered bound checks
+            Pattern::Range {
+                start,
+                end,
+                end_kind,
+            } => self.build_range_check(state, match_id, value, start, end, end_kind, scope),
+
             // type-space patterns lower to runtime type checks
             Pattern::TypeExpression { value: target_type } => {
                 self.build_type_guard(state, match_id, value, target_type, scope)
@@ -1202,6 +1277,52 @@ impl Compiler {
         );
 
         Ok(expression_id)
+    }
+
+    /// Build one ordered range pattern check.
+    fn build_range_check(
+        &self,
+        state: &mut ElaborateState<'_>,
+        match_id: LocalNodeId<Expression>,
+        value: LocalNodeId<Expression>,
+        start: Option<LocalNodeId<Expression>>,
+        end: Option<LocalNodeId<Expression>>,
+        end_kind: dir::RangeEnd,
+        scope: dir::LocalScope,
+    ) -> ElaborateResult<LocalNodeId<Expression>> {
+        let mut condition = None;
+
+        // include the start bound
+        if let Some(start) = start {
+            let start_check = self.insert_boolean_binary_expression(
+                state,
+                match_id,
+                start,
+                BinaryOperator::LessThanOrEqual,
+                value,
+                scope,
+            );
+            condition = Some(start_check);
+        }
+
+        // apply the end bound
+        if let Some(end) = end {
+            let operator = match end_kind {
+                dir::RangeEnd::Open => BinaryOperator::LessThan,
+                dir::RangeEnd::Inclusive => BinaryOperator::LessThanOrEqual,
+            };
+            let end_check =
+                self.insert_boolean_binary_expression(state, match_id, value, operator, end, scope);
+            condition = Some(
+                self.merge_condition_with_check(state, match_id, condition, end_check, scope)?,
+            );
+        }
+
+        if let Some(condition) = condition {
+            Ok(condition)
+        } else {
+            Ok(self.insert_boolean_literal_expression(state, match_id, true, scope))
+        }
     }
 
     /// Build one runtime type guard: `value is Type`.

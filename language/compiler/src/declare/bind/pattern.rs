@@ -213,6 +213,51 @@ impl Compiler {
                 );
                 Pattern::Expression { value }
             }
+            ast::Pattern::Range {
+                start,
+                end,
+                end_kind,
+            } => {
+                let start = start.map(|start| {
+                    self.bind_expression(
+                        module,
+                        ast,
+                        namespace_scope,
+                        global_scope,
+                        declared_modules,
+                        scope,
+                        start,
+                        Some(pattern_id),
+                        tree,
+                        symbols,
+                        types,
+                        SymbolSpace::Value,
+                    )
+                });
+                let end = end.map(|end| {
+                    self.bind_expression(
+                        module,
+                        ast,
+                        namespace_scope,
+                        global_scope,
+                        declared_modules,
+                        scope,
+                        end,
+                        Some(pattern_id),
+                        tree,
+                        symbols,
+                        types,
+                        SymbolSpace::Value,
+                    )
+                });
+                let end_kind = self.bind_range_end(*end_kind);
+
+                Pattern::Range {
+                    start,
+                    end,
+                    end_kind,
+                }
+            }
             ast::Pattern::TypeExpression { value } => {
                 let value = self.bind_type_expression(
                     module,
@@ -459,6 +504,7 @@ impl Compiler {
             | Pattern::MoveOf { right: pattern, .. } => self.bound_pattern_symbol(tree, *pattern),
             Pattern::Wildcard
             | Pattern::Expression { .. }
+            | Pattern::Range { .. }
             | Pattern::TypeExpression { .. }
             | Pattern::Tuple { .. }
             | Pattern::TaggedTuple { .. }

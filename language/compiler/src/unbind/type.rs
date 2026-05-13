@@ -869,6 +869,43 @@ impl Compiler {
                     generic_arguments,
                 }
             }
+            dir::TypeExpression::Range {
+                start,
+                end,
+                end_kind,
+            } => {
+                let start = start.map(|start| {
+                    self.unbind_type_expression(
+                        module,
+                        start,
+                        tree,
+                        symbols,
+                        types,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    )
+                });
+                let end = end.map(|end| {
+                    self.unbind_type_expression(
+                        module,
+                        end,
+                        tree,
+                        symbols,
+                        types,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    )
+                });
+                let end_kind = self.unbind_range_end(*end_kind);
+
+                ast::TypeExpression::Range {
+                    start,
+                    end,
+                    end_kind,
+                }
+            }
             dir::TypeExpression::Const => ast::TypeExpression::Const,
             dir::TypeExpression::This => ast::TypeExpression::This,
             dir::TypeExpression::Readonly { target_type } => {
