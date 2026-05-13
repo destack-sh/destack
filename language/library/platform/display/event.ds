@@ -39,7 +39,7 @@ export const DISPLAY_EVENT_WINDOW_RENDER: DisplayEventFlags = DisplayEventFlags(
 export const DISPLAY_EVENT_DRAG: DisplayEventFlags = DisplayEventFlags(0x10);
 
 /// Display event overflow policy.
-export enum DisplayEventOverflow {
+export enum DisplayEventOverflowPolicy {
     /// Drop oldest queued events first.
     DropOldest = 1,
     /// Drop newest incoming events first.
@@ -61,164 +61,344 @@ export struct DisplayEventSubscription {
     /// Queue capacity in events, or zero for backend default.
     capacity: uint32;
     /// Queue overflow policy.
-    overflow: DisplayEventOverflow;
+    overflow: DisplayEventOverflowPolicy;
+}
+
+/// Monitor added display event.
+export struct DisplayEventMonitorAdded {
+    /// Event discriminator.
+    kind: "monitorAdded";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Number of events dropped before this event.
+    droppedCount: uint64;
+    /// Display backend.
+    backend: DisplayBackendKind;
+    /// Monitor descriptor.
+    monitor: Monitor;
+}
+
+/// Monitor removed display event.
+export struct DisplayEventMonitorRemoved {
+    /// Event discriminator.
+    kind: "monitorRemoved";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Number of events dropped before this event.
+    droppedCount: uint64;
+    /// Display backend.
+    backend: DisplayBackendKind;
+    /// Removed monitor identifier.
+    monitorId: string;
+}
+
+/// Monitor changed display event.
+export struct DisplayEventMonitorChanged {
+    /// Event discriminator.
+    kind: "monitorChanged";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Number of events dropped before this event.
+    droppedCount: uint64;
+    /// Display backend.
+    backend: DisplayBackendKind;
+    /// Monitor descriptor.
+    monitor: Monitor;
+}
+
+/// Monitor mode changed display event.
+export struct DisplayEventMonitorModeChanged {
+    /// Event discriminator.
+    kind: "monitorModeChanged";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Number of events dropped before this event.
+    droppedCount: uint64;
+    /// Display backend.
+    backend: DisplayBackendKind;
+    /// Monitor handle.
+    monitor: MonitorHandle;
+    /// Monitor mode.
+    mode: MonitorMode;
+}
+
+/// Window close requested display event.
+export struct DisplayEventWindowCloseRequested {
+    /// Event discriminator.
+    kind: "windowCloseRequested";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Number of events dropped before this event.
+    droppedCount: uint64;
+    /// Display backend.
+    backend: DisplayBackendKind;
+    /// Window handle.
+    window: WindowHandle;
+}
+
+/// Window destroyed display event.
+export struct DisplayEventWindowDestroyed {
+    /// Event discriminator.
+    kind: "windowDestroyed";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Number of events dropped before this event.
+    droppedCount: uint64;
+    /// Display backend.
+    backend: DisplayBackendKind;
+    /// Window handle.
+    window: WindowHandle;
+}
+
+/// Window focus changed display event.
+export struct DisplayEventWindowFocusChanged {
+    /// Event discriminator.
+    kind: "windowFocusChanged";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Number of events dropped before this event.
+    droppedCount: uint64;
+    /// Display backend.
+    backend: DisplayBackendKind;
+    /// Window handle.
+    window: WindowHandle;
+    /// Whether the window is focused.
+    isFocused: boolean;
+}
+
+/// Window visibility changed display event.
+export struct DisplayEventWindowVisibilityChanged {
+    /// Event discriminator.
+    kind: "windowVisibilityChanged";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Number of events dropped before this event.
+    droppedCount: uint64;
+    /// Display backend.
+    backend: DisplayBackendKind;
+    /// Window handle.
+    window: WindowHandle;
+    /// Window visibility.
+    visibility: WindowVisibility;
+}
+
+/// Window moved display event.
+export struct DisplayEventWindowMoved {
+    /// Event discriminator.
+    kind: "windowMoved";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Number of events dropped before this event.
+    droppedCount: uint64;
+    /// Display backend.
+    backend: DisplayBackendKind;
+    /// Window handle.
+    window: WindowHandle;
+    /// Window position.
+    position: WindowPosition;
+}
+
+/// Window resized display event.
+export struct DisplayEventWindowResized {
+    /// Event discriminator.
+    kind: "windowResized";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Number of events dropped before this event.
+    droppedCount: uint64;
+    /// Display backend.
+    backend: DisplayBackendKind;
+    /// Window handle.
+    window: WindowHandle;
+    /// Window logical size.
+    size: WindowSize;
+    /// Window framebuffer size.
+    framebuffer: WindowPixelSize;
+    /// Scale factor in thousandths.
+    scaleFactorMilli: uint32;
+}
+
+/// Window mode changed display event.
+export struct DisplayEventWindowModeChanged {
+    /// Event discriminator.
+    kind: "windowModeChanged";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Number of events dropped before this event.
+    droppedCount: uint64;
+    /// Display backend.
+    backend: DisplayBackendKind;
+    /// Window handle.
+    window: WindowHandle;
+    /// Window mode.
+    mode: WindowMode;
+}
+
+/// Window render state changed display event.
+export struct DisplayEventWindowRenderStateChanged {
+    /// Event discriminator.
+    kind: "windowRenderStateChanged";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Number of events dropped before this event.
+    droppedCount: uint64;
+    /// Display backend.
+    backend: DisplayBackendKind;
+    /// Window handle.
+    window: WindowHandle;
+    /// Window render state.
+    renderState: WindowRenderState;
+}
+
+/// Window theme changed display event.
+export struct DisplayEventWindowThemeChanged {
+    /// Event discriminator.
+    kind: "windowThemeChanged";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Number of events dropped before this event.
+    droppedCount: uint64;
+    /// Display backend.
+    backend: DisplayBackendKind;
+    /// Window handle.
+    window: WindowHandle;
+    /// Window theme.
+    theme: WindowTheme;
+}
+
+/// Drag entered display event.
+export struct DisplayEventDragEntered {
+    /// Event discriminator.
+    kind: "dragEntered";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Number of events dropped before this event.
+    droppedCount: uint64;
+    /// Display backend.
+    backend: DisplayBackendKind;
+    /// Window handle.
+    window: WindowHandle;
+    /// Drag transfer.
+    transfer: DisplayDragTransfer;
+}
+
+/// Drag moved display event.
+export struct DisplayEventDragMoved {
+    /// Event discriminator.
+    kind: "dragMoved";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Number of events dropped before this event.
+    droppedCount: uint64;
+    /// Display backend.
+    backend: DisplayBackendKind;
+    /// Window handle.
+    window: WindowHandle;
+    /// Drag session handle.
+    session: DisplayDragSessionHandle;
+    /// Position inside the window.
+    position: WindowPoint;
+}
+
+/// Drag left display event.
+export struct DisplayEventDragLeft {
+    /// Event discriminator.
+    kind: "dragLeft";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Number of events dropped before this event.
+    droppedCount: uint64;
+    /// Display backend.
+    backend: DisplayBackendKind;
+    /// Window handle.
+    window: WindowHandle;
+    /// Drag session handle.
+    session: DisplayDragSessionHandle;
+}
+
+/// Drag dropped display event.
+export struct DisplayEventDragDropped {
+    /// Event discriminator.
+    kind: "dragDropped";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Number of events dropped before this event.
+    droppedCount: uint64;
+    /// Display backend.
+    backend: DisplayBackendKind;
+    /// Window handle.
+    window: WindowHandle;
+    /// Drag transfer.
+    transfer: DisplayDragTransfer;
+}
+
+/// Display overflow event.
+export struct DisplayEventOverflow {
+    /// Event discriminator.
+    kind: "overflow";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Number of dropped events.
+    droppedCount: uint64;
 }
 
 /// Display event.
 @derive(Tagged)
 export newtype DisplayEvent =
-    | {
-          kind: "monitorAdded";
-          timestampNs: uint64;
-          sequence: uint64;
-          droppedCount: uint64;
-          backend: DisplayBackendKind;
-          monitor: Monitor;
-      }
-    | {
-          kind: "monitorRemoved";
-          timestampNs: uint64;
-          sequence: uint64;
-          droppedCount: uint64;
-          backend: DisplayBackendKind;
-          monitorId: string;
-      }
-    | {
-          kind: "monitorChanged";
-          timestampNs: uint64;
-          sequence: uint64;
-          droppedCount: uint64;
-          backend: DisplayBackendKind;
-          monitor: Monitor;
-      }
-    | {
-          kind: "monitorModeChanged";
-          timestampNs: uint64;
-          sequence: uint64;
-          droppedCount: uint64;
-          backend: DisplayBackendKind;
-          monitor: MonitorHandle;
-          mode: MonitorMode;
-      }
-    | {
-          kind: "windowCloseRequested";
-          timestampNs: uint64;
-          sequence: uint64;
-          droppedCount: uint64;
-          backend: DisplayBackendKind;
-          window: WindowHandle;
-      }
-    | {
-          kind: "windowDestroyed";
-          timestampNs: uint64;
-          sequence: uint64;
-          droppedCount: uint64;
-          backend: DisplayBackendKind;
-          window: WindowHandle;
-      }
-    | {
-          kind: "windowFocusChanged";
-          timestampNs: uint64;
-          sequence: uint64;
-          droppedCount: uint64;
-          backend: DisplayBackendKind;
-          window: WindowHandle;
-          isFocused: boolean;
-      }
-    | {
-          kind: "windowVisibilityChanged";
-          timestampNs: uint64;
-          sequence: uint64;
-          droppedCount: uint64;
-          backend: DisplayBackendKind;
-          window: WindowHandle;
-          visibility: WindowVisibility;
-      }
-    | {
-          kind: "windowMoved";
-          timestampNs: uint64;
-          sequence: uint64;
-          droppedCount: uint64;
-          backend: DisplayBackendKind;
-          window: WindowHandle;
-          position: WindowPosition;
-      }
-    | {
-          kind: "windowResized";
-          timestampNs: uint64;
-          sequence: uint64;
-          droppedCount: uint64;
-          backend: DisplayBackendKind;
-          window: WindowHandle;
-          size: WindowSize;
-          framebuffer: WindowPixelSize;
-          scaleFactorMilli: uint32;
-      }
-    | {
-          kind: "windowModeChanged";
-          timestampNs: uint64;
-          sequence: uint64;
-          droppedCount: uint64;
-          backend: DisplayBackendKind;
-          window: WindowHandle;
-          mode: WindowMode;
-      }
-    | {
-          kind: "windowRenderStateChanged";
-          timestampNs: uint64;
-          sequence: uint64;
-          droppedCount: uint64;
-          backend: DisplayBackendKind;
-          window: WindowHandle;
-          renderState: WindowRenderState;
-      }
-    | {
-          kind: "windowThemeChanged";
-          timestampNs: uint64;
-          sequence: uint64;
-          droppedCount: uint64;
-          backend: DisplayBackendKind;
-          window: WindowHandle;
-          theme: WindowTheme;
-      }
-    | {
-          kind: "dragEntered";
-          timestampNs: uint64;
-          sequence: uint64;
-          droppedCount: uint64;
-          backend: DisplayBackendKind;
-          window: WindowHandle;
-          transfer: DisplayDragTransfer;
-      }
-    | {
-          kind: "dragMoved";
-          timestampNs: uint64;
-          sequence: uint64;
-          droppedCount: uint64;
-          backend: DisplayBackendKind;
-          window: WindowHandle;
-          session: DisplayDragSessionHandle;
-          position: WindowPoint;
-      }
-    | {
-          kind: "dragLeft";
-          timestampNs: uint64;
-          sequence: uint64;
-          droppedCount: uint64;
-          backend: DisplayBackendKind;
-          window: WindowHandle;
-          session: DisplayDragSessionHandle;
-      }
-    | {
-          kind: "dragDropped";
-          timestampNs: uint64;
-          sequence: uint64;
-          droppedCount: uint64;
-          backend: DisplayBackendKind;
-          window: WindowHandle;
-          transfer: DisplayDragTransfer;
-      }
-    | { kind: "overflow"; timestampNs: uint64; sequence: uint64; droppedCount: uint64 };
+    | DisplayEventMonitorAdded
+    | DisplayEventMonitorRemoved
+    | DisplayEventMonitorChanged
+    | DisplayEventMonitorModeChanged
+    | DisplayEventWindowCloseRequested
+    | DisplayEventWindowDestroyed
+    | DisplayEventWindowFocusChanged
+    | DisplayEventWindowVisibilityChanged
+    | DisplayEventWindowMoved
+    | DisplayEventWindowResized
+    | DisplayEventWindowModeChanged
+    | DisplayEventWindowRenderStateChanged
+    | DisplayEventWindowThemeChanged
+    | DisplayEventDragEntered
+    | DisplayEventDragMoved
+    | DisplayEventDragLeft
+    | DisplayEventDragDropped
+    | DisplayEventOverflow;
 
 /// Open one display event subscription.
 @binding("destack.display.event.open", {

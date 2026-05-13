@@ -2,11 +2,33 @@ import { PlatformError } from "destack:platform/error";
 import { SocketHandle } from "destack:platform/resource";
 import { IpAddress } from "./address.ds";
 
+/// Any multicast interface selector.
+export struct MulticastInterfaceAny {
+    /// Selector discriminator.
+    kind: "any";
+}
+
+/// Address multicast interface selector.
+export struct MulticastInterfaceAddress {
+    /// Selector discriminator.
+    kind: "address";
+    /// Interface address.
+    address: IpAddress;
+}
+
+/// Indexed multicast interface selector.
+export struct MulticastInterfaceIndex {
+    /// Selector discriminator.
+    kind: "index";
+    /// Interface index.
+    index: uint32;
+}
+
 /// Multicast interface selector.
 export newtype MulticastInterface =
-    | { kind: "any" }
-    | { kind: "address"; address: IpAddress }
-    | { kind: "index"; index: uint32 };
+    | MulticastInterfaceAny
+    | MulticastInterfaceAddress
+    | MulticastInterfaceIndex;
 
 /// Multicast group membership.
 export struct MulticastGroup {
@@ -36,11 +58,35 @@ export enum MulticastOption {
     Interface = 3,
 }
 
+/// Multicast loopback option value.
+export struct MulticastOptionLoopback {
+    /// Option discriminator.
+    kind: "loopback";
+    /// Option value.
+    value: boolean;
+}
+
+/// Multicast hop limit option value.
+export struct MulticastOptionHopLimit {
+    /// Option discriminator.
+    kind: "hopLimit";
+    /// Hop limit.
+    value: uint32;
+}
+
+/// Multicast interface option value.
+export struct MulticastOptionInterface {
+    /// Option discriminator.
+    kind: "interface";
+    /// Interface selector.
+    value: MulticastInterface;
+}
+
 /// UDP multicast option value.
 export newtype MulticastOptionValue =
-    | { kind: "loopback"; value: boolean }
-    | { kind: "hopLimit"; value: uint32 }
-    | { kind: "interface"; value: MulticastInterface };
+    | MulticastOptionLoopback
+    | MulticastOptionHopLimit
+    | MulticastOptionInterface;
 
 /// Join one multicast group.
 @binding("destack.net.udp.joinMulticast", {

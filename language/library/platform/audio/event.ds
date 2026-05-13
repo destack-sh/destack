@@ -21,7 +21,7 @@ export const AUDIO_EVENT_STREAM: AudioEventFlags = AudioEventFlags(0x4);
 export const AUDIO_EVENT_BACKEND: AudioEventFlags = AudioEventFlags(0x8);
 
 /// Audio event overflow policy.
-export enum AudioEventOverflow {
+export enum AudioEventOverflowPolicy {
     /// Drop oldest queued events first.
     DropOldest = 1,
     /// Drop newest incoming events first.
@@ -41,37 +41,77 @@ export struct AudioEventSubscription {
     /// Queue capacity in events, or zero for backend default.
     capacity: uint32;
     /// Queue overflow policy.
-    overflow: AudioEventOverflow;
+    overflow: AudioEventOverflowPolicy;
+}
+
+/// Audio device event.
+export struct AudioEventDevice {
+    /// Event discriminator.
+    kind: "device";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Audio backend.
+    backend: AudioBackendKind;
+    /// Device identifier.
+    deviceId: string;
+    /// Device direction.
+    direction: AudioDirection;
+    /// Whether the device is present.
+    isPresent: boolean;
+    /// Whether the device is the default route.
+    isDefault: boolean;
+}
+
+/// Audio stream event.
+export struct AudioEventStream {
+    /// Event discriminator.
+    kind: "stream";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Stream handle.
+    stream: AudioStreamHandle;
+    /// Stream state.
+    state: AudioStreamState;
+    /// Number of xruns reported so far.
+    xrunCount: uint64;
+}
+
+/// Audio backend event.
+export struct AudioEventBackend {
+    /// Event discriminator.
+    kind: "backend";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Audio backend.
+    backend: AudioBackendKind;
+    /// Whether the backend is available.
+    isAvailable: boolean;
+}
+
+/// Audio overflow event.
+export struct AudioEventOverflow {
+    /// Event discriminator.
+    kind: "overflow";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Number of dropped events.
+    droppedCount: uint64;
 }
 
 /// Audio event.
 export newtype AudioEvent =
-    | {
-          kind: "device";
-          timestampNs: uint64;
-          sequence: uint64;
-          backend: AudioBackendKind;
-          deviceId: string;
-          direction: AudioDirection;
-          isPresent: boolean;
-          isDefault: boolean;
-      }
-    | {
-          kind: "stream";
-          timestampNs: uint64;
-          sequence: uint64;
-          stream: AudioStreamHandle;
-          state: AudioStreamState;
-          xrunCount: uint64;
-      }
-    | {
-          kind: "backend";
-          timestampNs: uint64;
-          sequence: uint64;
-          backend: AudioBackendKind;
-          isAvailable: boolean;
-      }
-    | { kind: "overflow"; timestampNs: uint64; sequence: uint64; droppedCount: uint64 };
+    | AudioEventDevice
+    | AudioEventStream
+    | AudioEventBackend
+    | AudioEventOverflow;
 
 /// Open one audio event subscription.
 @binding("destack.audio.event.open", {

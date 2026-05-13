@@ -71,10 +71,26 @@ export struct FileTimes {
 /// Windows file security identifier bytes.
 export newtype FilePrincipalSid = [uint8];
 
+/// Unix file owner principal.
+export struct FilePrincipalUnix {
+    /// Principal discriminator.
+    kind: "unix";
+    /// Unix user or group identifier.
+    id: uint32;
+}
+
+/// Windows file owner principal.
+export struct FilePrincipalWindows {
+    /// Principal discriminator.
+    kind: "windows";
+    /// Windows security identifier.
+    sid: FilePrincipalSid;
+}
+
 /// File owner principal.
 export newtype FilePrincipal =
-    | { kind: "unix"; id: uint32 }
-    | { kind: "windows"; sid: FilePrincipalSid };
+    | FilePrincipalUnix
+    | FilePrincipalWindows;
 
 /// File owner assignment.
 export struct FileOwner {

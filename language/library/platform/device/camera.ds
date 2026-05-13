@@ -198,13 +198,61 @@ export struct CameraControlValue {
     value: float64;
 }
 
+/// Camera attached watch event.
+export struct CameraWatchEventAttached {
+    /// Event discriminator.
+    kind: "attached";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Camera device.
+    camera: CameraDevice;
+}
+
+/// Camera detached watch event.
+export struct CameraWatchEventDetached {
+    /// Event discriminator.
+    kind: "detached";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Camera device.
+    camera: CameraDevice;
+}
+
+/// Camera changed watch event.
+export struct CameraWatchEventChanged {
+    /// Event discriminator.
+    kind: "changed";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Camera device.
+    camera: CameraDevice;
+}
+
+/// Camera overflow watch event.
+export struct CameraWatchEventOverflow {
+    /// Event discriminator.
+    kind: "overflow";
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Number of dropped events.
+    droppedCount: uint64;
+}
+
 /// Camera topology event.
 @derive(Tagged)
 export newtype CameraWatchEvent =
-    | { kind: "attached"; timestampNs: uint64; sequence: uint64; camera: CameraDevice }
-    | { kind: "detached"; timestampNs: uint64; sequence: uint64; camera: CameraDevice }
-    | { kind: "changed"; timestampNs: uint64; sequence: uint64; camera: CameraDevice }
-    | { kind: "overflow"; timestampNs: uint64; sequence: uint64; droppedCount: uint64 };
+    | CameraWatchEventAttached
+    | CameraWatchEventDetached
+    | CameraWatchEventChanged
+    | CameraWatchEventOverflow;
 
 /// List camera devices.
 @binding("destack.device.camera.list", {

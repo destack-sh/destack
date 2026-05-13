@@ -44,12 +44,50 @@ export struct ClipboardItem {
     representations: Array<ClipboardRepresentation>;
 }
 
+/// Clipboard text payload.
+export struct ClipboardPayloadText {
+    /// Payload discriminator.
+    kind: "text";
+    /// MIME type or host-native format identifier.
+    mimeType: string;
+    /// Suggested representation name when available.
+    name?: string;
+    /// Text payload.
+    text: string;
+}
+
+/// Clipboard file payload.
+export struct ClipboardPayloadFile {
+    /// Payload discriminator.
+    kind: "file";
+    /// MIME type or host-native format identifier.
+    mimeType: string;
+    /// Suggested representation name when available.
+    name?: string;
+    /// Filesystem payload.
+    path: Path;
+    /// Whether the filesystem payload refers to a directory.
+    isDirectory: boolean;
+}
+
+/// Clipboard byte payload.
+export struct ClipboardPayloadBytes {
+    /// Payload discriminator.
+    kind: "bytes";
+    /// MIME type or host-native format identifier.
+    mimeType: string;
+    /// Suggested representation name when available.
+    name?: string;
+    /// Byte payload.
+    bytes: Array<uint8>;
+}
+
 /// Clipboard representation payload.
 @derive(Tagged)
 export newtype ClipboardPayload =
-    | { kind: "text"; mimeType: string; name?: string; text: string }
-    | { kind: "file"; mimeType: string; name?: string; path: Path; isDirectory: boolean }
-    | { kind: "bytes"; mimeType: string; name?: string; bytes: Array<uint8> };
+    | ClipboardPayloadText
+    | ClipboardPayloadFile
+    | ClipboardPayloadBytes;
 
 /// Clipboard item payload.
 export struct ClipboardWriteItem {

@@ -198,11 +198,35 @@ export struct WindowIcon {
     rgba: Array<uint8>;
 }
 
+/// Windowed display mode.
+export struct WindowModeWindowed {
+    /// Mode discriminator.
+    kind: "windowed";
+}
+
+/// Borderless display mode.
+export struct WindowModeBorderless {
+    /// Mode discriminator.
+    kind: "borderless";
+    /// Target monitor when explicit.
+    monitor?: MonitorHandle;
+}
+
+/// Exclusive fullscreen display mode.
+export struct WindowModeExclusiveFullscreen {
+    /// Mode discriminator.
+    kind: "exclusiveFullscreen";
+    /// Target monitor.
+    monitor: MonitorHandle;
+    /// Target monitor mode.
+    mode: MonitorMode;
+}
+
 /// Window display mode.
 export newtype WindowMode =
-    | { kind: "windowed" }
-    | { kind: "borderless"; monitor?: MonitorHandle }
-    | { kind: "exclusiveFullscreen"; monitor: MonitorHandle; mode: MonitorMode };
+    | WindowModeWindowed
+    | WindowModeBorderless
+    | WindowModeExclusiveFullscreen;
 
 /// Window open request.
 export struct WindowRequest {
