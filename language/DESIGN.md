@@ -833,7 +833,7 @@ class Client {
 
 ### Continuations
 
-Async functions and generators are closures that can pause and be resumed at a later point via `Continuation`s and runtime just parks the live frame in a Worker-local "continuation handle".
+Async functions and generators are closures that can pause and be resumed at a later point via stackful `Continuation`s, and the runtime just parks the live frame in a Worker-local "continuation handle".
 `Promise`, `Generator`, and `AsyncGenerator` are "just" standard library types around this simpler `Continuation` primitive:
 
 | Form | Meaning |
@@ -865,15 +865,6 @@ async function read(user: ^User): Promise<string> {
     return name.clone();
 }
 ```
-
-Externally borrowed values can _not_ be borrowed across suspension points:
-
-```ds
-async function read(user: &User): Promise<string> {
-    const name = &readonly user.name;
-    await tick();
-    return name.clone(); // error
-}
 
 ```
 
