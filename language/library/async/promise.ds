@@ -1,5 +1,5 @@
 import { todo } from "destack:error";
-import { type Iterable } from "destack:iter";
+import { Iterable } from "destack:iter";
 
 /// Function that resolves a promise.
 export type PromiseResolve<T> = (value: T | Promise<T>) => void;
@@ -10,8 +10,20 @@ export type PromiseReject = (reason?: unknown) => void;
 /// Function that starts a promise.
 export type PromiseExecutor<T> = (resolve: PromiseResolve<T>, reject: PromiseReject) => void;
 
+/// Promise with its resolving functions.
+export struct PromiseResolvers<T> {
+    /// The created promise.
+    promise: Promise<T>;
+
+    /// Resolve the promise.
+    resolve: PromiseResolve<T>;
+
+    /// Reject the promise.
+    reject: PromiseReject;
+}
+
 /// Pending promise state.
-export interface PromisePending<T> {
+interface PromisePending<T> {
     /// The state tag.
     kind: "pending";
 
@@ -20,7 +32,7 @@ export interface PromisePending<T> {
 }
 
 /// Fulfilled promise state.
-export interface PromiseFulfilled<T> {
+interface PromiseFulfilled<T> {
     /// The state tag.
     kind: "fulfilled";
 
@@ -29,7 +41,7 @@ export interface PromiseFulfilled<T> {
 }
 
 /// Rejected promise state.
-export interface PromiseRejected {
+interface PromiseRejected {
     /// The state tag.
     kind: "rejected";
 
@@ -38,10 +50,10 @@ export interface PromiseRejected {
 }
 
 /// Current promise state.
-export type PromiseState<T> = PromisePending<T> | PromiseFulfilled<T> | PromiseRejected;
+type PromiseState<T> = PromisePending<T> | PromiseFulfilled<T> | PromiseRejected;
 
 /// Promise continuation callbacks.
-export interface PromiseReaction<T> {
+interface PromiseReaction<T> {
     /// Fulfillment callback.
     onFulfilled: (value: T) => void;
 
@@ -71,6 +83,7 @@ export interface PromiseRejectedResult {
 export type PromiseSettledResult<T> = PromiseFulfilledResult<T> | PromiseRejectedResult;
 
 /// Worker-local async result object.
+@languageItem("Promise")
 export class Promise<T> {
     /// The current settlement state.
     private state: PromiseState<T>;
@@ -118,8 +131,18 @@ export class Promise<T> {
         todo("Promise.race")
     }
 
+    /// Wait for the first fulfilled promise.
+    static any<T>(values: Iterable<T | Promise<T>>): Promise<T> {
+        todo("Promise.any")
+    }
+
     /// Wait for all promises and keep fulfillment or rejection.
     static allSettled<T>(values: Iterable<T | Promise<T>>): Promise<PromiseSettledResult<T>[]> {
         todo("Promise.allSettled")
+    }
+
+    /// Create a promise with exposed resolving functions.
+    static withResolvers<T>(): PromiseResolvers<T> {
+        todo("Promise.withResolvers")
     }
 }

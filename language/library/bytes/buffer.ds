@@ -1,0 +1,100 @@
+import { todo } from "destack:error";
+import { MaybeUninit, Unique } from "destack:memory";
+import { Bytes } from "./bytes.ds";
+
+/// Growable byte buffer.
+export class ByteBuffer {
+    /// The owned byte storage.
+    storage: Unique<[MaybeUninit<uint8>]>;
+
+    /// The initialized byte count.
+    initializedLength: usize = 0;
+
+    /// The allocated byte capacity.
+    allocatedCapacity: usize = 0;
+
+    /// Create an empty byte buffer.
+    static new(): ByteBuffer {
+        todo("ByteBuffer.new")
+    }
+
+    /// Create a byte buffer with room for at least `capacity` bytes.
+    static withCapacity(capacity: usize): ByteBuffer {
+        todo("ByteBuffer.withCapacity")
+    }
+
+    /// Create a byte buffer containing `bytes`.
+    static from(bytes: &readonly [uint8]): ByteBuffer {
+        todo("ByteBuffer.from")
+    }
+
+    /// Return the initialized byte count.
+    get length(): number {
+        this.initializedLength as number
+    }
+
+    /// Return the initialized byte count.
+    get size(): usize {
+        this.initializedLength
+    }
+
+    /// Return the allocated byte capacity.
+    get capacity(): usize {
+        this.allocatedCapacity
+    }
+
+    /// Return whether this buffer has no initialized bytes.
+    get isEmpty(): boolean {
+        this.initializedLength == 0
+    }
+
+    /// Reserve room for at least `additional` more bytes.
+    reserve(this: &exclusive ByteBuffer, additional: usize): void {
+        todo("ByteBuffer.reserve")
+    }
+
+    /// Remove all initialized bytes.
+    clear(this: &exclusive ByteBuffer): void {
+        todo("ByteBuffer.clear")
+    }
+
+    /// Release unused capacity.
+    compact(this: &exclusive ByteBuffer): void {
+        todo("ByteBuffer.compact")
+    }
+
+    /// Append one byte.
+    writeByte(this: &exclusive ByteBuffer, value: uint8): void {
+        todo("ByteBuffer.writeByte")
+    }
+
+    /// Append bytes.
+    write(this: &exclusive ByteBuffer, bytes: &readonly [uint8]): void {
+        todo("ByteBuffer.write")
+    }
+
+    /// Append `count` copies of `value`.
+    fill(this: &exclusive ByteBuffer, value: uint8, count: usize): void {
+        todo("ByteBuffer.fill")
+    }
+
+    /// Borrow initialized bytes.
+    asBytes(this: &readonly ByteBuffer): &readonly [uint8] {
+        todo("ByteBuffer.asBytes")
+    }
+
+    /// Borrow initialized bytes with exclusive access.
+    asExclusiveBytes(this: &exclusive ByteBuffer): &exclusive [uint8] {
+        todo("ByteBuffer.asExclusiveBytes")
+    }
+
+    /// Clone initialized bytes into immutable storage.
+    toBytes(this: &readonly ByteBuffer): Bytes {
+        todo("ByteBuffer.toBytes")
+    }
+
+    /// Move initialized bytes into immutable storage.
+    intoBytes(this: ^ByteBuffer): Bytes {
+        todo("ByteBuffer.intoBytes")
+    }
+}

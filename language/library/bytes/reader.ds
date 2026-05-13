@@ -1,5 +1,5 @@
 import { todo } from "destack:error";
-import { type Bytes } from "./bytes.ds";
+import { Bytes } from "./bytes.ds";
 
 /// Sequential byte reader over in-memory bytes.
 export class ByteReader {
@@ -14,9 +14,39 @@ export class ByteReader {
         todo("ByteReader.from")
     }
 
+    /// Return the total byte count.
+    size(): usize {
+        todo("ByteReader.size")
+    }
+
+    /// Return the current byte offset.
+    position(): usize {
+        todo("ByteReader.position")
+    }
+
     /// Return the unread byte count.
     remaining(): usize {
         todo("ByteReader.remaining")
+    }
+
+    /// Return whether no unread bytes remain.
+    isEmpty(): boolean {
+        todo("ByteReader.isEmpty")
+    }
+
+    /// Move the current byte offset.
+    seek(offset: usize): void {
+        todo("ByteReader.seek")
+    }
+
+    /// Skip up to `count` bytes.
+    skip(count: usize): usize {
+        todo("ByteReader.skip")
+    }
+
+    /// Return the next byte without advancing.
+    peekByte(): uint8 | undefined {
+        todo("ByteReader.peekByte")
     }
 
     /// Read one byte.
@@ -24,8 +54,28 @@ export class ByteReader {
         todo("ByteReader.readByte")
     }
 
+    /// Step back by one byte.
+    unreadByte(): void {
+        todo("ByteReader.unreadByte")
+    }
+
     /// Read at most `length` bytes.
     read(length: usize): Bytes {
         todo("ByteReader.read")
+    }
+
+    /// Read exactly `length` bytes.
+    readExact(length: usize): Bytes | undefined {
+        todo("ByteReader.readExact")
+    }
+
+    /// Read bytes until `delimiter` is consumed.
+    readUntil(delimiter: uint8): Bytes | undefined {
+        todo("ByteReader.readUntil")
+    }
+
+    /// Read all remaining bytes.
+    readToEnd(): Bytes {
+        todo("ByteReader.readToEnd")
     }
 }
