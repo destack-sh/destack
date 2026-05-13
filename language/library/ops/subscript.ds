@@ -3,6 +3,7 @@
 /// `a[i]` becomes `a.index(i)`.
 ///
 /// The index type `I` can be any type (int, string, tuple, range, etc.).
+@languageItem("Index")
 export newtype interface Index<I> {
     /// The indexed output type.
     type Output;
@@ -16,6 +17,7 @@ export newtype interface Index<I> {
 /// `a[i] = v` becomes `a.indexSet(i, v)`.
 ///
 /// Types that implement `IndexSet` should typically also implement `Index`.
+@languageItem("IndexSet")
 export newtype interface IndexSet<I, V> {
     /// Store `value` at `key`.
     indexSet(key: I, value: V): void;

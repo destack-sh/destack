@@ -9,6 +9,7 @@ import {
 export type MacroTrigger = "decorator" | "autoDerive";
 
 /// Shared context passed to macro providers.
+@languageItem("MacroContext")
 export interface MacroContext {
     /// What caused this macro invocation.
     readonly trigger: MacroTrigger;
@@ -32,6 +33,7 @@ export interface MacroContext {
 /// Context for declaration expansion.
 ///
 /// Expansion runs to a fixed point, so generated declarations may contain more macros.
+@languageItem("ExpansionContext")
 export interface ExpansionContext extends MacroContext {
     /// Add a generated declaration to the current scope.
     add(declaration: Declaration): void;
@@ -55,6 +57,7 @@ export interface ExpansionContext extends MacroContext {
 /// Context for checked implementation materialization.
 ///
 /// Materialization cannot introduce new visible declarations or new macro invocations.
+@languageItem("MaterializationContext")
 export interface MaterializationContext extends MacroContext {
     /// Replace the decorated target with a checked generated declaration.
     replaceTarget(declaration: Declaration): void;
@@ -64,6 +67,7 @@ export interface MaterializationContext extends MacroContext {
 ///
 /// `State` is serializable static data carried from expansion to materialization.
 /// Each expansion invocation runs once for its target node, trigger, implementation, and config.
+@languageItem("Macro")
 export newtype interface Macro<Target, State = void> {
     /// Expand declarations for the decorated target.
     static expand?(target: Target, context: ExpansionContext, config: this): State;

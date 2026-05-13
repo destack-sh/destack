@@ -1,9 +1,11 @@
 /// Interface for user-facing string representation.
+@languageItem("Display")
 export newtype interface Display {
     display(): string;
 }
 
 /// Interface for developer-facing string representation.
+@languageItem("Debug")
 export newtype interface Debug {
     debug(): string;
 }

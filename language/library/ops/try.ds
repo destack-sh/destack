@@ -11,9 +11,11 @@ export struct TryFailure<F> {
 }
 
 /// Result of branching a `Try` value.
+@languageItem("TryBranch")
 export type TryBranch<T, F> = TryContinue<T> | TryFailure<F>;
 
 /// Protocol for values that work with `?`, `??`, and postfix `!`.
+@languageItem("Try")
 export newtype interface Try {
     /// The value produced when evaluation continues.
     type Value;

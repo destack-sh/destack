@@ -4,6 +4,7 @@
 /// @allow(E001)
 /// function oldAPI() { }
 /// ```
+@languageItem("Allow")
 export newtype allow = (string,) | ();
 
 /// Warn on some diagnostic.
@@ -12,6 +13,7 @@ export newtype allow = (string,) | ();
 /// @warn(E001)
 /// function oldAPI() { }
 /// ```
+@languageItem("Warn")
 export newtype warn = (string,) | ();
 
 /// Deny some diagnostic with an error.
@@ -20,6 +22,7 @@ export newtype warn = (string,) | ();
 /// @deny(E001)
 /// function oldAPI() { }
 /// ```
+@languageItem("Deny")
 export newtype deny = (string,) | ();
 
 /// Forbid some diagnostic.
@@ -28,6 +31,7 @@ export newtype deny = (string,) | ();
 /// @forbid(E001)
 /// function oldAPI() { }
 /// ```
+@languageItem("Forbid")
 export newtype forbid = (string,) | ();
 
 /// Expect some diagnostic.
@@ -36,4 +40,5 @@ export newtype forbid = (string,) | ();
 /// @expect(E001)
 /// function oldAPI() { }
 /// ```
+@languageItem("Expect")
 export newtype expect = (string,) | ();

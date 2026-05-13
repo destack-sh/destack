@@ -1,6 +1,7 @@
 /// Interface for the `-` operator.
 ///
 /// `a - b` becomes `a.subtract(b)`.
+@languageItem("Subtract")
 export newtype interface Subtract<T = this> {
     /// The result type.
     type Output;

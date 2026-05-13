@@ -4,6 +4,7 @@
 /// @taint("url")
 /// const target = input;
 /// ```
+@languageItem("Taint")
 export newtype taint = (string,) | ();
 
 /// Marks a declaration as consuming tainted data.
@@ -12,6 +13,7 @@ export newtype taint = (string,) | ();
 /// @sink("url")
 /// function redirect(value: string): void;
 /// ```
+@languageItem("Sink")
 export newtype sink = (string,) | ();
 
 /// Marks a declaration as sanitizing tainted data.
@@ -20,9 +22,11 @@ export newtype sink = (string,) | ();
 /// @sanitizer("url")
 /// function sanitizeUrl(value: string): string;
 /// ```
+@languageItem("Sanitizer")
 export newtype sanitizer = (string,) | ();
 
 /// Marks a declaration or expression as requiring unsafe authority.
+@languageItem("Unsafe")
 export newtype unsafe = (string,) | ();
 
 /// Allows unsafe operations inside the annotated scope.

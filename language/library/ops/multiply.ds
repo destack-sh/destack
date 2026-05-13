@@ -1,6 +1,7 @@
 /// Interface for the `*` operator.
 ///
 /// `a * b` becomes `a.multiply(b)`.
+@languageItem("Multiply")
 export newtype interface Multiply<T = this> {
     /// The result type.
     type Output;

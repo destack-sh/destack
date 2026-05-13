@@ -47,12 +47,14 @@ export interface ImportMetaTarget {
 }
 
 /// Environment variables available at compile time.
+@languageItem("ImportMetaEnv")
 export interface ImportMetaEnv {
     /// Index signature for arbitrary environment variables.
     readonly [key: string]: string | undefined;
 }
 
 /// Metadata about the current module and build configuration.
+@languageItem("ImportMeta")
 export interface ImportMeta {
     /// The URL of the current module (file:// for local, https:// for remote).
     readonly url: string;

@@ -1,6 +1,7 @@
 /// Interface for the `&` operator.
 ///
 /// `a & b` becomes `a.and(b)`.
+@languageItem("And")
 export newtype interface And<T = this> {
     /// The result type.
     type Output;
@@ -12,6 +13,7 @@ export newtype interface And<T = this> {
 /// Interface for the `|` operator.
 ///
 /// `a | b` becomes `a.or(b)`.
+@languageItem("Or")
 export newtype interface Or<T = this> {
     /// The result type.
     type Output;
@@ -23,6 +25,7 @@ export newtype interface Or<T = this> {
 /// Interface for the `^` operator.
 ///
 /// `a ^ b` becomes `a.xor(b)`.
+@languageItem("Xor")
 export newtype interface Xor<T = this> {
     /// The result type.
     type Output;
@@ -34,6 +37,7 @@ export newtype interface Xor<T = this> {
 /// Interface for the `~` operator.
 ///
 /// `~a` becomes `a.not()`.
+@languageItem("Not")
 export newtype interface Not {
     /// The result type.
     type Output;

@@ -7,6 +7,7 @@ import { type Remainder } from "destack:ops";
 import { type MaybeUninit, type Unique } from "destack:memory";
 
 /// Arbitrary-precision integer.
+@languageItem("BigInt")
 export class BigInt {
     /// The sign of this integer.
     private sign: int8 = 0;

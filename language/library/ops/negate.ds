@@ -1,6 +1,7 @@
 /// Interface for unary `-`.
 ///
 /// `-a` becomes `a.negate()`.
+@languageItem("Negate")
 export newtype interface Negate {
     /// The result type.
     type Output;

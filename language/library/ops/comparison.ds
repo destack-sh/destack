@@ -1,6 +1,7 @@
 /// Result of a comparison operation.
 ///
 /// Used by the `Compare` interface.
+@languageItem("Ordering")
 export const enum Ordering {
     Less = -1,
     Equal = 0,
@@ -15,6 +16,7 @@ export const enum Ordering {
 /// `a >= b` becomes `a.compare(b) != Ordering.Less`.
 ///
 /// Types that implement `Compare` should also implement `Equal` for consistency.
+@languageItem("Compare")
 export newtype interface Compare<T = this> {
     compare(other: T): Ordering;
 }
@@ -27,6 +29,7 @@ export newtype interface Compare<T = this> {
 /// `a < b` for PartialCompare types:
 /// - If `a.partialCompare(b)` is `null`, result is `false`
 /// - Otherwise, checks if result is `Ordering.Less`
+@languageItem("PartialCompare")
 export newtype interface PartialCompare<T = this> {
     partialCompare(other: T): Ordering | null;
 }

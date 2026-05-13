@@ -26,6 +26,7 @@ export type TaggedNames = {
 ///     | { kind: "rectangle"; width: int32; height: int32 }
 ///     | { kind: "circle"; radius: int32 };
 /// ```
+@languageItem("Tagged")
 export newtype Tagged = () | {
     case?: TaggedCase;
     names?: TaggedNames;
@@ -46,6 +47,7 @@ export extension<Target> of Tagged implements Macro<Target> {
 }
 
 /// Derive `Clone` implementations.
+@languageItem("CloneDerive")
 export newtype Clone = ();
 
 /// Implement `Clone` as a macro provider.
@@ -63,6 +65,7 @@ export extension<Target> of Clone implements Macro<Target> {
 }
 
 /// Derive `Debug` implementations.
+@languageItem("DebugDerive")
 export newtype Debug = ();
 
 /// Implement `Debug` as a macro provider.
