@@ -116,6 +116,7 @@ pub fn collect_pattern_value_binding_symbols(
     match pattern {
         dir::Pattern::Wildcard
         | dir::Pattern::Expression { .. }
+        | dir::Pattern::Range { .. }
         | dir::Pattern::TypeExpression { .. } => {}
         dir::Pattern::Assign { pattern, .. } => {
             collect_pattern_value_binding_symbols(tree, symbols, *pattern, bindings);

@@ -88,6 +88,24 @@ pub fn pattern_subsumes_semantically(
             },
         ) => pattern_expression_is_equal(ctx, left_expression_id, right_expression_id),
 
+        // compare exact range patterns
+        (
+            dir::Pattern::Range {
+                start: left_start,
+                end: left_end,
+                end_kind: left_end_kind,
+            },
+            dir::Pattern::Range {
+                start: right_start,
+                end: right_end,
+                end_kind: right_end_kind,
+            },
+        ) => {
+            left_end_kind == right_end_kind
+                && optional_pattern_expression_is_equal(ctx, left_start, right_start)
+                && optional_pattern_expression_is_equal(ctx, left_end, right_end)
+        }
+
         // keep wrapper semantics aligned before recursing
         (dir::Pattern::Must(left_inner), dir::Pattern::Must(right_inner)) => {
             pattern_subsumes_semantically(ctx, left_inner, right_inner)
@@ -119,6 +137,19 @@ pub fn pattern_subsumes_semantically(
                 && pattern_subsumes_semantically(ctx, left_inner, right_inner)
         }
 
+        _ => false,
+    }
+}
+
+/// Return true when two optional DIR pattern expressions are equal.
+fn optional_pattern_expression_is_equal(
+    ctx: &mut LintModuleDirContext<'_>,
+    left: Option<dir::LocalNodeId<dir::Expression>>,
+    right: Option<dir::LocalNodeId<dir::Expression>>,
+) -> bool {
+    match (left, right) {
+        (Some(left), Some(right)) => pattern_expression_is_equal(ctx, left, right),
+        (None, None) => true,
         _ => false,
     }
 }

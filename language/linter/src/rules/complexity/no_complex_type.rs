@@ -123,6 +123,7 @@ fn type_expression_complexity_inner(
             | TypeExpression::In { .. }
             | TypeExpression::Extends { .. }
             | TypeExpression::Implements { .. }
+            | TypeExpression::Range { .. }
             | TypeExpression::Mapped { .. }
             | TypeExpression::Index { .. }
             | TypeExpression::TemplateLiteral { .. }
@@ -280,6 +281,20 @@ fn type_expression_complexity_inner(
                     *element_id,
                     current_depth,
                 ));
+            }
+        }
+        TypeExpression::Range { start, end, .. } => {
+            if let Some(start) = start {
+                max_depth = max_depth.max(type_expression_complexity_inner(
+                    tree,
+                    *start,
+                    current_depth,
+                ));
+            }
+
+            if let Some(end) = end {
+                max_depth =
+                    max_depth.max(type_expression_complexity_inner(tree, *end, current_depth));
             }
         }
         TypeExpression::Conditional {

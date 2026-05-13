@@ -89,7 +89,9 @@ fn binds_anything(ctx: &LintAstContext<'_>, pattern_id: ast::LocalNodeId<ast::Pa
         ast::Pattern::Binding { .. } => true,
 
         // expression patterns don't bind (they match)
-        ast::Pattern::Expression { .. } | ast::Pattern::TypeExpression { .. } => false,
+        ast::Pattern::Expression { .. }
+        | ast::Pattern::Range { .. }
+        | ast::Pattern::TypeExpression { .. } => false,
 
         // check nested patterns
         ast::Pattern::Object { fields }
