@@ -12,10 +12,10 @@ use crate::{MemoryError, MemoryResult};
 /// Whether mapped spaces can share page frames directly.
 pub(crate) const SUPPORTS_SHARED_PAGE_FRAMES: bool = true;
 /// Anonymous mapping flag on Darwin targets.
-#[cfg(any(target_os = "macos", target_os = "ios"))]
+#[cfg(target_os = "macos")]
 const MAP_ANONYMOUS: libc::c_int = libc::MAP_ANON;
 /// Anonymous mapping flag on non-Darwin Unix targets.
-#[cfg(not(any(target_os = "macos", target_os = "ios")))]
+#[cfg(not(target_os = "macos"))]
 const MAP_ANONYMOUS: libc::c_int = libc::MAP_ANONYMOUS;
 /// Private anonymous mapping flags for reserved address ranges.
 const MAP_PRIVATE_ANONYMOUS: libc::c_int = libc::MAP_PRIVATE | MAP_ANONYMOUS;
