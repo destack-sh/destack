@@ -94,7 +94,7 @@ fn test_intrinsic_add_overflow_no_overflow() {
     let mir = r#"
 function testResult(v0: int32, v1: int32): int32 {
 b0(v0: int32, v1: int32):
-    v2: (int32, boolean) = intrinsic.add.overflow(v0, v1)
+    v2: (int32, boolean) = intrinsic.math.arithmetic.add.overflow(v0, v1)
     v3: int32 = field.get v2, 0
     return v3
 }"#;
@@ -103,7 +103,7 @@ b0(v0: int32, v1: int32):
     let mir = r#"
 function testFlag(v0: int32, v1: int32): boolean {
 b0(v0: int32, v1: int32):
-    v2: (int32, boolean) = intrinsic.add.overflow(v0, v1)
+    v2: (int32, boolean) = intrinsic.math.arithmetic.add.overflow(v0, v1)
     v3: boolean = field.get v2, 1
     return v3
 }"#;
@@ -116,7 +116,7 @@ fn test_intrinsic_add_overflow_with_overflow() {
     let mir = r#"
 function test(v0: int32, v1: int32): boolean {
 b0(v0: int32, v1: int32):
-    v2: (int32, boolean) = intrinsic.add.overflow(v0, v1)
+    v2: (int32, boolean) = intrinsic.math.arithmetic.add.overflow(v0, v1)
     v3: boolean = field.get v2, 1
     return v3
 }"#;
@@ -129,7 +129,7 @@ fn test_intrinsic_sub_overflow() {
     let mir = r#"
 function test(v0: uint32, v1: uint32): boolean {
 b0(v0: uint32, v1: uint32):
-    v2: (uint32, boolean) = intrinsic.sub.overflow(v0, v1)
+    v2: (uint32, boolean) = intrinsic.math.arithmetic.sub.overflow(v0, v1)
     v3: boolean = field.get v2, 1
     return v3
 }"#;
@@ -444,7 +444,7 @@ fn test_intrinsic_sqrt() {
     let mir = r#"
 function test(v0: float64): float64 {
 b0(v0: float64):
-    v1: float64 = intrinsic.sqrt(v0)
+    v1: float64 = intrinsic.math.float.sqrt(v0)
     return v1
 }"#;
     run_mir_expect(mir, "test", &[Value::float64(16.0)], Value::float64(4.0));
@@ -455,7 +455,7 @@ fn test_intrinsic_abs() {
     let mir = r#"
 function test(v0: float64): float64 {
 b0(v0: float64):
-    v1: float64 = intrinsic.abs(v0)
+    v1: float64 = intrinsic.math.float.abs(v0)
     return v1
 }"#;
     run_mir_expect(mir, "test", &[Value::float64(-42.5)], Value::float64(42.5));
@@ -499,7 +499,7 @@ fn test_intrinsic_min() {
     let mir = r#"
 function test(v0: float64, v1: float64): float64 {
 b0(v0: float64, v1: float64):
-    v2: float64 = intrinsic.min(v0, v1)
+    v2: float64 = intrinsic.math.float.min(v0, v1)
     return v2
 }"#;
     run_mir_expect(
@@ -515,7 +515,7 @@ fn test_intrinsic_max() {
     let mir = r#"
 function test(v0: float64, v1: float64): float64 {
 b0(v0: float64, v1: float64):
-    v2: float64 = intrinsic.max(v0, v1)
+    v2: float64 = intrinsic.math.float.max(v0, v1)
     return v2
 }"#;
     run_mir_expect(
@@ -547,7 +547,7 @@ fn test_intrinsic_fma() {
     let mir = r#"
 function test(v0: float64, v1: float64, v2: float64): float64 {
 b0(v0: float64, v1: float64, v2: float64):
-    v3: float64 = intrinsic.fma(v0, v1, v2)
+    v3: float64 = intrinsic.math.float.fma(v0, v1, v2)
     return v3
 }"#;
     run_mir_expect(
@@ -604,7 +604,7 @@ fn test_intrinsic_black_box() {
     let mir = r#"
 function test(v0: int32): int32 {
 b0(v0: int32):
-    v1: int32 = intrinsic.blackBox(v0)
+    v1: int32 = intrinsic.error.debug.blackBox(v0)
     return v1
 }"#;
     run_mir_expect(mir, "test", &[Value::int32(42)], Value::int32(42));
@@ -741,7 +741,7 @@ fn test_intrinsic_raw_eq_true() {
     let mir = r#"
 function test(v0: int32, v1: int32): boolean {
 b0(v0: int32, v1: int32):
-    v2: int32 = intrinsic.rawEq(v0, v1)
+    v2: int32 = intrinsic.memory.raw.eq(v0, v1)
     return v2
 }"#;
     run_mir_expect(
@@ -757,7 +757,7 @@ fn test_intrinsic_raw_eq_false() {
     let mir = r#"
 function test(v0: int32, v1: int32): boolean {
 b0(v0: int32, v1: int32):
-    v2: int32 = intrinsic.rawEq(v0, v1)
+    v2: int32 = intrinsic.memory.raw.eq(v0, v1)
     return v2
 }"#;
     run_mir_expect(
@@ -773,7 +773,7 @@ fn test_intrinsic_breakpoint() {
     let mir = r#"
 function test(v0: int32): int32 {
 b0(v0: int32):
-    intrinsic.breakpoint()
+    intrinsic.error.debug.breakpoint()
     return v0
 }"#;
     run_mir_expect(mir, "test", &[Value::int32(42)], Value::int32(42));
@@ -819,7 +819,7 @@ fn test_intrinsic_transmute() {
     let mir = r#"
 function test(v0: int32): int32 {
 b0(v0: int32):
-    v1: int32 = intrinsic.transmute(v0)
+    v1: int32 = intrinsic.memory.raw.transmute(v0)
     return v1
 }"#;
     run_mir_expect(mir, "test", &[Value::int32(42)], Value::int32(42));

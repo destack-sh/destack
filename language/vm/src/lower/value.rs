@@ -654,6 +654,9 @@ fn infer_instruction_layout(
         mir::Instruction::Struct { ty, .. }
         | mir::Instruction::Tuple { ty, .. }
         | mir::Instruction::Array { ty, .. } => Some(value_layout_from_type(tree, ty.ty()?)),
+        mir::Instruction::Slice { result_type, .. } => {
+            Some(value_layout_from_type(tree, result_type.ty()?))
+        }
         mir::Instruction::TensorExtract { destination, .. } => {
             let destination = destination.value()?;
             let ty = value_type_for_value(destination, value_types)?;
