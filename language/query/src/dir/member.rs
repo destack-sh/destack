@@ -1,8 +1,8 @@
 use destack_ast::StringPool;
 use destack_dir as dir;
 use destack_dir::{
-    BindingTable, Declaration, GlobalSymbolId, LocalSymbolId, LocalTypeId, Member, ScalarLiteral,
-    StaticKey, SymbolForm, Type, TypeTable, WellKnownSymbol,
+    BindingTable, Declaration, GlobalSymbolId, LanguageItem, LocalSymbolId, LocalTypeId, Member,
+    ScalarLiteral, StaticKey, SymbolForm, Type, TypeTable,
 };
 use destack_source::ModuleId;
 use destack_workspace::{Repository, Revision};
@@ -268,14 +268,14 @@ fn resolve_type_members_inner(
             })
             .collect(),
 
-        // array type: resolve members from well known Array type
+        // array type: resolve members from language item Array type
         Type::Slice(slice) => array_members(slice.element, repository, revision, current_module_id),
 
         Type::FixedArray(array) => {
             array_members(Some(array.element), repository, revision, current_module_id)
         }
 
-        // primitive types: resolve members from well known types (String, Number, etc.)
+        // primitive types: resolve members from language item types (String, Number, etc.)
         Type::Literal(literal) => {
             primitive_members(&literal.value, repository, revision, current_module_id)
         }
@@ -512,23 +512,23 @@ fn member_names_match(a: &MemberName, b: &MemberName) -> bool {
     }
 }
 
-/// Get members for array types by resolving the well known Array symbol.
+/// Get members for array types by resolving the language item Array symbol.
 fn array_members(
     _element_type: Option<LocalTypeId>,
     repository: &Repository,
     revision: Revision,
     current_module_id: ModuleId,
 ) -> Vec<MemberInfo> {
-    // resolve members from the Array well known symbol
-    resolve_well_known_members(
+    // resolve members from the Array language item symbol
+    resolve_language_item_members(
         repository,
         revision,
-        dir::WellKnownSymbol::Array,
+        dir::LanguageItem::Array,
         current_module_id,
     )
 }
 
-/// Get members for primitive types by resolving the appropriate well known symbol.
+/// Get members for primitive types by resolving the appropriate language item symbol.
 fn primitive_members(
     value: &dir::TypeLiteral,
     repository: &Repository,
@@ -536,23 +536,23 @@ fn primitive_members(
     current_module_id: ModuleId,
 ) -> Vec<MemberInfo> {
     // import primitive type helpers
-    use destack_dir::{PrimitiveType, TypeLiteral, WellKnownSymbol};
+    use destack_dir::{LanguageItem, PrimitiveType, TypeLiteral};
 
-    // map primitive type literals to their backing well known types
-    let well_known = match value {
+    // map primitive type literals to their backing language item types
+    let language_item = match value {
         TypeLiteral::Primitive(primitive) => match primitive {
-            PrimitiveType::String => Some(WellKnownSymbol::String),
+            PrimitiveType::String => Some(LanguageItem::String),
             PrimitiveType::Integer(_)
             | PrimitiveType::Float(_)
             | PrimitiveType::Boolean
             | PrimitiveType::Bigint => None,
-            PrimitiveType::Symbol | PrimitiveType::UniqueSymbol => Some(WellKnownSymbol::Symbol),
+            PrimitiveType::Symbol | PrimitiveType::UniqueSymbol => Some(LanguageItem::Symbol),
             PrimitiveType::Character => None,
         },
         // scalar literals use the same backing types
         TypeLiteral::ScalarLiteral(scalar) => match scalar {
             ScalarLiteral::Null => None,
-            ScalarLiteral::String(_) => Some(WellKnownSymbol::String),
+            ScalarLiteral::String(_) => Some(LanguageItem::String),
             ScalarLiteral::Integer(_)
             | ScalarLiteral::Float(_)
             | ScalarLiteral::Boolean(_)
@@ -563,17 +563,17 @@ fn primitive_members(
         _ => None,
     };
 
-    // return members for the resolved well known symbol
-    well_known
-        .map(|wk| resolve_well_known_members(repository, revision, wk, current_module_id))
+    // return members for the resolved language item symbol
+    language_item
+        .map(|item| resolve_language_item_members(repository, revision, item, current_module_id))
         .unwrap_or_default()
 }
 
-/// Resolve members from a well known symbol (Array, String, etc.).
-fn resolve_well_known_members(
+/// Resolve members from a language item symbol (Array, String, etc.).
+fn resolve_language_item_members(
     repository: &Repository,
     revision: Revision,
-    well_known: WellKnownSymbol,
+    item: LanguageItem,
     current_module_id: ModuleId,
 ) -> Vec<MemberInfo> {
     // resolve the current query profile so we stay on one exact lib surface
@@ -581,11 +581,11 @@ fn resolve_well_known_members(
         return Vec::new();
     };
 
-    // resolve the exact well known symbol from the current profile
+    // resolve the exact language item symbol from the current profile
     let Some(environment) = ctx.global_environment(repository) else {
         return Vec::new();
     };
-    let Some(symbol_id) = environment.well_known_symbols().get_type_symbol(well_known) else {
+    let Some(symbol_id) = environment.language.item(item) else {
         return Vec::new();
     };
 
