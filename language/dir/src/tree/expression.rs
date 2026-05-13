@@ -6,7 +6,7 @@ use crate::{
     CastOrigin, Declaration, Declarator, DependencyItem, DependencySpace, ExportKind,
     GenericArgument, ImportAttributeClause, LocalNodeId, LocalScopeId, LocalSymbolId, LocalTypeId,
     MatchCase, MatchForm, MatchOrigin, Mutability, Node, NodeType, Path, Pattern, Property,
-    ScalarLiteral, StaticArgument, StaticProperty, TemplateLiteral, Tree, TypeExpression,
+    RangeEnd, ScalarLiteral, StaticArgument, StaticProperty, TemplateLiteral, Tree, TypeExpression,
     TypeLiteral, UnaryOperator, VarianceBound,
 };
 use destack_source::{NodeSpanList, NodeSpanType};
@@ -203,6 +203,12 @@ pub enum Expression {
 
     /// Type as a value.
     Type { value: LocalNodeId<TypeExpression> },
+    /// Range expression.
+    RangeExpression {
+        start: Option<LocalNodeId<Expression>>,
+        end: Option<LocalNodeId<Expression>>,
+        end_kind: RangeEnd,
+    },
     /// Template expression.
     TemplateExpression { value: TemplateLiteral },
     /// Tagged template expression.
@@ -405,6 +411,7 @@ impl Expression {
 
             Expression::Type { .. } => "type",
             Expression::ScalarLiteral { .. } => "scalar literal",
+            Expression::RangeExpression { .. } => "range expression",
             Expression::TemplateExpression { .. } => "template expression",
             Expression::TaggedTemplateExpression { .. } => "tagged template expression",
             Expression::TypeLiteral { .. } => "type literal",

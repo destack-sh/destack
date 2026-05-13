@@ -256,6 +256,36 @@ define_language_items! {
         }
     }
 
+    /// Range types.
+    range {
+        /// `destack:range/range`.
+        range {
+            /// Range endpoint.
+            Bound => (Newtype, "range/range", "Bound"),
+
+            /// Common range-bounds protocol.
+            RangeBounds => (NewtypeInterface, "range/range", "RangeBounds"),
+
+            /// Half-open range.
+            Range => (Struct, "range/range", "Range"),
+
+            /// Inclusive range.
+            RangeInclusive => (Struct, "range/range", "RangeInclusive"),
+
+            /// Range with only a start bound.
+            RangeFrom => (Struct, "range/range", "RangeFrom"),
+
+            /// Range with only an excluded end bound.
+            RangeTo => (Struct, "range/range", "RangeTo"),
+
+            /// Range with only an included end bound.
+            RangeToInclusive => (Struct, "range/range", "RangeToInclusive"),
+
+            /// Range with no bounds.
+            RangeFull => (Struct, "range/range", "RangeFull"),
+        }
+    }
+
     /// Operator interfaces.
     ops {
         /// `destack:ops/plus`.

@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     Declaration, Expression, FunctionSignature, GenericArgument, GenericParameter, Key,
     LocalNodeId, LocalSymbolId, MappedTypeModifier, Mutability, Node, NodeType, Parameter, Path,
-    ScalarLiteral, StringId, Tree, TupleElement, TypeLiteral, VarianceBound, WhereClause,
+    RangeEnd, ScalarLiteral, StringId, Tree, TupleElement, TypeLiteral, VarianceBound, WhereClause,
 };
 
 /// One type-surface member.
@@ -239,6 +239,13 @@ pub enum TypeExpression {
         left: LocalNodeId<TypeExpression>,
         name: StringId,
         generic_arguments: Vec<LocalNodeId<GenericArgument>>,
+    },
+
+    /// Range type expression.
+    Range {
+        start: Option<LocalNodeId<TypeExpression>>,
+        end: Option<LocalNodeId<TypeExpression>>,
+        end_kind: RangeEnd,
     },
 
     /// `const` in type space.

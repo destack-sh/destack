@@ -97,6 +97,15 @@ pub enum BinaryOperator {
     In,
 }
 
+/// The end-bound spelling of one range.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum RangeEnd {
+    /// `..`, excluding the end when present.
+    Open,
+    /// `..=`, including the end.
+    Inclusive,
+}
+
 /// An AssignOperator is an assignment type.
 /// All assignment operators share one right-associative precedence.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
