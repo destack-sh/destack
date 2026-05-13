@@ -11,7 +11,8 @@ use smallvec::SmallVec;
 use super::operator::TypeUnaryOperator;
 use destack_ast::{
     BinaryOperator, BlockContext, Declaration, DependencyItem, Expression, GenericArgument,
-    Keyword, LocalNodeId, NodeType, Path, ScalarLiteral, TokenType, TypeExpression, UnaryOperator,
+    Keyword, LocalNodeId, NodeType, OperatorPrecedence, Path, RangeEnd, ScalarLiteral, TokenType,
+    TypeExpression, UnaryOperator,
 };
 
 use super::super::PendingDecorators;
@@ -2308,6 +2309,90 @@ impl Parser {
         ))
     }
 
+    /// Return the range end kind for the current range token.
+    fn range_end_from_token(token_type: TokenType) -> RangeEnd {
+        match token_type {
+            TokenType::Range => RangeEnd::Open,
+            TokenType::RangeInclusive => RangeEnd::Inclusive,
+            _ => unreachable!("checked range token"),
+        }
+    }
+
+    /// Eat one startless value range expression.
+    fn eat_value_startless_range_expression(
+        &mut self,
+        start: &ParserSpanStart,
+    ) -> ParseResult<LocalNodeId<Expression>> {
+        let token_type = self.peek_token_type();
+        let end_kind = Self::range_end_from_token(token_type);
+        self.bump(); // eat range operator
+
+        let is_omitted = self.current_token_is_on_new_line()
+            || Self::is_expression_slot_boundary_token(self.peek_token_type());
+
+        let end = if is_omitted && end_kind == RangeEnd::Open {
+            None
+        } else if is_omitted {
+            Some(self.recover_missing_expression_here(NodeType::Expression))
+        } else {
+            let right_flags = self
+                .flags
+                .not_in_position()
+                .in_left_precedence(OperatorPrecedence::Range as u16);
+            Some(self.eat_expression_with_context_unchecked(right_flags)?)
+        };
+
+        Ok(self.insert_node(
+            Expression::RangeExpression {
+                start: None,
+                end,
+                end_kind,
+            },
+            self.get_span_from(start),
+        ))
+    }
+
+    /// Eat one startless type range expression.
+    fn eat_type_startless_range_expression(
+        &mut self,
+        start: &ParserSpanStart,
+    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+        let token_type = self.peek_token_type();
+        let end_kind = Self::range_end_from_token(token_type);
+        self.bump(); // eat range operator
+
+        let is_omitted = self.current_token_is_on_new_line() || self.is_type_expression_boundary();
+
+        let end = if is_omitted && end_kind == RangeEnd::Open {
+            None
+        } else if is_omitted {
+            Some(self.recover_missing_type_expression_here(NodeType::TypeExpression))
+        } else {
+            let right_flags = self
+                .flags
+                .not_in_position()
+                .in_left_precedence(OperatorPrecedence::Range as u16);
+            let right_ambient_context = self.flags.with_type(true);
+            Some(
+                self.with_flags(
+                    self.flags
+                        .with_ambient_context(right_ambient_context)
+                        .with_expression_context(right_flags),
+                    |parser| parser.eat_type_expression(),
+                )?,
+            )
+        };
+
+        Ok(self.insert_node(
+            TypeExpression::Range {
+                start: None,
+                end,
+                end_kind,
+            },
+            self.get_span_from(start),
+        ))
+    }
+
     /// Eat one non identifier primary expression.
     ///
     /// Examples:
@@ -2342,6 +2427,9 @@ impl Parser {
                 .map(ParsedExpression::plain),
             TokenType::OpenBrace => self
                 .eat_value_brace_primary_expression(start)
+                .map(ParsedExpression::plain),
+            TokenType::Range | TokenType::RangeInclusive if self.language.is_destack() => self
+                .eat_value_startless_range_expression(start)
                 .map(ParsedExpression::plain),
 
             // `<...>` ambiguities
@@ -2484,6 +2572,9 @@ impl Parser {
             // collections
             TokenType::OpenBracket => self.eat_type_bracket_primary_expression(start),
             TokenType::OpenBrace => self.eat_type_brace_primary_expression(start),
+            TokenType::Range | TokenType::RangeInclusive if self.language.is_destack() => {
+                self.eat_type_startless_range_expression(start)
+            }
 
             // literal families
             TokenType::TemplateString | TokenType::TemplateStringStart

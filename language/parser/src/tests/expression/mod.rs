@@ -11,6 +11,7 @@ mod operator;
 mod postfix;
 mod predicate;
 mod primary;
+mod range;
 mod regex;
 mod sequence;
 mod statement;

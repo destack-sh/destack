@@ -445,17 +445,19 @@ fn test_parse_double_dot_member_call_after_numeric_literal() {
 }
 
 #[test]
-fn test_parse_decimal_member_access_with_separator() {
+fn test_parse_destack_double_dot_as_range() {
     let mut test = TestParser::new_with_language("0..a", LanguageType::Destack);
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     test.assert_no_errors(&parser);
 
-    // 0..a
-    assert_node!(parser.tree, expression_id, Expression::Member { left, name, .. } => {
-        assert_string!(parser, *name, "a");
-        assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
+    assert_node!(parser.tree, expression_id, Expression::RangeExpression { start, end, end_kind } => {
+        assert_eq!(*end_kind, RangeEnd::Open);
+        assert_node!(parser.tree, start.expect("expected start bound"), Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
+        assert_node!(parser.tree, end.expect("expected end bound"), Expression::Identifier { name } => {
+            assert_string!(parser, *name, "a");
+        });
     });
 }
 
