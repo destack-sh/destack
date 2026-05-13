@@ -263,10 +263,9 @@ export {
     MaterializationContext,
 } from "destack:macro";
 
-// platform decorators
+// host decorators
 export {
     binding,
     BindingOptions,
-    require,
     HostAction,
-} from "destack:platform/core";
+} from "destack:runtime";

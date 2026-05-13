@@ -1,14 +1,55 @@
-import { PlatformError } from "destack:platform/error";
-import {
-    CheckpointId,
-    RevisionId,
-    TraceCursorHandle,
-    TraceCursorOptions,
-    TraceDescriptor,
-    TraceRecord,
-    TraceSequence,
-    WorldHandle,
-} from "./types.ds";
+import { PackedArray } from "destack:collections";
+import { HostError } from "destack:error/host";
+import { BranchId, CheckpointId, RevisionId, TraceSequence } from "./lineage.ds";
+import { ResourceId } from "./resource.ds";
+import { WorldHandle } from "./world.ds";
+
+/// Runtime trace cursor handle.
+export newtype TraceCursorHandle = ResourceId;
+
+/// Trace event class.
+export enum TraceEventKind {
+    /// Runtime entropy or nondeterministic decision.
+    Entropy = 1,
+    /// Recorded binding call.
+    BindingCall = 2,
+    /// Runtime or world control mutation.
+    Control = 3,
+    /// Explicit marker event.
+    Marker = 4,
+}
+
+/// Trace state for one world.
+export struct Trace {
+    /// Active branch.
+    branch: BranchId;
+    /// Current trace sequence boundary.
+    sequence: TraceSequence;
+}
+
+/// Open options for one trace cursor.
+export struct TraceCursorOptions {
+    /// Optional starting sequence.
+    start?: TraceSequence;
+}
+
+/// One trace record.
+export struct TraceRecord {
+    /// Event sequence number.
+    sequence: TraceSequence;
+    /// Event class.
+    kind: TraceEventKind;
+    /// Optional encoded payload.
+    payload?: [uint8];
+}
+
+/// Trace record page.
+export struct TraceRecordPage {
+    /// Trace records in this page.
+    records: PackedArray<TraceRecord>;
+    /// Next trace sequence when more records exist.
+    next?: TraceSequence;
+}
 
 /// Describe one world's causal trace.
 @binding("destack.runtime.trace.describe", {
@@ -19,7 +60,7 @@ import {
     provider: "runtime",
     affinity: "worker",
 })
-export declare function traceDescribe(world: WorldHandle): Result<TraceDescriptor, PlatformError>;
+export declare function traceDescribe(world: WorldHandle): Result<Trace, HostError>;
 
 /// Open one causal trace cursor.
 @binding("destack.runtime.trace.open", {
@@ -33,7 +74,7 @@ export declare function traceDescribe(world: WorldHandle): Result<TraceDescripto
 export declare function traceOpen(
     world: WorldHandle,
     options?: TraceCursorOptions,
-): Result<TraceCursorHandle, PlatformError>;
+): Result<TraceCursorHandle, HostError>;
 
 /// Close one causal trace cursor.
 @binding("destack.runtime.trace.close", {
@@ -44,7 +85,7 @@ export declare function traceOpen(
     provider: "runtime",
     affinity: "worker",
 })
-export declare function traceClose(cursor: TraceCursorHandle): Result<void, PlatformError>;
+export declare function traceClose(cursor: TraceCursorHandle): Result<void, HostError>;
 
 /// Read the next batch of causal trace records.
 @binding("destack.runtime.trace.next", {
@@ -57,8 +98,8 @@ export declare function traceClose(cursor: TraceCursorHandle): Result<void, Plat
 })
 export declare function traceNext(
     cursor: TraceCursorHandle,
-    limit?: uint32,
-): Result<Array<TraceRecord>, PlatformError>;
+    limit: uint32,
+): Result<TraceRecordPage, HostError>;
 
 /// Return the current sequence position of one causal trace cursor.
 @binding("destack.runtime.trace.tell", {
@@ -69,7 +110,7 @@ export declare function traceNext(
     provider: "runtime",
     affinity: "worker",
 })
-export declare function traceTell(cursor: TraceCursorHandle): Result<TraceSequence, PlatformError>;
+export declare function traceTell(cursor: TraceCursorHandle): Result<TraceSequence, HostError>;
 
 /// Seek one causal trace cursor to one sequence.
 @binding("destack.runtime.trace.seekSequence", {
@@ -83,7 +124,7 @@ export declare function traceTell(cursor: TraceCursorHandle): Result<TraceSequen
 export declare function traceSeekSequence(
     cursor: TraceCursorHandle,
     sequence: TraceSequence,
-): Result<void, PlatformError>;
+): Result<void, HostError>;
 
 /// Seek one causal trace cursor to one revision boundary.
 @binding("destack.runtime.trace.seekRevision", {
@@ -97,7 +138,7 @@ export declare function traceSeekSequence(
 export declare function traceSeekRevision(
     cursor: TraceCursorHandle,
     revisionId: RevisionId,
-): Result<void, PlatformError>;
+): Result<void, HostError>;
 
 /// Seek one causal trace cursor to one checkpoint boundary.
 @binding("destack.runtime.trace.seekCheckpoint", {
@@ -111,7 +152,7 @@ export declare function traceSeekRevision(
 export declare function traceSeekCheckpoint(
     cursor: TraceCursorHandle,
     checkpointId: CheckpointId,
-): Result<void, PlatformError>;
+): Result<void, HostError>;
 
 /// Append one explicit trace marker.
 @binding("destack.runtime.trace.mark", {
@@ -125,4 +166,4 @@ export declare function traceSeekCheckpoint(
 export declare function traceMark(
     world: WorldHandle,
     label: string,
-): Result<TraceSequence, PlatformError>;
+): Result<TraceSequence, HostError>;

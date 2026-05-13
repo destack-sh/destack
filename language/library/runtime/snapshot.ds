@@ -1,5 +1,38 @@
-import { PlatformError } from "destack:platform/error";
-import { ImageId, SnapshotDescriptor, SnapshotFormat, SnapshotId, WorldHandle } from "./types.ds";
+import { PackedArray } from "destack:collections";
+import { HostError } from "destack:error/host";
+import { ImageId } from "./lineage.ds";
+import { WorldHandle } from "./world.ds";
+
+/// Serialized snapshot identifier.
+export newtype SnapshotId = uint64;
+
+/// Snapshot export format.
+export enum SnapshotFormat {
+    /// Fast local image export with runtime-specific backing.
+    Fast = 1,
+    /// Portable export intended for cross-machine or cross-runtime transport.
+    Portable = 2,
+}
+
+/// Snapshot state.
+export struct Snapshot {
+    /// Snapshot identifier.
+    id: SnapshotId;
+    /// Backing image.
+    image: ImageId;
+    /// Snapshot export format.
+    format: SnapshotFormat;
+    /// Optional serialized size in bytes.
+    sizeBytes?: uint64;
+}
+
+/// Snapshot list page.
+export struct SnapshotPage {
+    /// Snapshot records in this page.
+    snapshots: PackedArray<Snapshot>;
+    /// Next snapshot cursor when more records exist.
+    next?: SnapshotId;
+}
 
 /// Export one snapshot from one image.
 @binding("destack.runtime.snapshot.create", {
@@ -14,7 +47,7 @@ export declare function snapshotCreate(
     world: WorldHandle,
     imageId: ImageId,
     format: SnapshotFormat,
-): Result<SnapshotId, PlatformError>;
+): Result<SnapshotId, HostError>;
 
 /// Describe one snapshot.
 @binding("destack.runtime.snapshot.describe", {
@@ -28,7 +61,7 @@ export declare function snapshotCreate(
 export declare function snapshotDescribe(
     world: WorldHandle,
     snapshotId: SnapshotId,
-): Result<SnapshotDescriptor, PlatformError>;
+): Result<Snapshot, HostError>;
 
 /// List snapshots in one world lineage.
 @binding("destack.runtime.snapshot.list", {
@@ -41,9 +74,9 @@ export declare function snapshotDescribe(
 })
 export declare function snapshotList(
     world: WorldHandle,
+    limit: uint32,
     after?: SnapshotId,
-    limit?: uint32,
-): Result<Array<SnapshotDescriptor>, PlatformError>;
+): Result<SnapshotPage, HostError>;
 
 /// Read one serialized snapshot payload.
 @binding("destack.runtime.snapshot.read", {
@@ -57,7 +90,7 @@ export declare function snapshotList(
 export declare function snapshotRead(
     world: WorldHandle,
     snapshotId: SnapshotId,
-): Result<Array<uint8>, PlatformError>;
+): Result<PackedArray<uint8>, HostError>;
 
 /// Import one serialized snapshot payload.
 @binding("destack.runtime.snapshot.import", {
@@ -70,8 +103,8 @@ export declare function snapshotRead(
 })
 export declare function snapshotImport(
     world: WorldHandle,
-    payload: Array<uint8>,
-): Result<SnapshotId, PlatformError>;
+    payload: &readonly [uint8],
+): Result<SnapshotId, HostError>;
 
 /// Restore one world from one image.
 @binding("destack.runtime.snapshot.restoreImage", {
@@ -82,7 +115,7 @@ export declare function snapshotImport(
     provider: "runtime",
     affinity: "worker",
 })
-export declare function restoreImage(world: WorldHandle, imageId: ImageId): Result<void, PlatformError>;
+export declare function restoreImage(world: WorldHandle, imageId: ImageId): Result<void, HostError>;
 
 /// Restore one world from one snapshot.
 @binding("destack.runtime.snapshot.restoreSnapshot", {
@@ -96,4 +129,4 @@ export declare function restoreImage(world: WorldHandle, imageId: ImageId): Resu
 export declare function restoreSnapshot(
     world: WorldHandle,
     snapshotId: SnapshotId,
-): Result<void, PlatformError>;
+): Result<void, HostError>;

@@ -1,0 +1,96 @@
+import { PackedArray } from "destack:collections";
+/// Runtime entity identifier.
+export newtype EntityId = string;
+
+/// Runtime edge identifier.
+export newtype EdgeId = string;
+
+/// Runtime entity kind.
+export newtype EntityKind = string;
+
+/// Runtime edge kind.
+export newtype EdgeKind = string;
+
+/// Entity or edge label.
+export struct Label {
+    /// Label key.
+    key: string;
+    /// Label value.
+    value: string;
+}
+
+/// Label selector clause.
+export struct LabelSelector {
+    /// Label key to match.
+    key: string;
+    /// Optional exact value match.
+    value?: string;
+}
+
+/// Entity selector.
+export struct EntitySelector {
+    /// Optional entity kind selector.
+    kind?: EntityKind;
+    /// Optional label selector clauses.
+    labels?: [LabelSelector];
+}
+
+/// Entity filter.
+export struct EntityFilter {
+    /// Optional entity kind selector.
+    kind?: EntityKind;
+    /// Optional label selector clauses.
+    labels?: [LabelSelector];
+}
+
+/// Edge filter.
+export struct EdgeFilter {
+    /// Optional edge kind selector.
+    kind?: EdgeKind;
+    /// Optional source entity selector.
+    from?: EntityId;
+    /// Optional destination entity selector.
+    to?: EntityId;
+    /// Optional label selector clauses.
+    labels?: [LabelSelector];
+}
+
+/// Runtime entity.
+export struct Entity {
+    /// Entity identifier.
+    id: EntityId;
+    /// Entity kind.
+    kind: EntityKind;
+    /// Entity labels.
+    labels?: [Label];
+}
+
+/// Entity list page.
+export struct EntityPage {
+    /// Entity records in this page.
+    entities: PackedArray<Entity>;
+    /// Next entity cursor when more records exist.
+    next?: EntityId;
+}
+
+/// Runtime edge.
+export struct Edge {
+    /// Edge identifier.
+    id: EdgeId;
+    /// Edge kind.
+    kind: EdgeKind;
+    /// Source entity.
+    from: EntityId;
+    /// Destination entity.
+    to: EntityId;
+    /// Edge labels.
+    labels?: [Label];
+}
+
+/// Edge list page.
+export struct EdgePage {
+    /// Edge records in this page.
+    edges: PackedArray<Edge>;
+    /// Next edge cursor when more records exist.
+    next?: EdgeId;
+}
