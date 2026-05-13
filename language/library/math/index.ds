@@ -39,8 +39,16 @@ export {
 
 export {
     addOverflow,
+    addChecked,
+    addWrapping,
     subOverflow,
+    subChecked,
+    subWrapping,
     mulOverflow,
+    mulChecked,
+    mulWrapping,
+    divChecked,
+    remChecked,
     addUnchecked,
     subUnchecked,
     mulUnchecked,
@@ -50,6 +58,7 @@ export {
     shrUnchecked,
     addSaturating,
     subSaturating,
+    mulSaturating,
 } from "./arithmetic.ds";
 export {
     floatToSignedIntSaturating,
@@ -57,9 +66,14 @@ export {
 } from "./cast.ds";
 export {
     Vector,
+    LaneCount,
+    LaneOf,
     splat,
+    extract,
+    insert,
     shuffle,
     select,
+    convert,
     reduceAdd,
     reduceMul,
     reduceMin,
@@ -68,3 +82,39 @@ export {
     reduceOr,
     reduceXor,
 } from "./vector.ds";
+export {
+    Complex,
+} from "./complex.ds";
+export {
+    Vector2,
+    Vector2d,
+    Vector2f,
+    Vector2i,
+    Vector3,
+    Vector3d,
+    Vector3f,
+    Vector3i,
+    Vector4,
+    Vector4d,
+    Vector4f,
+    Vector4i,
+} from "./linear.ds";
+export {
+    Matrix2,
+    Matrix2d,
+    Matrix2f,
+    Matrix2i,
+    Matrix3,
+    Matrix3d,
+    Matrix3f,
+    Matrix3i,
+    Matrix4,
+    Matrix4d,
+    Matrix4f,
+    Matrix4i,
+} from "./matrix.ds";
+export {
+    Quaternion,
+    Quaterniond,
+    Quaternionf,
+} from "./quaternion.ds";

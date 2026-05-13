@@ -1,0 +1,236 @@
+import { Add, Negate, Subtract } from "destack:ops";
+import { sqrt } from "./float.ds";
+
+/// Two-dimensional vector.
+export struct Vector2<T: int | float> {
+    /// The x component.
+    x: T;
+
+    /// The y component.
+    y: T;
+}
+
+/// Three-dimensional vector.
+export struct Vector3<T: int | float> {
+    /// The x component.
+    x: T;
+
+    /// The y component.
+    y: T;
+
+    /// The z component.
+    z: T;
+}
+
+/// Four-dimensional vector.
+export struct Vector4<T: int | float> {
+    /// The x component.
+    x: T;
+
+    /// The y component.
+    y: T;
+
+    /// The z component.
+    z: T;
+
+    /// The w component.
+    w: T;
+}
+
+/// Two-dimensional single-precision vector.
+export type Vector2f = Vector2<float32>;
+
+/// Three-dimensional single-precision vector.
+export type Vector3f = Vector3<float32>;
+
+/// Four-dimensional single-precision vector.
+export type Vector4f = Vector4<float32>;
+
+/// Two-dimensional double-precision vector.
+export type Vector2d = Vector2<float64>;
+
+/// Three-dimensional double-precision vector.
+export type Vector3d = Vector3<float64>;
+
+/// Four-dimensional double-precision vector.
+export type Vector4d = Vector4<float64>;
+
+/// Two-dimensional signed integer vector.
+export type Vector2i = Vector2<int32>;
+
+/// Three-dimensional signed integer vector.
+export type Vector3i = Vector3<int32>;
+
+/// Four-dimensional signed integer vector.
+export type Vector4i = Vector4<int32>;
+
+extension<T: int | float> of Vector2<T> implements Add<Vector2<T>>, Subtract<Vector2<T>>, Negate {
+    /// The arithmetic result type.
+    type Output = Vector2<T>;
+
+    /// Create a vector from components.
+    static new(x: T, y: T): Vector2<T> {
+        Vector2 { x, y }
+    }
+
+    /// Return the dot product with `other`.
+    dot(other: Vector2<T>): T {
+        this.x * other.x + this.y * other.y
+    }
+
+    /// Return the squared length.
+    lengthSquared(): T {
+        this.dot(this)
+    }
+
+    /// Add `other`.
+    add(other: Vector2<T>): this.Output {
+        Vector2 { x: this.x + other.x, y: this.y + other.y }
+    }
+
+    /// Subtract `other`.
+    subtract(other: Vector2<T>): this.Output {
+        Vector2 { x: this.x - other.x, y: this.y - other.y }
+    }
+
+    /// Negate this vector.
+    negate(): this.Output {
+        Vector2 { x: -this.x, y: -this.y }
+    }
+}
+
+extension<T: float> of Vector2<T> {
+    /// Return the Euclidean length.
+    length(): T {
+        sqrt(this.lengthSquared())
+    }
+
+    /// Return the normalized vector.
+    normalized(): Vector2<T> {
+        let length = this.length();
+
+        Vector2 { x: this.x / length, y: this.y / length }
+    }
+}
+
+extension<T: int | float> of Vector3<T> implements Add<Vector3<T>>, Subtract<Vector3<T>>, Negate {
+    /// The arithmetic result type.
+    type Output = Vector3<T>;
+
+    /// Create a vector from components.
+    static new(x: T, y: T, z: T): Vector3<T> {
+        Vector3 { x, y, z }
+    }
+
+    /// Return the dot product with `other`.
+    dot(other: Vector3<T>): T {
+        this.x * other.x + this.y * other.y + this.z * other.z
+    }
+
+    /// Return the cross product with `other`.
+    cross(other: Vector3<T>): Vector3<T> {
+        Vector3 {
+            x: this.y * other.z - this.z * other.y,
+            y: this.z * other.x - this.x * other.z,
+            z: this.x * other.y - this.y * other.x,
+        }
+    }
+
+    /// Return the squared length.
+    lengthSquared(): T {
+        this.dot(this)
+    }
+
+    /// Add `other`.
+    add(other: Vector3<T>): this.Output {
+        Vector3 { x: this.x + other.x, y: this.y + other.y, z: this.z + other.z }
+    }
+
+    /// Subtract `other`.
+    subtract(other: Vector3<T>): this.Output {
+        Vector3 { x: this.x - other.x, y: this.y - other.y, z: this.z - other.z }
+    }
+
+    /// Negate this vector.
+    negate(): this.Output {
+        Vector3 { x: -this.x, y: -this.y, z: -this.z }
+    }
+}
+
+extension<T: float> of Vector3<T> {
+    /// Return the Euclidean length.
+    length(): T {
+        sqrt(this.lengthSquared())
+    }
+
+    /// Return the normalized vector.
+    normalized(): Vector3<T> {
+        let length = this.length();
+
+        Vector3 { x: this.x / length, y: this.y / length, z: this.z / length }
+    }
+}
+
+extension<T: int | float> of Vector4<T> implements Add<Vector4<T>>, Subtract<Vector4<T>>, Negate {
+    /// The arithmetic result type.
+    type Output = Vector4<T>;
+
+    /// Create a vector from components.
+    static new(x: T, y: T, z: T, w: T): Vector4<T> {
+        Vector4 { x, y, z, w }
+    }
+
+    /// Return the dot product with `other`.
+    dot(other: Vector4<T>): T {
+        this.x * other.x + this.y * other.y + this.z * other.z + this.w * other.w
+    }
+
+    /// Return the squared length.
+    lengthSquared(): T {
+        this.dot(this)
+    }
+
+    /// Add `other`.
+    add(other: Vector4<T>): this.Output {
+        Vector4 {
+            x: this.x + other.x,
+            y: this.y + other.y,
+            z: this.z + other.z,
+            w: this.w + other.w,
+        }
+    }
+
+    /// Subtract `other`.
+    subtract(other: Vector4<T>): this.Output {
+        Vector4 {
+            x: this.x - other.x,
+            y: this.y - other.y,
+            z: this.z - other.z,
+            w: this.w - other.w,
+        }
+    }
+
+    /// Negate this vector.
+    negate(): this.Output {
+        Vector4 { x: -this.x, y: -this.y, z: -this.z, w: -this.w }
+    }
+}
+
+extension<T: float> of Vector4<T> {
+    /// Return the Euclidean length.
+    length(): T {
+        sqrt(this.lengthSquared())
+    }
+
+    /// Return the normalized vector.
+    normalized(): Vector4<T> {
+        let length = this.length();
+
+        Vector4 {
+            x: this.x / length,
+            y: this.y / length,
+            z: this.z / length,
+            w: this.w / length,
+        }
+    }
+}
