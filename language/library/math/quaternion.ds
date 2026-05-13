@@ -1,0 +1,72 @@
+import { todo } from "destack:error";
+import { Multiply } from "destack:ops";
+import { sqrt } from "./float.ds";
+import { Vector3 } from "./linear.ds";
+
+/// Quaternion rotation value.
+export struct Quaternion<T: float> {
+    /// The vector x component.
+    x: T;
+
+    /// The vector y component.
+    y: T;
+
+    /// The vector z component.
+    z: T;
+
+    /// The scalar component.
+    w: T;
+}
+
+/// Single-precision quaternion.
+export type Quaternionf = Quaternion<float32>;
+
+/// Double-precision quaternion.
+export type Quaterniond = Quaternion<float64>;
+
+extension<T: float> of Quaternion<T> implements Multiply<Quaternion<T>> {
+    /// The arithmetic result type.
+    type Output = Quaternion<T>;
+
+    /// Return the identity rotation.
+    static identity(): Quaternion<T> {
+        todo("Quaternion.identity")
+    }
+
+    /// Create a rotation from an axis and angle in radians.
+    static fromAxisAngle(axis: Vector3<T>, angle: T): Quaternion<T> {
+        todo("Quaternion.fromAxisAngle")
+    }
+
+    /// Return the squared length.
+    lengthSquared(): T {
+        this.x * this.x + this.y * this.y + this.z * this.z + this.w * this.w
+    }
+
+    /// Return the normalized quaternion.
+    normalized(): Quaternion<T> {
+        let length = sqrt(this.lengthSquared());
+
+        Quaternion {
+            x: this.x / length,
+            y: this.y / length,
+            z: this.z / length,
+            w: this.w / length,
+        }
+    }
+
+    /// Multiply by `other`.
+    multiply(other: Quaternion<T>): this.Output {
+        Quaternion {
+            x: this.w * other.x + this.x * other.w + this.y * other.z - this.z * other.y,
+            y: this.w * other.y - this.x * other.z + this.y * other.w + this.z * other.x,
+            z: this.w * other.z + this.x * other.y - this.y * other.x + this.z * other.w,
+            w: this.w * other.w - this.x * other.x - this.y * other.y - this.z * other.z,
+        }
+    }
+
+    /// Rotate `vector`.
+    rotate(vector: Vector3<T>): Vector3<T> {
+        todo("Quaternion.rotate")
+    }
+}

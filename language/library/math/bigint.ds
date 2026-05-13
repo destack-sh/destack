@@ -1,10 +1,6 @@
 import { todo } from "destack:error";
-import { type Add } from "destack:ops";
-import { type Subtract } from "destack:ops";
-import { type Multiply } from "destack:ops";
-import { type Divide } from "destack:ops";
-import { type Remainder } from "destack:ops";
-import { type MaybeUninit, type Unique } from "destack:memory";
+import { MaybeUninit, Unique } from "destack:memory";
+import { Add, Divide, Multiply, Remainder, Subtract } from "destack:ops";
 
 /// Arbitrary-precision integer.
 @languageItem("BigInt")

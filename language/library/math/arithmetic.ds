@@ -5,6 +5,14 @@
 @intrinsic("math.arithmetic.add.overflow")
 export declare function addOverflow<T: int>(a: T, b: T): [T, boolean];
 
+/// Return `a + b`, or `undefined` on overflow.
+@intrinsic("math.arithmetic.add.checked")
+export declare function addChecked<T: int>(a: T, b: T): T | undefined;
+
+/// Add with wraparound semantics.
+@intrinsic("math.arithmetic.add.wrapping")
+export declare function addWrapping<T: int>(a: T, b: T): T;
+
 /// Subtract with overflow detection.
 ///
 /// Returns a tuple of the result and a boolean indicating overflow.
@@ -12,12 +20,36 @@ export declare function addOverflow<T: int>(a: T, b: T): [T, boolean];
 @intrinsic("math.arithmetic.sub.overflow")
 export declare function subOverflow<T: int>(a: T, b: T): [T, boolean];
 
+/// Return `a - b`, or `undefined` on overflow.
+@intrinsic("math.arithmetic.sub.checked")
+export declare function subChecked<T: int>(a: T, b: T): T | undefined;
+
+/// Subtract with wraparound semantics.
+@intrinsic("math.arithmetic.sub.wrapping")
+export declare function subWrapping<T: int>(a: T, b: T): T;
+
 /// Multiply with overflow detection.
 ///
 /// Returns a tuple of the result and a boolean indicating overflow.
 /// The result is the wrapped value if overflow occurred.
 @intrinsic("math.arithmetic.mul.overflow")
 export declare function mulOverflow<T: int>(a: T, b: T): [T, boolean];
+
+/// Return `a * b`, or `undefined` on overflow.
+@intrinsic("math.arithmetic.mul.checked")
+export declare function mulChecked<T: int>(a: T, b: T): T | undefined;
+
+/// Multiply with wraparound semantics.
+@intrinsic("math.arithmetic.mul.wrapping")
+export declare function mulWrapping<T: int>(a: T, b: T): T;
+
+/// Return `a / b`, or `undefined` on division by zero or overflow.
+@intrinsic("math.arithmetic.div.checked")
+export declare function divChecked<T: int>(a: T, b: T): T | undefined;
+
+/// Return `a % b`, or `undefined` on division by zero or overflow.
+@intrinsic("math.arithmetic.rem.checked")
+export declare function remChecked<T: int>(a: T, b: T): T | undefined;
 
 /// Unchecked add.
 ///
@@ -84,3 +116,9 @@ export declare function addSaturating<T: int>(a: T, b: T): T;
 /// Returns T.MAX on overflow, T.MIN on underflow.
 @intrinsic("math.arithmetic.sub.saturating")
 export declare function subSaturating<T: int>(a: T, b: T): T;
+
+/// Saturating multiply.
+///
+/// Multiplies two integers, saturating at the numeric bounds instead of overflowing.
+@intrinsic("math.arithmetic.mul.saturating")
+export declare function mulSaturating<T: int>(a: T, b: T): T;

@@ -1,0 +1,101 @@
+import { Add, Divide, Equal, Multiply, Negate, Subtract } from "destack:ops";
+import { atan2, cos, sin, sqrt } from "./float.ds";
+
+/// Complex number with floating-point components.
+@languageItem("Complex")
+export struct Complex<T: float> {
+    /// The real component.
+    real: T;
+
+    /// The imaginary component.
+    imaginary: T;
+}
+
+extension<T: float> of Complex<T> implements
+    Add<Complex<T>>,
+    Subtract<Complex<T>>,
+    Multiply<Complex<T>>,
+    Divide<Complex<T>>,
+    Negate,
+    Equal<Complex<T>>
+{
+    /// The arithmetic result type.
+    type Output = Complex<T>;
+
+    /// Create a complex value from cartesian components.
+    static new(real: T, imaginary: T): Complex<T> {
+        Complex { real, imaginary }
+    }
+
+    /// Create a complex value from polar components.
+    static polar(radius: T, angle: T): Complex<T> {
+        Complex {
+            real: radius * cos(angle),
+            imaginary: radius * sin(angle),
+        }
+    }
+
+    /// Return the squared magnitude.
+    magnitudeSquared(): T {
+        this.real * this.real + this.imaginary * this.imaginary
+    }
+
+    /// Return the magnitude.
+    magnitude(): T {
+        sqrt(this.magnitudeSquared())
+    }
+
+    /// Return the phase angle in radians.
+    phase(): T {
+        atan2(this.imaginary, this.real)
+    }
+
+    /// Return the complex conjugate.
+    conjugate(): Complex<T> {
+        Complex { real: this.real, imaginary: -this.imaginary }
+    }
+
+    /// Add `other`.
+    add(other: Complex<T>): this.Output {
+        Complex {
+            real: this.real + other.real,
+            imaginary: this.imaginary + other.imaginary,
+        }
+    }
+
+    /// Subtract `other`.
+    subtract(other: Complex<T>): this.Output {
+        Complex {
+            real: this.real - other.real,
+            imaginary: this.imaginary - other.imaginary,
+        }
+    }
+
+    /// Multiply by `other`.
+    multiply(other: Complex<T>): this.Output {
+        Complex {
+            real: this.real * other.real - this.imaginary * other.imaginary,
+            imaginary: this.real * other.imaginary + this.imaginary * other.real,
+        }
+    }
+
+    /// Divide by `other`.
+    divide(other: Complex<T>): this.Output {
+        let denominator = other.real * other.real + other.imaginary * other.imaginary;
+
+        Complex {
+            real: (this.real * other.real + this.imaginary * other.imaginary) / denominator,
+            imaginary: (this.imaginary * other.real - this.real * other.imaginary) / denominator,
+        }
+    }
+
+    /// Negate this value.
+    negate(): this.Output {
+        Complex { real: -this.real, imaginary: -this.imaginary }
+    }
+
+    /// Return whether both components are equal.
+    equal(other: Complex<T>): boolean {
+        this.real == other.real && this.imaginary == other.imaginary
+    }
+}

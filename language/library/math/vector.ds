@@ -1,12 +1,34 @@
-/// Fixed-width SIMD vector type.
+/// Fixed-width vector type.
 @languageItem("Vector")
 export newtype Vector<T, comptime N: int> = intrinsic;
+
+/// Return the number of lanes in `Vector<T, N>`.
+export type LaneCount<V> =
+    V extends Vector<infer T, infer N> ? N :
+    never;
+
+/// Return the element type in `Vector<T, N>`.
+export type LaneOf<V> =
+    V extends Vector<infer T, infer N> ? T :
+    never;
 
 /// Broadcast scalar to all lanes.
 ///
 /// Creates a vector with all lanes set to the same scalar value.
 @intrinsic("math.vector.splat")
 export declare function splat<T, comptime N: int>(value: T): Vector<T, N>;
+
+/// Return the lane at `index`.
+@intrinsic("math.vector.extract")
+export declare function extract<T, comptime N: int>(value: Vector<T, N>, index: uint32): T;
+
+/// Return a vector with one lane replaced.
+@intrinsic("math.vector.insert")
+export declare function insert<T, comptime N: int>(
+    vector: Vector<T, N>,
+    index: uint32,
+    value: T,
+): Vector<T, N>;
 
 /// Shuffle vector lanes.
 ///
@@ -27,6 +49,10 @@ export declare function select<T, comptime N: int>(
     a: Vector<T, N>,
     b: Vector<T, N>,
 ): Vector<T, N>;
+
+/// Convert vector lanes to `U`.
+@intrinsic("math.vector.convert")
+export declare function convert<U, T, comptime N: int>(value: Vector<T, N>): Vector<U, N>;
 
 /// Horizontal reduction: sum all lanes.
 @intrinsic("math.vector.reduce.add")
