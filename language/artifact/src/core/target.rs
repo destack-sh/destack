@@ -72,10 +72,6 @@ pub enum Platform {
     Redox,
     /// Hermit.
     Hermit,
-    /// iOS.
-    IOS,
-    /// Android.
-    Android,
     /// No operating system.
     None,
 }
@@ -99,8 +95,6 @@ impl std::str::FromStr for Platform {
             "fuchsia" => Ok(Self::Fuchsia),
             "redox" => Ok(Self::Redox),
             "hermit" | "hermitos" => Ok(Self::Hermit),
-            "ios" => Ok(Self::IOS),
-            "android" => Ok(Self::Android),
             "none" => Ok(Self::None),
             _ => Err(()),
         }
@@ -125,8 +119,6 @@ impl Platform {
             Self::Fuchsia => "fuchsia",
             Self::Redox => "redox",
             Self::Hermit => "hermit",
-            Self::IOS => "ios",
-            Self::Android => "android",
             Self::None => "none",
         }
     }
@@ -134,11 +126,6 @@ impl Platform {
     /// Parse from a string value.
     pub fn parse(s: &str) -> Option<Self> {
         s.parse().ok()
-    }
-
-    /// Whether this is a mobile platform.
-    pub fn is_mobile(&self) -> bool {
-        matches!(self, Self::IOS | Self::Android)
     }
 
     /// Whether this is a Unix-style platform.
@@ -154,8 +141,6 @@ impl Platform {
                 | Self::Solaris
                 | Self::Illumos
                 | Self::Haiku
-                | Self::IOS
-                | Self::Android
         )
     }
 
@@ -196,8 +181,6 @@ impl Platform {
             Self::Fuchsia => Some("fuchsia"),
             Self::Redox => Some("redox"),
             Self::Hermit => Some("hermit"),
-            Self::IOS => Some("ios"),
-            Self::Android => Some("android"),
             Self::None => Some("none"),
             Self::Unknown => None,
         }
@@ -411,7 +394,7 @@ impl TargetVendor {
     pub fn default_for_platform(platform: Platform) -> Self {
         match platform {
             Platform::Windows => Self::Pc,
-            Platform::MacOS | Platform::IOS => Self::Apple,
+            Platform::MacOS => Self::Apple,
             _ => Self::Unknown,
         }
     }
@@ -448,8 +431,6 @@ pub enum TargetAbi {
     MuslEabi,
     /// Musl + EABI hard-float.
     MuslEabihf,
-    /// Android.
-    Android,
     /// Other environment.
     Other(String),
 }
@@ -468,7 +449,6 @@ impl std::str::FromStr for TargetAbi {
             "eabihf" => Self::Eabihf,
             "musleabi" => Self::MuslEabi,
             "musleabihf" => Self::MuslEabihf,
-            "android" => Self::Android,
             other => Self::Other(other.to_string()),
         })
     }
@@ -485,7 +465,6 @@ impl TargetAbi {
         match platform {
             Platform::Linux => Some(Self::Gnu),
             Platform::Windows => Some(Self::Msvc),
-            Platform::Android => Some(Self::Android),
             _ => None,
         }
     }
@@ -501,7 +480,6 @@ impl TargetAbi {
             Self::Eabihf => "eabihf".to_string(),
             Self::MuslEabi => "musleabi".to_string(),
             Self::MuslEabihf => "musleabihf".to_string(),
-            Self::Android => "android".to_string(),
             Self::Other(value) => value.clone(),
         }
     }

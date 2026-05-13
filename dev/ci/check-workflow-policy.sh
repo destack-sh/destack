@@ -44,11 +44,6 @@ if rg -n "run: \\./dev/toolchain/runtime-" "${runtime_workflow_files[@]}"; then
 	exit 1
 fi
 
-if rg -n "run: \\./\\.github/scripts/install-runtime-android-ndk.sh" "${runtime_workflow_files[@]}"; then
-	echo "runtime workflows must call just language/install-runtime-android-ndk instead of .github/scripts directly" >&2
-	exit 1
-fi
-
 # bridge jobs should install with the canonical ensure entrypoint
 if rg -n "just bridge/install-toolchain" "${ci_file}" "${nightly_file}" "${release_file}"; then
 	echo "workflow bridge toolchain setup must use just bridge/ensure-toolchain" >&2
@@ -108,9 +103,7 @@ fi
 # scheduled and release runtime workflow files should exist
 if [ ! -f "${repository_root}/.github/workflows/runtime-linux-check.yml" ] ||
 	[ ! -f "${repository_root}/.github/workflows/runtime-macos-check.yml" ] ||
-	[ ! -f "${repository_root}/.github/workflows/runtime-windows-check.yml" ] ||
-	[ ! -f "${repository_root}/.github/workflows/runtime-ios-check.yml" ] ||
-	[ ! -f "${repository_root}/.github/workflows/runtime-android-check.yml" ]; then
+	[ ! -f "${repository_root}/.github/workflows/runtime-windows-check.yml" ]; then
 	echo "missing required runtime workflows" >&2
 	exit 1
 fi
@@ -137,14 +130,6 @@ fi
 
 # nightly and release should keep the full platform coverage
 for workflow_file in "${nightly_file}" "${release_file}"; do
-	if ! rg -n "^  runtime-android-check:" "${workflow_file}" >/dev/null; then
-		echo "$(basename "${workflow_file}") missing runtime-android-check full lane" >&2
-		exit 1
-	fi
-	if ! rg -n "^  runtime-ios-check:" "${workflow_file}" >/dev/null; then
-		echo "$(basename "${workflow_file}") missing runtime-ios-check full lane" >&2
-		exit 1
-	fi
 	if ! rg -n "^  runtime-linux-check:" "${workflow_file}" >/dev/null; then
 		echo "$(basename "${workflow_file}") missing runtime-linux-check full lane" >&2
 		exit 1
@@ -174,15 +159,4 @@ if ! rg -n "if: github.ref == 'refs/heads/main'" "${nightly_file}" >/dev/null; t
 	exit 1
 fi
 
-# tier 1 rows in target policy should keep the supported host targets
-if ! rg -n '^\| `x86_64-unknown-linux-gnu` \| Tier 1 \|' "${repository_root}/TARGETS.md" >/dev/null; then
-	echo "TARGETS.md must keep x86_64-unknown-linux-gnu in Tier 1" >&2
-	exit 1
-fi
-if ! rg -n '^\| `aarch64-unknown-linux-gnu` \| Tier 1 \|' "${repository_root}/TARGETS.md" >/dev/null; then
-	echo "TARGETS.md must keep aarch64-unknown-linux-gnu in Tier 1" >&2
-	exit 1
-fi
-"${script_directory}/check-target-policy-sync.sh"
 "${script_directory}/check-branch-protection-check-names.sh"
-"${script_directory}/check-release-tier1-dependencies.sh"

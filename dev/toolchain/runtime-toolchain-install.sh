@@ -2,8 +2,6 @@
 set -euo pipefail
 
 script_directory="$(cd "$(dirname "$0")" && pwd)"
-repository_root="$(cd "${script_directory}/../.." && pwd)"
-
 # shellcheck source=./dev/toolchain/versions.sh
 source "${script_directory}/versions.sh"
 
@@ -37,13 +35,8 @@ if ! rustup component list --installed | grep -E '^clippy(-|$)' >/dev/null 2>&1;
 fi
 
 # runtime target matrix
-runtime_ensure_rust_target aarch64-linux-android
 runtime_ensure_rust_target aarch64-unknown-linux-gnu
 runtime_ensure_rust_target x86_64-pc-windows-gnu
-
-if [ "${host_kernel}" = "Darwin" ]; then
-	runtime_ensure_rust_target aarch64-apple-ios
-fi
 
 if [ -z "$(runtime_command_path zig)" ]; then
 	if [ "${host_kernel}" = "Linux" ]; then
@@ -58,46 +51,6 @@ if [ -z "$(runtime_command_path zig)" ]; then
 		echo "install zig, then re-run: just language/install-toolchain" >&2
 		exit 1
 	fi
-fi
-
-# android sdk and ndk
-if ndk_root="$("${script_directory}"/resolve-android-ndk-root.sh 2>/dev/null)"; then
-	echo "android ndk already available: ${ndk_root}"
-else
-	if [ "${host_kernel}" = "Darwin" ]; then
-		default_android_sdk_root="${HOME}/Library/Android/sdk"
-	else
-		default_android_sdk_root="${HOME}/Android/Sdk"
-	fi
-
-	# install linux host dependencies for android sdk setup
-	if [ "${host_kernel}" = "Linux" ] && ! command -v curl >/dev/null 2>&1; then
-		echo "installing curl for android sdk setup"
-		runtime_linux_install_package curl
-	fi
-	if [ "${host_kernel}" = "Linux" ] && ! command -v unzip >/dev/null 2>&1; then
-		echo "installing unzip for android sdk setup"
-		runtime_linux_install_package unzip
-	fi
-	if [ "${host_kernel}" = "Linux" ] && ! command -v java >/dev/null 2>&1; then
-		echo "installing openjdk for android sdk setup"
-		runtime_linux_install_package openjdk-17-jre-headless
-	fi
-
-	if ! command -v curl >/dev/null 2>&1 || ! command -v unzip >/dev/null 2>&1; then
-		echo "android ndk is missing and curl/unzip are required to install it" >&2
-		echo "install curl and unzip, then re-run: just language/install-toolchain" >&2
-		exit 1
-	fi
-	if ! command -v java >/dev/null 2>&1; then
-		echo "android ndk is missing and java is required to run sdkmanager" >&2
-		echo "install one jre or jdk and re-run: just language/install-toolchain" >&2
-		exit 1
-	fi
-
-	echo "installing android sdk cmdline tools and ndk"
-	ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-${default_android_sdk_root}}" \
-		"${repository_root}/.github/scripts/install-runtime-android-ndk.sh"
 fi
 
 # weston is required for the linux wayland display lane

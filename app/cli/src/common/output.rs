@@ -143,10 +143,6 @@ pub enum PlatformArg {
     Macos,
     /// Linux.
     Linux,
-    /// iOS.
-    Ios,
-    /// Android.
-    Android,
     /// WASI.
     Wasi,
     /// Universal/portable.
@@ -160,8 +156,6 @@ impl From<PlatformArg> for Platform {
             PlatformArg::Windows => Platform::Windows,
             PlatformArg::Macos => Platform::MacOS,
             PlatformArg::Linux => Platform::Linux,
-            PlatformArg::Ios => Platform::IOS,
-            PlatformArg::Android => Platform::Android,
             PlatformArg::Wasi => Platform::Wasi,
             PlatformArg::Universal => Platform::Universal,
         }

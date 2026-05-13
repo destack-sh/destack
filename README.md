@@ -56,16 +56,6 @@ Software "engineering" is _still_ anything but, and while our tools have gotten 
 We have increasingly grown accustomed to the acrued sediment of software being buggy, slow and fragmented, but it doesn't have to be this way. 
 See [Rationale](RATIONALE.md).
 
-## Platforms
-
-Destack treats the web as a first-class target and also runs natively on Linux, macOS, and Windows as Tier 1 targets, with mobile (iOS, Android) still (very) experimental.
-See [TARGETS.md](TARGETS.md).
-
-| Tier | Target triples |
-|------|----------------|
-| **Tier 1**: full support | `aarch64-apple-darwin`, `x86_64-pc-windows-msvc`, `x86_64-unknown-linux-gnu`, `aarch64-unknown-linux-gnu` |
-| **Tier 2**: pending support | `aarch64-apple-ios`, `aarch64-linux-android` |
-
 ## Contributing
 
 Destack is in [very active development](https://github.com/destack-sh/destack/commits/main/) with a singular focus: a fully integrated computing stack for building optimal, correct, integrated software systems.

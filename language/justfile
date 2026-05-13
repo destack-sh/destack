@@ -2,8 +2,8 @@ set shell := ["bash", "-cu"]
 set windows-shell := ["C:/Program Files/Git/bin/bash.exe", "-cu"]
 
 # all language crates
-packages := "-p destack_artifact -p destack_artifact_macros -p destack_ast -p destack_codegen_js -p destack_codegen_lib -p destack_codegen_native -p destack_compiler -p destack_core -p destack_css -p destack_dir -p destack_engine -p destack_fir -p destack_formatter -p destack_heap -p destack_html -p destack_js -p destack_json -p destack_linter -p destack_linter_macros -p destack_lsp -p destack_lsp_server -p destack_lsp_types -p destack_mir -p destack_native -p destack_parser -p destack_query -p destack_resolver -p destack_runtime -p destack_runtime_abi -p destack_service -p destack_session -p destack_source -p destack_test -p destack_unicode -p destack_vm -p destack_workspace"
-packages-no-linter := "-p destack_artifact -p destack_artifact_macros -p destack_ast -p destack_codegen_js -p destack_codegen_lib -p destack_codegen_native -p destack_compiler -p destack_core -p destack_css -p destack_dir -p destack_engine -p destack_fir -p destack_formatter -p destack_heap -p destack_html -p destack_js -p destack_json -p destack_linter_macros -p destack_lsp -p destack_lsp_server -p destack_lsp_types -p destack_mir -p destack_native -p destack_parser -p destack_query -p destack_resolver -p destack_runtime -p destack_runtime_abi -p destack_service -p destack_session -p destack_source -p destack_test -p destack_unicode -p destack_vm -p destack_workspace"
+packages := "-p destack_artifact -p destack_artifact_macros -p destack_ast -p destack_codegen_js -p destack_codegen_lib -p destack_codegen_native -p destack_compiler -p destack_core -p destack_css -p destack_dir -p destack_engine -p destack_fir -p destack_formatter -p destack_heap -p destack_html -p destack_js -p destack_json -p destack_linter -p destack_linter_macros -p destack_lsp -p destack_lsp_server -p destack_lsp_types -p destack_mir -p destack_native -p destack_parser -p destack_query -p destack_resolver -p destack_runtime -p destack_service -p destack_session -p destack_source -p destack_test -p destack_unicode -p destack_vm -p destack_workspace"
+packages-no-linter := "-p destack_artifact -p destack_artifact_macros -p destack_ast -p destack_codegen_js -p destack_codegen_lib -p destack_codegen_native -p destack_compiler -p destack_core -p destack_css -p destack_dir -p destack_engine -p destack_fir -p destack_formatter -p destack_heap -p destack_html -p destack_js -p destack_json -p destack_linter_macros -p destack_lsp -p destack_lsp_server -p destack_lsp_types -p destack_mir -p destack_native -p destack_parser -p destack_query -p destack_resolver -p destack_runtime -p destack_service -p destack_session -p destack_source -p destack_test -p destack_unicode -p destack_vm -p destack_workspace"
 
 _default:
     @just --list --unsorted
@@ -82,46 +82,6 @@ ensure-toolchain:
 lint-toolchain:
     bash ../dev/toolchain/runtime-toolchain.sh lint
 
-# check runtime for android target using one configured ndk toolchain
-check-runtime-android-rust:
-    bash ../dev/toolchain/check-runtime-android-rust.sh
-
-# check runtime for android target and android host shell together
-check-runtime-android:
-    bash ../dev/toolchain/check-runtime-android.sh
-
-# check android host formatting and lint lanes
-check-runtime-android-host-style:
-    bash ../dev/toolchain/check-runtime-android-host-style.sh
-
-# check the android host shell project
-check-runtime-android-host:
-    bash ../dev/toolchain/check-runtime-android-host.sh
-
-# format the android host shell project
-format-runtime-android-host:
-    bash ../dev/toolchain/format-runtime-android-host.sh
-
-# ensure android host dependencies needed by sdkmanager setup
-install-runtime-android-host-deps:
-    bash ../dev/toolchain/install-runtime-android-host-deps.sh
-
-# install android sdk commandline tools and ndk into the active sdk root
-install-runtime-android-ndk:
-    bash ../.github/scripts/install-runtime-android-ndk.sh
-
-# check runtime for ios target using active xcode sdk
-check-runtime-ios-rust:
-    bash ../dev/toolchain/check-runtime-ios-rust.sh
-
-# check runtime for ios target and ios host shell together
-check-runtime-ios:
-    bash ../dev/toolchain/check-runtime-ios.sh
-
-# check the ios host shell package build
-check-runtime-ios-host:
-    bash ../dev/toolchain/check-runtime-ios-host.sh
-
 # check runtime on linux host
 check-runtime-linux:
     bash ../dev/toolchain/check-runtime-linux.sh
@@ -148,27 +108,9 @@ check-runtime-macos-rust:
     LC_ALL=C LANG=C LC_CTYPE=C CARGO_INCREMENTAL=0 cargo clippy -p destack_runtime --all-targets -- -D warnings
     LC_ALL=C LANG=C LC_CTYPE=C CARGO_INCREMENTAL=0 just _run-rust-test -p destack_runtime -- --nocapture
 
-# check runtime on macos host and shared apple host shell together
+# check runtime on macos host
 check-runtime-macos:
     just check-runtime-macos-rust
-    just check-runtime-apple-host
-
-# check shared apple host formatting and lint lanes
-check-runtime-apple-host-style:
-    bash ../dev/toolchain/check-runtime-apple-host-style.sh
-
-# check the shared apple host package tests
-check-runtime-apple-host:
-    bash ../dev/toolchain/check-runtime-apple-host.sh
-
-# format the shared apple host package
-format-runtime-apple-host:
-    bash ../dev/toolchain/format-runtime-apple-host.sh
-
-# format the mobile runtime host shells
-format-runtime-hosts:
-    just format-runtime-android-host
-    just format-runtime-apple-host
 
 # check runtime on windows host
 check-runtime-windows-msvc:

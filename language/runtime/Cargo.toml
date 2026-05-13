@@ -22,8 +22,6 @@ audio-backends-default = [
     "audio-pipewire",
     "audio-pulseaudio",
     "audio-jack",
-    "audio-aaudio",
-    "audio-opensles",
 ]
 audio-wasapi = []
 audio-asio = []
@@ -33,8 +31,6 @@ audio-alsa = []
 audio-pipewire = []
 audio-pulseaudio = []
 audio-jack = []
-audio-aaudio = []
-audio-opensles = []
 
 [dependencies]
 # language
@@ -53,175 +49,27 @@ destack_unicode = { workspace = true }
 destack_vm = { workspace = true }
 destack_workspace = { workspace = true }
 
-# general
-base64 = { workspace = true }
-argon2 = { workspace = true }
-cfg-if = { workspace = true }
-foreign-types-shared = { workspace = true }
-jiff = { workspace = true }
 libc = { workspace = true }
 postcard = { workspace = true }
 parking_lot = { workspace = true }
 serde = { workspace = true, features = ["derive", "rc"] }
-serde_json = { workspace = true }
 rustc-hash = { workspace = true }
-smallvec = { workspace = true }
-tracing = { workspace = true }
-zeroize = { workspace = true }
 
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-getrandom = { workspace = true }
-
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-# FUGU #Architecture: finally rip out the whole getrandom runtime dependency (and any other stray ones..?)
-getrandom = { workspace = true, features = ["wasm_js"] }
-
-[target.'cfg(any(unix, windows))'.dependencies]
-notify = { workspace = true }
-notify-rust = { workspace = true }
-openssl = { workspace = true, features = ["vendored"] }
-openssl-sys = { workspace = true }
-rustls = { workspace = true, features = ["ring", "std"] }
-rustls-pemfile = { workspace = true }
-
-[target.'cfg(all(unix, not(target_vendor = "apple")))'.dependencies]
-vobject = { workspace = true }
-zbus = { workspace = true }
-
-[target.'cfg(windows)'.dependencies]
-windows = { workspace = true, features = [
-    "Devices_Bluetooth",
-    "Devices_Bluetooth_Advertisement",
-    "Devices_Bluetooth_GenericAttributeProfile",
-    "ApplicationModel_Appointments",
-    "ApplicationModel_Contacts",
-    "Data_Xml_Dom",
-    "Devices_Geolocation",
-    "Devices_Enumeration",
-    "Devices_Radios",
-    "Devices_Midi",
-    "Graphics_Imaging",
-    "Foundation",
-    "Foundation_Collections",
-    "Media_Capture",
-    "Media_Capture_Frames",
-    "Media_Devices",
-    "Media_MediaProperties",
-    "Storage_Streams",
-    "UI_Notifications",
-    "Win32_Storage_Packaging_Appx",
-    "Win32_Security",
-    "Win32_System_Registry",
-    "Win32_Foundation",
-    "Win32_System_Com",
-    "Win32_System_Com_StructuredStorage",
-    "Win32_System_Ole",
-    "Win32_System_TaskScheduler",
-    "Win32_System_Variant",
-    "Win32_System_WinRT",
-    "Win32_Storage_EnhancedStorage",
-    "Win32_UI_Shell",
-    "Win32_UI_Shell_Common",
-    "Win32_UI_Notifications",
-    "Win32_UI_Shell_PropertiesSystem",
-    "Win32_UI_WindowsAndMessaging",
-] }
-windows-core = { workspace = true }
-windows-collections = { workspace = true }
-windows-future = { workspace = true }
 windows-sys = { workspace = true, features = [
-    "Win32_Devices_Communication",
     "Win32_Foundation",
-    "Win32_Globalization",
-    "Win32_NetworkManagement_IpHelper",
-    "Win32_NetworkManagement_Ndis",
-    "Win32_Security",
-    "Win32_Security_Credentials",
     "Win32_Security_Cryptography",
-    "Win32_Security_Authorization",
-    "Win32_System_Kernel",
-    "Win32_System_Console",
-    "Win32_System_Diagnostics_ToolHelp",
-    "Win32_System_Environment",
     "Win32_Networking_WinSock",
-    "Win32_Media_Audio",
-    "Win32_Media_Multimedia",
-    "Win32_System_Com_StructuredStorage",
-    "Win32_Devices_HumanInterfaceDevice",
-    "Win32_Devices_DeviceAndDriverInstallation",
-    "Win32_Devices_Properties",
-    "Win32_Devices_Display",
-    "Win32_Storage_FileSystem",
-    "Win32_System_Com",
-    "Win32_System_DataExchange",
-    "Win32_System_IO",
-    "Win32_System_Ioctl",
-    "Win32_System_LibraryLoader",
-    "Win32_System_Memory",
-    "Win32_System_Ole",
     "Win32_System_Performance",
-    "Win32_System_Power",
-    "Win32_System_Pipes",
-    "Win32_System_Registry",
     "Win32_System_Threading",
     "Win32_System_SystemInformation",
     "Win32_System_Time",
-    "Win32_System_Variant",
-    "Win32_System_WindowsProgramming",
-    "Win32_UI_Input",
-    "Win32_UI_Accessibility",
-    "Win32_UI_Shell",
-    "Win32_UI_Input_KeyboardAndMouse",
-    "Win32_UI_Input_Ime",
-    "Win32_UI_Shell_PropertiesSystem",
-    "Win32_UI_Input_Touch",
-    "Win32_UI_Input_XboxController",
-    "Win32_UI_HiDpi",
-    "Win32_UI_ColorSystem",
-    "Win32_Graphics_Dwm",
-    "Win32_Graphics_Gdi",
-    "Win32_UI_WindowsAndMessaging",
-    "Win32_Devices_BiometricFramework",
-    "Wdk_Foundation",
-    "Wdk_System_SystemServices",
-    "Wdk_Storage_FileSystem",
 ] }
-
-[target.'cfg(target_vendor = "apple")'.dependencies]
-block2 = { workspace = true }
-core-foundation-sys = { workspace = true }
-objc2 = { workspace = true, features = ["exception"] }
-security-framework-sys = { workspace = true }
-objc2-user-notifications = { workspace = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 io-uring = { workspace = true }
-keyring = { workspace = true, features = ["linux-native-sync-persistent", "crypto-rust", "vendored"] }
-udev = { workspace = true }
-v4l2-sys-mit = { workspace = true }
-wayland-client = { workspace = true }
-wayland-protocols = { workspace = true }
-wayland-protocols-wlr = { workspace = true }
-x11rb = { workspace = true, features = ["allow-unsafe-code", "randr", "shape", "xfixes"] }
-
-[target.'cfg(target_os = "macos")'.dependencies]
-dispatch2 = { workspace = true }
-objc2-app-kit = { workspace = true, features = ["NSControl", "NSResponder", "NSText", "NSTextField", "NSTextView", "NSView", "objc2-uniform-type-identifiers"] }
-objc2-av-foundation = { workspace = true, features = ["AVCaptureOutputBase", "AVCapturePhotoOutput", "AVVideoSettings", "objc2-core-media"] }
-objc2-core-bluetooth = { workspace = true }
-objc2-contacts = { workspace = true }
-objc2-core-location = { workspace = true }
-objc2-core-foundation = { workspace = true }
-objc2-core-graphics = { workspace = true }
-objc2-core-media = { workspace = true }
-objc2-core-video = { workspace = true }
-objc2-event-kit = { workspace = true }
-objc2-foundation = { workspace = true }
-objc2-uniform-type-identifiers = { workspace = true }
 
 [dev-dependencies]
 destack_compiler = { workspace = true }
-rustls-native-certs = { workspace = true }
 
 [lints]
 workspace = true
