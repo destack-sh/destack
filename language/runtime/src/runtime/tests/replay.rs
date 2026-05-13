@@ -1,24 +1,21 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use crate::diagnostic::RuntimeError;
-use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::{
-    PlatformError, ResourceBacking, ResourceCapture, ResourceId, ResourcePortability,
-};
-use crate::runtime::WorkerId;
-use crate::runtime::binding::{
+use crate::diagnostic::{HostErrorCode, RuntimeError};
+use crate::host::binding::{
     BindingAffinity, BindingDescriptor, BindingEffect, BindingId, BindingProvider,
     BindingReplayKind, BindingReplayPayload, RuntimeAccess,
 };
+use crate::host::{HostError, ResourceBacking, ResourceCapture, ResourceId, ResourcePortability};
+use crate::runtime::WorkerId;
 use crate::runtime::engine::Entry;
-use crate::runtime::policy::{CallSelector, Rule, RuleAction, RuleId};
 use crate::runtime::random::RandomStreamId;
 use crate::runtime::time::Instant;
-use crate::runtime::trace::{
+use crate::world::policy::{CallSelector, Rule, RuleAction, RuleId};
+use crate::world::trace::{
     EntropyKind, EntropySubject, EnvironmentConfig, Trace, TraceError, TraceHeader,
 };
-use crate::runtime::world::{Command, Entity, EntityDefinition, EntityKind, Resource, RuntimeId};
+use crate::world::{Command, Entity, EntityDefinition, EntityKind, Resource, RuntimeId};
 use destack_vm as vm;
 use destack_workspace::config::ExecutionMode;
 use serde::{Deserialize, Serialize};
@@ -234,10 +231,10 @@ fn test_replay_random_u64_executes_replay_hook() {
     assert_eq!(hook_count.load(Ordering::Relaxed), 1);
 }
 
-/// Entropy replay preserves platform errors for deterministic time paths.
+/// Entropy replay preserves host errors for deterministic time paths.
 #[test]
-fn test_replay_entropy_platform_error_roundtrip() {
-    // record one time read that fails with one platform error
+fn test_replay_entropy_host_error_roundtrip() {
+    // record one time read that fails with one host error
     let record_state = Trace::new(ExecutionMode::Record, test_trace_header());
     let subject = test_entropy_subject("destack.test.time.wall.error");
     let record_error = record_state
@@ -245,26 +242,22 @@ fn test_replay_entropy_platform_error_roundtrip() {
             EntropyKind::TimeReadWall,
             subject,
             || {},
-            || Err(RuntimeError::from(PlatformError::time(None, "clock unavailable")).boxed()),
+            || Err(RuntimeError::from(HostError::time(None, "clock unavailable")).boxed()),
         )
         .expect_err("record time read error");
-    let record_platform_error = record_error
-        .platform_error()
-        .expect("record platform error");
-    assert_eq!(record_platform_error.code, PlatformErrorCode::Time);
+    let record_host_error = record_error.host_error().expect("record host error");
+    assert_eq!(record_host_error.code, HostErrorCode::Time);
 
     // replay the same error from the recorded entropy event
     let replay_state = Trace::from_log(ExecutionMode::Replay, record_state.log().clone());
     let replay_error = replay_state
         .run_time_read(EntropyKind::TimeReadWall, subject, || {}, || Ok(1))
         .expect_err("replay time read error");
-    let replay_platform_error = replay_error
-        .platform_error()
-        .expect("replay platform error");
+    let replay_host_error = replay_error.host_error().expect("replay host error");
 
-    // verify replay preserved platform error fields
-    assert_eq!(replay_platform_error.code, record_platform_error.code);
-    assert_eq!(replay_platform_error.message, record_platform_error.message);
+    // verify replay preserved host error fields
+    assert_eq!(replay_host_error.code, record_host_error.code);
+    assert_eq!(replay_host_error.message, record_host_error.message);
 }
 
 /// Entropy replay preserves non-platform runtime error variants.

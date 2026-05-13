@@ -9,27 +9,26 @@ use destack_workspace::{RuntimeOptions, SchedulerOptions};
 use {destack_engine as engine, destack_heap as heap, destack_vm as vm};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::{
-    HostEvent, HostEventKind, HostLifecycleEvent, HostLifecycleSourceKind, HostLifecycleState,
-    Session,
-};
-use crate::platform::ResourceId;
-use crate::platform::time::TimerClock;
-use crate::runtime::binding::BindingEngine;
-use crate::runtime::engine::{Context, Continuation, Engine, Entry, Outcome};
-use crate::runtime::poller::{
-    HostPoller, HostPollerFlags, PlatformHandle, PlatformInterest, PollerEvent, PollerEventFlags,
+use crate::host::binding::BindingEngine;
+use crate::host::poller::{
+    HostHandle, HostPoller, HostPollerFlags, PollInterest, PollerEvent, PollerEventFlags,
     PollerEventMask, PollerEventPayload, PollerEventSource, PollerToken, PollerWakeHandle,
 };
+use crate::host::time::{HostClockSource, TimerClock};
+use crate::host::{
+    HostEvent, HostEventKind, HostSession, LifecycleEvent, LifecycleSourceKind, LifecycleState,
+    ResourceId,
+};
+use crate::runtime::engine::{Context, Continuation, Engine, Entry, Outcome};
 use crate::runtime::scheduler::{
     Microtask, MicrotaskId, Task, TaskId, TaskStatus, Timer, TimerDeadline,
 };
-use crate::runtime::time::{HostClockSource, Nanos};
-use crate::runtime::world::{Branch, CheckpointId, EntityDefinition, Revision};
+use crate::runtime::time::Nanos;
 use crate::runtime::{
-    BindingCallContext, DropCounts, Runtime, RuntimeId, SharedHeap, TickResult, Worker, WorkerId,
-    WorkerOptions, World, WorldState,
+    BindingCallContext, Runtime, RuntimeId, SharedHeap, TickResult, Worker, WorkerId,
+    WorkerOptions, World, WorldState, current_runnable_scope,
 };
+use crate::world::{Branch, CheckpointId, EntityDefinition, Revision};
 
 /// Test host clock source for deterministic host-time runtime tests.
 #[derive(Debug, Default)]
@@ -86,16 +85,22 @@ pub(super) fn test_resource_id(local_id: u64) -> ResourceId {
 /// Build one native binding call context for runtime tests.
 pub(super) fn binding_call_context(
     worker: &mut Worker,
-    host: &Session,
+    host: &HostSession,
     world: &mut WorldState,
 ) -> BindingCallContext {
-    BindingCallContext::from_raw(
-        worker as *mut Worker,
-        worker.event_loop.as_ref() as *const _,
-        host as *const Session,
-        world as *mut WorldState,
-        BindingEngine::Native,
-    )
+    let execution_context = worker
+        .event_loop
+        .execution_context(host.is_process_main_context());
+
+    BindingCallContext {
+        worker: worker as *mut Worker,
+        event_loop: worker.event_loop.as_ref() as *const _,
+        host: host as *const HostSession,
+        world: world as *mut WorldState,
+        engine: BindingEngine::Native,
+        scope: current_runnable_scope(),
+        execution_context,
+    }
 }
 
 impl HostClockSource for TestHostClockSource {
@@ -170,7 +175,7 @@ impl From<TestEngine> for Engine {
 /// Build one VM isolate from MIR text.
 pub(super) fn vm_engine_from_mir(mir: &str) -> vm::Isolate {
     let (tree, strings) = Parser::parse(FileId::new(0), mir, ParseOptions::default())
-        .validate()
+        .finish()
         .expect("runtime test MIR should parse");
 
     vm::Isolate::build_with_options(
@@ -193,8 +198,8 @@ pub(super) struct TestRuntime {
     shared: SharedHeap,
     /// Runtime-owned static bytes used by the worker.
     runtime_static: engine::StaticSpace,
-    /// Wrapped host under test.
-    host: Session,
+    /// Wrapped host session under test.
+    host: HostSession,
 }
 
 /// Test harness for multi-worker runtime scheduler tests.
@@ -583,9 +588,9 @@ impl HostPoller for TestPoller {
     fn register(
         &mut self,
         _resource_id: ResourceId,
-        _handle: PlatformHandle,
+        _handle: HostHandle,
         _token: PollerToken,
-        _interests: PlatformInterest,
+        _interests: PollInterest,
         _flags: HostPollerFlags,
     ) -> RuntimeResult<()> {
         Ok(())
@@ -596,7 +601,7 @@ impl HostPoller for TestPoller {
         &mut self,
         _resource_id: ResourceId,
         _token: PollerToken,
-        _interests: PlatformInterest,
+        _interests: PollInterest,
         _flags: HostPollerFlags,
     ) -> RuntimeResult<()> {
         Ok(())
@@ -849,11 +854,11 @@ impl TestRuntime {
     }
 
     /// Enqueue one synthetic lifecycle host event for dispatch tests.
-    pub(super) fn enqueue_lifecycle_host_event(&mut self, state: HostLifecycleState) {
+    pub(super) fn enqueue_lifecycle_host_event(&mut self, state: LifecycleState) {
         self.worker
             .event_loop
-            .enqueue_host_events(vec![HostEvent::Lifecycle(HostLifecycleEvent {
-                source_kind: HostLifecycleSourceKind::Application,
+            .enqueue_host_events(vec![HostEvent::Lifecycle(LifecycleEvent {
+                source_kind: LifecycleSourceKind::Application,
                 state,
             })]);
     }
@@ -978,11 +983,6 @@ impl TestRuntime {
         )
     }
 
-    /// Return event-loop drop accounting.
-    pub(super) fn drop_counts(&self) -> DropCounts {
-        self.worker.drop_counts()
-    }
-
     /// Return current runtime wall time in nanoseconds.
     pub(super) fn wall_nanos(&self) -> u64 {
         self.world.wall_nanos()
@@ -1062,14 +1062,6 @@ impl TestMultiAgentRuntime {
         runtime.set_poller(poller);
     }
 
-    /// Return runtime-level drop accounting.
-    pub(super) fn drop_counts(&self) -> DropCounts {
-        self.world
-            .runtime(self.runtime_id)
-            .expect("runtime should exist")
-            .drop_counts()
-    }
-
     /// Return current world wall time in nanoseconds.
     pub(super) fn wall_nanos(&self) -> u64 {
         self.world.wall_nanos()
@@ -1114,7 +1106,7 @@ impl TestMultiAgentRuntime {
 #[allow(dead_code)]
 fn worker_for_options(
     options: &RuntimeOptions,
-) -> (World, SharedHeap, engine::StaticSpace, Worker, Session) {
+) -> (World, SharedHeap, engine::StaticSpace, Worker, HostSession) {
     agent_for_options_with_engine(options, TestEngine::default())
 }
 
@@ -1131,7 +1123,7 @@ pub(super) fn runtime_shared_heap(world: &World, options: &RuntimeOptions) -> Sh
 fn agent_for_options_with_host_clock_source(
     options: &RuntimeOptions,
     host_clock_source: Option<Arc<dyn HostClockSource>>,
-) -> (World, SharedHeap, engine::StaticSpace, Worker, Session) {
+) -> (World, SharedHeap, engine::StaticSpace, Worker, HostSession) {
     agent_for_options_with_engine_and_host_clock_source(
         options,
         TestEngine::default(),
@@ -1143,7 +1135,7 @@ fn agent_for_options_with_host_clock_source(
 fn agent_for_options_with_engine(
     options: &RuntimeOptions,
     engine: impl Into<Engine>,
-) -> (World, SharedHeap, engine::StaticSpace, Worker, Session) {
+) -> (World, SharedHeap, engine::StaticSpace, Worker, HostSession) {
     agent_for_options_with_engine_and_host_clock_source(options, engine, None)
 }
 
@@ -1152,7 +1144,7 @@ fn agent_for_options_with_engine_and_host_clock_source(
     options: &RuntimeOptions,
     engine: impl Into<Engine>,
     host_clock_source: Option<Arc<dyn HostClockSource>>,
-) -> (World, SharedHeap, engine::StaticSpace, Worker, Session) {
+) -> (World, SharedHeap, engine::StaticSpace, Worker, HostSession) {
     let mut world = if let Some(host_clock_source) = host_clock_source.clone() {
         World::new(options, Some(host_clock_source)).expect("runtime test world should build")
     } else {
@@ -1184,8 +1176,8 @@ fn agent_for_options_with_engine_and_host_clock_source(
     // apply runtime options to binding policy state
     worker.bindings.apply_runtime_defaults(options);
 
-    // build the host for this test worker
-    let host = Session::from_runtime_options(options, worker.runtime_id);
+    // build the host session for this test worker
+    let host = HostSession::from_runtime_id(worker.runtime_id);
 
     // drain initial host bootstrap events for deterministic scheduler tests
     host.poll(Some(0))

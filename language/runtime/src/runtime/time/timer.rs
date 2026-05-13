@@ -1,5 +1,5 @@
 use crate::diagnostic::RuntimeResult;
-use crate::platform::{ResourceTable, resource};
+use crate::host::{ResourceTable, resource};
 use crate::runtime::time::Clock;
 use destack_workspace::TimeMode;
 

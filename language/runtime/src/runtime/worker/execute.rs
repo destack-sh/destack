@@ -1,18 +1,14 @@
-use super::{
-    BindingCallContext, RunnableScope, Worker, WorkerCallbackHandle, current_runnable_scope,
-    enter_binding_call_context, enter_current_worker_context, enter_runnable_scope,
-};
+use super::{RunnableScope, Worker, current_runnable_scope, enter_runnable_scope};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::Session;
-use crate::platform::resource;
+use crate::host::poller::HostPoller;
+use crate::host::{HostSession, resource};
+use crate::runtime::SharedHeap;
 use crate::runtime::engine::{Context, Continuation, Entry, Outcome};
-use crate::runtime::poller::HostPoller;
 use crate::runtime::scheduler::{
     Microtask, Runnable, Task, TaskId, TaskStatus, Timer, TimerHandle,
 };
 use crate::runtime::time::timer::on_event_loop_timer_fire;
-use crate::runtime::world::WorldState;
-use crate::runtime::{DropReason, SharedHeap};
+use crate::world::WorldState;
 use destack_workspace::TimeMode;
 use {destack_engine as engine, destack_heap as heap};
 
@@ -23,23 +19,11 @@ impl Worker {
         world: &mut WorldState,
         shared: &SharedHeap,
         runtime_static: &engine::StaticSpace,
-        host: &Session,
+        host: &HostSession,
         entry: &Entry,
         args: &[engine::Value],
         poller: &mut dyn HostPoller,
     ) -> RuntimeResult<engine::Value> {
-        let worker_ptr = self as *mut Worker;
-        let event_loop = self.event_loop.as_ref() as *const _;
-        let host_ptr = host as *const Session;
-        let world_ptr = world as *mut WorldState;
-        let _context_guard = enter_current_worker_context(
-            worker_ptr,
-            event_loop,
-            host_ptr,
-            world_ptr,
-            host.is_process_main_context(),
-        );
-
         // execute the entrypoint with yielding enabled
         let _guard = enter_runnable_scope(RunnableScope::empty());
         let context = Context {
@@ -91,7 +75,7 @@ impl Worker {
         world: &mut WorldState,
         shared: &SharedHeap,
         runtime_static: &engine::StaticSpace,
-        host: &Session,
+        host: &HostSession,
         target_task: Option<TaskId>,
         timeout_nanos: Option<u64>,
         poller: &mut dyn HostPoller,
@@ -153,7 +137,7 @@ impl Worker {
         world: &mut WorldState,
         shared: &SharedHeap,
         runtime_static: &engine::StaticSpace,
-        host: &Session,
+        host: &HostSession,
     ) -> RuntimeResult<bool> {
         self.tick_once(world, shared, runtime_static, host)
     }
@@ -164,7 +148,7 @@ impl Worker {
         world: &mut WorldState,
         shared: &SharedHeap,
         runtime_static: &engine::StaticSpace,
-        host: &Session,
+        host: &HostSession,
     ) -> RuntimeResult<bool> {
         // run one event loop tick and capture progress
         let (mut progressed, _) = self.tick_loop(world, shared, runtime_static, host, None)?;
@@ -327,21 +311,9 @@ impl Worker {
         world: &mut WorldState,
         shared: &SharedHeap,
         runtime_static: &engine::StaticSpace,
-        host: &Session,
+        host: &HostSession,
         target_task: Option<TaskId>,
     ) -> RuntimeResult<(bool, Option<engine::Value>)> {
-        let worker_ptr = self as *mut Worker;
-        let event_loop = self.event_loop.as_ref() as *const _;
-        let host_ptr = host as *const Session;
-        let world_ptr = world as *mut WorldState;
-        let _context_guard = enter_current_worker_context(
-            worker_ptr,
-            event_loop,
-            host_ptr,
-            world_ptr,
-            host.is_process_main_context(),
-        );
-
         // track whether this tick processed any event loop work
         let mut progressed = false;
         let tick_start_mono_nanos = world.mono_nanos();
@@ -415,22 +387,12 @@ impl Worker {
                     if let Some(task) = self.event_loop.task_for_event(event, &mut self.engine) {
                         self.enqueue_prepared_task(world, task)?;
                     }
-                    // drop stale and unregistered events without crashing the loop
-                    else {
-                        self.event_loop
-                            .record_drop(DropReason::UnwatchedDispatch, 1);
-                    }
                 }
                 Runnable::HostEvent(event) => {
                     // dispatch one host-event watch task when one is registered
                     if let Some(task) = self.event_loop.task_for_host_event(event, &mut self.engine)
                     {
                         self.enqueue_prepared_task(world, task)?;
-                    }
-                    // account for unconsumed host semantic events
-                    else {
-                        self.event_loop
-                            .record_drop(DropReason::UnwatchedDispatch, 1);
                     }
                 }
             }
@@ -456,17 +418,10 @@ impl Worker {
     ) -> RuntimeResult<()> {
         // worker-owned callbacks
         match timer.handle {
-            TimerHandle::Internal(handle) => {
-                let binding = BindingCallContext::from_current_worker_for_native()?;
-                let _guard = enter_binding_call_context(&binding);
-
-                self.worker_callbacks.service_due_callback(
-                    &binding,
-                    WorkerCallbackHandle::from_internal_id(handle),
-                )?;
-
-                Ok(())
+            TimerHandle::Internal(_) => Err(RuntimeError::Internal {
+                message: "internal timer fired without an owner".to_string(),
             }
+            .boxed()),
             TimerHandle::Resource(handle) => {
                 let should_dispatch = on_event_loop_timer_fire(
                     &self.resources,
@@ -679,7 +634,7 @@ impl Worker {
     fn wait_for_next_turn(
         &mut self,
         world: &mut WorldState,
-        host: &Session,
+        host: &HostSession,
         poller: &mut dyn HostPoller,
     ) -> RuntimeResult<bool> {
         // virtual mode never blocks: callers must advance virtual time explicitly
@@ -717,23 +672,17 @@ impl Worker {
         Ok(timeout_nanos.is_some())
     }
 
-    /// Poll host events and enqueue host semantic events.
+    /// Poll host events and enqueue host events.
     fn poll_host_events(
         &mut self,
-        host: &Session,
+        host: &HostSession,
         timeout_nanos: Option<u64>,
     ) -> RuntimeResult<usize> {
         // drain host events for this tick
         let poll_result = host.poll(timeout_nanos)?;
         let host_events = poll_result.events;
 
-        // record dropped host queue events from host-side queue policy
-        let dropped_host_events = poll_result.dropped_event_count;
-        if dropped_host_events > 0 {
-            self.record_drop(DropReason::QueuePressure, dropped_host_events);
-        }
-
-        // enqueue host semantic events for watch-based dispatch
+        // enqueue host events for watch-based dispatch
         let host_event_count = host_events.len();
         if !host_events.is_empty() {
             self.event_loop.enqueue_host_events(host_events);

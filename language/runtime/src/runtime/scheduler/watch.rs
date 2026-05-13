@@ -1,9 +1,8 @@
 use super::{EventLoop, EventLoopWatch, Task, TaskStatus, Timer};
 use crate::diagnostic::RuntimeResult;
-use crate::host::{HostEvent, HostEventKind};
-use crate::platform::ResourceId;
+use crate::host::poller::{PollerEvent, PollerToken};
+use crate::host::{HostEvent, HostEventKind, ResourceId};
 use crate::runtime::engine::{Continuation, Engine};
-use crate::runtime::poller::{PollerEvent, PollerToken};
 use destack_engine as engine;
 impl EventLoop {
     /// Register one timer watch.
@@ -51,7 +50,7 @@ impl EventLoop {
         self.poller_event_watches.contains_key(&token)
     }
 
-    /// Register one host semantic event watch.
+    /// Register one host event watch.
     pub fn watch_host_event(
         &mut self,
         kind: HostEventKind,
@@ -66,12 +65,12 @@ impl EventLoop {
         Ok(())
     }
 
-    /// Remove the host semantic event watch registered for one kind.
+    /// Remove the host event watch registered for one kind.
     pub fn unwatch_host_event(&mut self, kind: HostEventKind) -> Option<EventLoopWatch> {
         self.host_event_watches.remove(&kind)
     }
 
-    /// Return whether one host semantic watch is registered for the given kind.
+    /// Return whether one host watch is registered for the given kind.
     pub fn watches_host_event(&self, kind: HostEventKind) -> bool {
         self.host_event_watches.contains_key(&kind)
     }
@@ -91,7 +90,7 @@ impl EventLoop {
         self.task_for_watch(&watch, engine).ok()
     }
 
-    /// Build one task for one host semantic event watch.
+    /// Build one task for one host event watch.
     pub fn task_for_host_event(&mut self, event: HostEvent, engine: &mut Engine) -> Option<Task> {
         let kind = event.kind();
         let watch = self.host_event_watches.get(&kind)?.clone();

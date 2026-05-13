@@ -2,8 +2,8 @@
 
 use std::sync::Arc;
 
-use crate::runtime::binding::RuntimeAccess;
-use crate::runtime::policy::CallSelector;
+use crate::host::binding::RuntimeAccess;
+use crate::world::policy::CallSelector;
 use destack_mir::ReferenceMap;
 use destack_workspace::{
     ExecutionMode, RandomMode, RuntimeIdentitySelector, RuntimeOptions, TimeMode,
@@ -12,28 +12,32 @@ use {destack_engine as engine, destack_heap as heap};
 
 use super::tests::{TestEngine, TestRuntime, TestWorld, vm_engine_from_mir};
 use crate::diagnostic::RuntimeError;
-use crate::host::{HostEventKind, Session};
-use crate::platform::{ResourceEntry, ResourceId, ResourceKind};
-use crate::runtime::binding::{
+use crate::host::binding::{
     BindingAffinity, BindingDescriptor, BindingEffect, BindingProvider, BindingReplayKind,
     BindingReplayPayload,
 };
-use crate::runtime::heap::{RootSet, RootSink};
-use crate::runtime::policy::{
-    Fault, FaultTarget, FaultType, Hook, Policy, Rule, RuleAction, RuleId, Trigger,
-};
-use crate::runtime::poller::{
+use crate::host::poller::{
     PollerEvent, PollerEventFlags, PollerEventMask, PollerEventPayload, PollerEventSource,
     PollerToken,
 };
+use crate::host::{
+    HostEventKind, HostSession, ResourceBacking, ResourceCapture, ResourceEntry, ResourceId,
+    ResourceKind, ResourcePortability,
+};
+use crate::launch::Launch;
+use crate::runtime::engine::Entry;
+use crate::runtime::heap::{RootSet, RootSink};
 use crate::runtime::scheduler::{Runnable, Task, TaskId, TaskStatus};
 use crate::runtime::time::Instant;
-use crate::runtime::trace::{
-    Observation, ObservationCategory, ObservationOptions, Trace, TraceRecord, TraceSequence,
-};
 use crate::runtime::{
     BranchId, Command, Edge, EdgeDefinition, Entity, EntityDefinition, Resource, TickResult,
     Worker, WorkerId, WorkerOptions, World, WorldSnapshot,
+};
+use crate::world::policy::{
+    Fault, FaultTarget, FaultType, Hook, Policy, Rule, RuleAction, RuleId, Trigger,
+};
+use crate::world::trace::{
+    Observation, ObservationCategory, ObservationOptions, Trace, TraceRecord, TraceSequence,
 };
 
 /// Return one byte payload shape for runtime tests.
@@ -122,6 +126,23 @@ fn test_world_starts_on_root_branch() {
     assert_eq!(world.branch().name, "root");
     assert!(world.branch().labels.is_empty());
     assert_eq!(world.branch_ids(), vec![BranchId::new(0)]);
+}
+
+/// Ensures launching a world creates one runtime and runs its entrypoint.
+#[test]
+fn test_world_launch_runs_entrypoint() {
+    let launch = Launch::new(
+        RuntimeOptions::default(),
+        TestEngine::default(),
+        Entry::new("test.entry"),
+    );
+
+    // launch through the public bootstrap path
+    let result = launch.run().expect("world launch should complete");
+
+    // the initial runtime should stay live after the entrypoint returns
+    assert_eq!(result.value, engine::Value::Void);
+    assert_eq!(result.world.runtime_ids(), vec![result.runtime_id]);
 }
 
 /// Ensures empty worlds can checkpoint, rewind, and fork exactly.
@@ -752,14 +773,14 @@ fn test_world_checkpoint_rejects_attached_resources() {
     let mut test = TestWorld::new();
     let runtime_id = test.spawn_vm_runtime(&options);
 
-    test.with_runtime_and_state_mut(runtime_id, |world_state, runtime| {
+    test.with_runtime_and_state_mut(runtime_id, |_world_state, runtime| {
         let worker_id = runtime.default_worker_id();
         let worker = runtime
             .worker_mut(worker_id)
             .expect("runtime should keep its default worker");
         let _ = worker
             .resources
-            .insert(world_state, ResourceEntry::new(ResourceKind::Timer), None);
+            .insert(ResourceEntry::new(ResourceKind::Timer));
     })
     .expect("runtime should exist");
 
@@ -790,14 +811,16 @@ fn test_world_observe_records_control_and_resource_events() {
 
     test.with_runtime_and_state_mut(runtime_id, |world_state, runtime| {
         let worker_id = runtime.default_worker_id();
-        let worker = runtime
-            .worker_mut(worker_id)
-            .expect("runtime should keep its default worker");
-        let resource_id =
-            worker
-                .resources
-                .insert(world_state, ResourceEntry::new(ResourceKind::Timer), None);
-        let _ = worker.resources.remove(world_state, resource_id, None);
+        let resource_id = ResourceId::new(worker_id, 1);
+        let _ = world_state.observe(Observation::resource_attached(
+            worker_id,
+            resource_id,
+            ResourceBacking::Host,
+            ResourceCapture::None,
+            ResourcePortability::Local,
+        ));
+        let _ = world_state.observe(Observation::resource_detached(worker_id, resource_id));
+        let _ = runtime;
     })
     .expect("runtime should exist");
 
@@ -862,14 +885,16 @@ fn test_world_observe_subscriptions_filter_live_events() {
     // emit resource lifecycle observations after the subscription opened
     test.with_runtime_and_state_mut(runtime_id, |world_state, runtime| {
         let worker_id = runtime.default_worker_id();
-        let worker = runtime
-            .worker_mut(worker_id)
-            .expect("runtime should keep its default worker");
-        let resource_id =
-            worker
-                .resources
-                .insert(world_state, ResourceEntry::new(ResourceKind::Timer), None);
-        let _ = worker.resources.remove(world_state, resource_id, None);
+        let resource_id = ResourceId::new(worker_id, 1);
+        let _ = world_state.observe(Observation::resource_attached(
+            worker_id,
+            resource_id,
+            ResourceBacking::Host,
+            ResourceCapture::None,
+            ResourcePortability::Local,
+        ));
+        let _ = world_state.observe(Observation::resource_detached(worker_id, resource_id));
+        let _ = runtime;
     })
     .expect("runtime should exist");
 
@@ -1920,7 +1945,7 @@ fn test_worker_world_control_update_refreshes_policy() {
         TestEngine::default(),
     )
     .expect("worker should construct in world");
-    let host = Session::from_runtime_options(&options, worker.runtime_id);
+    let host = HostSession::from_runtime_id(worker.runtime_id);
     let descriptor = BindingDescriptor::new(
         "destack.test.live.policy",
         "()",
@@ -1987,7 +2012,7 @@ fn test_worker_world_control_update_refreshes_hooks() {
         TestEngine::default(),
     )
     .expect("worker should construct in world");
-    let host = Session::from_runtime_options(&options, worker.runtime_id);
+    let host = HostSession::from_runtime_id(worker.runtime_id);
     let descriptor = BindingDescriptor::new(
         "destack.test.live.hooks",
         "()",
@@ -2078,8 +2103,8 @@ fn test_worker_world_control_worker_selector() {
         TestEngine::default(),
     )
     .expect("worker should construct in world");
-    let host_a = Session::from_runtime_options(&options_a, worker_a.runtime_id);
-    let host_b = Session::from_runtime_options(&options_b, worker_b.runtime_id);
+    let host_a = HostSession::from_runtime_id(worker_a.runtime_id);
+    let host_b = HostSession::from_runtime_id(worker_b.runtime_id);
 
     // install one scheduler hook rule scoped to worker_a
     world
@@ -2163,7 +2188,7 @@ fn test_world_apply_policy_command_updates_rules() {
         TestEngine::default(),
     )
     .expect("worker should construct in world");
-    let host = Session::from_runtime_options(&options, worker.runtime_id);
+    let host = HostSession::from_runtime_id(worker.runtime_id);
     let descriptor = BindingDescriptor::new(
         "destack.test.program.policy",
         "()",
@@ -2305,11 +2330,21 @@ fn test_world_resource_lifecycle_updates_topology() {
         TestEngine::default(),
     )
     .expect("worker should construct in world");
-    let resource_id = worker.resources.insert(
-        &mut world.state,
-        ResourceEntry::new(ResourceKind::Timer).with_label("test-timer"),
-        None,
-    );
+    let resource_id = worker
+        .resources
+        .insert(ResourceEntry::new(ResourceKind::Timer).with_label("test-timer"));
+    let resource = Resource::new(
+        resource_id,
+        ResourceKind::Timer.kind_id(),
+        ResourceBacking::Host,
+        ResourceCapture::None,
+        ResourcePortability::Local,
+    )
+    .label(Resource::LABEL_NAME, "test-timer");
+    world
+        .state
+        .attach_resource(resource)
+        .expect("resource should attach to world");
 
     // verify world resource payload and topology metadata exist
     let resources = world.resources();
@@ -2330,7 +2365,8 @@ fn test_world_resource_lifecycle_updates_topology() {
     assert!(edges.contains_key(&resource_edge_id));
 
     // remove the resource and verify both payload and topology metadata disappear
-    let removed = worker.resources.remove(&mut world.state, resource_id, None);
+    let removed = worker.resources.remove(resource_id);
+    world.state.detach_resource(resource_id);
     assert!(removed.is_some());
     let resources = world.resources();
     let entities = world.entities();
@@ -2359,7 +2395,7 @@ fn test_world_remove_worker_cleans_topology() {
     )
     .expect("worker should construct in world");
     let worker_id = worker.id;
-    let host = Session::from_runtime_options(&options, worker.runtime_id);
+    let host = HostSession::from_runtime_id(worker.runtime_id);
     let descriptor = BindingDescriptor::new(
         "destack.test.removed.worker",
         "()",

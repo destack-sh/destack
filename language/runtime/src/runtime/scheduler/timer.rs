@@ -5,14 +5,14 @@ use serde::{Deserialize, Serialize};
 
 use super::EventLoop;
 use crate::diagnostic::RuntimeResult;
-use crate::platform::ResourceId;
-use crate::platform::time::TimerClock;
+use crate::host::ResourceId;
+use crate::host::time::TimerClock;
 use crate::runtime::time::Nanos;
 
 /// Handle for one event-loop timer owner.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TimerHandle {
-    /// Timer owned by one platform resource.
+    /// Timer owned by one host resource.
     Resource(ResourceId),
     /// Timer owned by one internal runtime subsystem.
     Internal(u64),
@@ -99,7 +99,7 @@ impl PartialOrd for TimerEntry {
     }
 }
 
-/// Timer queue used by platform bindings.
+/// Timer queue used by host bindings.
 #[derive(Debug, Default)]
 pub struct TimerQueue {
     /// Pending wall-clock timers.
@@ -439,8 +439,8 @@ impl EventLoop {
 #[cfg(test)]
 mod tests {
     use super::{Timer, TimerDeadline, TimerQueue};
-    use crate::platform::ResourceId;
-    use crate::platform::time::TimerClock;
+    use crate::host::ResourceId;
+    use crate::host::time::TimerClock;
     use crate::runtime::WorkerId;
     use crate::runtime::scheduler::TimerHandle;
     use crate::runtime::time::Nanos;

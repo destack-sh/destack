@@ -1,15 +1,15 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::Session;
-use crate::platform::resource::ResourceRebinders;
+use crate::host::poller::HostPoller;
+use crate::host::resource::ResourceRebinders;
+use crate::host::{Host, HostSession};
+use crate::runtime::Collector;
 use crate::runtime::engine::{Engine, Entry};
 use crate::runtime::heap::{RootSink, SharedHeap};
-use crate::runtime::poller::HostPoller;
 use crate::runtime::runtime::{RuntimeEvent, RuntimeHostOptions, poller_for_options};
 use crate::runtime::scheduler::{TickResult, Timer};
 use crate::runtime::time::Instant;
 use crate::runtime::worker::{Worker, WorkerId, WorkerImage, WorkerOptions, WorkerOptionsImage};
-use crate::runtime::world::{RuntimeId, Wake, WorldState};
-use crate::runtime::{Collector, DropCounts, DropReason};
+use crate::world::{RuntimeId, Wake, WorldState};
 use destack_core::CaptureMode;
 use destack_workspace::{ExecutionMode, RuntimeOptions};
 use serde::{Deserialize, Serialize};
@@ -30,7 +30,7 @@ pub struct Runtime {
     /// Runtime host reconstruction settings.
     host_options: RuntimeHostOptions,
     /// Shared host integration for all workers in this runtime.
-    host: Session,
+    host: HostSession,
     /// Shared host poller for external events.
     poller: Box<dyn HostPoller>,
 
@@ -38,9 +38,6 @@ pub struct Runtime {
     pub(crate) shared: SharedHeap,
     /// Runtime-owned static byte space.
     statics: engine::StaticSpace,
-    /// Drop accounting at the runtime coordination boundary.
-    drop_counts: DropCounts,
-
     /// All active workers keyed by identifier.
     workers: BTreeMap<WorkerId, Box<Worker>>,
     /// Default worker used by convenience accessors.
@@ -92,6 +89,7 @@ impl Runtime {
         process_args: impl Into<Arc<[String]>>,
         options: &RuntimeOptions,
         world: &mut WorldState,
+        host: Arc<dyn Host>,
         allocator: Arc<heap::Allocator>,
         collector: Arc<Collector>,
         engine: impl Into<Engine>,
@@ -108,13 +106,13 @@ impl Runtime {
             WorkerOptions::default(),
             engine,
         )?;
-        let runtime = Self::new(process_args, options, shared, statics, default_worker)?;
+        let runtime = Self::new(process_args, options, shared, statics, host, default_worker)?;
 
         Ok(runtime)
     }
 
     /// Return the shared host integration for this runtime.
-    pub fn host(&self) -> &Session {
+    pub fn host(&self) -> &HostSession {
         &self.host
     }
 
@@ -136,11 +134,6 @@ impl Runtime {
     /// Return this runtime name.
     pub fn name(&self) -> &str {
         &self.name
-    }
-
-    /// Return drop accounting observed by this runtime coordinator.
-    pub const fn drop_counts(&self) -> DropCounts {
-        self.drop_counts
     }
 
     /// Set one explicit default worker.
@@ -360,6 +353,7 @@ impl Runtime {
         options: &RuntimeOptions,
         shared: SharedHeap,
         runtime_static: engine::StaticSpace,
+        host: Arc<dyn Host>,
         default_worker: Worker,
     ) -> RuntimeResult<Self> {
         // seed runtime identity from runtime options
@@ -368,7 +362,7 @@ impl Runtime {
         let runtime_id = default_worker.runtime_id;
         let worker_options = Arc::new(options.clone());
         let host_options = RuntimeHostOptions::from_runtime_options(options);
-        let host = host_options.host_session(runtime_id);
+        let host = host_options.host_session(host, runtime_id);
         let poller = poller_for_options(options)?;
         let runtime_name = options
             .name
@@ -388,7 +382,6 @@ impl Runtime {
             poller,
             shared,
             statics: runtime_static,
-            drop_counts: DropCounts::default(),
             workers,
             default_worker_id,
             next_worker_cursor: 0,
@@ -474,10 +467,6 @@ impl Runtime {
 
         // host events
         let poll_result = self.host.poll(Some(0))?;
-        if poll_result.dropped_event_count > 0 {
-            self.drop_counts
-                .record(DropReason::QueuePressure, poll_result.dropped_event_count);
-        }
         for event in poll_result.events {
             events.push(RuntimeEvent::Host { event });
         }
@@ -516,7 +505,6 @@ impl Runtime {
 
                     // unmatched event
                     if targets.is_empty() {
-                        self.drop_counts.record(DropReason::UnmatchedIngress, 1);
                         handled_any = true;
                         continue;
                     }
@@ -553,7 +541,6 @@ impl Runtime {
 
                     // unmatched event
                     if targets.is_empty() {
-                        self.drop_counts.record(DropReason::UnmatchedIngress, 1);
                         handled_any = true;
                         continue;
                     }
@@ -692,6 +679,7 @@ impl Runtime {
     pub(crate) fn try_fork(
         &mut self,
         execution_mode: ExecutionMode,
+        host: Arc<dyn Host>,
         collector: Arc<Collector>,
     ) -> RuntimeResult<Option<Self>> {
         let shared = self.shared.fork(collector)?;
@@ -709,7 +697,7 @@ impl Runtime {
         }
 
         // rebuild one fresh host integration boundary
-        let host = self.host_options.host_session(self.id);
+        let host = self.host_options.host_session(host, self.id);
         let poller = self.host_options.poller()?;
 
         Ok(Some(Self {
@@ -722,7 +710,6 @@ impl Runtime {
             poller,
             shared,
             statics: self.statics.clone(),
-            drop_counts: self.drop_counts,
             workers,
             default_worker_id: self.default_worker_id,
             next_worker_cursor: self.next_worker_cursor,
@@ -734,6 +721,7 @@ impl Runtime {
         world: &mut WorldState,
         allocator: Arc<heap::Allocator>,
         collector: Arc<Collector>,
+        host: Arc<dyn Host>,
         runtime_id: RuntimeId,
         runtime_name: String,
         image: &RuntimeImage,
@@ -743,7 +731,7 @@ impl Runtime {
     ) -> RuntimeResult<Self> {
         // runtime-wide reconstructed state
         let process_args = image.process_args.clone();
-        let host = image.host_options.host_session(runtime_id);
+        let host = image.host_options.host_session(host, runtime_id);
         let poller = image.host_options.poller()?;
         let shared = SharedHeap::from_snapshot(
             &image.shared_heap,
@@ -802,7 +790,6 @@ impl Runtime {
             poller,
             shared,
             statics,
-            drop_counts: DropCounts::default(),
             workers,
             default_worker_id: image.default_worker_id,
             next_worker_cursor: image.next_worker_cursor,
@@ -832,10 +819,11 @@ impl Runtime {
 mod tests {
     use super::{Runtime, RuntimeEvent};
     use crate::host::{
-        HostEvent, HostEventKind, HostLifecycleEvent, HostLifecycleSourceKind, HostLifecycleState,
+        HostEvent, HostEventKind, LifecycleEvent, LifecycleSourceKind, LifecycleState,
     };
     use crate::runtime::tests::{TestEngine, start_worker_continuation};
-    use crate::runtime::{SharedHeap, TickResult, Worker, WorkerOptions, World};
+    use crate::runtime::{SharedHeap, TickResult, Worker, WorkerOptions};
+    use crate::world::World;
     use destack_engine as engine;
     use destack_heap::{AllocationShape, Payload};
     use destack_mir::ReferenceMap;
@@ -901,13 +889,14 @@ mod tests {
                 engine::Value::SharedHeapReference(shared_root),
                 0,
             )
-            .expect("host-event watch should register");
+            .expect("host event watch should register");
 
         let mut runtime = Runtime::new(
             Vec::new().into(),
             &options,
             shared,
             engine::StaticSpace::empty(),
+            crate::host::default_compile_target_host(),
             worker,
         )
         .expect("runtime should construct");
@@ -938,9 +927,9 @@ mod tests {
             .deliver_events(
                 world_state,
                 vec![RuntimeEvent::Host {
-                    event: HostEvent::Lifecycle(HostLifecycleEvent {
-                        source_kind: HostLifecycleSourceKind::Application,
-                        state: HostLifecycleState::Running,
+                    event: HostEvent::Lifecycle(LifecycleEvent {
+                        source_kind: LifecycleSourceKind::Application,
+                        state: LifecycleState::Running,
                     }),
                 }],
             )
@@ -994,13 +983,14 @@ mod tests {
                 engine::Value::SharedHeapReference(shared_root),
                 0,
             )
-            .expect("host-event watch should register");
+            .expect("host event watch should register");
 
         let mut runtime = Runtime::new(
             Vec::new().into(),
             &options,
             shared,
             engine::StaticSpace::empty(),
+            crate::host::default_compile_target_host(),
             worker,
         )
         .expect("runtime should construct");

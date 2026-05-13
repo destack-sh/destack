@@ -1,5 +1,5 @@
 use crate::diagnostic::RuntimeResult;
-use crate::runtime::poller::{HostPoller, HostPollerBackend, create_host_poller_for_runtime};
+use crate::host::poller::{HostPoller, HostPollerBackend, create_host_poller_for_runtime};
 use destack_workspace::{PollerBackend, RuntimeOptions};
 
 /// Build a poller instance from runtime options.
@@ -9,14 +9,14 @@ pub(crate) fn poller_for_options(options: &RuntimeOptions) -> RuntimeResult<Box<
 
 /// Build a poller instance from one explicit backend selector.
 pub(crate) fn poller_for_backend(backend: PollerBackend) -> RuntimeResult<Box<dyn HostPoller>> {
-    // map runtime config enum into the canonical platform backend selector
+    // map runtime config into the canonical host backend selector
     let backend = map_runtime_backend(backend);
 
-    // create one poller instance using shared platform policy
+    // create one poller instance using host policy
     create_host_poller_for_runtime(backend)
 }
 
-/// Map runtime config backend values into canonical platform backend values.
+/// Map runtime config backend values into canonical host backend values.
 const fn map_runtime_backend(backend: PollerBackend) -> HostPollerBackend {
     match backend {
         PollerBackend::Auto => HostPollerBackend::Auto,

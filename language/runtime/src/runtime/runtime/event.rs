@@ -1,5 +1,5 @@
 use crate::host::HostEvent;
-use crate::runtime::poller::PollerEvent;
+use crate::host::poller::PollerEvent;
 
 /// Runtime-local event delivered outside world time advancement.
 #[derive(Debug, Clone, PartialEq)]
