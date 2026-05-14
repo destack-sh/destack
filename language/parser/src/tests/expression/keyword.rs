@@ -1,6 +1,6 @@
 use crate::tests::*;
 use crate::{assert_comment, assert_expression_path, assert_node, assert_string};
-use destack_ast::*;
+use destack_dir::*;
 use destack_source::{LanguageType, NodeSpanBoundary, NodeSpanType};
 
 /// Parse a do block expression with a value tail.
@@ -76,7 +76,7 @@ fn test_parse_if_extends_type_reference() {
             assert_node!(parser.tree, *block_id, Block { .. } => {
                 let expressions = block_expression_ids(parser.tree.get(*block_id));
                 assert_eq!(expressions.len(), 1);
-                let body_statement_id = parser.unwrap_labelled_expression(expressions[0]);
+                let body_statement_id = parser.unwrap_label_expression(expressions[0]);
                 assert_expression_path!(parser, parser.tree.get(body_statement_id), "body");
             });
         });
@@ -136,7 +136,7 @@ fn test_parse_if_instanceof_type_reference() {
             assert_node!(parser.tree, *block_id, Block { .. } => {
                 let expressions = block_expression_ids(parser.tree.get(*block_id));
                 assert_eq!(expressions.len(), 1);
-                let value_statement_id = parser.unwrap_labelled_expression(expressions[0]);
+                let value_statement_id = parser.unwrap_label_expression(expressions[0]);
                 assert_expression_path!(parser, parser.tree.get(value_statement_id), "value");
             });
         });
@@ -178,7 +178,7 @@ if (value is string) {
                 let expressions = block_expression_ids(parser.tree.get(*block_id));
                 assert_eq!(expressions.len(), 1);
 
-                let value_statement_id = parser.unwrap_labelled_expression(expressions[0]);
+                let value_statement_id = parser.unwrap_label_expression(expressions[0]);
                 assert_expression_path!(parser, parser.tree.get(value_statement_id), "value");
             });
         });

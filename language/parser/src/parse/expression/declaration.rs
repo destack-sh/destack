@@ -1,7 +1,7 @@
 use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
 
-use destack_ast::{
-    Asynchrony, DependencyBinding, ExportKind, Expression, Keyword, LiteralType, TokenType,
+use destack_dir::{
+    Asynchrony, DependencyBinding, ExportKind, Expression, Keyword, TokenLiteral, TokenType,
 };
 
 use super::super::PendingDecorators;
@@ -120,9 +120,9 @@ impl Parser {
                 let is_key_literal = matches!(
                     literal,
                     Some(
-                        LiteralType::String { .. }
-                            | LiteralType::Int { .. }
-                            | LiteralType::Float { .. }
+                        TokenLiteral::String { .. }
+                            | TokenLiteral::Int { .. }
+                            | TokenLiteral::Float { .. }
                     )
                 );
                 if !is_key_literal {

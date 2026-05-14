@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 use std::sync::Arc;
 
-use destack_ast::{LiteralType, Token, TokenSpan, TokenType};
+use destack_dir::{Token, TokenLiteral, TokenSpan, TokenType};
 use destack_source::{File, FileId, LanguageType, Span};
 
 use super::scanner::{Scanner, ScannerSnapshot};
@@ -322,7 +322,7 @@ impl Lexer {
         let token = Token::new(
             TokenType::Literal,
             end - current_token.span.start,
-            Some(LiteralType::RegexString { has_flags }),
+            Some(TokenLiteral::RegexString { has_flags }),
         );
         self.reset_token_start();
 

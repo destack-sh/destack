@@ -1,6 +1,6 @@
 #![allow(clippy::type_complexity)]
 
-use destack_ast::{
+use destack_dir::{
     AssignOperator, AssignPattern, Asynchrony, BlockContext, ConstructorTypeDeclaration,
     Expression, FunctionForm, FunctionRole, FunctionSignature, FunctionTypeDeclaration, Key,
     Keyword, LocalNodeId, Member, MethodAbstraction, Name, NodeType, Parameter, Property, StringId,
@@ -696,11 +696,11 @@ impl Parser {
         modifiers: Option<BindingModifiers>,
     ) -> ParseResult<Option<LocalNodeId<Member>>> {
         if !self.language.is_destack()
-            || !(self.is_keyword(Keyword::Type)
-                && self.lookahead(|parser| {
-                    parser.bump();
-                    parser.peek_is(TokenType::Identifier)
-                }))
+            || !self.is_keyword(Keyword::Type)
+            || !self.lookahead(|parser| {
+                parser.bump();
+                parser.peek_is(TokenType::Identifier)
+            })
         {
             return Ok(None);
         }
@@ -773,11 +773,11 @@ impl Parser {
         start: &ParserSpanStart,
     ) -> ParseResult<Option<LocalNodeId<TypeMember>>> {
         if !self.language.is_destack()
-            || !(self.is_keyword(Keyword::Type)
-                && self.lookahead(|parser| {
-                    parser.bump();
-                    parser.peek_is(TokenType::Identifier)
-                }))
+            || !self.is_keyword(Keyword::Type)
+            || !self.lookahead(|parser| {
+                parser.bump();
+                parser.peek_is(TokenType::Identifier)
+            })
         {
             return Ok(None);
         }
@@ -845,11 +845,11 @@ impl Parser {
         start: &ParserSpanStart,
     ) -> ParseResult<Option<LocalNodeId<TypeMember>>> {
         if !self.language.is_destack()
-            || !(self.is_keyword(Keyword::Comptime)
-                && self.lookahead(|parser| {
-                    parser.bump();
-                    parser.is_keyword(Keyword::Const)
-                }))
+            || !self.is_keyword(Keyword::Comptime)
+            || !self.lookahead(|parser| {
+                parser.bump();
+                parser.is_keyword(Keyword::Const)
+            })
         {
             return Ok(None);
         }
@@ -1988,7 +1988,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use destack_ast::{
+    use destack_dir::{
         Argument, AssignOperator, Asynchrony, BinaryOperator, Block, ClassDeclaration, CommentKind,
         Declaration, Expression, FunctionDeclaration, FunctionForm, FunctionRole, GenericArgument,
         GenericParameter, IntegerType, InterfaceDeclaration, Key, Member, MethodAbstraction, Name,
@@ -3090,7 +3090,7 @@ comptime: number"#,
         );
         assert_eq!(expressions.len(), 1);
 
-        let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+        let expression_id = parser.unwrap_label_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { members, .. }) => {
                 assert_eq!(members.len(), 2);

@@ -1,7 +1,7 @@
-use destack_ast::{
-    Argument, Expression, GenericArgument, GenericParameter, Keyword, LiteralType, LocalNodeId,
-    MethodAbstraction, Name, NodeType, Parameter, Pattern, ScalarLiteral, StringId, TokenSpan,
-    TokenType, TypeExpression, VarianceModifier, Visibility,
+use destack_dir::{
+    Argument, Expression, GenericArgument, GenericParameter, Keyword, LocalNodeId,
+    MethodAbstraction, Name, NodeType, Parameter, Pattern, ScalarLiteral, StringId, TokenLiteral,
+    TokenSpan, TokenType, TypeExpression, VarianceModifier, Visibility,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
@@ -386,12 +386,12 @@ impl Parser {
         // check for valid literal member names
         matches!(
             token.token.literal,
-            Some(LiteralType::String {
+            Some(TokenLiteral::String {
                 is_terminated: true,
                 has_invalid_escape: false,
-            }) | Some(LiteralType::Boolean { .. })
-                | Some(LiteralType::Int { .. })
-                | Some(LiteralType::Float { .. })
+            }) | Some(TokenLiteral::Boolean { .. })
+                | Some(TokenLiteral::Int { .. })
+                | Some(TokenLiteral::Float { .. })
         )
     }
 
@@ -1552,8 +1552,8 @@ impl Parser {
                 let is_tree_text = token.token.ty == TokenType::Literal
                     && matches!(
                         token.token.literal,
-                        Some(LiteralType::TreeString)
-                            | Some(LiteralType::Character {
+                        Some(TokenLiteral::TreeString)
+                            | Some(TokenLiteral::Character {
                                 is_html_entity: true,
                                 ..
                             })
@@ -2063,7 +2063,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use destack_ast::{
+    use destack_dir::{
         Argument, Asynchrony, ClassDeclaration, CommentKind, Declaration, Decorator,
         DecoratorPosition, Expression, FunctionDeclaration, FunctionRole, GenericArgument,
         GenericParameter, IfForm, IntegerType, Keyword, Member, Name, NodeType, Parameter, Pattern,
@@ -2730,7 +2730,7 @@ mod tests {
 
         // class D { constructor(readonly public x: number) {} }
         assert_eq!(expressions.len(), 1);
-        let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+        let expression_id = parser.unwrap_label_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { members, .. }) => {
                 assert_eq!(members.len(), 1);
@@ -2825,7 +2825,7 @@ class Test {
         assert_eq!(expressions.len(), 1);
 
         // class Test { ... }
-        let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+        let expression_id = parser.unwrap_label_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { members, .. }) => {
                 assert_eq!(members.len(), 2);
@@ -3196,7 +3196,7 @@ class Test {
 
         // foo(a,b;
         assert_eq!(expressions.len(), 1);
-        let call_id = parser.unwrap_labelled_expression(expressions[0]);
+        let call_id = parser.unwrap_label_expression(expressions[0]);
         assert_node!(parser.tree, call_id, Expression::Call { arguments, .. } => {
             assert_eq!(arguments.len(), 2);
         });
@@ -3220,7 +3220,7 @@ class Test {
 
         // foo(a,b const;
         assert_eq!(expressions.len(), 2);
-        let call_id = parser.unwrap_labelled_expression(expressions[0]);
+        let call_id = parser.unwrap_label_expression(expressions[0]);
         assert_node!(parser.tree, call_id, Expression::Call { arguments, .. } => {
             assert_eq!(arguments.len(), 2);
         });
@@ -3238,7 +3238,7 @@ class Test {
 
         // foo (,,b);
         assert_eq!(expressions.len(), 1);
-        let call_id = parser.unwrap_labelled_expression(expressions[0]);
+        let call_id = parser.unwrap_label_expression(expressions[0]);
         assert_node!(parser.tree, call_id, Expression::Call { arguments, .. } => {
             assert_eq!(arguments.len(), 3);
             assert_node!(parser.tree, arguments[0], Argument::Error);
@@ -3257,7 +3257,7 @@ class Test {
 
         // foo (a, ...);
         assert_eq!(expressions.len(), 1);
-        let call_id = parser.unwrap_labelled_expression(expressions[0]);
+        let call_id = parser.unwrap_label_expression(expressions[0]);
         assert_node!(parser.tree, call_id, Expression::Call { arguments, .. } => {
             assert_eq!(arguments.len(), 2);
             assert_node!(parser.tree, arguments[1], Argument::Error);
@@ -3291,14 +3291,14 @@ foo (,,b);
         // foo (,,b);
         assert_eq!(expressions.len(), 3);
 
-        let first_call_id = parser.unwrap_labelled_expression(expressions[0]);
+        let first_call_id = parser.unwrap_label_expression(expressions[0]);
         assert_node!(parser.tree, first_call_id, Expression::Call { arguments, .. } => {
             assert_eq!(arguments.len(), 2);
         });
 
         assert_node!(parser.tree, expressions[1], Expression::Error);
 
-        let second_call_id = parser.unwrap_labelled_expression(expressions[2]);
+        let second_call_id = parser.unwrap_label_expression(expressions[2]);
         assert_node!(parser.tree, second_call_id, Expression::Call { arguments, .. } => {
             assert_eq!(arguments.len(), 3);
         });
@@ -3328,7 +3328,7 @@ foo (a, ...);
         assert_eq!(expressions.len(), 3);
 
         // foo(a,b const;
-        let first_call_id = parser.unwrap_labelled_expression(expressions[0]);
+        let first_call_id = parser.unwrap_label_expression(expressions[0]);
         assert_node!(parser.tree, first_call_id, Expression::Call { arguments, .. } => {
             assert_eq!(arguments.len(), 2);
         });
@@ -3337,7 +3337,7 @@ foo (a, ...);
         assert_node!(parser.tree, expressions[1], Expression::Error);
 
         // foo (a, ...);
-        let second_call_id = parser.unwrap_labelled_expression(expressions[2]);
+        let second_call_id = parser.unwrap_label_expression(expressions[2]);
         assert_node!(parser.tree, second_call_id, Expression::Call { arguments, .. } => {
             assert_eq!(arguments.len(), 2);
         });
@@ -3362,14 +3362,14 @@ bar();
         assert_eq!(expressions.len(), 2);
 
         // foo(,
-        let first_call_id = parser.unwrap_labelled_expression(expressions[0]);
+        let first_call_id = parser.unwrap_label_expression(expressions[0]);
         assert_node!(parser.tree, first_call_id, Expression::Call { arguments, .. } => {
             assert_eq!(arguments.len(), 1);
             assert_node!(parser.tree, arguments[0], Argument::Error);
         });
 
         // bar();
-        let second_call_id = parser.unwrap_labelled_expression(expressions[1]);
+        let second_call_id = parser.unwrap_label_expression(expressions[1]);
         assert_node!(parser.tree, second_call_id, Expression::Call { arguments, .. } => {
             assert_eq!(arguments.len(), 0);
         });
@@ -3397,14 +3397,14 @@ const value = 1;
         assert_eq!(expressions.len(), 2);
 
         // foo(,
-        let first_call_id = parser.unwrap_labelled_expression(expressions[0]);
+        let first_call_id = parser.unwrap_label_expression(expressions[0]);
         assert_node!(parser.tree, first_call_id, Expression::Call { arguments, .. } => {
             assert_eq!(arguments.len(), 1);
             assert_node!(parser.tree, arguments[0], Argument::Error);
         });
 
         // const value = 1;
-        let second_expression_id = parser.unwrap_labelled_expression(expressions[1]);
+        let second_expression_id = parser.unwrap_label_expression(expressions[1]);
         assert_node!(parser.tree, second_expression_id, Expression::Let { declarators, .. } => {
             assert_eq!(declarators.len(), 1);
         });

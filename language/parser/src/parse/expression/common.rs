@@ -1,6 +1,6 @@
 use crate::Parser;
 
-use destack_ast::{
+use destack_dir::{
     BinaryOperator, Declaration, ExportKind, Expression, FunctionDeclaration, FunctionForm,
     GenericArgument, Keyword, LocalNodeId, TokenType,
 };
@@ -136,7 +136,7 @@ pub(super) fn is_declaration_keyword(keyword: Keyword) -> bool {
 
 impl Parser {
     /// Unwrap label wrappers to get the underlying expression.
-    pub(crate) fn unwrap_labelled_expression(
+    pub(crate) fn unwrap_label_expression(
         &self,
         expression_id: LocalNodeId<Expression>,
     ) -> LocalNodeId<Expression> {
@@ -144,7 +144,7 @@ impl Parser {
         loop {
             let expression = self.tree.get(current);
             match expression {
-                Expression::Labelled { body, .. } => {
+                Expression::Label { body, .. } => {
                     current = *body;
                 }
                 _ => break,

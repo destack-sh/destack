@@ -1,5 +1,5 @@
 use crate::{ParseError, ParseResult, Parser, keyword_from_identifier};
-use destack_ast::{Keyword, TokenSpan, TokenType};
+use destack_dir::{Keyword, TokenSpan, TokenType};
 
 impl Parser {
     /// Return true when the current token is the given keyword.

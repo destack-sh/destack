@@ -1,6 +1,6 @@
 use crate::{ParseResult, Parser};
 
-use destack_ast::{Keyword, LocalNodeId, NodeType, TypeExpression, TypePredicateSubject};
+use destack_dir::{Keyword, LocalNodeId, NodeType, TypeExpression, TypePredicateSubject};
 use destack_source::{NodeSpanBoundary, NodeSpanRegion, NodeSpanType, Span};
 
 impl Parser {

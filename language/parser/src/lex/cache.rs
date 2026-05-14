@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use destack_ast::{Keyword, TokenSpan, TokenType};
+use destack_dir::{Keyword, TokenSpan, TokenType};
 use destack_source::Span;
 
 use super::lex::is_semantic;

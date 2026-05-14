@@ -1,7 +1,7 @@
 use crate::parse::prelude::*;
 use crate::{ParseResult, Parser, ParserSpanStart};
 
-use destack_ast::{
+use destack_dir::{
     BlockContext, BlockForm, Declaration, Expression, GlobalDeclaration, Keyword, LocalNodeId,
     Name, NamespaceDeclaration, NamespaceForm, NodeType, TokenType,
 };
@@ -162,7 +162,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use destack_ast::{
+    use destack_dir::{
         Declaration, ExportKind, Expression, GlobalDeclaration, Name, NamespaceDeclaration,
         NamespaceForm, TypeExpression, WhereClause,
     };
@@ -280,15 +280,15 @@ declare module A {
                 assert_eq!(expressions.len(), 3);
 
                 // "name": "troublesome-lib",
-                let first_statement_id = parser.unwrap_labelled_expression(expressions[0]);
+                let first_statement_id = parser.unwrap_label_expression(expressions[0]);
                 assert_node!(parser.tree, first_statement_id, Expression::ScalarLiteral(_));
 
                 // "typings": "lib/index.d.ts",
-                let second_statement_id = parser.unwrap_labelled_expression(expressions[1]);
+                let second_statement_id = parser.unwrap_label_expression(expressions[1]);
                 assert_node!(parser.tree, second_statement_id, Expression::ScalarLiteral(_));
 
                 // "version": "0.0.1"
-                let third_statement_id = parser.unwrap_labelled_expression(expressions[2]);
+                let third_statement_id = parser.unwrap_label_expression(expressions[2]);
                 assert_node!(parser.tree, third_statement_id, Expression::ScalarLiteral(_));
             });
         });

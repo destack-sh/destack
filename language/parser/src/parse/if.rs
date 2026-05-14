@@ -1,6 +1,6 @@
 use crate::parse::parser::ParserFlags;
 use crate::{ParseError, ParseResult, Parser};
-use destack_ast::{
+use destack_dir::{
     Block, BlockContext, BlockForm, Expression, IfCondition, IfForm, Keyword, LocalNodeId,
     NodeType, TokenType,
 };
@@ -243,7 +243,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use destack_ast::{
+    use destack_dir::{
         BinaryOperator, Block, CommentKind, Declaration, Declarator, Expression,
         FunctionDeclaration, FunctionForm, IfCondition, LetKind, Pattern, PatternField,
         ScalarLiteral,
@@ -352,7 +352,7 @@ else {
                 assert_node!(parser.tree, *block_id, Block { .. } => {
                     let expressions = block_expression_ids(parser.tree.get(*block_id));
                     assert_eq!(expressions.len(), 1);
-                    let then_statement_id = parser.unwrap_labelled_expression(expressions[0]);
+                    let then_statement_id = parser.unwrap_label_expression(expressions[0]);
                     assert_expression_path!(parser, parser.tree.get(then_statement_id), "a");
                 });
             });
@@ -361,7 +361,7 @@ else {
                 assert_node!(parser.tree, *block_id, Block { .. } => {
                     let expressions = block_expression_ids(parser.tree.get(*block_id));
                     assert_eq!(expressions.len(), 1);
-                    let else_statement_id = parser.unwrap_labelled_expression(expressions[0]);
+                    let else_statement_id = parser.unwrap_label_expression(expressions[0]);
                     assert_expression_path!(parser, parser.tree.get(else_statement_id), "b");
                 });
             });
@@ -443,7 +443,7 @@ if (cond) {
                     let expressions = block_expression_ids(parser.tree.get(*block_id));
                     assert_eq!(expressions.len(), 1);
                     // if (cond) { a } else { b }
-                    let inner_if_id = parser.unwrap_labelled_expression(expressions[0]);
+                    let inner_if_id = parser.unwrap_label_expression(expressions[0]);
                     assert_node!(parser.tree, inner_if_id, Expression::If { condition: inner_condition, then_expression: inner_then, else_expression: inner_else, .. } => {
                         // cond
                         let inner_condition_id = match inner_condition {
@@ -456,7 +456,7 @@ if (cond) {
                             assert_node!(parser.tree, *inner_block_id, Block { .. } => {
                                 let expressions = block_expression_ids(parser.tree.get(*inner_block_id));
                                 assert_eq!(expressions.len(), 1);
-                                let inner_then_statement_id = parser.unwrap_labelled_expression(expressions[0]);
+                                let inner_then_statement_id = parser.unwrap_label_expression(expressions[0]);
                                 assert_expression_path!(parser, parser.tree.get(inner_then_statement_id), "a");
                             });
                         });
@@ -465,7 +465,7 @@ if (cond) {
                             assert_node!(parser.tree, *inner_block_id, Block { .. } => {
                                 let expressions = block_expression_ids(parser.tree.get(*inner_block_id));
                                 assert_eq!(expressions.len(), 1);
-                                let inner_else_statement_id = parser.unwrap_labelled_expression(expressions[0]);
+                                let inner_else_statement_id = parser.unwrap_label_expression(expressions[0]);
                                 assert_expression_path!(parser, parser.tree.get(inner_else_statement_id), "b");
                             });
                         });
@@ -889,7 +889,7 @@ else
         );
         assert_eq!(expressions.len(), 1);
 
-        let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+        let expression_id = parser.unwrap_label_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::If { condition, .. } => {
             let condition_id = match condition {
                 IfCondition::Expression { condition } => *condition,
@@ -931,7 +931,7 @@ else
         );
         assert_eq!(expressions.len(), 1);
 
-        let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+        let expression_id = parser.unwrap_label_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::If { else_expression, .. } => {
             let else_expression_id = else_expression.expect("expected else expression");
             let annotations = parser.tree.get_decorators(else_expression_id.id);
@@ -951,7 +951,7 @@ else
 
         assert_eq!(expressions.len(), 1);
 
-        let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+        let expression_id = parser.unwrap_label_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::If { else_expression, .. } => {
             assert!(else_expression.is_some());
         });
@@ -966,7 +966,7 @@ else
 
         assert_eq!(expressions.len(), 1);
 
-        let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+        let expression_id = parser.unwrap_label_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::If { else_expression, .. } => {
             assert!(else_expression.is_some());
         });

@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use crate::{Lexer, Parser};
-use destack_ast::{LiteralType, NumberBase, Token, TokenSpan, TokenType, render_tokens};
 use destack_core::StringPool;
+use destack_dir::{NumberBase, Token, TokenLiteral, TokenSpan, TokenType, render_tokens};
 use destack_source::{File, FileId, FileType, LanguageType, Span, Uri};
 
 /// Lex the given source input string into its constituent tokens and side tokens.
@@ -49,7 +49,7 @@ fn assert_single_string_literal_token(
             Token::new(
                 TokenType::Literal,
                 input.len() as u32,
-                Some(LiteralType::String {
+                Some(TokenLiteral::String {
                     is_terminated: true,
                     has_invalid_escape,
                 }),
@@ -219,7 +219,7 @@ fn test_lex_hashbang_as_line_comment() {
         Token::new(
             TokenType::Literal,
             5,
-            Some(LiteralType::String {
+            Some(TokenLiteral::String {
                 is_terminated: true,
                 has_invalid_escape: false,
             }),
@@ -380,7 +380,7 @@ fn test_lex_smoke() {
         Token::new(
             TokenType::Literal,
             7,
-            Some(LiteralType::String {
+            Some(TokenLiteral::String {
                 is_terminated: true,
                 has_invalid_escape: false,
             })
@@ -423,7 +423,7 @@ fn test_lex_tree_after_type_alias_before_tree() {
         (TokenType::LessThan, None),
         (TokenType::Identifier, None),
         (TokenType::GreaterThan, None),
-        (TokenType::Literal, Some(LiteralType::TreeString)),
+        (TokenType::Literal, Some(TokenLiteral::TreeString)),
         (TokenType::LessThan, None),
         (TokenType::Divide, None),
         (TokenType::Identifier, None),
@@ -445,7 +445,7 @@ fn test_lex_single_quoted_single_character_strings() {
         Token::new(
             TokenType::Literal,
             3,
-            Some(LiteralType::String {
+            Some(TokenLiteral::String {
                 is_terminated: true,
                 has_invalid_escape: false,
             })
@@ -454,7 +454,7 @@ fn test_lex_single_quoted_single_character_strings() {
         Token::new(
             TokenType::Literal,
             3,
-            Some(LiteralType::String {
+            Some(TokenLiteral::String {
                 is_terminated: true,
                 has_invalid_escape: false,
             })
@@ -463,7 +463,7 @@ fn test_lex_single_quoted_single_character_strings() {
         Token::new(
             TokenType::Literal,
             4,
-            Some(LiteralType::String {
+            Some(TokenLiteral::String {
                 is_terminated: true,
                 has_invalid_escape: false,
             })
@@ -478,7 +478,7 @@ fn test_lex_bigint_literal() {
         Token::new(
             TokenType::Literal,
             2,
-            Some(LiteralType::Int {
+            Some(TokenLiteral::Int {
                 base: NumberBase::Decimal,
                 is_empty: false,
                 is_bigint: true,
@@ -507,7 +507,7 @@ fn test_lex_html_entities_inside_tree_content() {
         Token::new(
             TokenType::Literal,
             6,
-            Some(LiteralType::Character {
+            Some(TokenLiteral::Character {
                 is_terminated: true,
                 is_html_entity: true,
             })
@@ -529,7 +529,7 @@ fn test_lex_html_entities_various_inside_tree() {
         Token::new(
             TokenType::Literal,
             6,
-            Some(LiteralType::Character {
+            Some(TokenLiteral::Character {
                 is_terminated: true,
                 is_html_entity: true,
             })
@@ -537,7 +537,7 @@ fn test_lex_html_entities_various_inside_tree() {
         Token::new(
             TokenType::Literal,
             6,
-            Some(LiteralType::Character {
+            Some(TokenLiteral::Character {
                 is_terminated: true,
                 is_html_entity: true,
             })
@@ -545,7 +545,7 @@ fn test_lex_html_entities_various_inside_tree() {
         Token::new(
             TokenType::Literal,
             5,
-            Some(LiteralType::Character {
+            Some(TokenLiteral::Character {
                 is_terminated: true,
                 is_html_entity: true,
             })
@@ -573,7 +573,7 @@ fn test_lex_single_quoted_strings() {
         Token::new(
             TokenType::Literal,
             4,
-            Some(LiteralType::String {
+            Some(TokenLiteral::String {
                 is_terminated: true,
                 has_invalid_escape: false,
             })
@@ -582,7 +582,7 @@ fn test_lex_single_quoted_strings() {
         Token::new(
             TokenType::Literal,
             12,
-            Some(LiteralType::String {
+            Some(TokenLiteral::String {
                 is_terminated: true,
                 has_invalid_escape: false,
             })
@@ -591,7 +591,7 @@ fn test_lex_single_quoted_strings() {
         Token::new(
             TokenType::Literal,
             17,
-            Some(LiteralType::String {
+            Some(TokenLiteral::String {
                 is_terminated: true,
                 has_invalid_escape: false,
             })
@@ -612,7 +612,7 @@ fn test_lex_import_from_without_space() {
         Token::new(
             TokenType::Literal,
             7,
-            Some(LiteralType::String {
+            Some(TokenLiteral::String {
                 is_terminated: true,
                 has_invalid_escape: false,
             })
@@ -766,7 +766,7 @@ fn test_lex_string_unicode_escape_with_long_leading_zeros() {
         Token::new(
             TokenType::Literal,
             17,
-            Some(LiteralType::String {
+            Some(TokenLiteral::String {
                 is_terminated: true,
                 has_invalid_escape: false,
             })
@@ -905,21 +905,21 @@ false
         Token::new(
             TokenType::Literal,
             4,
-            Some(LiteralType::Boolean { value: true })
+            Some(TokenLiteral::Boolean { value: true })
         ),
         Token::new(TokenType::Newline, 1, None),
         // false
         Token::new(
             TokenType::Literal,
             5,
-            Some(LiteralType::Boolean { value: false })
+            Some(TokenLiteral::Boolean { value: false })
         ),
         Token::new(TokenType::Newline, 1, None),
         // 'a'
         Token::new(
             TokenType::Literal,
             3,
-            Some(LiteralType::String {
+            Some(TokenLiteral::String {
                 is_terminated: true,
                 has_invalid_escape: false,
             })
@@ -929,7 +929,7 @@ false
         Token::new(
             TokenType::Literal,
             3,
-            Some(LiteralType::String {
+            Some(TokenLiteral::String {
                 is_terminated: true,
                 has_invalid_escape: false,
             })
@@ -939,7 +939,7 @@ false
         Token::new(
             TokenType::Literal,
             4,
-            Some(LiteralType::Int {
+            Some(TokenLiteral::Int {
                 base: NumberBase::Decimal,
                 is_empty: false,
                 is_bigint: false,
@@ -950,7 +950,7 @@ false
         Token::new(
             TokenType::Literal,
             5,
-            Some(LiteralType::Int {
+            Some(TokenLiteral::Int {
                 base: NumberBase::Binary,
                 is_empty: false,
                 is_bigint: false,
@@ -961,7 +961,7 @@ false
         Token::new(
             TokenType::Literal,
             5,
-            Some(LiteralType::Int {
+            Some(TokenLiteral::Int {
                 base: NumberBase::Hexadecimal,
                 is_empty: false,
                 is_bigint: false,
@@ -972,7 +972,7 @@ false
         Token::new(
             TokenType::Literal,
             3,
-            Some(LiteralType::Float {
+            Some(TokenLiteral::Float {
                 base: NumberBase::Decimal,
                 is_empty_exponent: false
             })
@@ -982,7 +982,7 @@ false
         Token::new(
             TokenType::Literal,
             6,
-            Some(LiteralType::Float {
+            Some(TokenLiteral::Float {
                 base: NumberBase::Decimal,
                 is_empty_exponent: false
             })
@@ -992,7 +992,7 @@ false
         Token::new(
             TokenType::Literal,
             2,
-            Some(LiteralType::Int {
+            Some(TokenLiteral::Int {
                 base: NumberBase::Decimal,
                 is_empty: false,
                 is_bigint: true,
@@ -1003,7 +1003,7 @@ false
         Token::new(
             TokenType::Literal,
             5,
-            Some(LiteralType::Int {
+            Some(TokenLiteral::Int {
                 base: NumberBase::Hexadecimal,
                 is_empty: false,
                 is_bigint: true,
@@ -1014,7 +1014,7 @@ false
         Token::new(
             TokenType::Literal,
             6,
-            Some(LiteralType::Int {
+            Some(TokenLiteral::Int {
                 base: NumberBase::Binary,
                 is_empty: false,
                 is_bigint: true,
@@ -1025,7 +1025,7 @@ false
         Token::new(
             TokenType::Literal,
             5,
-            Some(LiteralType::Int {
+            Some(TokenLiteral::Int {
                 base: NumberBase::Octal,
                 is_empty: false,
                 is_bigint: true,
@@ -1042,7 +1042,7 @@ fn test_lex_decimal_literal_with_dot_exponent() {
         Token::new(
             TokenType::Literal,
             4,
-            Some(LiteralType::Float {
+            Some(TokenLiteral::Float {
                 base: NumberBase::Decimal,
                 is_empty_exponent: false
             })
@@ -1051,7 +1051,7 @@ fn test_lex_decimal_literal_with_dot_exponent() {
         Token::new(
             TokenType::Literal,
             5,
-            Some(LiteralType::Float {
+            Some(TokenLiteral::Float {
                 base: NumberBase::Decimal,
                 is_empty_exponent: false
             })
@@ -1066,7 +1066,7 @@ fn test_lex_literals_uppercase_radix_prefixes() {
         Token::new(
             TokenType::Literal,
             5,
-            Some(LiteralType::Int {
+            Some(TokenLiteral::Int {
                 base: NumberBase::Binary,
                 is_empty: false,
                 is_bigint: false,
@@ -1076,7 +1076,7 @@ fn test_lex_literals_uppercase_radix_prefixes() {
         Token::new(
             TokenType::Literal,
             4,
-            Some(LiteralType::Int {
+            Some(TokenLiteral::Int {
                 base: NumberBase::Octal,
                 is_empty: false,
                 is_bigint: false,
@@ -1086,7 +1086,7 @@ fn test_lex_literals_uppercase_radix_prefixes() {
         Token::new(
             TokenType::Literal,
             4,
-            Some(LiteralType::Int {
+            Some(TokenLiteral::Int {
                 base: NumberBase::Hexadecimal,
                 is_empty: false,
                 is_bigint: false,
@@ -1265,7 +1265,7 @@ fn test_lex_tree_with_text_content() {
         Token::new(TokenType::LessThan, 1, None),    // <
         Token::new(TokenType::Identifier, 3, None),  // div
         Token::new(TokenType::GreaterThan, 1, None), // >
-        Token::new(TokenType::Literal, 5, Some(LiteralType::TreeString)), // Hello
+        Token::new(TokenType::Literal, 5, Some(TokenLiteral::TreeString)), // Hello
         Token::new(TokenType::LessThan, 1, None),    // <
         Token::new(TokenType::Divide, 1, None),      // /
         Token::new(TokenType::Identifier, 3, None),  // div
@@ -1331,11 +1331,11 @@ fn test_lex_tree_with_text_and_expression() {
         Token::new(TokenType::LessThan, 1, None),    // <
         Token::new(TokenType::Identifier, 3, None),  // div
         Token::new(TokenType::GreaterThan, 1, None), // >
-        Token::new(TokenType::Literal, 6, Some(LiteralType::TreeString)), // "Hello "
+        Token::new(TokenType::Literal, 6, Some(TokenLiteral::TreeString)), // "Hello "
         Token::new(TokenType::OpenBrace, 1, None),   // {
         Token::new(TokenType::Identifier, 4, None),  // name
         Token::new(TokenType::CloseBrace, 1, None),  // }
-        Token::new(TokenType::Literal, 1, Some(LiteralType::TreeString)), // "!"
+        Token::new(TokenType::Literal, 1, Some(TokenLiteral::TreeString)), // "!"
         Token::new(TokenType::LessThan, 1, None),    // <
         Token::new(TokenType::Divide, 1, None),      // /
         Token::new(TokenType::Identifier, 3, None),  // div
@@ -1456,7 +1456,7 @@ fn test_lex_tree_invalid_html_entity_as_text() {
         Token::new(TokenType::LessThan, 1, None),    // <
         Token::new(TokenType::Identifier, 1, None),  // A
         Token::new(TokenType::GreaterThan, 1, None), // >
-        Token::new(TokenType::Literal, 9, Some(LiteralType::TreeString)), // &#x1g4q9;
+        Token::new(TokenType::Literal, 9, Some(TokenLiteral::TreeString)), // &#x1g4q9;
         Token::new(TokenType::LessThan, 1, None),    // <
         Token::new(TokenType::Divide, 1, None),      // /
         Token::new(TokenType::Identifier, 1, None),  // A
@@ -1491,12 +1491,12 @@ fn test_lex_tree_nested_with_whitespace() {
         Token::new(TokenType::LessThan, 1, None),    // <
         Token::new(TokenType::Identifier, 1, None),  // A
         Token::new(TokenType::GreaterThan, 1, None), // >
-        Token::new(TokenType::Literal, 5, Some(LiteralType::TreeString)), // "\n    " (whitespace)
+        Token::new(TokenType::Literal, 5, Some(TokenLiteral::TreeString)), // "\n    " (whitespace)
         Token::new(TokenType::LessThan, 1, None),    // <
         Token::new(TokenType::Identifier, 1, None),  // B
         Token::new(TokenType::Divide, 1, None),      // /
         Token::new(TokenType::GreaterThan, 1, None), // >
-        Token::new(TokenType::Literal, 1, Some(LiteralType::TreeString)), // "\n" (whitespace)
+        Token::new(TokenType::Literal, 1, Some(TokenLiteral::TreeString)), // "\n" (whitespace)
         Token::new(TokenType::LessThan, 1, None),    // <
         Token::new(TokenType::Divide, 1, None),      // /
         Token::new(TokenType::Identifier, 1, None),  // A
@@ -1557,7 +1557,7 @@ fn test_lex_tree_text_with_colon() {
         Token::new(TokenType::LessThan, 1, None),    // <
         Token::new(TokenType::Identifier, 2, None),  // h4
         Token::new(TokenType::GreaterThan, 1, None), // >
-        Token::new(TokenType::Literal, 6, Some(LiteralType::TreeString)), // "Tool: "
+        Token::new(TokenType::Literal, 6, Some(TokenLiteral::TreeString)), // "Tool: "
         Token::new(TokenType::OpenBrace, 1, None),   // {
         Token::new(TokenType::Identifier, 1, None),  // x
         Token::new(TokenType::CloseBrace, 1, None),  // }
@@ -1586,7 +1586,7 @@ fn test_lex_tree_nested_with_attr_expression() {
         Token::new(TokenType::LessThan, 1, None),    // <
         Token::new(TokenType::Identifier, 2, None),  // h4
         Token::new(TokenType::GreaterThan, 1, None), // >
-        Token::new(TokenType::Literal, 6, Some(LiteralType::TreeString)), // "Tool: "
+        Token::new(TokenType::Literal, 6, Some(TokenLiteral::TreeString)), // "Tool: "
         Token::new(TokenType::OpenBrace, 1, None),   // {
         Token::new(TokenType::Identifier, 1, None),  // x
         Token::new(TokenType::CloseBrace, 1, None),  // }
@@ -1674,7 +1674,7 @@ fn test_lex_tree_nested_multiline_with_text() {
 
     // verify "Tool: " is lexed as TreeString
     let has_tool_tree_string = tokens.iter().any(|t| {
-        t.token.literal == Some(LiteralType::TreeString)
+        t.token.literal == Some(TokenLiteral::TreeString)
             && input[t.span.start as usize..t.span.end as usize].contains("Tool:")
     });
     assert!(has_tool_tree_string, "expected 'Tool: ' to be a TreeString");
@@ -1727,7 +1727,7 @@ fn test_lex_tree_text_after_map_callback_blocks() {
         .find(|token| &input[token.span.start as usize..token.span.end as usize] == "Asc")
         .expect("expected Asc token");
     assert_eq!(asc_token.token.ty, TokenType::Literal);
-    assert_eq!(asc_token.token.literal, Some(LiteralType::TreeString));
+    assert_eq!(asc_token.token.literal, Some(TokenLiteral::TreeString));
 }
 
 /// Tree literal with JSX comment syntax {/* */}.
@@ -1878,7 +1878,7 @@ fn test_lex_fragment_text_after_logical_and() {
         .expect("expected text token inside fragment");
 
     assert_eq!(text_token.token.ty, TokenType::Literal);
-    assert_eq!(text_token.token.literal, Some(LiteralType::TreeString));
+    assert_eq!(text_token.token.literal, Some(TokenLiteral::TreeString));
 }
 
 /// Nested tree literal in attribute position - verifies deeply nested JSX in attrs works.
@@ -1911,7 +1911,7 @@ fn test_lex_unterminated_single_quote_eof() {
             Token::new(
                 TokenType::Literal,
                 1,
-                Some(LiteralType::String {
+                Some(TokenLiteral::String {
                     is_terminated: false,
                     has_invalid_escape: false,
                 }),
@@ -1934,7 +1934,7 @@ fn test_lex_unterminated_single_quote_with_escape_eof() {
             Token::new(
                 TokenType::Literal,
                 3,
-                Some(LiteralType::String {
+                Some(TokenLiteral::String {
                     is_terminated: false,
                     has_invalid_escape: true,
                 }),
@@ -1957,7 +1957,7 @@ fn test_lex_unterminated_single_quote_with_trailing_slash_eof() {
             Token::new(
                 TokenType::Literal,
                 2,
-                Some(LiteralType::String {
+                Some(TokenLiteral::String {
                     is_terminated: false,
                     has_invalid_escape: true,
                 }),
@@ -1980,7 +1980,7 @@ fn test_lex_unterminated_single_quote_hex_escape() {
             Token::new(
                 TokenType::Literal,
                 4,
-                Some(LiteralType::String {
+                Some(TokenLiteral::String {
                     is_terminated: false,
                     has_invalid_escape: true,
                 }),
@@ -2003,7 +2003,7 @@ fn test_lex_unterminated_single_quote_octal_escape() {
             Token::new(
                 TokenType::Literal,
                 4,
-                Some(LiteralType::String {
+                Some(TokenLiteral::String {
                     is_terminated: false,
                     has_invalid_escape: true,
                 }),
@@ -2026,7 +2026,7 @@ fn test_lex_unterminated_single_quote_newline() {
             Token::new(
                 TokenType::Literal,
                 1,
-                Some(LiteralType::String {
+                Some(TokenLiteral::String {
                     is_terminated: false,
                     has_invalid_escape: false,
                 }),
@@ -2050,7 +2050,7 @@ fn test_lex_double_quote_with_newline_is_unterminated() {
             Token::new(
                 TokenType::Literal,
                 6,
-                Some(LiteralType::String {
+                Some(TokenLiteral::String {
                     is_terminated: false,
                     has_invalid_escape: false,
                 }),
@@ -2059,7 +2059,7 @@ fn test_lex_double_quote_with_newline_is_unterminated() {
             Token::new(
                 TokenType::Literal,
                 1,
-                Some(LiteralType::String {
+                Some(TokenLiteral::String {
                     is_terminated: false,
                     has_invalid_escape: false,
                 }),
@@ -2095,7 +2095,7 @@ fn test_lex_unterminated_single_quote_in_parens() {
             Token::new(
                 TokenType::Literal,
                 2,
-                Some(LiteralType::String {
+                Some(TokenLiteral::String {
                     is_terminated: false,
                     has_invalid_escape: false,
                 }),
@@ -2118,7 +2118,7 @@ fn test_lex_unterminated_single_quote_is_marked() {
             Token::new(
                 TokenType::Literal,
                 4,
-                Some(LiteralType::String {
+                Some(TokenLiteral::String {
                     is_terminated: false,
                     has_invalid_escape: false,
                 }),

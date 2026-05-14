@@ -1,6 +1,6 @@
 use crate::{ParseResult, Parser};
 
-use destack_ast::TokenType;
+use destack_dir::TokenType;
 use destack_source::Span;
 
 /// Parenthesized group analysis metadata.

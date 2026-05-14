@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use destack_ast::{
+use destack_core::StringPool;
+use destack_dir::{
     AssignPattern, Block, Expression, LocalNodeId, NodeType, StringId, TokenType, TypeExpression,
     normalize_comment_payload,
 };
-use destack_core::StringPool;
 use destack_source::{File, FileId, FileType, LanguageType, Uri};
 
 use crate::Parser;
@@ -343,7 +343,7 @@ pub(crate) fn normalized_comment_payload(source: &str) -> std::borrow::Cow<'_, s
 ///
 /// This is a convenience helper for tests that only care about the visible
 /// path spelling.
-/// Use the stricter helpers when the AST shape matters.
+/// Use the stricter helpers when the parsed DIR shape matters.
 #[macro_export]
 macro_rules! assert_expression_path {
     ($parser:expr, $expr:expr, $expected:expr) => {{

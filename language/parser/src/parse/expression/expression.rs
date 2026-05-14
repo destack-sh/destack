@@ -9,7 +9,7 @@ use destack_source::{NodeSpanBoundary, NodeSpanList, NodeSpanRegion, NodeSpanTyp
 use smallvec::SmallVec;
 
 use super::operator::TypeUnaryOperator;
-use destack_ast::{
+use destack_dir::{
     BinaryOperator, BlockContext, Declaration, DependencyItem, Expression, GenericArgument,
     Keyword, LocalNodeId, NodeType, OperatorPrecedence, Path, RangeEnd, ScalarLiteral, TokenType,
     TypeExpression, UnaryOperator,
@@ -1759,8 +1759,8 @@ impl Parser {
         Ok(parenthesized_id)
     }
 
-    /// Try to parse a labelled statement or labelled expression.
-    fn try_eat_labelled_expression(
+    /// Try to parse a labeled statement or labeled expression.
+    fn try_eat_label_expression(
         &mut self,
         start: &ParserSpanStart,
         expression_decorators: &mut PendingDecorators,
@@ -1769,22 +1769,20 @@ impl Parser {
         if self.flags.is_in_decorator()
             || self.flags.is_in_match_case()
             || !self.peek_is(TokenType::Identifier)
-            || !self.can_parse_labelled_expression()
+            || !self.can_parse_label_expression()
         {
             return Ok(None);
         }
 
-        let (label, label_span, body) = self.eat_labelled_expression_parts()?;
+        let (label, label_span, body) = self.eat_label_expression_parts()?;
 
-        // attach decorators to the labelled expression
-        let labelled_id = self.insert_node(
-            Expression::Labelled { label, body },
-            self.get_span_from(start),
-        );
-        self.tree.set_main_span(labelled_id, label_span);
-        self.attach_pending_decorators_to_expression(expression_decorators, labelled_id);
+        // attach decorators to the labeled expression
+        let label_id =
+            self.insert_node(Expression::Label { label, body }, self.get_span_from(start));
+        self.tree.set_main_span(label_id, label_span);
+        self.attach_pending_decorators_to_expression(expression_decorators, label_id);
 
-        Ok(Some(labelled_id))
+        Ok(Some(label_id))
     }
 
     /// Try to parse the plain identifier fast path before full primary dispatch.
@@ -1797,7 +1795,7 @@ impl Parser {
         let identifier_expression_id = if !self.peek_is(TokenType::Identifier) {
             None
         } else {
-            // this also applies in statement position when it is not a labelled or declaration start
+            // this also applies in statement position when it is not a labeled or declaration start
             self.try_parse_plain_identifier_expression(start)?
         };
         let Some(identifier_expression_id) = identifier_expression_id else {
@@ -2716,11 +2714,9 @@ impl Parser {
         // capture expression span and scanner cursor metadata
         let start = self.span_start();
 
-        // labelled statements and labelled expressions
-        if let Some(labelled_id) =
-            self.try_eat_labelled_expression(&start, &mut expression_decorators)?
-        {
-            return Ok(labelled_id);
+        // labeled statements and labeled expressions
+        if let Some(label_id) = self.try_eat_label_expression(&start, &mut expression_decorators)? {
+            return Ok(label_id);
         }
 
         // plain identifier fast paths

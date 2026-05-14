@@ -1,6 +1,6 @@
 use crate::tests::*;
 use crate::{assert_expression_path, assert_node, assert_path, assert_string};
-use destack_ast::*;
+use destack_dir::*;
 use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
 
 #[test]
@@ -146,7 +146,7 @@ fn test_parse_namespace_conditional_type_alias() {
             assert_eq!(expressions.len(), 1);
 
             // type FindMyWayVersion<RawServer extends RawServerBase> = RawServer extends http.Server ? HTTPVersion.V1 : HTTPVersion.V2
-            let namespace_expression_id = parser.unwrap_labelled_expression(expressions[0]);
+            let namespace_expression_id = parser.unwrap_label_expression(expressions[0]);
             assert_node!(parser.tree, namespace_expression_id, Expression::Declaration(type_declaration_id) => {
                 assert_node!(parser.tree, *type_declaration_id, Declaration::Type(TypeDeclaration { name, generic_parameters, value, .. }) => {
                     assert_string!(parser, name.string(), "FindMyWayVersion");

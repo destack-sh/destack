@@ -1,6 +1,6 @@
 use crate::{ParseResult, Parser};
 
-use destack_ast::{
+use destack_dir::{
     Keyword, LocalNodeId, MappedTypeModifier, NodeType, TokenType, TypeExpression,
     TypeMappedParameter,
 };

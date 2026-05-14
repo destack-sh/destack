@@ -64,8 +64,8 @@ pub struct DirBound {
     pub export_assignment_symbol: dir::LocalSymbolId,
     /// The export assignment dependency item when present.
     pub export_assignment: Option<dir::LocalNodeId<dir::DependencyItem>>,
-    /// String-named modules declared by this module.
-    pub declared_modules: Vec<dir::DeclaredModule>,
+    /// String-named modules introduced by this module.
+    pub string_modules: Vec<dir::StringModule>,
 }
 
 /// Source import resolution for one profile-scoped module.

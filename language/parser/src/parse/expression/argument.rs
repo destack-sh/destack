@@ -1,6 +1,6 @@
 use crate::Parser;
 
-use destack_ast::{
+use destack_dir::{
     Declaration, FunctionDeclaration, FunctionForm, GenericArgument, Keyword, LocalNodeId,
     TokenType, TypeExpression,
 };

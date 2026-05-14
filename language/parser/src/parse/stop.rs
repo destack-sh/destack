@@ -1,5 +1,5 @@
 use crate::{ParseError, ParseResult, Parser};
-use destack_ast::{TokenSpan, TokenType};
+use destack_dir::{TokenSpan, TokenType};
 use destack_source::Span;
 
 impl Parser {

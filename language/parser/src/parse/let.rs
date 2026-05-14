@@ -1,6 +1,6 @@
 use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
 
-use destack_ast::{
+use destack_dir::{
     Asynchrony, BlockContext, Declarator, Expression, Keyword, LetKind, LocalNodeId, Mutability,
     NodeType, Pattern, TokenType,
 };
@@ -509,7 +509,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use destack_ast::{
+    use destack_dir::{
         Asynchrony, Declaration, Declarator, Expression, FloatType, FunctionDeclaration,
         FunctionForm, GenericArgument, GenericParameter, IntegerType, Key, LetKind, Name,
         Parameter, Pattern, PatternField, ScalarLiteral, TypeExpression, TypeLiteral, TypeMember,

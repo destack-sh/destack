@@ -3,7 +3,7 @@ use destack_source::{NodeSpanList, NodeSpanType, Span};
 use smallvec::SmallVec;
 
 use crate::{ParseResult, Parser};
-use destack_ast::{Expression, LocalNodeId, Path, TokenType};
+use destack_dir::{Expression, LocalNodeId, Path, TokenType};
 
 impl Parser {
     /// Eat a path.
@@ -196,7 +196,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use destack_ast::TokenType;
+    use destack_dir::TokenType;
 
     use crate::{TestParser, assert_path};
 

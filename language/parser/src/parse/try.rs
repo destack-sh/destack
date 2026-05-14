@@ -1,5 +1,5 @@
 use crate::{ParseResult, Parser};
-use destack_ast::{BlockContext, Expression, Keyword, LocalNodeId, NodeType, TokenType};
+use destack_dir::{BlockContext, Expression, Keyword, LocalNodeId, NodeType, TokenType};
 
 impl Parser {
     /// Eat a try expression.
@@ -146,7 +146,9 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use destack_ast::{Block, Expression, Name, Pattern, PatternField, TypeExpression};
+    use destack_dir::{
+        Argument, Block, Expression, Name, Pattern, PatternField, TypeExpression, TypeLiteral,
+    };
     use destack_source::LanguageType;
 
     use crate::{
@@ -187,7 +189,7 @@ try {
                 assert_node!(parser.tree, *block_id, Block { .. } => {
                     let expressions = block_expression_ids(parser.tree.get(*block_id));
                     assert_eq!(expressions.len(), 1);
-                    let call_id = parser.unwrap_labelled_expression(expressions[0]);
+                    let call_id = parser.unwrap_label_expression(expressions[0]);
                     assert_node!(parser.tree, call_id, Expression::Call { position: _, left, generic_arguments: _, arguments: _ } => {
                         assert_expression_path!(parser, parser.tree.get(*left), "foo");
                     });
@@ -236,7 +238,7 @@ try {
                 assert_node!(parser.tree, *block_id, Block { .. } => {
                     let expressions = block_expression_ids(parser.tree.get(*block_id));
                     assert_eq!(expressions.len(), 1);
-                    let try_call_id = parser.unwrap_labelled_expression(expressions[0]);
+                    let try_call_id = parser.unwrap_label_expression(expressions[0]);
                     assert_node!(parser.tree, try_call_id, Expression::Call { position: _, left, generic_arguments: _, arguments: _ } => {
                         assert_expression_path!(parser, parser.tree.get(*left), "foo");
                     });
@@ -251,7 +253,7 @@ try {
                 assert_node!(parser.tree, *block_id, Block { .. } => {
                     let expressions = block_expression_ids(parser.tree.get(*block_id));
                     assert_eq!(expressions.len(), 1);
-                    let catch_call_id = parser.unwrap_labelled_expression(expressions[0]);
+                    let catch_call_id = parser.unwrap_label_expression(expressions[0]);
                     assert_node!(parser.tree, catch_call_id, Expression::Call { position: _, left, generic_arguments: _, arguments: _ } => {
                         assert_expression_path!(parser, parser.tree.get(*left), "bar");
                     });
@@ -262,7 +264,7 @@ try {
                 assert_node!(parser.tree, *block_id, Block { .. } => {
                     let expressions = block_expression_ids(parser.tree.get(*block_id));
                     assert_eq!(expressions.len(), 1);
-                    let finally_call_id = parser.unwrap_labelled_expression(expressions[0]);
+                    let finally_call_id = parser.unwrap_label_expression(expressions[0]);
                     assert_node!(parser.tree, finally_call_id, Expression::Call { position: _, left, generic_arguments: _, arguments: _ } => {
                         assert_expression_path!(parser, parser.tree.get(*left), "baz");
                     });
@@ -332,7 +334,7 @@ try {
                 assert_node!(parser.tree, tail_expression, Expression::Call { left, arguments, .. } => {
                     assert_expression_path!(parser, parser.tree.get(*left), "fallback");
                     assert_eq!(arguments.len(), 1);
-                    assert_node!(parser.tree, arguments[0], destack_ast::Argument::Positional { value } => {
+                    assert_node!(parser.tree, arguments[0], Argument::Positional { value } => {
                         assert_expression_path!(parser, parser.tree.get(*value), "error");
                     });
                 });
@@ -451,7 +453,7 @@ try {
 
             // catch annotation
             assert_node!(parser.tree, *catch_ty, TypeExpression::Literal { value } => {
-                assert_eq!(*value, destack_ast::TypeLiteral::Any);
+                assert_eq!(*value, TypeLiteral::Any);
             });
 
             // catch body

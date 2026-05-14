@@ -1,8 +1,8 @@
 use std::str::FromStr;
 use std::sync::Arc;
 
-use destack_ast::{Keyword, LiteralType, TokenSpan, TokenType};
 use destack_core::Color;
+use destack_dir::{Keyword, TokenLiteral, TokenSpan, TokenType};
 use destack_source::{File, SourceColorizer};
 
 use super::Lexer;
@@ -36,13 +36,13 @@ fn token_to_color(file: &File, token: &TokenSpan, bright: bool) -> Option<Color>
         TokenType::Literal => {
             if let Some(literal) = token.token.literal {
                 match literal {
-                    LiteralType::Boolean { .. }
-                    | LiteralType::Int { .. }
-                    | LiteralType::Float { .. } => Some(Color::Cyan),
-                    LiteralType::Character { .. }
-                    | LiteralType::String { .. }
-                    | LiteralType::RegexString { .. }
-                    | LiteralType::TreeString => Some(Color::Green),
+                    TokenLiteral::Boolean { .. }
+                    | TokenLiteral::Int { .. }
+                    | TokenLiteral::Float { .. } => Some(Color::Cyan),
+                    TokenLiteral::Character { .. }
+                    | TokenLiteral::String { .. }
+                    | TokenLiteral::RegexString { .. }
+                    | TokenLiteral::TreeString => Some(Color::Green),
                 }
             } else {
                 Some(Color::Green)

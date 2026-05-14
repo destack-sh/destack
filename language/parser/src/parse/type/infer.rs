@@ -1,6 +1,6 @@
 use crate::{ParseResult, Parser};
 
-use destack_ast::{Keyword, LocalNodeId, NodeType, TokenType, TypeExpression};
+use destack_dir::{Keyword, LocalNodeId, NodeType, TokenType, TypeExpression};
 
 impl Parser {
     /// Eat one `infer` type expression.

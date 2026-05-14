@@ -1,10 +1,10 @@
 use crate::{ParseError, ParseResult, Parser, keyword_from_identifier};
 
-use destack_ast::{
-    Expression, Keyword, LiteralType, LocalNodeId, NodeType, ScalarLiteral, TokenType,
+use destack_core::StringId;
+use destack_dir::{
+    Expression, Keyword, LocalNodeId, NodeType, ScalarLiteral, TokenLiteral, TokenType,
     TypeExpression,
 };
-use destack_core::StringId;
 use destack_source::Span;
 
 impl Parser {
@@ -115,9 +115,9 @@ impl Parser {
         }
         // boolean literal member name
         else if self.peek_is(TokenType::Literal)
-            && self
-                .peek()
-                .is_ok_and(|token| matches!(token.token.literal, Some(LiteralType::Boolean { .. })))
+            && self.peek().is_ok_and(|token| {
+                matches!(token.token.literal, Some(TokenLiteral::Boolean { .. }))
+            })
         {
             let token = *self.eat()?;
             let text = self.get_token_str(token).to_owned();

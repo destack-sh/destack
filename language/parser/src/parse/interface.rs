@@ -2,7 +2,7 @@ use crate::parse::expression::common::DeclarationHeader;
 use crate::parse::prelude::*;
 use crate::{ParseResult, Parser, ParserSpanStart};
 
-use destack_ast::{
+use destack_dir::{
     Declaration, InterfaceDeclaration, Keyword, LocalNodeId, NodeType, TokenType, TypeKind,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType};
@@ -144,7 +144,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use destack_ast::{
+    use destack_dir::{
         CommentKind, Declaration, Expression, GenericArgument, GenericParameter, IntegerType,
         InterfaceDeclaration, Key, Name, Parameter, Pattern, PatternField, TypeExpression,
         TypeKind, TypeLiteral, TypeMember, VarianceModifier, WhereClause,
@@ -632,7 +632,7 @@ interface SQL {
                 // ...arguments: any[]
                 assert_node!(parser.tree, signature.parameters[1], Parameter::VariadicNamed { name, declared_type, .. } => {
                     assert_string!(parser, *name, "arguments");
-                    assert_node!(parser.tree, declared_type.unwrap(), destack_ast::TypeExpression::Array { element } => {
+                    assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Array { element } => {
                         assert_node!(parser.tree, *element, TypeExpression::Literal { value } => {
                             assert_eq!(*value, TypeLiteral::Any);
                         });
@@ -938,7 +938,7 @@ interface Add<T, R = Self> {
         );
         assert_eq!(expressions.len(), 1);
 
-        let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+        let expression_id = parser.unwrap_label_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Interface(InterfaceDeclaration { .. }) => {});
 
@@ -968,7 +968,7 @@ export newtype interface Add<T, R = this> {
         );
         assert_eq!(expressions.len(), 1);
 
-        let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+        let expression_id = parser.unwrap_label_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Interface(InterfaceDeclaration { name, export, is_nominal, generic_parameters, members, .. }) => {
                 assert!(export.is_some());
