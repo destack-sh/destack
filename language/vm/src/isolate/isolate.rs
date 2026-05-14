@@ -7,7 +7,7 @@ use engine::StaticSpace;
 use serde::{Deserialize, Serialize};
 use {destack_engine as engine, destack_mir as mir};
 
-use super::{BindingContext, BindingFn, RootSink};
+use super::{BindingContext, BindingFn};
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::interpreter::{Continuation, ContinuationImage, Interpreter, InterpreterImage, Outcome};
 use crate::options::IsolateOptions;
@@ -189,16 +189,16 @@ impl Isolate {
     }
 
     /// Resolve one runtime entry name into an engine entry handle.
-    pub fn entry_by_name(&self, name: &str) -> Result<engine::Entry, RuntimeError> {
+    pub fn entry_by_name(&self, name: &str) -> Result<engine::EntryPoint, RuntimeError> {
         let function = self.function_id_by_name(name)?;
 
-        Ok(engine::Entry::new(function.id))
+        Ok(engine::EntryPoint::new(function.id))
     }
 
     /// Resolve one engine entry into a MIR function id.
     pub(crate) fn function_for_entry(
         &self,
-        entry: engine::Entry,
+        entry: engine::EntryPoint,
     ) -> mir::LocalNodeId<mir::Function> {
         self.program.function_for_entry(entry)
     }
@@ -426,18 +426,7 @@ impl Isolate {
         Continuation::from_image(image, &self.program, &self.options)
     }
 
-    /// Visit one complete root set from live state and optional continuations.
-    pub fn visit_state_roots(
-        &mut self,
-        statics: &StaticSpace,
-        continuations: &[Continuation],
-        roots: &mut impl RootSink,
-    ) -> RuntimeResult<()> {
-        self.interpreter
-            .visit_roots(&self.program, statics, continuations, roots)
-    }
-
-    /// Visit mutable local root slots from live state and optional continuations.
+    /// Visit mutable heap root slots from live state and optional continuations.
     pub fn visit_root_slots(
         &mut self,
         statics: &mut StaticSpace,
@@ -448,18 +437,7 @@ impl Isolate {
             .visit_root_slots(&self.program, statics, continuations, visit)
     }
 
-    /// Visit roots from one live continuation.
-    pub fn visit_continuation_roots(
-        &mut self,
-        continuation: &Continuation,
-        roots: &mut impl RootSink,
-    ) -> RuntimeResult<()> {
-        continuation
-            .visit_roots(&self.program, roots)
-            .map_err(|error| self.runtime_error(error))
-    }
-
-    /// Visit mutable local root slots from one live continuation.
+    /// Visit mutable heap root slots from one live continuation.
     pub fn visit_continuation_root_slots(
         &mut self,
         continuation: &mut Continuation,
@@ -470,17 +448,7 @@ impl Isolate {
             .map_err(|error| self.runtime_error(error))
     }
 
-    /// Visit roots from one captured continuation image.
-    pub fn visit_image_roots(
-        &mut self,
-        image: &ContinuationImage,
-        roots: &mut impl RootSink,
-    ) -> RuntimeResult<()> {
-        Continuation::visit_image_roots(image, &self.program, roots)
-            .map_err(|error| self.runtime_error(error))
-    }
-
-    /// Visit mutable local root slots from one captured continuation image.
+    /// Visit mutable heap root slots from one captured continuation image.
     pub fn visit_image_root_slots(
         &mut self,
         image: &mut ContinuationImage,
@@ -492,7 +460,7 @@ impl Isolate {
 
     /// Capture one immutable VM image.
     pub fn image(&self) -> RuntimeResult<IsolateImage> {
-        let interpreter = self.interpreter.image();
+        let interpreter = self.interpreter.image(&self.program)?;
 
         Ok(IsolateImage {
             tree: self.program.tree.clone(),

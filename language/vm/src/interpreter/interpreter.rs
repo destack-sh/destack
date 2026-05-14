@@ -3,8 +3,7 @@ use serde::{Deserialize, Serialize};
 use {destack_engine as engine, destack_mir as mir};
 
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult, StackTraceFrame};
-use crate::interpreter::{Continuation, FrameImage};
-use crate::isolate::RootSink;
+use crate::interpreter::{Continuation, FrameImage, StackImage};
 use crate::options::IsolateOptions;
 use crate::program::Program;
 use crate::{Result, Word};
@@ -27,8 +26,10 @@ pub type Outcome = engine::Outcome<Continuation, engine::Value>;
 /// Immutable interpreter image.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct InterpreterImage {
+    /// The captured stack bytes.
+    pub stack: StackImage,
     /// The captured frame stack.
-    pub stack: Vec<FrameImage>,
+    pub frames: Vec<FrameImage>,
 }
 
 impl Interpreter {
@@ -70,10 +71,15 @@ impl Interpreter {
     }
 
     /// Capture one immutable interpreter image.
-    pub(crate) fn image(&self) -> InterpreterImage {
-        let stack = self.frames.iter().map(Frame::image).collect();
+    pub(crate) fn image(&self, program: &Program) -> RuntimeResult<InterpreterImage> {
+        let stack = self.stack.image()?;
+        let frames = self
+            .frames
+            .iter()
+            .map(|frame| frame.image(program))
+            .collect::<RuntimeResult<Vec<_>>>()?;
 
-        InterpreterImage { stack }
+        Ok(InterpreterImage { stack, frames })
     }
 
     /// Fork this interpreter for one child isolate.
@@ -98,16 +104,18 @@ impl Interpreter {
         image: &InterpreterImage,
         options: &IsolateOptions,
     ) -> RuntimeResult<Self> {
-        let mut interpreter = Self::new(options)?;
+        let mut interpreter = Self {
+            frames: Vec::with_capacity(image.frames.len()),
+            stack: Stack::from_image(&image.stack, options.limits.stack_bytes)?,
+        };
 
-        // restore frame bytes before frame metadata points into them
-        for frame_image in &image.stack {
-            let base = interpreter
+        // restore frame metadata over stack image byte ranges
+        for frame_image in &image.frames {
+            let frame_base = interpreter
                 .stack
-                .allocate(frame_image.bytes.len(), Word::BYTE_LEN)?;
-            interpreter.stack.copy_bytes(base, &frame_image.bytes)?;
-            let frame_base = interpreter.stack.address(base, frame_image.bytes.len())?;
-            let frame = Frame::from_image(frame_image, program, base, frame_base)?;
+                .address(frame_image.stack_offset, frame_image.byte_len)?;
+            let frame =
+                Frame::from_image(frame_image, program, frame_image.stack_offset, frame_base)?;
 
             interpreter.frames.push(frame);
         }
@@ -169,7 +177,7 @@ impl Interpreter {
             };
             let was_defined = initialized_statics.define(
                 program.static_id(id),
-                program.layout_id(ty),
+                program.value_layout_id(ty),
                 layout.alignment(),
                 program.tree.get(id).is_mutable(),
                 &bytes,
@@ -203,39 +211,7 @@ impl Interpreter {
             .collect()
     }
 
-    /// Visit one complete root set from active state and suspended continuations.
-    pub(crate) fn visit_roots(
-        &mut self,
-        program: &Program,
-        statics: &StaticSpace,
-        continuations: &[Continuation],
-        roots: &mut impl RootSink,
-    ) -> RuntimeResult<()> {
-        // active frames
-        for frame in &self.frames {
-            frame
-                .visit_roots(program, roots)
-                .map_err(|error| self.runtime_error(program, error))?;
-        }
-
-        // suspended continuations
-        for continuation in continuations {
-            continuation
-                .visit_roots(program, roots)
-                .map_err(|error| self.runtime_error(program, error))?;
-        }
-
-        // statics
-        for (_id, region, bytes) in statics.iter_regions() {
-            program
-                .visit_byte_roots(program.type_for_layout(region.layout), bytes, roots)
-                .map_err(|error| self.runtime_error(program, error))?;
-        }
-
-        Ok(())
-    }
-
-    /// Visit mutable local root slots from active state and suspended continuations.
+    /// Visit mutable heap root slots from active state and suspended continuations.
     pub(crate) fn visit_root_slots(
         &mut self,
         program: &Program,
@@ -271,7 +247,7 @@ impl Interpreter {
                 .ok_or_else(|| self.runtime_error(program, Error::InvalidInstruction))?;
 
             program
-                .visit_byte_root_slots(program.type_for_layout(region.layout), bytes, visit)
+                .visit_byte_root_slots(program.type_for_value_layout(region.layout), bytes, visit)
                 .map_err(|error| self.runtime_error(program, error))?;
         }
 

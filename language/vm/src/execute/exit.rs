@@ -4,7 +4,7 @@ use destack_heap::{Heap, SharedAllocator, SharedGcWorker};
 use super::frame::{frame_value_from_word, materialize_value, store_frame_value};
 use crate::SharedHeap;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
-use crate::interpreter::{Interpreter, Outcome, PendingCall};
+use crate::interpreter::{Interpreter, Outcome};
 use crate::program::Program;
 
 impl Interpreter {
@@ -51,16 +51,16 @@ impl Interpreter {
 
         // otherwise take the call terminator edge before resuming the caller
         let caller_index = self.frames.len() - 1;
-        let pending_call = self
+        let return_state = self
             .frames
             .get_mut(caller_index)
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?
-            .pending_call
+            .return_state
             .take();
 
         // call terminators resume through their explicit edge
-        if let Some(PendingCall { target_state }) = pending_call {
-            self.enter_caller_state(program, target_state, returned)?;
+        if let Some(return_state) = return_state {
+            self.enter_caller_state(program, return_state, returned)?;
             return Ok(None);
         }
 

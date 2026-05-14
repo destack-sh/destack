@@ -1,14 +1,10 @@
 use destack_engine as engine;
 use serde::{Deserialize, Serialize};
 
-use super::{
-    Frame, PendingCall, Stack, visit_frame_slot_root_slots, visit_frame_slot_roots,
-    visit_materialized_slots,
-};
+use super::{Frame, Stack, StackImage, visit_frame_slot_root_slots, visit_materialized_slots};
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::options::IsolateOptions;
 use crate::program::Program;
-use crate::{RootSink, Word};
 use destack_heap::{HeapResult, RootSlot};
 
 /// Suspended interpreter state captured at a yield terminator.
@@ -31,6 +27,8 @@ pub struct Continuation {
 pub struct ContinuationImage {
     /// The engine identity used to validate resumption.
     pub engine_id: engine::EngineId,
+    /// The captured stack bytes.
+    pub stack: StackImage,
     /// The captured frames from outermost to innermost.
     pub frames: Vec<ContinuationFrame>,
 }
@@ -40,10 +38,12 @@ pub struct ContinuationImage {
 pub struct ContinuationFrame {
     /// The logical frame state captured by this frame.
     pub frame_state: engine::FrameStateId,
-    /// The pending call terminator continuation when another frame is active.
-    pub pending_call: Option<PendingCall>,
-    /// The captured frame bytes.
-    pub bytes: Vec<u8>,
+    /// The caller frame state when another frame is active.
+    pub return_state: Option<engine::FrameStateId>,
+    /// The byte offset inside the captured stack image.
+    pub stack_offset: usize,
+    /// The captured frame byte width.
+    pub byte_len: usize,
 }
 
 impl Continuation {
@@ -71,6 +71,7 @@ impl Continuation {
 
     /// Capture one immutable continuation image.
     pub fn image(&self, program: &Program) -> RuntimeResult<ContinuationImage> {
+        let stack = self.stack.image()?;
         let frames = self
             .frames
             .iter()
@@ -86,26 +87,12 @@ impl Continuation {
 
         Ok(ContinuationImage {
             engine_id: self.isolate_id,
+            stack,
             frames,
         })
     }
 
-    /// Visit heap roots referenced by this continuation.
-    pub(crate) fn visit_roots(
-        &self,
-        program: &Program,
-        roots: &mut impl RootSink,
-    ) -> Result<(), Error> {
-        for (frame_index, frame) in self.frames.iter().enumerate() {
-            let materialization = self.frame_materialization(program, frame, frame_index)?;
-
-            frame.visit_materialized_roots(program, materialization, roots)?;
-        }
-
-        Ok(())
-    }
-
-    /// Visit mutable local root slots referenced by this continuation.
+    /// Visit mutable heap root slots referenced by this continuation.
     pub(crate) fn visit_root_slots(
         &mut self,
         program: &Program,
@@ -127,27 +114,14 @@ impl Continuation {
         Ok(())
     }
 
-    /// Visit heap roots from one captured continuation image.
-    pub(crate) fn visit_image_roots(
-        image: &ContinuationImage,
-        program: &Program,
-        roots: &mut impl RootSink,
-    ) -> Result<(), Error> {
-        for frame in &image.frames {
-            frame.visit_roots(program, roots)?;
-        }
-
-        Ok(())
-    }
-
-    /// Visit mutable local root slots from one captured continuation image.
+    /// Visit mutable heap root slots from one captured continuation image.
     pub(crate) fn visit_image_root_slots(
         image: &mut ContinuationImage,
         program: &Program,
         visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
     ) -> Result<(), Error> {
         for frame in &mut image.frames {
-            frame.visit_root_slots(program, visit)?;
+            frame.visit_root_slots(&mut image.stack, program, visit)?;
         }
 
         Ok(())
@@ -163,7 +137,7 @@ impl Continuation {
             return Err(RuntimeError::new(Error::InvalidContinuation));
         }
 
-        let mut stack = Stack::new(options.limits.stack_bytes)?;
+        let stack = Stack::from_image(&image.stack, options.limits.stack_bytes)?;
         let mut frames = Vec::with_capacity(image.frames.len());
 
         for frame_image in &image.frames {
@@ -173,14 +147,17 @@ impl Continuation {
             let layout = program
                 .frame_layout_by_id(materialization.frame_layout)
                 .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?;
-            if frame_image.bytes.len() != layout.byte_len as usize {
+            if frame_image.byte_len < layout.byte_len as usize
+                || image
+                    .stack
+                    .frame_bytes(frame_image.stack_offset, frame_image.byte_len)
+                    .is_none()
+            {
                 return Err(RuntimeError::new(Error::InvalidContinuation));
             }
 
-            let base = stack.allocate(frame_image.bytes.len(), Word::BYTE_LEN)?;
-            stack.copy_bytes(base, &frame_image.bytes)?;
-            let frame_base = stack.address(base, frame_image.bytes.len())?;
-            let frame = frame_image.restore(program, base, frame_base)?;
+            let frame_base = stack.address(frame_image.stack_offset, frame_image.byte_len)?;
+            let frame = frame_image.restore(program, frame_image.stack_offset, frame_base)?;
             frames.push(frame);
         }
 
@@ -271,30 +248,23 @@ impl ContinuationFrame {
     fn capture(frame: &Frame, frame_state: engine::FrameStateId) -> Self {
         Self {
             frame_state,
-            pending_call: frame.pending_call.clone(),
-            bytes: frame.bytes().to_vec(),
+            return_state: frame.return_state,
+            stack_offset: frame.stack_offset,
+            byte_len: frame.byte_len,
         }
     }
 
-    /// Visit heap roots from this captured frame.
-    fn visit_roots(&self, program: &Program, roots: &mut impl RootSink) -> Result<(), Error> {
-        let (layout, materialization) = self.materialization(program)?;
-
-        visit_materialized_slots(layout, materialization, |slot| {
-            self.visit_slot_roots(program, slot, roots)
-        })
-    }
-
-    /// Visit mutable local root slots from this captured frame.
+    /// Visit mutable heap root slots from this captured frame.
     fn visit_root_slots(
         &mut self,
+        stack: &mut StackImage,
         program: &Program,
         visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
     ) -> Result<(), Error> {
         let (layout, materialization) = self.materialization(program)?;
 
         visit_materialized_slots(layout, materialization, |slot| {
-            self.visit_slot_root_slots(program, slot, visit)
+            self.visit_slot_root_slots(stack, program, slot, visit)
         })
     }
 
@@ -337,7 +307,7 @@ impl ContinuationFrame {
             frame_base,
         );
         frame.pc = point.instruction_index as usize;
-        frame.pending_call = self.pending_call.clone();
+        frame.return_state = self.return_state;
 
         Ok(frame)
     }
@@ -353,37 +323,29 @@ impl ContinuationFrame {
         let layout = program
             .frame_layout_by_id(materialization.frame_layout)
             .ok_or(Error::InvalidContinuation)?;
-        if self.bytes.len() != layout.byte_len as usize {
+        if self.byte_len < layout.byte_len as usize {
             return Err(Error::InvalidContinuation);
         }
 
         Ok((layout, materialization))
     }
 
-    /// Visit heap roots from one frame slot.
-    fn visit_slot_roots(
-        &self,
-        program: &Program,
-        slot: &engine::FrameSlot,
-        roots: &mut impl RootSink,
-    ) -> Result<(), Error> {
-        let start = slot.offset as usize;
-        let end = start + slot.byte_len as usize;
-        let bytes = &self.bytes[start..end];
-
-        visit_frame_slot_roots(program, slot, bytes, roots)
-    }
-
-    /// Visit mutable local root slots from one frame slot.
+    /// Visit mutable heap root slots from one frame slot.
     fn visit_slot_root_slots(
         &mut self,
+        stack: &mut StackImage,
         program: &Program,
         slot: &engine::FrameSlot,
         visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
     ) -> Result<(), Error> {
         let start = slot.offset as usize;
         let end = start + slot.byte_len as usize;
-        let bytes = &mut self.bytes[start..end];
+        let frame_bytes = stack
+            .frame_bytes_mut(self.stack_offset, self.byte_len)
+            .ok_or(Error::InvalidContinuation)?;
+        let bytes = frame_bytes
+            .get_mut(start..end)
+            .ok_or(Error::InvalidContinuation)?;
 
         visit_frame_slot_root_slots(program, slot, bytes, visit)
     }

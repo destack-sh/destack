@@ -149,7 +149,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             .value(value.0)
             .ok_or(Error::InvalidInstruction)?;
 
-        Ok(self.program.type_for_layout(slot.layout))
+        Ok(self.program.type_for_value_layout(slot.layout))
     }
 
     /// Return the frame slot for one SSA value.

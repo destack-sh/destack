@@ -30,8 +30,8 @@ pub struct Program {
     /// Immutable program static data.
     pub(crate) statics: engine::StaticSpace,
 
-    /// Logical frame layouts by dense layout id.
-    pub(crate) frame_layouts: Vec<engine::FrameLayout>,
+    /// Engine-visible execution layout tables.
+    pub(crate) program_layout: engine::ProgramLayout,
     /// Dense frame-state metadata.
     frame_states: FrameStateTable,
 }
@@ -61,7 +61,7 @@ impl Program {
     #[inline]
     pub(crate) fn function_for_entry(
         &self,
-        entry: engine::Entry,
+        entry: engine::EntryPoint,
     ) -> mir::LocalNodeId<mir::Function> {
         mir::LocalNodeId::new(entry.index())
     }
@@ -86,16 +86,19 @@ impl Program {
         ProgramPoint::new(function, block, instruction_index)
     }
 
-    /// Convert one MIR type id into one program layout id.
+    /// Convert one MIR type id into one engine value layout id.
     #[inline]
-    pub(crate) fn layout_id(&self, ty: mir::LocalNodeId<mir::Type>) -> engine::LayoutId {
-        LayoutIndex::engine_layout_id(ty)
+    pub(crate) fn value_layout_id(&self, ty: mir::LocalNodeId<mir::Type>) -> engine::ValueLayoutId {
+        LayoutIndex::value_layout_id(ty)
     }
 
-    /// Convert one program layout id into one MIR type id.
+    /// Convert one engine value layout id into one MIR type id.
     #[inline]
-    pub(crate) fn type_for_layout(&self, layout: engine::LayoutId) -> mir::LocalNodeId<mir::Type> {
-        LayoutIndex::type_for_layout(layout)
+    pub(crate) fn type_for_value_layout(
+        &self,
+        layout: engine::ValueLayoutId,
+    ) -> mir::LocalNodeId<mir::Type> {
+        LayoutIndex::type_for_value_layout(layout)
     }
 
     /// Return the callable heap object layout for this program.
@@ -125,7 +128,9 @@ impl Program {
         &self,
         frame_layout: engine::FrameLayoutId,
     ) -> Option<&engine::FrameLayout> {
-        self.frame_layouts.get(frame_layout.0 as usize)
+        self.program_layout
+            .frame_layouts
+            .get(frame_layout.0 as usize)
     }
 
     /// Return the lowered program point for one frame state.
@@ -161,8 +166,8 @@ impl Program {
     }
 
     /// Return the compiled layout for one program layout id.
-    pub(crate) fn layout_for_id(&self, layout: engine::LayoutId) -> Option<&Layout> {
-        self.layout_index.layout_for_id(layout)
+    pub(crate) fn layout_for_value_id(&self, layout: engine::ValueLayoutId) -> Option<&Layout> {
+        self.layout_index.layout_for_value_id(layout)
     }
 
     /// Encode one global initializer into its declared bytes.
@@ -250,7 +255,7 @@ impl fmt::Debug for Program {
                 "functions",
                 &format!("<{} functions>", self.function_id_by_name.len()),
             )
-            .field("frame_layouts", &self.frame_layouts.len())
+            .field("frame_layouts", &self.program_layout.frame_layouts.len())
             .field("frame_states", &self.frame_states.len())
             .field("statics", &self.statics.len())
             .finish_non_exhaustive()
@@ -574,7 +579,7 @@ struct ProgramBuilder {
     shared_heap_options: heap::HeapOptions,
     tree: mir::Tree,
     strings: StringPool,
-    frame_layouts: Vec<engine::FrameLayout>,
+    program_layout: engine::ProgramLayout,
     frame_states: FrameStateTable,
 }
 
@@ -591,7 +596,7 @@ impl ProgramBuilder {
             shared_heap_options,
             tree,
             strings,
-            frame_layouts: Vec::new(),
+            program_layout: engine::ProgramLayout::default(),
             frame_states: FrameStateTable::default(),
         }
     }
@@ -622,7 +627,7 @@ impl ProgramBuilder {
             function_id_by_name,
             statics,
             layout_index,
-            frame_layouts: self.frame_layouts,
+            program_layout: self.program_layout,
             frame_states: self.frame_states,
             functions,
             side_table,
@@ -692,7 +697,7 @@ impl ProgramBuilder {
     ) -> Result<()> {
         let was_defined = data.define(
             engine::StaticId(global.id),
-            engine::LayoutId(ty.id),
+            engine::ValueLayoutId(ty.id),
             alignment,
             is_mutable,
             bytes,
@@ -894,7 +899,7 @@ impl ProgramBuilder {
         })?;
 
         // append the frame layout before assigning frame states
-        self.frame_layouts.push(frame_layout.clone());
+        self.program_layout.frame_layouts.push(frame_layout.clone());
 
         // append states for every lowered instruction boundary
         for block in &function.blocks {
@@ -1026,7 +1031,7 @@ impl ProgramBuilder {
         });
 
         Ok(engine::FrameLayout {
-            id: engine::FrameLayoutId(self.frame_layouts.len() as u32),
+            id: engine::FrameLayoutId(self.program_layout.frame_layouts.len() as u32),
             slots,
             value_count,
             local_count,
@@ -1070,7 +1075,7 @@ impl ProgramBuilder {
             byte_len: u32::try_from(slot_len).map_err(|_| Error::InvalidInstruction)?,
             alignment: u16::try_from(slot_alignment).map_err(|_| Error::InvalidInstruction)?,
             is_word,
-            layout: engine::LayoutId(ty.id),
+            layout: engine::ValueLayoutId(ty.id),
         })
     }
 
@@ -1320,6 +1325,14 @@ impl ProgramBuilder {
             frame_layout: frame_layout.id,
             sources,
         };
+        self.program_layout.frame_states.push(engine::FrameState {
+            id: frame_state,
+            point: engine::InstructionPoint {
+                function: engine::FunctionId(point.function.id),
+                block: engine::BlockId(point.block.id),
+                instruction: engine::InstructionIndex(point.instruction_index),
+            },
+        });
         self.frame_states.push(
             frame_state,
             FrameState {

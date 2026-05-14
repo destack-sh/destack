@@ -434,14 +434,19 @@ b1(v3: Pair, v4: int32):
     let (continuation, _value) =
         assert_execution_yielded(isolate.run_function_by_name_yielding("yieldAlloc", &[]));
 
-    let image = isolate
+    let mut image = isolate
         .isolate
         .continuation_image(&continuation)
         .expect("continuation image should capture");
     let mut roots = crate::RootSet::default();
     isolate
         .isolate
-        .visit_image_roots(&image, &mut roots)
+        .visit_image_root_slots(&mut image, &mut |slot| {
+            let root = slot.load()?;
+            destack_heap::RootSink::push(&mut roots, root);
+
+            Ok(())
+        })
         .expect("continuation image roots should collect");
     let mut heap_roots = roots.heap;
     let stats = isolate
