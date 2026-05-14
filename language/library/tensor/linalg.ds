@@ -1,0 +1,122 @@
+import { todo } from "destack:error";
+import { TensorOutputOptions, TensorReduceOptions } from "./options.ds";
+import { AxisSet } from "./shape.ds";
+import { Tensor } from "./tensor.ds";
+
+/// Matrix factorization mode.
+export enum FactorizationMode {
+    /// Return the reduced factorization.
+    Reduced = 1,
+    /// Return full-sized factors.
+    Complete = 2,
+}
+
+/// Options for matrix factorizations.
+export struct FactorizationOptions<T, comptime Rank: int> {
+    /// Factorization mode.
+    mode: FactorizationMode = FactorizationMode.Reduced;
+
+    /// First output options.
+    left?: TensorOutputOptions<T, Rank>;
+
+    /// Second output options.
+    right?: TensorOutputOptions<T, Rank>;
+}
+
+/// Return the inner product of two vectors.
+export function inner<T>(
+    left: Tensor<T, 1>,
+    right: Tensor<T, 1>,
+    options?: TensorOutputOptions<T, 0>,
+): Tensor<T, 0> {
+    todo("tensor.inner")
+}
+
+/// Return the outer product of two vectors.
+export function outer<T>(
+    left: Tensor<T, 1>,
+    right: Tensor<T, 1>,
+    options?: TensorOutputOptions<T, 2>,
+): Tensor<T, 2> {
+    todo("tensor.outer")
+}
+
+/// Return the diagonal of a matrix.
+export function diagonal<T>(
+    matrix: Tensor<T, 2>,
+    options?: TensorOutputOptions<T, 1>,
+): Tensor<T, 1> {
+    todo("tensor.diagonal")
+}
+
+/// Return the trace of a matrix.
+export function trace<T>(
+    matrix: Tensor<T, 2>,
+    options?: TensorOutputOptions<T, 0>,
+): Tensor<T, 0> {
+    todo("tensor.trace")
+}
+
+/// Return the determinant of a matrix.
+export function det<T: float>(
+    matrix: Tensor<T, 2>,
+    options?: TensorOutputOptions<T, 0>,
+): Tensor<T, 0> {
+    todo("tensor.det")
+}
+
+/// Return the inverse of a matrix.
+export function inverse<T: float>(
+    matrix: Tensor<T, 2>,
+    options?: TensorOutputOptions<T, 2>,
+): Tensor<T, 2> {
+    todo("tensor.inverse")
+}
+
+/// Solve a linear system.
+export function solve<T: float, comptime RightRank: int>(
+    matrix: Tensor<T, 2>,
+    right: Tensor<T, RightRank>,
+    options?: TensorOutputOptions<T, RightRank>,
+): Tensor<T, RightRank> {
+    todo("tensor.solve")
+}
+
+/// Return the Cholesky factorization.
+export function cholesky<T: float>(
+    matrix: Tensor<T, 2>,
+    options?: TensorOutputOptions<T, 2>,
+): Tensor<T, 2> {
+    todo("tensor.cholesky")
+}
+
+/// Return the QR factorization.
+export function qr<T: float>(
+    matrix: Tensor<T, 2>,
+    options?: FactorizationOptions<T, 2>,
+): [Tensor<T, 2>, Tensor<T, 2>] {
+    todo("tensor.qr")
+}
+
+/// Return the singular value decomposition.
+export function svd<T: float>(
+    matrix: Tensor<T, 2>,
+    options?: FactorizationOptions<T, 2>,
+): [Tensor<T, 2>, Tensor<T, 1>, Tensor<T, 2>] {
+    todo("tensor.svd")
+}
+
+/// Return vector or matrix norm along `axes`.
+export function norm<
+    T: float,
+    comptime Rank: int,
+    comptime AxisCount: int,
+    comptime OutRank: int = Rank - AxisCount,
+>(
+    tensor: Tensor<T, Rank>,
+    axes: AxisSet<AxisCount>,
+    order?: int32 | float64,
+    options?: TensorReduceOptions<T, OutRank>,
+): Tensor<T, OutRank> {
+    todo("tensor.norm")
+}

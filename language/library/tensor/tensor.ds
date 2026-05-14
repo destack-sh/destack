@@ -1,0 +1,243 @@
+import { todo } from "destack:error";
+import { Slice } from "destack:collections";
+import { Device } from "destack:compute";
+import {
+    Add,
+    And,
+    Divide,
+    Multiply,
+    Negate,
+    Not,
+    Or,
+    Power,
+    Remainder,
+    Subtract,
+    Xor,
+    Index,
+    IndexSet,
+} from "destack:ops";
+import { Layout } from "./layout.ds";
+import { TensorCreateOptions, TensorOutputOptions } from "./options.ds";
+import { Coordinate, Shape } from "./shape.ds";
+import { TensorBuffer } from "./buffer.ds";
+import { TensorView } from "./view.ds";
+
+/// Owning tensor value on a device.
+@languageItem("tensor.Tensor")
+export class Tensor<T, comptime Rank: int> {
+    /// The tensor shape.
+    readonly shape: Shape<Rank>;
+
+    /// The tensor layout.
+    readonly layout: Layout<Rank>;
+
+    /// The tensor buffer.
+    readonly buffer: TensorBuffer<T>;
+
+    /// The device that owns the buffer.
+    readonly device: Device;
+}
+
+extension<T, comptime Rank: int> of Tensor<T, Rank> {
+    /// Allocate an uninitialized tensor.
+    static empty(
+        shape: Shape<Rank>,
+        options?: TensorCreateOptions<Rank>,
+    ): Tensor<T, Rank> {
+        todo("Tensor.empty")
+    }
+
+    /// Allocate a tensor filled with `value`.
+    static full(
+        shape: Shape<Rank>,
+        value: T,
+        options?: TensorCreateOptions<Rank>,
+    ): Tensor<T, Rank> {
+        todo("Tensor.full")
+    }
+
+    /// Copy a contiguous slice into a tensor.
+    static fromSlice(
+        slice: &readonly Slice<T>,
+        shape: Shape<Rank>,
+        options?: TensorCreateOptions<Rank>,
+    ): Tensor<T, Rank> {
+        todo("Tensor.fromSlice")
+    }
+
+    /// Return the total element count.
+    @intrinsic("tensor.size")
+    get size(): usize;
+
+    /// Return the number of axes.
+    get rank(): int {
+        Rank
+    }
+
+    /// Return the byte length of one element.
+    @intrinsic("tensor.elementByteLength")
+    get elementByteLength(): usize;
+
+    /// Return the tensor byte length.
+    @intrinsic("tensor.byteLength")
+    get byteLength(): usize;
+
+    /// Return whether this tensor has no elements.
+    get isEmpty(): boolean {
+        todo("Tensor.isEmpty")
+    }
+}
+
+extension<T: int | float, comptime Rank: int> of Tensor<T, Rank> {
+    /// Allocate a tensor filled with zero.
+    static zeros(
+        shape: Shape<Rank>,
+        options?: TensorCreateOptions<Rank>,
+    ): Tensor<T, Rank> {
+        todo("Tensor.zeros")
+    }
+
+    /// Allocate a tensor filled with one.
+    static ones(
+        shape: Shape<Rank>,
+        options?: TensorCreateOptions<Rank>,
+    ): Tensor<T, Rank> {
+        todo("Tensor.ones")
+    }
+}
+
+extension<T: int | float, comptime Rank: int> of Tensor<T, Rank> implements
+    Add<Tensor<T, Rank>>,
+    Subtract<Tensor<T, Rank>>,
+    Multiply<Tensor<T, Rank>>,
+    Divide<Tensor<T, Rank>>,
+    Remainder<Tensor<T, Rank>>,
+    Power<Tensor<T, Rank>>,
+    Negate
+{
+    /// The elementwise tensor result type.
+    type Output = Tensor<T, Rank>;
+
+    /// Add `other` elementwise.
+    add(other: Tensor<T, Rank>): this.Output {
+        todo("Tensor.add")
+    }
+
+    /// Subtract `other` elementwise.
+    subtract(other: Tensor<T, Rank>): this.Output {
+        todo("Tensor.subtract")
+    }
+
+    /// Multiply by `other` elementwise.
+    multiply(other: Tensor<T, Rank>): this.Output {
+        todo("Tensor.multiply")
+    }
+
+    /// Divide by `other` elementwise.
+    divide(other: Tensor<T, Rank>): this.Output {
+        todo("Tensor.divide")
+    }
+
+    /// Return the elementwise remainder after dividing by `other`.
+    remainder(other: Tensor<T, Rank>): this.Output {
+        todo("Tensor.remainder")
+    }
+
+    /// Raise this tensor to `other` elementwise.
+    power(other: Tensor<T, Rank>): this.Output {
+        todo("Tensor.power")
+    }
+
+    /// Negate this tensor elementwise.
+    negate(): this.Output {
+        todo("Tensor.negate")
+    }
+}
+
+extension<T: int | boolean, comptime Rank: int> of Tensor<T, Rank> implements
+    And<Tensor<T, Rank>>,
+    Or<Tensor<T, Rank>>,
+    Xor<Tensor<T, Rank>>,
+    Not
+{
+    /// The elementwise tensor result type.
+    type Output = Tensor<T, Rank>;
+
+    /// Apply bitwise AND elementwise.
+    and(other: Tensor<T, Rank>): this.Output {
+        todo("Tensor.and")
+    }
+
+    /// Apply bitwise OR elementwise.
+    or(other: Tensor<T, Rank>): this.Output {
+        todo("Tensor.or")
+    }
+
+    /// Apply bitwise XOR elementwise.
+    xor(other: Tensor<T, Rank>): this.Output {
+        todo("Tensor.xor")
+    }
+
+    /// Apply bitwise NOT elementwise.
+    not(): this.Output {
+        todo("Tensor.not")
+    }
+}
+
+extension<T, comptime Rank: int> of Tensor<T, Rank> implements
+    Index<Coordinate<Rank>>,
+    IndexSet<Coordinate<Rank>, T>
+{
+    /// The indexed output type.
+    type Output = T;
+
+    /// Return a mutable view of this tensor.
+    view(this: &Tensor<T, Rank>): TensorView<T, Rank, "mutable"> {
+        todo("Tensor.view")
+    }
+
+    /// Return a readonly view of this tensor.
+    view(this: &readonly Tensor<T, Rank>): TensorView<T, Rank, "readonly"> {
+        todo("Tensor.view")
+    }
+
+    /// Return an exclusive view of this tensor.
+    view(this: &exclusive Tensor<T, Rank>): TensorView<T, Rank, "exclusive"> {
+        todo("Tensor.view")
+    }
+
+    /// Return a tensor copy on `device`.
+    to(device: Device, options?: TensorOutputOptions<T, Rank>): Tensor<T, Rank> {
+        todo("Tensor.to")
+    }
+
+    /// Return a tensor with the same buffer reinterpreted as `shape`.
+    reshape<comptime OutRank: int>(shape: Shape<OutRank>): Tensor<T, OutRank> {
+        todo("Tensor.reshape")
+    }
+
+    /// Return a contiguous copy.
+    contiguous(layout: Layout<Rank> = Layout<Rank>.rowMajor()): Tensor<T, Rank> {
+        todo("Tensor.contiguous")
+    }
+
+    /// Return the element at `coordinate` by value.
+    index(coordinate: Coordinate<Rank>): T {
+        todo("Tensor.index")
+    }
+
+    /// Borrow the element at `coordinate`.
+    index(this: &Tensor<T, Rank>, coordinate: Coordinate<Rank>): &T {
+        todo("Tensor.index")
+    }
+
+    /// Borrow the element at `coordinate` with readonly access.
+    index(this: &readonly Tensor<T, Rank>, coordinate: Coordinate<Rank>): &readonly T {
+        todo("Tensor.index")
+    }
+
+    /// Store `value` at `coordinate`.
+    indexSet(this: &exclusive Tensor<T, Rank>, coordinate: Coordinate<Rank>, value: T): void {
+        todo("Tensor.indexSet")
+    }
+}

@@ -1,0 +1,84 @@
+import { todo } from "destack:error";
+import { FixedArray } from "destack:collections";
+
+/// Axis index inside a tensor rank.
+export newtype Axis = int32;
+
+/// Runtime size along one tensor axis.
+export newtype Extent = usize;
+
+/// Tensor element stride.
+export newtype Stride = isize;
+
+/// Tensor shape with `Rank` axes.
+@languageItem("tensor.Shape")
+export struct Shape<comptime Rank: int> {
+    /// The size of each axis.
+    extents: FixedArray<Extent, Rank>;
+}
+
+extension<comptime Rank: int> of Shape<Rank> {
+    /// Create a shape from `extents`.
+    static new(extents: FixedArray<Extent, Rank>): Shape<Rank> {
+        Shape { extents }
+    }
+
+    /// Return the tensor rank.
+    get rank(): int {
+        Rank
+    }
+
+    /// Return the extent of `axis`.
+    extent(axis: Axis): Extent {
+        todo("Shape.extent")
+    }
+
+    /// Return the number of elements.
+    elementCount(): usize {
+        todo("Shape.elementCount")
+    }
+}
+
+/// Tensor coordinate with `Rank` indices.
+export struct Coordinate<comptime Rank: int> {
+    /// The per-axis indices.
+    values: FixedArray<usize, Rank>;
+}
+
+extension<comptime Rank: int> of Coordinate<Rank> {
+    /// Create a coordinate from `values`.
+    static new(values: FixedArray<usize, Rank>): Coordinate<Rank> {
+        Coordinate { values }
+    }
+}
+
+/// Axis permutation with `Rank` entries.
+export struct Permutation<comptime Rank: int> {
+    /// The source axis for each result axis.
+    axes: FixedArray<Axis, Rank>;
+}
+
+extension<comptime Rank: int> of Permutation<Rank> {
+    /// Create a permutation from `axes`.
+    static new(axes: FixedArray<Axis, Rank>): Permutation<Rank> {
+        Permutation { axes }
+    }
+
+    /// Return the identity permutation.
+    static identity(): Permutation<Rank> {
+        todo("Permutation.identity")
+    }
+}
+
+/// Axis set used by reductions and broadcasts.
+export struct AxisSet<comptime Count: int> {
+    /// The axis values.
+    values: FixedArray<Axis, Count>;
+}
+
+extension<comptime Count: int> of AxisSet<Count> {
+    /// Create an axis set from `values`.
+    static new(values: FixedArray<Axis, Count>): AxisSet<Count> {
+        AxisSet { values }
+    }
+}

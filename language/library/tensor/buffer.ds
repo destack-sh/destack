@@ -1,0 +1,54 @@
+import { todo } from "destack:error";
+import { Buffer, Device } from "destack:compute";
+import { sizeOf } from "destack:reflect";
+import { TensorExecutionOptions } from "./options.ds";
+
+/// Owned tensor buffer on one device.
+@languageItem("tensor.TensorBuffer")
+export class TensorBuffer<T> {
+    /// The device that owns the buffer.
+    readonly device: Device;
+
+    /// The compute storage backing this tensor buffer.
+    readonly storage: Buffer<T>;
+
+    /// The number of elements in the buffer.
+    readonly length: usize;
+}
+
+extension<T> of TensorBuffer<T> {
+    /// Allocate an uninitialized buffer.
+    static allocate(length: usize, device: Device): TensorBuffer<T> {
+        todo("TensorBuffer.allocate")
+    }
+
+    /// Wrap an existing compute buffer.
+    static fromBuffer(buffer: Buffer<T>): TensorBuffer<T> {
+        todo("TensorBuffer.fromBuffer")
+    }
+
+    /// Return whether this buffer has no elements.
+    get isEmpty(): boolean {
+        this.length == 0
+    }
+
+    /// Return the byte length of one element.
+    get elementByteLength(): usize {
+        sizeOf<T>()
+    }
+
+    /// Return the buffer byte length.
+    get byteLength(): usize {
+        this.length * this.elementByteLength
+    }
+
+    /// Copy this buffer to `device`.
+    copyTo(device: Device, options?: TensorExecutionOptions): TensorBuffer<T> {
+        todo("TensorBuffer.copyTo")
+    }
+
+    /// Return the backing compute buffer.
+    asBuffer(): Buffer<T> {
+        this.storage
+    }
+}

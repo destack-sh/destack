@@ -1,0 +1,70 @@
+import { FixedArray } from "destack:collections";
+
+/// Slice window for a tensor with `Rank` axes.
+export struct SliceWindow<comptime Rank: int> {
+    /// The starting coordinate for each axis.
+    offsets: FixedArray<usize, Rank>;
+
+    /// The result size for each axis.
+    sizes: FixedArray<usize, Rank>;
+
+    /// The stride for each axis.
+    strides: FixedArray<usize, Rank>;
+}
+
+/// Padding for a tensor with `Rank` axes.
+export struct Padding<comptime Rank: int> {
+    /// Padding before each axis.
+    low: FixedArray<usize, Rank>;
+
+    /// Padding after each axis.
+    high: FixedArray<usize, Rank>;
+
+    /// Padding between elements along each axis.
+    interior: FixedArray<usize, Rank>;
+}
+
+/// Window parameters for tensor convolution.
+export struct ConvolutionWindow<comptime SpatialRank: int> {
+    /// Stride for each spatial axis.
+    strides: FixedArray<usize, SpatialRank>;
+
+    /// Padding before each spatial axis.
+    paddingLow: FixedArray<usize, SpatialRank>;
+
+    /// Padding after each spatial axis.
+    paddingHigh: FixedArray<usize, SpatialRank>;
+
+    /// Input dilation for each spatial axis.
+    inputDilation: FixedArray<usize, SpatialRank>;
+
+    /// Kernel dilation for each spatial axis.
+    kernelDilation: FixedArray<usize, SpatialRank>;
+
+    /// Whether each spatial axis is reversed.
+    reversal: FixedArray<boolean, SpatialRank>;
+}
+
+/// Grouping parameters for tensor convolution.
+export struct ConvolutionGroups {
+    /// Feature group count.
+    feature: usize = 1;
+
+    /// Batch group count.
+    batch: usize = 1;
+}
+
+/// Window parameters for pooling.
+export struct PoolWindow<comptime Rank: int> {
+    /// Window size for each axis.
+    size: FixedArray<usize, Rank>;
+
+    /// Stride for each axis.
+    strides: FixedArray<usize, Rank>;
+
+    /// Padding before each axis.
+    paddingLow: FixedArray<usize, Rank>;
+
+    /// Padding after each axis.
+    paddingHigh: FixedArray<usize, Rank>;
+}
