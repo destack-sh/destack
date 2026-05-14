@@ -220,11 +220,11 @@ fn collect_forbidden_dependency_diagnostics(
 fn module_dependencies(ctx: &LintWorkspaceContext, module_id: ModuleId) -> Vec<ModuleId> {
     let mut dependencies = Vec::new();
 
-    if let Some(imported) = ctx.imported_dir(module_id) {
+    if let Some(imported) = ctx.dir_imported(module_id) {
         collect_imported_module_dependencies(&imported, &mut dependencies);
     }
 
-    if let Some(exported) = ctx.exported_dir(module_id) {
+    if let Some(exported) = ctx.dir_exported(module_id) {
         collect_exported_module_dependencies(&exported, &mut dependencies);
     }
 

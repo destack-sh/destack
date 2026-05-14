@@ -278,11 +278,11 @@ fn collect_occurrences(
         if !file.ty.is_code() || is_declaration_file(file.ty, ctx) {
             continue;
         }
-        let Some(bound_dir) = ctx.bound_dir(module.id) else {
+        let Some(parsed) = ctx.dir_parsed(module.id) else {
             continue;
         };
 
-        let view = dir::View::new(&bound_dir.tree);
+        let view = dir::View::new(&parsed.tree);
         for block_id in view.iter_nodes::<dir::Block>() {
             let span = view.get_span(block_id);
             let line_count = span_line_count(&file, span);
@@ -297,7 +297,7 @@ fn collect_occurrences(
                 block_id,
                 block_kind: classify_block_kind(view, block_id),
                 line_count,
-                prefilter_key: build_block_prefilter_key(&bound_dir.tree, block_id),
+                prefilter_key: build_block_prefilter_key(&parsed.tree, block_id),
             });
         }
     }
@@ -323,14 +323,14 @@ fn collect_occurrences(
             continue;
         };
         let module = module.as_ref();
-        let Some(bound_dir) = ctx.bound_dir(module.id) else {
+        let Some(parsed) = ctx.dir_parsed(module.id) else {
             continue;
         };
         let strings = ctx.repository.string_pool().clone();
 
         let signatures = build_block_signatures(
             strings.as_ref(),
-            &bound_dir.tree,
+            &parsed.tree,
             candidate.block_id,
             include_near,
             include_near_token_hashes,

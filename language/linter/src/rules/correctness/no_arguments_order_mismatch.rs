@@ -324,7 +324,7 @@ fn parameter_names_for_symbol(
         return declaration_parameter_names(ctx.dir.tree(), declaration_id.local_id);
     }
 
-    let module_dir = ctx.bound_dir(declaration_id.module_id)?;
+    let module_dir = ctx.dir_parsed(declaration_id.module_id)?;
     declaration_parameter_names(&module_dir.tree, declaration_id.local_id)
 }
 

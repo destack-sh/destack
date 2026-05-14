@@ -85,22 +85,22 @@ impl LintPackageContext {
     }
 
     /// Return one imported DIR artifact for one revision-scoped module.
-    pub fn imported_dir(&self, module_id: ModuleId) -> Option<Arc<DirImported>> {
+    pub fn dir_imported(&self, module_id: ModuleId) -> Option<Arc<DirImported>> {
         self.artifacts.dir_imported(module_id, self.profile_id)
     }
 
     /// Return one bound DIR artifact for one revision-scoped module.
-    pub fn bound_dir(&self, module_id: ModuleId) -> Option<Arc<DirBound>> {
+    pub fn dir_bound(&self, module_id: ModuleId) -> Option<Arc<DirBound>> {
         self.artifacts.dir_bound(module_id, self.profile_id)
     }
 
     /// Return one expanded DIR artifact for one revision-scoped module.
-    pub fn expanded_dir(&self, module_id: ModuleId) -> Option<Arc<DirExpanded>> {
+    pub fn dir_expanded(&self, module_id: ModuleId) -> Option<Arc<DirExpanded>> {
         self.artifacts.dir_expanded(module_id, self.profile_id)
     }
 
     /// Return one exported DIR artifact for one revision-scoped module.
-    pub fn exported_dir(&self, module_id: ModuleId) -> Option<Arc<DirExported>> {
+    pub fn dir_exported(&self, module_id: ModuleId) -> Option<Arc<DirExported>> {
         self.artifacts.dir_exported(module_id, self.profile_id)
     }
 

@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
-use destack_artifact::{DirBound, DirExpanded, DirExported, DirImported, GlobalEnvironment};
+use destack_artifact::{
+    DirBound, DirExpanded, DirExported, DirImported, DirParsed, GlobalEnvironment,
+};
 use destack_dir::{self as dir, LanguageItem, StringId};
 use destack_source::{File, FileId, ModuleId, PackageId};
 use destack_workspace::{
@@ -86,22 +88,27 @@ impl LintWorkspaceContext {
     }
 
     /// Return one imported DIR artifact for one revision-scoped module.
-    pub fn imported_dir(&self, module_id: ModuleId) -> Option<Arc<DirImported>> {
+    pub fn dir_imported(&self, module_id: ModuleId) -> Option<Arc<DirImported>> {
         self.artifacts.dir_imported(module_id, self.profile_id)
     }
 
     /// Return one bound DIR artifact for one revision-scoped module.
-    pub fn bound_dir(&self, module_id: ModuleId) -> Option<Arc<DirBound>> {
+    pub fn dir_bound(&self, module_id: ModuleId) -> Option<Arc<DirBound>> {
         self.artifacts.dir_bound(module_id, self.profile_id)
     }
 
+    /// Return one parsed DIR artifact for one revision-scoped module.
+    pub fn dir_parsed(&self, module_id: ModuleId) -> Option<Arc<DirParsed>> {
+        self.artifacts.dir_parsed(module_id)
+    }
+
     /// Return one expanded DIR artifact for one revision-scoped module.
-    pub fn expanded_dir(&self, module_id: ModuleId) -> Option<Arc<DirExpanded>> {
+    pub fn dir_expanded(&self, module_id: ModuleId) -> Option<Arc<DirExpanded>> {
         self.artifacts.dir_expanded(module_id, self.profile_id)
     }
 
     /// Return one exported DIR artifact for one revision-scoped module.
-    pub fn exported_dir(&self, module_id: ModuleId) -> Option<Arc<DirExported>> {
+    pub fn dir_exported(&self, module_id: ModuleId) -> Option<Arc<DirExported>> {
         self.artifacts.dir_exported(module_id, self.profile_id)
     }
 

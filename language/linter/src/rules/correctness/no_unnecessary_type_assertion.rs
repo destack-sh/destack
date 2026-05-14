@@ -158,7 +158,7 @@ fn source_expression_is_declared_any(
     }
 
     // cross module
-    let Some(module_dir) = ctx.checked_dir(source_value_type_id.module_id) else {
+    let Some(module_dir) = ctx.dir_checked(source_value_type_id.module_id) else {
         return false;
     };
     let source_type_id = unwrap_value_type_id(&module_dir.types, source_value_type_id.type_id);

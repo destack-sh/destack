@@ -122,7 +122,7 @@ impl TestProviderContext {
 /// Seed one loader-owned artifact for linter compiler tests.
 fn provide_loader_artifact(compiler: &Compiler, context: &TestProviderContext) -> ArtifactPayload {
     match context.artifact_key() {
-        ArtifactKey::DirParsed { module } => provide_parsed_dir(compiler, module, context),
+        ArtifactKey::DirParsed { module } => provide_dir_parsed(compiler, module, context),
         ArtifactKey::Data { module } => {
             panic!("data artifact reached linter test loader provider for {module:?}")
         }
@@ -133,7 +133,7 @@ fn provide_loader_artifact(compiler: &Compiler, context: &TestProviderContext) -
 }
 
 /// Seed one parsed DIR artifact from source.
-fn provide_parsed_dir(
+fn provide_dir_parsed(
     compiler: &Compiler,
     module_id: ModuleId,
     context: &TestProviderContext,
@@ -147,7 +147,7 @@ fn provide_parsed_dir(
     let dir = match module.loader {
         Loader::Destack | Loader::TypeScript | Loader::JavaScript => {
             if matches!(file.ty, FileType::Html | FileType::Css) {
-                anchor_parsed_dir(module_id, file.as_ref())
+                anchor_dir_parsed(module_id, file.as_ref())
             } else {
                 parse_code_dir(compiler, file.clone(), module.package_id, context)
             }
@@ -158,7 +158,7 @@ fn provide_parsed_dir(
         | Loader::Text
         | Loader::Base64
         | Loader::Binary
-        | Loader::File => anchor_parsed_dir(module_id, file.as_ref()),
+        | Loader::File => anchor_dir_parsed(module_id, file.as_ref()),
     };
 
     ArtifactPayload::DirParsed(dir)
@@ -188,8 +188,8 @@ fn source_file(
 }
 
 /// Build one stable parsed DIR for non-code source.
-fn anchor_parsed_dir(_module_id: ModuleId, file: &File) -> DirParsed {
-    let mut tree = dir::Tree::new(_module_id);
+fn anchor_dir_parsed(module_id: ModuleId, file: &File) -> DirParsed {
+    let mut tree = dir::Tree::new(module_id);
     let anchor_expression = insert_anchor_expression(&mut tree, file.id);
 
     DirParsed::from_tree(tree, Vec::new(), Vec::new(), Vec::new(), anchor_expression)

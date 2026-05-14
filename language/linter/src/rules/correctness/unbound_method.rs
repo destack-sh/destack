@@ -366,7 +366,7 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
 
         // inspect member declarations and reject static methods
         if declaration.local_id.ty == dir::NodeType::Member {
-            let Some(module_dir) = self.ctx.bound_dir(declaration.module_id) else {
+            let Some(module_dir) = self.ctx.dir_parsed(declaration.module_id) else {
                 return self.symbol_has_this_parameter(symbol_id);
             };
             let member = module_dir
@@ -381,7 +381,7 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
 
         // inspect property declarations for method values
         if declaration.local_id.ty == dir::NodeType::Property {
-            let Some(module_dir) = self.ctx.bound_dir(declaration.module_id) else {
+            let Some(module_dir) = self.ctx.dir_parsed(declaration.module_id) else {
                 return self.symbol_has_this_parameter(symbol_id);
             };
             let property = module_dir
@@ -411,7 +411,7 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
         }
 
         // load foreign module types for the `this` parameter check
-        let Some(module_dir) = self.ctx.checked_dir(symbol_type_id.module_id) else {
+        let Some(module_dir) = self.ctx.dir_checked(symbol_type_id.module_id) else {
             return false;
         };
         has_non_void_this_parameter_type(&module_dir.types, symbol_type_id.type_id)

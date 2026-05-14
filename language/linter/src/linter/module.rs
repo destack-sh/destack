@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    DirBound, DirChecked, DirExpanded, DirExported, DirImported, GlobalEnvironment,
+    DirBound, DirChecked, DirExpanded, DirExported, DirImported, DirParsed, GlobalEnvironment,
 };
 use destack_dir as dir;
 use destack_dir::{LanguageItem, StringId, StringPool};
@@ -106,12 +106,8 @@ pub struct LintModuleContext<'a> {
     /// The top-level expressions of the Module.
     pub roots: Vec<dir::LocalNodeId<dir::Expression>>,
 
-    /// The symbol of the Module namespace.
-    pub namespace_symbol: dir::LocalSymbolId,
     /// The scope of the Module.
     pub namespace_scope: dir::LocalScopeId,
-    /// The symbol of the Module default.
-    pub default_symbol: dir::LocalSymbolId,
 
     /// Linter configuration.
     pub options: &'a LinterOptions,
@@ -144,14 +140,12 @@ impl<'a> LintModuleContext<'a> {
         revision: Revision,
         profile: Profile,
         file: Arc<File>,
-        bound: &'a DirBound,
+        parsed: &'a DirParsed,
         expanded: &'a DirExpanded,
         strings: &'a StringPool,
         symbols: &'a dir::BindingTable,
         types: &'a dir::TypeTable,
-        namespace_symbol: dir::LocalSymbolId,
         namespace_scope: dir::LocalScopeId,
-        default_symbol: dir::LocalSymbolId,
         options: &'a LinterOptions,
         compute_fixes: bool,
     ) -> Self {
@@ -165,14 +159,12 @@ impl<'a> LintModuleContext<'a> {
             profile,
             profile_id,
             file,
-            dir: dir::View::with_patches(&bound.tree, std::slice::from_ref(&expanded.patch)),
+            dir: dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch)),
             strings,
             symbols,
             types,
             roots: expanded.roots.clone(),
-            namespace_symbol,
             namespace_scope,
-            default_symbol,
             options,
             compute_fixes,
             dir_analysis: LintDirAnalysisCache::default(),
@@ -217,17 +209,22 @@ impl<'a> LintModuleContext<'a> {
     }
 
     /// Return one checked DIR artifact for one revision-scoped module.
-    pub fn checked_dir(&self, module_id: ModuleId) -> Option<Arc<DirChecked>> {
+    pub fn dir_checked(&self, module_id: ModuleId) -> Option<Arc<DirChecked>> {
         self.artifacts.dir_checked(module_id, self.profile_id)
     }
 
+    /// Return one parsed DIR artifact for one revision-scoped module.
+    pub fn dir_parsed(&self, module_id: ModuleId) -> Option<Arc<DirParsed>> {
+        self.artifacts.dir_parsed(module_id)
+    }
+
     /// Return one bound DIR artifact for one revision-scoped module.
-    pub fn bound_dir(&self, module_id: ModuleId) -> Option<Arc<DirBound>> {
+    pub fn dir_bound(&self, module_id: ModuleId) -> Option<Arc<DirBound>> {
         self.artifacts.dir_bound(module_id, self.profile_id)
     }
 
     /// Return one expanded DIR artifact for one revision-scoped module.
-    pub fn expanded_dir(&self, module_id: ModuleId) -> Option<Arc<DirExpanded>> {
+    pub fn dir_expanded(&self, module_id: ModuleId) -> Option<Arc<DirExpanded>> {
         self.artifacts.dir_expanded(module_id, self.profile_id)
     }
 
@@ -259,12 +256,12 @@ impl<'a> LintModuleContext<'a> {
     }
 
     /// Return one imported DIR artifact for one revision-scoped module.
-    pub fn imported_dir(&self, module_id: ModuleId) -> Option<Arc<DirImported>> {
+    pub fn dir_imported(&self, module_id: ModuleId) -> Option<Arc<DirImported>> {
         self.artifacts.dir_imported(module_id, self.profile_id)
     }
 
     /// Return one exported DIR artifact for one revision-scoped module.
-    pub fn exported_dir(&self, module_id: ModuleId) -> Option<Arc<DirExported>> {
+    pub fn dir_exported(&self, module_id: ModuleId) -> Option<Arc<DirExported>> {
         self.artifacts.dir_exported(module_id, self.profile_id)
     }
 
