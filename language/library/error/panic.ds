@@ -1,13 +1,13 @@
-/// Stop execution with a panic diagnostic.
+/// Stop execution with a language panic.
 @languageItem("error.panic")
 @intrinsic("error.panic")
 export declare function panic(message: string): never;
 
-/// Stop execution with a runtime trap.
+/// Stop execution with a low-level runtime trap.
 @intrinsic("error.trap")
 export declare function trap(message?: string): never;
 
-/// Stop execution immediately without cleanup.
+/// Stop execution immediately without unwinding or cleanup.
 @languageItem("error.abort")
 @intrinsic("error.abort")
 export declare function abort(message?: string): never;
@@ -17,7 +17,7 @@ export declare function abort(message?: string): never;
 @intrinsic("error.todo")
 export declare function todo(message?: string): never;
 
-/// Mark code as unreachable.
+/// Mark this code path as unreachable.
 @languageItem("error.unreachable")
 @intrinsic("error.unreachable")
 export declare function unreachable(): never;
