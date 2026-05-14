@@ -4,15 +4,13 @@ use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::sync::Arc;
 
-use destack_ast as ast;
-use destack_ast::Keyword;
-use destack_dir::{self as dir, FloatType, IntegerType, SymbolForm, SymbolSpace};
+use destack_dir as dir;
+use destack_dir::{FloatType, IntegerType, Keyword, SymbolForm, SymbolSpace};
 use destack_source::{Edit, File, FileId, FileType, Loader, ModuleId, PackageId, Uri};
 use destack_workspace::{Module, Repository, Revision};
 use serde::{Deserialize, Serialize};
 
 use super::{CompletionContext, CompletionInput, CursorToken, completion_input_at_offset};
-use crate::ast::{current_initializer_binding_names, get_module_by_file_id};
 use crate::core::{
     ImportSortKey, MatchKind, MatchQuality, QueryContext, import_sort_key, import_sort_text,
     match_quality, query_context, query_context_for_profile, repository_import_relevance,
@@ -25,6 +23,7 @@ use crate::dir::{
     resolve_type_members, search_importable_symbols, visible_symbols,
 };
 use crate::format::format_local_type;
+use crate::source::{current_initializer_binding_names, get_module_by_file_id};
 // sort order priorities: lower = higher priority in completion list
 const SORT_LOCAL_SYMBOL: u32 = 10;
 const SORT_BUILTIN: u32 = 20;
@@ -494,9 +493,9 @@ impl<'a> CompletionBuilder<'a> {
             return HashSet::new();
         };
 
-        current_initializer_binding_names(ctx.ast(), source, offset)
+        current_initializer_binding_names(ctx.source(), source, offset)
             .into_iter()
-            .map(|name| ctx.ast().strings().get(name).to_string())
+            .map(|name| ctx.source().strings().get(name).to_string())
             .collect()
     }
 
@@ -1035,8 +1034,8 @@ impl<'a> CompletionBuilder<'a> {
         }
 
         // then include exported dependency items in the same type space
-        for (_, item) in dir_tree.iter_nodes_of_type::<dir::DependencyItem>() {
-            let Some(symbol_id) = item.symbol() else {
+        for (item_id, _) in dir_tree.iter_nodes_of_type::<dir::DependencyItem>() {
+            let Some(symbol_id) = ctx.dir().symbol_for_node(item_id.into()) else {
                 continue;
             };
 
@@ -1066,23 +1065,23 @@ impl<'a> CompletionBuilder<'a> {
             results.push(self.attach_completion_documentation(completion, symbol_id));
         }
 
-        // partial dir still falls back to ast declarations for local types
+        // partial dir still falls back to source declarations for local types
         if results.is_empty() {
-            for declaration_id in ctx.ast().tree().iter_nodes::<ast::Declaration>() {
-                let declaration = ctx.ast().tree().get(declaration_id);
+            for declaration_id in ctx.source().tree().iter_nodes::<dir::Declaration>() {
+                let declaration = ctx.source().tree().get(declaration_id);
                 let kind = match declaration {
-                    ast::Declaration::Class { .. } => CompletionKind::Class,
-                    ast::Declaration::Struct { .. } => CompletionKind::Struct,
-                    ast::Declaration::Interface { .. } => CompletionKind::Interface,
-                    ast::Declaration::Enum { .. } => CompletionKind::Enum,
-                    ast::Declaration::Type { .. } => CompletionKind::TypeParameter,
+                    dir::Declaration::Class { .. } => CompletionKind::Class,
+                    dir::Declaration::Struct { .. } => CompletionKind::Struct,
+                    dir::Declaration::Interface { .. } => CompletionKind::Interface,
+                    dir::Declaration::Enum { .. } => CompletionKind::Enum,
+                    dir::Declaration::Type { .. } => CompletionKind::TypeParameter,
                     _ => continue,
                 };
 
                 let Some(name) = declaration.name() else {
                     continue;
                 };
-                let name = ctx.ast().strings().get(name.string()).to_string();
+                let name = ctx.source().strings().get(name.string()).to_string();
                 if !seen_names.insert(name.clone()) {
                     continue;
                 }

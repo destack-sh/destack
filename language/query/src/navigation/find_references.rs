@@ -2,13 +2,13 @@ use destack_source::{FileId, Span, Uri};
 use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 
-use crate::ast::sort_and_dedup_spans;
 use crate::core::{modules_referencing_symbol, query_context};
 use crate::dir::{
     ReferenceCollectionOptions, collect_symbol_references_in_context, find_symbol_at_offset,
     get_canonical_symbol, get_symbol_definition_span, get_symbol_local_definition_span,
     resolve_local_import_alias_name, resolve_symbol_name,
 };
+use crate::source::sort_and_dedup_spans;
 use destack_dir::GlobalSymbolId;
 
 /// Result of a find references query.
@@ -150,7 +150,7 @@ fn find_references_to_symbol(
         // collect and append references for this module
         let spans = collect_symbol_references_in_context(
             repository,
-            ctx.ast(),
+            ctx.source(),
             ctx.dir(),
             canonical_id,
             reference_options,

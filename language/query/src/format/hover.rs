@@ -134,7 +134,7 @@ pub fn format_member_hover(
         ),
         dir::Member::StaticBlock { .. } => "(static block)".to_string(),
         dir::Member::ComptimeBlock { .. } => "(comptime block)".to_string(),
-        dir::Member::Error { .. } => "(error member)".to_string(),
+        dir::Member::Error => "(error member)".to_string(),
     }
 }
 
@@ -185,9 +185,9 @@ pub fn format_parameter_hover(
     let name = match param {
         dir::Parameter::Named { name, .. } => strings.get(*name).to_string(),
         dir::Parameter::Pattern { .. } => "_".to_string(),
-        dir::Parameter::VariadicNamed { name, .. } => format!("...{}", &*strings.get(*name)),
+        dir::Parameter::VariadicNamed { name, .. } => format!("...{}", strings.get(*name)),
         dir::Parameter::VariadicPattern { .. } => "...<pattern>".to_string(),
-        dir::Parameter::Error { .. } => "<error>".to_string(),
+        dir::Parameter::Error => "<error>".to_string(),
     };
 
     // resolve the parameter type when available

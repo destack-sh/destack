@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
 
-use destack_ast::{DependencyItem, DependencySpace, LocalNodeId, Tree};
 use destack_core::{StringId, StringPool};
+use destack_dir::{DependencyItem, DependencySpace, LocalNodeId, Tree};
 use destack_workspace::ImportSortOrder;
 
 /// The import group category for declaration ordering.

@@ -1,9 +1,8 @@
+use destack_dir as dir;
 use std::collections::HashSet;
 
 use destack_core::StringPool;
-use destack_dir::{
-    self as dir, GlobalSymbolId, LocalNodeIdAny, LocalSymbolId, Member, NodeType, SymbolSpace,
-};
+use destack_dir::{GlobalSymbolId, LocalNodeIdAny, LocalSymbolId, Member, NodeType, SymbolSpace};
 use destack_source::{ModuleId, ProfileId, Span};
 use destack_workspace::{Repository, Revision};
 
@@ -11,11 +10,11 @@ use super::{
     container_name_for_node, declaration_display_name, dependency_symbol_target,
     matches_symbol_space_filter,
 };
-use crate::ast::{get_node_tree_main_span, get_node_tree_span, try_span_for_dir_node};
 use crate::core::{
-    AstQueryContext, DirQueryContext, QueryContext, SymbolEntry, SymbolEntryKind, query_context,
+    DirQueryContext, QueryContext, SourceQueryContext, SymbolEntry, SymbolEntryKind, query_context,
     query_context_for_profile,
 };
+use crate::source::{get_node_tree_main_span, get_node_tree_span, try_span_for_dir_node};
 
 /// Build a global symbol id from a module and local symbol id.
 pub(crate) fn global_symbol(module_id: ModuleId, local_id: LocalSymbolId) -> GlobalSymbolId {
@@ -23,6 +22,22 @@ pub(crate) fn global_symbol(module_id: ModuleId, local_id: LocalSymbolId) -> Glo
         module_id,
         local_id,
     }
+}
+
+/// Resolve the local symbol declared by one DIR node.
+pub(crate) fn local_symbol_for_node(
+    dir: DirQueryContext<'_>,
+    node_id: LocalNodeIdAny,
+) -> Option<LocalSymbolId> {
+    dir.symbol_for_node(node_id)
+}
+
+/// Resolve the global symbol declared by one DIR node.
+pub(crate) fn global_symbol_for_node(
+    dir: DirQueryContext<'_>,
+    node_id: LocalNodeIdAny,
+) -> Option<GlobalSymbolId> {
+    local_symbol_for_node(dir, node_id).map(|symbol_id| global_symbol(dir.module_id(), symbol_id))
 }
 
 /// Resolve a global symbol id from one module-local symbol id.
@@ -243,7 +258,7 @@ pub(crate) fn get_symbol_local_definition_span(
 
         if let Some(declaration) = declaration {
             return Some(get_node_tree_main_span(
-                ctx.ast(),
+                ctx.source(),
                 ctx.dir().view(),
                 declaration.local_id,
             ));
@@ -411,7 +426,7 @@ fn symbol_index_kind_for_member(member: &dir::Member) -> Option<SymbolEntryKind>
         dir::Member::Method { .. } => Some(SymbolEntryKind::Method),
         dir::Member::StaticBlock { .. }
         | dir::Member::ComptimeBlock { .. }
-        | dir::Member::Error { .. } => None,
+        | dir::Member::Error => None,
     }
 }
 
@@ -425,14 +440,14 @@ fn symbol_index_kind_for_type_member(member: &dir::TypeMember) -> Option<SymbolE
         dir::TypeMember::CallSignature { .. } => Some(SymbolEntryKind::Method),
         dir::TypeMember::ConstructSignature { .. } => Some(SymbolEntryKind::Method),
         dir::TypeMember::IndexSignature { .. } => None,
-        dir::TypeMember::Error { .. } => None,
+        dir::TypeMember::Error => None,
     }
 }
 
 /// Resolve one symbol index range without failing the whole query on bad source ids.
 fn symbol_index_range(ctx: &QueryContext, dir_tree: dir::View<'_>, node_id: u32) -> Option<Span> {
     let node_id = LocalNodeIdAny::new(node_id, dir_tree.get_node_type(node_id));
-    try_span_for_dir_node(ctx.ast(), dir_tree, node_id)
+    try_span_for_dir_node(ctx.source(), dir_tree, node_id)
 }
 
 /// Resolve a symbol span using the provided declaration span strategy.
@@ -440,7 +455,7 @@ fn get_symbol_span_with(
     repository: &Repository,
     revision: Revision,
     symbol_id: GlobalSymbolId,
-    span_for_declaration: impl Fn(AstQueryContext<'_>, dir::View<'_>, LocalNodeIdAny) -> Span + Copy,
+    span_for_declaration: impl Fn(SourceQueryContext<'_>, dir::View<'_>, LocalNodeIdAny) -> Span + Copy,
 ) -> Option<Span> {
     with_symbol_context(repository, revision, symbol_id.module_id, |ctx| {
         let (canonical_id, declaration) = {
@@ -460,7 +475,7 @@ fn get_symbol_span_with(
 
         if let Some(declaration) = declaration {
             return Some(span_for_declaration(
-                ctx.ast(),
+                ctx.source(),
                 ctx.dir().view(),
                 declaration.local_id,
             ));

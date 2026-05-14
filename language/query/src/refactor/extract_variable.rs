@@ -6,8 +6,8 @@ use super::extract::{
     clean_expression_text, line_start_and_indent, resolve_extract_expression,
     statement_span_for_expression,
 };
-use crate::ast::{get_module_by_file_id, is_simple_identifier};
 use crate::core::query_context;
+use crate::source::{get_module_by_file_id, is_simple_identifier};
 
 /// Request payload for extract variable queries.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

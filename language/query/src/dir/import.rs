@@ -1,21 +1,17 @@
 use std::path::Path;
 
-use destack_ast::{
-    DependencyBinding as AstDependencyBinding, DependencyItem, DependencySpace, Expression,
-    TokenType,
-};
 use destack_core::StringId;
 use destack_dir::{
-    DependencyBinding as DirDependencyBinding, DependencyItem as DirDependencyItem, LocalNodeId,
-    LocalSymbolId, NodeType, SymbolForm, SymbolSpace,
+    DependencyBinding, DependencyItem, DependencyItem as DirDependencyItem, DependencySpace,
+    Expression, LocalNodeId, LocalSymbolId, NodeType, SymbolForm, SymbolSpace, TokenType,
 };
 use destack_source::{Edit, FileId, PathExt, Span};
 
 use super::{dependency_symbol_target, get_canonical_symbol};
-use crate::ast::get_module_by_file_id;
 use crate::core::path::{normalize_separators, relative_path};
-use crate::core::{AstQueryContext, DirQueryContext, modules_referencing_symbol, query_context};
+use crate::core::{DirQueryContext, SourceQueryContext, modules_referencing_symbol, query_context};
 use crate::format::ImportGroup;
+use crate::source::get_module_by_file_id;
 use destack_dir as dir;
 use destack_workspace::{Repository, Revision};
 
@@ -50,7 +46,7 @@ pub(crate) struct ImportClauseBounds {
 }
 
 /// Return one dependency item's binding when the item is valid.
-fn dependency_item_binding(item: &DependencyItem) -> Option<AstDependencyBinding> {
+fn dependency_item_binding(item: &DependencyItem) -> Option<DependencyBinding> {
     match item {
         DependencyItem::Item { binding, .. } => Some(*binding),
         DependencyItem::Error => None,
@@ -144,6 +140,7 @@ pub(crate) fn resolve_local_import_alias_name(
 }
 
 /// Collect default import aliases whose imported default export resolves to one symbol.
+#[allow(dead_code)]
 pub(crate) fn collect_default_import_alias_symbols_for_export(
     repository: &Repository,
     revision: Revision,
@@ -223,7 +220,7 @@ pub(crate) fn is_dependency_alias_for_target(
     }
 
     // allow default imports to be renamed with their targets
-    if *binding == DirDependencyBinding::Default {
+    if *binding == DependencyBinding::Default {
         return false;
     }
 
@@ -236,6 +233,7 @@ pub(crate) fn is_dependency_alias_for_target(
 }
 
 /// Resolve the local binding name for one default import symbol inside a query context.
+#[allow(dead_code)]
 fn local_default_import_alias_name_in_context(
     dir: DirQueryContext<'_>,
     local_symbol_id: LocalSymbolId,
@@ -269,7 +267,7 @@ fn dependency_item_local_import_alias_name(
             alias,
             ..
         } => {
-            if *binding == DirDependencyBinding::Default {
+            if *binding == DependencyBinding::Default {
                 name.as_ref().map(|name| name.string()).or(*alias)
             } else {
                 *alias
@@ -282,12 +280,13 @@ fn dependency_item_local_import_alias_name(
 }
 
 /// Resolve the local binding name for one default dependency import alias.
+#[allow(dead_code)]
 fn dependency_item_default_import_alias_name(
     item: &DirDependencyItem,
 ) -> Option<destack_core::StringId> {
     match item {
         DirDependencyItem::Item { binding, name, .. } => {
-            if *binding != DirDependencyBinding::Default {
+            if *binding != DependencyBinding::Default {
                 return None;
             }
 
@@ -299,7 +298,7 @@ fn dependency_item_default_import_alias_name(
 
 /// Resolve the brace span for an import clause.
 pub(crate) fn import_clause_brace_span(
-    source: AstQueryContext<'_>,
+    source: SourceQueryContext<'_>,
     import_span: Span,
     target_span: Option<Span>,
 ) -> Option<(Span, Span)> {
@@ -311,7 +310,7 @@ pub(crate) fn import_clause_brace_span(
 
 /// Resolve the bounds for an import clause, even when the closing brace is missing.
 pub(crate) fn import_clause_bounds(
-    source: AstQueryContext<'_>,
+    source: SourceQueryContext<'_>,
     import_span: Span,
     target_span: Option<Span>,
 ) -> Option<ImportClauseBounds> {
@@ -392,7 +391,7 @@ impl ImportEditSpace {
     }
 }
 
-/// Resolve a module specifier and dependency space for an AST expression.
+/// Resolve a module specifier and dependency space for a source expression.
 pub(crate) fn module_specifier_in_expression(
     expression: &Expression,
 ) -> Option<(StringId, DependencySpace)> {
@@ -403,7 +402,7 @@ pub(crate) fn module_specifier_in_expression(
     }
 }
 
-/// Collect existing imports from a file's AST.
+/// Collect existing imports from a file's source DIR.
 pub(crate) fn collect_existing_imports(
     repository: &Repository,
     revision: Revision,
@@ -420,9 +419,9 @@ pub(crate) fn collect_existing_imports(
     // prepare the import collection
     let mut imports = Vec::new();
 
-    // iterate over import expressions in the AST
-    for node_id in ctx.ast().tree().iter_nodes::<Expression>() {
-        let expr = ctx.ast().tree().get(node_id);
+    // iterate over import expressions in the source DIR
+    for node_id in ctx.source().tree().iter_nodes::<Expression>() {
+        let expr = ctx.source().tree().get(node_id);
 
         if let Expression::Import {
             target,
@@ -432,36 +431,37 @@ pub(crate) fn collect_existing_imports(
         } = expr
         {
             // resolve import path, span, and space
-            let path = ctx.ast().strings().get(*target).to_string();
-            let span = ctx.ast().tree().source_map.get(node_id.id);
+            let path = ctx.source().strings().get(*target).to_string();
+            let span = ctx.source().tree().source_map.get(node_id.id);
             let is_type_only = *space == DependencySpace::Type;
             let items = items.as_deref().unwrap_or(&[]);
 
             // check if it's a namespace import
             let is_namespace = items.iter().any(|item_id| {
-                let item = ctx.ast().tree().get(*item_id);
-                dependency_item_binding(item) == Some(AstDependencyBinding::Namespace)
+                let item = ctx.source().tree().get(*item_id);
+                dependency_item_binding(item) == Some(DependencyBinding::Namespace)
             });
 
             // collect specifier names
             let specifiers: Vec<String> = items
                 .iter()
                 .filter_map(|item_id| {
-                    let item = ctx.ast().tree().get(*item_id);
-                    if dependency_item_binding(item) == Some(AstDependencyBinding::Namespace) {
+                    let item = ctx.source().tree().get(*item_id);
+                    if dependency_item_binding(item) == Some(DependencyBinding::Namespace) {
                         return None;
                     }
 
-                    dependency_item_key(item).map(|id| ctx.ast().strings().get(id).to_string())
+                    dependency_item_key(item).map(|id| ctx.source().strings().get(id).to_string())
                 })
                 .collect();
 
             // find closing brace position by scanning tokens
-            let target_span = ctx.ast().tree().source_map.get_main(node_id.id);
+            let target_span = ctx.source().tree().source_map.get_main(node_id.id);
             let closing_brace_pos = if is_namespace {
                 None
             } else {
-                import_clause_brace_span(ctx.ast(), span, target_span).map(|(_, close)| close.start)
+                import_clause_brace_span(ctx.source(), span, target_span)
+                    .map(|(_, close)| close.start)
             };
 
             imports.push(ExistingImport {

@@ -1,13 +1,13 @@
+use destack_dir as dir;
 use destack_dir::Expression;
 use destack_source::{FileId, Span, Uri};
 use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
-use {destack_ast as ast, destack_dir as dir};
 
 use super::specifier::{SpecifierLinkTarget, resolve_document_link_target};
-use crate::ast::{main_or_enclosing_span_for_dir_node, string_literal_span_in_enclosing};
-use crate::core::{with_ast_query_for_file, with_query_context_for_file};
+use crate::core::{with_query_context_for_file, with_source_query_for_file};
 use crate::dir::module_specifier_in_expression;
+use crate::source::{main_or_enclosing_span_for_dir_node, string_literal_span_in_enclosing};
 
 /// A clickable link in a document.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -109,7 +109,7 @@ pub fn document_links(
 ) -> Vec<DocumentLink> {
     // prefer dir based resolution when possible
     if let Some(mut links) = document_links_with_dir(repository, revision, file) {
-        let fallback = document_links_with_ast(repository, revision, file);
+        let fallback = document_links_with_parsed(repository, revision, file);
         for link in fallback {
             if links.iter().any(|existing| existing.range == link.range) {
                 continue;
@@ -122,8 +122,8 @@ pub fn document_links(
         return links;
     }
 
-    // fall back to ast only links
-    document_links_with_ast(repository, revision, file)
+    // fall back to parsed only links
+    document_links_with_parsed(repository, revision, file)
 }
 
 /// Build document links using DIR data when available.
@@ -163,14 +163,14 @@ fn document_links_with_dir(
 
                     // get the span of this import expression
                     let enclosing =
-                        main_or_enclosing_span_for_dir_node(ctx.ast(), dir_tree, expr_id.into());
+                        main_or_enclosing_span_for_dir_node(ctx.source(), dir_tree, expr_id.into());
                     let Some(file) = repository.file(revision, ctx.file_id()).ok().flatten() else {
                         continue;
                     };
                     let import_path = ctx.dir().strings().get(*target).to_string();
                     let span = string_literal_span_in_enclosing(
                         &file,
-                        ctx.ast().tokens(),
+                        ctx.source().tokens(),
                         enclosing,
                         &import_path,
                     )
@@ -182,7 +182,7 @@ fn document_links_with_dir(
                             .with_tooltip(format!("Go to {import_path}")),
                     );
                 }
-                Expression::ReExport { target, .. } => {
+                Expression::Export { target, .. } => {
                     // skip declared modules for document links
                     let node_id = expr_id.into_global_any(ctx.module_id());
                     let Some(dir::DependencyResolution::Module(dependency_target)) =
@@ -207,14 +207,17 @@ fn document_links_with_dir(
 
                     // get the span of this import expression
                     let enclosing =
-                        main_or_enclosing_span_for_dir_node(ctx.ast(), dir_tree, expr_id.into());
+                        main_or_enclosing_span_for_dir_node(ctx.source(), dir_tree, expr_id.into());
                     let Some(file) = repository.file(revision, ctx.file_id()).ok().flatten() else {
+                        continue;
+                    };
+                    let Some(target) = target else {
                         continue;
                     };
                     let import_path = ctx.dir().strings().get(*target).to_string();
                     let span = string_literal_span_in_enclosing(
                         &file,
-                        ctx.ast().tokens(),
+                        ctx.source().tokens(),
                         enclosing,
                         &import_path,
                     )
@@ -234,13 +237,13 @@ fn document_links_with_dir(
     })
 }
 
-/// Build document links using AST data when DIR is unavailable.
-fn document_links_with_ast(
+/// Build document links using source DIR data when DIR is unavailable.
+fn document_links_with_parsed(
     repository: &Repository,
     revision: Revision,
     file: FileId,
 ) -> Vec<DocumentLink> {
-    with_ast_query_for_file(repository, revision, file, |ast| {
+    with_source_query_for_file(repository, revision, file, |parsed| {
         // resolve the source file path
         let Some(source_file) = repository.file(revision, file).ok().flatten() else {
             return Vec::new();
@@ -254,8 +257,8 @@ fn document_links_with_ast(
 
         // collect document links from import/export expressions
         let mut links = Vec::new();
-        for expression_id in ast.tree().iter_nodes::<ast::Expression>() {
-            let expression = ast.tree().get(expression_id);
+        for expression_id in parsed.tree().iter_nodes::<dir::Expression>() {
+            let expression = parsed.tree().get(expression_id);
 
             // resolve the module specifier and dependency space
             let Some((specifier, _space)) = module_specifier_in_expression(expression) else {
@@ -263,14 +266,14 @@ fn document_links_with_ast(
             };
 
             // resolve the span for the string literal
-            let enclosing = ast
+            let enclosing = parsed
                 .tree()
                 .get_main_span(expression_id)
-                .unwrap_or_else(|| ast.source_map().get(expression_id.id));
-            let specifier_text = ast.strings().get(specifier).to_string();
+                .unwrap_or_else(|| parsed.source_map().get(expression_id.id));
+            let specifier_text = parsed.strings().get(specifier).to_string();
             let range = string_literal_span_in_enclosing(
                 &source_file,
-                ast.tokens(),
+                parsed.tokens(),
                 enclosing,
                 &specifier_text,
             )

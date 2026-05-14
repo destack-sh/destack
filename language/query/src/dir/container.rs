@@ -18,7 +18,7 @@ pub(crate) fn container_name_for_symbol(
     // read the symbol scope owner
     let symbols = ctx.dir().symbols();
     let symbol = symbols.get_symbol(symbol_id.local_id);
-    let scope = symbols.get_scope_by_id(symbol.scope.0);
+    let scope = symbols.get_scope_by_id(symbol.scope.id);
     let owner_id = scope.owner?;
     let owner = symbols.get_symbol(owner_id);
     let name_id = owner.name()?;

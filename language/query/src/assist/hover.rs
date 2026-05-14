@@ -1,9 +1,9 @@
-use destack_dir::{self as dir, EnumField, LocalNodeIdAny, Member, NodeType, Parameter};
+use destack_dir as dir;
+use destack_dir::{EnumField, LocalNodeIdAny, Member, NodeType, Parameter};
 use destack_source::{FileId, Span, Uri};
 use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 
-use crate::ast::{get_module_by_file_id, get_node_tree_span};
 use crate::core::{QueryContext, query_context};
 use crate::dir::{
     container_name_for_symbol, doc_text_for_symbol, find_symbol_for_hover_at_offset,
@@ -13,6 +13,7 @@ use crate::format::{
     format_enum_field_hover, format_hover_markdown, format_local_type, format_local_variable_hover,
     format_member_hover, format_parameter_hover, format_simple_signature, format_symbol_signature,
 };
+use crate::source::{get_module_by_file_id, get_node_tree_span};
 
 /// Hover information for a symbol.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -311,7 +312,7 @@ fn hover_location(repository: &Repository, revision: Revision, span: Span) -> Op
 fn hover_range_for_symbol(ctx: &QueryContext, node_id: LocalNodeIdAny, default_span: Span) -> Span {
     // preserve full declaration ranges for member declarations
     if node_id.ty == NodeType::Member {
-        return get_node_tree_span(ctx.ast(), ctx.dir().view(), node_id);
+        return get_node_tree_span(ctx.source(), ctx.dir().view(), node_id);
     }
 
     default_span

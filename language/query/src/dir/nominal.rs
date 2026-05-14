@@ -31,8 +31,8 @@ pub(crate) fn resolve_nominal_symbol_from_type_expression(
     match expression {
         Expression::BorrowOf { right, .. }
         | Expression::MoveOf { right, .. }
-        | Expression::Maybe { left: right }
-        | Expression::Must { left: right } => {
+        | Expression::Maybe { left: right, .. }
+        | Expression::Must { left: right, .. } => {
             return resolve_nominal_symbol_from_type_expression(repository, dir, *right);
         }
         Expression::Parenthesized { expression } => {
@@ -124,7 +124,7 @@ fn recorded_member_resolution(
     let resolution = types.resolution(node_id)?;
     match resolution {
         Resolution::Dispatch(dir::DispatchResolution::Static { target, .. }) => {
-            if !dir.symbol_is_active(target.symbol) {
+            if !dir.symbol_is_visible(target.symbol) {
                 return None;
             }
 
@@ -133,7 +133,7 @@ fn recorded_member_resolution(
         Resolution::Dispatch(dir::DispatchResolution::Dynamic { targets, .. }) => {
             if targets.len() == 1 {
                 let symbol_id = targets[0].symbol;
-                if !dir.symbol_is_active(symbol_id) {
+                if !dir.symbol_is_visible(symbol_id) {
                     return None;
                 }
 
@@ -143,7 +143,7 @@ fn recorded_member_resolution(
             None
         }
         Resolution::Symbol(symbol_id) => {
-            if !dir.symbol_is_active(*symbol_id) {
+            if !dir.symbol_is_visible(*symbol_id) {
                 return None;
             }
 
@@ -151,6 +151,6 @@ fn recorded_member_resolution(
         }
         Resolution::Dispatch(dir::DispatchResolution::Builtin { .. })
         | Resolution::Dependency(_)
-        | Resolution::Control(_) => None,
+        | Resolution::Label(_) => None,
     }
 }

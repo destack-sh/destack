@@ -342,7 +342,7 @@ fn format_generic_parameter(
         dir::GenericParameter::Type { name, .. } | dir::GenericParameter::Value { name, .. } => {
             strings.get(*name).to_string()
         }
-        dir::GenericParameter::Error { .. } => "<error>".to_string(),
+        dir::GenericParameter::Error => "<error>".to_string(),
     }
 }
 
@@ -436,10 +436,10 @@ fn format_parameter(
         dir::Parameter::Named { name, .. } => strings.get(*name).to_string(),
         dir::Parameter::Pattern { .. } => "_".to_string(),
         dir::Parameter::VariadicNamed { name, .. } => {
-            format!("...{}", &*strings.get(*name))
+            format!("...{}", strings.get(*name))
         }
         dir::Parameter::VariadicPattern { .. } => "...<pattern>".to_string(),
-        dir::Parameter::Error { .. } => "<error>".to_string(),
+        dir::Parameter::Error => "<error>".to_string(),
     };
 
     // try to get the inferred type for this parameter

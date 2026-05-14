@@ -1,14 +1,14 @@
 mod cursor;
-mod hole;
 mod identifier;
 mod lexical;
+mod slot;
 mod span;
 mod statement;
 
-pub(crate) use crate::core::AstQueryContext;
+pub(crate) use crate::core::SourceQueryContext;
 pub(crate) use cursor::*;
-pub(crate) use hole::*;
 pub(crate) use identifier::*;
 pub(crate) use lexical::*;
+pub(crate) use slot::*;
 pub(crate) use span::*;
 pub(crate) use statement::*;

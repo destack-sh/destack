@@ -1,9 +1,9 @@
-use destack_ast as ast;
-use destack_ast::TokenType;
+use destack_dir as dir;
+use destack_dir::TokenType;
 use destack_source::FileId;
 use destack_workspace::{Repository, Revision};
 
-use crate::core::{AstQueryContext, with_ast_query_for_file};
+use crate::core::{SourceQueryContext, with_source_query_for_file};
 
 /// Check whether a character can start an identifier.
 pub(crate) fn is_identifier_start(ch: char) -> bool {
@@ -63,20 +63,23 @@ pub(crate) fn token_span_at_offset(
     revision: Revision,
     file_id: FileId,
     offset: u32,
-) -> Option<ast::TokenSpan> {
-    with_ast_query_for_file(repository, revision, file_id, |ast| {
-        token_span_at_offset_in_ast(ast, offset)
+) -> Option<dir::TokenSpan> {
+    with_source_query_for_file(repository, revision, file_id, |parsed| {
+        token_span_at_offset_in_source(parsed, offset)
     })?
 }
 
 /// Find the token span that contains the offset.
-fn token_span_at_offset_in_ast(ast: AstQueryContext<'_>, offset: u32) -> Option<ast::TokenSpan> {
+fn token_span_at_offset_in_source(
+    parsed: SourceQueryContext<'_>,
+    offset: u32,
+) -> Option<dir::TokenSpan> {
     // track the last token starting before the offset
     let mut candidate = None;
 
     // walk tokens in order to find the containing span
-    for token in ast.tokens() {
-        if token.span.file != ast.file_id() {
+    for token in parsed.tokens() {
+        if token.span.file != parsed.file_id() {
             continue;
         }
 

@@ -1,6 +1,7 @@
+use destack_dir as dir;
 use std::collections::{HashMap, HashSet};
 
-use destack_dir::{self as dir, NodeVisitor};
+use destack_dir::NodeVisitor;
 use destack_source::{BatchEdit, Edit, FileEdit, FileId, ModuleId, Span, Uri};
 use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
@@ -9,14 +10,14 @@ use super::extract::{
     clean_expression_text, line_start_and_indent, resolve_extract_expression,
     statement_span_for_expression,
 };
-use crate::ast::{
-    get_module_by_file_id, is_simple_identifier, span_contains_span, span_for_dir_node,
-};
 use crate::core::{QueryContext, query_context};
 use crate::dir::{
     expression_symbol_target, get_canonical_symbol, get_symbol_definition_span, resolve_symbol_name,
 };
 use crate::format::{format_local_type, format_type_for_inlay_hint};
+use crate::source::{
+    get_module_by_file_id, is_simple_identifier, span_contains_span, span_for_dir_node,
+};
 
 /// Request payload for extract function queries.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -317,7 +318,7 @@ fn resolve_statement_selection(ctx: &QueryContext, selection: Span) -> Option<St
     let mut best_block: Option<(dir::LocalNodeId<dir::Block>, Span, u32)> = None;
 
     for (block_id, _block) in dir_tree.iter_nodes_of_type::<dir::Block>() {
-        let span = span_for_dir_node(ctx.ast(), dir_tree, block_id.into());
+        let span = span_for_dir_node(ctx.source(), dir_tree, block_id.into());
         if !span_contains_span(span, selection) {
             continue;
         }
@@ -349,7 +350,7 @@ fn resolve_statement_selection(ctx: &QueryContext, selection: Span) -> Option<St
     let mut has_partial = false;
 
     for (idx, expr_id) in container_expressions.iter().enumerate() {
-        let span = span_for_dir_node(ctx.ast(), dir_tree, (*expr_id).into());
+        let span = span_for_dir_node(ctx.source(), dir_tree, (*expr_id).into());
         let intersects = span.start < selection.end && span.end > selection.start;
         if !intersects {
             continue;
@@ -650,7 +651,7 @@ fn collect_free_variables(
     let mut vars: Vec<(u32, FreeVariable)> = Vec::new();
 
     for (expr_id, _) in dir_tree.iter_nodes_of_type::<dir::Expression>() {
-        let span = span_for_dir_node(ctx.ast(), dir_tree, expr_id.into());
+        let span = span_for_dir_node(ctx.source(), dir_tree, expr_id.into());
         if !span_contains_span(selection, span) {
             continue;
         }

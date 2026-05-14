@@ -1,29 +1,25 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactKey, ArtifactPin, ArtifactVersion, Ast, DirChecked, DirDeclared, DirExpanded,
-    DirExported, DirImported, GlobalEnvironment,
+    ArtifactKey, ArtifactPin, ArtifactVersion, DirBound, DirChecked, DirExpanded, DirExported,
+    DirImported, DirParsed, GlobalEnvironment,
 };
-use destack_ast as ast;
 use destack_core::StringPool;
-use destack_dir::{self as dir};
+use destack_dir as dir;
 use destack_source::{FileId, ModuleId, NodeSourceMap, ProfileId};
 use destack_workspace::{Repository, Revision};
 
-use crate::ast::get_module_by_file_id;
+use crate::source::get_module_by_file_id;
 
 /// Query context for a module.
-///
-/// Bundles the commonly-needed AST and DIR references for query functions.
-/// Created via [`query_context`].
 #[derive(Debug)]
 pub(crate) struct QueryContext {
     /// The exact artifact pins retained for this query.
     _pins: Vec<ArtifactPin>,
-    /// The module AST (syntax tree and strings).
-    ast: Arc<Ast>,
-    /// The declared module DIR.
-    dir_declared: Arc<DirDeclared>,
+    /// The source module DIR.
+    dir_parsed: Arc<DirParsed>,
+    /// The bound module DIR.
+    dir_bound: Arc<DirBound>,
     /// The imported module DIR.
     dir_imported: Arc<DirImported>,
     /// The expanded module DIR.
@@ -44,41 +40,41 @@ pub(crate) struct QueryContext {
     file_id: FileId,
 }
 
-/// Ast-facing query surface.
+/// Source query surface.
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct AstQueryContext<'a> {
-    /// The file id for this ast view.
+pub(crate) struct SourceQueryContext<'a> {
+    /// The source file id.
     file_id: FileId,
-    /// The module AST.
-    ast: &'a Ast,
+    /// The source module DIR.
+    dir: &'a DirParsed,
     /// Shared repository strings.
     strings: &'a StringPool,
 }
 
-impl<'a> AstQueryContext<'a> {
-    /// Return the file id for this ast view.
+impl<'a> SourceQueryContext<'a> {
+    /// Return the source file id.
     pub(crate) fn file_id(self) -> FileId {
         self.file_id
     }
 
-    /// Return the AST tree.
-    pub(crate) fn tree(self) -> &'a ast::Tree {
-        &self.ast.tree
+    /// Return the source DIR tree.
+    pub(crate) fn tree(self) -> &'a dir::Tree {
+        &self.dir.tree
     }
 
-    /// Return the AST source map.
+    /// Return the source DIR source map.
     pub(crate) fn source_map(self) -> &'a NodeSourceMap {
-        &self.ast.tree.source_map
+        &self.dir.tree.source_map
     }
 
-    /// Return the AST parent index.
-    pub(crate) fn parents(self) -> &'a ast::NodeParentIndex {
-        &self.ast.parents
+    /// Return the source DIR parent index.
+    pub(crate) fn parents(self) -> &'a dir::NodeParentIndex {
+        &self.dir.parents
     }
 
-    /// Return the top level AST roots.
-    pub(crate) fn roots(self) -> &'a [ast::LocalNodeId<ast::Expression>] {
-        &self.ast.roots
+    /// Return the source DIR roots.
+    pub(crate) fn roots(self) -> &'a [dir::LocalNodeId<dir::Expression>] {
+        &self.dir.roots
     }
 
     /// Return the module string pool.
@@ -87,13 +83,13 @@ impl<'a> AstQueryContext<'a> {
     }
 
     /// Return the main token stream for this file.
-    pub(crate) fn tokens(self) -> &'a [ast::TokenSpan] {
-        &self.ast.tokens
+    pub(crate) fn tokens(self) -> &'a [dir::TokenSpan] {
+        &self.dir.tokens
     }
 
     /// Return the side token stream for this file.
-    pub(crate) fn side_tokens(self) -> &'a [ast::TokenSpan] {
-        &self.ast.side_tokens
+    pub(crate) fn side_tokens(self) -> &'a [dir::TokenSpan] {
+        &self.dir.side_tokens
     }
 }
 
@@ -104,8 +100,8 @@ pub(crate) struct DirQueryContext<'a> {
     module_id: ModuleId,
     /// The revision for this dir view.
     revision: Revision,
-    /// The declared DIR artifact.
-    declared: &'a DirDeclared,
+    /// The bound DIR artifact.
+    bound: &'a DirBound,
     /// The imported DIR artifact.
     imported: &'a DirImported,
     /// The expanded DIR artifact.
@@ -131,14 +127,11 @@ impl<'a> DirQueryContext<'a> {
 
     /// Return the visible DIR tree view.
     pub(crate) fn view(self) -> dir::View<'a> {
-        dir::View::with_patches(
-            &self.declared.tree,
-            std::slice::from_ref(&self.expanded.patch),
-        )
+        dir::View::with_patches(&self.bound.tree, std::slice::from_ref(&self.expanded.patch))
     }
 
     /// Return whether one DIR symbol is visible in this query view.
-    pub(crate) fn symbol_is_active(self, symbol_id: dir::GlobalSymbolId) -> bool {
+    pub(crate) fn symbol_is_visible(self, symbol_id: dir::GlobalSymbolId) -> bool {
         if symbol_id.module_id != self.module_id {
             return true;
         }
@@ -148,12 +141,29 @@ impl<'a> DirQueryContext<'a> {
             return true;
         };
 
-        self.view().is_active(declaration.local_id)
+        self.view().is_visible(declaration.local_id)
     }
 
     /// Return the DIR symbol table.
     pub(crate) fn symbols(self) -> &'a dir::BindingTable {
-        &self.declared.bindings
+        &self.bound.bindings
+    }
+
+    /// Return the symbol declared by one local node when bound.
+    pub(crate) fn symbol_for_node(
+        self,
+        node_id: dir::LocalNodeIdAny,
+    ) -> Option<dir::LocalSymbolId> {
+        let declaration = node_id.into_global(self.module_id);
+
+        self.symbols().symbol_for_declaration(declaration)
+    }
+
+    /// Return the lexical scope attached to one local node when bound.
+    pub(crate) fn scope_for_node(self, node_id: dir::LocalNodeIdAny) -> Option<dir::LocalScope> {
+        let node_id = node_id.into_global(self.module_id);
+
+        self.symbols().scope_for_node(node_id)
     }
 
     /// Return the DIR type table.
@@ -163,7 +173,7 @@ impl<'a> DirQueryContext<'a> {
 
     /// Return the top level DIR roots.
     pub(crate) fn roots(self) -> &'a [dir::LocalNodeId<dir::Expression>] {
-        self.declared.roots.as_ref()
+        self.bound.roots.as_ref()
     }
 
     /// Return the DIR string pool.
@@ -173,7 +183,7 @@ impl<'a> DirQueryContext<'a> {
 
     /// Return the namespace scope for this module.
     pub(crate) fn namespace_scope(self) -> dir::LocalScopeId {
-        self.declared.namespace_scope
+        self.bound.namespace_scope
     }
 
     /// Return the imported DIR artifact.
@@ -224,11 +234,11 @@ impl QueryContext {
         self.file_id
     }
 
-    /// Return the ast query surface.
-    pub(crate) fn ast(&self) -> AstQueryContext<'_> {
-        AstQueryContext {
+    /// Return the source query surface.
+    pub(crate) fn source(&self) -> SourceQueryContext<'_> {
+        SourceQueryContext {
             file_id: self.file_id,
-            ast: self.ast.as_ref(),
+            dir: self.dir_parsed.as_ref(),
             strings: self.strings.as_ref(),
         }
     }
@@ -238,7 +248,7 @@ impl QueryContext {
         DirQueryContext {
             module_id: self.module_id,
             revision: self.revision,
-            declared: self.dir_declared.as_ref(),
+            bound: self.dir_bound.as_ref(),
             imported: self.dir_imported.as_ref(),
             expanded: self.dir_expanded.as_ref(),
             exported: self.dir_exported.as_ref(),
@@ -275,11 +285,12 @@ pub(crate) fn query_context_for_profile(
         .id();
 
     // resolve and retain the exact source artifacts
-    let ast_version = artifact_version(repository, revision, ArtifactKey::ast(module.id))?;
-    let declared_version = artifact_version(
+    let parsed_version =
+        artifact_version(repository, revision, ArtifactKey::dir_parsed(module.id))?;
+    let bound_version = artifact_version(
         repository,
         revision,
-        ArtifactKey::dir_declared(module.id, selected_profile),
+        ArtifactKey::dir_bound(module.id, selected_profile),
     )?;
     let imported_version = artifact_version(
         repository,
@@ -302,17 +313,17 @@ pub(crate) fn query_context_for_profile(
         ArtifactKey::dir_checked(module.id, selected_profile),
     )?;
 
-    // resolve module ast and profile dir artifact
-    let ast = artifacts.ast(&ast_version)?;
-    let dir_declared = artifacts.dir_declared(&declared_version)?;
+    // resolve source and profile dir artifacts
+    let dir_parsed = artifacts.dir_parsed(&parsed_version)?;
+    let dir_bound = artifacts.dir_bound(&bound_version)?;
     let dir_imported = artifacts.dir_imported(&imported_version)?;
     let dir_expanded = artifacts.dir_expanded(&expanded_version)?;
     let dir_exported = artifacts.dir_exported(&exported_version)?;
     let dir_checked = artifacts.dir_checked(&checked_version)?;
 
     // artifact roots
-    let ast_pin = artifacts.pin(&ast_version)?;
-    let declared_pin = artifacts.pin(&declared_version)?;
+    let parsed_pin = artifacts.pin(&parsed_version)?;
+    let bound_pin = artifacts.pin(&bound_version)?;
     let imported_pin = artifacts.pin(&imported_version)?;
     let expanded_pin = artifacts.pin(&expanded_version)?;
     let exported_pin = artifacts.pin(&exported_version)?;
@@ -321,15 +332,15 @@ pub(crate) fn query_context_for_profile(
     // build query context
     Some(QueryContext {
         _pins: vec![
-            ast_pin,
-            declared_pin,
+            parsed_pin,
+            bound_pin,
             imported_pin,
             expanded_pin,
             exported_pin,
             checked_pin,
         ],
-        ast,
-        dir_declared,
+        dir_parsed,
+        dir_bound,
         dir_imported,
         dir_expanded,
         dir_exported,
@@ -377,31 +388,32 @@ pub(crate) fn with_query_context_for_module<T>(
     Some(f(ctx))
 }
 
-/// Execute a closure with an ast query surface for a file.
-pub(crate) fn with_ast_query_for_file<T>(
+/// Execute a closure with a source query surface for a file.
+pub(crate) fn with_source_query_for_file<T>(
     repository: &Repository,
     revision: Revision,
     file_id: FileId,
-    f: impl FnOnce(AstQueryContext<'_>) -> T,
+    f: impl FnOnce(SourceQueryContext<'_>) -> T,
 ) -> Option<T> {
     let module = get_module_by_file_id(repository, revision, file_id)?;
-    with_ast_query_for_module(repository, revision, module.id, f)
+    with_source_query_for_module(repository, revision, module.id, f)
 }
 
-/// Execute a closure with an ast query surface for one module.
-pub(crate) fn with_ast_query_for_module<T>(
+/// Execute a closure with a source query surface for one module.
+pub(crate) fn with_source_query_for_module<T>(
     repository: &Repository,
     revision: Revision,
     module_id: ModuleId,
-    f: impl FnOnce(AstQueryContext<'_>) -> T,
+    f: impl FnOnce(SourceQueryContext<'_>) -> T,
 ) -> Option<T> {
     let module = repository.module(revision, module_id).ok().flatten()?;
     let artifacts = repository.artifact_store().clone();
-    let ast_version = artifact_version(repository, revision, ArtifactKey::ast(module.id))?;
-    let ast = artifacts.ast(&ast_version)?;
-    let query = AstQueryContext {
+    let parsed_version =
+        artifact_version(repository, revision, ArtifactKey::dir_parsed(module.id))?;
+    let dir_parsed = artifacts.dir_parsed(&parsed_version)?;
+    let query = SourceQueryContext {
         file_id: module.file_id,
-        ast: ast.as_ref(),
+        dir: dir_parsed.as_ref(),
         strings: repository.string_pool().as_ref(),
     };
 

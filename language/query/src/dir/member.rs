@@ -1,8 +1,7 @@
-use destack_ast::StringPool;
 use destack_dir as dir;
 use destack_dir::{
     BindingTable, Declaration, GlobalSymbolId, LanguageItem, LocalSymbolId, LocalTypeId, Member,
-    ScalarLiteral, StaticKey, SymbolForm, Type, TypeTable,
+    ScalarLiteral, StaticKey, StringPool, SymbolForm, Type, TypeTable,
 };
 use destack_source::ModuleId;
 use destack_workspace::{Repository, Revision};
@@ -277,7 +276,7 @@ fn resolve_type_members_inner(
 
         // primitive types: resolve members from language item types (String, Number, etc.)
         Type::Literal(literal) => {
-            primitive_members(&literal.value, repository, revision, current_module_id)
+            primitive_members(literal, repository, revision, current_module_id)
         }
 
         // follow value types
@@ -466,16 +465,13 @@ pub(crate) fn resolve_extension_members_for_symbol(
                 };
 
                 // record the extension member
-                let member_symbol_id = GlobalSymbolId {
-                    module_id: dir.module_id(),
-                    local_id: member_node.symbol(),
-                };
+                let member_symbol_id = super::global_symbol_for_node(dir, (*member_node_id).into());
 
                 members.push(MemberInfo {
                     name: MemberName::String(name),
                     type_id: None,
                     kind,
-                    symbol_id: Some(member_symbol_id),
+                    symbol_id: member_symbol_id,
                 });
             }
 
@@ -530,17 +526,17 @@ fn array_members(
 
 /// Get members for primitive types by resolving the appropriate language item symbol.
 fn primitive_members(
-    value: &dir::TypeLiteral,
+    value: &dir::LiteralType,
     repository: &Repository,
     revision: Revision,
     current_module_id: ModuleId,
 ) -> Vec<MemberInfo> {
     // import primitive type helpers
-    use destack_dir::{LanguageItem, PrimitiveType, TypeLiteral};
+    use destack_dir::{LanguageItem, LiteralType, PrimitiveType};
 
     // map primitive type literals to their backing language item types
     let language_item = match value {
-        TypeLiteral::Primitive(primitive) => match primitive {
+        LiteralType::Primitive(primitive) => match primitive {
             PrimitiveType::String => Some(LanguageItem::String),
             PrimitiveType::Integer(_)
             | PrimitiveType::Float(_)
@@ -550,7 +546,7 @@ fn primitive_members(
             PrimitiveType::Character => None,
         },
         // scalar literals use the same backing types
-        TypeLiteral::ScalarLiteral(scalar) => match scalar {
+        LiteralType::ScalarLiteral(scalar) => match scalar {
             ScalarLiteral::Null => None,
             ScalarLiteral::String(_) => Some(LanguageItem::String),
             ScalarLiteral::Integer(_)

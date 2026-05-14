@@ -3,11 +3,11 @@ use destack_source::{FileId, NodeSpanType, Span, Uri};
 use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 
-use crate::ast::get_module_by_file_id;
 use crate::core::query_context;
 use crate::dir::{
     declaration_export, declaration_is_abstract, dependency_symbol_target, expression_symbol_target,
 };
+use crate::source::get_module_by_file_id;
 
 /// Semantic token type for LSP semantic highlighting.
 ///
@@ -147,11 +147,11 @@ pub fn semantic_tokens(
     // collect declaration tokens (these are definition sites)
     for (decl_id, declaration) in dir_tree.iter_nodes_of_type::<dir::Declaration>() {
         // get the main span (identifier) for the declaration
-        let ast_node_id = dir_tree.get_source(decl_id);
+        let source_node_id = dir_tree.get_source(decl_id);
         let Some(main_span) = ctx
-            .ast()
+            .source()
             .tree()
-            .get_side_span_by_id(ast_node_id, NodeSpanType::Main)
+            .get_side_span_by_id(source_node_id, NodeSpanType::Main)
         else {
             continue;
         };
@@ -191,14 +191,16 @@ pub fn semantic_tokens(
 
     // collect parameter tokens
     for (parameter_id, parameter) in dir_tree.iter_nodes_of_type::<dir::Parameter>() {
-        let ast_node_id = dir_tree.get_source(parameter_id);
-        let span = ctx.ast().tree().get_span_by_id(ast_node_id);
+        let source_node_id = dir_tree.get_source(parameter_id);
+        let Some(span) = ctx.source().tree().get_span_by_id(source_node_id) else {
+            continue;
+        };
 
         // for parameters, try to get just the name span if available
         let name_span = ctx
-            .ast()
+            .source()
             .tree()
-            .get_side_span_by_id(ast_node_id, NodeSpanType::Main)
+            .get_side_span_by_id(source_node_id, NodeSpanType::Main)
             .unwrap_or(span);
 
         let mut modifiers = SemanticTokenModifiers::DECLARATION;
@@ -218,11 +220,11 @@ pub fn semantic_tokens(
     for (pattern_id, pattern) in dir_tree.iter_nodes_of_type::<dir::Pattern>() {
         if let dir::Pattern::Binding { .. } = pattern {
             saw_pattern_bindings = true;
-            let ast_node_id = dir_tree.get_source(pattern_id);
+            let source_node_id = dir_tree.get_source(pattern_id);
             let Some(main_span) = ctx
-                .ast()
+                .source()
                 .tree()
-                .get_side_span_by_id(ast_node_id, NodeSpanType::Main)
+                .get_side_span_by_id(source_node_id, NodeSpanType::Main)
             else {
                 continue;
             };
@@ -244,11 +246,11 @@ pub fn semantic_tokens(
                 continue;
             };
 
-            let ast_node_id = dir_tree.get_source(declarator.pattern);
+            let source_node_id = dir_tree.get_source(declarator.pattern);
             let Some(main_span) = ctx
-                .ast()
+                .source()
                 .tree()
-                .get_side_span_by_id(ast_node_id, NodeSpanType::Main)
+                .get_side_span_by_id(source_node_id, NodeSpanType::Main)
             else {
                 continue;
             };
@@ -264,11 +266,11 @@ pub fn semantic_tokens(
 
     // collect pattern field bindings (destructuring)
     for (field_id, field) in dir_tree.iter_nodes_of_type::<dir::PatternField>() {
-        let ast_node_id = dir_tree.get_source(field_id);
+        let source_node_id = dir_tree.get_source(field_id);
         let Some(main_span) = ctx
-            .ast()
+            .source()
             .tree()
-            .get_side_span_by_id(ast_node_id, NodeSpanType::Main)
+            .get_side_span_by_id(source_node_id, NodeSpanType::Main)
         else {
             continue;
         };
@@ -288,12 +290,14 @@ pub fn semantic_tokens(
 
     // collect expression tokens (references, literals, etc.)
     for (expression_id, expression) in dir_tree.iter_nodes_of_type::<dir::Expression>() {
-        let ast_node_id = dir_tree.get_source(expression_id);
-        let span = ctx.ast().tree().get_span_by_id(ast_node_id);
+        let source_node_id = dir_tree.get_source(expression_id);
+        let Some(span) = ctx.source().tree().get_span_by_id(source_node_id) else {
+            continue;
+        };
 
         match expression {
             // symbol references - look up the symbol to determine type
-            dir::Expression::Path { .. } => {
+            dir::Expression::QualifiedReference { .. } => {
                 let Some(target_symbol) = expression_symbol_target(ctx.dir(), expression_id) else {
                     continue;
                 };
@@ -309,11 +313,11 @@ pub fn semantic_tokens(
             }
 
             // labelled statement - the label itself
-            dir::Expression::Labelled { .. } => {
+            dir::Expression::Label { .. } => {
                 if let Some(main_span) = ctx
-                    .ast()
+                    .source()
                     .tree()
-                    .get_side_span_by_id(ast_node_id, NodeSpanType::Main)
+                    .get_side_span_by_id(source_node_id, NodeSpanType::Main)
                 {
                     tokens.push(
                         SemanticToken::new(main_span, SemanticTokenType::Label)
@@ -323,7 +327,7 @@ pub fn semantic_tokens(
             }
 
             // literals
-            dir::Expression::ScalarLiteral { value } => {
+            dir::Expression::ScalarLiteral(value) => {
                 let token_type = match value {
                     dir::ScalarLiteral::Null => SemanticTokenType::Keyword,
                     dir::ScalarLiteral::String(_) | dir::ScalarLiteral::Character(_) => {
@@ -338,10 +342,6 @@ pub fn semantic_tokens(
                 tokens.push(SemanticToken::new(span, token_type));
             }
 
-            dir::Expression::TypeLiteral { .. } => {
-                tokens.push(SemanticToken::new(span, SemanticTokenType::Type));
-            }
-
             dir::Expression::TemplateExpression { .. }
             | dir::Expression::TaggedTemplateExpression { .. } => {
                 tokens.push(SemanticToken::new(span, SemanticTokenType::String));
@@ -351,9 +351,9 @@ pub fn semantic_tokens(
             dir::Expression::Member { .. } => {
                 // try to get just the member name span
                 if let Some(main_span) = ctx
-                    .ast()
+                    .source()
                     .tree()
-                    .get_side_span_by_id(ast_node_id, NodeSpanType::Main)
+                    .get_side_span_by_id(source_node_id, NodeSpanType::Main)
                 {
                     tokens.push(SemanticToken::new(main_span, SemanticTokenType::Property));
                 }
@@ -365,13 +365,13 @@ pub fn semantic_tokens(
 
     // collect member tokens (fields, methods)
     for (member_id, member) in dir_tree.iter_nodes_of_type::<dir::Member>() {
-        let ast_node_id = dir_tree.get_source(member_id);
+        let source_node_id = dir_tree.get_source(member_id);
 
         // try to get the name span
         let Some(main_span) = ctx
-            .ast()
+            .source()
             .tree()
-            .get_side_span_by_id(ast_node_id, NodeSpanType::Main)
+            .get_side_span_by_id(source_node_id, NodeSpanType::Main)
         else {
             continue;
         };
@@ -415,7 +415,7 @@ pub fn semantic_tokens(
             }
             dir::Member::StaticBlock { .. } => continue,
             dir::Member::ComptimeBlock { .. } => continue,
-            dir::Member::Error { .. } => continue,
+            dir::Member::Error => continue,
         };
 
         tokens.push(SemanticToken::new(main_span, token_type).with_modifiers(modifiers));
@@ -423,12 +423,12 @@ pub fn semantic_tokens(
 
     // collect enum field tokens
     for (field_id, _field) in dir_tree.iter_nodes_of_type::<dir::EnumField>() {
-        let ast_node_id = dir_tree.get_source(field_id);
+        let source_node_id = dir_tree.get_source(field_id);
 
         if let Some(main_span) = ctx
-            .ast()
+            .source()
             .tree()
-            .get_side_span_by_id(ast_node_id, NodeSpanType::Main)
+            .get_side_span_by_id(source_node_id, NodeSpanType::Main)
         {
             tokens.push(
                 SemanticToken::new(main_span, SemanticTokenType::EnumMember)
@@ -441,11 +441,11 @@ pub fn semantic_tokens(
     for (_decl_id, declaration) in dir_tree.iter_nodes_of_type::<dir::Declaration>() {
         if let Some(generic_parameters) = declaration.generic_parameters() {
             for &parameter_id in generic_parameters {
-                let ast_node_id = dir_tree.get_source(parameter_id);
+                let source_node_id = dir_tree.get_source(parameter_id);
                 if let Some(main_span) = ctx
-                    .ast()
+                    .source()
                     .tree()
-                    .get_side_span_by_id(ast_node_id, NodeSpanType::Main)
+                    .get_side_span_by_id(source_node_id, NodeSpanType::Main)
                 {
                     tokens.push(
                         SemanticToken::new(main_span, SemanticTokenType::TypeParameter)
@@ -458,14 +458,16 @@ pub fn semantic_tokens(
 
     // collect decorator tokens
     for (decorator_id, _decorator) in dir_tree.iter_nodes_of_type::<dir::Decorator>() {
-        let ast_node_id = dir_tree.get_source(decorator_id);
-        let span = ctx.ast().tree().get_span_by_id(ast_node_id);
+        let source_node_id = dir_tree.get_source(decorator_id);
+        let Some(span) = ctx.source().tree().get_span_by_id(source_node_id) else {
+            continue;
+        };
 
         // for decorators, highlight the whole thing or just the name
         if let Some(main_span) = ctx
-            .ast()
+            .source()
             .tree()
-            .get_side_span_by_id(ast_node_id, NodeSpanType::Main)
+            .get_side_span_by_id(source_node_id, NodeSpanType::Main)
         {
             tokens.push(SemanticToken::new(main_span, SemanticTokenType::Decorator));
         } else {
@@ -477,7 +479,7 @@ pub fn semantic_tokens(
     let Some(file) = repository.file(revision, ctx.file_id()).ok().flatten() else {
         return tokens;
     };
-    for comment in ctx.ast().tree().comments().iter().copied() {
+    for comment in ctx.source().tree().comments().iter().copied() {
         let raw_text = file.span_str(comment.span);
         let raw_text = raw_text.trim_start();
         if !raw_text.starts_with("///") && !raw_text.starts_with("/**") {
@@ -492,13 +494,13 @@ pub fn semantic_tokens(
 
     // collect dependency item tokens (imports/exports)
     for (item_id, _) in dir_tree.iter_nodes_of_type::<dir::DependencyItem>() {
-        let ast_node_id = dir_tree.get_source(item_id);
+        let source_node_id = dir_tree.get_source(item_id);
 
         // get the local binding name span
         let Some(main_span) = ctx
-            .ast()
+            .source()
             .tree()
-            .get_side_span_by_id(ast_node_id, NodeSpanType::Main)
+            .get_side_span_by_id(source_node_id, NodeSpanType::Main)
         else {
             continue;
         };
@@ -586,7 +588,7 @@ fn parameter_is_readonly(parameter: &dir::Parameter) -> bool {
         | dir::Parameter::VariadicNamed { is_readonly, .. } => *is_readonly,
         dir::Parameter::Pattern { .. }
         | dir::Parameter::VariadicPattern { .. }
-        | dir::Parameter::Error { .. } => false,
+        | dir::Parameter::Error => false,
     }
 }
 

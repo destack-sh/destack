@@ -1,9 +1,9 @@
-use destack_ast as ast;
 use destack_core::StringId;
+use destack_dir as dir;
 use destack_source::Span;
 
 use super::{
-    AstQueryContext, enclosing_missing_expression, enclosing_spans_at_cursor,
+    SourceQueryContext, enclosing_missing_expression, enclosing_spans_at_cursor,
     previous_significant_token, span_owns_cursor, token_text,
     tokens_between_offsets_include_statement_boundary,
 };
@@ -25,7 +25,7 @@ enum ExpressionSlotOwner {
     /// The slot expects one constructable value for `new`.
     Constructor,
     /// The slot is the value side of one declarator.
-    DeclaratorValue(ast::LocalNodeId<ast::Declarator>),
+    DeclaratorValue(dir::LocalNodeId<dir::Declarator>),
     /// The slot expects a value expression.
     Value,
     /// The slot expects a type expression.
@@ -34,19 +34,19 @@ enum ExpressionSlotOwner {
 
 /// Return whether one assign pattern contains the expression.
 fn assign_pattern_contains_expression(
-    tree: &ast::Tree,
-    assign_pattern_id: ast::LocalNodeId<ast::AssignPattern>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    tree: &dir::Tree,
+    assign_pattern_id: dir::LocalNodeId<dir::AssignPattern>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     let assign_pattern = tree.get(assign_pattern_id);
 
     match assign_pattern {
-        ast::AssignPattern::Expression { value } => *value == expression_id,
-        ast::AssignPattern::Assign { pattern, value } => {
+        dir::AssignPattern::Expression { value } => *value == expression_id,
+        dir::AssignPattern::Assign { pattern, value } => {
             assign_pattern_contains_expression(tree, *pattern, expression_id)
                 || *value == expression_id
         }
-        ast::AssignPattern::Sequence { fields } | ast::AssignPattern::Object { fields } => {
+        dir::AssignPattern::Sequence { fields } | dir::AssignPattern::Object { fields } => {
             fields.iter().any(|field_id| {
                 assign_pattern_field_contains_expression(tree, *field_id, expression_id)
             })
@@ -56,37 +56,37 @@ fn assign_pattern_contains_expression(
 
 /// Return whether one assign pattern field contains the expression.
 fn assign_pattern_field_contains_expression(
-    tree: &ast::Tree,
-    assign_pattern_field_id: ast::LocalNodeId<ast::AssignPatternField>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    tree: &dir::Tree,
+    assign_pattern_field_id: dir::LocalNodeId<dir::AssignPatternField>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     let assign_pattern_field = tree.get(assign_pattern_field_id);
 
     match assign_pattern_field {
-        ast::AssignPatternField::Named { pattern, .. } => pattern.is_some_and(|pattern_id| {
+        dir::AssignPatternField::Named { pattern, .. } => pattern.is_some_and(|pattern_id| {
             assign_pattern_contains_expression(tree, pattern_id, expression_id)
         }),
-        ast::AssignPatternField::Computed { key, pattern } => {
+        dir::AssignPatternField::Computed { key, pattern } => {
             *key == expression_id
                 || assign_pattern_contains_expression(tree, *pattern, expression_id)
         }
-        ast::AssignPatternField::Positional { pattern } => {
+        dir::AssignPatternField::Positional { pattern } => {
             assign_pattern_contains_expression(tree, *pattern, expression_id)
         }
-        ast::AssignPatternField::Spread { pattern } => pattern.is_some_and(|pattern_id| {
+        dir::AssignPatternField::Spread { pattern } => pattern.is_some_and(|pattern_id| {
             assign_pattern_contains_expression(tree, pattern_id, expression_id)
         }),
-        ast::AssignPatternField::Elision => false,
+        dir::AssignPatternField::Elision => false,
     }
 }
 
 /// Resolve the structural context for the innermost expression slot at the cursor.
 pub(crate) fn expression_slot_position(
-    ast: AstQueryContext<'_>,
+    parsed: SourceQueryContext<'_>,
     source: &str,
     offset: u32,
 ) -> Option<ExpressionSlotPosition> {
-    let owner = expression_slot_owner(ast, source, offset)?;
+    let owner = expression_slot_owner(parsed, source, offset)?;
 
     // collapse the richer slot owner to the public type/value classification
     match owner {
@@ -100,17 +100,17 @@ pub(crate) fn expression_slot_position(
 
 /// Collect the binding names excluded from completion inside one initializer.
 pub(crate) fn current_initializer_binding_names(
-    ast: AstQueryContext<'_>,
+    parsed: SourceQueryContext<'_>,
     source: &str,
     offset: u32,
 ) -> Vec<StringId> {
-    let ast_tree = ast.tree();
+    let parsed_tree = parsed.tree();
 
     // missing initializer slots should resolve through the recovered missing node first
-    if let Some(declarator_id) = current_initializer_declarator(ast, source, offset) {
-        let declarator = ast_tree.get(declarator_id);
+    if let Some(declarator_id) = current_initializer_declarator(parsed, source, offset) {
+        let declarator = parsed_tree.get(declarator_id);
         let mut names = Vec::new();
-        collect_pattern_binding_names(ast_tree, declarator.pattern, &mut names);
+        collect_pattern_binding_names(parsed_tree, declarator.pattern, &mut names);
         return names;
     }
 
@@ -119,48 +119,48 @@ pub(crate) fn current_initializer_binding_names(
 
 /// Check whether the cursor sits in a missing declarator initializer slot.
 pub(crate) fn missing_declarator_value_at_cursor(
-    ast: AstQueryContext<'_>,
+    parsed: SourceQueryContext<'_>,
     source: &str,
     offset: u32,
 ) -> bool {
-    let ast_tree = ast.tree();
-    let Some(declarator_id) = current_initializer_declarator(ast, source, offset) else {
+    let parsed_tree = parsed.tree();
+    let Some(declarator_id) = current_initializer_declarator(parsed, source, offset) else {
         return false;
     };
 
-    let declarator = ast_tree.get(declarator_id);
+    let declarator = parsed_tree.get(declarator_id);
     let Some(value_id) = declarator.value else {
         return false;
     };
 
-    matches!(ast_tree.get(value_id), ast::Expression::Missing)
+    matches!(parsed_tree.get(value_id), dir::Expression::Missing)
 }
 
 /// Resolve the structural owner for the innermost expression slot at the cursor.
 fn expression_slot_owner(
-    ast: AstQueryContext<'_>,
+    parsed: SourceQueryContext<'_>,
     source: &str,
     offset: u32,
 ) -> Option<ExpressionSlotOwner> {
-    if let Some(expr_id) = enclosing_missing_expression(ast, offset) {
-        return expression_slot_owner_for_missing_node(ast.tree(), ast.parents(), expr_id);
+    if let Some(expr_id) = enclosing_missing_expression(parsed, offset) {
+        return expression_slot_owner_for_missing_node(parsed.tree(), parsed.parents(), expr_id);
     }
 
-    open_expression_slot_owner(ast, source, offset)
+    open_expression_slot_owner(parsed, source, offset)
 }
 
 /// Resolve the structural context for one missing expression node.
 fn expression_slot_owner_for_missing_node(
-    ast_tree: &ast::Tree,
-    parents: &ast::NodeParentIndex,
-    expr_id: ast::LocalNodeId<ast::Expression>,
+    parsed_tree: &dir::Tree,
+    parents: &dir::NodeParentIndex,
+    expr_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<ExpressionSlotOwner> {
     let parent_id = parents.get(expr_id)?;
 
-    match ast_tree.get_node_type(parent_id) {
-        ast::NodeType::Declarator => {
-            let declarator_id = ast::LocalNodeId::<ast::Declarator>::new(parent_id);
-            let declarator = ast_tree.get(declarator_id);
+    match parsed_tree.get_node_type(parent_id) {
+        dir::NodeType::Declarator => {
+            let declarator_id = dir::LocalNodeId::<dir::Declarator>::new(parent_id);
+            let declarator = parsed_tree.get(declarator_id);
 
             if declarator.value == Some(expr_id) {
                 return Some(ExpressionSlotOwner::DeclaratorValue(declarator_id));
@@ -168,29 +168,29 @@ fn expression_slot_owner_for_missing_node(
 
             None
         }
-        ast::NodeType::Parameter => {
-            let parameter = ast_tree.get(ast::LocalNodeId::<ast::Parameter>::new(parent_id));
+        dir::NodeType::Parameter => {
+            let parameter = parsed_tree.get(dir::LocalNodeId::<dir::Parameter>::new(parent_id));
             expression_slot_position_in_parameter(parameter, expr_id)
                 .map(expression_slot_owner_from_position)
         }
-        ast::NodeType::Argument => {
-            let argument = ast_tree.get(ast::LocalNodeId::<ast::Argument>::new(parent_id));
+        dir::NodeType::Argument => {
+            let argument = parsed_tree.get(dir::LocalNodeId::<dir::Argument>::new(parent_id));
             expression_slot_position_in_argument(argument, expr_id)
                 .map(expression_slot_owner_from_position)
         }
-        ast::NodeType::Property => {
-            let property = ast_tree.get(ast::LocalNodeId::<ast::Property>::new(parent_id));
+        dir::NodeType::Property => {
+            let property = parsed_tree.get(dir::LocalNodeId::<dir::Property>::new(parent_id));
             expression_slot_position_in_property(property, expr_id)
                 .map(expression_slot_owner_from_position)
         }
-        ast::NodeType::Member => {
-            let member = ast_tree.get(ast::LocalNodeId::<ast::Member>::new(parent_id));
+        dir::NodeType::Member => {
+            let member = parsed_tree.get(dir::LocalNodeId::<dir::Member>::new(parent_id));
             expression_slot_position_in_member(member, expr_id)
                 .map(expression_slot_owner_from_position)
         }
-        ast::NodeType::Expression => {
-            let parent = ast_tree.get(ast::LocalNodeId::<ast::Expression>::new(parent_id));
-            expression_slot_position_in_expression(ast_tree, parent, expr_id)
+        dir::NodeType::Expression => {
+            let parent = parsed_tree.get(dir::LocalNodeId::<dir::Expression>::new(parent_id));
+            expression_slot_position_in_expression(parsed_tree, parent, expr_id)
                 .map(expression_slot_owner_from_position)
         }
         _ => None,
@@ -199,41 +199,41 @@ fn expression_slot_owner_for_missing_node(
 
 /// Resolve the structural context for an explicit value slot without a missing node.
 fn open_expression_slot_owner(
-    ast: AstQueryContext<'_>,
+    parsed: SourceQueryContext<'_>,
     source: &str,
     offset: u32,
 ) -> Option<ExpressionSlotOwner> {
-    let ast_tree = ast.tree();
+    let parsed_tree = parsed.tree();
 
     // walk enclosing expressions from inner to outer
-    for enclosing in enclosing_spans_at_cursor(ast, offset) {
-        if ast_tree.get_node_type(enclosing.idx) != ast::NodeType::Expression {
+    for enclosing in enclosing_spans_at_cursor(parsed, offset) {
+        if parsed_tree.get_node_type(enclosing.idx) != dir::NodeType::Expression {
             continue;
         }
 
         // unwrap statement wrappers to the actual expression owner
-        let expr_id = ast::LocalNodeId::<ast::Expression>::new(enclosing.idx);
-        let (expr_id, expr) = unwrap_statement_ast_expression(ast_tree, expr_id);
-        let expr_span = ast.source_map().get(expr_id.id);
+        let expr_id = dir::LocalNodeId::<dir::Expression>::new(enclosing.idx);
+        let (expr_id, expr) = unwrap_statement_expression(parsed_tree, expr_id);
+        let expr_span = parsed.source_map().get(expr_id.id);
 
         // return without a value still owns a value slot after the keyword
-        if let ast::Expression::Return { value: None } = expr
-            && cursor_is_after_expression_keyword(ast, source, offset, expr_span, "return")
+        if let dir::Expression::Return { value: None } = expr
+            && cursor_is_after_expression_keyword(parsed, source, offset, expr_span, "return")
         {
             return Some(ExpressionSlotOwner::Value);
         }
 
         // yield without a value still owns a value slot after the keyword
-        if let ast::Expression::Yield { value: None, .. } = expr
-            && cursor_is_after_expression_keyword(ast, source, offset, expr_span, "yield")
+        if let dir::Expression::Yield { value: None, .. } = expr
+            && cursor_is_after_expression_keyword(parsed, source, offset, expr_span, "yield")
         {
             return Some(ExpressionSlotOwner::Value);
         }
 
         // bare `new` still owns one constructor slot after the keyword
-        if let ast::Expression::New { left, .. } = expr
-            && matches!(ast_tree.get(*left), ast::Expression::Missing)
-            && cursor_is_after_expression_keyword(ast, source, offset, expr_span, "new")
+        if let dir::Expression::New { left, .. } = expr
+            && matches!(parsed_tree.get(*left), dir::Expression::Missing)
+            && cursor_is_after_expression_keyword(parsed, source, offset, expr_span, "new")
         {
             return Some(ExpressionSlotOwner::Constructor);
         }
@@ -243,11 +243,11 @@ fn open_expression_slot_owner(
 }
 
 /// Unwrap statement expressions to the inner structural owner.
-fn unwrap_statement_ast_expression(
-    ast_tree: &ast::Tree,
-    expr_id: ast::LocalNodeId<ast::Expression>,
-) -> (ast::LocalNodeId<ast::Expression>, &ast::Expression) {
-    let expr = ast_tree.get(expr_id);
+fn unwrap_statement_expression(
+    parsed_tree: &dir::Tree,
+    expr_id: dir::LocalNodeId<dir::Expression>,
+) -> (dir::LocalNodeId<dir::Expression>, &dir::Expression) {
+    let expr = parsed_tree.get(expr_id);
     (expr_id, expr)
 }
 
@@ -262,18 +262,18 @@ fn expression_slot_owner_from_position(position: ExpressionSlotPosition) -> Expr
 
 /// Check whether the cursor still belongs to one keyword-owned expression slot.
 fn cursor_is_after_expression_keyword(
-    ast: AstQueryContext<'_>,
+    parsed: SourceQueryContext<'_>,
     source: &str,
     offset: u32,
     expr_span: Span,
     keyword: &str,
 ) -> bool {
-    let Some(token) = previous_significant_token(ast, offset) else {
+    let Some(token) = previous_significant_token(parsed, offset) else {
         return false;
     };
 
     // require the keyword token inside the owning expression span
-    if token.token.ty != ast::TokenType::Identifier {
+    if token.token.ty != dir::TokenType::Identifier {
         return false;
     }
 
@@ -289,135 +289,135 @@ fn cursor_is_after_expression_keyword(
     }
 
     // statement boundaries end the keyword-owned slot
-    !tokens_between_offsets_include_statement_boundary(ast, token.span.end, offset)
+    !tokens_between_offsets_include_statement_boundary(parsed, token.span.end, offset)
 }
 
 /// Resolve the structural context for a parameter child.
 fn expression_slot_position_in_parameter(
-    parameter: &ast::Parameter,
-    expr_id: ast::LocalNodeId<ast::Expression>,
+    parameter: &dir::Parameter,
+    expr_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<ExpressionSlotPosition> {
     match parameter {
-        ast::Parameter::Named { default, .. } | ast::Parameter::Pattern { default, .. } => {
+        dir::Parameter::Named { default, .. } | dir::Parameter::Pattern { default, .. } => {
             if *default == Some(expr_id) {
                 return Some(ExpressionSlotPosition::Value);
             }
 
             None
         }
-        ast::Parameter::VariadicNamed { .. } | ast::Parameter::VariadicPattern { .. } => None,
-        ast::Parameter::Error => None,
+        dir::Parameter::VariadicNamed { .. } | dir::Parameter::VariadicPattern { .. } => None,
+        dir::Parameter::Error => None,
     }
 }
 
 /// Resolve the structural context for an argument child.
 fn expression_slot_position_in_argument(
-    argument: &ast::Argument,
-    expr_id: ast::LocalNodeId<ast::Expression>,
+    argument: &dir::Argument,
+    expr_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<ExpressionSlotPosition> {
     match argument {
-        ast::Argument::Named { value, .. }
-        | ast::Argument::Labeled { value, .. }
-        | ast::Argument::Positional { value, .. }
-        | ast::Argument::Spread { value, .. } => {
+        dir::Argument::Named { value, .. }
+        | dir::Argument::Labeled { value, .. }
+        | dir::Argument::Positional { value, .. }
+        | dir::Argument::Spread { value, .. } => {
             if *value == expr_id {
                 return Some(ExpressionSlotPosition::Value);
             }
 
             None
         }
-        ast::Argument::Error => None,
+        dir::Argument::Error => None,
     }
 }
 
 /// Resolve the structural context for a property child.
 fn expression_slot_position_in_property(
-    property: &ast::Property,
-    expr_id: ast::LocalNodeId<ast::Expression>,
+    property: &dir::Property,
+    expr_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<ExpressionSlotPosition> {
     match property {
-        ast::Property::Field { value, .. } => {
+        dir::Property::Field { value, .. } => {
             if *value == expr_id {
                 return Some(ExpressionSlotPosition::Value);
             }
 
             None
         }
-        ast::Property::Method { body, .. } => {
+        dir::Property::Method { body, .. } => {
             if *body == Some(expr_id) {
                 return Some(ExpressionSlotPosition::Value);
             }
 
             None
         }
-        ast::Property::Spread { value, .. } => {
+        dir::Property::Spread { value, .. } => {
             if *value == expr_id {
                 return Some(ExpressionSlotPosition::Value);
             }
 
             None
         }
-        ast::Property::Error => None,
+        dir::Property::Error => None,
     }
 }
 
 /// Resolve the structural context for a member child.
 fn expression_slot_position_in_member(
-    member: &ast::Member,
-    expr_id: ast::LocalNodeId<ast::Expression>,
+    member: &dir::Member,
+    expr_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<ExpressionSlotPosition> {
     match member {
-        ast::Member::AssociatedType { .. } => None,
-        ast::Member::AssociatedConst { value, .. } => {
+        dir::Member::AssociatedType { .. } => None,
+        dir::Member::AssociatedConst { value, .. } => {
             if *value == Some(expr_id) {
                 return Some(ExpressionSlotPosition::Value);
             }
 
             None
         }
-        ast::Member::Field { default, .. } => {
+        dir::Member::Field { default, .. } => {
             if *default == Some(expr_id) {
                 return Some(ExpressionSlotPosition::Value);
             }
 
             None
         }
-        ast::Member::Method { body, .. } => {
+        dir::Member::Method { body, .. } => {
             if *body == Some(expr_id) {
                 return Some(ExpressionSlotPosition::Value);
             }
 
             None
         }
-        ast::Member::StaticBlock { body, .. } | ast::Member::ComptimeBlock { body, .. } => {
+        dir::Member::StaticBlock { body, .. } | dir::Member::ComptimeBlock { body, .. } => {
             if *body == expr_id {
                 return Some(ExpressionSlotPosition::Value);
             }
 
             None
         }
-        ast::Member::Error => None,
+        dir::Member::Error => None,
     }
 }
 
 /// Resolve the structural context for an expression child.
 fn expression_slot_position_in_expression(
-    ast_tree: &ast::Tree,
-    expression: &ast::Expression,
-    expr_id: ast::LocalNodeId<ast::Expression>,
+    parsed_tree: &dir::Tree,
+    expression: &dir::Expression,
+    expr_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<ExpressionSlotPosition> {
     match expression {
-        ast::Expression::ObjectExpression { .. } => None,
-        ast::Expression::Parenthesized { expression }
-        | ast::Expression::Comptime { body: expression }
-        | ast::Expression::Await { expression }
-        | ast::Expression::Unary {
+        dir::Expression::ObjectExpression { .. } => None,
+        dir::Expression::Parenthesized { expression }
+        | dir::Expression::Comptime { body: expression }
+        | dir::Expression::Await { expression }
+        | dir::Expression::Unary {
             right: expression, ..
         }
-        | ast::Expression::MoveOf {
+        | dir::Expression::MoveOf {
             right: expression, ..
         }
-        | ast::Expression::BorrowOf {
+        | dir::Expression::BorrowOf {
             right: expression, ..
         } => {
             if *expression == expr_id {
@@ -426,66 +426,67 @@ fn expression_slot_position_in_expression(
 
             None
         }
-        ast::Expression::SequenceExpression { expressions } => {
+        dir::Expression::SequenceExpression { expressions } => {
             if expressions.contains(&expr_id) {
                 return Some(ExpressionSlotPosition::Value);
             }
 
             None
         }
-        ast::Expression::Binary { left, right, .. } => {
+        dir::Expression::Binary { left, right, .. } => {
             if *left == expr_id || *right == expr_id {
                 return Some(ExpressionSlotPosition::Value);
             }
 
             None
         }
-        ast::Expression::Assign { left, right, .. } => {
-            if assign_pattern_contains_expression(ast_tree, *left, expr_id) || *right == expr_id {
+        dir::Expression::Assign { left, right, .. } => {
+            if assign_pattern_contains_expression(parsed_tree, *left, expr_id) || *right == expr_id
+            {
                 return Some(ExpressionSlotPosition::Value);
             }
 
             None
         }
-        ast::Expression::Return { value } | ast::Expression::Yield { value, .. } => {
+        dir::Expression::Return { value } | dir::Expression::Yield { value, .. } => {
             if *value == Some(expr_id) {
                 return Some(ExpressionSlotPosition::Value);
             }
 
             None
         }
-        ast::Expression::Throw { value } => {
+        dir::Expression::Throw { value } => {
             if *value == expr_id {
                 return Some(ExpressionSlotPosition::Value);
             }
 
             None
         }
-        ast::Expression::Index { left, index, .. } => {
+        dir::Expression::Index { left, index, .. } => {
             if *left == expr_id || *index == Some(expr_id) {
                 return Some(ExpressionSlotPosition::Value);
             }
 
             None
         }
-        ast::Expression::Member { left, .. }
-        | ast::Expression::PrivateMember { left, .. }
-        | ast::Expression::Instantiation { left, .. }
-        | ast::Expression::Call { left, .. } => {
+        dir::Expression::Member { left, .. }
+        | dir::Expression::PrivateMember { left, .. }
+        | dir::Expression::Instantiation { left, .. }
+        | dir::Expression::Call { left, .. } => {
             if *left == expr_id {
                 return Some(ExpressionSlotPosition::Value);
             }
 
             None
         }
-        ast::Expression::New { left, .. } => {
+        dir::Expression::New { left, .. } => {
             if *left == expr_id {
                 return Some(ExpressionSlotPosition::Constructor);
             }
 
             None
         }
-        ast::Expression::As { expression, .. } | ast::Expression::Satisfies { expression, .. } => {
+        dir::Expression::As { expression, .. } | dir::Expression::Satisfies { expression, .. } => {
             if *expression == expr_id {
                 return Some(ExpressionSlotPosition::Value);
             }
@@ -498,53 +499,53 @@ fn expression_slot_position_in_expression(
 
 /// Resolve the declarator that owns the initializer slot at one cursor offset.
 fn current_initializer_declarator(
-    ast: AstQueryContext<'_>,
+    parsed: SourceQueryContext<'_>,
     source: &str,
     offset: u32,
-) -> Option<ast::LocalNodeId<ast::Declarator>> {
+) -> Option<dir::LocalNodeId<dir::Declarator>> {
     // prefer direct slot ownership when the cursor is in one declarator value slot
     if let Some(ExpressionSlotOwner::DeclaratorValue(declarator_id)) =
-        expression_slot_owner(ast, source, offset)
+        expression_slot_owner(parsed, source, offset)
     {
         return Some(declarator_id);
     }
 
     // otherwise fall back to initializer spans that still own the cursor
-    initializer_declarator_at_cursor(ast, offset)
+    initializer_declarator_at_cursor(parsed, offset)
 }
 
 /// Resolve the declarator whose initializer span still owns the cursor.
 fn initializer_declarator_at_cursor(
-    ast: AstQueryContext<'_>,
+    parsed: SourceQueryContext<'_>,
     offset: u32,
-) -> Option<ast::LocalNodeId<ast::Declarator>> {
-    let ast_tree = ast.tree();
-    let parents = ast.parents();
+) -> Option<dir::LocalNodeId<dir::Declarator>> {
+    let parsed_tree = parsed.tree();
+    let parents = parsed.parents();
 
     // walk enclosing nodes and their declarator parents
-    for enclosing in enclosing_spans_at_cursor(ast, offset) {
+    for enclosing in enclosing_spans_at_cursor(parsed, offset) {
         for parent_id in
             std::iter::once(enclosing.idx).chain(parents.walk_parents_by_id(enclosing.idx))
         {
-            if ast_tree.get_node_type(parent_id) != ast::NodeType::Declarator {
+            if parsed_tree.get_node_type(parent_id) != dir::NodeType::Declarator {
                 continue;
             }
 
-            let declarator_id = ast::LocalNodeId::<ast::Declarator>::new(parent_id);
-            let declarator_span = ast.source_map().get(declarator_id.id);
-            let declarator = ast_tree.get(declarator_id);
+            let declarator_id = dir::LocalNodeId::<dir::Declarator>::new(parent_id);
+            let declarator_span = parsed.source_map().get(declarator_id.id);
+            let declarator = parsed_tree.get(declarator_id);
             let Some(value_id) = declarator.value else {
                 continue;
             };
 
             // missing initializer gaps still belong to the declarator after `=`
-            if matches!(ast_tree.get(value_id), ast::Expression::Missing)
-                && cursor_is_after_initializer_assign(ast, declarator_span, offset)
+            if matches!(parsed_tree.get(value_id), dir::Expression::Missing)
+                && cursor_is_after_initializer_assign(parsed, declarator_span, offset)
             {
                 return Some(declarator_id);
             }
 
-            let value_span = ast.source_map().get(value_id.id);
+            let value_span = parsed.source_map().get(value_id.id);
             if !span_owns_cursor(value_span, offset) {
                 continue;
             }
@@ -558,16 +559,16 @@ fn initializer_declarator_at_cursor(
 
 /// Check whether the cursor still belongs to one declarator initializer gap.
 fn cursor_is_after_initializer_assign(
-    ast: AstQueryContext<'_>,
+    parsed: SourceQueryContext<'_>,
     declarator_span: Span,
     offset: u32,
 ) -> bool {
-    let Some(token) = previous_significant_token(ast, offset) else {
+    let Some(token) = previous_significant_token(parsed, offset) else {
         return false;
     };
 
     // the initializer gap starts after the owning `=`
-    if token.token.ty != ast::TokenType::Assign {
+    if token.token.ty != dir::TokenType::Assign {
         return false;
     }
 
@@ -580,17 +581,17 @@ fn cursor_is_after_initializer_assign(
 
 /// Collect simple binding names from one pattern.
 fn collect_pattern_binding_names(
-    ast_tree: &ast::Tree,
-    pattern_id: ast::LocalNodeId<ast::Pattern>,
+    parsed_tree: &dir::Tree,
+    pattern_id: dir::LocalNodeId<dir::Pattern>,
     names: &mut Vec<StringId>,
 ) {
-    let pattern = ast_tree.get(pattern_id);
+    let pattern = parsed_tree.get(pattern_id);
 
     match pattern {
-        ast::Pattern::Assign { pattern, .. } => {
-            collect_pattern_binding_names(ast_tree, *pattern, names);
+        dir::Pattern::Assign { pattern, .. } => {
+            collect_pattern_binding_names(parsed_tree, *pattern, names);
         }
-        ast::Pattern::Binding {
+        dir::Pattern::Binding {
             name,
             pattern: nested,
             ..
@@ -598,56 +599,56 @@ fn collect_pattern_binding_names(
             names.push(*name);
 
             if let Some(nested) = nested {
-                collect_pattern_binding_names(ast_tree, *nested, names);
+                collect_pattern_binding_names(parsed_tree, *nested, names);
             }
         }
-        ast::Pattern::Must(right)
-        | ast::Pattern::BorrowOf { right, .. }
-        | ast::Pattern::MoveOf { right, .. } => {
-            collect_pattern_binding_names(ast_tree, *right, names);
+        dir::Pattern::Must(right)
+        | dir::Pattern::BorrowOf { right, .. }
+        | dir::Pattern::MoveOf { right, .. } => {
+            collect_pattern_binding_names(parsed_tree, *right, names);
         }
-        ast::Pattern::Tuple { fields }
-        | ast::Pattern::Sequence { fields }
-        | ast::Pattern::Object { fields }
-        | ast::Pattern::TaggedTuple { fields, .. }
-        | ast::Pattern::TaggedObject { fields, .. } => {
+        dir::Pattern::Tuple { fields }
+        | dir::Pattern::Sequence { fields }
+        | dir::Pattern::Object { fields }
+        | dir::Pattern::TaggedTuple { fields, .. }
+        | dir::Pattern::TaggedObject { fields, .. } => {
             for field_id in fields {
-                let field = ast_tree.get(*field_id);
+                let field = parsed_tree.get(*field_id);
 
                 match field {
-                    ast::PatternField::Named { name, pattern, .. } => {
+                    dir::PatternField::Named { name, pattern, .. } => {
                         if let Some(pattern) = pattern {
-                            collect_pattern_binding_names(ast_tree, *pattern, names);
+                            collect_pattern_binding_names(parsed_tree, *pattern, names);
                             continue;
                         }
 
                         names.push(name.string());
                     }
-                    ast::PatternField::Computed { pattern, .. } => {
-                        collect_pattern_binding_names(ast_tree, *pattern, names);
+                    dir::PatternField::Computed { pattern, .. } => {
+                        collect_pattern_binding_names(parsed_tree, *pattern, names);
                     }
-                    ast::PatternField::Positional { pattern, .. } => {
-                        collect_pattern_binding_names(ast_tree, *pattern, names);
+                    dir::PatternField::Positional { pattern, .. } => {
+                        collect_pattern_binding_names(parsed_tree, *pattern, names);
                     }
-                    ast::PatternField::Spread { pattern, .. } => {
+                    dir::PatternField::Spread { pattern, .. } => {
                         let Some(pattern) = pattern else {
                             continue;
                         };
 
-                        collect_pattern_binding_names(ast_tree, *pattern, names);
+                        collect_pattern_binding_names(parsed_tree, *pattern, names);
                     }
-                    ast::PatternField::Elision => {}
+                    dir::PatternField::Elision => {}
                 }
             }
         }
-        ast::Pattern::Union { patterns } => {
+        dir::Pattern::Union { patterns } => {
             for pattern_id in patterns {
-                collect_pattern_binding_names(ast_tree, *pattern_id, names);
+                collect_pattern_binding_names(parsed_tree, *pattern_id, names);
             }
         }
-        ast::Pattern::Wildcard
-        | ast::Pattern::Expression { .. }
-        | ast::Pattern::Range { .. }
-        | ast::Pattern::TypeExpression { .. } => {}
+        dir::Pattern::Wildcard
+        | dir::Pattern::Expression { .. }
+        | dir::Pattern::Range { .. }
+        | dir::Pattern::TypeExpression { .. } => {}
     }
 }

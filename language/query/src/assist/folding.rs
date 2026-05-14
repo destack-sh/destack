@@ -1,10 +1,10 @@
-use destack_ast::{self as ast, TokenType};
-use destack_dir::Declaration;
+use destack_dir as dir;
+use destack_dir::{Declaration, TokenType};
 use destack_source::{FileId, Uri};
 use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 
-use crate::core::{with_ast_query_for_file, with_query_context_for_file};
+use crate::core::{with_query_context_for_file, with_source_query_for_file};
 
 /// Kind of folding range.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -90,8 +90,8 @@ pub fn folding_ranges(
         return ranges;
     }
 
-    // fall back to ast only folding ranges
-    folding_ranges_with_ast(repository, revision, file)
+    // fall back to parsed only folding ranges
+    folding_ranges_with_parsed(repository, revision, file)
 }
 
 /// Build folding ranges using the DIR context when available.
@@ -129,8 +129,8 @@ fn folding_ranges_with_dir(
             }
 
             // resolve the declaration span
-            let ast_node_id = dir_tree.get_source(decl_id);
-            let span = ctx.ast().tree().source_map.get(ast_node_id);
+            let source_node_id = dir_tree.get_source(decl_id);
+            let span = ctx.source().tree().source_map.get(source_node_id);
 
             // convert the span to line numbers
             let Some((start_line, _)) = source_file.get_position(span.start) else {
@@ -147,7 +147,7 @@ fn folding_ranges_with_dir(
         }
 
         // collect folding ranges for comment blocks
-        add_comment_folding_ranges(&mut ranges, ctx.ast().side_tokens(), &source_file);
+        add_comment_folding_ranges(&mut ranges, ctx.source().side_tokens(), &source_file);
 
         // sort ranges by start and end line
         ranges.sort_by_key(|range| (range.start_line, range.end_line));
@@ -160,13 +160,13 @@ fn folding_ranges_with_dir(
     })
 }
 
-/// Build folding ranges from the AST when DIR is unavailable.
-fn folding_ranges_with_ast(
+/// Build folding ranges from the source DIR when DIR is unavailable.
+fn folding_ranges_with_parsed(
     repository: &Repository,
     revision: Revision,
     file: FileId,
 ) -> Vec<FoldingRange> {
-    with_ast_query_for_file(repository, revision, file, |ast| {
+    with_source_query_for_file(repository, revision, file, |parsed| {
         // resolve the source file
         let Some(source_file) = repository.file(revision, file).ok().flatten() else {
             return Vec::new();
@@ -176,27 +176,27 @@ fn folding_ranges_with_ast(
         let mut ranges = Vec::new();
 
         // iterate through all declarations and create folding ranges
-        for declaration_id in ast.tree().iter_nodes::<ast::Declaration>() {
-            let declaration = ast.tree().get(declaration_id);
+        for declaration_id in parsed.tree().iter_nodes::<dir::Declaration>() {
+            let declaration = parsed.tree().get(declaration_id);
 
             // only fold declarations with foldable bodies
             let should_fold = matches!(
                 declaration,
-                ast::Declaration::Function { .. }
-                    | ast::Declaration::Class { .. }
-                    | ast::Declaration::Struct { .. }
-                    | ast::Declaration::Interface { .. }
-                    | ast::Declaration::Enum { .. }
-                    | ast::Declaration::Global { .. }
-                    | ast::Declaration::Namespace { .. }
-                    | ast::Declaration::Extension { .. }
+                dir::Declaration::Function { .. }
+                    | dir::Declaration::Class { .. }
+                    | dir::Declaration::Struct { .. }
+                    | dir::Declaration::Interface { .. }
+                    | dir::Declaration::Enum { .. }
+                    | dir::Declaration::Global { .. }
+                    | dir::Declaration::Namespace { .. }
+                    | dir::Declaration::Extension { .. }
             );
             if !should_fold {
                 continue;
             }
 
             // resolve the declaration span
-            let span = ast.source_map().get(declaration_id.id);
+            let span = parsed.source_map().get(declaration_id.id);
 
             // convert the span to line numbers
             let Some((start_line, _)) = source_file.get_position(span.start) else {
@@ -213,7 +213,7 @@ fn folding_ranges_with_ast(
         }
 
         // collect folding ranges for comment blocks
-        add_comment_folding_ranges(&mut ranges, ast.side_tokens(), &source_file);
+        add_comment_folding_ranges(&mut ranges, parsed.side_tokens(), &source_file);
 
         // sort ranges by start and end line
         ranges.sort_by_key(|range| (range.start_line, range.end_line));
@@ -231,7 +231,7 @@ fn folding_ranges_with_ast(
 /// Add comment folding ranges for the given token stream.
 fn add_comment_folding_ranges(
     ranges: &mut Vec<FoldingRange>,
-    tokens: &[ast::TokenSpan],
+    tokens: &[dir::TokenSpan],
     source_file: &destack_source::File,
 ) {
     // track line comment runs

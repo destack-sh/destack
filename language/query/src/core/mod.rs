@@ -9,9 +9,9 @@ mod scope;
 mod workspace;
 
 pub(crate) use context::{
-    AstQueryContext, DirQueryContext, QueryContext, query_context, query_context_for_profile,
-    with_ast_query_for_file, with_ast_query_for_module, with_query_context_for_file,
-    with_query_context_for_module,
+    DirQueryContext, QueryContext, SourceQueryContext, query_context, query_context_for_profile,
+    with_query_context_for_file, with_query_context_for_module, with_source_query_for_file,
+    with_source_query_for_module,
 };
 pub(crate) use destack_qir::{
     CallEntry, CallIndex, ExtensionEntry, ExtensionIndex, ImportEntry, ImportIndex, ImportSortKey,

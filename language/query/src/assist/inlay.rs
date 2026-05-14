@@ -109,8 +109,8 @@ pub fn inlay_hints(
             }
 
             // get the span of this call expression
-            let ast_node_id = dir_tree.get_source(expression_id);
-            let call_span = ctx.ast().tree().source_map.get(ast_node_id);
+            let source_node_id = dir_tree.get_source(expression_id);
+            let call_span = ctx.source().tree().source_map.get(source_node_id);
 
             // skip if outside the requested range
             if call_span.end < range.start || call_span.start > range.end {
@@ -137,7 +137,10 @@ pub fn inlay_hints(
                     Some(name) => name.as_str(),
                     None => continue,
                 };
-                let argument_is_literal = argument_is_literal(dir_tree, argument);
+                let Some(argument_value) = argument.value() else {
+                    continue;
+                };
+                let argument_is_literal = argument_is_literal(dir_tree, argument_value);
 
                 // skip hints for arguments that already carry labels or match the name
                 if should_skip_parameter_hint(
@@ -151,8 +154,8 @@ pub fn inlay_hints(
                 }
 
                 // get the span of the argument expression
-                let arg_ast_id = dir_tree.get_source(argument.value());
-                let arg_span = ctx.ast().tree().source_map.get(arg_ast_id);
+                let argument_source_node_id = dir_tree.get_source(argument_value);
+                let arg_span = ctx.source().tree().source_map.get(argument_source_node_id);
 
                 // add a parameter hint at the start of the argument
                 hints.push(InlayHint::parameter_hint(arg_span.start, param_name));
@@ -170,13 +173,11 @@ pub fn inlay_hints(
             let pattern = dir_tree.get::<Pattern>(declarator.pattern);
 
             // only emit hints for binding patterns
-            if let Pattern::Binding {
-                symbol, name: _, ..
-            } = pattern
-            {
+            if let Pattern::Binding { .. } = pattern {
                 // get the span of the binding name
-                let ast_node_id = dir_tree.get_source(declarator.pattern);
-                let Some(name_span) = ctx.ast().tree().source_map.get_main(ast_node_id) else {
+                let source_node_id = dir_tree.get_source(declarator.pattern);
+                let Some(name_span) = ctx.source().tree().source_map.get_main(source_node_id)
+                else {
                     continue;
                 };
 
@@ -186,10 +187,11 @@ pub fn inlay_hints(
                 }
 
                 // try to get the value type for this symbol
-                let global_symbol_id = GlobalSymbolId {
-                    module_id: ctx.module_id(),
-                    local_id: *symbol,
+                let Some(local_symbol) = ctx.dir().symbol_for_node(declarator.pattern.into())
+                else {
+                    continue;
                 };
+                let global_symbol_id = GlobalSymbolId::new(ctx.module_id(), local_symbol);
 
                 // resolve the inferred type when available
                 if let Some(type_id) = types.get_value_type_id(global_symbol_id) {
@@ -315,11 +317,11 @@ fn argument_reference(
     argument: &Argument,
 ) -> Option<ArgumentReference> {
     // resolve the argument expression
-    let expr = dir_tree.get::<Expression>(argument.value());
+    let expr = dir_tree.get::<Expression>(argument.value()?);
 
     // resolve a simple reference name
     match expr {
-        Expression::Path { path, .. } => path
+        Expression::QualifiedReference { path, .. } => path
             .last_segment()
             .map(|id| ArgumentReference::Name(strings.get(id).to_string())),
         Expression::This => Some(ArgumentReference::This),
@@ -336,13 +338,16 @@ enum ArgumentReference {
 }
 
 /// Check whether an argument is a literal value.
-fn argument_is_literal(dir_tree: dir::View<'_>, argument: &Argument) -> bool {
+fn argument_is_literal(
+    dir_tree: dir::View<'_>,
+    argument_value: dir::LocalNodeId<Expression>,
+) -> bool {
     // resolve the argument expression
-    let expr = dir_tree.get::<Expression>(argument.value());
+    let expr = dir_tree.get::<Expression>(argument_value);
 
     // treat scalar literals and static templates as literals
     match expr {
-        Expression::ScalarLiteral { .. } => true,
+        Expression::ScalarLiteral(_) => true,
         Expression::TemplateExpression { value } => {
             matches!(value, TemplateLiteral::String { .. })
         }

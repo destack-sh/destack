@@ -1,10 +1,10 @@
 pub mod assist;
-mod ast;
 mod core;
 mod dir;
 pub mod format;
 pub mod navigation;
 pub mod refactor;
+mod source;
 
 pub use assist::*;
 pub use core::{

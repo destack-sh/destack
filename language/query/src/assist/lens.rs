@@ -1,18 +1,18 @@
-use destack_ast as ast;
-use destack_dir::{self as dir, GlobalSymbolId, SymbolForm};
+use destack_dir as dir;
+use destack_dir::{GlobalSymbolId, SymbolForm};
 use destack_source::{FileId, NodeSpanType, Span, Uri};
 use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 
-use crate::ast::get_module_by_file_id;
 use crate::core::{
-    AstQueryContext, NominalRelation, modules_referencing_symbol, nominal_relations_for_target,
+    NominalRelation, SourceQueryContext, modules_referencing_symbol, nominal_relations_for_target,
     query_context,
 };
 use crate::dir::{
     ReferenceCollectionOptions, collect_symbol_references_in_context, get_canonical_symbol,
     resolve_symbol_name,
 };
+use crate::source::get_module_by_file_id;
 
 /// A code lens (inline annotation with optional command).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -147,7 +147,7 @@ pub fn code_lenses(repository: &Repository, revision: Revision, file: FileId) ->
     let Some(ctx) = query_context(repository, revision, module.id) else {
         return Vec::new();
     };
-    let ast = ctx.ast();
+    let parsed = ctx.source();
     let module_id = ctx.module_id();
     let mut lenses = Vec::new();
 
@@ -158,29 +158,29 @@ pub fn code_lenses(repository: &Repository, revision: Revision, file: FileId) ->
 
         dir_tree
             .iter_nodes_of_type::<dir::Declaration>()
-            .map(
+            .filter_map(
                 |(decl_id, decl): (dir::LocalNodeId<dir::Declaration>, &dir::Declaration)| {
-                    let symbol_id = decl.symbol();
+                    let symbol_id = ctx.dir().symbol_for_node(decl_id.into())?;
                     let global_symbol_id = GlobalSymbolId {
                         module_id,
                         local_id: symbol_id,
                     };
-                    let ast_node_id = dir_tree.get_source(decl_id);
+                    let source_node_id = dir_tree.get_source(decl_id);
                     let main_span = ctx
-                        .ast()
+                        .source()
                         .tree()
-                        .get_side_span_by_id(ast_node_id, NodeSpanType::Main);
+                        .get_side_span_by_id(source_node_id, NodeSpanType::Main);
                     let name = resolve_symbol_name(repository, revision, global_symbol_id);
-                    let is_test = has_decorator_named(ast, ast_node_id, "test");
+                    let is_test = has_decorator_named(parsed, source_node_id, "test");
                     let symbol_form = symbols.get_symbol(symbol_id).form;
-                    (
+                    Some((
                         decl.clone(),
                         global_symbol_id,
                         main_span,
                         is_test,
                         name,
                         symbol_form,
-                    )
+                    ))
                 },
             )
             .collect()
@@ -283,7 +283,7 @@ fn count_references(
 
         let spans = collect_symbol_references_in_context(
             repository,
-            ctx.ast(),
+            ctx.source(),
             ctx.dir(),
             canonical_id,
             reference_options,
@@ -321,15 +321,15 @@ fn count_subclasses(
 }
 
 /// Check whether a node has a decorator with the given name.
-fn has_decorator_named(ast: AstQueryContext<'_>, node_id: u32, name: &str) -> bool {
+fn has_decorator_named(parsed: SourceQueryContext<'_>, node_id: u32, name: &str) -> bool {
     // scan annotations attached to the node
-    if decorator_on_node(ast, node_id, name) {
+    if decorator_on_node(parsed, node_id, name) {
         return true;
     }
 
     // fall back to enclosing nodes for annotations attached higher up
-    let span = ast.source_map().get_main_or_enclosing(node_id);
-    let mut enclosing = ast
+    let span = parsed.source_map().get_main_or_enclosing(node_id);
+    let mut enclosing = parsed
         .source_map()
         .get_enclosing_spans(span.start, span.end.saturating_sub(1));
     enclosing.sort_by_key(|entry| entry.length);
@@ -338,7 +338,7 @@ fn has_decorator_named(ast: AstQueryContext<'_>, node_id: u32, name: &str) -> bo
         if entry.idx == node_id {
             continue;
         }
-        if decorator_on_node(ast, entry.idx, name) {
+        if decorator_on_node(parsed, entry.idx, name) {
             return true;
         }
     }
@@ -347,15 +347,15 @@ fn has_decorator_named(ast: AstQueryContext<'_>, node_id: u32, name: &str) -> bo
 }
 
 /// Check whether a decorator is attached directly to a node.
-fn decorator_on_node(ast: AstQueryContext<'_>, node_id: u32, name: &str) -> bool {
+fn decorator_on_node(parsed: SourceQueryContext<'_>, node_id: u32, name: &str) -> bool {
     // scan decorators attached to the node
-    let decorators = ast.tree().get_decorators(node_id);
+    let decorators = parsed.tree().get_decorators(node_id);
     for decorator_id in decorators {
-        let decorator = ast.tree().get::<ast::Decorator>(decorator_id);
-        let Some(decorator_name_id) = decorator_name_id(ast, decorator) else {
+        let decorator = parsed.tree().get::<dir::Decorator>(decorator_id);
+        let Some(decorator_name_id) = decorator_name_id(parsed, decorator) else {
             continue;
         };
-        let decorator_name = ast.strings().get(decorator_name_id);
+        let decorator_name = parsed.strings().get(decorator_name_id);
         if decorator_name == name {
             return true;
         }
@@ -366,22 +366,22 @@ fn decorator_on_node(ast: AstQueryContext<'_>, node_id: u32, name: &str) -> bool
 
 /// Resolve the last segment of a decorator name when it is path-like.
 fn decorator_name_id(
-    ast: AstQueryContext<'_>,
-    decorator: &ast::Decorator,
+    parsed: SourceQueryContext<'_>,
+    decorator: &dir::Decorator,
 ) -> Option<destack_core::StringId> {
     let mut expression_id = decorator.expression;
     loop {
-        match ast.tree().get(expression_id) {
-            ast::Expression::Parenthesized { expression } => {
+        match parsed.tree().get(expression_id) {
+            dir::Expression::Parenthesized { expression } => {
                 expression_id = *expression;
             }
-            ast::Expression::Call { left, .. } => {
+            dir::Expression::Call { left, .. } => {
                 expression_id = *left;
             }
-            ast::Expression::QualifiedReference { path, .. } => {
+            dir::Expression::QualifiedReference { path, .. } => {
                 return path.segments.last().copied();
             }
-            ast::Expression::Identifier { name } => return Some(*name),
+            dir::Expression::Identifier { name } => return Some(*name),
             _ => return None,
         }
     }
