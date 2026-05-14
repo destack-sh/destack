@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use crate::core::{Case, CaseResult, format_diagnostics};
-use destack_ast::{NodeParentIndex, TokenSpan};
+use destack_dir::{NodeParentIndex, TokenSpan};
 use destack_core::StringPool;
 use destack_fir::format as fir_format;
 use destack_formatter::{
@@ -280,7 +280,7 @@ fn format_expressions(
     parser: &Parser,
     tokens: &Vec<TokenSpan>,
     side_tokens: &Vec<TokenSpan>,
-    expressions: &[destack_ast::LocalNodeId<destack_ast::Expression>],
+    expressions: &[destack_dir::LocalNodeId<destack_dir::Expression>],
     file: &File,
     language_type: LanguageType,
     formatter: FormatterOptions,
