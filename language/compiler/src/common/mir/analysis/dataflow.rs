@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 use destack_mir as mir;
 
-use crate::optimize::ControlFlowGraph;
+use super::ControlFlowGraph;
 
 /// Trait for types that form a lattice for dataflow analysis.
 ///

@@ -803,26 +803,24 @@ fn memory_effect_for_access(access: &mir::MemoryAccessMetadata) -> mir::MemoryEf
 
 /// Build a memory effect for an intrinsic.
 fn memory_effect_for_intrinsic(intrinsic: mir::Intrinsic) -> mir::MemoryEffect {
-    use mir::Intrinsic;
-
     // classify intrinsic memory effects
     match intrinsic {
-        Intrinsic::Memcpy | Intrinsic::Memmove => {
+        mir::Intrinsic::Memcpy | mir::Intrinsic::Memmove => {
             let mut effect = mir::MemoryEffect::read_write(mir::MemorySpaceSet::ANY);
             effect.nosync = true;
             effect
         }
-        Intrinsic::Memset => {
+        mir::Intrinsic::Memset => {
             let mut effect = mir::MemoryEffect::write_only(mir::MemorySpaceSet::ANY);
             effect.nosync = true;
             effect
         }
-        Intrinsic::Memcmp => {
+        mir::Intrinsic::Memcmp => {
             let mut effect = mir::MemoryEffect::read_only(mir::MemorySpaceSet::ANY);
             effect.nosync = true;
             effect
         }
-        Intrinsic::PrefetchRead | Intrinsic::PrefetchWrite => {
+        mir::Intrinsic::PrefetchRead | mir::Intrinsic::PrefetchWrite => {
             let mut effect = mir::MemoryEffect::read_only(mir::MemorySpaceSet::ANY);
             effect.nosync = true;
             effect

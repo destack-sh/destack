@@ -2,7 +2,6 @@ use std::collections::{HashMap, HashSet};
 use std::sync::OnceLock;
 
 use destack_mir as mir;
-use mir::{Instruction, Local};
 
 use crate::common::mir::{
     Analysis, AnalysisId, ControlFlowGraph, FunctionAnalyses, FunctionAnalysis,
@@ -16,14 +15,14 @@ pub enum LocalDefinition {
     /// Definition that originates at function entry (no local.set on the path).
     Entry,
     /// Definition produced by a specific local.set instruction.
-    Instruction(mir::LocalNodeId<Instruction>),
+    Instruction(mir::LocalNodeId<mir::Instruction>),
 }
 
 /// Reaching definitions for locals at a test point.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct ReachingDefinitionMap {
     /// Definitions available for each local.
-    definitions: HashMap<mir::LocalNodeId<Local>, HashSet<LocalDefinition>>,
+    definitions: HashMap<mir::LocalNodeId<mir::Local>, HashSet<LocalDefinition>>,
 }
 
 impl ReachingDefinitionMap {
@@ -52,7 +51,10 @@ impl ReachingDefinitionMap {
     }
 
     /// Get the reaching definitions for a local.
-    pub fn definitions_for(&self, local: mir::LocalNodeId<Local>) -> &HashSet<LocalDefinition> {
+    pub fn definitions_for(
+        &self,
+        local: mir::LocalNodeId<mir::Local>,
+    ) -> &HashSet<LocalDefinition> {
         // read the definitions for the local
 
         match self.definitions.get(&local) {
@@ -62,7 +64,11 @@ impl ReachingDefinitionMap {
     }
 
     /// Overwrite the reaching definitions for a local.
-    pub fn set_definition(&mut self, local: mir::LocalNodeId<Local>, definition: LocalDefinition) {
+    pub fn set_definition(
+        &mut self,
+        local: mir::LocalNodeId<mir::Local>,
+        definition: LocalDefinition,
+    ) {
         // build the single definition set
         let mut definitions = HashSet::new();
         definitions.insert(definition);
@@ -74,7 +80,7 @@ impl ReachingDefinitionMap {
     /// Iterate over locals and their reaching definitions.
     pub fn iter(
         &self,
-    ) -> impl Iterator<Item = (mir::LocalNodeId<Local>, &HashSet<LocalDefinition>)> + '_ {
+    ) -> impl Iterator<Item = (mir::LocalNodeId<mir::Local>, &HashSet<LocalDefinition>)> + '_ {
         self.definitions.iter().map(|(local, defs)| (*local, defs))
     }
 }
@@ -147,7 +153,7 @@ impl ReachingDefinitions {
     pub fn definitions_at_entry(
         &self,
         block: mir::LocalNodeId<mir::Block>,
-        local: mir::LocalNodeId<Local>,
+        local: mir::LocalNodeId<mir::Local>,
     ) -> &HashSet<LocalDefinition> {
         self.entry(block).definitions_for(local)
     }
@@ -156,7 +162,7 @@ impl ReachingDefinitions {
     pub fn definitions_at_exit(
         &self,
         block: mir::LocalNodeId<mir::Block>,
-        local: mir::LocalNodeId<Local>,
+        local: mir::LocalNodeId<mir::Local>,
     ) -> &HashSet<LocalDefinition> {
         self.exit(block).definitions_for(local)
     }
@@ -176,7 +182,7 @@ impl ReachingDefinitions {
         for &instruction_id in block_data.instructions.iter().take(instruction_index) {
             let instruction = tree.get(instruction_id);
 
-            if let Instruction::LocalSet { local, .. } = instruction
+            if let mir::Instruction::LocalSet { local, .. } = instruction
                 && let Some(local) = local.local()
             {
                 state.set_definition(local, LocalDefinition::Instruction(instruction_id));
@@ -218,7 +224,7 @@ fn transfer_block(
     // update reaching definitions for each local.set
     for &instruction_id in &block_data.instructions {
         let instruction = tree.get(instruction_id);
-        if let Instruction::LocalSet { local, .. } = instruction
+        if let mir::Instruction::LocalSet { local, .. } = instruction
             && let Some(local) = local.local()
         {
             state.set_definition(local, LocalDefinition::Instruction(instruction_id));
@@ -253,14 +259,14 @@ mod tests {
     fn first_local_set_instruction(
         block: mir::LocalNodeId<mir::Block>,
         tree: &mir::Tree,
-    ) -> mir::LocalNodeId<Instruction> {
+    ) -> mir::LocalNodeId<mir::Instruction> {
         // read the block data
         let block_data = tree.get(block);
 
         // scan instructions for a local.set
         for &instruction_id in &block_data.instructions {
             let instruction = tree.get(instruction_id);
-            if matches!(instruction, Instruction::LocalSet { .. }) {
+            if matches!(instruction, mir::Instruction::LocalSet { .. }) {
                 return instruction_id;
             }
         }
@@ -268,7 +274,7 @@ mod tests {
         panic!("missing local.set instruction")
     }
 
-    /// Local set overwrites entry definition within a block.
+    /// mir::Local set overwrites entry definition within a block.
     #[test]
     fn test_reaching_definitions_single_block() {
         let test = TestProgram::new(
@@ -438,7 +444,7 @@ b3:
         assert_eq!(join_defs, &expected);
     }
 
-    /// Local reachability is tracked independently per local.
+    /// mir::Local reachability is tracked independently per local.
     #[test]
     fn test_reaching_definitions_multiple_locals() {
         let test = TestProgram::new(

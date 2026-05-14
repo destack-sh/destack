@@ -1,16 +1,13 @@
 use std::collections::HashMap;
 
 use destack_mir as mir;
-use destack_mir::{
-    BinaryOperator, CastOperator, Constant, Intrinsic, LocalNodeId, Tree, Type, UnaryOperator,
-};
 
 use super::{
     instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
     terminator_substitute_uses,
 };
 
-/// Constant type information for literal values.
+/// mir::Constant type information for literal values.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConstantType {
     /// Null reference constant type.
@@ -39,22 +36,22 @@ impl ConstantLookup for HashMap<mir::Value, mir::Constant> {
 }
 
 /// Return the constant type for a MIR constant.
-pub fn constant_type_of(constant: &Constant) -> ConstantType {
+pub fn constant_type_of(constant: &mir::Constant) -> ConstantType {
     match constant {
-        Constant::Null => ConstantType::Null,
-        Constant::Boolean { .. } => ConstantType::Boolean,
-        Constant::Int {
+        mir::Constant::Null => ConstantType::Null,
+        mir::Constant::Boolean { .. } => ConstantType::Boolean,
+        mir::Constant::Int {
             width, is_signed, ..
         } => ConstantType::Int {
             width: *width,
             signed: *is_signed,
         },
-        Constant::UInt { width, .. } => ConstantType::Int {
+        mir::Constant::UInt { width, .. } => ConstantType::Int {
             width: *width,
             signed: false,
         },
-        Constant::Float { width, .. } => ConstantType::Float { width: *width },
-        Constant::Char { .. } => ConstantType::Char,
+        mir::Constant::Float { width, .. } => ConstantType::Float { width: *width },
+        mir::Constant::Char { .. } => ConstantType::Char,
     }
 }
 
@@ -63,16 +60,16 @@ pub fn constant_matches_type(
     constant_type: ConstantType,
     destination_type: impl Into<mir::TypeReference>,
     pointer_width_bits: u16,
-    tree: &Tree,
+    tree: &mir::Tree,
 ) -> bool {
     let Some(destination_type) = destination_type.into().ty() else {
         return false;
     };
 
     match (constant_type, tree.get(destination_type)) {
-        (ConstantType::Null, Type::Reference { is_nullable, .. })
-        | (ConstantType::Null, Type::TensorView { is_nullable, .. }) => *is_nullable,
-        (ConstantType::Boolean, Type::Boolean) => true,
+        (ConstantType::Null, mir::Type::Reference { is_nullable, .. })
+        | (ConstantType::Null, mir::Type::TensorView { is_nullable, .. }) => *is_nullable,
+        (ConstantType::Boolean, mir::Type::Boolean) => true,
         (ConstantType::Int { width, signed }, ty) => {
             let Some((ty_width, ty_signed)) = ty.int_info_with_pointer_width(pointer_width_bits)
             else {
@@ -80,12 +77,12 @@ pub fn constant_matches_type(
             };
             width == ty_width && signed == ty_signed
         }
-        (ConstantType::Float { width }, Type::Float(float_type)) => {
+        (ConstantType::Float { width }, mir::Type::Float(float_type)) => {
             u16::from(width) == float_type.width()
         }
         (
             ConstantType::Char,
-            Type::Int {
+            mir::Type::Int {
                 width,
                 is_signed: signed,
             },
@@ -233,73 +230,73 @@ pub fn apply_constant_parameters(
 }
 
 /// Check if a constant is zero.
-pub fn constant_is_zero(constant: Option<&Constant>) -> bool {
+pub fn constant_is_zero(constant: Option<&mir::Constant>) -> bool {
     matches!(
         constant,
-        Some(Constant::Int { value: 0, .. })
-            | Some(Constant::UInt { value: 0, .. })
-            | Some(Constant::Float { bits: 0, .. })
-            | Some(Constant::Boolean { value: false })
+        Some(mir::Constant::Int { value: 0, .. })
+            | Some(mir::Constant::UInt { value: 0, .. })
+            | Some(mir::Constant::Float { bits: 0, .. })
+            | Some(mir::Constant::Boolean { value: false })
     )
 }
 
 /// Check if a constant is one.
-pub fn constant_is_one(constant: Option<&Constant>) -> bool {
+pub fn constant_is_one(constant: Option<&mir::Constant>) -> bool {
     matches!(
         constant,
-        Some(Constant::Int { value: 1, .. })
-            | Some(Constant::UInt { value: 1, .. })
-            | Some(Constant::Boolean { value: true })
+        Some(mir::Constant::Int { value: 1, .. })
+            | Some(mir::Constant::UInt { value: 1, .. })
+            | Some(mir::Constant::Boolean { value: true })
     )
 }
 
 /// Check if a constant has all bits set (i.e., -1 for signed, max for unsigned).
-pub fn constant_is_all_ones(constant: Option<&Constant>) -> bool {
+pub fn constant_is_all_ones(constant: Option<&mir::Constant>) -> bool {
     match constant {
-        Some(Constant::Int { value: -1, .. }) => true,
-        Some(Constant::UInt { value, width }) => {
+        Some(mir::Constant::Int { value: -1, .. }) => true,
+        Some(mir::Constant::UInt { value, width }) => {
             let mask = mask_to_width(u128::MAX, *width);
             *value == mask
         }
-        Some(Constant::Boolean { value: true }) => true,
+        Some(mir::Constant::Boolean { value: true }) => true,
         _ => false,
     }
 }
 
 /// Check if a float constant is positive zero.
-pub fn constant_is_float_zero(constant: Option<&Constant>) -> bool {
-    matches!(constant, Some(Constant::Float { bits: 0, .. }))
+pub fn constant_is_float_zero(constant: Option<&mir::Constant>) -> bool {
+    matches!(constant, Some(mir::Constant::Float { bits: 0, .. }))
 }
 
 /// Check if a float constant is one.
-pub fn constant_is_float_one(constant: Option<&Constant>) -> bool {
+pub fn constant_is_float_one(constant: Option<&mir::Constant>) -> bool {
     match constant {
-        Some(Constant::Float { bits, width: 32 }) => f32::from_bits(*bits as u32) == 1.0,
-        Some(Constant::Float { bits, width: 64 }) => f64::from_bits(*bits) == 1.0,
+        Some(mir::Constant::Float { bits, width: 32 }) => f32::from_bits(*bits as u32) == 1.0,
+        Some(mir::Constant::Float { bits, width: 64 }) => f64::from_bits(*bits) == 1.0,
         _ => false,
     }
 }
 
 /// Create a zero constant matching the given constant's type.
-pub fn constant_zero_like(template: &Constant) -> Constant {
+pub fn constant_zero_like(template: &mir::Constant) -> mir::Constant {
     match template {
-        Constant::Int {
+        mir::Constant::Int {
             width, is_signed, ..
-        } => Constant::Int {
+        } => mir::Constant::Int {
             value: 0,
             width: *width,
             is_signed: *is_signed,
         },
-        Constant::UInt { width, .. } => Constant::UInt {
+        mir::Constant::UInt { width, .. } => mir::Constant::UInt {
             value: 0,
             width: *width,
         },
-        Constant::Float { width, .. } => Constant::Float {
+        mir::Constant::Float { width, .. } => mir::Constant::Float {
             bits: 0,
             width: *width,
         },
-        Constant::Boolean { .. } => Constant::Boolean { value: false },
-        _ => Constant::Int {
+        mir::Constant::Boolean { .. } => mir::Constant::Boolean { value: false },
+        _ => mir::Constant::Int {
             value: 0,
             width: 32,
             is_signed: true,
@@ -308,48 +305,48 @@ pub fn constant_zero_like(template: &Constant) -> Constant {
 }
 
 /// Build a zero constant for a scalar type.
-pub fn constant_zero_for_type(ty: &Type, pointer_width_bits: u16) -> Option<Constant> {
+pub fn constant_zero_for_type(ty: &mir::Type, pointer_width_bits: u16) -> Option<mir::Constant> {
     // handle integer types
     let Some((width, signed)) = ty.int_info_with_pointer_width(pointer_width_bits) else {
         // handle non integer scalar types
         return match ty {
-            Type::Float(float_type) => Some(Constant::Float {
+            mir::Type::Float(float_type) => Some(mir::Constant::Float {
                 bits: 0,
                 width: float_type.width() as u8,
             }),
-            Type::Boolean => Some(Constant::Boolean { value: false }),
+            mir::Type::Boolean => Some(mir::Constant::Boolean { value: false }),
             _ => None,
         };
     };
 
     // build integer zero with correct signedness
     if signed {
-        Some(Constant::Int {
+        Some(mir::Constant::Int {
             value: 0,
             width,
             is_signed: true,
         })
     } else {
-        Some(Constant::UInt { value: 0, width })
+        Some(mir::Constant::UInt { value: 0, width })
     }
 }
 
 /// Create an all ones constant matching the given constant's type.
-pub fn constant_all_ones_like(template: &Constant) -> Constant {
+pub fn constant_all_ones_like(template: &mir::Constant) -> mir::Constant {
     match template {
-        Constant::Int {
+        mir::Constant::Int {
             width, is_signed, ..
-        } => Constant::Int {
+        } => mir::Constant::Int {
             value: -1,
             width: *width,
             is_signed: *is_signed,
         },
-        Constant::UInt { width, .. } => Constant::UInt {
+        mir::Constant::UInt { width, .. } => mir::Constant::UInt {
             value: mask_to_width(u128::MAX, *width),
             width: *width,
         },
-        Constant::Boolean { .. } => Constant::Boolean { value: true },
-        _ => Constant::Int {
+        mir::Constant::Boolean { .. } => mir::Constant::Boolean { value: true },
+        _ => mir::Constant::Int {
             value: -1,
             width: 32,
             is_signed: true,
@@ -360,8 +357,8 @@ pub fn constant_all_ones_like(template: &Constant) -> Constant {
 /// Read a scalar constant from an immutable global.
 pub fn constant_from_global(
     global: impl Into<mir::GlobalReference>,
-    tree: &Tree,
-) -> Option<Constant> {
+    tree: &mir::Tree,
+) -> Option<mir::Constant> {
     let global = global.into().global()?;
 
     // read global definition
@@ -377,11 +374,11 @@ pub fn constant_from_global(
     }
 }
 
-/// Constant value tree for aggregate data.
+/// mir::Constant value tree for aggregate data.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ConstantTree {
     /// Scalar constant value.
-    Scalar(Constant),
+    Scalar(mir::Constant),
     /// Aggregate constants in order.
     Aggregate(Vec<ConstantTree>),
     /// Unknown or unsupported constant value.
@@ -391,7 +388,7 @@ pub enum ConstantTree {
 /// Read a constant tree from an immutable global initializer.
 pub fn constant_tree_from_global(
     global: impl Into<mir::GlobalReference>,
-    tree: &Tree,
+    tree: &mir::Tree,
     max_aggregate_elements: usize,
     pointer_width_bits: u16,
 ) -> Option<ConstantTree> {
@@ -417,31 +414,34 @@ pub fn constant_tree_from_global(
 }
 
 /// Fold a pure intrinsic with constant arguments.
-pub fn fold_intrinsic(intrinsic: Intrinsic, arguments: &[Constant]) -> Option<Constant> {
+pub fn fold_intrinsic(
+    intrinsic: mir::Intrinsic,
+    arguments: &[mir::Constant],
+) -> Option<mir::Constant> {
     // reject empty argument lists
     let first = arguments.first()?;
 
     // fold integer unary intrinsics
     let folded_integer_unary = match intrinsic {
-        Intrinsic::LeadingZeroCount => fold_int_unary(first, |value, width| {
+        mir::Intrinsic::LeadingZeroCount => fold_int_unary(first, |value, width| {
             let leading = value.leading_zeros();
             let adjust = u32::from(128u16.saturating_sub(width));
             Some((leading - adjust) as u128)
         }),
-        Intrinsic::TrailingZeroCount => {
+        mir::Intrinsic::TrailingZeroCount => {
             fold_int_unary(first, |value, _width| Some(value.trailing_zeros() as u128))
         }
-        Intrinsic::PopulationCount => {
+        mir::Intrinsic::PopulationCount => {
             fold_int_unary(first, |value, _width| Some(value.count_ones() as u128))
         }
-        Intrinsic::ByteSwap => fold_int_unary(first, |value, width| {
+        mir::Intrinsic::ByteSwap => fold_int_unary(first, |value, width| {
             if width % 8 != 0 {
                 return None;
             }
             let swapped = value.swap_bytes();
             Some(mask_to_width(swapped, width))
         }),
-        Intrinsic::BitReverse => fold_int_unary(first, |value, width| {
+        mir::Intrinsic::BitReverse => fold_int_unary(first, |value, width| {
             let reversed = value.reverse_bits();
             let shifted = reversed >> 128u16.saturating_sub(width);
             Some(mask_to_width(shifted, width))
@@ -454,12 +454,12 @@ pub fn fold_intrinsic(intrinsic: Intrinsic, arguments: &[Constant]) -> Option<Co
 
     // fold integer binary intrinsics
     let folded_integer_binary = match intrinsic {
-        Intrinsic::RotateLeft => fold_int_binary(arguments, |value, shift, width| {
+        mir::Intrinsic::RotateLeft => fold_int_binary(arguments, |value, shift, width| {
             let shift = (shift % u128::from(width)) as u32;
             let rotated = value.rotate_left(shift);
             Some(mask_to_width(rotated, width))
         }),
-        Intrinsic::RotateRight => fold_int_binary(arguments, |value, shift, width| {
+        mir::Intrinsic::RotateRight => fold_int_binary(arguments, |value, shift, width| {
             let shift = (shift % u128::from(width)) as u32;
             let rotated = value.rotate_right(shift);
             Some(mask_to_width(rotated, width))
@@ -472,23 +472,23 @@ pub fn fold_intrinsic(intrinsic: Intrinsic, arguments: &[Constant]) -> Option<Co
 
     // fold float unary intrinsics
     let folded_float_unary = match intrinsic {
-        Intrinsic::Sqrt => fold_float_unary(first, |value| value.sqrt()),
-        Intrinsic::Abs => fold_float_unary(first, |value| value.abs()),
-        Intrinsic::Sin => fold_float_unary(first, |value| value.sin()),
-        Intrinsic::Cos => fold_float_unary(first, |value| value.cos()),
-        Intrinsic::Tan => fold_float_unary(first, |value| value.tan()),
-        Intrinsic::Asin => fold_float_unary(first, |value| value.asin()),
-        Intrinsic::Acos => fold_float_unary(first, |value| value.acos()),
-        Intrinsic::Atan => fold_float_unary(first, |value| value.atan()),
-        Intrinsic::Exp => fold_float_unary(first, |value| value.exp()),
-        Intrinsic::Exp2 => fold_float_unary(first, |value| value.exp2()),
-        Intrinsic::Log => fold_float_unary(first, |value| value.ln()),
-        Intrinsic::Log2 => fold_float_unary(first, |value| value.log2()),
-        Intrinsic::Log10 => fold_float_unary(first, |value| value.log10()),
-        Intrinsic::Floor => fold_float_unary(first, |value| value.floor()),
-        Intrinsic::Ceil => fold_float_unary(first, |value| value.ceil()),
-        Intrinsic::Trunc => fold_float_unary(first, |value| value.trunc()),
-        Intrinsic::Round => fold_float_unary(first, |value| value.round()),
+        mir::Intrinsic::Sqrt => fold_float_unary(first, |value| value.sqrt()),
+        mir::Intrinsic::Abs => fold_float_unary(first, |value| value.abs()),
+        mir::Intrinsic::Sin => fold_float_unary(first, |value| value.sin()),
+        mir::Intrinsic::Cos => fold_float_unary(first, |value| value.cos()),
+        mir::Intrinsic::Tan => fold_float_unary(first, |value| value.tan()),
+        mir::Intrinsic::Asin => fold_float_unary(first, |value| value.asin()),
+        mir::Intrinsic::Acos => fold_float_unary(first, |value| value.acos()),
+        mir::Intrinsic::Atan => fold_float_unary(first, |value| value.atan()),
+        mir::Intrinsic::Exp => fold_float_unary(first, |value| value.exp()),
+        mir::Intrinsic::Exp2 => fold_float_unary(first, |value| value.exp2()),
+        mir::Intrinsic::Log => fold_float_unary(first, |value| value.ln()),
+        mir::Intrinsic::Log2 => fold_float_unary(first, |value| value.log2()),
+        mir::Intrinsic::Log10 => fold_float_unary(first, |value| value.log10()),
+        mir::Intrinsic::Floor => fold_float_unary(first, |value| value.floor()),
+        mir::Intrinsic::Ceil => fold_float_unary(first, |value| value.ceil()),
+        mir::Intrinsic::Trunc => fold_float_unary(first, |value| value.trunc()),
+        mir::Intrinsic::Round => fold_float_unary(first, |value| value.round()),
         _ => None,
     };
     if folded_float_unary.is_some() {
@@ -497,19 +497,21 @@ pub fn fold_intrinsic(intrinsic: Intrinsic, arguments: &[Constant]) -> Option<Co
 
     // fold float binary and ternary intrinsics
     match intrinsic {
-        Intrinsic::CopySign => fold_float_binary(arguments, |left, right| left.copysign(right)),
-        Intrinsic::Atan2 => fold_float_binary(arguments, |left, right| left.atan2(right)),
-        Intrinsic::Pow => fold_float_binary(arguments, |left, right| left.powf(right)),
-        Intrinsic::Fma => fold_float_ternary(arguments, |a, b, c| a.mul_add(b, c)),
+        mir::Intrinsic::CopySign => {
+            fold_float_binary(arguments, |left, right| left.copysign(right))
+        }
+        mir::Intrinsic::Atan2 => fold_float_binary(arguments, |left, right| left.atan2(right)),
+        mir::Intrinsic::Pow => fold_float_binary(arguments, |left, right| left.powf(right)),
+        mir::Intrinsic::Fma => fold_float_ternary(arguments, |a, b, c| a.mul_add(b, c)),
         _ => None,
     }
 }
 
 /// Fold an integer unary intrinsic when possible.
 fn fold_int_unary(
-    constant: &Constant,
+    constant: &mir::Constant,
     f: impl FnOnce(u128, u16) -> Option<u128>,
-) -> Option<Constant> {
+) -> Option<mir::Constant> {
     // decode the constant payload
     let (value, width, is_signed) = decode_int_constant(constant)?;
 
@@ -522,9 +524,9 @@ fn fold_int_unary(
 
 /// Fold an integer binary intrinsic when possible.
 fn fold_int_binary(
-    arguments: &[Constant],
+    arguments: &[mir::Constant],
     f: impl FnOnce(u128, u128, u16) -> Option<u128>,
-) -> Option<Constant> {
+) -> Option<mir::Constant> {
     // expect exactly two operands
     let left = arguments.first()?;
     let right = arguments.get(1)?;
@@ -544,7 +546,7 @@ fn fold_int_binary(
 }
 
 /// Fold a float unary intrinsic.
-fn fold_float_unary(constant: &Constant, f: impl FnOnce(f64) -> f64) -> Option<Constant> {
+fn fold_float_unary(constant: &mir::Constant, f: impl FnOnce(f64) -> f64) -> Option<mir::Constant> {
     // decode float constant
     let (value, width) = decode_float_constant(constant)?;
 
@@ -556,7 +558,10 @@ fn fold_float_unary(constant: &Constant, f: impl FnOnce(f64) -> f64) -> Option<C
 }
 
 /// Fold a float binary intrinsic.
-fn fold_float_binary(arguments: &[Constant], f: impl FnOnce(f64, f64) -> f64) -> Option<Constant> {
+fn fold_float_binary(
+    arguments: &[mir::Constant],
+    f: impl FnOnce(f64, f64) -> f64,
+) -> Option<mir::Constant> {
     // expect exactly two operands
     let left = arguments.first()?;
     let right = arguments.get(1)?;
@@ -577,9 +582,9 @@ fn fold_float_binary(arguments: &[Constant], f: impl FnOnce(f64, f64) -> f64) ->
 
 /// Fold a float ternary intrinsic.
 fn fold_float_ternary(
-    arguments: &[Constant],
+    arguments: &[mir::Constant],
     f: impl FnOnce(f64, f64, f64) -> f64,
-) -> Option<Constant> {
+) -> Option<mir::Constant> {
     // expect exactly three operands
     let first = arguments.first()?;
     let second = arguments.get(1)?;
@@ -601,9 +606,9 @@ fn fold_float_ternary(
 }
 
 /// Decode an integer constant into a masked payload.
-fn decode_int_constant(constant: &Constant) -> Option<(u128, u16, bool)> {
+fn decode_int_constant(constant: &mir::Constant) -> Option<(u128, u16, bool)> {
     match constant {
-        Constant::Int {
+        mir::Constant::Int {
             value,
             width,
             is_signed,
@@ -611,47 +616,47 @@ fn decode_int_constant(constant: &Constant) -> Option<(u128, u16, bool)> {
             let masked = mask_to_width(*value as u128, *width);
             Some((masked, *width, *is_signed))
         }
-        Constant::UInt { value, width } => Some((*value, *width, false)),
+        mir::Constant::UInt { value, width } => Some((*value, *width, false)),
         _ => None,
     }
 }
 
 /// Encode a masked integer payload into a constant.
-fn encode_int_constant(value: u128, width: u16, is_signed: bool) -> Constant {
+fn encode_int_constant(value: u128, width: u16, is_signed: bool) -> mir::Constant {
     // sign extend when needed
     if is_signed {
         let signed = signed_from_bits(value, width);
-        Constant::Int {
+        mir::Constant::Int {
             value: signed,
             width,
             is_signed,
         }
     } else {
-        Constant::UInt { value, width }
+        mir::Constant::UInt { value, width }
     }
 }
 
 /// Decode a float constant into f64 payload and width.
-fn decode_float_constant(constant: &Constant) -> Option<(f64, u8)> {
+fn decode_float_constant(constant: &mir::Constant) -> Option<(f64, u8)> {
     match constant {
-        Constant::Float { bits, width: 32 } => {
+        mir::Constant::Float { bits, width: 32 } => {
             let value = f32::from_bits(*bits as u32) as f64;
             Some((value, 32))
         }
-        Constant::Float { bits, width: 64 } => Some((f64::from_bits(*bits), 64)),
+        mir::Constant::Float { bits, width: 64 } => Some((f64::from_bits(*bits), 64)),
         _ => None,
     }
 }
 
 /// Encode a float payload back into a constant.
-fn encode_float_constant(value: f64, width: u8) -> Constant {
+fn encode_float_constant(value: f64, width: u8) -> mir::Constant {
     if width == 32 {
-        Constant::Float {
+        mir::Constant::Float {
             bits: (value as f32).to_bits() as u64,
             width,
         }
     } else {
-        Constant::Float {
+        mir::Constant::Float {
             bits: value.to_bits(),
             width,
         }
@@ -689,7 +694,7 @@ fn signed_from_bits(value: u128, width: u16) -> i128 {
 fn constant_tree_from_initializer(
     initializer: &mir::GlobalInitializer,
     ty: impl Into<mir::TypeReference>,
-    tree: &Tree,
+    tree: &mir::Tree,
     max_aggregate_elements: usize,
     pointer_width_bits: u16,
 ) -> ConstantTree {
@@ -719,9 +724,9 @@ fn constant_tree_from_initializer(
 
 /// Build a scalar constant tree when the type is compatible.
 fn constant_tree_from_scalar(
-    constant: &Constant,
+    constant: &mir::Constant,
     ty: impl Into<mir::TypeReference>,
-    tree: &Tree,
+    tree: &mir::Tree,
 ) -> ConstantTree {
     let Some(ty) = ty.into().ty() else {
         return ConstantTree::Unknown;
@@ -730,7 +735,7 @@ fn constant_tree_from_scalar(
     // read type
     let ty = tree.get(ty);
 
-    if let Type::Newtype { inner, .. } = ty {
+    if let mir::Type::Newtype { inner, .. } = ty {
         return constant_tree_from_scalar(constant, *inner, tree);
     }
 
@@ -745,7 +750,7 @@ fn constant_tree_from_scalar(
 /// Build a zero constant tree for the given type.
 fn constant_tree_from_zero(
     ty: impl Into<mir::TypeReference>,
-    tree: &Tree,
+    tree: &mir::Tree,
     max_aggregate_elements: usize,
     pointer_width_bits: u16,
 ) -> ConstantTree {
@@ -758,41 +763,41 @@ fn constant_tree_from_zero(
 
     // build zero constants by type
     match ty {
-        Type::Boolean => ConstantTree::Scalar(Constant::Boolean { value: false }),
-        Type::Int {
+        mir::Type::Boolean => ConstantTree::Scalar(mir::Constant::Boolean { value: false }),
+        mir::Type::Int {
             width,
             is_signed: signed,
         } => {
             if *signed {
-                ConstantTree::Scalar(Constant::Int {
+                ConstantTree::Scalar(mir::Constant::Int {
                     value: 0,
                     width: *width,
                     is_signed: true,
                 })
             } else {
-                ConstantTree::Scalar(Constant::UInt {
+                ConstantTree::Scalar(mir::Constant::UInt {
                     value: 0,
                     width: *width,
                 })
             }
         }
-        Type::Isize => ConstantTree::Scalar(Constant::Int {
+        mir::Type::Isize => ConstantTree::Scalar(mir::Constant::Int {
             value: 0,
             width: pointer_width_bits,
             is_signed: true,
         }),
-        Type::Usize => ConstantTree::Scalar(Constant::UInt {
+        mir::Type::Usize => ConstantTree::Scalar(mir::Constant::UInt {
             value: 0,
             width: pointer_width_bits,
         }),
-        Type::Float(float_type) => ConstantTree::Scalar(Constant::Float {
+        mir::Type::Float(float_type) => ConstantTree::Scalar(mir::Constant::Float {
             bits: 0,
             width: float_type.width() as u8,
         }),
-        Type::Newtype { inner, .. } => {
+        mir::Type::Newtype { inner, .. } => {
             constant_tree_from_zero(*inner, tree, max_aggregate_elements, pointer_width_bits)
         }
-        Type::Array {
+        mir::Type::Array {
             element, length, ..
         } => {
             let length = match usize::try_from(*length) {
@@ -809,7 +814,7 @@ fn constant_tree_from_zero(
             let elements = (0..length).map(|_| element_value.clone()).collect();
             ConstantTree::Aggregate(elements)
         }
-        Type::Tuple { elements, .. } => {
+        mir::Type::Tuple { elements, .. } => {
             let elements = elements
                 .iter()
                 .map(|element| {
@@ -823,7 +828,7 @@ fn constant_tree_from_zero(
                 .collect();
             ConstantTree::Aggregate(elements)
         }
-        Type::Struct { fields, .. } => {
+        mir::Type::Struct { fields, .. } => {
             let elements = fields
                 .iter()
                 .map(|field| tree.get(*field).ty)
@@ -846,7 +851,7 @@ fn constant_tree_from_zero(
 fn constant_tree_from_bytes(
     bytes: &[u8],
     ty: impl Into<mir::TypeReference>,
-    tree: &Tree,
+    tree: &mir::Tree,
     max_aggregate_elements: usize,
 ) -> ConstantTree {
     let Some(ty) = ty.into().ty() else {
@@ -854,7 +859,7 @@ fn constant_tree_from_bytes(
     };
 
     // read array type
-    let Type::Array {
+    let mir::Type::Array {
         element, length, ..
     } = tree.get(ty)
     else {
@@ -876,7 +881,7 @@ fn constant_tree_from_bytes(
         return ConstantTree::Unknown;
     };
 
-    let Type::Int {
+    let mir::Type::Int {
         width,
         is_signed: signed,
     } = tree.get(element)
@@ -894,7 +899,7 @@ fn constant_tree_from_bytes(
             .iter()
             .map(|byte| {
                 let value = i8::from_ne_bytes([*byte]) as i128;
-                ConstantTree::Scalar(Constant::Int {
+                ConstantTree::Scalar(mir::Constant::Int {
                     value,
                     width: 8,
                     is_signed: true,
@@ -905,7 +910,7 @@ fn constant_tree_from_bytes(
         bytes
             .iter()
             .map(|byte| {
-                ConstantTree::Scalar(Constant::UInt {
+                ConstantTree::Scalar(mir::Constant::UInt {
                     value: u128::from(*byte),
                     width: 8,
                 })
@@ -920,7 +925,7 @@ fn constant_tree_from_bytes(
 fn constant_tree_from_aggregate_initializer(
     elements: &[mir::GlobalInitializer],
     ty: impl Into<mir::TypeReference>,
-    tree: &Tree,
+    tree: &mir::Tree,
     max_aggregate_elements: usize,
     pointer_width_bits: u16,
 ) -> ConstantTree {
@@ -930,7 +935,7 @@ fn constant_tree_from_aggregate_initializer(
 
     // map aggregate initializer to type shape
     match tree.get(ty) {
-        Type::Array {
+        mir::Type::Array {
             element, length, ..
         } => {
             let length = match usize::try_from(*length) {
@@ -956,7 +961,7 @@ fn constant_tree_from_aggregate_initializer(
                 .collect();
             ConstantTree::Aggregate(values)
         }
-        Type::Tuple {
+        mir::Type::Tuple {
             elements: element_types,
             ..
         } => {
@@ -979,7 +984,7 @@ fn constant_tree_from_aggregate_initializer(
                 .collect();
             ConstantTree::Aggregate(values)
         }
-        Type::Struct { fields, .. } => {
+        mir::Type::Struct { fields, .. } => {
             if fields.len() != elements.len() {
                 return ConstantTree::Unknown;
             }
@@ -1004,15 +1009,19 @@ fn constant_tree_from_aggregate_initializer(
 }
 
 /// Try to fold a binary operation on constants.
-pub fn fold_binary(operator: BinaryOperator, left: Constant, right: Constant) -> Option<Constant> {
+pub fn fold_binary(
+    operator: mir::BinaryOperator,
+    left: mir::Constant,
+    right: mir::Constant,
+) -> Option<mir::Constant> {
     match (&left, &right) {
         (
-            Constant::Int {
+            mir::Constant::Int {
                 value: l,
                 width: lw,
                 is_signed: true,
             },
-            Constant::Int {
+            mir::Constant::Int {
                 value: r,
                 width: rw,
                 is_signed: true,
@@ -1020,28 +1029,28 @@ pub fn fold_binary(operator: BinaryOperator, left: Constant, right: Constant) ->
         ) if lw == rw => fold_binary_signed(*l, *r, *lw, operator),
 
         (
-            Constant::UInt {
+            mir::Constant::UInt {
                 value: l,
                 width: lw,
             },
-            Constant::UInt {
+            mir::Constant::UInt {
                 value: r,
                 width: rw,
             },
         ) if lw == rw => fold_binary_unsigned(*l, *r, *lw, operator),
 
         (
-            Constant::Float {
+            mir::Constant::Float {
                 bits: lb,
                 width: lw,
             },
-            Constant::Float {
+            mir::Constant::Float {
                 bits: rb,
                 width: rw,
             },
         ) if lw == rw => fold_binary_float(*lb, *rb, *lw, operator),
 
-        (Constant::Boolean { value: l }, Constant::Boolean { value: r }) => {
+        (mir::Constant::Boolean { value: l }, mir::Constant::Boolean { value: r }) => {
             fold_binary_bool(*l, *r, operator)
         }
 
@@ -1054,46 +1063,46 @@ pub fn fold_binary_signed(
     left: i128,
     right: i128,
     width: u16,
-    operator: BinaryOperator,
-) -> Option<Constant> {
+    operator: mir::BinaryOperator,
+) -> Option<mir::Constant> {
     let result_int = |value: i128| {
-        Some(Constant::Int {
+        Some(mir::Constant::Int {
             value: truncate_signed(value, width),
             width,
             is_signed: true,
         })
     };
-    let result_bool = |value: bool| Some(Constant::Boolean { value });
+    let result_bool = |value: bool| Some(mir::Constant::Boolean { value });
 
     match operator {
-        BinaryOperator::Add => result_int(left.wrapping_add(right)),
-        BinaryOperator::Subtract => result_int(left.wrapping_sub(right)),
-        BinaryOperator::Multiply => result_int(left.wrapping_mul(right)),
-        BinaryOperator::SignedDivide => {
+        mir::BinaryOperator::Add => result_int(left.wrapping_add(right)),
+        mir::BinaryOperator::Subtract => result_int(left.wrapping_sub(right)),
+        mir::BinaryOperator::Multiply => result_int(left.wrapping_mul(right)),
+        mir::BinaryOperator::SignedDivide => {
             if right != 0 {
                 result_int(left.wrapping_div(right))
             } else {
                 None
             }
         }
-        BinaryOperator::SignedRemainder => {
+        mir::BinaryOperator::SignedRemainder => {
             if right != 0 {
                 result_int(left.wrapping_rem(right))
             } else {
                 None
             }
         }
-        BinaryOperator::And => result_int(left & right),
-        BinaryOperator::Or => result_int(left | right),
-        BinaryOperator::Xor => result_int(left ^ right),
-        BinaryOperator::ShiftLeft => result_int(left.wrapping_shl(right as u32)),
-        BinaryOperator::ArithmeticShiftRight => result_int(left.wrapping_shr(right as u32)),
-        BinaryOperator::Equal => result_bool(left == right),
-        BinaryOperator::NotEqual => result_bool(left != right),
-        BinaryOperator::SignedLessThan => result_bool(left < right),
-        BinaryOperator::SignedLessEqual => result_bool(left <= right),
-        BinaryOperator::SignedGreaterThan => result_bool(left > right),
-        BinaryOperator::SignedGreaterEqual => result_bool(left >= right),
+        mir::BinaryOperator::And => result_int(left & right),
+        mir::BinaryOperator::Or => result_int(left | right),
+        mir::BinaryOperator::Xor => result_int(left ^ right),
+        mir::BinaryOperator::ShiftLeft => result_int(left.wrapping_shl(right as u32)),
+        mir::BinaryOperator::ArithmeticShiftRight => result_int(left.wrapping_shr(right as u32)),
+        mir::BinaryOperator::Equal => result_bool(left == right),
+        mir::BinaryOperator::NotEqual => result_bool(left != right),
+        mir::BinaryOperator::SignedLessThan => result_bool(left < right),
+        mir::BinaryOperator::SignedLessEqual => result_bool(left <= right),
+        mir::BinaryOperator::SignedGreaterThan => result_bool(left > right),
+        mir::BinaryOperator::SignedGreaterEqual => result_bool(left >= right),
         _ => None,
     }
 }
@@ -1103,45 +1112,45 @@ pub fn fold_binary_unsigned(
     left: u128,
     right: u128,
     width: u16,
-    operator: BinaryOperator,
-) -> Option<Constant> {
+    operator: mir::BinaryOperator,
+) -> Option<mir::Constant> {
     let result_uint = |value: u128| {
-        Some(Constant::UInt {
+        Some(mir::Constant::UInt {
             value: mask_to_width(value, width),
             width,
         })
     };
-    let result_bool = |value: bool| Some(Constant::Boolean { value });
+    let result_bool = |value: bool| Some(mir::Constant::Boolean { value });
 
     match operator {
-        BinaryOperator::Add => result_uint(left.wrapping_add(right)),
-        BinaryOperator::Subtract => result_uint(left.wrapping_sub(right)),
-        BinaryOperator::Multiply => result_uint(left.wrapping_mul(right)),
-        BinaryOperator::UnsignedDivide => {
+        mir::BinaryOperator::Add => result_uint(left.wrapping_add(right)),
+        mir::BinaryOperator::Subtract => result_uint(left.wrapping_sub(right)),
+        mir::BinaryOperator::Multiply => result_uint(left.wrapping_mul(right)),
+        mir::BinaryOperator::UnsignedDivide => {
             if right != 0 {
                 result_uint(left.wrapping_div(right))
             } else {
                 None
             }
         }
-        BinaryOperator::UnsignedRemainder => {
+        mir::BinaryOperator::UnsignedRemainder => {
             if right != 0 {
                 result_uint(left.wrapping_rem(right))
             } else {
                 None
             }
         }
-        BinaryOperator::And => result_uint(left & right),
-        BinaryOperator::Or => result_uint(left | right),
-        BinaryOperator::Xor => result_uint(left ^ right),
-        BinaryOperator::ShiftLeft => result_uint(left.wrapping_shl(right as u32)),
-        BinaryOperator::LogicalShiftRight => result_uint(left.wrapping_shr(right as u32)),
-        BinaryOperator::Equal => result_bool(left == right),
-        BinaryOperator::NotEqual => result_bool(left != right),
-        BinaryOperator::UnsignedLessThan => result_bool(left < right),
-        BinaryOperator::UnsignedLessEqual => result_bool(left <= right),
-        BinaryOperator::UnsignedGreaterThan => result_bool(left > right),
-        BinaryOperator::UnsignedGreaterEqual => result_bool(left >= right),
+        mir::BinaryOperator::And => result_uint(left & right),
+        mir::BinaryOperator::Or => result_uint(left | right),
+        mir::BinaryOperator::Xor => result_uint(left ^ right),
+        mir::BinaryOperator::ShiftLeft => result_uint(left.wrapping_shl(right as u32)),
+        mir::BinaryOperator::LogicalShiftRight => result_uint(left.wrapping_shr(right as u32)),
+        mir::BinaryOperator::Equal => result_bool(left == right),
+        mir::BinaryOperator::NotEqual => result_bool(left != right),
+        mir::BinaryOperator::UnsignedLessThan => result_bool(left < right),
+        mir::BinaryOperator::UnsignedLessEqual => result_bool(left <= right),
+        mir::BinaryOperator::UnsignedGreaterThan => result_bool(left > right),
+        mir::BinaryOperator::UnsignedGreaterEqual => result_bool(left >= right),
         _ => None,
     }
 }
@@ -1151,46 +1160,46 @@ pub fn fold_binary_float(
     left_bits: u64,
     right_bits: u64,
     width: u8,
-    operator: BinaryOperator,
-) -> Option<Constant> {
+    operator: mir::BinaryOperator,
+) -> Option<mir::Constant> {
     let result_float = |value: f64| {
-        Some(Constant::Float {
+        Some(mir::Constant::Float {
             bits: value.to_bits(),
             width,
         })
     };
-    let result_bool = |value: bool| Some(Constant::Boolean { value });
+    let result_bool = |value: bool| Some(mir::Constant::Boolean { value });
 
     if width == 32 {
         let left = f32::from_bits(left_bits as u32);
         let right = f32::from_bits(right_bits as u32);
         match operator {
-            BinaryOperator::FloatAdd => result_float((left + right) as f64),
-            BinaryOperator::FloatSubtract => result_float((left - right) as f64),
-            BinaryOperator::FloatMultiply => result_float((left * right) as f64),
-            BinaryOperator::FloatDivide => result_float((left / right) as f64),
-            BinaryOperator::FloatEqual => result_bool(left == right),
-            BinaryOperator::FloatNotEqual => result_bool(left != right),
-            BinaryOperator::FloatLessThan => result_bool(left < right),
-            BinaryOperator::FloatLessEqual => result_bool(left <= right),
-            BinaryOperator::FloatGreaterThan => result_bool(left > right),
-            BinaryOperator::FloatGreaterEqual => result_bool(left >= right),
+            mir::BinaryOperator::FloatAdd => result_float((left + right) as f64),
+            mir::BinaryOperator::FloatSubtract => result_float((left - right) as f64),
+            mir::BinaryOperator::FloatMultiply => result_float((left * right) as f64),
+            mir::BinaryOperator::FloatDivide => result_float((left / right) as f64),
+            mir::BinaryOperator::FloatEqual => result_bool(left == right),
+            mir::BinaryOperator::FloatNotEqual => result_bool(left != right),
+            mir::BinaryOperator::FloatLessThan => result_bool(left < right),
+            mir::BinaryOperator::FloatLessEqual => result_bool(left <= right),
+            mir::BinaryOperator::FloatGreaterThan => result_bool(left > right),
+            mir::BinaryOperator::FloatGreaterEqual => result_bool(left >= right),
             _ => None,
         }
     } else if width == 64 {
         let left = f64::from_bits(left_bits);
         let right = f64::from_bits(right_bits);
         match operator {
-            BinaryOperator::FloatAdd => result_float(left + right),
-            BinaryOperator::FloatSubtract => result_float(left - right),
-            BinaryOperator::FloatMultiply => result_float(left * right),
-            BinaryOperator::FloatDivide => result_float(left / right),
-            BinaryOperator::FloatEqual => result_bool(left == right),
-            BinaryOperator::FloatNotEqual => result_bool(left != right),
-            BinaryOperator::FloatLessThan => result_bool(left < right),
-            BinaryOperator::FloatLessEqual => result_bool(left <= right),
-            BinaryOperator::FloatGreaterThan => result_bool(left > right),
-            BinaryOperator::FloatGreaterEqual => result_bool(left >= right),
+            mir::BinaryOperator::FloatAdd => result_float(left + right),
+            mir::BinaryOperator::FloatSubtract => result_float(left - right),
+            mir::BinaryOperator::FloatMultiply => result_float(left * right),
+            mir::BinaryOperator::FloatDivide => result_float(left / right),
+            mir::BinaryOperator::FloatEqual => result_bool(left == right),
+            mir::BinaryOperator::FloatNotEqual => result_bool(left != right),
+            mir::BinaryOperator::FloatLessThan => result_bool(left < right),
+            mir::BinaryOperator::FloatLessEqual => result_bool(left <= right),
+            mir::BinaryOperator::FloatGreaterThan => result_bool(left > right),
+            mir::BinaryOperator::FloatGreaterEqual => result_bool(left >= right),
             _ => None,
         }
     } else {
@@ -1199,35 +1208,39 @@ pub fn fold_binary_float(
 }
 
 /// Fold a binary operation on booleans.
-pub fn fold_binary_bool(left: bool, right: bool, operator: BinaryOperator) -> Option<Constant> {
-    let result_bool = |value: bool| Some(Constant::Boolean { value });
+pub fn fold_binary_bool(
+    left: bool,
+    right: bool,
+    operator: mir::BinaryOperator,
+) -> Option<mir::Constant> {
+    let result_bool = |value: bool| Some(mir::Constant::Boolean { value });
 
     match operator {
-        BinaryOperator::And => result_bool(left && right),
-        BinaryOperator::Or => result_bool(left || right),
-        BinaryOperator::Xor => result_bool(left ^ right),
-        BinaryOperator::Equal => result_bool(left == right),
-        BinaryOperator::NotEqual => result_bool(left != right),
+        mir::BinaryOperator::And => result_bool(left && right),
+        mir::BinaryOperator::Or => result_bool(left || right),
+        mir::BinaryOperator::Xor => result_bool(left ^ right),
+        mir::BinaryOperator::Equal => result_bool(left == right),
+        mir::BinaryOperator::NotEqual => result_bool(left != right),
         _ => None,
     }
 }
 
 /// Try to fold a cast operation on a constant.
 pub fn fold_cast(
-    operator: CastOperator,
-    value: Constant,
-    to_type: LocalNodeId<Type>,
+    operator: mir::CastOperator,
+    value: mir::Constant,
+    to_type: mir::LocalNodeId<mir::Type>,
     pointer_width_bits: u16,
-    tree: &Tree,
-) -> Option<Constant> {
+    tree: &mir::Tree,
+) -> Option<mir::Constant> {
     // load target type
     let target_type = tree.get(to_type);
 
     // apply cast semantics
     match operator {
-        CastOperator::Bitcast => Some(value),
+        mir::CastOperator::Bitcast => Some(value),
 
-        CastOperator::Truncate => {
+        mir::CastOperator::Truncate => {
             // read target integer width
             let target_width = match target_type.int_info_with_pointer_width(pointer_width_bits) {
                 Some((width, _)) => width,
@@ -1236,12 +1249,12 @@ pub fn fold_cast(
 
             // truncate integer values
             match value {
-                Constant::Int { value, .. } => Some(Constant::Int {
+                mir::Constant::Int { value, .. } => Some(mir::Constant::Int {
                     value: truncate_signed(value, target_width),
                     width: target_width,
                     is_signed: true,
                 }),
-                Constant::UInt { value, .. } => Some(Constant::UInt {
+                mir::Constant::UInt { value, .. } => Some(mir::Constant::UInt {
                     value: truncate_unsigned(value, target_width),
                     width: target_width,
                 }),
@@ -1249,7 +1262,7 @@ pub fn fold_cast(
             }
         }
 
-        CastOperator::ZeroExtend => {
+        mir::CastOperator::ZeroExtend => {
             // read target integer width
             let target_width = match target_type.int_info_with_pointer_width(pointer_width_bits) {
                 Some((width, _)) => width,
@@ -1258,13 +1271,13 @@ pub fn fold_cast(
 
             // zero extend integer values
             match value {
-                Constant::UInt { value, .. } => Some(Constant::UInt {
+                mir::Constant::UInt { value, .. } => Some(mir::Constant::UInt {
                     value,
                     width: target_width,
                 }),
-                Constant::Int { value, width, .. } => {
+                mir::Constant::Int { value, width, .. } => {
                     let masked = truncate_unsigned(value as u128, width);
-                    Some(Constant::UInt {
+                    Some(mir::Constant::UInt {
                         value: masked,
                         width: target_width,
                     })
@@ -1273,7 +1286,7 @@ pub fn fold_cast(
             }
         }
 
-        CastOperator::SignExtend => {
+        mir::CastOperator::SignExtend => {
             // read target integer width
             let target_width = match target_type.int_info_with_pointer_width(pointer_width_bits) {
                 Some((width, _)) => width,
@@ -1282,14 +1295,14 @@ pub fn fold_cast(
 
             // sign extend integer values
             match value {
-                Constant::Int { value, width, .. } => Some(Constant::Int {
+                mir::Constant::Int { value, width, .. } => Some(mir::Constant::Int {
                     value: sign_extend(value, width, target_width),
                     width: target_width,
                     is_signed: true,
                 }),
-                Constant::UInt { value, width } => {
+                mir::Constant::UInt { value, width } => {
                     let as_signed = signed_from_bits(value, width);
-                    Some(Constant::Int {
+                    Some(mir::Constant::Int {
                         value: sign_extend(as_signed, width, target_width),
                         width: target_width,
                         is_signed: true,
@@ -1299,7 +1312,7 @@ pub fn fold_cast(
             }
         }
 
-        CastOperator::FloatToSignedInt => {
+        mir::CastOperator::FloatToSignedInt => {
             // read target integer width
             let target_width = match target_type.int_info_with_pointer_width(pointer_width_bits) {
                 Some((width, _)) => width,
@@ -1308,21 +1321,21 @@ pub fn fold_cast(
 
             // convert float to signed int
             match value {
-                Constant::Float { bits, width: 32 } => {
+                mir::Constant::Float { bits, width: 32 } => {
                     let value = f32::from_bits(bits as u32) as f64;
                     let (min_bound, max_bound) = integer_bounds(target_width, true)?;
                     let converted = float_to_int_checked(value, min_bound, max_bound)?;
-                    Some(Constant::Int {
+                    Some(mir::Constant::Int {
                         value: converted,
                         width: target_width,
                         is_signed: true,
                     })
                 }
-                Constant::Float { bits, width: 64 } => {
+                mir::Constant::Float { bits, width: 64 } => {
                     let value = f64::from_bits(bits);
                     let (min_bound, max_bound) = integer_bounds(target_width, true)?;
                     let converted = float_to_int_checked(value, min_bound, max_bound)?;
-                    Some(Constant::Int {
+                    Some(mir::Constant::Int {
                         value: converted,
                         width: target_width,
                         is_signed: true,
@@ -1332,7 +1345,7 @@ pub fn fold_cast(
             }
         }
 
-        CastOperator::FloatToUnsignedInt => {
+        mir::CastOperator::FloatToUnsignedInt => {
             // read target integer width
             let target_width = match target_type.int_info_with_pointer_width(pointer_width_bits) {
                 Some((width, _)) => width,
@@ -1341,20 +1354,20 @@ pub fn fold_cast(
 
             // convert float to unsigned int
             match value {
-                Constant::Float { bits, width: 32 } => {
+                mir::Constant::Float { bits, width: 32 } => {
                     let value = f32::from_bits(bits as u32) as f64;
                     let (min_bound, max_bound) = integer_bounds(target_width, false)?;
                     let converted = float_to_int_checked(value, min_bound, max_bound)?;
-                    Some(Constant::UInt {
+                    Some(mir::Constant::UInt {
                         value: converted as u128,
                         width: target_width,
                     })
                 }
-                Constant::Float { bits, width: 64 } => {
+                mir::Constant::Float { bits, width: 64 } => {
                     let value = f64::from_bits(bits);
                     let (min_bound, max_bound) = integer_bounds(target_width, false)?;
                     let converted = float_to_int_checked(value, min_bound, max_bound)?;
-                    Some(Constant::UInt {
+                    Some(mir::Constant::UInt {
                         value: converted as u128,
                         width: target_width,
                     })
@@ -1363,7 +1376,7 @@ pub fn fold_cast(
             }
         }
 
-        CastOperator::FloatToSignedIntSaturating => {
+        mir::CastOperator::FloatToSignedIntSaturating => {
             // read target integer width
             let target_width = match target_type.int_info_with_pointer_width(pointer_width_bits) {
                 Some((width, _)) => width,
@@ -1372,21 +1385,21 @@ pub fn fold_cast(
 
             // convert float to signed int with saturation
             match value {
-                Constant::Float { bits, width: 32 } => {
+                mir::Constant::Float { bits, width: 32 } => {
                     let value = f32::from_bits(bits as u32) as f64;
                     let (min_bound, max_bound) = integer_bounds(target_width, true)?;
                     let converted = float_to_int_saturating(value, min_bound, max_bound);
-                    Some(Constant::Int {
+                    Some(mir::Constant::Int {
                         value: converted,
                         width: target_width,
                         is_signed: true,
                     })
                 }
-                Constant::Float { bits, width: 64 } => {
+                mir::Constant::Float { bits, width: 64 } => {
                     let value = f64::from_bits(bits);
                     let (min_bound, max_bound) = integer_bounds(target_width, true)?;
                     let converted = float_to_int_saturating(value, min_bound, max_bound);
-                    Some(Constant::Int {
+                    Some(mir::Constant::Int {
                         value: converted,
                         width: target_width,
                         is_signed: true,
@@ -1396,7 +1409,7 @@ pub fn fold_cast(
             }
         }
 
-        CastOperator::FloatToUnsignedIntSaturating => {
+        mir::CastOperator::FloatToUnsignedIntSaturating => {
             // read target integer width
             let target_width = match target_type.int_info_with_pointer_width(pointer_width_bits) {
                 Some((width, _)) => width,
@@ -1405,20 +1418,20 @@ pub fn fold_cast(
 
             // convert float to unsigned int with saturation
             match value {
-                Constant::Float { bits, width: 32 } => {
+                mir::Constant::Float { bits, width: 32 } => {
                     let value = f32::from_bits(bits as u32) as f64;
                     let (min_bound, max_bound) = integer_bounds(target_width, false)?;
                     let converted = float_to_int_saturating(value, min_bound, max_bound);
-                    Some(Constant::UInt {
+                    Some(mir::Constant::UInt {
                         value: converted as u128,
                         width: target_width,
                     })
                 }
-                Constant::Float { bits, width: 64 } => {
+                mir::Constant::Float { bits, width: 64 } => {
                     let value = f64::from_bits(bits);
                     let (min_bound, max_bound) = integer_bounds(target_width, false)?;
                     let converted = float_to_int_saturating(value, min_bound, max_bound);
-                    Some(Constant::UInt {
+                    Some(mir::Constant::UInt {
                         value: converted as u128,
                         width: target_width,
                     })
@@ -1427,20 +1440,22 @@ pub fn fold_cast(
             }
         }
 
-        CastOperator::SignedIntToFloat => {
+        mir::CastOperator::SignedIntToFloat => {
             // read target float width
             let target_width = match target_type {
-                Type::Float(float_type) => float_type.width(),
+                mir::Type::Float(float_type) => float_type.width(),
                 _ => 64,
             };
 
             // convert signed int to float
             match value {
-                Constant::Int { value, .. } if target_width == 32 => Some(Constant::Float {
-                    bits: (value as f32).to_bits() as u64,
-                    width: 32,
-                }),
-                Constant::Int { value, .. } => Some(Constant::Float {
+                mir::Constant::Int { value, .. } if target_width == 32 => {
+                    Some(mir::Constant::Float {
+                        bits: (value as f32).to_bits() as u64,
+                        width: 32,
+                    })
+                }
+                mir::Constant::Int { value, .. } => Some(mir::Constant::Float {
                     bits: (value as f64).to_bits(),
                     width: 64,
                 }),
@@ -1448,20 +1463,22 @@ pub fn fold_cast(
             }
         }
 
-        CastOperator::UnsignedIntToFloat => {
+        mir::CastOperator::UnsignedIntToFloat => {
             // read target float width
             let target_width = match target_type {
-                Type::Float(float_type) => float_type.width(),
+                mir::Type::Float(float_type) => float_type.width(),
                 _ => 64,
             };
 
             // convert unsigned int to float
             match value {
-                Constant::UInt { value, .. } if target_width == 32 => Some(Constant::Float {
-                    bits: (value as f32).to_bits() as u64,
-                    width: 32,
-                }),
-                Constant::UInt { value, .. } => Some(Constant::Float {
+                mir::Constant::UInt { value, .. } if target_width == 32 => {
+                    Some(mir::Constant::Float {
+                        bits: (value as f32).to_bits() as u64,
+                        width: 32,
+                    })
+                }
+                mir::Constant::UInt { value, .. } => Some(mir::Constant::Float {
                     bits: (value as f64).to_bits(),
                     width: 64,
                 }),
@@ -1469,12 +1486,12 @@ pub fn fold_cast(
             }
         }
 
-        CastOperator::FloatTruncate => {
+        mir::CastOperator::FloatTruncate => {
             // truncate float64 to float32
             match value {
-                Constant::Float { bits, width: 64 } => {
+                mir::Constant::Float { bits, width: 64 } => {
                     let f = f64::from_bits(bits);
-                    Some(Constant::Float {
+                    Some(mir::Constant::Float {
                         bits: (f as f32).to_bits() as u64,
                         width: 32,
                     })
@@ -1483,12 +1500,12 @@ pub fn fold_cast(
             }
         }
 
-        CastOperator::FloatExtend => {
+        mir::CastOperator::FloatExtend => {
             // extend float32 to float64
             match value {
-                Constant::Float { bits, width: 32 } => {
+                mir::Constant::Float { bits, width: 32 } => {
                     let f = f32::from_bits(bits as u32);
-                    Some(Constant::Float {
+                    Some(mir::Constant::Float {
                         bits: (f as f64).to_bits(),
                         width: 64,
                     })
@@ -1497,7 +1514,7 @@ pub fn fold_cast(
             }
         }
 
-        CastOperator::PointerToInt | CastOperator::IntToPointer => None,
+        mir::CastOperator::PointerToInt | mir::CastOperator::IntToPointer => None,
     }
 }
 
@@ -1631,31 +1648,31 @@ fn sign_extend(value: i128, from_width: u16, to_width: u16) -> i128 {
 }
 
 /// Try to fold a unary operation on a constant.
-pub fn fold_unary(operator: UnaryOperator, value: Constant) -> Option<Constant> {
+pub fn fold_unary(operator: mir::UnaryOperator, value: mir::Constant) -> Option<mir::Constant> {
     match (operator, &value) {
         (
-            UnaryOperator::Negate,
-            Constant::Int {
+            mir::UnaryOperator::Negate,
+            mir::Constant::Int {
                 value: v,
                 width,
                 is_signed: true,
             },
-        ) => Some(Constant::Int {
+        ) => Some(mir::Constant::Int {
             value: v.wrapping_neg(),
             width: *width,
             is_signed: true,
         }),
 
-        (UnaryOperator::FloatNegate, Constant::Float { bits, width }) => {
+        (mir::UnaryOperator::FloatNegate, mir::Constant::Float { bits, width }) => {
             if *width == 32 {
                 let f = f32::from_bits(*bits as u32);
-                Some(Constant::Float {
+                Some(mir::Constant::Float {
                     bits: ((-f).to_bits()) as u64,
                     width: 32,
                 })
             } else if *width == 64 {
                 let f = f64::from_bits(*bits);
-                Some(Constant::Float {
+                Some(mir::Constant::Float {
                     bits: (-f).to_bits(),
                     width: 64,
                 })
@@ -1664,27 +1681,29 @@ pub fn fold_unary(operator: UnaryOperator, value: Constant) -> Option<Constant> 
             }
         }
 
-        (UnaryOperator::Not, Constant::Boolean { value: v }) => {
-            Some(Constant::Boolean { value: !v })
+        (mir::UnaryOperator::Not, mir::Constant::Boolean { value: v }) => {
+            Some(mir::Constant::Boolean { value: !v })
         }
 
         (
-            UnaryOperator::Not,
-            Constant::Int {
+            mir::UnaryOperator::Not,
+            mir::Constant::Int {
                 value: v,
                 width,
                 is_signed,
             },
-        ) => Some(Constant::Int {
+        ) => Some(mir::Constant::Int {
             value: !v,
             width: *width,
             is_signed: *is_signed,
         }),
 
-        (UnaryOperator::Not, Constant::UInt { value: v, width }) => Some(Constant::UInt {
-            value: !v,
-            width: *width,
-        }),
+        (mir::UnaryOperator::Not, mir::Constant::UInt { value: v, width }) => {
+            Some(mir::Constant::UInt {
+                value: !v,
+                width: *width,
+            })
+        }
 
         _ => None,
     }

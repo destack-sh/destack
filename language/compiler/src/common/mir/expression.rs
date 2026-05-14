@@ -673,19 +673,19 @@ pub fn expression_key_from_instruction(
 /// For commutative operators, operand order does not affect the result.
 /// This enables matching `a + b` with `b + a`.
 pub fn binary_operator_is_commutative(operator: mir::BinaryOperator) -> bool {
-    use mir::BinaryOperator::*;
     matches!(
         operator,
-        Add | Multiply
-            | FloatAdd
-            | FloatMultiply
-            | And
-            | Or
-            | Xor
-            | Equal
-            | NotEqual
-            | FloatEqual
-            | FloatNotEqual
+        mir::BinaryOperator::Add
+            | mir::BinaryOperator::Multiply
+            | mir::BinaryOperator::FloatAdd
+            | mir::BinaryOperator::FloatMultiply
+            | mir::BinaryOperator::And
+            | mir::BinaryOperator::Or
+            | mir::BinaryOperator::Xor
+            | mir::BinaryOperator::Equal
+            | mir::BinaryOperator::NotEqual
+            | mir::BinaryOperator::FloatEqual
+            | mir::BinaryOperator::FloatNotEqual
     )
 }
 

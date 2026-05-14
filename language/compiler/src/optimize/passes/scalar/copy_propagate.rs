@@ -2,7 +2,6 @@ use std::collections::{HashMap, HashSet};
 
 use crate::declare_mir_pass;
 use destack_mir as mir;
-use mir::Terminator;
 
 use crate::optimize::{
     AnalysisPreservation, FunctionPass, PipelineContext, instruction_substitute_uses_in_tree,
@@ -87,8 +86,8 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::Tree) -> boo
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
         match terminator {
-            Terminator::Error => {}
-            Terminator::Jump { target } => {
+            mir::Terminator::Error => {}
+            mir::Terminator::Jump { target } => {
                 if let Some(target_block) = target.block.block() {
                     predecessors
                         .get_mut(&target_block)
@@ -96,7 +95,7 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::Tree) -> boo
                         .push((block_id, target.arguments.clone()));
                 }
             }
-            Terminator::Branch {
+            mir::Terminator::Branch {
                 then_target,
                 else_target,
                 ..
@@ -115,7 +114,7 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::Tree) -> boo
                         .push((block_id, else_target.arguments.clone()));
                 }
             }
-            Terminator::Check {
+            mir::Terminator::Check {
                 success, failure, ..
             } => {
                 if let Some(target_block) = success.block.block() {
@@ -132,7 +131,7 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::Tree) -> boo
                         .push((block_id, failure.arguments.clone()));
                 }
             }
-            Terminator::Switch { default, cases, .. } => {
+            mir::Terminator::Switch { default, cases, .. } => {
                 if let Some(target_block) = default.block.block() {
                     predecessors
                         .get_mut(&target_block)
@@ -149,7 +148,7 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::Tree) -> boo
                     }
                 }
             }
-            Terminator::Yield { resume, .. } => {
+            mir::Terminator::Yield { resume, .. } => {
                 if let Some(target_block) = resume.block.block() {
                     predecessors
                         .get_mut(&target_block)
@@ -157,10 +156,10 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::Tree) -> boo
                         .push((block_id, resume.arguments.clone()));
                 }
             }
-            Terminator::Call { target, .. }
-            | Terminator::CallIndirect { target, .. }
-            | Terminator::CallClass { target, .. }
-            | Terminator::CallInterface { target, .. } => {
+            mir::Terminator::Call { target, .. }
+            | mir::Terminator::CallIndirect { target, .. }
+            | mir::Terminator::CallClass { target, .. }
+            | mir::Terminator::CallInterface { target, .. } => {
                 if let Some(target_block) = target.block.block() {
                     predecessors
                         .get_mut(&target_block)
@@ -168,13 +167,13 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::Tree) -> boo
                         .push((block_id, target.arguments.clone()));
                 }
             }
-            Terminator::Return { .. }
-            | Terminator::Trap { .. }
-            | Terminator::Unreachable
-            | Terminator::TailCall { .. }
-            | Terminator::TailCallClass { .. }
-            | Terminator::TailCallInterface { .. }
-            | Terminator::TailCallIndirect { .. } => {}
+            mir::Terminator::Return { .. }
+            | mir::Terminator::Trap { .. }
+            | mir::Terminator::Unreachable
+            | mir::Terminator::TailCall { .. }
+            | mir::Terminator::TailCallClass { .. }
+            | mir::Terminator::TailCallInterface { .. }
+            | mir::Terminator::TailCallIndirect { .. } => {}
         }
     }
 
@@ -342,11 +341,11 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::Tree) -> boo
 
 /// Remove arguments at specified indices from terminator's target arguments.
 fn remove_arguments_at_indices(
-    terminator: &Terminator,
+    terminator: &mir::Terminator,
     removed_indices: &HashMap<mir::LocalNodeId<mir::Block>, Vec<usize>>,
-) -> Terminator {
+) -> mir::Terminator {
     match terminator {
-        Terminator::Jump { target } => {
+        mir::Terminator::Jump { target } => {
             let Some(target_block) = target.block.block() else {
                 return terminator.clone();
             };
@@ -359,14 +358,14 @@ fn remove_arguments_at_indices(
                 return terminator.clone();
             }
 
-            Terminator::Jump {
+            mir::Terminator::Jump {
                 target: mir::BlockTarget {
                     block: target.block,
                     arguments: new_arguments,
                 },
             }
         }
-        Terminator::Branch {
+        mir::Terminator::Branch {
             condition,
             then_target,
             else_target,
@@ -384,7 +383,7 @@ fn remove_arguments_at_indices(
                 .map(|indices| filter_indices(&else_target.arguments, indices))
                 .unwrap_or_else(|| else_target.arguments.clone());
             if new_then_args != then_target.arguments || new_else_args != else_target.arguments {
-                Terminator::Branch {
+                mir::Terminator::Branch {
                     condition: *condition,
                     then_target: mir::BlockTarget {
                         block: then_target.block,
@@ -399,7 +398,7 @@ fn remove_arguments_at_indices(
                 terminator.clone()
             }
         }
-        Terminator::Check {
+        mir::Terminator::Check {
             constraint,
             success,
             failure,
@@ -417,7 +416,7 @@ fn remove_arguments_at_indices(
                 .map(|indices| filter_indices(&failure.arguments, indices))
                 .unwrap_or_else(|| failure.arguments.clone());
             if new_success_args != success.arguments || new_failure_args != failure.arguments {
-                Terminator::Check {
+                mir::Terminator::Check {
                     constraint: constraint.clone(),
                     success: mir::BlockTarget {
                         block: success.block,
@@ -432,7 +431,7 @@ fn remove_arguments_at_indices(
                 terminator.clone()
             }
         }
-        Terminator::Switch {
+        mir::Terminator::Switch {
             value,
             default,
             cases,
@@ -462,7 +461,7 @@ fn remove_arguments_at_indices(
                     }
                 })
                 .collect();
-            Terminator::Switch {
+            mir::Terminator::Switch {
                 value: *value,
                 default: mir::BlockTarget {
                     block: default.block,
@@ -471,14 +470,14 @@ fn remove_arguments_at_indices(
                 cases: new_cases,
             }
         }
-        Terminator::Yield { value, resume } => {
+        mir::Terminator::Yield { value, resume } => {
             if let Some(indices) = resume
                 .block
                 .block()
                 .and_then(|block| removed_indices.get(&block))
             {
                 let new_args = filter_indices(&resume.arguments, indices);
-                Terminator::Yield {
+                mir::Terminator::Yield {
                     value: *value,
                     resume: mir::BlockTarget {
                         block: resume.block,

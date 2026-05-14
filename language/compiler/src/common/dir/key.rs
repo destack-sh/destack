@@ -1,29 +1,31 @@
 use destack_core::StringId;
-use destack_dir::{Expression, Key, LocalNodeId, Name, ScalarLiteral, StaticKey, Tree};
+use destack_dir as dir;
 
 /// Resolve a static key from one DIR key when it is locally obvious.
 pub(crate) fn static_key_from_key(
-    tree: &Tree,
-    key: Key,
+    tree: &dir::Tree,
+    key: dir::Key,
     mut private_name: impl FnMut(StringId) -> StringId,
-) -> Option<StaticKey> {
+) -> Option<dir::StaticKey> {
     match key {
-        Key::Name(Name::Identifier(name) | Name::String(name)) => Some(StaticKey::Name(name)),
-        Key::Name(Name::Number(name)) => Some(StaticKey::Number(name)),
-        Key::Private(name) => Some(StaticKey::Name(private_name(name))),
-        Key::Expression(expression_id) => static_key_from_expression(tree, expression_id),
+        dir::Key::Name(dir::Name::Identifier(name) | dir::Name::String(name)) => {
+            Some(dir::StaticKey::Name(name))
+        }
+        dir::Key::Name(dir::Name::Number(name)) => Some(dir::StaticKey::Number(name)),
+        dir::Key::Private(name) => Some(dir::StaticKey::Name(private_name(name))),
+        dir::Key::Expression(expression_id) => static_key_from_expression(tree, expression_id),
     }
 }
 
 /// Resolve a static key from one locally constant expression.
 fn static_key_from_expression(
-    tree: &Tree,
-    expression_id: LocalNodeId<Expression>,
-) -> Option<StaticKey> {
+    tree: &dir::Tree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> Option<dir::StaticKey> {
     match tree.get(expression_id) {
-        Expression::ScalarLiteral {
-            value: ScalarLiteral::String(name),
-        } => Some(StaticKey::Name(*name)),
+        dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(name)) => {
+            Some(dir::StaticKey::Name(*name))
+        }
         _ => None,
     }
 }

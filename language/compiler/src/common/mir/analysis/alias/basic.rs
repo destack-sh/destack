@@ -968,11 +968,11 @@ impl BasicAA {
         intrinsic: &mir::Intrinsic,
         _loc: &MemoryLocation,
     ) -> ModRefInfo {
-        use mir::Intrinsic;
-
         match intrinsic {
             // memory operations
-            Intrinsic::Memcpy | Intrinsic::Memmove | Intrinsic::Memset => ModRefInfo::MOD_REF,
+            mir::Intrinsic::Memcpy | mir::Intrinsic::Memmove | mir::Intrinsic::Memset => {
+                ModRefInfo::MOD_REF
+            }
 
             // pure intrinsics
             _ => ModRefInfo::NO_MOD_REF,
