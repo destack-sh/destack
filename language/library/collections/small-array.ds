@@ -1,0 +1,356 @@
+import { panic, todo } from "destack:error";
+import { From } from "destack:convert";
+import { Iterable, Iterator } from "destack:iter";
+import { Copy, MaybeUninit, Unique } from "destack:memory";
+import { Index, IndexSet } from "destack:ops";
+import { Bound, RangeBounds } from "destack:range";
+import { Array, FixedArray } from "./array.ds";
+import { PackedArray } from "./packed-array.ds";
+import { Slice } from "./slice.ds";
+
+/// A growable contiguous array with inline storage.
+export struct SmallArray<T, comptime N: number> {
+    /// The inline storage.
+    inlineStorage: FixedArray<MaybeUninit<T>, N>;
+
+    /// The heap storage used after spilling past inline capacity.
+    spillStorage: Unique<[MaybeUninit<T>]> | undefined = undefined;
+
+    /// The number of initialized elements.
+    elementCount: usize = 0;
+
+    /// The allocated spill element count.
+    spillCapacity: usize = 0;
+}
+
+extension<T, comptime N: number> of SmallArray<T, N> implements
+    Index<number>,
+    IndexSet<number, T>,
+    Iterable<T>,
+    Iterable<&T>,
+    Iterable<&readonly T>,
+    Iterable<&exclusive T>,
+    From<Array<T>>,
+    From<PackedArray<T>>,
+    From<FixedArray<T, N>>
+{
+    /// The indexed output type.
+    type Output = T;
+
+    /// Create an empty small array.
+    static new(): SmallArray<T, N> {
+        todo("SmallArray.new")
+    }
+
+    /// Create a small array with room for at least `capacity` elements.
+    static withCapacity(capacity: usize): SmallArray<T, N> {
+        todo("SmallArray.withCapacity")
+    }
+
+    /// Create a small array from `values`.
+    static from(values: Iterable<T>): SmallArray<T, N> {
+        todo("SmallArray.from")
+    }
+
+    /// Create a small array from a stable array.
+    static from(value: Array<T>): SmallArray<T, N> {
+        todo("SmallArray.fromArray")
+    }
+
+    /// Create a small array from a packed array.
+    static from(value: PackedArray<T>): SmallArray<T, N> {
+        todo("SmallArray.fromPackedArray")
+    }
+
+    /// Create a small array from a fixed array.
+    static from(value: FixedArray<T, N>): SmallArray<T, N> {
+        todo("SmallArray.fromFixedArray")
+    }
+
+    /// Return the number of elements.
+    get length(): number {
+        this.elementCount as number
+    }
+
+    /// Return the number of elements.
+    get size(): usize {
+        this.elementCount
+    }
+
+    /// Return the allocated element count.
+    get capacity(): usize {
+        this.spillStorage == undefined ? N as usize : this.spillCapacity
+    }
+
+    /// Return the inline element count.
+    get inlineCapacity(): usize {
+        N as usize
+    }
+
+    /// Return whether this array currently uses inline storage.
+    get isInline(): boolean {
+        this.spillStorage == undefined
+    }
+
+    /// Return whether this array has no elements.
+    get isEmpty(): boolean {
+        this.elementCount == 0
+    }
+
+    /// Return the element at `index` by value.
+    index(index: number): T {
+        todo("SmallArray.index")
+    }
+
+    /// Borrow the element at `index`.
+    index(this: &SmallArray<T, N>, index: number): &T {
+        todo("SmallArray.index")
+    }
+
+    /// Borrow the element at `index` with readonly access.
+    index(this: &readonly SmallArray<T, N>, index: number): &readonly T {
+        todo("SmallArray.index")
+    }
+
+    /// Borrow the element at `index` with exclusive access.
+    index(this: &exclusive SmallArray<T, N>, index: number): &exclusive T {
+        todo("SmallArray.index")
+    }
+
+    /// Replace the element at `index`.
+    indexSet(this: &exclusive SmallArray<T, N>, index: number, value: T): void {
+        todo("SmallArray.indexSet")
+    }
+
+    /// Return the first element by value.
+    first(): T | undefined {
+        todo("SmallArray.first")
+    }
+
+    /// Borrow the first element.
+    first(this: &SmallArray<T, N>): &T | undefined {
+        todo("SmallArray.first")
+    }
+
+    /// Borrow the first element with readonly access.
+    first(this: &readonly SmallArray<T, N>): &readonly T | undefined {
+        todo("SmallArray.first")
+    }
+
+    /// Borrow the first element with exclusive access.
+    first(this: &exclusive SmallArray<T, N>): &exclusive T | undefined {
+        todo("SmallArray.first")
+    }
+
+    /// Return the last element by value.
+    last(): T | undefined {
+        todo("SmallArray.last")
+    }
+
+    /// Borrow the last element.
+    last(this: &SmallArray<T, N>): &T | undefined {
+        todo("SmallArray.last")
+    }
+
+    /// Borrow the last element with readonly access.
+    last(this: &readonly SmallArray<T, N>): &readonly T | undefined {
+        todo("SmallArray.last")
+    }
+
+    /// Borrow the last element with exclusive access.
+    last(this: &exclusive SmallArray<T, N>): &exclusive T | undefined {
+        todo("SmallArray.last")
+    }
+
+    /// Append `value`.
+    push(this: &exclusive SmallArray<T, N>, value: T): void {
+        todo("SmallArray.push")
+    }
+
+    /// Append all `values`.
+    extend(this: &exclusive SmallArray<T, N>, values: Iterable<T>): void {
+        todo("SmallArray.extend")
+    }
+
+    /// Remove and return the last element.
+    pop(this: &exclusive SmallArray<T, N>): T | undefined {
+        todo("SmallArray.pop")
+    }
+
+    /// Insert `value` at `index`.
+    insert(this: &exclusive SmallArray<T, N>, index: usize, value: T): void {
+        todo("SmallArray.insert")
+    }
+
+    /// Remove and return the element at `index`.
+    removeAt(this: &exclusive SmallArray<T, N>, index: usize): T {
+        todo("SmallArray.removeAt")
+    }
+
+    /// Swap-remove the element at `index`.
+    swapRemove(this: &exclusive SmallArray<T, N>, index: usize): T {
+        todo("SmallArray.swapRemove")
+    }
+
+    /// Remove all elements.
+    clear(this: &exclusive SmallArray<T, N>): void {
+        todo("SmallArray.clear")
+    }
+
+    /// Retain only elements accepted by `predicate`.
+    retain(
+        this: &exclusive SmallArray<T, N>,
+        predicate: (value: &T, index: usize) => boolean,
+    ): void {
+        todo("SmallArray.retain")
+    }
+
+    /// Reserve room for at least `additional` more elements.
+    reserve(this: &exclusive SmallArray<T, N>, additional: usize): void {
+        todo("SmallArray.reserve")
+    }
+
+    /// Move elements back inline when they fit.
+    shrinkToInline(this: &exclusive SmallArray<T, N>): void {
+        todo("SmallArray.shrinkToInline")
+    }
+
+    /// Shrink capacity to fit the current length.
+    shrinkToFit(this: &exclusive SmallArray<T, N>): void {
+        todo("SmallArray.shrinkToFit")
+    }
+
+    /// Return the initialized storage as a slice.
+    asSlice(this: &SmallArray<T, N>): &Slice<T> {
+        todo("SmallArray.asSlice")
+    }
+
+    /// Return the initialized storage as a readonly slice.
+    asReadonlySlice(this: &readonly SmallArray<T, N>): &readonly Slice<T> {
+        todo("SmallArray.asReadonlySlice")
+    }
+
+    /// Return the initialized storage as an exclusive slice.
+    asExclusiveSlice(this: &exclusive SmallArray<T, N>): &exclusive Slice<T> {
+        todo("SmallArray.asExclusiveSlice")
+    }
+
+    /// Return a copy of the selected range.
+    slice(start?: number, end?: number): SmallArray<T, N> {
+        todo("SmallArray.slice")
+    }
+
+    /// Reverse this array in place.
+    reverse(this: &exclusive SmallArray<T, N>): this {
+        todo("SmallArray.reverse")
+    }
+
+    /// Sort this array in place.
+    sort(
+        this: &exclusive SmallArray<T, N>,
+        compare?: (a: &readonly T, b: &readonly T) => number,
+    ): this {
+        todo("SmallArray.sort")
+    }
+
+    /// Return an iterator over copied values.
+    iterator(): Iterator<T> {
+        todo("SmallArray.iterator")
+    }
+
+    /// Return an iterator over borrowed values.
+    iterator(this: &SmallArray<T, N>): Iterator<&T> {
+        todo("SmallArray.iterator")
+    }
+
+    /// Return an iterator over readonly borrowed values.
+    iterator(this: &readonly SmallArray<T, N>): Iterator<&readonly T> {
+        todo("SmallArray.iterator")
+    }
+
+    /// Return an iterator over exclusive borrowed values.
+    iterator(this: &exclusive SmallArray<T, N>): Iterator<&exclusive T> {
+        todo("SmallArray.iterator")
+    }
+
+    /// Consume this array into owned values.
+    iterator(this: ^SmallArray<T, N>): Iterator<T> {
+        todo("SmallArray.iterator")
+    }
+}
+
+extension<T, comptime N: number, R: RangeBounds<usize>> of SmallArray<T, N> implements Index<R> {
+    /// The indexed output type.
+    type Output = Slice<T>;
+
+    /// Return the normalized start and length for `range`.
+    rangeSpan(this: &readonly SmallArray<T, N>, range: R): (usize, usize) {
+        let start = match (range.startBound()) {
+            Bound { kind: "included", value } => value
+            Bound { kind: "excluded", value } => value + 1
+            Bound { kind: "unbounded" } => 0
+        };
+
+        let end = match (range.endBound()) {
+            Bound { kind: "included", value } => value + 1
+            Bound { kind: "excluded", value } => value
+            Bound { kind: "unbounded" } => this.size
+        };
+
+        if (start > end || end > this.size) {
+            panic("small array range out of bounds")
+        }
+
+        (start, end - start)
+    }
+
+    /// Return the selected range by value.
+    index(range: R): Slice<T> {
+        todo("SmallArray.indexRange")
+    }
+
+    /// Borrow the selected range.
+    index(this: &SmallArray<T, N>, range: R): &Slice<T> {
+        todo("SmallArray.indexRange")
+    }
+
+    /// Borrow the selected range with readonly access.
+    index(this: &readonly SmallArray<T, N>, range: R): &readonly Slice<T> {
+        todo("SmallArray.indexRange")
+    }
+
+    /// Borrow the selected range with exclusive access.
+    index(this: &exclusive SmallArray<T, N>, range: R): &exclusive Slice<T> {
+        todo("SmallArray.indexRange")
+    }
+}
+
+extension<T, comptime N: number, R: RangeBounds<usize>> of SmallArray<T, N> implements IndexSet<R, Slice<T>>
+where T implements Copy {
+    /// Copy `source` into the selected range.
+    indexSet(this: &exclusive SmallArray<T, N>, range: R, source: Slice<T>): void {
+        todo("SmallArray.indexSetRange")
+    }
+}
+
+extension<T, comptime N: number, R: RangeBounds<usize>> of SmallArray<T, N> implements IndexSet<R, &readonly Slice<T>>
+where T implements Copy {
+    /// Copy `source` into the selected range.
+    indexSet(this: &exclusive SmallArray<T, N>, range: R, source: &readonly Slice<T>): void {
+        todo("SmallArray.indexSetRange")
+    }
+}
+
+extension<T, comptime N: number> of Array<T> implements From<SmallArray<T, N>> {
+    /// Create a stable array from a small array.
+    static from(value: SmallArray<T, N>): Array<T> {
+        todo("Array.fromSmallArray")
+    }
+}
+
+extension<T, comptime N: number> of PackedArray<T> implements From<SmallArray<T, N>> {
+    /// Create a packed array from a small array.
+    static from(value: SmallArray<T, N>): PackedArray<T> {
+        todo("PackedArray.fromSmallArray")
+    }
+}

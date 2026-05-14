@@ -1,6 +1,7 @@
 export { Array, arrayFill, arrayOf } from "./array.ds";
 export { FixedArray, ReadonlyArray } from "./array.ds";
 export { PackedArray } from "./packed-array.ds";
+export { SmallArray } from "./small-array.ds";
 export { Slice } from "./slice.ds";
 export { Map, MapEntry, Record } from "./map.ds";
 export { PackedMap, PackedMapEntry } from "./packed-map.ds";

@@ -208,6 +208,7 @@ export {
     Record,
     Set,
     Slice,
+    SmallArray,
     SortedMap,
     SortedSet,
     Stack,
