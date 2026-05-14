@@ -19,7 +19,6 @@ macro_rules! for_each_resource_handle_kind {
             (CompletionHandle, Completion, "host.io.completion", "completion", "The handle for one completion queue instance."),
             (EventFdHandle, Event, "host.ipc.event", "event", "The handle for one eventfd style descriptor."),
             (UringHandle, Uring, "host.io.uring", "uring", "The handle for one io_uring instance."),
-            (TimerFdHandle, TimerFd, "host.time.timerfd", "timer_fd", "The handle for one timerfd style descriptor."),
             (DeviceHandle, Device, "host.device.handle", "device", "The handle for one device endpoint."),
             (PtyHandle, Pty, "host.tty.pty", "pty", "The handle for one pseudo terminal endpoint."),
             (TraceHandle, Trace, "runtime.trace", "trace", "The handle for one trace session."),

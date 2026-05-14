@@ -3,18 +3,19 @@ use std::time::Duration;
 use crate::diagnostic::{DiagnosticStore, RuntimeError, RuntimeResult};
 use crate::host::binding::{
     BindingAccess, BindingAffinity, BindingDescriptor, BindingEngine, BindingReplayPayload,
-    RuntimeAccess, RuntimeWorld,
+    BindingRoute, RuntimeAccess,
 };
 use crate::host::{HostError, HostSession, core as host_core};
 use crate::runtime::random::RandomStreamId;
 use crate::runtime::scheduler::{EventLoop, MicrotaskId, TaskId};
 use crate::simulation::Simulation;
 use crate::world::WorldState;
-use crate::world::policy::{BindingDecision, Hooks, PolicyCallId};
+use crate::world::policy::BindingDecision;
+use crate::world::scenario::{Hooks, ScenarioCallId};
 use crate::world::trace::{EntropySubject, Trace};
 
-use super::{ExecutionContext, ExecutionContextId, RunnableScope, Worker, binding_affinity_name};
-use destack_workspace::{RuntimeDiagnosticLevel, TimeMode};
+use super::{ExecutionContext, RunnableScope, Worker, binding_affinity_name};
+use destack_workspace::{ClockSource, RuntimeDiagnosticLevel};
 
 /// TLS payload for native runtime calls.
 #[derive(Debug, Clone)]
@@ -43,7 +44,7 @@ pub struct BindingHookGuard<'call> {
     /// Binding descriptor for hook routing.
     spec: BindingDescriptor,
     /// Binding call identifier for before and after correlation.
-    call_id: PolicyCallId,
+    call_id: ScenarioCallId,
 }
 
 impl Drop for BindingHookGuard<'_> {
@@ -53,6 +54,7 @@ impl Drop for BindingHookGuard<'_> {
     }
 }
 
+#[allow(clippy::mut_from_ref)]
 impl BindingCallContext {
     /// Borrow the worker state.
     #[inline]
@@ -166,11 +168,6 @@ impl BindingCallContext {
         self.execution_context
     }
 
-    /// Return the current execution context identifier for this call.
-    pub const fn execution_context_id(&self) -> ExecutionContextId {
-        self.execution_context.id
-    }
-
     /// Advance host and runtime wait progress for one blocked binding path.
     pub(crate) fn advance_wait_progress(&self) -> RuntimeResult<()> {
         self.host().advance_ingress()
@@ -250,7 +247,7 @@ impl BindingCallContext {
     /// Return true when the world clock runs in virtual mode.
     #[inline]
     pub fn is_virtual_clock(&self) -> bool {
-        self.world().time_mode() == TimeMode::Virtual
+        self.world().clock().source() == ClockSource::Virtual
     }
 
     /// Return one runtime-backed wall clock sample.
@@ -324,11 +321,7 @@ impl BindingCallContext {
 
     /// Ensure the current execution context satisfies one binding affinity.
     fn ensure_binding_affinity_allowed(&self, spec: BindingDescriptor) -> RuntimeResult<()> {
-        if execution_context_satisfies(
-            self.execution_context(),
-            self.event_loop().execution_context_id(),
-            spec.affinity(),
-        ) {
+        if execution_context_satisfies(self.execution_context(), spec.affinity()) {
             return Ok(());
         }
 
@@ -348,7 +341,7 @@ impl BindingCallContext {
         Ok(())
     }
 
-    /// Run pre-call policy checks and return one binding decision snapshot.
+    /// Run pre-call policy checks and return one binding decision.
     #[inline]
     fn preflight_binding_call(&self, spec: BindingDescriptor) -> RuntimeResult<BindingDecision> {
         // reject execution-affinity mismatches before policy and hooks
@@ -357,11 +350,11 @@ impl BindingCallContext {
         // access and policy
         let access = self.access();
         access.ensure_allowed(spec)?;
-        let decision = self.binding_decision(spec, access.default_replay_payload())?;
+        let decision = self.decide_binding(spec)?;
         self.ensure_binding_access_allowed(spec, &decision)?;
 
         // service runtime-owned host ingress before host bindings execute
-        if decision.world == RuntimeWorld::Host {
+        if decision.route == BindingRoute::Host {
             self.advance_wait_progress()?;
         }
 
@@ -388,15 +381,15 @@ impl BindingCallContext {
 
     /// Run pre-call policy, resolve world, and return one post-call hook guard.
     #[inline]
-    pub fn on_before_binding_resolve_world(
+    pub fn on_before_binding_resolve_route(
         &self,
         spec: BindingDescriptor,
-    ) -> RuntimeResult<(RuntimeWorld, BindingHookGuard<'_>)> {
+    ) -> RuntimeResult<(BindingRoute, BindingHookGuard<'_>)> {
         let decision = self.preflight_binding_call(spec)?;
-        let world = decision.world;
+        let route = decision.route;
 
         // reject unavailable host bindings before entering the call
-        if world == RuntimeWorld::Host && !spec.supports_current_target() {
+        if route == BindingRoute::Host && !spec.supports_current_target() {
             return Err(RuntimeError::from(HostError::not_supported(spec.name)).boxed());
         }
 
@@ -409,23 +402,22 @@ impl BindingCallContext {
             spec,
             call_id,
         };
-        Ok((world, hook_guard))
+        Ok((route, hook_guard))
     }
 
     /// Run post-call hooks for one binding descriptor.
     #[inline]
-    fn on_after_binding(&self, spec: BindingDescriptor, call_id: PolicyCallId) {
+    fn on_after_binding(&self, spec: BindingDescriptor, call_id: ScenarioCallId) {
         self.hooks()
             .on_after_binding(self.world(), spec, Some(self.engine), call_id);
     }
 
-    /// Resolve the binding world for this call context.
+    /// Resolve the binding route for this call context.
     #[inline]
-    pub fn resolve_world(&self, spec: BindingDescriptor) -> RuntimeResult<RuntimeWorld> {
-        let access = self.access();
-        let decision = self.binding_decision(spec, access.default_replay_payload())?;
+    pub fn resolve_route(&self, spec: BindingDescriptor) -> RuntimeResult<BindingRoute> {
+        let decision = self.decide_binding(spec)?;
 
-        Ok(decision.world)
+        Ok(decision.route)
     }
 
     /// Resolve the replay payload policy for this call context.
@@ -435,28 +427,19 @@ impl BindingCallContext {
         spec: BindingDescriptor,
     ) -> RuntimeResult<BindingReplayPayload> {
         let access = self.access();
-        let decision = self.binding_decision(spec, access.default_replay_payload())?;
-
-        let requested = decision.replay_payload;
+        let requested = access.default_replay_payload();
         self.trace().payload_policy_for_requested(spec, requested)
     }
 
     /// Resolve one binding policy decision for this call context.
     #[inline]
-    fn binding_decision(
-        &self,
-        spec: BindingDescriptor,
-        default_replay_payload: BindingReplayPayload,
-    ) -> RuntimeResult<BindingDecision> {
-        self.world().resolve_binding(
+    fn decide_binding(&self, spec: BindingDescriptor) -> RuntimeResult<BindingDecision> {
+        self.world().decide_binding(
             self.hooks().execution_mode(),
             self.worker().runtime_id,
             self.worker().id,
             spec,
             Some(self.engine),
-            RuntimeAccess::Allow,
-            RuntimeWorld::Host,
-            default_replay_payload,
         )
     }
 }
@@ -464,12 +447,11 @@ impl BindingCallContext {
 /// Return whether one execution context satisfies one binding affinity requirement.
 pub(crate) const fn execution_context_satisfies(
     execution_context: ExecutionContext,
-    worker_context_id: ExecutionContextId,
     affinity: BindingAffinity,
 ) -> bool {
     match affinity {
         BindingAffinity::None => true,
-        BindingAffinity::Worker => execution_context.id.0 == worker_context_id.0,
+        BindingAffinity::Worker => true,
         BindingAffinity::Main => execution_context.is_process_main,
     }
 }

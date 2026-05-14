@@ -1,8 +1,18 @@
 use destack_engine as engine;
 use serde::{Deserialize, Serialize};
 
-use super::task::TaskStatus;
 use crate::runtime::engine::Continuation;
+
+/// Microtask metadata for Promise jobs.
+#[derive(Debug)]
+pub struct Microtask {
+    /// Microtask identifier used for ordering and logging.
+    pub id: MicrotaskId,
+    /// Runnable continuation for this microtask.
+    pub continuation: Continuation,
+    /// Resume payload passed back into the executor.
+    pub resume_value: engine::Value,
+}
 
 /// Opaque microtask identifier used by the event loop.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
@@ -18,17 +28,4 @@ impl MicrotaskId {
     pub const fn get(self) -> u64 {
         self.0
     }
-}
-
-/// Microtask metadata for Promise jobs.
-#[derive(Debug)]
-pub struct Microtask {
-    /// Microtask identifier used for ordering and logging.
-    pub id: MicrotaskId,
-    /// Runnable continuation for this microtask.
-    pub continuation: Continuation,
-    /// Resume payload passed back into the executor.
-    pub resume_value: engine::Value,
-    /// Current scheduling status.
-    pub status: TaskStatus,
 }

@@ -3,33 +3,17 @@ use serde::{Deserialize, Serialize};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::random::HostRandom;
 use destack_core::{Capture, CaptureMode};
-use destack_workspace::RandomOptions;
+use destack_workspace::{RandomOptions, RandomSource};
 
 #[cfg(test)]
 use super::r#virtual::StreamStateDecodeError;
 use super::r#virtual::VirtualRandom;
 
-/// Default deterministic random seed.
-const DEFAULT_RANDOM_SEED: u64 = 0;
-
-/// Materialized random state captured in one world image.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RandomImage {
-    /// Captured deterministic root seed.
-    pub root_seed: u64,
-    /// Captured deterministic default stream state.
-    pub default_stream: Vec<u8>,
-    /// Captured deterministic next stream identifier.
-    pub next_stream_id: u64,
-    /// Captured deterministic user stream states.
-    pub streams: std::collections::BTreeMap<RandomStreamId, Vec<u8>>,
-    /// Captured scoped stream bindings.
-    pub scoped_streams: std::collections::BTreeMap<ScopedRandomStreamKey, RandomStreamId>,
-}
-
 /// Runtime randomness and entropy providers.
 #[derive(Debug)]
 pub struct Random {
+    /// Active randomness source.
+    source: RandomSource,
     /// Host randomness for secure and host-mode draws.
     host_random: HostRandom,
     /// Deterministic randomness for virtualized runtime draws.
@@ -77,20 +61,28 @@ impl Default for Random {
 impl Random {
     /// Create a random source from runtime options.
     pub fn from_options(options: &RandomOptions) -> Self {
-        let root_seed = match options.seed {
-            Some(seed) => seed,
-            None => DEFAULT_RANDOM_SEED,
-        };
+        let root_seed = options.seed.unwrap_or_default();
 
-        Self::new(root_seed)
+        Self::with_source(options.source, root_seed)
     }
 
-    /// Create a random source from a root seed.
+    /// Create a deterministic random source from a root seed.
     pub fn new(root_seed: u64) -> Self {
+        Self::with_source(RandomSource::Deterministic, root_seed)
+    }
+
+    /// Create a random source from one source and root seed.
+    pub fn with_source(source: RandomSource, root_seed: u64) -> Self {
         Self {
+            source,
             host_random: HostRandom::new(),
             virtual_random: VirtualRandom::new(root_seed),
         }
+    }
+
+    /// Return the active random source.
+    pub const fn source(&self) -> RandomSource {
+        self.source
     }
 
     /// Return the deterministic root seed.
@@ -232,7 +224,7 @@ impl Random {
         let image = self.snapshot();
 
         // rebuild one fresh random source with the same deterministic streams
-        let forked = Self::new(image.root_seed);
+        let forked = Self::with_source(self.source, image.root_seed);
         forked.restore_snapshot(&image)?;
 
         Ok(forked)
@@ -257,6 +249,21 @@ impl Random {
 
         Ok(())
     }
+}
+
+/// Materialized random state captured in one world image.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RandomImage {
+    /// Captured deterministic root seed.
+    pub root_seed: u64,
+    /// Captured deterministic default stream state.
+    pub default_stream: Vec<u8>,
+    /// Captured deterministic next stream identifier.
+    pub next_stream_id: u64,
+    /// Captured deterministic user stream states.
+    pub streams: std::collections::BTreeMap<RandomStreamId, Vec<u8>>,
+    /// Captured scoped stream bindings.
+    pub scoped_streams: std::collections::BTreeMap<ScopedRandomStreamKey, RandomStreamId>,
 }
 
 impl Capture for Random {

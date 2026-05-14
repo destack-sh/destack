@@ -4,29 +4,29 @@ use destack_heap::{self as heap, SharedHeapReference};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::heap::{SharedRootEpoch, SharedRootSet, resolve_shared_heap_options};
-use crate::runtime::{Collector, CollectorWork, WorkerId};
+use crate::runtime::{SharedCollection, SharedCollector, WorkerId};
 use destack_workspace::RuntimeOptions;
 
 /// Runtime-owned shared heap and collection state.
 #[derive(Debug)]
 pub(crate) struct SharedHeap {
-    /// Lineage-owned allocator backing runtime and worker heaps.
+    /// History-owned allocator backing runtime and worker heaps.
     allocator: Arc<heap::Allocator>,
     /// Shared heap visible to every worker in this runtime.
     shared: Arc<heap::SharedHeap>,
     /// Shared heap roots published by workers for the active mark cycle.
     roots: Arc<SharedRootSet>,
-    /// Runtime-owned collector work for this shared heap.
-    collector_work: Arc<CollectorWork>,
-    /// Lineage-owned collection scheduler.
-    collector: Arc<Collector>,
+    /// Runtime-owned collection state for this shared heap.
+    collection: Arc<SharedCollection>,
+    /// History-owned collection scheduler.
+    collector: Arc<SharedCollector>,
 }
 
 impl SharedHeap {
     /// Create runtime-owned shared heap state from runtime options.
     pub(crate) fn new(
         allocator: Arc<heap::Allocator>,
-        collector: Arc<Collector>,
+        collector: Arc<SharedCollector>,
         options: &RuntimeOptions,
     ) -> RuntimeResult<Self> {
         let shared_heap_options = resolve_shared_heap_options(&options.heap)?;
@@ -47,7 +47,7 @@ impl SharedHeap {
         snapshot: &heap::SharedHeapSnapshot,
         options: &RuntimeOptions,
         allocator: Arc<heap::Allocator>,
-        collector: Arc<Collector>,
+        collector: Arc<SharedCollector>,
     ) -> RuntimeResult<Self> {
         let shared_heap_options = resolve_shared_heap_options(&options.heap)?;
         let shared = Arc::new(
@@ -63,7 +63,7 @@ impl SharedHeap {
     }
 
     /// Fork runtime-owned shared heap state for one child world.
-    pub(crate) fn fork(&self, collector: Arc<Collector>) -> RuntimeResult<Self> {
+    pub(crate) fn fork(&self, collector: Arc<SharedCollector>) -> RuntimeResult<Self> {
         let shared = Arc::new(self.shared.fork().map_err(Box::<RuntimeError>::from)?);
 
         Ok(Self::from_shared(self.allocator.clone(), shared, collector))
@@ -82,7 +82,7 @@ impl SharedHeap {
         &self.shared
     }
 
-    /// Borrow the lineage-owned allocator.
+    /// Borrow the history-owned allocator.
     pub(crate) fn allocator(&self) -> Arc<heap::Allocator> {
         self.allocator.clone()
     }
@@ -92,9 +92,9 @@ impl SharedHeap {
         &self.roots
     }
 
-    /// Borrow the shared collector work.
-    pub(crate) fn collector_work(&self) -> &Arc<CollectorWork> {
-        &self.collector_work
+    /// Borrow the shared collection state.
+    pub(crate) fn collection(&self) -> &Arc<SharedCollection> {
+        &self.collection
     }
 
     /// Register one shared GC worker.
@@ -104,23 +104,23 @@ impl SharedHeap {
 
     /// Suspend shared GC and wait for in-flight work to drain.
     pub(crate) fn quiesce(&self) {
-        self.collector_work.quiesce();
+        self.collection.quiesce();
     }
 
     /// Resume shared GC after one quiescent operation.
     pub(crate) fn resume(&self) {
-        self.collector_work.resume();
+        self.collection.resume();
 
         if self.collector.mode().is_concurrent()
             && self.shared.gc_phase() != heap::SharedGcPhase::Idle
         {
-            self.collector.wake(&self.collector_work);
+            self.collector.wake(&self.collection);
         }
     }
 
     /// Wake concurrent shared GC work.
     pub(crate) fn wake(&self) {
-        self.collector.wake(&self.collector_work);
+        self.collector.wake(&self.collection);
     }
 
     /// Return whether the shared heap is currently marking.
@@ -199,16 +199,16 @@ impl SharedHeap {
     fn from_shared(
         allocator: Arc<heap::Allocator>,
         shared: Arc<heap::SharedHeap>,
-        collector: Arc<Collector>,
+        collector: Arc<SharedCollector>,
     ) -> Self {
         let roots = Arc::new(SharedRootSet::default());
-        let collector_work = CollectorWork::new(shared.clone(), roots.clone());
+        let collection = SharedCollection::new(shared.clone(), roots.clone());
 
         Self {
             allocator,
             shared,
             roots,
-            collector_work,
+            collection,
             collector,
         }
     }

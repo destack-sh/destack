@@ -5,23 +5,16 @@ use serde::{Deserialize, Serialize};
 use crate::host::time::{HostClock, HostClockSource};
 use crate::runtime::time::{Instant, Nanos, VirtualClock};
 use destack_core::{Capture, CaptureMode};
-use destack_workspace::TimeOptions;
+use destack_workspace::{ClockSource, TimeOptions};
 
 /// Default virtual clock epoch.
 const DEFAULT_TIME_EPOCH_NANOS: u64 = 0;
 
-/// Materialized clock state captured in one world image.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ClockImage {
-    /// Captured virtual wall-clock instant.
-    pub virtual_wall: Instant,
-    /// Captured virtual monotonic instant.
-    pub virtual_mono: Instant,
-}
-
 /// Runtime clock sources and time policies.
 #[derive(Debug, Clone)]
 pub struct Clock {
+    /// Active clock source.
+    source: ClockSource,
     /// Host clock used for wall and monotonic time.
     host_clock: HostClock,
     /// Virtual clock used for deterministic scheduling.
@@ -40,6 +33,7 @@ impl Clock {
         let virtual_clock = VirtualClock::new(epoch_nanos);
 
         Self {
+            source: options.source,
             virtual_clock,
             host_clock: HostClock::new(),
             time_zone: options.time_zone.clone(),
@@ -58,10 +52,16 @@ impl Clock {
         let virtual_clock = VirtualClock::new(epoch_nanos);
 
         Self {
+            source: options.source,
             virtual_clock,
             host_clock: HostClock::with_source(host_clock_source),
             time_zone: options.time_zone.clone(),
         }
+    }
+
+    /// Return the active clock source.
+    pub const fn source(&self) -> ClockSource {
+        self.source
     }
 
     /// Return the configured time zone identifier.
@@ -77,6 +77,19 @@ impl Clock {
     /// Return the current host wall time in nanoseconds.
     pub fn host_wall_nanos(&self) -> u64 {
         self.host_wall().get()
+    }
+
+    /// Return the routed wall time in nanoseconds.
+    pub fn wall(&self) -> Nanos {
+        match self.source {
+            ClockSource::Host => self.host_wall(),
+            ClockSource::Virtual => self.virtual_wall(),
+        }
+    }
+
+    /// Return the routed wall time in raw nanoseconds.
+    pub fn wall_nanos(&self) -> u64 {
+        self.wall().get()
     }
 
     /// Return the current virtual wall time in nanoseconds.
@@ -97,6 +110,19 @@ impl Clock {
     /// Return the current host monotonic time in nanoseconds.
     pub fn host_mono_nanos(&self) -> u64 {
         self.host_mono().get()
+    }
+
+    /// Return the routed monotonic time in nanoseconds.
+    pub fn mono(&self) -> Nanos {
+        match self.source {
+            ClockSource::Host => self.host_mono(),
+            ClockSource::Virtual => self.virtual_mono(),
+        }
+    }
+
+    /// Return the routed monotonic time in raw nanoseconds.
+    pub fn mono_nanos(&self) -> u64 {
+        self.mono().get()
     }
 
     /// Return the current virtual monotonic time in nanoseconds.
@@ -137,6 +163,15 @@ impl Clock {
     pub fn host_sleep_until_nanos(&self, deadline_nanos: u64) {
         self.host_clock.sleep_until_nanos(deadline_nanos);
     }
+}
+
+/// Materialized clock state captured in one world image.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ClockImage {
+    /// Captured virtual wall-clock instant.
+    pub virtual_wall: Instant,
+    /// Captured virtual monotonic instant.
+    pub virtual_mono: Instant,
 }
 
 impl Capture for Clock {

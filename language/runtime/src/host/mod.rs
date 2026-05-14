@@ -38,7 +38,6 @@ pub use self::core::{
     ThermalEvent, ThermalState, WallClockEvent,
 };
 pub(crate) use self::resource::{
-    ResourceBacking, ResourceCapture, ResourceEntry, ResourceId, ResourceKind, ResourcePortability,
-    ResourceTable,
+    ResourceBacking, ResourceCapture, ResourceId, ResourceKind, ResourcePortability, ResourceTable,
 };
 pub use crate::diagnostic::{HostError, HostErrorCode, HostResult};

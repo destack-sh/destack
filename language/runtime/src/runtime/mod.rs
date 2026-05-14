@@ -3,8 +3,6 @@ pub mod heap;
 pub mod random;
 mod runtime;
 pub mod scheduler;
-#[cfg(test)]
-mod tests;
 pub(crate) mod time;
 pub(crate) mod worker;
 

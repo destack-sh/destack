@@ -1,6 +1,7 @@
 use std::cmp::Ordering;
-use std::collections::{BinaryHeap, HashMap};
+use std::collections::BinaryHeap;
 
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
 use super::EventLoop;
@@ -9,65 +10,302 @@ use crate::host::ResourceId;
 use crate::host::time::TimerClock;
 use crate::runtime::time::Nanos;
 
-/// Handle for one event-loop timer owner.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum TimerHandle {
-    /// Timer owned by one host resource.
-    Resource(ResourceId),
-    /// Timer owned by one internal runtime subsystem.
-    Internal(u64),
+/// Pending wake for one timer resource.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ScheduledTimer {
+    /// Host resource that owns this timer.
+    pub resource_id: ResourceId,
+    /// Next fire deadline.
+    pub deadline: TimerDeadline,
+    /// Interval for repeating timers.
+    pub interval: Option<Nanos>,
 }
 
-impl TimerHandle {
-    /// Return the resource id when this timer is resource owned.
-    pub const fn resource_id(self) -> Option<ResourceId> {
-        match self {
-            Self::Resource(handle) => Some(handle),
-            Self::Internal(_) => None,
-        }
-    }
-
-    /// Return the internal id when this timer is runtime owned.
-    pub const fn internal_id(self) -> Option<u64> {
-        match self {
-            Self::Resource(_) => None,
-            Self::Internal(handle) => Some(handle),
-        }
-    }
-
-    /// Return one deterministic sort key for this handle.
-    pub const fn sort_key(self) -> (u8, u64, u64) {
-        match self {
-            Self::Resource(handle) => (0, handle.worker_id.0, handle.local_id),
-            Self::Internal(handle) => (1, 0, handle),
-        }
-    }
-}
-
-impl From<ResourceId> for TimerHandle {
-    fn from(handle: ResourceId) -> Self {
-        Self::Resource(handle)
+impl ScheduledTimer {
+    /// Return one deterministic sort key for this timer.
+    pub const fn sort_key(&self) -> (u64, u64) {
+        (self.resource_id.worker_id.0, self.resource_id.local_id)
     }
 }
 
 /// Timer deadline in one explicit clock domain.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TimerDeadline {
-    /// Clock domain used for this deadline.
+    /// Clock domain that owns the deadline timestamp.
     pub clock: TimerClock,
     /// Absolute deadline in the selected clock domain.
     pub at: Nanos,
 }
 
-/// Scheduled timer entry.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Timer {
-    /// Handle for this timer.
-    pub handle: TimerHandle,
-    /// Next fire deadline.
-    pub deadline: TimerDeadline,
-    /// Interval for repeating timers.
-    pub interval: Option<Nanos>,
+impl TimerDeadline {
+    /// Return deterministic ordering for timer clock domains.
+    pub const fn clock_rank(self) -> u8 {
+        match self.clock {
+            TimerClock::Monotonic => 0,
+            TimerClock::Wall => 1,
+        }
+    }
+}
+
+/// Timer queue for scheduled event-loop timers.
+#[derive(Debug, Default)]
+pub(super) struct TimerQueue {
+    /// Pending wall-clock timers.
+    wall: DeadlineQueue,
+    /// Pending monotonic timers.
+    monotonic: DeadlineQueue,
+    /// Latest live generation for each active timer resource.
+    active_generations: FxHashMap<ResourceId, u64>,
+    /// Next generation counter.
+    next_generation: u64,
+}
+
+impl TimerQueue {
+    /// Schedule a timer in the queue.
+    pub(super) fn schedule(&mut self, timer: ScheduledTimer) {
+        let generation = self.next_generation.wrapping_add(1);
+        self.next_generation = generation;
+        self.active_generations
+            .insert(timer.resource_id, generation);
+
+        match timer.deadline.clock {
+            TimerClock::Wall => self.wall.schedule(timer, generation),
+            TimerClock::Monotonic => self.monotonic.schedule(timer, generation),
+        }
+    }
+
+    /// Cancel a timer by resource id.
+    pub(super) fn cancel(&mut self, resource_id: ResourceId) {
+        self.active_generations.remove(&resource_id);
+    }
+
+    /// Pop the next ready timer for the current wall and monotonic instants.
+    pub(super) fn pop_ready(&mut self, wall_now: Nanos, mono_now: Nanos) -> Option<ScheduledTimer> {
+        let wall = self.wall.peek_ready(&self.active_generations, wall_now);
+        let monotonic = self
+            .monotonic
+            .peek_ready(&self.active_generations, mono_now);
+
+        let (clock, now) = match (wall, monotonic) {
+            (Some(wall), Some(monotonic)) => {
+                if wall.ready_key() <= monotonic.ready_key() {
+                    (TimerClock::Wall, wall_now)
+                } else {
+                    (TimerClock::Monotonic, mono_now)
+                }
+            }
+            (Some(_), None) => (TimerClock::Wall, wall_now),
+            (None, Some(_)) => (TimerClock::Monotonic, mono_now),
+            (None, None) => return None,
+        };
+
+        self.pop_ready_from_queue(clock, now)
+    }
+
+    /// Return next wall and monotonic timer deadlines when they exist.
+    pub(super) fn next_deadlines(&mut self) -> (Option<Nanos>, Option<Nanos>) {
+        let wall = self.wall.next_deadline(&self.active_generations);
+        let monotonic = self.monotonic.next_deadline(&self.active_generations);
+
+        (wall, monotonic)
+    }
+
+    /// Return true if any active timer is ready at the given instants.
+    pub(super) fn has_ready(&mut self, wall_now: Nanos, mono_now: Nanos) -> bool {
+        self.wall
+            .peek_ready(&self.active_generations, wall_now)
+            .is_some()
+            || self
+                .monotonic
+                .peek_ready(&self.active_generations, mono_now)
+                .is_some()
+    }
+
+    /// Return true if any timers are active.
+    pub(super) fn has_pending_timers(&self) -> bool {
+        !self.active_generations.is_empty()
+    }
+
+    /// Return whether one timer resource is still active.
+    pub(super) fn has_active_timer(&self, resource_id: ResourceId) -> bool {
+        self.active_generations.contains_key(&resource_id)
+    }
+
+    /// Capture all currently active timers in deterministic order.
+    pub(super) fn image(&self) -> Vec<ScheduledTimer> {
+        let mut active = Vec::new();
+        self.wall
+            .collect_active(&self.active_generations, &mut active);
+        self.monotonic
+            .collect_active(&self.active_generations, &mut active);
+
+        active.sort_by_key(|timer| {
+            (
+                timer.deadline.clock_rank(),
+                timer.deadline.at,
+                timer.sort_key(),
+            )
+        });
+
+        active
+    }
+
+    /// Restore active timers from one immutable timer image.
+    pub(super) fn restore_image(&mut self, timers: &[ScheduledTimer]) {
+        self.wall.clear();
+        self.monotonic.clear();
+        self.active_generations.clear();
+        self.next_generation = 0;
+
+        for timer in timers {
+            self.schedule(*timer);
+        }
+    }
+
+    /// Pop one ready entry from the selected clock domain.
+    #[inline(never)]
+    fn pop_ready_from_queue(&mut self, clock: TimerClock, now: Nanos) -> Option<ScheduledTimer> {
+        let entry = match clock {
+            TimerClock::Wall => self.wall.pop_active(&self.active_generations),
+            TimerClock::Monotonic => self.monotonic.pop_active(&self.active_generations),
+        }?;
+
+        let timer = entry.scheduled_timer();
+        let Some(interval) = entry.interval else {
+            self.active_generations.remove(&entry.resource_id);
+            return Some(timer);
+        };
+
+        if interval.get() == 0 {
+            self.active_generations.remove(&entry.resource_id);
+            return Some(timer);
+        }
+
+        self.reschedule_repeating_entry(entry, now, interval);
+        Some(timer)
+    }
+
+    /// Reschedule one repeating timer after a dispatch.
+    fn reschedule_repeating_entry(&mut self, entry: TimerEntry, now: Nanos, interval: Nanos) {
+        let mut next_fire = entry.deadline.at.saturating_add(interval);
+        if next_fire <= now {
+            let elapsed = now.saturating_sub(next_fire);
+            let skipped_periods = elapsed.get() / interval.get() + 1;
+            let skip_delta = interval.get().saturating_mul(skipped_periods);
+            next_fire = next_fire.saturating_add(Nanos::new(skip_delta));
+        }
+
+        let timer = ScheduledTimer {
+            resource_id: entry.resource_id,
+            deadline: TimerDeadline {
+                clock: entry.deadline.clock,
+                at: next_fire,
+            },
+            interval: entry.interval,
+        };
+
+        self.schedule(timer);
+    }
+}
+
+/// Deadline queue for one clock domain.
+#[derive(Debug, Default)]
+struct DeadlineQueue {
+    /// Pending timer entries ordered by deadline.
+    entries: BinaryHeap<TimerEntry>,
+}
+
+impl DeadlineQueue {
+    /// Insert one scheduled timer.
+    fn schedule(&mut self, timer: ScheduledTimer, generation: u64) {
+        self.entries.push(TimerEntry {
+            deadline: timer.deadline,
+            resource_id: timer.resource_id,
+            interval: timer.interval,
+            generation,
+        });
+    }
+
+    /// Clear all queued timer entries.
+    fn clear(&mut self) {
+        self.entries.clear();
+    }
+
+    /// Collect active timers from this queue.
+    fn collect_active(
+        &self,
+        active_generations: &FxHashMap<ResourceId, u64>,
+        output: &mut Vec<ScheduledTimer>,
+    ) {
+        for entry in &self.entries {
+            let Some(current_generation) = active_generations.get(&entry.resource_id) else {
+                continue;
+            };
+            if *current_generation != entry.generation {
+                continue;
+            }
+
+            output.push(entry.scheduled_timer());
+        }
+    }
+
+    /// Return one ready active entry.
+    fn peek_ready(
+        &mut self,
+        active_generations: &FxHashMap<ResourceId, u64>,
+        now: Nanos,
+    ) -> Option<TimerEntry> {
+        let entry = self.peek_active(active_generations)?;
+        if entry.deadline.at <= now {
+            Some(entry)
+        } else {
+            None
+        }
+    }
+
+    /// Return the next active fire timestamp.
+    fn next_deadline(&mut self, active_generations: &FxHashMap<ResourceId, u64>) -> Option<Nanos> {
+        self.peek_active(active_generations)
+            .map(|entry| entry.deadline.at)
+    }
+
+    /// Return the next active entry and prune stale entries.
+    fn peek_active(
+        &mut self,
+        active_generations: &FxHashMap<ResourceId, u64>,
+    ) -> Option<TimerEntry> {
+        loop {
+            let entry = self.entries.peek().copied()?;
+            let Some(current_generation) = active_generations.get(&entry.resource_id) else {
+                self.entries.pop();
+                continue;
+            };
+            if *current_generation != entry.generation {
+                self.entries.pop();
+                continue;
+            }
+
+            return Some(entry);
+        }
+    }
+
+    /// Pop the next active entry.
+    fn pop_active(
+        &mut self,
+        active_generations: &FxHashMap<ResourceId, u64>,
+    ) -> Option<TimerEntry> {
+        loop {
+            let entry = self.entries.pop()?;
+            let Some(current_generation) = active_generations.get(&entry.resource_id) else {
+                continue;
+            };
+            if *current_generation != entry.generation {
+                continue;
+            }
+
+            return Some(entry);
+        }
+    }
 }
 
 /// Internal timer entry stored in the priority queue.
@@ -75,12 +313,33 @@ pub struct Timer {
 struct TimerEntry {
     /// Fire deadline for the timer.
     deadline: TimerDeadline,
-    /// Handle for this timer.
-    handle: TimerHandle,
+    /// Host resource that owns this timer.
+    resource_id: ResourceId,
     /// Interval for repeating timers.
     interval: Option<Nanos>,
     /// Generation for stale entry detection.
     generation: u64,
+}
+
+impl TimerEntry {
+    /// Return one scheduled timer payload.
+    const fn scheduled_timer(self) -> ScheduledTimer {
+        ScheduledTimer {
+            resource_id: self.resource_id,
+            deadline: self.deadline,
+            interval: self.interval,
+        }
+    }
+
+    /// Return one deterministic readiness key.
+    const fn ready_key(self) -> (u8, u64, u64, u64) {
+        (
+            self.deadline.clock_rank(),
+            self.deadline.at.get(),
+            self.resource_id.worker_id.0,
+            self.resource_id.local_id,
+        )
+    }
 }
 
 impl Ord for TimerEntry {
@@ -89,6 +348,14 @@ impl Ord for TimerEntry {
             .deadline
             .at
             .cmp(&self.deadline.at)
+            .then_with(|| {
+                other
+                    .resource_id
+                    .worker_id
+                    .0
+                    .cmp(&self.resource_id.worker_id.0)
+            })
+            .then_with(|| other.resource_id.local_id.cmp(&self.resource_id.local_id))
             .then_with(|| other.generation.cmp(&self.generation))
     }
 }
@@ -99,239 +366,14 @@ impl PartialOrd for TimerEntry {
     }
 }
 
-/// Timer queue used by host bindings.
-#[derive(Debug, Default)]
-pub struct TimerQueue {
-    /// Pending wall-clock timers.
-    wall_timers: BinaryHeap<TimerEntry>,
-    /// Pending monotonic timers.
-    mono_timers: BinaryHeap<TimerEntry>,
-    /// Latest live generation for each active timer handle.
-    ///
-    /// this lets the heap keep stale entries after reschedule or cancel,
-    /// while dispatch only observes the newest live timer state
-    active_generations: HashMap<TimerHandle, u64>,
-    /// Next generation counter.
-    next_generation: u64,
-}
-
-impl TimerQueue {
-    /// Schedule a timer in the queue.
-    pub fn schedule(&mut self, timer: Timer) {
-        let generation = self.next_generation.wrapping_add(1);
-        self.next_generation = generation;
-        self.active_generations.insert(timer.handle, generation);
-        self.heap_for_clock(timer.deadline.clock).push(TimerEntry {
-            deadline: timer.deadline,
-            handle: timer.handle,
-            interval: timer.interval,
-            generation,
-        });
-    }
-
-    /// Cancel a timer by handle.
-    pub fn cancel(&mut self, handle: TimerHandle) {
-        self.active_generations.remove(&handle);
-    }
-
-    /// Drain ready timers that should fire at the given wall and monotonic instants.
-    ///
-    /// wall and monotonic timers are tracked in separate heaps because their deadlines
-    /// are not directly comparable without a projection through the current clock state
-    pub fn poll_ready(&mut self, wall_now: Nanos, mono_now: Nanos) -> Vec<Timer> {
-        // collect timers that are ready to fire from both clock domains
-        let mut ready = Vec::new();
-        self.drain_ready_for_clock(TimerClock::Wall, wall_now, &mut ready);
-        self.drain_ready_for_clock(TimerClock::Monotonic, mono_now, &mut ready);
-
-        // deterministic ordering across clock domains
-        ready.sort_by_key(|timer| {
-            (
-                self.clock_order(timer.deadline.clock),
-                timer.deadline.at,
-                timer.handle.sort_key(),
-            )
-        });
-
-        ready
-    }
-
-    /// Return next wall and monotonic timer deadlines when they exist.
-    pub fn next_deadlines(&mut self) -> (Option<Nanos>, Option<Nanos>) {
-        let wall = self.peek_active_fire_at(TimerClock::Wall);
-        let mono = self.peek_active_fire_at(TimerClock::Monotonic);
-
-        (wall, mono)
-    }
-
-    /// Return true if any timers are active.
-    pub fn has_pending_timers(&self) -> bool {
-        !self.active_generations.is_empty()
-    }
-
-    /// Capture all currently active timers in deterministic order.
-    pub fn image(&self) -> Vec<Timer> {
-        // collect active timers from both heaps
-        let mut active = Vec::new();
-        self.collect_active_timers(&self.wall_timers, &mut active);
-        self.collect_active_timers(&self.mono_timers, &mut active);
-
-        // return them in the same stable order as dispatch
-        active.sort_by_key(|timer| {
-            (
-                self.clock_order(timer.deadline.clock),
-                timer.deadline.at,
-                timer.handle.sort_key(),
-            )
-        });
-
-        active
-    }
-
-    /// Restore active timers from one immutable timer image.
-    pub fn restore_image(&mut self, timers: &[Timer]) {
-        // reset queue state before rebuilding
-        self.wall_timers.clear();
-        self.mono_timers.clear();
-        self.active_generations.clear();
-        self.next_generation = 0;
-
-        // reschedule active timers
-        for timer in timers {
-            self.schedule(*timer);
-        }
-    }
-
-    /// Return the active heap for one clock domain.
-    fn heap_for_clock(&mut self, clock: TimerClock) -> &mut BinaryHeap<TimerEntry> {
-        match clock {
-            TimerClock::Wall => &mut self.wall_timers,
-            TimerClock::Monotonic => &mut self.mono_timers,
-        }
-    }
-
-    /// Collect active timers from one heap.
-    fn collect_active_timers(&self, heap: &BinaryHeap<TimerEntry>, output: &mut Vec<Timer>) {
-        // collect only the latest active generation for each handle
-        for entry in heap {
-            let Some(current_generation) = self.active_generations.get(&entry.handle) else {
-                continue;
-            };
-            if *current_generation != entry.generation {
-                continue;
-            }
-
-            output.push(Timer {
-                handle: entry.handle,
-                deadline: entry.deadline,
-                interval: entry.interval,
-            });
-        }
-    }
-
-    /// Drain ready timers for one clock domain.
-    fn drain_ready_for_clock(&mut self, clock: TimerClock, now: Nanos, ready: &mut Vec<Timer>) {
-        loop {
-            let Some(entry) = self.peek_active_entry(clock) else {
-                break;
-            };
-
-            if entry.deadline.at > now {
-                break;
-            }
-
-            let entry = self
-                .heap_for_clock(clock)
-                .pop()
-                .expect("timer entry should be present");
-            let Some(current_generation) = self.active_generations.get(&entry.handle) else {
-                continue;
-            };
-            if *current_generation != entry.generation {
-                continue;
-            }
-
-            let timer = Timer {
-                handle: entry.handle,
-                deadline: entry.deadline,
-                interval: entry.interval,
-            };
-            ready.push(timer);
-
-            let Some(interval) = entry.interval else {
-                self.active_generations.remove(&entry.handle);
-                continue;
-            };
-
-            if interval.get() == 0 {
-                self.active_generations.remove(&entry.handle);
-                continue;
-            }
-
-            // coalesce missed intervals into one callback and schedule the next future deadline
-            let mut next_fire = entry.deadline.at.saturating_add(interval);
-            if next_fire <= now {
-                let elapsed = now.saturating_sub(next_fire);
-                let skipped_periods = elapsed.get() / interval.get() + 1;
-                let skip_delta = interval.get().saturating_mul(skipped_periods);
-                next_fire = next_fire.saturating_add(Nanos::new(skip_delta));
-            }
-            let generation = self.next_generation.wrapping_add(1);
-            self.next_generation = generation;
-            self.active_generations.insert(entry.handle, generation);
-            self.heap_for_clock(entry.deadline.clock).push(TimerEntry {
-                deadline: TimerDeadline {
-                    clock: entry.deadline.clock,
-                    at: next_fire,
-                },
-                handle: entry.handle,
-                interval: entry.interval,
-                generation,
-            });
-        }
-    }
-
-    /// Return one active timer entry for one clock domain.
-    fn peek_active_entry(&mut self, clock: TimerClock) -> Option<TimerEntry> {
-        loop {
-            let entry = self.heap_for_clock(clock).peek().copied()?;
-            let Some(current_generation) = self.active_generations.get(&entry.handle) else {
-                self.heap_for_clock(clock).pop();
-                continue;
-            };
-            if *current_generation != entry.generation {
-                self.heap_for_clock(clock).pop();
-                continue;
-            }
-
-            return Some(entry);
-        }
-    }
-
-    /// Return one active timer fire timestamp for one clock domain.
-    fn peek_active_fire_at(&mut self, clock: TimerClock) -> Option<Nanos> {
-        self.peek_active_entry(clock).map(|entry| entry.deadline.at)
-    }
-
-    /// Return deterministic ordering for timer clock domains.
-    fn clock_order(&self, clock: TimerClock) -> u8 {
-        match clock {
-            TimerClock::Monotonic => 0,
-            TimerClock::Wall => 1,
-        }
-    }
-}
-
 impl EventLoop {
     /// Normalize one timer deadline using scheduler options.
     pub(super) fn normalize_deadline(&self, deadline: Nanos) -> Nanos {
-        // quantize to timer resolution first
         let mut normalized = deadline;
         if let Some(timer_resolution_ns) = self.options.timer_resolution_ns {
             normalized = self.round_up_deadline(normalized, Nanos::new(timer_resolution_ns));
         }
 
-        // then quantize to the configured coalescing window
         if let Some(max_timer_coalesce_ns) = self.options.max_timer_coalesce_ns {
             normalized = self.round_up_deadline(normalized, Nanos::new(max_timer_coalesce_ns));
         }
@@ -340,8 +382,7 @@ impl EventLoop {
     }
 
     /// Schedule a timer in the runtime queue.
-    pub fn schedule_timer(&self, timer: Timer) -> RuntimeResult<()> {
-        // normalize timer deadlines so scheduling stays deterministic
+    pub fn schedule_timer(&mut self, timer: ScheduledTimer) -> RuntimeResult<()> {
         let deadline = TimerDeadline {
             clock: timer.deadline.clock,
             at: self.normalize_deadline(timer.deadline.at),
@@ -358,67 +399,29 @@ impl EventLoop {
 
             interval
         });
-        let timer = Timer {
-            handle: timer.handle,
+        let timer = ScheduledTimer {
+            resource_id: timer.resource_id,
             deadline,
             interval,
         };
 
-        self.canceled_timers.lock().remove(&timer.handle);
-        let mut queue = self.timers.lock();
-        queue.schedule(timer);
+        self.timers.schedule(timer);
         Ok(())
     }
 
-    /// Cancel a timer by handle.
-    pub fn cancel_timer(&self, handle: impl Into<TimerHandle>) -> RuntimeResult<()> {
-        let handle = handle.into();
-        let mut queue = self.timers.lock();
-        queue.cancel(handle);
-        self.canceled_timers.lock().insert(handle);
+    /// Cancel a timer by resource id.
+    pub fn cancel_timer(&mut self, resource_id: ResourceId) -> RuntimeResult<()> {
+        self.timers.cancel(resource_id);
         Ok(())
     }
 
-    /// Drain timers that are ready at the given time.
-    pub fn poll_timers(&self, wall_now: Nanos, mono_now: Nanos) -> RuntimeResult<Vec<Timer>> {
-        let mut queue = self.timers.lock();
-        let ready = queue.poll_ready(wall_now, mono_now);
-        Ok(ready)
-    }
-
-    /// Enqueue timers that are due at the current wall and monotonic timestamps.
-    pub fn enqueue_due_timers(&mut self, wall_now: Nanos, mono_now: Nanos) -> RuntimeResult<()> {
-        let ready = self.poll_timers(wall_now, mono_now)?;
-        self.ready_timers.lock().extend(ready);
-        Ok(())
-    }
-
-    /// Drain due timers and keep only matching ones out of the ready queue.
-    pub fn take_due_timers_matching(
-        &self,
+    /// Pop one timer that is ready at the given time.
+    pub fn pop_ready_timer(
+        &mut self,
         wall_now: Nanos,
         mono_now: Nanos,
-        mut matches: impl FnMut(TimerHandle) -> bool,
-    ) -> RuntimeResult<Vec<Timer>> {
-        // drain due timers from the shared timer queue
-        let ready = self.poll_timers(wall_now, mono_now)?;
-        if ready.is_empty() {
-            return Ok(Vec::new());
-        }
-
-        let mut matched = Vec::new();
-        let mut ready_timers = self.ready_timers.lock();
-
-        // keep non matching timers queued for the normal event loop path
-        for timer in ready {
-            if matches(timer.handle) {
-                matched.push(timer);
-            } else {
-                ready_timers.push_back(timer);
-            }
-        }
-
-        Ok(matched)
+    ) -> RuntimeResult<Option<ScheduledTimer>> {
+        Ok(self.timers.pop_ready(wall_now, mono_now))
     }
 
     /// Round one deadline up to one deterministic quantum.
@@ -438,11 +441,10 @@ impl EventLoop {
 
 #[cfg(test)]
 mod tests {
-    use super::{Timer, TimerDeadline, TimerQueue};
+    use super::{ScheduledTimer, TimerDeadline, TimerQueue};
     use crate::host::ResourceId;
     use crate::host::time::TimerClock;
     use crate::runtime::WorkerId;
-    use crate::runtime::scheduler::TimerHandle;
     use crate::runtime::time::Nanos;
 
     const TEST_WORKER_ID: WorkerId = WorkerId(1);
@@ -451,8 +453,8 @@ mod tests {
     #[test]
     fn test_repeating_timer_reschedules() {
         let mut queue = TimerQueue::default();
-        queue.schedule(Timer {
-            handle: TimerHandle::Resource(ResourceId::new(TEST_WORKER_ID, 1)),
+        queue.schedule(ScheduledTimer {
+            resource_id: ResourceId::new(TEST_WORKER_ID, 1),
             deadline: TimerDeadline {
                 clock: TimerClock::Monotonic,
                 at: Nanos::new(10),
@@ -460,24 +462,26 @@ mod tests {
             interval: Some(Nanos::new(10)),
         });
 
-        let first = queue.poll_ready(Nanos::new(0), Nanos::new(10));
-        assert_eq!(first.len(), 1);
-        assert_eq!(first[0].handle.sort_key(), (0, TEST_WORKER_ID.0, 1));
+        let first = queue
+            .pop_ready(Nanos::new(0), Nanos::new(10))
+            .expect("timer should fire");
+        assert_eq!(first.sort_key(), (TEST_WORKER_ID.0, 1));
 
-        let second = queue.poll_ready(Nanos::new(0), Nanos::new(19));
-        assert!(second.is_empty());
+        let second = queue.pop_ready(Nanos::new(0), Nanos::new(19));
+        assert!(second.is_none());
 
-        let third = queue.poll_ready(Nanos::new(0), Nanos::new(20));
-        assert_eq!(third.len(), 1);
-        assert_eq!(third[0].handle.sort_key(), (0, TEST_WORKER_ID.0, 1));
+        let third = queue
+            .pop_ready(Nanos::new(0), Nanos::new(20))
+            .expect("timer should fire again");
+        assert_eq!(third.sort_key(), (TEST_WORKER_ID.0, 1));
     }
 
     /// Ensures repeating timers coalesce missed intervals into one fire.
     #[test]
     fn test_repeating_timer_coalesces_missed_intervals() {
         let mut queue = TimerQueue::default();
-        queue.schedule(Timer {
-            handle: TimerHandle::Resource(ResourceId::new(TEST_WORKER_ID, 2)),
+        queue.schedule(ScheduledTimer {
+            resource_id: ResourceId::new(TEST_WORKER_ID, 2),
             deadline: TimerDeadline {
                 clock: TimerClock::Monotonic,
                 at: Nanos::new(10),
@@ -485,12 +489,13 @@ mod tests {
             interval: Some(Nanos::new(10)),
         });
 
-        let ready = queue.poll_ready(Nanos::new(0), Nanos::new(100));
-        assert_eq!(ready.len(), 1);
-        assert_eq!(ready[0].handle.sort_key(), (0, TEST_WORKER_ID.0, 2));
+        let ready = queue
+            .pop_ready(Nanos::new(0), Nanos::new(100))
+            .expect("timer should fire");
+        assert_eq!(ready.sort_key(), (TEST_WORKER_ID.0, 2));
 
-        let after_first = queue.poll_ready(Nanos::new(0), Nanos::new(100));
-        assert!(after_first.is_empty());
+        let after_first = queue.pop_ready(Nanos::new(0), Nanos::new(100));
+        assert!(after_first.is_none());
 
         let (_, next_deadline) = queue.next_deadlines();
         let next_deadline = next_deadline.expect("repeating timer should remain scheduled");
@@ -499,18 +504,18 @@ mod tests {
 
     /// Ensures wall and monotonic timers dispatch against independent clocks.
     #[test]
-    fn test_poll_ready_uses_clock_specific_deadlines() {
+    fn test_pop_ready_uses_clock_specific_deadlines() {
         let mut queue = TimerQueue::default();
-        queue.schedule(Timer {
-            handle: TimerHandle::Resource(ResourceId::new(TEST_WORKER_ID, 10)),
+        queue.schedule(ScheduledTimer {
+            resource_id: ResourceId::new(TEST_WORKER_ID, 10),
             deadline: TimerDeadline {
                 clock: TimerClock::Wall,
                 at: Nanos::new(100),
             },
             interval: None,
         });
-        queue.schedule(Timer {
-            handle: TimerHandle::Resource(ResourceId::new(TEST_WORKER_ID, 11)),
+        queue.schedule(ScheduledTimer {
+            resource_id: ResourceId::new(TEST_WORKER_ID, 11),
             deadline: TimerDeadline {
                 clock: TimerClock::Monotonic,
                 at: Nanos::new(50),
@@ -518,12 +523,14 @@ mod tests {
             interval: None,
         });
 
-        let first = queue.poll_ready(Nanos::new(0), Nanos::new(60));
-        assert_eq!(first.len(), 1);
-        assert_eq!(first[0].handle.sort_key(), (0, TEST_WORKER_ID.0, 11));
+        let first = queue
+            .pop_ready(Nanos::new(0), Nanos::new(60))
+            .expect("monotonic timer should fire");
+        assert_eq!(first.sort_key(), (TEST_WORKER_ID.0, 11));
 
-        let second = queue.poll_ready(Nanos::new(120), Nanos::new(60));
-        assert_eq!(second.len(), 1);
-        assert_eq!(second[0].handle.sort_key(), (0, TEST_WORKER_ID.0, 10));
+        let second = queue
+            .pop_ready(Nanos::new(120), Nanos::new(60))
+            .expect("wall timer should fire");
+        assert_eq!(second.sort_key(), (TEST_WORKER_ID.0, 10));
     }
 }

@@ -534,7 +534,7 @@ impl From<heap::HeapError> for Box<RuntimeError> {
                 used_bytes,
                 max_bytes,
             } => RuntimeError::HeapLimitExceeded {
-                scope: region.to_string().into(),
+                scope: region.to_string(),
                 used_bytes,
                 max_bytes,
             }

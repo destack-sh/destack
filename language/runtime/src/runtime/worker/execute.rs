@@ -1,15 +1,13 @@
 use super::{RunnableScope, Worker, current_runnable_scope, enter_runnable_scope};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::host::HostSession;
 use crate::host::poller::HostPoller;
-use crate::host::{HostSession, resource};
 use crate::runtime::SharedHeap;
 use crate::runtime::engine::{Context, Continuation, Entry, Outcome};
-use crate::runtime::scheduler::{
-    Microtask, Runnable, Task, TaskId, TaskStatus, Timer, TimerHandle,
-};
-use crate::runtime::time::timer::on_event_loop_timer_fire;
+use crate::runtime::scheduler::{Microtask, ResourceInterest, Task, TaskId, Wake};
+use crate::runtime::time::Nanos;
 use crate::world::WorldState;
-use destack_workspace::TimeMode;
+use destack_workspace::ClockSource;
 use {destack_engine as engine, destack_heap as heap};
 
 impl Worker {
@@ -85,17 +83,21 @@ impl Worker {
 
         // run the loop until the target task completes
         loop {
+            let mut remaining_timeout_nanos = None;
+
             // stop once the configured timeout elapses
             if let Some(timeout_nanos) = timeout_nanos {
                 let elapsed = world.mono_nanos().saturating_sub(start_mono_nanos);
                 if elapsed >= timeout_nanos {
                     return Ok(None);
                 }
+
+                remaining_timeout_nanos = Some(timeout_nanos.saturating_sub(elapsed));
             }
 
             // run one loop tick for the engine
             let (progressed, output) =
-                self.tick_loop(world, shared, runtime_static, host, target_task)?;
+                self.tick_loop_for_target(world, shared, runtime_static, target_task)?;
             if let Some(output) = output {
                 return Ok(Some(output));
             }
@@ -112,7 +114,7 @@ impl Worker {
             // wait for the next wakeup when no work progressed this tick
             if !progressed
                 && self.event_loop.has_pending_work()
-                && self.wait_for_next_turn(world, host, poller)?
+                && self.wait_for_next_turn(world, host, poller, remaining_timeout_nanos)?
             {
                 continue;
             }
@@ -137,9 +139,8 @@ impl Worker {
         world: &mut WorldState,
         shared: &SharedHeap,
         runtime_static: &engine::StaticSpace,
-        host: &HostSession,
     ) -> RuntimeResult<bool> {
-        self.tick_once(world, shared, runtime_static, host)
+        self.tick_once(world, shared, runtime_static)
     }
 
     /// Execute one local worker tick.
@@ -148,10 +149,9 @@ impl Worker {
         world: &mut WorldState,
         shared: &SharedHeap,
         runtime_static: &engine::StaticSpace,
-        host: &HostSession,
     ) -> RuntimeResult<bool> {
         // run one event loop tick and capture progress
-        let (mut progressed, _) = self.tick_loop(world, shared, runtime_static, host, None)?;
+        let mut progressed = self.tick_loop(world, shared, runtime_static)?;
 
         // direct roots: worker execution may reshuffle shared roots
         if progressed && shared.is_marking() {
@@ -305,32 +305,67 @@ impl Worker {
         Ok(progress.made_progress())
     }
 
-    /// Tick the loop once and return progress and optional target output.
+    /// Tick the loop once and return whether work progressed.
+    #[inline(never)]
     fn tick_loop(
         &mut self,
         world: &mut WorldState,
         shared: &SharedHeap,
         runtime_static: &engine::StaticSpace,
-        host: &HostSession,
+    ) -> RuntimeResult<bool> {
+        // track whether this tick processed any event loop work
+        let mut progressed = false;
+        let tick_start_mono_nanos = world.mono_nanos();
+
+        // drain microtasks before selecting other work
+        if self.event_loop.has_microtasks() {
+            let (drained, budget_exhausted) =
+                self.drain_microtasks(world, shared, runtime_static)?;
+            if drained > 0 {
+                progressed = true;
+            }
+            if budget_exhausted {
+                return Ok(progressed);
+            }
+        }
+        if self.is_tick_budget_exhausted(world, tick_start_mono_nanos) {
+            return Ok(progressed);
+        }
+
+        // run one queued macrotask before pulling external wakes
+        if self.run_ready_task(world, shared, runtime_static)? {
+            return Ok(true);
+        }
+
+        if self.is_tick_budget_exhausted(world, tick_start_mono_nanos) {
+            return Ok(progressed);
+        }
+
+        // dispatch one wake into the task queue
+        if self.dispatch_one_wake(world)? {
+            progressed = true;
+        }
+
+        // run one task produced by the dispatched wake
+        if self.run_ready_task(world, shared, runtime_static)? {
+            return Ok(true);
+        }
+
+        Ok(progressed)
+    }
+
+    /// Tick the loop once and return output when the target task completes.
+    #[inline(never)]
+    fn tick_loop_for_target(
+        &mut self,
+        world: &mut WorldState,
+        shared: &SharedHeap,
+        runtime_static: &engine::StaticSpace,
         target_task: Option<TaskId>,
     ) -> RuntimeResult<(bool, Option<engine::Value>)> {
         // track whether this tick processed any event loop work
         let mut progressed = false;
         let tick_start_mono_nanos = world.mono_nanos();
-
-        // service host ingress before consuming runtime work
-        let host_event_count = self.poll_host_events(host, Some(0))?;
-        if host_event_count > 0 {
-            for _ in 0..host_event_count {
-                self.hooks.on_ingress_enqueue(world);
-            }
-
-            progressed = true;
-        }
-
-        if self.is_tick_budget_exhausted(world, tick_start_mono_nanos) {
-            return Ok((progressed, None));
-        }
 
         // drain microtasks before selecting other work
         if self.event_loop.has_microtasks() {
@@ -347,107 +382,96 @@ impl Worker {
             return Ok((progressed, None));
         }
 
-        // run the next scheduled item if available
-        let wall_now = world.wall_nanos();
-        let mono_now = world.mono_nanos();
-        let max_microtask_depth = self
-            .event_loop
-            .options()
-            .max_microtask_depth
-            .map(|depth| runtime_limit_as_usize(depth, "max_microtask_depth"))
-            .transpose()?
-            .unwrap_or(usize::MAX);
-        let mut ran_macrotask = false;
-        if let Some(item) = self.event_loop.next_runnable(wall_now, mono_now)? {
+        // run one queued macrotask before pulling external wakes
+        if let Some(task) = self.event_loop.pop_task() {
+            if let Some(output) = self.execute_dequeued_task_for_target(
+                world,
+                shared,
+                runtime_static,
+                task,
+                target_task,
+            )? {
+                return Ok((true, Some(output)));
+            }
+
+            return Ok((true, None));
+        }
+
+        if self.is_tick_budget_exhausted(world, tick_start_mono_nanos) {
+            return Ok((progressed, None));
+        }
+
+        // dispatch one wake into the task queue
+        let wall_now = Nanos::new(world.wall_nanos());
+        let mono_now = Nanos::new(world.mono_nanos());
+        if let Some(wake) = self.event_loop.next_wake(wall_now, mono_now)? {
             progressed = true;
-            match item {
-                Runnable::Task(task) => {
-                    ran_macrotask = true;
-                    if let Some(output) = self.execute_dequeued_task(
-                        world,
-                        shared,
-                        runtime_static,
-                        task,
-                        target_task,
-                    )? {
-                        return Ok((true, Some(output)));
-                    }
-                }
-                Runnable::Microtask(microtask) => {
-                    self.hooks.on_scheduler_dequeue(world);
-                    // run the microtask to completion
-                    self.execute_microtask(shared, runtime_static, microtask, max_microtask_depth)?;
-                }
-                Runnable::Timer(timer) => {
-                    self.hooks.on_scheduler_timer_fire(world);
-                    self.deliver_timer_wake(world, timer)?;
-                }
-                Runnable::PollerEvent(event) => {
-                    // dispatch an external-event watch task when one is registered
-                    if let Some(task) = self.event_loop.task_for_event(event, &mut self.engine) {
-                        self.enqueue_prepared_task(world, task)?;
-                    }
-                }
-                Runnable::HostEvent(event) => {
-                    // dispatch one host-event watch task when one is registered
-                    if let Some(task) = self.event_loop.task_for_host_event(event, &mut self.engine)
-                    {
-                        self.enqueue_prepared_task(world, task)?;
-                    }
-                }
+            if matches!(
+                &wake,
+                Wake::Resource(wake) if wake.interest == ResourceInterest::Timer
+            ) {
+                self.hooks.on_scheduler_timer_fire(world);
+            }
+            if let Some(task) = self.event_loop.task_for_wake(wake, &mut self.engine) {
+                self.enqueue_prepared_task(world, task)?;
             }
         }
 
-        // run one queued macrotask after routing timer and event watches
-        if !ran_macrotask
-            && let Some(task) = self.event_loop.pop_task()
-            && let Some(output) =
-                self.execute_dequeued_task(world, shared, runtime_static, task, target_task)?
-        {
-            return Ok((true, Some(output)));
+        // run one task produced by the dispatched wake
+        if let Some(task) = self.event_loop.pop_task() {
+            if let Some(output) = self.execute_dequeued_task_for_target(
+                world,
+                shared,
+                runtime_static,
+                task,
+                target_task,
+            )? {
+                return Ok((true, Some(output)));
+            }
+
+            return Ok((true, None));
         }
 
         Ok((progressed, None))
     }
 
-    /// Deliver one fired timer into the watched task queue.
-    pub(crate) fn deliver_timer_wake(
+    /// Run one ready task when the queue is non-empty.
+    #[inline(never)]
+    fn run_ready_task(
         &mut self,
         world: &mut WorldState,
-        timer: Timer,
-    ) -> RuntimeResult<()> {
-        // worker-owned callbacks
-        match timer.handle {
-            TimerHandle::Internal(_) => Err(RuntimeError::Internal {
-                message: "internal timer fired without an owner".to_string(),
-            }
-            .boxed()),
-            TimerHandle::Resource(handle) => {
-                let should_dispatch = on_event_loop_timer_fire(
-                    &self.resources,
-                    world.clock(),
-                    world.time_mode(),
-                    resource::TimerHandle(handle),
-                )?;
-                if should_dispatch {
-                    // dispatch a timer watch task when one is registered
-                    if let Some(task) = self.event_loop.task_for_timer(timer, &mut self.engine) {
-                        self.enqueue_prepared_task(world, task)?;
-                    }
+        shared: &SharedHeap,
+        runtime_static: &engine::StaticSpace,
+    ) -> RuntimeResult<bool> {
+        let Some(task) = self.event_loop.pop_task() else {
+            return Ok(false);
+        };
 
-                    // one-shot timers no longer need a dispatch watch after firing
-                    if timer.interval.is_none() {
-                        self.event_loop.unwatch_timer(handle);
-                    }
-                }
-                // stale and inactive timer fires must not dispatch callbacks
-                else {
-                    self.event_loop.unwatch_timer(handle);
-                }
+        self.execute_dequeued_task(world, shared, runtime_static, task)?;
 
-                Ok(())
-            }
+        Ok(true)
+    }
+
+    /// Dispatch one wake into the task queue.
+    #[inline(never)]
+    fn dispatch_one_wake(&mut self, world: &mut WorldState) -> RuntimeResult<bool> {
+        let wall_now = Nanos::new(world.wall_nanos());
+        let mono_now = Nanos::new(world.mono_nanos());
+        let Some(wake) = self.event_loop.next_wake(wall_now, mono_now)? else {
+            return Ok(false);
+        };
+
+        if matches!(
+            &wake,
+            Wake::Resource(wake) if wake.interest == ResourceInterest::Timer
+        ) {
+            self.hooks.on_scheduler_timer_fire(world);
         }
+        if let Some(task) = self.event_loop.task_for_wake(wake, &mut self.engine) {
+            self.enqueue_prepared_task(world, task)?;
+        }
+
+        Ok(true)
     }
 
     /// Enqueue one yielded continuation as a task.
@@ -463,15 +487,26 @@ impl Worker {
             id: task_id,
             runnable,
             resume_value,
-            status: TaskStatus::Ready,
             priority: 0,
         };
 
         self.enqueue_prepared_task(world, task)
     }
 
-    /// Execute one task and return output when it completes the target task.
+    /// Execute one task.
     fn execute_dequeued_task(
+        &mut self,
+        world: &mut WorldState,
+        shared: &SharedHeap,
+        runtime_static: &engine::StaticSpace,
+        task: Task,
+    ) -> RuntimeResult<()> {
+        self.hooks.on_scheduler_dequeue(world);
+        self.execute_task(world, shared, runtime_static, task)
+    }
+
+    /// Execute one task and return output when it completes the target task.
+    fn execute_dequeued_task_for_target(
         &mut self,
         world: &mut WorldState,
         shared: &SharedHeap,
@@ -480,20 +515,47 @@ impl Worker {
         target_task: Option<TaskId>,
     ) -> RuntimeResult<Option<engine::Value>> {
         self.hooks.on_scheduler_dequeue(world);
-        self.execute_task(world, shared, runtime_static, task, target_task)
+        self.execute_task_for_target(world, shared, runtime_static, task, target_task)
     }
 
-    /// Execute one task and return output when it completes the target task.
+    /// Execute one task.
     fn execute_task(
         &mut self,
         world: &mut WorldState,
         shared: &SharedHeap,
         runtime_static: &engine::StaticSpace,
-        mut task: Task,
+        task: Task,
+    ) -> RuntimeResult<()> {
+        // run the task runnable
+        let task_id = task.id;
+        let _guard = enter_runnable_scope(RunnableScope::for_task(task_id));
+        let outcome =
+            self.execute_runnable(shared, runtime_static, task.runnable, task.resume_value)?;
+
+        // handle the task outcome
+        if let Outcome::Yielded {
+            continuation,
+            value,
+        } = outcome
+        {
+            self.enqueue_task(world, task_id, continuation, value)?;
+        }
+
+        self.drain_microtasks(world, shared, runtime_static)?;
+
+        Ok(())
+    }
+
+    /// Execute one task and return output when it completes the target task.
+    fn execute_task_for_target(
+        &mut self,
+        world: &mut WorldState,
+        shared: &SharedHeap,
+        runtime_static: &engine::StaticSpace,
+        task: Task,
         target_task: Option<TaskId>,
     ) -> RuntimeResult<Option<engine::Value>> {
         // run the task runnable
-        task.status = TaskStatus::Waiting;
         let _guard = enter_runnable_scope(RunnableScope::for_task(task.id));
         let outcome =
             self.execute_runnable(shared, runtime_static, task.runnable, task.resume_value)?;
@@ -501,7 +563,6 @@ impl Worker {
         // handle the task outcome
         match outcome {
             Outcome::Completed { value } => {
-                task.status = TaskStatus::Completed;
                 if target_task == Some(task.id) {
                     return Ok(Some(value));
                 }
@@ -510,7 +571,6 @@ impl Worker {
                 continuation,
                 value,
             } => {
-                task.status = TaskStatus::Waiting;
                 self.enqueue_task(world, task.id, continuation, value)?;
             }
         }
@@ -636,9 +696,10 @@ impl Worker {
         world: &mut WorldState,
         host: &HostSession,
         poller: &mut dyn HostPoller,
+        remaining_timeout_nanos: Option<u64>,
     ) -> RuntimeResult<bool> {
         // virtual mode never blocks: callers must advance virtual time explicitly
-        if world.time_mode() == TimeMode::Virtual {
+        if world.clock().source() == ClockSource::Virtual {
             return Ok(false);
         }
 
@@ -646,9 +707,15 @@ impl Worker {
         let wall_now = world.wall();
         let mono_now = world.mono();
         let timeout_nanos = self.event_loop.timeout_until_next_timer(wall_now, mono_now);
+        let timeout_nanos = match (timeout_nanos, remaining_timeout_nanos.map(Nanos::new)) {
+            (Some(timer_timeout), Some(loop_timeout)) => Some(timer_timeout.min(loop_timeout)),
+            (Some(timer_timeout), None) => Some(timer_timeout),
+            (None, Some(loop_timeout)) => Some(loop_timeout),
+            (None, None) => None,
+        };
 
-        // poll host events before blocking or sleeping
-        let host_event_count = self.poll_host_events(host, Some(0))?;
+        // drain host ingress before blocking or sleeping
+        let host_event_count = self.drain_host_wakes(host, Some(0))?;
         if host_event_count > 0 {
             for _ in 0..host_event_count {
                 self.hooks.on_ingress_enqueue(world);
@@ -672,20 +739,20 @@ impl Worker {
         Ok(timeout_nanos.is_some())
     }
 
-    /// Poll host events and enqueue host events.
-    fn poll_host_events(
+    /// Poll host events and enqueue host wakes.
+    fn drain_host_wakes(
         &mut self,
         host: &HostSession,
         timeout_nanos: Option<u64>,
     ) -> RuntimeResult<usize> {
-        // drain host events for this tick
+        // drain host events
         let poll_result = host.poll(timeout_nanos)?;
         let host_events = poll_result.events;
 
-        // enqueue host events for watch-based dispatch
+        // enqueue host wakes
         let host_event_count = host_events.len();
         if !host_events.is_empty() {
-            self.event_loop.enqueue_host_events(host_events);
+            self.event_loop.enqueue_host_wakes(host_events);
         }
 
         Ok(host_event_count)

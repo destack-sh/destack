@@ -11,33 +11,17 @@ thread_local! {
         const { Cell::new(RunnableScope::empty()) };
 }
 
-/// Stable identifier for one execution context.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct ExecutionContextId(pub u64);
-
-impl ExecutionContextId {
-    /// Build one identifier from an opaque hash payload.
-    pub const fn from_hash(hash: u64) -> Self {
-        Self(hash)
-    }
-}
-
 /// Runtime execution context for one binding call.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ExecutionContext {
-    /// Stable execution context identifier.
-    pub id: ExecutionContextId,
     /// Whether the current execution context is the process main context.
     pub is_process_main: bool,
 }
 
 impl ExecutionContext {
     /// Build one execution context payload.
-    pub const fn new(id: ExecutionContextId, is_process_main: bool) -> Self {
-        Self {
-            id,
-            is_process_main,
-        }
+    pub const fn new(is_process_main: bool) -> Self {
+        Self { is_process_main }
     }
 }
 

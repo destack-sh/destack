@@ -1,4 +1,4 @@
-use destack_core::{Capture, CaptureMode, fnv1a_64};
+use destack_core::{Capture, CaptureMode};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -6,19 +6,17 @@ use {destack_engine as engine, destack_heap as heap};
 
 use crate::diagnostic::{DiagnosticSnapshot, DiagnosticStore, RuntimeError, RuntimeResult};
 use crate::host::binding::{BindingAccess, BindingRegistry};
-use crate::host::poller::PollerToken;
 use crate::host::resource::{ResourceRebinders, ResourceTableSnapshot};
 use crate::host::{HostEventKind, ResourceId, ResourceTable};
 use crate::runtime::engine::{Context, Continuation, Engine, Image};
 use crate::runtime::heap::{
     HeapHandle, HeapHandleTable, RootSet, RootSink, resolve_local_heap_options,
 };
-use crate::runtime::scheduler::{EventLoop, EventLoopSnapshot, EventLoopWatch};
+use crate::runtime::scheduler::{EventLoop, EventLoopSnapshot, ResourceInterest, Waiter};
 use crate::runtime::{
-    ExecutionContextId, Hooks, HostState, HostStateImage, RuntimeFinalizers,
-    RuntimeFinalizersImage, SharedHeap,
+    Hooks, HostState, HostStateImage, RuntimeFinalizers, RuntimeFinalizersImage, SharedHeap,
 };
-use crate::world::policy::HookSnapshot;
+use crate::world::scenario::HookSnapshot;
 use crate::world::{RuntimeId, WorldState};
 use destack_workspace::{ExecutionMode, RuntimeOptions};
 
@@ -37,7 +35,7 @@ pub struct Worker {
 
     /// External resource table and finalizers.
     pub(crate) resources: ResourceTable,
-    /// Worker hooks and effect state.
+    /// Worker hooks.
     pub(crate) hooks: Arc<Hooks>,
     /// Worker-level finalizer registry for module services.
     pub(crate) finalizers: RuntimeFinalizers,
@@ -201,18 +199,6 @@ impl std::fmt::Debug for Worker {
 }
 
 impl Worker {
-    /// Return the canonical event-loop execution context identifier for one worker.
-    fn event_loop_execution_context_id(
-        runtime_id: RuntimeId,
-        worker_id: WorkerId,
-    ) -> ExecutionContextId {
-        let mut bytes = [0u8; 16];
-        bytes[..8].copy_from_slice(&runtime_id.0.to_le_bytes());
-        bytes[8..].copy_from_slice(&worker_id.0.to_le_bytes());
-
-        ExecutionContextId(fnv1a_64(&bytes))
-    }
-
     /// Create one worker in one new runtime in one shared world.
     pub(crate) fn new_in_world(
         process_args: impl Into<Arc<[String]>>,
@@ -315,9 +301,6 @@ impl Worker {
         let mut event_loop = Box::new(EventLoop::default());
         event_loop.configure(options.scheduler_options().clone())?;
 
-        let execution_context_id = Self::event_loop_execution_context_id(runtime_id, worker_id);
-        event_loop.initialize_execution_context(execution_context_id);
-
         // worker state
         Ok(Self {
             id: worker_id,
@@ -328,7 +311,7 @@ impl Worker {
             resources,
             hooks,
             finalizers: RuntimeFinalizers::default(),
-            host_state: HostState::default(),
+            host_state: HostState,
             diagnostics: Arc::new(DiagnosticStore::from_options(&options.diagnostic)),
             bindings,
             handles: HeapHandleTable::default(),
@@ -432,8 +415,8 @@ impl Worker {
         Ok((worker_id, worker_name))
     }
 
-    /// Register one timer watch.
-    pub fn watch_timer(
+    /// Add one waiter for a timer resource.
+    pub fn add_timer_waiter(
         &mut self,
         handle: ResourceId,
         runnable: Continuation,
@@ -441,38 +424,50 @@ impl Worker {
         priority: u8,
     ) -> RuntimeResult<()> {
         self.event_loop
-            .watch_timer(handle, runnable, resume_value, priority, &mut self.engine)
+            .add_timer_waiter(handle, runnable, resume_value, priority, &mut self.engine)
     }
 
-    /// Remove the timer watch registered for one timer handle.
-    pub fn unwatch_timer(&mut self, handle: ResourceId) -> Option<EventLoopWatch> {
-        self.event_loop.unwatch_timer(handle)
+    /// Remove the waiter registered for one timer resource.
+    pub fn remove_timer_waiter(&mut self, handle: ResourceId) -> Option<Waiter> {
+        self.event_loop.remove_timer_waiter(handle)
     }
 
-    /// Register one event watch.
-    pub fn watch_event(
+    /// Add one waiter for one resource interest.
+    pub fn add_resource_waiter(
         &mut self,
-        token: PollerToken,
+        resource_id: ResourceId,
+        interest: ResourceInterest,
         runnable: Continuation,
         resume_value: engine::Value,
         priority: u8,
     ) -> RuntimeResult<()> {
+        self.event_loop.add_resource_waiter(
+            resource_id,
+            interest,
+            runnable,
+            resume_value,
+            priority,
+            &mut self.engine,
+        )
+    }
+
+    /// Remove one waiter registered for one resource interest.
+    pub fn remove_resource_waiter(
+        &mut self,
+        resource_id: ResourceId,
+        interest: ResourceInterest,
+    ) -> Option<Waiter> {
         self.event_loop
-            .watch_event(token, runnable, resume_value, priority, &mut self.engine)
+            .remove_resource_waiter(resource_id, interest)
     }
 
-    /// Remove the event watch registered for one poller token.
-    pub fn unwatch_event(&mut self, token: PollerToken) -> Option<EventLoopWatch> {
-        self.event_loop.unwatch_event(token)
+    /// Return whether one waiter is registered for one resource interest.
+    pub fn has_resource_waiter(&self, resource_id: ResourceId, interest: ResourceInterest) -> bool {
+        self.event_loop.has_resource_waiter(resource_id, interest)
     }
 
-    /// Return whether one event watch is registered for the given poller token.
-    pub fn watches_event(&self, token: PollerToken) -> bool {
-        self.event_loop.watches_event(token)
-    }
-
-    /// Register one host event watch.
-    pub fn watch_host_event(
+    /// Add one waiter for a host event kind.
+    pub fn add_host_waiter(
         &mut self,
         kind: HostEventKind,
         runnable: Continuation,
@@ -480,17 +475,17 @@ impl Worker {
         priority: u8,
     ) -> RuntimeResult<()> {
         self.event_loop
-            .watch_host_event(kind, runnable, resume_value, priority, &mut self.engine)
+            .add_host_waiter(kind, runnable, resume_value, priority, &mut self.engine)
     }
 
-    /// Remove the host event watch registered for one host event kind.
-    pub fn unwatch_host_event(&mut self, kind: HostEventKind) -> Option<EventLoopWatch> {
-        self.event_loop.unwatch_host_event(kind)
+    /// Remove the waiter registered for one host event kind.
+    pub fn remove_host_waiter(&mut self, kind: HostEventKind) -> Option<Waiter> {
+        self.event_loop.remove_host_waiter(kind)
     }
 
-    /// Return whether one host watch is registered for the given kind.
-    pub fn watches_host_event(&self, kind: HostEventKind) -> bool {
-        self.event_loop.watches_host_event(kind)
+    /// Return whether one waiter is registered for the given host event kind.
+    pub fn has_host_waiter(&self, kind: HostEventKind) -> bool {
+        self.event_loop.has_host_waiter(kind)
     }
 
     /// Retain one local heap reference for host-owned state.
@@ -812,8 +807,6 @@ impl Worker {
         )?;
 
         // restore local state on fresh containers
-        let execution_context_id = Self::event_loop_execution_context_id(runtime_id, worker_id);
-        event_loop.initialize_execution_context(execution_context_id);
         event_loop.restore_snapshot(&image.event_loop, &mut engine)?;
         diagnostics.restore_snapshot(&image.diagnostics)?;
         hooks.restore_snapshot(&image.hooks)?;
@@ -833,7 +826,7 @@ impl Worker {
                 finalizers
             },
             host_state: {
-                let mut host_state = HostState::default();
+                let mut host_state = HostState;
                 host_state.restore_image(&image.host_state, ())?;
                 host_state
             },

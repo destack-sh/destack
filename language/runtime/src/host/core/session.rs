@@ -5,7 +5,6 @@ use destack_artifact::Platform;
 use crate::diagnostic::RuntimeResult;
 use crate::host::core::host::{Host, HostPollResult};
 use crate::host::core::queue::HostQueue;
-use crate::host::core::target::default_compile_target_host;
 use crate::host::poller::PollerWakeHandle;
 use crate::world::RuntimeId;
 use crate::world::policy::{Action, ActionId, ActionSet};
@@ -44,13 +43,6 @@ impl HostSession {
             runtime_id,
             host_actions,
         }
-    }
-
-    /// Create one session from one explicit runtime id.
-    pub(crate) fn from_runtime_id(runtime_id: RuntimeId) -> Self {
-        let host = default_compile_target_host();
-
-        Self::new(host, runtime_id)
     }
 
     /// Return the target platform.

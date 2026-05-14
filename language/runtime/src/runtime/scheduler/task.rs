@@ -3,6 +3,19 @@ use serde::{Deserialize, Serialize};
 
 use crate::runtime::engine::Continuation;
 
+/// Task metadata for event loop execution.
+#[derive(Debug)]
+pub struct Task {
+    /// Task identifier used for ordering and logging.
+    pub id: TaskId,
+    /// Runnable continuation for this task.
+    pub runnable: Continuation,
+    /// Resume payload passed back into the executor.
+    pub resume_value: engine::Value,
+    /// Priority value for event loop ordering, higher values run first.
+    pub priority: u8,
+}
+
 /// Opaque task identifier used by the event loop.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct TaskId(u64);
@@ -17,30 +30,4 @@ impl TaskId {
     pub const fn get(self) -> u64 {
         self.0
     }
-}
-
-/// Scheduling status for a task or job.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum TaskStatus {
-    /// Ready to run.
-    Ready,
-    /// Waiting on an external event.
-    Waiting,
-    /// Completed and ready for cleanup.
-    Completed,
-}
-
-/// Task metadata for event loop execution.
-#[derive(Debug)]
-pub struct Task {
-    /// Task identifier used for ordering and logging.
-    pub id: TaskId,
-    /// Runnable continuation for this task.
-    pub runnable: Continuation,
-    /// Resume payload passed back into the executor.
-    pub resume_value: engine::Value,
-    /// Current scheduling status.
-    pub status: TaskStatus,
-    /// Priority value for event loop ordering, higher values run first.
-    pub priority: u8,
 }
