@@ -33,7 +33,7 @@ pub struct StackTraceFrame {
 }
 
 /// Errors that can occur during interpreter execution.
-/// FUGU #Cleanup: reorganize VM errors / diagnostics (and also establish proper tracing?)
+/// TODO #Cleanup: reorganize VM errors / diagnostics (and also establish proper tracing?)
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[repr(u8)]
 pub enum Error {

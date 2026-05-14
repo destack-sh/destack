@@ -2,7 +2,6 @@
 resolver = "2"
 members = [
 	# language
-	"language/ast",
 	"language/artifact",
 	"language/artifact/macros",
 	"language/compiler",
@@ -82,7 +81,6 @@ rust-version = "1.92.0"
 # language
 destack_artifact = { path = "language/artifact" }
 destack_artifact_macros = { path = "language/artifact/macros" }
-destack_ast = { path = "language/ast" }
 destack_codegen_js = { path = "language/compiler/generate/js" }
 destack_codegen_lib = { path = "language/compiler/generate/core" }
 destack_codegen_native = { path = "language/compiler/generate/native" }
