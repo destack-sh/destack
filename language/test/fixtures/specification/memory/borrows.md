@@ -17,6 +17,21 @@ let name = &user.name;
 name satisfies &string;
 ```
 
+### local managed values can be borrowed exclusively
+
+Local (ambient) managed storage can satisfy exclusive access when no overlapping loan is live.
+
+```ds
+class Counter {
+    value: int32 = 0;
+}
+
+let counter: Counter = new Counter();
+let write = &exclusive counter;
+
+write.value = 1;
+```
+
 ### owned fields can be borrowed
 
 Borrowing an owned field does not move the owner.
