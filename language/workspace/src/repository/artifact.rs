@@ -1,13 +1,12 @@
-use std::collections::HashMap;
 use std::hash::Hash;
 use std::sync::Arc;
 
+use dashmap::DashMap;
 use destack_artifact::{
     ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactPayload, ArtifactVersion, DirBound,
     DirChecked, DirExpanded, DirExported, DirImported, DirParsed, GlobalEnvironment,
 };
 use destack_source::{DiagnosticCollection, ModuleId, ProfileId};
-use parking_lot::Mutex;
 
 use crate::repository::{Repository, RepositoryError, Revision};
 
@@ -19,19 +18,19 @@ pub struct ArtifactCache {
     /// The revision that owns artifact bindings.
     revision: Revision,
     /// Parsed DIR artifacts by module.
-    dir_parsed: Mutex<HashMap<ModuleId, Arc<DirParsed>>>,
+    dir_parsed: DashMap<ModuleId, Arc<DirParsed>>,
     /// Bound DIR artifacts by module and profile.
-    dir_bound: Mutex<HashMap<(ModuleId, ProfileId), Arc<DirBound>>>,
+    dir_bound: DashMap<(ModuleId, ProfileId), Arc<DirBound>>,
     /// Imported DIR artifacts by module and profile.
-    dir_imported: Mutex<HashMap<(ModuleId, ProfileId), Arc<DirImported>>>,
+    dir_imported: DashMap<(ModuleId, ProfileId), Arc<DirImported>>,
     /// Expanded DIR artifacts by module and profile.
-    dir_expanded: Mutex<HashMap<(ModuleId, ProfileId), Arc<DirExpanded>>>,
+    dir_expanded: DashMap<(ModuleId, ProfileId), Arc<DirExpanded>>,
     /// Exported DIR artifacts by module and profile.
-    dir_exported: Mutex<HashMap<(ModuleId, ProfileId), Arc<DirExported>>>,
+    dir_exported: DashMap<(ModuleId, ProfileId), Arc<DirExported>>,
     /// Checked DIR artifacts by module and profile.
-    dir_checked: Mutex<HashMap<(ModuleId, ProfileId), Arc<DirChecked>>>,
+    dir_checked: DashMap<(ModuleId, ProfileId), Arc<DirChecked>>,
     /// Global environments by profile.
-    global_environment: Mutex<HashMap<ProfileId, Arc<GlobalEnvironment>>>,
+    global_environment: DashMap<ProfileId, Arc<GlobalEnvironment>>,
 }
 
 impl ArtifactCache {
@@ -40,13 +39,13 @@ impl ArtifactCache {
         Self {
             repository,
             revision,
-            dir_parsed: Mutex::new(HashMap::new()),
-            dir_bound: Mutex::new(HashMap::new()),
-            dir_imported: Mutex::new(HashMap::new()),
-            dir_expanded: Mutex::new(HashMap::new()),
-            dir_exported: Mutex::new(HashMap::new()),
-            dir_checked: Mutex::new(HashMap::new()),
-            global_environment: Mutex::new(HashMap::new()),
+            dir_parsed: DashMap::new(),
+            dir_bound: DashMap::new(),
+            dir_imported: DashMap::new(),
+            dir_expanded: DashMap::new(),
+            dir_exported: DashMap::new(),
+            dir_checked: DashMap::new(),
+            global_environment: DashMap::new(),
         }
     }
 
@@ -147,7 +146,7 @@ impl ArtifactCache {
     /// Read and cache one artifact payload.
     fn read_cached<K, T>(
         &self,
-        cache: &Mutex<HashMap<K, Arc<T>>>,
+        cache: &DashMap<K, Arc<T>>,
         key: K,
         artifact_key: ArtifactKey,
         load: impl FnOnce(&ArtifactVersion) -> Option<Arc<T>>,
@@ -156,7 +155,7 @@ impl ArtifactCache {
         K: Copy + Eq + Hash,
     {
         // return cached payload
-        if let Some(payload) = cache.lock().get(&key).cloned() {
+        if let Some(payload) = cache.get(&key).map(|payload| payload.clone()) {
             return Some(payload);
         }
 
@@ -165,7 +164,7 @@ impl ArtifactCache {
         let payload = load(&version)?;
 
         // retain payload for this cache lifetime
-        cache.lock().insert(key, payload.clone());
+        cache.insert(key, payload.clone());
 
         Some(payload)
     }
