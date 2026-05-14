@@ -3,8 +3,8 @@ use std::sync::Arc;
 
 use crate::core::{CaseResult, format_diagnostics};
 use crate::mdtest::MdTestCase;
-use destack_ast::{NodeParentIndex, TokenSpan};
 use destack_core::StringPool;
+use destack_dir::{NodeParentIndex, TokenSpan};
 use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
 use destack_parser::{Parser, ParserOptions, source_colorizer};
@@ -157,7 +157,7 @@ fn format_expressions(
     parser: &Parser,
     tokens: &Vec<TokenSpan>,
     side_tokens: &Vec<TokenSpan>,
-    expressions: &[destack_ast::LocalNodeId<destack_ast::Expression>],
+    expressions: &[destack_dir::LocalNodeId<destack_dir::Expression>],
     file: &File,
     language_type: LanguageType,
     formatter: FormatterOptions,

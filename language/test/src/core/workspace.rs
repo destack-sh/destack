@@ -290,8 +290,8 @@ pub fn module_artifact_diagnostics(
 ) -> DiagnosticCollection {
     let mut diagnostics = DiagnosticCollection::new();
     let keys = [
-        ArtifactKey::ast(module_id),
-        ArtifactKey::dir_declared(module_id, profile),
+        ArtifactKey::dir_parsed(module_id),
+        ArtifactKey::dir_bound(module_id, profile),
         ArtifactKey::dir_imported(module_id, profile),
         ArtifactKey::dir_expanded(module_id, profile),
         ArtifactKey::dir_exported(module_id, profile),
