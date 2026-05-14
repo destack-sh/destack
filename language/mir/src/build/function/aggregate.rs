@@ -2,9 +2,9 @@ use crate::build::FunctionBuilder;
 use crate::{
     BinaryOperator, Instruction, LocalNodeId, PlaceProjection, TensorConvertMode,
     TensorConvolutionDimensionNumbers, TensorConvolutionWindow, TensorDotDimensionNumbers,
-    TensorGatherDimensionNumbers, TensorReduceOperator, TensorScatterDimensionNumbers,
-    TensorScatterMode, Type, TypeReference, Value, ValueReference, VectorConvertMode,
-    VectorReduceOperator,
+    TensorGatherDimensionNumbers, TensorIndexReduceOperator, TensorIndexTieBreak,
+    TensorReduceOperator, TensorScatterDimensionNumbers, TensorScatterMode, Type, TypeReference,
+    Value, ValueReference, VectorConvertMode, VectorReduceOperator,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -645,6 +645,27 @@ impl<'a> FunctionBuilder<'a> {
             tensor: tensor.into(),
             initial: initial.into(),
             axes,
+        });
+        self.define_value(destination, result_type);
+        destination
+    }
+
+    /// Reduce a tensor along one axis and return selected source indices.
+    pub fn tensor_index_reduce(
+        &mut self,
+        result_type: LocalNodeId<Type>,
+        operator: TensorIndexReduceOperator,
+        tensor: Value,
+        axis: u32,
+        tie_break: TensorIndexTieBreak,
+    ) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::TensorIndexReduce {
+            destination: destination.into(),
+            operator,
+            tensor: tensor.into(),
+            axis,
+            tie_break,
         });
         self.define_value(destination, result_type);
         destination
