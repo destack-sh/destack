@@ -1,0 +1,92 @@
+import { todo } from "destack:error";
+import { FixedArray } from "destack:collections";
+import { Axis, Shape, Stride } from "./shape.ds";
+
+/// Memory order for dense tensor storage.
+export enum MemoryOrder {
+    /// The last axis is contiguous.
+    RowMajor = 1,
+    /// The first axis is contiguous.
+    ColumnMajor = 2,
+}
+
+/// Dense contiguous tensor layout.
+export struct DenseLayout {
+    /// The layout variant.
+    kind: "dense" = "dense";
+
+    /// The dense memory order.
+    order: MemoryOrder = MemoryOrder.RowMajor;
+}
+
+/// Explicit strided tensor layout.
+export struct StridedLayout<comptime Rank: int> {
+    /// The layout variant.
+    kind: "strided" = "strided";
+
+    /// The element stride for each axis.
+    strides: FixedArray<Stride, Rank>;
+}
+
+/// Backend-defined tensor layout.
+export struct BackendLayout {
+    /// The layout variant.
+    kind: "backend" = "backend";
+
+    /// The backend layout name.
+    name: string;
+}
+
+/// Tensor layout descriptor for `Rank` axes.
+@languageItem("tensor.Layout")
+@derive(Tagged)
+export newtype Layout<comptime Rank: int> =
+    | DenseLayout
+    | StridedLayout<Rank>
+    | BackendLayout;
+
+extension<comptime Rank: int> of Layout<Rank> {
+    /// Return row-major dense layout.
+    static rowMajor(): Layout<Rank> {
+        DenseLayout { kind: "dense", order: MemoryOrder.RowMajor } as Layout<Rank>
+    }
+
+    /// Return column-major dense layout.
+    static columnMajor(): Layout<Rank> {
+        DenseLayout { kind: "dense", order: MemoryOrder.ColumnMajor } as Layout<Rank>
+    }
+
+    /// Return strided layout.
+    static strided(strides: FixedArray<Stride, Rank>): Layout<Rank> {
+        StridedLayout<Rank> { kind: "strided", strides } as Layout<Rank>
+    }
+
+    /// Return backend-defined layout.
+    static backend(name: string): Layout<Rank> {
+        BackendLayout { kind: "backend", name } as Layout<Rank>
+    }
+
+    /// Return whether this layout is dense.
+    isDense(): boolean {
+        todo("Layout.isDense")
+    }
+
+    /// Return whether this layout stores logical neighbors contiguously.
+    isContiguous(shape: Shape<Rank>): boolean {
+        todo("Layout.isContiguous")
+    }
+
+    /// Return the linear element offset for `indices`.
+    offset(indices: FixedArray<usize, Rank>, shape: Shape<Rank>): isize {
+        todo("Layout.offset")
+    }
+}
+
+/// Named axis layout used by frontends and debugging tools.
+export struct NamedAxis {
+    /// The axis index.
+    axis: Axis;
+
+    /// The axis name.
+    name: string;
+}

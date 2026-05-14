@@ -1,0 +1,103 @@
+import { todo } from "destack:error";
+import { Slice } from "destack:collections";
+import { Access } from "destack:memory";
+import { Index, IndexSet } from "destack:ops";
+import { Coordinate, Shape } from "./shape.ds";
+import { Layout } from "./layout.ds";
+
+/// Borrowed view over a tensor buffer.
+@languageItem("tensor.TensorView")
+export newtype TensorView<
+    T,
+    comptime Rank: int,
+    A: Access = "mutable",
+> = intrinsic;
+
+extension<T, comptime Rank: int, A: Access> of TensorView<T, Rank, A> implements
+    Index<Coordinate<Rank>>
+{
+    /// The indexed output type.
+    type Output = T;
+
+    /// Return the tensor shape.
+    @intrinsic("tensor.view.shape")
+    get shape(): Shape<Rank>;
+
+    /// Return the tensor layout.
+    @intrinsic("tensor.view.layout")
+    get layout(): Layout<Rank>;
+
+    /// Return the total element count.
+    @intrinsic("tensor.view.size")
+    get size(): usize;
+
+    /// Return the number of axes.
+    get rank(): int {
+        Rank
+    }
+
+    /// Return the byte length of one element.
+    @intrinsic("tensor.view.elementByteLength")
+    get elementByteLength(): usize;
+
+    /// Return the tensor view byte length.
+    @intrinsic("tensor.view.byteLength")
+    get byteLength(): usize;
+
+    /// Return the element at `coordinate` by value.
+    index(coordinate: Coordinate<Rank>): T {
+        todo("TensorView.index")
+    }
+
+    /// Borrow the element at `coordinate`.
+    index(this: &TensorView<T, Rank, "mutable">, coordinate: Coordinate<Rank>): &T {
+        todo("TensorView.index")
+    }
+
+    /// Borrow the element at `coordinate` with readonly access.
+    index(this: &readonly TensorView<T, Rank, A>, coordinate: Coordinate<Rank>): &readonly T {
+        todo("TensorView.index")
+    }
+}
+
+extension<T, comptime Rank: int> of TensorView<T, Rank, "mutable"> {
+    /// Build a mutable tensor view from a contiguous slice.
+    @unsafe
+    @intrinsic("tensor.view.fromSlice")
+    static fromSlice(
+        slice: &Slice<T>,
+        shape: Shape<Rank>,
+        layout: Layout<Rank> = Layout<Rank>.rowMajor(),
+    ): TensorView<T, Rank, "mutable">;
+}
+
+extension<T, comptime Rank: int> of TensorView<T, Rank, "readonly"> {
+    /// Build a readonly tensor view from a contiguous slice.
+    @unsafe
+    @intrinsic("tensor.view.fromSlice")
+    static fromSlice(
+        slice: &readonly Slice<T>,
+        shape: Shape<Rank>,
+        layout: Layout<Rank> = Layout<Rank>.rowMajor(),
+    ): TensorView<T, Rank, "readonly">;
+}
+
+extension<T, comptime Rank: int> of TensorView<T, Rank, "exclusive"> {
+    /// Build an exclusive tensor view from a contiguous slice.
+    @unsafe
+    @intrinsic("tensor.view.fromSlice")
+    static fromSlice(
+        slice: &exclusive Slice<T>,
+        shape: Shape<Rank>,
+        layout: Layout<Rank> = Layout<Rank>.rowMajor(),
+    ): TensorView<T, Rank, "exclusive">;
+}
+
+extension<T, comptime Rank: int> of TensorView<T, Rank, "exclusive"> implements
+    IndexSet<Coordinate<Rank>, T>
+{
+    /// Store `value` at `coordinate`.
+    indexSet(coordinate: Coordinate<Rank>, value: T): void {
+        todo("TensorView.indexSet")
+    }
+}

@@ -1,0 +1,88 @@
+import { FixedArray } from "destack:collections";
+import { Axis } from "./shape.ds";
+
+/// Axis mapping for tensor dot.
+export struct DotAxes<
+    comptime BatchCount: int,
+    comptime ContractCount: int,
+> {
+    /// Batch axes in the left tensor.
+    leftBatch: FixedArray<Axis, BatchCount>;
+
+    /// Batch axes in the right tensor.
+    rightBatch: FixedArray<Axis, BatchCount>;
+
+    /// Contracted axes in the left tensor.
+    leftContract: FixedArray<Axis, ContractCount>;
+
+    /// Contracted axes in the right tensor.
+    rightContract: FixedArray<Axis, ContractCount>;
+}
+
+/// Axis mapping for tensor convolution.
+export struct ConvolutionAxes<comptime SpatialRank: int> {
+    /// Batch axis in the input tensor.
+    inputBatch: Axis;
+
+    /// Feature axis in the input tensor.
+    inputFeature: Axis;
+
+    /// Spatial axes in the input tensor.
+    inputSpatial: FixedArray<Axis, SpatialRank>;
+
+    /// Input feature axis in the kernel tensor.
+    kernelInputFeature: Axis;
+
+    /// Output feature axis in the kernel tensor.
+    kernelOutputFeature: Axis;
+
+    /// Spatial axes in the kernel tensor.
+    kernelSpatial: FixedArray<Axis, SpatialRank>;
+
+    /// Batch axis in the output tensor.
+    outputBatch: Axis;
+
+    /// Feature axis in the output tensor.
+    outputFeature: Axis;
+
+    /// Spatial axes in the output tensor.
+    outputSpatial: FixedArray<Axis, SpatialRank>;
+}
+
+/// Axis mapping for tensor gather.
+export struct GatherAxes<
+    comptime OffsetCount: int,
+    comptime CollapsedCount: int,
+    comptime StartIndexCount: int,
+> {
+    /// Offset axes in the output tensor.
+    offset: FixedArray<Axis, OffsetCount>;
+
+    /// Collapsed slice axes in the operand tensor.
+    collapsedSlice: FixedArray<Axis, CollapsedCount>;
+
+    /// Mapping from index components to operand axes.
+    startIndexMap: FixedArray<Axis, StartIndexCount>;
+
+    /// Axis containing index vectors in the indices tensor.
+    indexVector: Axis;
+}
+
+/// Axis mapping for tensor scatter.
+export struct ScatterAxes<
+    comptime UpdateWindowCount: int,
+    comptime InsertedWindowCount: int,
+    comptime ScatterOperandCount: int,
+> {
+    /// Window axes in the updates tensor.
+    updateWindow: FixedArray<Axis, UpdateWindowCount>;
+
+    /// Inserted window axes in the operand tensor.
+    insertedWindow: FixedArray<Axis, InsertedWindowCount>;
+
+    /// Mapping from scatter index components to operand axes.
+    scatterToOperand: FixedArray<Axis, ScatterOperandCount>;
+
+    /// Axis containing index vectors in the indices tensor.
+    indexVector: Axis;
+}

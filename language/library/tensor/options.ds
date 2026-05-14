@@ -1,0 +1,110 @@
+import { Device, Stream } from "destack:compute";
+import { Layout } from "./layout.ds";
+import { ConvertMode, ScatterMode } from "./mode.ds";
+import { TensorView } from "./view.ds";
+import { ConvolutionGroups } from "./window.ds";
+
+/// Execution options for tensor work.
+export struct TensorExecutionOptions {
+    /// Stream used to order the work.
+    stream?: Stream;
+}
+
+/// Allocation options for a new tensor.
+export struct TensorCreateOptions<comptime Rank: int> {
+    /// Device that owns the tensor storage.
+    device?: Device;
+
+    /// Tensor layout.
+    layout?: Layout<Rank>;
+
+    /// Stream used to order initialization work.
+    stream?: Stream;
+}
+
+/// Output options for tensor operations.
+export struct TensorOutputOptions<T, comptime Rank: int> {
+    /// Device that owns the result storage.
+    device?: Device;
+
+    /// Result tensor layout.
+    layout?: Layout<Rank>;
+
+    /// Stream used to order the work.
+    stream?: Stream;
+
+    /// Exclusive output view to write into.
+    out?: TensorView<T, Rank, "exclusive">;
+}
+
+/// Output options for tensor reductions.
+export struct TensorReduceOptions<T, comptime Rank: int> {
+    /// Whether reduced axes remain with extent one.
+    keepDims: boolean = false;
+
+    /// Device that owns the result storage.
+    device?: Device;
+
+    /// Result tensor layout.
+    layout?: Layout<Rank>;
+
+    /// Stream used to order the work.
+    stream?: Stream;
+
+    /// Exclusive output view to write into.
+    out?: TensorView<T, Rank, "exclusive">;
+}
+
+/// Output options for tensor conversion.
+export struct TensorConvertOptions<T, comptime Rank: int> {
+    /// Conversion mode.
+    mode?: ConvertMode;
+
+    /// Device that owns the result storage.
+    device?: Device;
+
+    /// Result tensor layout.
+    layout?: Layout<Rank>;
+
+    /// Stream used to order the work.
+    stream?: Stream;
+
+    /// Exclusive output view to write into.
+    out?: TensorView<T, Rank, "exclusive">;
+}
+
+/// Output options for tensor convolution.
+export struct TensorConvolutionOptions<T, comptime Rank: int> {
+    /// Convolution group counts.
+    groups?: ConvolutionGroups;
+
+    /// Device that owns the result storage.
+    device?: Device;
+
+    /// Result tensor layout.
+    layout?: Layout<Rank>;
+
+    /// Stream used to order the work.
+    stream?: Stream;
+
+    /// Exclusive output view to write into.
+    out?: TensorView<T, Rank, "exclusive">;
+}
+
+/// Output options for tensor scatter.
+export struct TensorScatterOptions<T, comptime Rank: int> {
+    /// Update mode.
+    mode?: ScatterMode;
+
+    /// Device that owns the result storage.
+    device?: Device;
+
+    /// Result tensor layout.
+    layout?: Layout<Rank>;
+
+    /// Stream used to order the work.
+    stream?: Stream;
+
+    /// Exclusive output view to write into.
+    out?: TensorView<T, Rank, "exclusive">;
+}

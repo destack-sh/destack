@@ -1,0 +1,35 @@
+/// Conversion mode for tensor element conversion.
+export enum ConvertMode {
+    /// Require exact conversion.
+    Exact = 1,
+    /// Round to nearest, ties to even.
+    RoundTiesEven = 2,
+    /// Round toward zero.
+    RoundTowardZero = 3,
+    /// Round toward negative infinity.
+    RoundFloor = 4,
+    /// Round toward positive infinity.
+    RoundCeil = 5,
+    /// Clamp overflow to the destination range.
+    Saturate = 6,
+}
+
+/// Update mode for tensor scatter.
+export enum ScatterMode {
+    /// Replace the destination element.
+    Replace = 1,
+    /// Add to the destination element.
+    Add = 2,
+    /// Multiply the destination element.
+    Multiply = 3,
+    /// Store the minimum of destination and update.
+    Min = 4,
+    /// Store the maximum of destination and update.
+    Max = 5,
+    /// Bitwise AND with destination.
+    And = 6,
+    /// Bitwise OR with destination.
+    Or = 7,
+    /// Bitwise XOR with destination.
+    Xor = 8,
+}
