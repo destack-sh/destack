@@ -8,11 +8,9 @@ use crate::diagnostic::{DiagnosticSnapshot, DiagnosticStore, RuntimeError, Runti
 use crate::host::binding::{BindingAccess, BindingRegistry};
 use crate::host::resource::{ResourceRebinders, ResourceTableSnapshot};
 use crate::host::{HostEventKind, ResourceId, ResourceTable};
-use crate::runtime::engine::{Context, Continuation, Engine, Image};
-use crate::runtime::heap::{
-    HeapHandle, HeapHandleTable, RootSet, RootSink, resolve_local_heap_options,
-};
-use crate::runtime::scheduler::{EventLoop, EventLoopSnapshot, ResourceInterest, Waiter};
+use crate::runtime::engine::{Continuation, Engine, Image, MemoryContext};
+use crate::runtime::heap::{HeapHandle, HeapHandleTable, RootSet, resolve_local_heap_options};
+use crate::runtime::scheduler::{EventLoop, EventLoopSnapshot, Readiness, Waiter};
 use crate::runtime::{
     Hooks, HostState, HostStateImage, RuntimeFinalizers, RuntimeFinalizersImage, SharedHeap,
 };
@@ -288,11 +286,11 @@ impl Worker {
         let mut statics = engine::StaticSpace::empty();
         let shared_gc_worker = shared.register_collector_worker();
         let mut shared_allocator = shared.heap().allocator();
-        let context = Context {
+        let context = MemoryContext {
             heap: &mut heap,
             shared_heap: shared.heap(),
             shared_allocator: &mut shared_allocator,
-            shared_gc: &shared_gc_worker,
+            shared_gc_worker: &shared_gc_worker,
             worker_static: &mut statics,
             runtime_static,
         };
@@ -432,18 +430,18 @@ impl Worker {
         self.event_loop.remove_timer_waiter(handle)
     }
 
-    /// Add one waiter for one resource interest.
+    /// Add one waiter for one resource readiness.
     pub fn add_resource_waiter(
         &mut self,
         resource_id: ResourceId,
-        interest: ResourceInterest,
+        readiness: Readiness,
         runnable: Continuation,
         resume_value: engine::Value,
         priority: u8,
     ) -> RuntimeResult<()> {
         self.event_loop.add_resource_waiter(
             resource_id,
-            interest,
+            readiness,
             runnable,
             resume_value,
             priority,
@@ -451,19 +449,19 @@ impl Worker {
         )
     }
 
-    /// Remove one waiter registered for one resource interest.
+    /// Remove one waiter registered for one resource readiness.
     pub fn remove_resource_waiter(
         &mut self,
         resource_id: ResourceId,
-        interest: ResourceInterest,
+        readiness: Readiness,
     ) -> Option<Waiter> {
         self.event_loop
-            .remove_resource_waiter(resource_id, interest)
+            .remove_resource_waiter(resource_id, readiness)
     }
 
-    /// Return whether one waiter is registered for one resource interest.
-    pub fn has_resource_waiter(&self, resource_id: ResourceId, interest: ResourceInterest) -> bool {
-        self.event_loop.has_resource_waiter(resource_id, interest)
+    /// Return whether one waiter is registered for one resource readiness.
+    pub fn has_resource_waiter(&self, resource_id: ResourceId, readiness: Readiness) -> bool {
+        self.event_loop.has_resource_waiter(resource_id, readiness)
     }
 
     /// Add one waiter for a host event kind.
@@ -509,15 +507,27 @@ impl Worker {
     }
 
     /// Visit roots from engine, scheduler, and registered providers.
-    pub fn visit_roots(&mut self, roots: &mut RootSink<'_>) -> RuntimeResult<()> {
-        // engine state
-        self.engine.visit_roots(&self.statics, roots)?;
+    pub fn visit_roots(&mut self, roots: &mut impl heap::RootSink) -> RuntimeResult<()> {
+        let mut visit = |slot: heap::RootSlot<'_>| {
+            let root = slot.load()?;
+            roots.push(root);
 
-        // scheduled work
-        self.event_loop.visit_roots(&mut self.engine, roots)?;
+            Ok(())
+        };
 
-        // host-retained local references
-        self.handles.visit_roots(roots);
+        self.visit_root_slots(&mut visit)?;
+
+        Ok(())
+    }
+
+    /// Visit mutable root slots from engine, scheduler, and retained host handles.
+    pub fn visit_root_slots(
+        &mut self,
+        visit: &mut dyn FnMut(heap::RootSlot<'_>) -> heap::HeapResult<()>,
+    ) -> RuntimeResult<()> {
+        self.engine.visit_root_slots(&mut self.statics, visit)?;
+        self.event_loop.visit_root_slots(&mut self.engine, visit)?;
+        self.handles.visit_root_slots(visit)?;
 
         Ok(())
     }
@@ -538,8 +548,9 @@ impl Worker {
         let engine = &mut self.engine;
         let event_loop = &mut self.event_loop;
         let handles = &mut self.handles;
+        let statics = &mut self.statics;
         let mut roots = |visit: &mut dyn FnMut(heap::RootSlot<'_>) -> heap::HeapResult<()>| {
-            engine.visit_root_slots(&mut self.statics, visit)?;
+            engine.visit_root_slots(statics, visit)?;
             event_loop.visit_root_slots(engine, visit)?;
             handles.visit_root_slots(visit)?;
 
@@ -553,7 +564,7 @@ impl Worker {
     pub fn collect_roots(&mut self) -> RuntimeResult<RootSet> {
         let mut roots = RootSet::new();
 
-        self.visit_roots(&mut RootSink::All(&mut roots))?;
+        self.visit_roots(&mut roots)?;
 
         Ok(roots)
     }
@@ -562,7 +573,7 @@ impl Worker {
     pub(crate) fn collect_shared_roots(&mut self) -> RuntimeResult<Vec<heap::SharedHeapReference>> {
         let mut roots = Vec::new();
 
-        self.visit_roots(&mut RootSink::SharedHeap(&mut roots))?;
+        self.visit_roots(&mut roots)?;
 
         Ok(roots)
     }
@@ -652,11 +663,11 @@ impl Worker {
                     .boxed()
                 })?,
             statics: self.statics.clone(),
-            engine_image: self.engine.image(engine::Context {
+            engine_image: self.engine.image(engine::MemoryContext {
                 heap: &mut self.heap,
                 shared_heap: shared.heap(),
                 shared_allocator: &mut self.shared_allocator,
-                shared_gc: &self.shared_gc_worker,
+                shared_gc_worker: &self.shared_gc_worker,
                 worker_static: &mut self.statics,
                 runtime_static,
             })?,
@@ -704,11 +715,11 @@ impl Worker {
         let mut heap = self.heap.fork()?;
         let mut statics = self.statics.clone();
         let mut shared_allocator = shared.heap().allocator();
-        let mut engine = self.engine.fork(engine::Context {
+        let mut engine = self.engine.fork(engine::MemoryContext {
             heap: &mut heap,
             shared_heap: shared.heap(),
             shared_allocator: &mut shared_allocator,
-            shared_gc: &shared_gc_worker,
+            shared_gc_worker: &shared_gc_worker,
             worker_static: &mut statics,
             runtime_static,
         })?;
@@ -785,21 +796,21 @@ impl Worker {
         let mut engine = Engine::from_image(&image.engine_image)?;
 
         // restore backend execution state over the restored heap
-        let context = Context {
+        let context = MemoryContext {
             heap: &mut heap,
             shared_heap: shared.heap(),
             shared_allocator: &mut shared_allocator,
-            shared_gc: &shared_gc_worker,
+            shared_gc_worker: &shared_gc_worker,
             worker_static: &mut statics,
             runtime_static,
         };
         engine.initialize(context)?;
         engine.restore(
-            engine::Context {
+            engine::MemoryContext {
                 heap: &mut heap,
                 shared_heap: shared.heap(),
                 shared_allocator: &mut shared_allocator,
-                shared_gc: &shared_gc_worker,
+                shared_gc_worker: &shared_gc_worker,
                 worker_static: &mut statics,
                 runtime_static,
             },

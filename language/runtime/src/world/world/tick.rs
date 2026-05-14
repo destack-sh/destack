@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use crate::diagnostic::RuntimeResult;
 use crate::host::time::TimerClock;
-use crate::runtime::scheduler::{ResourceWake, ScheduledTimer, Wake};
+use crate::runtime::scheduler::{ScheduledTimer, TimerWake, Wake};
 use crate::runtime::{TickResult, WorkerId};
 use crate::world::trace::Observation;
 use destack_workspace::ClockSource;
@@ -28,7 +28,7 @@ impl World {
             .map(|(runtime_id, worker_id, timer)| WorkerWake {
                 runtime_id,
                 worker_id,
-                wake: Wake::Resource(ResourceWake::timer(timer.resource_id)),
+                wake: Wake::Timer(TimerWake::new(timer.resource_id)),
             })
             .collect()
     }

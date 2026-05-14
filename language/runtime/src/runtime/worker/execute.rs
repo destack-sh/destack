@@ -1,16 +1,38 @@
-use super::{RunnableScope, Worker, current_runnable_scope, enter_runnable_scope};
+use std::ptr::NonNull;
+
+use super::{
+    BindingCallContext, ExecutionContext, RunnableScope, Worker, current_runnable_scope,
+    enter_runnable_scope,
+};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::HostSession;
 use crate::host::poller::HostPoller;
 use crate::runtime::SharedHeap;
-use crate::runtime::engine::{Context, Continuation, Entry, Outcome};
-use crate::runtime::scheduler::{Microtask, ResourceInterest, Task, TaskId, Wake};
+use crate::runtime::engine::{Continuation, Entry, Outcome};
+use crate::runtime::scheduler::{Microtask, Task, TaskId, Wake};
 use crate::runtime::time::Nanos;
 use crate::world::WorldState;
 use destack_workspace::ClockSource;
 use {destack_engine as engine, destack_heap as heap};
 
 impl Worker {
+    /// Build one runtime-owned binding call context.
+    fn binding_call_context(
+        &mut self,
+        world: &mut WorldState,
+        host: &HostSession,
+    ) -> BindingCallContext {
+        BindingCallContext {
+            worker: self as *mut Worker,
+            event_loop: self.event_loop.as_ref(),
+            host,
+            world,
+            engine: self.engine.binding_engine(),
+            scope: current_runnable_scope(),
+            execution_context: ExecutionContext::new(host.is_process_main_context()),
+        }
+    }
+
     /// Run an entrypoint through the event loop with one external poller.
     pub(crate) fn run_entrypoint_with_host_and_poller(
         &mut self,
@@ -24,15 +46,27 @@ impl Worker {
     ) -> RuntimeResult<engine::Value> {
         // execute the entrypoint with yielding enabled
         let _guard = enter_runnable_scope(RunnableScope::empty());
-        let context = Context {
-            heap: &mut self.heap,
-            shared_heap: shared.heap(),
-            shared_allocator: &mut self.shared_allocator,
-            shared_gc: &self.shared_gc_worker,
-            worker_static: &mut self.statics,
-            runtime_static,
+        let mut call_context = self.binding_call_context(world, host);
+        let Worker {
+            heap,
+            shared_allocator,
+            shared_gc_worker,
+            statics,
+            engine,
+            ..
+        } = self;
+        let context = engine::CallContext {
+            runtime: NonNull::from(&mut call_context).cast(),
+            memory: engine::MemoryContext {
+                heap,
+                shared_heap: shared.heap(),
+                shared_allocator,
+                shared_gc_worker,
+                worker_static: statics,
+                runtime_static,
+            },
         };
-        let outcome = self.engine.run(context, entry, args)?;
+        let outcome = engine.run(context, entry, args)?;
 
         // handle the entry outcome
         let output = match outcome {
@@ -97,7 +131,7 @@ impl Worker {
 
             // run one loop tick for the engine
             let (progressed, output) =
-                self.tick_loop_for_target(world, shared, runtime_static, target_task)?;
+                self.tick_loop_for_target(world, shared, runtime_static, host, target_task)?;
             if let Some(output) = output {
                 return Ok(Some(output));
             }
@@ -139,8 +173,9 @@ impl Worker {
         world: &mut WorldState,
         shared: &SharedHeap,
         runtime_static: &engine::StaticSpace,
+        host: &HostSession,
     ) -> RuntimeResult<bool> {
-        self.tick_once(world, shared, runtime_static)
+        self.tick_once(world, shared, runtime_static, host)
     }
 
     /// Execute one local worker tick.
@@ -149,9 +184,10 @@ impl Worker {
         world: &mut WorldState,
         shared: &SharedHeap,
         runtime_static: &engine::StaticSpace,
+        host: &HostSession,
     ) -> RuntimeResult<bool> {
         // run one event loop tick and capture progress
-        let mut progressed = self.tick_loop(world, shared, runtime_static)?;
+        let mut progressed = self.tick_loop(world, shared, runtime_static, host)?;
 
         // direct roots: worker execution may reshuffle shared roots
         if progressed && shared.is_marking() {
@@ -312,6 +348,7 @@ impl Worker {
         world: &mut WorldState,
         shared: &SharedHeap,
         runtime_static: &engine::StaticSpace,
+        host: &HostSession,
     ) -> RuntimeResult<bool> {
         // track whether this tick processed any event loop work
         let mut progressed = false;
@@ -320,7 +357,7 @@ impl Worker {
         // drain microtasks before selecting other work
         if self.event_loop.has_microtasks() {
             let (drained, budget_exhausted) =
-                self.drain_microtasks(world, shared, runtime_static)?;
+                self.drain_microtasks(world, shared, runtime_static, host)?;
             if drained > 0 {
                 progressed = true;
             }
@@ -333,7 +370,7 @@ impl Worker {
         }
 
         // run one queued macrotask before pulling external wakes
-        if self.run_ready_task(world, shared, runtime_static)? {
+        if self.run_ready_task(world, shared, runtime_static, host)? {
             return Ok(true);
         }
 
@@ -347,7 +384,7 @@ impl Worker {
         }
 
         // run one task produced by the dispatched wake
-        if self.run_ready_task(world, shared, runtime_static)? {
+        if self.run_ready_task(world, shared, runtime_static, host)? {
             return Ok(true);
         }
 
@@ -361,6 +398,7 @@ impl Worker {
         world: &mut WorldState,
         shared: &SharedHeap,
         runtime_static: &engine::StaticSpace,
+        host: &HostSession,
         target_task: Option<TaskId>,
     ) -> RuntimeResult<(bool, Option<engine::Value>)> {
         // track whether this tick processed any event loop work
@@ -370,7 +408,7 @@ impl Worker {
         // drain microtasks before selecting other work
         if self.event_loop.has_microtasks() {
             let (drained, budget_exhausted) =
-                self.drain_microtasks(world, shared, runtime_static)?;
+                self.drain_microtasks(world, shared, runtime_static, host)?;
             if drained > 0 {
                 progressed = true;
             }
@@ -388,6 +426,7 @@ impl Worker {
                 world,
                 shared,
                 runtime_static,
+                host,
                 task,
                 target_task,
             )? {
@@ -406,10 +445,7 @@ impl Worker {
         let mono_now = Nanos::new(world.mono_nanos());
         if let Some(wake) = self.event_loop.next_wake(wall_now, mono_now)? {
             progressed = true;
-            if matches!(
-                &wake,
-                Wake::Resource(wake) if wake.interest == ResourceInterest::Timer
-            ) {
+            if matches!(&wake, Wake::Timer(_)) {
                 self.hooks.on_scheduler_timer_fire(world);
             }
             if let Some(task) = self.event_loop.task_for_wake(wake, &mut self.engine) {
@@ -423,6 +459,7 @@ impl Worker {
                 world,
                 shared,
                 runtime_static,
+                host,
                 task,
                 target_task,
             )? {
@@ -442,12 +479,13 @@ impl Worker {
         world: &mut WorldState,
         shared: &SharedHeap,
         runtime_static: &engine::StaticSpace,
+        host: &HostSession,
     ) -> RuntimeResult<bool> {
         let Some(task) = self.event_loop.pop_task() else {
             return Ok(false);
         };
 
-        self.execute_dequeued_task(world, shared, runtime_static, task)?;
+        self.execute_dequeued_task(world, shared, runtime_static, host, task)?;
 
         Ok(true)
     }
@@ -461,10 +499,7 @@ impl Worker {
             return Ok(false);
         };
 
-        if matches!(
-            &wake,
-            Wake::Resource(wake) if wake.interest == ResourceInterest::Timer
-        ) {
+        if matches!(&wake, Wake::Timer(_)) {
             self.hooks.on_scheduler_timer_fire(world);
         }
         if let Some(task) = self.event_loop.task_for_wake(wake, &mut self.engine) {
@@ -499,10 +534,11 @@ impl Worker {
         world: &mut WorldState,
         shared: &SharedHeap,
         runtime_static: &engine::StaticSpace,
+        host: &HostSession,
         task: Task,
     ) -> RuntimeResult<()> {
         self.hooks.on_scheduler_dequeue(world);
-        self.execute_task(world, shared, runtime_static, task)
+        self.execute_task(world, shared, runtime_static, host, task)
     }
 
     /// Execute one task and return output when it completes the target task.
@@ -511,11 +547,12 @@ impl Worker {
         world: &mut WorldState,
         shared: &SharedHeap,
         runtime_static: &engine::StaticSpace,
+        host: &HostSession,
         task: Task,
         target_task: Option<TaskId>,
     ) -> RuntimeResult<Option<engine::Value>> {
         self.hooks.on_scheduler_dequeue(world);
-        self.execute_task_for_target(world, shared, runtime_static, task, target_task)
+        self.execute_task_for_target(world, shared, runtime_static, host, task, target_task)
     }
 
     /// Execute one task.
@@ -524,13 +561,20 @@ impl Worker {
         world: &mut WorldState,
         shared: &SharedHeap,
         runtime_static: &engine::StaticSpace,
+        host: &HostSession,
         task: Task,
     ) -> RuntimeResult<()> {
         // run the task runnable
         let task_id = task.id;
         let _guard = enter_runnable_scope(RunnableScope::for_task(task_id));
-        let outcome =
-            self.execute_runnable(shared, runtime_static, task.runnable, task.resume_value)?;
+        let outcome = self.execute_runnable(
+            world,
+            shared,
+            runtime_static,
+            host,
+            task.runnable,
+            task.resume_value,
+        )?;
 
         // handle the task outcome
         if let Outcome::Yielded {
@@ -541,7 +585,7 @@ impl Worker {
             self.enqueue_task(world, task_id, continuation, value)?;
         }
 
-        self.drain_microtasks(world, shared, runtime_static)?;
+        self.drain_microtasks(world, shared, runtime_static, host)?;
 
         Ok(())
     }
@@ -552,13 +596,20 @@ impl Worker {
         world: &mut WorldState,
         shared: &SharedHeap,
         runtime_static: &engine::StaticSpace,
+        host: &HostSession,
         task: Task,
         target_task: Option<TaskId>,
     ) -> RuntimeResult<Option<engine::Value>> {
         // run the task runnable
         let _guard = enter_runnable_scope(RunnableScope::for_task(task.id));
-        let outcome =
-            self.execute_runnable(shared, runtime_static, task.runnable, task.resume_value)?;
+        let outcome = self.execute_runnable(
+            world,
+            shared,
+            runtime_static,
+            host,
+            task.runnable,
+            task.resume_value,
+        )?;
 
         // handle the task outcome
         match outcome {
@@ -575,7 +626,7 @@ impl Worker {
             }
         }
 
-        self.drain_microtasks(world, shared, runtime_static)?;
+        self.drain_microtasks(world, shared, runtime_static, host)?;
 
         Ok(None)
     }
@@ -592,8 +643,10 @@ impl Worker {
     /// Execute one microtask to completion.
     fn execute_microtask(
         &mut self,
+        world: &mut WorldState,
         shared: &SharedHeap,
         runtime_static: &engine::StaticSpace,
+        host: &HostSession,
         microtask: Microtask,
         max_microtask_depth: usize,
     ) -> RuntimeResult<()> {
@@ -610,8 +663,10 @@ impl Worker {
         // run the microtask runnable
         let _guard = enter_runnable_scope(RunnableScope::for_microtask(microtask.id, next_depth));
         let outcome = self.execute_runnable(
+            world,
             shared,
             runtime_static,
+            host,
             microtask.continuation,
             microtask.resume_value,
         )?;
@@ -632,6 +687,7 @@ impl Worker {
         world: &mut WorldState,
         shared: &SharedHeap,
         runtime_static: &engine::StaticSpace,
+        host: &HostSession,
     ) -> RuntimeResult<(usize, bool)> {
         // resolve the microtask safety limits for this drain cycle
         let microtask_budget = self
@@ -663,7 +719,14 @@ impl Worker {
                 break;
             };
             self.hooks.on_scheduler_dequeue(world);
-            self.execute_microtask(shared, runtime_static, microtask, max_microtask_depth)?;
+            self.execute_microtask(
+                world,
+                shared,
+                runtime_static,
+                host,
+                microtask,
+                max_microtask_depth,
+            )?;
             num_drained_microtasks = num_drained_microtasks.saturating_add(1);
         }
 
@@ -673,21 +736,35 @@ impl Worker {
     /// Resume one engine continuation with one runtime value.
     fn execute_runnable(
         &mut self,
+        world: &mut WorldState,
         shared: &SharedHeap,
         runtime_static: &engine::StaticSpace,
+        host: &HostSession,
         runnable: Continuation,
         resume_value: engine::Value,
     ) -> RuntimeResult<Outcome<Continuation>> {
-        let context = Context {
-            heap: &mut self.heap,
-            shared_heap: shared.heap(),
-            shared_allocator: &mut self.shared_allocator,
-            shared_gc: &self.shared_gc_worker,
-            worker_static: &mut self.statics,
-            runtime_static,
+        let mut call_context = self.binding_call_context(world, host);
+        let Worker {
+            heap,
+            shared_allocator,
+            shared_gc_worker,
+            statics,
+            engine,
+            ..
+        } = self;
+        let context = engine::CallContext {
+            runtime: NonNull::from(&mut call_context).cast(),
+            memory: engine::MemoryContext {
+                heap,
+                shared_heap: shared.heap(),
+                shared_allocator,
+                shared_gc_worker,
+                worker_static: statics,
+                runtime_static,
+            },
         };
 
-        self.engine.resume(context, runnable, resume_value)
+        engine.resume(context, runnable, resume_value)
     }
 
     /// Wait for one scheduler wakeup when the loop has pending but not-ready work.
