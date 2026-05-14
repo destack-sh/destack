@@ -1,0 +1,38 @@
+import { Error, todo } from "destack:error";
+
+/// Compute failure category.
+export enum ComputeErrorKind {
+    /// The requested device is unavailable.
+    DeviceUnavailable = 1,
+    /// The requested backend feature is unsupported.
+    Unsupported = 2,
+    /// Program compilation failed.
+    CompileFailed = 3,
+    /// The requested kernel entry point does not exist.
+    KernelNotFound = 4,
+    /// Kernel arguments do not match the entry point signature.
+    InvalidArgument = 5,
+    /// Device memory allocation failed.
+    OutOfMemory = 6,
+    /// The backend reported an implementation-specific failure.
+    Backend = 7,
+}
+
+/// Portable compute error.
+export struct ComputeError {
+    /// Error category.
+    kind: ComputeErrorKind;
+
+    /// Human-readable message.
+    message: string;
+
+    /// Backend-specific error code when available.
+    backendCode?: int32;
+}
+
+extension of ComputeError implements Error {
+    /// Format this error for users.
+    display(): string {
+        todo("ComputeError.display")
+    }
+}

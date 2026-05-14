@@ -1,0 +1,126 @@
+import { Array, Slice } from "destack:collections";
+import { todo } from "destack:error";
+import { DeviceCapabilities, DeviceFeature } from "./capability.ds";
+
+/// Compute execution and storage device kind.
+export enum DeviceKind {
+    /// Host CPU device.
+    Cpu = 1,
+    /// Discrete or integrated GPU device.
+    Gpu = 2,
+    /// Dedicated accelerator device.
+    Accelerator = 3,
+}
+
+/// Stable runtime identity for one compute device.
+export newtype DeviceId = intrinsic;
+
+/// Compute device memory snapshot.
+export struct DeviceMemory {
+    /// Total memory in bytes when the backend exposes it.
+    total?: usize;
+
+    /// Available memory in bytes when the backend exposes it.
+    available?: usize;
+
+    /// Whether host and device memory are physically unified.
+    unified: boolean;
+}
+
+/// Compute device properties visible to portable code.
+export struct DeviceProperties {
+    /// Stable runtime identity.
+    id: DeviceId;
+
+    /// Device kind.
+    kind: DeviceKind;
+
+    /// Human-readable device name.
+    name: string;
+
+    /// Backend name.
+    backend: string;
+
+    /// Vendor name when available.
+    vendor?: string;
+
+    /// Driver or runtime version when available.
+    version?: string;
+
+    /// Memory properties.
+    memory: DeviceMemory;
+
+    /// Device feature and limit inventory.
+    capabilities: DeviceCapabilities;
+}
+
+/// Query used to select compute devices.
+export struct DeviceQuery {
+    /// Required device kind when provided.
+    kind?: DeviceKind;
+
+    /// Required stable device identity when provided.
+    id?: DeviceId;
+
+    /// Preferred human-readable device name when provided.
+    name?: string;
+
+    /// Preferred backend name when provided.
+    backend?: string;
+
+    /// Required features.
+    features?: Slice<DeviceFeature>;
+}
+
+/// Device that can store compute buffers or execute compute work.
+@languageItem("compute.Device")
+export class Device {
+    /// The stable device identity.
+    readonly id: DeviceId;
+
+    /// The device kind.
+    readonly kind: DeviceKind;
+
+    /// The human-readable device name.
+    readonly name: string;
+
+    /// Return all available devices matching `query`.
+    static available(query?: DeviceQuery): Array<Device> {
+        todo("Device.available")
+    }
+
+    /// Return the default CPU device.
+    static cpu(): Device {
+        todo("Device.cpu")
+    }
+
+    /// Return a GPU device.
+    static gpu(index: uint32 = 0): Device {
+        todo("Device.gpu")
+    }
+
+    /// Return an accelerator device.
+    static accelerator(index: uint32 = 0): Device {
+        todo("Device.accelerator")
+    }
+
+    /// Return the default compute device matching `query`.
+    static default(query?: DeviceQuery): Device {
+        todo("Device.default")
+    }
+
+    /// Return this device's runtime properties.
+    properties(): DeviceProperties {
+        todo("Device.properties")
+    }
+
+    /// Return whether this is the same runtime device as `other`.
+    equals(other: Device): boolean {
+        this.id == other.id
+    }
+
+    /// Return whether this device is the host CPU.
+    get isCpu(): boolean {
+        this.kind == DeviceKind.Cpu
+    }
+}

@@ -1,0 +1,215 @@
+import { Slice } from "destack:collections";
+import { Result, todo } from "destack:error";
+import { Buffer } from "./buffer.ds";
+import { Device } from "./device.ds";
+import { ComputeError } from "./error.ds";
+import { WorkgroupSize } from "./workgroup.ds";
+
+/// Format for a compute program source.
+export enum ProgramFormat {
+    /// TS++ compute function lowered by the toolchain.
+    Destack = 1,
+    /// WebGPU Shading Language source.
+    Wgsl = 2,
+    /// SPIR-V binary.
+    SpirV = 3,
+    /// Metal Shading Language source.
+    Msl = 4,
+    /// HLSL source.
+    Hlsl = 5,
+    /// DXIL binary.
+    Dxil = 6,
+    /// GLSL source.
+    Glsl = 7,
+}
+
+/// Text compute program source.
+export struct ProgramText {
+    /// The source variant.
+    kind: "text" = "text";
+
+    /// The source format.
+    format: ProgramFormat;
+
+    /// The source text.
+    source: string;
+}
+
+/// Binary compute program source.
+export struct ProgramBinary {
+    /// The source variant.
+    kind: "binary" = "binary";
+
+    /// The source format.
+    format: ProgramFormat;
+
+    /// The source bytes.
+    bytes: Slice<uint8>;
+}
+
+/// Compute program source.
+@derive(Tagged)
+export newtype ProgramSource =
+    | ProgramText
+    | ProgramBinary;
+
+/// Compile options for one compute program.
+export struct ProgramOptions {
+    /// Debug label.
+    label?: string;
+
+    /// Entry point names to retain when provided.
+    entries?: Slice<string>;
+
+    /// Whether to keep backend debug information.
+    debug: boolean = false;
+}
+
+/// Severity of a compute program diagnostic.
+export enum ProgramDiagnosticSeverity {
+    /// Informational diagnostic.
+    Info = 1,
+    /// Warning diagnostic.
+    Warning = 2,
+    /// Error diagnostic.
+    Error = 3,
+}
+
+/// Source location for a compute program diagnostic.
+export struct ProgramLocation {
+    /// Zero-based byte offset.
+    offset?: usize;
+
+    /// One-based line number.
+    line?: uint32;
+
+    /// One-based column number.
+    column?: uint32;
+
+    /// Byte length covered by the diagnostic.
+    length?: usize;
+}
+
+/// Diagnostic emitted while compiling a compute program.
+export struct ProgramDiagnostic {
+    /// Diagnostic severity.
+    severity: ProgramDiagnosticSeverity;
+
+    /// Human-readable diagnostic message.
+    message: string;
+
+    /// Source location when available.
+    location?: ProgramLocation;
+}
+
+/// Report from compiling a compute program.
+export struct ProgramReport {
+    /// Compiled program when compilation succeeded.
+    program?: Program;
+
+    /// Compiler diagnostics.
+    diagnostics: Slice<ProgramDiagnostic>;
+}
+
+/// Compiled compute code for one device.
+@languageItem("compute.Program")
+export class Program {
+    /// The device that owns this program.
+    readonly device: Device;
+
+    /// Compile `source` for `device`.
+    static compile(
+        device: Device,
+        source: ProgramSource,
+        options?: ProgramOptions,
+    ): Result<Program, ComputeError> {
+        todo("Program.compile")
+    }
+
+    /// Compile `source` for `device` and return diagnostics.
+    static build(
+        device: Device,
+        source: ProgramSource,
+        options?: ProgramOptions,
+    ): ProgramReport {
+        todo("Program.build")
+    }
+
+    /// Return a kernel entry point by name.
+    kernel(name: string): Result<Kernel, ComputeError> {
+        todo("Program.kernel")
+    }
+}
+
+/// Encoded kernel argument.
+@languageItem("compute.KernelArgument")
+export newtype KernelArgument = intrinsic;
+
+extension of KernelArgument {
+    /// Encode `value` as one kernel argument.
+    static value<T>(value: T): KernelArgument {
+        todo("KernelArgument.value")
+    }
+
+    /// Encode `buffer` as one kernel argument.
+    static buffer<T>(buffer: Buffer<T>): KernelArgument {
+        todo("KernelArgument.buffer")
+    }
+
+    /// Encode raw argument bytes.
+    @unsafe
+    static bytes(bytes: Slice<uint8>): KernelArgument {
+        todo("KernelArgument.bytes")
+    }
+}
+
+/// Kernel parameter kind.
+export enum KernelParameterKind {
+    /// Plain value argument.
+    Value = 1,
+    /// Buffer argument.
+    Buffer = 2,
+    /// Tensor argument.
+    Tensor = 3,
+    /// Shared memory argument.
+    WorkgroupMemory = 4,
+}
+
+/// Kernel parameter visible through reflection.
+export struct KernelParameter {
+    /// Parameter name when available.
+    name?: string;
+
+    /// Parameter kind.
+    kind: KernelParameterKind;
+
+    /// Parameter byte size when statically known.
+    byteLength?: usize;
+
+    /// Required byte alignment when known.
+    alignment?: usize;
+}
+
+/// Kernel entry point metadata.
+export struct KernelSignature {
+    /// Parameter metadata in call order.
+    parameters: Slice<KernelParameter>;
+
+    /// Default workgroup size when declared.
+    workgroupSize?: WorkgroupSize;
+}
+
+/// Callable entry point inside a compute program.
+@languageItem("compute.Kernel")
+export class Kernel {
+    /// The program that owns this kernel.
+    readonly program: Program;
+
+    /// The kernel entry point name.
+    readonly name: string;
+
+    /// Return this kernel's signature metadata.
+    signature(): KernelSignature {
+        todo("Kernel.signature")
+    }
+}

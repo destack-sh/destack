@@ -1,0 +1,96 @@
+import { Slice } from "destack:collections";
+import { Result, todo } from "destack:error";
+import { Device } from "./device.ds";
+import { ComputeError } from "./error.ds";
+import { Event, Stream } from "./stream.ds";
+
+/// Host mapping permission for a compute buffer.
+export enum HostAccess {
+    /// Host code cannot map the buffer.
+    None = 1,
+    /// Host-readable storage.
+    Read = 2,
+    /// Host-writable storage.
+    Write = 3,
+    /// Host-readable and host-writable storage.
+    ReadWrite = 4,
+}
+
+/// Allocation options for a compute buffer.
+export struct BufferOptions {
+    /// Debug label.
+    label?: string;
+
+    /// Host mapping permission.
+    hostAccess: HostAccess = HostAccess.None;
+
+    /// Requested byte alignment.
+    alignment?: usize;
+}
+
+/// Byte region copied between compute buffers.
+export struct BufferCopyRegion {
+    /// Source byte offset.
+    sourceOffset: usize = 0;
+
+    /// Destination byte offset.
+    destinationOffset: usize = 0;
+
+    /// Copy byte length.
+    byteLength: usize;
+}
+
+/// Typed storage allocated on one compute device.
+@languageItem("compute.Buffer")
+export class Buffer<T> {
+    /// The device that owns this buffer.
+    readonly device: Device;
+
+    /// Element count.
+    readonly length: usize;
+
+    /// Byte length.
+    readonly byteLength: usize;
+
+    /// Allocate a compute buffer.
+    static allocate<T>(
+        device: Device,
+        length: usize,
+        options?: BufferOptions,
+    ): Result<Buffer<T>, ComputeError> {
+        todo("Buffer.allocate")
+    }
+
+    /// Create a buffer initialized from host values.
+    static from<T>(
+        device: Device,
+        values: Slice<T>,
+        options?: BufferOptions,
+    ): Result<Buffer<T>, ComputeError> {
+        todo("Buffer.from")
+    }
+
+    /// Copy this buffer to `destination`.
+    copyTo(
+        destination: Buffer<T>,
+        region: BufferCopyRegion,
+        stream?: Stream,
+    ): Event {
+        todo("Buffer.copyTo")
+    }
+
+    /// Fill this buffer with `value`.
+    fill(value: T, stream?: Stream): Event {
+        todo("Buffer.fill")
+    }
+
+    /// Read this buffer into host memory.
+    read(stream?: Stream): Result<Slice<T>, ComputeError> {
+        todo("Buffer.read")
+    }
+
+    /// Write host values into this buffer.
+    write(values: Slice<T>, stream?: Stream): Event {
+        todo("Buffer.write")
+    }
+}
