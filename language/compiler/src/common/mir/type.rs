@@ -103,7 +103,7 @@ pub enum TypeKey {
         access: mir::Access,
         element: Box<TypeKey>,
         shape: Vec<mir::TensorDimension>,
-        layout: mir::TensorLayout,
+        layout: mir::TensorViewLayout,
         is_nullable: bool,
     },
     /// Bare function signature.

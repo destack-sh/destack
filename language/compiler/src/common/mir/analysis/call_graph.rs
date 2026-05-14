@@ -279,8 +279,8 @@ enum SignatureType {
         element: Box<SignatureType>,
         /// Tensor shape.
         shape: Vec<mir::TensorDimension>,
-        /// Tensor layout.
-        layout: mir::TensorLayout,
+        /// Tensor view layout.
+        layout: mir::TensorViewLayout,
         /// Nullability for the view.
         is_nullable: bool,
     },
