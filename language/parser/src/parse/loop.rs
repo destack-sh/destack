@@ -1,6 +1,6 @@
 //! Parse loops, for, while, etc.
 
-use destack_ast::{
+use destack_dir::{
     Asynchrony, BindingKeyword, BlockContext, Expression, ForEachBinding, ForEachOperator, Keyword,
     LocalNodeId, NodeType, Pattern, TokenType, WhileForm,
 };
@@ -367,7 +367,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use destack_ast::{
+    use destack_dir::{
         Argument, Asynchrony, BinaryOperator, BindingKeyword, Block, Declarator, Expression,
         ForEachBinding, ForEachOperator, GenericArgument, Key, Keyword, Name, Pattern,
         PatternField, ScalarLiteral, TokenType, TypeExpression, TypeLiteral, TypeMember,

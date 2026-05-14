@@ -1,5 +1,5 @@
 use crate::{ParseResult, Parser};
-use destack_ast::{Decorator, DecoratorPosition, LocalNodeId, TokenType};
+use destack_dir::{Decorator, DecoratorPosition, LocalNodeId, TokenType};
 use smallvec::SmallVec;
 
 const DECORATOR_EXPRESSION_PRECEDENCE: u16 = u16::MAX;

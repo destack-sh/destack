@@ -1,6 +1,8 @@
 use crate::{ParseError, ParseResult, Parser};
-use destack_ast::{Key, Keyword, LiteralType, Name, NodeType, ScalarLiteral, TokenSpan, TokenType};
 use destack_core::StringId;
+use destack_dir::{
+    Key, Keyword, Name, NodeType, ScalarLiteral, TokenLiteral, TokenSpan, TokenType,
+};
 use destack_source::Span;
 
 impl Parser {
@@ -285,7 +287,7 @@ impl Parser {
     pub fn peek_string_literal(&mut self) -> ParseResult<&TokenSpan> {
         let token = *self.peek_token(TokenType::Literal)?;
         match token.token.literal {
-            Some(LiteralType::String {
+            Some(TokenLiteral::String {
                 is_terminated: true,
                 has_invalid_escape: false,
             }) => self.peek_token(TokenType::Literal),
@@ -302,7 +304,7 @@ impl Parser {
 
         matches!(
             self.current_token().token.literal,
-            Some(LiteralType::String {
+            Some(TokenLiteral::String {
                 is_terminated: true,
                 has_invalid_escape: false,
             })
@@ -334,7 +336,7 @@ impl Parser {
             let token = *parser.peek_token(TokenType::Literal)?;
             if token.token.ty == TokenType::Literal {
                 match token.token.literal {
-                    Some(LiteralType::String {
+                    Some(TokenLiteral::String {
                         is_terminated: true,
                         has_invalid_escape: false,
                     }) => Ok(token),
@@ -361,7 +363,7 @@ impl Parser {
         let token = self.peek()?;
         if token.token.ty == TokenType::Literal {
             match token.token.literal {
-                Some(LiteralType::Int { .. }) | Some(LiteralType::Float { .. }) => Ok(token),
+                Some(TokenLiteral::Int { .. }) | Some(TokenLiteral::Float { .. }) => Ok(token),
                 _ => Err(ParseError::expected(token.span, TokenType::Literal)),
             }
         } else {
@@ -378,7 +380,7 @@ impl Parser {
 
         matches!(
             self.current_token().token.literal,
-            Some(LiteralType::Int { .. }) | Some(LiteralType::Float { .. })
+            Some(TokenLiteral::Int { .. }) | Some(TokenLiteral::Float { .. })
         )
     }
 
@@ -483,7 +485,7 @@ impl Parser {
 
         matches!(
             self.current_token().token.literal,
-            Some(LiteralType::Boolean { .. })
+            Some(TokenLiteral::Boolean { .. })
         )
     }
 
@@ -698,7 +700,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use destack_ast::{Expression, IfCondition, IfForm, Key, ScalarLiteral};
+    use destack_dir::{Expression, IfCondition, IfForm, Key, ScalarLiteral};
     use destack_source::LanguageType;
 
     use crate::tests::TestParser;

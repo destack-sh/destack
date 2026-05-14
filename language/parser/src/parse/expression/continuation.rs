@@ -2,10 +2,10 @@ use crate::parse::parser::ParserFlags;
 use crate::{ParseError, ParseResult, Parser, ParserCheckpoint, ParserSpanStart};
 
 use super::operator::{ParseInfixOperator, TypeBinaryOperator, TypeUnaryOperator};
-use destack_ast::{
+use destack_dir::{
     Argument, AssignOperator, AssignPattern, AssignPatternField, BinaryOperator, Declaration,
     Expression, FunctionDeclaration, FunctionForm, GenericArgument, IfCondition, IfForm, Key,
-    Keyword, LiteralType, LocalNodeId, Name, NodeType, PostfixPosition, Property, RangeEnd,
+    Keyword, LocalNodeId, Name, NodeType, PostfixPosition, Property, RangeEnd, TokenLiteral,
     TokenType, TypeExpression, UnaryOperator,
 };
 use destack_source::{Span, StringId};
@@ -2178,7 +2178,7 @@ impl Parser {
         }
 
         token_type == TokenType::Literal
-            && matches!(token.token.literal, Some(LiteralType::Boolean { .. }))
+            && matches!(token.token.literal, Some(TokenLiteral::Boolean { .. }))
     }
 
     /// Return true when the token after `.` is a valid member name.

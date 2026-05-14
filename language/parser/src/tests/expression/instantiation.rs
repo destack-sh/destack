@@ -1,6 +1,6 @@
 use crate::tests::*;
 use crate::{assert_expression_path, assert_node, assert_path, assert_string};
-use destack_ast::*;
+use destack_dir::*;
 use destack_source::LanguageType;
 
 /// Assert that one instantiation assignment target is rejected.

@@ -7,7 +7,7 @@ use super::common::{
     NOT_IN_TREE_BINARY_OPERATORS,
 };
 
-use destack_ast::{
+use destack_dir::{
     AssignOperator, AssignPattern, BinaryOperator, Expression, Keyword, LocalNodeId,
     OperatorPrecedence, RangeEnd, TokenSpan, TokenType, TypeExpression, TypePredicateSubject,
     UnaryOperator,

@@ -1,6 +1,6 @@
 use memchr::memchr_iter;
 
-use destack_ast::{
+use destack_dir::{
     Comment, CommentContent, CommentKind, CommentNewlines, CommentPosition, TokenSpan, TokenType,
 };
 

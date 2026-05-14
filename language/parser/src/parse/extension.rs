@@ -2,7 +2,7 @@ use crate::parse::expression::common::DeclarationHeader;
 use crate::parse::prelude::*;
 use crate::{ParseResult, Parser, ParserSpanStart};
 
-use destack_ast::{Declaration, ExtensionDeclaration, Keyword, LocalNodeId, NodeType, TokenType};
+use destack_dir::{Declaration, ExtensionDeclaration, Keyword, LocalNodeId, NodeType, TokenType};
 use destack_source::{NodeSpanRegion, NodeSpanType};
 
 impl Parser {
@@ -136,7 +136,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use destack_ast::{
+    use destack_dir::{
         Declaration, ExtensionDeclaration, GenericArgument, GenericParameter, IntegerType, Member,
         Parameter, TypeExpression, TypeLiteral, WhereClause,
     };

@@ -1,6 +1,6 @@
 use crate::assert_node;
 use crate::tests::*;
-use destack_ast::*;
+use destack_dir::*;
 
 /// Assert one type expression is a named reference.
 fn assert_reference(tree: &Tree, type_id: LocalNodeId<TypeExpression>) {

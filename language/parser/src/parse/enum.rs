@@ -4,9 +4,9 @@ use crate::parse::parser::ParserFlags;
 use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
 
-use destack_ast::{
-    Declaration, EnumDeclaration, EnumField, EnumKind, Keyword, LiteralType, LocalNodeId, Member,
-    Name, NodeType, TemplateLiteral, TokenType,
+use destack_dir::{
+    Declaration, EnumDeclaration, EnumField, EnumKind, Keyword, LocalNodeId, Member, Name,
+    NodeType, TemplateLiteral, TokenLiteral, TokenType,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
@@ -246,8 +246,10 @@ impl Parser {
             self.bump(); // eat open bracket
 
             let name = if self.peek_is(TokenType::Literal)
-                && matches!(self.peek()?.token.literal, Some(LiteralType::String { .. }))
-            {
+                && matches!(
+                    self.peek()?.token.literal,
+                    Some(TokenLiteral::String { .. })
+                ) {
                 let token = *self.peek()?;
                 let content = self.get_string_literal_str(token).to_owned();
                 let string_id = self.strings.intern(&content);
@@ -287,7 +289,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use destack_ast::{
+    use destack_dir::{
         CommentKind, Declaration, Decorator, DecoratorPosition, EnumDeclaration, EnumField,
         EnumKind, Expression, GenericParameter, NodeType, ScalarLiteral, TypeExpression,
         WhereClause,
@@ -557,7 +559,7 @@ enum Value {
         );
         assert_eq!(parser.file.span_str(parser.errors[0].leaf_span()), "}");
 
-        let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+        let expression_id = parser.unwrap_label_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
             assert!(
                 parser.tree.get_decorators(declaration_id.id).is_empty(),
@@ -597,7 +599,7 @@ Entry
         );
         assert_eq!(expressions.len(), 1);
 
-        let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+        let expression_id = parser.unwrap_label_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Enum(EnumDeclaration { fields, .. }) => {
                 assert_eq!(fields.len(), 1);
@@ -645,7 +647,7 @@ B
         );
         assert_eq!(expressions.len(), 1);
 
-        let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+        let expression_id = parser.unwrap_label_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Enum(EnumDeclaration { fields, .. }) => {
                 assert_eq!(fields.len(), 2);
@@ -674,7 +676,7 @@ B
         );
         assert_eq!(expressions.len(), 1);
 
-        let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+        let expression_id = parser.unwrap_label_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::Declaration(_declaration_id) => {
             let annotations = parser.tree.get_decorators(expression_id.id);
             assert!(annotations.is_empty());

@@ -1,6 +1,6 @@
 use crate::{ParseError, ParseResult, Parser};
 
-use destack_ast::{FloatType, IntegerType, Keyword, TokenType, TypeLiteral, VarianceBound};
+use destack_dir::{FloatType, IntegerType, Keyword, TokenType, TypeLiteral, VarianceBound};
 
 impl Parser {
     /// Map identifier text to always-available type literals.

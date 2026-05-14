@@ -1,4 +1,4 @@
-use destack_ast::{
+use destack_dir::{
     Argument, BinaryOperator, Declaration, Expression, FunctionDeclaration, GenericArgument,
     LocalNodeId, NodeType, PostfixPosition, ScalarLiteral, TypeExpression,
 };

@@ -2,7 +2,7 @@ use crate::parse::parser::ParserFlags;
 use crate::parse::prelude::*;
 use crate::{ParseResult, Parser};
 
-use destack_ast::{
+use destack_dir::{
     Block, BlockContext, BlockForm, Expression, Keyword, LocalNodeId, MatchCase, MatchForm,
     MatchSelector, NodeType, Pattern, TokenType,
 };
@@ -422,7 +422,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use destack_ast::{
+    use destack_dir::{
         Block, CommentKind, Expression, MatchCase, MatchForm, MatchSelector, Pattern, ScalarLiteral,
     };
     use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
@@ -882,8 +882,8 @@ switch (tag) {
                     let expressions = block_expression_ids(parser.tree.get(*body));
                     assert_eq!(expressions.len(), 3);
                     assert_node!(parser.tree, expressions[0], Expression::If { .. });
-                    let first_assign_id = parser.unwrap_labelled_expression(expressions[1]);
-                    let second_assign_id = parser.unwrap_labelled_expression(expressions[2]);
+                    let first_assign_id = parser.unwrap_label_expression(expressions[1]);
+                    let second_assign_id = parser.unwrap_label_expression(expressions[2]);
                     assert_node!(parser.tree, first_assign_id, Expression::Assign { .. });
                     assert_node!(parser.tree, second_assign_id, Expression::Assign { .. });
                 });
@@ -900,7 +900,7 @@ switch (tag) {
                     }
                     _ => panic!("expected pattern selector"),
                 };
-                let return_id = parser.unwrap_labelled_expression(*body);
+                let return_id = parser.unwrap_label_expression(*body);
                 assert_node!(parser.tree, return_id, Expression::Return { .. });
             });
         });
@@ -984,7 +984,7 @@ switch (value) {
         );
         assert_eq!(expressions.len(), 1);
 
-        let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+        let expression_id = parser.unwrap_label_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::Match { form, cases, .. } => {
             assert_eq!(*form, MatchForm::Switch);
             assert_eq!(cases.len(), 2);

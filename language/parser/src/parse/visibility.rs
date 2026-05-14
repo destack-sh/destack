@@ -1,5 +1,5 @@
 use crate::{ParseError, ParseResult, Parser};
-use destack_ast::{Keyword, Visibility};
+use destack_dir::{Keyword, Visibility};
 
 impl Parser {
     /// Peek a visibility.

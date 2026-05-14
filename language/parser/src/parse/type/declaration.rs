@@ -1,7 +1,7 @@
 use crate::parse::expression::common::DeclarationHeader;
 use crate::{ParseResult, Parser, ParserSpanStart};
 
-use destack_ast::{
+use destack_dir::{
     Declaration, Keyword, LocalNodeId, Mutability, TokenType, TypeDeclaration, TypeExpression,
     TypeKind,
 };

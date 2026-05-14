@@ -5,9 +5,10 @@ use crate::lex::decode_html_entity;
 use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser};
 
-use destack_ast::{
-    Argument, Expression, Keyword, LiteralType, LocalNodeId, NodeType, NumberBase, Path, Property,
-    ScalarLiteral, StringId, TemplateLiteral, TokenSpan, TokenType, TypeExpression, TypeMember,
+use destack_dir::{
+    Argument, Expression, Keyword, LocalNodeId, NodeType, NumberBase, Path, Property,
+    ScalarLiteral, StringId, TemplateLiteral, TokenLiteral, TokenSpan, TokenType, TypeExpression,
+    TypeMember,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
@@ -164,10 +165,10 @@ impl Parser {
 
         match body {
             // boolean literal
-            LiteralType::Boolean { value } => Ok(ScalarLiteral::Boolean(value)),
+            TokenLiteral::Boolean { value } => Ok(ScalarLiteral::Boolean(value)),
 
             // int literal
-            LiteralType::Int {
+            TokenLiteral::Int {
                 base,
                 is_empty,
                 is_bigint,
@@ -260,7 +261,7 @@ impl Parser {
             }
 
             // float literal
-            LiteralType::Float {
+            TokenLiteral::Float {
                 base: _,
                 is_empty_exponent,
             } => {
@@ -311,7 +312,7 @@ impl Parser {
             }
 
             // html entity character literal
-            LiteralType::Character {
+            TokenLiteral::Character {
                 is_terminated,
                 is_html_entity,
             } => {
@@ -335,7 +336,7 @@ impl Parser {
             }
 
             // string or Destack character literal
-            LiteralType::String {
+            TokenLiteral::String {
                 is_terminated,
                 has_invalid_escape,
             } => {
@@ -378,7 +379,7 @@ impl Parser {
             }
 
             // regex string literal (ignore quotes)
-            LiteralType::RegexString { has_flags } => {
+            TokenLiteral::RegexString { has_flags } => {
                 // regex literals require a closing slash
                 if !literal_str.starts_with('/') {
                     return Err(ParseError::expected_for(
@@ -462,7 +463,7 @@ impl Parser {
             }
 
             // tree text content, raw text inside tree literals
-            LiteralType::TreeString => {
+            TokenLiteral::TreeString => {
                 let string_id = self.strings.intern(literal_str);
                 Ok(ScalarLiteral::String(string_id))
             }
@@ -489,7 +490,7 @@ impl Parser {
         };
         let literal_str = self.file.span_str(token.span);
         let scalar_literal = match body {
-            LiteralType::Character {
+            TokenLiteral::Character {
                 is_terminated,
                 is_html_entity,
             } => {
@@ -511,7 +512,7 @@ impl Parser {
                         )
                     })?
             }
-            LiteralType::TreeString => {
+            TokenLiteral::TreeString => {
                 let string_id = self.strings.intern(literal_str);
                 ScalarLiteral::String(string_id)
             }
@@ -1331,7 +1332,7 @@ impl Parser {
 
             // skip non-meaningful whitespace-only tree strings
             if token.token.ty == TokenType::Literal
-                && token.token.literal == Some(LiteralType::TreeString)
+                && token.token.literal == Some(TokenLiteral::TreeString)
             {
                 let content = self.get_span_str(token.span);
                 if content.trim().is_empty() && content.contains('\n') {
@@ -1583,10 +1584,10 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use destack_ast::{
+    use destack_dir::{
         Argument, BinaryOperator, CommentKind, Declaration, Expression, FloatType,
         FunctionDeclaration, FunctionForm, GenericArgument, GenericParameter, IfCondition, IfForm,
-        IntegerType, Key, Name, Parameter, Property, ScalarLiteral, TemplateLiteral,
+        IntegerType, Key, Name, Parameter, Property, ScalarLiteral, TemplateLiteral, TokenType,
         TypeExpression, TypeLiteral,
     };
     use destack_source::LanguageType;
@@ -1786,9 +1787,7 @@ mod tests {
         let mut test = TestParser::new_with_language("('\u{2028}')", LanguageType::TypeScript);
         let mut parser = test.prepare();
 
-        parser
-            .eat_token(destack_ast::TokenType::OpenParenthesis)
-            .unwrap();
+        parser.eat_token(TokenType::OpenParenthesis).unwrap();
         let literal = parser.eat_scalar_literal().unwrap();
         assert_string!(
             parser,
@@ -1807,9 +1806,7 @@ mod tests {
         let mut test = TestParser::new_with_language("('\u{2029}')", LanguageType::TypeScript);
         let mut parser = test.prepare();
 
-        parser
-            .eat_token(destack_ast::TokenType::OpenParenthesis)
-            .unwrap();
+        parser.eat_token(TokenType::OpenParenthesis).unwrap();
         let literal = parser.eat_scalar_literal().unwrap();
         assert_string!(
             parser,
@@ -3129,7 +3126,7 @@ mod tests {
 
                 assert_node!(parser.tree, *value, Expression::ObjectExpression { properties, .. } => {
                     assert_eq!(properties.len(), 1);
-                    assert_node!(parser.tree, properties[0], destack_ast::Property::Field { key: destack_ast::Key::Name(Name::Identifier(key_name)), value: callback, .. } => {
+                    assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(key_name)), value: callback, .. } => {
                         assert_string!(parser, *key_name, "resend");
                         assert_node!(parser.tree, *callback, Expression::Declaration(declaration_id) => {
                             assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
@@ -4172,7 +4169,7 @@ function app() {
         );
         assert_eq!(expressions.len(), 1);
 
-        let statement_id = parser.unwrap_labelled_expression(expressions[0]);
+        let statement_id = parser.unwrap_label_expression(expressions[0]);
         assert_node!(parser.tree, statement_id, Expression::Let { declarators, .. } => {
             assert_eq!(declarators.len(), 1);
             let value = parser

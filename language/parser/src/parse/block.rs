@@ -1,8 +1,8 @@
-use destack_ast::{
+use destack_core::StringId;
+use destack_dir::{
     Block, BlockContext, BlockForm, Declaration, Expression, FunctionDeclaration, FunctionForm,
     Keyword, LocalNodeId, NodeType, TokenType, YieldCardinality,
 };
-use destack_core::StringId;
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use crate::parse::parser::ParserFlags;
@@ -113,7 +113,7 @@ impl Parser {
     }
 
     /// Return true when the current `identifier:` head can parse as a label.
-    pub(super) fn can_parse_labelled_expression(&mut self) -> bool {
+    pub(super) fn can_parse_label_expression(&mut self) -> bool {
         // labels only start on `identifier:`
         if !self.lookahead(|parser| {
             parser.bump();
@@ -131,7 +131,7 @@ impl Parser {
         });
 
         // label targets that are always expression statements
-        let is_labelled_expression = matches!(
+        let is_label_expression = matches!(
             label_target_keyword,
             Some(
                 Keyword::While
@@ -145,25 +145,25 @@ impl Parser {
             )
         );
 
-        // labelled blocks are only allowed in statement position
-        let is_labelled_block = label_target_type == TokenType::OpenBrace;
+        // labeled blocks are only allowed in statement position
+        let is_label_block = label_target_type == TokenType::OpenBrace;
         let is_in_statement_position = self.flags.is_in_statement_position();
         if is_in_statement_position && !self.language.is_destack() {
             return true;
         }
 
-        is_labelled_expression || (is_in_statement_position && is_labelled_block)
+        is_label_expression || (is_in_statement_position && is_label_block)
     }
 
-    /// Eat one labelled expression shell after the caller accepted `identifier:`.
-    pub(super) fn eat_labelled_expression_parts(
+    /// Eat one labeled expression shell after the caller accepted `identifier:`.
+    pub(super) fn eat_label_expression_parts(
         &mut self,
     ) -> ParseResult<(StringId, Span, LocalNodeId<Expression>)> {
         // parse label prefix
         let (label, label_span) = self.eat_identifier_with_span()?;
         self.eat_colon()?;
 
-        // allow empty labelled statements (`label:;`)
+        // allow empty labeled statements (`label:;`)
         let body = if self.peek_is(TokenType::Semicolon) {
             let body_start = self.span_start();
             self.bump(); // eat semicolon
@@ -182,7 +182,7 @@ impl Parser {
             self.eat_expression_in_scope()?
         };
 
-        // semicolon statement forms reject labelled declarations
+        // semicolon statement forms reject labeled declarations
         if !self.language.is_destack() && self.is_single_statement_declaration(body) {
             return Err(ParseError::unexpected(self.tree.get_span(body)));
         }
@@ -190,25 +190,23 @@ impl Parser {
         Ok((label, label_span, body))
     }
 
-    /// Try to parse a labelled statement before generic statement keyword dispatch.
-    fn try_parse_labelled_statement_expression(
+    /// Try to parse a labeled statement before generic statement keyword dispatch.
+    fn try_parse_label_statement_expression(
         &mut self,
         start: &ParserSpanStart,
     ) -> ParseResult<Option<LocalNodeId<Expression>>> {
-        if !self.can_parse_labelled_expression() {
+        if !self.can_parse_label_expression() {
             return Ok(None);
         }
 
-        let (label, label_span, body) = self.eat_labelled_expression_parts()?;
+        let (label, label_span, body) = self.eat_label_expression_parts()?;
 
-        // build labelled expression
-        let labelled_id = self.insert_node(
-            Expression::Labelled { label, body },
-            self.get_span_from(start),
-        );
-        self.tree.set_main_span(labelled_id, label_span);
+        // build labeled expression
+        let label_id =
+            self.insert_node(Expression::Label { label, body }, self.get_span_from(start));
+        self.tree.set_main_span(label_id, label_span);
 
-        Ok(Some(labelled_id))
+        Ok(Some(label_id))
     }
 
     /// Try to parse a statement expression that starts with an identifier.
@@ -217,8 +215,8 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
     ) -> ParseResult<Option<LocalNodeId<Expression>>> {
-        // parse labelled statements before keyword and expression dispatch
-        if let Some(expression_id) = self.try_parse_labelled_statement_expression(start)? {
+        // parse labeled statements before keyword and expression dispatch
+        if let Some(expression_id) = self.try_parse_label_statement_expression(start)? {
             return Ok(Some(expression_id));
         }
 
@@ -458,7 +456,7 @@ impl Parser {
         expression_id: LocalNodeId<Expression>,
     ) -> bool {
         // unwrap statement and label layers
-        let current = self.unwrap_labelled_expression(expression_id);
+        let current = self.unwrap_label_expression(expression_id);
 
         // detect declaration expressions that are invalid in single statement contexts
         match self.tree.get(current) {
@@ -1142,9 +1140,10 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use destack_ast::{
-        BlockContext, CommentKind, Declaration, Expression, FunctionDeclaration, FunctionForm,
-        IfForm, Key, LetKind, Name, NodeType, Property, ScalarLiteral, TokenType, YieldCardinality,
+    use destack_dir::{
+        Block, BlockContext, CommentKind, Declaration, Expression, FunctionDeclaration,
+        FunctionForm, IfForm, Key, LetKind, MatchCase, Name, NodeType, Property, ScalarLiteral,
+        TokenType, YieldCardinality,
     };
     use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
 
@@ -1170,7 +1169,7 @@ mod tests {
 
         assert_eq!(parser.errors.len(), 1);
 
-        assert_node!(parser.tree, block_id, destack_ast::Block { leading_expressions, tail_expression, .. } => {
+        assert_node!(parser.tree, block_id, Block { leading_expressions, tail_expression, .. } => {
             assert!(leading_expressions.is_empty());
             let tail_expression = tail_expression.expect("expected tail expression");
             assert_expression_path!(parser, parser.tree.get(tail_expression), "value");
@@ -1882,7 +1881,7 @@ const value = 1
 
         // if (x) { foo() }
         assert_eq!(expressions.len(), 1);
-        let if_expression_id = parser.unwrap_labelled_expression(expressions[0]);
+        let if_expression_id = parser.unwrap_label_expression(expressions[0]);
         assert_node!(parser.tree, if_expression_id, Expression::If { then_expression, .. } => {
             assert_node!(parser.tree, *then_expression, Expression::Block(block_id) => {
                 let block = parser.tree.get(*block_id);
@@ -1904,7 +1903,7 @@ const value = 1
 
         // function run() { foo() }
         assert_eq!(expressions.len(), 1);
-        let function_expression_id = parser.unwrap_labelled_expression(expressions[0]);
+        let function_expression_id = parser.unwrap_label_expression(expressions[0]);
         assert_node!(parser.tree, function_expression_id, Expression::Declaration(function_id) => {
             assert_node!(parser.tree, *function_id, Declaration::Function(FunctionDeclaration { body: Some(body_id), .. }) => {
                 assert_node!(parser.tree, *body_id, Expression::Block(block_id) => {
@@ -1936,7 +1935,7 @@ function next(value: number): IteratorResult<number> {
 
         // function next(...) { drop(value); { done: true, value } }
         assert_eq!(expressions.len(), 1);
-        let function_expression_id = parser.unwrap_labelled_expression(expressions[0]);
+        let function_expression_id = parser.unwrap_label_expression(expressions[0]);
         assert_node!(parser.tree, function_expression_id, Expression::Declaration(function_id) => {
             assert_node!(parser.tree, *function_id, Declaration::Function(FunctionDeclaration { body: Some(body_id), .. }) => {
                 assert_node!(parser.tree, *body_id, Expression::Block(block_id) => {
@@ -1990,7 +1989,7 @@ function apply(result: Result): IteratorResult<number> {
 
         // function apply(...) { match (...) { ... } }
         assert_eq!(expressions.len(), 1);
-        let function_expression_id = parser.unwrap_labelled_expression(expressions[0]);
+        let function_expression_id = parser.unwrap_label_expression(expressions[0]);
         assert_node!(parser.tree, function_expression_id, Expression::Declaration(function_id) => {
             assert_node!(parser.tree, *function_id, Declaration::Function(FunctionDeclaration { body: Some(body_id), .. }) => {
                 assert_node!(parser.tree, *body_id, Expression::Block(function_block_id) => {
@@ -2000,7 +1999,7 @@ function apply(result: Result): IteratorResult<number> {
                     assert_node!(parser.tree, tail_expression, Expression::Match { cases, .. } => {
                         assert_eq!(cases.len(), 2);
                         for case_id in cases {
-                            assert_node!(parser.tree, *case_id, destack_ast::MatchCase::Block { body: case_block_id, .. } => {
+                            assert_node!(parser.tree, *case_id, MatchCase::Block { body: case_block_id, .. } => {
                                 let case_block = parser.tree.get(*case_block_id);
                                 let case_tail = case_block.tail_expression.expect("expected object tail");
 
@@ -2039,7 +2038,7 @@ function run() {
 
         // function run() { foo() }
         assert_eq!(expressions.len(), 1);
-        let function_expression_id = parser.unwrap_labelled_expression(expressions[0]);
+        let function_expression_id = parser.unwrap_label_expression(expressions[0]);
         assert_node!(parser.tree, function_expression_id, Expression::Declaration(function_id) => {
             assert_node!(parser.tree, *function_id, Declaration::Function(FunctionDeclaration { body: Some(body_id), .. }) => {
                 assert_node!(parser.tree, *body_id, Expression::Block(block_id) => {
@@ -2069,7 +2068,7 @@ function choose(flag: boolean, a: int32, b: int32): int32 {
 
         // function choose(...) { if (flag) { a } else { b } }
         assert_eq!(expressions.len(), 1);
-        let function_expression_id = parser.unwrap_labelled_expression(expressions[0]);
+        let function_expression_id = parser.unwrap_label_expression(expressions[0]);
         assert_node!(parser.tree, function_expression_id, Expression::Declaration(function_id) => {
             assert_node!(parser.tree, *function_id, Declaration::Function(FunctionDeclaration { body: Some(body_id), .. }) => {
                 assert_node!(parser.tree, *body_id, Expression::Block(block_id) => {
@@ -2118,7 +2117,7 @@ function choose(flag: boolean, a: int32, b: int32): int32 {
         let expressions = parser.parse();
 
         assert_eq!(expressions.len(), 1);
-        let function_expression_id = parser.unwrap_labelled_expression(expressions[0]);
+        let function_expression_id = parser.unwrap_label_expression(expressions[0]);
         assert_node!(parser.tree, function_expression_id, Expression::Declaration(function_id) => {
             assert_node!(parser.tree, *function_id, Declaration::Function(FunctionDeclaration { body: Some(body_id), .. }) => {
                 assert_node!(parser.tree, *body_id, Expression::Block(function_block_id) => {
@@ -2158,13 +2157,13 @@ function choose(flag: boolean, a: int32, b: int32): int32 {
         assert_eq!(expressions.len(), 2);
 
         // first expression: function declaration
-        let declaration_id = parser.unwrap_labelled_expression(expressions[0]);
+        let declaration_id = parser.unwrap_label_expression(expressions[0]);
         assert_node!(parser.tree, declaration_id, Expression::Declaration(function_id) => {
             assert_node!(parser.tree, *function_id, Declaration::Function(FunctionDeclaration { .. }));
         });
 
         // second expression: call expression on `main().catch`
-        let call_id = parser.unwrap_labelled_expression(expressions[1]);
+        let call_id = parser.unwrap_label_expression(expressions[1]);
         assert_node!(parser.tree, call_id, Expression::Call { left, .. } => {
             assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
                 assert_string!(parser, *name, "catch");
@@ -2445,7 +2444,7 @@ const value = 1
         );
         assert_eq!(expressions.len(), 1);
 
-        let function_expression_id = parser.unwrap_labelled_expression(expressions[0]);
+        let function_expression_id = parser.unwrap_label_expression(expressions[0]);
         assert_node!(parser.tree, function_expression_id, Expression::Declaration(function_id) => {
             assert_node!(parser.tree, *function_id, Declaration::Function(FunctionDeclaration { body, .. }) => {
                 let body_id = body.expect("expected function body");
@@ -2491,7 +2490,7 @@ const value = 1
         );
         assert_eq!(expressions.len(), 1);
 
-        let function_expression_id = parser.unwrap_labelled_expression(expressions[0]);
+        let function_expression_id = parser.unwrap_label_expression(expressions[0]);
         assert_node!(parser.tree, function_expression_id, Expression::Declaration(function_id) => {
             assert_node!(parser.tree, *function_id, Declaration::Function(FunctionDeclaration { body: Some(body), .. }) => {
                 assert_node!(parser.tree, *body, Expression::Block(block_id) => {
@@ -2499,7 +2498,7 @@ const value = 1
                     assert_eq!(block.leading_expressions.len(), 1);
                     assert!(block.tail_expression.is_none());
                     let return_id =
-                        parser.unwrap_labelled_expression(block.leading_expressions[0]);
+                        parser.unwrap_label_expression(block.leading_expressions[0]);
                     assert_node!(parser.tree, return_id, Expression::Return { value: Some(value) } => {
                         assert_node!(parser.tree, *value, Expression::Parenthesized { expression } => {
                             assert_node!(parser.tree, *expression, Expression::TreeExpression { .. });

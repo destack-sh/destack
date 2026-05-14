@@ -4,7 +4,7 @@ use crate::parse::expression::common::DeclarationHeader;
 use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
 
-use destack_ast::{
+use destack_dir::{
     ClassDeclaration, Declaration, Keyword, LocalNodeId, NodeType, StructDeclaration, TokenType,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType};
@@ -176,7 +176,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use destack_ast::{
+    use destack_dir::{
         BinaryOperator, ClassDeclaration, CommentKind, Declaration, Expression, GenericParameter,
         IntegerType, Key, Member, Name, NodeType, Parameter, ScalarLiteral, StructDeclaration,
         TypeExpression, TypeLiteral, Visibility, WhereClause,
@@ -493,7 +493,7 @@ class Counter extends {}
 
         assert_eq!(expressions.len(), 1);
 
-        let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+        let expression_id = parser.unwrap_label_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { extends_expression: Some(extends_expression), members, .. }) => {
                 assert_eq!(members.len(), 1);
@@ -530,7 +530,7 @@ Second // impl-second
         );
         assert_eq!(expressions.len(), 1);
 
-        let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+        let expression_id = parser.unwrap_label_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { implements_types, members, .. }) => {
                 assert_eq!(implements_types.len(), 2);
@@ -570,7 +570,7 @@ Second // impl-second
         );
         assert_eq!(expressions.len(), 1);
 
-        let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+        let expression_id = parser.unwrap_label_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
             let first_static_parameter_id = assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { generic_parameters, .. }) => {
                 assert_eq!(generic_parameters.len(), 1);

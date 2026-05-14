@@ -1,16 +1,16 @@
 use crate::tests::*;
 use crate::{assert_expression_path, assert_node, assert_string};
-use destack_ast::*;
+use destack_dir::*;
 use destack_source::{LanguageType, NodeSpanBoundary, NodeSpanType};
 
-/// Parse labelled statements when the target statement starts on a new line.
+/// Parse labeled statements when the target statement starts on a new line.
 #[test]
-fn test_parse_labelled_statement_with_newline_before_target() {
+fn test_parse_labeled_statement_with_newline_before_target() {
     let mut test = TestParser::new("outer:\nwhile (true) {}");
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
-    assert_node!(parser.tree, expr_id, Expression::Labelled { label, body } => {
+    assert_node!(parser.tree, expr_id, Expression::Label { label, body } => {
         assert_string!(parser, *label, "outer");
         assert_node!(parser.tree, *body, Expression::While { .. });
     });
@@ -46,9 +46,9 @@ fn test_parse_statement_newline_before_parenthesized_guard_after_continue_stays_
     });
 }
 
-/// Reject labelled lexical declarations.
+/// Reject labeled lexical declarations.
 #[test]
-fn test_reject_labelled_lexical_declaration() {
+fn test_reject_labeled_lexical_declaration() {
     // source: a: let a
     let mut test = TestParser::new_with_language("a: let a", LanguageType::JavaScript);
     let mut parser = test.prepare();
@@ -86,7 +86,7 @@ type Value =
             // Value
             assert_string!(parser, name.string(), "Value");
             // | string | number | boolean
-            assert_node!(parser.tree, *value, destack_ast::TypeExpression::Union { elements } => {
+            assert_node!(parser.tree, *value, TypeExpression::Union { elements } => {
                 assert_eq!(elements.len(), 3);
                 assert_node!(parser.tree, elements[0], TypeExpression::Literal { value } => {
                     assert_eq!(*value, TypeLiteral::String);
@@ -161,7 +161,7 @@ type Target =
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { name, value, .. }) => {
             assert_string!(parser, name.string(), "Target");
-            assert_node!(parser.tree, *value, destack_ast::TypeExpression::Union { elements } => {
+            assert_node!(parser.tree, *value, TypeExpression::Union { elements } => {
                 assert_eq!(elements.len(), 3);
                 assert_node!(parser.tree, elements[0], TypeExpression::ScalarLiteral { value } => {
                     let ScalarLiteral::String(bun_id) = value else {
@@ -409,14 +409,14 @@ const x =
     });
 }
 
-/// Parse labelled statements with a label span.
+/// Parse labeled statements with a label span.
 #[test]
-fn test_parse_labelled_statement_span() {
+fn test_parse_labeled_statement_span() {
     let mut test = TestParser::new("label: loop {}");
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
-    assert_node!(parser.tree, expr_id, Expression::Labelled { label, .. } => {
+    assert_node!(parser.tree, expr_id, Expression::Label { label, .. } => {
         assert_string!(parser, *label, "label");
     });
 

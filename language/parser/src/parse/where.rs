@@ -1,7 +1,7 @@
 // parse use and where declarations
 use crate::{ParseResult, Parser};
 
-use destack_ast::{Keyword, LocalNodeId, NodeType, TokenType, WhereClause};
+use destack_dir::{Keyword, LocalNodeId, NodeType, TokenType, WhereClause};
 use destack_source::{NodeSpanRegion, NodeSpanType};
 
 impl Parser {
@@ -117,7 +117,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use destack_ast::{
+    use destack_dir::{
         CommentKind, IntegerType, NodeType, TypeExpression, TypeLiteral, WhereClause,
     };
     use destack_source::{NodeSpanRegion, NodeSpanType};

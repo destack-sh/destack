@@ -1,13 +1,13 @@
 use crate::{Lexer, LexerSnapshot, is_semantic, keyword_from_identifier};
 use core::fmt;
-use destack_ast::{
-    BlockForm, Expression, Keyword, LocalNodeId, Node, NodeType, StringId, Token, TokenSpan,
-    TokenType, Tree, TreeImpl, TreeMark, TypeExpression,
-};
 use destack_core::StringPool;
+use destack_dir::{
+    BlockForm, Expression, Keyword, LocalNodeId, Node, NodeType, StringId, Token, TokenLiteral,
+    TokenSpan, TokenType, Tree, TreeMark, TreeStore, TypeExpression,
+};
 use destack_source::{
-    DiagnosticCollector, EnclosingSpan, File, FileId, LanguageType, MultiSpan, NodeSearchMode,
-    NodeSpanBoundary, NodeSpanType, Span,
+    DiagnosticCollector, EnclosingSpan, File, FileId, LanguageType, ModuleId, MultiSpan,
+    NodeSearchMode, NodeSpanBoundary, NodeSpanType, PackageId, Span,
 };
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -943,7 +943,7 @@ impl ParserFlags {
     }
 }
 
-/// A parser for a single source file AST.
+/// A parser for a single source file.
 ///
 /// The Parser works on "semantic" undifferentiated Tokens (keywords are just identifiers).
 /// Whitespace and regular line comments are completely ignored; newline is significant (see ASI rules).
@@ -968,7 +968,7 @@ pub struct Parser {
     /// Whether transparent parenthesized wrappers should be preserved in the tree.
     preserve_parenthesized_wrappers: bool,
 
-    /// The Node AST tree.
+    /// The Node DIR tree.
     pub tree: Tree,
     /// The shared string pool.
     pub strings: Arc<StringPool>,
@@ -1028,6 +1028,18 @@ impl Parser {
 
     /// Create one parser for a file before lexing begins.
     fn parser_for_file(file: Arc<File>, language: LanguageType, strings: Arc<StringPool>) -> Self {
+        let module_id = ModuleId::new(PackageId::new(0), file.id.0);
+
+        Self::parser_for_module(file, language, module_id, strings)
+    }
+
+    /// Create one parser for a source module before lexing begins.
+    fn parser_for_module(
+        file: Arc<File>,
+        language: LanguageType,
+        module_id: ModuleId,
+        strings: Arc<StringPool>,
+    ) -> Self {
         // initialize the lexer for lazy lexing
         let lexer = Lexer::new(file.clone(), language);
 
@@ -1054,7 +1066,7 @@ impl Parser {
             flags: ParserFlags::default(),
             preserve_parenthesized_wrappers: true,
             language,
-            tree: Tree::with_capacity(estimated_nodes),
+            tree: Tree::with_capacity(module_id, estimated_nodes),
             strings,
             diagnostics: DiagnosticCollector::new(),
             errors: Vec::new(),
@@ -1071,6 +1083,20 @@ impl Parser {
         parser
     }
 
+    /// Create a new parser from a module text File and tokenize it.
+    pub fn lex_module(
+        module_id: ModuleId,
+        file: Arc<File>,
+        language: LanguageType,
+        strings: Arc<StringPool>,
+    ) -> Self {
+        let mut parser = Self::parser_for_module(file, language, module_id, strings);
+
+        // reset parser state to start
+        parser.reset();
+        parser
+    }
+
     /// Lex a file and apply parser options.
     pub fn lex_file_with_options(
         file: Arc<File>,
@@ -1079,6 +1105,23 @@ impl Parser {
         strings: Arc<StringPool>,
     ) -> Self {
         let mut parser = Self::parser_for_file(file, language, strings);
+        parser
+            .lexer
+            .set_retain_trivia_tokens(options.retain_trivia_tokens);
+        parser.reset();
+        parser.apply_options(options);
+        parser
+    }
+
+    /// Lex a module text File and apply parser options.
+    pub fn lex_module_with_options(
+        module_id: ModuleId,
+        file: Arc<File>,
+        language: LanguageType,
+        options: ParserOptions,
+        strings: Arc<StringPool>,
+    ) -> Self {
+        let mut parser = Self::parser_for_module(file, language, module_id, strings);
         parser
             .lexer
             .set_retain_trivia_tokens(options.retain_trivia_tokens);
@@ -1268,7 +1311,7 @@ impl Parser {
         if token_type == TokenType::Literal
             && matches!(
                 self.current_token.token.literal,
-                Some(destack_ast::LiteralType::RegexString { .. })
+                Some(TokenLiteral::RegexString { .. })
             )
         {
             return true;
@@ -1569,12 +1612,12 @@ impl Parser {
         })
     }
 
-    /// Insert a node into the AST tree.
+    /// Insert a node into the DIR tree.
     #[inline]
     pub(crate) fn insert_node<T>(&mut self, node: T, span: Span) -> LocalNodeId<T>
     where
         T: Node,
-        Tree: TreeImpl<T>,
+        Tree: TreeStore<T>,
     {
         self.tree.insert_during_parse(node, span)
     }
@@ -1583,7 +1626,7 @@ impl Parser {
     pub(crate) fn set_node_leading_span<T>(&mut self, node_id: LocalNodeId<T>, boundary_start: u32)
     where
         T: Node + Clone,
-        Tree: TreeImpl<T>,
+        Tree: TreeStore<T>,
     {
         let node_span = self.tree.get_span(node_id);
         if boundary_start >= node_span.start {
@@ -1602,7 +1645,7 @@ impl Parser {
     pub(crate) fn set_node_trailing_span<T>(&mut self, node_id: LocalNodeId<T>, boundary_end: u32)
     where
         T: Node + Clone,
-        Tree: TreeImpl<T>,
+        Tree: TreeStore<T>,
     {
         let node_span = self.tree.get_span(node_id);
         if boundary_end <= node_span.end {

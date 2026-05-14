@@ -1,6 +1,6 @@
 use crate::{ParseError, ParseResult, Parser};
 
-use destack_ast::{
+use destack_dir::{
     Expression, InterfaceHeritage, Keyword, LocalNodeId, NodeType, TokenType, TypeExpression,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};

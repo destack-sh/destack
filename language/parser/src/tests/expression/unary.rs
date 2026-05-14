@@ -1,6 +1,6 @@
 use crate::tests::*;
 use crate::{assert_expression_path, assert_node};
-use destack_ast::*;
+use destack_dir::*;
 use destack_source::LanguageType;
 
 /// Unary operator spans point at the operator token.

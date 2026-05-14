@@ -1,4 +1,4 @@
-use destack_ast::{
+use destack_dir::{
     Argument, Block, BlockContext, BlockForm, ClassDeclaration, Comment, CommentContent,
     CommentKind, CommentPosition, Declaration, Declarator, Decorator, DecoratorPosition,
     Expression, FunctionDeclaration, LocalNodeId, Member, Parameter, Property, StructDeclaration,
@@ -339,7 +339,7 @@ fn test_doc_comments_attach_semantically_and_skip_raw_comments() {
 
     // `function f() {}`
     assert_eq!(expressions.len(), 1);
-    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    let expression_id = parser.unwrap_label_expression(expressions[0]);
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         // `function f() {}`
         let expression_annotations = parser.tree.get_decorators(expression_id.id);
@@ -365,7 +365,7 @@ fn test_doc_comment_attaches_to_parameter() {
 
     // `function demo(...)`
     assert_eq!(expressions.len(), 1);
-    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    let expression_id = parser.unwrap_label_expression(expressions[0]);
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
             // `value: number`
@@ -397,7 +397,7 @@ fn test_doc_comment_after_type_assignment_attaches_to_type_value() {
 
     // `export type Value = ...`
     assert_eq!(expressions.len(), 1);
-    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    let expression_id = parser.unwrap_label_expression(expressions[0]);
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             // `| { ok: true } | ...`
@@ -434,7 +434,7 @@ fn test_comment_after_type_assignment_attaches_to_type_value() {
 
     // `export type Value = ...`
     assert_eq!(expressions.len(), 1);
-    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    let expression_id = parser.unwrap_label_expression(expressions[0]);
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             // `/* keep */`
@@ -458,7 +458,7 @@ fn test_comment_after_open_parenthesis_attaches_to_inner_expression_leading() {
 
     // `(/* keep */ value)`
     assert_eq!(expressions.len(), 1);
-    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    let expression_id = parser.unwrap_label_expression(expressions[0]);
     assert_node!(parser.tree, expression_id, Expression::Parenthesized { expression } => {
         // `/* keep */`
         assert_eq!(comments(&parser).len(), 1);
@@ -484,7 +484,7 @@ fn test_comment_before_close_parenthesis_attaches_to_inner_expression_trailing()
 
     // `(value /* keep */)`
     assert_eq!(expressions.len(), 1);
-    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    let expression_id = parser.unwrap_label_expression(expressions[0]);
     assert_node!(parser.tree, expression_id, Expression::Parenthesized { expression: _ } => {
         // `/* keep */`
         assert_eq!(comments(&parser).len(), 1);
@@ -506,7 +506,7 @@ fn test_line_comment_between_unary_prefix_and_operand_attaches_to_operand_leadin
     let (parser, expressions) = parse_source("-// unary-line-note\n1", LanguageType::TypeScript);
 
     assert_eq!(expressions.len(), 1);
-    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    let expression_id = parser.unwrap_label_expression(expressions[0]);
     assert_node!(parser.tree, expression_id, Expression::Unary { right: _, .. } => {
         assert_eq!(comments(&parser).len(), 1);
         let comment = comments(&parser)[0];
@@ -528,7 +528,7 @@ fn test_line_comment_between_unary_prefix_and_operand_in_initializer_attaches_to
     );
 
     assert_eq!(expressions.len(), 1);
-    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    let expression_id = parser.unwrap_label_expression(expressions[0]);
     assert_node!(parser.tree, expression_id, Expression::Let { declarators, .. } => {
         assert_eq!(declarators.len(), 1);
         assert_node!(parser.tree, declarators[0], Declarator { value, .. } => {
@@ -557,7 +557,7 @@ fn test_block_comments_between_ternary_branches_attach_to_separator_owners() {
     );
 
     assert_eq!(expressions.len(), 1);
-    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    let expression_id = parser.unwrap_label_expression(expressions[0]);
     assert_node!(parser.tree, expression_id, Expression::If { then_expression, else_expression, .. } => {
         let else_expression_id = else_expression.expect("expected ternary else branch");
 
@@ -580,7 +580,7 @@ fn test_doc_comment_attaches_to_call_argument() {
 
     // `run(...)`
     assert_eq!(expressions.len(), 1);
-    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    let expression_id = parser.unwrap_label_expression(expressions[0]);
     assert_node!(parser.tree, expression_id, Expression::Call { arguments, .. } => {
         // `value`
         assert_eq!(arguments.len(), 1);
@@ -1071,7 +1071,7 @@ fn test_decorator_attaches_to_function_declaration() {
 
     // `function f() {}`
     assert_eq!(expressions.len(), 1);
-    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    let expression_id = parser.unwrap_label_expression(expressions[0]);
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         // `@memo`
         let annotations = parser.tree.get_decorators(declaration_id.id);
@@ -1092,7 +1092,7 @@ fn test_decorator_attaches_to_struct_declaration_inside_block() {
 
     // `{ struct Entity {} }`
     assert_eq!(expressions.len(), 1);
-    let block_expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    let block_expression_id = parser.unwrap_label_expression(expressions[0]);
     assert_node!(parser.tree, block_expression_id, Expression::Block(block_id) => {
         // `struct Entity {}`
         let block = parser.tree.get(*block_id);
@@ -1100,7 +1100,7 @@ fn test_decorator_attaches_to_struct_declaration_inside_block() {
         assert!(block.tail_expression.is_none());
 
         let declaration_expression_id =
-            parser.unwrap_labelled_expression(block.leading_expressions[0]);
+            parser.unwrap_label_expression(block.leading_expressions[0]);
         assert_node!(parser.tree, declaration_expression_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Struct(StructDeclaration { .. }));
 
@@ -1126,7 +1126,7 @@ fn test_decorator_on_expression_attaches_directly_without_wrapper() {
 
     // `run()`
     assert_eq!(expressions.len(), 1);
-    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    let expression_id = parser.unwrap_label_expression(expressions[0]);
     assert_node!(parser.tree, expression_id, Expression::Call { .. } => {
         // `@memo`
         let annotations = parser.tree.get_decorators(expression_id.id);
@@ -1147,7 +1147,7 @@ fn test_decorator_attaches_to_parameter() {
 
     // `function demo(...)`
     assert_eq!(expressions.len(), 1);
-    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    let expression_id = parser.unwrap_label_expression(expressions[0]);
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
             // `@guard value: number`
@@ -1168,7 +1168,7 @@ fn test_decorator_attaches_to_call_argument() {
 
     // `run(...)`
     assert_eq!(expressions.len(), 1);
-    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    let expression_id = parser.unwrap_label_expression(expressions[0]);
     assert_node!(parser.tree, expression_id, Expression::Call { arguments, .. } => {
         // `@memo value`
         assert_eq!(arguments.len(), 1);
@@ -1191,7 +1191,7 @@ fn test_keyword_decorator_attaches_to_call_argument() {
     let (parser, expressions) = parse_source("run(@if(true) value)", LanguageType::Destack);
 
     assert_eq!(expressions.len(), 1);
-    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    let expression_id = parser.unwrap_label_expression(expressions[0]);
     assert_node!(parser.tree, expression_id, Expression::Call { arguments, .. } => {
         assert_eq!(arguments.len(), 1);
         let argument_id = arguments[0];
@@ -1257,7 +1257,7 @@ fn test_comment_between_parameter_name_and_type_attaches_to_type_boundary() {
 
     // `function f(...) {}`
     assert_eq!(expressions.len(), 1);
-    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    let expression_id = parser.unwrap_label_expression(expressions[0]);
     let _parameter_id = assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
             signature.parameters[0]
@@ -1286,7 +1286,7 @@ fn test_comment_between_parameter_pattern_and_type_attaches_to_type_boundary() {
 
     // `function f(...) {}`
     assert_eq!(expressions.len(), 1);
-    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    let expression_id = parser.unwrap_label_expression(expressions[0]);
     let _parameter_id = assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
             signature.parameters[0]
@@ -1315,7 +1315,7 @@ fn test_comment_after_optional_parameter_marker_attaches_to_type_boundary() {
 
     // `function f(...) {}`
     assert_eq!(expressions.len(), 1);
-    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    let expression_id = parser.unwrap_label_expression(expressions[0]);
     let _parameter_id = assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
             signature.parameters[0]
@@ -1342,7 +1342,7 @@ fn test_comment_after_parameter_colon_attaches_to_type_boundary() {
 
     // `function f(...) {}`
     assert_eq!(expressions.len(), 1);
-    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    let expression_id = parser.unwrap_label_expression(expressions[0]);
     let parameter_type = assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
             assert_node!(parser.tree, signature.parameters[0], Parameter::Named { declared_type: Some(ty), .. } => {
@@ -1374,7 +1374,7 @@ fn test_comment_after_type_conditional_question_attaches_to_then_separator() {
 
     // `type T = A extends B ? C : D`
     assert_eq!(expressions.len(), 1);
-    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    let expression_id = parser.unwrap_label_expression(expressions[0]);
     let then_type = assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Conditional { then_type, .. } => {
@@ -1406,7 +1406,7 @@ fn test_comment_after_type_conditional_colon_attaches_to_else_separator() {
 
     // `type T = A extends B ? C : D`
     assert_eq!(expressions.len(), 1);
-    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    let expression_id = parser.unwrap_label_expression(expressions[0]);
     let else_type = assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Conditional { else_type, .. } => {
@@ -1436,7 +1436,7 @@ fn test_comment_after_function_return_type_colon_attaches_to_return_type_boundar
 
     // `function f(): number {}`
     assert_eq!(expressions.len(), 1);
-    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    let expression_id = parser.unwrap_label_expression(expressions[0]);
     let return_type = assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
             signature.return_type.expect("expected return type")
@@ -1466,7 +1466,7 @@ fn test_comment_after_member_field_colon_attaches_to_field_type_boundary() {
 
     // `class Box { value: number }`
     assert_eq!(expressions.len(), 1);
-    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    let expression_id = parser.unwrap_label_expression(expressions[0]);
     let field_type = assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { members, .. }) => {
             assert_node!(parser.tree, members[0], Member::Field { declared_type: Some(value), .. } => {
@@ -1498,7 +1498,7 @@ fn test_comment_after_optional_member_marker_attaches_to_field_type_boundary() {
 
     // `class Box { value?: number }`
     assert_eq!(expressions.len(), 1);
-    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    let expression_id = parser.unwrap_label_expression(expressions[0]);
     let _field_id = assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { members, .. }) => {
             members[0]
@@ -1527,7 +1527,7 @@ fn test_comment_after_member_return_type_colon_attaches_to_return_type_boundary(
 
     // `class Box { method(): number {} }`
     assert_eq!(expressions.len(), 1);
-    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    let expression_id = parser.unwrap_label_expression(expressions[0]);
     let return_type = assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { members, .. }) => {
             assert_node!(parser.tree, members[0], Member::Method { signature, .. } => {
@@ -1642,7 +1642,7 @@ fn test_comments_around_member_decorator_chain_remain_raw_trivia() {
     // `class Box { ... }`
     assert_eq!(expressions.len(), 1);
 
-    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    let expression_id = parser.unwrap_label_expression(expressions[0]);
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { members, .. }) => {
             // `@entity`, `@foo(1, 2, 3)`
@@ -1847,7 +1847,7 @@ if (base.endsWith(".js") || base === `/worker-entries`) a; // for dev"#,
     assert_eq!(comments(&parser).len(), 3);
 
     for (index, expression_id) in expressions.iter().copied().enumerate() {
-        let expression_id = parser.unwrap_labelled_expression(expression_id);
+        let expression_id = parser.unwrap_label_expression(expression_id);
         assert_node!(parser.tree, expression_id, Expression::If { .. });
 
         let trivia = comments(&parser)[index];
@@ -1874,7 +1874,7 @@ fn test_array_element_prefix_comments_preserve_raw_element_boundaries() {
     // `[1, 2]`
     assert_eq!(expressions.len(), 1);
 
-    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    let expression_id = parser.unwrap_label_expression(expressions[0]);
     assert_node!(parser.tree, expression_id, Expression::ArrayExpression { elements } => {
         // `1`, `2`
         assert_eq!(elements.len(), 2);
@@ -1911,7 +1911,7 @@ fn test_inline_separator_comments_preserve_raw_separator_boundaries() {
     // `[a, b]`
     assert_eq!(expressions.len(), 1);
 
-    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    let expression_id = parser.unwrap_label_expression(expressions[0]);
     assert_node!(parser.tree, expression_id, Expression::ArrayExpression { elements } => {
         // `a`, `b`
         assert_eq!(elements.len(), 2);
@@ -1968,7 +1968,7 @@ fn test_lambda_body_prefix_comments_preserve_raw_body_boundaries() {
     // `() => []`
     assert_eq!(expressions.len(), 1);
 
-    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    let expression_id = parser.unwrap_label_expression(expressions[0]);
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { body, .. }) => {
             // `// body`
@@ -1994,7 +1994,7 @@ fn test_lambda_inline_body_comments_preserve_raw_body_boundaries() {
     // `() => []`
     assert_eq!(expressions.len(), 1);
 
-    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    let expression_id = parser.unwrap_label_expression(expressions[0]);
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { body, .. }) => {
             // `/* body */`

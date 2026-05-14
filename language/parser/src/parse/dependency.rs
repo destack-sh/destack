@@ -1,11 +1,11 @@
 use crate::{ParseError, ParseResult, Parser};
 
-use destack_ast::{
-    Argument, DependencyBinding, DependencyItem, DependencySpace, Expression, ImportAttribute,
-    ImportAttributeClause, ImportAttributeClauseKind, ImportAttributeValue, Keyword, LiteralType,
-    LocalNodeId, Name, NodeType, Property, TokenType,
-};
 use destack_core::StringId;
+use destack_dir::{
+    Argument, DependencyBinding, DependencyItem, DependencySpace, Expression, ImportAttribute,
+    ImportAttributeClause, ImportAttributeClauseKind, ImportAttributeValue, Key, Keyword,
+    LocalNodeId, Name, NodeType, Property, TokenLiteral, TokenType,
+};
 use destack_source::{NodeSpanList, NodeSpanRegion, NodeSpanType, Span};
 
 /// One parsed import attribute clause plus parser owned source parts.
@@ -326,7 +326,7 @@ impl Parser {
                         return Err(ParseError::unexpected(self.tree.get_span(property_id)));
                     };
 
-                    let destack_ast::Key::Name(key) = *key else {
+                    let Key::Name(key) = *key else {
                         return Err(ParseError::unexpected(self.tree.get_span(property_id)));
                     };
                     let value = self.decode_import_attribute_value(*value)?;
@@ -472,7 +472,7 @@ impl Parser {
         // module targets accept regular string literals, including unterminated ones for recovery
         let is_valid_target = matches!(
             token.token.literal,
-            Some(LiteralType::String {
+            Some(TokenLiteral::String {
                 has_invalid_escape: false,
                 ..
             })
@@ -792,7 +792,7 @@ impl Parser {
         if allow_literal_alias
             && self.peek().is_ok_and(|token| {
                 token.token.ty == TokenType::Literal
-                    && matches!(token.token.literal, Some(LiteralType::Boolean { .. }))
+                    && matches!(token.token.literal, Some(TokenLiteral::Boolean { .. }))
             })
         {
             let span = self.peek()?.span;
@@ -812,11 +812,11 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use destack_ast::{
-        DependencyBinding, DependencyItem, DependencySpace, Expression, ImportAttributeClauseKind,
-        ImportAttributeValue, LocalNodeId, Name, ScalarLiteral,
-    };
     use destack_core::StringId;
+    use destack_dir::{
+        DependencyBinding, DependencyItem, DependencySpace, Expression, ImportAttribute,
+        ImportAttributeClauseKind, ImportAttributeValue, LocalNodeId, Name, ScalarLiteral,
+    };
     use destack_source::{LanguageType, NodeSpanList, NodeSpanRegion, NodeSpanType, Span};
 
     use crate::{Parser, TestParser, assert_expression_path, assert_node, assert_string};
@@ -964,11 +964,11 @@ mod tests {
             assert_eq!(
                 attributes.attributes[1].value,
                 ImportAttributeValue::Object(vec![
-                    destack_ast::ImportAttribute {
+                    ImportAttribute {
                         key: Name::Identifier(parser.strings.intern("eager")),
                         value: ImportAttributeValue::ScalarLiteral(ScalarLiteral::Boolean(true)),
                     },
-                    destack_ast::ImportAttribute {
+                    ImportAttribute {
                         key: Name::Identifier(parser.strings.intern("levels")),
                         value: ImportAttributeValue::Array(vec![
                             ImportAttributeValue::ScalarLiteral(ScalarLiteral::Integer(1)),

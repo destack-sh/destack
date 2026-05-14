@@ -5,8 +5,8 @@ use crate::{
     Parser, ParserOptions, assert_expression_path, assert_node, assert_path,
     assert_qualified_reference_path, assert_string, assert_value_expression_path,
 };
-use destack_ast::*;
 use destack_core::StringPool;
+use destack_dir::*;
 use destack_source::{LanguageType, NodeSpanBoundary, NodeSpanRegion, NodeSpanType};
 
 /// Parse import meta as one dedicated expression root.

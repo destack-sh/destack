@@ -1,6 +1,6 @@
 use crate::Parser;
 
-use destack_ast::{Keyword, TokenType};
+use destack_dir::{Keyword, TokenType};
 
 impl Parser {
     /// Peek a tree literal with value-expression position rules.

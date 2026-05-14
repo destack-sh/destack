@@ -1,9 +1,9 @@
 use core::fmt;
 
-use destack_ast::{NodeType, TokenSpan, TokenType};
+use destack_dir::{NodeType, TokenSpan, TokenType};
 use destack_source::{Diagnostic, DiagnosticLabel, File, Span};
 
-/// Error when parsing the AST.
+/// Error when parsing the parsed DIR.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ParseError {
     /// The span of the error.
@@ -16,7 +16,7 @@ pub struct ParseError {
     pub source: Option<Box<ParseError>>,
 }
 
-/// The result of an AST parse.
+/// The result of an source parse.
 pub type ParseResult<T> = Result<T, ParseError>;
 
 pub trait ParseResultExt<T> {

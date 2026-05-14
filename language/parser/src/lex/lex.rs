@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use super::html_entities::HTML_NAMED_ENTITIES;
 use super::lexer::Lexer;
-use destack_ast::{
-    LiteralType, NumberBase, Token, TokenSpan, TokenType, is_identifier_continue,
+use destack_dir::{
+    NumberBase, Token, TokenLiteral, TokenSpan, TokenType, is_identifier_continue,
     is_identifier_start, is_whitespace,
 };
 
@@ -152,7 +152,7 @@ impl Lexer {
                     html_entity_token
                 } else {
                     self.eat_tree_text_after_ampersand();
-                    (TokenType::Literal, Some(LiteralType::TreeString))
+                    (TokenType::Literal, Some(TokenLiteral::TreeString))
                 }
             }
             '>' => (TokenType::GreaterThan, None),
@@ -169,7 +169,7 @@ impl Lexer {
                     self.eat();
                 }
 
-                (TokenType::Literal, Some(LiteralType::TreeString))
+                (TokenType::Literal, Some(TokenLiteral::TreeString))
             }
         };
 
@@ -657,7 +657,7 @@ impl Lexer {
             // string literal
             '\'' => {
                 let (is_terminated, has_invalid_escape) = self.eat_quoted_string('\'');
-                let kind = LiteralType::String {
+                let kind = TokenLiteral::String {
                     is_terminated,
                     has_invalid_escape,
                 };
@@ -667,7 +667,7 @@ impl Lexer {
             // string literal
             '"' => {
                 let (terminated, has_invalid_escape) = self.eat_quoted_string('"');
-                let kind = LiteralType::String {
+                let kind = TokenLiteral::String {
                     is_terminated: terminated,
                     has_invalid_escape,
                 };
@@ -712,7 +712,7 @@ impl Lexer {
         token
     }
 
-    fn try_eat_html_entity(&mut self) -> Option<(TokenType, Option<LiteralType>)> {
+    fn try_eat_html_entity(&mut self) -> Option<(TokenType, Option<TokenLiteral>)> {
         let rest = self.remaining_text();
         let semicolon_idx = rest.find(';')?;
         if semicolon_idx == 0 {
@@ -747,7 +747,7 @@ impl Lexer {
 
         Some((
             TokenType::Literal,
-            Some(LiteralType::Character {
+            Some(TokenLiteral::Character {
                 is_terminated: true,
                 is_html_entity: true,
             }),
@@ -796,7 +796,7 @@ impl Lexer {
 
     /// Parses an identifier, unknown prefix or some literal string (excluding first character).
     /// Returns the token type and the literal type if it's a hardcoded literal.
-    fn eat_identifier_or_such(&mut self, first_char: char) -> (TokenType, Option<LiteralType>) {
+    fn eat_identifier_or_such(&mut self, first_char: char) -> (TokenType, Option<TokenLiteral>) {
         debug_assert!(is_identifier_start(first_char));
         let start_position = self.position();
 
@@ -845,14 +845,14 @@ impl Lexer {
         if first_char == 't' && source[start_position - 1..self.position()].eq("true") {
             (
                 TokenType::Literal,
-                Some(LiteralType::Boolean { value: true }),
+                Some(TokenLiteral::Boolean { value: true }),
             )
         }
         // false
         else if first_char == 'f' && source[start_position - 1..self.position()].eq("false") {
             (
                 TokenType::Literal,
-                Some(LiteralType::Boolean { value: false }),
+                Some(TokenLiteral::Boolean { value: false }),
             )
         }
         // just an identifier
@@ -876,7 +876,7 @@ impl Lexer {
     /// Try to parse a unicode escape sequence that starts an identifier.
     /// Called after `\` has been eaten.
     /// Returns Some((TokenType::Identifier, None)) if successful, None otherwise.
-    fn try_eat_unicode_escape_identifier(&mut self) -> Option<(TokenType, Option<LiteralType>)> {
+    fn try_eat_unicode_escape_identifier(&mut self) -> Option<(TokenType, Option<TokenLiteral>)> {
         // check for \u
         if self.peek() != 'u' {
             return None;
@@ -1031,7 +1031,7 @@ impl Lexer {
 
     /// Parses a number literal (excluding first digit).
     /// Returns the number literal.
-    fn eat_number_literal(&mut self, first_digit: char) -> LiteralType {
+    fn eat_number_literal(&mut self, first_digit: char) -> TokenLiteral {
         debug_assert!('0' <= self.previous() && self.previous() <= '9');
         let mut base = NumberBase::Decimal;
         if first_digit == '0' {
@@ -1042,7 +1042,7 @@ impl Lexer {
                     base = NumberBase::Binary;
                     self.eat();
                     if !self.eat_decimal_digits() {
-                        return LiteralType::Int {
+                        return TokenLiteral::Int {
                             base,
                             is_empty: true,
                             is_bigint: false,
@@ -1055,7 +1055,7 @@ impl Lexer {
                     base = NumberBase::Octal;
                     self.eat();
                     if !self.eat_decimal_digits() {
-                        return LiteralType::Int {
+                        return TokenLiteral::Int {
                             base,
                             is_empty: true,
                             is_bigint: false,
@@ -1068,7 +1068,7 @@ impl Lexer {
                     base = NumberBase::Hexadecimal;
                     self.eat();
                     if !self.eat_hexadecimal_digits() {
-                        return LiteralType::Int {
+                        return TokenLiteral::Int {
                             base,
                             is_empty: true,
                             is_bigint: false,
@@ -1086,7 +1086,7 @@ impl Lexer {
 
                 // just a 0
                 _ => {
-                    return LiteralType::Int {
+                    return TokenLiteral::Int {
                         base,
                         is_empty: false,
                         is_bigint: false,
@@ -1106,7 +1106,7 @@ impl Lexer {
                 && (self.language.is_javascript() || self.language.is_typescript()) =>
             {
                 self.eat();
-                LiteralType::Float {
+                TokenLiteral::Float {
                     base,
                     is_empty_exponent: false,
                 }
@@ -1133,7 +1133,7 @@ impl Lexer {
                     is_empty_exponent = !self.eat_float_exponent();
                 }
 
-                LiteralType::Float {
+                TokenLiteral::Float {
                     base,
                     is_empty_exponent,
                 }
@@ -1141,20 +1141,20 @@ impl Lexer {
             'e' | 'E' => {
                 self.eat();
                 let is_empty_exponent = !self.eat_float_exponent();
-                LiteralType::Float {
+                TokenLiteral::Float {
                     base,
                     is_empty_exponent,
                 }
             }
             'n' => {
                 self.eat();
-                LiteralType::Int {
+                TokenLiteral::Int {
                     base,
                     is_empty: false,
                     is_bigint: true,
                 }
             }
-            _ => LiteralType::Int {
+            _ => TokenLiteral::Int {
                 base,
                 is_empty: false,
                 is_bigint: false,
@@ -1163,7 +1163,7 @@ impl Lexer {
     }
 
     /// Parse a decimal literal starting with a leading dot.
-    fn eat_leading_dot_number_literal(&mut self) -> LiteralType {
+    fn eat_leading_dot_number_literal(&mut self) -> TokenLiteral {
         let base = NumberBase::Decimal;
         let is_empty_exponent = {
             self.eat_decimal_digits();
@@ -1174,7 +1174,7 @@ impl Lexer {
                 false
             }
         };
-        LiteralType::Float {
+        TokenLiteral::Float {
             base,
             is_empty_exponent,
         }
@@ -1543,7 +1543,7 @@ impl Lexer {
         let token = Token::new(
             TokenType::Literal,
             self.token_len(),
-            Some(LiteralType::TreeString),
+            Some(TokenLiteral::TreeString),
         );
         self.reset_token_start();
         Some(token)

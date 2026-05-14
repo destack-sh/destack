@@ -3,7 +3,7 @@ use crate::{
     assert_comment, assert_expression_path, assert_node, assert_string,
     assert_value_expression_path,
 };
-use destack_ast::*;
+use destack_dir::*;
 use destack_source::LanguageType;
 
 #[test]

@@ -1,6 +1,6 @@
 use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
 
-use destack_ast::{Keyword, LocalNodeId, StringId, TokenType, TupleElement, TypeExpression};
+use destack_dir::{Keyword, LocalNodeId, StringId, TokenType, TupleElement, TypeExpression};
 
 impl Parser {
     /// Return whether the current token starts a type tuple head.

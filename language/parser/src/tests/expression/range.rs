@@ -1,6 +1,6 @@
 use crate::tests::*;
 use crate::{assert_node, assert_string};
-use destack_ast::*;
+use destack_dir::*;
 
 #[test]
 fn test_parse_half_open_range_expression() {

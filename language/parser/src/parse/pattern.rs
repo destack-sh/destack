@@ -1,9 +1,9 @@
 use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
 
-use destack_ast::{
-    Expression, LiteralType, LocalNodeId, Name, NodeType, OperatorPrecedence, Pattern,
-    PatternField, RangeEnd, ScalarLiteral, TokenType, TypeExpression, TypeLiteral,
+use destack_dir::{
+    Expression, LocalNodeId, Name, NodeType, OperatorPrecedence, Pattern, PatternField, RangeEnd,
+    ScalarLiteral, TokenLiteral, TokenType, TypeExpression, TypeLiteral,
 };
 use destack_source::Span;
 
@@ -803,7 +803,7 @@ impl Parser {
     fn peek_boolean_pattern_name_head(&mut self) -> bool {
         self.peek().is_ok_and(|token| {
             token.token.ty == TokenType::Literal
-                && matches!(token.token.literal, Some(LiteralType::Boolean { .. }))
+                && matches!(token.token.literal, Some(TokenLiteral::Boolean { .. }))
         })
     }
 
@@ -847,7 +847,7 @@ impl Parser {
     fn eat_boolean_pattern_name_with_span(&mut self) -> ParseResult<(Name, Span)> {
         let token = *self.peek()?;
         if token.token.ty != TokenType::Literal
-            || !matches!(token.token.literal, Some(LiteralType::Boolean { .. }))
+            || !matches!(token.token.literal, Some(TokenLiteral::Boolean { .. }))
         {
             return Err(ParseError::unexpected(token.span));
         }
@@ -861,9 +861,9 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use destack_ast::{
+    use destack_dir::{
         Expression, LocalNodeId, Mutability, Name, Pattern, PatternField, RangeEnd, ScalarLiteral,
-        TokenType, TypeExpression,
+        TokenType, Tree, TypeExpression,
     };
     use destack_source::LanguageType;
 
@@ -871,11 +871,7 @@ mod tests {
         TestParser, assert_expression_path, assert_name, assert_node, assert_path, assert_string,
     };
 
-    fn assert_integer_expression(
-        tree: &destack_ast::Tree,
-        id: LocalNodeId<Expression>,
-        value: i64,
-    ) {
+    fn assert_integer_expression(tree: &Tree, id: LocalNodeId<Expression>, value: i64) {
         assert_node!(tree, id, Expression::ScalarLiteral(ScalarLiteral::Integer(actual)) => {
             assert_eq!(*actual, value);
         });

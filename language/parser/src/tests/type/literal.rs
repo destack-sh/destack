@@ -1,6 +1,6 @@
 use crate::tests::*;
 use crate::{Parser, assert_expression_path, assert_name, assert_node, assert_path, assert_string};
-use destack_ast::*;
+use destack_dir::*;
 use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
 
 /// Assert one plain type reference without generic arguments.
