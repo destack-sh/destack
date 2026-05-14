@@ -116,6 +116,12 @@ export {
     norm,
 } from "./linalg.ds";
 export {
+    uniform,
+    uniformRange,
+    normal,
+    bernoulli,
+} from "./random.ds";
+export {
     SoftmaxOptions,
     NormalizationOptions,
     PoolOptions,

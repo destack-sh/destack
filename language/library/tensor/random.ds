@@ -1,0 +1,44 @@
+import { todo } from "destack:error";
+import { Random } from "destack:random";
+import { TensorCreateOptions } from "./options.ds";
+import { Shape } from "./shape.ds";
+import { Tensor } from "./tensor.ds";
+
+/// Return values sampled uniformly from [0, 1).
+export function uniform<T: float, comptime Rank: int>(
+    shape: Shape<Rank>,
+    random: Random,
+    options?: TensorCreateOptions<Rank>,
+): Tensor<T, Rank> {
+    todo("tensor.uniform")
+}
+
+/// Return values sampled uniformly from [`low`, `high`).
+export function uniformRange<T: int | float, comptime Rank: int>(
+    shape: Shape<Rank>,
+    low: T,
+    high: T,
+    random: Random,
+    options?: TensorCreateOptions<Rank>,
+): Tensor<T, Rank> {
+    todo("tensor.uniformRange")
+}
+
+/// Return values sampled from the standard normal distribution.
+export function normal<T: float, comptime Rank: int>(
+    shape: Shape<Rank>,
+    random: Random,
+    options?: TensorCreateOptions<Rank>,
+): Tensor<T, Rank> {
+    todo("tensor.normal")
+}
+
+/// Return values sampled from Bernoulli trials.
+export function bernoulli<T: float, comptime Rank: int>(
+    shape: Shape<Rank>,
+    probability: T,
+    random: Random,
+    options?: TensorCreateOptions<Rank>,
+): Tensor<boolean, Rank> {
+    todo("tensor.bernoulli")
+}
