@@ -25,8 +25,6 @@ pub(super) enum OutputScopeId {
 /// One source-backed minify context.
 #[derive(Debug, Clone)]
 pub(super) struct MinifySourceContext {
-    /// The source tree.
-    pub(super) tree: Arc<dir::Tree>,
     /// The source strings.
     pub(super) strings: Arc<StringPool>,
     /// The source symbol table.
@@ -105,24 +103,23 @@ impl ScriptLinker<'_> {
             return Ok(Some(source_context.clone()));
         }
 
-        // fall back to the declared source context on demand
+        // load the bound source context on demand
         self.ensure_module_profile(module_id)?;
 
         let profile_id = self.profile_id_for_module(module_id)?;
         let dir = self
             .compiler
-            .dir_declared(self.context, module_id, profile_id)
+            .dir_bound(self.context, module_id, profile_id)
             .map_err(|error| LinkError::Internal {
                 anchor: (self.package_id).into(),
                 package: self.package_id,
                 message: format!(
-                    "missing declared source context for minify module {:?} profile {:?}: {error:?}",
+                    "missing bound source context for minify module {:?} profile {:?}: {error:?}",
                     module_id, profile_id
                 ),
             })?;
 
         Ok(Some(MinifySourceContext {
-            tree: Arc::new(dir.tree.clone()),
             strings: self.compiler.repository.string_pool().clone(),
             symbols: Arc::new(dir.bindings.clone()),
             namespace_scope: dir.namespace_scope,
@@ -185,9 +182,17 @@ impl ScriptLinker<'_> {
                 ),
             })?;
         let source_declaration_id = dir::LocalNodeId::<dir::Declaration>::new(origin.node_id);
-        let source_declaration = source_context.tree.get(source_declaration_id);
-        let symbol_id = source_declaration
-            .name_symbol()
+        let symbol_id = source_context
+            .symbols
+            .symbol_for_declaration(source_declaration_id.into_global_any(origin.module_id))
+            .ok_or_else(|| LinkError::Internal {
+                anchor: (self.package_id).into(),
+                package: self.package_id,
+                message: format!(
+                    "source declaration has no symbol in module {:?}",
+                    origin.module_id
+                ),
+            })?
             .into_global(origin.module_id);
 
         Ok(Some(js::ScriptSymbolId::Source(symbol_id)))
@@ -236,7 +241,7 @@ impl ScriptLinker<'_> {
                         ),
                     })?;
                 let symbol = source_context.symbols.get_symbol(symbol_id.local_id);
-                let scope_id = symbol.scope.0;
+                let scope_id = symbol.scope.id;
 
                 if scope_id == source_context.namespace_scope {
                     Ok(OutputScopeId::TopLevel)
@@ -275,9 +280,10 @@ impl ScriptLinker<'_> {
                         ),
                     })?;
                 let scope = source_context.symbols.get_scope_by_id(scope_id);
-                let Some((parent_scope_id, _)) = scope.parent else {
+                let Some(parent_scope) = scope.parent else {
                     return Ok(Some(OutputScopeId::TopLevel));
                 };
+                let parent_scope_id = parent_scope.id;
 
                 if parent_scope_id == source_context.namespace_scope {
                     Ok(Some(OutputScopeId::TopLevel))

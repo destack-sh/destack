@@ -90,7 +90,7 @@ impl<'a> ScriptLinker<'a> {
 
         // html root discovery reads parsed payloads directly
         for module_id in root_modules {
-            match self.context.require(ArtifactKey::ast(*module_id)) {
+            match self.context.require(ArtifactKey::dir_parsed(*module_id)) {
                 Ok(_) => {}
                 Err(ProviderError::Blocked { keys }) => blocked.extend(keys),
                 Err(error) => return Err(CompilerError::from(error)),

@@ -1,5 +1,5 @@
 use destack_artifact::SourceMapArtifact;
-use destack_fir::format::FileMarker;
+use destack_fir as fir;
 use destack_source::File;
 
 const BASE64_VLQ_ALPHABET: &[u8; 64] =
@@ -23,7 +23,7 @@ impl SourceMapMarker {
     pub(crate) fn from_file_marker(
         source_index: usize,
         source_file: &File,
-        marker: FileMarker,
+        marker: fir::format::FileMarker,
     ) -> Option<Self> {
         let (original_line, original_column) = source_file.get_position(marker.source)?;
 

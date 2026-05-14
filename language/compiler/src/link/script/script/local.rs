@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 
 use destack_artifact::ArtifactKey;
-use destack_ast::is_identifier;
 use destack_core::{StringId, StringPool};
 use destack_source::{ModuleId, PackageId, TargetId};
 use destack_workspace::{ProviderContext, Target};
@@ -313,16 +312,16 @@ impl Compiler {
         package_id: PackageId,
         context: &dyn ProviderContext,
     ) -> LinkResult<(dir::GlobalSymbolId, String)> {
-        let source_directory = self.dir_declared(context, module_id, profile_id).map_err(
-            |error| LinkError::Internal {
+        let source_bound = self
+            .dir_bound(context, module_id, profile_id)
+            .map_err(|error| LinkError::Internal {
                 anchor: (package_id).into(),
                 package: package_id,
                 message: format!(
-                    "missing declared dir for same-output import rewrite module {:?}: {error:?}",
+                    "missing bound DIR for same-output import rewrite module {:?}: {error:?}",
                     module_id,
                 ),
-            },
-        )?;
+            })?;
         let origin = module
             .tree
             .get_origin(item_id.id)
@@ -332,14 +331,14 @@ impl Compiler {
                 message: "same-output import item has no origin".to_string(),
             })?;
         let source_item_id = dir::LocalNodeId::<dir::DependencyItem>::new(origin.node_id);
-        let source_item = source_directory.tree.get(source_item_id);
 
-        let target_symbol = match source_item {
-            dir::DependencyItem::Item {
-                symbol: Some(symbol),
-                ..
-            } => symbol.into_global(module_id),
-            _ => {
+        let target_symbol = {
+            if let Some(symbol) = source_bound
+                .bindings
+                .symbol_for_declaration(source_item_id.into_global_any(module_id))
+            {
+                symbol.into_global(module_id)
+            } else {
                 let checked = self.dir_checked(context, module_id, profile_id).map_err(|error| {
                     LinkError::Internal {
                         anchor: (package_id).into(),
@@ -379,17 +378,17 @@ impl Compiler {
         context: &dyn ProviderContext,
     ) -> LinkResult<(dir::GlobalSymbolId, String)> {
         // load the source module for the exported symbol
-        let source_directory = self
-            .dir_declared(context, symbol_id.module_id, profile_id)
+        let source_bound = self
+            .dir_bound(context, symbol_id.module_id, profile_id)
             .map_err(|error| LinkError::Internal {
                 anchor: (package_id).into(),
                 package: package_id,
                 message: format!(
-                    "missing declared dir for same-output import target symbol {:?}: {error:?}",
+                    "missing bound DIR for same-output import target symbol {:?}: {error:?}",
                     symbol_id
                 ),
             })?;
-        let symbol = source_directory.bindings.get_symbol(symbol_id.local_id);
+        let symbol = source_bound.bindings.get_symbol(symbol_id.local_id);
 
         // use the source declaration name for same-output local bridging
         if let Some(name) = symbol.name() {
@@ -667,7 +666,7 @@ impl Compiler {
                 let content = target_strings.get(name);
                 let name = module.strings.intern(&content);
 
-                if is_identifier(&content) {
+                if dir::is_identifier(&content) {
                     js::Name::Identifier(name)
                 } else {
                     js::Name::String(name)

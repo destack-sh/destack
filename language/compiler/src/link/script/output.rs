@@ -5,7 +5,7 @@ use crate::Compiler;
 use crate::link::{OutputLayout, SourceMapBuilder, SourceMapMarker};
 use base64::Engine as _;
 use destack_artifact::{
-    DirDeclared, EmitFormat, OutputContent, OutputFile, ScriptOutput, SourceMapArtifact,
+    DirBound, EmitFormat, OutputContent, OutputFile, ScriptOutput, SourceMapArtifact,
 };
 use destack_codegen_js::{
     JsFormatOptions, Module as ScriptModule, PrintedScriptModule,
@@ -181,10 +181,10 @@ impl Compiler {
         context: &dyn ProviderContext,
     ) -> Result<PrintedScriptModule, String> {
         // source artifacts
-        let ast = self.ast(context, module_id).map_err(|error| {
-            format!("missing committed AST artifact for module {module_id:?}: {error:?}")
+        let parsed = self.dir_parsed(context, module_id).map_err(|error| {
+            format!("missing committed parsed DIR artifact for module {module_id:?}: {error:?}")
         })?;
-        let declared = self.script_dir_declared(module_id, target_id, context)?;
+        let bound = self.script_dir_bound(module_id, target_id, context)?;
         let source_module = self.module(context.revision(), module_id);
         let source_file = self.file(context, source_module.file_id);
         let options = if target.should_minify_bundle_output() {
@@ -196,21 +196,21 @@ impl Compiler {
 
         print_codegen_script_module(
             options,
-            &ast,
-            declared.as_ref(),
+            &parsed,
+            bound.as_ref(),
             source_file.as_ref(),
             module,
         )
         .map_err(|error| format!("failed to print script module: {error:?}"))
     }
 
-    /// Return the declared DIR artifact for one script module target.
-    fn script_dir_declared(
+    /// Return the bound DIR artifact for one script module target.
+    fn script_dir_bound(
         &self,
         module_id: ModuleId,
         target_id: &TargetId,
         context: &dyn ProviderContext,
-    ) -> Result<Arc<DirDeclared>, String> {
+    ) -> Result<Arc<DirBound>, String> {
         // target profile
         let profile_id = self
             .target_profile_id(context.revision(), module_id, target_id)
@@ -221,12 +221,12 @@ impl Compiler {
                 )
             })?;
 
-        // declared dir
+        // bound dir
         let dir = self
-            .dir_declared(context, module_id, profile_id)
+            .dir_bound(context, module_id, profile_id)
             .map_err(|error| {
                 format!(
-                    "missing declared DIR artifact for module {module_id:?} target '{}': {error:?}",
+                    "missing bound DIR artifact for module {module_id:?} target '{}': {error:?}",
                     self.target_name(context.revision(), target_id)
                 )
             })?;
@@ -317,7 +317,7 @@ impl Compiler {
         }
 
         if file_type == FileType::Html {
-            return Err("FUGU #Incomplete".to_string());
+            return Err("TODO #Incomplete".to_string());
         }
 
         Err(format!("unsupported file type: {file_type:?}"))
@@ -552,7 +552,7 @@ fn linked_script_file_types(target: &Target) -> Result<Vec<FileType>, String> {
 
             Ok(file_types)
         }
-        EmitFormat::Html => Err("FUGU #Incomplete".to_string()),
+        EmitFormat::Html => Err("TODO #Incomplete".to_string()),
         other => Err(format!("expected JS, TS, or HTML output, got {other:?}")),
     }
 }

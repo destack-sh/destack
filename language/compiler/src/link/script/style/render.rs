@@ -1,12 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use css::print::{
-    print_layer_name_list, print_media_query_list, print_rule, print_supports_condition,
-};
-use css::{
-    ComponentValue, ComponentValueList, DeclarationBlock, Function, ImportRule, LocalNodeId, Rule,
-    SupportsCondition, Token, Tree,
-};
 use destack_artifact::{OutputContent, OutputFile};
 use destack_css as css;
 use destack_source::{FileType, ModuleId, Uri};
@@ -193,9 +186,9 @@ impl<'a> ScriptLinker<'a> {
         for rule_id in rule_ids {
             let Some(imported_module_id) = import_targets.get(&rule_id.id).copied().flatten()
             else {
-                let rule = print_rule(&css.tree, rule_id);
+                let rule = css::print::print_rule(&css.tree, rule_id);
 
-                if matches!(css.tree.get(rule_id), Rule::Import(_)) {
+                if matches!(css.tree.get(rule_id), css::Rule::Import(_)) {
                     import_rules.insert(rule);
                 } else {
                     push_rendered_css_body(&mut body, &rule, is_minified);
@@ -204,7 +197,7 @@ impl<'a> ScriptLinker<'a> {
                 continue;
             };
             let import_rule = match css.tree.get(rule_id) {
-                Rule::Import(import_rule) => import_rule,
+                css::Rule::Import(import_rule) => import_rule,
                 _ => {
                     return Err(LinkError::Internal {
                         anchor: (self.package_id).into(),
@@ -258,8 +251,8 @@ impl<'a> ScriptLinker<'a> {
     /// Rewrite final linked references in one stylesheet tree.
     fn rewrite_stylesheet(
         &self,
-        tree: &mut Tree,
-        stylesheet_id: LocalNodeId<css::Stylesheet>,
+        tree: &mut css::Tree,
+        stylesheet_id: css::LocalNodeId<css::Stylesheet>,
         rewrites: &IndexMap<String, (ModuleId, String)>,
         stylesheet_location: &OutputLocation,
         target_location: &TargetLocation<'_>,
@@ -318,8 +311,8 @@ impl<'a> ScriptLinker<'a> {
     /// Rewrite one CSS rule subtree in place.
     fn rewrite_rule(
         &self,
-        tree: &mut Tree,
-        rule_id: LocalNodeId<Rule>,
+        tree: &mut css::Tree,
+        rule_id: css::LocalNodeId<css::Rule>,
         replacements: &IndexMap<String, String>,
     ) -> LinkResult<()> {
         let mut declaration_block = None;
@@ -328,87 +321,87 @@ impl<'a> ScriptLinker<'a> {
         let mut supports_condition = None;
 
         match tree.get_mut(rule_id) {
-            Rule::Import(rule) => {
+            css::Rule::Import(rule) => {
                 supports_condition = rule.supports;
             }
-            Rule::Style(rule) => {
+            css::Rule::Style(rule) => {
                 declaration_block = rule.declarations;
                 nested_rules = rule.rules.clone();
             }
-            Rule::Nesting(rule) => {
+            css::Rule::Nesting(rule) => {
                 declaration_block = rule.declarations;
                 nested_rules = rule.rules.clone();
             }
-            Rule::Media(rule) => {
+            css::Rule::Media(rule) => {
                 nested_rules = rule.rules.clone();
             }
-            Rule::Supports(rule) => {
+            css::Rule::Supports(rule) => {
                 supports_condition = Some(rule.condition);
                 nested_rules = rule.rules.clone();
             }
-            Rule::LayerBlock(rule) => {
+            css::Rule::LayerBlock(rule) => {
                 nested_rules = rule.rules.clone();
             }
-            Rule::Container(rule) => {
+            css::Rule::Container(rule) => {
                 nested_rules = rule.rules.clone();
             }
-            Rule::Scope(rule) => {
+            css::Rule::Scope(rule) => {
                 nested_rules = rule.rules.clone();
             }
-            Rule::StartingStyle(rule) => {
+            css::Rule::StartingStyle(rule) => {
                 nested_rules = rule.rules.clone();
             }
-            Rule::Keyframes(rule) => {
+            css::Rule::Keyframes(rule) => {
                 nested_rules = rule.rules.clone();
             }
-            Rule::MozDocument(rule) => {
+            css::Rule::MozDocument(rule) => {
                 nested_rules = rule.rules.clone();
             }
-            Rule::LayerStatement(_) => {}
-            Rule::FontFeatureValues(_) => {}
-            Rule::Namespace(_) => {}
-            Rule::CustomMedia(_) => {}
-            Rule::Property(rule) => {
+            css::Rule::LayerStatement(_) => {}
+            css::Rule::FontFeatureValues(_) => {}
+            css::Rule::Namespace(_) => {}
+            css::Rule::CustomMedia(_) => {}
+            css::Rule::Property(rule) => {
                 if let Some(initial_value) = &mut rule.initial_value {
                     self.rewrite_component_values(initial_value.components_mut(), replacements);
                 }
             }
-            Rule::Unknown(rule) => {
+            css::Rule::Unknown(rule) => {
                 self.rewrite_component_values(&mut rule.prelude, replacements);
 
                 if let Some(block) = &mut rule.block {
                     self.rewrite_component_values(block, replacements);
                 }
             }
-            Rule::Custom(rule) => {
+            css::Rule::Custom(rule) => {
                 self.rewrite_component_values(&mut rule.components, replacements);
             }
-            Rule::Page(rule) => {
+            css::Rule::Page(rule) => {
                 declaration_block = rule.declarations;
                 page_margin_rules = rule.page_margin_rules.clone();
             }
-            Rule::FontFace(rule) => {
+            css::Rule::FontFace(rule) => {
                 declaration_block = rule.declarations;
             }
-            Rule::FontPaletteValues(rule) => {
+            css::Rule::FontPaletteValues(rule) => {
                 declaration_block = rule.declarations;
             }
-            Rule::CounterStyle(rule) => {
+            css::Rule::CounterStyle(rule) => {
                 declaration_block = rule.declarations;
             }
-            Rule::Viewport(rule) => {
+            css::Rule::Viewport(rule) => {
                 declaration_block = rule.declarations;
             }
-            Rule::ViewTransition(rule) => {
+            css::Rule::ViewTransition(rule) => {
                 declaration_block = rule.declarations;
             }
-            Rule::NestedDeclarations(rule) => {
+            css::Rule::NestedDeclarations(rule) => {
                 declaration_block = rule.declarations;
             }
-            Rule::Keyframe(rule) => {
+            css::Rule::Keyframe(rule) => {
                 declaration_block = rule.declarations;
             }
-            Rule::Ignored(_) => {}
+            css::Rule::Ignored(_) => {}
         }
 
         if let Some(supports_condition) = supports_condition {
@@ -433,8 +426,8 @@ impl<'a> ScriptLinker<'a> {
     /// Rewrite one page margin rule subtree in place.
     fn rewrite_page_margin_rule(
         &self,
-        tree: &mut Tree,
-        rule_id: LocalNodeId<css::PageMarginRule>,
+        tree: &mut css::Tree,
+        rule_id: css::LocalNodeId<css::PageMarginRule>,
         replacements: &IndexMap<String, String>,
     ) -> LinkResult<()> {
         let declaration_block = {
@@ -452,8 +445,8 @@ impl<'a> ScriptLinker<'a> {
     /// Rewrite one declaration block subtree in place.
     fn rewrite_declaration_block(
         &self,
-        tree: &mut Tree,
-        declaration_block_id: LocalNodeId<DeclarationBlock>,
+        tree: &mut css::Tree,
+        declaration_block_id: css::LocalNodeId<css::DeclarationBlock>,
         replacements: &IndexMap<String, String>,
     ) -> LinkResult<()> {
         let declaration_ids = tree.get(declaration_block_id).declarations.clone();
@@ -469,24 +462,24 @@ impl<'a> ScriptLinker<'a> {
     /// Rewrite one component value list in place.
     fn rewrite_component_values(
         &self,
-        components: &mut ComponentValueList,
+        components: &mut css::ComponentValueList,
         replacements: &IndexMap<String, String>,
     ) {
         for value in &mut components.values {
             match value {
-                ComponentValue::Token(Token::String(text))
-                | ComponentValue::Token(Token::UnquotedUrl { value: text, .. }) => {
+                css::ComponentValue::Token(css::Token::String(text))
+                | css::ComponentValue::Token(css::Token::UnquotedUrl { value: text, .. }) => {
                     if let Some(replacement) = replacements.get(text) {
                         *text = replacement.clone();
                     }
                 }
-                ComponentValue::Function(Function { arguments, .. }) => {
+                css::ComponentValue::Function(css::Function { arguments, .. }) => {
                     self.rewrite_component_values(arguments, replacements);
                 }
-                ComponentValue::Block(block) => {
+                css::ComponentValue::Block(block) => {
                     self.rewrite_component_values(&mut block.value, replacements);
                 }
-                ComponentValue::Token(_) => {}
+                css::ComponentValue::Token(_) => {}
             }
         }
     }
@@ -494,30 +487,30 @@ impl<'a> ScriptLinker<'a> {
     /// Rewrite one supports condition in place.
     fn rewrite_supports_condition(
         &self,
-        tree: &mut Tree,
-        condition_id: LocalNodeId<SupportsCondition>,
+        tree: &mut css::Tree,
+        condition_id: css::LocalNodeId<css::SupportsCondition>,
         replacements: &IndexMap<String, String>,
     ) {
         let condition = tree.get(condition_id).clone();
 
         match condition {
-            SupportsCondition::Not(condition) => {
+            css::SupportsCondition::Not(condition) => {
                 self.rewrite_supports_condition(tree, condition, replacements);
             }
-            SupportsCondition::And(conditions) | SupportsCondition::Or(conditions) => {
+            css::SupportsCondition::And(conditions) | css::SupportsCondition::Or(conditions) => {
                 for condition in conditions {
                     self.rewrite_supports_condition(tree, condition, replacements);
                 }
             }
-            SupportsCondition::Declaration { .. } => {
+            css::SupportsCondition::Declaration { .. } => {
                 let condition = tree.get_mut(condition_id);
-                let SupportsCondition::Declaration { value, .. } = condition else {
+                let css::SupportsCondition::Declaration { value, .. } = condition else {
                     unreachable!();
                 };
 
                 self.rewrite_component_values(value.components_mut(), replacements);
             }
-            SupportsCondition::Selector(_) | SupportsCondition::Unknown(_) => {}
+            css::SupportsCondition::Selector(_) | css::SupportsCondition::Unknown(_) => {}
         }
     }
 
@@ -530,23 +523,26 @@ impl<'a> ScriptLinker<'a> {
     /// Wrap one inlined stylesheet source for one conditioned import rule.
     pub(super) fn wrap_css_import_stylesheet(
         &self,
-        tree: &Tree,
-        import_rule: &ImportRule,
+        tree: &css::Tree,
+        import_rule: &css::ImportRule,
         mut source: String,
     ) -> LinkResult<String> {
         if let Some(media) = &import_rule.media {
-            let media = print_media_query_list(tree, *media);
+            let media = css::print::print_media_query_list(tree, *media);
             source = format!("@media {media}{{{source}}}");
         }
 
         if let Some(supports_condition) = &import_rule.supports {
-            let supports = print_supports_condition(tree, *supports_condition);
+            let supports = css::print::print_supports_condition(tree, *supports_condition);
             source = format!("@supports {supports}{{{source}}}");
         }
 
         if let Some(layer) = &import_rule.layer {
             source = match &layer.name {
-                Some(name) => format!("@layer {}{{{source}}}", print_layer_name_list(name)),
+                Some(name) => format!(
+                    "@layer {}{{{source}}}",
+                    css::print::print_layer_name_list(name)
+                ),
                 None => format!("@layer{{{source}}}"),
             };
         }

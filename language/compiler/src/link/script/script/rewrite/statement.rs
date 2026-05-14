@@ -1,8 +1,7 @@
 use std::str::FromStr;
 
-use destack_ast::is_identifier;
-use destack_codegen_js as js;
 use destack_core::StringId;
+use {destack_codegen_js as js, destack_dir as dir};
 
 use super::linker::Rewriter;
 
@@ -63,7 +62,7 @@ impl Rewriter<'_, '_> {
 
     /// Return whether one property name may use identifier syntax in output.
     pub(super) fn can_use_identifier_property_name(&self, name: &str) -> bool {
-        if !is_identifier(name) {
+        if !dir::is_identifier(name) {
             return false;
         }
 
