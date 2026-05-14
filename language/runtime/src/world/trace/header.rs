@@ -2,8 +2,17 @@ use serde::{Deserialize, Serialize};
 
 use crate::host::binding::BindingReplayPayload;
 use crate::world::trace::TraceSequence;
-use crate::world::{BranchId, CheckpointId, Revision};
-use destack_workspace::{ExecutionMode, RandomMode, TimeMode};
+use crate::world::{BranchId, CheckpointId, RevisionId};
+use destack_workspace::{ClockSource, ExecutionMode, RandomSource};
+
+/// Current trace format version.
+pub const TRACE_FORMAT_VERSION: u32 = 1;
+
+/// Default maximum number of events in one trace chunk.
+pub const TRACE_DEFAULT_MAX_EVENTS_PER_CHUNK: u32 = 1024;
+
+/// Default maximum byte length of one trace chunk.
+pub const TRACE_DEFAULT_MAX_CHUNK_BYTES: u64 = 4 * 1024 * 1024;
 
 /// Trace header describing the execution environment.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -16,10 +25,10 @@ pub struct TraceHeader {
     pub target: String,
     /// Execution mode used while running.
     pub execution_mode: ExecutionMode,
-    /// Time mode used while running.
-    pub time_mode: TimeMode,
-    /// Random mode used while running.
-    pub random_mode: RandomMode,
+    /// Clock source used while running.
+    pub clock_source: ClockSource,
+    /// Random source used while running.
+    pub random_source: RandomSource,
     /// Branch identifier for this replay stream.
     pub branch_id: BranchId,
     /// Trace payload selection for the log.
@@ -38,17 +47,17 @@ impl TraceHeader {
     /// Create a trace header with explicit configuration.
     pub fn new(environment: EnvironmentConfig) -> Self {
         Self {
-            format_version: 1,
+            format_version: TRACE_FORMAT_VERSION,
             build_hash: 0,
             target: String::new(),
             execution_mode: ExecutionMode::Fast,
-            time_mode: TimeMode::Host,
-            random_mode: RandomMode::Host,
+            clock_source: ClockSource::Host,
+            random_source: RandomSource::Host,
             branch_id: BranchId::new(0),
             replay_payload: BindingReplayPayload::Results,
             binding_registry_hash: 0,
-            max_events_per_chunk: 1024,
-            max_chunk_bytes: 4 * 1024 * 1024,
+            max_events_per_chunk: TRACE_DEFAULT_MAX_EVENTS_PER_CHUNK,
+            max_chunk_bytes: TRACE_DEFAULT_MAX_CHUNK_BYTES,
             environment,
         }
     }
@@ -116,7 +125,7 @@ pub struct TraceCheckpointIndex {
     /// Checkpoint identifier.
     pub checkpoint_id: CheckpointId,
     /// Revision identifier anchored by this checkpoint.
-    pub revision: Revision,
+    pub revision_id: RevisionId,
     /// Sequence number associated with the checkpoint.
     pub sequence: TraceSequence,
     /// Path to the checkpoint file.

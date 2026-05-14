@@ -3,11 +3,12 @@ use serde::{Deserialize, Serialize};
 use crate::diagnostic::RuntimeError;
 use crate::host::HostError;
 use crate::host::binding::{BindingEngine, BindingId, CodecId};
+use crate::runtime::engine::Entry;
 use crate::runtime::random::RandomStreamId;
 use crate::runtime::scheduler::{MicrotaskId, TaskId};
 use crate::runtime::time::Instant;
 use crate::runtime::{RuntimeId, RuntimeImage, WorkerId, WorkerImage};
-use crate::world::Command;
+use crate::world::Mutation;
 use destack_vm as vm;
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -17,12 +18,25 @@ use std::sync::Arc;
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TraceRecord {
-    /// One input that entered the world.
-    Command(Command),
+    /// One structural mutation that entered the world.
+    Mutation(Mutation),
+    /// One runtime entrypoint invocation that entered the world.
+    Entrypoint(EntrypointInvocation),
     /// One observed outcome that replay cannot derive.
     Outcome(Outcome),
     /// One retained or user-visible history anchor.
     Anchor(String),
+}
+
+/// One replayable runtime entrypoint invocation.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EntrypointInvocation {
+    /// Runtime identifier that owns the entrypoint execution.
+    pub runtime_id: RuntimeId,
+    /// Replayable entrypoint reference.
+    pub entry: Entry,
+    /// Invocation arguments.
+    pub args: Vec<destack_engine::Value>,
 }
 
 /// One observed outcome that replay cannot derive.

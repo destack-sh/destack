@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -8,20 +7,12 @@ use serde::{Deserialize, Serialize};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::binding::{BindingDescriptor, BindingEngine};
 use crate::runtime::WorkerId;
+use crate::world::policy::Attempt;
 use crate::world::{RuntimeId, WorldState};
 use destack_source::matches as glob_matches;
 use destack_workspace::ExecutionMode;
 
-use super::{FaultTarget, PolicyDecision, RuleAction};
-
-/// Durable hook state captured at one checkpoint.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct HookSnapshot {
-    /// The next policy call identifier to allocate.
-    pub next_call_id: u64,
-    /// The number of policy decisions deferred to a later policy executor.
-    pub deferred_policy_decisions: u64,
-}
+use super::{Fault, FaultRuleId, FaultTarget};
 
 /// Hook for runtime action rules.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -49,11 +40,11 @@ pub enum Hook {
     ResourceDetach,
 }
 
-/// Stable identifier for one binding call policy event pair.
+/// Stable identifier for one binding call scenario event pair.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct PolicyCallId(pub u64);
+pub struct ScenarioCallId(pub u64);
 
-/// Policy event payload emitted by one runtime hook point.
+/// Scenario event payload emitted by one runtime hook point.
 #[derive(Debug, Clone, Copy)]
 pub enum HookEvent {
     /// Event fired before invoking one binding.
@@ -61,54 +52,54 @@ pub enum HookEvent {
         /// Worker identifier for this event.
         worker_id: WorkerId,
         /// Binding call identifier for before and after correlation.
-        call_id: PolicyCallId,
+        call_id: ScenarioCallId,
         /// Binding metadata for this event.
         descriptor: BindingDescriptor,
         /// Engine kind for this event.
         engine: Option<BindingEngine>,
-        /// Virtual timestamp for this event.
-        virtual_time_ns: u64,
+        /// Monotonic timestamp for this event.
+        time_ns: u64,
     },
     /// Event fired after invoking one binding.
     BindingAfter {
         /// Worker identifier for this event.
         worker_id: WorkerId,
         /// Binding call identifier for before and after correlation.
-        call_id: PolicyCallId,
+        call_id: ScenarioCallId,
         /// Binding metadata for this event.
         descriptor: BindingDescriptor,
         /// Engine kind for this event.
         engine: Option<BindingEngine>,
-        /// Virtual timestamp for this event.
-        virtual_time_ns: u64,
+        /// Monotonic timestamp for this event.
+        time_ns: u64,
     },
     /// Event fired when one task is enqueued.
     SchedulerEnqueue {
         /// Worker identifier for this event.
         worker_id: WorkerId,
-        /// Virtual timestamp for this event.
-        virtual_time_ns: u64,
+        /// Monotonic timestamp for this event.
+        time_ns: u64,
     },
     /// Event fired when one task is dequeued.
     SchedulerDequeue {
         /// Worker identifier for this event.
         worker_id: WorkerId,
-        /// Virtual timestamp for this event.
-        virtual_time_ns: u64,
+        /// Monotonic timestamp for this event.
+        time_ns: u64,
     },
     /// Event fired when one timer fires.
     SchedulerTimerFire {
         /// Worker identifier for this event.
         worker_id: WorkerId,
-        /// Virtual timestamp for this event.
-        virtual_time_ns: u64,
+        /// Monotonic timestamp for this event.
+        time_ns: u64,
     },
     /// Event fired when one ingress event is enqueued.
     IngressEnqueue {
         /// Worker identifier for this event.
         worker_id: WorkerId,
-        /// Virtual timestamp for this event.
-        virtual_time_ns: u64,
+        /// Monotonic timestamp for this event.
+        time_ns: u64,
     },
     /// Event fired when time is read.
     TimeRead {
@@ -116,8 +107,8 @@ pub enum HookEvent {
         worker_id: WorkerId,
         /// Engine kind for this event.
         engine: Option<BindingEngine>,
-        /// Virtual timestamp for this event.
-        virtual_time_ns: u64,
+        /// Monotonic timestamp for this event.
+        time_ns: u64,
     },
     /// Event fired when random data is read.
     RandomRead {
@@ -125,23 +116,47 @@ pub enum HookEvent {
         worker_id: WorkerId,
         /// Engine kind for this event.
         engine: Option<BindingEngine>,
-        /// Virtual timestamp for this event.
-        virtual_time_ns: u64,
+        /// Monotonic timestamp for this event.
+        time_ns: u64,
     },
     /// Event fired when one resource is attached.
     ResourceAttach {
         /// Worker identifier for this event.
         worker_id: WorkerId,
-        /// Virtual timestamp for this event.
-        virtual_time_ns: u64,
+        /// Monotonic timestamp for this event.
+        time_ns: u64,
     },
     /// Event fired when one resource is detached.
     ResourceDetach {
         /// Worker identifier for this event.
         worker_id: WorkerId,
-        /// Virtual timestamp for this event.
-        virtual_time_ns: u64,
+        /// Monotonic timestamp for this event.
+        time_ns: u64,
     },
+}
+
+/// Durable hook state captured at one checkpoint.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HookSnapshot {
+    /// The next scenario call identifier to allocate.
+    pub next_call_id: u64,
+    /// The number of scenario faults deferred to a later scenario executor.
+    pub deferred_faults: u64,
+}
+
+/// One fault accepted by trigger evaluation for one scenario event.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub(crate) struct TriggeredFault {
+    /// Stable identifier of the rule that fired.
+    pub rule_id: FaultRuleId,
+    /// Hook that produced this action.
+    pub hook: Hook,
+    /// Worker identifier for this action.
+    pub worker_id: WorkerId,
+    /// Binding call identifier when one call event fired this fault.
+    pub call_id: Option<ScenarioCallId>,
+    /// Fault emitted by this scenario rule.
+    pub fault: Fault,
 }
 
 impl HookEvent {
@@ -188,7 +203,7 @@ impl HookEvent {
     }
 
     /// Return one call id when this event is one binding call event.
-    pub(crate) const fn call_id(&self) -> Option<PolicyCallId> {
+    pub(crate) const fn call_id(&self) -> Option<ScenarioCallId> {
         match self {
             Self::BindingBefore { call_id, .. } | Self::BindingAfter { call_id, .. } => {
                 Some(*call_id)
@@ -208,44 +223,32 @@ impl HookEvent {
         }
     }
 
+    /// Return attempt facts for selector matching.
+    pub(crate) const fn attempt(&self) -> Attempt {
+        Attempt {
+            binding: self.binding_descriptor(),
+            engine: self.engine(),
+        }
+    }
+
     /// Return whether this event increments call-scoped trigger counters.
     pub(crate) const fn counts_as_call_event(&self) -> bool {
         matches!(self, Self::BindingBefore { .. })
     }
 
-    /// Return the virtual timestamp for this event.
-    pub(crate) const fn virtual_time_ns(&self) -> u64 {
+    /// Return the monotonic timestamp for this event.
+    pub(crate) const fn time_ns(&self) -> u64 {
         match self {
-            Self::BindingBefore {
-                virtual_time_ns, ..
-            }
-            | Self::BindingAfter {
-                virtual_time_ns, ..
-            }
-            | Self::SchedulerEnqueue {
-                virtual_time_ns, ..
-            }
-            | Self::SchedulerDequeue {
-                virtual_time_ns, ..
-            }
-            | Self::SchedulerTimerFire {
-                virtual_time_ns, ..
-            }
-            | Self::IngressEnqueue {
-                virtual_time_ns, ..
-            }
-            | Self::TimeRead {
-                virtual_time_ns, ..
-            }
-            | Self::RandomRead {
-                virtual_time_ns, ..
-            }
-            | Self::ResourceAttach {
-                virtual_time_ns, ..
-            }
-            | Self::ResourceDetach {
-                virtual_time_ns, ..
-            } => *virtual_time_ns,
+            Self::BindingBefore { time_ns, .. }
+            | Self::BindingAfter { time_ns, .. }
+            | Self::SchedulerEnqueue { time_ns, .. }
+            | Self::SchedulerDequeue { time_ns, .. }
+            | Self::SchedulerTimerFire { time_ns, .. }
+            | Self::IngressEnqueue { time_ns, .. }
+            | Self::TimeRead { time_ns, .. }
+            | Self::RandomRead { time_ns, .. }
+            | Self::ResourceAttach { time_ns, .. }
+            | Self::ResourceDetach { time_ns, .. } => *time_ns,
         }
     }
 }
@@ -283,33 +286,12 @@ pub enum HookDecision {
     },
 }
 
-/// Runtime context passed to one custom action handler callback.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CustomActionInvocation {
-    /// Stable rule identifier that produced this action.
-    pub rule_id: String,
-    /// Hook that produced this action.
-    pub hook: Hook,
-    /// Worker identifier for this action.
-    pub worker_id: WorkerId,
-    /// Binding call identifier when this action comes from one call event.
-    pub call_id: Option<PolicyCallId>,
-    /// Stable custom action handler key.
-    pub handler: String,
-    /// Optional custom action payload.
-    pub payload: Option<String>,
-}
-
 /// Stable identifier for one registered hook callback.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct HookCallbackId(pub u64);
 
 /// Hook callback function signature.
 pub type HookCallback = Arc<dyn Fn(&HookEvent) -> HookDecision + Send + Sync + 'static>;
-
-/// Custom action callback function signature.
-pub type CustomActionHandler =
-    Arc<dyn Fn(&CustomActionInvocation) -> RuntimeResult<()> + Send + Sync + 'static>;
 
 /// One callback registration in the hook registry.
 struct HookRegistration {
@@ -421,27 +403,23 @@ pub struct Hooks {
     mode: ExecutionMode,
     /// Callback-style hook registry.
     registry: RwLock<HookRegistry>,
-    /// Custom action handlers keyed by custom action kind.
-    custom_action_handlers: RwLock<HashMap<String, CustomActionHandler>>,
-    /// Next policy call identifier sequence.
+    /// Next scenario call identifier sequence.
     next_call_id: AtomicU64,
-    /// Total policy decisions deferred to a later policy executor.
-    deferred_policy_decisions: AtomicU64,
+    /// Total scenario faults deferred to a later scenario executor.
+    deferred_faults: AtomicU64,
 }
 
 impl std::fmt::Debug for Hooks {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let callback_count = self.registry.read().callbacks.len();
-        let custom_action_handler_count = self.custom_action_handlers.read().len();
-        let deferred_policy_decisions = self.deferred_policy_decisions.load(Ordering::Relaxed);
+        let deferred_faults = self.deferred_faults.load(Ordering::Relaxed);
 
         f.debug_struct("Hooks")
             .field("runtime_id", &self.runtime_id)
             .field("worker_id", &self.worker_id)
             .field("mode", &self.mode)
             .field("callback_count", &callback_count)
-            .field("custom_action_handler_count", &custom_action_handler_count)
-            .field("deferred_policy_decisions", &deferred_policy_decisions)
+            .field("deferred_faults", &deferred_faults)
             .finish()
     }
 }
@@ -454,13 +432,12 @@ impl Hooks {
             worker_id,
             mode,
             registry: RwLock::new(HookRegistry::default()),
-            custom_action_handlers: RwLock::new(HashMap::new()),
             next_call_id: AtomicU64::new(1),
-            deferred_policy_decisions: AtomicU64::new(0),
+            deferred_faults: AtomicU64::new(0),
         }
     }
 
-    /// Return execution mode for policy matching.
+    /// Return execution mode for scenario matching.
     pub(crate) fn execution_mode(&self) -> ExecutionMode {
         self.mode
     }
@@ -477,22 +454,12 @@ impl Hooks {
             .boxed());
         }
 
-        // require no registered custom action handlers
-        if !self.custom_action_handlers.read().is_empty() {
+        // require no deferred scenario faults
+        if self.deferred_faults.load(Ordering::Relaxed) != 0 {
             return Err(RuntimeError::CaptureBarrier {
                 component: "runtime.hooks".to_string(),
                 mode: "snapshot".to_string(),
-                detail: "custom action handlers are still registered".to_string(),
-            }
-            .boxed());
-        }
-
-        // require no deferred policy decisions
-        if self.deferred_policy_decisions.load(Ordering::Relaxed) != 0 {
-            return Err(RuntimeError::CaptureBarrier {
-                component: "runtime.hooks".to_string(),
-                mode: "snapshot".to_string(),
-                detail: "policy decisions are still pending".to_string(),
+                detail: "scenario faults are still pending".to_string(),
             }
             .boxed());
         }
@@ -506,7 +473,7 @@ impl Hooks {
 
         Ok(HookSnapshot {
             next_call_id: self.next_call_id.load(Ordering::Relaxed),
-            deferred_policy_decisions: self.deferred_policy_decisions.load(Ordering::Relaxed),
+            deferred_faults: self.deferred_faults.load(Ordering::Relaxed),
         })
     }
 
@@ -530,8 +497,8 @@ impl Hooks {
         self.capture_barrier()?;
         self.next_call_id
             .store(snapshot.next_call_id, Ordering::Relaxed);
-        self.deferred_policy_decisions
-            .store(snapshot.deferred_policy_decisions, Ordering::Relaxed);
+        self.deferred_faults
+            .store(snapshot.deferred_faults, Ordering::Relaxed);
 
         Ok(())
     }
@@ -578,42 +545,24 @@ impl Hooks {
         registry.unregister(callback_id)
     }
 
-    /// Register one custom action callback by handler key.
-    pub fn on_custom_action(
-        &self,
-        handler: impl Into<String>,
-        callback: impl Fn(&CustomActionInvocation) -> RuntimeResult<()> + Send + Sync + 'static,
-    ) {
-        let mut handlers = self.custom_action_handlers.write();
-
-        handlers.insert(handler.into(), Arc::new(callback));
-    }
-
-    /// Remove one custom action callback by handler key.
-    pub fn off_custom_action(&self, handler: &str) -> bool {
-        let mut handlers = self.custom_action_handlers.write();
-
-        handlers.remove(handler).is_some()
-    }
-
-    /// Evaluate pre-call runtime actions for one binding invocation.
+    /// Evaluate pre-call scenario hooks for one binding invocation.
     pub(crate) fn on_before_binding(
         &self,
         world: &mut WorldState,
         descriptor: BindingDescriptor,
         engine: Option<BindingEngine>,
-    ) -> RuntimeResult<PolicyCallId> {
+    ) -> RuntimeResult<ScenarioCallId> {
         // allocate one call id for before and after correlation
-        let call_id = PolicyCallId(self.next_call_id.fetch_add(1, Ordering::Relaxed));
+        let call_id = ScenarioCallId(self.next_call_id.fetch_add(1, Ordering::Relaxed));
 
-        let decision = self.on_policy_event(
+        let decision = self.on_scenario_event(
             world,
             HookEvent::BindingBefore {
                 worker_id: self.worker_id,
                 call_id,
                 descriptor,
                 engine,
-                virtual_time_ns: world.mono_nanos(),
+                time_ns: world.mono_nanos(),
             },
         );
         if let HookDecision::Deny { message } = decision {
@@ -623,198 +572,167 @@ impl Hooks {
         Ok(call_id)
     }
 
-    /// Evaluate post-call runtime actions for one binding invocation.
+    /// Evaluate post-call scenario hooks for one binding invocation.
     pub(crate) fn on_after_binding(
         &self,
         world: &mut WorldState,
         descriptor: BindingDescriptor,
         engine: Option<BindingEngine>,
-        call_id: PolicyCallId,
+        call_id: ScenarioCallId,
     ) {
-        self.on_policy_event(
+        self.on_scenario_event(
             world,
             HookEvent::BindingAfter {
                 worker_id: self.worker_id,
                 call_id,
                 descriptor,
                 engine,
-                virtual_time_ns: world.mono_nanos(),
+                time_ns: world.mono_nanos(),
             },
         );
     }
 
-    /// Evaluate runtime actions for one scheduler enqueue event.
+    /// Evaluate scenario hooks for one scheduler enqueue event.
     pub(crate) fn on_scheduler_enqueue(&self, world: &mut WorldState) {
-        self.on_policy_event(
+        self.on_scenario_event(
             world,
             HookEvent::SchedulerEnqueue {
                 worker_id: self.worker_id,
-                virtual_time_ns: world.mono_nanos(),
+                time_ns: world.mono_nanos(),
             },
         );
     }
 
-    /// Evaluate runtime actions for one scheduler dequeue event.
+    /// Evaluate scenario hooks for one scheduler dequeue event.
     pub(crate) fn on_scheduler_dequeue(&self, world: &mut WorldState) {
-        self.on_policy_event(
+        self.on_scenario_event(
             world,
             HookEvent::SchedulerDequeue {
                 worker_id: self.worker_id,
-                virtual_time_ns: world.mono_nanos(),
+                time_ns: world.mono_nanos(),
             },
         );
     }
 
-    /// Evaluate runtime actions for one scheduler timer fire event.
+    /// Evaluate scenario hooks for one scheduler timer fire event.
     pub(crate) fn on_scheduler_timer_fire(&self, world: &mut WorldState) {
-        self.on_policy_event(
+        self.on_scenario_event(
             world,
             HookEvent::SchedulerTimerFire {
                 worker_id: self.worker_id,
-                virtual_time_ns: world.mono_nanos(),
+                time_ns: world.mono_nanos(),
             },
         );
     }
 
-    /// Evaluate runtime actions for one ingress enqueue.
+    /// Evaluate scenario hooks for one ingress enqueue.
     pub(crate) fn on_ingress_enqueue(&self, world: &mut WorldState) {
-        self.on_policy_event(
+        self.on_scenario_event(
             world,
             HookEvent::IngressEnqueue {
                 worker_id: self.worker_id,
-                virtual_time_ns: world.mono_nanos(),
+                time_ns: world.mono_nanos(),
             },
         );
     }
 
-    /// Evaluate runtime actions for one time read.
+    /// Evaluate scenario hooks for one time read.
     pub(crate) fn on_time_read(&self, world: &mut WorldState, engine: Option<BindingEngine>) {
-        self.on_policy_event(
+        self.on_scenario_event(
             world,
             HookEvent::TimeRead {
                 worker_id: self.worker_id,
                 engine,
-                virtual_time_ns: world.mono_nanos(),
+                time_ns: world.mono_nanos(),
             },
         );
     }
 
-    /// Evaluate runtime actions for one random read.
+    /// Evaluate scenario hooks for one random read.
     pub(crate) fn on_random_read(&self, world: &mut WorldState, engine: Option<BindingEngine>) {
-        self.on_policy_event(
+        self.on_scenario_event(
             world,
             HookEvent::RandomRead {
                 worker_id: self.worker_id,
                 engine,
-                virtual_time_ns: world.mono_nanos(),
+                time_ns: world.mono_nanos(),
             },
         );
     }
 
-    /// Return the total number of deferred policy decisions.
-    pub fn deferred_policy_decision_count(&self) -> u64 {
-        self.deferred_policy_decisions.load(Ordering::Relaxed)
+    /// Return the total number of deferred scenario faults.
+    pub fn deferred_fault_count(&self) -> u64 {
+        self.deferred_faults.load(Ordering::Relaxed)
     }
 
-    /// Evaluate one policy event.
-    fn on_policy_event(&self, world: &mut WorldState, event: HookEvent) -> HookDecision {
+    /// Evaluate one scenario event.
+    fn on_scenario_event(&self, world: &mut WorldState, event: HookEvent) -> HookDecision {
         // apply callback hook interceptors first
         let hook_decision = self.run_hook_callbacks(&event);
         if matches!(hook_decision, HookDecision::Deny { .. }) {
             return hook_decision;
         }
 
-        // trigger policy actions after callback interception
-        let decisions =
-            match world.evaluate_policy_event(self.mode, self.runtime_id, self.worker_id, &event) {
-                Ok(decisions) => decisions,
-                Err(error) => {
-                    return HookDecision::Deny {
-                        message: format!("policy evaluation failed: {error}"),
-                    };
-                }
-            };
+        // trigger scenario faults after callback interception
+        let faults = match world.decide_scenario(self.mode, self.runtime_id, self.worker_id, &event)
+        {
+            Ok(faults) => faults,
+            Err(error) => {
+                return HookDecision::Deny {
+                    message: format!("scenario evaluation failed: {error}"),
+                };
+            }
+        };
 
-        self.apply_policy_decisions(&decisions);
+        self.apply_triggered_faults(&faults);
         hook_decision
     }
 
-    /// Apply policy decisions for one policy event.
-    fn apply_policy_decisions(&self, decisions: &[PolicyDecision]) {
+    /// Apply triggered faults for one scenario event.
+    fn apply_triggered_faults(&self, triggered_faults: &[TriggeredFault]) {
         // short circuit when no actions fired
-        if decisions.is_empty() {
+        if triggered_faults.is_empty() {
             return;
         }
 
-        // apply each accepted decision
-        for decision in decisions {
-            self.apply_policy_decision(decision);
+        // apply each accepted rule
+        for triggered_fault in triggered_faults {
+            self.apply_triggered_fault(triggered_fault);
         }
     }
 
-    /// Apply one policy decision to host or simulation state.
-    fn apply_policy_decision(&self, decision: &PolicyDecision) {
-        match &decision.action {
-            RuleAction::Fault { fault } => match &fault.target {
-                FaultTarget::Call {} => self.apply_call_fault(decision),
-                FaultTarget::Entity { kind, .. } => {
-                    self.apply_entity_fault(kind.as_str(), decision)
-                }
-                FaultTarget::Edge { kind, .. } => self.apply_edge_fault(kind.as_str(), decision),
-            },
-            RuleAction::Custom { custom } => self.apply_custom_action(decision, custom),
-            // NOTE #Incomplete: non-fault actions need policy executors
-            _ => self.defer_policy_decision(),
+    /// Apply one triggered fault to host or simulation state.
+    fn apply_triggered_fault(&self, triggered_fault: &TriggeredFault) {
+        match &triggered_fault.fault.target {
+            FaultTarget::Call {} => self.apply_call_fault(triggered_fault),
+            FaultTarget::Entity { kind, .. } => {
+                self.apply_entity_fault(kind.as_str(), triggered_fault)
+            }
+            FaultTarget::Edge { kind, .. } => self.apply_edge_fault(kind.as_str(), triggered_fault),
         }
     }
 
-    /// Apply one call-target fault decision.
-    fn apply_call_fault(&self, _decision: &PolicyDecision) {
+    /// Apply one call-target fault.
+    fn apply_call_fault(&self, _triggered_fault: &TriggeredFault) {
         // NOTE #Incomplete: call faults need binding interception
-        self.defer_policy_decision();
+        self.defer_fault();
     }
 
-    /// Apply one entity-target fault decision.
-    fn apply_entity_fault(&self, _kind: &str, _decision: &PolicyDecision) {
+    /// Apply one entity-target fault.
+    fn apply_entity_fault(&self, _kind: &str, _triggered_fault: &TriggeredFault) {
         // NOTE #Incomplete: entity faults need simulation handlers
-        self.defer_policy_decision();
+        self.defer_fault();
     }
 
-    /// Apply one edge-target fault decision.
-    fn apply_edge_fault(&self, _kind: &str, _decision: &PolicyDecision) {
+    /// Apply one edge-target fault.
+    fn apply_edge_fault(&self, _kind: &str, _triggered_fault: &TriggeredFault) {
         // NOTE #Incomplete: edge faults need simulation handlers
-        self.defer_policy_decision();
+        self.defer_fault();
     }
 
-    /// Apply one custom-action decision to one registered handler.
-    fn apply_custom_action(&self, decision: &PolicyDecision, custom: &super::CustomAction) {
-        let handler = {
-            let handlers = self.custom_action_handlers.read();
-            handlers.get(custom.handler.as_str()).cloned()
-        };
-        let Some(handler) = handler else {
-            self.defer_policy_decision();
-            return;
-        };
-
-        let invocation = CustomActionInvocation {
-            rule_id: decision.rule_id.0.clone(),
-            hook: decision.hook,
-            worker_id: decision.worker_id,
-            call_id: decision.call_id,
-            handler: custom.handler.clone(),
-            payload: custom.payload.clone(),
-        };
-
-        if handler(&invocation).is_err() {
-            self.defer_policy_decision();
-        }
-    }
-
-    /// Defer one policy decision for a later policy executor.
-    fn defer_policy_decision(&self) {
-        self.deferred_policy_decisions
-            .fetch_add(1, Ordering::Relaxed);
+    /// Defer one scenario fault for a later scenario executor.
+    fn defer_fault(&self) {
+        self.deferred_faults.fetch_add(1, Ordering::Relaxed);
     }
 
     /// Run all matching user callbacks for one hook event.
@@ -828,4 +746,135 @@ impl Hooks {
 /// Match one text value against one glob pattern.
 fn glob_match(pattern: &str, text: &str) -> bool {
     glob_matches(pattern.as_bytes(), 0, text.as_bytes(), 0)
+}
+
+#[cfg(test)]
+mod tests {
+    use destack_engine as engine;
+    use destack_workspace::RuntimeOptions;
+
+    use super::{HookDecision, HookSelector};
+    use crate::diagnostic::RuntimeError;
+    use crate::host::binding::{
+        BindingAffinity, BindingDescriptor, BindingDeterminism, BindingProvider, BindingReplayKind,
+        BindingReplayPayload,
+    };
+    use crate::host::{HostSession, default_compile_target_host};
+    use crate::runtime::tests::{TestEngine, binding_call_context, runtime_shared_heap};
+    use crate::runtime::{Worker, WorkerOptions};
+    use crate::world::World;
+
+    /// Ensures before-binding callbacks can deny one matching binding call.
+    #[test]
+    fn test_on_before_binding_callback_can_deny_matching_call() {
+        let options = RuntimeOptions::default();
+        let mut world = World::from_options(&options).expect("hook test world should build");
+        let shared = runtime_shared_heap(&world, &options);
+        let mut worker = Worker::new_in_world(
+            Vec::new(),
+            &options,
+            &mut world.state,
+            &shared,
+            &engine::StaticSpace::empty(),
+            WorkerOptions::default(),
+            TestEngine::default(),
+        )
+        .expect("worker should construct in world");
+        let host = HostSession::new(default_compile_target_host(), worker.runtime_id);
+
+        // register one deny callback for matching binding names
+        let callback_id =
+            worker
+                .hooks
+                .on_before(HookSelector::binding("destack.test.hook.*"), |_event| {
+                    HookDecision::Deny {
+                        message: "blocked by callback".to_string(),
+                    }
+                });
+
+        let descriptor = BindingDescriptor::new(
+            "destack.test.hook.block",
+            "()",
+            BindingDeterminism::Pure,
+            BindingReplayKind::BindingCall,
+            BindingReplayPayload::Results,
+            &[],
+            BindingProvider::Runtime,
+            BindingAffinity::None,
+        );
+
+        // matching binding calls should fail with the callback message
+        let error = {
+            let world_state = &mut world.state;
+            let call_context = binding_call_context(&mut worker, &host, world_state);
+
+            call_context
+                .on_before_binding(descriptor)
+                .expect_err("matching call should be denied")
+        };
+        assert!(matches!(
+            error.as_ref(),
+            RuntimeError::Internal { message } if message == "blocked by callback"
+        ));
+
+        // unregistering the callback should restore allow behavior
+        assert!(worker.hooks.off(callback_id));
+        let is_allowed = {
+            let world_state = &mut world.state;
+            let call_context = binding_call_context(&mut worker, &host, world_state);
+
+            call_context.on_before_binding(descriptor).is_ok()
+        };
+        assert!(is_allowed);
+    }
+
+    /// Ensures callback selectors only apply to matching binding names.
+    #[test]
+    fn test_on_before_binding_respects_hook_selector_binding_glob() {
+        let options = RuntimeOptions::default();
+        let mut world = World::from_options(&options).expect("hook test world should build");
+        let shared = runtime_shared_heap(&world, &options);
+        let mut worker = Worker::new_in_world(
+            Vec::new(),
+            &options,
+            &mut world.state,
+            &shared,
+            &engine::StaticSpace::empty(),
+            WorkerOptions::default(),
+            TestEngine::default(),
+        )
+        .expect("worker should construct in world");
+        let host = HostSession::new(default_compile_target_host(), worker.runtime_id);
+
+        // register one deny callback with one non-matching binding pattern
+        let callback_id = worker.hooks.on_before(
+            HookSelector::binding("destack.test.hook.nonmatching.*"),
+            |_event| HookDecision::Deny {
+                message: "blocked by callback".to_string(),
+            },
+        );
+
+        let descriptor = BindingDescriptor::new(
+            "destack.test.hook.allowed",
+            "()",
+            BindingDeterminism::Pure,
+            BindingReplayKind::BindingCall,
+            BindingReplayPayload::Results,
+            &[],
+            BindingProvider::Runtime,
+            BindingAffinity::None,
+        );
+
+        // non-matching binding calls should continue normally
+        let is_allowed = {
+            let world_state = &mut world.state;
+            let call_context = binding_call_context(&mut worker, &host, world_state);
+
+            call_context.on_before_binding(descriptor).is_ok()
+        };
+        assert!(is_allowed);
+
+        // unregister should remove exactly one callback
+        assert!(worker.hooks.off(callback_id));
+    }
 }

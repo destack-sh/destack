@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 /// Randomness source selection for the runtime.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub enum RandomMode {
+pub enum RandomSource {
     /// Use the host randomness source.
     #[default]
     Host,
@@ -13,7 +13,7 @@ pub enum RandomMode {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct RandomOptions {
     /// Randomness source selection.
-    pub mode: RandomMode,
+    pub source: RandomSource,
     /// Seed for deterministic randomness streams.
     pub seed: Option<u64>,
     /// Whether to use a per-runnable random stream.
@@ -25,7 +25,7 @@ pub struct RandomOptions {
 #[serde(rename_all = "camelCase")]
 pub struct RandomOptionsJson {
     /// Randomness source selection.
-    pub mode: Option<RandomModeJson>,
+    pub source: Option<RandomSourceJson>,
     /// Seed for deterministic randomness streams.
     pub seed: Option<u64>,
     /// Whether to use a per-runnable random stream.
@@ -35,8 +35,8 @@ pub struct RandomOptionsJson {
 impl RandomOptionsJson {
     /// Inherit unset random settings from one parent config.
     pub fn extend_from(&mut self, parent: &Self) {
-        if self.mode.is_none() {
-            self.mode = parent.mode;
+        if self.source.is_none() {
+            self.source = parent.source;
         }
 
         if self.seed.is_none() {
@@ -50,9 +50,9 @@ impl RandomOptionsJson {
 
     /// Apply random overrides to a base set of options.
     pub fn apply_to(&self, options: &mut RandomOptions) {
-        // apply mode overrides
-        if let Some(mode) = self.mode {
-            options.mode = RandomMode::from(mode);
+        // apply source overrides
+        if let Some(source) = self.source {
+            options.source = RandomSource::from(source);
         }
 
         // apply seed overrides
@@ -66,22 +66,22 @@ impl RandomOptionsJson {
         }
     }
 }
-/// Randomness mode for JSON deserialization.
+/// Randomness source for JSON deserialization.
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
-pub enum RandomModeJson {
+pub enum RandomSourceJson {
     /// Use the host randomness source.
     Host,
     /// Use deterministic runtime-managed randomness.
     Deterministic,
 }
 
-impl From<RandomModeJson> for RandomMode {
-    fn from(value: RandomModeJson) -> Self {
+impl From<RandomSourceJson> for RandomSource {
+    fn from(value: RandomSourceJson) -> Self {
         match value {
-            RandomModeJson::Host => RandomMode::Host,
-            RandomModeJson::Deterministic => RandomMode::Deterministic,
+            RandomSourceJson::Host => RandomSource::Host,
+            RandomSourceJson::Deterministic => RandomSource::Deterministic,
         }
     }
 }

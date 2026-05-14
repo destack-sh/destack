@@ -7,14 +7,28 @@ import { WorldHandle } from "./world.ds";
 /// Runtime policy rule cursor.
 export newtype PolicyRuleCursor = uint64;
 
-/// Runtime policy decision.
-export enum PolicyDecision {
+/// Binding route selected by policy.
+export enum BindingRoute {
+    /// Execute against the real host backend.
+    Host = 1,
+    /// Execute against the simulation backend.
+    Simulation = 2,
+}
+
+/// Runtime policy decision kind.
+export enum PolicyDecisionKind {
     /// Allow matching operations.
     Allow = 1,
     /// Deny matching operations.
     Deny = 2,
-    /// Allow matching operations and record them.
-    Audit = 3,
+}
+
+/// Runtime policy decision.
+export struct PolicyDecision {
+    /// Access decision.
+    kind: PolicyDecisionKind;
+    /// Binding route for allowed host actions.
+    route?: BindingRoute;
 }
 
 /// Runtime policy rule.

@@ -32,8 +32,6 @@ pub struct SchedulerOptions {
     pub tick_budget_ns: Option<u64>,
     /// Maximum number of microtasks per tick.
     pub microtask_budget: Option<u64>,
-    /// Maximum host events dispatched in sequence before one poller event.
-    pub host_event_budget: Option<u64>,
     /// Maximum microtask nesting depth.
     pub max_microtask_depth: Option<u64>,
     /// Timer resolution in nanoseconds.
@@ -104,8 +102,6 @@ pub struct SchedulerOptionsJson {
     pub tick_budget_ns: Option<u64>,
     /// Maximum number of microtasks per tick.
     pub microtask_budget: Option<u64>,
-    /// Maximum host events dispatched in sequence before one poller event.
-    pub host_event_budget: Option<u64>,
     /// Maximum microtask nesting depth.
     pub max_microtask_depth: Option<u64>,
     /// Timer resolution in nanoseconds.
@@ -133,9 +129,6 @@ impl SchedulerOptionsJson {
         }
         if self.microtask_budget.is_none() {
             self.microtask_budget = parent.microtask_budget;
-        }
-        if self.host_event_budget.is_none() {
-            self.host_event_budget = parent.host_event_budget;
         }
         if self.max_microtask_depth.is_none() {
             self.max_microtask_depth = parent.max_microtask_depth;
@@ -173,9 +166,6 @@ impl SchedulerOptionsJson {
         }
         if let Some(microtask_budget) = self.microtask_budget {
             options.microtask_budget = Some(microtask_budget);
-        }
-        if let Some(host_event_budget) = self.host_event_budget {
-            options.host_event_budget = Some(host_event_budget);
         }
         if let Some(max_microtask_depth) = self.max_microtask_depth {
             options.max_microtask_depth = Some(max_microtask_depth);

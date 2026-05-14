@@ -5,10 +5,10 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::binding::{BindingDescriptor, BindingReplayKind, BindingReplayPayload};
 use crate::runtime::time::Instant;
 use crate::world::trace::{
-    BindingCallEvent, EntropyEvent, Outcome, TraceCursor, TraceCursorImage, TraceHeader, TraceLog,
-    TraceLogImage, TraceRecord, TraceSequence,
+    BindingCallEvent, EntropyEvent, EntrypointInvocation, Outcome, TraceCursor, TraceCursorImage,
+    TraceHeader, TraceLog, TraceLogImage, TraceRecord, TraceSequence,
 };
-use crate::world::{BranchId, Command};
+use crate::world::{BranchId, Mutation};
 use destack_workspace::ExecutionMode;
 use parking_lot::Mutex;
 use postcard::experimental::serialized_size;
@@ -322,9 +322,14 @@ impl Trace {
         Ok(())
     }
 
-    /// Record one authoritative trace command.
-    pub(crate) fn record_command(&self, command: Command) -> RuntimeResult<()> {
-        self.record_event(TraceRecord::Command(command))
+    /// Record one authoritative trace mutation.
+    pub(crate) fn record_mutation(&self, mutation: Mutation) -> RuntimeResult<()> {
+        self.record_event(TraceRecord::Mutation(mutation))
+    }
+
+    /// Record one authoritative entrypoint invocation.
+    pub(crate) fn record_entrypoint(&self, invocation: EntrypointInvocation) -> RuntimeResult<()> {
+        self.record_event(TraceRecord::Entrypoint(invocation))
     }
 
     /// Record one authoritative trace outcome.
@@ -436,7 +441,7 @@ impl Trace {
     /// Resolve one requested virtual-time advance under the active replay mode.
     pub fn resolve_time_advance(&self, requested_deadline: Instant) -> RuntimeResult<Instant> {
         match self.mode() {
-            // fast, deterministic, and record use the local scheduler decision
+            // fast, deterministic, and record use the requested deadline
             ExecutionMode::Fast | ExecutionMode::Deterministic | ExecutionMode::Record => {
                 Ok(requested_deadline)
             }
@@ -453,35 +458,64 @@ impl Trace {
         }
     }
 
-    /// Read the next command from replay.
-    pub(crate) fn next_command(&self) -> RuntimeResult<Command> {
+    /// Read the next mutation from replay.
+    pub(crate) fn next_mutation(&self) -> RuntimeResult<Mutation> {
         // read the next event from the log
         let event = self.next_required_record("world")?;
 
         // validate the world input event shape
-        let TraceRecord::Command(command) = event else {
+        let TraceRecord::Mutation(mutation) = event else {
             return Err(Self::trace_mismatch_error("world"));
         };
 
-        Ok(command)
+        Ok(mutation)
     }
 
-    /// Resolve one command under the active replay mode.
-    pub(crate) fn resolve_command(&self, requested_command: Command) -> RuntimeResult<Command> {
+    /// Resolve one mutation under the active replay mode.
+    pub(crate) fn resolve_mutation(&self, requested_mutation: Mutation) -> RuntimeResult<Mutation> {
         match self.mode() {
-            // fast execution applies the requested command directly
-            ExecutionMode::Fast => Ok(requested_command),
-            // replay execution aligns the requested command with the replay log
+            // fast execution applies the requested mutation directly
+            ExecutionMode::Fast => Ok(requested_mutation),
+            // replay execution aligns the requested mutation with the replay log
             ExecutionMode::Replay => {
-                let replayed_command = self.next_command()?;
-                if replayed_command != requested_command {
+                let replayed_mutation = self.next_mutation()?;
+                if replayed_mutation != requested_mutation {
                     return Err(Self::trace_mismatch_error("world"));
                 }
 
-                Ok(replayed_command)
+                Ok(replayed_mutation)
             }
-            // deterministic and record modes keep local command behavior
-            ExecutionMode::Deterministic | ExecutionMode::Record => Ok(requested_command),
+            // deterministic and record modes keep local mutation behavior
+            ExecutionMode::Deterministic | ExecutionMode::Record => Ok(requested_mutation),
+        }
+    }
+
+    /// Read the next entrypoint invocation from replay.
+    pub(crate) fn next_entrypoint(&self) -> RuntimeResult<EntrypointInvocation> {
+        let event = self.next_required_record("entrypoint")?;
+        let TraceRecord::Entrypoint(invocation) = event else {
+            return Err(Self::trace_mismatch_error("entrypoint"));
+        };
+
+        Ok(invocation)
+    }
+
+    /// Resolve one entrypoint invocation under the active replay mode.
+    pub(crate) fn resolve_entrypoint(
+        &self,
+        requested_invocation: EntrypointInvocation,
+    ) -> RuntimeResult<EntrypointInvocation> {
+        match self.mode() {
+            ExecutionMode::Fast => Ok(requested_invocation),
+            ExecutionMode::Replay => {
+                let replayed_invocation = self.next_entrypoint()?;
+                if replayed_invocation != requested_invocation {
+                    return Err(Self::trace_mismatch_error("entrypoint"));
+                }
+
+                Ok(replayed_invocation)
+            }
+            ExecutionMode::Deterministic | ExecutionMode::Record => Ok(requested_invocation),
         }
     }
 
@@ -632,20 +666,6 @@ impl Trace {
             move |_, result| encode(result),
             move |_, payload| decode(payload),
         )
-    }
-}
-
-impl TraceImage {
-    /// Report whether this image shares the same immutable trace head.
-    #[cfg_attr(not(test), allow(dead_code))]
-    pub(crate) fn shares_log_head_with(&self, other: &Self) -> bool {
-        self.log.shares_head_with(&other.log)
-    }
-
-    /// Report whether this image extends the other image's immutable trace head.
-    #[cfg_attr(not(test), allow(dead_code))]
-    pub(crate) fn extends_log_head_of(&self, other: &Self) -> bool {
-        self.log.extends_head_of(&other.log)
     }
 }
 

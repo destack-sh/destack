@@ -4,10 +4,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::ResourceKind;
+use crate::world::policy::{EdgeSelector, EntitySelector};
 use crate::world::topology::Topology;
 use crate::world::{EdgeKind, EntityKind};
 
-use super::{EdgeSelector, EntitySelector, Rule, RuleAction};
+use super::FaultRule;
 
 /// Base fault verbs supported by all entity kinds.
 const BASE_ENTITY_FAULTS: &[&str] = &[
@@ -55,6 +56,22 @@ const CLOCK_FAULTS: &[&str] = &[
 
 /// Durability fault verbs for persistent-state kinds.
 const DURABILITY_FAULTS: &[&str] = &["runtime.fault.durability.violate"];
+
+/// Runtime fault payload for one scenario rule.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct Fault {
+    /// Fault target selector.
+    pub target: FaultTarget,
+    /// Fault type payload.
+    pub fault_type: FaultType,
+}
+
+impl Fault {
+    /// Create one fault from one target and one fault type.
+    pub fn new(target: FaultTarget, fault_type: FaultType) -> Self {
+        Self { target, fault_type }
+    }
+}
 
 /// Jitter distribution for runtime delay faults.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -249,7 +266,7 @@ pub(crate) fn resource_kind_faults(resource_kind: ResourceKind) -> BTreeSet<Stri
 
         ResourceKind::Process => LIFECYCLE_FAULTS,
 
-        ResourceKind::Timer | ResourceKind::TimerFd => CLOCK_FAULTS,
+        ResourceKind::Timer => CLOCK_FAULTS,
 
         _ => &[],
     };
@@ -762,22 +779,6 @@ impl FaultType {
     }
 }
 
-/// Runtime fault payload for one runtime rule action.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct Fault {
-    /// Fault target selector.
-    pub target: FaultTarget,
-    /// Fault type payload.
-    pub fault_type: FaultType,
-}
-
-impl Fault {
-    /// Create one fault from one target and one fault type.
-    pub fn new(target: FaultTarget, fault_type: FaultType) -> Self {
-        Self { target, fault_type }
-    }
-}
-
 /// Topology fault-support lookup used for fault compatibility checks.
 pub(crate) trait FaultKindCatalog {
     /// Return one entity kind supported fault set by kind id.
@@ -797,26 +798,21 @@ impl FaultKindCatalog for Topology {
 }
 
 /// Validate one fault rule target and fault pair.
-pub(crate) fn validate_rule_fault_compatibility(
-    rule: &Rule,
+pub(crate) fn validate_fault_rule_compatibility(
+    rule: &FaultRule,
     kind_catalog: &(impl FaultKindCatalog + ?Sized),
 ) -> RuntimeResult<()> {
-    let RuleAction::Fault { fault } = &rule.action else {
-        return Ok(());
-    };
-
-    validate_fault_target_compatible(&fault.target, &fault.fault_type, kind_catalog).map_err(
-        |error| {
+    validate_fault_target_compatible(&rule.fault.target, &rule.fault.fault_type, kind_catalog)
+        .map_err(|error| {
             RuntimeError::Internal {
                 message: format!(
-                    "runtime fault is incompatible with target in rule {}: {}",
+                    "runtime fault is incompatible with target in fault rule {}: {}",
                     rule.id.0,
                     error.message()
                 ),
             }
             .boxed()
-        },
-    )
+        })
 }
 
 /// Target kind for fault compatibility validation.

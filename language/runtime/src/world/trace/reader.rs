@@ -7,24 +7,24 @@ use crate::world::BranchId;
 use crate::world::trace::log::{TraceSequence, TraceState, compute_log_hash};
 use crate::world::trace::{TraceRecord, TraceTrailer};
 
-use super::chunk::{TraceChunk, TraceChunkChain};
+use super::chunk::{TRACE_EVENT_LENGTH_BYTES, TraceChunk, TracePrefix};
 
-/// One cached immutable chain range for one cursor.
+/// One cached immutable prefix range for one cursor.
 #[derive(Debug)]
-struct TraceChunkRange {
-    /// First global chunk index stored in this chain node.
+struct TracePrefixRange {
+    /// First global chunk index stored in this prefix.
     start_chunk: usize,
-    /// Shared immutable chunk chain.
-    chain: Arc<TraceChunkChain>,
+    /// Shared immutable trace prefix.
+    prefix: Arc<TracePrefix>,
 }
 
-/// Cached immutable chunk chain path for one trace cursor.
+/// Cached immutable prefix path for one trace cursor.
 #[derive(Debug, Default)]
-struct TraceChunkCache {
-    /// Current shared head chain this cache was built from.
-    head: Option<Arc<TraceChunkChain>>,
+struct TracePrefixCache {
+    /// Current shared prefix this cache was built from.
+    head: Option<Arc<TracePrefix>>,
     /// Shared history ranges in oldest-to-newest order.
-    ranges: Vec<TraceChunkRange>,
+    ranges: Vec<TracePrefixRange>,
 }
 
 /// Trace cursor state.
@@ -60,8 +60,8 @@ pub struct TraceCursor {
     state: Arc<parking_lot::Mutex<TraceState>>,
     /// Cursor state for this reader.
     cursor: TraceReadCursor,
-    /// Cached shared chain path for chunk reads.
-    chunk_cache: TraceChunkCache,
+    /// Cached shared prefix path for chunk reads.
+    prefix_cache: TracePrefixCache,
 }
 
 impl TraceCursor {
@@ -76,7 +76,7 @@ impl TraceCursor {
                 next_sequence: TraceSequence::new(0),
                 validated_chunk: None,
             },
-            chunk_cache: TraceChunkCache::default(),
+            prefix_cache: TracePrefixCache::default(),
         }
     }
 
@@ -93,15 +93,15 @@ impl TraceCursor {
             .boxed());
         }
 
-        // refresh the shared chunk cache for this visible head
-        Self::sync_chunk_cache(&state, &mut self.chunk_cache);
+        // refresh the shared prefix cache for this visible head
+        Self::sync_prefix_cache(&state, &mut self.prefix_cache);
 
         // read the next event by advancing across the visible chunks
         let cursor = &mut self.cursor;
 
         while cursor.read_chunk < state.chunk_count() {
             let chunk_index = cursor.read_chunk;
-            let chunk = Self::chunk(&state, &self.chunk_cache, chunk_index).ok_or_else(|| {
+            let chunk = Self::chunk(&state, &self.prefix_cache, chunk_index).ok_or_else(|| {
                 RuntimeError::InconsistentImage {
                     detail: format!("trace chunk {chunk_index} is missing"),
                 }
@@ -115,7 +115,7 @@ impl TraceCursor {
             }
 
             // decode the next event from the current chunk
-            if cursor.read_index < chunk.event_lengths.len() {
+            if cursor.read_index < chunk.header.event_count as usize {
                 let sequence = cursor.next_sequence;
                 if cursor.read_index == 0 && chunk.header.sequence_start != sequence {
                     return Err(RuntimeError::TraceMismatch {
@@ -124,17 +124,33 @@ impl TraceCursor {
                     .boxed());
                 }
 
-                let event_length = chunk.event_lengths[cursor.read_index] as usize;
                 let start = cursor.read_offset;
-                let end = start + event_length;
-                let encoded = &chunk.data[start..end];
+                let length_end = start + TRACE_EVENT_LENGTH_BYTES;
+                if length_end > chunk.bytes.len() {
+                    return Err(RuntimeError::TraceMismatch {
+                        name: "chunk_length".to_string(),
+                    }
+                    .boxed());
+                }
+
+                let mut event_length = [0u8; 4];
+                event_length.copy_from_slice(&chunk.bytes[start..length_end]);
+                let event_length = u32::from_le_bytes(event_length) as usize;
+                let end = length_end + event_length;
+                if end > chunk.bytes.len() {
+                    return Err(RuntimeError::TraceMismatch {
+                        name: "chunk_length".to_string(),
+                    }
+                    .boxed());
+                }
+                let encoded = &chunk.bytes[length_end..end];
                 let event = postcard::from_bytes(encoded).map_err(|_| {
                     RuntimeError::TraceDecodeFailed {
                         name: "event".to_string(),
                     }
                     .boxed()
                 })?;
-                if cursor.read_index + 1 == chunk.event_lengths.len()
+                if cursor.read_index + 1 == chunk.header.event_count as usize
                     && chunk.header.sequence_end != sequence
                 {
                     return Err(RuntimeError::TraceMismatch {
@@ -193,7 +209,7 @@ impl TraceCursor {
         }
 
         self.cursor = image.cursor;
-        self.chunk_cache = TraceChunkCache::default();
+        self.prefix_cache = TracePrefixCache::default();
 
         Ok(())
     }
@@ -214,15 +230,15 @@ impl TraceCursor {
             .boxed());
         }
 
-        // refresh the shared chunk cache before scanning from the start
-        Self::sync_chunk_cache(&state, &mut self.chunk_cache);
-        self.cursor = Self::seek_chunk(&state, &self.chunk_cache, sequence)?;
+        // refresh the shared prefix cache before scanning from the start
+        Self::sync_prefix_cache(&state, &mut self.prefix_cache);
+        self.cursor = Self::seek_chunk(&state, &self.prefix_cache, sequence)?;
 
         Ok(())
     }
 
     /// Rebuild the cached chunk path when the shared head changes.
-    fn sync_chunk_cache(state: &TraceState, cache: &mut TraceChunkCache) {
+    fn sync_prefix_cache(state: &TraceState, cache: &mut TracePrefixCache) {
         let Some(head) = state.head() else {
             cache.head = None;
             cache.ranges.clear();
@@ -237,27 +253,27 @@ impl TraceCursor {
             return;
         }
 
-        let mut chains = Vec::new();
+        let mut prefixes = Vec::new();
         let mut current = Some(head.clone());
 
         // collect newest-to-oldest first
-        while let Some(chain) = current {
-            current = chain.parent.clone();
-            chains.push(chain);
+        while let Some(prefix) = current {
+            current = prefix.parent.clone();
+            prefixes.push(prefix);
         }
 
         // reverse into oldest-to-newest order for sequential reads
-        chains.reverse();
+        prefixes.reverse();
 
         let mut next_start_chunk = 0usize;
-        let ranges = chains
+        let ranges = prefixes
             .into_iter()
-            .map(|chain| {
-                let range = TraceChunkRange {
+            .map(|prefix| {
+                let range = TracePrefixRange {
                     start_chunk: next_start_chunk,
-                    chain: chain.clone(),
+                    prefix: prefix.clone(),
                 };
-                next_start_chunk += chain.chunks.len();
+                next_start_chunk += prefix.chunks.len();
                 range
             })
             .collect();
@@ -269,15 +285,15 @@ impl TraceCursor {
     /// Return one visible chunk by stable global index.
     fn chunk<'a>(
         state: &'a TraceState,
-        cache: &'a TraceChunkCache,
+        cache: &'a TracePrefixCache,
         index: usize,
     ) -> Option<&'a TraceChunk> {
         // read shared immutable history first
         for range in &cache.ranges {
-            let range_end = range.start_chunk + range.chain.chunks.len();
+            let range_end = range.start_chunk + range.prefix.chunks.len();
 
             if index < range_end {
-                return range.chain.chunks.get(index - range.start_chunk);
+                return range.prefix.chunks.get(index - range.start_chunk);
             }
         }
 
@@ -297,12 +313,12 @@ impl TraceCursor {
     /// Seek one cursor directly to the chunk containing the requested sequence.
     fn seek_chunk(
         state: &TraceState,
-        cache: &TraceChunkCache,
+        cache: &TracePrefixCache,
         sequence: TraceSequence,
     ) -> RuntimeResult<TraceReadCursor> {
         // shared immutable history
         for range in &cache.ranges {
-            for (local_chunk_index, chunk) in range.chain.chunks.iter().enumerate() {
+            for (local_chunk_index, chunk) in range.prefix.chunks.iter().enumerate() {
                 if !sequence_in_chunk(sequence, chunk) {
                     continue;
                 }
@@ -369,7 +385,7 @@ impl TraceCursor {
 
 /// Return whether one sequence falls within one chunk.
 fn sequence_in_chunk(sequence: TraceSequence, chunk: &TraceChunk) -> bool {
-    if chunk.event_lengths.is_empty() {
+    if chunk.header.event_count == 0 {
         return false;
     }
 
@@ -394,43 +410,20 @@ fn sequence_offset_in_chunk(
         .boxed()
     })? as usize;
 
-    let read_offset =
-        chunk
-            .event_lengths
-            .iter()
-            .take(relative_index)
-            .try_fold(0usize, |offset, length| {
-                offset.checked_add(*length as usize).ok_or_else(|| {
-                    RuntimeError::TraceMismatch {
-                        name: "offset".to_string(),
-                    }
-                    .boxed()
-                })
-            })?;
+    let read_offset = event_offset_in_chunk(chunk, relative_index)?;
 
     Ok((relative_index, read_offset))
 }
 
 /// Validate chunk integrity against stored metadata.
 fn validate_chunk(chunk: &TraceChunk, trailer: &TraceTrailer) -> RuntimeResult<()> {
-    if chunk.header.event_count as usize != chunk.event_lengths.len() {
-        return Err(RuntimeError::TraceMismatch {
-            name: "chunk_events".to_string(),
-        }
-        .boxed());
-    }
-    if chunk.header.byte_length as usize != chunk.data.len() {
+    if chunk.header.byte_length as usize != chunk.bytes.len() {
         return Err(RuntimeError::TraceMismatch {
             name: "chunk_length".to_string(),
         }
         .boxed());
     }
-    let total_event_bytes: usize = chunk
-        .event_lengths
-        .iter()
-        .map(|value| *value as usize)
-        .sum();
-    if total_event_bytes != chunk.data.len() {
+    if event_offset_in_chunk(chunk, chunk.header.event_count as usize)? != chunk.bytes.len() {
         return Err(RuntimeError::TraceMismatch {
             name: "chunk_offsets".to_string(),
         }
@@ -471,4 +464,31 @@ fn validate_chunk(chunk: &TraceChunk, trailer: &TraceTrailer) -> RuntimeResult<(
     }
 
     Ok(())
+}
+
+/// Return the byte offset for one event index inside one chunk.
+fn event_offset_in_chunk(chunk: &TraceChunk, event_index: usize) -> RuntimeResult<usize> {
+    let mut offset = 0usize;
+
+    for _ in 0..event_index {
+        let length_end = offset + TRACE_EVENT_LENGTH_BYTES;
+        if length_end > chunk.bytes.len() {
+            return Err(RuntimeError::TraceMismatch {
+                name: "offset".to_string(),
+            }
+            .boxed());
+        }
+
+        let mut event_length = [0u8; 4];
+        event_length.copy_from_slice(&chunk.bytes[offset..length_end]);
+        let event_length = u32::from_le_bytes(event_length) as usize;
+        offset = length_end.checked_add(event_length).ok_or_else(|| {
+            RuntimeError::TraceMismatch {
+                name: "offset".to_string(),
+            }
+            .boxed()
+        })?;
+    }
+
+    Ok(offset)
 }

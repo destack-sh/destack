@@ -29,6 +29,21 @@ pub(crate) enum TopologyError {
         /// The duplicated kind identifier.
         kind: EdgeKind,
     },
+    /// One builtin kind cannot be undefined.
+    BuiltinKind {
+        /// The protected kind identifier.
+        kind: String,
+    },
+    /// One entity kind is still used by live entities.
+    EntityKindInUse {
+        /// The kind identifier still in use.
+        kind: EntityKind,
+    },
+    /// One edge kind is still used by live edges.
+    EdgeKindInUse {
+        /// The kind identifier still in use.
+        kind: EdgeKind,
+    },
     /// One entity kind was not defined.
     UnknownEntityKind {
         /// The missing kind identifier.
@@ -86,6 +101,15 @@ impl fmt::Display for TopologyError {
             }
             TopologyError::DuplicateEdgeKind { kind } => {
                 write!(f, "topology edge kind {kind} is already defined")
+            }
+            TopologyError::BuiltinKind { kind } => {
+                write!(f, "topology builtin kind {kind} cannot be undefined")
+            }
+            TopologyError::EntityKindInUse { kind } => {
+                write!(f, "topology entity kind {kind} is still in use")
+            }
+            TopologyError::EdgeKindInUse { kind } => {
+                write!(f, "topology edge kind {kind} is still in use")
             }
             TopologyError::UnknownEntityKind { kind } => {
                 write!(f, "topology entity kind {kind} is not defined")

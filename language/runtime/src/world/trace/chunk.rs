@@ -4,15 +4,16 @@ use super::{TraceChunkHeader, TraceSequence};
 use destack_core::{FNV_OFFSET_BASIS_64, fnv1a_64_update};
 use serde::{Deserialize, Serialize};
 
+/// Byte length of one trace event length prefix.
+pub(super) const TRACE_EVENT_LENGTH_BYTES: usize = std::mem::size_of::<u32>();
+
 /// Trace chunk payload.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(super) struct TraceChunk {
     /// Chunk header metadata.
     pub(super) header: TraceChunkHeader,
     /// Chunk payload bytes.
-    pub(super) data: Vec<u8>,
-    /// Recorded event lengths in append order.
-    pub(super) event_lengths: Vec<u32>,
+    pub(super) bytes: Vec<u8>,
 }
 
 impl TraceChunk {
@@ -27,8 +28,7 @@ impl TraceChunk {
                 byte_length: 0,
                 checksum: FNV_OFFSET_BASIS_64,
             },
-            data: Vec::new(),
-            event_lengths: Vec::new(),
+            bytes: Vec::new(),
         }
     }
 
@@ -40,7 +40,7 @@ impl TraceChunk {
         max_chunk_bytes: u64,
     ) -> bool {
         // rotate when event count would exceed the chunk limit
-        if self.event_lengths.len() >= max_events_per_chunk {
+        if self.header.event_count as usize >= max_events_per_chunk {
             return true;
         }
 
@@ -50,40 +50,42 @@ impl TraceChunk {
 
     /// Return whether this chunk currently stores any events.
     pub(super) fn is_empty(&self) -> bool {
-        self.event_lengths.is_empty()
+        self.header.event_count == 0
     }
 
     /// Update this chunk checksum with one encoded payload range.
     pub(super) fn update_checksum_for_range(&mut self, start: usize, end: usize) {
-        let bytes = &self.data[start..end];
+        let bytes = &self.bytes[start..end];
         self.header.checksum = fnv1a_64_update(self.header.checksum, bytes);
     }
 
     /// Compute this chunk payload checksum from scratch.
     pub(super) fn payload_checksum(&self) -> u64 {
-        fnv1a_64_update(FNV_OFFSET_BASIS_64, &self.data)
+        fnv1a_64_update(FNV_OFFSET_BASIS_64, &self.bytes)
     }
 }
 
-/// One immutable shared chain node of trace chunks.
+/// One immutable shared trace prefix.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(super) struct TraceChunkChain {
-    /// Older chunk chain node.
-    pub(super) parent: Option<Arc<TraceChunkChain>>,
-    /// Chunks stored in this chain node.
+pub(super) struct TracePrefix {
+    /// Older trace prefix.
+    pub(super) parent: Option<Arc<TracePrefix>>,
+    /// Chunks stored in this prefix.
     pub(super) chunks: Box<[TraceChunk]>,
-    /// Total number of chunks reachable through this chain.
+    /// Total number of chunks reachable through this prefix.
     pub(super) chunk_count: u32,
-    /// Total byte length reachable through this chain.
+    /// Total byte length reachable through this prefix.
     pub(super) byte_count: u64,
 }
 
-#[allow(dead_code)]
-impl TraceChunkChain {
-    /// Create one chain node from parent history and frozen chunks.
-    pub(super) fn new(parent: Option<Arc<TraceChunkChain>>, chunks: Vec<TraceChunk>) -> Self {
-        let parent_chunk_count = parent.as_ref().map(|chain| chain.chunk_count).unwrap_or(0);
-        let parent_byte_count = parent.as_ref().map(|chain| chain.byte_count).unwrap_or(0);
+impl TracePrefix {
+    /// Create one prefix from parent history and frozen chunks.
+    pub(super) fn new(parent: Option<Arc<TracePrefix>>, chunks: Vec<TraceChunk>) -> Self {
+        let parent_chunk_count = parent
+            .as_ref()
+            .map(|prefix| prefix.chunk_count)
+            .unwrap_or(0);
+        let parent_byte_count = parent.as_ref().map(|prefix| prefix.byte_count).unwrap_or(0);
         let local_chunk_count = chunks.len() as u32;
         let local_byte_count: u64 = chunks.iter().map(|chunk| chunk.header.byte_length).sum();
 
@@ -93,17 +95,5 @@ impl TraceChunkChain {
             chunk_count: parent_chunk_count + local_chunk_count,
             byte_count: parent_byte_count + local_byte_count,
         }
-    }
-
-    /// Report whether this chain contains the target head.
-    pub(crate) fn contains(chain: &Arc<Self>, target: &Arc<Self>) -> bool {
-        let mut current = Some(chain);
-        while let Some(chain) = current {
-            if Arc::ptr_eq(chain, target) {
-                return true;
-            }
-            current = chain.parent.as_ref();
-        }
-        false
     }
 }

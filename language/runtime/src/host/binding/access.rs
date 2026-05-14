@@ -1,5 +1,5 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::binding::{BindingDescriptor, BindingEffect, BindingReplayPayload};
+use crate::host::binding::{BindingDescriptor, BindingDeterminism, BindingReplayPayload};
 use crate::world::policy::ActionSet;
 use destack_workspace::{ExecutionMode, ReplayPayloadMode, RuntimeOptions};
 
@@ -67,7 +67,7 @@ impl BindingAccess {
         }
 
         // execution mode
-        if !self.allows_effect(spec.effect) {
+        if !self.allows_determinism(spec.determinism) {
             return Err(RuntimeError::PolicyViolation {
                 name: spec.name.to_string(),
             }
@@ -85,15 +85,18 @@ impl BindingAccess {
         }
     }
 
-    /// Return whether one binding effect can run under this access.
-    const fn allows_effect(&self, effect: BindingEffect) -> bool {
+    /// Return whether one binding determinism can run under this access.
+    const fn allows_determinism(&self, determinism: BindingDeterminism) -> bool {
         match self.mode {
             ExecutionMode::Fast => true,
             ExecutionMode::Deterministic => {
-                matches!(effect, BindingEffect::Pure | BindingEffect::Deterministic)
+                matches!(
+                    determinism,
+                    BindingDeterminism::Pure | BindingDeterminism::Deterministic
+                )
             }
             ExecutionMode::Record | ExecutionMode::Replay => {
-                !matches!(effect, BindingEffect::ExternalNonRecordable)
+                !matches!(determinism, BindingDeterminism::OpaqueExternal)
             }
         }
     }

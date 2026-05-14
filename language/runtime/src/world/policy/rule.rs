@@ -1,9 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-use crate::host::binding::{RuntimeAccess, RuntimeWorld};
-use destack_workspace::ReplayPayloadMode;
+use crate::host::binding::BindingRoute;
 
-use super::{CallSelector, Fault, Hook, Trigger};
+use super::{ActionSelector, SubjectSelector, TargetSelector};
 
 /// Stable identifier for one runtime rule.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -16,126 +15,84 @@ impl RuleId {
     }
 }
 
-/// Custom action payload routed to user-defined handlers.
+/// Runtime policy decision payload.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct CustomAction {
-    /// Stable custom action handler key.
-    pub handler: String,
-    /// Optional custom action payload.
-    pub payload: Option<String>,
+#[serde(rename_all = "camelCase")]
+pub enum Decision {
+    /// Allow the matching action through one route.
+    Allow {
+        /// Route selected for matching host actions.
+        route: BindingRoute,
+    },
+    /// Deny the matching action.
+    Deny,
 }
 
-impl CustomAction {
-    /// Create one custom action without payload.
-    pub fn new(handler: impl Into<String>) -> Self {
-        Self {
-            handler: handler.into(),
-            payload: None,
+impl Default for Decision {
+    fn default() -> Self {
+        Self::allow()
+    }
+}
+
+impl Decision {
+    /// Create one allow decision using the host route.
+    pub fn allow() -> Self {
+        Self::Allow {
+            route: BindingRoute::Host,
         }
     }
 
-    /// Attach one custom payload string.
-    pub fn payload(mut self, payload: impl Into<String>) -> Self {
-        self.payload = Some(payload.into());
-        self
+    /// Create one allow decision using an explicit route.
+    pub fn route(route: BindingRoute) -> Self {
+        Self::Allow { route }
     }
 }
 
-/// Runtime rule action payload.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum RuleAction {
-    /// Set the matching binding world.
-    SetWorld {
-        /// The selected world for matching bindings.
-        world: RuntimeWorld,
-    },
-    /// Set the matching binding access mode.
-    SetAccess {
-        /// The selected access mode for matching bindings.
-        access: RuntimeAccess,
-    },
-    /// Set the matching binding replay payload policy.
-    SetReplay {
-        /// The selected replay payload mode for matching bindings.
-        payload: ReplayPayloadMode,
-    },
-    /// Apply one runtime fault action.
-    Fault {
-        /// Fault payload for this rule.
-        fault: Fault,
-    },
-    /// Apply one user-defined custom action.
-    Custom {
-        /// Custom action payload.
-        custom: CustomAction,
-    },
-}
-
-impl RuleAction {
-    /// Create one world decision action.
-    pub fn set_world(world: RuntimeWorld) -> Self {
-        Self::SetWorld { world }
-    }
-
-    /// Create one access decision action.
-    pub fn set_access(access: RuntimeAccess) -> Self {
-        Self::SetAccess { access }
-    }
-
-    /// Create one replay decision action.
-    pub fn set_replay(payload: ReplayPayloadMode) -> Self {
-        Self::SetReplay { payload }
-    }
-
-    /// Create one fault action.
-    pub fn fault(fault: Fault) -> Self {
-        Self::Fault { fault }
-    }
-
-    /// Create one custom action.
-    pub fn custom(custom: CustomAction) -> Self {
-        Self::Custom { custom }
-    }
-}
-
-/// One runtime rule for binding decisions or triggered actions.
+/// One runtime policy rule.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Rule {
     /// Stable rule identifier.
     pub id: RuleId,
     /// Whether this rule is enabled.
     pub enabled: bool,
-    /// Optional selector for this rule.
-    pub call: Option<CallSelector>,
-    /// Action payload for this rule.
-    pub action: RuleAction,
-    /// Trigger controls for action rules.
-    /// Binding rules should leave this empty.
-    pub trigger: Option<Trigger>,
+    /// Subject selector for this rule.
+    pub subject: SubjectSelector,
+    /// Action selector for this rule.
+    pub action: ActionSelector,
+    /// Target selector for this rule.
+    pub target: TargetSelector,
+    /// Decision selected by this rule.
+    pub decision: Decision,
 }
 
 impl Rule {
-    /// Create one enabled rule with no selector and no trigger.
-    pub fn new(id: impl Into<String>, action: RuleAction) -> Self {
+    /// Create one enabled rule with no selectors.
+    pub fn new(id: impl Into<String>, decision: Decision) -> Self {
         Self {
             id: RuleId::new(id),
             enabled: true,
-            call: None,
-            action,
-            trigger: None,
+            subject: SubjectSelector::default(),
+            action: ActionSelector::default(),
+            target: TargetSelector::default(),
+            decision,
         }
     }
 
-    /// Attach one call selector to this rule.
-    pub fn call(mut self, selector: CallSelector) -> Self {
-        self.call = Some(selector);
+    /// Attach one subject selector to this rule.
+    pub fn subject(mut self, selector: SubjectSelector) -> Self {
+        self.subject = selector;
         self
     }
 
-    /// Attach one trigger to this rule.
-    pub fn trigger(mut self, trigger: Trigger) -> Self {
-        self.trigger = Some(trigger);
+    /// Attach one action selector to this rule.
+    pub fn action(mut self, selector: ActionSelector) -> Self {
+        self.action = selector;
+        self
+    }
+
+    /// Attach one target selector to this rule.
+    pub fn target(mut self, selector: TargetSelector) -> Self {
+        self.target = selector;
         self
     }
 
@@ -145,41 +102,18 @@ impl Rule {
         self
     }
 
-    /// Create one enabled access decision rule.
-    pub fn access(id: impl Into<String>, selector: CallSelector, access: RuntimeAccess) -> Self {
-        Self::new(id, RuleAction::set_access(access)).call(selector)
+    /// Create one enabled allow rule.
+    pub fn allow(id: impl Into<String>, selector: ActionSelector) -> Self {
+        Self::new(id, Decision::allow()).action(selector)
     }
 
-    /// Create one enabled world decision rule.
-    pub fn world(id: impl Into<String>, selector: CallSelector, world: RuntimeWorld) -> Self {
-        Self::new(id, RuleAction::set_world(world)).call(selector)
+    /// Create one enabled deny rule.
+    pub fn deny(id: impl Into<String>, selector: ActionSelector) -> Self {
+        Self::new(id, Decision::Deny).action(selector)
     }
 
-    /// Create one enabled replay decision rule.
-    pub fn replay(
-        id: impl Into<String>,
-        selector: CallSelector,
-        payload: ReplayPayloadMode,
-    ) -> Self {
-        Self::new(id, RuleAction::set_replay(payload)).call(selector)
-    }
-
-    /// Create one enabled fault rule with one trigger.
-    pub fn fault(id: impl Into<String>, fault: Fault, trigger: Trigger) -> Self {
-        Self::new(id, RuleAction::fault(fault)).trigger(trigger)
-    }
-
-    /// Create one enabled custom-action rule with one trigger.
-    pub fn custom(id: impl Into<String>, custom: CustomAction, trigger: Trigger) -> Self {
-        Self::new(id, RuleAction::custom(custom)).trigger(trigger)
-    }
-
-    /// Return true when this rule trigger matches one hook.
-    pub fn matches_hook(&self, hook: Hook) -> bool {
-        let Some(trigger) = &self.trigger else {
-            return false;
-        };
-
-        trigger.on == hook
+    /// Create one enabled route rule.
+    pub fn route(id: impl Into<String>, selector: ActionSelector, route: BindingRoute) -> Self {
+        Self::new(id, Decision::route(route)).action(selector)
     }
 }

@@ -275,6 +275,9 @@ define_actions! {
         ResourceWrite => "resource.write",
         RevisionControl => "revision.control",
         RevisionRead => "revision.read",
+        ScenarioControl => "scenario.control",
+        ScenarioRead => "scenario.read",
+        ScenarioWrite => "scenario.write",
         RuntimeControl => "runtime.control",
         RuntimeCreate => "runtime.create",
         RuntimeRead => "runtime.read",
@@ -474,83 +477,4 @@ fn profile_tokens(profile: &str) -> impl Iterator<Item = &str> {
         .split(|character: char| character == ',' || character.is_whitespace())
         .map(str::trim)
         .filter(|token| !token.is_empty())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{
-        ACTION_PROFILE_ALL, ACTION_PROFILE_NONE, Action, ActionId, ActionSet,
-        builtin_action_profiles, resolve_action_profile,
-    };
-
-    #[test]
-    fn test_from_actions_contains_action_kinds_and_ids() {
-        let set = ActionSet::from_actions([Action::FsRead, Action::NetConnect]);
-
-        assert!(set.contains_action(Action::FsRead));
-        assert!(set.contains_action(Action::NetConnect));
-        assert!(set.contains_id(ActionId::from_name("host.fs.read")));
-        assert!(set.contains_id(ActionId::from_name("host.net.connect")));
-    }
-
-    #[test]
-    fn test_extend_actions_merges_into_existing_set() {
-        let mut set = ActionSet::from_names(["host.gpu.device"]);
-        set.extend_actions([Action::GpuQueue, Action::GpuPresent]);
-
-        assert!(set.contains_name("host.gpu.device"));
-        assert!(set.contains_action(Action::GpuQueue));
-        assert!(set.contains_action(Action::GpuPresent));
-        assert_eq!(set.len(), 3);
-    }
-
-    #[test]
-    fn test_insert_action_deduplicates_existing_action() {
-        let mut set = ActionSet::new();
-        let first_insert = set.insert_action(Action::IoPoll);
-        let second_insert = set.insert_action(Action::IoPoll);
-
-        assert!(first_insert);
-        assert!(!second_insert);
-        assert_eq!(set.len(), 1);
-    }
-
-    #[test]
-    fn test_resolve_action_profile_accepts_builtin_profiles() {
-        let none =
-            resolve_action_profile(ACTION_PROFILE_NONE).expect("none profile should resolve");
-        let all = resolve_action_profile(ACTION_PROFILE_ALL).expect("all profile should resolve");
-
-        assert!(none.is_empty());
-        assert!(!all.is_empty());
-        assert!(all.len() > none.len());
-    }
-
-    #[test]
-    fn test_resolve_action_profile_accepts_explicit_action_list() {
-        let set = resolve_action_profile("host.fs.read, host.net.connect host.random.bytes")
-            .expect("action list should resolve");
-
-        assert!(set.contains_name("host.fs.read"));
-        assert!(set.contains_name("host.net.connect"));
-        assert!(set.contains_name("host.random.bytes"));
-        assert_eq!(set.len(), 3);
-    }
-
-    #[test]
-    fn test_resolve_action_profile_rejects_unknown_action_name() {
-        let error = resolve_action_profile("host.fs.read,not.a.action")
-            .expect_err("unknown action should fail");
-
-        assert!(error.contains("unknown action"));
-    }
-
-    #[test]
-    fn test_builtin_action_profiles_lists_known_profiles() {
-        let profiles = builtin_action_profiles();
-
-        assert!(profiles.contains(&"none"));
-        assert!(profiles.contains(&"all"));
-        assert!(profiles.contains(&"full"));
-    }
 }

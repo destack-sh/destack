@@ -3,8 +3,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use serde::{Deserialize, Serialize};
 
 use super::builtin::{
-    base_supported_edge_faults, base_supported_entity_faults, builtin_edge_kinds,
-    builtin_entity_kinds, builtin_resource_entity_kinds,
+    builtin_edge_kinds, builtin_entity_kinds, builtin_resource_entity_kinds, is_builtin_edge_kind,
+    is_builtin_entity_kind,
 };
 use super::{
     Edge, EdgeDefinition, EdgeId, EdgeKind, Entity, EntityDefinition, EntityId, EntityKind,
@@ -12,6 +12,7 @@ use super::{
 };
 use crate::runtime::WorkerId;
 use crate::world::Resource;
+use crate::world::scenario::{base_edge_faults, base_entity_faults};
 
 /// World topology graph and kind catalog.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -45,7 +46,7 @@ impl Default for Topology {
 }
 
 impl Topology {
-    /// Create one topology with builtin kinds installed.
+    /// Create one topology with builtin kinds.
     pub(crate) fn new() -> Self {
         Self::default()
     }
@@ -257,7 +258,7 @@ impl Topology {
 
         // default to base entity faults for user-defined kinds
         if kind.supported_faults.is_empty() {
-            kind.supported_faults = base_supported_entity_faults();
+            kind.supported_faults = base_entity_faults();
         }
 
         // insert one kind definition
@@ -282,11 +283,59 @@ impl Topology {
 
         // default to base edge faults for user-defined kinds
         if kind.supported_faults.is_empty() {
-            kind.supported_faults = base_supported_edge_faults();
+            kind.supported_faults = base_edge_faults();
         }
 
         // insert one kind definition
         self.edge_kinds.insert(kind.kind.clone(), kind);
+
+        Ok(())
+    }
+
+    /// Undefine one entity kind in topology.
+    pub(crate) fn undefine_entity_kind(&mut self, kind: &EntityKind) -> TopologyResult<()> {
+        // reject missing kind identifiers
+        if !self.entity_kinds.contains_key(kind.as_str()) {
+            return Err(TopologyError::UnknownEntityKind { kind: kind.clone() });
+        }
+
+        // protect builtin topology shape
+        if is_builtin_entity_kind(kind.as_str()) {
+            return Err(TopologyError::BuiltinKind {
+                kind: kind.to_string(),
+            });
+        }
+
+        // reject removing a kind still used by live entities
+        if self.entities.values().any(|entity| entity.kind == *kind) {
+            return Err(TopologyError::EntityKindInUse { kind: kind.clone() });
+        }
+
+        self.entity_kinds.remove(kind.as_str());
+
+        Ok(())
+    }
+
+    /// Undefine one edge kind in topology.
+    pub(crate) fn undefine_edge_kind(&mut self, kind: &EdgeKind) -> TopologyResult<()> {
+        // reject missing kind identifiers
+        if !self.edge_kinds.contains_key(kind.as_str()) {
+            return Err(TopologyError::UnknownEdgeKind { kind: kind.clone() });
+        }
+
+        // protect builtin topology shape
+        if is_builtin_edge_kind(kind.as_str()) {
+            return Err(TopologyError::BuiltinKind {
+                kind: kind.to_string(),
+            });
+        }
+
+        // reject removing a kind still used by live edges
+        if self.edges.values().any(|edge| edge.kind == *kind) {
+            return Err(TopologyError::EdgeKindInUse { kind: kind.clone() });
+        }
+
+        self.edge_kinds.remove(kind.as_str());
 
         Ok(())
     }

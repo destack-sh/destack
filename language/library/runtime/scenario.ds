@@ -1,0 +1,305 @@
+import { PackedArray } from "destack:collections";
+import { HostError } from "destack:error/host";
+import { Action } from "./binding.ds";
+import { EntitySelector, Label, LabelSelector } from "./entity.ds";
+import { ResourceId } from "./resource.ds";
+import { WorldHandle } from "./world.ds";
+
+/// Runtime scenario control handle.
+export newtype ScenarioHandle = ResourceId;
+
+/// Runtime scenario identifier.
+export newtype ScenarioId = uint64;
+
+/// Runtime scenario rule identifier.
+export newtype ScenarioRuleId = string;
+
+/// Runtime scenario cursor.
+export newtype ScenarioCursor = uint64;
+
+/// Runtime scenario rule cursor.
+export newtype ScenarioRuleCursor = uint64;
+
+/// Scenario hook point.
+export enum ScenarioHook {
+    /// Before one binding call enters the backend.
+    BindingBefore = 1,
+    /// After one binding call leaves the backend.
+    BindingAfter = 2,
+    /// Before one runnable is dequeued.
+    SchedulerDequeue = 3,
+}
+
+/// Scenario fault kind.
+export enum FaultKind {
+    /// Drop the matched operation or event.
+    Drop = 1,
+    /// Delay the matched operation or event.
+    Delay = 2,
+    /// Fail the matched operation with an error.
+    Error = 3,
+    /// Close the matched resource.
+    Close = 4,
+}
+
+/// Scenario fault injected by one rule.
+export struct Fault {
+    /// Fault kind.
+    kind: FaultKind;
+    /// Error code for error faults.
+    code?: string;
+    /// Delay duration in nanoseconds for delay faults.
+    delayNanos?: uint64;
+}
+
+/// Scenario trigger controls.
+export struct ScenarioTrigger {
+    /// Hook point that evaluates this trigger.
+    hook: ScenarioHook;
+    /// Activation probability in parts per million.
+    activationPpm?: uint32;
+    /// Firing probability in parts per million.
+    probabilityPpm?: uint32;
+    /// Maximum accepted firings.
+    maxOccurrences?: uint64;
+    /// Cooldown in nanoseconds after accepted firings.
+    cooldownNanos?: uint64;
+    /// Number of faults injected for one accepted firing.
+    burst?: uint32;
+    /// Active hit interval after skipped hits.
+    intervalHits?: uint64;
+    /// Active hits skipped before cadence starts.
+    skipHits?: uint64;
+}
+
+/// Runtime scenario rule.
+export struct ScenarioRule {
+    /// Stable rule identifier.
+    id: ScenarioRuleId;
+    /// Whether the rule is enabled.
+    enabled: boolean;
+    /// Subject selector.
+    subject: EntitySelector;
+    /// Runtime or host action selector.
+    action: Action;
+    /// Target entity selector.
+    target: EntitySelector;
+    /// Trigger controls.
+    trigger: ScenarioTrigger;
+    /// Fault injected by this rule.
+    fault: Fault;
+    /// Rule labels.
+    labels?: [Label];
+}
+
+/// Runtime scenario.
+export struct Scenario {
+    /// Scenario identifier.
+    id: ScenarioId;
+    /// Optional scenario name.
+    name?: string;
+    /// Whether the scenario is enabled.
+    enabled: boolean;
+    /// Number of rules in this scenario.
+    ruleCount: uint32;
+    /// Scenario labels.
+    labels?: [Label];
+}
+
+/// Runtime scenario create options.
+export struct ScenarioCreateOptions {
+    /// Optional scenario name.
+    name?: string;
+    /// Initial enabled state.
+    enabled?: boolean;
+    /// Scenario labels.
+    labels?: [Label];
+}
+
+/// Runtime scenario filter.
+export struct ScenarioFilter {
+    /// Optional exact scenario name.
+    name?: string;
+    /// Optional enabled-state selector.
+    enabled?: boolean;
+    /// Optional label selector clauses.
+    labels?: [LabelSelector];
+}
+
+/// Runtime scenario page.
+export struct ScenarioPage {
+    /// Scenario records in this page.
+    scenarios: PackedArray<Scenario>;
+    /// Next scenario cursor when more records exist.
+    next?: ScenarioCursor;
+}
+
+/// Runtime scenario rule page.
+export struct ScenarioRulePage {
+    /// Scenario rule records in this page.
+    rules: PackedArray<ScenarioRule>;
+    /// Next rule cursor when more records exist.
+    next?: ScenarioRuleCursor;
+}
+
+/// Create one scenario in one world.
+@binding("destack.runtime.scenario.create", {
+    effect: "deterministic",
+    requires: ["runtime.scenario.write"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function scenarioCreate(
+    world: WorldHandle,
+    options?: &readonly ScenarioCreateOptions,
+): Result<ScenarioHandle, HostError>;
+
+/// Close one scenario control handle.
+@binding("destack.runtime.scenario.close", {
+    effect: "deterministic",
+    requires: ["runtime.scenario.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function scenarioClose(scenario: ScenarioHandle): Result<void, HostError>;
+
+/// Describe one scenario.
+@binding("destack.runtime.scenario.describe", {
+    effect: "deterministic",
+    requires: ["runtime.scenario.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function scenarioDescribe(
+    scenario: ScenarioHandle,
+): Result<Scenario, HostError>;
+
+/// List scenarios in one world.
+@binding("destack.runtime.scenario.list", {
+    effect: "deterministic",
+    requires: ["runtime.scenario.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function scenarioList(
+    world: WorldHandle,
+    filter?: &readonly ScenarioFilter,
+    limit?: uint32,
+    after?: ScenarioCursor,
+): Result<ScenarioPage, HostError>;
+
+/// Enable one scenario.
+@binding("destack.runtime.scenario.enable", {
+    effect: "deterministic",
+    requires: ["runtime.scenario.control"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function scenarioEnable(scenario: ScenarioHandle): Result<void, HostError>;
+
+/// Disable one scenario.
+@binding("destack.runtime.scenario.disable", {
+    effect: "deterministic",
+    requires: ["runtime.scenario.control"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function scenarioDisable(scenario: ScenarioHandle): Result<void, HostError>;
+
+/// List scenario rules.
+@binding("destack.runtime.scenario.ruleList", {
+    effect: "deterministic",
+    requires: ["runtime.scenario.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function scenarioRuleList(
+    scenario: ScenarioHandle,
+    limit?: uint32,
+    after?: ScenarioRuleCursor,
+): Result<ScenarioRulePage, HostError>;
+
+/// Add one scenario rule.
+@binding("destack.runtime.scenario.ruleAdd", {
+    effect: "deterministic",
+    requires: ["runtime.scenario.write"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function scenarioRuleAdd(
+    scenario: ScenarioHandle,
+    rule: &readonly ScenarioRule,
+): Result<void, HostError>;
+
+/// Replace one scenario rule.
+@binding("destack.runtime.scenario.ruleReplace", {
+    effect: "deterministic",
+    requires: ["runtime.scenario.write"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function scenarioRuleReplace(
+    scenario: ScenarioHandle,
+    ruleId: ScenarioRuleId,
+    rule: &readonly ScenarioRule,
+): Result<void, HostError>;
+
+/// Remove one scenario rule.
+@binding("destack.runtime.scenario.ruleRemove", {
+    effect: "deterministic",
+    requires: ["runtime.scenario.write"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function scenarioRuleRemove(
+    scenario: ScenarioHandle,
+    ruleId: ScenarioRuleId,
+): Result<void, HostError>;
+
+/// Enable one scenario rule.
+@binding("destack.runtime.scenario.ruleEnable", {
+    effect: "deterministic",
+    requires: ["runtime.scenario.control"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function scenarioRuleEnable(
+    scenario: ScenarioHandle,
+    ruleId: ScenarioRuleId,
+): Result<void, HostError>;
+
+/// Disable one scenario rule.
+@binding("destack.runtime.scenario.ruleDisable", {
+    effect: "deterministic",
+    requires: ["runtime.scenario.control"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function scenarioRuleDisable(
+    scenario: ScenarioHandle,
+    ruleId: ScenarioRuleId,
+): Result<void, HostError>;

@@ -75,6 +75,12 @@ impl BindingRegistry {
     }
 }
 
+impl Default for BindingRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Return one binding id collision error.
 fn binding_collision_error(name: &str) -> Box<RuntimeError> {
     RuntimeError::Internal {

@@ -7,6 +7,8 @@ mod observation;
 mod observations;
 mod random;
 mod reader;
+#[cfg(test)]
+mod tests;
 mod time;
 mod trace;
 
