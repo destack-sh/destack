@@ -1,4 +1,4 @@
-use super::{ResourceWake, Wake};
+use super::{TimerWake, Wake};
 use crate::diagnostic::RuntimeResult;
 use crate::host::poller::{
     HostPoller, PollerEvent, PollerEventPayload, PollerEventSource, PollerProcessStatus,
@@ -11,7 +11,7 @@ impl EventLoop {
     /// Pop the next wake from the event loop.
     pub fn next_wake(&mut self, wall_now: Nanos, mono_now: Nanos) -> RuntimeResult<Option<Wake>> {
         if let Some(timer) = self.pop_ready_timer(wall_now, mono_now)? {
-            return Ok(Some(Wake::Resource(ResourceWake::timer(timer.resource_id))));
+            return Ok(Some(Wake::Timer(TimerWake::new(timer.resource_id))));
         }
 
         Ok(self.wakes.pop_front())
@@ -135,7 +135,7 @@ mod tests {
     };
     use crate::host::{HostEvent, LifecycleEvent, LifecycleSourceKind, LifecycleState, ResourceId};
     use crate::runtime::WorkerId;
-    use crate::runtime::scheduler::{ResourceInterest, Wake};
+    use crate::runtime::scheduler::{Readiness, Wake};
     use crate::runtime::time::Nanos;
 
     const TEST_WORKER_ID: WorkerId = WorkerId(1);
@@ -166,7 +166,7 @@ mod tests {
 
         assert!(matches!(
             first,
-            Some(Wake::Resource(wake)) if wake.interest == ResourceInterest::Readable
+            Some(Wake::Resource(wake)) if wake.readiness == Readiness::Readable
         ));
         assert!(matches!(
             second,
@@ -195,13 +195,10 @@ mod tests {
         let first = event_loop.next_wake(Nanos::new(0), Nanos::new(0)).unwrap();
         let second = event_loop.next_wake(Nanos::new(0), Nanos::new(0)).unwrap();
 
-        assert!(matches!(
-            first,
-            Some(Wake::Resource(wake)) if wake.interest == ResourceInterest::Timer
-        ));
+        assert!(matches!(first, Some(Wake::Timer(_))));
         assert!(matches!(
             second,
-            Some(Wake::Resource(wake)) if wake.interest == ResourceInterest::Readable
+            Some(Wake::Resource(wake)) if wake.readiness == Readiness::Readable
         ));
     }
 }

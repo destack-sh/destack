@@ -12,8 +12,7 @@ use crate::host::time::TimerClock;
 use crate::host::{HostEventKind, LifecycleState, ResourceId};
 use crate::runtime::engine::{Continuation, Engine};
 use crate::runtime::scheduler::{
-    EventLoop, Microtask, MicrotaskId, ResourceInterest, ScheduledTimer, Task, TaskId,
-    TimerDeadline, Wake,
+    EventLoop, Microtask, MicrotaskId, Readiness, ScheduledTimer, Task, TaskId, TimerDeadline, Wake,
 };
 use crate::runtime::tests::{
     TestEngine, TestHostClockSource, TestPoller, TestRuntime, TestWorldRuntime,
@@ -352,17 +351,14 @@ fn test_event_loop_suspend_roundtrip_preserves_pending_state() {
     let first = restored
         .next_wake(Nanos::new(0), Nanos::new(0))
         .expect("dequeue first wake");
-    assert!(matches!(
-        first,
-        Some(Wake::Resource(wake)) if wake.interest == ResourceInterest::Timer
-    ));
+    assert!(matches!(first, Some(Wake::Timer(_))));
 
     let second = restored
         .next_wake(Nanos::new(0), Nanos::new(0))
         .expect("dequeue second wake");
     assert!(matches!(
         second,
-        Some(Wake::Resource(wake)) if wake.interest == ResourceInterest::Readable
+        Some(Wake::Resource(wake)) if wake.readiness == Readiness::Readable
     ));
 }
 
@@ -577,12 +573,25 @@ fn test_world_tick_drives_runtime() {
         .spawn_runtime(Vec::new(), &options, TestEngine::default())
         .expect("runtime should spawn");
     // enqueue one ready task on the default worker
-    let runtime = world.runtime_mut(runtime_id).expect("runtime should exist");
+    let World {
+        state, runtimes, ..
+    } = &mut world;
+    let runtime = runtimes
+        .get_mut(&runtime_id)
+        .map(Box::as_mut)
+        .expect("runtime should exist");
     let default_worker_id = runtime.default_worker_id();
     runtime
-        .with_worker_context(default_worker_id, |shared, runtime_static, worker| {
-            let continuation =
-                start_worker_continuation(worker, shared, runtime_static, "test.complete", 211);
+        .with_worker_context(default_worker_id, |host, shared, runtime_static, worker| {
+            let continuation = start_worker_continuation(
+                worker,
+                host,
+                state,
+                shared,
+                runtime_static,
+                "test.complete",
+                211,
+            );
             worker.event_loop.enqueue_task(Task {
                 id: TaskId::new(1),
                 runnable: continuation,

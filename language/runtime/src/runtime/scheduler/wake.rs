@@ -6,7 +6,9 @@ use crate::host::{HostEvent, HostEventKind, ResourceId};
 /// Runtime wake consumed by the event loop.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Wake {
-    /// Resource wake produced by timers, pollers, or simulated resources.
+    /// Timer wake produced by a runtime timer resource.
+    Timer(TimerWake),
+    /// Resource wake produced by pollers or simulated resources.
     Resource(ResourceWake),
     /// Host wake produced by the embedding host.
     Host(HostWake),
@@ -16,12 +18,27 @@ impl Wake {
     /// Return the waiter key associated with this wake.
     pub const fn key(&self) -> WakeKey {
         match self {
+            Self::Timer(wake) => WakeKey::Timer(wake.resource_id),
             Self::Resource(wake) => WakeKey::Resource {
                 resource_id: wake.resource_id,
-                interest: wake.interest,
+                readiness: wake.readiness,
             },
             Self::Host(wake) => WakeKey::Host(wake.event.kind()),
         }
+    }
+}
+
+/// Timer wake selected by the event loop.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TimerWake {
+    /// Timer resource that expired.
+    pub resource_id: ResourceId,
+}
+
+impl TimerWake {
+    /// Build one timer expiration wake.
+    pub const fn new(resource_id: ResourceId) -> Self {
+        Self { resource_id }
     }
 }
 
@@ -30,24 +47,16 @@ impl Wake {
 pub struct ResourceWake {
     /// Resource that became ready.
     pub resource_id: ResourceId,
-    /// Interest that became ready.
-    pub interest: ResourceInterest,
+    /// Readiness that became available.
+    pub readiness: Readiness,
 }
 
 impl ResourceWake {
-    /// Build one timer expiration wake.
-    pub const fn timer(resource_id: ResourceId) -> Self {
-        Self {
-            resource_id,
-            interest: ResourceInterest::Timer,
-        }
-    }
-
     /// Build one resource wake from a poller event.
     pub const fn poller(event: PollerEvent) -> Self {
         Self {
             resource_id: event.resource_id,
-            interest: ResourceInterest::from_poller_mask(event.mask),
+            readiness: Readiness::from_poller_mask(event.mask),
         }
     }
 }
@@ -68,9 +77,7 @@ impl HostWake {
 
 /// Resource readiness kind used for waiter matching.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum ResourceInterest {
-    /// Timer deadline expired.
-    Timer,
+pub enum Readiness {
     /// Resource became readable.
     Readable,
     /// Resource became writable.
@@ -81,8 +88,8 @@ pub enum ResourceInterest {
     Status,
 }
 
-impl ResourceInterest {
-    /// Return the interest represented by one poller event mask.
+impl Readiness {
+    /// Return the readiness represented by one poller event mask.
     pub const fn from_poller_mask(mask: PollerEventMask) -> Self {
         if mask.contains(PollerEventMask::READABLE) {
             Self::Readable
@@ -99,12 +106,14 @@ impl ResourceInterest {
 /// Source key that can wake one suspended continuation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum WakeKey {
-    /// Resource interest became ready.
+    /// Timer resource deadline expired.
+    Timer(ResourceId),
+    /// Resource readiness became available.
     Resource {
         /// Resource that can resume a waiter.
         resource_id: ResourceId,
-        /// Interest that can resume a waiter.
-        interest: ResourceInterest,
+        /// Readiness that can resume a waiter.
+        readiness: Readiness,
     },
     /// Host event kind became available.
     Host(HostEventKind),

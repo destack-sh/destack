@@ -17,14 +17,14 @@ use crate::host::{
     HostEvent, HostEventKind, HostSession, LifecycleEvent, LifecycleSourceKind, LifecycleState,
     ResourceId, default_compile_target_host,
 };
-use crate::runtime::engine::{Context, Continuation, Engine, Entry, Outcome};
+use crate::runtime::engine::{CallContext, Continuation, Engine, Entry, MemoryContext, Outcome};
 use crate::runtime::scheduler::{
-    Microtask, MicrotaskId, ResourceInterest, ScheduledTimer, Task, TaskId, TimerDeadline,
+    Microtask, MicrotaskId, Readiness, ScheduledTimer, Task, TaskId, TimerDeadline,
 };
 use crate::runtime::time::Nanos;
 use crate::runtime::{
-    BindingCallContext, ExecutionContext, Runtime, RuntimeId, SharedHeap, TickResult, Worker,
-    WorkerId, WorkerOptions, World, WorldState, current_runnable_scope,
+    BindingCallContext, ExecutionContext, RuntimeId, SharedHeap, TickResult, Worker, WorkerId,
+    WorkerOptions, World, WorldState, current_runnable_scope,
 };
 
 /// Test host clock source for deterministic host-time runtime tests.
@@ -232,24 +232,6 @@ impl TestPoller {
             events: Vec::new(),
             host_clock_source,
         }
-    }
-}
-
-impl Runtime {
-    /// Run one closure with one worker and its runtime context.
-    pub(crate) fn with_worker_context<R>(
-        &mut self,
-        worker_id: WorkerId,
-        callback: impl FnOnce(&SharedHeap, &engine::StaticSpace, &mut Worker) -> R,
-    ) -> RuntimeResult<R> {
-        let shared = &self.shared as *const SharedHeap;
-        let runtime_static = self.statics() as *const engine::StaticSpace;
-        let worker = self
-            .worker_mut(worker_id)
-            .expect("worker should exist in runtime");
-
-        // split immutable runtime context from the mutable worker borrow
-        Ok(unsafe { callback(&*shared, &*runtime_static, worker) })
     }
 }
 
@@ -470,7 +452,7 @@ impl TestRuntime {
         self.worker
             .add_resource_waiter(
                 test_resource_id(resource_id),
-                ResourceInterest::Readable,
+                Readiness::Readable,
                 continuation,
                 engine::Value::Void,
                 priority,
@@ -519,7 +501,12 @@ impl TestRuntime {
     /// Tick once and fail loudly on runtime errors.
     pub(crate) fn tick(&mut self) -> bool {
         self.worker
-            .tick(&mut self.world.state, &self.shared, &self.runtime_static)
+            .tick(
+                &mut self.world.state,
+                &self.shared,
+                &self.runtime_static,
+                &self.host,
+            )
             .expect("tick should execute runtime work")
     }
 
@@ -609,6 +596,8 @@ impl TestRuntime {
     fn start_continuation(&mut self, entry: &str, value: i32) -> Continuation {
         start_worker_continuation(
             &mut self.worker,
+            &self.host,
+            &mut self.world.state,
             &self.shared,
             &self.runtime_static,
             entry,
@@ -717,14 +706,25 @@ impl TestWorldRuntime {
         value: u64,
     ) -> Continuation {
         let value = i32::try_from(value).expect("test continuation id should fit int32");
-        let runtime = self
-            .world
-            .runtime_mut(self.runtime_id)
+        let World {
+            state, runtimes, ..
+        } = &mut self.world;
+        let runtime = runtimes
+            .get_mut(&self.runtime_id)
+            .map(Box::as_mut)
             .expect("runtime should exist");
 
         runtime
-            .with_worker_context(worker_id, |shared, runtime_static, worker| {
-                start_worker_continuation(worker, shared, runtime_static, "test.complete", value)
+            .with_worker_context(worker_id, |host, shared, runtime_static, worker| {
+                start_worker_continuation(
+                    worker,
+                    host,
+                    state,
+                    shared,
+                    runtime_static,
+                    "test.complete",
+                    value,
+                )
             })
             .expect("worker should exist in runtime")
     }
@@ -796,11 +796,14 @@ fn worker_for_options_with_engine_and_host_clock_source(
 /// Start one VM continuation in a worker test harness.
 pub(crate) fn start_worker_continuation(
     worker: &mut Worker,
+    host: &HostSession,
+    world: &mut WorldState,
     shared: &SharedHeap,
     runtime_static: &engine::StaticSpace,
     entry: &str,
     value: i32,
 ) -> Continuation {
+    let mut call_context = binding_call_context(worker, host, world);
     let Worker {
         heap,
         statics,
@@ -809,13 +812,16 @@ pub(crate) fn start_worker_continuation(
         shared_gc_worker,
         ..
     } = worker;
-    let context = Context {
-        heap,
-        shared_heap: shared.heap(),
-        shared_allocator,
-        shared_gc: shared_gc_worker,
-        worker_static: statics,
-        runtime_static,
+    let context = CallContext {
+        runtime: std::ptr::NonNull::from(&mut call_context).cast(),
+        memory: MemoryContext {
+            heap,
+            shared_heap: shared.heap(),
+            shared_allocator,
+            shared_gc_worker,
+            worker_static: statics,
+            runtime_static,
+        },
     };
     let args = [engine::Value::int32(value)];
     let outcome = engine

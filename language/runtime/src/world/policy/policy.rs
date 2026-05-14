@@ -19,6 +19,10 @@ pub struct Policy {
     pub rules: Vec<Rule>,
 }
 
+#[expect(
+    clippy::derivable_impls,
+    reason = "policy default spells out the allow invariant"
+)]
 impl Default for Policy {
     fn default() -> Self {
         Self {

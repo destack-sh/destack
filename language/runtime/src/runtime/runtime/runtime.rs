@@ -4,10 +4,10 @@ use crate::host::resource::ResourceRebinders;
 use crate::host::{Host, HostEvent, HostSession};
 use crate::runtime::SharedCollector;
 use crate::runtime::engine::{Engine, Entry};
-use crate::runtime::heap::{RootSink, SharedHeap};
+use crate::runtime::heap::SharedHeap;
 use crate::runtime::runtime::RuntimeHostOptions;
 use crate::runtime::scheduler::{
-    HostWake, ResourceInterest, ResourceWake, ScheduledTimer, TickResult, Wake,
+    HostWake, Readiness, ResourceWake, ScheduledTimer, TickResult, Wake,
 };
 use crate::runtime::time::Instant;
 use crate::runtime::worker::{Worker, WorkerId, WorkerImage, WorkerOptions, WorkerOptionsImage};
@@ -167,7 +167,7 @@ impl Runtime {
     }
 
     /// Visit roots from every worker owned by this runtime.
-    pub fn visit_roots(&mut self, roots: &mut RootSink<'_>) -> RuntimeResult<()> {
+    pub fn visit_roots(&mut self, roots: &mut impl heap::RootSink) -> RuntimeResult<()> {
         for worker in self.workers.values_mut() {
             worker.visit_roots(roots)?;
         }
@@ -206,6 +206,33 @@ impl Runtime {
     /// Return one mutable worker by id.
     pub fn worker_mut(&mut self, worker_id: WorkerId) -> Option<&mut Worker> {
         self.workers.get_mut(&worker_id).map(Box::as_mut)
+    }
+
+    /// Run one closure with one worker and its runtime context.
+    #[cfg(test)]
+    pub(crate) fn with_worker_context<R>(
+        &mut self,
+        worker_id: WorkerId,
+        callback: impl FnOnce(&HostSession, &SharedHeap, &engine::StaticSpace, &mut Worker) -> R,
+    ) -> RuntimeResult<R> {
+        let Runtime {
+            host,
+            shared,
+            statics,
+            workers,
+            ..
+        } = self;
+        let worker = workers
+            .get_mut(&worker_id)
+            .map(Box::as_mut)
+            .ok_or_else(|| {
+                RuntimeError::WorkerNotFound {
+                    worker_id: worker_id.0,
+                }
+                .boxed()
+            })?;
+
+        Ok(callback(host, shared, statics, worker))
     }
 
     /// Spawn one additional worker in this runtime.
@@ -321,10 +348,11 @@ impl Runtime {
         };
         let shared = &self.shared;
         let statics = &self.statics;
+        let host = &self.host;
         let workers = &mut self.workers;
 
         for (worker_index, worker) in workers.values_mut().enumerate().skip(start_index) {
-            if worker.tick(world, shared, statics)? {
+            if worker.tick(world, shared, statics, host)? {
                 self.next_worker_cursor = (worker_index + 1) % worker_count;
 
                 return Ok(TickResult::Progress);
@@ -332,7 +360,7 @@ impl Runtime {
         }
 
         for (worker_index, worker) in workers.values_mut().enumerate().take(start_index) {
-            if worker.tick(world, shared, statics)? {
+            if worker.tick(world, shared, statics, host)? {
                 self.next_worker_cursor = worker_index + 1;
 
                 return Ok(TickResult::Progress);
@@ -521,11 +549,11 @@ impl Runtime {
         event: PollerEvent,
         is_marking_shared: bool,
     ) -> RuntimeResult<bool> {
-        let interest = ResourceInterest::from_poller_mask(event.mask);
+        let readiness = Readiness::from_poller_mask(event.mask);
         let shared = &self.shared;
 
         for (worker_id, worker) in &mut self.workers {
-            if !worker.has_resource_waiter(event.resource_id, interest) {
+            if !worker.has_resource_waiter(event.resource_id, readiness) {
                 continue;
             }
 
@@ -784,7 +812,7 @@ impl Runtime {
 mod tests {
     use super::Runtime;
     use crate::host::{
-        HostEvent, HostEventKind, LifecycleEvent, LifecycleSourceKind, LifecycleState,
+        HostEvent, HostEventKind, HostSession, LifecycleEvent, LifecycleSourceKind, LifecycleState,
     };
     use crate::runtime::tests::{TestEngine, start_worker_continuation};
     use crate::runtime::{SharedHeap, TickResult, Worker, WorkerOptions};
@@ -837,10 +865,16 @@ mod tests {
         let worker_id = worker.id;
         let shared_root = allocate_shared_bytes(shared.heap(), &[0xA1])
             .expect("shared allocation should succeed");
+        let host = HostSession::new(
+            crate::host::default_compile_target_host(),
+            worker.runtime_id,
+        );
 
         // suspended host state: the shared root only lives through the event loop
         let continuation = start_worker_continuation(
             &mut worker,
+            &host,
+            world_state,
             &shared,
             &engine::StaticSpace::empty(),
             "test.task",
@@ -930,10 +964,16 @@ mod tests {
         let worker_id = worker.id;
         let shared_root = allocate_shared_bytes(shared.heap(), &[0xB2])
             .expect("shared allocation should succeed");
+        let host = HostSession::new(
+            crate::host::default_compile_target_host(),
+            worker.runtime_id,
+        );
 
         // suspended host state: the shared root only lives through the event loop
         let continuation = start_worker_continuation(
             &mut worker,
+            &host,
+            world_state,
             &shared,
             &engine::StaticSpace::empty(),
             "test.task",
