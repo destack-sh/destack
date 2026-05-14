@@ -1,10 +1,10 @@
 use destack_core::StringPool;
+use destack_dir as dir;
 use destack_workspace::Repository;
-use {destack_ast as ast, destack_dir as dir};
 
 use super::{ScopeAtOffset, expression_scope_at_offset};
-use crate::ast::sorted_enclosing_spans;
-use crate::core::{AstQueryContext, DirQueryContext};
+use crate::core::{DirQueryContext, SourceQueryContext};
+use crate::source::sorted_enclosing_spans;
 
 /// Describes the cursor position inside one object literal.
 #[derive(Debug, Clone)]
@@ -30,13 +30,13 @@ pub(crate) struct ObjectLiteralContextInfo {
 
 /// Resolve object literal cursor information at one offset.
 pub(crate) fn object_literal_cursor_context(
-    ast: AstQueryContext<'_>,
+    parsed: SourceQueryContext<'_>,
     dir: DirQueryContext<'_>,
     offset: u32,
     _repository: &Repository,
 ) -> Option<ObjectLiteralCursorContext> {
     // resolve enclosing spans from innermost to outermost
-    let enclosing = sorted_enclosing_spans(ast, offset, offset);
+    let enclosing = sorted_enclosing_spans(parsed, offset, offset);
 
     // bail out early when there are no enclosing spans
     if enclosing.is_empty() {
@@ -46,22 +46,22 @@ pub(crate) fn object_literal_cursor_context(
     // resolve dir tree and types for object literal analysis
     let dir_tree = dir.view();
     let types = dir.types();
-    let ast_tree = ast.tree();
+    let parsed_tree = parsed.tree();
 
     // look for an object expression under the cursor
     for enc in &enclosing {
-        if ast_tree.get_node_type(enc.idx) != ast::NodeType::Expression {
+        if parsed_tree.get_node_type(enc.idx) != dir::NodeType::Expression {
             continue;
         }
 
-        let ast_expr_id = ast::LocalNodeId::<ast::Expression>::new(enc.idx);
-        let ast_expr = ast_tree.get(ast_expr_id);
+        let parsed_expr_id = dir::LocalNodeId::<dir::Expression>::new(enc.idx);
+        let parsed_expr = parsed_tree.get(parsed_expr_id);
 
-        let ast::Expression::ObjectExpression { properties, .. } = ast_expr else {
+        let dir::Expression::ObjectExpression { properties, .. } = parsed_expr else {
             continue;
         };
 
-        let is_key_position = is_object_literal_key_position(ast_tree, properties, offset);
+        let is_key_position = is_object_literal_key_position(parsed_tree, properties, offset);
 
         let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(enc.idx) else {
             continue;
@@ -74,7 +74,7 @@ pub(crate) fn object_literal_cursor_context(
             continue;
         };
         let dir_expr: &dir::Expression = dir_tree.get(dir_expr_id);
-        let scope = expression_scope_at_offset(ast, dir, dir_expr_id, offset);
+        let scope = expression_scope_at_offset(parsed, dir, dir_expr_id, offset);
 
         // property values stay in value position inside the surrounding expression scope
         if !is_key_position {
@@ -82,8 +82,7 @@ pub(crate) fn object_literal_cursor_context(
         }
 
         let properties = match dir_expr {
-            dir::Expression::ObjectExpression { properties, .. }
-            | dir::Expression::TaggedObjectExpression { properties, .. } => properties,
+            dir::Expression::ObjectExpression { properties, .. } => properties,
             _ => continue,
         };
 
@@ -102,9 +101,12 @@ pub(crate) fn object_literal_cursor_context(
 }
 
 /// Check if the cursor is inside an object literal expression.
-pub(crate) fn is_inside_object_literal_expression(ast: AstQueryContext<'_>, offset: u32) -> bool {
+pub(crate) fn is_inside_object_literal_expression(
+    parsed: SourceQueryContext<'_>,
+    offset: u32,
+) -> bool {
     // resolve enclosing spans from innermost to outermost
-    let enclosing = sorted_enclosing_spans(ast, offset, offset);
+    let enclosing = sorted_enclosing_spans(parsed, offset, offset);
 
     // bail out early when there are no enclosing spans
     if enclosing.is_empty() {
@@ -113,14 +115,14 @@ pub(crate) fn is_inside_object_literal_expression(ast: AstQueryContext<'_>, offs
 
     // scan enclosing expressions for object literal nodes
     for enc in &enclosing {
-        if ast.tree().get_node_type(enc.idx) != ast::NodeType::Expression {
+        if parsed.tree().get_node_type(enc.idx) != dir::NodeType::Expression {
             continue;
         }
 
-        let expr_id = ast::LocalNodeId::<ast::Expression>::new(enc.idx);
-        let expr = ast.tree().get(expr_id);
+        let expr_id = dir::LocalNodeId::<dir::Expression>::new(enc.idx);
+        let expr = parsed.tree().get(expr_id);
 
-        if matches!(expr, ast::Expression::ObjectExpression { .. }) {
+        if matches!(expr, dir::Expression::ObjectExpression { .. }) {
             return true;
         }
     }
@@ -130,13 +132,13 @@ pub(crate) fn is_inside_object_literal_expression(ast: AstQueryContext<'_>, offs
 
 /// Check if the cursor is in a property key position of an object literal.
 pub(crate) fn is_object_literal_key_position(
-    ast_tree: &ast::Tree,
-    properties: &[ast::LocalNodeId<ast::Property>],
+    parsed_tree: &dir::Tree,
+    properties: &[dir::LocalNodeId<dir::Property>],
     offset: u32,
 ) -> bool {
     // check for any property key span hit
     for property_id in properties {
-        if let Some(span) = ast_tree.source_map.get_main(property_id.id)
+        if let Some(span) = parsed_tree.source_map.get_main(property_id.id)
             && span.contains(offset)
         {
             return true;
@@ -144,13 +146,13 @@ pub(crate) fn is_object_literal_key_position(
     }
 
     // avoid property values
-    if is_object_literal_value_position(ast_tree, properties, offset) {
+    if is_object_literal_value_position(parsed_tree, properties, offset) {
         return false;
     }
 
     // avoid property spans when not on keys
     for property_id in properties {
-        let span = ast_tree.source_map.get(property_id.id);
+        let span = parsed_tree.source_map.get(property_id.id);
         if span.contains(offset) {
             return false;
         }
@@ -191,7 +193,7 @@ fn extract_object_property_names(
                     names.push(strings.get(name.string()).to_string());
                 }
             }
-            dir::Property::Spread { .. } | dir::Property::Error { .. } => {}
+            dir::Property::Spread { .. } | dir::Property::Error => {}
         }
     }
 
@@ -200,8 +202,8 @@ fn extract_object_property_names(
 
 /// Check if the cursor is inside a value span of an object literal.
 fn is_object_literal_value_position(
-    ast_tree: &ast::Tree,
-    properties: &[ast::LocalNodeId<ast::Property>],
+    parsed_tree: &dir::Tree,
+    properties: &[dir::LocalNodeId<dir::Property>],
     offset: u32,
 ) -> bool {
     // compute the cursor location inside the literal
@@ -209,41 +211,41 @@ fn is_object_literal_value_position(
 
     // scan property value spans
     for property_id in properties {
-        let property = ast_tree.get(*property_id);
+        let property = parsed_tree.get(*property_id);
 
         match property {
-            ast::Property::Field { value, .. } => {
-                let span = ast_tree.source_map.get(value.id);
+            dir::Property::Field { value, .. } => {
+                let span = parsed_tree.source_map.get(value.id);
                 if span.contains(cursor) {
                     return true;
                 }
             }
-            ast::Property::Method { body, .. } => {
+            dir::Property::Method { body, .. } => {
                 if let Some(body_id) = body {
-                    let span = ast_tree.source_map.get(body_id.id);
+                    let span = parsed_tree.source_map.get(body_id.id);
                     if span.contains(cursor) {
                         return true;
                     }
                 }
             }
-            ast::Property::Spread { value, .. } => {
-                let span = ast_tree.source_map.get(value.id);
+            dir::Property::Spread { value, .. } => {
+                let span = parsed_tree.source_map.get(value.id);
                 if span.contains(cursor) {
                     return true;
                 }
             }
-            ast::Property::Error => {}
+            dir::Property::Error => {}
         }
     }
 
     // fall back to property spans outside keys
     for property_id in properties {
-        let span = ast_tree.source_map.get(property_id.id);
+        let span = parsed_tree.source_map.get(property_id.id);
         if !span.contains(cursor) {
             continue;
         }
 
-        let key_span = ast_tree.source_map.get_main(property_id.id);
+        let key_span = parsed_tree.source_map.get_main(property_id.id);
         let is_in_key = key_span
             .map(|key_span| key_span.contains(cursor))
             .unwrap_or(false);

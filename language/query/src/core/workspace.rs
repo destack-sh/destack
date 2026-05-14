@@ -300,7 +300,7 @@ fn specifier_entry_key(entry: &SpecifierEntry) -> (ModuleId, u128, u32, &str) {
     (
         entry.module_id,
         entry.file_id.0,
-        entry.ast_node_id,
+        entry.source_node_id,
         entry.specifier.as_str(),
     )
 }

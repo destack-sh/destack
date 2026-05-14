@@ -5,7 +5,6 @@ use destack_source::{FileId, Span, Uri};
 use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 
-use crate::ast::{get_node_tree_main_span, sort_and_dedup_spans};
 use crate::core::{
     NominalRelation, nominal_relations_for_target, query_context, with_query_context_for_file,
 };
@@ -13,6 +12,7 @@ use crate::dir::{
     dependency_symbol_target, find_symbol_at_offset, get_canonical_symbol,
     get_symbol_definition_span, resolve_nominal_symbol_from_type_expression,
 };
+use crate::source::{get_node_tree_main_span, sort_and_dedup_spans};
 
 /// Result of a goto implementation query.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
@@ -171,7 +171,8 @@ fn resolve_type_symbol_at_offset(
         // scan expression nodes to find a type reference under the cursor
         let dir_tree = ctx.dir().view();
         for (expression_id, _expression) in dir_tree.iter_nodes_of_type::<Expression>() {
-            let span = get_node_tree_main_span(ctx.ast(), ctx.dir().view(), expression_id.into());
+            let span =
+                get_node_tree_main_span(ctx.source(), ctx.dir().view(), expression_id.into());
 
             if offset < span.start || offset > span.end {
                 continue;

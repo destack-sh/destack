@@ -83,7 +83,7 @@ pub(crate) fn member_symbol_kind(member: &Member) -> Option<SymbolKind> {
         Member::Method { .. } => Some(SymbolKind::Method),
         Member::StaticBlock { .. } => None,
         Member::ComptimeBlock { .. } => None,
-        Member::Error { .. } => None,
+        Member::Error => None,
     }
 }
 
@@ -97,6 +97,6 @@ pub(crate) fn type_member_symbol_kind(member: &TypeMember) -> Option<SymbolKind>
         TypeMember::CallSignature { .. } => Some(SymbolKind::Method),
         TypeMember::ConstructSignature { .. } => Some(SymbolKind::Method),
         TypeMember::IndexSignature { .. } => None,
-        TypeMember::Error { .. } => None,
+        TypeMember::Error => None,
     }
 }

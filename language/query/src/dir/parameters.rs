@@ -6,7 +6,7 @@ use destack_dir::{
 };
 use destack_workspace::{Repository, Revision};
 
-use crate::core::{AstQueryContext, QueryContext, query_context};
+use crate::core::{QueryContext, SourceQueryContext, query_context};
 
 use super::{doc_strings_for_node_or_enclosing, get_canonical_symbol, parse_param_docs};
 
@@ -44,7 +44,7 @@ pub(crate) fn parameter_display_name(strings: &StringPool, parameter: &Parameter
             format!("...{name_str}")
         }
         Parameter::Pattern { .. } | Parameter::VariadicPattern { .. } => "<pattern>".to_string(),
-        Parameter::Error { .. } => "<error>".to_string(),
+        Parameter::Error => "<error>".to_string(),
     }
 }
 
@@ -121,8 +121,8 @@ fn parameter_data_for_symbol_with_context(
                 return None;
             };
 
-            let ast_node_id = dir_tree.get_source(declaration_id);
-            let docs = parameter_doc_map(ctx.ast(), source, ast_node_id);
+            let source_node_id = dir_tree.get_source(declaration_id);
+            let docs = parameter_doc_map(ctx.source(), source, source_node_id);
             let names = parameter_display_names(
                 ctx.dir().strings(),
                 dir_tree,
@@ -138,8 +138,8 @@ fn parameter_data_for_symbol_with_context(
             let member = dir_tree.get::<Member>(member_id);
             let signature = member.signature()?;
 
-            let ast_node_id = dir_tree.get_source(member_id);
-            let docs = parameter_doc_map(ctx.ast(), source, ast_node_id);
+            let source_node_id = dir_tree.get_source(member_id);
+            let docs = parameter_doc_map(ctx.source(), source, source_node_id);
             let names =
                 parameter_display_names(ctx.dir().strings(), dir_tree, &signature.parameters);
 
@@ -363,15 +363,15 @@ fn expected_value_shape(types: &destack_dir::TypeTable, type_id: LocalTypeId) ->
 
 /// Collect @param documentation from a declaration's doc comments.
 pub(crate) fn parameter_doc_map(
-    ast: AstQueryContext<'_>,
+    parsed: SourceQueryContext<'_>,
     source: &str,
-    ast_node_id: u32,
+    source_node_id: u32,
 ) -> HashMap<String, String> {
     // initialize the parameter doc map
     let mut param_docs = HashMap::new();
 
     // gather docs on the node or enclosing nodes
-    let doc_strings = doc_strings_for_node_or_enclosing(ast, source, ast_node_id);
+    let doc_strings = doc_strings_for_node_or_enclosing(parsed, source, source_node_id);
 
     // parse @param tags from collected docs
     for doc_text in doc_strings {

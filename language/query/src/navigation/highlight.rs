@@ -2,12 +2,12 @@ use destack_source::{FileId, Span, Uri};
 use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 
-use crate::ast::sort_and_dedup_spans;
 use crate::core::with_query_context_for_file;
 use crate::dir::{
     ReferenceCollectionOptions, collect_symbol_references_in_context, find_symbol_at_offset,
     get_canonical_symbol, get_symbol_definition_span,
 };
+use crate::source::sort_and_dedup_spans;
 
 /// Kind of document highlight.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
@@ -116,7 +116,7 @@ pub fn document_highlights(
 
         let mut reference_spans = collect_symbol_references_in_context(
             repository,
-            ctx.ast(),
+            ctx.source(),
             ctx.dir(),
             canonical_id,
             reference_options,

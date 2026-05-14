@@ -1,13 +1,10 @@
-use std::collections::HashMap;
-use std::str::FromStr;
-
 use destack_core::StringPool;
+use destack_dir as dir;
 use destack_source::{BatchEdit, Edit, FileEdit, FileId, Span, Uri};
 use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
-use {destack_ast as ast, destack_dir as dir};
+use std::collections::HashMap;
 
-use crate::ast::{is_simple_identifier, sort_and_dedup_spans, token_at_offset};
 use crate::core::{
     NominalRelation, modules_referencing_symbol, nominal_relations_for_target, query_context,
 };
@@ -17,6 +14,7 @@ use crate::dir::{
     get_canonical_symbol, get_symbol_definition_span, get_symbol_local_definition_span,
     member_key_name, resolve_local_import_alias_name, resolve_symbol_name,
 };
+use crate::source::{is_simple_identifier, sort_and_dedup_spans, token_at_offset};
 
 /// Result of a prepare rename query.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -214,10 +212,9 @@ fn resolve_rename_target(
 
     // reject non modifier keywords at the cursor
     let token = token_at_offset(repository, revision, file, offset);
-    if token.is_some_and(|token| {
-        ast::Keyword::from_str(&token)
-            .map(|keyword| !is_rename_target_modifier_keyword(keyword))
-            .unwrap_or(false)
+    if token.is_some_and(|token| match token.parse::<dir::Keyword>() {
+        Ok(keyword) => !is_rename_target_modifier_keyword(keyword),
+        Err(_) => false,
     }) {
         return None;
     }
@@ -303,7 +300,7 @@ fn collect_symbol_reference_spans_across_user_modules(
 
         let module_spans = collect_symbol_references_in_context(
             repository,
-            ctx.ast(),
+            ctx.source(),
             ctx.dir(),
             canonical_id,
             options,
@@ -411,7 +408,7 @@ fn resolve_name_from_declaration(
                 }
                 dir::Parameter::Pattern { .. }
                 | dir::Parameter::VariadicPattern { .. }
-                | dir::Parameter::Error { .. } => None,
+                | dir::Parameter::Error => None,
             }
         }
         dir::NodeType::Pattern => {
@@ -428,26 +425,19 @@ fn resolve_name_from_declaration(
             let field_id = declaration.local_id.try_into().ok()?;
             let field = dir_tree.get::<dir::PatternField>(field_id);
             match field {
-                dir::PatternField::Named {
-                    name,
-                    symbol,
-                    pattern,
-                    ..
-                } => {
-                    let Some(symbol) = symbol else {
-                        return None;
-                    };
-
+                dir::PatternField::Named { name, pattern, .. } => {
+                    let symbol = ctx.dir().symbol_for_node(field_id.into())?;
                     if let Some(pattern) = pattern {
                         return rename_pattern_binding_name(
+                            ctx.dir(),
                             ctx.dir().strings(),
                             dir_tree,
                             *pattern,
-                            *symbol,
+                            symbol,
                         );
                     }
 
-                    Some(ctx.dir().strings().get(*name).to_string())
+                    Some(ctx.dir().strings().get(name.string()).to_string())
                 }
                 _ => None,
             }
@@ -458,31 +448,27 @@ fn resolve_name_from_declaration(
 
 /// Return the binding name for one pattern subtree.
 fn rename_pattern_binding_name(
+    ctx: crate::core::DirQueryContext<'_>,
     strings: &StringPool,
     dir_tree: dir::View<'_>,
     pattern_id: dir::LocalNodeId<dir::Pattern>,
     target_symbol: dir::LocalSymbolId,
 ) -> Option<String> {
     match dir_tree.get::<dir::Pattern>(pattern_id) {
-        dir::Pattern::Binding {
-            symbol,
-            name,
-            pattern,
-            ..
-        } => {
-            if *symbol == target_symbol {
+        dir::Pattern::Binding { name, pattern, .. } => {
+            if ctx.symbol_for_node(pattern_id.into()) == Some(target_symbol) {
                 return Some(strings.get(*name).to_string());
             }
 
             pattern.and_then(|pattern| {
-                rename_pattern_binding_name(strings, dir_tree, pattern, target_symbol)
+                rename_pattern_binding_name(ctx, strings, dir_tree, pattern, target_symbol)
             })
         }
         dir::Pattern::Assign { pattern, .. }
         | dir::Pattern::Must(pattern)
         | dir::Pattern::BorrowOf { right: pattern, .. }
         | dir::Pattern::MoveOf { right: pattern, .. } => {
-            rename_pattern_binding_name(strings, dir_tree, *pattern, target_symbol)
+            rename_pattern_binding_name(ctx, strings, dir_tree, *pattern, target_symbol)
         }
         dir::Pattern::Tuple { .. }
         | dir::Pattern::TaggedTuple { .. }
@@ -554,13 +540,14 @@ fn resolve_interface_member_target(
         return None;
     };
     let declaration = dir_tree.get::<dir::Declaration>(declaration_id);
-    let dir::Declaration::Interface(declaration) = declaration else {
+    let dir::Declaration::Interface(_) = declaration else {
         return None;
     };
+    let interface_symbol = ctx.dir().symbol_for_node(declaration_id.into())?;
     let interface_symbol = get_canonical_symbol(
         repository,
         revision,
-        dir::GlobalSymbolId::new(ctx.module_id(), declaration.symbol),
+        dir::GlobalSymbolId::new(ctx.module_id(), interface_symbol),
     );
 
     Some(InterfaceMemberTarget {
@@ -619,9 +606,14 @@ fn collect_interface_member_implementations(
             };
             let declaration = dir_tree.get::<dir::Declaration>(declaration_id);
             let owner_symbol = match declaration {
-                dir::Declaration::Class(declaration) => declaration.symbol,
-                dir::Declaration::Struct(declaration) => declaration.symbol,
-                dir::Declaration::Interface(declaration) => declaration.symbol,
+                dir::Declaration::Class(_)
+                | dir::Declaration::Struct(_)
+                | dir::Declaration::Interface(_) => {
+                    let Some(symbol) = ctx.dir().symbol_for_node(declaration_id.into()) else {
+                        continue;
+                    };
+                    symbol
+                }
                 _ => continue,
             };
             if !implementing_symbols.contains(&owner_symbol) {
@@ -642,7 +634,10 @@ fn collect_interface_member_implementations(
                 continue;
             }
 
-            let symbol_id = dir::GlobalSymbolId::new(ctx.module_id(), member.symbol());
+            let Some(member_symbol) = ctx.dir().symbol_for_node(member_id.into()) else {
+                continue;
+            };
+            let symbol_id = dir::GlobalSymbolId::new(ctx.module_id(), member_symbol);
             members.push(get_canonical_symbol(repository, revision, symbol_id));
         }
     }
@@ -662,21 +657,21 @@ fn interface_member_kind_and_key(member: &dir::Member) -> Option<(InterfaceMembe
 }
 
 /// Check whether a modifier keyword can target the declaration for rename.
-fn is_rename_target_modifier_keyword(keyword: ast::Keyword) -> bool {
+fn is_rename_target_modifier_keyword(keyword: dir::Keyword) -> bool {
     matches!(
         keyword,
-        ast::Keyword::Export
-            | ast::Keyword::Declare
-            | ast::Keyword::Abstract
-            | ast::Keyword::Async
-            | ast::Keyword::Static
-            | ast::Keyword::Public
-            | ast::Keyword::Protected
-            | ast::Keyword::Private
-            | ast::Keyword::Readonly
-            | ast::Keyword::Final
-            | ast::Keyword::Accessor
-            | ast::Keyword::Default
-            | ast::Keyword::Override
+        dir::Keyword::Export
+            | dir::Keyword::Declare
+            | dir::Keyword::Abstract
+            | dir::Keyword::Async
+            | dir::Keyword::Static
+            | dir::Keyword::Public
+            | dir::Keyword::Protected
+            | dir::Keyword::Private
+            | dir::Keyword::Readonly
+            | dir::Keyword::Final
+            | dir::Keyword::Accessor
+            | dir::Keyword::Default
+            | dir::Keyword::Override
     )
 }

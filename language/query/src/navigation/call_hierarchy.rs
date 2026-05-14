@@ -5,12 +5,12 @@ use destack_source::{FileId, Span, Uri};
 use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 
-use crate::ast::sort_and_dedup_spans;
 use crate::core::{call_candidates_for_callee, call_candidates_for_caller, query_context};
 use crate::dir::{
     find_symbol_at_offset, get_canonical_symbol, get_symbol_declaration_span,
     get_symbol_definition_span, resolve_symbol_name,
 };
+use crate::source::sort_and_dedup_spans;
 /// An item in the call hierarchy.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CallHierarchyItem {

@@ -1,8 +1,8 @@
-use destack_dir::{self as dir};
+use destack_dir as dir;
 use destack_source::Span;
 
-use crate::ast::{line_start_for_offset, span_contains_span, span_for_dir_node};
 use crate::core::QueryContext;
+use crate::source::{line_start_for_offset, span_contains_span, span_for_dir_node};
 
 /// Check whether an expression can be extracted into a refactor target.
 pub(crate) fn is_extractable_expression(expression: &dir::Expression) -> bool {
@@ -14,7 +14,6 @@ pub(crate) fn is_extractable_expression(expression: &dir::Expression) -> bool {
             | dir::Expression::Declaration { .. }
             | dir::Expression::Block { .. }
             | dir::Expression::Import { .. }
-            | dir::Expression::ReExport { .. }
             | dir::Expression::Export { .. }
     )
 }
@@ -30,7 +29,7 @@ pub(crate) fn resolve_extract_expression(
     let mut best_len = u32::MAX;
 
     for (expr_id, expression) in dir_tree.iter_nodes_of_type::<dir::Expression>() {
-        let span = span_for_dir_node(ctx.ast(), dir_tree, expr_id.into());
+        let span = span_for_dir_node(ctx.source(), dir_tree, expr_id.into());
         if !span_contains_span(span, selection) {
             continue;
         }
@@ -73,7 +72,7 @@ pub(crate) fn statement_span_for_expression(
                     | dir::Expression::Using { .. }
                     | dir::Expression::Declaration { .. }
             ) {
-                return span_for_dir_node(ctx.ast(), dir_tree, parent);
+                return span_for_dir_node(ctx.source(), dir_tree, parent);
             }
         }
 

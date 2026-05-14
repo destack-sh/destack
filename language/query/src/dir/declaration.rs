@@ -1,5 +1,6 @@
 use destack_core::StringPool;
-use destack_dir::{self as dir, Declaration, Name};
+use destack_dir as dir;
+use destack_dir::{Declaration, Name};
 
 /// Resolve the declared name when one exists.
 pub(crate) fn declaration_name(declaration: &Declaration) -> Option<Name> {
@@ -61,10 +62,10 @@ pub(crate) fn declaration_is_abstract(declaration: &Declaration) -> bool {
 /// Resolve a display name for a declaration.
 pub(crate) fn declaration_display_name(strings: &StringPool, declaration: &Declaration) -> String {
     // default block declarations to keyword labels
-    if matches!(declaration, Declaration::Global { .. }) {
+    if matches!(declaration, Declaration::Global(_)) {
         return "global".to_string();
     }
-    if matches!(declaration, Declaration::Module { .. }) {
+    if matches!(declaration, Declaration::Module(_)) {
         return "module".to_string();
     }
 

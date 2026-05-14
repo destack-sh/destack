@@ -7,7 +7,7 @@ use destack_workspace::{Repository, Revision};
 use super::module_specifier_in_expression;
 use crate::core::{
     ImportEntry, SpecifierEntry, query_context_for_profile, search_import_candidates,
-    with_ast_query_for_module,
+    with_source_query_for_module,
 };
 
 /// Information about an exported symbol from a module.
@@ -155,13 +155,13 @@ pub(crate) fn build_specifier_candidates_for_module(
 ) -> Vec<SpecifierEntry> {
     let query_context = query_context_for_profile(repository, revision, module_id, profile_id);
 
-    let Some(entries) = with_ast_query_for_module(repository, revision, module_id, |ast| {
+    let Some(entries) = with_source_query_for_module(repository, revision, module_id, |parsed| {
         let mut dir_targets = std::collections::HashMap::new();
         if let Some(ctx) = query_context.as_ref() {
             let dir_tree = ctx.dir().view();
             for (expression_id, expression) in dir_tree.iter_nodes_of_type::<dir::Expression>() {
                 let target_module = match expression {
-                    dir::Expression::Import { .. } | dir::Expression::ReExport { .. } => {
+                    dir::Expression::Import { .. } | dir::Expression::Export { .. } => {
                         let node_id = expression_id.into_global_any(ctx.module_id());
                         ctx.dir()
                             .types()
@@ -183,13 +183,13 @@ pub(crate) fn build_specifier_candidates_for_module(
         }
 
         let mut entries = Vec::new();
-        for expression_id in ast.tree().iter_nodes::<destack_ast::Expression>() {
-            let expression = ast.tree().get(expression_id);
+        for expression_id in parsed.tree().iter_nodes::<destack_dir::Expression>() {
+            let expression = parsed.tree().get(expression_id);
             let Some((target, _kind)) = module_specifier_in_expression(expression) else {
                 continue;
             };
 
-            let specifier = ast.strings().get(target).to_string();
+            let specifier = parsed.strings().get(target).to_string();
             let target_module_id = dir_targets.get(&expression_id.id).copied().flatten();
             let target_path = target_module_id.and_then(|target_module_id| {
                 let target_module = repository
@@ -201,8 +201,8 @@ pub(crate) fn build_specifier_candidates_for_module(
 
             entries.push(SpecifierEntry {
                 module_id,
-                file_id: ast.file_id(),
-                ast_node_id: expression_id.id,
+                file_id: parsed.file_id(),
+                source_node_id: expression_id.id,
                 specifier,
                 target_module_id,
                 target_path,

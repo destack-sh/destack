@@ -89,9 +89,9 @@ impl<'a> Iterator for VisibleSymbolIterator<'a> {
             }
 
             // move to parent scope
-            if let Some((parent_id, parent_mark)) = scope.parent {
-                self.current_scope_id = Some(parent_id);
-                self.current_mark = parent_mark;
+            if let Some(parent) = scope.parent {
+                self.current_scope_id = Some(parent.id);
+                self.current_mark = parent.mark;
                 self.seen_index = 0;
             } else {
                 self.current_scope_id = None;

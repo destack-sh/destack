@@ -6,15 +6,15 @@ use destack_source::{BatchEdit, Edit, FileEdit, FileId, ModuleId, Span, Uri};
 use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 
-use crate::ast::{
-    get_module_by_file_id, is_simple_identifier, line_start_for_offset, main_span_for_dir_node,
-    span_for_dir_node,
-};
 use crate::core::{QueryContext, modules_referencing_symbol, query_context};
 use crate::dir::{
     ReferenceCollectionOptions, collect_symbol_references_in_context, expression_symbol_target,
     find_symbol_at_offset, get_canonical_symbol, get_member_access_name_span,
     get_symbol_definition_span, member_key_name, resolve_symbol_name,
+};
+use crate::source::{
+    get_module_by_file_id, is_simple_identifier, line_start_for_offset, main_span_for_dir_node,
+    span_for_dir_node,
 };
 
 /// Request payload for inline refactor queries.
@@ -102,11 +102,11 @@ pub fn inline_symbol(
     // resolve the initializer expression
     let value_id = declarator_value(dir_tree, declarator_id, statement_id)?;
     let declarator = dir_tree.get::<dir::Declarator>(declarator_id);
-    let statement_span = span_for_dir_node(ctx.ast(), dir_tree, statement_id.into());
+    let statement_span = span_for_dir_node(ctx.source(), dir_tree, statement_id.into());
 
     // resolve the initializer text
     let source_file = repository.file(revision, file).ok().flatten()?;
-    let value_span = span_for_dir_node(ctx.ast(), dir_tree, value_id.into());
+    let value_span = span_for_dir_node(ctx.source(), dir_tree, value_id.into());
     let value_expression = dir_tree.get::<dir::Expression>(value_id);
     let value_text = source_file.span_str(value_span);
     let inline_base = format_inline_expression(value_text, value_expression);
@@ -115,12 +115,13 @@ pub fn inline_symbol(
     }
 
     // resolve destructuring paths for inline expressions
-    let binding_count = count_pattern_bindings(dir_tree, declarator.pattern);
+    let binding_count = count_pattern_bindings(&ctx, dir_tree, declarator.pattern);
     if binding_count != 1 {
         return None;
     }
 
     let access_path = pattern_access_path(
+        &ctx,
         ctx.dir().strings(),
         dir_tree,
         declarator.pattern,
@@ -157,7 +158,7 @@ pub fn inline_symbol(
         };
         let spans = collect_symbol_references_in_context(
             repository,
-            ctx.ast(),
+            ctx.source(),
             ctx.dir(),
             canonical_id,
             reference_options,
@@ -335,12 +336,14 @@ fn collect_inline_reference_entries(
         let Some(expr_id) = property_parent_expression(dir_tree, property_id) else {
             continue;
         };
-        let (scope_id, scope_mark) = dir_tree.get_scope(expr_id);
+        let Some(scope) = ctx.dir().scope_for_node(expr_id.into()) else {
+            continue;
+        };
         let Some(static_key) = key_name_key(key) else {
             continue;
         };
         let Some(resolved_local) =
-            resolve_symbol_in_scope(symbols, scope_id, scope_mark, static_key)
+            resolve_symbol_in_scope(symbols, scope.id, scope.mark, static_key)
         else {
             continue;
         };
@@ -350,7 +353,7 @@ fn collect_inline_reference_entries(
             continue;
         }
 
-        let Some(span) = main_span_for_dir_node(ctx.ast(), dir_tree, property_id.into()) else {
+        let Some(span) = main_span_for_dir_node(ctx.source(), dir_tree, property_id.into()) else {
             continue;
         };
         if span.file != file {
@@ -373,16 +376,18 @@ fn collect_inline_reference_entries(
 
 /// Count the number of bindings in a pattern.
 fn count_pattern_bindings(
+    ctx: &QueryContext,
     dir_tree: dir::View<'_>,
     pattern_id: dir::LocalNodeId<dir::Pattern>,
 ) -> usize {
     let mut bindings = HashSet::new();
-    collect_pattern_bindings(dir_tree, pattern_id, &mut bindings);
+    collect_pattern_bindings(ctx, dir_tree, pattern_id, &mut bindings);
     bindings.len()
 }
 
 /// Collect binding symbols from a pattern.
 fn collect_pattern_bindings(
+    ctx: &QueryContext,
     dir_tree: dir::View<'_>,
     pattern_id: dir::LocalNodeId<dir::Pattern>,
     bindings: &mut HashSet<dir::LocalSymbolId>,
@@ -391,20 +396,20 @@ fn collect_pattern_bindings(
     let pattern = dir_tree.get::<dir::Pattern>(pattern_id);
     match pattern {
         dir::Pattern::Assign { pattern, .. } => {
-            collect_pattern_bindings(dir_tree, *pattern, bindings);
+            collect_pattern_bindings(ctx, dir_tree, *pattern, bindings);
         }
-        dir::Pattern::Binding {
-            symbol, pattern, ..
-        } => {
-            bindings.insert(*symbol);
+        dir::Pattern::Binding { pattern, .. } => {
+            if let Some(symbol) = ctx.dir().symbol_for_node(pattern_id.into()) {
+                bindings.insert(symbol);
+            }
             if let Some(inner) = pattern {
-                collect_pattern_bindings(dir_tree, *inner, bindings);
+                collect_pattern_bindings(ctx, dir_tree, *inner, bindings);
             }
         }
         dir::Pattern::Must(inner)
         | dir::Pattern::BorrowOf { right: inner, .. }
         | dir::Pattern::MoveOf { right: inner, .. } => {
-            collect_pattern_bindings(dir_tree, *inner, bindings);
+            collect_pattern_bindings(ctx, dir_tree, *inner, bindings);
         }
         dir::Pattern::Tuple { fields }
         | dir::Pattern::TaggedTuple { fields, .. }
@@ -412,12 +417,12 @@ fn collect_pattern_bindings(
         | dir::Pattern::Object { fields }
         | dir::Pattern::TaggedObject { fields, .. } => {
             for field_id in fields {
-                collect_pattern_bindings_field(dir_tree, *field_id, bindings);
+                collect_pattern_bindings_field(ctx, dir_tree, *field_id, bindings);
             }
         }
         dir::Pattern::Union { patterns } => {
             for pattern_id in patterns {
-                collect_pattern_bindings(dir_tree, *pattern_id, bindings);
+                collect_pattern_bindings(ctx, dir_tree, *pattern_id, bindings);
             }
         }
         dir::Pattern::Wildcard
@@ -429,6 +434,7 @@ fn collect_pattern_bindings(
 
 /// Collect binding symbols from a pattern field.
 fn collect_pattern_bindings_field(
+    ctx: &QueryContext,
     dir_tree: dir::View<'_>,
     field_id: dir::LocalNodeId<dir::PatternField>,
     bindings: &mut HashSet<dir::LocalSymbolId>,
@@ -436,25 +442,23 @@ fn collect_pattern_bindings_field(
     // walk pattern fields and collect binding symbols
     let field = dir_tree.get::<dir::PatternField>(field_id);
     match field {
-        dir::PatternField::Named {
-            symbol, pattern, ..
-        } => {
-            if let Some(symbol) = symbol {
-                bindings.insert(*symbol);
+        dir::PatternField::Named { pattern, .. } => {
+            if let Some(symbol) = ctx.dir().symbol_for_node(field_id.into()) {
+                bindings.insert(symbol);
             }
             if let Some(pattern) = pattern {
-                collect_pattern_bindings(dir_tree, *pattern, bindings);
+                collect_pattern_bindings(ctx, dir_tree, *pattern, bindings);
             }
         }
         dir::PatternField::Positional { pattern, .. } => {
-            collect_pattern_bindings(dir_tree, *pattern, bindings);
+            collect_pattern_bindings(ctx, dir_tree, *pattern, bindings);
         }
         dir::PatternField::Computed { pattern, .. } => {
-            collect_pattern_bindings(dir_tree, *pattern, bindings);
+            collect_pattern_bindings(ctx, dir_tree, *pattern, bindings);
         }
         dir::PatternField::Spread { pattern, .. } => {
             if let Some(pattern) = pattern {
-                collect_pattern_bindings(dir_tree, *pattern, bindings);
+                collect_pattern_bindings(ctx, dir_tree, *pattern, bindings);
             }
         }
         dir::PatternField::Elision => {}
@@ -463,6 +467,7 @@ fn collect_pattern_bindings_field(
 
 /// Resolve the access path for a destructured binding.
 fn pattern_access_path(
+    ctx: &QueryContext,
     strings: &StringPool,
     dir_tree: dir::View<'_>,
     pattern_id: dir::LocalNodeId<dir::Pattern>,
@@ -471,37 +476,35 @@ fn pattern_access_path(
     let pattern = dir_tree.get::<dir::Pattern>(pattern_id);
     match pattern {
         dir::Pattern::Assign { pattern, .. } => {
-            pattern_access_path(strings, dir_tree, *pattern, target_symbol)
+            pattern_access_path(ctx, strings, dir_tree, *pattern, target_symbol)
         }
-        dir::Pattern::Binding {
-            symbol, pattern, ..
-        } => {
-            if *symbol == target_symbol {
+        dir::Pattern::Binding { pattern, .. } => {
+            if ctx.dir().symbol_for_node(pattern_id.into()) == Some(target_symbol) {
                 return Some(Vec::new());
             }
             if let Some(inner) = pattern {
-                return pattern_access_path(strings, dir_tree, *inner, target_symbol);
+                return pattern_access_path(ctx, strings, dir_tree, *inner, target_symbol);
             }
             None
         }
         dir::Pattern::Must(inner)
         | dir::Pattern::BorrowOf { right: inner, .. }
         | dir::Pattern::MoveOf { right: inner, .. } => {
-            pattern_access_path(strings, dir_tree, *inner, target_symbol)
+            pattern_access_path(ctx, strings, dir_tree, *inner, target_symbol)
         }
         dir::Pattern::Object { fields } | dir::Pattern::TaggedObject { fields, .. } => {
-            pattern_access_path_object_fields(strings, dir_tree, fields, target_symbol)
+            pattern_access_path_object_fields(ctx, strings, dir_tree, fields, target_symbol)
         }
         dir::Pattern::Tuple { fields }
         | dir::Pattern::TaggedTuple { fields, .. }
         | dir::Pattern::Sequence { fields } => {
-            pattern_access_path_indexed(strings, dir_tree, fields, target_symbol)
+            pattern_access_path_indexed(ctx, strings, dir_tree, fields, target_symbol)
         }
         dir::Pattern::Union { patterns } => {
             let mut resolved: Option<Vec<AccessSegment>> = None;
             for pattern_id in patterns {
                 if let Some(path) =
-                    pattern_access_path(strings, dir_tree, *pattern_id, target_symbol)
+                    pattern_access_path(ctx, strings, dir_tree, *pattern_id, target_symbol)
                 {
                     if resolved.is_some() {
                         return None;
@@ -520,6 +523,7 @@ fn pattern_access_path(
 
 /// Resolve access paths for object fields.
 fn pattern_access_path_object_fields(
+    ctx: &QueryContext,
     strings: &StringPool,
     dir_tree: dir::View<'_>,
     fields: &[dir::LocalNodeId<dir::PatternField>],
@@ -529,21 +533,16 @@ fn pattern_access_path_object_fields(
     for field_id in fields {
         let field = dir_tree.get::<dir::PatternField>(*field_id);
         match field {
-            dir::PatternField::Named {
-                name,
-                symbol,
-                pattern,
-                ..
-            } => {
-                if symbol.is_some_and(|symbol| symbol == target_symbol) {
-                    let name = strings.get(*name).to_string();
+            dir::PatternField::Named { name, pattern, .. } => {
+                if ctx.dir().symbol_for_node((*field_id).into()) == Some(target_symbol) {
+                    let name = strings.get(name.string()).to_string();
                     return Some(vec![AccessSegment::Property(name)]);
                 }
 
-                let name = strings.get(*name).to_string();
+                let name = strings.get(name.string()).to_string();
                 if let Some(pattern) = pattern
                     && let Some(path) =
-                        pattern_access_path(strings, dir_tree, *pattern, target_symbol)
+                        pattern_access_path(ctx, strings, dir_tree, *pattern, target_symbol)
                 {
                     let mut path = path;
                     path.insert(0, AccessSegment::Property(name));
@@ -551,7 +550,8 @@ fn pattern_access_path_object_fields(
                 }
             }
             dir::PatternField::Positional { pattern, .. } => {
-                if let Some(path) = pattern_access_path(strings, dir_tree, *pattern, target_symbol)
+                if let Some(path) =
+                    pattern_access_path(ctx, strings, dir_tree, *pattern, target_symbol)
                 {
                     return Some(path);
                 }
@@ -567,6 +567,7 @@ fn pattern_access_path_object_fields(
 
 /// Resolve access paths for tuple and array fields.
 fn pattern_access_path_indexed(
+    ctx: &QueryContext,
     strings: &StringPool,
     dir_tree: dir::View<'_>,
     fields: &[dir::LocalNodeId<dir::PatternField>],
@@ -584,7 +585,8 @@ fn pattern_access_path_indexed(
                 return None;
             }
             dir::PatternField::Positional { pattern, .. } => {
-                if let Some(path) = pattern_access_path(strings, dir_tree, *pattern, target_symbol)
+                if let Some(path) =
+                    pattern_access_path(ctx, strings, dir_tree, *pattern, target_symbol)
                 {
                     let mut path = path;
                     path.insert(0, AccessSegment::Index(index));
@@ -592,15 +594,13 @@ fn pattern_access_path_indexed(
                 }
                 index += 1;
             }
-            dir::PatternField::Named {
-                symbol, pattern, ..
-            } => {
-                if symbol.is_some_and(|symbol| symbol == target_symbol) {
+            dir::PatternField::Named { pattern, .. } => {
+                if ctx.dir().symbol_for_node((*field_id).into()) == Some(target_symbol) {
                     return Some(vec![AccessSegment::Index(index)]);
                 }
                 if let Some(pattern) = pattern
                     && let Some(path) =
-                        pattern_access_path(strings, dir_tree, *pattern, target_symbol)
+                        pattern_access_path(ctx, strings, dir_tree, *pattern, target_symbol)
                 {
                     let mut path = path;
                     path.insert(0, AccessSegment::Index(index));
@@ -609,7 +609,8 @@ fn pattern_access_path_indexed(
                 index += 1;
             }
             dir::PatternField::Computed { pattern, .. } => {
-                if let Some(path) = pattern_access_path(strings, dir_tree, *pattern, target_symbol)
+                if let Some(path) =
+                    pattern_access_path(ctx, strings, dir_tree, *pattern, target_symbol)
                 {
                     let mut path = path;
                     path.insert(0, AccessSegment::Index(index));
@@ -703,8 +704,8 @@ fn reference_span_for_expression(
     dir_tree: dir::View<'_>,
     expr_id: dir::LocalNodeId<dir::Expression>,
 ) -> Span {
-    let span = main_span_for_dir_node(ctx.ast(), dir_tree, expr_id.into())
-        .unwrap_or_else(|| span_for_dir_node(ctx.ast(), dir_tree, expr_id.into()));
+    let span = main_span_for_dir_node(ctx.source(), dir_tree, expr_id.into())
+        .unwrap_or_else(|| span_for_dir_node(ctx.source(), dir_tree, expr_id.into()));
 
     let Some(parent) = dir_tree.get_parent(expr_id) else {
         return span;
@@ -724,7 +725,8 @@ fn reference_span_for_expression(
         return span;
     }
 
-    let Some(name_span) = get_member_access_name_span(ctx.ast(), ctx.dir(), parent_expr_id) else {
+    let Some(name_span) = get_member_access_name_span(ctx.source(), ctx.dir(), parent_expr_id)
+    else {
         return span;
     };
     let receiver_end = name_span.start.saturating_sub(1);
@@ -735,7 +737,7 @@ fn reference_span_for_expression(
     }
 
     // recover receiver spans when direct mapping points at member names
-    let member_span = span_for_dir_node(ctx.ast(), dir_tree, parent);
+    let member_span = span_for_dir_node(ctx.source(), dir_tree, parent);
     if member_span.file == name_span.file && member_span.start < receiver_end {
         return Span::new(member_span.file, member_span.start, receiver_end);
     }
@@ -789,7 +791,7 @@ fn collect_captured_symbols(
 fn inline_shadow_safe(
     repository: &Repository,
     ctx: &QueryContext,
-    dir_tree: dir::View<'_>,
+    _dir_tree: dir::View<'_>,
     reference_entries: &[ReferenceEntry],
     captured_symbols: &[CapturedSymbol],
 ) -> bool {
@@ -797,10 +799,12 @@ fn inline_shadow_safe(
     let symbols = ctx.dir().symbols();
 
     for entry in reference_entries {
-        let (scope_id, scope_mark) = dir_tree.get_scope(entry.expr_id);
+        let Some(scope) = ctx.dir().scope_for_node(entry.expr_id.into()) else {
+            return false;
+        };
         for captured in captured_symbols {
             let Some(resolved_local) =
-                resolve_symbol_in_scope(symbols, scope_id, scope_mark, captured.name_key)
+                resolve_symbol_in_scope(symbols, scope.id, scope.mark, captured.name_key)
             else {
                 return false;
             };
@@ -830,9 +834,9 @@ fn resolve_symbol_in_scope(
             return Some(symbol_id);
         }
 
-        let (parent_id, parent_mark) = scope.parent?;
-        scope_id = parent_id;
-        scope_mark = parent_mark;
+        let parent = scope.parent?;
+        scope_id = parent.id;
+        scope_mark = parent.mark;
     }
 }
 
@@ -914,7 +918,7 @@ fn statement_declarator_spans(
 
     let mut spans = Vec::with_capacity(declarators.len());
     for declarator_id in declarators {
-        let span = span_for_dir_node(ctx.ast(), dir_tree, (*declarator_id).into());
+        let span = span_for_dir_node(ctx.source(), dir_tree, (*declarator_id).into());
         spans.push((*declarator_id, span));
     }
 
@@ -1019,7 +1023,7 @@ fn should_parenthesize(value: &str, expression: &dir::Expression) -> bool {
 fn expression_is_simple(expression: &dir::Expression) -> bool {
     matches!(
         expression,
-        dir::Expression::Path { .. }
+        dir::Expression::QualifiedReference { .. }
             | dir::Expression::Member { .. }
             | dir::Expression::PrivateMember { .. }
             | dir::Expression::Index { .. }
@@ -1052,7 +1056,6 @@ fn symbol_is_assigned(ctx: &QueryContext, symbol_id: dir::GlobalSymbolId) -> boo
     for (_expr_id, expr) in dir_tree.iter_nodes_of_type::<dir::Expression>() {
         let target_symbol = match expr {
             dir::Expression::Assign { left, .. } => assign_pattern_target_symbol(ctx, *left),
-            dir::Expression::AssignBinary { left, .. } => expression_target_symbol(ctx, *left),
             _ => None,
         };
 
@@ -1224,7 +1227,6 @@ impl dir::NodeVisitor for SideEffectVisitor {
             dir::Expression::Call { .. }
                 | dir::Expression::New { .. }
                 | dir::Expression::Assign { .. }
-                | dir::Expression::AssignBinary { .. }
                 | dir::Expression::Throw { .. }
                 | dir::Expression::Await { .. }
                 | dir::Expression::AwaitMaybe { .. }

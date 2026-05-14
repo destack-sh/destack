@@ -2,7 +2,7 @@
 
 use std::collections::HashSet;
 
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_source::{
     Applicability, BatchEdit, Diagnostic, DiagnosticLabel, Edit, FileEdit, FileId, Span, Uri,
 };
@@ -11,13 +11,13 @@ use serde::{Deserialize, Serialize};
 
 use super::{extract_function, extract_variable, inline_symbol};
 use crate::assist::{CompletionContext, completion_input_at_offset};
-use crate::ast::{get_module_by_file_id, is_simple_identifier, token_at_offset};
 use crate::core::{import_sort_key, query_context, repository_import_relevance};
 use crate::dir::{
     ImportEditSpace, build_import_display_path, build_import_edits, matches_symbol_space_filter,
     search_importable_symbols,
 };
 use crate::format::{ImportDeclarationKey, categorize_import, sort_import_declaration_indices};
+use crate::source::{get_module_by_file_id, is_simple_identifier, token_at_offset};
 use destack_dir::SymbolSpace;
 
 /// Kind of code action.
@@ -251,11 +251,11 @@ fn collect_organize_imports_action(
     // collect top level import expressions in order
     let mut imports: Vec<(Span, String, bool, String)> = Vec::new();
 
-    for expr_id in ctx.ast().roots() {
+    for expr_id in ctx.source().roots() {
         // stop once we hit the first non import expression after imports
-        let expr = ctx.ast().tree().get(*expr_id);
+        let expr = ctx.source().tree().get(*expr_id);
         let target = match expr {
-            ast::Expression::Import { target, items, .. } => Some((*target, items.is_none())),
+            dir::Expression::Import { target, items, .. } => Some((*target, items.is_none())),
             _ => None,
         };
 
@@ -267,7 +267,7 @@ fn collect_organize_imports_action(
         };
 
         // resolve the import span and raw text
-        let span = ctx.ast().tree().source_map.get(expr_id.id);
+        let span = ctx.source().tree().source_map.get(expr_id.id);
         let text = source
             .get(span.start as usize..span.end as usize)
             .unwrap_or("")
@@ -275,7 +275,7 @@ fn collect_organize_imports_action(
             .to_string();
 
         // resolve the import target for sorting
-        let target_text = ctx.ast().strings().get(target).to_string();
+        let target_text = ctx.source().strings().get(target).to_string();
 
         // store the import entry for sorting
         imports.push((span, target_text, is_side_effect, text));

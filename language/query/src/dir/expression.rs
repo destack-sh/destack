@@ -1,7 +1,7 @@
+use destack_dir as dir;
 use destack_dir::{Expression, GlobalSymbolId};
-use {destack_ast as ast, destack_dir as dir};
 
-use crate::core::{AstQueryContext, DirQueryContext};
+use crate::core::{DirQueryContext, SourceQueryContext};
 
 /// Return the recorded symbol target for one expression.
 pub(crate) fn expression_symbol_target(
@@ -17,7 +17,7 @@ pub(crate) fn expression_symbol_target(
         _ => {
             let node_id = expression_id.into_global_any(dir.module_id());
             let symbol_id = dir.types().symbol_resolution(node_id)?;
-            if !dir.symbol_is_active(symbol_id) {
+            if !dir.symbol_is_visible(symbol_id) {
                 return None;
             }
 
@@ -36,7 +36,7 @@ pub(crate) fn dependency_symbol_target(
 
     match resolution {
         dir::DependencyResolution::Symbol(symbol_id) => {
-            if !dir.symbol_is_active(*symbol_id) {
+            if !dir.symbol_is_visible(*symbol_id) {
                 return None;
             }
 
@@ -49,72 +49,71 @@ pub(crate) fn dependency_symbol_target(
 /// Return the local symbol introduced by one dependency item.
 pub(crate) fn dependency_local_symbol(
     dir: DirQueryContext<'_>,
-    item: &dir::DependencyItem,
+    item_id: dir::LocalNodeId<dir::DependencyItem>,
 ) -> Option<GlobalSymbolId> {
-    item.symbol()
-        .map(|symbol_id| GlobalSymbolId::new(dir.module_id(), symbol_id))
+    super::global_symbol_for_node(dir, item_id.into())
 }
 
 /// Check whether an expression is used in a type position.
 pub(crate) fn expression_is_type_position(
-    ast: AstQueryContext<'_>,
+    parsed: SourceQueryContext<'_>,
     dir: DirQueryContext<'_>,
     expression_id: dir::LocalNodeId<Expression>,
 ) -> bool {
     let mut current_id = dir.view().get_source(expression_id);
 
     loop {
-        let Some(parent_id) = ast.parents().get_by_id(current_id) else {
+        let Some(parent_id) = parsed.parents().get_by_id(current_id) else {
             return false;
         };
 
-        match ast.tree().get_node_type(parent_id) {
-            ast::NodeType::TypeExpression => {
+        match parsed.tree().get_node_type(parent_id) {
+            dir::NodeType::TypeExpression => {
                 return true;
             }
-            ast::NodeType::GenericArgument => {
+            dir::NodeType::GenericArgument => {
                 current_id = parent_id;
             }
-            ast::NodeType::Expression => {
+            dir::NodeType::Expression => {
                 current_id = parent_id;
             }
-            ast::NodeType::Declarator => {
-                let declarator = ast
+            dir::NodeType::Declarator => {
+                let declarator = parsed
                     .tree()
-                    .get(ast::LocalNodeId::<ast::Declarator>::new(parent_id));
+                    .get(dir::LocalNodeId::<dir::Declarator>::new(parent_id));
                 return declarator.ty.is_some_and(|ty| ty.id == current_id);
             }
-            ast::NodeType::Parameter => {
-                let parameter = ast
+            dir::NodeType::Parameter => {
+                let parameter = parsed
                     .tree()
-                    .get(ast::LocalNodeId::<ast::Parameter>::new(parent_id));
+                    .get(dir::LocalNodeId::<dir::Parameter>::new(parent_id));
                 return match parameter {
-                    ast::Parameter::Named { declared_type, .. }
-                    | ast::Parameter::Pattern { declared_type, .. }
-                    | ast::Parameter::VariadicNamed { declared_type, .. }
-                    | ast::Parameter::VariadicPattern { declared_type, .. } => {
+                    dir::Parameter::Named { declared_type, .. }
+                    | dir::Parameter::Pattern { declared_type, .. }
+                    | dir::Parameter::VariadicNamed { declared_type, .. }
+                    | dir::Parameter::VariadicPattern { declared_type, .. } => {
                         declared_type.is_some_and(|ty| ty.id == current_id)
                     }
-                    ast::Parameter::Error => false,
+                    dir::Parameter::Error => false,
                 };
             }
-            ast::NodeType::Member => {
-                let member = ast
+            dir::NodeType::Member => {
+                let member = parsed
                     .tree()
-                    .get(ast::LocalNodeId::<ast::Member>::new(parent_id));
+                    .get(dir::LocalNodeId::<dir::Member>::new(parent_id));
                 return match member {
-                    ast::Member::AssociatedType { .. } => false,
-                    ast::Member::AssociatedConst { .. } => false,
-                    ast::Member::Field { .. } => false,
+                    dir::Member::AssociatedType { .. } => false,
+                    dir::Member::AssociatedConst { .. } => false,
+                    dir::Member::Field { .. } => false,
                     _ => false,
                 };
             }
-            ast::NodeType::Declaration => {
-                let declaration = ast
+            dir::NodeType::Declaration => {
+                let declaration = parsed
                     .tree()
-                    .get(ast::LocalNodeId::<ast::Declaration>::new(parent_id));
+                    .get(dir::LocalNodeId::<dir::Declaration>::new(parent_id));
                 return match declaration {
-                    ast::Declaration::Type(declaration) => declaration.value.id == current_id,
+                    dir::Declaration::Type(declaration) => declaration.value.id == current_id,
                     _ => false,
                 };
             }

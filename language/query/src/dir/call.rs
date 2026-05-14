@@ -1,13 +1,14 @@
+use destack_dir as dir;
 use destack_dir::{
-    self as dir, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, Resolution, SymbolForm,
+    Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, Resolution, SymbolForm,
 };
 use destack_source::{ModuleId, ProfileId};
 use destack_workspace::{Repository, Revision};
 
-use crate::ast::get_node_tree_span;
 use crate::core::{
     CallEntry, DirQueryContext, QueryContext, query_context, query_context_for_profile,
 };
+use crate::source::get_node_tree_span;
 
 use super::{
     expression_symbol_target, get_canonical_symbol, member_access_symbol_target,
@@ -41,7 +42,7 @@ pub(crate) fn call_target(
 
     // inspect the target expression shape
     match left_expression {
-        Expression::Path { path, .. } => {
+        Expression::QualifiedReference { path, .. } => {
             // read the referenced symbol and name
             let symbol = expression_symbol_target(dir, left_expression_id);
             let name = symbol
@@ -116,7 +117,7 @@ pub(crate) fn build_call_candidates_for_module(
             _ => continue,
         };
 
-        let call_span = get_node_tree_span(ctx.ast(), ctx.dir().view(), expression_id.into());
+        let call_span = get_node_tree_span(ctx.source(), ctx.dir().view(), expression_id.into());
         let caller_symbol = find_containing_function_symbol(&ctx, expression_id.into());
         let callee_symbols = call_target_symbols(repository, &ctx, expression_id, left_expression);
         for callee_symbol in callee_symbols {
@@ -193,8 +194,11 @@ fn find_containing_function_symbol(
         if node_id.ty == dir::NodeType::Declaration {
             let declaration_id: dir::LocalNodeId<dir::Declaration> = node_id.try_into().ok()?;
             let declaration = ctx.dir().view().get::<dir::Declaration>(declaration_id);
-            if matches!(declaration, dir::Declaration::Function { .. }) {
-                return Some(GlobalSymbolId::new(ctx.module_id(), declaration.symbol()));
+            if matches!(declaration, dir::Declaration::Function(_)) {
+                return ctx
+                    .dir()
+                    .symbol_for_node(declaration_id.into())
+                    .map(|symbol_id| GlobalSymbolId::new(ctx.module_id(), symbol_id));
             }
         }
 

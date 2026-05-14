@@ -1,9 +1,9 @@
 use std::collections::HashSet;
 
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_dir::{
-    self as dir, DependencyBinding, DependencyItem, DependencySpace, Expression, GlobalSymbolId,
-    NodeType, Resolution,
+    DependencyBinding, DependencyItem, DependencySpace, Expression, GlobalSymbolId, NodeType,
+    Resolution,
 };
 use destack_source::{FileId, ModuleId, NodeSpanRegion, NodeSpanType, ProfileId, Span};
 use destack_workspace::{Repository, Revision};
@@ -16,8 +16,8 @@ use super::{
     get_canonical_symbol, get_member_access_name_span, get_path_segment_span,
     namespace_receiver_symbol_target, symbol_matches_reference_target,
 };
-use crate::ast::{get_node_tree_main_span, get_node_tree_span};
-use crate::core::{AstQueryContext, DirQueryContext, query_context_for_profile};
+use crate::core::{DirQueryContext, SourceQueryContext, query_context_for_profile};
+use crate::source::{get_node_tree_main_span, get_node_tree_span};
 
 /// Options for collecting symbol references.
 #[derive(Debug, Clone, Copy)]
@@ -78,20 +78,18 @@ pub(crate) fn build_reference_targets_for_module(
         let resolution = dir
             .types()
             .resolution(expression_id.into_global_any(dir.module_id()));
-        if let Some(resolution) = resolution {
-            match resolution {
-                Resolution::Dispatch(dir::DispatchResolution::Static { target, .. }) => {
-                    insert_reference_target_keys(
-                        repository,
-                        dir.revision(),
-                        &mut targets,
-                        target.symbol,
-                    );
-                }
-                Resolution::Dispatch(dir::DispatchResolution::Dynamic {
+        if let Some(Resolution::Dispatch(dispatch)) = resolution {
+            match dispatch {
+                dir::DispatchResolution::Static { target, .. } => insert_reference_target_keys(
+                    repository,
+                    dir.revision(),
+                    &mut targets,
+                    target.symbol,
+                ),
+                dir::DispatchResolution::Dynamic {
                     targets: dispatch_targets,
                     ..
-                }) => {
+                } => {
                     for target in dispatch_targets {
                         insert_reference_target_keys(
                             repository,
@@ -101,35 +99,32 @@ pub(crate) fn build_reference_targets_for_module(
                         );
                     }
                 }
-                _ => {}
+                dir::DispatchResolution::Builtin { .. } => {}
             }
         }
 
-        match expression {
-            Expression::Path { path, .. } => {
-                for segment_index in 0..path.segments.len() {
-                    let segment_index =
-                        u16::try_from(segment_index).expect("path segment index overflow");
+        if let Expression::QualifiedReference { path, .. } = expression {
+            for segment_index in 0..path.segments.len() {
+                let segment_index =
+                    u16::try_from(segment_index).expect("path segment index overflow");
 
-                    if let Some(segment_symbol) =
-                        path_segment_symbol_target(dir, expression_id, segment_index)
-                    {
-                        insert_reference_target_keys(
-                            repository,
-                            dir.revision(),
-                            &mut targets,
-                            segment_symbol,
-                        );
-                    }
+                if let Some(segment_symbol) =
+                    path_segment_symbol_target(dir, expression_id, segment_index)
+                {
+                    insert_reference_target_keys(
+                        repository,
+                        dir.revision(),
+                        &mut targets,
+                        segment_symbol,
+                    );
                 }
             }
-            _ => {}
         }
     }
 
     // dependency items
-    for (item_id, item) in dir_tree.iter_nodes_of_type::<DependencyItem>() {
-        if let Some(symbol_id) = dependency_local_symbol(dir, item) {
+    for (item_id, _item) in dir_tree.iter_nodes_of_type::<DependencyItem>() {
+        if let Some(symbol_id) = dependency_local_symbol(dir, item_id) {
             insert_reference_target_keys(repository, dir.revision(), &mut targets, symbol_id);
         }
 
@@ -155,7 +150,7 @@ fn insert_reference_target_keys(
 /// Collect symbol references within a query context.
 pub(crate) fn collect_symbol_references_in_context(
     repository: &Repository,
-    ast: AstQueryContext<'_>,
+    parsed: SourceQueryContext<'_>,
     dir: DirQueryContext<'_>,
     canonical_id: GlobalSymbolId,
     options: ReferenceCollectionOptions<'_>,
@@ -173,7 +168,7 @@ pub(crate) fn collect_symbol_references_in_context(
     // collect direct expression references
     if options.include_expressions {
         let expression_spans =
-            collect_expression_reference_spans(repository, ast, dir, canonical_id, options);
+            collect_expression_reference_spans(repository, parsed, dir, canonical_id, options);
         spans.extend(expression_spans);
     }
 
@@ -181,7 +176,7 @@ pub(crate) fn collect_symbol_references_in_context(
     if options.include_members {
         let member_spans = collect_member_reference_spans(
             repository,
-            ast,
+            parsed,
             dir,
             canonical_id,
             options,
@@ -193,7 +188,7 @@ pub(crate) fn collect_symbol_references_in_context(
     // collect dependency item references
     if options.include_dependencies {
         let dependency_spans =
-            collect_dependency_reference_spans(repository, ast, dir, canonical_id, options);
+            collect_dependency_reference_spans(repository, parsed, dir, canonical_id, options);
         spans.extend(dependency_spans);
     }
 
@@ -204,7 +199,7 @@ pub(crate) fn collect_symbol_references_in_context(
 /// Collect direct expression reference spans.
 fn collect_expression_reference_spans(
     repository: &Repository,
-    ast: AstQueryContext<'_>,
+    parsed: SourceQueryContext<'_>,
     dir: DirQueryContext<'_>,
     canonical_id: GlobalSymbolId,
     options: ReferenceCollectionOptions<'_>,
@@ -263,7 +258,7 @@ fn collect_expression_reference_spans(
     let dir_tree = dir.view();
     let mut spans = Vec::new();
     for expression_id in matching_expression_ids {
-        let span = resolve_expression_reference_span(ast, dir, dir_tree, expression_id);
+        let span = resolve_expression_reference_span(parsed, dir, dir_tree, expression_id);
         let Some(span) = span else {
             continue;
         };
@@ -287,7 +282,7 @@ fn collect_expression_reference_spans(
     // capture plain path segments from multi segment path expressions
     for (expression_id, expression) in dir_tree.iter_nodes_of_type::<Expression>() {
         let path = match expression {
-            Expression::Path { path, .. } => path,
+            Expression::QualifiedReference { path, .. } => path,
             _ => continue,
         };
         if path.segments.len() < 2 {
@@ -312,7 +307,8 @@ fn collect_expression_reference_spans(
                 continue;
             }
 
-            let Some(span) = get_path_segment_span(ast, dir, expression_id, segment_index) else {
+            let Some(span) = get_path_segment_span(parsed, dir, expression_id, segment_index)
+            else {
                 continue;
             };
 
@@ -350,7 +346,7 @@ fn collect_expression_reference_spans(
                 continue;
             }
 
-            let span = resolve_member_receiver_reference_span(ast, dir, expression_id, *left);
+            let span = resolve_member_receiver_reference_span(parsed, dir, expression_id, *left);
             let Some(span) = span else {
                 continue;
             };
@@ -457,12 +453,12 @@ fn expression_is_member_receiver_expression(
 
 /// Resolve the best span for a reference expression.
 fn resolve_expression_reference_span(
-    ast: AstQueryContext<'_>,
+    parsed: SourceQueryContext<'_>,
     dir: DirQueryContext<'_>,
     dir_tree: dir::View<'_>,
     expression_id: dir::LocalNodeId<Expression>,
 ) -> Option<Span> {
-    let span = get_node_tree_main_span(ast, dir.view(), expression_id.into());
+    let span = get_node_tree_main_span(parsed, dir.view(), expression_id.into());
 
     let Some(parent) = dir_tree.get_parent(expression_id) else {
         return Some(span);
@@ -482,7 +478,8 @@ fn resolve_expression_reference_span(
         return Some(span);
     }
 
-    let Some(member_name_span) = get_member_access_name_span(ast, dir, parent_expression_id) else {
+    let Some(member_name_span) = get_member_access_name_span(parsed, dir, parent_expression_id)
+    else {
         return Some(span);
     };
     let receiver_end = member_name_span.start.saturating_sub(1);
@@ -493,7 +490,7 @@ fn resolve_expression_reference_span(
     }
 
     // derive receiver spans when direct mapping points at member names
-    let member_span = get_node_tree_span(ast, dir.view(), parent_expression_id.into());
+    let member_span = get_node_tree_span(parsed, dir.view(), parent_expression_id.into());
     if member_span.file == member_name_span.file && member_span.start < receiver_end {
         return Some(Span::new(member_span.file, member_span.start, receiver_end));
     }
@@ -503,7 +500,7 @@ fn resolve_expression_reference_span(
 
 /// Resolve the best span for a member receiver expression.
 fn resolve_member_receiver_reference_span(
-    ast: AstQueryContext<'_>,
+    parsed: SourceQueryContext<'_>,
     dir: DirQueryContext<'_>,
     member_expression_id: dir::LocalNodeId<Expression>,
     receiver_expression_id: dir::LocalNodeId<Expression>,
@@ -521,10 +518,14 @@ fn resolve_member_receiver_reference_span(
         receiver_expression_id
     };
 
-    let receiver_span = ast_expression_span_for_dir_expression(ast, dir, receiver_expression_id)
-        .unwrap_or_else(|| get_node_tree_main_span(ast, dir.view(), receiver_expression_id.into()));
+    let receiver_span =
+        parsed_expression_span_for_dir_expression(parsed, dir, receiver_expression_id)
+            .unwrap_or_else(|| {
+                get_node_tree_main_span(parsed, dir.view(), receiver_expression_id.into())
+            });
 
-    let Some(member_name_span) = get_member_access_name_span(ast, dir, member_expression_id) else {
+    let Some(member_name_span) = get_member_access_name_span(parsed, dir, member_expression_id)
+    else {
         return Some(receiver_span);
     };
     let receiver_end = member_name_span.start.saturating_sub(1);
@@ -542,7 +543,7 @@ fn resolve_member_receiver_reference_span(
     }
 
     // derive receiver spans from member expression spans when needed
-    let member_span = get_node_tree_span(ast, dir.view(), member_expression_id.into());
+    let member_span = get_node_tree_span(parsed, dir.view(), member_expression_id.into());
     if member_span.file == member_name_span.file && member_span.start < receiver_end {
         return Some(Span::new(member_span.file, member_span.start, receiver_end));
     }
@@ -550,78 +551,80 @@ fn resolve_member_receiver_reference_span(
     Some(receiver_span)
 }
 
-/// Resolve the main AST span for a DIR expression source id.
-fn ast_expression_span_for_dir_expression(
-    ast: AstQueryContext<'_>,
+/// Resolve the main source span for a DIR expression source id.
+fn parsed_expression_span_for_dir_expression(
+    parsed: SourceQueryContext<'_>,
     dir: DirQueryContext<'_>,
     expression_id: dir::LocalNodeId<Expression>,
 ) -> Option<Span> {
     let source_id = dir.view().get_source(expression_id);
 
-    let expression_id = ast::LocalNodeId::<ast::Expression>::new(source_id);
-    ast_expression_main_span_without_parentheses(ast, expression_id)
+    let expression_id = dir::LocalNodeId::<dir::Expression>::new(source_id);
+    parsed_expression_main_span_without_parentheses(parsed, expression_id)
 }
 
-/// Resolve an AST expression main span, unwrapping parenthesized expressions.
-fn ast_expression_main_span_without_parentheses(
-    ast: AstQueryContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+/// Resolve a source expression main span, unwrapping parenthesized expressions.
+fn parsed_expression_main_span_without_parentheses(
+    parsed: SourceQueryContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<Span> {
     let mut expression_id = expression_id;
     loop {
-        let expression = ast.tree().get(expression_id);
-        let ast::Expression::Parenthesized { expression } = expression else {
+        let expression = parsed.tree().get(expression_id);
+        let dir::Expression::Parenthesized { expression } = expression else {
             break;
         };
         expression_id = *expression;
     }
 
-    let expression = ast.tree().get(expression_id);
+    let expression = parsed.tree().get(expression_id);
     if matches!(
         expression,
-        ast::Expression::Identifier { .. } | ast::Expression::QualifiedReference { .. }
+        dir::Expression::Identifier { .. } | dir::Expression::QualifiedReference { .. }
     ) {
-        let expression_span = ast.tree().source_map.get(expression_id.id);
-        if let Some(identifier_span) = last_identifier_span_in_expression(ast, expression_span) {
+        let expression_span = parsed.tree().source_map.get(expression_id.id);
+        if let Some(identifier_span) =
+            lsource_identifier_span_in_expression(parsed, expression_span)
+        {
             return Some(identifier_span);
         }
     }
 
-    let span = ast
+    let span = parsed
         .tree()
         .source_map
         .get_main(expression_id.id)
-        .unwrap_or_else(|| ast.tree().source_map.get(expression_id.id));
-    Some(Span::new(ast.file_id(), span.start, span.end))
+        .unwrap_or_else(|| parsed.tree().source_map.get(expression_id.id));
+    Some(Span::new(parsed.file_id(), span.start, span.end))
 }
 
 /// Resolve the last identifier token span inside an expression span.
-fn last_identifier_span_in_expression(
-    ast: AstQueryContext<'_>,
+fn lsource_identifier_span_in_expression(
+    parsed: SourceQueryContext<'_>,
     expression_span: Span,
 ) -> Option<Span> {
-    let mut last_identifier_span = None;
-    for token in ast.tokens() {
-        if token.span.file != ast.file_id() {
+    let mut lsource_identifier_span = None;
+    for token in parsed.tokens() {
+        if token.span.file != parsed.file_id() {
             continue;
         }
-        if token.token.ty != ast::TokenType::Identifier {
+        if token.token.ty != dir::TokenType::Identifier {
             continue;
         }
         if token.span.start < expression_span.start || token.span.end > expression_span.end {
             continue;
         }
 
-        last_identifier_span = Some(token.span);
+        lsource_identifier_span = Some(token.span);
     }
 
-    last_identifier_span
+    lsource_identifier_span
 }
 
 /// Collect member access reference spans.
 fn collect_member_reference_spans(
     repository: &Repository,
-    ast: AstQueryContext<'_>,
+    parsed: SourceQueryContext<'_>,
     dir: DirQueryContext<'_>,
     canonical_id: GlobalSymbolId,
     options: ReferenceCollectionOptions<'_>,
@@ -651,7 +654,7 @@ fn collect_member_reference_spans(
                 continue;
             }
 
-            let Some(span) = get_member_access_name_span(ast, dir, expression_id) else {
+            let Some(span) = get_member_access_name_span(parsed, dir, expression_id) else {
                 continue;
             };
 
@@ -669,7 +672,7 @@ fn collect_member_reference_spans(
         // accept recorded dynamic candidate matches when one member access has no single target
         if member_resolution_matches_reference_target(repository, dir, expression_id, canonical_id)
         {
-            let Some(span) = get_member_access_name_span(ast, dir, expression_id) else {
+            let Some(span) = get_member_access_name_span(parsed, dir, expression_id) else {
                 continue;
             };
 
@@ -707,7 +710,7 @@ fn collect_member_reference_spans(
             continue;
         }
 
-        let Some(span) = get_member_access_name_span(ast, dir, expression_id) else {
+        let Some(span) = get_member_access_name_span(parsed, dir, expression_id) else {
             continue;
         };
 
@@ -748,7 +751,7 @@ fn member_resolution_matches_reference_target(
 /// Collect dependency item reference spans.
 fn collect_dependency_reference_spans(
     repository: &Repository,
-    ast: AstQueryContext<'_>,
+    parsed: SourceQueryContext<'_>,
     dir: DirQueryContext<'_>,
     canonical_id: GlobalSymbolId,
     options: ReferenceCollectionOptions<'_>,
@@ -770,11 +773,11 @@ fn collect_dependency_reference_spans(
     let mut spans = Vec::new();
     for item_id in matching_dependency_ids {
         let span = if options.use_dependency_name_spans {
-            dependency_item_name_span(ast, dir, item_id, options.target_name)
+            dependency_item_name_span(parsed, dir, item_id, options.target_name)
         } else {
             None
         }
-        .or_else(|| Some(get_node_tree_main_span(ast, dir.view(), item_id.into())));
+        .or_else(|| Some(get_node_tree_main_span(parsed, dir.view(), item_id.into())));
 
         let Some(span) = span else {
             continue;
@@ -801,14 +804,14 @@ fn collect_dependency_reference_spans(
 
 /// Resolve a dependency item's name span when a target name is provided.
 fn dependency_item_name_span(
-    ast: AstQueryContext<'_>,
+    parsed: SourceQueryContext<'_>,
     dir: DirQueryContext<'_>,
     item_id: dir::LocalNodeId<DependencyItem>,
     target_name: Option<&str>,
 ) -> Option<Span> {
     // fall back to the main span when no name was provided
     let Some(target_name) = target_name else {
-        return Some(get_node_tree_main_span(ast, dir.view(), item_id.into()));
+        return Some(get_node_tree_main_span(parsed, dir.view(), item_id.into()));
     };
 
     // resolve name + alias for matching
@@ -816,31 +819,30 @@ fn dependency_item_name_span(
     let item = dir_tree.get::<DependencyItem>(item_id);
     let (name_id, alias_id) = match item {
         DependencyItem::Item { name, alias, .. } => (name.map(|name| name.string()), *alias),
-        DependencyItem::Value { .. } => (None, None),
         DependencyItem::Error => return None,
     };
 
-    // resolve the ast node id for span lookup
-    let ast_node_id = dir_tree.get_source(item_id);
+    // resolve the parsed node id for span lookup
+    let source_node_id = dir_tree.get_source(item_id);
 
     // match the remote/local item name first
     if let Some(name_id) = name_id
         && dir.strings().get(name_id) == target_name
     {
-        let span = ast
+        let span = parsed
             .tree()
-            .get_side_span_by_id(ast_node_id, NodeSpanType::Region(NodeSpanRegion::Type))?;
-        return Some(Span::new(ast.file_id(), span.start, span.end));
+            .get_side_span_by_id(source_node_id, NodeSpanType::Region(NodeSpanRegion::Type))?;
+        return Some(Span::new(parsed.file_id(), span.start, span.end));
     }
 
     // fall back to alias when present
     if let Some(alias_id) = alias_id
         && dir.strings().get(alias_id) == target_name
     {
-        let span = ast
+        let span = parsed
             .tree()
-            .get_side_span_by_id(ast_node_id, NodeSpanType::Main)?;
-        return Some(Span::new(ast.file_id(), span.start, span.end));
+            .get_side_span_by_id(source_node_id, NodeSpanType::Main)?;
+        return Some(Span::new(parsed.file_id(), span.start, span.end));
     }
 
     None
@@ -856,22 +858,16 @@ fn namespace_import_aliases_for_module(
     dir_tree
         .iter_nodes_of_type::<DependencyItem>()
         .filter_map(|(item_id, item)| {
-            let DependencyItem::Item {
-                binding,
-                space,
-                symbol,
-                ..
-            } = item
-            else {
+            let DependencyItem::Item { binding, space, .. } = item else {
                 return None;
             };
 
             // require namespace value imports with a concrete symbol
-            if *binding != DependencyBinding::Namespace || *space != DependencySpace::Value {
+            if *binding != DependencyBinding::Namespace || *space != Some(DependencySpace::Value) {
                 return None;
             }
 
-            let local_symbol = symbol.as_ref()?;
+            let local_symbol = dir.symbol_for_node(item_id.into())?;
             let node_id = item_id.into_global_any(dir.module_id());
             let target_module_id = dir
                 .types()
@@ -885,7 +881,7 @@ fn namespace_import_aliases_for_module(
                 return None;
             }
 
-            Some(GlobalSymbolId::new(dir.module_id(), *local_symbol))
+            Some(GlobalSymbolId::new(dir.module_id(), local_symbol))
         })
         .collect()
 }

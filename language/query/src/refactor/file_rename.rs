@@ -7,10 +7,10 @@ use destack_workspace::Revision;
 use serde::{Deserialize, Serialize};
 
 use super::specifier::{SpecifierPolicy, apply_rename_to_specifier, match_specifier_rename};
-use crate::ast::string_literal_span_in_enclosing;
 use crate::core::{
-    SpecifierEntry, specifier_candidates_for_rename_paths, with_ast_query_for_module,
+    SpecifierEntry, specifier_candidates_for_rename_paths, with_source_query_for_module,
 };
+use crate::source::string_literal_span_in_enclosing;
 use destack_workspace::Repository;
 
 /// A file rename entry for refactor queries.
@@ -125,7 +125,7 @@ pub fn rename_files(
             continue;
         };
 
-        let Some(()) = with_ast_query_for_module(repository, revision, module.id, |ast| {
+        let Some(()) = with_source_query_for_module(repository, revision, module.id, |parsed| {
             for entry in &entries {
                 // resolve the updated specifier text
                 let rename_match = if let Some(target_module_id) = entry.target_module_id {
@@ -179,11 +179,13 @@ pub fn rename_files(
                 }
 
                 // resolve the string literal span for the import target
-                let ast_span = ast.source_map().get_main_or_enclosing(entry.ast_node_id);
-                let enclosing = Span::new(module.file_id, ast_span.start, ast_span.end);
+                let source_span = parsed
+                    .source_map()
+                    .get_main_or_enclosing(entry.source_node_id);
+                let enclosing = Span::new(module.file_id, source_span.start, source_span.end);
                 let span = string_literal_span_in_enclosing(
                     &file,
-                    ast.tokens(),
+                    parsed.tokens(),
                     enclosing,
                     &entry.specifier,
                 )

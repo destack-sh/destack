@@ -4,12 +4,12 @@ use destack_source::{FileId, Uri};
 use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 
-use crate::ast::span_for_dir_node;
 use crate::core::{QueryContext, query_context, with_query_context_for_file};
 use crate::dir::{
     ParameterData, call_target, doc_text_for_node_without_tags, parameter_data_for_symbol,
 };
 use crate::format::format_call_signature;
+use crate::source::span_for_dir_node;
 
 /// A parameter in a signature.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -127,9 +127,9 @@ pub fn signature_help(
         let source_file = repository.file(revision, ctx.file_id()).ok().flatten()?;
         let source = source_file.text();
 
-        // find enclosing AST nodes at the offset
+        // find enclosing source nodes at the offset
         let enclosing = ctx
-            .ast()
+            .source()
             .tree()
             .source_map
             .get_enclosing_spans(offset, offset);
@@ -141,7 +141,7 @@ pub fn signature_help(
 
         // look for a call expression among the enclosing nodes
         for enclosing_span in &enclosing {
-            // resolve the dir node for the enclosing AST span
+            // resolve the dir node for the enclosing source span
             let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(enclosing_span.idx) else {
                 continue;
             };
@@ -245,11 +245,11 @@ fn signature_info_for_symbol(
             let Declaration::Function(declaration) = declaration else {
                 return None;
             };
-            let ast_node_id = dir_tree.get_source(declaration_id);
+            let source_node_id = dir_tree.get_source(declaration_id);
             let doc_text = doc_text_for_node_without_tags(
-                ctx.ast(),
+                ctx.source(),
                 source,
-                ast_node_id,
+                source_node_id,
                 &["@param", "@return", "@returns"],
             );
             (&declaration.signature, doc_text)
@@ -259,11 +259,11 @@ fn signature_info_for_symbol(
             let member_id = declaration_ref.local_id.try_into_typed().ok()?;
             let member = dir_tree.get::<Member>(member_id);
             let signature = member.signature()?;
-            let ast_node_id = dir_tree.get_source(member_id);
+            let source_node_id = dir_tree.get_source(member_id);
             let doc_text = doc_text_for_node_without_tags(
-                ctx.ast(),
+                ctx.source(),
                 source,
-                ast_node_id,
+                source_node_id,
                 &["@param", "@return", "@returns"],
             );
             (signature, doc_text)
@@ -348,13 +348,13 @@ fn determine_active_parameter(
 
     // find which argument the cursor is in or after
     let mut active_param = 0;
-    let mut last_span_end = None;
+    let mut lsource_span_end = None;
 
     for (idx, arg_id) in arguments.iter().enumerate() {
         // get the argument's source span
         let arg_node_id: dir::LocalNodeIdAny = (*arg_id).into();
-        let span = span_for_dir_node(ctx.ast(), dir_tree, arg_node_id);
-        last_span_end = Some(span.end);
+        let span = span_for_dir_node(ctx.source(), dir_tree, arg_node_id);
+        lsource_span_end = Some(span.end);
 
         // if cursor is before this argument's start, we're on the previous parameter
         if cursor_offset < span.start {
@@ -371,11 +371,11 @@ fn determine_active_parameter(
     }
 
     // allow an extra parameter when cursor sits after a trailing comma
-    if let Some(last_span_end) = last_span_end {
+    if let Some(lsource_span_end) = lsource_span_end {
         // detect trailing comma usage for the call expression
-        let call_span = span_for_dir_node(ctx.ast(), dir_tree, call_expression_id.into());
-        if cursor_offset > last_span_end && cursor_offset <= call_span.end {
-            let slice_start = last_span_end.min(call_span.end) as usize;
+        let call_span = span_for_dir_node(ctx.source(), dir_tree, call_expression_id.into());
+        if cursor_offset > lsource_span_end && cursor_offset <= call_span.end {
+            let slice_start = lsource_span_end.min(call_span.end) as usize;
             let slice_end = cursor_offset.min(call_span.end) as usize;
             let slice = source.get(slice_start..slice_end).unwrap_or("");
             if slice.contains(',') {

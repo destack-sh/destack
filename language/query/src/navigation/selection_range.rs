@@ -3,8 +3,8 @@ use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
-use crate::ast::span_contains_span;
-use crate::core::with_ast_query_for_file;
+use crate::core::with_source_query_for_file;
+use crate::source::span_contains_span;
 
 /// A selection range with parent.
 ///
@@ -62,7 +62,7 @@ pub struct SelectionRangesResponse {
 /// Get selection ranges for positions in a file.
 ///
 /// For each position, returns a nested SelectionRange from most specific
-/// to least specific (innermost syntax node to outermost).
+/// to least specific (innermost source node to outermost).
 ///
 /// Used for "Expand Selection" / "Shrink Selection" editor commands.
 pub fn selection_ranges(
@@ -71,13 +71,13 @@ pub fn selection_ranges(
     file: FileId,
     positions: &[u32],
 ) -> Vec<SelectionRange> {
-    with_ast_query_for_file(repository, revision, file, |ast| {
+    with_source_query_for_file(repository, revision, file, |parsed| {
         // allocate the results vector
         let mut results = Vec::with_capacity(positions.len());
 
         for &offset in positions {
-            // find all enclosing AST nodes at this position
-            let enclosing = ast.source_map().get_enclosing_spans(offset, offset);
+            // find all enclosing source nodes at this position
+            let enclosing = parsed.source_map().get_enclosing_spans(offset, offset);
 
             // fall back to a minimal selection when no spans are available
             if enclosing.is_empty() {

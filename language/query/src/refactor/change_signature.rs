@@ -1,17 +1,17 @@
 use destack_workspace::Revision;
 use std::collections::{HashMap, HashSet};
 
-use destack_ast::TokenType;
 use destack_dir as dir;
+use destack_dir::TokenType;
 use destack_source::{BatchEdit, Edit, File, FileEdit, FileId, Span, Uri};
 use serde::{Deserialize, Serialize};
 
-use crate::ast::{get_module_by_file_id, span_for_dir_node};
 use crate::core::{QueryContext, call_candidates_for_callee, query_context};
 use crate::dir::{
     expression_symbol_target, find_symbol_at_offset, get_canonical_symbol,
     member_access_symbol_target,
 };
+use crate::source::{get_module_by_file_id, span_for_dir_node};
 use destack_workspace::Repository;
 
 /// Placeholder argument text inserted for newly required parameters.
@@ -143,7 +143,7 @@ pub fn change_signature(
                 continue;
             }
 
-            let expr_span = span_for_dir_node(ctx.ast(), dir_tree, expr_id.into());
+            let expr_span = span_for_dir_node(ctx.source(), dir_tree, expr_id.into());
             let Some(arg_span) = find_parenthesis_inner_span(&ctx, expr_span) else {
                 continue;
             };
@@ -225,9 +225,9 @@ fn constructor_owner_symbol(
     };
     let declaration = dir_tree.get::<dir::Declaration>(declaration_id);
     let owner_symbol = match declaration {
-        dir::Declaration::Class(declaration) => declaration.symbol,
-        dir::Declaration::Struct(declaration) => declaration.symbol,
-        dir::Declaration::Interface(declaration) => declaration.symbol,
+        dir::Declaration::Class(_)
+        | dir::Declaration::Struct(_)
+        | dir::Declaration::Interface(_) => ctx.dir().symbol_for_node(declaration_id.into())?,
         _ => return None,
     };
 
@@ -250,8 +250,8 @@ fn call_target_symbol(
         let expression = dir_tree.get::<dir::Expression>(current);
         match expression {
             dir::Expression::Instantiation { left, .. }
-            | dir::Expression::Maybe { left }
-            | dir::Expression::Must { left } => {
+            | dir::Expression::Maybe { left, .. }
+            | dir::Expression::Must { left, .. } => {
                 current = *left;
                 continue;
             }
@@ -294,14 +294,14 @@ fn function_parameter_span(
 
     let dir_tree = ctx.dir().view();
     let local_id = declaration.local_id;
-    let ast_span = match local_id.ty {
+    let source_span = match local_id.ty {
         dir::NodeType::Declaration => {
             let Ok(decl_id) = local_id.try_into_typed::<dir::Declaration>() else {
                 return None;
             };
             function_signature_for_node(dir_tree, local_id)?;
             let source_id = dir_tree.get_source(decl_id);
-            ctx.ast().tree().source_map.get(source_id)
+            ctx.source().source_map().get(source_id)
         }
         dir::NodeType::Member => {
             let Ok(member_id) = local_id.try_into_typed::<dir::Member>() else {
@@ -309,17 +309,17 @@ fn function_parameter_span(
             };
             function_signature_for_node(dir_tree, local_id)?;
             let source_id = dir_tree.get_source(member_id);
-            ctx.ast().tree().source_map.get(source_id)
+            ctx.source().source_map().get(source_id)
         }
         dir::NodeType::Declarator | dir::NodeType::Pattern => {
             let declaration_id = function_declaration_from_binding(dir_tree, local_id)?;
             let source_id = dir_tree.get_source(declaration_id);
-            ctx.ast().tree().source_map.get(source_id)
+            ctx.source().source_map().get(source_id)
         }
         _ => return None,
     };
 
-    let full_span = Span::new(ctx.file_id(), ast_span.start, ast_span.end);
+    let full_span = Span::new(ctx.file_id(), source_span.start, source_span.end);
     find_parenthesis_inner_span(&ctx, full_span)
 }
 
@@ -379,7 +379,7 @@ fn function_parameter_name_positions(
             }
             dir::Parameter::Pattern { .. }
             | dir::Parameter::VariadicPattern { .. }
-            | dir::Parameter::Error { .. } => None,
+            | dir::Parameter::Error => None,
         };
         if let Some(name) = name {
             positions.entry(name).or_insert(index);
@@ -456,7 +456,7 @@ fn find_parenthesis_inner_span(ctx: &QueryContext, span: Span) -> Option<Span> {
     let mut depth = 0u32;
     let mut start = None;
 
-    for token in ctx.ast().tokens() {
+    for token in ctx.source().tokens() {
         if token.span.file != ctx.file_id() {
             continue;
         }
@@ -637,7 +637,7 @@ fn build_arguments_for_call(
 
     for argument_id in arguments.iter() {
         let argument = dir_tree.get::<dir::Argument>(*argument_id);
-        let arg_span = span_for_dir_node(ctx.ast(), dir_tree, (*argument_id).into());
+        let arg_span = span_for_dir_node(ctx.source(), dir_tree, (*argument_id).into());
         let arg_text = source_file.span_str(arg_span).trim().to_string();
 
         match argument {
@@ -656,7 +656,7 @@ fn build_arguments_for_call(
                 positional_args.push(value_text);
             }
             dir::Argument::Spread { .. } => positional_args.push(arg_text),
-            dir::Argument::Error { .. } => positional_args.push(arg_text),
+            dir::Argument::Error => positional_args.push(arg_text),
         }
     }
 
@@ -753,7 +753,9 @@ fn argument_value_text(
     argument: &dir::Argument,
 ) -> String {
     // extract the argument value text without labels
-    let value_id = argument.value();
-    let value_span = span_for_dir_node(ctx.ast(), dir_tree, value_id.into());
+    let Some(value_id) = argument.value() else {
+        return String::new();
+    };
+    let value_span = span_for_dir_node(ctx.source(), dir_tree, value_id.into());
     source_file.span_str(value_span).trim().to_string()
 }

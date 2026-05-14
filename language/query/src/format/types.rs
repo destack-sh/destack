@@ -55,7 +55,7 @@ pub fn format_type(
     strings: &StringPool,
 ) -> String {
     match ty {
-        dir::Type::Literal(literal) => format_type_literal(&literal.value, strings),
+        dir::Type::Literal(literal) => format_type_literal(literal, strings),
         dir::Type::Value(value) => {
             format!(
                 "type {}",
@@ -114,7 +114,7 @@ pub fn format_type(
         dir::Type::TemplateLiteral(template) => {
             let mut result = String::from("`");
             for (index, string_id) in template.strings.iter().enumerate() {
-                result.push_str(&strings.get(*string_id));
+                result.push_str(strings.get(*string_id));
                 if let Some(span_id) = template.spans.get(index) {
                     let span = format_local_type(*span_id, types, repository, revision, strings);
                     result.push_str("${");
@@ -347,19 +347,19 @@ pub fn format_type(
 }
 
 /// Format a TypeLiteral.
-pub fn format_type_literal(lit: &dir::TypeLiteral, strings: &StringPool) -> String {
+pub fn format_type_literal(lit: &dir::LiteralType, strings: &StringPool) -> String {
     match lit {
-        dir::TypeLiteral::Never => "never".to_string(),
-        dir::TypeLiteral::Any => "any".to_string(),
-        dir::TypeLiteral::Infer => "_".to_string(),
-        dir::TypeLiteral::Undefined => "undefined".to_string(),
-        dir::TypeLiteral::Unknown => "unknown".to_string(),
-        dir::TypeLiteral::Object => "object".to_string(),
-        dir::TypeLiteral::Void => "void".to_string(),
-        dir::TypeLiteral::Null => "null".to_string(),
-        dir::TypeLiteral::Primitive(p) => format_primitive_type(p),
-        dir::TypeLiteral::Intrinsic(intrinsic) => format_type_intrinsic(intrinsic),
-        dir::TypeLiteral::ScalarLiteral(s) => format_scalar_literal(s, strings),
+        dir::LiteralType::Never => "never".to_string(),
+        dir::LiteralType::Any => "any".to_string(),
+        dir::LiteralType::Infer => "_".to_string(),
+        dir::LiteralType::Undefined => "undefined".to_string(),
+        dir::LiteralType::Unknown => "unknown".to_string(),
+        dir::LiteralType::Object => "object".to_string(),
+        dir::LiteralType::Void => "void".to_string(),
+        dir::LiteralType::Null => "null".to_string(),
+        dir::LiteralType::Primitive(p) => format_primitive_type(p),
+        dir::LiteralType::Intrinsic(intrinsic) => format_type_intrinsic(intrinsic),
+        dir::LiteralType::ScalarLiteral(s) => format_scalar_literal(s, strings),
     }
 }
 
@@ -395,7 +395,7 @@ pub fn format_scalar_literal(scalar: &dir::ScalarLiteral, strings: &StringPool) 
         }
         dir::ScalarLiteral::Character(c) => format!("'{c}'"),
         dir::ScalarLiteral::String(string_id) => {
-            let s = &*strings.get(*string_id);
+            let s = strings.get(*string_id);
             format!("\"{s}\"")
         }
         dir::ScalarLiteral::RegexString { content, flags } => {
@@ -419,10 +419,7 @@ pub fn format_type_for_inlay_hint(
     strings: &StringPool,
 ) -> String {
     // widen scalar literal types to their default primitive display types
-    if let dir::Type::Literal(dir::LiteralType {
-        value: dir::TypeLiteral::ScalarLiteral(value),
-    }) = ty
-    {
+    if let dir::Type::Literal(dir::LiteralType::ScalarLiteral(value)) = ty {
         let widened = widened_scalar_literal_name(value);
         return widened.to_string();
     }
@@ -507,7 +504,7 @@ pub fn format_symbol_path(
     let mut segments = vec![symbol_name];
 
     // walk owner scopes for namespaces and types
-    let mut scope_id = symbol.scope.0;
+    let mut scope_id = symbol.scope.id;
     let mut seen_scopes = HashSet::new();
     loop {
         // avoid cycles in scope ownership
@@ -526,10 +523,10 @@ pub fn format_symbol_path(
         }
 
         // climb to the parent scope
-        let Some((parent_id, _)) = scope.parent else {
+        let Some(parent) = scope.parent else {
             break;
         };
-        scope_id = parent_id;
+        scope_id = parent.id;
     }
 
     // reverse for root to leaf order
@@ -644,7 +641,7 @@ pub fn format_symbol_key(key: &dir::SymbolKey, strings: &StringPool) -> String {
     match key {
         dir::SymbolKey::Unique(_) => "<unique symbol>".to_string(),
         dir::SymbolKey::Registry(name_id) => {
-            let name = &*strings.get(*name_id);
+            let name = strings.get(*name_id);
             format!("[Symbol.for(\"{name}\")]")
         }
     }
@@ -666,7 +663,7 @@ pub fn format_static_argument(
         dir::StaticArgument::Evaluated { name, value } => {
             let value_str = format_static_expression(value, types, repository, revision, strings);
             if let Some(name_id) = name {
-                let name_str = &*strings.get(*name_id);
+                let name_str = strings.get(*name_id);
                 format!("{name_str}: {value_str}")
             } else {
                 value_str
@@ -686,7 +683,7 @@ pub fn format_static_expression(
     match expression {
         dir::StaticExpression::Unevaluated { .. } => "<unevaluated>".to_string(),
         dir::StaticExpression::ScalarLiteral { value } => format_scalar_literal(value, strings),
-        dir::StaticExpression::TypeLiteral { value } => format_type_literal(value, strings),
+        dir::StaticExpression::TypeLiteral { value } => format_source_type_literal(value, strings),
         dir::StaticExpression::Declaration { .. } => "<declaration>".to_string(),
         dir::StaticExpression::Type { ty } => {
             let ty = types.get_type(*ty);
@@ -721,21 +718,57 @@ fn format_type_intrinsic(intrinsic: &dir::IntrinsicType) -> String {
     }
 }
 
-fn format_type_mapped_modifier_prefix(modifier: dir::MappedTypeModifier) -> &'static str {
+fn format_type_mapped_modifier_prefix(modifier: dir::TypeMappedModifier) -> &'static str {
     match modifier {
-        dir::MappedTypeModifier::Present => "readonly ",
-        dir::MappedTypeModifier::Add => "+readonly ",
-        dir::MappedTypeModifier::Remove => "-readonly ",
-        dir::MappedTypeModifier::None => "",
+        dir::TypeMappedModifier::Present => "readonly ",
+        dir::TypeMappedModifier::Add => "+readonly ",
+        dir::TypeMappedModifier::Remove => "-readonly ",
+        dir::TypeMappedModifier::None => "",
     }
 }
 
-fn format_type_mapped_modifier_suffix(modifier: dir::MappedTypeModifier) -> &'static str {
+fn format_type_mapped_modifier_suffix(modifier: dir::TypeMappedModifier) -> &'static str {
     match modifier {
-        dir::MappedTypeModifier::Present => "?",
-        dir::MappedTypeModifier::Add => "+?",
-        dir::MappedTypeModifier::Remove => "-?",
-        dir::MappedTypeModifier::None => "",
+        dir::TypeMappedModifier::Present => "?",
+        dir::TypeMappedModifier::Add => "+?",
+        dir::TypeMappedModifier::Remove => "-?",
+        dir::TypeMappedModifier::None => "",
+    }
+}
+
+/// Format a parsed type literal.
+fn format_source_type_literal(lit: &dir::TypeLiteral, _strings: &StringPool) -> String {
+    match lit {
+        dir::TypeLiteral::Never => "never".to_string(),
+        dir::TypeLiteral::Any => "any".to_string(),
+        dir::TypeLiteral::Infer => "_".to_string(),
+        dir::TypeLiteral::Undefined => "undefined".to_string(),
+        dir::TypeLiteral::Unknown => "unknown".to_string(),
+        dir::TypeLiteral::Object => "object".to_string(),
+        dir::TypeLiteral::Void => "void".to_string(),
+        dir::TypeLiteral::Null => "null".to_string(),
+        dir::TypeLiteral::Boolean => DEFAULT_BOOLEAN_DISPLAY.to_string(),
+        dir::TypeLiteral::Character => DEFAULT_CHARACTER_DISPLAY.to_string(),
+        dir::TypeLiteral::String => DEFAULT_STRING_DISPLAY.to_string(),
+        dir::TypeLiteral::Bigint => DEFAULT_BIGINT_DISPLAY.to_string(),
+        dir::TypeLiteral::Number => "number".to_string(),
+        dir::TypeLiteral::Integer(integer) => integer.as_str(),
+        dir::TypeLiteral::Float(float) => float.as_str().to_string(),
+        dir::TypeLiteral::Symbol => "symbol".to_string(),
+        dir::TypeLiteral::UniqueSymbol => "unique symbol".to_string(),
+        dir::TypeLiteral::Intrinsic(intrinsic) => format_source_type_intrinsic(intrinsic),
+    }
+}
+
+/// Format a parsed intrinsic type.
+fn format_source_type_intrinsic(intrinsic: &dir::IntrinsicType) -> String {
+    match intrinsic {
+        dir::IntrinsicType::Uppercase => "Uppercase".to_string(),
+        dir::IntrinsicType::Lowercase => "Lowercase".to_string(),
+        dir::IntrinsicType::Capitalize => "Capitalize".to_string(),
+        dir::IntrinsicType::Uncapitalize => "Uncapitalize".to_string(),
+        dir::IntrinsicType::NoInfer => "NoInfer".to_string(),
+        dir::IntrinsicType::BuiltinIteratorReturn => "BuiltinIteratorReturn".to_string(),
     }
 }
 

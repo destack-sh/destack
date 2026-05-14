@@ -1,9 +1,9 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
-use super::AstQueryContext;
-use destack_ast as ast;
-use destack_dir::{self as dir, LocalNodeIdAny};
+use super::SourceQueryContext;
+use destack_dir as dir;
+use destack_dir::LocalNodeIdAny;
 use destack_source::{EnclosingSpan, File, FileId, Span};
 use destack_workspace::{Module, Repository, Revision};
 
@@ -19,80 +19,88 @@ pub(crate) fn get_module_by_file_id(
 
 /// Get the span of a DIR node using one DIR tree.
 pub(crate) fn get_node_tree_span(
-    ast: AstQueryContext<'_>,
+    parsed: SourceQueryContext<'_>,
     dir: dir::View<'_>,
     dir_node_id: LocalNodeIdAny,
 ) -> Span {
-    // get the AST node id from the DIR node
-    let ast_node_id = dir.get_source_any(dir_node_id);
+    // get the source node id from the DIR node
+    let source_node_id = dir.get_source_any(dir_node_id);
 
-    // get the span from AST source map
-    ast.source_map().get(ast_node_id)
+    // get the span from source map
+    parsed.source_map().get(source_node_id)
 }
 
 /// Get the main span of a DIR node using one DIR tree.
 pub(crate) fn get_node_tree_main_span(
-    ast: AstQueryContext<'_>,
+    parsed: SourceQueryContext<'_>,
     dir: dir::View<'_>,
     dir_node_id: LocalNodeIdAny,
 ) -> Span {
-    // get the AST node id from the DIR node
-    let ast_node_id = dir.get_source_any(dir_node_id);
+    // get the source node id from the DIR node
+    let source_node_id = dir.get_source_any(dir_node_id);
 
     // try to get the main span first (e.g., identifier span for declarations)
-    ast.source_map().get_main_or_enclosing(ast_node_id)
+    parsed.source_map().get_main_or_enclosing(source_node_id)
 }
 
 /// Resolve the span for a DIR node within a query context.
 pub(crate) fn span_for_dir_node(
-    ast: AstQueryContext<'_>,
+    parsed: SourceQueryContext<'_>,
     dir: dir::View<'_>,
     node_id: LocalNodeIdAny,
 ) -> Span {
     // resolve the source span for the node
     let source_id = dir.get_source_any(node_id);
-    let ast_span = ast.source_map().get(source_id);
+    let source_span = parsed.source_map().get(source_id);
 
-    Span::new(ast.file_id(), ast_span.start, ast_span.end)
+    Span::new(parsed.file_id(), source_span.start, source_span.end)
 }
 
-/// Resolve the span for a DIR node when its source id is present in the AST source map.
+/// Resolve the span for a DIR node when its source id is present in the source map.
 pub(crate) fn try_span_for_dir_node(
-    ast: AstQueryContext<'_>,
+    parsed: SourceQueryContext<'_>,
     dir: dir::View<'_>,
     node_id: LocalNodeIdAny,
 ) -> Option<Span> {
     // resolve the source span when the source id is still valid
     let source_id = dir.get_source_any(node_id);
-    let ast_span = ast.source_map().try_get(source_id)?;
+    let source_span = parsed.source_map().try_get(source_id)?;
 
-    Some(Span::new(ast.file_id(), ast_span.start, ast_span.end))
+    Some(Span::new(
+        parsed.file_id(),
+        source_span.start,
+        source_span.end,
+    ))
 }
 
 /// Resolve the main span for a DIR node when available.
 pub(crate) fn main_span_for_dir_node(
-    ast: AstQueryContext<'_>,
+    parsed: SourceQueryContext<'_>,
     dir: dir::View<'_>,
     node_id: LocalNodeIdAny,
 ) -> Option<Span> {
     // resolve the source span for the node
     let source_id = dir.get_source_any(node_id);
-    let ast_span = ast.source_map().get_main(source_id)?;
+    let source_span = parsed.source_map().get_main(source_id)?;
 
-    Some(Span::new(ast.file_id(), ast_span.start, ast_span.end))
+    Some(Span::new(
+        parsed.file_id(),
+        source_span.start,
+        source_span.end,
+    ))
 }
 
 /// Resolve the main or enclosing span for a DIR node.
 pub(crate) fn main_or_enclosing_span_for_dir_node(
-    ast: AstQueryContext<'_>,
+    parsed: SourceQueryContext<'_>,
     dir: dir::View<'_>,
     node_id: LocalNodeIdAny,
 ) -> Span {
     // resolve the source span for the node
     let source_id = dir.get_source_any(node_id);
-    let ast_span = ast.source_map().get_main_or_enclosing(source_id);
+    let source_span = parsed.source_map().get_main_or_enclosing(source_id);
 
-    Span::new(ast.file_id(), ast_span.start, ast_span.end)
+    Span::new(parsed.file_id(), source_span.start, source_span.end)
 }
 
 /// Check whether a span fully contains another span.
@@ -147,12 +155,12 @@ pub(crate) fn extract_string_literal_prefix(source: &str, span: Span, offset: u3
 
 /// Collect enclosing spans and sort from innermost to outermost.
 pub(crate) fn sorted_enclosing_spans(
-    ast: AstQueryContext<'_>,
+    parsed: SourceQueryContext<'_>,
     start: u32,
     end: u32,
 ) -> Vec<EnclosingSpan> {
     // collect enclosing spans from the source map
-    let mut enclosing = ast.source_map().get_enclosing_spans(start, end);
+    let mut enclosing = parsed.source_map().get_enclosing_spans(start, end);
 
     // sort by span length so innermost spans come first
     enclosing.sort_by_key(|span| span.length);
@@ -162,7 +170,7 @@ pub(crate) fn sorted_enclosing_spans(
 
 /// Collect and sort enclosing spans for a set of probe offsets.
 pub(crate) fn enclosing_spans_at_offsets(
-    ast: AstQueryContext<'_>,
+    parsed: SourceQueryContext<'_>,
     offsets: impl IntoIterator<Item = u32>,
 ) -> Vec<EnclosingSpan> {
     let mut enclosing = Vec::new();
@@ -170,7 +178,7 @@ pub(crate) fn enclosing_spans_at_offsets(
 
     // gather the enclosing spans for each probe offset
     for offset in offsets {
-        let spans = ast.source_map().get_enclosing_spans(offset, offset);
+        let spans = parsed.source_map().get_enclosing_spans(offset, offset);
         for span in spans {
             if seen.insert(span.idx) {
                 enclosing.push(span);
@@ -186,7 +194,7 @@ pub(crate) fn enclosing_spans_at_offsets(
 
 /// Collect enclosing spans at the cursor and previous byte.
 pub(crate) fn enclosing_spans_with_previous(
-    ast: AstQueryContext<'_>,
+    parsed: SourceQueryContext<'_>,
     offset: u32,
 ) -> Vec<EnclosingSpan> {
     let mut offsets = vec![offset];
@@ -194,12 +202,12 @@ pub(crate) fn enclosing_spans_with_previous(
         offsets.push(offset - 1);
     }
 
-    enclosing_spans_at_offsets(ast, offsets)
+    enclosing_spans_at_offsets(parsed, offsets)
 }
 /// Find the span for a string literal matching the provided text inside an enclosing span.
 pub(crate) fn string_literal_span_in_enclosing(
     file: &File,
-    tokens: &[ast::TokenSpan],
+    tokens: &[dir::TokenSpan],
     enclosing: Span,
     target_text: &str,
 ) -> Option<Span> {
@@ -210,10 +218,10 @@ pub(crate) fn string_literal_span_in_enclosing(
         if token.span.start < enclosing.start || token.span.end > enclosing.end {
             continue;
         }
-        if token.token.ty != ast::TokenType::Literal {
+        if token.token.ty != dir::TokenType::Literal {
             continue;
         }
-        if !matches!(token.token.literal, Some(ast::LiteralType::String { .. })) {
+        if !matches!(token.token.literal, Some(dir::TokenLiteral::String { .. })) {
             continue;
         }
 
