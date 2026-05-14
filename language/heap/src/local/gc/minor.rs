@@ -56,7 +56,9 @@ impl HeapSpace {
     {
         // root slots
         roots.visit_root_slots(&mut |slot: RootSlot<'_>| {
-            let reference = slot.load()?;
+            let Some(reference) = slot.load_heap_reference()? else {
+                return Ok(());
+            };
 
             self.enqueue_young_reference(reference, pending)
         })?;

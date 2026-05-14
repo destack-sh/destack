@@ -837,9 +837,20 @@ fn visit_heap_root_slots_from_bytes(
 ) -> HeapResult<()> {
     match reference_map {
         ReferenceMap::None => {}
-        ReferenceMap::Direct { local_offsets, .. } => {
+        ReferenceMap::Direct {
+            local_offsets,
+            shared_offsets,
+        } => {
             visit_direct_heap_root_slots_from_bytes(
                 local_offsets,
+                start,
+                bytes,
+                base_offset,
+                range,
+                visit,
+            )?;
+            visit_direct_shared_root_slots_from_bytes(
+                shared_offsets,
                 start,
                 bytes,
                 base_offset,
@@ -912,7 +923,7 @@ fn visit_heap_root_slots_from_bytes(
     Ok(())
 }
 
-/// Visit direct mutable heap root slots from caller-provided bytes.
+/// Visit direct mutable worker heap root slots from caller-provided bytes.
 fn visit_direct_heap_root_slots_from_bytes(
     offsets: &[u32],
     start: usize,
@@ -936,7 +947,37 @@ fn visit_direct_heap_root_slots_from_bytes(
             });
         };
 
-        visit(RootSlot::Bytes(slot))?;
+        visit(RootSlot::HeapBytes(slot))?;
+    }
+
+    Ok(())
+}
+
+/// Visit direct mutable runtime heap root slots from caller-provided bytes.
+fn visit_direct_shared_root_slots_from_bytes(
+    offsets: &[u32],
+    start: usize,
+    bytes: &mut [u8],
+    base_offset: usize,
+    range: Option<ReferenceRange>,
+    visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
+) -> HeapResult<()> {
+    for offset in offsets {
+        let offset = base_offset + *offset as usize;
+        if !reference_offset_overlaps_range(offset, range) {
+            continue;
+        }
+
+        let local_start = offset - start;
+        let local_end = local_start + SharedHeapReference::BYTE_LEN;
+        let Some(slot) = bytes.get_mut(local_start..local_end) else {
+            return Err(HeapError::TruncatedReferenceBytes {
+                start: local_start,
+                width: SharedHeapReference::BYTE_LEN,
+            });
+        };
+
+        visit(RootSlot::SharedHeapBytes(slot))?;
     }
 
     Ok(())
