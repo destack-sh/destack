@@ -599,7 +599,6 @@ const IGNORED_DIRECTORIES: &[&str] = &[
     ".git",
     ".hg",
     ".svn",
-    "node_modules",
     "target",
     "dist",
     "build",

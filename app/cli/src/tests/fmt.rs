@@ -100,13 +100,13 @@ fn test_fmt_default_scan_includes_typescript() {
     assert_eq!(formatted, "const answer = 42;\n");
 }
 
-/// Skips node_modules during default directory scans.
+/// Skips build output during default directory scans.
 #[test]
-fn test_fmt_default_scan_skips_node_modules() {
-    // set up a regular source and a node_modules source
+fn test_fmt_default_scan_skips_dist() {
+    // set up a regular source and an output source
     let program = TestProgram::new("fmt_scan_ignore");
     let src_path = program.write_text("src/main.ts", "const answer=42");
-    let dependency_path = program.write_text("node_modules/pkg/index.ts", "const dep=1");
+    let output_path = program.write_text("dist/index.ts", "const output=1");
 
     // build formatter args with default scan behavior
     let args = FmtArgs {
@@ -129,12 +129,12 @@ fn test_fmt_default_scan_skips_node_modules() {
         .expect("formatted source should be readable");
     assert_eq!(src_formatted, "const answer = 42;\n");
 
-    // assert node_modules was ignored
-    let dependency_content = program
+    // assert output was ignored
+    let output_content = program
         .fs
-        .read_to_string(&dependency_path)
-        .expect("dependency source should be readable");
-    assert_eq!(dependency_content, "const dep=1");
+        .read_to_string(&output_path)
+        .expect("output source should be readable");
+    assert_eq!(output_content, "const output=1");
 }
 
 /// Returns check failure when formatting changes are needed.

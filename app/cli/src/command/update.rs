@@ -1,5 +1,4 @@
 use std::collections::{HashMap, HashSet};
-use std::ffi::OsStr;
 use std::fs::{self, OpenOptions};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
@@ -173,23 +172,12 @@ struct VerifiedReleaseMetadata {
 
 /// Update the installed Destack CLI binaries.
 pub fn run(args: &UpdateArgs) -> i32 {
-    // resolve install metadata for this executable
-    let current_executable = match std::env::current_exe() {
-        Ok(path) => path,
-        Err(error) => {
-            return report_error(
-                "update",
-                &args.report,
-                &format!("failed to resolve current executable path: {error}"),
-            );
-        }
-    };
+    // resolve install metadata
     let requested_version = normalize_requested_version(&args.version);
     let release_repository = resolve_release_repository();
     let managed_by_npm = std::env::var_os(MANAGED_BY_NPM_ENV).is_some();
     let managed_by_bun = std::env::var_os(MANAGED_BY_BUN_ENV).is_some();
     let action = detect_update_action(
-        &current_executable,
         managed_by_npm,
         managed_by_bun,
         &release_repository,
@@ -310,7 +298,6 @@ fn should_verify_release_metadata(args: &UpdateArgs, action: &UpdateAction) -> b
 
 /// Detect the update action from installation context.
 fn detect_update_action(
-    executable_path: &Path,
     managed_by_npm: bool,
     managed_by_bun: bool,
     release_repository: &str,
@@ -334,22 +321,6 @@ fn detect_update_action(
         return UpdateAction::PackageManager {
             channel: "bun",
             command: "bun",
-            args: vec![
-                "install".to_string(),
-                "-g".to_string(),
-                resolve_npm_package_spec(requested_version),
-            ],
-        };
-    }
-
-    // select npm as fallback for node_modules layouts
-    if executable_path
-        .components()
-        .any(|component| component.as_os_str() == OsStr::new("node_modules"))
-    {
-        return UpdateAction::PackageManager {
-            channel: "npm",
-            command: "npm",
             args: vec![
                 "install".to_string(),
                 "-g".to_string(),
@@ -1091,33 +1062,7 @@ mod tests {
 
     #[test]
     fn test_detect_update_action_for_npm_env() {
-        let action = detect_update_action(
-            Path::new("/Users/florian/.destack/bin/destack"),
-            true,
-            false,
-            "destack-sh/destack",
-            "latest",
-        );
-
-        assert!(matches!(
-            action,
-            UpdateAction::PackageManager {
-                channel: "npm",
-                command: "npm",
-                ..
-            }
-        ));
-    }
-
-    #[test]
-    fn test_detect_update_action_for_node_modules_path() {
-        let action = detect_update_action(
-            Path::new("/usr/local/lib/node_modules/@destack/cli/bin/destack"),
-            false,
-            false,
-            "destack-sh/destack",
-            "latest",
-        );
+        let action = detect_update_action(true, false, "destack-sh/destack", "latest");
 
         assert!(matches!(
             action,
@@ -1131,13 +1076,7 @@ mod tests {
 
     #[test]
     fn test_detect_update_action_for_standalone_path() {
-        let action = detect_update_action(
-            Path::new("/Users/florian/.destack/bin/destack"),
-            false,
-            false,
-            "destack-sh/destack",
-            "latest",
-        );
+        let action = detect_update_action(false, false, "destack-sh/destack", "latest");
 
         assert!(matches!(action, UpdateAction::StandaloneInstaller { .. }));
     }

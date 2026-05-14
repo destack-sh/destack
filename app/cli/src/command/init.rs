@@ -293,7 +293,7 @@ fn create_destack_config(_name: &str, template: Template) -> String {
         "$schema": "https://destack.sh/schemas/destack.schema.json",
         "compiler": compiler,
         "include": include,
-        "exclude": ["node_modules", "dist"],
+        "exclude": ["dist"],
     });
 
     // serialize the config json

@@ -10,7 +10,7 @@ use crate::{
 };
 
 /// Directory names excluded by filesystem reload scans.
-pub(crate) const RELOAD_EXCLUDED_DIRECTORY_NAMES: &[&str] = &[".git", "node_modules", "target"];
+pub(crate) const RELOAD_EXCLUDED_DIRECTORY_NAMES: &[&str] = &[".git", "target"];
 
 /// Return true when filesystem reload should track one path.
 pub(crate) fn is_reload_path(path: &Path) -> bool {
