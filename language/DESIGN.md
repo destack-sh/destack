@@ -881,7 +881,8 @@ Async functions and generators are closures that can pause and be resumed at a l
 
 As in TypeScript, `await` and `yield` are the suspension points for the `Promise`s and `Generator` (and `AsyncGenerator`) coroutines where the entire stack up to that point is parked, and some other task is run.
 In managed land, suspension works as before, and managed values can be stored in parked frames because it's all - well - managed.
-Borrowed access can _also_ cross suspension, but only when the compiler can keep its origin alive and at a stable address in the parked continuation:
+Borrowed access can _also_ cross suspension, but only when the compiler can keep its origin alive and at a stable address in the parked continuation.
+Exclusive access is the important exception: `&exclusive T` cannot cross `await` or `yield`, because another local task may run before this continuation resumes.
 
 ```ds
 async function read(user: User): Promise<string> {
@@ -1831,7 +1832,7 @@ extension of memoize implements Macro<FunctionDeclaration, MemoizeState>
 ## Memory
 
 TypeScript, like most managed high level languages, does not encode memory "ownership" in its type system: all reference types are implicitly GC-managed on some (local) heap, and all value types are copied by default.
-That is convenient, but sometimes we need to take direct control of memory, whether for better performance, or just to express invariants in the code.
+That is convenient and often what we want, but sometimes we need to take direct control of memory, whether for better performance, or just to express invariants in the code.
 
 Destack supports explicit, optional modifiers for controlling memory ownership and placement:
 - **Ownership** - who "owns" the value: managed (`T`), owned (`^T`), borrowed (`&T`, `&readonly T`, `&exclusive T`), or raw (`*T`).
@@ -1936,17 +1937,25 @@ Userland APIs such as channels, Worker pools, atomics, locks, and actors can req
 
 ### Conversions
 
-The rules for who can convert into what mostly follow from two facts:
-- References must always be valid,
-- Shared memory must not point into local memory.
-(Raw pointers are explicit and unchecked.)
+The rules for converting references follow from three basic rules:
+- References must always be valid (the referent must never be deallocated while the reference is live),
+- Shared memory must not point into local memory (directly or indirectly).
+- Exclusive references must be truly exclusive (no possibly overlapping loan is live).
+(Raw pointers are your own dirty unchecked business.)
 
-| From \ To | `T` | `&T` | `^T` | `*T` |
-|-----------|-----|------|------|------|
-| `T` | - | yes | no | explicit |
-| `&T` | no | - | no | explicit |
-| `^T` | no | yes | - | explicit |
-| `*T` | no | reborrow | no | - |
+| From | To | Allow | Explanation |
+|------|----|-------|-------------|
+| `T` | `&T` | yes | while the source place stays live |
+| `T` | `&readonly T` | yes | while the source place stays live |
+| local `T` | `&exclusive T` | yes | while no overlapping loan is live and the loan does not cross suspension |
+| shared `T` | `&exclusive T` | no | exclusive access to unsynchronized shared storage |
+| `&T` | `&readonly T` | yes | readonly reborrow |
+| `&exclusive T` | `&T` / `&readonly T` | yes | temporary reborrow that suspends the exclusive loan |
+| `^T` | `&T` / `&readonly T` / `&exclusive T` | yes | while the owned source stays live and the requested loan rules hold |
+| `T` | `^T` | no | managed ownership does not become unique ownership |
+| `&T` | `T` / `^T` | no | borrowed access does not own the value |
+| `*T` | `&T` / `&readonly T` / `&exclusive T` | yes | explicit unsafe reborrow |
+| `T` / `&T` / `^T` | `*T` | yes | explicit raw pointer conversion |
 
 The default type for a borrow is `&T`, and typing it as `*T` produces a raw pointer instead:
 
