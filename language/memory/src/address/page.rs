@@ -203,8 +203,7 @@ impl PageMap {
                 let page_frame = platform::frame_at(frame, page_offset, self.frame_bytes);
 
                 self.pages
-                    .entry(range_start + page_offset)
-                    .set_state(PageState::Owned(page_frame));
+                    .set_state(range_start + page_offset, PageState::Owned(page_frame));
             }
         }
 
@@ -262,7 +261,7 @@ impl PageMap {
 
         // make shared page runs writable in one platform call
         while page_index < end_frame {
-            let PageState::Shared(_) = self.pages.entry(page_index).state() else {
+            let PageState::Shared(_) = self.pages.state(page_index) else {
                 page_index += 1;
                 continue;
             };
@@ -270,7 +269,7 @@ impl PageMap {
             page_index += 1;
 
             while page_index < end_frame {
-                let PageState::Shared(_) = self.pages.entry(page_index).state() else {
+                let PageState::Shared(_) = self.pages.state(page_index) else {
                     break;
                 };
 
@@ -304,13 +303,11 @@ impl PageMap {
             // publish the modified state after the protection change succeeds
             for page_offset in 0..run_len {
                 let page_index = run_start + page_offset;
-                let PageState::Shared(frame) = self.pages.entry(page_index).state() else {
+                let PageState::Shared(frame) = self.pages.state(page_index) else {
                     continue;
                 };
 
-                self.pages
-                    .entry(page_index)
-                    .set_state(PageState::Modified(frame));
+                self.pages.set_state(page_index, PageState::Modified(frame));
             }
         }
 
@@ -473,9 +470,7 @@ impl PageMap {
             let page_index = first_page + page_offset;
             let frame = platform::frame_at(frame, page_offset, self.frame_bytes);
 
-            fork.pages
-                .entry(page_index)
-                .set_state(PageState::Owned(frame));
+            fork.pages.set_state(page_index, PageState::Owned(frame));
         }
 
         Ok(())
@@ -484,9 +479,7 @@ impl PageMap {
     /// Mark mapped frame entries as shared.
     fn set_shared_frame_states(&self, frames: &[(usize, PageFrame)]) {
         for (page_index, frame) in frames {
-            self.pages
-                .entry(*page_index)
-                .set_state(PageState::Shared(*frame));
+            self.pages.set_state(*page_index, PageState::Shared(*frame));
         }
     }
 
@@ -509,9 +502,7 @@ impl PageMap {
                 frame,
             )?;
 
-            fork.pages
-                .entry(page_index)
-                .set_state(PageState::Owned(frame));
+            fork.pages.set_state(page_index, PageState::Owned(frame));
         }
 
         Ok(())
