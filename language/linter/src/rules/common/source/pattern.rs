@@ -1,161 +1,271 @@
-/// Return true when one glob pattern matches one text value.
-///
-/// This supports `*` as a wildcard over zero or more bytes.
-pub fn glob_matches(pattern: &str, text: &str) -> bool {
-    // fast path: exact match or global wildcard
-    if pattern == text || pattern == "*" {
+use destack_dir as dir;
+
+use super::expression_is_equal;
+use crate::LintModuleContext;
+
+/// Return the expression id when a selector is an expression pattern.
+pub fn match_selector_expression_id(
+    ctx: &LintModuleContext<'_>,
+    selector: &dir::MatchSelector,
+) -> Option<dir::LocalNodeId<dir::Expression>> {
+    let pattern_id = selector.pattern_id()?;
+    pattern_expression_id(ctx, pattern_id)
+}
+
+/// Return one default expression id for a parameter when present.
+pub fn parameter_default_expression_id(
+    parameter: &dir::Parameter,
+) -> Option<dir::LocalNodeId<dir::Expression>> {
+    match parameter {
+        dir::Parameter::Named { default, .. } | dir::Parameter::Pattern { default, .. } => *default,
+        dir::Parameter::VariadicNamed { .. } | dir::Parameter::VariadicPattern { .. } => None,
+        dir::Parameter::Error => None,
+    }
+}
+
+/// Return one default expression id for a pattern field when present.
+pub fn pattern_field_default_expression_id(
+    tree: &dir::Tree,
+    pattern_field: &dir::PatternField,
+) -> Option<dir::LocalNodeId<dir::Expression>> {
+    match pattern_field {
+        dir::PatternField::Named { pattern, .. } => {
+            pattern.and_then(|pattern_id| pattern_assignment_value_expression_id(tree, pattern_id))
+        }
+        dir::PatternField::Computed { pattern, .. } => {
+            pattern_assignment_value_expression_id(tree, *pattern)
+        }
+        dir::PatternField::Positional { pattern } => {
+            pattern_assignment_value_expression_id(tree, *pattern)
+        }
+        dir::PatternField::Spread { .. } | dir::PatternField::Elision => None,
+    }
+}
+
+/// Return the default value expression for one assignment pattern.
+fn pattern_assignment_value_expression_id(
+    tree: &dir::Tree,
+    pattern_id: dir::LocalNodeId<dir::Pattern>,
+) -> Option<dir::LocalNodeId<dir::Expression>> {
+    match tree.get(pattern_id) {
+        dir::Pattern::Assign { value, .. } => Some(*value),
+        dir::Pattern::Binding {
+            pattern: Some(inner_pattern_id),
+            ..
+        }
+        | dir::Pattern::Must(inner_pattern_id)
+        | dir::Pattern::BorrowOf {
+            right: inner_pattern_id,
+            ..
+        }
+        | dir::Pattern::MoveOf {
+            right: inner_pattern_id,
+            ..
+        } => pattern_assignment_value_expression_id(tree, *inner_pattern_id),
+        dir::Pattern::Wildcard
+        | dir::Pattern::Binding { pattern: None, .. }
+        | dir::Pattern::Expression { .. }
+        | dir::Pattern::Range { .. }
+        | dir::Pattern::TypeExpression { .. }
+        | dir::Pattern::Tuple { .. }
+        | dir::Pattern::TaggedTuple { .. }
+        | dir::Pattern::Sequence { .. }
+        | dir::Pattern::Object { .. }
+        | dir::Pattern::TaggedObject { .. }
+        | dir::Pattern::Union { .. } => None,
+    }
+}
+
+/// Return the expression id when a pattern wraps one expression pattern.
+pub fn pattern_expression_id(
+    ctx: &LintModuleContext<'_>,
+    pattern_id: dir::LocalNodeId<dir::Pattern>,
+) -> Option<dir::LocalNodeId<dir::Expression>> {
+    let pattern = ctx.dir.get(pattern_id);
+    match pattern {
+        dir::Pattern::Expression { value } => Some(*value),
+        dir::Pattern::Assign { pattern, .. } => pattern_expression_id(ctx, *pattern),
+        dir::Pattern::Binding {
+            pattern: Some(inner_pattern_id),
+            ..
+        }
+        | dir::Pattern::Must(inner_pattern_id)
+        | dir::Pattern::BorrowOf {
+            right: inner_pattern_id,
+            ..
+        }
+        | dir::Pattern::MoveOf {
+            right: inner_pattern_id,
+            ..
+        } => pattern_expression_id(ctx, *inner_pattern_id),
+        _ => None,
+    }
+}
+
+/// Return true when a pattern matches all values.
+pub fn pattern_matches_all(
+    ctx: &LintModuleContext<'_>,
+    pattern_id: dir::LocalNodeId<dir::Pattern>,
+) -> bool {
+    let pattern = ctx.dir.get(pattern_id);
+    match pattern {
+        dir::Pattern::Wildcard => true,
+        dir::Pattern::Assign { pattern, .. } => pattern_matches_all(ctx, *pattern),
+        dir::Pattern::Binding { pattern, .. } => pattern
+            .map(|inner_pattern_id| pattern_matches_all(ctx, inner_pattern_id))
+            .unwrap_or(true),
+        dir::Pattern::Union { patterns } => patterns
+            .iter()
+            .any(|pattern_id| pattern_matches_all(ctx, *pattern_id)),
+        _ => false,
+    }
+}
+
+/// Return true when one pattern is `_` or one underscore prefixed binding.
+pub fn pattern_is_underscore_binding_or_wildcard(
+    ctx: &LintModuleContext<'_>,
+    pattern_id: dir::LocalNodeId<dir::Pattern>,
+) -> bool {
+    // resolve one pattern node
+    let pattern = ctx.dir.get(pattern_id);
+
+    // match wildcard and underscore bindings
+    match pattern {
+        dir::Pattern::Wildcard => true,
+        dir::Pattern::Assign { pattern, .. } => {
+            pattern_is_underscore_binding_or_wildcard(ctx, *pattern)
+        }
+        dir::Pattern::Binding { name, .. } => ctx.strings.get(*name).starts_with('_'),
+        _ => false,
+    }
+}
+
+/// Return true when one pattern subsumes another pattern.
+pub fn pattern_subsumes(
+    ctx: &mut LintModuleContext<'_>,
+    left_pattern_id: dir::LocalNodeId<dir::Pattern>,
+    right_pattern_id: dir::LocalNodeId<dir::Pattern>,
+) -> bool {
+    // patterns that match everything subsume all later patterns
+    if pattern_matches_all(ctx, left_pattern_id) {
         return true;
     }
 
-    let pattern_bytes = pattern.as_bytes();
-    let text_bytes = text.as_bytes();
-
-    let mut pattern_index = 0usize;
-    let mut text_index = 0usize;
-    let mut last_star_index: Option<usize> = None;
-    let mut last_star_match_index = 0usize;
-
-    // scan text with star backtracking
-    while text_index < text_bytes.len() {
-        // advance both cursors on direct match
-        if pattern_index < pattern_bytes.len()
-            && pattern_bytes[pattern_index] == text_bytes[text_index]
-        {
-            pattern_index += 1;
-            text_index += 1;
-            continue;
-        }
-
-        // record wildcard position for later backtracking
-        if pattern_index < pattern_bytes.len() && pattern_bytes[pattern_index] == b'*' {
-            last_star_index = Some(pattern_index);
-            pattern_index += 1;
-            last_star_match_index = text_index;
-            continue;
-        }
-
-        // backtrack to last wildcard and consume one more text byte
-        if let Some(star_index) = last_star_index {
-            pattern_index = star_index + 1;
-            last_star_match_index += 1;
-            text_index = last_star_match_index;
-            continue;
-        }
-
+    // non-total patterns cannot subsume total patterns
+    if pattern_matches_all(ctx, right_pattern_id) {
         return false;
     }
 
-    // trailing wildcards match an empty suffix
-    while pattern_index < pattern_bytes.len() && pattern_bytes[pattern_index] == b'*' {
-        pattern_index += 1;
+    let left_pattern = ctx.dir.get(left_pattern_id);
+    let right_pattern = ctx.dir.get(right_pattern_id);
+
+    // unroll right union: each branch must be subsumed
+    if let dir::Pattern::Union { patterns } = right_pattern {
+        return patterns
+            .iter()
+            .all(|pattern_id| pattern_subsumes(ctx, left_pattern_id, *pattern_id));
     }
 
-    pattern_index == pattern_bytes.len()
+    // unroll left union: any branch can subsume
+    if let dir::Pattern::Union { patterns } = left_pattern {
+        return patterns
+            .iter()
+            .any(|pattern_id| pattern_subsumes(ctx, *pattern_id, right_pattern_id));
+    }
+
+    // binding with inner pattern inherits inner coverage
+    if let dir::Pattern::Binding {
+        pattern: Some(inner_pattern_id),
+        ..
+    } = left_pattern
+    {
+        return pattern_subsumes(ctx, *inner_pattern_id, right_pattern_id);
+    }
+
+    // binding with inner pattern on the right unwraps before comparison
+    if let dir::Pattern::Binding {
+        pattern: Some(inner_pattern_id),
+        ..
+    } = right_pattern
+    {
+        return pattern_subsumes(ctx, left_pattern_id, *inner_pattern_id);
+    }
+
+    match (left_pattern, right_pattern) {
+        // exact literal equality
+        (
+            dir::Pattern::Expression {
+                value: left_expression_id,
+            },
+            dir::Pattern::Expression {
+                value: right_expression_id,
+            },
+        ) => expression_is_equal(ctx, *left_expression_id, *right_expression_id),
+
+        // exact range equality
+        (
+            dir::Pattern::Range {
+                start: left_start,
+                end: left_end,
+                end_kind: left_end_kind,
+            },
+            dir::Pattern::Range {
+                start: right_start,
+                end: right_end,
+                end_kind: right_end_kind,
+            },
+        ) => {
+            left_end_kind == right_end_kind
+                && optional_pattern_expression_is_equal(ctx, *left_start, *right_start)
+                && optional_pattern_expression_is_equal(ctx, *left_end, *right_end)
+        }
+
+        // must wrappers are comparable only when wrapper shape matches
+        (dir::Pattern::Must(left_inner), dir::Pattern::Must(right_inner)) => {
+            pattern_subsumes(ctx, *left_inner, *right_inner)
+        }
+
+        // reference wrappers are comparable only with equal mutability
+        (
+            dir::Pattern::BorrowOf {
+                mutability: left_mutability,
+                right: left_inner,
+            },
+            dir::Pattern::BorrowOf {
+                mutability: right_mutability,
+                right: right_inner,
+            },
+        ) => {
+            left_mutability == right_mutability && pattern_subsumes(ctx, *left_inner, *right_inner)
+        }
+
+        // value wrappers are comparable only with equal mutability
+        (
+            dir::Pattern::MoveOf {
+                mutability: left_mutability,
+                right: left_inner,
+            },
+            dir::Pattern::MoveOf {
+                mutability: right_mutability,
+                right: right_inner,
+            },
+        ) => {
+            left_mutability == right_mutability && pattern_subsumes(ctx, *left_inner, *right_inner)
+        }
+
+        _ => false,
+    }
 }
 
-/// Return one plain prefix string from a regex pattern like `^text`.
-pub fn regex_prefix_literal(pattern: &str, flags: &str) -> Option<String> {
-    // reject regex flags that alter prefix matching behavior
-    if flags.contains('i') || flags.contains('m') {
-        return None;
-    }
-
-    // require one anchored prefix pattern
-    let prefix = pattern.strip_prefix('^')?;
-    if !regex_literal_is_simple(prefix) {
-        return None;
-    }
-
-    Some(prefix.to_string())
-}
-
-/// Return one plain suffix string from a regex pattern like `text$`.
-pub fn regex_suffix_literal(pattern: &str, flags: &str) -> Option<String> {
-    // reject regex flags that alter suffix matching behavior
-    if flags.contains('i') || flags.contains('m') {
-        return None;
-    }
-
-    // require one anchored suffix pattern
-    let suffix = pattern.strip_suffix('$')?;
-    if !regex_literal_is_simple(suffix) {
-        return None;
-    }
-
-    Some(suffix.to_string())
-}
-
-/// Return true when one regex fragment has no metacharacters.
-fn regex_literal_is_simple(fragment: &str) -> bool {
-    !fragment.chars().any(|character| {
-        matches!(
-            character,
-            '^' | '$' | '+' | '[' | '{' | '(' | '\\' | '.' | '?' | '*' | '|'
-        )
-    })
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{glob_matches, regex_prefix_literal, regex_suffix_literal};
-
-    /// Match exact text with no wildcard.
-    #[test]
-    fn test_matches_exact_pattern() {
-        assert!(glob_matches("core/utils", "core/utils"));
-    }
-
-    /// Match a global wildcard.
-    #[test]
-    fn test_matches_global_wildcard() {
-        assert!(glob_matches("*", "anything/goes"));
-    }
-
-    /// Match prefix wildcard patterns.
-    #[test]
-    fn test_matches_prefix_pattern() {
-        assert!(glob_matches("internal/*", "internal/http/client"));
-    }
-
-    /// Match suffix wildcard patterns.
-    #[test]
-    fn test_matches_suffix_pattern() {
-        assert!(glob_matches("*.gen.ds", "user.gen.ds"));
-    }
-
-    /// Match infix wildcard patterns.
-    #[test]
-    fn test_matches_infix_pattern() {
-        assert!(glob_matches("lib/*/unsafe", "lib/sql/unsafe"));
-    }
-
-    /// Reject text that does not match the pattern.
-    #[test]
-    fn test_rejects_non_matching_pattern() {
-        assert!(!glob_matches("internal/*", "external/client"));
-    }
-
-    /// Extract one simple regex prefix literal.
-    #[test]
-    fn test_extracts_regex_prefix_literal() {
-        assert_eq!(regex_prefix_literal("^foo", ""), Some("foo".to_string()));
-    }
-
-    /// Extract one simple regex suffix literal.
-    #[test]
-    fn test_extracts_regex_suffix_literal() {
-        assert_eq!(regex_suffix_literal("foo$", ""), Some("foo".to_string()));
-    }
-
-    /// Reject complex regex prefix patterns.
-    #[test]
-    fn test_rejects_complex_regex_prefix_literal() {
-        assert_eq!(regex_prefix_literal("^fo+", ""), None);
-    }
-
-    /// Reject case insensitive regex prefix patterns.
-    #[test]
-    fn test_rejects_case_insensitive_regex_prefix_literal() {
-        assert_eq!(regex_prefix_literal("^foo", "i"), None);
+/// Return true when two optional pattern expressions are equal.
+fn optional_pattern_expression_is_equal(
+    ctx: &mut LintModuleContext<'_>,
+    left: Option<dir::LocalNodeId<dir::Expression>>,
+    right: Option<dir::LocalNodeId<dir::Expression>>,
+) -> bool {
+    match (left, right) {
+        (Some(left), Some(right)) => expression_is_equal(ctx, left, right),
+        (None, None) => true,
+        _ => false,
     }
 }

@@ -1,11 +1,11 @@
+use destack_dir as dir;
 use destack_source::ModuleId;
 use destack_workspace::LintSeverity;
-use {destack_ast as ast, destack_dir as dir};
 
 use crate::rules::common::{
     expression_signature_for_tree, symbol_declaration_for, trailing_argument_removal_span,
 };
-use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow explicit trailing type arguments equal to declared defaults.
@@ -34,19 +34,19 @@ impl LintRule for NoUnnecessaryTypeArguments {
     }
 
     /// Check module DIR nodes for redundant trailing type arguments.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // inspect expressions with explicit generic arguments
-        for expression_id in ctx.tree.iter_node_ids_of_type::<dir::Expression>() {
-            let expression = ctx.tree.get(expression_id);
+        for expression_id in ctx.dir.iter_node_ids_of_type::<dir::Expression>() {
+            let expression = ctx.dir.get(expression_id);
             let Some(generic_arguments) = expression.generic_arguments() else {
                 continue;
             };
             if generic_arguments.is_empty() {
                 continue;
             }
-            if !generic_arguments_are_explicit(ctx.tree, generic_arguments) {
+            if !generic_arguments_are_explicit(ctx.dir.tree(), generic_arguments) {
                 continue;
             }
 
@@ -93,7 +93,7 @@ impl LintRule for NoUnnecessaryTypeArguments {
             .label("these trailing type arguments repeat declared defaults");
 
             // attach fix when enabled
-            if ctx.include_fixes
+            if ctx.compute_fixes
                 && let Some(fix) = redundant_type_arguments_fix(
                     ctx,
                     expression_id,
@@ -111,7 +111,7 @@ impl LintRule for NoUnnecessaryTypeArguments {
 
 /// Resolve a target symbol for one expression when available.
 fn target_symbol_for_expression(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
     _expression: &dir::Expression,
 ) -> Option<dir::GlobalSymbolId> {
@@ -152,7 +152,7 @@ enum GenericParameterDefaultValue {
 
 /// Resolve generic parameter defaults from one declaration or member symbol.
 fn generic_parameter_defaults_for_symbol(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<Vec<GenericParameterDefault>> {
     let declaration_id = symbol_declaration_for(
@@ -166,20 +166,20 @@ fn generic_parameter_defaults_for_symbol(
     // resolve defaults from the current module when possible
     if declaration_id.module_id == ctx.module_id() {
         let generic_parameters =
-            generic_parameters_for_declaration(ctx.tree, declaration_id.local_id)?;
+            generic_parameters_for_declaration(ctx.dir.tree(), declaration_id.local_id)?;
         return Some(
             generic_parameters
                 .into_iter()
                 .map(|parameter_id| GenericParameterDefault {
                     module_id: ctx.module_id(),
-                    default_value: parameter_default_expression(ctx.tree, parameter_id),
+                    default_value: parameter_default_expression(ctx.dir.tree(), parameter_id),
                 })
                 .collect(),
         );
     }
 
     // fall back to loading declaration defaults from the owning module
-    let module_dir = ctx.declared_dir(declaration_id.module_id)?;
+    let module_dir = ctx.bound_dir(declaration_id.module_id)?;
     let generic_parameters =
         generic_parameters_for_declaration(&module_dir.tree, declaration_id.local_id)?;
     Some(
@@ -239,7 +239,7 @@ fn generic_parameters_for_declaration(
 
 /// Return the first trailing explicit argument index that is redundant.
 fn first_redundant_trailing_argument_index(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
     generic_parameter_defaults: &[GenericParameterDefault],
 ) -> Option<usize> {
@@ -248,7 +248,7 @@ fn first_redundant_trailing_argument_index(
     // walk trailing arguments backwards while they match parameter defaults
     while index > 0 {
         let argument_id = generic_arguments[index - 1];
-        let Some(argument) = generic_argument_value(ctx.tree, argument_id) else {
+        let Some(argument) = generic_argument_value(ctx.dir.tree(), argument_id) else {
             break;
         };
         let parameter_default = generic_parameter_defaults[index - 1];
@@ -305,7 +305,7 @@ fn generic_argument_value(
 
 /// Return true when one explicit generic argument matches one declared default.
 fn argument_matches_default(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     argument: GenericArgumentValue,
     default_module_id: ModuleId,
     default_value: GenericParameterDefaultValue,
@@ -323,7 +323,7 @@ fn argument_matches_default(
         (
             GenericArgumentValue::Value(argument_expression),
             GenericParameterDefaultValue::Value(default_expression),
-        ) => expression_ast_signature_eq_cross_module(
+        ) => expression_source_signature_eq_cross_module(
             ctx,
             ctx.module_id(),
             argument_expression,
@@ -336,7 +336,7 @@ fn argument_matches_default(
 
 /// Return true when one explicit type argument matches one declared type default.
 fn type_argument_matches_default(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     argument_type_expression: dir::LocalNodeId<dir::TypeExpression>,
     default_module_id: ModuleId,
     default_type_expression: dir::LocalNodeId<dir::TypeExpression>,
@@ -355,21 +355,21 @@ fn type_argument_matches_default(
     argument_text == default_text
 }
 
-/// Compare expressions structurally across modules using AST signatures.
-fn expression_ast_signature_eq_cross_module(
-    ctx: &LintModuleDirContext<'_>,
+/// Compare expressions structurally across modules using source signatures.
+fn expression_source_signature_eq_cross_module(
+    ctx: &LintModuleContext<'_>,
     left_module_id: ModuleId,
     left_expression: dir::LocalNodeId<dir::Expression>,
     right_module_id: ModuleId,
     right_expression: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     let Some(left_signature) =
-        expression_ast_signature_for_module(ctx, left_module_id, left_expression)
+        expression_source_signature_for_module(ctx, left_module_id, left_expression)
     else {
         return false;
     };
     let Some(right_signature) =
-        expression_ast_signature_for_module(ctx, right_module_id, right_expression)
+        expression_source_signature_for_module(ctx, right_module_id, right_expression)
     else {
         return false;
     };
@@ -377,42 +377,40 @@ fn expression_ast_signature_eq_cross_module(
     left_signature == right_signature
 }
 
-/// Resolve a structural AST signature for one DIR expression.
-fn expression_ast_signature_for_module(
-    ctx: &LintModuleDirContext<'_>,
+/// Resolve a structural source signature for one DIR expression.
+fn expression_source_signature_for_module(
+    ctx: &LintModuleContext<'_>,
     module_id: ModuleId,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<Vec<u64>> {
     if module_id == ctx.module_id() {
-        let source_id = ctx.tree.get_source(expression_id.id);
-        let ast = ctx.module_ast(module_id)?;
-        if ast.tree.get_node_type(source_id) != ast::NodeType::Expression {
+        let source_id = ctx.dir.get_source(expression_id);
+        if ctx.dir.tree().get_node_type(source_id) != dir::NodeType::Expression {
             return None;
         }
 
-        // map local source node to an ast expression id
-        let ast_expression_id = ast::LocalNodeId::<ast::Expression>::new(source_id);
+        // map local source node to an expression id
+        let source_expression_id = dir::LocalNodeId::<dir::Expression>::new(source_id);
         return Some(expression_signature_for_tree(
-            &ast.tree,
+            ctx.dir.tree(),
             ctx.strings,
-            ast_expression_id,
+            source_expression_id,
         ));
     }
 
     // load the referenced module when the expression comes from another module
-    let module_dir = ctx.declared_dir(module_id)?;
+    let module_dir = ctx.bound_dir(module_id)?;
     let source_id = module_dir.tree.get_source(expression_id.id);
-    let ast = ctx.module_ast(module_id)?;
-    if ast.tree.get_node_type(source_id) != ast::NodeType::Expression {
+    if module_dir.tree.get_node_type(source_id) != dir::NodeType::Expression {
         return None;
     }
 
-    // map cross module source node to an ast expression id
-    let ast_expression_id = ast::LocalNodeId::<ast::Expression>::new(source_id);
+    // map cross module source node to an expression id
+    let source_expression_id = dir::LocalNodeId::<dir::Expression>::new(source_id);
     Some(expression_signature_for_tree(
-        &ast.tree,
+        &module_dir.tree,
         ctx.strings,
-        ast_expression_id,
+        source_expression_id,
     ))
 }
 
@@ -429,13 +427,13 @@ fn parameter_default_expression(
         dir::GenericParameter::Value { default, .. } => {
             default.map(GenericParameterDefaultValue::Value)
         }
-        dir::GenericParameter::Error { .. } => None,
+        dir::GenericParameter::Error => None,
     }
 }
 
 /// Build a safe fix that removes redundant trailing type arguments.
 fn redundant_type_arguments_fix(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
     generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
     first_redundant_index: usize,
@@ -465,26 +463,33 @@ fn redundant_type_arguments_fix(
 
 /// Resolve the source text for one DIR type expression.
 fn type_expression_source_text_for_module(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     module_id: ModuleId,
     type_expression_id: dir::LocalNodeId<dir::TypeExpression>,
 ) -> Option<String> {
-    let ast = ctx.module_ast(module_id)?;
     let module = ctx.repository_module(module_id)?;
     let file = ctx.repository_file(module.file_id)?;
 
-    let source_id = if module_id == ctx.module_id() {
-        ctx.tree.get_source(type_expression_id.id)
-    } else {
-        let module_dir = ctx.declared_dir(module_id)?;
-        module_dir.tree.get_source(type_expression_id.id)
-    };
-    if ast.tree.get_node_type(source_id) != ast::NodeType::TypeExpression {
+    if module_id == ctx.module_id() {
+        let tree = ctx.dir.tree();
+        let source_id = ctx.dir.get_source(type_expression_id);
+        if tree.get_node_type(source_id) != dir::NodeType::TypeExpression {
+            return None;
+        }
+
+        let source_type_expression_id = dir::LocalNodeId::<dir::TypeExpression>::new(source_id);
+        let span = tree.get_span(source_type_expression_id);
+        return Some(file.text()[span.start as usize..span.end as usize].to_string());
+    }
+
+    let module_dir = ctx.bound_dir(module_id)?;
+    let source_id = module_dir.tree.get_source(type_expression_id.id);
+    if module_dir.tree.get_node_type(source_id) != dir::NodeType::TypeExpression {
         return None;
     }
 
-    let ast_type_expression_id = ast::LocalNodeId::<ast::TypeExpression>::new(source_id);
-    let span = ast.tree.get_span(ast_type_expression_id);
+    let source_type_expression_id = dir::LocalNodeId::<dir::TypeExpression>::new(source_id);
+    let span = module_dir.tree.get_span(source_type_expression_id);
     Some(file.text()[span.start as usize..span.end as usize].to_string())
 }
 

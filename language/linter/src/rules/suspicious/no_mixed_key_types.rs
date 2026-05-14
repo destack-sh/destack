@@ -5,7 +5,7 @@ use crate::rules::common::{
     expression_type_map, is_numeric_property_key_type, is_string_like_property_key_type,
     is_symbol_like_property_key_type,
 };
-use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow object literals that mix incompatible key kinds.
@@ -33,15 +33,14 @@ impl LintRule for NoMixedKeyTypes {
         NoMixedKeyTypes::meta()
     }
 
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // inspect object literal forms
-        for expression_id in ctx.tree.iter_node_ids_of_type::<dir::Expression>() {
-            let expression = ctx.tree.get(expression_id);
+        for expression_id in ctx.dir.iter_node_ids_of_type::<dir::Expression>() {
+            let expression = ctx.dir.get(expression_id);
             let properties = match expression {
-                dir::Expression::ObjectExpression { ty: _, properties }
-                | dir::Expression::TaggedObjectExpression { properties, .. } => properties,
+                dir::Expression::ObjectExpression { properties, .. } => properties,
                 _ => continue,
             };
 
@@ -123,7 +122,7 @@ enum ObjectKeyKind {
 
 /// Collect key-kind information for object properties.
 fn collect_key_kind_summary(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     properties: &[dir::LocalNodeId<dir::Property>],
 ) -> KeyKindSummary {
     let mut summary = KeyKindSummary::default();
@@ -141,16 +140,16 @@ fn collect_key_kind_summary(
 
 /// Resolve one property key kind when it is statically classifiable.
 fn property_key_kind(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     property_id: dir::LocalNodeId<dir::Property>,
 ) -> Option<(ObjectKeyKind, destack_source::Span)> {
-    let property = ctx.tree.get(property_id);
+    let property = ctx.dir.get(property_id);
     let key = match property {
         dir::Property::Field { key, .. } => *key,
         dir::Property::Method { key: Some(key), .. } => *key,
         dir::Property::Method { key: None, .. }
         | dir::Property::Spread { .. }
-        | dir::Property::Error { .. } => return None,
+        | dir::Property::Error => return None,
     };
 
     let key_kind = match key {
@@ -167,13 +166,13 @@ fn property_key_kind(
 
 /// Resolve one dynamic key expression into a coarse key kind.
 fn key_expression_kind(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<ObjectKeyKind> {
-    let expression = ctx.tree.get(expression_id);
+    let expression = ctx.dir.get(expression_id);
 
     // scalar literal keys are statically classifiable
-    if let dir::Expression::ScalarLiteral { value } = expression {
+    if let dir::Expression::ScalarLiteral(value) = expression {
         return match value {
             dir::ScalarLiteral::Null => Some(ObjectKeyKind::StringLike),
             dir::ScalarLiteral::String(_)
@@ -191,7 +190,7 @@ fn key_expression_kind(
         ctx.artifacts.as_ref(),
         ctx.profile_id,
         ctx.module_id(),
-        ctx.tree,
+        ctx.dir.tree(),
         ctx.types,
         expression_id,
         |types, type_id| {

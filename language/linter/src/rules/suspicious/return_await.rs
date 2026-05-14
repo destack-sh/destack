@@ -7,7 +7,7 @@ use crate::rules::common::{
     expression_is_any_typed, expression_is_inside_async_callable, expression_is_promise_like,
     expression_type_or_call_return_type_map, expression_unwrap_parenthesized,
 };
-use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow redundant `return await` in async callables.
@@ -35,14 +35,14 @@ impl LintRule for ReturnAwait {
         ReturnAwait::meta()
     }
 
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let promise_symbol = ctx.get_language_item(LanguageItem::Promise);
         let configuration = return_await_configuration(ctx.options.correctness.return_await_mode);
 
         // inspect return expressions
-        for return_expression_id in ctx.tree.iter_node_ids_of_type::<dir::Expression>() {
-            let return_expression = ctx.tree.get(return_expression_id);
+        for return_expression_id in ctx.dir.iter_node_ids_of_type::<dir::Expression>() {
+            let return_expression = ctx.dir.get(return_expression_id);
             let dir::Expression::Return {
                 value: Some(value_expression_id),
             } = return_expression
@@ -51,7 +51,7 @@ impl LintRule for ReturnAwait {
             };
 
             // keep async callable returns only
-            if !expression_is_inside_async_callable(ctx.tree, return_expression_id) {
+            if !expression_is_inside_async_callable(ctx.dir.tree(), return_expression_id) {
                 continue;
             }
 
@@ -63,14 +63,14 @@ impl LintRule for ReturnAwait {
             // inspect all conditional return branches for this return statement
             // keep try-catch and resource-management contexts aligned to source policy
             let in_control_flow_sensitive_context =
-                expression_affects_error_handling_context(ctx.tree, return_expression_id)
+                expression_affects_error_handling_context(ctx.dir.tree(), return_expression_id)
                     || expression_affects_resource_management_context(
-                        ctx.tree,
+                        ctx.dir.tree(),
                         return_expression_id,
                     );
             let mut possible_return_values = Vec::new();
             collect_possible_return_values(
-                ctx.tree,
+                ctx.dir.tree(),
                 *value_expression_id,
                 &mut possible_return_values,
             );
@@ -88,14 +88,17 @@ impl LintRule for ReturnAwait {
         }
 
         // inspect concise async expression bodies as implicit returns
-        for body_expression_id in async_callable_expression_bodies(ctx.tree) {
+        for body_expression_id in async_callable_expression_bodies(ctx.dir.tree()) {
             // keep try-catch and resource-management contexts aligned to source policy
             let in_control_flow_sensitive_context =
-                expression_affects_error_handling_context(ctx.tree, body_expression_id)
-                    || expression_affects_resource_management_context(ctx.tree, body_expression_id);
+                expression_affects_error_handling_context(ctx.dir.tree(), body_expression_id)
+                    || expression_affects_resource_management_context(
+                        ctx.dir.tree(),
+                        body_expression_id,
+                    );
             let mut possible_return_values = Vec::new();
             collect_possible_return_values(
-                ctx.tree,
+                ctx.dir.tree(),
                 body_expression_id,
                 &mut possible_return_values,
             );
@@ -213,7 +216,7 @@ fn classify_return_value(
 
 /// Check one return value expression against return-await policy.
 fn check_return_value_expression(
-    ctx: &mut LintModuleDirContext<'_>,
+    ctx: &mut LintModuleContext<'_>,
     meta: &LintMeta,
     promise_symbol: Option<dir::GlobalSymbolId>,
     configuration: ReturnAwaitConfiguration,
@@ -228,7 +231,7 @@ fn check_return_value_expression(
     }
 
     // classify the returned expression shape
-    let returned_value_kind = classify_return_value(ctx.tree, value_expression_id);
+    let returned_value_kind = classify_return_value(ctx.dir.tree(), value_expression_id);
     let return_value_id = returned_value_kind.value_expression_id();
     let thenable_certainty = expression_thenable_certainty(ctx, return_value_id, promise_symbol);
 
@@ -248,7 +251,7 @@ fn check_return_value_expression(
             ctx.get_span(await_expression_id),
         )
         .label("remove await from this non-promise return value");
-        if ctx.include_fixes {
+        if ctx.compute_fixes {
             let awaited_span = ctx.get_span(awaited_value_id);
             let awaited_text = ctx.get_span_text(awaited_span).to_string();
             let edits = ctx
@@ -289,7 +292,7 @@ fn check_return_value_expression(
             return_value_span,
         )
         .label("add await so this return follows configured await policy");
-        if ctx.include_fixes {
+        if ctx.compute_fixes {
             let return_value_text = ctx.get_span_text(return_value_span).to_string();
             let replacement = format!("await ({return_value_text})");
             let edits = ctx
@@ -321,7 +324,7 @@ fn check_return_value_expression(
             await_span,
         )
         .label("remove await so this return follows configured await policy");
-        if ctx.include_fixes {
+        if ctx.compute_fixes {
             let awaited_span = ctx.get_span(awaited_value_id);
             let awaited_text = ctx.get_span_text(awaited_span).to_string();
             let edits = ctx
@@ -431,18 +434,18 @@ fn async_callable_expression_bodies(tree: &dir::Tree) -> Vec<dir::LocalNodeId<di
 
 /// Return thenable certainty for one expression.
 fn expression_thenable_certainty(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
     promise_symbol: Option<dir::GlobalSymbolId>,
 ) -> ThenableCertainty {
     // normalize wrappers once for type checks
-    let expression_id = expression_unwrap_parenthesized(ctx.tree, expression_id);
+    let expression_id = expression_unwrap_parenthesized(ctx.dir.tree(), expression_id);
 
     // keep known promise-like expressions at highest certainty
     if promise_symbol.is_some_and(|promise_symbol| {
         expression_is_promise_like(
             ctx.module_id(),
-            ctx.tree,
+            ctx.dir.tree(),
             ctx.types,
             promise_symbol,
             expression_id,
@@ -456,7 +459,7 @@ fn expression_thenable_certainty(
         ctx.artifacts.as_ref(),
         ctx.profile_id,
         ctx.module_id(),
-        ctx.tree,
+        ctx.dir.tree(),
         ctx.types,
         expression_id,
         |_types, _type_id| true,
@@ -467,7 +470,7 @@ fn expression_thenable_certainty(
     }
     if expression_is_any_typed(
         ctx.module_id(),
-        ctx.tree,
+        ctx.dir.tree(),
         ctx.symbols,
         ctx.types,
         expression_id,

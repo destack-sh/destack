@@ -1,9 +1,9 @@
 use crate::LintMeta;
-use destack_ast::{self as ast, Declaration};
+use destack_dir::{self as dir, Declaration};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_or_declaration_docs;
-use crate::{LintAstContext, LintReport, LintRule, declare_lint};
+use crate::{LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Require return type documentation.
@@ -13,7 +13,7 @@ declare_lint! {
         id = "require-returns-doc",
         code = "LY063",
         category = Style,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = No,
@@ -29,18 +29,18 @@ impl LintRule for RequireReturnsDoc {
         RequireReturnsDoc::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // iterate over Expression nodes to find function declarations
         // (annotations are attached to Expression nodes, not Declaration nodes)
-        for expr_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let ast::Expression::Declaration(decl_id) = ctx.tree.get(expr_id) else {
+        for expr_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let dir::Expression::Declaration(decl_id) = ctx.dir.get(expr_id) else {
                 continue;
             };
 
             let declaration_id = *decl_id;
-            let declaration = ctx.tree.get(declaration_id);
+            let declaration = ctx.dir.get(declaration_id);
 
             let Declaration::Function(declaration) = declaration else {
                 continue;
@@ -62,7 +62,7 @@ impl LintRule for RequireReturnsDoc {
             }
 
             let has_returns = docs.into_iter().any(|comment| {
-                let doc_content = ast::normalize_comment_payload(ctx.get_span_text(comment.span));
+                let doc_content = dir::normalize_comment_payload(ctx.get_span_text(comment.span));
                 let doc_lowercase = doc_content.to_ascii_lowercase();
                 doc_lowercase.contains("@returns")
                     || doc_lowercase.contains("@return")
@@ -81,7 +81,7 @@ impl LintRule for RequireReturnsDoc {
                         REQUIRE_RETURNS_DOC.category,
                         severity,
                         "function with return type lacks @returns documentation",
-                        ctx.tree.get_span(expr_id),
+                        ctx.dir.get_span(expr_id),
                     )
                     .label("add @returns to documentation"),
                 );
@@ -98,7 +98,7 @@ mod tests {
     #[test]
     fn test_function_with_return_no_doc_detected() {
         let test = TestProgram::for_rule_without_prelude(RequireReturnsDoc);
-        let result = test.lint_ast(
+        let result = test.lint(
             "require_returns_doc/test_function_with_return_no_doc_detected.ds",
             r#"
 /// Does something.
@@ -113,7 +113,7 @@ export function foo(): int32 {
     #[test]
     fn test_function_with_returns_doc_allowed() {
         let test = TestProgram::for_rule_without_prelude(RequireReturnsDoc);
-        let result = test.lint_ast(
+        let result = test.lint(
             "require_returns_doc/test_function_with_returns_doc_allowed.ds",
             r#"
 /// Does something.
@@ -129,7 +129,7 @@ export function foo(): int32 {
     #[test]
     fn test_void_function_allowed() {
         let test = TestProgram::for_rule_without_prelude(RequireReturnsDoc);
-        let result = test.lint_ast(
+        let result = test.lint(
             "require_returns_doc/test_void_function_allowed.ds",
             r#"
 /// Does something.
@@ -144,7 +144,7 @@ export function foo() {
     #[test]
     fn test_private_function_allowed() {
         let test = TestProgram::for_rule_without_prelude(RequireReturnsDoc);
-        let result = test.lint_ast(
+        let result = test.lint(
             "require_returns_doc/test_private_function_allowed.ds",
             r#"
 /// Does something.

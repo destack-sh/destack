@@ -2,15 +2,15 @@ use crate::LintMeta;
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 
-use destack_ast as ast;
 use destack_core::{StableHasher, StringPool};
+use destack_dir as dir;
 use destack_source::{FileType, ModuleId, Span};
 
 use crate::rules::common::{
     stable_hash_bool, stable_hash_bytes, stable_hash_char, stable_hash_debug, stable_hash_f64,
     stable_hash_i64, stable_hash_none, stable_hash_token_hashed_value, stable_hash_usize,
 };
-use crate::{LintReport, LintRule, LintWorkspaceAstContext, declare_lint};
+use crate::{LintReport, LintRule, LintWorkspaceContext, declare_lint};
 
 declare_lint! {
     /// Warn on duplicate and near duplicate code blocks.
@@ -21,7 +21,7 @@ declare_lint! {
         id = "no-duplicate-code",
         code = "LX017",
         category = Complexity,
-        level = Ast,
+        level = Dir,
         scope = Workspace,
         requires_all = [],
         requires_any = [],
@@ -39,7 +39,7 @@ impl LintRule for NoDuplicateCode {
         NoDuplicateCode::meta()
     }
 
-    fn check_workspace_ast(&self, ctx: &mut LintWorkspaceAstContext) {
+    fn check_workspace(&self, ctx: &mut LintWorkspaceContext) {
         // lint metadata
         let meta = self.meta();
         let severity = ctx.get_severity(meta);
@@ -159,7 +159,7 @@ struct BlockCandidate {
     module_id: ModuleId,
     file_id: destack_source::FileId,
     span: Span,
-    block_id: ast::LocalNodeId<ast::Block>,
+    block_id: dir::LocalNodeId<dir::Block>,
     block_kind: &'static str,
     line_count: usize,
     prefilter_key: BlockPrefilterKey,
@@ -197,7 +197,7 @@ impl DuplicateKind {
 
 /// Detect exact and near duplicate groups for one run.
 fn detect_duplicate_groups(
-    ctx: &LintWorkspaceAstContext,
+    ctx: &LintWorkspaceContext,
     options: &DuplicateCodeOptions,
 ) -> DuplicateDetectionResult {
     let include_near = options.near_enabled();
@@ -259,7 +259,7 @@ fn detect_duplicate_groups(
 
 /// Collect block occurrences eligible for duplicate detection.
 fn collect_occurrences(
-    ctx: &LintWorkspaceAstContext,
+    ctx: &LintWorkspaceContext,
     min_lines: usize,
     min_tokens: usize,
     include_near: bool,
@@ -278,14 +278,13 @@ fn collect_occurrences(
         if !file.ty.is_code() || is_declaration_file(file.ty, ctx) {
             continue;
         }
-        let Some(module_ast) = ctx.module_ast(module.id) else {
+        let Some(bound_dir) = ctx.bound_dir(module.id) else {
             continue;
         };
 
-        let tree = &module_ast.tree;
-        let parents = &module_ast.parents;
-        for block_id in tree.iter_nodes::<ast::Block>() {
-            let span = tree.get_span(block_id);
+        let view = dir::View::new(&bound_dir.tree);
+        for block_id in view.iter_nodes::<dir::Block>() {
+            let span = view.get_span(block_id);
             let line_count = span_line_count(&file, span);
             if line_count < min_lines {
                 continue;
@@ -296,9 +295,9 @@ fn collect_occurrences(
                 file_id: module.file_id,
                 span,
                 block_id,
-                block_kind: classify_block_kind(tree, parents, block_id),
+                block_kind: classify_block_kind(view, block_id),
                 line_count,
-                prefilter_key: build_block_prefilter_key(tree, block_id),
+                prefilter_key: build_block_prefilter_key(&bound_dir.tree, block_id),
             });
         }
     }
@@ -324,14 +323,14 @@ fn collect_occurrences(
             continue;
         };
         let module = module.as_ref();
-        let Some(module_ast) = ctx.module_ast(module.id) else {
+        let Some(bound_dir) = ctx.bound_dir(module.id) else {
             continue;
         };
         let strings = ctx.repository.string_pool().clone();
 
         let signatures = build_block_signatures(
             strings.as_ref(),
-            &module_ast.tree,
+            &bound_dir.tree,
             candidate.block_id,
             include_near,
             include_near_token_hashes,
@@ -378,8 +377,8 @@ fn collect_prefilter_groups(candidates: &[BlockCandidate]) -> Vec<Vec<usize>> {
 
 /// Build a coarse prefilter key for a block.
 fn build_block_prefilter_key(
-    tree: &ast::Tree,
-    block_id: ast::LocalNodeId<ast::Block>,
+    tree: &dir::Tree,
+    block_id: dir::LocalNodeId<dir::Block>,
 ) -> BlockPrefilterKey {
     let block = tree.get(block_id);
     let mut hasher = StableHasher::new();
@@ -830,7 +829,7 @@ impl DisjointSet {
 
 /// Emit diagnostics for one duplicate group.
 fn report_group_diagnostics(
-    ctx: &mut LintWorkspaceAstContext,
+    ctx: &mut LintWorkspaceContext,
     severity: destack_workspace::LintSeverity,
     occurrences: &[CodeOccurrence],
     group: &[usize],
@@ -878,34 +877,33 @@ fn report_group_diagnostics(
 
 /// Return coarse description for the given block.
 fn classify_block_kind(
-    tree: &ast::Tree,
-    parents: &ast::NodeParentIndex,
-    block_id: ast::LocalNodeId<ast::Block>,
+    view: dir::View<'_>,
+    block_id: dir::LocalNodeId<dir::Block>,
 ) -> &'static str {
-    let Some(parent_id) = parents.get(block_id) else {
+    let Some(parent_id) = view.get_parent_id(block_id.id) else {
         return "code block";
     };
 
-    let parent_type = tree.get_node_type(parent_id);
-    if parent_type == ast::NodeType::MatchCase {
+    let parent_type = view.get_node_type(parent_id);
+    if parent_type == dir::NodeType::MatchCase {
         return "match arm";
     }
-    if parent_type != ast::NodeType::Expression {
+    if parent_type != dir::NodeType::Expression {
         return "code block";
     }
 
-    let parent_expression_id = ast::LocalNodeId::<ast::Expression>::new(parent_id);
-    let parent_expression = tree.get(parent_expression_id);
+    let parent_expression_id = dir::LocalNodeId::<dir::Expression>::new(parent_id);
+    let parent_expression = view.get(parent_expression_id);
     match parent_expression {
-        ast::Expression::While { .. }
-        | ast::Expression::ForEach { .. }
-        | ast::Expression::For { .. }
-        | ast::Expression::Loop { .. } => "loop body",
-        ast::Expression::Block(inner_block_id) => {
+        dir::Expression::While { .. }
+        | dir::Expression::ForEach { .. }
+        | dir::Expression::For { .. }
+        | dir::Expression::Loop { .. } => "loop body",
+        dir::Expression::Block(inner_block_id) => {
             if *inner_block_id != block_id {
                 return "code block";
             }
-            classify_block_expression_owner(tree, parents, parent_expression_id)
+            classify_block_expression_owner(view, parent_expression_id)
         }
         _ => "code block",
     }
@@ -913,20 +911,19 @@ fn classify_block_kind(
 
 /// Return coarse description for a block expression owner.
 fn classify_block_expression_owner(
-    tree: &ast::Tree,
-    parents: &ast::NodeParentIndex,
-    block_expression_id: ast::LocalNodeId<ast::Expression>,
+    view: dir::View<'_>,
+    block_expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> &'static str {
-    let Some(owner_id) = parents.get(block_expression_id) else {
+    let Some(owner_id) = view.get_parent_id(block_expression_id.id) else {
         return "code block";
     };
 
-    match tree.get_node_type(owner_id) {
-        ast::NodeType::Declaration => {
-            let declaration_id = ast::LocalNodeId::<ast::Declaration>::new(owner_id);
-            let declaration = tree.get(declaration_id);
+    match view.get_node_type(owner_id) {
+        dir::NodeType::Declaration => {
+            let declaration_id = dir::LocalNodeId::<dir::Declaration>::new(owner_id);
+            let declaration = view.get(declaration_id);
             match declaration {
-                ast::Declaration::Function(declaration)
+                dir::Declaration::Function(declaration)
                     if declaration.body == Some(block_expression_id) =>
                 {
                     "function body"
@@ -934,27 +931,27 @@ fn classify_block_expression_owner(
                 _ => "code block",
             }
         }
-        ast::NodeType::Member => {
-            let member_id = ast::LocalNodeId::<ast::Member>::new(owner_id);
-            let member = tree.get(member_id);
+        dir::NodeType::Member => {
+            let member_id = dir::LocalNodeId::<dir::Member>::new(owner_id);
+            let member = view.get(member_id);
             match member {
-                ast::Member::Method { body, .. } if body == &Some(block_expression_id) => {
+                dir::Member::Method { body, .. } if body == &Some(block_expression_id) => {
                     "method body"
                 }
-                ast::Member::StaticBlock { body, .. } if *body == block_expression_id => {
+                dir::Member::StaticBlock { body, .. } if *body == block_expression_id => {
                     "static block"
                 }
-                ast::Member::ComptimeBlock { body, .. } if *body == block_expression_id => {
+                dir::Member::ComptimeBlock { body, .. } if *body == block_expression_id => {
                     "comptime block"
                 }
                 _ => "code block",
             }
         }
-        ast::NodeType::Expression => {
-            let owner_expression_id = ast::LocalNodeId::<ast::Expression>::new(owner_id);
-            let owner_expression = tree.get(owner_expression_id);
+        dir::NodeType::Expression => {
+            let owner_expression_id = dir::LocalNodeId::<dir::Expression>::new(owner_id);
+            let owner_expression = view.get(owner_expression_id);
             match owner_expression {
-                ast::Expression::If {
+                dir::Expression::If {
                     then_expression,
                     else_expression,
                     ..
@@ -963,7 +960,7 @@ fn classify_block_expression_owner(
                 {
                     "branch block"
                 }
-                ast::Expression::Try {
+                dir::Expression::Try {
                     try_expression,
                     catch_expression,
                     finally_expression,
@@ -974,7 +971,7 @@ fn classify_block_expression_owner(
                 {
                     "try block"
                 }
-                ast::Expression::Match { .. } => "match arm",
+                dir::Expression::Match { .. } => "match arm",
                 _ => "code block",
             }
         }
@@ -983,7 +980,7 @@ fn classify_block_expression_owner(
 }
 
 /// Return true when declaration files should be skipped.
-fn is_declaration_file(file_type: FileType, ctx: &LintWorkspaceAstContext) -> bool {
+fn is_declaration_file(file_type: FileType, ctx: &LintWorkspaceContext) -> bool {
     if ctx.options().include_declaration_files {
         return false;
     }
@@ -1023,22 +1020,22 @@ struct BlockSignatures {
 /// Build exact and near signatures for a block.
 fn build_block_signatures(
     strings: &StringPool,
-    tree: &ast::Tree,
-    block_id: ast::LocalNodeId<ast::Block>,
+    tree: &dir::Tree,
+    block_id: dir::LocalNodeId<dir::Block>,
     include_near: bool,
     include_near_token_hashes: bool,
 ) -> BlockSignatures {
     let block = tree.get(block_id);
     let mut collector =
-        AstSignatureCollector::new(strings, include_near, include_near_token_hashes);
-    ast::walk_block(&mut collector, tree, block_id, block);
+        DuplicateSignatureCollector::new(strings, include_near, include_near_token_hashes);
+    dir::walk_block(&mut collector, tree, block_id, block);
     collector.finish()
 }
 
 #[derive(Debug)]
-struct AstSignatureCollector<'a> {
+struct DuplicateSignatureCollector<'a> {
     strings: &'a StringPool,
-    visitor_options: ast::NodeVisitorOptions,
+    visitor_options: dir::NodeVisitorOptions,
     exact_signature: SignatureHasher,
     exact_token_hashes: Vec<u64>,
     near_signature: Option<SignatureHasher>,
@@ -1046,12 +1043,12 @@ struct AstSignatureCollector<'a> {
     token_count: usize,
 }
 
-impl<'a> AstSignatureCollector<'a> {
+impl<'a> DuplicateSignatureCollector<'a> {
     /// Create a new signature collector.
     fn new(strings: &'a StringPool, include_near: bool, include_near_token_hashes: bool) -> Self {
         Self {
             strings,
-            visitor_options: ast::NodeVisitorOptions::default(),
+            visitor_options: dir::NodeVisitorOptions::default(),
             exact_signature: SignatureHasher::new(),
             exact_token_hashes: Vec::new(),
             near_signature: include_near.then(SignatureHasher::new),
@@ -1150,7 +1147,7 @@ impl<'a> AstSignatureCollector<'a> {
     }
 
     /// Push identifier string id.
-    fn push_identifier_id(&mut self, key: &'static str, id: ast::StringId) {
+    fn push_identifier_id(&mut self, key: &'static str, id: dir::StringId) {
         let text = self.strings.get(id);
         let exact_hash = stable_hash_bytes(text.as_bytes());
         let near_hash = stable_hash_bytes(b"$id");
@@ -1158,7 +1155,7 @@ impl<'a> AstSignatureCollector<'a> {
     }
 
     /// Push literal string id.
-    fn push_literal_id(&mut self, key: &'static str, id: ast::StringId, placeholder: &'static str) {
+    fn push_literal_id(&mut self, key: &'static str, id: dir::StringId, placeholder: &'static str) {
         let text = self.strings.get(id);
         let exact_hash = stable_hash_bytes(text.as_bytes());
         let near_hash = stable_hash_bytes(placeholder.as_bytes());
@@ -1166,16 +1163,16 @@ impl<'a> AstSignatureCollector<'a> {
     }
 
     /// Push a name token.
-    fn push_name(&mut self, key: &'static str, name: ast::Name) {
+    fn push_name(&mut self, key: &'static str, name: dir::Name) {
         match name {
-            ast::Name::Identifier(id) => self.push_identifier_id(key, id),
-            ast::Name::String(id) => self.push_literal_id(key, id, "$str"),
-            ast::Name::Number(id) => self.push_literal_id(key, id, "$num"),
+            dir::Name::Identifier(id) => self.push_identifier_id(key, id),
+            dir::Name::String(id) => self.push_literal_id(key, id, "$str"),
+            dir::Name::Number(id) => self.push_literal_id(key, id, "$num"),
         }
     }
 
     /// Push declaration name and export metadata.
-    fn push_declaration_name(&mut self, name: Option<ast::Name>) {
+    fn push_declaration_name(&mut self, name: Option<dir::Name>) {
         if let Some(name) = name {
             self.push_name("declaration_name", name);
         } else {
@@ -1184,24 +1181,24 @@ impl<'a> AstSignatureCollector<'a> {
     }
 
     /// Push key metadata.
-    fn push_key(&mut self, key: ast::Key) {
+    fn push_key(&mut self, key: dir::Key) {
         match key {
-            ast::Key::Name(name) => {
+            dir::Key::Name(name) => {
                 self.push_same("key_kind", "name");
                 self.push_name("key_name", name);
             }
-            ast::Key::Private(name) => {
+            dir::Key::Private(name) => {
                 self.push_same("key_kind", "private");
                 self.push_identifier_id("key_name", name);
             }
-            ast::Key::Expression(_) => {
+            dir::Key::Expression(_) => {
                 self.push_same("key_kind", "expr");
             }
         }
     }
 
     /// Push function signature metadata.
-    fn push_function_signature(&mut self, signature: &ast::FunctionSignature) {
+    fn push_function_signature(&mut self, signature: &dir::FunctionSignature) {
         self.push_debug("function_is_abstract", signature.is_abstract);
         self.push_debug("function_is_override", signature.is_override);
         self.push_debug("function_asynchrony", signature.asynchrony);
@@ -1211,31 +1208,31 @@ impl<'a> AstSignatureCollector<'a> {
     }
 
     /// Push scalar literal metadata.
-    fn push_scalar_literal(&mut self, literal: &ast::ScalarLiteral) {
+    fn push_scalar_literal(&mut self, literal: &dir::ScalarLiteral) {
         self.push_debug("scalar_kind", std::mem::discriminant(literal));
         match literal {
-            ast::ScalarLiteral::Null => {
+            dir::ScalarLiteral::Null => {
                 self.push_same("scalar_value", "null");
             }
-            ast::ScalarLiteral::Boolean(value) => {
+            dir::ScalarLiteral::Boolean(value) => {
                 self.push_literal_hashed("scalar_value", stable_hash_bool(*value), "$bool");
             }
-            ast::ScalarLiteral::Integer(value) => {
+            dir::ScalarLiteral::Integer(value) => {
                 self.push_literal_hashed("scalar_value", stable_hash_i64(*value), "$num");
             }
-            ast::ScalarLiteral::Bigint(value) => {
+            dir::ScalarLiteral::Bigint(value) => {
                 self.push_literal_hashed("scalar_value", stable_hash_i64(*value), "$num");
             }
-            ast::ScalarLiteral::Float(value) => {
+            dir::ScalarLiteral::Float(value) => {
                 self.push_literal_hashed("scalar_value", stable_hash_f64(*value), "$num");
             }
-            ast::ScalarLiteral::Character(value) => {
+            dir::ScalarLiteral::Character(value) => {
                 self.push_literal_hashed("scalar_value", stable_hash_char(*value), "$char");
             }
-            ast::ScalarLiteral::String(value) => {
+            dir::ScalarLiteral::String(value) => {
                 self.push_literal_id("scalar_value", *value, "$str");
             }
-            ast::ScalarLiteral::RegexString { content, flags } => {
+            dir::ScalarLiteral::RegexString { content, flags } => {
                 self.push_literal_id("scalar_regex_content", *content, "$regex");
                 if let Some(flags) = flags {
                     self.push_literal_id("scalar_regex_flags", *flags, "$flags");
@@ -1247,13 +1244,13 @@ impl<'a> AstSignatureCollector<'a> {
     }
 
     /// Push template literal metadata.
-    fn push_template_literal(&mut self, value: &ast::TemplateLiteral) {
+    fn push_template_literal(&mut self, value: &dir::TemplateLiteral) {
         self.push_debug("template_kind", std::mem::discriminant(value));
         match value {
-            ast::TemplateLiteral::String { string } => {
+            dir::TemplateLiteral::String { string } => {
                 self.push_literal_id("template_string", *string, "$str");
             }
-            ast::TemplateLiteral::InterpolatedString { strings, .. } => {
+            dir::TemplateLiteral::InterpolatedString { strings, .. } => {
                 self.push_length("template_parts", strings.len());
                 for string in strings {
                     self.push_literal_id("template_part", *string, "$str");
@@ -1263,7 +1260,7 @@ impl<'a> AstSignatureCollector<'a> {
     }
 
     /// Push path metadata.
-    fn push_path(&mut self, path: &ast::Path) {
+    fn push_path(&mut self, path: &dir::Path) {
         self.push_length("path_len", path.segments.len());
         for segment in &path.segments {
             self.push_identifier_id("path_segment", *segment);
@@ -1271,41 +1268,41 @@ impl<'a> AstSignatureCollector<'a> {
     }
 }
 
-impl ast::NodeVisitor for AstSignatureCollector<'_> {
-    fn options(&self) -> &ast::NodeVisitorOptions {
+impl dir::NodeVisitor for DuplicateSignatureCollector<'_> {
+    fn options(&self) -> &dir::NodeVisitorOptions {
         &self.visitor_options
     }
 
-    fn visit_any(&mut self, _tree: &ast::Tree, ty: ast::NodeType, _id: u32) {
+    fn visit_any(&mut self, _tree: &dir::Tree, ty: dir::NodeType, _id: u32) {
         self.push_debug("node_type", ty);
     }
 
     fn visit_block(
         &mut self,
-        tree: &ast::Tree,
-        id: ast::LocalNodeId<ast::Block>,
-        block: &ast::Block,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::Block>,
+        block: &dir::Block,
     ) {
         self.push_same("visit", "block");
-        ast::walk_block(self, tree, id, block);
+        dir::walk_block(self, tree, id, block);
     }
 
     fn visit_expression(
         &mut self,
-        tree: &ast::Tree,
-        id: ast::LocalNodeId<ast::Expression>,
-        expression: &ast::Expression,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::Expression>,
+        expression: &dir::Expression,
     ) {
         self.push_debug("expr_kind", std::mem::discriminant(expression));
         match expression {
-            ast::Expression::Labelled { label, .. } => {
+            dir::Expression::Label { label, .. } => {
                 self.push_identifier_id("expr_label", *label);
             }
-            ast::Expression::Import { space, target, .. } => {
+            dir::Expression::Import { space, target, .. } => {
                 self.push_debug("expr_import_space", *space);
                 self.push_literal_id("expr_import_target", *target, "$str");
             }
-            ast::Expression::Export { space, target, .. } => {
+            dir::Expression::Export { space, target, .. } => {
                 self.push_debug("expr_export_space", *space);
                 if let Some(target) = target {
                     self.push_literal_id("expr_export_target", *target, "$str");
@@ -1313,24 +1310,24 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
                     self.push_same("expr_export_target", "None");
                 }
             }
-            ast::Expression::Let {
+            dir::Expression::Let {
                 kind, mutability, ..
             } => {
                 self.push_debug("expr_let_kind", *kind);
                 self.push_debug("expr_let_mutability", *mutability);
             }
-            ast::Expression::Using { asynchrony, .. } => {
+            dir::Expression::Using { asynchrony, .. } => {
                 self.push_debug("expr_using_asynchrony", *asynchrony);
             }
-            ast::Expression::If {
+            dir::Expression::If {
                 form, condition, ..
             } => {
                 self.push_debug("expr_if_form", *form);
                 match condition {
-                    ast::IfCondition::Expression { .. } => {
+                    dir::IfCondition::Expression { .. } => {
                         self.push_same("expr_if_condition_kind", "expr");
                     }
-                    ast::IfCondition::Let {
+                    dir::IfCondition::Let {
                         kind, mutability, ..
                     } => {
                         self.push_same("expr_if_condition_kind", "let");
@@ -1339,10 +1336,10 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
                     }
                 }
             }
-            ast::Expression::While { form, .. } => {
+            dir::Expression::While { form, .. } => {
                 self.push_debug("expr_while_form", *form);
             }
-            ast::Expression::ForEach {
+            dir::Expression::ForEach {
                 asynchrony,
                 operator,
                 binding,
@@ -1351,20 +1348,20 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
                 self.push_debug("expr_foreach_asynchrony", *asynchrony);
                 self.push_debug("expr_foreach_operator", *operator);
                 match binding {
-                    ast::ForEachBinding::Pattern { keyword, .. } => {
+                    dir::ForEachBinding::Pattern { keyword, .. } => {
                         self.push_same("expr_foreach_binding", "pattern");
                         self.push_debug_optional("expr_foreach_keyword", *keyword);
                     }
-                    ast::ForEachBinding::Using { asynchrony, .. } => {
+                    dir::ForEachBinding::Using { asynchrony, .. } => {
                         self.push_same("expr_foreach_binding", "using");
                         self.push_debug("expr_foreach_using_asynchrony", *asynchrony);
                     }
                 }
             }
-            ast::Expression::Match { form, .. } => {
+            dir::Expression::Match { form, .. } => {
                 self.push_debug("expr_match_form", *form);
             }
-            ast::Expression::Break { label, value } => {
+            dir::Expression::Break { label, value } => {
                 if let Some(label) = label {
                     self.push_identifier_id("expr_break_label", *label);
                 } else {
@@ -1372,45 +1369,45 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
                 }
                 self.push_bool("expr_break_has_value", value.is_some());
             }
-            ast::Expression::Continue { label } => {
+            dir::Expression::Continue { label } => {
                 if let Some(label) = label {
                     self.push_identifier_id("expr_continue_label", *label);
                 } else {
                     self.push_same("expr_continue_label", "None");
                 }
             }
-            ast::Expression::Yield { cardinality, .. } => {
+            dir::Expression::Yield { cardinality, .. } => {
                 self.push_debug("expr_yield_cardinality", *cardinality);
             }
-            ast::Expression::Identifier { name } => {
+            dir::Expression::Identifier { name } => {
                 self.push_identifier_id("expr_identifier", *name);
             }
-            ast::Expression::QualifiedReference {
+            dir::Expression::QualifiedReference {
                 path,
                 generic_arguments,
             } => {
                 self.push_path(path);
                 self.push_bool("expr_path_generic_arguments", !generic_arguments.is_empty());
             }
-            ast::Expression::PrivateIdentifier { name } => {
+            dir::Expression::PrivateIdentifier { name } => {
                 self.push_identifier_id("expr_private_identifier", *name);
             }
-            ast::Expression::ScalarLiteral(literal) => {
+            dir::Expression::ScalarLiteral(literal) => {
                 self.push_scalar_literal(literal);
             }
-            ast::Expression::Type { .. } => {
+            dir::Expression::Type { .. } => {
                 self.push_same("expr_type", "type");
             }
-            ast::Expression::TemplateExpression { value } => {
+            dir::Expression::TemplateExpression { value } => {
                 self.push_template_literal(value);
             }
-            ast::Expression::TaggedTemplateExpression { value, .. } => {
+            dir::Expression::TaggedTemplateExpression { value, .. } => {
                 self.push_template_literal(value);
             }
-            ast::Expression::Unary { operator, .. } => {
+            dir::Expression::Unary { operator, .. } => {
                 self.push_debug("expr_unary_operator", *operator);
             }
-            ast::Expression::MoveOf {
+            dir::Expression::MoveOf {
                 mutability,
                 variance,
                 ..
@@ -1418,7 +1415,7 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
                 self.push_debug_optional("expr_value_of_mutability", *mutability);
                 self.push_debug_optional("expr_value_of_variance", *variance);
             }
-            ast::Expression::BorrowOf {
+            dir::Expression::BorrowOf {
                 mutability,
                 variance,
                 ..
@@ -1426,78 +1423,78 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
                 self.push_debug_optional("expr_reference_of_mutability", *mutability);
                 self.push_debug_optional("expr_reference_of_variance", *variance);
             }
-            ast::Expression::Member { name, .. } => {
+            dir::Expression::Member { name, .. } => {
                 if let Some(name) = *name {
                     self.push_identifier_id("expr_member_name", name);
                 } else {
                     self.push_same("expr_member_name", "None");
                 }
             }
-            ast::Expression::PrivateMember { name, .. } => {
+            dir::Expression::PrivateMember { name, .. } => {
                 if let Some(name) = *name {
                     self.push_identifier_id("expr_private_member_name", name);
                 } else {
                     self.push_same("expr_private_member_name", "None");
                 }
             }
-            ast::Expression::Index { position, .. } => {
+            dir::Expression::Index { position, .. } => {
                 self.push_debug("expr_index_position", *position);
             }
-            ast::Expression::Call { position, .. } => {
+            dir::Expression::Call { position, .. } => {
                 self.push_debug("expr_call_position", *position);
             }
-            ast::Expression::Maybe { position, .. } => {
+            dir::Expression::Maybe { position, .. } => {
                 self.push_debug("expr_maybe_position", *position);
             }
-            ast::Expression::Must { position, .. } => {
+            dir::Expression::Must { position, .. } => {
                 self.push_debug("expr_must_position", *position);
             }
-            ast::Expression::Binary { operator, .. } => {
+            dir::Expression::Binary { operator, .. } => {
                 self.push_debug("expr_binary_operator", *operator);
             }
-            ast::Expression::Assign { operator, .. } => {
+            dir::Expression::Assign { operator, .. } => {
                 self.push_debug("expr_assign_operator", *operator);
             }
             _ => {}
         }
 
-        ast::walk_expression(self, tree, id, expression);
+        dir::walk_expression(self, tree, id, expression);
     }
 
     fn visit_declaration(
         &mut self,
-        tree: &ast::Tree,
-        id: ast::LocalNodeId<ast::Declaration>,
-        declaration: &ast::Declaration,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::Declaration>,
+        declaration: &dir::Declaration,
     ) {
         self.push_debug("decl_kind", std::mem::discriminant(declaration));
         self.push_declaration_name(declaration.name());
         match declaration {
-            ast::Declaration::Type(declaration) => {
+            dir::Declaration::Type(declaration) => {
                 self.push_debug("decl_type_is_nominal", declaration.is_nominal);
                 self.push_debug_optional("decl_type_mutability", declaration.mutability);
             }
-            ast::Declaration::Function(declaration) => {
+            dir::Declaration::Function(declaration) => {
                 self.push_function_signature(&declaration.signature);
             }
             _ => {}
         }
 
-        ast::walk_declaration(self, tree, id, declaration);
+        dir::walk_declaration(self, tree, id, declaration);
     }
 
     fn visit_property(
         &mut self,
-        tree: &ast::Tree,
-        id: ast::LocalNodeId<ast::Property>,
-        property: &ast::Property,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::Property>,
+        property: &dir::Property,
     ) {
         self.push_debug("property_kind", std::mem::discriminant(property));
         match property {
-            ast::Property::Field { key, .. } => {
+            dir::Property::Field { key, .. } => {
                 self.push_key(*key);
             }
-            ast::Property::Method { key, signature, .. } => {
+            dir::Property::Method { key, signature, .. } => {
                 if let Some(key) = key {
                     self.push_key(*key);
                 } else {
@@ -1505,31 +1502,31 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
                 }
                 self.push_function_signature(signature);
             }
-            ast::Property::Spread { .. } => {}
-            ast::Property::Error => {}
+            dir::Property::Spread { .. } => {}
+            dir::Property::Error => {}
         }
 
-        ast::walk_property(self, tree, id, property);
+        dir::walk_property(self, tree, id, property);
     }
 
     fn visit_member(
         &mut self,
-        tree: &ast::Tree,
-        id: ast::LocalNodeId<ast::Member>,
-        member: &ast::Member,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::Member>,
+        member: &dir::Member,
     ) {
         self.push_debug("member_kind", std::mem::discriminant(member));
         match member {
-            ast::Member::AssociatedType { name, .. } => {
+            dir::Member::AssociatedType { name, .. } => {
                 self.push_identifier_id("member_name", *name);
             }
-            ast::Member::AssociatedConst { name, .. } => {
+            dir::Member::AssociatedConst { name, .. } => {
                 self.push_identifier_id("member_name", *name);
             }
-            ast::Member::Field { key, .. } => {
+            dir::Member::Field { key, .. } => {
                 self.push_key(*key);
             }
-            ast::Member::Method { key, signature, .. } => {
+            dir::Member::Method { key, signature, .. } => {
                 if let Some(key) = key {
                     self.push_key(*key);
                 } else {
@@ -1537,31 +1534,31 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
                 }
                 self.push_function_signature(signature);
             }
-            ast::Member::StaticBlock { .. } | ast::Member::ComptimeBlock { .. } => {}
-            ast::Member::Error => {}
+            dir::Member::StaticBlock { .. } | dir::Member::ComptimeBlock { .. } => {}
+            dir::Member::Error => {}
         }
 
-        ast::walk_member(self, tree, id, member);
+        dir::walk_member(self, tree, id, member);
     }
 
     fn visit_where_clause(
         &mut self,
-        tree: &ast::Tree,
-        id: ast::LocalNodeId<ast::WhereClause>,
-        where_clause: &ast::WhereClause,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::WhereClause>,
+        where_clause: &dir::WhereClause,
     ) {
         self.push_identifier_id("where_left", where_clause.left);
-        ast::walk_where_clause(self, tree, id, where_clause);
+        dir::walk_where_clause(self, tree, id, where_clause);
     }
 
     fn visit_dependency_item(
         &mut self,
-        tree: &ast::Tree,
-        id: ast::LocalNodeId<ast::DependencyItem>,
-        dependency_item: &ast::DependencyItem,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::DependencyItem>,
+        dependency_item: &dir::DependencyItem,
     ) {
         match dependency_item {
-            ast::DependencyItem::Item {
+            dir::DependencyItem::Item {
                 binding,
                 space,
                 name,
@@ -1581,7 +1578,7 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
                     self.push_same("dependency_alias", "None");
                 }
             }
-            ast::DependencyItem::Error => {
+            dir::DependencyItem::Error => {
                 self.push_same("dependency_mode", "Error");
                 self.push_same("dependency_kind", "Error");
                 self.push_same("dependency_name", "Error");
@@ -1589,18 +1586,18 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
             }
         }
 
-        ast::walk_dependency_item(self, tree, id, dependency_item);
+        dir::walk_dependency_item(self, tree, id, dependency_item);
     }
 
     fn visit_parameter(
         &mut self,
-        tree: &ast::Tree,
-        id: ast::LocalNodeId<ast::Parameter>,
-        parameter: &ast::Parameter,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::Parameter>,
+        parameter: &dir::Parameter,
     ) {
         self.push_debug("parameter_kind", std::mem::discriminant(parameter));
         match parameter {
-            ast::Parameter::Named {
+            dir::Parameter::Named {
                 name,
                 visibility,
                 is_readonly,
@@ -1612,7 +1609,7 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
                 self.push_bool("parameter_is_readonly", *is_readonly);
                 self.push_bool("parameter_is_optional", *is_optional);
             }
-            ast::Parameter::VariadicNamed {
+            dir::Parameter::VariadicNamed {
                 name,
                 visibility,
                 is_readonly,
@@ -1623,106 +1620,106 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
                 self.push_bool("parameter_is_readonly", *is_readonly);
                 self.push_bool("parameter_is_optional", false);
             }
-            ast::Parameter::Pattern { is_optional, .. } => {
+            dir::Parameter::Pattern { is_optional, .. } => {
                 self.push_bool("parameter_is_optional", *is_optional);
             }
-            ast::Parameter::VariadicPattern { .. } => {}
-            ast::Parameter::Error => {}
+            dir::Parameter::VariadicPattern { .. } => {}
+            dir::Parameter::Error => {}
         }
 
-        ast::walk_parameter(self, tree, id, parameter);
+        dir::walk_parameter(self, tree, id, parameter);
     }
 
     fn visit_argument(
         &mut self,
-        tree: &ast::Tree,
-        id: ast::LocalNodeId<ast::Argument>,
-        argument: &ast::Argument,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::Argument>,
+        argument: &dir::Argument,
     ) {
         self.push_debug("argument_kind", std::mem::discriminant(argument));
         match argument {
-            ast::Argument::Named { name, .. } => {
+            dir::Argument::Named { name, .. } => {
                 self.push_name("argument_name", *name);
             }
-            ast::Argument::Labeled { label, .. } => {
+            dir::Argument::Labeled { label, .. } => {
                 self.push_identifier_id("argument_label", *label);
             }
-            ast::Argument::Positional { .. } => {}
-            ast::Argument::Spread { label, .. } => {
+            dir::Argument::Positional { .. } => {}
+            dir::Argument::Spread { label, .. } => {
                 if let Some(label) = label {
                     self.push_identifier_id("argument_label", *label);
                 } else {
                     self.push_same("argument_label", "None");
                 }
             }
-            ast::Argument::Error => {}
+            dir::Argument::Error => {}
         }
 
-        ast::walk_argument(self, tree, id, argument);
+        dir::walk_argument(self, tree, id, argument);
     }
 
     fn visit_pattern(
         &mut self,
-        tree: &ast::Tree,
-        id: ast::LocalNodeId<ast::Pattern>,
-        pattern: &ast::Pattern,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::Pattern>,
+        pattern: &dir::Pattern,
     ) {
         self.push_debug("pattern_kind", std::mem::discriminant(pattern));
         match pattern {
-            ast::Pattern::Binding { name, .. } => {
+            dir::Pattern::Binding { name, .. } => {
                 self.push_identifier_id("pattern_binding_name", *name);
             }
-            ast::Pattern::TaggedTuple { .. } | ast::Pattern::TaggedObject { .. } => {
+            dir::Pattern::TaggedTuple { .. } | dir::Pattern::TaggedObject { .. } => {
                 self.push_same("pattern_tagged", "true");
             }
             _ => {}
         }
 
-        ast::walk_pattern(self, tree, id, pattern);
+        dir::walk_pattern(self, tree, id, pattern);
     }
 
     fn visit_pattern_field(
         &mut self,
-        tree: &ast::Tree,
-        id: ast::LocalNodeId<ast::PatternField>,
-        pattern_field: &ast::PatternField,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::PatternField>,
+        pattern_field: &dir::PatternField,
     ) {
         self.push_debug("pattern_field_kind", std::mem::discriminant(pattern_field));
         match pattern_field {
-            ast::PatternField::Named { name, .. } => {
+            dir::PatternField::Named { name, .. } => {
                 self.push_name("pattern_field_name", *name);
             }
-            ast::PatternField::Computed { .. } => {}
-            ast::PatternField::Positional { .. } | ast::PatternField::Elision => {}
-            ast::PatternField::Spread { .. } => {}
+            dir::PatternField::Computed { .. } => {}
+            dir::PatternField::Positional { .. } | dir::PatternField::Elision => {}
+            dir::PatternField::Spread { .. } => {}
         }
 
-        ast::walk_pattern_field(self, tree, id, pattern_field);
+        dir::walk_pattern_field(self, tree, id, pattern_field);
     }
 
     fn visit_match_case(
         &mut self,
-        tree: &ast::Tree,
-        id: ast::LocalNodeId<ast::MatchCase>,
-        match_case: &ast::MatchCase,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::MatchCase>,
+        match_case: &dir::MatchCase,
     ) {
         self.push_debug("match_case_kind", std::mem::discriminant(match_case));
 
         let selector = match match_case {
-            ast::MatchCase::Expression { selector, .. } => selector,
-            ast::MatchCase::Block { selector, .. } => selector,
+            dir::MatchCase::Expression { selector, .. } => selector,
+            dir::MatchCase::Block { selector, .. } => selector,
         };
         match selector {
-            ast::MatchSelector::Pattern { guard, .. } => {
+            dir::MatchSelector::Pattern { guard, .. } => {
                 self.push_same("match_selector_kind", "pattern");
                 self.push_bool("match_selector_guard", guard.is_some());
             }
-            ast::MatchSelector::Default => {
+            dir::MatchSelector::Default => {
                 self.push_same("match_selector_kind", "default");
             }
         }
 
-        ast::walk_match_case(self, tree, id, match_case);
+        dir::walk_match_case(self, tree, id, match_case);
     }
 }
 
@@ -1829,7 +1826,7 @@ function {function_name}(input: int32): int32 {{
         test.import_module(second_module);
         test.compile();
 
-        test.lint_workspace_ast()
+        test.lint_workspace_dir()
     }
 
     /// Report exact duplicate blocks across modules.
@@ -1866,7 +1863,7 @@ function sharedAgain(x: int32): int32 {
         test.import_module(second_module);
         test.compile();
 
-        let result = test.lint_workspace_ast();
+        let result = test.lint_workspace_dir();
         test.result(result)
             .assert_lint("no-duplicate-code")
             .assert_lint_count("no-duplicate-code", 2);
@@ -1906,7 +1903,7 @@ function second(value: int32): int32 {
         test.import_module(second_module);
         test.compile();
 
-        let result = test.lint_workspace_ast();
+        let result = test.lint_workspace_dir();
         test.result(result)
             .assert_lint("no-duplicate-code")
             .assert_lint_count("no-duplicate-code", 2);
@@ -1946,7 +1943,7 @@ function second(x: int32): int32 {
         test.import_module(second_module);
         test.compile();
 
-        let result = test.lint_workspace_ast();
+        let result = test.lint_workspace_dir();
         test.result(result)
             .assert_lint("no-duplicate-code")
             .assert_lint_count("no-duplicate-code", 2);
@@ -1987,7 +1984,7 @@ function second(input: int32): int32 {
         test.import_module(second_module);
         test.compile();
 
-        let result = test.lint_workspace_ast();
+        let result = test.lint_workspace_dir();
         test.result(result).assert_no_lint("no-duplicate-code");
     }
 
@@ -2026,7 +2023,7 @@ function second(input: int32): int32 {
         test.import_module(second_module);
         test.compile();
 
-        let result = test.lint_workspace_ast();
+        let result = test.lint_workspace_dir();
         test.result(result)
             .assert_lint("no-duplicate-code")
             .assert_lint_count("no-duplicate-code", 2);
@@ -2067,7 +2064,7 @@ function second(value: int32): int32 {
         test.import_module(second_module);
         test.compile();
 
-        let result = test.lint_workspace_ast();
+        let result = test.lint_workspace_dir();
         test.result(result).assert_no_lint("no-duplicate-code");
     }
 
@@ -2103,7 +2100,7 @@ function sharedAgain(x: int32): int32 {
         test.import_module(second_module);
         test.compile();
 
-        let result = test.lint_workspace_ast();
+        let result = test.lint_workspace_dir();
         test.result(result).assert_no_lint("no-duplicate-code");
     }
 
@@ -2152,7 +2149,7 @@ function three(x: int32): int32 {
         test.import_module(third_module);
         test.compile();
 
-        let result = test.lint_workspace_ast();
+        let result = test.lint_workspace_dir();
         test.result(result)
             .assert_lint("no-duplicate-code")
             .assert_lint_count("no-duplicate-code", 3);
@@ -2192,7 +2189,7 @@ function second(x: int32): int32 {
         test.import_module(second_module);
         test.compile();
 
-        let result = test.lint_workspace_ast();
+        let result = test.lint_workspace_dir();
         test.result(result)
             .assert_lint("no-duplicate-code")
             .assert_lint_count("no-duplicate-code", 2);
@@ -2233,7 +2230,7 @@ function second(x: int32): int32 {
         test.import_module(second_module);
         test.compile();
 
-        let result = test.lint_workspace_ast();
+        let result = test.lint_workspace_dir();
         test.result(result)
             .assert_lint("no-duplicate-code")
             .assert_lint_count("no-duplicate-code", 2);
@@ -2273,7 +2270,7 @@ function second(x: int32): int32 {
         test.import_module(second_module);
         test.compile();
 
-        let result = test.lint_workspace_ast();
+        let result = test.lint_workspace_dir();
         test.result(result).assert_no_lint("no-duplicate-code");
     }
 
@@ -2312,7 +2309,7 @@ function second(x: int32): int32 {
         test.import_module(second_module);
         test.compile();
 
-        let result = test.lint_workspace_ast();
+        let result = test.lint_workspace_dir();
         test.result(result)
             .assert_lint("no-duplicate-code")
             .assert_lint_count("no-duplicate-code", 2);
@@ -2347,7 +2344,7 @@ function second(x: int32): int32 {
         test.import_module(module);
         test.compile();
 
-        let result = test.lint_workspace_ast();
+        let result = test.lint_workspace_dir();
         let lint_result = test.result(result);
         lint_result
             .assert_lint("no-duplicate-code")
@@ -2400,7 +2397,7 @@ function second(x: int32): int32 {
         test.import_module(second_module);
         test.compile();
 
-        let result = test.lint_workspace_ast();
+        let result = test.lint_workspace_dir();
         let lint_result = test.result(result);
         lint_result.assert_lint_count("no-duplicate-code", 2);
 

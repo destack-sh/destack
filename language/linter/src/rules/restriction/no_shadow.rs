@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{fresh_name_in_symbol_scope, rename_local_symbol_fix};
-use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow value bindings that shadow outer value bindings.
@@ -29,7 +29,7 @@ impl LintRule for NoShadow {
         NoShadow::meta()
     }
 
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // scan all local symbols in deterministic order
@@ -69,7 +69,7 @@ impl LintRule for NoShadow {
             .note(shadowed_note);
 
             // offer a local rename fix when symbol references are directly editable
-            if ctx.include_fixes
+            if ctx.compute_fixes
                 && let Some(replacement_name) =
                     fresh_name_in_symbol_scope(ctx, symbol_id, &symbol_name)
                 && let Some(fix) = rename_local_symbol_fix(
@@ -126,20 +126,19 @@ fn symbols_shadow_each_other(current: &dir::Symbol, ancestor: &dir::Symbol) -> b
 
 /// Find the nearest shadowed ancestor symbol for one symbol.
 fn find_shadowed_ancestor<'a>(
-    ctx: &'a LintModuleDirContext<'_>,
+    ctx: &'a LintModuleContext<'_>,
     symbol: &dir::Symbol,
 ) -> Option<&'a dir::Symbol> {
     let key = symbol.key?;
-    let (scope_id, _) = symbol.scope;
-    let scope = ctx.symbols.get_scope_by_id(scope_id);
+    let scope = ctx.symbols.get_scope(symbol.scope);
     let mut parent = scope.parent;
 
     // walk the lexical parent chain and stop at the first shadowed ancestor
-    while let Some((parent_scope_id, parent_mark)) = parent {
-        let parent_scope = ctx.symbols.get_scope_by_id(parent_scope_id);
-        let shadowed_symbol_id = ctx
-            .symbols
-            .find_symbol_up_to(parent_scope, key, parent_mark);
+    while let Some(parent_cursor) = parent {
+        let parent_scope = ctx.symbols.get_scope_by_id(parent_cursor.id);
+        let shadowed_symbol_id =
+            ctx.symbols
+                .find_symbol_up_to(parent_scope, key, parent_cursor.mark);
         if let Some(shadowed_symbol_id) = shadowed_symbol_id {
             let shadowed_symbol = ctx.symbols.get_symbol(shadowed_symbol_id);
             if symbols_shadow_each_other(symbol, shadowed_symbol) {
@@ -154,14 +153,14 @@ fn find_shadowed_ancestor<'a>(
 }
 
 /// Return the user-facing symbol name text.
-fn symbol_name_text(ctx: &LintModuleDirContext<'_>, symbol: &dir::Symbol) -> Option<String> {
+fn symbol_name_text(ctx: &LintModuleContext<'_>, symbol: &dir::Symbol) -> Option<String> {
     let name = symbol.name()?;
     Some(ctx.strings.get(name).to_string())
 }
 
 /// Resolve severity and span for the symbol declaration.
 fn symbol_declaration_severity_and_span(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     meta: &LintMeta,
     symbol: &dir::Symbol,
 ) -> Option<(LintSeverity, destack_source::Span)> {

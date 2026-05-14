@@ -1,11 +1,11 @@
 use crate::LintMeta;
-use destack_ast::{self as ast, AssignOperator, BinaryOperator, Expression};
+use destack_dir::{self as dir, AssignOperator, BinaryOperator, Expression};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
     assign_pattern_expression, expression_is_optional_chain_target, expression_trailing_bang_span,
 };
-use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow confusing non null assertions.
@@ -17,7 +17,7 @@ declare_lint! {
         id = "no-confusing-non-null-assertion",
         code = "LU005",
         category = Suspicious,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Always,
@@ -33,12 +33,12 @@ impl LintRule for NoConfusingNonNullAssertion {
         NoConfusingNonNullAssertion::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // inspect all expressions for operator and optional chain confusion
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expression = ctx.tree.get(node_id);
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let expression = ctx.dir.get(node_id);
 
             // handle optional chain confusion
             if let Expression::Must { left, .. } = expression {
@@ -52,7 +52,7 @@ impl LintRule for NoConfusingNonNullAssertion {
             }
 
             // handle operator confusion cases
-            let Some(operator_case) = confusing_operator_case(ctx.tree, expression) else {
+            let Some(operator_case) = confusing_operator_case(ctx.dir.tree(), expression) else {
                 continue;
             };
             if !has_confusing_non_null_left_operand(ctx, operator_case.left_expression_id) {
@@ -92,7 +92,7 @@ impl LintRule for NoConfusingNonNullAssertion {
                 NO_CONFUSING_NON_NULL_ASSERTION.category,
                 severity,
                 message,
-                ctx.tree.get_span(node_id),
+                ctx.dir.get_span(node_id),
             )
             .label(label);
 
@@ -115,7 +115,7 @@ impl LintRule for NoConfusingNonNullAssertion {
 #[derive(Clone, Copy)]
 struct ConfusingOperatorCase {
     /// The left operand expression id.
-    left_expression_id: ast::LocalNodeId<Expression>,
+    left_expression_id: dir::LocalNodeId<Expression>,
     /// The matched operator kind.
     kind: ConfusingOperatorKind,
 }
@@ -137,7 +137,7 @@ enum ConfusingOperatorKind {
 
 /// Return one confusing operator case when one expression matches.
 fn confusing_operator_case(
-    tree: &ast::Tree,
+    tree: &dir::Tree,
     expression: &Expression,
 ) -> Option<ConfusingOperatorCase> {
     match expression {
@@ -175,10 +175,10 @@ fn confusing_operator_case(
 
 /// Return true when one left operand ends with a non null assertion and is not parenthesized.
 fn has_confusing_non_null_left_operand(
-    ctx: &LintAstContext<'_>,
-    left_expression_id: ast::LocalNodeId<Expression>,
+    ctx: &LintModuleContext<'_>,
+    left_expression_id: dir::LocalNodeId<Expression>,
 ) -> bool {
-    let left_expression = ctx.tree.get(left_expression_id);
+    let left_expression = ctx.dir.get(left_expression_id);
     if matches!(left_expression, Expression::Parenthesized { .. }) {
         return false;
     }
@@ -188,8 +188,8 @@ fn has_confusing_non_null_left_operand(
 
 /// Build one fix for one confusing operator case.
 fn confusing_operator_fix(
-    ctx: &LintAstContext<'_>,
-    left_expression_id: ast::LocalNodeId<Expression>,
+    ctx: &LintModuleContext<'_>,
+    left_expression_id: dir::LocalNodeId<Expression>,
     kind: ConfusingOperatorKind,
 ) -> Option<LintFix> {
     // remove the trailing `!` for assignment targets to keep the expression valid
@@ -202,7 +202,7 @@ fn confusing_operator_fix(
     }
 
     // parenthesize the full left operand for binary operators
-    let left_span = ctx.tree.get_span(left_expression_id);
+    let left_span = ctx.dir.get_span(left_expression_id);
     let left_text = ctx.get_span_text(left_span);
     if left_text.trim().is_empty() {
         return None;
@@ -218,9 +218,9 @@ fn confusing_operator_fix(
 
 /// Report one optional chain confusion diagnostic for `foo!?.bar` forms.
 fn report_optional_chain_confusion_before(
-    ctx: &mut LintAstContext<'_>,
+    ctx: &mut LintModuleContext<'_>,
     meta: &'static LintMeta,
-    expression_id: ast::LocalNodeId<Expression>,
+    expression_id: dir::LocalNodeId<Expression>,
 ) {
     // resolve effective lint severity
     let severity = ctx.get_effective_severity(meta, expression_id);
@@ -235,7 +235,7 @@ fn report_optional_chain_confusion_before(
         NO_CONFUSING_NON_NULL_ASSERTION.category,
         severity,
         "confusing non-null assertion before optional chain",
-        ctx.tree.get_span(expression_id),
+        ctx.dir.get_span(expression_id),
     )
     .label("`!` before `?.` is confusing");
 
@@ -251,10 +251,10 @@ fn report_optional_chain_confusion_before(
 
 /// Report one optional chain confusion diagnostic for `foo?.bar!` forms.
 fn report_optional_chain_confusion_after(
-    ctx: &mut LintAstContext<'_>,
+    ctx: &mut LintModuleContext<'_>,
     meta: &'static LintMeta,
-    must_expression_id: ast::LocalNodeId<Expression>,
-    optional_chain_id: ast::LocalNodeId<Expression>,
+    must_expression_id: dir::LocalNodeId<Expression>,
+    optional_chain_id: dir::LocalNodeId<Expression>,
 ) {
     // resolve effective lint severity
     let severity = ctx.get_effective_severity(meta, must_expression_id);
@@ -269,7 +269,7 @@ fn report_optional_chain_confusion_after(
         NO_CONFUSING_NON_NULL_ASSERTION.category,
         severity,
         "confusing non-null assertion after optional chain",
-        ctx.tree.get_span(must_expression_id),
+        ctx.dir.get_span(must_expression_id),
     )
     .label("`!` after `?.` chain is confusing");
 
@@ -289,10 +289,10 @@ fn report_optional_chain_confusion_after(
 
 /// Build one safe fix by parenthesizing the non null expression before optional chaining.
 fn parenthesize_non_null_before_optional_chain_fix(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<Expression>,
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<Expression>,
 ) -> Option<LintFix> {
-    let expression_span = ctx.tree.get_span(expression_id);
+    let expression_span = ctx.dir.get_span(expression_id);
     let expression_text = ctx.get_span_text(expression_span);
     if expression_text.trim().is_empty() {
         return None;
@@ -308,18 +308,18 @@ fn parenthesize_non_null_before_optional_chain_fix(
 
 /// Build one safe fix by parenthesizing the optional chain before non null assertion.
 fn parenthesize_optional_chain_before_non_null_fix(
-    ctx: &LintAstContext<'_>,
-    must_expression_id: ast::LocalNodeId<Expression>,
-    optional_chain_id: ast::LocalNodeId<Expression>,
+    ctx: &LintModuleContext<'_>,
+    must_expression_id: dir::LocalNodeId<Expression>,
+    optional_chain_id: dir::LocalNodeId<Expression>,
 ) -> Option<LintFix> {
-    let optional_span = ctx.tree.get_span(optional_chain_id);
+    let optional_span = ctx.dir.get_span(optional_chain_id);
     let optional_text = ctx.get_span_text(optional_span);
     if optional_text.trim().is_empty() {
         return None;
     }
 
     let replacement = format!("({optional_text})!");
-    let must_span = ctx.tree.get_span(must_expression_id);
+    let must_span = ctx.dir.get_span(must_expression_id);
     let edits = ctx
         .edit_builder()
         .replace(must_span, replacement)
@@ -328,18 +328,18 @@ fn parenthesize_optional_chain_before_non_null_fix(
 }
 
 fn is_optional_chain_target(
-    ctx: &LintAstContext<'_>,
-    node_id: ast::LocalNodeId<Expression>,
+    ctx: &LintModuleContext<'_>,
+    node_id: dir::LocalNodeId<Expression>,
 ) -> bool {
-    expression_is_optional_chain_target(ctx.tree, ctx.parents, node_id)
+    expression_is_optional_chain_target(ctx.dir.tree(), node_id)
 }
 
 /// Return true when one expression is or contains optional chaining.
 fn is_optional_chain(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<Expression>,
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<Expression>,
 ) -> bool {
-    let expression = ctx.tree.get(expression_id);
+    let expression = ctx.dir.get(expression_id);
     match expression {
         Expression::Maybe { .. } => true,
         Expression::Member { left, .. } => is_optional_chain(ctx, *left),
@@ -357,7 +357,7 @@ mod tests {
     #[test]
     fn test_detects_non_null_before_optional_chain() {
         let test = TestProgram::for_rule_without_prelude(NoConfusingNonNullAssertion);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_confusing_non_null_assertion/test_detects_non_null_before_optional_chain.ds",
             r#"
 const x = foo!.?bar
@@ -370,7 +370,7 @@ const x = foo!.?bar
     #[test]
     fn test_detects_non_null_after_optional_chain() {
         let test = TestProgram::for_rule_without_prelude(NoConfusingNonNullAssertion);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_confusing_non_null_assertion/test_detects_non_null_after_optional_chain.ds",
             r#"
 const x = foo?.bar!
@@ -383,7 +383,7 @@ const x = foo?.bar!
     #[test]
     fn test_detects_non_null_before_equality() {
         let test = TestProgram::for_rule_without_prelude(NoConfusingNonNullAssertion);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_confusing_non_null_assertion/test_detects_non_null_before_equality.ds",
             r#"
 if (a! == b) {
@@ -398,7 +398,7 @@ if (a! == b) {
     #[test]
     fn test_detects_non_null_before_assignment() {
         let test = TestProgram::for_rule_without_prelude(NoConfusingNonNullAssertion);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_confusing_non_null_assertion/test_detects_non_null_before_assignment.ds",
             r#"
 a! = b
@@ -411,7 +411,7 @@ a! = b
     #[test]
     fn test_detects_non_null_before_in_operator() {
         let test = TestProgram::for_rule_without_prelude(NoConfusingNonNullAssertion);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_confusing_non_null_assertion/test_detects_non_null_before_in_operator.ds",
             r#"
 if (a! in b) {
@@ -426,7 +426,7 @@ if (a! in b) {
     #[test]
     fn test_detects_non_null_before_is_operator() {
         let test = TestProgram::for_rule_without_prelude(NoConfusingNonNullAssertion);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_confusing_non_null_assertion/test_detects_non_null_before_is_operator.ds",
             r#"
 if (value! is Foo) {
@@ -441,7 +441,7 @@ if (value! is Foo) {
     #[test]
     fn test_allows_parenthesized_left_operand() {
         let test = TestProgram::for_rule_without_prelude(NoConfusingNonNullAssertion);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_confusing_non_null_assertion/test_allows_parenthesized_left_operand.ds",
             r#"
 if ((a + b!) == c) {
@@ -456,7 +456,7 @@ if ((a + b!) == c) {
     #[test]
     fn test_fix_wraps_left_operand_for_equality() {
         let test = TestProgram::for_rule_without_prelude(NoConfusingNonNullAssertion);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_confusing_non_null_assertion/test_fix_wraps_left_operand_for_equality.ds",
             r#"
 if (a + b! == c) {
@@ -478,7 +478,7 @@ if ((a + b!) == c) {
     #[test]
     fn test_fix_wraps_left_operand_for_is_operator() {
         let test = TestProgram::for_rule_without_prelude(NoConfusingNonNullAssertion);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_confusing_non_null_assertion/test_fix_wraps_left_operand_for_is_operator.ds",
             r#"
 if (value! is Foo) {
@@ -500,7 +500,7 @@ if ((value!) is Foo) {
     #[test]
     fn test_fix_removes_non_null_for_assignment() {
         let test = TestProgram::for_rule_without_prelude(NoConfusingNonNullAssertion);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_confusing_non_null_assertion/test_fix_removes_non_null_for_assignment.ds",
             r#"
 a! = b

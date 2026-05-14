@@ -1,5 +1,5 @@
 use crate::LintMeta;
-use destack_ast::{self as ast, NodeVisitor, NodeVisitorOptions, walk_expression};
+use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
@@ -7,7 +7,7 @@ use crate::rules::common::{
     expression_is_direct_statement, expression_is_unqualified_path_name,
     expression_subtree_mentions_identifier_name,
 };
-use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow reassigning exceptions in catch clauses.
@@ -19,7 +19,7 @@ declare_lint! {
         id = "no-ex-assign",
         code = "LU016",
         category = Suspicious,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -35,15 +35,15 @@ impl LintRule for NoExAssign {
         NoExAssign::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let ast::Expression::Try {
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let dir::Expression::Try {
                 catch_pattern,
                 catch_expression,
                 ..
-            } = ctx.tree.get(node_id)
+            } = ctx.dir.get(node_id)
             else {
                 continue;
             };
@@ -76,42 +76,42 @@ impl LintRule for NoExAssign {
 
 /// Extract the binding name from a simple catch pattern.
 fn get_pattern_binding_name(
-    ctx: &LintAstContext<'_>,
-    pattern_id: ast::LocalNodeId<ast::Pattern>,
-) -> Option<ast::StringId> {
-    let pattern = ctx.tree.get(pattern_id);
+    ctx: &LintModuleContext<'_>,
+    pattern_id: dir::LocalNodeId<dir::Pattern>,
+) -> Option<dir::StringId> {
+    let pattern = ctx.dir.get(pattern_id);
     match pattern {
-        ast::Pattern::Binding { name, .. } => Some(*name),
+        dir::Pattern::Binding { name, .. } => Some(*name),
         _ => None,
     }
 }
 
 /// Collect assignment expression ids that target one catch binding.
 fn collect_assignment_references_in_expression(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
-    catch_name: ast::StringId,
-) -> Vec<ast::LocalNodeId<ast::Expression>> {
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+    catch_name: dir::StringId,
+) -> Vec<dir::LocalNodeId<dir::Expression>> {
     let mut visitor = CatchAssignmentCollector::new(catch_name);
-    let expression = ctx.tree.get(expression_id);
-    visitor.visit_expression(ctx.tree, expression_id, expression);
+    let expression = ctx.dir.get(expression_id);
+    visitor.visit_expression(ctx.dir.tree(), expression_id, expression);
     visitor.assignment_ids
 }
 
 /// Report an exception reassignment diagnostic.
 fn report_ex_assign(
-    ctx: &mut LintAstContext<'_>,
+    ctx: &mut LintModuleContext<'_>,
     meta: &'static LintMeta,
-    catch_expression_id: ast::LocalNodeId<ast::Expression>,
-    expr_id: ast::LocalNodeId<ast::Expression>,
-    catch_name: ast::StringId,
+    catch_expression_id: dir::LocalNodeId<dir::Expression>,
+    expr_id: dir::LocalNodeId<dir::Expression>,
+    catch_name: dir::StringId,
 ) {
     let severity = ctx.get_effective_severity(meta, expr_id);
     if !severity.is_enabled() {
         return;
     }
 
-    let span = ctx.tree.get_span(expr_id);
+    let span = ctx.dir.get_span(expr_id);
     let mut diagnostic = LintReport::new(
         NO_EX_ASSIGN.id,
         NO_EX_ASSIGN.code,
@@ -132,30 +132,27 @@ fn report_ex_assign(
 
 /// Build one unsafe fix by replacing reassignment with a local alias binding.
 fn no_ex_assign_fix(
-    ctx: &LintAstContext<'_>,
-    catch_expression_id: ast::LocalNodeId<ast::Expression>,
-    assignment_expression_id: ast::LocalNodeId<ast::Expression>,
-    catch_name: ast::StringId,
+    ctx: &LintModuleContext<'_>,
+    catch_expression_id: dir::LocalNodeId<dir::Expression>,
+    assignment_expression_id: dir::LocalNodeId<dir::Expression>,
+    catch_name: dir::StringId,
 ) -> Option<LintFix> {
     // keep standalone reassignment statements only
     let is_direct_statement =
-        expression_is_direct_statement(ctx.tree, ctx.parents, assignment_expression_id);
-    let is_direct_block_expression = expression_is_direct_block_leading_expression(
-        ctx.tree,
-        ctx.parents,
-        assignment_expression_id,
-    );
+        expression_is_direct_statement(ctx.dir.tree(), assignment_expression_id);
+    let is_direct_block_expression =
+        expression_is_direct_block_leading_expression(ctx.dir.tree(), assignment_expression_id);
     if !is_direct_statement && !is_direct_block_expression {
         return None;
     }
 
-    let assignment_expression = ctx.tree.get(assignment_expression_id);
-    let ast::Expression::Assign { right, .. } = assignment_expression else {
+    let assignment_expression = ctx.dir.get(assignment_expression_id);
+    let dir::Expression::Assign { right, .. } = assignment_expression else {
         return None;
     };
 
     let right_text = ctx
-        .get_span_text(ctx.tree.get_span(*right))
+        .get_span_text(ctx.dir.get_span(*right))
         .trim()
         .to_string();
     if right_text.is_empty() {
@@ -165,7 +162,7 @@ fn no_ex_assign_fix(
         ctx,
         catch_expression_id,
         catch_name,
-        ctx.tree.get_span(assignment_expression_id).end,
+        ctx.dir.get_span(assignment_expression_id).end,
     ) {
         return None;
     }
@@ -175,10 +172,7 @@ fn no_ex_assign_fix(
     let replacement_text = format!("let {replacement_name} = {right_text}");
     let edits = ctx
         .edit_builder()
-        .replace(
-            ctx.tree.get_span(assignment_expression_id),
-            replacement_text,
-        )
+        .replace(ctx.dir.get_span(assignment_expression_id), replacement_text)
         .into_edits();
     Some(
         LintFix::r#unsafe("Introduce a new local binding instead of reassigning catch variable")
@@ -188,18 +182,18 @@ fn no_ex_assign_fix(
 
 /// Return true when the catch binding name is referenced after a source offset.
 fn catch_name_is_used_after(
-    ctx: &LintAstContext<'_>,
-    catch_expression_id: ast::LocalNodeId<ast::Expression>,
-    catch_name: ast::StringId,
+    ctx: &LintModuleContext<'_>,
+    catch_expression_id: dir::LocalNodeId<dir::Expression>,
+    catch_name: dir::StringId,
     offset: u32,
 ) -> bool {
-    let catch_span = ctx.tree.get_span(catch_expression_id);
-    for expression_id in ctx.tree.iter_nodes::<ast::Expression>() {
-        if !expression_is_unqualified_path_name(ctx.tree, expression_id, catch_name) {
+    let catch_span = ctx.dir.get_span(catch_expression_id);
+    for expression_id in ctx.dir.iter_nodes::<dir::Expression>() {
+        if !expression_is_unqualified_path_name(ctx.dir.tree(), expression_id, catch_name) {
             continue;
         }
 
-        let span = ctx.tree.get_span(expression_id);
+        let span = ctx.dir.get_span(expression_id);
         if span.start >= offset && span.start >= catch_span.start && span.end <= catch_span.end {
             return true;
         }
@@ -210,13 +204,17 @@ fn catch_name_is_used_after(
 
 /// Build a catch-local unique alias for one catch variable.
 fn unique_catch_alias_name(
-    ctx: &LintAstContext<'_>,
-    catch_expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    catch_expression_id: dir::LocalNodeId<dir::Expression>,
     catch_name: &str,
 ) -> String {
     let base_name = format!("{catch_name}Reassigned");
     let base_name_id = ctx.string_id(&base_name);
-    if !expression_subtree_mentions_identifier_name(ctx.tree, catch_expression_id, base_name_id) {
+    if !expression_subtree_mentions_identifier_name(
+        ctx.dir.tree(),
+        catch_expression_id,
+        base_name_id,
+    ) {
         return base_name;
     }
 
@@ -224,8 +222,11 @@ fn unique_catch_alias_name(
     loop {
         let candidate = format!("{base_name}{suffix}");
         let candidate_id = ctx.string_id(&candidate);
-        if !expression_subtree_mentions_identifier_name(ctx.tree, catch_expression_id, candidate_id)
-        {
+        if !expression_subtree_mentions_identifier_name(
+            ctx.dir.tree(),
+            catch_expression_id,
+            candidate_id,
+        ) {
             return candidate;
         }
         suffix += 1;
@@ -238,16 +239,16 @@ fn unique_catch_alias_name(
 /// Collect assignment expressions that reassign one catch binding.
 struct CatchAssignmentCollector {
     /// The target catch variable name.
-    catch_name: ast::StringId,
+    catch_name: dir::StringId,
     /// Assignment expressions that target the catch name.
-    assignment_ids: Vec<ast::LocalNodeId<ast::Expression>>,
+    assignment_ids: Vec<dir::LocalNodeId<dir::Expression>>,
     /// Visitor options.
     options: NodeVisitorOptions,
 }
 
 impl CatchAssignmentCollector {
     /// Build one collector for a catch binding.
-    fn new(catch_name: ast::StringId) -> Self {
+    fn new(catch_name: dir::StringId) -> Self {
         Self {
             catch_name,
             assignment_ids: Vec::new(),
@@ -263,25 +264,25 @@ impl NodeVisitor for CatchAssignmentCollector {
 
     fn visit_expression(
         &mut self,
-        tree: &ast::Tree,
-        id: ast::LocalNodeId<ast::Expression>,
-        expression: &ast::Expression,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::Expression>,
+        expression: &dir::Expression,
     ) {
         // capture direct assignments to the catch binding
-        if let ast::Expression::Assign { left, .. } = expression
+        if let dir::Expression::Assign { left, .. } = expression
             && assign_pattern_is_unqualified_path_name(tree, *left, self.catch_name)
         {
             self.assignment_ids.push(id);
         }
 
         // capture unary updates to the catch binding
-        if let ast::Expression::Unary { operator, right } = expression
+        if let dir::Expression::Unary { operator, right } = expression
             && matches!(
                 operator,
-                ast::UnaryOperator::PreIncrement
-                    | ast::UnaryOperator::PostIncrement
-                    | ast::UnaryOperator::PreDecrement
-                    | ast::UnaryOperator::PostDecrement
+                dir::UnaryOperator::PreIncrement
+                    | dir::UnaryOperator::PostIncrement
+                    | dir::UnaryOperator::PreDecrement
+                    | dir::UnaryOperator::PostDecrement
             )
             && expression_is_unqualified_path_name(tree, *right, self.catch_name)
         {
@@ -300,7 +301,7 @@ mod tests {
     #[test]
     fn test_flags_exception_reassignment() {
         let test = TestProgram::for_rule_without_prelude(NoExAssign);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_ex_assign/test_flags_exception_reassignment.ds",
             r#"
 try {
@@ -316,7 +317,7 @@ try {
     #[test]
     fn test_flags_exception_reassignment_with_new() {
         let test = TestProgram::for_rule_without_prelude(NoExAssign);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_ex_assign/test_flags_exception_reassignment_with_new.ds",
             r#"
 try {
@@ -332,7 +333,7 @@ try {
     #[test]
     fn test_flags_exception_post_increment() {
         let test = TestProgram::for_rule_without_prelude(NoExAssign);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_ex_assign/test_flags_exception_post_increment.ds",
             r#"
 try {
@@ -348,7 +349,7 @@ try {
     #[test]
     fn test_flags_exception_pre_decrement() {
         let test = TestProgram::for_rule_without_prelude(NoExAssign);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_ex_assign/test_flags_exception_pre_decrement.ds",
             r#"
 try {
@@ -364,7 +365,7 @@ try {
     #[test]
     fn test_allows_catch_without_reassignment() {
         let test = TestProgram::for_rule_without_prelude(NoExAssign);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_ex_assign/test_allows_catch_without_reassignment.ds",
             r#"
 try {
@@ -381,7 +382,7 @@ try {
     #[test]
     fn test_allows_different_variable_assignment() {
         let test = TestProgram::for_rule_without_prelude(NoExAssign);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_ex_assign/test_allows_different_variable_assignment.ds",
             r#"
 try {
@@ -398,7 +399,7 @@ try {
     #[test]
     fn test_fix_rewrites_exception_reassignment_to_local_alias() {
         let test = TestProgram::for_rule_without_prelude(NoExAssign);
-        let diagnostics = test.lint_ast(
+        let diagnostics = test.lint(
             "no_ex_assign/test_fix_rewrites_exception_reassignment_to_local_alias.ds",
             r#"
 try {
@@ -429,7 +430,7 @@ try {
     #[test]
     fn test_no_fix_when_reassignment_is_used_as_expression() {
         let test = TestProgram::for_rule_without_prelude(NoExAssign);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_ex_assign/test_no_fix_when_reassignment_is_used_as_expression.ds",
             r#"
 try {
@@ -447,7 +448,7 @@ try {
     #[test]
     fn test_detects_reassignment_nested_in_loop_inside_catch() {
         let test = TestProgram::for_rule_without_prelude(NoExAssign);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_ex_assign/test_detects_reassignment_nested_in_loop_inside_catch.ds",
             r#"
 try {
@@ -466,7 +467,7 @@ try {
     #[test]
     fn test_no_fix_when_catch_binding_is_used_later() {
         let test = TestProgram::for_rule_without_prelude(NoExAssign);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_ex_assign/test_no_fix_when_catch_binding_is_used_later.ds",
             r#"
 try {
@@ -485,7 +486,7 @@ try {
     #[test]
     fn test_fix_uses_suffix_when_alias_name_exists() {
         let test = TestProgram::for_rule_without_prelude(NoExAssign);
-        let diagnostics = test.lint_ast(
+        let diagnostics = test.lint(
             "no_ex_assign/test_fix_uses_suffix_when_alias_name_exists.ds",
             r#"
 try {
@@ -513,7 +514,7 @@ try {
     #[test]
     fn test_fix_keeps_base_alias_name_when_outer_name_is_unrelated() {
         let test = TestProgram::for_rule_without_prelude(NoExAssign);
-        let diagnostics = test.lint_ast(
+        let diagnostics = test.lint(
             "no_ex_assign/test_fix_keeps_base_alias_name_when_outer_name_is_unrelated.ds",
             r#"
 let eReassigned = previousError();

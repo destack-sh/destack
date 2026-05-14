@@ -1,9 +1,9 @@
 use crate::LintMeta;
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{BlockDuplicateTracker, ExpressionDuplicateTracker, span_has_comment};
-use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Warn on match arms with identical bodies.
@@ -15,7 +15,7 @@ declare_lint! {
         id = "no-duplicate-match-arms",
         code = "LU011",
         category = Suspicious,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -31,11 +31,11 @@ impl LintRule for NoDuplicateMatchArms {
         NoDuplicateMatchArms::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let ast::Expression::Match { cases, .. } = ctx.tree.get(node_id) else {
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let dir::Expression::Match { cases, .. } = ctx.dir.get(node_id) else {
                 continue;
             };
 
@@ -44,15 +44,15 @@ impl LintRule for NoDuplicateMatchArms {
             let mut seen_block_bodies = BlockDuplicateTracker::new();
 
             for case_id in cases {
-                let case = ctx.tree.get(*case_id);
+                let case = ctx.dir.get(*case_id);
 
                 // extract body expression from match case
                 let is_duplicate = match case {
-                    ast::MatchCase::Expression { body, .. } => seen_expression_bodies
+                    dir::MatchCase::Expression { body, .. } => seen_expression_bodies
                         .find_duplicate_or_insert(ctx, *body)
                         .is_some(),
-                    ast::MatchCase::Block { body, .. } => {
-                        let block = ctx.tree.get(*body);
+                    dir::MatchCase::Block { body, .. } => {
+                        let block = ctx.dir.get(*body);
                         if block.len() == 1 {
                             seen_expression_bodies
                                 .find_duplicate_or_insert(ctx, block.first_expression().unwrap())
@@ -78,7 +78,7 @@ impl LintRule for NoDuplicateMatchArms {
                         NO_DUPLICATE_MATCH_ARMS.category,
                         severity,
                         "duplicate match arm body",
-                        ctx.tree.get_span(*case_id),
+                        ctx.dir.get_span(*case_id),
                     )
                     .label("this arm has the same body as a previous arm");
 
@@ -98,11 +98,11 @@ impl LintRule for NoDuplicateMatchArms {
 
 /// Build an unsafe fix that removes one duplicate match arm.
 fn duplicate_match_arm_fix(
-    ctx: &LintAstContext<'_>,
-    case_id: ast::LocalNodeId<ast::MatchCase>,
+    ctx: &LintModuleContext<'_>,
+    case_id: dir::LocalNodeId<dir::MatchCase>,
 ) -> Option<LintFix> {
-    let case_span = ctx.tree.get_span(case_id);
-    if span_has_comment(ctx.tree, case_span) {
+    let case_span = ctx.dir.get_span(case_id);
+    if span_has_comment(ctx.dir.tree(), case_span) {
         return None;
     }
 
@@ -118,7 +118,7 @@ mod tests {
     #[test]
     fn test_detects_duplicate_match_arms() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateMatchArms);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_duplicate_match_arms/test_detects_duplicate_match_arms.ds",
             r#"
 match (x) {
@@ -133,7 +133,7 @@ match (x) {
     #[test]
     fn test_allows_different_bodies() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateMatchArms);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_duplicate_match_arms/test_allows_different_bodies.ds",
             r#"
 match (x) {
@@ -149,7 +149,7 @@ match (x) {
     #[test]
     fn test_detects_duplicate_literals() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateMatchArms);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_duplicate_match_arms/test_detects_duplicate_literals.ds",
             r#"
 match (x) {
@@ -164,7 +164,7 @@ match (x) {
     #[test]
     fn test_detects_duplicate_block_bodies() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateMatchArms);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_duplicate_match_arms/test_detects_duplicate_block_bodies.ds",
             r#"
 match (x) {
@@ -185,7 +185,7 @@ match (x) {
     #[test]
     fn test_fix_removes_duplicate_match_arm() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateMatchArms);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_duplicate_match_arms/test_fix_removes_duplicate_match_arm.ds",
             r#"
 match (x) {
@@ -208,7 +208,7 @@ match (x) {
     #[test]
     fn test_mutation_fix_removes_duplicate_block_match_arm() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateMatchArms);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_duplicate_match_arms/test_mutation_fix_removes_duplicate_block_match_arm.ds",
             r#"
 match (x) {
@@ -240,7 +240,7 @@ match (x) {
     #[test]
     fn test_reports_without_fix_when_duplicate_arm_contains_comment() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateMatchArms);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_duplicate_match_arms/test_reports_without_fix_when_duplicate_arm_contains_comment.ds",
             r#"
 match (x) {

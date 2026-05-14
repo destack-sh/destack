@@ -1,7 +1,7 @@
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintMeta, LintReport, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow TypeScript enums.
@@ -13,7 +13,7 @@ declare_lint! {
         id = "no-enum",
         code = "LR011",
         category = Restriction,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = No,
@@ -30,13 +30,13 @@ impl LintRule for NoEnum {
         NoEnum::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // inspect candidate declarations
-        for node_id in ctx.tree.iter_nodes::<ast::Declaration>() {
-            let declaration = ctx.tree.get(node_id);
-            if matches!(declaration, ast::Declaration::Enum { .. }) {
+        for node_id in ctx.dir.iter_nodes::<dir::Declaration>() {
+            let declaration = ctx.dir.get(node_id);
+            if matches!(declaration, dir::Declaration::Enum { .. }) {
                 let severity = ctx.get_effective_severity(meta, node_id);
                 if !severity.is_enabled() {
                     continue;
@@ -48,7 +48,7 @@ impl LintRule for NoEnum {
                         NO_ENUM.category,
                         severity,
                         "enum declaration",
-                        ctx.tree.get_span(node_id),
+                        ctx.dir.get_span(node_id),
                     )
                     .label("use union types or const objects instead"),
                 );
@@ -65,7 +65,7 @@ mod tests {
     #[test]
     fn test_detects_enum() {
         let test = TestProgram::for_rule_without_prelude(NoEnum);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_enum/test_detects_enum.ts",
             r#"
 enum Color {
@@ -81,7 +81,7 @@ enum Color {
     #[test]
     fn test_detects_const_enum() {
         let test = TestProgram::for_rule_without_prelude(NoEnum);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_enum/test_detects_const_enum.ts",
             r#"
 const enum Direction {
@@ -96,7 +96,7 @@ const enum Direction {
     #[test]
     fn test_allows_union_type() {
         let test = TestProgram::for_rule_without_prelude(NoEnum);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_enum/test_allows_union_type.ts",
             r#"type Color = "red" | "green" | "blue";"#,
         );
@@ -106,7 +106,7 @@ const enum Direction {
     #[test]
     fn test_allows_const_object() {
         let test = TestProgram::for_rule_without_prelude(NoEnum);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_enum/test_allows_const_object.ts",
             r#"
 const Color = {
@@ -122,7 +122,7 @@ const Color = {
     #[test]
     fn test_skips_declaration_file_by_default() {
         let test = TestProgram::for_rule_without_prelude(NoEnum);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_enum/test_skips_declaration_file_by_default.d.ts",
             r#"
 declare enum Color {
@@ -139,7 +139,7 @@ declare enum Color {
         let test = TestProgram::for_rule_without_prelude(NoEnum).with_options(|options| {
             options.include_declaration_files = true;
         });
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_enum/test_includes_declaration_file_when_enabled.d.ts",
             r#"
 declare enum Color {
@@ -154,7 +154,7 @@ declare enum Color {
     #[test]
     fn test_detects_ambient_enum_in_source_file() {
         let test = TestProgram::for_rule_without_prelude(NoEnum);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_enum/test_detects_ambient_enum_in_source_file.ts",
             r#"
 declare enum Color {

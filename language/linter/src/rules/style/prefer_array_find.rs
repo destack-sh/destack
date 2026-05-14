@@ -7,7 +7,7 @@ use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::{
     const_i64, expression_method_call, is_array_type, member_receiver_text,
 };
-use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Suggest `.find()` over `.filter()[0]`.
@@ -49,7 +49,7 @@ impl LintRule for PreferArrayFind {
         PreferArrayFind::meta()
     }
 
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let mut visitor = PreferArrayFindVisitor::new(ctx, meta);
         visitor.run();
@@ -59,7 +59,7 @@ impl LintRule for PreferArrayFind {
 /// Visitor that flags filter()[0] patterns.
 struct PreferArrayFindVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The array symbol for this module profile.
@@ -78,7 +78,7 @@ struct PreferArrayFindVisitor<'a, 'b> {
 
 impl<'a, 'b> PreferArrayFindVisitor<'a, 'b> {
     /// Build a visitor for prefer-array-find checks.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         let array_symbol = ctx.language_item(LanguageItem::Array);
         let filter_name = ctx.string_id("filter");
         let shift_name = ctx.string_id("shift");
@@ -100,7 +100,7 @@ impl<'a, 'b> PreferArrayFindVisitor<'a, 'b> {
     /// Walk the DIR tree roots.
     fn run(&mut self) {
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         for root_id in roots {
             let expression = tree.get(root_id);
@@ -110,13 +110,13 @@ impl<'a, 'b> PreferArrayFindVisitor<'a, 'b> {
 
     /// Check if this is a filter()[0] index access pattern.
     fn check_index(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) {
-        let expression = self.ctx.tree.get(expression_id);
-        let dir::Expression::Index { left, right, .. } = expression else {
+        let expression = self.ctx.dir.get(expression_id);
+        let dir::Expression::Index { left, index, .. } = expression else {
             return;
         };
 
         // index expression must be present
-        let Some(right) = right else {
+        let Some(right) = index else {
             return;
         };
 
@@ -139,7 +139,7 @@ impl<'a, 'b> PreferArrayFindVisitor<'a, 'b> {
 
     /// Check if this is a filter().shift() or filter().at(0) pattern.
     fn check_call(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) {
-        let Some(call) = expression_method_call(self.ctx.tree, expression_id) else {
+        let Some(call) = expression_method_call(self.ctx.dir.tree(), expression_id) else {
             return;
         };
 
@@ -197,8 +197,9 @@ impl<'a, 'b> PreferArrayFindVisitor<'a, 'b> {
         filter_call_id: dir::LocalNodeId<dir::Expression>,
         method_name: &str,
     ) -> Option<String> {
-        let filter_call_expression = self.ctx.tree.get(filter_call_id);
+        let filter_call_expression = self.ctx.dir.get(filter_call_id);
         let dir::Expression::Call {
+            position: _,
             left,
             generic_arguments,
             arguments,
@@ -214,13 +215,13 @@ impl<'a, 'b> PreferArrayFindVisitor<'a, 'b> {
         }
 
         for argument_id in arguments {
-            let argument = self.ctx.tree.get(*argument_id);
+            let argument = self.ctx.dir.get(*argument_id);
             if !matches!(argument, dir::Argument::Positional { .. }) {
                 return None;
             }
         }
 
-        let member_expression = self.ctx.tree.get(*left);
+        let member_expression = self.ctx.dir.get(*left);
         let dir::Expression::Member {
             left: receiver_expression_id,
             name,
@@ -257,7 +258,7 @@ impl<'a, 'b> PreferArrayFindVisitor<'a, 'b> {
 
     /// Return the literal numeric index for one `.at(index)` call.
     fn at_index_value(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) -> Option<i64> {
-        let expression = self.ctx.tree.get(expression_id);
+        let expression = self.ctx.dir.get(expression_id);
         let dir::Expression::Call { arguments, .. } = expression else {
             return None;
         };
@@ -268,8 +269,8 @@ impl<'a, 'b> PreferArrayFindVisitor<'a, 'b> {
         }
 
         // argument must be literal 0
-        let argument = self.ctx.tree.get(arguments[0]);
-        let expression_id = argument.value();
+        let argument = self.ctx.dir.get(arguments[0]);
+        let expression_id = argument.value()?;
         let const_value = self.ctx.const_value(expression_id)?;
         let index_value = const_i64(&const_value)?;
 
@@ -278,7 +279,7 @@ impl<'a, 'b> PreferArrayFindVisitor<'a, 'b> {
 
     /// Check if expression is a filter() call on an array.
     fn is_array_filter_call(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        let Some(call) = expression_method_call(self.ctx.tree, expression_id) else {
+        let Some(call) = expression_method_call(self.ctx.dir.tree(), expression_id) else {
             return false;
         };
 
@@ -288,7 +289,7 @@ impl<'a, 'b> PreferArrayFindVisitor<'a, 'b> {
         }
 
         // check filter has at least one argument
-        let expression = self.ctx.tree.get(expression_id);
+        let expression = self.ctx.dir.get(expression_id);
         let dir::Expression::Call { arguments, .. } = expression else {
             return false;
         };
@@ -348,7 +349,7 @@ impl<'a, 'b> PreferArrayFindVisitor<'a, 'b> {
             span,
         )
         .label(format!("use array.{preferred_method}(...) instead"));
-        if self.ctx.include_fixes
+        if self.ctx.compute_fixes
             && let Some(replacement) = self.build_find_replacement(filter_call_id, preferred_method)
         {
             let edits = self

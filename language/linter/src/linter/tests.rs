@@ -6,14 +6,14 @@ use std::sync::{Arc, LazyLock, Once};
 
 use destack_artifact::{
     ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactOutcome, ArtifactPayload,
-    ArtifactProvider, ArtifactVersion, Ast, DiagnosticAnchor, DiagnosticContext, DiagnosticDisplay,
-    DiagnosticError, EmitFormat, Host, MemoryCacheStore, Platform, ProfileFlags, ProfileKey,
-    Runtime, ToDiagnostic,
+    ArtifactProvider, ArtifactVersion, DiagnosticAnchor, DiagnosticContext, DiagnosticDisplay,
+    DiagnosticError, DirParsed, EmitFormat, Host, MemoryCacheStore, Platform, ProfileFlags,
+    ProfileKey, Runtime, ToDiagnostic,
 };
-use destack_ast as ast;
-use destack_ast::NodeParentIndex;
 use destack_compiler::Compiler;
 use destack_core::StringPool;
+use destack_dir as dir;
+use destack_dir::NodeParentIndex;
 use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
 use destack_parser::{Parser, ParserOptions};
@@ -122,7 +122,7 @@ impl TestProviderContext {
 /// Seed one loader-owned artifact for linter compiler tests.
 fn provide_loader_artifact(compiler: &Compiler, context: &TestProviderContext) -> ArtifactPayload {
     match context.artifact_key() {
-        ArtifactKey::Ast { module } => provide_ast(compiler, module, context),
+        ArtifactKey::DirParsed { module } => provide_parsed_dir(compiler, module, context),
         ArtifactKey::Data { module } => {
             panic!("data artifact reached linter test loader provider for {module:?}")
         }
@@ -132,8 +132,8 @@ fn provide_loader_artifact(compiler: &Compiler, context: &TestProviderContext) -
     }
 }
 
-/// Seed one AST artifact from source.
-fn provide_ast(
+/// Seed one parsed DIR artifact from source.
+fn provide_parsed_dir(
     compiler: &Compiler,
     module_id: ModuleId,
     context: &TestProviderContext,
@@ -144,12 +144,12 @@ fn provide_ast(
         .unwrap_or_else(|error| panic!("failed to load source module: {error}"))
         .unwrap_or_else(|| panic!("missing source module for {module_id:?}"));
     let file = source_file(compiler, context.revision(), module.file_id, context);
-    let ast = match module.loader {
+    let dir = match module.loader {
         Loader::Destack | Loader::TypeScript | Loader::JavaScript => {
             if matches!(file.ty, FileType::Html | FileType::Css) {
-                anchor_ast(module_id, file.as_ref())
+                anchor_parsed_dir(module_id, file.as_ref())
             } else {
-                parse_code_ast(compiler, file.clone(), module.package_id, context)
+                parse_code_dir(compiler, file.clone(), module.package_id, context)
             }
         }
         Loader::Json
@@ -158,10 +158,10 @@ fn provide_ast(
         | Loader::Text
         | Loader::Base64
         | Loader::Binary
-        | Loader::File => anchor_ast(module_id, file.as_ref()),
+        | Loader::File => anchor_parsed_dir(module_id, file.as_ref()),
     };
 
-    ArtifactPayload::Ast(ast)
+    ArtifactPayload::DirParsed(dir)
 }
 
 /// Load one source file and record its exact content dependency.
@@ -187,21 +187,21 @@ fn source_file(
     file
 }
 
-/// Build one stable anchor AST for non-code source.
-fn anchor_ast(_module_id: ModuleId, file: &File) -> Ast {
-    let mut tree = ast::Tree::new();
+/// Build one stable parsed DIR for non-code source.
+fn anchor_parsed_dir(_module_id: ModuleId, file: &File) -> DirParsed {
+    let mut tree = dir::Tree::new(_module_id);
     let anchor_expression = insert_anchor_expression(&mut tree, file.id);
 
-    Ast::from_tree(tree, Vec::new(), Vec::new(), Vec::new(), anchor_expression)
+    DirParsed::from_tree(tree, Vec::new(), Vec::new(), Vec::new(), anchor_expression)
 }
 
-/// Parse one code module into AST.
-fn parse_code_ast(
+/// Parse one code module into DIR.
+fn parse_code_dir(
     compiler: &Compiler,
     file: Arc<File>,
     package_id: PackageId,
     context: &TestProviderContext,
-) -> Ast {
+) -> DirParsed {
     let language_type = language_type_for_code_file(compiler, file.ty, package_id, context);
     let mut parser = Parser::lex_file_with_options(
         file.clone(),
@@ -215,7 +215,7 @@ fn parse_code_ast(
     let (tokens, side_tokens) = parser.take_tokens();
     let anchor_expression = insert_anchor_expression(&mut parser.tree, file.id);
 
-    Ast::from_tree(
+    DirParsed::from_tree(
         parser.tree,
         expressions,
         tokens,
@@ -224,15 +224,15 @@ fn parse_code_ast(
     )
 }
 
-/// Insert one synthetic AST anchor expression at the start of a file.
+/// Insert one synthetic anchor expression at the start of a file.
 fn insert_anchor_expression(
-    tree: &mut ast::Tree,
+    tree: &mut dir::Tree,
     file_id: FileId,
-) -> ast::LocalNodeId<ast::Expression> {
+) -> dir::LocalNodeId<dir::Expression> {
     let span = destack_source::Span::empty(file_id);
 
     tree.insert(
-        ast::Expression::ScalarLiteral(ast::ScalarLiteral::Boolean(false)),
+        dir::Expression::ScalarLiteral(dir::ScalarLiteral::Boolean(false)),
         span,
     )
 }
@@ -836,7 +836,7 @@ impl TestProgram {
     pub(crate) fn import_module(&self, module: ModuleId) {
         self.pending_artifact_keys
             .lock()
-            .push(ArtifactKey::DirDeclared {
+            .push(ArtifactKey::DirBound {
                 module,
                 profile: self.profile_id(),
             });
@@ -981,8 +981,8 @@ impl TestProgram {
         // current workspace artifacts
         for module_id in module_ids {
             let artifact_keys = [
-                ArtifactKey::ast(module_id),
-                ArtifactKey::dir_declared(module_id, profile_id),
+                ArtifactKey::dir_parsed(module_id),
+                ArtifactKey::dir_bound(module_id, profile_id),
                 ArtifactKey::dir_imported(module_id, profile_id),
                 ArtifactKey::dir_expanded(module_id, profile_id),
                 ArtifactKey::dir_exported(module_id, profile_id),
@@ -1047,12 +1047,14 @@ impl TestProgram {
         self.lint_module(module, LintLevel::Dir)
     }
 
-    /// Add module, import only (parse), and lint at AST level.
-    pub(crate) fn lint_ast(&self, path: &str, content: &str) -> Vec<LintReport> {
+    /// Add module, compile through analysis, and lint.
+    pub(crate) fn lint(&self, path: &str, content: &str) -> Vec<LintReport> {
         let module = self.add_module(path, content);
         self.import_module(module);
+        self.enqueue_profile_resolution_once();
+        self.analyze_module(module);
         self.compile();
-        self.lint_module(module, LintLevel::Ast)
+        self.lint_module(module, LintLevel::Dir)
     }
 
     /// Add modules, analyze them at DIR level, and return module ids by path.
@@ -1119,45 +1121,6 @@ impl TestProgram {
         self.lint_workspace_dir()
     }
 
-    /// Lint the full workspace with workspace-scope rules.
-    pub(crate) fn lint_workspace_ast(&self) -> Vec<LintReport> {
-        let revision = self.current_revision();
-        self.runner
-            .lint_workspace_ast(self.repository.clone(), revision, &self.linter_options)
-    }
-
-    /// Lint the full workspace with AST workspace-scope rules and collect performance data.
-    pub(crate) fn lint_workspace_ast_profiled(&self) -> LintRunReport {
-        let revision = self.current_revision();
-        self.runner.lint_workspace_ast_profiled(
-            self.repository.clone(),
-            revision,
-            &self.linter_options,
-        )
-    }
-
-    /// Lint the active package with package-scope AST rules.
-    pub(crate) fn lint_package_ast(&self) -> Vec<LintReport> {
-        let revision = self.current_revision();
-        self.runner.lint_package_ast(
-            self.repository.clone(),
-            revision,
-            self.package_id(),
-            &self.linter_options,
-        )
-    }
-
-    /// Lint the active package with package-scope AST rules and collect performance data.
-    pub(crate) fn lint_package_ast_profiled(&self) -> LintRunReport {
-        let revision = self.current_revision();
-        self.runner.lint_package_ast_profiled(
-            self.repository.clone(),
-            revision,
-            self.package_id(),
-            &self.linter_options,
-        )
-    }
-
     /// Lint the active package with package-scope DIR rules.
     pub(crate) fn lint_package_dir(&self) -> Vec<LintReport> {
         let revision = self.current_revision();
@@ -1206,38 +1169,18 @@ impl TestProgram {
 
     /// Lint the active workspace and package scope rules.
     pub(crate) fn lint_workspace(&self) -> Vec<LintReport> {
-        let mut diagnostics = self.lint_workspace_ast();
-        diagnostics.extend(self.lint_package_ast());
-        diagnostics.extend(self.lint_workspace_dir());
+        let mut diagnostics = self.lint_workspace_dir();
         diagnostics.extend(self.lint_package_dir());
         diagnostics
     }
 
     /// Lint the active workspace and package scope rules and collect performance data.
     pub(crate) fn lint_workspace_profiled(&self) -> LintRunReport {
-        let mut ast_report = self.lint_workspace_ast_profiled();
-        let package_ast_report = self.lint_package_ast_profiled();
-        let workspace_dir_report = self.lint_workspace_dir_profiled();
+        let mut report = self.lint_workspace_dir_profiled();
         let package_dir_report = self.lint_package_dir_profiled();
-        ast_report
-            .performance
-            .merge(&package_ast_report.performance);
-        ast_report
-            .diagnostics
-            .extend(package_ast_report.diagnostics);
-        ast_report
-            .performance
-            .merge(&workspace_dir_report.performance);
-        ast_report
-            .diagnostics
-            .extend(workspace_dir_report.diagnostics);
-        ast_report
-            .performance
-            .merge(&package_dir_report.performance);
-        ast_report
-            .diagnostics
-            .extend(package_dir_report.diagnostics);
-        ast_report
+        report.performance.merge(&package_dir_report.performance);
+        report.diagnostics.extend(package_dir_report.diagnostics);
+        report
     }
 
     /// Check no compiler diagnostics at or above the given severity.

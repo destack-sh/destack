@@ -5,7 +5,7 @@ use crate::rules::common::{
     collect_callable_parameter_value_binding_symbols, expression_assignment_target,
     expression_is_standalone_statement, expression_target_symbol, fresh_name_in_expression_scope,
 };
-use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow reassigning function and method parameters.
@@ -32,13 +32,13 @@ impl LintRule for NoParameterReassignment {
         NoParameterReassignment::meta()
     }
 
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // collect all value space parameter symbols for callable bodies
         let parameter_symbols = collect_callable_parameter_value_binding_symbols(
             ctx.module_id(),
-            ctx.tree,
+            ctx.dir.tree(),
             ctx.symbols,
         );
 
@@ -48,9 +48,10 @@ impl LintRule for NoParameterReassignment {
         }
 
         // inspect assignment expressions and match direct reference targets
-        for (expression_id, expression) in ctx.tree.iter_nodes_of_type::<dir::Expression>() {
+        for (expression_id, expression) in ctx.dir.iter_nodes_of_type::<dir::Expression>() {
             // require an assignment-style target expression
-            let Some(assigned_expression_id) = expression_assignment_target(ctx.tree, expression)
+            let Some(assigned_expression_id) =
+                expression_assignment_target(ctx.dir.tree(), expression)
             else {
                 continue;
             };
@@ -86,7 +87,7 @@ impl LintRule for NoParameterReassignment {
             .label("do not reassign function parameters");
 
             // rewrite standalone assignments to local shadow declarations when redeclaration policy allows it
-            if ctx.include_fixes
+            if ctx.compute_fixes
                 && let Some(fix) =
                     no_parameter_reassignment_fix(ctx, expression_id, expression, target_symbol)
             {
@@ -101,7 +102,7 @@ impl LintRule for NoParameterReassignment {
 
 /// Build one unsafe fix by converting one parameter assignment into a local shadow declaration.
 fn no_parameter_reassignment_fix(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     assignment_expression_id: dir::LocalNodeId<dir::Expression>,
     assignment_expression: &dir::Expression,
     target_symbol: dir::GlobalSymbolId,
@@ -112,7 +113,7 @@ fn no_parameter_reassignment_fix(
     }
 
     // keep only standalone statement assignments
-    if !expression_is_standalone_statement(ctx.tree, assignment_expression_id) {
+    if !expression_is_standalone_statement(ctx.dir.tree(), assignment_expression_id) {
         return None;
     }
 
@@ -158,12 +159,12 @@ fn no_parameter_reassignment_fix(
 
 /// Return true when one parameter symbol is referenced after a source offset.
 fn parameter_is_used_after_span(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     parameter_symbol: dir::GlobalSymbolId,
     offset: u32,
 ) -> bool {
     // scan resolved expression targets for the same parameter symbol
-    for (expression_id, _) in ctx.tree.iter_nodes_of_type::<dir::Expression>() {
+    for (expression_id, _) in ctx.dir.iter_nodes_of_type::<dir::Expression>() {
         // keep only expressions targeting the same parameter symbol
         if ctx.expression_target_symbol(expression_id) != Some(parameter_symbol) {
             continue;

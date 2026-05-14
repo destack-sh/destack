@@ -1,11 +1,11 @@
 use crate::LintMeta;
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
     expression_is_else_if_branch, expression_is_equal, expression_unwrap_parenthesized_source_form,
 };
-use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow duplicate conditions in if-else-if chains.
@@ -16,7 +16,7 @@ declare_lint! {
         id = "no-duplicate-else-if",
         code = "LU010",
         category = Suspicious,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -32,14 +32,14 @@ impl LintRule for NoDuplicateElseIf {
         NoDuplicateElseIf::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // inspect each if condition against its parent else-if chain
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expr = ctx.tree.get(node_id);
-            let ast::Expression::If {
-                form: ast::IfForm::If,
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let expr = ctx.dir.get(node_id);
+            let dir::Expression::If {
+                form: dir::IfForm::If,
                 condition,
                 ..
             } = expr
@@ -48,7 +48,7 @@ impl LintRule for NoDuplicateElseIf {
             };
 
             // keep only expression-style conditions
-            let ast::IfCondition::Expression {
+            let dir::IfCondition::Expression {
                 condition: condition_id,
             } = condition
             else {
@@ -73,7 +73,7 @@ impl LintRule for NoDuplicateElseIf {
                 NO_DUPLICATE_ELSE_IF.category,
                 severity,
                 "this branch can never execute, condition is duplicate or already covered",
-                ctx.tree.get_span(*condition_id),
+                ctx.dir.get_span(*condition_id),
             )
             .label("this condition is already handled by earlier branch conditions");
 
@@ -92,24 +92,24 @@ impl LintRule for NoDuplicateElseIf {
 
 /// Return all expression conditions from parent else-if chain order.
 fn ancestor_else_if_conditions(
-    ctx: &LintAstContext<'_>,
-    mut expression_id: ast::LocalNodeId<ast::Expression>,
-) -> Vec<ast::LocalNodeId<ast::Expression>> {
+    ctx: &LintModuleContext<'_>,
+    mut expression_id: dir::LocalNodeId<dir::Expression>,
+) -> Vec<dir::LocalNodeId<dir::Expression>> {
     // collect parent tests from nearest parent outward
     let mut parent_conditions = Vec::new();
 
     // walk parent chain while this node is an alternate branch
     loop {
-        let Some(parent_id) = ctx.parents.get(expression_id) else {
+        let Some(parent_id) = ctx.dir.get_parent_id(expression_id.id) else {
             break;
         };
-        if ctx.tree.get_node_type(parent_id) != ast::NodeType::Expression {
+        if ctx.dir.get_node_type(parent_id) != dir::NodeType::Expression {
             break;
         }
 
-        let parent_expression_id = ast::LocalNodeId::<ast::Expression>::new(parent_id);
-        let parent_expression = ctx.tree.get(parent_expression_id);
-        let ast::Expression::If {
+        let parent_expression_id = dir::LocalNodeId::<dir::Expression>::new(parent_id);
+        let parent_expression = ctx.dir.get(parent_expression_id);
+        let dir::Expression::If {
             condition,
             else_expression: Some(else_id),
             ..
@@ -122,7 +122,7 @@ fn ancestor_else_if_conditions(
         }
 
         // keep one expression condition from this parent
-        if let ast::IfCondition::Expression { condition } = condition {
+        if let dir::IfCondition::Expression { condition } = condition {
             parent_conditions.push(*condition);
         }
 
@@ -135,12 +135,12 @@ fn ancestor_else_if_conditions(
 
 /// Return true when this if test is duplicate or covered by parent else-if chain tests.
 fn condition_is_duplicate_or_covered(
-    ctx: &LintAstContext<'_>,
-    if_expression_id: ast::LocalNodeId<ast::Expression>,
-    test_expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    if_expression_id: dir::LocalNodeId<dir::Expression>,
+    test_expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     // apply this rule only to else-if branches
-    if !expression_is_else_if_branch(ctx.tree, ctx.parents, if_expression_id) {
+    if !expression_is_else_if_branch(ctx.dir.tree(), if_expression_id) {
         return false;
     }
 
@@ -156,7 +156,7 @@ fn condition_is_duplicate_or_covered(
                     .map(|id| split_by_and(ctx, id))
                     .collect()
             })
-            .collect::<Vec<Vec<Vec<ast::LocalNodeId<ast::Expression>>>>>()
+            .collect::<Vec<Vec<Vec<dir::LocalNodeId<dir::Expression>>>>>()
     } else {
         vec![
             split_by_or(ctx, test_expression_id)
@@ -171,7 +171,7 @@ fn condition_is_duplicate_or_covered(
         let parent_or_operands = split_by_or(ctx, parent_condition_id)
             .into_iter()
             .map(|id| split_by_and(ctx, id))
-            .collect::<Vec<Vec<ast::LocalNodeId<ast::Expression>>>>();
+            .collect::<Vec<Vec<dir::LocalNodeId<dir::Expression>>>>();
 
         list_to_check = list_to_check
             .into_iter()
@@ -189,7 +189,7 @@ fn condition_is_duplicate_or_covered(
 
         if list_to_check
             .iter()
-            .any(|or_operands: &Vec<Vec<ast::LocalNodeId<ast::Expression>>>| or_operands.is_empty())
+            .any(|or_operands: &Vec<Vec<dir::LocalNodeId<dir::Expression>>>| or_operands.is_empty())
         {
             return true;
         }
@@ -200,9 +200,9 @@ fn condition_is_duplicate_or_covered(
 
 /// Return true when left condition list is a subset of right condition list.
 fn conditions_are_subset(
-    ctx: &LintAstContext<'_>,
-    left_conditions: &[ast::LocalNodeId<ast::Expression>],
-    right_conditions: &[ast::LocalNodeId<ast::Expression>],
+    ctx: &LintModuleContext<'_>,
+    left_conditions: &[dir::LocalNodeId<dir::Expression>],
+    right_conditions: &[dir::LocalNodeId<dir::Expression>],
 ) -> bool {
     left_conditions.iter().all(|left_id| {
         right_conditions
@@ -213,24 +213,24 @@ fn conditions_are_subset(
 
 /// Return true when two condition expressions are equivalent for duplicate checks.
 fn condition_is_equal(
-    ctx: &LintAstContext<'_>,
-    left_id: ast::LocalNodeId<ast::Expression>,
-    right_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    left_id: dir::LocalNodeId<dir::Expression>,
+    right_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     // unwrap parenthesized expression wrappers
-    let left_id = expression_unwrap_parenthesized_source_form(ctx.tree, left_id);
-    let right_id = expression_unwrap_parenthesized_source_form(ctx.tree, right_id);
-    let left_expression = ctx.tree.get(left_id);
-    let right_expression = ctx.tree.get(right_id);
+    let left_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), left_id);
+    let right_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), right_id);
+    let left_expression = ctx.dir.get(left_id);
+    let right_expression = ctx.dir.get(right_id);
 
     // treat && and || as commutative binary operators
     if let (
-        ast::Expression::Binary {
+        dir::Expression::Binary {
             left: left_left,
             operator: left_operator,
             right: left_right,
         },
-        ast::Expression::Binary {
+        dir::Expression::Binary {
             left: right_left,
             operator: right_operator,
             right: right_right,
@@ -239,7 +239,7 @@ fn condition_is_equal(
         && left_operator == right_operator
         && matches!(
             left_operator,
-            ast::BinaryOperator::And | ast::BinaryOperator::Or
+            dir::BinaryOperator::And | dir::BinaryOperator::Or
         )
     {
         let same_order = condition_is_equal(ctx, *left_left, *right_left)
@@ -258,15 +258,15 @@ fn condition_is_equal(
 
 /// Return true when one expression is a logical and condition.
 fn condition_is_and(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    let expression_id = expression_unwrap_parenthesized_source_form(ctx.tree, expression_id);
-    let expression = ctx.tree.get(expression_id);
+    let expression_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), expression_id);
+    let expression = ctx.dir.get(expression_id);
     matches!(
         expression,
-        ast::Expression::Binary {
-            operator: ast::BinaryOperator::And,
+        dir::Expression::Binary {
+            operator: dir::BinaryOperator::And,
             ..
         }
     )
@@ -274,32 +274,32 @@ fn condition_is_and(
 
 /// Split one condition expression by logical or operators.
 fn split_by_or(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
-) -> Vec<ast::LocalNodeId<ast::Expression>> {
-    split_by_logical_operator(ctx, expression_id, ast::BinaryOperator::Or)
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> Vec<dir::LocalNodeId<dir::Expression>> {
+    split_by_logical_operator(ctx, expression_id, dir::BinaryOperator::Or)
 }
 
 /// Split one condition expression by logical and operators.
 fn split_by_and(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
-) -> Vec<ast::LocalNodeId<ast::Expression>> {
-    split_by_logical_operator(ctx, expression_id, ast::BinaryOperator::And)
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> Vec<dir::LocalNodeId<dir::Expression>> {
+    split_by_logical_operator(ctx, expression_id, dir::BinaryOperator::And)
 }
 
 /// Split one condition expression by one logical operator.
 fn split_by_logical_operator(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
-    operator: ast::BinaryOperator,
-) -> Vec<ast::LocalNodeId<ast::Expression>> {
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+    operator: dir::BinaryOperator,
+) -> Vec<dir::LocalNodeId<dir::Expression>> {
     // normalize parenthesized wrappers
-    let expression_id = expression_unwrap_parenthesized_source_form(ctx.tree, expression_id);
-    let expression = ctx.tree.get(expression_id);
+    let expression_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), expression_id);
+    let expression = ctx.dir.get(expression_id);
 
     // recursively flatten matching logical operators
-    if let ast::Expression::Binary {
+    if let dir::Expression::Binary {
         left,
         operator: expression_operator,
         right,
@@ -316,9 +316,9 @@ fn split_by_logical_operator(
 
 /// Return true when this else-if condition exactly duplicates one parent chain condition.
 fn has_exact_duplicate_in_ancestor_chain(
-    ctx: &LintAstContext<'_>,
-    if_expression_id: ast::LocalNodeId<ast::Expression>,
-    test_expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    if_expression_id: dir::LocalNodeId<dir::Expression>,
+    test_expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     ancestor_else_if_conditions(ctx, if_expression_id)
         .into_iter()
@@ -329,16 +329,16 @@ fn has_exact_duplicate_in_ancestor_chain(
 
 /// Build an unsafe fix for one duplicate else-if by replacing it with its fallback branch.
 fn no_duplicate_else_if_fix(
-    ctx: &LintAstContext<'_>,
-    if_expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    if_expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<LintFix> {
     // keep fixes for nested else-if expressions only
-    if !expression_is_else_if_branch(ctx.tree, ctx.parents, if_expression_id) {
+    if !expression_is_else_if_branch(ctx.dir.tree(), if_expression_id) {
         return None;
     }
 
-    let expression = ctx.tree.get(if_expression_id);
-    let ast::Expression::If {
+    let expression = ctx.dir.get(if_expression_id);
+    let dir::Expression::If {
         else_expression: Some(else_expression_id),
         ..
     } = expression
@@ -346,10 +346,10 @@ fn no_duplicate_else_if_fix(
         return None;
     };
 
-    let replacement = ctx.get_span_text(ctx.tree.get_span(*else_expression_id));
+    let replacement = ctx.get_span_text(ctx.dir.get_span(*else_expression_id));
     let edits = ctx
         .edit_builder()
-        .replace(ctx.tree.get_span(if_expression_id), replacement)
+        .replace(ctx.dir.get_span(if_expression_id), replacement)
         .into_edits();
     Some(LintFix::r#unsafe("Remove duplicate else-if branch").with_edits(edits))
 }
@@ -362,7 +362,7 @@ mod tests {
     #[test]
     fn test_detects_duplicate_else_if() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateElseIf);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_duplicate_else_if/test_detects_duplicate_else_if.ds",
             r#"
 if (x > 0) {
@@ -378,7 +378,7 @@ if (x > 0) {
     #[test]
     fn test_detects_duplicate_in_longer_chain() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateElseIf);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_duplicate_else_if/test_detects_duplicate_in_longer_chain.ds",
             r#"
 if (x > 0) {
@@ -396,7 +396,7 @@ if (x > 0) {
     #[test]
     fn test_fix_rewrites_duplicate_else_if_to_fallback_branch() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateElseIf);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_duplicate_else_if/test_fix_rewrites_duplicate_else_if_to_fallback_branch.ds",
             r#"
 if (x > 0) {
@@ -424,7 +424,7 @@ if (x > 0) {
     #[test]
     fn test_allows_different_conditions() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateElseIf);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_duplicate_else_if/test_allows_different_conditions.ds",
             r#"
 if (x > 0) {
@@ -442,7 +442,7 @@ if (x > 0) {
     #[test]
     fn test_allows_simple_if_else() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateElseIf);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_duplicate_else_if/test_allows_simple_if_else.ds",
             r#"
 if (x > 0) {
@@ -458,7 +458,7 @@ if (x > 0) {
     #[test]
     fn test_no_fix_for_duplicate_terminal_else_if_without_fallback() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateElseIf);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_duplicate_else_if/test_no_fix_for_duplicate_terminal_else_if_without_fallback.ds",
             r#"
 if (x > 0) {
@@ -476,7 +476,7 @@ if (x > 0) {
     #[test]
     fn test_detects_covered_else_if_condition_from_or_parent() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateElseIf);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_duplicate_else_if/test_detects_covered_else_if_condition_from_or_parent.ds",
             r#"
 if (a || b) {
@@ -494,7 +494,7 @@ if (a || b) {
     #[test]
     fn test_detects_commutative_logical_duplicate() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateElseIf);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_duplicate_else_if/test_detects_commutative_logical_duplicate.ds",
             r#"
 if (a || b) {
@@ -512,7 +512,7 @@ if (a || b) {
     #[test]
     fn test_allows_non_covered_else_if_condition_from_and_parent() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateElseIf);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_duplicate_else_if/test_allows_non_covered_else_if_condition_from_and_parent.ds",
             r#"
 if (a && b) {

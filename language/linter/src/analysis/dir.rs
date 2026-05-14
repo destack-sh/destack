@@ -2,13 +2,15 @@ use std::collections::HashMap;
 
 use destack_dir as dir;
 
-use crate::ConstValue;
+use crate::{ConstValue, LintRegexParse};
 
 /// Cache shared analysis results for DIR lint rules.
 #[derive(Debug, Default)]
 pub struct LintDirAnalysisCache {
     /// Cached constant values for DIR expressions.
-    pub const_values: HashMap<u32, Option<ConstValue>>,
+    const_values: HashMap<u32, Option<ConstValue>>,
+    /// Cached regex parse results by pattern and optional flags string ids.
+    regex_parse: HashMap<(dir::StringId, Option<dir::StringId>), LintRegexParse>,
 }
 
 impl LintDirAnalysisCache {
@@ -26,6 +28,30 @@ impl LintDirAnalysisCache {
         self.const_values.insert(id.id, value);
         value
     }
+
+    /// Return cached regex parse info for a pattern string.
+    pub fn regex_parse(&mut self, strings: &dir::StringPool, id: dir::StringId) -> LintRegexParse {
+        self.regex_parse_with_flags(strings, id, None)
+    }
+
+    /// Return cached regex parse info for a pattern string and optional flags.
+    pub fn regex_parse_with_flags(
+        &mut self,
+        strings: &dir::StringPool,
+        pattern_id: dir::StringId,
+        flags_id: Option<dir::StringId>,
+    ) -> LintRegexParse {
+        let cache_key = (pattern_id, flags_id);
+        if let Some(parse) = self.regex_parse.get(&cache_key) {
+            return parse.clone();
+        }
+
+        let pattern = strings.get(pattern_id);
+        let flags = flags_id.map(|id| strings.get(id));
+        let parse = LintRegexParse::parse_with_flags(pattern, flags);
+        self.regex_parse.insert(cache_key, parse.clone());
+        parse
+    }
 }
 
 /// Evaluate a DIR expression to a constant value when possible.
@@ -35,19 +61,15 @@ fn evaluate_const_value(
 ) -> Option<ConstValue> {
     let expression = tree.get(id);
     match expression {
-        dir::Expression::ScalarLiteral { value } => match value {
+        dir::Expression::ScalarLiteral(value) => match value {
+            dir::ScalarLiteral::Null => Some(ConstValue::Null),
             dir::ScalarLiteral::Boolean(value) => Some(ConstValue::Boolean(*value)),
             dir::ScalarLiteral::Integer(value) => Some(ConstValue::Integer(*value)),
             dir::ScalarLiteral::Bigint(value) => Some(ConstValue::Bigint(*value)),
             dir::ScalarLiteral::Float(value) => Some(ConstValue::Float(*value)),
             _ => None,
         },
-        dir::Expression::TypeLiteral {
-            value: dir::TypeLiteral::Null,
-        } => Some(ConstValue::Null),
-        dir::Expression::TypeLiteral {
-            value: dir::TypeLiteral::Undefined,
-        } => Some(ConstValue::Undefined),
+        dir::Expression::Parenthesized { expression } => evaluate_const_value(tree, *expression),
         dir::Expression::Unary { operator, right } => {
             let value = evaluate_const_value(tree, *right)?;
             match operator {

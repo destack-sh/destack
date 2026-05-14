@@ -5,7 +5,7 @@ use crate::rules::common::{
     expression_discarded_call_like_value, expression_has_symbol_decorator,
     expression_is_standalone_statement, expression_unwrap_parenthesized,
 };
-use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow ignoring return values from `@mustUse` APIs.
@@ -33,7 +33,7 @@ impl LintRule for UnusedMustUse {
         UnusedMustUse::meta()
     }
 
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let mut visitor = UnusedMustUseVisitor::new(ctx, meta);
         visitor.run();
@@ -43,7 +43,7 @@ impl LintRule for UnusedMustUse {
 /// Node visitor for ignored must-use return checks.
 struct UnusedMustUseVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The visitor options.
@@ -52,7 +52,7 @@ struct UnusedMustUseVisitor<'a, 'b> {
 
 impl<'a, 'b> UnusedMustUseVisitor<'a, 'b> {
     /// Build a visitor for ignored must-use return checks.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         Self {
             ctx,
             meta,
@@ -63,7 +63,7 @@ impl<'a, 'b> UnusedMustUseVisitor<'a, 'b> {
     /// Walk the module roots.
     fn run(&mut self) {
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         for root_id in roots {
             let expression = tree.get(root_id);
@@ -78,11 +78,11 @@ impl<'a, 'b> UnusedMustUseVisitor<'a, 'b> {
         statement_expression_id: dir::LocalNodeId<dir::Expression>,
     ) {
         let Some((expression_id, fix_expression_id)) =
-            expression_discarded_call_like_value(self.ctx.tree, statement_expression_id)
+            expression_discarded_call_like_value(self.ctx.dir.tree(), statement_expression_id)
         else {
             return;
         };
-        let expression = self.ctx.tree.get(expression_id);
+        let expression = self.ctx.dir.get(expression_id);
 
         let has_must_use = expression_has_must_use(self.ctx, expression_id)
             || call_like_callee_has_must_use(self.ctx, expression);
@@ -107,7 +107,7 @@ impl<'a, 'b> UnusedMustUseVisitor<'a, 'b> {
         .label("use, return, or explicitly handle this result");
 
         // compute fixes only when requested by the runner
-        if self.ctx.include_fixes
+        if self.ctx.compute_fixes
             && let Some(fix) = unused_must_use_fix(self.ctx, fix_expression_id)
         {
             diagnostic = diagnostic.fix(fix);
@@ -119,7 +119,7 @@ impl<'a, 'b> UnusedMustUseVisitor<'a, 'b> {
 
 /// Return true when the callee of one call-like expression is decorated with `@mustUse`.
 fn call_like_callee_has_must_use(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     expression: &dir::Expression,
 ) -> bool {
     let callee_id = match expression {
@@ -132,7 +132,7 @@ fn call_like_callee_has_must_use(
 
 /// Return true when an expression candidate symbol is decorated with `@mustUse`.
 fn expression_has_must_use(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     let Some(must_use_symbol) = ctx.get_language_item(dir::LanguageItem::MustUse) else {
@@ -143,7 +143,7 @@ fn expression_has_must_use(
         ctx.artifacts.as_ref(),
         ctx.profile_id,
         ctx.module_id(),
-        ctx.tree,
+        ctx.dir.tree(),
         ctx.strings,
         ctx.symbols,
         ctx.types,
@@ -154,12 +154,12 @@ fn expression_has_must_use(
 
 /// Build a safe fix that explicitly discards the ignored result.
 fn unused_must_use_fix(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     statement_expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<LintFix> {
     // preserve the full replacement span, but normalize away wrapper parentheses
     let replacement_span = ctx.get_span(statement_expression_id);
-    let normalized_id = expression_unwrap_parenthesized(ctx.tree, statement_expression_id);
+    let normalized_id = expression_unwrap_parenthesized(ctx.dir.tree(), statement_expression_id);
     let normalized_span = ctx.get_span(normalized_id);
     let expression_text = ctx.get_span_text(normalized_span);
     if expression_text.trim().is_empty() {

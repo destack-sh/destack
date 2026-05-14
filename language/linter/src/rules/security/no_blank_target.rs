@@ -1,11 +1,11 @@
-use destack_ast::{self as ast, Argument, Expression};
+use destack_dir::{self as dir, Argument, Expression};
 use destack_workspace::LintSeverity;
 use url::Url;
 
 use crate::rules::common::{
     expression_path_segments, expression_static_string_literal_source_form,
 };
-use crate::{LintAstContext, LintFix, LintMeta, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow `target="_blank"` without `rel="noopener noreferrer"`.
@@ -17,7 +17,7 @@ declare_lint! {
         id = "no-blank-target",
         code = "LS001",
         category = Security,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -33,12 +33,12 @@ impl LintRule for NoBlankTarget {
         NoBlankTarget::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // inspect candidate expressions
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expression = ctx.tree.get(node_id);
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let expression = ctx.dir.get(node_id);
 
             // check tree expressions (JSX-like)
             let Expression::TreeExpression {
@@ -63,7 +63,7 @@ impl LintRule for NoBlankTarget {
 
             // resolve the target argument position
             let target_argument_index = args.iter().position(|arg_id| {
-                let arg = ctx.tree.get(*arg_id);
+                let arg = ctx.dir.get(*arg_id);
                 is_blank_target(ctx, arg)
             });
             let Some(target_argument_index) = target_argument_index else {
@@ -82,7 +82,7 @@ impl LintRule for NoBlankTarget {
 
             // resolve explicit rel handling
             let rel_argument_index = args.iter().position(|arg_id| {
-                let arg = ctx.tree.get(*arg_id);
+                let arg = ctx.dir.get(*arg_id);
                 is_rel_argument(ctx, arg)
             });
             let rel_argument_id = rel_argument_index.map(|index| args[index]);
@@ -127,7 +127,7 @@ impl LintRule for NoBlankTarget {
                 NO_BLANK_TARGET.category,
                 severity,
                 "target=\"_blank\" without rel=\"noopener\" is a security risk",
-                ctx.tree.get_span(node_id),
+                ctx.dir.get_span(node_id),
             )
             .label(rel_requirement_message);
 
@@ -156,13 +156,13 @@ enum RelSafetyStatus {
 
 /// Return the target attribute name for one checked element tag.
 fn checked_target_attribute_name(
-    ctx: &LintAstContext<'_>,
-    left: Option<ast::LocalNodeId<Expression>>,
+    ctx: &LintModuleContext<'_>,
+    left: Option<dir::LocalNodeId<Expression>>,
 ) -> Option<&'static str> {
     let left_id = left?;
 
     // check for simple path like `a`
-    let path_segments = expression_path_segments(ctx.tree, left_id)?;
+    let path_segments = expression_path_segments(ctx.dir.tree(), left_id)?;
 
     // check if the path has exactly one segment and a checked tag name
     if path_segments.len() == 1 {
@@ -178,7 +178,7 @@ fn checked_target_attribute_name(
 }
 
 /// Check if an argument is `target="_blank"`.
-fn is_blank_target(ctx: &LintAstContext<'_>, arg: &Argument) -> bool {
+fn is_blank_target(ctx: &LintModuleContext<'_>, arg: &Argument) -> bool {
     let Argument::Named { name, value, .. } = arg else {
         return false;
     };
@@ -200,7 +200,7 @@ fn is_blank_target(ctx: &LintAstContext<'_>, arg: &Argument) -> bool {
 }
 
 /// Check if an argument is any `rel=...` attribute.
-fn is_rel_argument(ctx: &LintAstContext<'_>, arg: &Argument) -> bool {
+fn is_rel_argument(ctx: &LintModuleContext<'_>, arg: &Argument) -> bool {
     let Argument::Named { name, .. } = arg else {
         return false;
     };
@@ -212,19 +212,19 @@ fn is_rel_argument(ctx: &LintAstContext<'_>, arg: &Argument) -> bool {
 
 /// Return one static string argument value.
 fn argument_static_string_id(
-    ctx: &LintAstContext<'_>,
-    value: ast::LocalNodeId<Expression>,
-) -> Option<ast::StringId> {
-    expression_static_string_literal_source_form(ctx.tree, value)
+    ctx: &LintModuleContext<'_>,
+    value: dir::LocalNodeId<Expression>,
+) -> Option<dir::StringId> {
+    expression_static_string_literal_source_form(ctx.dir.tree(), value)
 }
 
 /// Return the rel safety status for one rel argument.
 fn rel_safety_status(
-    ctx: &LintAstContext<'_>,
-    argument_id: ast::LocalNodeId<Argument>,
+    ctx: &LintModuleContext<'_>,
+    argument_id: dir::LocalNodeId<Argument>,
     allow_no_referrer: bool,
 ) -> RelSafetyStatus {
-    let argument = ctx.tree.get(argument_id);
+    let argument = ctx.dir.get(argument_id);
     let Argument::Named { value, .. } = argument else {
         return RelSafetyStatus::UnsafeDynamic;
     };
@@ -234,7 +234,7 @@ fn rel_safety_status(
     };
 
     let rel_value = ctx.strings.get(string_id);
-    if rel_tokens_are_safe(rel_value.as_ref(), allow_no_referrer) {
+    if rel_tokens_are_safe(rel_value, allow_no_referrer) {
         return RelSafetyStatus::Safe;
     }
 
@@ -258,8 +258,8 @@ fn rel_tokens_are_safe(rel_value: &str, allow_no_referrer: bool) -> bool {
 
 /// Return true when the target attribute matches one allowed domain entry.
 fn target_url_matches_allowed_domain(
-    ctx: &LintAstContext<'_>,
-    args: &[ast::LocalNodeId<Argument>],
+    ctx: &LintModuleContext<'_>,
+    args: &[dir::LocalNodeId<Argument>],
     target_attribute_name: &str,
     allowed_domains: &[String],
 ) -> bool {
@@ -268,14 +268,13 @@ fn target_url_matches_allowed_domain(
     }
 
     let target_url = args.iter().find_map(|arg_id| {
-        let argument = ctx.tree.get(*arg_id);
+        let argument = ctx.dir.get(*arg_id);
         static_named_argument_value(ctx, argument, target_attribute_name)
     });
     let Some(target_url_id) = target_url else {
         return false;
     };
     let target_url = ctx.strings.get(target_url_id);
-    let target_url = target_url.as_ref();
 
     allowed_domains
         .iter()
@@ -284,10 +283,10 @@ fn target_url_matches_allowed_domain(
 
 /// Return one static named argument string id when present.
 fn static_named_argument_value(
-    ctx: &LintAstContext<'_>,
+    ctx: &LintModuleContext<'_>,
     argument: &Argument,
     name: &str,
-) -> Option<ast::StringId> {
+) -> Option<dir::StringId> {
     let Argument::Named {
         name: argument_name,
         value,
@@ -334,28 +333,28 @@ fn url_matches_allowed_domain(target_url: &str, allowed_domain: &str) -> bool {
 
 /// Return true when one later prop spread may override earlier attributes.
 fn has_trailing_spread_argument(
-    ctx: &LintAstContext<'_>,
-    args: &[ast::LocalNodeId<Argument>],
+    ctx: &LintModuleContext<'_>,
+    args: &[dir::LocalNodeId<Argument>],
     start_index: usize,
 ) -> bool {
     args.iter()
         .skip(start_index + 1)
         .copied()
-        .any(|argument_id| matches!(ctx.tree.get(argument_id), Argument::Spread { .. }))
+        .any(|argument_id| matches!(ctx.dir.get(argument_id), Argument::Spread { .. }))
 }
 
 /// Build a safe fix that injects or amends rel with noopener.
 fn blank_target_fix(
-    ctx: &LintAstContext<'_>,
-    args: &[ast::LocalNodeId<Argument>],
-    rel_argument_id: Option<ast::LocalNodeId<Argument>>,
+    ctx: &LintModuleContext<'_>,
+    args: &[dir::LocalNodeId<Argument>],
+    rel_argument_id: Option<dir::LocalNodeId<Argument>>,
 ) -> Option<LintFix> {
     if let Some(rel_argument_id) = rel_argument_id {
         return blank_target_rel_fix(ctx, rel_argument_id);
     }
 
     let last_argument = args.last()?;
-    let last_span = ctx.tree.get_span(*last_argument);
+    let last_span = ctx.dir.get_span(*last_argument);
     let edits = ctx
         .edit_builder()
         .insert(last_span.end, " rel=\"noopener\"")
@@ -365,10 +364,10 @@ fn blank_target_fix(
 
 /// Build a safe fix that amends one rel attribute with noopener.
 fn blank_target_rel_fix(
-    ctx: &LintAstContext<'_>,
-    rel_argument_id: ast::LocalNodeId<Argument>,
+    ctx: &LintModuleContext<'_>,
+    rel_argument_id: dir::LocalNodeId<Argument>,
 ) -> Option<LintFix> {
-    let argument = ctx.tree.get(rel_argument_id);
+    let argument = ctx.dir.get(rel_argument_id);
     let Argument::Named { value, .. } = argument else {
         return None;
     };
@@ -381,7 +380,7 @@ fn blank_target_rel_fix(
         format!("noopener {rel_value}")
     };
 
-    let value_span = ctx.tree.get_span(*value);
+    let value_span = ctx.dir.get_span(*value);
     let value_text = ctx.get_span_text(value_span);
     let replacement = quoted_rel_literal(value_text, &amended_rel)?;
     let edits = ctx
@@ -409,7 +408,7 @@ mod tests {
     #[test]
     fn test_detects_blank_target_without_rel() {
         let test = TestProgram::for_rule_without_prelude(NoBlankTarget);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_blank_target/test_detects_blank_target_without_rel.ds",
             r#"
 let link = <a href="https://example.com" target="_blank">Click</a>
@@ -421,7 +420,7 @@ let link = <a href="https://example.com" target="_blank">Click</a>
     #[test]
     fn test_fix_adds_rel_to_blank_target_without_rel() {
         let test = TestProgram::for_rule_without_prelude(NoBlankTarget);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_blank_target/test_fix_adds_rel_to_blank_target_without_rel.ds",
             r#"
 let link = <a href="https://example.com" target="_blank">Click</a>
@@ -439,7 +438,7 @@ let link = <a href="https://example.com" target="_blank" rel="noopener">Click</a
     #[test]
     fn test_allows_blank_target_with_noopener() {
         let test = TestProgram::for_rule_without_prelude(NoBlankTarget);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_blank_target/test_allows_blank_target_with_noopener.ds",
             r#"
 let link = <a href="https://example.com" target="_blank" rel="noopener">Click</a>
@@ -451,7 +450,7 @@ let link = <a href="https://example.com" target="_blank" rel="noopener">Click</a
     #[test]
     fn test_allows_blank_target_with_noreferrer() {
         let test = TestProgram::for_rule_without_prelude(NoBlankTarget);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_blank_target/test_allows_blank_target_with_noreferrer.ds",
             r#"
 let link = <a href="https://example.com" target="_blank" rel="noreferrer">Click</a>
@@ -463,7 +462,7 @@ let link = <a href="https://example.com" target="_blank" rel="noreferrer">Click<
     #[test]
     fn test_allows_blank_target_with_both() {
         let test = TestProgram::for_rule_without_prelude(NoBlankTarget);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_blank_target/test_allows_blank_target_with_both.ds",
             r#"
 let link = <a href="https://example.com" target="_blank" rel="noopener noreferrer">Click</a>
@@ -475,7 +474,7 @@ let link = <a href="https://example.com" target="_blank" rel="noopener noreferre
     #[test]
     fn test_no_fix_for_unsafe_rel_value() {
         let test = TestProgram::for_rule_without_prelude(NoBlankTarget);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_blank_target/test_no_fix_for_unsafe_rel_value.ds",
             r#"
 let link = <a href="https://example.com" target="_blank" rel="nofollow">Click</a>
@@ -493,7 +492,7 @@ let link = <a href="https://example.com" target="_blank" rel="noopener nofollow"
     #[test]
     fn test_allows_no_target() {
         let test = TestProgram::for_rule_without_prelude(NoBlankTarget);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_blank_target/test_allows_no_target.ds",
             r#"
 let link = <a href="https://example.com">Click</a>
@@ -505,7 +504,7 @@ let link = <a href="https://example.com">Click</a>
     #[test]
     fn test_allows_other_target() {
         let test = TestProgram::for_rule_without_prelude(NoBlankTarget);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_blank_target/test_allows_other_target.ds",
             r#"
 let link = <a href="https://example.com" target="_self">Click</a>
@@ -517,7 +516,7 @@ let link = <a href="https://example.com" target="_self">Click</a>
     #[test]
     fn test_allows_non_anchor_element() {
         let test = TestProgram::for_rule_without_prelude(NoBlankTarget);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_blank_target/test_allows_non_anchor_element.ds",
             r#"
 let elem = <div target="_blank">Content</div>
@@ -529,7 +528,7 @@ let elem = <div target="_blank">Content</div>
     #[test]
     fn test_detects_area_target_without_rel() {
         let test = TestProgram::for_rule_without_prelude(NoBlankTarget);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_blank_target/test_detects_area_target_without_rel.ds",
             r#"
 let area = <area href="https://example.com" target="_blank" />
@@ -541,7 +540,7 @@ let area = <area href="https://example.com" target="_blank" />
     #[test]
     fn test_detects_form_target_without_rel() {
         let test = TestProgram::for_rule_without_prelude(NoBlankTarget);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_blank_target/test_detects_form_target_without_rel.ds",
             r#"
 let form = <form action="https://example.com" target="_blank"></form>
@@ -553,7 +552,7 @@ let form = <form action="https://example.com" target="_blank"></form>
     #[test]
     fn test_flags_rel_without_safe_token_boundary() {
         let test = TestProgram::for_rule_without_prelude(NoBlankTarget);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_blank_target/test_flags_rel_without_safe_token_boundary.ds",
             r#"
 let link = <a href="https://example.com" target="_blank" rel="noopenernoreferrer">Click</a>
@@ -565,7 +564,7 @@ let link = <a href="https://example.com" target="_blank" rel="noopenernoreferrer
     #[test]
     fn test_allows_blank_target_with_case_insensitive_rel_token() {
         let test = TestProgram::for_rule_without_prelude(NoBlankTarget);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_blank_target/test_allows_blank_target_with_case_insensitive_rel_token.ds",
             r#"
 let link = <a href="https://example.com" target="_blank" rel="NoOpener">Click</a>
@@ -577,7 +576,7 @@ let link = <a href="https://example.com" target="_blank" rel="NoOpener">Click</a
     #[test]
     fn test_detects_case_insensitive_blank_target() {
         let test = TestProgram::for_rule_without_prelude(NoBlankTarget);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_blank_target/test_detects_case_insensitive_blank_target.ds",
             r#"
 let link = <a href="https://example.com" target="_BLANK">Click</a>
@@ -589,7 +588,7 @@ let link = <a href="https://example.com" target="_BLANK">Click</a>
     #[test]
     fn test_allows_blank_target_with_spread_props_without_explicit_rel() {
         let test = TestProgram::for_rule_without_prelude(NoBlankTarget);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_blank_target/test_allows_blank_target_with_spread_props_without_explicit_rel.ds",
             r#"
 let link = <a href="https://example.com" target="_blank" {...props}>Click</a>
@@ -601,7 +600,7 @@ let link = <a href="https://example.com" target="_blank" {...props}>Click</a>
     #[test]
     fn test_flags_blank_target_with_leading_spread_props_without_rel() {
         let test = TestProgram::for_rule_without_prelude(NoBlankTarget);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_blank_target/test_flags_blank_target_with_leading_spread_props_without_rel.ds",
             r#"
 let link = <a {...props} href="https://example.com" target="_blank">Click</a>
@@ -613,7 +612,7 @@ let link = <a {...props} href="https://example.com" target="_blank">Click</a>
     #[test]
     fn test_allows_blank_target_with_trailing_spread_after_rel() {
         let test = TestProgram::for_rule_without_prelude(NoBlankTarget);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_blank_target/test_allows_blank_target_with_trailing_spread_after_rel.ds",
             r#"
 let link = <a href="https://example.com" target="_blank" rel="nofollow" {...props}>Click</a>
@@ -628,7 +627,7 @@ let link = <a href="https://example.com" target="_blank" rel="nofollow" {...prop
             options.security.no_blank_target_allow_domains =
                 vec!["https://example.com".to_string()];
         });
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_blank_target/test_allows_blank_target_for_allowed_domain.ds",
             r#"
 let link = <a href="https://example.com/path" target="_blank">Click</a>
@@ -642,7 +641,7 @@ let link = <a href="https://example.com/path" target="_blank">Click</a>
         let test = TestProgram::for_rule_without_prelude(NoBlankTarget).with_options(|options| {
             options.security.no_blank_target_allow_no_referrer = false;
         });
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_blank_target/test_flags_noreferrer_when_no_referrer_is_disabled.ds",
             r#"
 let link = <a href="https://example.com" target="_blank" rel="noreferrer">Click</a>

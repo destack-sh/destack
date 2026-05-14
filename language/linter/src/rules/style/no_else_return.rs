@@ -1,10 +1,10 @@
 use crate::LintMeta;
-use destack_ast::{self as ast, Block};
+use destack_dir::{self as dir, Block};
 use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{expression_is_else_if_branch, source_text_contains_comment_token};
-use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow `else` blocks after `return` in `if` statements.
@@ -15,7 +15,7 @@ declare_lint! {
         id = "no-else-return",
         code = "LY017",
         category = Style,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -31,13 +31,13 @@ impl LintRule for NoElseReturn {
         NoElseReturn::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expr = ctx.tree.get(node_id);
-            let ast::Expression::If {
-                form: ast::IfForm::If,
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let expr = ctx.dir.get(node_id);
+            let dir::Expression::If {
+                form: dir::IfForm::If,
                 then_expression,
                 else_expression: Some(else_id),
                 ..
@@ -48,7 +48,7 @@ impl LintRule for NoElseReturn {
 
             // skip else if chain members when the option allows them
             if ctx.options.style.no_else_return_allow_else_if
-                && expression_is_else_if_branch(ctx.tree, ctx.parents, node_id)
+                && expression_is_else_if_branch(ctx.dir.tree(), node_id)
             {
                 continue;
             }
@@ -67,7 +67,7 @@ impl LintRule for NoElseReturn {
                     continue;
                 }
 
-                let else_span = ctx.tree.get_span(*else_id);
+                let else_span = ctx.dir.get_span(*else_id);
                 let mut diagnostic = LintReport::new(
                     NO_ELSE_RETURN.id,
                     NO_ELSE_RETURN.code,
@@ -93,13 +93,13 @@ impl LintRule for NoElseReturn {
 
 /// Return true when one expression is an else if branch.
 fn expression_is_else_if(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     matches!(
-        ctx.tree.get(expression_id),
-        ast::Expression::If {
-            form: ast::IfForm::If,
+        ctx.dir.get(expression_id),
+        dir::Expression::If {
+            form: dir::IfForm::If,
             ..
         }
     )
@@ -107,18 +107,18 @@ fn expression_is_else_if(
 
 /// Build a conservative no else return fix.
 fn no_else_return_fix(
-    ctx: &LintAstContext<'_>,
-    if_expression_id: ast::LocalNodeId<ast::Expression>,
-    then_expression_id: ast::LocalNodeId<ast::Expression>,
-    else_expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    if_expression_id: dir::LocalNodeId<dir::Expression>,
+    then_expression_id: dir::LocalNodeId<dir::Expression>,
+    else_expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<LintFix> {
     // only rewrite else blocks
-    let ast::Expression::Block(else_block_id) = ctx.tree.get(else_expression_id) else {
+    let dir::Expression::Block(else_block_id) = ctx.dir.get(else_expression_id) else {
         return None;
     };
 
     // avoid dropping comment text that lives inside the else block
-    if source_text_contains_comment_token(ctx.get_span_text(ctx.tree.get_span(*else_block_id))) {
+    if source_text_contains_comment_token(ctx.get_span_text(ctx.dir.get_span(*else_block_id))) {
         return None;
     }
 
@@ -128,8 +128,8 @@ fn no_else_return_fix(
     }
 
     // rewrite if then section followed by else block contents
-    let if_span = ctx.tree.get_span(if_expression_id);
-    let then_span = ctx.tree.get_span(then_expression_id);
+    let if_span = ctx.dir.get_span(if_expression_id);
+    let then_span = ctx.dir.get_span(then_expression_id);
     let if_then_span = Span::new(if_span.file, if_span.start, then_span.end);
     let if_then_text = ctx.get_span_text(if_then_span);
     let else_text = block_inner_text(ctx, *else_block_id)?;
@@ -144,10 +144,10 @@ fn no_else_return_fix(
 
 /// Return true when one block contains binding declarations at top level.
 fn block_contains_binding_declaration(
-    ctx: &LintAstContext<'_>,
-    block_id: ast::LocalNodeId<ast::Block>,
+    ctx: &LintModuleContext<'_>,
+    block_id: dir::LocalNodeId<dir::Block>,
 ) -> bool {
-    let block = ctx.tree.get(block_id);
+    let block = ctx.dir.get(block_id);
     block
         .iter_expressions()
         .any(|expression_id| expression_contains_binding_declaration(ctx, expression_id))
@@ -155,15 +155,15 @@ fn block_contains_binding_declaration(
 
 /// Return true when one expression declares bindings in local scope.
 fn expression_contains_binding_declaration(
-    ctx: &LintAstContext<'_>,
-    expr_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    expr_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    let expr = ctx.tree.get(expr_id);
+    let expr = ctx.dir.get(expr_id);
     match expr {
-        ast::Expression::Let { .. }
-        | ast::Expression::Using { .. }
-        | ast::Expression::Declaration(_) => true,
-        ast::Expression::Parenthesized { expression } => {
+        dir::Expression::Let { .. }
+        | dir::Expression::Using { .. }
+        | dir::Expression::Declaration(_) => true,
+        dir::Expression::Parenthesized { expression } => {
             expression_contains_binding_declaration(ctx, *expression)
         }
         _ => false,
@@ -172,15 +172,15 @@ fn expression_contains_binding_declaration(
 
 /// Return the source text inside one block expression.
 fn block_inner_text(
-    ctx: &LintAstContext<'_>,
-    block_id: ast::LocalNodeId<ast::Block>,
+    ctx: &LintModuleContext<'_>,
+    block_id: dir::LocalNodeId<dir::Block>,
 ) -> Option<String> {
-    let block = ctx.tree.get(block_id);
+    let block = ctx.dir.get(block_id);
     let (first_expression_id, last_expression_id) =
         (block.first_expression()?, block.last_expression()?);
 
-    let first_span = ctx.tree.get_span(first_expression_id);
-    let last_span = ctx.tree.get_span(last_expression_id);
+    let first_span = ctx.dir.get_span(first_expression_id);
+    let last_span = ctx.dir.get_span(last_expression_id);
     if first_span.file != last_span.file {
         return None;
     }
@@ -189,12 +189,15 @@ fn block_inner_text(
     Some(ctx.get_span_text(block_content_span).to_string())
 }
 
-fn ends_with_return(ctx: &LintAstContext<'_>, expr_id: ast::LocalNodeId<ast::Expression>) -> bool {
-    let expr = ctx.tree.get(expr_id);
+fn ends_with_return(
+    ctx: &LintModuleContext<'_>,
+    expr_id: dir::LocalNodeId<dir::Expression>,
+) -> bool {
+    let expr = ctx.dir.get(expr_id);
     match expr {
-        ast::Expression::Return { .. } => true,
-        ast::Expression::Block(block_id) => {
-            let block: &Block = ctx.tree.get(*block_id);
+        dir::Expression::Return { .. } => true,
+        dir::Expression::Block(block_id) => {
+            let block: &Block = ctx.dir.get(*block_id);
             if let Some(last_id) = block.last_expression() {
                 ends_with_return(ctx, last_id)
             } else {
@@ -213,7 +216,7 @@ mod tests {
     #[test]
     fn test_detects_else_after_return() {
         let test = TestProgram::for_rule_without_prelude(NoElseReturn);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_else_return/test_detects_else_after_return.ds",
             r#"
 function foo(x: boolean) {
@@ -231,7 +234,7 @@ function foo(x: boolean) {
     #[test]
     fn test_has_no_fix_when_else_block_contains_comment() {
         let test = TestProgram::for_rule_without_prelude(NoElseReturn);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_else_return/test_has_no_fix_when_else_block_contains_comment.ds",
             r#"
 function foo(x: boolean) {
@@ -252,7 +255,7 @@ function foo(x: boolean) {
     #[test]
     fn test_allows_no_else() {
         let test = TestProgram::for_rule_without_prelude(NoElseReturn);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_else_return/test_allows_no_else.ds",
             r#"
 function foo(x: boolean) {
@@ -269,7 +272,7 @@ function foo(x: boolean) {
     #[test]
     fn test_allows_else_without_return_in_if() {
         let test = TestProgram::for_rule_without_prelude(NoElseReturn);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_else_return/test_allows_else_without_return_in_if.ds",
             r#"
 function foo(x: boolean) {
@@ -287,7 +290,7 @@ function foo(x: boolean) {
     #[test]
     fn test_allows_else_if_by_default() {
         let test = TestProgram::for_rule_without_prelude(NoElseReturn);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_else_return/test_allows_else_if_by_default.ds",
             r#"
 function foo(x: boolean, y: boolean) {
@@ -308,7 +311,7 @@ function foo(x: boolean, y: boolean) {
     fn test_reports_else_if_when_disabled() {
         let test = TestProgram::for_rule_without_prelude(NoElseReturn)
             .with_options(|options| options.style.no_else_return_allow_else_if = false);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_else_return/test_reports_else_if_when_disabled.ds",
             r#"
 function foo(x: boolean, y: boolean) {
@@ -328,7 +331,7 @@ function foo(x: boolean, y: boolean) {
     #[test]
     fn test_fix_else_after_return() {
         let test = TestProgram::for_rule_without_prelude(NoElseReturn);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_else_return/test_fix_else_after_return.ds",
             r#"
 function foo(x: bool): int32 {
@@ -357,7 +360,7 @@ function foo(x: bool): int32 {
     #[test]
     fn test_allows_else_if_chain_by_default() {
         let test = TestProgram::for_rule_without_prelude(NoElseReturn);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_else_return/test_allows_else_if_chain_by_default.ds",
             r#"
 function foo(x: int32): int32 {
@@ -377,7 +380,7 @@ function foo(x: int32): int32 {
     #[test]
     fn test_no_fix_when_else_declares_bindings() {
         let test = TestProgram::for_rule_without_prelude(NoElseReturn);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_else_return/test_no_fix_when_else_declares_bindings.ds",
             r#"
 function foo(flag: bool): int32 {

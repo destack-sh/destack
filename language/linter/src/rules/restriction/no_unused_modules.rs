@@ -5,7 +5,7 @@ use destack_artifact::{DirExported, DirImported};
 use destack_source::{FileType, ModuleId, Span};
 use destack_workspace::TargetDiscovery;
 
-use crate::{LintReport, LintRule, LintWorkspaceDirContext, declare_lint};
+use crate::{LintReport, LintRule, LintWorkspaceContext, declare_lint};
 
 declare_lint! {
     /// Disallow exported modules that are never imported by another module.
@@ -34,7 +34,7 @@ impl LintRule for NoUnusedModules {
         NoUnusedModules::meta()
     }
 
-    fn check_workspace_dir(&self, ctx: &mut LintWorkspaceDirContext) {
+    fn check_workspace(&self, ctx: &mut LintWorkspaceContext) {
         let meta = self.meta();
         let severity = ctx.get_severity(meta);
         if !severity.is_enabled() {
@@ -111,7 +111,7 @@ impl NoUnusedModules {
     /// Collect eligible modules reachable from one target entry root.
     fn collect_reachable_entry_modules(
         &self,
-        ctx: &LintWorkspaceDirContext,
+        ctx: &LintWorkspaceContext,
         entry_module_id: ModuleId,
         eligible_modules: &HashSet<ModuleId>,
         entry_modules: &mut HashSet<ModuleId>,
@@ -137,7 +137,7 @@ impl NoUnusedModules {
 }
 
 /// Collect user code modules eligible for this rule.
-fn collect_eligible_modules(ctx: &LintWorkspaceDirContext) -> HashSet<ModuleId> {
+fn collect_eligible_modules(ctx: &LintWorkspaceContext) -> HashSet<ModuleId> {
     let mut modules = HashSet::new();
 
     // inspect all modules and keep user code modules only
@@ -160,7 +160,7 @@ fn collect_eligible_modules(ctx: &LintWorkspaceDirContext) -> HashSet<ModuleId> 
 
 /// Collect target entry modules from configured package targets.
 fn collect_profile_target_entry_modules(
-    ctx: &LintWorkspaceDirContext,
+    ctx: &LintWorkspaceContext,
     eligible_modules: &HashSet<ModuleId>,
 ) -> HashSet<ModuleId> {
     let mut entry_modules = HashSet::new();
@@ -196,7 +196,7 @@ fn collect_profile_target_entry_modules(
 }
 
 /// Return true when a file should be treated as declaration-only.
-fn is_declaration_file(file_type: FileType, ctx: &LintWorkspaceDirContext) -> bool {
+fn is_declaration_file(file_type: FileType, ctx: &LintWorkspaceContext) -> bool {
     if ctx.options().include_declaration_files {
         return false;
     }
@@ -208,7 +208,7 @@ fn is_declaration_file(file_type: FileType, ctx: &LintWorkspaceDirContext) -> bo
 }
 
 /// Return true when the module has exports in the active profile DIR.
-fn module_has_exports(ctx: &LintWorkspaceDirContext, module_id: ModuleId) -> bool {
+fn module_has_exports(ctx: &LintWorkspaceContext, module_id: ModuleId) -> bool {
     let Some(dir) = ctx.exported_dir(module_id) else {
         return false;
     };
@@ -218,7 +218,7 @@ fn module_has_exports(ctx: &LintWorkspaceDirContext, module_id: ModuleId) -> boo
 }
 
 /// Return direct module dependencies for one module.
-fn module_dependencies(ctx: &LintWorkspaceDirContext, module_id: ModuleId) -> Vec<ModuleId> {
+fn module_dependencies(ctx: &LintWorkspaceContext, module_id: ModuleId) -> Vec<ModuleId> {
     let mut dependencies = Vec::new();
 
     if let Some(imported) = ctx.imported_dir(module_id) {
@@ -253,7 +253,7 @@ fn collect_exported_module_dependencies(exported: &DirExported, dependencies: &m
 }
 
 /// Return the file name for deterministic sorting.
-fn module_file_name(ctx: &LintWorkspaceDirContext, module_id: ModuleId) -> String {
+fn module_file_name(ctx: &LintWorkspaceContext, module_id: ModuleId) -> String {
     let Some(module) = ctx.repository_module(module_id) else {
         return module_id.to_string();
     };

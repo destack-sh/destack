@@ -1,9 +1,9 @@
-use destack_ast::{
-    self as ast, Expression, LocalNodeId, NodeVisitor, NodeVisitorOptions, Tree, walk_expression,
+use destack_dir::{
+    self as dir, Expression, LocalNodeId, NodeVisitor, NodeVisitorOptions, Tree, walk_expression,
 };
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintMeta, LintReport, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow control flow statements in finally blocks.
@@ -14,7 +14,7 @@ declare_lint! {
         id = "no-unsafe-finally",
         code = "LC033",
         category = Correctness,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = No,
@@ -31,16 +31,16 @@ impl LintRule for NoUnsafeFinally {
         NoUnsafeFinally::meta()
     }
 
-    /// Check module AST nodes for unsafe control flow inside finally blocks.
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    /// Check module source nodes for unsafe control flow inside finally blocks.
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // inspect try expressions that include finally blocks
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let ast::Expression::Try {
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let dir::Expression::Try {
                 finally_expression: Some(finally_id),
                 ..
-            } = ctx.tree.get(node_id)
+            } = ctx.dir.get(node_id)
             else {
                 continue;
             };
@@ -64,8 +64,8 @@ impl LintRule for NoUnsafeFinally {
             };
 
             // resolve finally expression
-            let finally_expression = ctx.tree.get(*finally_id);
-            visitor.visit_expression(ctx.tree, *finally_id, finally_expression);
+            let finally_expression = ctx.dir.get(*finally_id);
+            visitor.visit_expression(ctx.dir.tree(), *finally_id, finally_expression);
 
             // report all unsafe control-flow diagnostics from this finally traversal
             for diagnostic in visitor.diagnostics {
@@ -95,14 +95,14 @@ struct FinallyVisitor {
 #[derive(Clone, Copy)]
 struct LabelScope {
     /// The declared label.
-    name: ast::StringId,
+    name: dir::StringId,
     /// Whether `continue <label>` is valid for this label.
     can_continue: bool,
 }
 
 impl FinallyVisitor {
     /// Return true when one break target is inside the current finally traversal.
-    fn break_is_local_target(&self, label: Option<ast::StringId>) -> bool {
+    fn break_is_local_target(&self, label: Option<dir::StringId>) -> bool {
         // unlabeled breaks target the nearest breakable scope
         let Some(label) = label else {
             return self.breakable_scope_depth > 0;
@@ -113,7 +113,7 @@ impl FinallyVisitor {
     }
 
     /// Return true when one continue target is inside the current finally traversal.
-    fn continue_is_local_target(&self, label: Option<ast::StringId>) -> bool {
+    fn continue_is_local_target(&self, label: Option<dir::StringId>) -> bool {
         // unlabeled continues target the nearest loop scope
         let Some(label) = label else {
             return self.continuable_scope_depth > 0;
@@ -181,7 +181,7 @@ impl NodeVisitor for FinallyVisitor {
         let mut entered_label = false;
 
         // label scopes are local break targets and may be local continue targets for loops
-        if let Expression::Labelled { label, body } = expression {
+        if let Expression::Label { label, body } = expression {
             let body_expression = tree.get(*body);
             let can_continue = Self::expression_is_loop_target(body_expression);
 
@@ -285,7 +285,7 @@ mod tests {
     #[test]
     fn test_detects_return_in_finally() {
         let test = TestProgram::for_rule_without_prelude(NoUnsafeFinally);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unsafe_finally/test_detects_return_in_finally.ds",
             r#"
 function foo() {
@@ -303,7 +303,7 @@ function foo() {
     #[test]
     fn test_detects_throw_in_finally() {
         let test = TestProgram::for_rule_without_prelude(NoUnsafeFinally);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unsafe_finally/test_detects_throw_in_finally.ds",
             r#"
 function foo() {
@@ -321,7 +321,7 @@ function foo() {
     #[test]
     fn test_detects_break_in_finally() {
         let test = TestProgram::for_rule_without_prelude(NoUnsafeFinally);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unsafe_finally/test_detects_break_in_finally.ds",
             r#"
 while (true) {
@@ -339,7 +339,7 @@ while (true) {
     #[test]
     fn test_detects_continue_in_finally() {
         let test = TestProgram::for_rule_without_prelude(NoUnsafeFinally);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unsafe_finally/test_detects_continue_in_finally.ds",
             r#"
 while (true) {
@@ -357,7 +357,7 @@ while (true) {
     #[test]
     fn test_allows_return_in_try() {
         let test = TestProgram::for_rule_without_prelude(NoUnsafeFinally);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unsafe_finally/test_allows_return_in_try.ds",
             r#"
 function foo() {
@@ -375,7 +375,7 @@ function foo() {
     #[test]
     fn test_allows_return_in_nested_function() {
         let test = TestProgram::for_rule_without_prelude(NoUnsafeFinally);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unsafe_finally/test_allows_return_in_nested_function.ds",
             r#"
 function foo() {
@@ -396,7 +396,7 @@ function foo() {
     #[test]
     fn test_allows_return_in_nested_class_method() {
         let test = TestProgram::for_rule_without_prelude(NoUnsafeFinally);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unsafe_finally/test_allows_return_in_nested_class_method.ds",
             r#"
 function foo() {
@@ -418,7 +418,7 @@ function foo() {
     #[test]
     fn test_allows_break_inside_finally_loop() {
         let test = TestProgram::for_rule_without_prelude(NoUnsafeFinally);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unsafe_finally/test_allows_break_inside_finally_loop.ds",
             r#"
 function foo() {
@@ -438,7 +438,7 @@ function foo() {
     #[test]
     fn test_allows_continue_inside_finally_loop() {
         let test = TestProgram::for_rule_without_prelude(NoUnsafeFinally);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unsafe_finally/test_allows_continue_inside_finally_loop.ds",
             r#"
 function foo() {
@@ -458,7 +458,7 @@ function foo() {
     #[test]
     fn test_flags_break_to_outer_label_from_finally() {
         let test = TestProgram::for_rule_without_prelude(NoUnsafeFinally);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unsafe_finally/test_flags_break_to_outer_label_from_finally.ds",
             r#"
 outer: while (true) {
@@ -476,7 +476,7 @@ outer: while (true) {
     #[test]
     fn test_allows_break_to_inner_label_in_finally() {
         let test = TestProgram::for_rule_without_prelude(NoUnsafeFinally);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unsafe_finally/test_allows_break_to_inner_label_in_finally.ds",
             r#"
 function foo() {

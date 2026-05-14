@@ -4,7 +4,7 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression}
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{find_cycle_path, strongly_connected_components};
-use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow functions that recurse without conditional guards.
@@ -33,7 +33,7 @@ impl LintRule for NoInfiniteRecursion {
     }
 
     /// Check module DIR nodes for unconditional recursion cycles.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // collect all function declarations with bodies in this module
@@ -211,12 +211,11 @@ impl NodeVisitor for FunctionCallCollector<'_> {
 }
 
 /// Collect all function declarations with bodies in the current module.
-fn collect_function_infos(ctx: &LintModuleDirContext<'_>) -> Vec<FunctionInfo> {
-    let module_id = ctx.module.id;
+fn collect_function_infos(ctx: &LintModuleContext<'_>) -> Vec<FunctionInfo> {
     let mut functions = Vec::new();
 
     // inspect candidate nodes
-    for (decl_id, declaration) in ctx.tree.iter_nodes_of_type::<dir::Declaration>() {
+    for (decl_id, declaration) in ctx.dir.iter_nodes_of_type::<dir::Declaration>() {
         let dir::Declaration::Function(declaration) = declaration else {
             continue;
         };
@@ -229,7 +228,9 @@ fn collect_function_infos(ctx: &LintModuleDirContext<'_>) -> Vec<FunctionInfo> {
             .name
             .map(|name| ctx.strings.get(name.string()).to_string())
             .unwrap_or_else(|| "<anonymous>".to_string());
-        let symbol = dir::GlobalSymbolId::new(module_id, declaration.symbol);
+        let Some(symbol) = ctx.symbol_for_node(decl_id) else {
+            continue;
+        };
         functions.push(FunctionInfo {
             decl_id,
             symbol,
@@ -243,7 +244,7 @@ fn collect_function_infos(ctx: &LintModuleDirContext<'_>) -> Vec<FunctionInfo> {
 
 /// Analyze one function body and return call profile data.
 fn analyze_function_calls(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     body_id: dir::LocalNodeId<dir::Expression>,
 ) -> FunctionCallProfile {
     let mut collector = FunctionCallCollector {
@@ -253,7 +254,7 @@ fn analyze_function_calls(
         called_symbols: HashSet::new(),
         options: NodeVisitorOptions::default(),
     };
-    collector.run(ctx.tree, body_id);
+    collector.run(ctx.dir.tree(), body_id);
     collector.finish()
 }
 

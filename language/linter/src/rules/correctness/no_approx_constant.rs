@@ -1,8 +1,8 @@
 use crate::LintMeta;
-use destack_ast::{self as ast, Expression, ScalarLiteral};
+use destack_dir::{self as dir, Expression, ScalarLiteral};
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow approximate representations of mathematical constants.
@@ -14,7 +14,7 @@ declare_lint! {
         id = "no-approx-constant",
         code = "LC002",
         category = Correctness,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -42,21 +42,21 @@ impl LintRule for NoApproxConstant {
         NoApproxConstant::meta()
     }
 
-    /// Check module AST nodes for approximate math constants.
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    /// Check module source nodes for approximate math constants.
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         // resolve lint metadata
         let meta = self.meta();
 
         // walk scalar float literals
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expression = ctx.tree.get(node_id);
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let expression = ctx.dir.get(node_id);
 
             let Expression::ScalarLiteral(ScalarLiteral::Float(value)) = expression else {
                 continue;
             };
 
             // resolve literal source text for precision aware matching
-            let span = ctx.tree.get_span(node_id);
+            let span = ctx.dir.get_span(node_id);
             let literal_text = ctx.get_span_text(span);
 
             // match literal against known constants
@@ -165,7 +165,7 @@ mod tests {
     #[test]
     fn test_detects_approx_pi() {
         let test = TestProgram::for_rule_without_prelude(NoApproxConstant);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_approx_constant/test_detects_approx_pi.ds",
             r#"
 let pi = 3.14
@@ -177,7 +177,7 @@ let pi = 3.14
     #[test]
     fn test_detects_approx_pi_more_digits() {
         let test = TestProgram::for_rule_without_prelude(NoApproxConstant);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_approx_constant/test_detects_approx_pi_more_digits.ds",
             r#"
 let pi = 3.14159
@@ -189,7 +189,7 @@ let pi = 3.14159
     #[test]
     fn test_fix_rewrites_approx_pi_to_math_constant() {
         let test = TestProgram::for_rule_without_prelude(NoApproxConstant);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_approx_constant/test_fix_rewrites_approx_pi_to_math_constant.ds",
             r#"
 let pi = 3.14159
@@ -208,7 +208,7 @@ let pi = Math.PI;
     #[test]
     fn test_mutation_fix_rewrites_approx_tau_to_math_constant() {
         let test = TestProgram::for_rule_without_prelude(NoApproxConstant);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_approx_constant/test_mutation_fix_rewrites_approx_tau_to_math_constant.ds",
             r#"
 let tau = 6.28318
@@ -227,7 +227,7 @@ let tau = Math.TAU;
     #[test]
     fn test_detects_approx_e() {
         let test = TestProgram::for_rule_without_prelude(NoApproxConstant);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_approx_constant/test_detects_approx_e.ds",
             r#"
 let e = 2.71828
@@ -239,7 +239,7 @@ let e = 2.71828
     #[test]
     fn test_detects_approx_sqrt2() {
         let test = TestProgram::for_rule_without_prelude(NoApproxConstant);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_approx_constant/test_detects_approx_sqrt2.ds",
             r#"
 let sqrt2 = 1.414
@@ -251,7 +251,7 @@ let sqrt2 = 1.414
     #[test]
     fn test_detects_trailing_zero_precision() {
         let test = TestProgram::for_rule_without_prelude(NoApproxConstant);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_approx_constant/test_detects_trailing_zero_precision.ds",
             r#"
 let ln10 = 2.30
@@ -263,7 +263,7 @@ let ln10 = 2.30
     #[test]
     fn test_allows_far_prefix_match_outside_precision_threshold() {
         let test = TestProgram::for_rule_without_prelude(NoApproxConstant);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_approx_constant/test_allows_far_prefix_match_outside_precision_threshold.ds",
             r#"
 let maybePi = 3.149
@@ -275,7 +275,7 @@ let maybePi = 3.149
     #[test]
     fn test_allows_unrelated_floats() {
         let test = TestProgram::for_rule_without_prelude(NoApproxConstant);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_approx_constant/test_allows_unrelated_floats.ds",
             r#"
 let x = 1.5
@@ -289,7 +289,7 @@ let z = 0.5
     #[test]
     fn test_allows_small_integers_as_floats() {
         let test = TestProgram::for_rule_without_prelude(NoApproxConstant);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_approx_constant/test_allows_small_integers_as_floats.ds",
             r#"
 let x = 3.0
@@ -302,7 +302,7 @@ let y = 2.0
     #[test]
     fn test_detects_approx_pi_scientific_notation() {
         let test = TestProgram::for_rule_without_prelude(NoApproxConstant);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_approx_constant/test_detects_approx_pi_scientific_notation.ds",
             r#"
 let pi = 3.14159e0

@@ -1,10 +1,10 @@
 use crate::LintMeta;
-use destack_ast::{self as ast, Declarator, Expression, Member, ScalarLiteral, TypeExpression};
+use destack_dir::{self as dir, Declarator, Expression, Member, ScalarLiteral, TypeExpression};
 use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::span_has_comment;
-use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer `as const` over literal type assertions.
@@ -14,7 +14,7 @@ declare_lint! {
         id = "prefer-as-const",
         code = "LY034",
         category = Style,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Always,
@@ -30,12 +30,12 @@ impl LintRule for PreferAsConst {
         PreferAsConst::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // prefer `as const` in literal cast assertions
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expr = ctx.tree.get(node_id);
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let expr = ctx.dir.get(node_id);
 
             // look for type cast expressions
             let Expression::As {
@@ -47,7 +47,7 @@ impl LintRule for PreferAsConst {
             };
 
             // only report exact literal self assertions
-            if !is_exact_literal_self_cast(ctx.tree, *left, *right) {
+            if !is_exact_literal_self_cast(ctx.dir.tree(), *left, *right) {
                 continue;
             }
 
@@ -56,7 +56,7 @@ impl LintRule for PreferAsConst {
                 continue;
             }
 
-            let right_span = ctx.tree.get_span(*right);
+            let right_span = ctx.dir.get_span(*right);
             let edits = ctx.edit_builder().replace(right_span, "const").into_edits();
             let fix =
                 LintFix::safe("Replace literal type assertion with `as const`").with_edits(edits);
@@ -68,7 +68,7 @@ impl LintRule for PreferAsConst {
                     PREFER_AS_CONST.category,
                     severity,
                     "use `as const` instead of literal type assertion",
-                    ctx.tree.get_span(node_id),
+                    ctx.dir.get_span(node_id),
                 )
                 .label("prefer `as const`")
                 .fix(fix),
@@ -76,15 +76,16 @@ impl LintRule for PreferAsConst {
         }
 
         // prefer `as const` for literal type annotations on variable declarators
-        for declarator_id in ctx.tree.iter_nodes::<Declarator>() {
-            let declarator = ctx.tree.get(declarator_id);
+        for declarator_id in ctx.dir.iter_nodes::<Declarator>() {
+            let declarator = ctx.dir.get(declarator_id);
             let Some(type_expression_id) = declarator.ty else {
                 continue;
             };
             let Some(value_expression_id) = declarator.value else {
                 continue;
             };
-            if !is_exact_literal_self_cast(ctx.tree, value_expression_id, type_expression_id) {
+            if !is_exact_literal_self_cast(ctx.dir.tree(), value_expression_id, type_expression_id)
+            {
                 continue;
             }
 
@@ -93,7 +94,7 @@ impl LintRule for PreferAsConst {
                 continue;
             }
 
-            let type_span = ctx.tree.get_span(type_expression_id);
+            let type_span = ctx.dir.get_span(type_expression_id);
             let mut diagnostic = LintReport::new(
                 PREFER_AS_CONST.id,
                 PREFER_AS_CONST.code,
@@ -111,8 +112,8 @@ impl LintRule for PreferAsConst {
         }
 
         // prefer `as const` for class field literal annotations
-        for member_id in ctx.tree.iter_nodes::<Member>() {
-            let member = ctx.tree.get(member_id);
+        for member_id in ctx.dir.iter_nodes::<Member>() {
+            let member = ctx.dir.get(member_id);
             let Member::Field {
                 declared_type: Some(type_expression_id),
                 default: Some(default_expression_id),
@@ -121,7 +122,11 @@ impl LintRule for PreferAsConst {
             else {
                 continue;
             };
-            if !is_exact_literal_self_cast(ctx.tree, *default_expression_id, *type_expression_id) {
+            if !is_exact_literal_self_cast(
+                ctx.dir.tree(),
+                *default_expression_id,
+                *type_expression_id,
+            ) {
                 continue;
             }
 
@@ -130,7 +135,7 @@ impl LintRule for PreferAsConst {
                 continue;
             }
 
-            let type_span = ctx.tree.get_span(*type_expression_id);
+            let type_span = ctx.dir.get_span(*type_expression_id);
             let mut diagnostic = LintReport::new(
                 PREFER_AS_CONST.id,
                 PREFER_AS_CONST.code,
@@ -151,22 +156,22 @@ impl LintRule for PreferAsConst {
 
 /// Build a safe declarator fix from `name: 'x' = 'x'` to `name = 'x' as const`.
 fn declarator_literal_annotation_fix(
-    ctx: &LintAstContext<'_>,
-    declarator_id: ast::LocalNodeId<Declarator>,
+    ctx: &LintModuleContext<'_>,
+    declarator_id: dir::LocalNodeId<Declarator>,
 ) -> Option<LintFix> {
-    let declarator = ctx.tree.get(declarator_id);
+    let declarator = ctx.dir.get(declarator_id);
     let type_expression_id = declarator.ty?;
     let value_expression_id = declarator.value?;
 
     // avoid rewriting commented declarators
-    let declarator_span = ctx.tree.get_span(declarator_id);
-    if span_has_comment(ctx.tree, declarator_span) {
+    let declarator_span = ctx.dir.get_span(declarator_id);
+    if span_has_comment(ctx.dir.tree(), declarator_span) {
         return None;
     }
 
     // derive source spans for annotation and initializer
-    let value_span = ctx.tree.get_span(value_expression_id);
-    let type_span = ctx.tree.get_span(type_expression_id);
+    let value_span = ctx.dir.get_span(value_expression_id);
+    let type_span = ctx.dir.get_span(type_expression_id);
     let before_type_span = Span::new(declarator_span.file, declarator_span.start, type_span.start);
     let after_value_span = Span::new(declarator_span.file, value_span.end, declarator_span.end);
     let before_type_text = ctx.get_span_text(before_type_span);
@@ -190,10 +195,10 @@ fn declarator_literal_annotation_fix(
 
 /// Build a safe class field fix from `field: 'x' = 'x'` to `field = 'x' as const`.
 fn member_field_literal_annotation_fix(
-    ctx: &LintAstContext<'_>,
-    member_id: ast::LocalNodeId<Member>,
+    ctx: &LintModuleContext<'_>,
+    member_id: dir::LocalNodeId<Member>,
 ) -> Option<LintFix> {
-    let member = ctx.tree.get(member_id);
+    let member = ctx.dir.get(member_id);
     let Member::Field {
         declared_type: Some(type_expression_id),
         default: Some(default_expression_id),
@@ -204,14 +209,14 @@ fn member_field_literal_annotation_fix(
     };
 
     // avoid rewriting commented fields
-    let member_span = ctx.tree.get_span(member_id);
-    if span_has_comment(ctx.tree, member_span) {
+    let member_span = ctx.dir.get_span(member_id);
+    if span_has_comment(ctx.dir.tree(), member_span) {
         return None;
     }
 
     // derive source spans for annotation and initializer
-    let default_span = ctx.tree.get_span(*default_expression_id);
-    let type_span = ctx.tree.get_span(*type_expression_id);
+    let default_span = ctx.dir.get_span(*default_expression_id);
+    let type_span = ctx.dir.get_span(*type_expression_id);
     let before_type_span = Span::new(member_span.file, member_span.start, type_span.start);
     let after_default_span = Span::new(member_span.file, default_span.end, member_span.end);
     let before_type_text = ctx.get_span_text(before_type_span);
@@ -235,9 +240,9 @@ fn member_field_literal_annotation_fix(
 
 /// Return true when a cast has the same literal value on both sides.
 fn is_exact_literal_self_cast(
-    tree: &ast::Tree,
-    left_id: ast::LocalNodeId<Expression>,
-    right_id: ast::LocalNodeId<ast::TypeExpression>,
+    tree: &dir::Tree,
+    left_id: dir::LocalNodeId<Expression>,
+    right_id: dir::LocalNodeId<dir::TypeExpression>,
 ) -> bool {
     let left = tree.get(left_id);
     let right = tree.get(right_id);
@@ -284,7 +289,7 @@ mod tests {
     #[test]
     fn test_detects_string_literal_cast() {
         let test = TestProgram::for_rule_without_prelude(PreferAsConst);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_as_const/test_detects_string_literal_cast.ds",
             r#"
 const x = "hello" as "hello"
@@ -296,7 +301,7 @@ const x = "hello" as "hello"
     #[test]
     fn test_fix_string_literal_self_cast() {
         let test = TestProgram::for_rule_without_prelude(PreferAsConst);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_as_const/test_fix_string_literal_self_cast.ds",
             r#"
 const x = "hello" as "hello"
@@ -315,7 +320,7 @@ const x = "hello" as const;
     #[test]
     fn test_no_fix_for_non_literal_self_cast() {
         let test = TestProgram::for_rule_without_prelude(PreferAsConst);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_as_const/test_no_fix_for_non_literal_self_cast.ds",
             r#"
 const x = value as "hello"
@@ -327,7 +332,7 @@ const x = value as "hello"
     #[test]
     fn test_detects_number_literal_cast() {
         let test = TestProgram::for_rule_without_prelude(PreferAsConst);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_as_const/test_detects_number_literal_cast.ds",
             r#"
 const x = 42 as 42
@@ -339,7 +344,7 @@ const x = 42 as 42
     #[test]
     fn test_fix_number_literal_self_cast() {
         let test = TestProgram::for_rule_without_prelude(PreferAsConst);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_as_const/test_fix_number_literal_self_cast.ds",
             r#"
 const x = 42 as 42
@@ -359,7 +364,7 @@ const x = 42 as const;
     #[test]
     fn test_fix_float_literal_self_cast() {
         let test = TestProgram::for_rule_without_prelude(PreferAsConst);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_as_const/test_fix_float_literal_self_cast.ds",
             r#"
 const x = 1.5 as 1.5
@@ -378,7 +383,7 @@ const x = 1.5 as const;
     #[test]
     fn test_fix_boolean_literal_self_cast() {
         let test = TestProgram::for_rule_without_prelude(PreferAsConst);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_as_const/test_fix_boolean_literal_self_cast.ds",
             r#"
 const x = true as true
@@ -397,7 +402,7 @@ const x = true as const;
     #[test]
     fn test_no_fix_for_string_literal_mismatch() {
         let test = TestProgram::for_rule_without_prelude(PreferAsConst);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_as_const/test_no_fix_for_string_literal_mismatch.ds",
             r#"
 const x = "hello" as "world"
@@ -409,7 +414,7 @@ const x = "hello" as "world"
     #[test]
     fn test_no_fix_for_number_literal_mismatch() {
         let test = TestProgram::for_rule_without_prelude(PreferAsConst);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_as_const/test_no_fix_for_number_literal_mismatch.ds",
             r#"
 const x = 41 as 42
@@ -421,7 +426,7 @@ const x = 41 as 42
     #[test]
     fn test_no_fix_for_boolean_literal_mismatch() {
         let test = TestProgram::for_rule_without_prelude(PreferAsConst);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_as_const/test_no_fix_for_boolean_literal_mismatch.ds",
             r#"
 const x = false as true
@@ -433,7 +438,7 @@ const x = false as true
     #[test]
     fn test_fix_bigint_literal_self_cast() {
         let test = TestProgram::for_rule_without_prelude(PreferAsConst);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_as_const/test_fix_bigint_literal_self_cast.ds",
             r#"
 const x = 1n as 1n
@@ -452,7 +457,7 @@ const x = 1n as const;
     #[test]
     fn test_allows_as_const() {
         let test = TestProgram::for_rule_without_prelude(PreferAsConst);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_as_const/test_allows_as_const.ds",
             r#"
 const x = "hello" as const
@@ -464,7 +469,7 @@ const x = "hello" as const
     #[test]
     fn test_allows_type_cast() {
         let test = TestProgram::for_rule_without_prelude(PreferAsConst);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_as_const/test_allows_type_cast.ds",
             r#"
 const x = value as string
@@ -476,7 +481,7 @@ const x = value as string
     #[test]
     fn test_allows_object_cast() {
         let test = TestProgram::for_rule_without_prelude(PreferAsConst);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_as_const/test_allows_object_cast.ds",
             r#"
 const x = obj as { foo: string }
@@ -488,7 +493,7 @@ const x = obj as { foo: string }
     #[test]
     fn test_fix_variable_literal_annotation() {
         let test = TestProgram::for_rule_without_prelude(PreferAsConst);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_as_const/test_fix_variable_literal_annotation.ds",
             r#"
 let foo: 'bar' = 'bar';
@@ -507,7 +512,7 @@ let foo = 'bar' as const;
     #[test]
     fn test_fix_class_field_literal_annotation() {
         let test = TestProgram::for_rule_without_prelude(PreferAsConst);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_as_const/test_fix_class_field_literal_annotation.ds",
             r#"
 class Foo {
@@ -530,7 +535,7 @@ class Foo {
     #[test]
     fn test_allows_variable_literal_annotation_with_non_literal_initializer() {
         let test = TestProgram::for_rule_without_prelude(PreferAsConst);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_as_const/test_allows_variable_literal_annotation_with_non_literal_initializer.ds",
             r#"
 let value = 'bar';
@@ -544,7 +549,7 @@ let foo: 'bar' = value;
     #[test]
     fn test_lint_without_fix_for_commented_variable_annotation() {
         let test = TestProgram::for_rule_without_prelude(PreferAsConst);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_as_const/test_lint_without_fix_for_commented_variable_annotation.ds",
             r#"
 let foo /* keep note */: 'bar' = 'bar';
@@ -559,7 +564,7 @@ let foo /* keep note */: 'bar' = 'bar';
     #[test]
     fn test_lint_without_fix_for_commented_field_annotation() {
         let test = TestProgram::for_rule_without_prelude(PreferAsConst);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_as_const/test_lint_without_fix_for_commented_field_annotation.ds",
             r#"
 class Foo {

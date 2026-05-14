@@ -2,7 +2,7 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression,
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{TypeNullishness, TypeTruthiness, type_nullishness, type_truthiness};
-use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow conditions that are always truthy, always falsy, or nullish-fixed.
@@ -32,7 +32,7 @@ impl LintRule for NoUnnecessaryCondition {
     }
 
     /// Check module DIR nodes for always-fixed conditions.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let mut visitor = UnnecessaryConditionVisitor::new(ctx, meta);
         visitor.run();
@@ -42,7 +42,7 @@ impl LintRule for NoUnnecessaryCondition {
 /// Node visitor for unnecessary condition checks.
 struct UnnecessaryConditionVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The visitor options.
@@ -51,7 +51,7 @@ struct UnnecessaryConditionVisitor<'a, 'b> {
 
 impl<'a, 'b> UnnecessaryConditionVisitor<'a, 'b> {
     /// Build a visitor for unnecessary condition checks.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         Self {
             ctx,
             meta,
@@ -62,7 +62,7 @@ impl<'a, 'b> UnnecessaryConditionVisitor<'a, 'b> {
     /// Walk the module roots.
     fn run(&mut self) {
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         // inspect dir roots
         for root_id in roots {
@@ -77,7 +77,7 @@ impl<'a, 'b> UnnecessaryConditionVisitor<'a, 'b> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         context_label: &'static str,
     ) {
-        let expression = self.ctx.tree.get(expression_id);
+        let expression = self.ctx.dir.get(expression_id);
 
         // preserve condition semantics for explicit negation
         let (diagnostic_id, truthiness) = if let dir::Expression::Unary {
@@ -258,12 +258,6 @@ impl NodeVisitor for UnnecessaryConditionVisitor<'_, '_> {
                 if let dir::IfCondition::Expression { condition } = condition {
                     self.check_condition(*condition, "if condition");
                 }
-            }
-            dir::Expression::Loop {
-                condition: Some(condition),
-                ..
-            } => {
-                self.check_loop_condition(*condition);
             }
             dir::Expression::For {
                 condition: Some(condition),

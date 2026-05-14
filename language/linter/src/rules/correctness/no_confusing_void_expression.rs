@@ -7,7 +7,7 @@ use crate::rules::common::{
     expression_is_standalone_statement, expression_outer_transparent_ancestor,
     expression_parent_id, function_return_type, is_void_or_never_type,
 };
-use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow `void` expressions where a value is expected.
@@ -39,7 +39,7 @@ impl LintRule for NoConfusingVoidExpression {
     }
 
     /// Check module DIR nodes for nested `void` expressions.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         // walk expression roots with one visitor pass
         let mut visitor = NoConfusingVoidExpressionVisitor::new(ctx, self.meta());
         visitor.run();
@@ -49,7 +49,7 @@ impl LintRule for NoConfusingVoidExpression {
 /// Node visitor that reports nested void-like expressions in value position.
 struct NoConfusingVoidExpressionVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// Whether explicit `void` unary wrappers are ignored.
@@ -62,7 +62,7 @@ struct NoConfusingVoidExpressionVisitor<'a, 'b> {
 
 impl<'a, 'b> NoConfusingVoidExpressionVisitor<'a, 'b> {
     /// Build a visitor for no-confusing-void-expression checks.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         let ignore_void_operator = ctx
             .options
             .correctness
@@ -84,7 +84,7 @@ impl<'a, 'b> NoConfusingVoidExpressionVisitor<'a, 'b> {
     /// Walk the DIR tree roots.
     fn run(&mut self) {
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         for root_id in roots {
             let expression = tree.get(root_id);
@@ -101,7 +101,7 @@ impl<'a, 'b> NoConfusingVoidExpressionVisitor<'a, 'b> {
 
         // keep only value-position usage
         let Some(invalid_ancestor_expression_id) =
-            invalid_ancestor_expression_id(self.ctx.tree, expression_id)
+            invalid_ancestor_expression_id(self.ctx.dir.tree(), expression_id)
         else {
             return;
         };
@@ -137,24 +137,24 @@ impl<'a, 'b> NoConfusingVoidExpressionVisitor<'a, 'b> {
 
 /// Return true when one void-like expression is the returned result of a void-returning function.
 fn is_void_returning_function_result_position(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     invalid_ancestor_expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     let is_direct_return_expression = matches!(
-        ctx.tree.get(invalid_ancestor_expression_id),
+        ctx.dir.get(invalid_ancestor_expression_id),
         dir::Expression::Return { value: Some(_) }
     );
     let mut current_child_id = invalid_ancestor_expression_id.into_any();
 
     loop {
-        let Some(parent_node_id) = ctx.tree.get_parent(current_child_id.id) else {
+        let Some(parent_node_id) = ctx.dir.get_parent(current_child_id.id) else {
             return false;
         };
 
         // function boundary
         if parent_node_id.ty == dir::NodeType::Declaration {
             let parent_declaration_id = parent_node_id.into_typed::<dir::Declaration>();
-            let parent_declaration = ctx.tree.get(parent_declaration_id);
+            let parent_declaration = ctx.dir.get(parent_declaration_id);
             let dir::Declaration::Function(declaration) = parent_declaration else {
                 return false;
             };
@@ -166,7 +166,9 @@ fn is_void_returning_function_result_position(
                 return false;
             }
 
-            let function_symbol_id = declaration.symbol.into_global(ctx.module_id());
+            let Some(function_symbol_id) = ctx.symbol_for_node(parent_declaration_id) else {
+                return false;
+            };
             let Some(function_type_id) = ctx.types.get_value_type_id(function_symbol_id) else {
                 return false;
             };
@@ -177,7 +179,7 @@ fn is_void_returning_function_result_position(
                 return false;
             }
 
-            let body_expression = ctx.tree.get(body_expression_id);
+            let body_expression = ctx.dir.get(body_expression_id);
             return is_direct_return_expression
                 || invalid_ancestor_expression_id == body_expression_id
                     && !matches!(body_expression, dir::Expression::Block(..));
@@ -210,17 +212,17 @@ impl NodeVisitor for NoConfusingVoidExpressionVisitor<'_, '_> {
 
 /// Return true when one expression is a candidate void-like expression.
 fn is_void_expression_candidate(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
     ignore_void_operator: bool,
 ) -> bool {
     // allow explicit `void` wrappers when configured
-    if ignore_void_operator && is_void_unary_expression(ctx.tree, expression_id) {
+    if ignore_void_operator && is_void_unary_expression(ctx.dir.tree(), expression_id) {
         return false;
     }
 
     // keep explicit `void expr` expressions
-    if is_void_unary_expression(ctx.tree, expression_id) {
+    if is_void_unary_expression(ctx.dir.tree(), expression_id) {
         return true;
     }
 
@@ -229,7 +231,7 @@ fn is_void_expression_candidate(
         return false;
     }
 
-    let expression = ctx.tree.get(expression_id);
+    let expression = ctx.dir.get(expression_id);
     matches!(
         expression,
         dir::Expression::Call { .. }
@@ -242,7 +244,7 @@ fn is_void_expression_candidate(
 
 /// Return true when one expression is typed as void or never.
 fn is_void_or_never_expression(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     // resolve expression type id from typed DIR

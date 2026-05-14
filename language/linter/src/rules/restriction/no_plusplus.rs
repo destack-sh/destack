@@ -1,8 +1,8 @@
-use destack_ast::{self as ast, UnaryOperator};
+use destack_dir::{self as dir, UnaryOperator};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_statement_ancestor;
-use crate::{LintAstContext, LintFix, LintMeta, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow `++` and `--` operators.
@@ -13,7 +13,7 @@ declare_lint! {
         id = "no-plusplus",
         code = "LR022",
         category = Restriction,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -29,13 +29,13 @@ impl LintRule for NoPlusplus {
         NoPlusplus::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // inspect candidate expressions
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expression = ctx.tree.get(node_id);
-            let ast::Expression::Unary { operator, .. } = expression else {
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let expression = ctx.dir.get(node_id);
+            let dir::Expression::Unary { operator, .. } = expression else {
                 continue;
             };
             if !matches!(
@@ -69,7 +69,7 @@ impl LintRule for NoPlusplus {
                 NO_PLUSPLUS.category,
                 severity,
                 "`++` and `--` operators are not allowed",
-                ctx.tree.get_span(node_id),
+                ctx.dir.get_span(node_id),
             )
             .label("use `+= 1` or `-= 1` instead");
 
@@ -80,7 +80,7 @@ impl LintRule for NoPlusplus {
                     ctx.report(diagnostic);
                     continue;
                 };
-                let operand_span = ctx.tree.get_span(operand_id);
+                let operand_span = ctx.dir.get_span(operand_id);
                 let operand_text = ctx.get_span_text(operand_span);
                 let assign_operator = match operator {
                     UnaryOperator::PreIncrement | UnaryOperator::PostIncrement => "+=",
@@ -88,7 +88,7 @@ impl LintRule for NoPlusplus {
                     _ => unreachable!(),
                 };
                 let replacement = format!("{operand_text} {assign_operator} 1");
-                let expression_span = ctx.tree.get_span(node_id);
+                let expression_span = ctx.dir.get_span(node_id);
                 let edits = ctx
                     .edit_builder()
                     .replace(expression_span, replacement)
@@ -105,11 +105,11 @@ impl LintRule for NoPlusplus {
 
 /// Return true when an update expression result is discarded.
 fn is_discarded_update_expression(
-    ctx: &LintAstContext<'_>,
-    node_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    node_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     // standalone statement position
-    if expression_statement_ancestor(ctx.tree, ctx.parents, node_id).is_some() {
+    if expression_statement_ancestor(ctx.dir.tree(), node_id).is_some() {
         return true;
     }
 
@@ -119,34 +119,34 @@ fn is_discarded_update_expression(
 
 /// Return true when one expression is in a for-loop afterthought chain.
 fn expression_is_for_loop_afterthought(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     // start from the update expression
     let mut current_id = expression_id;
 
     // walk through parenthesized and sequence wrappers up to one for increment
     loop {
-        let Some(parent_id) = ctx.parents.get(current_id) else {
+        let Some(parent_id) = ctx.dir.get_parent_id(current_id.id) else {
             return false;
         };
-        if ctx.tree.get_node_type(parent_id) != ast::NodeType::Expression {
+        if ctx.dir.get_node_type(parent_id) != dir::NodeType::Expression {
             return false;
         }
 
         // resolve parent expression id
-        let parent_expression_id = ast::LocalNodeId::<ast::Expression>::new(parent_id);
-        let parent_expression = ctx.tree.get(parent_expression_id);
+        let parent_expression_id = dir::LocalNodeId::<dir::Expression>::new(parent_id);
+        let parent_expression = ctx.dir.get(parent_expression_id);
         match parent_expression {
-            ast::Expression::Parenthesized { expression } if *expression == current_id => {
+            dir::Expression::Parenthesized { expression } if *expression == current_id => {
                 current_id = parent_expression_id;
             }
-            ast::Expression::SequenceExpression { expressions }
+            dir::Expression::SequenceExpression { expressions }
                 if expressions.contains(&current_id) =>
             {
                 current_id = parent_expression_id;
             }
-            ast::Expression::For {
+            dir::Expression::For {
                 increment: Some(increment_id),
                 ..
             } => {
@@ -158,8 +158,8 @@ fn expression_is_for_loop_afterthought(
 }
 
 /// Return the operand id from a unary update expression.
-fn unary_operand_id(expression: &ast::Expression) -> Option<ast::LocalNodeId<ast::Expression>> {
-    let ast::Expression::Unary { right, .. } = expression else {
+fn unary_operand_id(expression: &dir::Expression) -> Option<dir::LocalNodeId<dir::Expression>> {
+    let dir::Expression::Unary { right, .. } = expression else {
         return None;
     };
 
@@ -174,35 +174,35 @@ mod tests {
     #[test]
     fn test_detects_post_increment() {
         let test = TestProgram::for_rule_without_prelude(NoPlusplus);
-        let result = test.lint_ast("no_plusplus/test_detects_post_increment.ts", "x++;");
+        let result = test.lint("no_plusplus/test_detects_post_increment.ts", "x++;");
         test.result(result).assert_lint("no-plusplus");
     }
 
     #[test]
     fn test_detects_pre_increment() {
         let test = TestProgram::for_rule_without_prelude(NoPlusplus);
-        let result = test.lint_ast("no_plusplus/test_detects_pre_increment.ts", "++x;");
+        let result = test.lint("no_plusplus/test_detects_pre_increment.ts", "++x;");
         test.result(result).assert_lint("no-plusplus");
     }
 
     #[test]
     fn test_detects_post_decrement() {
         let test = TestProgram::for_rule_without_prelude(NoPlusplus);
-        let result = test.lint_ast("no_plusplus/test_detects_post_decrement.ts", "x--;");
+        let result = test.lint("no_plusplus/test_detects_post_decrement.ts", "x--;");
         test.result(result).assert_lint("no-plusplus");
     }
 
     #[test]
     fn test_detects_pre_decrement() {
         let test = TestProgram::for_rule_without_prelude(NoPlusplus);
-        let result = test.lint_ast("no_plusplus/test_detects_pre_decrement.ts", "--x;");
+        let result = test.lint("no_plusplus/test_detects_pre_decrement.ts", "--x;");
         test.result(result).assert_lint("no-plusplus");
     }
 
     #[test]
     fn test_allows_plus_equals() {
         let test = TestProgram::for_rule_without_prelude(NoPlusplus);
-        let result = test.lint_ast("no_plusplus/test_allows_plus_equals.ts", "x += 1;");
+        let result = test.lint("no_plusplus/test_allows_plus_equals.ts", "x += 1;");
         test.result(result).assert_no_lint("no-plusplus");
     }
 
@@ -211,7 +211,7 @@ mod tests {
         let test = TestProgram::for_rule_without_prelude(NoPlusplus).with_options(|options| {
             options.restriction.allow_plusplus_for_loop_afterthoughts = true;
         });
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_plusplus/test_allows_for_loop_afterthought_when_enabled.ts",
             r#"
 for (let i = 0; i < 3; i++) {
@@ -227,7 +227,7 @@ for (let i = 0; i < 3; i++) {
         let test = TestProgram::for_rule_without_prelude(NoPlusplus).with_options(|options| {
             options.restriction.allow_plusplus_for_loop_afterthoughts = true;
         });
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_plusplus/test_allows_sequence_for_loop_afterthought_when_enabled.ts",
             r#"
 for (let i = 0; i < 3; log(i), i++) {
@@ -243,7 +243,7 @@ for (let i = 0; i < 3; log(i), i++) {
         let test = TestProgram::for_rule_without_prelude(NoPlusplus).with_options(|options| {
             options.restriction.allow_plusplus_for_loop_afterthoughts = true;
         });
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_plusplus/test_still_detects_loop_body_increment_when_afterthoughts_enabled.ts",
             r#"
 for (let i = 0; i < 3; i++) {
@@ -257,7 +257,7 @@ for (let i = 0; i < 3; i++) {
     #[test]
     fn test_fix_post_increment_statement() {
         let test = TestProgram::for_rule_without_prelude(NoPlusplus);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_plusplus/test_fix_post_increment_statement.ts",
             r#"
 x++;
@@ -276,7 +276,7 @@ x += 1;
     #[test]
     fn test_fix_pre_increment_statement() {
         let test = TestProgram::for_rule_without_prelude(NoPlusplus);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_plusplus/test_fix_pre_increment_statement.ts",
             r#"
 ++count;
@@ -295,7 +295,7 @@ count += 1;
     #[test]
     fn test_fix_post_decrement_statement() {
         let test = TestProgram::for_rule_without_prelude(NoPlusplus);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_plusplus/test_fix_post_decrement_statement.ts",
             r#"
 count--;
@@ -314,7 +314,7 @@ count -= 1;
     #[test]
     fn test_fix_member_post_increment_statement() {
         let test = TestProgram::for_rule_without_prelude(NoPlusplus);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_plusplus/test_fix_member_post_increment_statement.ts",
             r#"
 item.count++;
@@ -333,7 +333,7 @@ item.count += 1;
     #[test]
     fn test_fix_pre_decrement_in_for_increment() {
         let test = TestProgram::for_rule_without_prelude(NoPlusplus);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_plusplus/test_fix_pre_decrement_in_for_increment.ts",
             r#"
 for (; keepGoing(); --index) {}
@@ -352,7 +352,7 @@ for (; keepGoing(); index -= 1) {}
     #[test]
     fn test_fix_post_increment_in_for_afterthought_sequence() {
         let test = TestProgram::for_rule_without_prelude(NoPlusplus);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_plusplus/test_fix_post_increment_in_for_afterthought_sequence.ts",
             r#"
 for (; keepGoing(); (touch(), index++)) {}
@@ -371,7 +371,7 @@ for (; keepGoing(); (touch(), index += 1)) {}
     #[test]
     fn test_fix_parenthesized_post_increment_statement() {
         let test = TestProgram::for_rule_without_prelude(NoPlusplus);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_plusplus/test_fix_parenthesized_post_increment_statement.ts",
             r#"
 (count++);
@@ -390,7 +390,7 @@ for (; keepGoing(); (touch(), index += 1)) {}
     #[test]
     fn test_no_fix_when_update_value_is_used() {
         let test = TestProgram::for_rule_without_prelude(NoPlusplus);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_plusplus/test_no_fix_when_update_value_is_used.ts",
             r#"
 let value = count++;
@@ -404,7 +404,7 @@ let value = count++;
     #[test]
     fn test_no_fix_when_update_value_is_returned() {
         let test = TestProgram::for_rule_without_prelude(NoPlusplus);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_plusplus/test_no_fix_when_update_value_is_returned.ts",
             r#"
 function next() {
@@ -420,7 +420,7 @@ function next() {
     #[test]
     fn test_no_fix_when_update_value_is_condition() {
         let test = TestProgram::for_rule_without_prelude(NoPlusplus);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_plusplus/test_no_fix_when_update_value_is_condition.ts",
             r#"
 while (count++) {
@@ -436,7 +436,7 @@ while (count++) {
     #[test]
     fn test_no_fix_when_update_value_is_call_argument() {
         let test = TestProgram::for_rule_without_prelude(NoPlusplus);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_plusplus/test_no_fix_when_update_value_is_call_argument.ts",
             r#"
 consume(count++);

@@ -4,7 +4,7 @@ use destack_workspace::LintSeverity;
 use crate::rules::common::{
     expression_method_call, expression_unwrap_parenthesized, is_float_type,
 };
-use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow direct `==` comparison of floats.
@@ -34,7 +34,7 @@ impl LintRule for NoFloatingPointEquality {
     }
 
     /// Check module DIR nodes for float equality comparisons.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let mut visitor = FloatEqualityVisitor::new(ctx, meta);
         visitor.run();
@@ -44,18 +44,18 @@ impl LintRule for NoFloatingPointEquality {
 /// Node visitor that flags direct equality comparisons of floats.
 struct FloatEqualityVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The member name `signum`.
-    signum_name: destack_ast::StringId,
+    signum_name: destack_dir::StringId,
     /// The visitor options.
     options: NodeVisitorOptions,
 }
 
 impl<'a, 'b> FloatEqualityVisitor<'a, 'b> {
     /// Build a visitor for float equality checks.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         let signum_name = ctx.string_id("signum");
         Self {
             ctx,
@@ -68,7 +68,7 @@ impl<'a, 'b> FloatEqualityVisitor<'a, 'b> {
     /// Walk the DIR tree roots.
     fn run(&mut self) {
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         for root_id in roots {
             let expression = tree.get(root_id);
@@ -154,8 +154,8 @@ impl<'a, 'b> FloatEqualityVisitor<'a, 'b> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> bool {
-        let expression_id = expression_unwrap_parenthesized(self.ctx.tree, expression_id);
-        let expression = self.ctx.tree.get(expression_id);
+        let expression_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), expression_id);
+        let expression = self.ctx.dir.get(expression_id);
 
         // unary negation preserves signum semantics
         if let dir::Expression::Unary {
@@ -166,7 +166,7 @@ impl<'a, 'b> FloatEqualityVisitor<'a, 'b> {
             return self.expression_is_signum_result(*right);
         }
 
-        let Some(method_call) = expression_method_call(self.ctx.tree, expression_id) else {
+        let Some(method_call) = expression_method_call(self.ctx.dir.tree(), expression_id) else {
             return false;
         };
         if method_call.method_name != self.signum_name {

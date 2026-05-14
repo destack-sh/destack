@@ -20,11 +20,11 @@ pub fn expression_is_numeric_literal(
 
     matches!(
         tree.get(expression_id),
-        dir::Expression::ScalarLiteral {
-            value: dir::ScalarLiteral::Integer(_)
+        dir::Expression::ScalarLiteral(
+            dir::ScalarLiteral::Integer(_)
                 | dir::ScalarLiteral::Bigint(_)
-                | dir::ScalarLiteral::Float(_),
-        }
+                | dir::ScalarLiteral::Float(_)
+        )
     )
 }
 
@@ -106,12 +106,11 @@ pub fn expression_assignment_target(
     expression: &dir::Expression,
 ) -> Option<dir::LocalNodeId<dir::Expression>> {
     match expression {
-        dir::Expression::Assign { left, right: _ } => assign_pattern_target_expression(tree, *left),
-        dir::Expression::AssignBinary {
+        dir::Expression::Assign {
             left,
             operator: _,
             right: _,
-        } => Some(*left),
+        } => assign_pattern_target_expression(tree, *left),
         dir::Expression::Unary {
             operator:
                 dir::UnaryOperator::PreIncrement
@@ -128,11 +127,9 @@ pub fn expression_assignment_target(
 pub fn expression_import_target_static_specifier(expression: &dir::Expression) -> Option<StringId> {
     match expression {
         dir::Expression::Import { target, .. } => Some(*target),
-        dir::Expression::ReExport {
-            target,
-            space: _,
-            items: _,
-            attributes: _,
+        dir::Expression::Export {
+            target: Some(target),
+            ..
         } => Some(*target),
         _ => None,
     }
@@ -171,7 +168,7 @@ pub fn argument_expression_id(
         | dir::Argument::Labeled { label: _, value }
         | dir::Argument::Positional { value }
         | dir::Argument::Spread { label: _, value } => Some(*value),
-        dir::Argument::Error { value } => Some(*value),
+        dir::Argument::Error => None,
     }
 }
 
@@ -345,8 +342,8 @@ pub fn expression_unwrap_transparent(
             dir::Expression::Parenthesized { expression } => {
                 expression_id = *expression;
             }
-            dir::Expression::Maybe { left }
-            | dir::Expression::Must { left }
+            dir::Expression::Maybe { left, .. }
+            | dir::Expression::Must { left, .. }
             | dir::Expression::Instantiation { left, .. } => {
                 expression_id = *left;
             }
@@ -606,7 +603,7 @@ pub fn expression_is_any_typed(
     let Some(declaration) = symbol_entry.declaration else {
         return false;
     };
-    if declaration_marks_symbol_as_any(tree, declaration, target_symbol.local_id) {
+    if declaration_marks_symbol_as_any(tree, symbols, declaration, target_symbol.local_id) {
         return true;
     }
 
@@ -755,6 +752,7 @@ pub fn expression_is_promise_like(
 /// Return true when a declaration marks a symbol as `any`.
 fn declaration_marks_symbol_as_any(
     tree: &dir::Tree,
+    symbols: &dir::BindingTable,
     declaration_id: dir::GlobalNodeIdAny,
     symbol_id: dir::LocalSymbolId,
 ) -> bool {
@@ -792,8 +790,9 @@ fn declaration_marks_symbol_as_any(
                 dir::Expression::Let { declarators, .. }
                 | dir::Expression::Using { declarators, .. } => declarators.iter().any(|id| {
                     let declarator = tree.get(*id);
-                    let pattern = tree.get(declarator.pattern);
-                    pattern.symbol() == Some(symbol_id)
+                    symbols.symbol_for_declaration(
+                        declarator.pattern.into_global_any(symbols.module_id),
+                    ) == Some(symbol_id)
                         && declarator
                             .ty
                             .is_some_and(|type_id| type_expression_is_explicit_any(tree, type_id))
@@ -896,21 +895,26 @@ pub fn expression_is_potentially_tainted(
     let expression = tree.get(expression_id);
 
     // literals are safe
-    if matches!(expression, dir::Expression::ScalarLiteral { .. }) {
+    if matches!(expression, dir::Expression::ScalarLiteral(_)) {
         return false;
     }
 
     // these expression kinds can carry user controlled data
     matches!(
         expression,
-        dir::Expression::Path { .. }
+        dir::Expression::QualifiedReference { .. }
             | dir::Expression::Member { left: _, name: _ }
             | dir::Expression::Call {
+                position: _,
                 left: _,
                 generic_arguments: _,
                 arguments: _,
             }
-            | dir::Expression::Index { left: _, right: _ }
+            | dir::Expression::Index {
+                position: _,
+                left: _,
+                index: _,
+            }
             | dir::Expression::Binary {
                 left: _,
                 operator: _,
@@ -953,7 +957,7 @@ fn expression_contains_reference_segment(
             type_expression_contains_reference_segment(tree, *value, target_segment)
         }
 
-        dir::Expression::Path {
+        dir::Expression::QualifiedReference {
             path,
             generic_arguments,
         } => path_or_generic_arguments_contain_reference_segment(

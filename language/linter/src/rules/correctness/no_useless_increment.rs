@@ -5,7 +5,7 @@ use crate::rules::common::{
     assign_pattern_target_expression, expression_unwrap_transparent,
     expressions_have_equivalent_source_form,
 };
-use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow increment/decrement whose result is unused.
@@ -35,7 +35,7 @@ impl LintRule for NoUselessIncrement {
     }
 
     /// Check module DIR nodes for useless increments.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let mut visitor = UselessIncrementVisitor::new(ctx, meta);
         visitor.run();
@@ -45,7 +45,7 @@ impl LintRule for NoUselessIncrement {
 /// Visitor that flags useless increment/decrement operations.
 struct UselessIncrementVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The visitor options.
@@ -54,7 +54,7 @@ struct UselessIncrementVisitor<'a, 'b> {
 
 impl<'a, 'b> UselessIncrementVisitor<'a, 'b> {
     /// Build a visitor for useless increment checks.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         Self {
             ctx,
             meta,
@@ -65,7 +65,7 @@ impl<'a, 'b> UselessIncrementVisitor<'a, 'b> {
     /// Walk the DIR tree roots.
     fn run(&mut self) {
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         // inspect dir roots
         for root_id in roots {
@@ -109,8 +109,8 @@ impl<'a, 'b> UselessIncrementVisitor<'a, 'b> {
         left_id: dir::LocalNodeId<dir::Expression>,
         right_id: dir::LocalNodeId<dir::Expression>,
     ) {
-        let normalized_right_id = expression_unwrap_transparent(self.ctx.tree, right_id);
-        let right_expression = self.ctx.tree.get(normalized_right_id);
+        let normalized_right_id = expression_unwrap_transparent(self.ctx.dir.tree(), right_id);
+        let right_expression = self.ctx.dir.get(normalized_right_id);
         let dir::Expression::Unary { operator, right } = right_expression else {
             return;
         };
@@ -182,7 +182,7 @@ impl NodeVisitor for UselessIncrementVisitor<'_, '_> {
         expression: &dir::Expression,
     ) {
         // check assignments where postfix right side targets the same reference
-        if let dir::Expression::Assign { left, right } = expression {
+        if let dir::Expression::Assign { left, right, .. } = expression {
             let Some(left_expression_id) = assign_pattern_target_expression(tree, *left) else {
                 return;
             };

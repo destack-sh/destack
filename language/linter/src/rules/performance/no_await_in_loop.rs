@@ -1,7 +1,7 @@
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintMeta, LintReport, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow `await` inside loops.
@@ -15,7 +15,7 @@ declare_lint! {
         id = "no-await-in-loop",
         code = "LP004",
         category = Performance,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = No,
@@ -31,13 +31,13 @@ impl LintRule for NoAwaitInLoop {
         NoAwaitInLoop::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         // resolve lint metadata for per-node severity
         let meta = self.meta();
 
         // inspect await-like expressions that can serialize loop execution
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expression = ctx.tree.get(node_id);
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let expression = ctx.dir.get(node_id);
             let Some(candidate) = await_loop_candidate(expression) else {
                 continue;
             };
@@ -57,7 +57,7 @@ impl LintRule for NoAwaitInLoop {
                         NO_AWAIT_IN_LOOP.category,
                         severity,
                         message,
-                        ctx.tree.get_span(node_id),
+                        ctx.dir.get_span(node_id),
                     )
                     .label(label),
                 );
@@ -66,15 +66,15 @@ impl LintRule for NoAwaitInLoop {
 
             // walk up the parent chain to check if we're inside a loop
             let mut current = node_id.id;
-            while let Some(parent_id) = ctx.parents.get_by_id(current) {
-                let parent_type = ctx.tree.get_node_type(parent_id);
-                if parent_type != ast::NodeType::Expression {
+            while let Some(parent_id) = ctx.dir.get_parent_id(current) {
+                let parent_type = ctx.dir.get_node_type(parent_id);
+                if parent_type != dir::NodeType::Expression {
                     current = parent_id;
                     continue;
                 }
 
-                let parent_expr_id = ast::LocalNodeId::<ast::Expression>::new(parent_id);
-                let parent = ctx.tree.get(parent_expr_id);
+                let parent_expr_id = dir::LocalNodeId::<dir::Expression>::new(parent_id);
+                let parent = ctx.dir.get(parent_expr_id);
 
                 // stop traversal at async loop boundaries and function declarations
                 if is_boundary(parent, current, ctx) {
@@ -95,7 +95,7 @@ impl LintRule for NoAwaitInLoop {
                             NO_AWAIT_IN_LOOP.category,
                             severity,
                             message,
-                            ctx.tree.get_span(node_id),
+                            ctx.dir.get_span(node_id),
                         )
                         .label(label),
                     );
@@ -120,28 +120,28 @@ enum AwaitLoopCandidate {
 }
 
 /// Return one await-like candidate when this expression can serialize loop execution.
-fn await_loop_candidate(expression: &ast::Expression) -> Option<AwaitLoopCandidate> {
+fn await_loop_candidate(expression: &dir::Expression) -> Option<AwaitLoopCandidate> {
     // match await expressions
     if matches!(
         expression,
-        ast::Expression::Await { .. }
-            | ast::Expression::AwaitMaybe { .. }
-            | ast::Expression::AwaitMust { .. }
+        dir::Expression::Await { .. }
+            | dir::Expression::AwaitMaybe { .. }
+            | dir::Expression::AwaitMust { .. }
     ) {
         return Some(AwaitLoopCandidate::AwaitExpression);
     }
 
     // match await-using declarations
-    if let ast::Expression::Using { asynchrony, .. } = expression
-        && *asynchrony == ast::Asynchrony::Async
+    if let dir::Expression::Using { asynchrony, .. } = expression
+        && *asynchrony == dir::Asynchrony::Async
     {
         return Some(AwaitLoopCandidate::AwaitUsingDeclaration);
     }
 
     // match for-each bindings using await using
-    if let ast::Expression::ForEach { binding, .. } = expression
-        && let ast::ForEachBinding::Using { asynchrony, .. } = binding
-        && *asynchrony == ast::Asynchrony::Async
+    if let dir::Expression::ForEach { binding, .. } = expression
+        && let dir::ForEachBinding::Using { asynchrony, .. } = binding
+        && *asynchrony == dir::Asynchrony::Async
     {
         return Some(AwaitLoopCandidate::ForEachAwaitUsingBinding);
     }
@@ -168,24 +168,24 @@ fn await_loop_candidate_message(candidate: AwaitLoopCandidate) -> (&'static str,
 }
 
 /// Return true when parent traversal should stop for this await expression.
-fn is_boundary(parent: &ast::Expression, child_node_id: u32, ctx: &LintAstContext<'_>) -> bool {
+fn is_boundary(parent: &dir::Expression, child_node_id: u32, ctx: &LintModuleContext<'_>) -> bool {
     // do not report awaits within `for await (...)` loops
-    if let ast::Expression::ForEach { asynchrony, .. } = parent
-        && *asynchrony == ast::Asynchrony::Async
+    if let dir::Expression::ForEach { asynchrony, .. } = parent
+        && *asynchrony == dir::Asynchrony::Async
     {
         return true;
     }
 
     // do not cross function declaration boundaries
-    if let ast::Expression::Declaration(declaration_id) = parent {
-        let declaration = ctx.tree.get(*declaration_id);
-        if matches!(declaration, ast::Declaration::Function(_)) {
+    if let dir::Expression::Declaration(declaration_id) = parent {
+        let declaration = ctx.dir.get(*declaration_id);
+        if matches!(declaration, dir::Declaration::Function(_)) {
             return true;
         }
     }
 
     // sequence expression non-tail elements are not used per iteration
-    if let ast::Expression::SequenceExpression { expressions } = parent
+    if let dir::Expression::SequenceExpression { expressions } = parent
         && expressions
             .last()
             .is_some_and(|expression_id| expression_id.id != child_node_id)
@@ -197,12 +197,12 @@ fn is_boundary(parent: &ast::Expression, child_node_id: u32, ctx: &LintAstContex
 }
 
 /// Return true when this child position executes once per loop iteration.
-fn is_looped_position(parent: &ast::Expression, child_node_id: u32) -> bool {
+fn is_looped_position(parent: &dir::Expression, child_node_id: u32) -> bool {
     match parent {
-        ast::Expression::While {
+        dir::Expression::While {
             condition, body, ..
         } => condition.id == child_node_id || body.id == child_node_id,
-        ast::Expression::For {
+        dir::Expression::For {
             condition,
             increment,
             body,
@@ -216,7 +216,7 @@ fn is_looped_position(parent: &ast::Expression, child_node_id: u32) -> bool {
                     .is_some_and(|increment_id| increment_id.id == child_node_id)
                 || body.id == child_node_id
         }
-        ast::Expression::ForEach { body, .. } | ast::Expression::Loop { body } => {
+        dir::Expression::ForEach { body, .. } | dir::Expression::Loop { body } => {
             body.id == child_node_id
         }
         _ => false,
@@ -231,7 +231,7 @@ mod tests {
     #[test]
     fn test_detects_await_in_for_loop() {
         let test = TestProgram::for_rule_without_prelude(NoAwaitInLoop);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_await_in_loop/test_detects_await_in_for_loop.ds",
             r#"
 async function fetchAll(urls: string[]) {
@@ -247,7 +247,7 @@ async function fetchAll(urls: string[]) {
     #[test]
     fn test_detects_await_in_while_loop() {
         let test = TestProgram::for_rule_without_prelude(NoAwaitInLoop);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_await_in_loop/test_detects_await_in_while_loop.ds",
             r#"
 async function process() {
@@ -263,7 +263,7 @@ async function process() {
     #[test]
     fn test_detects_await_in_traditional_for() {
         let test = TestProgram::for_rule_without_prelude(NoAwaitInLoop);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_await_in_loop/test_detects_await_in_traditional_for.ds",
             r#"
 async function fetchAll() {
@@ -279,7 +279,7 @@ async function fetchAll() {
     #[test]
     fn test_allows_await_outside_loop() {
         let test = TestProgram::for_rule_without_prelude(NoAwaitInLoop);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_await_in_loop/test_allows_await_outside_loop.ds",
             r#"
 async function fetchOne(url: string) {
@@ -294,7 +294,7 @@ async function fetchOne(url: string) {
     #[test]
     fn test_allows_promise_all() {
         let test = TestProgram::for_rule_without_prelude(NoAwaitInLoop);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_await_in_loop/test_allows_promise_all.ds",
             r#"
 async function fetchAll(urls: string[]) {
@@ -310,7 +310,7 @@ async function fetchAll(urls: string[]) {
     fn test_allows_await_in_nested_async_function() {
         // await inside a nested async function should not be flagged
         let test = TestProgram::for_rule_without_prelude(NoAwaitInLoop);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_await_in_loop/test_allows_await_in_nested_async_function.ds",
             r#"
 function process(items: int32[]) {
@@ -329,7 +329,7 @@ function process(items: int32[]) {
     #[test]
     fn test_allows_await_in_for_initialization() {
         let test = TestProgram::for_rule_without_prelude(NoAwaitInLoop);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_await_in_loop/test_allows_await_in_for_initialization.ds",
             r#"
 async function seed(): Promise<int32> {
@@ -349,7 +349,7 @@ async function run(): Promise<void> {
     #[test]
     fn test_allows_await_in_for_each_iterator() {
         let test = TestProgram::for_rule_without_prelude(NoAwaitInLoop);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_await_in_loop/test_allows_await_in_for_each_iterator.ds",
             r#"
 async function values(): Promise<int32[]> {
@@ -369,7 +369,7 @@ async function run(): Promise<void> {
     #[test]
     fn test_detects_await_using_in_while_loop() {
         let test = TestProgram::for_rule_without_prelude(NoAwaitInLoop);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_await_in_loop/test_detects_await_using_in_while_loop.ds",
             r#"
 async function run(): Promise<void> {

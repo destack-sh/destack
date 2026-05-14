@@ -13,7 +13,6 @@ doctest = false
 
 [dependencies]
 destack_artifact = { workspace = true }
-destack_ast = { workspace = true }
 destack_core = { workspace = true }
 destack_dir = { workspace = true }
 destack_linter_macros = { workspace = true }

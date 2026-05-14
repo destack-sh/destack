@@ -5,7 +5,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::{expression_type_or_call_return_type_map, is_string_type};
-use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow unnecessary template literal interpolation.
@@ -34,7 +34,7 @@ impl LintRule for NoUnnecessaryTemplateExpression {
     }
 
     /// Check module DIR nodes for unnecessary template literal interpolation.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let mut visitor = NoUnnecessaryTemplateExpressionVisitor::new(ctx, meta);
         visitor.run();
@@ -44,7 +44,7 @@ impl LintRule for NoUnnecessaryTemplateExpression {
 /// Node visitor that flags unnecessary template expression interpolation.
 struct NoUnnecessaryTemplateExpressionVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The language item String symbol for this module.
@@ -55,7 +55,7 @@ struct NoUnnecessaryTemplateExpressionVisitor<'a, 'b> {
 
 impl<'a, 'b> NoUnnecessaryTemplateExpressionVisitor<'a, 'b> {
     /// Build a visitor for no-unnecessary-template-expression checks.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         let string_symbol = ctx.language_item(LanguageItem::String);
 
         Self {
@@ -69,7 +69,7 @@ impl<'a, 'b> NoUnnecessaryTemplateExpressionVisitor<'a, 'b> {
     /// Walk the DIR tree roots.
     fn run(&mut self) {
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         for root_id in roots {
             let expression = tree.get(root_id);
@@ -104,10 +104,8 @@ impl<'a, 'b> NoUnnecessaryTemplateExpressionVisitor<'a, 'b> {
     fn expression_is_string_typed(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
         // string literal expressions are always string typed
         if matches!(
-            self.ctx.tree.get(expression_id),
-            dir::Expression::ScalarLiteral {
-                value: dir::ScalarLiteral::String(_)
-            }
+            self.ctx.dir.get(expression_id),
+            dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(_))
         ) {
             return true;
         }
@@ -116,7 +114,7 @@ impl<'a, 'b> NoUnnecessaryTemplateExpressionVisitor<'a, 'b> {
             self.ctx.artifacts.as_ref(),
             self.ctx.profile_id,
             self.ctx.module_id(),
-            self.ctx.tree,
+            self.ctx.dir.tree(),
             self.ctx.types,
             expression_id,
             |types, type_id| is_string_type(types, type_id, Some(self.string_symbol)),
@@ -133,8 +131,10 @@ impl<'a, 'b> NoUnnecessaryTemplateExpressionVisitor<'a, 'b> {
         let Some(argument_id) = self.template_single_interpolation_argument(template) else {
             return;
         };
-        let argument = self.ctx.tree.get(argument_id);
-        let argument_value = argument.value();
+        let argument = self.ctx.dir.get(argument_id);
+        let Some(argument_value) = argument.value() else {
+            return;
+        };
         if !self.expression_is_string_typed(argument_value) {
             return;
         }
@@ -156,7 +156,7 @@ impl<'a, 'b> NoUnnecessaryTemplateExpressionVisitor<'a, 'b> {
         .label("this template expression can be replaced by the string value directly");
 
         // build a safe replacement from the interpolated expression
-        if self.ctx.include_fixes {
+        if self.ctx.compute_fixes {
             let value_span = self.ctx.get_span(argument_value);
             let value_text = self.ctx.get_span_text(value_span).to_string();
             let edits = self

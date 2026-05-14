@@ -13,7 +13,7 @@ use crate::rules::common::{
     expression_unwrap_parenthesized, is_string_type, single_quoted_string_literal,
     span_has_comment, symbol_initializer_expression,
 };
-use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer `replaceAll()` over `replace()` with a global regex.
@@ -41,7 +41,7 @@ impl LintRule for PreferStringReplaceAll {
     }
 
     /// Check module DIR nodes for replace calls that should use replaceAll().
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let mut visitor = PreferStringReplaceAllVisitor::new(ctx, meta);
         visitor.run();
@@ -51,7 +51,7 @@ impl LintRule for PreferStringReplaceAll {
 /// Node visitor that flags prefer-string-replaceall patterns.
 struct PreferStringReplaceAllVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The language item String symbol for this module.
@@ -68,7 +68,7 @@ struct PreferStringReplaceAllVisitor<'a, 'b> {
 
 impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
     /// Build a visitor for prefer-string-replaceall checks.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         let string_symbol = ctx.language_item(LanguageItem::String);
         let replace_name = ctx.string_id("replace");
         let replace_all_name = ctx.string_id("replaceAll");
@@ -89,7 +89,7 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
     /// Walk the DIR tree roots.
     fn run(&mut self) {
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         for root_id in roots {
             let expression = tree.get(root_id);
@@ -111,7 +111,7 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
         }
 
         // match member access for replace methods
-        let member_expression = self.ctx.tree.get(left);
+        let member_expression = self.ctx.dir.get(left);
         let dir::Expression::Member {
             left: receiver_id,
             name,
@@ -134,8 +134,10 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
         let Some(first_argument_id) = arguments.first() else {
             return;
         };
-        let first_argument = self.ctx.tree.get(*first_argument_id);
-        let first_argument_value_id = first_argument.value();
+        let first_argument = self.ctx.dir.get(*first_argument_id);
+        let Some(first_argument_value_id) = first_argument.value() else {
+            return;
+        };
         if !self.is_global_regex(first_argument_value_id) {
             return;
         }
@@ -212,7 +214,7 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
     ) -> Option<LintFix> {
         // avoid rewriting commented calls
         let expression_span = self.ctx.get_span(expression_id);
-        if span_has_comment(self.ctx.ast, expression_span) {
+        if span_has_comment(self.ctx.dir.tree(), expression_span) {
             return None;
         }
 
@@ -267,16 +269,14 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
         visited_symbols: &mut HashSet<dir::GlobalSymbolId>,
     ) -> bool {
         // unwrap parenthesized expressions
-        let expression_id = expression_unwrap_parenthesized(self.ctx.tree, expression_id);
+        let expression_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), expression_id);
 
         // match regex literals
-        let expression = self.ctx.tree.get(expression_id);
-        let dir::Expression::ScalarLiteral {
-            value:
-                dir::ScalarLiteral::RegexString {
-                    flags: Some(flags), ..
-                },
-        } = expression
+        let expression = self.ctx.dir.get(expression_id);
+        let dir::Expression::ScalarLiteral(dir::ScalarLiteral::RegexString {
+            flags: Some(flags),
+            ..
+        }) = expression
         else {
             if self.is_regexp_constructor_with_global_flag(expression_id, visited_symbols) {
                 return true;
@@ -295,7 +295,7 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
                 self.ctx.profile_id,
                 self.ctx.module_id(),
                 self.ctx.symbols,
-                self.ctx.tree,
+                self.ctx.dir.tree(),
                 target_symbol,
             ) else {
                 return false;
@@ -315,7 +315,7 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         visited_symbols: &mut HashSet<dir::GlobalSymbolId>,
     ) -> bool {
-        let expression = self.ctx.tree.get(expression_id);
+        let expression = self.ctx.dir.get(expression_id);
         let (callee_id, arguments) = match expression {
             dir::Expression::Call {
                 left, arguments, ..
@@ -332,7 +332,7 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
 
         // when explicit flags are present they override regex-literal flags
         if let Some(flags_argument_id) = arguments.get(1) {
-            let flags_argument = self.ctx.tree.get(*flags_argument_id);
+            let flags_argument = self.ctx.dir.get(*flags_argument_id);
             let dir::Argument::Positional {
                 value: flags_expression_id,
                 ..
@@ -353,7 +353,7 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
         let Some(pattern_argument_id) = arguments.first() else {
             return false;
         };
-        let pattern_argument = self.ctx.tree.get(*pattern_argument_id);
+        let pattern_argument = self.ctx.dir.get(*pattern_argument_id);
         let dir::Argument::Positional {
             value: pattern_expression_id,
             ..
@@ -372,10 +372,12 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
         visited_symbols: &mut HashSet<dir::GlobalSymbolId>,
     ) -> Option<StringId> {
         // unwrap parenthesized wrappers
-        let expression_id = expression_unwrap_parenthesized(self.ctx.tree, expression_id);
+        let expression_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), expression_id);
 
         // keep direct static string literals
-        if let Some(string_id) = expression_static_string_literal(self.ctx.tree, expression_id) {
+        if let Some(string_id) =
+            expression_static_string_literal(self.ctx.dir.tree(), expression_id)
+        {
             return Some(string_id);
         }
 
@@ -390,7 +392,7 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
             self.ctx.profile_id,
             self.ctx.module_id(),
             self.ctx.symbols,
-            self.ctx.tree,
+            self.ctx.dir.tree(),
             target_symbol,
         )?;
 
@@ -415,16 +417,15 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         argument_id: &dir::LocalNodeId<dir::Argument>,
     ) -> Option<String> {
-        let argument = self.ctx.tree.get(*argument_id);
+        let argument = self.ctx.dir.get(*argument_id);
         if !matches!(argument, dir::Argument::Positional { .. }) {
             return None;
         }
 
-        let expression_id = expression_unwrap_parenthesized(self.ctx.tree, expression_id);
-        let expression = self.ctx.tree.get(expression_id);
-        let dir::Expression::ScalarLiteral {
-            value: dir::ScalarLiteral::RegexString { content, flags },
-        } = expression
+        let expression_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), expression_id);
+        let expression = self.ctx.dir.get(expression_id);
+        let dir::Expression::ScalarLiteral(dir::ScalarLiteral::RegexString { content, flags }) =
+            expression
         else {
             return None;
         };
@@ -435,7 +436,7 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
         }
 
         let pattern_text = self.ctx.strings.get(*content);
-        let regex_parse = LintRegexParse::parse_with_flags(pattern_text.as_ref(), Some(flags_text));
+        let regex_parse = LintRegexParse::parse_with_flags(pattern_text, Some(flags_text));
         let hir = regex_parse.hir?;
         let literal_text = hir_literal_text(&hir)?;
         if literal_text.is_empty() {
@@ -481,6 +482,7 @@ impl NodeVisitor for PreferStringReplaceAllVisitor<'_, '_> {
     ) {
         // check replace calls
         if let dir::Expression::Call {
+            position: _,
             left,
             generic_arguments,
             arguments,

@@ -3,7 +3,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::{function_return_type, is_promise_type};
-use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Require `async` on Promise-returning function bodies.
@@ -32,18 +32,20 @@ impl LintRule for PromiseFunctionAsync {
     }
 
     /// Check module DIR nodes for Promise-returning non-async functions.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let Some(promise_symbol) = ctx.get_language_item(LanguageItem::Promise) else {
             return;
         };
 
         // function declarations
-        for (declaration_id, declaration) in ctx.tree.iter_nodes_of_type::<dir::Declaration>() {
+        for (declaration_id, declaration) in ctx.dir.iter_nodes_of_type::<dir::Declaration>() {
             let dir::Declaration::Function(declaration) = declaration else {
                 continue;
             };
-            let function_symbol = declaration.symbol.into_global(ctx.module_id());
+            let Some(function_symbol) = ctx.symbol_for_node(declaration_id) else {
+                continue;
+            };
 
             if declaration.body.is_none() {
                 continue;
@@ -65,17 +67,16 @@ impl LintRule for PromiseFunctionAsync {
         }
 
         // class and struct methods
-        for (member_id, member) in ctx.tree.iter_nodes_of_type::<dir::Member>() {
+        for (member_id, member) in ctx.dir.iter_nodes_of_type::<dir::Member>() {
             let dir::Member::Method {
-                signature,
-                body,
-                symbol,
-                ..
+                signature, body, ..
             } = member
             else {
                 continue;
             };
-            let function_symbol = symbol.into_global(ctx.module_id());
+            let Some(function_symbol) = ctx.symbol_for_node(member_id) else {
+                continue;
+            };
 
             if body.is_none() {
                 continue;
@@ -93,17 +94,16 @@ impl LintRule for PromiseFunctionAsync {
         }
 
         // object literal methods
-        for (property_id, property) in ctx.tree.iter_nodes_of_type::<dir::Property>() {
+        for (property_id, property) in ctx.dir.iter_nodes_of_type::<dir::Property>() {
             let dir::Property::Method {
-                signature,
-                body,
-                symbol,
-                ..
+                signature, body, ..
             } = property
             else {
                 continue;
             };
-            let function_symbol = symbol.into_global(ctx.module_id());
+            let Some(function_symbol) = ctx.symbol_for_node(property_id) else {
+                continue;
+            };
 
             if body.is_none() {
                 continue;
@@ -133,7 +133,7 @@ fn type_is_promise_symbol(
 
 /// Return true when one function symbol returns Promise.
 fn function_symbol_returns_promise(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     symbol_id: dir::GlobalSymbolId,
     promise_symbol: dir::GlobalSymbolId,
 ) -> bool {
@@ -149,7 +149,7 @@ fn function_symbol_returns_promise(
 
 /// Return true when one signature return annotation resolves to Promise.
 fn signature_returns_promise(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     return_type_expression_id: Option<dir::LocalNodeId<dir::TypeExpression>>,
     promise_symbol: dir::GlobalSymbolId,
 ) -> bool {
@@ -167,7 +167,7 @@ fn signature_returns_promise(
 
 /// Report one Promise-function-async diagnostic.
 fn report_promise_function_async<T: dir::Node>(
-    ctx: &mut LintModuleDirContext<'_>,
+    ctx: &mut LintModuleContext<'_>,
     meta: &LintMeta,
     node_id: dir::LocalNodeId<T>,
 ) {

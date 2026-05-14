@@ -3,7 +3,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLibSymbol;
 use crate::rules::common::{expression_enters_nested_declaration_scope, expression_is_symbol};
-use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow `RegExp(...)` construction inside loops.
@@ -30,7 +30,7 @@ impl LintRule for NoRegexInLoop {
         NoRegexInLoop::meta()
     }
 
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let mut visitor = NoRegexInLoopVisitor::new(ctx, meta);
         visitor.run();
@@ -40,7 +40,7 @@ impl LintRule for NoRegexInLoop {
 /// Visitor that flags RegExp construction inside loops.
 struct NoRegexInLoopVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The RegExp symbol for this module.
@@ -53,7 +53,7 @@ struct NoRegexInLoopVisitor<'a, 'b> {
 
 impl<'a, 'b> NoRegexInLoopVisitor<'a, 'b> {
     /// Build a visitor for no-regex-in-loop checks.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         let regexp_name = ctx.string_id("RegExp");
         let regexp_symbol = ctx.declared_library_symbol(regexp_name);
 
@@ -69,7 +69,7 @@ impl<'a, 'b> NoRegexInLoopVisitor<'a, 'b> {
     /// Walk the DIR tree roots.
     fn run(&mut self) {
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         for root_id in roots {
             let expression = tree.get(root_id);
@@ -247,10 +247,8 @@ impl NodeVisitor for NoRegexInLoopVisitor<'_, '_> {
 
         // handle loop expressions with custom traversal
         match expression {
-            dir::Expression::Loop {
-                condition, body, ..
-            } => {
-                self.visit_loop(tree, *condition, *body);
+            dir::Expression::Loop { body } => {
+                self.visit_loop(tree, None, *body);
                 return;
             }
             dir::Expression::ForEach {

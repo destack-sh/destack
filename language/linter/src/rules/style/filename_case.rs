@@ -1,7 +1,7 @@
 use crate::LintMeta;
 use destack_workspace::{FilenameCase, LintSeverity};
 
-use crate::{LintAstContext, LintReport, LintRule, declare_lint};
+use crate::{LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Enforce a specific case style for filenames.
@@ -12,7 +12,7 @@ declare_lint! {
         id = "filename-case",
         code = "LY012",
         category = Style,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = No,
@@ -28,7 +28,7 @@ impl LintRule for FilenameCaseRule {
         FilenameCaseRule::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let expected_case = ctx.options.style.filename_case;
 
@@ -71,7 +71,7 @@ impl LintRule for FilenameCaseRule {
                     FILENAME_CASE_RULE.category,
                     severity,
                     format!("filename `{base_name}` should be {expected}"),
-                    ctx.tree.get_span(root_expression_id),
+                    ctx.dir.get_span(root_expression_id),
                 )
                 .label(format!("rename to {expected}")),
             );
@@ -153,49 +153,49 @@ mod tests {
     #[test]
     fn test_allows_kebab_case() {
         let test = TestProgram::for_rule_without_prelude(FilenameCaseRule);
-        let result = test.lint_ast("my-component.ds", "const x = 1");
+        let result = test.lint("my-component.ds", "const x = 1");
         test.result(result).assert_no_lint("filename-case");
     }
 
     #[test]
     fn test_detects_snake_case_when_kebab_expected() {
         let test = TestProgram::for_rule_without_prelude(FilenameCaseRule);
-        let result = test.lint_ast("my_component.ds", "const x = 1");
+        let result = test.lint("my_component.ds", "const x = 1");
         test.result(result).assert_lint("filename-case");
     }
 
     #[test]
     fn test_detects_pascal_case_when_kebab_expected() {
         let test = TestProgram::for_rule_without_prelude(FilenameCaseRule);
-        let result = test.lint_ast("MyComponent.ds", "const x = 1");
+        let result = test.lint("MyComponent.ds", "const x = 1");
         test.result(result).assert_lint("filename-case");
     }
 
     #[test]
     fn test_allows_index_file() {
         let test = TestProgram::for_rule_without_prelude(FilenameCaseRule);
-        let result = test.lint_ast("index.ds", "const x = 1");
+        let result = test.lint("index.ds", "const x = 1");
         test.result(result).assert_no_lint("filename-case");
     }
 
     #[test]
     fn test_allows_mod_file() {
         let test = TestProgram::for_rule_without_prelude(FilenameCaseRule);
-        let result = test.lint_ast("mod.ds", "const x = 1");
+        let result = test.lint("mod.ds", "const x = 1");
         test.result(result).assert_no_lint("filename-case");
     }
 
     #[test]
     fn test_allows_leading_underscore() {
         let test = TestProgram::for_rule_without_prelude(FilenameCaseRule);
-        let result = test.lint_ast("_my-component.ds", "const x = 1");
+        let result = test.lint("_my-component.ds", "const x = 1");
         test.result(result).assert_no_lint("filename-case");
     }
 
     #[test]
     fn test_allows_multiple_extensions_when_basename_matches() {
         let test = TestProgram::for_rule_without_prelude(FilenameCaseRule);
-        let result = test.lint_ast("my-component.test.ds", "const x = 1");
+        let result = test.lint("my-component.test.ds", "const x = 1");
         test.result(result).assert_no_lint("filename-case");
     }
 

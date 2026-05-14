@@ -2,7 +2,7 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression}
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_import_target_static_specifier;
-use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow relative parent path imports.
@@ -32,7 +32,7 @@ impl LintRule for NoRelativeParentImports {
     }
 
     /// Check module DIR nodes for parent relative imports.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let mut visitor = NoRelativeParentImportsVisitor::new(ctx, meta);
         visitor.run();
@@ -42,7 +42,7 @@ impl LintRule for NoRelativeParentImports {
 /// Visitor that checks import targets for parent relative paths.
 struct NoRelativeParentImportsVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The visitor options.
@@ -51,7 +51,7 @@ struct NoRelativeParentImportsVisitor<'a, 'b> {
 
 impl<'a, 'b> NoRelativeParentImportsVisitor<'a, 'b> {
     /// Build a visitor for parent relative import checks.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         Self {
             ctx,
             meta,
@@ -62,7 +62,7 @@ impl<'a, 'b> NoRelativeParentImportsVisitor<'a, 'b> {
     /// Walk the module roots.
     fn run(&mut self) {
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         // inspect dir roots
         for root_id in roots {

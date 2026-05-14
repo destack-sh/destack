@@ -1,11 +1,11 @@
 use crate::LintMeta;
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
     expression_is_else_if_branch, expression_is_equal, if_expression_branch_chain,
 };
-use crate::{LintAstContext, LintReport, LintRule, declare_lint};
+use crate::{LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow identical if/else branches.
@@ -16,7 +16,7 @@ declare_lint! {
         id = "no-identical-branches",
         code = "LU018",
         category = Suspicious,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = No,
@@ -32,24 +32,22 @@ impl LintRule for NoIdenticalBranches {
         NoIdenticalBranches::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let ast::Expression::If { form, .. } = ctx.tree.get(node_id) else {
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let dir::Expression::If { form, .. } = ctx.dir.get(node_id) else {
                 continue;
             };
 
             // statement-style if chains:
             // only evaluate the chain root, not nested else-if children
-            if *form == ast::IfForm::If
-                && expression_is_else_if_branch(ctx.tree, ctx.parents, node_id)
-            {
+            if *form == dir::IfForm::If && expression_is_else_if_branch(ctx.dir.tree(), node_id) {
                 continue;
             }
 
             // normalize branches and require a complete conditional
-            let Some(branch_chain) = if_expression_branch_chain(ctx.tree, node_id) else {
+            let Some(branch_chain) = if_expression_branch_chain(ctx.dir.tree(), node_id) else {
                 continue;
             };
             if !branch_chain.ends_with_else || branch_chain.branch_expressions.len() < 2 {
@@ -79,7 +77,7 @@ impl LintRule for NoIdenticalBranches {
                     NO_IDENTICAL_BRANCHES.category,
                     severity,
                     "identical conditional branches",
-                    ctx.tree.get_span(node_id),
+                    ctx.dir.get_span(node_id),
                 )
                 .label("this conditional evaluates to the same branch body"),
             );
@@ -95,7 +93,7 @@ mod tests {
     #[test]
     fn test_detects_identical_branches() {
         let test = TestProgram::for_rule_without_prelude(NoIdenticalBranches);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_identical_branches/test_detects_identical_branches.ds",
             r#"
 if (x) {
@@ -111,7 +109,7 @@ if (x) {
     #[test]
     fn test_allows_different_branches() {
         let test = TestProgram::for_rule_without_prelude(NoIdenticalBranches);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_identical_branches/test_allows_different_branches.ds",
             r#"
 if (x) {
@@ -127,7 +125,7 @@ if (x) {
     #[test]
     fn test_allows_if_without_else() {
         let test = TestProgram::for_rule_without_prelude(NoIdenticalBranches);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_identical_branches/test_allows_if_without_else.ds",
             r#"
 if (x) {
@@ -141,7 +139,7 @@ if (x) {
     #[test]
     fn test_detects_identical_ternary() {
         let test = TestProgram::for_rule_without_prelude(NoIdenticalBranches);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_identical_branches/test_detects_identical_ternary.ds",
             r#"
 let x = cond ? value : value;
@@ -153,7 +151,7 @@ let x = cond ? value : value;
     #[test]
     fn test_detects_identical_else_if_chain() {
         let test = TestProgram::for_rule_without_prelude(NoIdenticalBranches);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_identical_branches/test_detects_identical_else_if_chain.ds",
             r#"
 if (a) {
@@ -172,7 +170,7 @@ if (a) {
     #[test]
     fn test_allows_else_if_chain_when_not_all_identical() {
         let test = TestProgram::for_rule_without_prelude(NoIdenticalBranches);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_identical_branches/test_allows_else_if_chain_when_not_all_identical.ds",
             r#"
 if (a) {

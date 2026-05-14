@@ -2,7 +2,7 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, SymbolForm, walk
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{expression_unwrap_transparent, is_reference_symbol_form};
-use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow identity comparison on value types.
@@ -32,7 +32,7 @@ impl LintRule for NoStructIdentityCompare {
     }
 
     /// Check module DIR nodes for struct identity comparisons.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let mut visitor = StructCompareVisitor::new(ctx, meta);
         visitor.run();
@@ -42,7 +42,7 @@ impl LintRule for NoStructIdentityCompare {
 /// Visitor that flags identity comparisons on struct types.
 struct StructCompareVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The visitor options.
@@ -51,7 +51,7 @@ struct StructCompareVisitor<'a, 'b> {
 
 impl<'a, 'b> StructCompareVisitor<'a, 'b> {
     /// Build a visitor for struct comparison checks.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         Self {
             ctx,
             meta,
@@ -62,7 +62,7 @@ impl<'a, 'b> StructCompareVisitor<'a, 'b> {
     /// Walk the DIR tree roots.
     fn run(&mut self) {
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         for root_id in roots {
             let expression = tree.get(root_id);
@@ -78,12 +78,12 @@ impl<'a, 'b> StructCompareVisitor<'a, 'b> {
         mut right: dir::LocalNodeId<dir::Expression>,
     ) {
         // normalize transparent wrappers for nullish and type checks
-        left = expression_unwrap_transparent(self.ctx.tree, left);
-        right = expression_unwrap_transparent(self.ctx.tree, right);
+        left = expression_unwrap_transparent(self.ctx.dir.tree(), left);
+        right = expression_unwrap_transparent(self.ctx.dir.tree(), right);
 
         // allow explicit nullish sentinel checks on optional values
-        if is_nullish_literal_expression(self.ctx.tree, left)
-            || is_nullish_literal_expression(self.ctx.tree, right)
+        if is_nullish_literal_expression(self.ctx.dir.tree(), left)
+            || is_nullish_literal_expression(self.ctx.dir.tree(), right)
         {
             return;
         }
@@ -141,9 +141,13 @@ fn is_nullish_literal_expression(
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     let expression = tree.get(expression_id);
+    let dir::Expression::Type { value } = expression else {
+        return false;
+    };
+
     matches!(
-        expression,
-        dir::Expression::TypeLiteral {
+        tree.get(*value),
+        dir::TypeExpression::Literal {
             value: dir::TypeLiteral::Null | dir::TypeLiteral::Undefined,
         }
     )

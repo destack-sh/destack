@@ -5,7 +5,7 @@ use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::{
     callable_return_usage, expression_target_symbol, expression_unwrap_transparent,
 };
-use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow returning values from Promise executors.
@@ -33,7 +33,7 @@ impl LintRule for NoPromiseExecutorReturn {
     }
 
     /// Check module DIR nodes for Promise executor returns.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let mut visitor = PromiseExecutorReturnVisitor::new(ctx, meta);
         visitor.run();
@@ -43,7 +43,7 @@ impl LintRule for NoPromiseExecutorReturn {
 /// Node visitor that flags Promise executor returns.
 struct PromiseExecutorReturnVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The language item Promise symbol for this module.
@@ -56,7 +56,7 @@ struct PromiseExecutorReturnVisitor<'a, 'b> {
 
 impl<'a, 'b> PromiseExecutorReturnVisitor<'a, 'b> {
     /// Build a visitor for Promise executor return checks.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         let promise_symbol = ctx.language_item(LanguageItem::Promise);
         let allow_void = ctx
             .options
@@ -74,7 +74,7 @@ impl<'a, 'b> PromiseExecutorReturnVisitor<'a, 'b> {
     /// Walk the DIR tree roots.
     fn run(&mut self) {
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         for root_id in roots {
             let expression = tree.get(root_id);
@@ -101,14 +101,17 @@ impl<'a, 'b> PromiseExecutorReturnVisitor<'a, 'b> {
         let Some(argument_id) = arguments.first() else {
             return;
         };
-        let argument = self.ctx.tree.get(*argument_id);
-        let value_id = argument.value();
+        let argument = self.ctx.dir.get(*argument_id);
+        let Some(value_id) = argument.value() else {
+            return;
+        };
 
         // resolve the executor declaration
         let Some(declaration_id) = executor_declaration(self.ctx, value_id) else {
             return;
         };
-        let analysis = analyze_executor_returns(self.ctx.tree, declaration_id, self.allow_void);
+        let analysis =
+            analyze_executor_returns(self.ctx.dir.tree(), declaration_id, self.allow_void);
         if !analysis.returns_value() {
             return;
         }
@@ -132,7 +135,7 @@ impl<'a, 'b> PromiseExecutorReturnVisitor<'a, 'b> {
         .label("use resolve or reject instead of returning");
 
         // compute fixes only when requested by the runner
-        if self.ctx.include_fixes
+        if self.ctx.compute_fixes
             && !analysis.has_expression_body_return_value
             && let Some(fix) = promise_executor_return_fix(self.ctx, &analysis.return_value_nodes)
         {
@@ -171,11 +174,11 @@ impl NodeVisitor for PromiseExecutorReturnVisitor<'_, '_> {
 
 /// Resolve a Promise executor declaration from an expression.
 fn executor_declaration(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<dir::LocalNodeId<dir::Declaration>> {
     // handle inline function declarations
-    let expression = ctx.tree.get(expression_id);
+    let expression = ctx.dir.get(expression_id);
     if let dir::Expression::Declaration(declaration) = expression {
         return Some(*declaration);
     }
@@ -258,14 +261,14 @@ fn expression_is_void_operator(
 
 /// Build an unsafe fix for explicit Promise executor return values.
 fn promise_executor_return_fix(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     return_nodes: &[dir::LocalNodeId<dir::Expression>],
 ) -> Option<LintFix> {
     let mut builder = ctx.edit_builder();
     let mut replaced_count = 0_usize;
 
     for return_id in return_nodes {
-        let return_expression = ctx.tree.get(*return_id);
+        let return_expression = ctx.dir.get(*return_id);
         let dir::Expression::Return {
             value: Some(value_id),
         } = return_expression

@@ -1,11 +1,11 @@
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_source::Span;
 
-use crate::LintAstContext;
+use crate::LintModuleContext;
 use crate::rules::common::is_doc_comment_source;
 
 /// Return true when one span contains at least one raw comment.
-pub fn span_has_comment(tree: &ast::Tree, span: Span) -> bool {
+pub fn span_has_comment(tree: &dir::Tree, span: Span) -> bool {
     tree.comments().iter().any(|comment| {
         let comment_span = comment.span;
         comment_span.file == span.file
@@ -16,25 +16,25 @@ pub fn span_has_comment(tree: &ast::Tree, span: Span) -> bool {
 }
 
 /// Return true when one node has one attached documentation comment.
-pub fn node_has_doc(ctx: &LintAstContext<'_>, node_id: u32) -> bool {
+pub fn node_has_doc(ctx: &LintModuleContext<'_>, node_id: u32) -> bool {
     !doc_comments_for_node(ctx, node_id).is_empty()
 }
 
 /// Return true when one declaration expression pair has attached documentation.
 pub fn expression_or_declaration_has_doc(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
-    declaration_id: ast::LocalNodeId<ast::Declaration>,
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+    declaration_id: dir::LocalNodeId<dir::Declaration>,
 ) -> bool {
     node_has_doc(ctx, expression_id.id) || node_has_doc(ctx, declaration_id.id)
 }
 
 /// Return all documentation comments attached to one expression and declaration.
 pub fn expression_or_declaration_docs(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
-    declaration_id: ast::LocalNodeId<ast::Declaration>,
-) -> Vec<ast::Comment> {
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+    declaration_id: dir::LocalNodeId<dir::Declaration>,
+) -> Vec<dir::Comment> {
     let mut comments = doc_comments_for_node(ctx, expression_id.id);
 
     for comment in doc_comments_for_node(ctx, declaration_id.id) {
@@ -51,20 +51,23 @@ pub fn expression_or_declaration_docs(
 
 /// Return the first documentation comment from expression or declaration ownership.
 pub fn first_expression_or_declaration_doc(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
-    declaration_id: ast::LocalNodeId<ast::Declaration>,
-) -> Option<ast::Comment> {
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+    declaration_id: dir::LocalNodeId<dir::Declaration>,
+) -> Option<dir::Comment> {
     expression_or_declaration_docs(ctx, expression_id, declaration_id)
         .into_iter()
         .next()
 }
 
 /// Return documentation comments attached to one node start.
-fn doc_comments_for_node(ctx: &LintAstContext<'_>, node_id: u32) -> Vec<ast::Comment> {
-    let node_span = ctx.tree.get_span_by_id(node_id);
+fn doc_comments_for_node(ctx: &LintModuleContext<'_>, node_id: u32) -> Vec<dir::Comment> {
+    let Some(node_span) = ctx.dir.get_span_by_id(node_id) else {
+        return Vec::new();
+    };
 
-    ctx.tree
+    ctx.dir
+        .tree()
         .comments()
         .iter()
         .copied()

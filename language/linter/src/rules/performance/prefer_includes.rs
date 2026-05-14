@@ -7,7 +7,7 @@ use crate::rules::common::{
     const_i64, expression_regex_literal, expression_unwrap_parenthesized, flip_binary_operator,
     is_array_type, is_string_type, single_quoted_string_literal, strip_dot_member_suffix,
 };
-use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer `includes()` over `indexOf()` comparisons and simple regex tests.
@@ -39,7 +39,7 @@ impl LintRule for PreferIncludes {
     }
 
     /// Check module DIR nodes for indexOf comparisons that should use includes().
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let mut visitor = PreferIncludesVisitor::new(ctx, meta);
         visitor.run();
@@ -89,7 +89,7 @@ struct IncludesMatch {
 /// Node visitor that flags prefer-includes patterns.
 struct PreferIncludesVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The language item Array symbol for this module.
@@ -110,7 +110,7 @@ struct PreferIncludesVisitor<'a, 'b> {
 
 impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
     /// Build a visitor for prefer-includes checks.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         let array_symbol = ctx.language_item(LanguageItem::Array);
         let string_symbol = ctx.language_item(LanguageItem::String);
         let index_of_name = ctx.string_id("indexOf");
@@ -134,7 +134,7 @@ impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
     /// Walk the DIR tree roots.
     fn run(&mut self) {
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         for root_id in roots {
             let expression = tree.get(root_id);
@@ -170,8 +170,8 @@ impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
         constant_id: dir::LocalNodeId<dir::Expression>,
         flipped: bool,
     ) -> Option<IncludesMatch> {
-        let candidate_id = expression_unwrap_parenthesized(self.ctx.tree, candidate_id);
-        let constant_id = expression_unwrap_parenthesized(self.ctx.tree, constant_id);
+        let candidate_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), candidate_id);
+        let constant_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), constant_id);
 
         // resolve constant comparisons
         let constant_value = self.ctx.const_value(constant_id)?;
@@ -225,7 +225,7 @@ impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
             span,
         )
         .label(label);
-        if self.ctx.include_fixes
+        if self.ctx.compute_fixes
             && let Some(fix) = self.includes_fix(expression_id, includes_match)
         {
             diagnostic = diagnostic.fix(fix);
@@ -242,6 +242,7 @@ impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
     ) {
         // match call expression
         let dir::Expression::Call {
+            position: _,
             left,
             generic_arguments,
             arguments,
@@ -257,7 +258,7 @@ impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
         }
 
         // match `.test(...)` call
-        let member_expression = self.ctx.tree.get(*left);
+        let member_expression = self.ctx.dir.get(*left);
         let dir::Expression::Member {
             left: regex_expression_id,
             name,
@@ -278,7 +279,7 @@ impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
         };
 
         // require one positional string argument
-        let first_argument = self.ctx.tree.get(arguments[0]);
+        let first_argument = self.ctx.dir.get(arguments[0]);
         let dir::Argument::Positional {
             value: argument_id, ..
         } = first_argument
@@ -309,7 +310,7 @@ impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
             span,
         )
         .label("use includes() for simple substring checks");
-        if self.ctx.include_fixes
+        if self.ctx.compute_fixes
             && let Some(fix) = self.regex_test_fix(expression_id, *argument_id, &pattern_text)
         {
             diagnostic = diagnostic.fix(fix);
@@ -324,8 +325,9 @@ impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<IncludesCandidate> {
         // match call expression
-        let expression = self.ctx.tree.get(expression_id);
+        let expression = self.ctx.dir.get(expression_id);
         let dir::Expression::Call {
+            position: _,
             left,
             generic_arguments,
             arguments,
@@ -342,7 +344,7 @@ impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
 
         // match member access for indexOf or lastIndexOf
         let call_member_id = *left;
-        let member_expression = self.ctx.tree.get(call_member_id);
+        let member_expression = self.ctx.dir.get(call_member_id);
         let dir::Expression::Member {
             left: receiver_id,
             name,
@@ -359,7 +361,7 @@ impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
         };
 
         // require positional search argument
-        let first_argument = self.ctx.tree.get(arguments[0]);
+        let first_argument = self.ctx.dir.get(arguments[0]);
         let dir::Argument::Positional {
             value: search_id, ..
         } = first_argument
@@ -369,7 +371,7 @@ impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
 
         // optionally collect one positional from-index argument
         let from_index_id = if arguments.len() == 2 {
-            let second_argument = self.ctx.tree.get(arguments[1]);
+            let second_argument = self.ctx.dir.get(arguments[1]);
             let dir::Argument::Positional { value, .. } = second_argument else {
                 return None;
             };
@@ -422,7 +424,7 @@ impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
         let search_span = self.ctx.get_span(includes_match.candidate.search_id);
         let search_text = self.ctx.get_span_text(search_span);
         let includes_name = self.ctx.strings.get(self.includes_name);
-        let includes_call = format!("{receiver_text}.{}({search_text})", includes_name);
+        let includes_call = format!("{receiver_text}.{includes_name}({search_text})");
         let replacement = match includes_match.check {
             IncludesCheck::AnyMatch => includes_call,
             IncludesCheck::NoMatch => format!("!{includes_call}"),
@@ -468,10 +470,10 @@ impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<String> {
         // unwrap parenthesized wrappers around the regex expression
-        let expression_id = expression_unwrap_parenthesized(self.ctx.tree, expression_id);
+        let expression_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), expression_id);
 
         // match regex scalar literals
-        let (content, flags) = expression_regex_literal(self.ctx.tree, expression_id)?;
+        let (content, flags) = expression_regex_literal(self.ctx.dir.tree(), expression_id)?;
 
         // reject all regex flags for this conservative rewrite
         if let Some(flags_id) = flags {
@@ -483,7 +485,7 @@ impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
 
         // require a plain literal body without regex operators
         let pattern_text = self.ctx.strings.get(content);
-        plain_regex_substring(pattern_text.as_ref())
+        plain_regex_substring(pattern_text)
     }
 
     /// Build a safe fix from one simple regex-test call to includes.

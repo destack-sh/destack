@@ -1,16 +1,14 @@
-mod ast;
-mod dir;
 mod library;
 mod linter;
+mod module;
 mod package;
 mod rule;
 mod runner;
 mod workspace;
 
-pub use ast::*;
 pub use destack_workspace::LintCategory;
-pub use dir::*;
 pub use linter::*;
+pub use module::*;
 pub use package::*;
 pub use rule::*;
 pub use runner::*;

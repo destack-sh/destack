@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{collect_module_read_symbol_usage, import_item_removal_span};
-use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow imported bindings that are never used.
@@ -31,16 +31,16 @@ impl LintRule for NoUnusedImports {
     }
 
     /// Check module DIR nodes for unused import bindings.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
-        let read_symbols = collect_module_read_symbol_usage(ctx.module_id(), ctx.tree, ctx.types);
+        let read_symbols =
+            collect_module_read_symbol_usage(ctx.module_id(), ctx.dir.tree(), ctx.types);
         let import_clauses = collect_import_clauses(ctx);
 
         // report each unused import binding
         for clause in &import_clauses {
             for (index, item_id) in clause.items.iter().enumerate() {
-                let item = ctx.tree.get(*item_id);
-                let Some(symbol_id) = item.symbol() else {
+                let Some(symbol_id) = ctx.local_symbol_for_node(*item_id) else {
                     continue;
                 };
 
@@ -68,7 +68,7 @@ impl LintRule for NoUnusedImports {
                 .label("this import is never used");
 
                 // attach fix when enabled
-                if ctx.include_fixes
+                if ctx.compute_fixes
                     && let Some(fix) = unused_import_fix(ctx, clause, index)
                 {
                     diagnostic = diagnostic.fix(fix);
@@ -90,12 +90,12 @@ struct ImportClause {
 }
 
 /// Collect import clauses in this module.
-fn collect_import_clauses(ctx: &LintModuleDirContext<'_>) -> Vec<ImportClause> {
+fn collect_import_clauses(ctx: &LintModuleContext<'_>) -> Vec<ImportClause> {
     let mut clauses = Vec::new();
 
     // collect import clauses only
-    for expression_id in ctx.tree.iter_node_ids_of_type::<dir::Expression>() {
-        let expression = ctx.tree.get(expression_id);
+    for expression_id in ctx.dir.iter_node_ids_of_type::<dir::Expression>() {
+        let expression = ctx.dir.get(expression_id);
         let dir::Expression::Import {
             items: import_items,
             ..
@@ -115,7 +115,7 @@ fn collect_import_clauses(ctx: &LintModuleDirContext<'_>) -> Vec<ImportClause> {
 
 /// Return true when an import symbol is used in this module.
 fn import_symbol_is_used(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     symbol_id: dir::LocalSymbolId,
     read_symbols: &std::collections::HashSet<dir::GlobalSymbolId>,
 ) -> bool {
@@ -124,7 +124,7 @@ fn import_symbol_is_used(
 
 /// Build a safe fix for one unused import binding when removal is syntactically local.
 fn unused_import_fix(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     clause: &ImportClause,
     item_index: usize,
 ) -> Option<LintFix> {

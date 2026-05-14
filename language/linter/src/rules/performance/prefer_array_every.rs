@@ -6,7 +6,7 @@ use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::{
     ReferencePath, expression_reference_path, expression_unwrap_parenthesized, is_array_type,
 };
-use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer `every()` over `filter().length === array.length`.
@@ -35,7 +35,7 @@ impl LintRule for PreferArrayEvery {
     }
 
     /// Check module DIR nodes for filter length comparisons that should use every().
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let mut visitor = PreferArrayEveryVisitor::new(ctx, meta);
         visitor.run();
@@ -45,7 +45,7 @@ impl LintRule for PreferArrayEvery {
 /// Node visitor that flags prefer-array-every patterns.
 struct PreferArrayEveryVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The language item Array symbol for this module.
@@ -60,7 +60,7 @@ struct PreferArrayEveryVisitor<'a, 'b> {
 
 impl<'a, 'b> PreferArrayEveryVisitor<'a, 'b> {
     /// Build a visitor for prefer-array-every checks.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         let array_symbol = ctx.language_item(LanguageItem::Array);
         let filter_name = ctx.string_id("filter");
         let length_name = ctx.string_id("length");
@@ -78,7 +78,7 @@ impl<'a, 'b> PreferArrayEveryVisitor<'a, 'b> {
     /// Walk the DIR tree roots.
     fn run(&mut self) {
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         for root_id in roots {
             let expression = tree.get(root_id);
@@ -94,8 +94,8 @@ impl<'a, 'b> PreferArrayEveryVisitor<'a, 'b> {
         left: dir::LocalNodeId<dir::Expression>,
         right: dir::LocalNodeId<dir::Expression>,
     ) {
-        let left = expression_unwrap_parenthesized(self.ctx.tree, left);
-        let right = expression_unwrap_parenthesized(self.ctx.tree, right);
+        let left = expression_unwrap_parenthesized(self.ctx.dir.tree(), left);
+        let right = expression_unwrap_parenthesized(self.ctx.dir.tree(), right);
 
         // match filter length on the left
         if let Some(filter_match) = self.filter_length_match(left) {
@@ -142,7 +142,7 @@ impl<'a, 'b> PreferArrayEveryVisitor<'a, 'b> {
         .label("use array.every(...) to check if all elements match");
 
         // compute fixes only when requested by the runner
-        if self.ctx.include_fixes
+        if self.ctx.compute_fixes
             && let Some(fix) = self.prefer_array_every_fix(expression_id, filter_match)
         {
             diagnostic = diagnostic.fix(fix);
@@ -156,10 +156,10 @@ impl<'a, 'b> PreferArrayEveryVisitor<'a, 'b> {
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<FilterLengthMatch> {
-        let expression_id = expression_unwrap_parenthesized(self.ctx.tree, expression_id);
+        let expression_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), expression_id);
 
         // match `.length` member access
-        let expression = self.ctx.tree.get(expression_id);
+        let expression = self.ctx.dir.get(expression_id);
         let dir::Expression::Member { left, name, .. } = expression else {
             return None;
         };
@@ -169,7 +169,7 @@ impl<'a, 'b> PreferArrayEveryVisitor<'a, 'b> {
 
         // match call expression on the left
         let call_id = *left;
-        let call_expression = self.ctx.tree.get(call_id);
+        let call_expression = self.ctx.dir.get(call_id);
         let dir::Expression::Call {
             left,
             generic_arguments,
@@ -185,7 +185,7 @@ impl<'a, 'b> PreferArrayEveryVisitor<'a, 'b> {
 
         // match `.filter(...)` call
         let member_id = *left;
-        let member_expression = self.ctx.tree.get(member_id);
+        let member_expression = self.ctx.dir.get(member_id);
         let dir::Expression::Member { left, name, .. } = member_expression else {
             return None;
         };
@@ -218,10 +218,10 @@ impl<'a, 'b> PreferArrayEveryVisitor<'a, 'b> {
         receiver: &ReferencePath,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> bool {
-        let expression_id = expression_unwrap_parenthesized(self.ctx.tree, expression_id);
+        let expression_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), expression_id);
 
         // match `.length` member access
-        let expression = self.ctx.tree.get(expression_id);
+        let expression = self.ctx.dir.get(expression_id);
         let dir::Expression::Member { left, name, .. } = expression else {
             return false;
         };
@@ -248,7 +248,7 @@ impl<'a, 'b> PreferArrayEveryVisitor<'a, 'b> {
         }
 
         // resolve the array-length side from the matched comparison
-        let binary_expression = self.ctx.tree.get(expression_id);
+        let binary_expression = self.ctx.dir.get(expression_id);
         let dir::Expression::Binary { left, right, .. } = binary_expression else {
             return None;
         };

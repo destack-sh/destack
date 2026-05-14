@@ -1,10 +1,10 @@
 use std::collections::HashSet;
 
-use destack_ast::{self as ast, Declaration, DependencyBinding, ExportKind, Expression};
+use destack_dir::{self as dir, Declaration, DependencyBinding, ExportKind, Expression};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{expression_path_segments, expression_unwrap_parenthesized_source_form};
-use crate::{LintAstContext, LintFix, LintMeta, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow anonymous default exports.
@@ -16,7 +16,7 @@ declare_lint! {
         id = "no-anonymous-default-export",
         code = "LR002",
         category = Restriction,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -32,13 +32,13 @@ impl LintRule for NoAnonymousDefaultExport {
         NoAnonymousDefaultExport::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // check anonymous default export declarations (e.g., `export default function() {}`)
-        for declaration_id in ctx.tree.iter_nodes::<ast::Declaration>() {
+        for declaration_id in ctx.dir.iter_nodes::<dir::Declaration>() {
             // check if this is a default anonymous declaration
-            let declaration = ctx.tree.get(declaration_id);
+            let declaration = ctx.dir.get(declaration_id);
             let (is_default_export, is_anonymous) = match declaration {
                 Declaration::Function(declaration) => (
                     declaration.export == Some(ExportKind::Default),
@@ -65,7 +65,7 @@ impl LintRule for NoAnonymousDefaultExport {
             }
 
             // build declaration diagnostic
-            let span = ctx.tree.get_span(declaration_id);
+            let span = ctx.dir.get_span(declaration_id);
             let mut diagnostic = LintReport::new(
                 NO_ANONYMOUS_DEFAULT_EXPORT.id,
                 NO_ANONYMOUS_DEFAULT_EXPORT.code,
@@ -89,9 +89,9 @@ impl LintRule for NoAnonymousDefaultExport {
         }
 
         // check anonymous default export expressions (e.g., `export default { foo: 1 }`)
-        for expression_id in ctx.tree.iter_nodes::<ast::Expression>() {
+        for expression_id in ctx.dir.iter_nodes::<dir::Expression>() {
             // keep only export expressions
-            let expression = ctx.tree.get(expression_id);
+            let expression = ctx.dir.get(expression_id);
             let Expression::Export { items, .. } = expression else {
                 continue;
             };
@@ -99,10 +99,10 @@ impl LintRule for NoAnonymousDefaultExport {
             // check each item in the export
             for item_id in items {
                 // check if this is a default anonymous value export
-                let item = ctx.tree.get(*item_id);
+                let item = ctx.dir.get(*item_id);
 
                 // keep only default export items with values
-                let ast::DependencyItem::Item {
+                let dir::DependencyItem::Item {
                     binding: DependencyBinding::Default,
                     value: Some(item_value),
                     ..
@@ -110,11 +110,12 @@ impl LintRule for NoAnonymousDefaultExport {
                 else {
                     continue;
                 };
-                let value_id = expression_unwrap_parenthesized_source_form(ctx.tree, *item_value);
-                let value = ctx.tree.get(value_id);
+                let value_id =
+                    expression_unwrap_parenthesized_source_form(ctx.dir.tree(), *item_value);
+                let value = ctx.dir.get(value_id);
 
                 // skip named or call expression exports
-                if expression_path_segments(ctx.tree, value_id).is_some()
+                if expression_path_segments(ctx.dir.tree(), value_id).is_some()
                     || matches!(value, Expression::Call { .. })
                 {
                     continue;
@@ -129,7 +130,7 @@ impl LintRule for NoAnonymousDefaultExport {
                 }
 
                 // report expression diagnostic
-                let span = ctx.tree.get_span(expression_id);
+                let span = ctx.dir.get_span(expression_id);
                 ctx.report(
                     LintReport::new(
                         NO_ANONYMOUS_DEFAULT_EXPORT.id,
@@ -148,8 +149,8 @@ impl LintRule for NoAnonymousDefaultExport {
 
 /// Build an unsafe fix for anonymous default declaration exports.
 fn anonymous_default_declaration_fix(
-    ctx: &LintAstContext<'_>,
-    declaration_id: ast::LocalNodeId<ast::Declaration>,
+    ctx: &LintModuleContext<'_>,
+    declaration_id: dir::LocalNodeId<dir::Declaration>,
     declaration: &Declaration,
 ) -> Option<LintFix> {
     // map declaration kind to rewrite strategy
@@ -160,7 +161,7 @@ fn anonymous_default_declaration_fix(
     };
 
     // build replacement text with an inserted default name
-    let declaration_span = ctx.tree.get_span(declaration_id);
+    let declaration_span = ctx.dir.get_span(declaration_id);
     let declaration_text = ctx.get_span_text(declaration_span);
     let replacement_name = fresh_export_name(ctx, "defaultExport");
     let insert_offset = kind.default_name_insert_offset(declaration_text)?;
@@ -241,7 +242,7 @@ fn insert_text(text: &str, offset: usize, insertion: &str) -> String {
 }
 
 /// Return a fresh identifier name that does not collide with existing bound names.
-fn fresh_export_name(ctx: &LintAstContext<'_>, base_name: &str) -> String {
+fn fresh_export_name(ctx: &LintModuleContext<'_>, base_name: &str) -> String {
     let occupied_names = collect_occupied_names(ctx);
     let mut candidate = base_name.to_string();
 
@@ -253,35 +254,35 @@ fn fresh_export_name(ctx: &LintAstContext<'_>, base_name: &str) -> String {
 }
 
 /// Collect occupied binding names visible in the current module.
-fn collect_occupied_names(ctx: &LintAstContext<'_>) -> HashSet<String> {
+fn collect_occupied_names(ctx: &LintModuleContext<'_>) -> HashSet<String> {
     let mut names = HashSet::new();
 
-    for declaration_id in ctx.tree.iter_nodes::<ast::Declaration>() {
-        if let Some(name) = ctx.tree.get(declaration_id).name() {
+    for declaration_id in ctx.dir.iter_nodes::<dir::Declaration>() {
+        if let Some(name) = ctx.dir.get(declaration_id).name() {
             names.insert(ctx.strings.get(name.string()).to_string());
         }
     }
 
-    for pattern_id in ctx.tree.iter_nodes::<ast::Pattern>() {
-        let ast::Pattern::Binding { name, .. } = ctx.tree.get(pattern_id) else {
+    for pattern_id in ctx.dir.iter_nodes::<dir::Pattern>() {
+        let dir::Pattern::Binding { name, .. } = ctx.dir.get(pattern_id) else {
             continue;
         };
         names.insert(ctx.strings.get(*name).to_string());
     }
 
-    for parameter_id in ctx.tree.iter_nodes::<ast::Parameter>() {
-        match ctx.tree.get(parameter_id) {
-            ast::Parameter::Named { name, .. } | ast::Parameter::VariadicNamed { name, .. } => {
+    for parameter_id in ctx.dir.iter_nodes::<dir::Parameter>() {
+        match ctx.dir.get(parameter_id) {
+            dir::Parameter::Named { name, .. } | dir::Parameter::VariadicNamed { name, .. } => {
                 names.insert(ctx.strings.get(*name).to_string());
             }
-            ast::Parameter::Pattern { .. }
-            | ast::Parameter::VariadicPattern { .. }
-            | ast::Parameter::Error => {}
+            dir::Parameter::Pattern { .. }
+            | dir::Parameter::VariadicPattern { .. }
+            | dir::Parameter::Error => {}
         }
     }
 
-    for pattern_field_id in ctx.tree.iter_nodes::<ast::PatternField>() {
-        if let ast::PatternField::Named { name, pattern, .. } = ctx.tree.get(pattern_field_id) {
+    for pattern_field_id in ctx.dir.iter_nodes::<dir::PatternField>() {
+        if let dir::PatternField::Named { name, pattern, .. } = ctx.dir.get(pattern_field_id) {
             if pattern.is_none() {
                 names.insert(ctx.strings.get(name.string()).to_string());
             } else if let Some(pattern_id) = pattern
@@ -292,8 +293,8 @@ fn collect_occupied_names(ctx: &LintAstContext<'_>) -> HashSet<String> {
         }
     }
 
-    for item_id in ctx.tree.iter_nodes::<ast::DependencyItem>() {
-        let ast::DependencyItem::Item { name, alias, .. } = ctx.tree.get(item_id) else {
+    for item_id in ctx.dir.iter_nodes::<dir::DependencyItem>() {
+        let dir::DependencyItem::Item { name, alias, .. } = ctx.dir.get(item_id) else {
             continue;
         };
         if let Some(name) = name {
@@ -309,12 +310,12 @@ fn collect_occupied_names(ctx: &LintAstContext<'_>) -> HashSet<String> {
 
 /// Return the binding name introduced by one nested named field pattern.
 fn named_pattern_field_binding_name(
-    ctx: &LintAstContext<'_>,
-    pattern_id: ast::LocalNodeId<ast::Pattern>,
-) -> Option<ast::StringId> {
-    match ctx.tree.get(pattern_id) {
-        ast::Pattern::Binding { name, .. } => Some(*name),
-        ast::Pattern::Assign { pattern, .. } => named_pattern_field_binding_name(ctx, *pattern),
+    ctx: &LintModuleContext<'_>,
+    pattern_id: dir::LocalNodeId<dir::Pattern>,
+) -> Option<dir::StringId> {
+    match ctx.dir.get(pattern_id) {
+        dir::Pattern::Binding { name, .. } => Some(*name),
+        dir::Pattern::Assign { pattern, .. } => named_pattern_field_binding_name(ctx, *pattern),
         _ => None,
     }
 }
@@ -327,7 +328,7 @@ mod tests {
     #[test]
     fn test_detects_anonymous_function() {
         let test = TestProgram::for_rule_without_prelude(NoAnonymousDefaultExport);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_anonymous_default_export/test_detects_anonymous_function.ts",
             r#"
 export default function() {
@@ -343,7 +344,7 @@ export default function() {
     #[test]
     fn test_detects_anonymous_class() {
         let test = TestProgram::for_rule_without_prelude(NoAnonymousDefaultExport);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_anonymous_default_export/test_detects_anonymous_class.ts",
             r#"
 export default class {
@@ -359,7 +360,7 @@ export default class {
     #[test]
     fn test_detects_object_literal() {
         let test = TestProgram::for_rule_without_prelude(NoAnonymousDefaultExport);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_anonymous_default_export/test_detects_object_literal.ts",
             r#"
 export default { foo: 1 }
@@ -372,7 +373,7 @@ export default { foo: 1 }
     #[test]
     fn test_detects_literal() {
         let test = TestProgram::for_rule_without_prelude(NoAnonymousDefaultExport);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_anonymous_default_export/test_detects_literal.ts",
             r#"
 export default 42
@@ -385,7 +386,7 @@ export default 42
     #[test]
     fn test_detects_arrow_function() {
         let test = TestProgram::for_rule_without_prelude(NoAnonymousDefaultExport);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_anonymous_default_export/test_detects_arrow_function.ts",
             r#"
 export default (x) => x * 2
@@ -398,7 +399,7 @@ export default (x) => x * 2
     #[test]
     fn test_detects_array_literal() {
         let test = TestProgram::for_rule_without_prelude(NoAnonymousDefaultExport);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_anonymous_default_export/test_detects_array_literal.ts",
             r#"
 export default [1, 2, 3];
@@ -411,7 +412,7 @@ export default [1, 2, 3];
     #[test]
     fn test_detects_new_expression() {
         let test = TestProgram::for_rule_without_prelude(NoAnonymousDefaultExport);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_anonymous_default_export/test_detects_new_expression.ts",
             r#"
 export default new Value();
@@ -424,7 +425,7 @@ export default new Value();
     #[test]
     fn test_allows_call_expression_by_default() {
         let test = TestProgram::for_rule_without_prelude(NoAnonymousDefaultExport);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_anonymous_default_export/test_allows_call_expression_by_default.ts",
             r#"
 export default makeValue();
@@ -437,7 +438,7 @@ export default makeValue();
     #[test]
     fn test_allows_named_function() {
         let test = TestProgram::for_rule_without_prelude(NoAnonymousDefaultExport);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_anonymous_default_export/test_allows_named_function.ts",
             r#"
 export default function myFunction() {
@@ -452,7 +453,7 @@ export default function myFunction() {
     #[test]
     fn test_allows_named_class() {
         let test = TestProgram::for_rule_without_prelude(NoAnonymousDefaultExport);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_anonymous_default_export/test_allows_named_class.ts",
             r#"
 export default class MyClass {
@@ -467,7 +468,7 @@ export default class MyClass {
     #[test]
     fn test_allows_identifier_export() {
         let test = TestProgram::for_rule_without_prelude(NoAnonymousDefaultExport);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_anonymous_default_export/test_allows_identifier_export.ts",
             r#"
 const myValue = 42;
@@ -481,7 +482,7 @@ export default myValue;
     #[test]
     fn test_allows_named_exports() {
         let test = TestProgram::for_rule_without_prelude(NoAnonymousDefaultExport);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_anonymous_default_export/test_allows_named_exports.ts",
             r#"
 export const foo = 1;
@@ -495,7 +496,7 @@ export function bar() {}
     #[test]
     fn test_fix_renames_anonymous_default_function() {
         let test = TestProgram::for_rule_without_prelude(NoAnonymousDefaultExport);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_anonymous_default_export/test_fix_renames_anonymous_default_function.ts",
             r#"
 export default function() {
@@ -517,7 +518,7 @@ export default function defaultExport() {
     #[test]
     fn test_fix_renames_anonymous_default_class() {
         let test = TestProgram::for_rule_without_prelude(NoAnonymousDefaultExport);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_anonymous_default_export/test_fix_renames_anonymous_default_class.ts",
             r#"
 export default class {
@@ -539,7 +540,7 @@ export default class defaultExport {
     #[test]
     fn test_fix_uses_fresh_name_when_default_export_is_taken() {
         let test = TestProgram::for_rule_without_prelude(NoAnonymousDefaultExport);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_anonymous_default_export/test_fix_uses_fresh_name_when_default_export_is_taken.ts",
             r#"
 const defaultExport = 1;
@@ -563,7 +564,7 @@ export default function defaultExport_() {
     #[test]
     fn test_fix_uses_fresh_name_when_pattern_binding_is_taken() {
         let test = TestProgram::for_rule_without_prelude(NoAnonymousDefaultExport);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_anonymous_default_export/test_fix_uses_fresh_name_when_pattern_binding_is_taken.ts",
             r#"
 const [defaultExport] = values;
@@ -587,7 +588,7 @@ export default function defaultExport_() {
     #[test]
     fn test_mutation_fix_renames_anonymous_default_generator_function() {
         let test = TestProgram::for_rule_without_prelude(NoAnonymousDefaultExport);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_anonymous_default_export/test_mutation_fix_renames_anonymous_default_generator_function.ts",
             r#"
 export default function*() {
@@ -609,7 +610,7 @@ export default function* defaultExport() {
     #[test]
     fn test_no_fix_for_anonymous_default_expression_export() {
         let test = TestProgram::for_rule_without_prelude(NoAnonymousDefaultExport);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_anonymous_default_export/test_no_fix_for_anonymous_default_expression_export.ts",
             r#"
 export default { foo: 1 };

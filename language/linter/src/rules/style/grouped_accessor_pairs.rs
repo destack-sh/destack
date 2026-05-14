@@ -1,12 +1,12 @@
 use crate::LintMeta;
 use std::collections::HashMap;
 
-use destack_ast::{self as ast, Declaration, FunctionRole, Key, Member, Property, TypeMember};
+use destack_dir::{self as dir, Declaration, FunctionRole, Key, Member, Property, TypeMember};
 use destack_source::Span;
 use destack_workspace::{GroupedAccessorPairsOrder, LintSeverity};
 
 use crate::rules::common::{expression_signature_for_tree, span_has_comment};
-use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Require grouped accessor pairs in object literals and classes.
@@ -33,7 +33,7 @@ declare_lint! {
         id = "grouped-accessor-pairs",
         code = "LY013",
         category = Style,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -49,11 +49,11 @@ impl LintRule for GroupedAccessorPairs {
         GroupedAccessorPairs::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
-        for node_id in ctx.tree.iter_nodes::<ast::Declaration>() {
-            let declaration = ctx.tree.get(node_id);
+        for node_id in ctx.dir.iter_nodes::<dir::Declaration>() {
+            let declaration = ctx.dir.get(node_id);
 
             // declaration members
             match declaration {
@@ -114,10 +114,10 @@ impl LintRule for GroupedAccessorPairs {
         }
 
         // also check object expressions
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expression = ctx.tree.get(node_id);
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let expression = ctx.dir.get(node_id);
 
-            let ast::Expression::ObjectExpression { properties, .. } = expression else {
+            let dir::Expression::ObjectExpression { properties, .. } = expression else {
                 continue;
             };
 
@@ -146,9 +146,9 @@ enum AccessorOwner {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum AccessorKey {
     /// Named key identity.
-    Name(ast::StringId),
+    Name(dir::StringId),
     /// Private key identity.
-    Private(ast::StringId),
+    Private(dir::StringId),
     /// Computed key signature.
     Computed(Vec<u64>),
 }
@@ -181,7 +181,7 @@ trait AccessorItem {
     fn key(&self) -> Option<&Key>;
 
     /// Get the accessor signature when one exists.
-    fn signature(&self) -> Option<&ast::FunctionSignature>;
+    fn signature(&self) -> Option<&dir::FunctionSignature>;
 
     /// Get the accessor owner partition.
     fn owner(&self) -> AccessorOwner {
@@ -194,7 +194,7 @@ impl AccessorItem for Member {
         self.key()
     }
 
-    fn signature(&self) -> Option<&ast::FunctionSignature> {
+    fn signature(&self) -> Option<&dir::FunctionSignature> {
         self.signature()
     }
 
@@ -212,7 +212,7 @@ impl AccessorItem for TypeMember {
         self.key()
     }
 
-    fn signature(&self) -> Option<&ast::FunctionSignature> {
+    fn signature(&self) -> Option<&dir::FunctionSignature> {
         self.signature()
     }
 }
@@ -222,36 +222,36 @@ impl AccessorItem for Property {
         self.key()
     }
 
-    fn signature(&self) -> Option<&ast::FunctionSignature> {
+    fn signature(&self) -> Option<&dir::FunctionSignature> {
         self.signature()
     }
 }
 
-/// Return key identity for one AST key.
-fn accessor_key(ctx: &LintAstContext<'_>, key: &Key) -> Option<AccessorKey> {
+/// Return key identity for one source key.
+fn accessor_key(ctx: &LintModuleContext<'_>, key: &Key) -> Option<AccessorKey> {
     match key {
         Key::Name(name) => Some(AccessorKey::Name(name.string())),
         Key::Private(name) => Some(AccessorKey::Private(*name)),
         Key::Expression(expression_id) => Some(AccessorKey::Computed(
-            expression_signature_for_tree(ctx.tree, ctx.strings, *expression_id),
+            expression_signature_for_tree(ctx.dir.tree(), ctx.strings, *expression_id),
         )),
     }
 }
 
 /// Collect accessor slots from one ordered item list.
 fn collect_accessor_slots<T>(
-    ctx: &LintAstContext<'_>,
-    items: &[ast::LocalNodeId<T>],
+    ctx: &LintModuleContext<'_>,
+    items: &[dir::LocalNodeId<T>],
 ) -> Vec<AccessorSlot>
 where
-    T: AccessorItem + ast::Node + Clone,
-    ast::Tree: ast::TreeImpl<T>,
+    T: AccessorItem + dir::Node + Clone,
+    dir::Tree: dir::TreeStore<T>,
 {
     let mut slots = Vec::new();
 
     // accessor items
     for (index, item_id) in items.iter().enumerate() {
-        let item = ctx.tree.get(*item_id);
+        let item = ctx.dir.get(*item_id);
 
         let Some(signature) = item.signature() else {
             continue;
@@ -278,14 +278,15 @@ where
 
 /// Check one ordered accessor list for ungrouped getter and setter pairs.
 fn check_ungrouped_accessors<T>(
-    ctx: &mut LintAstContext<'_>,
+    ctx: &mut LintModuleContext<'_>,
     meta: &'static LintMeta,
-    items: &[ast::LocalNodeId<T>],
+    items: &[dir::LocalNodeId<T>],
     slots: Vec<AccessorSlot>,
     order: GroupedAccessorPairsOrder,
     allow_fix: bool,
 ) where
-    T: ast::Node + Clone,
+    T: dir::Node + Clone,
+    dir::Tree: dir::TreeStore<T>,
 {
     // collect getter and setter indices per owner and key
     let mut accessor_indices: HashMap<(AccessorOwner, AccessorKey), AccessorIndices> =
@@ -344,7 +345,7 @@ fn check_ungrouped_accessors<T>(
                 GROUPED_ACCESSOR_PAIRS.category,
                 severity,
                 message,
-                ctx.tree.get_span(later_item_id),
+                ctx.dir.get_span(later_item_id),
             )
             .label(label);
 
@@ -396,13 +397,14 @@ fn accessor_order_message(
 
 /// Build an unsafe reorder fix for one ordered accessor list.
 fn grouped_accessor_fix<T>(
-    ctx: &LintAstContext<'_>,
-    items: &[ast::LocalNodeId<T>],
+    ctx: &LintModuleContext<'_>,
+    items: &[dir::LocalNodeId<T>],
     getter_index: usize,
     setter_index: usize,
 ) -> Option<LintFix>
 where
-    T: ast::Node + Clone,
+    T: dir::Node + Clone,
+    dir::Tree: dir::TreeStore<T>,
 {
     if items.is_empty() {
         return None;
@@ -410,15 +412,15 @@ where
 
     let first_item_id = *items.first()?;
     let last_item_id = *items.last()?;
-    let first_item_span = ctx.tree.get_span(first_item_id);
-    let last_item_span = ctx.tree.get_span(last_item_id);
+    let first_item_span = ctx.dir.get_span(first_item_id);
+    let last_item_span = ctx.dir.get_span(last_item_id);
     let full_span = Span::new(
         first_item_span.file,
         first_item_span.start,
         last_item_span.end,
     );
 
-    if span_has_comment(ctx.tree, full_span) {
+    if span_has_comment(ctx.dir.tree(), full_span) {
         return None;
     }
 
@@ -427,7 +429,7 @@ where
         .iter()
         .map(|item_index| {
             let item_id = items[*item_index];
-            ctx.get_span_text(ctx.tree.get_span(item_id)).to_string()
+            ctx.get_span_text(ctx.dir.get_span(item_id)).to_string()
         })
         .collect::<Vec<_>>()
         .join("\n");
@@ -469,7 +471,7 @@ mod tests {
     #[test]
     fn test_adjacent_accessors_allowed() {
         let test = TestProgram::for_rule_without_prelude(GroupedAccessorPairs);
-        let result = test.lint_ast(
+        let result = test.lint(
             "grouped_accessor_pairs/test_adjacent_accessors_allowed.ds",
             r#"
 class Example {
@@ -484,7 +486,7 @@ class Example {
     #[test]
     fn test_setter_then_getter_adjacent_allowed() {
         let test = TestProgram::for_rule_without_prelude(GroupedAccessorPairs);
-        let result = test.lint_ast(
+        let result = test.lint(
             "grouped_accessor_pairs/test_setter_then_getter_adjacent_allowed.ds",
             r#"
 class Example {
@@ -503,7 +505,7 @@ class Example {
                 options.style.grouped_accessor_pairs_order =
                     GroupedAccessorPairsOrder::GetBeforeSet;
             });
-        let result = test.lint_ast(
+        let result = test.lint(
             "grouped_accessor_pairs/test_reports_setter_then_getter_when_get_before_set_is_required.ds",
             r#"
 class Example {
@@ -518,7 +520,7 @@ class Example {
     #[test]
     fn test_non_adjacent_accessors_detected() {
         let test = TestProgram::for_rule_without_prelude(GroupedAccessorPairs);
-        let result = test.lint_ast(
+        let result = test.lint(
             "grouped_accessor_pairs/test_non_adjacent_accessors_detected.ds",
             r#"
 class Example {
@@ -548,7 +550,7 @@ class Example {
     #[test]
     fn test_multiple_fields_between_detected() {
         let test = TestProgram::for_rule_without_prelude(GroupedAccessorPairs);
-        let result = test.lint_ast(
+        let result = test.lint(
             "grouped_accessor_pairs/test_multiple_fields_between_detected.ds",
             r#"
 class Example {
@@ -565,7 +567,7 @@ class Example {
     #[test]
     fn test_only_getter_allowed() {
         let test = TestProgram::for_rule_without_prelude(GroupedAccessorPairs);
-        let result = test.lint_ast(
+        let result = test.lint(
             "grouped_accessor_pairs/test_only_getter_allowed.ds",
             r#"
 class Example {
@@ -580,7 +582,7 @@ class Example {
     #[test]
     fn test_only_setter_allowed() {
         let test = TestProgram::for_rule_without_prelude(GroupedAccessorPairs);
-        let result = test.lint_ast(
+        let result = test.lint(
             "grouped_accessor_pairs/test_only_setter_allowed.ds",
             r#"
 class Example {
@@ -595,7 +597,7 @@ class Example {
     #[test]
     fn test_object_literal_non_adjacent_detected() {
         let test = TestProgram::for_rule_without_prelude(GroupedAccessorPairs);
-        let result = test.lint_ast(
+        let result = test.lint(
             "grouped_accessor_pairs/test_object_literal_non_adjacent_detected.ds",
             r#"
 const obj = {
@@ -625,7 +627,7 @@ const obj = {
     #[test]
     fn test_object_literal_adjacent_allowed() {
         let test = TestProgram::for_rule_without_prelude(GroupedAccessorPairs);
-        let result = test.lint_ast(
+        let result = test.lint(
             "grouped_accessor_pairs/test_object_literal_adjacent_allowed.ds",
             r#"
 const obj = {
@@ -641,7 +643,7 @@ const obj = {
     #[test]
     fn test_multiple_accessor_pairs_one_ungrouped() {
         let test = TestProgram::for_rule_without_prelude(GroupedAccessorPairs);
-        let result = test.lint_ast(
+        let result = test.lint(
             "grouped_accessor_pairs/test_multiple_accessor_pairs_one_ungrouped.ds",
             r#"
 class Example {
@@ -662,7 +664,7 @@ class Example {
             TestProgram::for_rule_without_prelude(GroupedAccessorPairs).with_options(|options| {
                 options.style.grouped_accessor_pairs_enforce_for_types = true;
             });
-        let result = test.lint_ast(
+        let result = test.lint(
             "grouped_accessor_pairs/test_struct_accessors_non_adjacent_detected.ds",
             r#"
 struct Example {
@@ -678,7 +680,7 @@ struct Example {
     #[test]
     fn test_ignores_struct_accessors_by_default() {
         let test = TestProgram::for_rule_without_prelude(GroupedAccessorPairs);
-        let result = test.lint_ast(
+        let result = test.lint(
             "grouped_accessor_pairs/test_ignores_struct_accessors_by_default.ds",
             r#"
 struct Example {
@@ -697,7 +699,7 @@ struct Example {
             TestProgram::for_rule_without_prelude(GroupedAccessorPairs).with_options(|options| {
                 options.style.grouped_accessor_pairs_enforce_for_types = true;
             });
-        let result = test.lint_ast(
+        let result = test.lint(
             "grouped_accessor_pairs/test_checks_struct_accessors_when_enabled.ds",
             r#"
 struct Example {
@@ -713,7 +715,7 @@ struct Example {
     #[test]
     fn test_ignores_cross_static_instance_pairs() {
         let test = TestProgram::for_rule_without_prelude(GroupedAccessorPairs);
-        let result = test.lint_ast(
+        let result = test.lint(
             "grouped_accessor_pairs/test_ignores_cross_static_instance_pairs.ds",
             r#"
 class Example {
@@ -728,7 +730,7 @@ class Example {
     #[test]
     fn test_ignores_duplicate_getter_or_setter_pairs() {
         let test = TestProgram::for_rule_without_prelude(GroupedAccessorPairs);
-        let result = test.lint_ast(
+        let result = test.lint(
             "grouped_accessor_pairs/test_ignores_duplicate_getter_or_setter_pairs.ds",
             r#"
 const value = {
@@ -745,7 +747,7 @@ const value = {
     #[test]
     fn test_no_fix_when_member_range_contains_comments() {
         let test = TestProgram::for_rule_without_prelude(GroupedAccessorPairs);
-        let result = test.lint_ast(
+        let result = test.lint(
             "grouped_accessor_pairs/test_no_fix_when_member_range_contains_comments.ds",
             r#"
 class Example {

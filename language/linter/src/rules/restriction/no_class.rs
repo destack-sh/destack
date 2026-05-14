@@ -1,9 +1,9 @@
 use crate::LintMeta;
-use destack_ast::{self as ast, Declaration};
+use destack_dir::{self as dir, Declaration};
 use destack_source::FileType;
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintReport, LintRule, declare_lint};
+use crate::{LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow class declarations.
@@ -15,7 +15,7 @@ declare_lint! {
         id = "no-class",
         code = "LR006",
         category = Restriction,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = No,
@@ -42,11 +42,11 @@ impl LintRule for NoClass {
         NoClass::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
-        for node_id in ctx.tree.iter_nodes::<ast::Declaration>() {
-            let declaration = ctx.tree.get(node_id);
+        for node_id in ctx.dir.iter_nodes::<dir::Declaration>() {
+            let declaration = ctx.dir.get(node_id);
             if !matches!(declaration, Declaration::Class(_)) {
                 continue;
             }
@@ -55,7 +55,7 @@ impl LintRule for NoClass {
             if !severity.is_enabled() {
                 continue;
             }
-            let span = ctx.tree.get_span(node_id);
+            let span = ctx.dir.get_span(node_id);
             let file = ctx.file.as_ref();
             ctx.report(
                 LintReport::new(
@@ -80,7 +80,7 @@ mod tests {
     #[test]
     fn test_detects_class() {
         let test = TestProgram::for_rule_without_prelude(NoClass);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_class/test_detects_class.ts",
             r#"
 class MyClass {
@@ -94,7 +94,7 @@ class MyClass {
     #[test]
     fn test_detects_exported_class() {
         let test = TestProgram::for_rule_without_prelude(NoClass);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_class/test_detects_exported_class.ts",
             r#"
 export class MyClass {
@@ -108,7 +108,7 @@ export class MyClass {
     #[test]
     fn test_detects_abstract_class() {
         let test = TestProgram::for_rule_without_prelude(NoClass);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_class/test_detects_abstract_class.ts",
             r#"
 abstract class BaseClass {
@@ -122,7 +122,7 @@ abstract class BaseClass {
     #[test]
     fn test_emits_non_destack_guidance() {
         let test = TestProgram::for_rule_without_prelude(NoClass);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_class/test_emits_non_destack_guidance.ts",
             r#"
 class MyClass {
@@ -151,7 +151,7 @@ class MyClass {
     #[test]
     fn test_allows_struct() {
         let test = TestProgram::for_rule_without_prelude(NoClass);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_class/test_allows_struct.ds",
             r#"
 struct MyStruct {
@@ -165,7 +165,7 @@ struct MyStruct {
     #[test]
     fn test_allows_interface() {
         let test = TestProgram::for_rule_without_prelude(NoClass);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_class/test_allows_interface.ts",
             r#"
 interface MyInterface {
@@ -179,7 +179,7 @@ interface MyInterface {
     #[test]
     fn test_allows_function() {
         let test = TestProgram::for_rule_without_prelude(NoClass);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_class/test_allows_function.ts",
             r#"
 function myFunction() {}
@@ -191,7 +191,7 @@ function myFunction() {}
     #[test]
     fn test_skips_declaration_file_by_default() {
         let test = TestProgram::for_rule_without_prelude(NoClass);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_class/test_skips_declaration_file_by_default.d.ts",
             r#"
 declare class ExternalClass {
@@ -207,7 +207,7 @@ declare class ExternalClass {
         let test = TestProgram::for_rule_without_prelude(NoClass).with_options(|options| {
             options.include_declaration_files = true;
         });
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_class/test_includes_declaration_file_when_enabled.d.ts",
             r#"
 declare class ExternalClass {
@@ -223,7 +223,7 @@ declare class ExternalClass {
         let test = TestProgram::for_rule_without_prelude(NoClass).with_options(|options| {
             options.include_declaration_files = true;
         });
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_class/test_includes_destack_declaration_file_when_enabled.d.ds",
             r#"
 class ExternalClass {

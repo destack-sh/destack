@@ -4,7 +4,7 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression}
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{collect_pattern_value_binding_symbols, expression_target_symbol};
-use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 /// Method names that mutate collections.
 const MUTATING_METHODS: &[&str] = &[
@@ -50,7 +50,7 @@ impl LintRule for NoIteratorInvalidation {
     }
 
     /// Check module DIR nodes for iterator invalidation mutations.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let mut visitor = IteratorInvalidationVisitor::new(ctx, meta);
         visitor.run();
@@ -60,7 +60,7 @@ impl LintRule for NoIteratorInvalidation {
 /// Visitor that flags collection mutation during iteration.
 struct IteratorInvalidationVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// Stack of iterated collection alias scopes.
@@ -71,7 +71,7 @@ struct IteratorInvalidationVisitor<'a, 'b> {
 
 impl<'a, 'b> IteratorInvalidationVisitor<'a, 'b> {
     /// Build a new visitor.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         Self {
             ctx,
             meta,
@@ -83,7 +83,7 @@ impl<'a, 'b> IteratorInvalidationVisitor<'a, 'b> {
     /// Walk the module expression roots.
     fn run(&mut self) {
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         // inspect dir roots
         for root_id in roots {
@@ -104,7 +104,7 @@ impl<'a, 'b> IteratorInvalidationVisitor<'a, 'b> {
         }
 
         // check if this is a method call (Member expression)
-        let expression = self.ctx.tree.get(left);
+        let expression = self.ctx.dir.get(left);
         let dir::Expression::Member {
             left: receiver,
             name,
@@ -174,7 +174,7 @@ impl<'a, 'b> IteratorInvalidationVisitor<'a, 'b> {
         };
 
         // resolve declarator
-        let declarator = self.ctx.tree.get(declarator_id);
+        let declarator = self.ctx.dir.get(declarator_id);
         let Some(value_id) = declarator.value else {
             return;
         };
@@ -190,7 +190,7 @@ impl<'a, 'b> IteratorInvalidationVisitor<'a, 'b> {
         // collect all bound symbols from the declarator pattern
         let mut local_symbols = HashSet::new();
         collect_pattern_value_binding_symbols(
-            self.ctx.tree,
+            self.ctx.dir.tree(),
             self.ctx.symbols,
             declarator.pattern,
             &mut local_symbols,

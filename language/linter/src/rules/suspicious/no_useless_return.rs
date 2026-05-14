@@ -1,12 +1,12 @@
 use crate::LintMeta;
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
     CallableOwnerId, callable_owner_span, for_each_callable_signature, span_has_comment,
 };
-use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow redundant return statements at the end of functions.
@@ -17,7 +17,7 @@ declare_lint! {
         id = "no-useless-return",
         code = "LU041",
         category = Suspicious,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -33,26 +33,29 @@ impl LintRule for NoUselessReturn {
         NoUselessReturn::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // inspect all callable bodies consistently
-        for_each_callable_signature(ctx.tree, |owner_id, _signature, body_expression_id| {
-            let Some(body_id) = body_expression_id else {
-                return;
-            };
+        for_each_callable_signature(
+            ctx.dir.tree(),
+            |owner_id, _signature, body_expression_id| {
+                let Some(body_id) = body_expression_id else {
+                    return;
+                };
 
-            report_trailing_bare_return(ctx, meta, owner_id, body_id);
-        });
+                report_trailing_bare_return(ctx, meta, owner_id, body_id);
+            },
+        );
     }
 }
 
 /// Report one redundant trailing bare return inside a callable body.
 fn report_trailing_bare_return(
-    ctx: &mut LintAstContext<'_>,
+    ctx: &mut LintModuleContext<'_>,
     meta: &'static LintMeta,
     owner_id: CallableOwnerId,
-    body_expression_id: ast::LocalNodeId<ast::Expression>,
+    body_expression_id: dir::LocalNodeId<dir::Expression>,
 ) {
     // keep only bare returns at the end of the callable body
     let Some(return_id) = get_trailing_bare_return(ctx, body_expression_id) else {
@@ -70,20 +73,20 @@ fn report_trailing_bare_return(
         return;
     }
 
-    let return_span = ctx.tree.get_span(return_id);
+    let return_span = ctx.dir.get_span(return_id);
     let mut diagnostic = LintReport::new(
         NO_USELESS_RETURN.id,
         NO_USELESS_RETURN.code,
         NO_USELESS_RETURN.category,
         severity,
         "useless return statement",
-        callable_owner_span(ctx.tree, owner_id),
+        callable_owner_span(ctx.dir.tree(), owner_id),
     )
     .label("this return is unnecessary");
 
     // avoid deleting commented returns
     if ctx.compute_fixes
-        && !span_has_comment(ctx.tree, return_span)
+        && !span_has_comment(ctx.dir.tree(), return_span)
         && !return_has_trailing_comment(ctx, return_span)
     {
         let edits = ctx.edit_builder().delete(return_span).into_edits();
@@ -95,7 +98,7 @@ fn report_trailing_bare_return(
 }
 
 /// Return true when source text has a trailing comment after one return span.
-fn return_has_trailing_comment(ctx: &LintAstContext<'_>, return_span: Span) -> bool {
+fn return_has_trailing_comment(ctx: &LintModuleContext<'_>, return_span: Span) -> bool {
     let source = ctx.source_text().as_bytes();
     let mut cursor = return_span.end as usize;
     while cursor < source.len() && (source[cursor] == b' ' || source[cursor] == b'\t') {
@@ -109,19 +112,19 @@ fn return_has_trailing_comment(ctx: &LintAstContext<'_>, return_span: Span) -> b
 
 /// Get a trailing bare return statement from a function body.
 fn get_trailing_bare_return(
-    ctx: &LintAstContext<'_>,
-    expr_id: ast::LocalNodeId<ast::Expression>,
-) -> Option<ast::LocalNodeId<ast::Expression>> {
-    let expr = ctx.tree.get(expr_id);
+    ctx: &LintModuleContext<'_>,
+    expr_id: dir::LocalNodeId<dir::Expression>,
+) -> Option<dir::LocalNodeId<dir::Expression>> {
+    let expr = ctx.dir.get(expr_id);
     match expr {
-        ast::Expression::Block(block_id) => {
-            let block = ctx.tree.get(*block_id);
+        dir::Expression::Block(block_id) => {
+            let block = ctx.dir.get(*block_id);
             if let Some(last_id) = block.last_expression() {
                 return get_trailing_bare_return(ctx, last_id);
             }
             None
         }
-        ast::Expression::Return { value } => {
+        dir::Expression::Return { value } => {
             if value.is_none() {
                 Some(expr_id)
             } else {
@@ -140,7 +143,7 @@ mod tests {
     #[test]
     fn test_detects_bare_return_at_end() {
         let test = TestProgram::for_rule_without_prelude(NoUselessReturn);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_return/test_detects_bare_return_at_end.ds",
             r#"
 function foo() {
@@ -155,7 +158,7 @@ function foo() {
     #[test]
     fn test_allows_return_with_value() {
         let test = TestProgram::for_rule_without_prelude(NoUselessReturn);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_return/test_allows_return_with_value.ds",
             r#"
 function foo() {
@@ -169,7 +172,7 @@ function foo() {
     #[test]
     fn test_allows_no_return() {
         let test = TestProgram::for_rule_without_prelude(NoUselessReturn);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_return/test_allows_no_return.ds",
             r#"
 function foo() {
@@ -184,7 +187,7 @@ function foo() {
     fn test_allows_early_return() {
         // early return is not useless
         let test = TestProgram::for_rule_without_prelude(NoUselessReturn);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_return/test_allows_early_return.ds",
             r#"
 function foo(x: boolean) {
@@ -201,7 +204,7 @@ function foo(x: boolean) {
     #[test]
     fn test_fix_removes_useless_return() {
         let test = TestProgram::for_rule_without_prelude(NoUselessReturn);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_return/test_fix_removes_useless_return.ds",
             r#"
 function foo() {
@@ -224,7 +227,7 @@ function foo() {
     #[test]
     fn test_no_fix_when_return_has_comment_trivia() {
         let test = TestProgram::for_rule_without_prelude(NoUselessReturn);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_return/test_no_fix_when_return_has_comment_trivia.ds",
             r#"
 function foo() {
@@ -241,7 +244,7 @@ function foo() {
     #[test]
     fn test_detects_bare_return_at_end_of_method() {
         let test = TestProgram::for_rule_without_prelude(NoUselessReturn);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_return/test_detects_bare_return_at_end_of_method.ds",
             r#"
 class Foo {
@@ -258,7 +261,7 @@ class Foo {
     #[test]
     fn test_detects_bare_return_at_end_of_object_method() {
         let test = TestProgram::for_rule_without_prelude(NoUselessReturn);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_return/test_detects_bare_return_at_end_of_object_method.ds",
             r#"
 const service = {

@@ -1,9 +1,9 @@
 use crate::LintMeta;
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_path_segments;
-use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Suggest using `match` instead of complex if-else-if chains or switch statements.
@@ -14,7 +14,7 @@ declare_lint! {
         id = "prefer-match",
         code = "LY044",
         category = Style,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -33,15 +33,15 @@ impl LintRule for PreferMatch {
         PreferMatch::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expr = ctx.tree.get(node_id);
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let expr = ctx.dir.get(node_id);
 
             // only check top-level if expressions (not nested else-ifs)
-            let ast::Expression::If {
-                form: ast::IfForm::If,
+            let dir::Expression::If {
+                form: dir::IfForm::If,
                 condition,
                 else_expression: Some(else_expr),
                 ..
@@ -55,7 +55,7 @@ impl LintRule for PreferMatch {
                 continue;
             }
 
-            let ast::IfCondition::Expression { condition } = condition else {
+            let dir::IfCondition::Expression { condition } = condition else {
                 continue;
             };
 
@@ -83,7 +83,7 @@ impl LintRule for PreferMatch {
                     PREFER_MATCH.category,
                     severity,
                     format!("consider using `match` for this {branch_count}-branch if-else chain"),
-                    ctx.tree.get_span(node_id),
+                    ctx.dir.get_span(node_id),
                 )
                 .label("a `match` expression would be clearer here");
                 if ctx.compute_fixes
@@ -101,40 +101,40 @@ impl LintRule for PreferMatch {
 /// One if-else-if chain normalized for match conversion.
 struct IfMatchChain {
     /// The shared subject expression.
-    subject_expression: ast::LocalNodeId<ast::Expression>,
+    subject_expression: dir::LocalNodeId<dir::Expression>,
     /// Case arms in source order.
     case_arms: Vec<IfMatchCaseArm>,
     /// The final else branch body when present.
-    else_expression: Option<ast::LocalNodeId<ast::Expression>>,
+    else_expression: Option<dir::LocalNodeId<dir::Expression>>,
 }
 
 /// One case arm from an if branch.
 struct IfMatchCaseArm {
     /// Pattern expression compared against the shared subject.
-    pattern_expression: ast::LocalNodeId<ast::Expression>,
+    pattern_expression: dir::LocalNodeId<dir::Expression>,
     /// Branch body expression.
-    body_expression: ast::LocalNodeId<ast::Expression>,
+    body_expression: dir::LocalNodeId<dir::Expression>,
 }
 
 /// Check if this if expression is the else-if of a parent if.
 fn is_else_if_of_parent(
-    ctx: &LintAstContext<'_>,
-    node_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    node_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    let Some(parent_id) = ctx.parents.get(node_id) else {
+    let Some(parent_id) = ctx.dir.get_parent_id(node_id.id) else {
         return false;
     };
 
-    if ctx.tree.get_node_type(parent_id) != ast::NodeType::Expression {
+    if ctx.dir.get_node_type(parent_id) != dir::NodeType::Expression {
         return false;
     }
 
-    let parent_expr_id = ast::LocalNodeId::<ast::Expression>::new(parent_id);
-    let parent = ctx.tree.get(parent_expr_id);
+    let parent_expr_id = dir::LocalNodeId::<dir::Expression>::new(parent_id);
+    let parent = ctx.dir.get(parent_expr_id);
 
     matches!(
         parent,
-        ast::Expression::If {
+        dir::Expression::If {
             else_expression: Some(else_id),
             ..
         } if *else_id == node_id
@@ -143,15 +143,15 @@ fn is_else_if_of_parent(
 
 /// Collect an if-chain when all branch conditions compare one shared subject path.
 fn collect_if_chain_for_match(
-    ctx: &LintAstContext<'_>,
-    root_if_expression_id: ast::LocalNodeId<ast::Expression>,
-    root_condition_id: ast::LocalNodeId<ast::Expression>,
-    root_else_expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    root_if_expression_id: dir::LocalNodeId<dir::Expression>,
+    root_condition_id: dir::LocalNodeId<dir::Expression>,
+    root_else_expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<IfMatchChain> {
     let (subject_key, subject_expression, pattern_expression) =
         comparison_subject_and_pattern(ctx, root_condition_id)?;
-    let root_if_expression = ctx.tree.get(root_if_expression_id);
-    let ast::Expression::If {
+    let root_if_expression = ctx.dir.get(root_if_expression_id);
+    let dir::Expression::If {
         then_expression, ..
     } = root_if_expression
     else {
@@ -165,15 +165,15 @@ fn collect_if_chain_for_match(
     let mut else_expression = None;
     let mut current_else_expression_id = Some(root_else_expression_id);
     while let Some(next_else_expression_id) = current_else_expression_id {
-        let next_else_expression = ctx.tree.get(next_else_expression_id);
-        if let ast::Expression::If {
-            form: ast::IfForm::If,
+        let next_else_expression = ctx.dir.get(next_else_expression_id);
+        if let dir::Expression::If {
+            form: dir::IfForm::If,
             condition,
             then_expression,
             else_expression: chained_else_expression,
         } = next_else_expression
         {
-            let ast::IfCondition::Expression { condition } = condition else {
+            let dir::IfCondition::Expression { condition } = condition else {
                 return None;
             };
 
@@ -204,22 +204,22 @@ fn collect_if_chain_for_match(
 
 /// Return `(subject_key, subject_expression, pattern_expression)` for one equality condition.
 fn comparison_subject_and_pattern(
-    ctx: &LintAstContext<'_>,
-    condition_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    condition_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<(
     String,
-    ast::LocalNodeId<ast::Expression>,
-    ast::LocalNodeId<ast::Expression>,
+    dir::LocalNodeId<dir::Expression>,
+    dir::LocalNodeId<dir::Expression>,
 )> {
-    let condition = ctx.tree.get(condition_id);
+    let condition = ctx.dir.get(condition_id);
 
     // handle parenthesized conditions
-    if let ast::Expression::Parenthesized { expression } = condition {
+    if let dir::Expression::Parenthesized { expression } = condition {
         return comparison_subject_and_pattern(ctx, *expression);
     }
 
     // look for equality comparisons
-    let ast::Expression::Binary {
+    let dir::Expression::Binary {
         left,
         operator,
         right,
@@ -231,18 +231,18 @@ fn comparison_subject_and_pattern(
     // only consider == and === comparisons
     if !matches!(
         operator,
-        ast::BinaryOperator::Equal | ast::BinaryOperator::EqualStrict
+        dir::BinaryOperator::Equal | dir::BinaryOperator::EqualStrict
     ) {
         return None;
     }
 
     // keep a path expression on one side and use the other side as the pattern
-    if let Some(path_segments) = expression_path_segments(ctx.tree, *left) {
+    if let Some(path_segments) = expression_path_segments(ctx.dir.tree(), *left) {
         let key = path_key(ctx, &path_segments);
         return Some((key, *left, *right));
     }
 
-    if let Some(path_segments) = expression_path_segments(ctx.tree, *right) {
+    if let Some(path_segments) = expression_path_segments(ctx.dir.tree(), *right) {
         let key = path_key(ctx, &path_segments);
         return Some((key, *right, *left));
     }
@@ -251,7 +251,7 @@ fn comparison_subject_and_pattern(
 }
 
 /// Build a stable key for one path expression.
-fn path_key(ctx: &LintAstContext<'_>, path_segments: &[ast::StringId]) -> String {
+fn path_key(ctx: &LintModuleContext<'_>, path_segments: &[dir::StringId]) -> String {
     path_segments
         .iter()
         .map(|segment| ctx.strings.get(*segment).to_string())
@@ -261,14 +261,14 @@ fn path_key(ctx: &LintAstContext<'_>, path_segments: &[ast::StringId]) -> String
 
 /// Build a safe if-chain to match rewrite when the chain has a final else.
 fn prefer_match_fix(
-    ctx: &LintAstContext<'_>,
-    if_expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    if_expression_id: dir::LocalNodeId<dir::Expression>,
     if_chain: &IfMatchChain,
 ) -> Option<LintFix> {
     let else_expression = if_chain.else_expression?;
 
     let subject_text = ctx
-        .get_span_text(ctx.tree.get_span(if_chain.subject_expression))
+        .get_span_text(ctx.dir.get_span(if_chain.subject_expression))
         .to_string();
     if subject_text.is_empty() {
         return None;
@@ -278,7 +278,7 @@ fn prefer_match_fix(
     let mut case_lines = Vec::with_capacity(if_chain.case_arms.len() + 1);
     for case_arm in &if_chain.case_arms {
         let pattern_text = ctx
-            .get_span_text(ctx.tree.get_span(case_arm.pattern_expression))
+            .get_span_text(ctx.dir.get_span(case_arm.pattern_expression))
             .to_string();
         let body_text = match_arm_body_text(ctx, case_arm.body_expression)?;
         case_lines.push(format!("{pattern_text} => {body_text}"));
@@ -297,18 +297,18 @@ fn prefer_match_fix(
 
     let edits = ctx
         .edit_builder()
-        .replace(ctx.tree.get_span(if_expression_id), replacement)
+        .replace(ctx.dir.get_span(if_expression_id), replacement)
         .into_edits();
     Some(LintFix::safe("Rewrite if/else-if chain to match").with_edits(edits))
 }
 
 /// Return match arm body text for one expression.
 fn match_arm_body_text(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<String> {
     let body_text = ctx
-        .get_span_text(ctx.tree.get_span(expression_id))
+        .get_span_text(ctx.dir.get_span(expression_id))
         .to_string();
     if body_text.is_empty() {
         return None;
@@ -325,7 +325,7 @@ mod tests {
     #[test]
     fn test_detects_long_if_else_chain() {
         let test = TestProgram::for_rule_without_prelude(PreferMatch);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_match/test_detects_long_if_else_chain.ds",
             r#"
 if (x == 1) {
@@ -343,7 +343,7 @@ if (x == 1) {
     #[test]
     fn test_detects_with_else_block() {
         let test = TestProgram::for_rule_without_prelude(PreferMatch);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_match/test_detects_with_else_block.ds",
             r#"
 if (x == 1) {
@@ -377,7 +377,7 @@ match (x) {
     #[test]
     fn test_allows_short_if_else() {
         let test = TestProgram::for_rule_without_prelude(PreferMatch);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_match/test_allows_short_if_else.ds",
             r#"
 if (x == 1) {
@@ -393,7 +393,7 @@ if (x == 1) {
     #[test]
     fn test_allows_different_variables() {
         let test = TestProgram::for_rule_without_prelude(PreferMatch);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_match/test_allows_different_variables.ds",
             r#"
 if (x == 1) {
@@ -411,7 +411,7 @@ if (x == 1) {
     #[test]
     fn test_allows_non_equality_conditions() {
         let test = TestProgram::for_rule_without_prelude(PreferMatch);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_match/test_allows_non_equality_conditions.ds",
             r#"
 if (x > 1) {
@@ -429,7 +429,7 @@ if (x > 1) {
     #[test]
     fn test_detects_without_else_has_no_fix() {
         let test = TestProgram::for_rule_without_prelude(PreferMatch);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_match/test_detects_without_else_has_no_fix.ds",
             r#"
 if (x == 1) {

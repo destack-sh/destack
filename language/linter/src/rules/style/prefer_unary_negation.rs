@@ -1,8 +1,8 @@
 use crate::LintMeta;
-use destack_ast::{self as ast, BinaryOperator, ScalarLiteral, UnaryOperator};
+use destack_dir::{self as dir, BinaryOperator, ScalarLiteral, UnaryOperator};
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer unary negation over multiplying by -1.
@@ -13,7 +13,7 @@ declare_lint! {
         id = "prefer-unary-negation",
         code = "LY061",
         category = Style,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Always,
@@ -29,12 +29,12 @@ impl LintRule for PreferUnaryNegation {
         PreferUnaryNegation::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expression = ctx.tree.get(node_id);
-            let ast::Expression::Binary {
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let expression = ctx.dir.get(node_id);
+            let dir::Expression::Binary {
                 operator,
                 left,
                 right,
@@ -48,8 +48,8 @@ impl LintRule for PreferUnaryNegation {
                 continue;
             }
 
-            let left_expression = ctx.tree.get(*left);
-            let right_expression = ctx.tree.get(*right);
+            let left_expression = ctx.dir.get(*left);
+            let right_expression = ctx.dir.get(*right);
 
             // check if either side is -1 (can be literal -1 or unary negate of 1)
             let left_is_neg_one = is_negative_one(ctx, left_expression, *left);
@@ -62,9 +62,9 @@ impl LintRule for PreferUnaryNegation {
                 }
 
                 // make fix: use unary negation
-                let expression_span = ctx.tree.get_span(node_id);
+                let expression_span = ctx.dir.get_span(node_id);
                 let other_id = if left_is_neg_one { *right } else { *left };
-                let other_span = ctx.tree.get_span(other_id);
+                let other_span = ctx.dir.get_span(other_id);
                 let other_text = ctx.get_span_text(other_span);
                 let replacement = format!("-{other_text}");
                 let edits = ctx
@@ -92,33 +92,33 @@ impl LintRule for PreferUnaryNegation {
 
 /// Check if an expression represents the value -1.
 fn is_negative_one(
-    ctx: &LintAstContext<'_>,
-    expression: &ast::Expression,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    expression: &dir::Expression,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     // check for literal -1 (some languages might parse it directly as a negative literal)
-    if let ast::Expression::ScalarLiteral(ScalarLiteral::Integer(value)) = expression
+    if let dir::Expression::ScalarLiteral(ScalarLiteral::Integer(value)) = expression
         && *value == -1
     {
         return true;
     }
 
     // check for unary negate of 1
-    if let ast::Expression::Unary { operator, right } = expression
+    if let dir::Expression::Unary { operator, right } = expression
         && *operator == UnaryOperator::Negate
     {
-        let inner = ctx.tree.get(*right);
+        let inner = ctx.dir.get(*right);
         if is_one(inner) {
             return true;
         }
     }
 
     // check for parenthesized -1
-    if let ast::Expression::Parenthesized {
+    if let dir::Expression::Parenthesized {
         expression: inner_expression_id,
     } = expression
     {
-        let inner = ctx.tree.get(*inner_expression_id);
+        let inner = ctx.dir.get(*inner_expression_id);
         return is_negative_one(ctx, inner, *inner_expression_id);
     }
 
@@ -129,8 +129,8 @@ fn is_negative_one(
 }
 
 /// Check if an expression is the literal 1.
-fn is_one(expression: &ast::Expression) -> bool {
-    if let ast::Expression::ScalarLiteral(ScalarLiteral::Integer(value)) = expression {
+fn is_one(expression: &dir::Expression) -> bool {
+    if let dir::Expression::ScalarLiteral(ScalarLiteral::Integer(value)) = expression {
         return *value == 1;
     }
     false
@@ -144,7 +144,7 @@ mod tests {
     #[test]
     fn test_multiply_by_negative_one_right_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferUnaryNegation);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_unary_negation/test_multiply_by_negative_one_right_detected.ds",
             r#"
 const result = x * -1;
@@ -156,7 +156,7 @@ const result = x * -1;
     #[test]
     fn test_multiply_by_negative_one_left_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferUnaryNegation);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_unary_negation/test_multiply_by_negative_one_left_detected.ds",
             r#"
 const result = -1 * x;
@@ -168,7 +168,7 @@ const result = -1 * x;
     #[test]
     fn test_multiply_by_negative_one_parenthesized_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferUnaryNegation);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_unary_negation/test_multiply_by_negative_one_parenthesized_detected.ds",
             r#"
 const result = x * (-1);
@@ -180,7 +180,7 @@ const result = x * (-1);
     #[test]
     fn test_multiply_by_other_number_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferUnaryNegation);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_unary_negation/test_multiply_by_other_number_allowed.ds",
             r#"
 const result = x * 2;
@@ -192,7 +192,7 @@ const result = x * 2;
     #[test]
     fn test_multiply_by_negative_two_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferUnaryNegation);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_unary_negation/test_multiply_by_negative_two_allowed.ds",
             r#"
 const result = x * -2;
@@ -204,7 +204,7 @@ const result = x * -2;
     #[test]
     fn test_multiply_two_variables_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferUnaryNegation);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_unary_negation/test_multiply_two_variables_allowed.ds",
             r#"
 const result = x * y;
@@ -216,7 +216,7 @@ const result = x * y;
     #[test]
     fn test_unary_negation_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferUnaryNegation);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_unary_negation/test_unary_negation_allowed.ds",
             r#"
 const result = -x;
@@ -228,7 +228,7 @@ const result = -x;
     #[test]
     fn test_multiply_by_one_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferUnaryNegation);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_unary_negation/test_multiply_by_one_allowed.ds",
             r#"
 const result = x * 1;
@@ -240,7 +240,7 @@ const result = x * 1;
     #[test]
     fn test_fix_multiply_by_negative_one_right() {
         let test = TestProgram::for_rule_without_prelude(PreferUnaryNegation);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_unary_negation/test_fix_multiply_by_negative_one_right.ds",
             r#"
 const result = x * -1
@@ -258,7 +258,7 @@ const result = -x;
     #[test]
     fn test_fix_multiply_by_negative_one_left() {
         let test = TestProgram::for_rule_without_prelude(PreferUnaryNegation);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_unary_negation/test_fix_multiply_by_negative_one_left.ds",
             r#"
 const result = -1 * x

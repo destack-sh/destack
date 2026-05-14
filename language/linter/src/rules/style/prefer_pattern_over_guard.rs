@@ -5,7 +5,7 @@ use destack_workspace::LintSeverity;
 use crate::rules::common::{
     expression_target_symbol, expression_unwrap_parenthesized, pattern_binding_name_and_symbol,
 };
-use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Suggest moving match guards into the pattern.
@@ -35,12 +35,12 @@ impl LintRule for PreferPatternOverGuard {
     }
 
     /// Check module DIR match cases for literal equality guards.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // inspect match cases with pattern guards
-        for match_case_id in ctx.tree.iter_node_ids_of_type::<dir::MatchCase>() {
-            let match_case = ctx.tree.get(match_case_id);
+        for match_case_id in ctx.dir.iter_node_ids_of_type::<dir::MatchCase>() {
+            let match_case = ctx.dir.get(match_case_id);
             let selector = match_case.selector();
             let Some(pattern_id) = selector.pattern_id() else {
                 continue;
@@ -50,7 +50,8 @@ impl LintRule for PreferPatternOverGuard {
             };
 
             // keep simple binding patterns whose guard compares the same symbol to one literal
-            let Some((_, binding_symbol)) = pattern_binding_name_and_symbol(ctx.tree, pattern_id)
+            let Some((_, binding_symbol)) =
+                pattern_binding_name_and_symbol(ctx.dir.tree(), ctx.symbols, pattern_id)
             else {
                 continue;
             };
@@ -78,7 +79,7 @@ impl LintRule for PreferPatternOverGuard {
             .label("replace with literal pattern");
 
             // attach the rewrite only when the source still contains one explicit guard separator
-            if ctx.include_fixes
+            if ctx.compute_fixes
                 && let Some(fix) = prefer_pattern_over_guard_fix(
                     ctx,
                     pattern_id,
@@ -96,12 +97,12 @@ impl LintRule for PreferPatternOverGuard {
 
 /// Return the literal expression when one guard compares the binding symbol to one literal.
 fn equality_literal_for_binding(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     binding_symbol: dir::GlobalSymbolId,
     guard_expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<dir::LocalNodeId<dir::Expression>> {
-    let guard_expression_id = expression_unwrap_parenthesized(ctx.tree, guard_expression_id);
-    let guard_expression = ctx.tree.get(guard_expression_id);
+    let guard_expression_id = expression_unwrap_parenthesized(ctx.dir.tree(), guard_expression_id);
+    let guard_expression = ctx.dir.get(guard_expression_id);
     let dir::Expression::Binary {
         operator,
         left,
@@ -119,12 +120,12 @@ fn equality_literal_for_binding(
         return None;
     }
 
-    let left_id = expression_unwrap_parenthesized(ctx.tree, *left);
-    let right_id = expression_unwrap_parenthesized(ctx.tree, *right);
+    let left_id = expression_unwrap_parenthesized(ctx.dir.tree(), *left);
+    let right_id = expression_unwrap_parenthesized(ctx.dir.tree(), *right);
     let left_is_binding = expression_target_symbol(ctx, left_id) == Some(binding_symbol);
     let right_is_binding = expression_target_symbol(ctx, right_id) == Some(binding_symbol);
-    let left_is_literal = expression_is_simple_literal(ctx.tree, left_id);
-    let right_is_literal = expression_is_simple_literal(ctx.tree, right_id);
+    let left_is_literal = expression_is_simple_literal(ctx.dir.tree(), left_id);
+    let right_is_literal = expression_is_simple_literal(ctx.dir.tree(), right_id);
 
     // keep exactly one binding side and one literal side
     if left_is_binding && right_is_literal {
@@ -147,13 +148,13 @@ fn expression_is_simple_literal(
 
     matches!(
         expression,
-        dir::Expression::ScalarLiteral { .. } | dir::Expression::TypeLiteral { .. }
+        dir::Expression::ScalarLiteral(_) | dir::Expression::Type { .. }
     )
 }
 
 /// Build a safe guard-to-pattern rewrite fix.
 fn prefer_pattern_over_guard_fix(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     pattern_id: dir::LocalNodeId<dir::Pattern>,
     guard_expression_id: dir::LocalNodeId<dir::Expression>,
     literal_expression_id: dir::LocalNodeId<dir::Expression>,

@@ -1,8 +1,8 @@
 use crate::LintMeta;
-use destack_ast::{self as ast, Declaration};
+use destack_dir::{self as dir, Declaration};
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintReport, LintRule, declare_lint};
+use crate::{LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Enforce consistent extension naming style.
@@ -13,7 +13,7 @@ declare_lint! {
         id = "consistent-extension-style",
         code = "LY005",
         category = Style,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = No,
@@ -29,11 +29,11 @@ impl LintRule for ConsistentExtensionStyle {
         ConsistentExtensionStyle::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
-        for node_id in ctx.tree.iter_nodes::<ast::Declaration>() {
-            let decl = ctx.tree.get(node_id);
+        for node_id in ctx.dir.iter_nodes::<dir::Declaration>() {
+            let decl = ctx.dir.get(node_id);
 
             // look for extension declarations
             let Declaration::Extension(declaration) = decl else {
@@ -53,7 +53,7 @@ impl LintRule for ConsistentExtensionStyle {
                         CONSISTENT_EXTENSION_STYLE.category,
                         severity,
                         "extension should have a name",
-                        ctx.tree.get_span(node_id),
+                        ctx.dir.get_span(node_id),
                     )
                     .label("add a name like `extension MyExt of ...`"),
                 );
@@ -70,7 +70,7 @@ mod tests {
     #[test]
     fn test_allows_named_extension() {
         let test = TestProgram::for_rule_without_prelude(ConsistentExtensionStyle);
-        let result = test.lint_ast(
+        let result = test.lint(
             "consistent_extension_style/test_allows_named_extension.ds",
             r#"
 extension StringUtils of string {
@@ -87,7 +87,7 @@ extension StringUtils of string {
     #[test]
     fn test_detects_anonymous_extension() {
         let test = TestProgram::for_rule_without_prelude(ConsistentExtensionStyle);
-        let result = test.lint_ast(
+        let result = test.lint(
             "consistent_extension_style/test_detects_anonymous_extension.ds",
             r#"
 extension of string {
@@ -104,7 +104,7 @@ extension of string {
     #[test]
     fn test_allows_named_generic_extension() {
         let test = TestProgram::for_rule_without_prelude(ConsistentExtensionStyle);
-        let result = test.lint_ast(
+        let result = test.lint(
             "consistent_extension_style/test_allows_named_generic_extension.ds",
             r#"
 extension ArrayUtils<T> of Array<T> {

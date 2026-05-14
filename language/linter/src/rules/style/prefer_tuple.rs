@@ -1,9 +1,9 @@
 use crate::LintMeta;
-use destack_ast::{self as ast, Argument, Expression, ScalarLiteral};
+use destack_dir::{self as dir, Argument, Expression, ScalarLiteral};
 use destack_source::LanguageType;
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Suggest tuple type for fixed-length heterogeneous arrays.
@@ -28,7 +28,7 @@ declare_lint! {
         id = "prefer-tuple",
         code = "LY058",
         category = Style,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Always,
@@ -44,7 +44,7 @@ impl LintRule for PreferTuple {
         PreferTuple::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // only applies to Destack files
@@ -55,8 +55,8 @@ impl LintRule for PreferTuple {
             return;
         }
 
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let Expression::ArrayExpression { elements } = ctx.tree.get(node_id) else {
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let Expression::ArrayExpression { elements } = ctx.dir.get(node_id) else {
                 continue;
             };
 
@@ -74,7 +74,7 @@ impl LintRule for PreferTuple {
             let element_types: Vec<_> = elements
                 .iter()
                 .filter_map(|argument_id| {
-                    let arg = ctx.tree.get(*argument_id);
+                    let arg = ctx.dir.get(*argument_id);
                     get_argument_literal_type(ctx, arg)
                 })
                 .collect();
@@ -94,7 +94,7 @@ impl LintRule for PreferTuple {
                 continue;
             }
 
-            let span = ctx.tree.get_span(node_id);
+            let span = ctx.dir.get_span(node_id);
             let array_text = ctx.get_span_text(span);
 
             // create fix: replace [ ] with ( )
@@ -137,13 +137,13 @@ enum LiteralType {
 }
 
 /// Get the literal type of an argument if it's a literal.
-fn get_argument_literal_type(ctx: &LintAstContext<'_>, arg: &Argument) -> Option<LiteralType> {
+fn get_argument_literal_type(ctx: &LintModuleContext<'_>, arg: &Argument) -> Option<LiteralType> {
     let value_id = match arg {
         Argument::Positional { value, .. } => *value,
         _ => return None,
     };
 
-    let value = ctx.tree.get(value_id);
+    let value = ctx.dir.get(value_id);
     match value {
         Expression::ScalarLiteral(literal) => match literal {
             ScalarLiteral::Null => None,
@@ -177,7 +177,7 @@ mod tests {
     #[test]
     fn test_detects_heterogeneous_array() {
         let test = TestProgram::for_rule_without_prelude(PreferTuple);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_tuple/test_detects_heterogeneous_array.ds",
             r#"
 let data = ["hello", 42, true]
@@ -189,7 +189,7 @@ let data = ["hello", 42, true]
     #[test]
     fn test_detects_string_number_array() {
         let test = TestProgram::for_rule_without_prelude(PreferTuple);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_tuple/test_detects_string_number_array.ds",
             r#"
 let pair = ["name", 123]
@@ -201,7 +201,7 @@ let pair = ["name", 123]
     #[test]
     fn test_allows_homogeneous_string_array() {
         let test = TestProgram::for_rule_without_prelude(PreferTuple);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_tuple/test_allows_homogeneous_string_array.ds",
             r#"
 let names = ["alice", "bob", "charlie"]
@@ -213,7 +213,7 @@ let names = ["alice", "bob", "charlie"]
     #[test]
     fn test_allows_homogeneous_number_array() {
         let test = TestProgram::for_rule_without_prelude(PreferTuple);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_tuple/test_allows_homogeneous_number_array.ds",
             r#"
 let nums = [1, 2, 3]
@@ -225,7 +225,7 @@ let nums = [1, 2, 3]
     #[test]
     fn test_allows_single_element_array() {
         let test = TestProgram::for_rule_without_prelude(PreferTuple);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_tuple/test_allows_single_element_array.ds",
             r#"
 let single = [42]
@@ -237,7 +237,7 @@ let single = [42]
     #[test]
     fn test_allows_empty_array() {
         let test = TestProgram::for_rule_without_prelude(PreferTuple);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_tuple/test_allows_empty_array.ds",
             r#"
 let empty = []
@@ -249,7 +249,7 @@ let empty = []
     #[test]
     fn test_allows_non_literal_array() {
         let test = TestProgram::for_rule_without_prelude(PreferTuple);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_tuple/test_allows_non_literal_array.ds",
             r#"
 let data = [x, y, z]
@@ -261,7 +261,7 @@ let data = [x, y, z]
     #[test]
     fn test_fix_converts_to_tuple() {
         let test = TestProgram::for_rule_without_prelude(PreferTuple);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_tuple/test_fix_converts_to_tuple.ds",
             r#"
 let data = ["hello", 42];
@@ -279,7 +279,7 @@ let data = ("hello", 42,);
     #[test]
     fn test_ignores_typescript_files() {
         let test = TestProgram::for_rule_without_prelude(PreferTuple);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_tuple/test_ignores_typescript_files.ts",
             r#"
 let data = ["hello", 42, true]

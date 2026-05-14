@@ -1,8 +1,8 @@
 use crate::LintMeta;
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintReport, LintRule, declare_lint};
+use crate::{LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow misleading characters in regex character classes.
@@ -14,7 +14,7 @@ declare_lint! {
         id = "no-misleading-character-class",
         code = "LU022",
         category = Suspicious,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = No,
@@ -30,12 +30,12 @@ impl LintRule for NoMisleadingCharacterClass {
         NoMisleadingCharacterClass::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expr = ctx.tree.get(node_id);
-            let ast::Expression::ScalarLiteral(ast::ScalarLiteral::RegexString { content, .. }) =
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let expr = ctx.dir.get(node_id);
+            let dir::Expression::ScalarLiteral(dir::ScalarLiteral::RegexString { content, .. }) =
                 expr
             else {
                 continue;
@@ -56,7 +56,7 @@ impl LintRule for NoMisleadingCharacterClass {
                     NO_MISLEADING_CHARACTER_CLASS.category,
                     severity,
                     format!("misleading character in regex character class: {problem}"),
-                    ctx.tree.get_span(node_id),
+                    ctx.dir.get_span(node_id),
                 )
                 .label("this character class may not match as expected"),
             );
@@ -73,7 +73,7 @@ mod tests {
     fn test_detects_combining_character() {
         let test = TestProgram::for_rule_without_prelude(NoMisleadingCharacterClass);
         // ñ as n + combining tilde
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_misleading_character_class/test_detects_combining_character.ds",
             "/[n\u{0303}]/",
         );
@@ -84,7 +84,7 @@ mod tests {
     #[test]
     fn test_allows_simple_character_class() {
         let test = TestProgram::for_rule_without_prelude(NoMisleadingCharacterClass);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_misleading_character_class/test_allows_simple_character_class.ds",
             r#"
 const re = /[abc]/
@@ -97,7 +97,7 @@ const re = /[abc]/
     #[test]
     fn test_allows_regex_without_character_class() {
         let test = TestProgram::for_rule_without_prelude(NoMisleadingCharacterClass);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_misleading_character_class/test_allows_regex_without_character_class.ds",
             r#"
 const re = /hello/
@@ -110,7 +110,7 @@ const re = /hello/
     #[test]
     fn test_allows_escaped_bracket() {
         let test = TestProgram::for_rule_without_prelude(NoMisleadingCharacterClass);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_misleading_character_class/test_allows_escaped_bracket.ds",
             r#"
 const re = /\[abc\]/

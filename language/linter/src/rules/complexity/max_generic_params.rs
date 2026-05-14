@@ -1,11 +1,11 @@
 use crate::LintMeta;
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
     CallableOwnerId, for_each_callable_signature, function_signature_generic_parameter_count,
 };
-use crate::{LintAstContext, LintReport, LintRule, declare_lint};
+use crate::{LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Limit the number of generic parameters on a declaration.
@@ -16,7 +16,7 @@ declare_lint! {
         id = "max-generic-params",
         code = "LX011",
         category = Complexity,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = No,
@@ -32,14 +32,14 @@ impl LintRule for MaxGenericParams {
         MaxGenericParams::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         // resolve lint metadata and threshold
         let meta = self.meta();
         let max_generic_params = ctx.options.complexity.max_generic_params;
 
         // check declaration-level generic parameters
-        for declaration_id in ctx.tree.iter_nodes::<ast::Declaration>() {
-            let declaration = ctx.tree.get(declaration_id);
+        for declaration_id in ctx.dir.iter_nodes::<dir::Declaration>() {
+            let declaration = ctx.dir.get(declaration_id);
 
             // count generic parameters
             let Some(generic_params) = declaration.generic_parameters() else {
@@ -62,14 +62,14 @@ impl LintRule for MaxGenericParams {
                         format!(
                             "declaration has {param_count} generic parameters (max {max_generic_params})"
                         ),
-                        ctx.tree.get_span(declaration_id))
+                        ctx.dir.get_span(declaration_id))
                     .label("consider splitting into smaller components"),
                 );
             }
         }
 
         // check method-level generic parameters on class and object methods
-        for_each_callable_signature(ctx.tree, |owner_id, signature, _body| {
+        for_each_callable_signature(ctx.dir.tree(), |owner_id, signature, _body| {
             // declaration functions are already covered in declaration pass
             if let CallableOwnerId::Declaration(_) = owner_id {
                 return;
@@ -102,15 +102,17 @@ impl LintRule for MaxGenericParams {
 }
 
 /// Report generic-parameter overflow for one callable method owner.
-fn report_method_generic_params<T: ast::Node + Clone>(
-    ctx: &mut LintAstContext<'_>,
+fn report_method_generic_params<T: dir::Node + Clone>(
+    ctx: &mut LintModuleContext<'_>,
     meta: &'static LintMeta,
-    owner_id: ast::LocalNodeId<T>,
+    owner_id: dir::LocalNodeId<T>,
     param_count: usize,
     max_generic_params: usize,
-) {
+) where
+    dir::Tree: dir::TreeStore<T>,
+{
     // resolve owner span before moving owner id
-    let owner_span = ctx.tree.get_span(owner_id);
+    let owner_span = ctx.dir.get_span(owner_id);
 
     // resolve effective severity for this method owner
     let severity = ctx.get_effective_severity(meta, owner_id);
@@ -140,7 +142,7 @@ mod tests {
     #[test]
     fn test_flags_many_generic_params_on_function() {
         let test = TestProgram::for_rule_without_prelude(MaxGenericParams);
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_generic_params/test_flags_many_generic_params_on_function.ds",
             r#"
 function combine<A, B, C, D, E>(a: A, b: B, c: C, d: D, e: E) {
@@ -154,7 +156,7 @@ function combine<A, B, C, D, E>(a: A, b: B, c: C, d: D, e: E) {
     #[test]
     fn test_flags_many_generic_params_on_class() {
         let test = TestProgram::for_rule_without_prelude(MaxGenericParams);
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_generic_params/test_flags_many_generic_params_on_class.ds",
             r#"
 class Container<A, B, C, D, E> {
@@ -172,7 +174,7 @@ class Container<A, B, C, D, E> {
     #[test]
     fn test_flags_many_generic_params_on_interface() {
         let test = TestProgram::for_rule_without_prelude(MaxGenericParams);
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_generic_params/test_flags_many_generic_params_on_interface.ds",
             r#"
 interface Handler<A, B, C, D, E> {
@@ -186,7 +188,7 @@ interface Handler<A, B, C, D, E> {
     #[test]
     fn test_allows_few_generic_params() {
         let test = TestProgram::for_rule_without_prelude(MaxGenericParams);
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_generic_params/test_allows_few_generic_params.ds",
             r#"
 function pair<A, B>(a: A, b: B) {
@@ -200,7 +202,7 @@ function pair<A, B>(a: A, b: B) {
     #[test]
     fn test_allows_exactly_at_limit() {
         let test = TestProgram::for_rule_without_prelude(MaxGenericParams);
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_generic_params/test_allows_exactly_at_limit.ds",
             r#"
 function quad<A, B, C, D>(a: A, b: B, c: C, d: D) {
@@ -214,7 +216,7 @@ function quad<A, B, C, D>(a: A, b: B, c: C, d: D) {
     #[test]
     fn test_allows_no_generic_params() {
         let test = TestProgram::for_rule_without_prelude(MaxGenericParams);
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_generic_params/test_allows_no_generic_params.ds",
             r#"
 function identity(x: int32) {
@@ -228,7 +230,7 @@ function identity(x: int32) {
     #[test]
     fn test_flags_many_generic_params_on_class_method() {
         let test = TestProgram::for_rule_without_prelude(MaxGenericParams);
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_generic_params/test_flags_many_generic_params_on_class_method.ds",
             r#"
 class Container {
@@ -244,7 +246,7 @@ class Container {
     #[test]
     fn test_flags_many_generic_params_on_object_method() {
         let test = TestProgram::for_rule_without_prelude(MaxGenericParams);
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_generic_params/test_flags_many_generic_params_on_object_method.ds",
             r#"
 const container = {

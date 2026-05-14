@@ -1,8 +1,8 @@
-use destack_ast::{self as ast, Declaration, Name, NamespaceForm};
+use destack_dir::{self as dir, Declaration, Name, NamespaceForm};
 use destack_source::FileType;
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintMeta, LintReport, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow namespace declarations.
@@ -13,7 +13,7 @@ declare_lint! {
         id = "no-namespace",
         code = "LR017",
         category = Restriction,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = No,
@@ -30,7 +30,7 @@ impl LintRule for NoNamespace {
         NoNamespace::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // declaration file policy
@@ -39,8 +39,8 @@ impl LintRule for NoNamespace {
         }
 
         // inspect candidate declarations
-        for node_id in ctx.tree.iter_nodes::<ast::Declaration>() {
-            let declaration = ctx.tree.get(node_id);
+        for node_id in ctx.dir.iter_nodes::<dir::Declaration>() {
+            let declaration = ctx.dir.get(node_id);
             if namespace_declaration_is_allowed(ctx, node_id, declaration) {
                 continue;
             }
@@ -50,7 +50,7 @@ impl LintRule for NoNamespace {
             if !severity.is_enabled() {
                 continue;
             }
-            let span = ctx.tree.get_span(node_id);
+            let span = ctx.dir.get_span(node_id);
             ctx.report(
                 LintReport::new(
                     NO_NAMESPACE.id,
@@ -67,7 +67,7 @@ impl LintRule for NoNamespace {
 }
 
 /// Return true when namespace declarations should be skipped for one file type.
-fn namespace_file_is_allowed(file_type: FileType, ctx: &LintAstContext<'_>) -> bool {
+fn namespace_file_is_allowed(file_type: FileType, ctx: &LintModuleContext<'_>) -> bool {
     matches!(
         file_type,
         FileType::DestackDeclaration | FileType::TypeScriptDeclaration
@@ -76,8 +76,8 @@ fn namespace_file_is_allowed(file_type: FileType, ctx: &LintAstContext<'_>) -> b
 
 /// Return true when one namespace declaration is allowed by policy.
 fn namespace_declaration_is_allowed(
-    ctx: &LintAstContext<'_>,
-    declaration_id: ast::LocalNodeId<ast::Declaration>,
+    ctx: &LintModuleContext<'_>,
+    declaration_id: dir::LocalNodeId<dir::Declaration>,
     declaration: &Declaration,
 ) -> bool {
     let Declaration::Namespace(declaration) = declaration else {
@@ -102,8 +102,8 @@ fn namespace_is_external_module(form: NamespaceForm, name: Option<Name>) -> bool
 
 /// Return true when one namespace declaration lives in a declaration context.
 fn namespace_is_declaration_context(
-    ctx: &LintAstContext<'_>,
-    declaration_id: ast::LocalNodeId<ast::Declaration>,
+    ctx: &LintModuleContext<'_>,
+    declaration_id: dir::LocalNodeId<dir::Declaration>,
     is_ambient: bool,
 ) -> bool {
     if is_ambient {
@@ -113,18 +113,18 @@ fn namespace_is_declaration_context(
     let mut current = Some(declaration_id.id);
 
     while let Some(node_id) = current {
-        let parent_id = ctx.parents.get_by_id(node_id);
+        let parent_id = ctx.dir.get_parent_id(node_id);
         let Some(parent_id) = parent_id else {
             return false;
         };
         current = Some(parent_id);
 
-        if ctx.tree.get_node_type(parent_id) != ast::NodeType::Declaration {
+        if ctx.dir.get_node_type(parent_id) != dir::NodeType::Declaration {
             continue;
         }
 
-        let parent_declaration_id = ast::LocalNodeId::<ast::Declaration>::new(parent_id);
-        let Declaration::Namespace(parent_declaration) = ctx.tree.get(parent_declaration_id) else {
+        let parent_declaration_id = dir::LocalNodeId::<dir::Declaration>::new(parent_id);
+        let Declaration::Namespace(parent_declaration) = ctx.dir.get(parent_declaration_id) else {
             continue;
         };
         if parent_declaration.is_ambient {
@@ -143,7 +143,7 @@ mod tests {
     #[test]
     fn test_detects_namespace() {
         let test = TestProgram::for_rule_without_prelude(NoNamespace);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_namespace/test_detects_namespace.ts",
             r#"
 namespace MyNamespace {
@@ -157,7 +157,7 @@ namespace MyNamespace {
     #[test]
     fn test_allows_module_exports() {
         let test = TestProgram::for_rule_without_prelude(NoNamespace);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_namespace/test_allows_module_exports.ts",
             r#"
 export const foo = 1;
@@ -170,7 +170,7 @@ export function bar() {}
     #[test]
     fn test_allows_external_module_declaration() {
         let test = TestProgram::for_rule_without_prelude(NoNamespace);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_namespace/test_allows_external_module_declaration.ts",
             r#"
 declare module "foo" {
@@ -184,7 +184,7 @@ declare module "foo" {
     #[test]
     fn test_detects_declare_namespace_in_source_by_default() {
         let test = TestProgram::for_rule_without_prelude(NoNamespace);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_namespace/test_detects_declare_namespace_in_source_by_default.ts",
             r#"
 declare namespace External {
@@ -200,7 +200,7 @@ declare namespace External {
         let test = TestProgram::for_rule_without_prelude(NoNamespace).with_options(|options| {
             options.restriction.allow_namespace_declarations = true;
         });
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_namespace/test_allows_declare_namespace_when_enabled.ts",
             r#"
 declare namespace External {
@@ -216,7 +216,7 @@ declare namespace External {
         let test = TestProgram::for_rule_without_prelude(NoNamespace).with_options(|options| {
             options.restriction.allow_namespace_declarations = true;
         });
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_namespace/test_allows_nested_namespace_in_declare_namespace_when_enabled.ts",
             r#"
 declare namespace External {
@@ -234,7 +234,7 @@ declare namespace External {
         let test = TestProgram::for_rule_without_prelude(NoNamespace).with_options(|options| {
             options.restriction.allow_namespace_declarations = true;
         });
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_namespace/test_still_detects_namespace_when_enabled_without_declare_context.ts",
             r#"
 namespace MyNamespace {
@@ -248,7 +248,7 @@ namespace MyNamespace {
     #[test]
     fn test_skips_declaration_file_by_default() {
         let test = TestProgram::for_rule_without_prelude(NoNamespace);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_namespace/test_skips_declaration_file_by_default.d.ts",
             r#"
 declare namespace External {
@@ -265,7 +265,7 @@ declare namespace External {
             options.include_declaration_files = true;
             options.restriction.allow_namespace_definition_files = false;
         });
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_namespace/test_includes_declaration_file_when_enabled.d.ts",
             r#"
 declare namespace External {
@@ -282,7 +282,7 @@ declare namespace External {
             options.include_declaration_files = true;
             options.restriction.allow_namespace_definition_files = true;
         });
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_namespace/test_allows_declaration_file_when_enabled_by_rule_option.d.ts",
             r#"
 declare namespace External {

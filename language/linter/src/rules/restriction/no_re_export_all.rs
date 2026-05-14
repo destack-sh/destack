@@ -1,8 +1,8 @@
 use crate::LintMeta;
-use destack_ast::{self as ast, DependencyBinding, Expression};
+use destack_dir::{self as dir, DependencyBinding, Expression};
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintReport, LintRule, declare_lint};
+use crate::{LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow `export * from "..."`.
@@ -14,7 +14,7 @@ declare_lint! {
         id = "no-re-export-all",
         code = "LR024",
         category = Restriction,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = No,
@@ -30,11 +30,11 @@ impl LintRule for NoReExportAll {
         NoReExportAll::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expression = ctx.tree.get(node_id);
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let expression = ctx.dir.get(node_id);
 
             // check export expressions
             let Expression::Export {
@@ -49,7 +49,7 @@ impl LintRule for NoReExportAll {
 
             // check if any item is a namespace re-export (export *)
             for item_id in items {
-                let item = ctx.tree.get(*item_id);
+                let item = ctx.dir.get(*item_id);
                 if dependency_item_is_value_namespace_re_export(*space, item) {
                     let severity = ctx.get_effective_severity(meta, node_id);
                     if !severity.is_enabled() {
@@ -64,7 +64,7 @@ impl LintRule for NoReExportAll {
                             NO_RE_EXPORT_ALL.category,
                             severity,
                             "avoid using export * from",
-                            ctx.tree.get_span(node_id),
+                            ctx.dir.get_span(node_id),
                         )
                         .label("use named exports instead"),
                     );
@@ -77,10 +77,10 @@ impl LintRule for NoReExportAll {
 
 /// Return true when one dependency item re-exports the full value namespace.
 fn dependency_item_is_value_namespace_re_export(
-    export_kind: ast::DependencySpace,
-    item: &ast::DependencyItem,
+    export_kind: dir::DependencySpace,
+    item: &dir::DependencyItem,
 ) -> bool {
-    let ast::DependencyItem::Item {
+    let dir::DependencyItem::Item {
         binding,
         space,
         alias: _,
@@ -93,7 +93,7 @@ fn dependency_item_is_value_namespace_re_export(
         return false;
     }
 
-    (*space).unwrap_or(export_kind) != ast::DependencySpace::Type
+    (*space).unwrap_or(export_kind) != dir::DependencySpace::Type
 }
 
 #[cfg(test)]
@@ -104,7 +104,7 @@ mod tests {
     #[test]
     fn test_detects_export_star() {
         let test = TestProgram::for_rule_without_prelude(NoReExportAll);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_re_export_all/test_detects_export_star.ds",
             r#"
 export * from "./module"
@@ -116,7 +116,7 @@ export * from "./module"
     #[test]
     fn test_detects_export_star_from_path() {
         let test = TestProgram::for_rule_without_prelude(NoReExportAll);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_re_export_all/test_detects_export_star_from_path.ds",
             r#"
 export * from "some/path"
@@ -128,7 +128,7 @@ export * from "some/path"
     #[test]
     fn test_detects_export_star_as() {
         let test = TestProgram::for_rule_without_prelude(NoReExportAll);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_re_export_all/test_detects_export_star_as.ds",
             r#"
 export * as utils from "./utils"
@@ -140,7 +140,7 @@ export * as utils from "./utils"
     #[test]
     fn test_allows_named_exports() {
         let test = TestProgram::for_rule_without_prelude(NoReExportAll);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_re_export_all/test_allows_named_exports.ds",
             r#"
 export { foo, bar } from "./module"
@@ -152,7 +152,7 @@ export { foo, bar } from "./module"
     #[test]
     fn test_allows_default_export() {
         let test = TestProgram::for_rule_without_prelude(NoReExportAll);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_re_export_all/test_allows_default_export.ds",
             r#"
 export default foo
@@ -164,7 +164,7 @@ export default foo
     #[test]
     fn test_allows_local_exports() {
         let test = TestProgram::for_rule_without_prelude(NoReExportAll);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_re_export_all/test_allows_local_exports.ds",
             r#"
 export { foo, bar }
@@ -176,7 +176,7 @@ export { foo, bar }
     #[test]
     fn test_allows_export_type_star() {
         let test = TestProgram::for_rule_without_prelude(NoReExportAll);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_re_export_all/test_allows_export_type_star.ds",
             r#"
 export type * from "./types"
@@ -188,7 +188,7 @@ export type * from "./types"
     #[test]
     fn test_allows_export_type_star_as() {
         let test = TestProgram::for_rule_without_prelude(NoReExportAll);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_re_export_all/test_allows_export_type_star_as.ds",
             r#"
 export type * as utils from "./types"

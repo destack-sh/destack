@@ -1,15 +1,27 @@
+mod callable;
 mod comment;
+mod duplicate;
+mod expression;
 mod fix;
+mod glob;
 mod identifier;
 mod import;
 mod line;
 mod pattern;
 mod regex;
+mod regexp;
+mod trivia;
 
+pub use callable::*;
 pub use comment::*;
+pub use duplicate::*;
+pub use expression::*;
 pub use fix::*;
+pub use glob::*;
 pub use identifier::*;
 pub use import::*;
 pub use line::*;
 pub use pattern::*;
 pub use regex::*;
+pub use regexp::*;
+pub use trivia::*;

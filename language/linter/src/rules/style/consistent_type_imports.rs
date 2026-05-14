@@ -7,7 +7,7 @@ use crate::rules::common::{
     dependency_item_insert_inline_type_keyword, dependency_item_strip_inline_type_keyword,
     expression_is_in_type_position, import_type_keyword_removal_span,
 };
-use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Enforce consistent type import style.
@@ -36,7 +36,7 @@ impl LintRule for ConsistentTypeImports {
     }
 
     /// Check module DIR nodes for type-only import style.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let options = consistent_type_imports_options(ctx);
         let import_clauses = collect_import_clauses(ctx);
@@ -98,7 +98,7 @@ struct ImportClause {
 }
 
 /// Resolve rule options from linter configuration.
-fn consistent_type_imports_options(ctx: &LintModuleDirContext<'_>) -> ConsistentTypeImportsOptions {
+fn consistent_type_imports_options(ctx: &LintModuleContext<'_>) -> ConsistentTypeImportsOptions {
     ConsistentTypeImportsOptions {
         prefer_type_imports: ctx
             .options
@@ -112,12 +112,12 @@ fn consistent_type_imports_options(ctx: &LintModuleDirContext<'_>) -> Consistent
 }
 
 /// Collect import clauses in source order.
-fn collect_import_clauses(ctx: &LintModuleDirContext<'_>) -> Vec<ImportClause> {
+fn collect_import_clauses(ctx: &LintModuleContext<'_>) -> Vec<ImportClause> {
     let mut clauses = Vec::new();
 
     // collect import declarations only
-    for expression_id in ctx.tree.iter_node_ids_of_type::<dir::Expression>() {
-        let expression = ctx.tree.get(expression_id);
+    for expression_id in ctx.dir.iter_node_ids_of_type::<dir::Expression>() {
+        let expression = ctx.dir.get(expression_id);
         let dir::Expression::Import {
             space,
             items,
@@ -141,7 +141,7 @@ fn collect_import_clauses(ctx: &LintModuleDirContext<'_>) -> Vec<ImportClause> {
 
 /// Collect tracked import binding symbols for one module.
 fn tracked_import_symbols(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     clauses: &[ImportClause],
 ) -> HashSet<dir::GlobalSymbolId> {
     let mut symbols = HashSet::new();
@@ -149,8 +149,7 @@ fn tracked_import_symbols(
     // keep direct local import aliases only
     for clause in clauses {
         for item_id in &clause.items {
-            let item = ctx.tree.get(*item_id);
-            let Some(symbol_id) = item.symbol() else {
+            let Some(symbol_id) = ctx.local_symbol_for_node(*item_id) else {
                 continue;
             };
 
@@ -163,14 +162,14 @@ fn tracked_import_symbols(
 
 /// Collect type and value reference contexts for tracked import symbols in one module.
 fn collect_import_symbol_reference_context_usage(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     tracked_symbols: &HashSet<dir::GlobalSymbolId>,
 ) -> std::collections::HashMap<dir::GlobalSymbolId, SymbolReferenceContextUsage> {
     let mut usage: std::collections::HashMap<dir::GlobalSymbolId, SymbolReferenceContextUsage> =
         std::collections::HashMap::new();
 
     // inspect all direct symbol references once in tree order
-    for (expression_id, _) in ctx.tree.iter_nodes_of_type::<dir::Expression>() {
+    for (expression_id, _) in ctx.dir.iter_nodes_of_type::<dir::Expression>() {
         let Some(symbol_id) = ctx.expression_target_symbol(expression_id) else {
             continue;
         };
@@ -178,7 +177,7 @@ fn collect_import_symbol_reference_context_usage(
             continue;
         }
 
-        let is_type_position = expression_is_in_type_position(ctx.tree, expression_id);
+        let is_type_position = expression_is_in_type_position(ctx.dir.tree(), expression_id);
         usage
             .entry(symbol_id)
             .or_default()
@@ -190,7 +189,7 @@ fn collect_import_symbol_reference_context_usage(
 
 /// Report one diagnostic for one import declaration based on selected style options.
 fn report_import_style(
-    ctx: &mut LintModuleDirContext<'_>,
+    ctx: &mut LintModuleContext<'_>,
     meta: &'static LintMeta,
     options: ConsistentTypeImportsOptions,
     clause: &ImportClause,
@@ -220,7 +219,7 @@ fn report_import_style(
             ctx.get_span(clause.expression_id),
         )
         .label("remove type import modifiers");
-        if ctx.include_fixes
+        if ctx.compute_fixes
             && let Some(fix) =
                 consistent_type_import_no_type_fix(ctx, clause.expression_id, &inline_type_item_ids)
         {
@@ -251,7 +250,7 @@ fn report_import_style(
                 ctx.get_span(clause.expression_id),
             )
             .label("prefer inline `type` modifiers");
-            if ctx.include_fixes
+            if ctx.compute_fixes
                 && let Some(fix) =
                     consistent_type_import_inline_fix(ctx, clause.expression_id, &clause.items)
             {
@@ -297,7 +296,7 @@ fn report_import_style(
             ctx.get_span(clause.expression_id),
         )
         .label("prefer top-level `import type`");
-        if ctx.include_fixes
+        if ctx.compute_fixes
             && let Some(fix) =
                 consistent_type_import_top_level_fix(ctx, clause.expression_id, &clause.items)
         {
@@ -327,7 +326,7 @@ fn report_import_style(
             ctx.get_span(clause.expression_id),
         )
         .label("prefer top-level `import type`");
-        if ctx.include_fixes
+        if ctx.compute_fixes
             && !clause.has_attributes
             && let Some(fix) =
                 consistent_type_import_top_level_fix(ctx, clause.expression_id, &clause.items)
@@ -363,7 +362,7 @@ fn report_import_style(
 
 /// Report one diagnostic for a mixed declaration with type only bindings.
 fn report_partial_type_only_imports(
-    ctx: &mut LintModuleDirContext<'_>,
+    ctx: &mut LintModuleContext<'_>,
     meta: &'static LintMeta,
     clause: &ImportClause,
     item_ids: &[dir::LocalNodeId<dir::DependencyItem>],
@@ -385,7 +384,7 @@ fn report_partial_type_only_imports(
         ctx.get_span(clause.expression_id),
     )
     .label(label);
-    if ctx.include_fixes
+    if ctx.compute_fixes
         && let Some(fix) = fix
     {
         diagnostic = diagnostic.fix(fix);
@@ -396,7 +395,7 @@ fn report_partial_type_only_imports(
 
 /// Return import item ids that use inline `type` modifiers.
 fn clause_inline_type_item_ids(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     clause: &ImportClause,
 ) -> Vec<dir::LocalNodeId<dir::DependencyItem>> {
     clause
@@ -413,7 +412,7 @@ fn clause_inline_type_item_ids(
 
 /// Return semantic type only item ids that still use value imports.
 fn clause_semantic_type_only_item_ids(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     clause: &ImportClause,
     reference_usage: &std::collections::HashMap<dir::GlobalSymbolId, SymbolReferenceContextUsage>,
 ) -> Vec<dir::LocalNodeId<dir::DependencyItem>> {
@@ -427,7 +426,7 @@ fn clause_semantic_type_only_item_ids(
 
 /// Return type only item ids that still need inline `type` markers.
 fn clause_missing_inline_type_only_item_ids(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     clause: &ImportClause,
     semantic_type_only_item_ids: &[dir::LocalNodeId<dir::DependencyItem>],
 ) -> Vec<dir::LocalNodeId<dir::DependencyItem>> {
@@ -439,46 +438,45 @@ fn clause_missing_inline_type_only_item_ids(
                 return true;
             }
 
-            let item = ctx.tree.get(*item_id);
+            let item = ctx.dir.get(*item_id);
             item_space(item) != Some(dir::DependencySpace::Type)
         })
         .collect()
 }
 
 /// Return true when every import item already uses inline `type`.
-fn clause_all_items_are_inline_type(ctx: &LintModuleDirContext<'_>, clause: &ImportClause) -> bool {
+fn clause_all_items_are_inline_type(ctx: &LintModuleContext<'_>, clause: &ImportClause) -> bool {
     !clause.items.is_empty()
         && clause.items.iter().all(|item_id| {
-            let item = ctx.tree.get(*item_id);
+            let item = ctx.dir.get(*item_id);
             item_space(item) == Some(dir::DependencySpace::Type)
         })
 }
 
 /// Return true when every import item supports inline `type` modifiers.
-fn clause_supports_inline_style(ctx: &LintModuleDirContext<'_>, clause: &ImportClause) -> bool {
+fn clause_supports_inline_style(ctx: &LintModuleContext<'_>, clause: &ImportClause) -> bool {
     item_ids_support_inline_style(ctx, &clause.items)
 }
 
 /// Return true when every selected item supports inline `type` modifiers.
 fn item_ids_support_inline_style(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     item_ids: &[dir::LocalNodeId<dir::DependencyItem>],
 ) -> bool {
     !item_ids.is_empty()
         && item_ids.iter().all(|item_id| {
-            let item = ctx.tree.get(*item_id);
+            let item = ctx.dir.get(*item_id);
             item_binding(item) == Some(dir::DependencyBinding::Item)
         })
 }
 
 /// Return true when one import item is only used from type positions.
 fn import_item_is_semantic_type_only(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     item_id: dir::LocalNodeId<dir::DependencyItem>,
     reference_usage: &std::collections::HashMap<dir::GlobalSymbolId, SymbolReferenceContextUsage>,
 ) -> bool {
-    let item = ctx.tree.get(item_id);
-    let Some(symbol_id) = item.symbol() else {
+    let Some(symbol_id) = ctx.local_symbol_for_node(item_id) else {
         return false;
     };
 
@@ -493,24 +491,22 @@ fn import_item_is_semantic_type_only(
 /// Return the dependency item kind when present.
 fn item_space(item: &dir::DependencyItem) -> Option<dir::DependencySpace> {
     match item {
-        dir::DependencyItem::Item { space, .. } => Some(*space),
-        dir::DependencyItem::Value { .. } | dir::DependencyItem::Error => None,
+        dir::DependencyItem::Item { space, .. } => *space,
+        dir::DependencyItem::Error => None,
     }
 }
 
 /// Return the dependency item binding.
 fn item_binding(item: &dir::DependencyItem) -> Option<dir::DependencyBinding> {
     match item {
-        dir::DependencyItem::Item { binding, .. } | dir::DependencyItem::Value { binding, .. } => {
-            Some(*binding)
-        }
+        dir::DependencyItem::Item { binding, .. } => Some(*binding),
         dir::DependencyItem::Error => None,
     }
 }
 
 /// Format import item names for diagnostics.
 fn format_import_item_names(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     item_ids: &[dir::LocalNodeId<dir::DependencyItem>],
 ) -> String {
     item_ids
@@ -522,11 +518,10 @@ fn format_import_item_names(
 
 /// Resolve one readable import item name.
 fn import_item_name(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     item_id: dir::LocalNodeId<dir::DependencyItem>,
 ) -> String {
-    let item = ctx.tree.get(item_id);
-    if let Some(symbol_id) = item.symbol()
+    if let Some(symbol_id) = ctx.local_symbol_for_node(item_id)
         && let Some(name_id) = ctx.symbols.get_symbol(symbol_id).name()
     {
         return ctx.strings.get(name_id).to_string();
@@ -537,7 +532,7 @@ fn import_item_name(
 
 /// Build one fix that rewrites a declaration to top level `import type`.
 fn consistent_type_import_top_level_fix(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     import_id: dir::LocalNodeId<dir::Expression>,
     items: &[dir::LocalNodeId<dir::DependencyItem>],
 ) -> Option<LintFix> {
@@ -557,7 +552,7 @@ fn consistent_type_import_top_level_fix(
 
     // strip inline `type` prefixes from each import item
     for item_id in items {
-        let item = ctx.tree.get(*item_id);
+        let item = ctx.dir.get(*item_id);
         if item_space(item) != Some(dir::DependencySpace::Type) {
             continue;
         }
@@ -574,7 +569,7 @@ fn consistent_type_import_top_level_fix(
 
 /// Build one fix that rewrites selected items to inline `type` specifiers.
 fn consistent_type_import_inline_fix(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     import_id: dir::LocalNodeId<dir::Expression>,
     item_ids: &[dir::LocalNodeId<dir::DependencyItem>],
 ) -> Option<LintFix> {
@@ -589,7 +584,7 @@ fn consistent_type_import_inline_fix(
 
     // add inline `type` to each selected item
     for item_id in item_ids {
-        let item = ctx.tree.get(*item_id);
+        let item = ctx.dir.get(*item_id);
         if item_binding(item) != Some(dir::DependencyBinding::Item) {
             return None;
         }
@@ -606,7 +601,7 @@ fn consistent_type_import_inline_fix(
 
 /// Build one fix that rewrites `import type` and inline specifiers to value imports.
 fn consistent_type_import_no_type_fix(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     import_id: dir::LocalNodeId<dir::Expression>,
     inline_type_item_ids: &[dir::LocalNodeId<dir::DependencyItem>],
 ) -> Option<LintFix> {
@@ -644,7 +639,7 @@ fn consistent_type_import_no_type_fix(
 
 /// Return true when one import declaration spells a top level `import type`.
 fn import_declaration_has_top_level_type_keyword(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     import_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     let import_span = ctx.get_span(import_id);

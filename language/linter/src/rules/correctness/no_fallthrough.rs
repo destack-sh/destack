@@ -1,11 +1,11 @@
 use regex::Regex;
 
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{compiled_no_fallthrough_comment_pattern, fallthrough_comment_matches};
-use crate::{LintAstContext, LintFix, LintMeta, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow fallthrough from one switch case to another.
@@ -16,7 +16,7 @@ declare_lint! {
         id = "no-fallthrough",
         code = "LC014",
         category = Correctness,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Always,
@@ -33,8 +33,8 @@ impl LintRule for NoFallthrough {
         NoFallthrough::meta()
     }
 
-    /// Check module AST nodes for switch fallthrough cases.
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    /// Check module source nodes for switch fallthrough cases.
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let allow_empty_case = ctx.options.correctness.no_fallthrough_allow_empty_case;
         let fallthrough_comment_pattern = compiled_no_fallthrough_comment_pattern(
@@ -46,13 +46,13 @@ impl LintRule for NoFallthrough {
         let report_unused_comment = ctx.options.correctness.no_fallthrough_report_unused_comment;
 
         // inspect candidate expressions
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let ast::Expression::Match { form, cases, .. } = ctx.tree.get(node_id) else {
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let dir::Expression::Match { form, cases, .. } = ctx.dir.get(node_id) else {
                 continue;
             };
 
             // only check switch statements
-            if *form != ast::MatchForm::Switch {
+            if *form != dir::MatchForm::Switch {
                 continue;
             }
 
@@ -65,11 +65,11 @@ impl LintRule for NoFallthrough {
                 let next_case_id = cases[i + 1];
 
                 // resolve case
-                let case = ctx.tree.get(*case_id);
+                let case = ctx.dir.get(*case_id);
                 let (body_id, is_block) = match case {
-                    ast::MatchCase::Expression { body, .. } => (*body, false),
-                    ast::MatchCase::Block { body, .. } => {
-                        let body_expression_id = ctx.tree.get(*body).last_expression();
+                    dir::MatchCase::Expression { body, .. } => (*body, false),
+                    dir::MatchCase::Block { body, .. } => {
+                        let body_expression_id = ctx.dir.get(*body).last_expression();
                         if let Some(id) = body_expression_id {
                             (id, true)
                         } else {
@@ -98,7 +98,7 @@ impl LintRule for NoFallthrough {
                                     NO_FALLTHROUGH.category,
                                     severity,
                                     "empty case falls through to next case",
-                                    ctx.tree.get_span(*case_id),
+                                    ctx.dir.get_span(*case_id),
                                 )
                                 .label("add a `break` statement or `// fallthrough` comment");
 
@@ -148,7 +148,7 @@ impl LintRule for NoFallthrough {
                         NO_FALLTHROUGH.category,
                         severity,
                         "case falls through to next case",
-                        ctx.tree.get_span(*case_id),
+                        ctx.dir.get_span(*case_id),
                     )
                     .label("add a `break` statement or `// fallthrough` comment");
 
@@ -177,19 +177,19 @@ impl LintRule for NoFallthrough {
 
 /// Return the intentional fallthrough comment span between two switch cases.
 fn fallthrough_comment_between_cases(
-    ctx: &LintAstContext<'_>,
-    current_case_id: ast::LocalNodeId<ast::MatchCase>,
-    next_case_id: ast::LocalNodeId<ast::MatchCase>,
+    ctx: &LintModuleContext<'_>,
+    current_case_id: dir::LocalNodeId<dir::MatchCase>,
+    next_case_id: dir::LocalNodeId<dir::MatchCase>,
     fallthrough_comment_pattern: Option<&Regex>,
 ) -> Option<Span> {
-    let current_span = ctx.tree.get_span(current_case_id);
-    let next_span = ctx.tree.get_span(next_case_id);
+    let current_span = ctx.dir.get_span(current_case_id);
+    let next_span = ctx.dir.get_span(next_case_id);
     if current_span.end > next_span.start {
         return None;
     }
 
     // search all comments in the case gap for intent markers
-    ctx.tree.comments().iter().find_map(|comment| {
+    ctx.dir.comments().iter().find_map(|comment| {
         let comment_span = comment.span;
         if comment_span.file != ctx.module.file_id {
             return None;
@@ -207,9 +207,9 @@ fn fallthrough_comment_between_cases(
 
 /// Report one unused fallthrough comment.
 fn report_unused_fallthrough_comment(
-    ctx: &mut LintAstContext<'_>,
+    ctx: &mut LintModuleContext<'_>,
     meta: &LintMeta,
-    case_id: ast::LocalNodeId<ast::MatchCase>,
+    case_id: dir::LocalNodeId<dir::MatchCase>,
     comment_span: Span,
 ) {
     let severity = ctx.get_effective_severity(meta, case_id);
@@ -232,10 +232,10 @@ fn report_unused_fallthrough_comment(
 
 /// Build an unsafe fix by inserting `break;` at the end of a switch case.
 fn no_fallthrough_fix(
-    ctx: &LintAstContext<'_>,
-    case_id: ast::LocalNodeId<ast::MatchCase>,
+    ctx: &LintModuleContext<'_>,
+    case_id: dir::LocalNodeId<dir::MatchCase>,
 ) -> Option<LintFix> {
-    let case_span = ctx.tree.get_span(case_id);
+    let case_span = ctx.dir.get_span(case_id);
     let case_text = ctx.get_span_text(case_span);
     if case_text.trim().is_empty() {
         return None;
@@ -251,33 +251,33 @@ fn no_fallthrough_fix(
 
 /// Check if an expression ends with a terminating statement.
 fn ends_with_terminating_statement(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     is_terminating_statement(ctx, expression_id)
 }
 
 /// Check if an expression is a terminating statement.
 fn is_terminating_statement(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    let expression = ctx.tree.get(expression_id);
+    let expression = ctx.dir.get(expression_id);
     match expression {
-        ast::Expression::Break { .. } => true,
-        ast::Expression::Return { .. } => true,
-        ast::Expression::Throw { .. } => true,
-        ast::Expression::Continue { .. } => true,
-        ast::Expression::Parenthesized { expression } => is_terminating_statement(ctx, *expression),
-        ast::Expression::Block(block_id) => {
-            let block = ctx.tree.get(*block_id);
+        dir::Expression::Break { .. } => true,
+        dir::Expression::Return { .. } => true,
+        dir::Expression::Throw { .. } => true,
+        dir::Expression::Continue { .. } => true,
+        dir::Expression::Parenthesized { expression } => is_terminating_statement(ctx, *expression),
+        dir::Expression::Block(block_id) => {
+            let block = ctx.dir.get(*block_id);
             if let Some(last_id) = block.last_expression() {
                 ends_with_terminating_statement(ctx, last_id)
             } else {
                 false
             }
         }
-        ast::Expression::If {
+        dir::Expression::If {
             then_expression,
             else_expression: Some(else_id),
             ..
@@ -298,7 +298,7 @@ mod tests {
     #[test]
     fn test_detects_fallthrough() {
         let test = TestProgram::for_rule_without_prelude(NoFallthrough);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_fallthrough/test_detects_fallthrough.ds",
             r#"
 let x = 1;
@@ -319,7 +319,7 @@ switch (x) {
     #[test]
     fn test_allows_break() {
         let test = TestProgram::for_rule_without_prelude(NoFallthrough);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_fallthrough/test_allows_break.ds",
             r#"
 let x = 1;
@@ -339,7 +339,7 @@ switch (x) {
     #[test]
     fn test_allows_return() {
         let test = TestProgram::for_rule_without_prelude(NoFallthrough);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_fallthrough/test_allows_return.ds",
             r#"
 function foo(x: int32): int32 {
@@ -359,7 +359,7 @@ function foo(x: int32): int32 {
     #[test]
     fn test_allows_throw() {
         let test = TestProgram::for_rule_without_prelude(NoFallthrough);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_fallthrough/test_allows_throw.ds",
             r#"
 let x = 1;
@@ -377,7 +377,7 @@ switch (x) {
     #[test]
     fn test_allows_last_case_without_break() {
         let test = TestProgram::for_rule_without_prelude(NoFallthrough);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_fallthrough/test_allows_last_case_without_break.ds",
             r#"
 let x = 1;
@@ -396,7 +396,7 @@ switch (x) {
     #[test]
     fn test_ignores_match() {
         let test = TestProgram::for_rule_without_prelude(NoFallthrough);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_fallthrough/test_ignores_match.ds",
             r#"
 let x = 1;
@@ -412,7 +412,7 @@ match (x) {
     #[test]
     fn test_fix_inserts_break_for_fallthrough_case() {
         let test = TestProgram::for_rule_without_prelude(NoFallthrough);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_fallthrough/test_fix_inserts_break_for_fallthrough_case.ds",
             r#"
 let x = 1;
@@ -446,7 +446,7 @@ switch (x) {
     #[test]
     fn test_fix_inserts_break_for_empty_case() {
         let test = TestProgram::for_rule_without_prelude(NoFallthrough);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_fallthrough/test_fix_inserts_break_for_empty_case.ds",
             r#"
 let x = 1;
@@ -475,7 +475,7 @@ switch (x) {
     #[test]
     fn test_mutation_fix_inserts_break_in_middle_case() {
         let test = TestProgram::for_rule_without_prelude(NoFallthrough);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_fallthrough/test_mutation_fix_inserts_break_in_middle_case.ds",
             r#"
 let x = 2;
@@ -509,7 +509,7 @@ switch (x) {
     #[test]
     fn test_allows_fallthrough_comment() {
         let test = TestProgram::for_rule_without_prelude(NoFallthrough);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_fallthrough/test_allows_fallthrough_comment.ds",
             r#"
 let x = 1;
@@ -528,7 +528,7 @@ switch (x) {
     #[test]
     fn test_allows_fallthrough_block_comment() {
         let test = TestProgram::for_rule_without_prelude(NoFallthrough);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_fallthrough/test_allows_fallthrough_block_comment.ds",
             r#"
 let x = 1;
@@ -550,7 +550,7 @@ switch (x) {
         let test = TestProgram::for_rule_without_prelude(NoFallthrough).with_options(|options| {
             options.correctness.no_fallthrough_allow_empty_case = true;
         });
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_fallthrough/test_allows_empty_case_when_configured.ds",
             r#"
 let x = 1;
@@ -569,7 +569,7 @@ switch (x) {
         let test = TestProgram::for_rule_without_prelude(NoFallthrough).with_options(|options| {
             options.correctness.no_fallthrough_comment_pattern = Some("no break".to_string());
         });
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_fallthrough/test_allows_custom_fallthrough_comment_pattern.ds",
             r#"
 let x = 1;
@@ -590,7 +590,7 @@ switch (x) {
         let test = TestProgram::for_rule_without_prelude(NoFallthrough).with_options(|options| {
             options.correctness.no_fallthrough_report_unused_comment = true;
         });
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_fallthrough/test_reports_unused_fallthrough_comment_when_enabled.ds",
             r#"
 let x = 1;
@@ -609,7 +609,7 @@ switch (x) {
     #[test]
     fn test_ignores_unused_fallthrough_comment_by_default() {
         let test = TestProgram::for_rule_without_prelude(NoFallthrough);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_fallthrough/test_ignores_unused_fallthrough_comment_by_default.ds",
             r#"
 let x = 1;

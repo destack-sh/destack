@@ -7,7 +7,7 @@ use crate::rules::common::{
     expression_enters_nested_declaration_scope, expression_reference_path,
     expression_unwrap_parenthesized, is_string_type,
 };
-use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow string concatenation in loops.
@@ -36,7 +36,7 @@ impl LintRule for NoStringConcatInLoop {
     }
 
     /// Check module DIR nodes for string concatenation inside loops.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let mut visitor = NoStringConcatInLoopVisitor::new(ctx, meta);
         visitor.run();
@@ -46,7 +46,7 @@ impl LintRule for NoStringConcatInLoop {
 /// Node visitor that flags string concatenation in loops.
 struct NoStringConcatInLoopVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The language item String symbol for this module.
@@ -59,7 +59,7 @@ struct NoStringConcatInLoopVisitor<'a, 'b> {
 
 impl<'a, 'b> NoStringConcatInLoopVisitor<'a, 'b> {
     /// Build a visitor for string concatenation in loops.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         let string_symbol = ctx.language_item(LanguageItem::String);
         Self {
             ctx,
@@ -73,7 +73,7 @@ impl<'a, 'b> NoStringConcatInLoopVisitor<'a, 'b> {
     /// Walk the DIR tree roots.
     fn run(&mut self) {
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         for root_id in roots {
             let expression = tree.get(root_id);
@@ -93,14 +93,20 @@ impl<'a, 'b> NoStringConcatInLoopVisitor<'a, 'b> {
         }
 
         // check for += concatenation
-        if let dir::Expression::AssignBinary {
+        if let dir::Expression::Assign {
             left,
             operator,
             right,
         } = expression
         {
+            let Some(left_expression_id) =
+                assign_pattern_target_expression(self.ctx.dir.tree(), *left)
+            else {
+                return;
+            };
             if *operator == dir::AssignOperator::AddAssign
-                && (self.is_string_expression(*left) || self.is_string_like_expression(*right))
+                && (self.is_string_expression(left_expression_id)
+                    || self.is_string_like_expression(*right))
             {
                 self.report_match(expression_id);
             }
@@ -108,10 +114,15 @@ impl<'a, 'b> NoStringConcatInLoopVisitor<'a, 'b> {
         }
 
         // check for x = x + y concatenation
-        let dir::Expression::Assign { left, right } = expression else {
+        let dir::Expression::Assign {
+            left,
+            operator: dir::AssignOperator::Assign,
+            right,
+        } = expression
+        else {
             return;
         };
-        let Some(left_expression_id) = assign_pattern_target_expression(self.ctx.tree, *left)
+        let Some(left_expression_id) = assign_pattern_target_expression(self.ctx.dir.tree(), *left)
         else {
             return;
         };
@@ -173,15 +184,14 @@ impl<'a, 'b> NoStringConcatInLoopVisitor<'a, 'b> {
     /// Return true when the expression should be treated as a string.
     fn is_string_like_expression(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
         // unwrap parenthesized expressions
-        let expression_id = expression_unwrap_parenthesized(self.ctx.tree, expression_id);
+        let expression_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), expression_id);
 
         // match string literals or typed strings
-        let expression = self.ctx.tree.get(expression_id);
+        let expression = self.ctx.dir.get(expression_id);
         matches!(
             expression,
-            dir::Expression::ScalarLiteral {
-                value: dir::ScalarLiteral::String(_),
-            } | dir::Expression::TemplateExpression { .. }
+            dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(_))
+                | dir::Expression::TemplateExpression { .. }
         ) || self.is_string_expression(expression_id)
     }
 
@@ -192,10 +202,10 @@ impl<'a, 'b> NoStringConcatInLoopVisitor<'a, 'b> {
         reference: &ReferencePath,
     ) -> bool {
         // unwrap parenthesized expressions
-        let expression_id = expression_unwrap_parenthesized(self.ctx.tree, expression_id);
+        let expression_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), expression_id);
 
         // descend into add chains
-        let expression = self.ctx.tree.get(expression_id);
+        let expression = self.ctx.dir.get(expression_id);
         if let dir::Expression::Binary {
             left,
             operator: dir::BinaryOperator::Add,
@@ -216,10 +226,10 @@ impl<'a, 'b> NoStringConcatInLoopVisitor<'a, 'b> {
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> bool {
         // unwrap parenthesized expressions
-        let expression_id = expression_unwrap_parenthesized(self.ctx.tree, expression_id);
+        let expression_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), expression_id);
 
         // descend into add chains
-        let expression = self.ctx.tree.get(expression_id);
+        let expression = self.ctx.dir.get(expression_id);
         if let dir::Expression::Binary {
             left,
             operator: dir::BinaryOperator::Add,
@@ -241,10 +251,10 @@ impl<'a, 'b> NoStringConcatInLoopVisitor<'a, 'b> {
         reference: &ReferencePath,
     ) -> bool {
         // unwrap parenthesized expressions
-        let expression_id = expression_unwrap_parenthesized(self.ctx.tree, expression_id);
+        let expression_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), expression_id);
 
         // match interpolated template expressions
-        let expression = self.ctx.tree.get(expression_id);
+        let expression = self.ctx.dir.get(expression_id);
         let dir::Expression::TemplateExpression {
             value: dir::TemplateLiteral::InterpolatedString { strings, arguments },
         } = expression
@@ -260,7 +270,7 @@ impl<'a, 'b> NoStringConcatInLoopVisitor<'a, 'b> {
         });
 
         for argument_id in arguments {
-            let argument = self.ctx.tree.get(*argument_id);
+            let argument = self.ctx.dir.get(*argument_id);
             let dir::Argument::Positional {
                 value: value_id, ..
             } = argument
@@ -411,10 +421,8 @@ impl NodeVisitor for NoStringConcatInLoopVisitor<'_, '_> {
 
         // handle loop expressions with custom traversal
         match expression {
-            dir::Expression::Loop {
-                condition, body, ..
-            } => {
-                self.visit_loop(tree, *condition, *body);
+            dir::Expression::Loop { body } => {
+                self.visit_loop(tree, None, *body);
                 return;
             }
             dir::Expression::ForEach {

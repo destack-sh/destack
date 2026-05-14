@@ -5,9 +5,9 @@ use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
     assign_pattern_target_symbol, collect_expression_read_symbol_usage,
-    collect_pattern_value_binding_symbols, expression_target_symbol,
+    collect_pattern_value_binding_symbols,
 };
-use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow assignments that are immediately overwritten.
@@ -36,7 +36,7 @@ impl LintRule for NoUselessAssignment {
     }
 
     /// Check module DIR nodes for useless assignments.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let mut visitor = UselessAssignmentVisitor::new(ctx, meta);
         visitor.run();
@@ -46,7 +46,7 @@ impl LintRule for NoUselessAssignment {
 /// Visitor that flags useless assignments.
 struct UselessAssignmentVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The visitor options.
@@ -55,7 +55,7 @@ struct UselessAssignmentVisitor<'a, 'b> {
 
 impl<'a, 'b> UselessAssignmentVisitor<'a, 'b> {
     /// Build a visitor for useless assignment checks.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         Self {
             ctx,
             meta,
@@ -66,7 +66,7 @@ impl<'a, 'b> UselessAssignmentVisitor<'a, 'b> {
     /// Walk the DIR tree roots.
     fn run(&mut self) {
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         // inspect dir roots
         for root_id in roots {
@@ -78,12 +78,12 @@ impl<'a, 'b> UselessAssignmentVisitor<'a, 'b> {
     /// Check a block for consecutive assignments to the same variable.
     fn check_block(&mut self, block_id: dir::LocalNodeId<dir::Block>) {
         // skip try bodies: exceptional control flow can bypass local overwrite ordering
-        if block_is_try_body(self.ctx.tree, block_id) {
+        if block_is_try_body(self.ctx.dir.tree(), block_id) {
             return;
         }
 
         // resolve block
-        let block = self.ctx.tree.get(block_id);
+        let block = self.ctx.dir.get(block_id);
 
         // track the last assignment expression for each variable
         let mut last_assignments: HashMap<GlobalSymbolId, dir::LocalNodeId<dir::Expression>> =
@@ -93,12 +93,12 @@ impl<'a, 'b> UselessAssignmentVisitor<'a, 'b> {
         // inspect candidate nodes
         for expr_id in block.iter_expressions() {
             let inner_id = expr_id;
-            let inner_expr = self.ctx.tree.get(inner_id);
+            let inner_expr = self.ctx.dir.get(inner_id);
 
             // check if this expression reads any of the assigned variables
             let reads = collect_expression_read_symbol_usage(
                 self.ctx.module_id(),
-                self.ctx.tree,
+                self.ctx.dir.tree(),
                 self.ctx.types,
                 inner_id,
             );
@@ -140,20 +140,13 @@ impl<'a, 'b> UselessAssignmentVisitor<'a, 'b> {
                 }
             }
 
-            // compound assignments like `x += 1`
-            dir::Expression::AssignBinary { left, .. } => {
-                if let Some(target_symbol) = expression_target_symbol(self.ctx, *left) {
-                    targets.push(target_symbol);
-                }
-            }
-
             // let bindings like `let x = 1` and destructuring patterns
             dir::Expression::Let { declarators, .. } => {
                 for declarator_id in declarators {
-                    let declarator = self.ctx.tree.get(*declarator_id);
+                    let declarator = self.ctx.dir.get(*declarator_id);
                     let mut local_symbols = HashSet::new();
                     collect_pattern_value_binding_symbols(
-                        self.ctx.tree,
+                        self.ctx.dir.tree(),
                         self.ctx.symbols,
                         declarator.pattern,
                         &mut local_symbols,

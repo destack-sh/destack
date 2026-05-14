@@ -1,11 +1,11 @@
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_workspace::config::{ConditionAssignmentMode, LintSeverity};
 
 use crate::rules::common::{
     ConditionAssignmentStyle, condition_assignment_style, control_flow_condition_expression,
     expression_contains_assignment,
 };
-use crate::{LintAstContext, LintFix, LintMeta, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow assignment expressions in conditional statements.
@@ -17,7 +17,7 @@ declare_lint! {
         id = "no-cond-assign",
         code = "LU003",
         category = Suspicious,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -33,20 +33,20 @@ impl LintRule for NoCondAssign {
         NoCondAssign::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // inspect conditional expression nodes
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
             // resolve the condition expression for supported control flow forms
-            let expression = ctx.tree.get(node_id);
+            let expression = ctx.dir.get(node_id);
             let Some(condition_id) = control_flow_condition_expression(expression) else {
                 continue;
             };
 
             // classify assignment wrapping style in the condition
-            let assignment_style = condition_assignment_style(ctx.tree, condition_id);
-            let has_assignment = expression_contains_assignment(ctx.tree, condition_id);
+            let assignment_style = condition_assignment_style(ctx.dir.tree(), condition_id);
+            let has_assignment = expression_contains_assignment(ctx.dir.tree(), condition_id);
             match ctx.options.correctness.no_cond_assign_mode {
                 ConditionAssignmentMode::ExceptParens
                     if assignment_style == ConditionAssignmentStyle::None =>
@@ -65,7 +65,7 @@ impl LintRule for NoCondAssign {
                 continue;
             }
 
-            let condition_span = ctx.tree.get_span(condition_id);
+            let condition_span = ctx.dir.get_span(condition_id);
             let mut diagnostic = LintReport::new(
                 NO_COND_ASSIGN.id,
                 NO_COND_ASSIGN.code,
@@ -112,7 +112,7 @@ mod tests {
     #[test]
     fn test_detects_if_assignment() {
         let test = TestProgram::for_rule_without_prelude(NoCondAssign);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_cond_assign/test_detects_if_assignment.ds",
             r#"
 if (x = 1) {
@@ -128,7 +128,7 @@ if (x = 1) {
     #[test]
     fn test_detects_while_assignment() {
         let test = TestProgram::for_rule_without_prelude(NoCondAssign);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_cond_assign/test_detects_while_assignment.ds",
             r#"
 while (x = getValue()) {
@@ -144,7 +144,7 @@ while (x = getValue()) {
     #[test]
     fn test_detects_for_condition_assignment() {
         let test = TestProgram::for_rule_without_prelude(NoCondAssign);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_cond_assign/test_detects_for_condition_assignment.ds",
             r#"
 for (; x = next(); ) {
@@ -160,7 +160,7 @@ for (; x = next(); ) {
     #[test]
     fn test_allows_comparison() {
         let test = TestProgram::for_rule_without_prelude(NoCondAssign);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_cond_assign/test_allows_comparison.ds",
             r#"
 if (x == 1) {
@@ -174,7 +174,7 @@ if (x == 1) {
     #[test]
     fn test_allows_strict_comparison() {
         let test = TestProgram::for_rule_without_prelude(NoCondAssign);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_cond_assign/test_allows_strict_comparison.ds",
             r#"
 if (x === 1) {
@@ -188,7 +188,7 @@ if (x === 1) {
     #[test]
     fn test_allows_boolean_condition() {
         let test = TestProgram::for_rule_without_prelude(NoCondAssign);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_cond_assign/test_allows_boolean_condition.ds",
             r#"
 if (isReady) {
@@ -202,7 +202,7 @@ if (isReady) {
     #[test]
     fn test_allows_function_call_condition() {
         let test = TestProgram::for_rule_without_prelude(NoCondAssign);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_cond_assign/test_allows_function_call_condition.ds",
             r#"
 while (hasMore()) {
@@ -216,7 +216,7 @@ while (hasMore()) {
     #[test]
     fn test_allows_let_expression_in_condition() {
         let test = TestProgram::for_rule_without_prelude(NoCondAssign);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_cond_assign/test_allows_let_expression_in_condition.ds",
             r#"
 if (const x = getValue()) {
@@ -230,7 +230,7 @@ if (const x = getValue()) {
     #[test]
     fn test_allows_double_parenthesized_assignment() {
         let test = TestProgram::for_rule_without_prelude(NoCondAssign);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_cond_assign/test_allows_double_parenthesized_assignment.ds",
             r#"
 if (((x = getValue()))) {
@@ -244,7 +244,7 @@ if (((x = getValue()))) {
     #[test]
     fn test_fix_bare_assignment_in_if() {
         let test = TestProgram::for_rule_without_prelude(NoCondAssign);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_cond_assign/test_fix_bare_assignment_in_if.ds",
             r#"
 if (x = 1) {
@@ -266,7 +266,7 @@ if (((x = 1))) {
     #[test]
     fn test_fix_single_parenthesized_assignment_in_if() {
         let test = TestProgram::for_rule_without_prelude(NoCondAssign);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_cond_assign/test_fix_single_parenthesized_assignment_in_if.ds",
             r#"
 if ((x = 1)) {
@@ -288,7 +288,7 @@ if (((x = 1))) {
     #[test]
     fn test_fix_bare_assignment_in_for_condition() {
         let test = TestProgram::for_rule_without_prelude(NoCondAssign);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_cond_assign/test_fix_bare_assignment_in_for_condition.ds",
             r#"for (; x = next(); ) {}"#,
         );
@@ -304,7 +304,7 @@ for (; ((x = next())); ) {}
     #[test]
     fn test_mutation_detects_assignments_in_if_and_while() {
         let test = TestProgram::for_rule_without_prelude(NoCondAssign);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_cond_assign/test_mutation_detects_assignments_in_if_and_while.ds",
             r#"
 if (first = read()) {
@@ -323,7 +323,7 @@ while (next = read()) {
         let test = TestProgram::for_rule_without_prelude(NoCondAssign).with_options(|options| {
             options.correctness.no_cond_assign_mode = ConditionAssignmentMode::Always;
         });
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_cond_assign/test_detects_nested_assignment_when_always_mode_is_enabled.ds",
             r#"
 if (isReady || (next = read())) {
@@ -341,7 +341,7 @@ if (isReady || (next = read())) {
         let test = TestProgram::for_rule_without_prelude(NoCondAssign).with_options(|options| {
             options.correctness.no_cond_assign_mode = ConditionAssignmentMode::Always;
         });
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_cond_assign/test_detects_double_parenthesized_assignment_when_always_mode_is_enabled.ds",
             r#"
 if (((next = read()))) {

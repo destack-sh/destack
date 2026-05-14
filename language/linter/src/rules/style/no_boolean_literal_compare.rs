@@ -1,9 +1,9 @@
 use crate::LintMeta;
-use destack_ast::{self as ast, BinaryOperator, ScalarLiteral};
+use destack_dir::{self as dir, BinaryOperator, ScalarLiteral};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_negated_source_text;
-use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow comparing boolean expressions to boolean literals.
@@ -17,7 +17,7 @@ declare_lint! {
         id = "no-boolean-literal-compare",
         code = "LY014",
         category = Style,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Always,
@@ -33,13 +33,13 @@ impl LintRule for NoBooleanLiteralCompare {
         NoBooleanLiteralCompare::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expression = ctx.tree.get(node_id);
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let expression = ctx.dir.get(node_id);
 
-            let ast::Expression::Binary {
+            let dir::Expression::Binary {
                 operator,
                 left,
                 right,
@@ -59,8 +59,8 @@ impl LintRule for NoBooleanLiteralCompare {
                 continue;
             }
 
-            let left_expression = ctx.tree.get(*left);
-            let right_expression = ctx.tree.get(*right);
+            let left_expression = ctx.dir.get(*left);
+            let right_expression = ctx.dir.get(*right);
 
             let (is_left_bool, left_value) = get_boolean_literal(left_expression);
             let (is_right_bool, right_value) = get_boolean_literal(right_expression);
@@ -82,9 +82,9 @@ impl LintRule for NoBooleanLiteralCompare {
             let (message, suggestion) = get_message_and_suggestion(*operator, bool_value, on_left);
 
             // make fix: get the non-boolean expression and optionally negate it
-            let expression_span = ctx.tree.get_span(node_id);
+            let expression_span = ctx.dir.get_span(node_id);
             let other_id = if on_left { *right } else { *left };
-            let other_span = ctx.tree.get_span(other_id);
+            let other_span = ctx.dir.get_span(other_id);
             let other_text = ctx.get_span_text(other_span);
             let need_negate = matches!(
                 (operator, bool_value),
@@ -122,8 +122,8 @@ impl LintRule for NoBooleanLiteralCompare {
 }
 
 /// Check if an expression is a boolean literal and return its value.
-fn get_boolean_literal(expression: &ast::Expression) -> (bool, Option<bool>) {
-    if let ast::Expression::ScalarLiteral(ScalarLiteral::Boolean(value)) = expression {
+fn get_boolean_literal(expression: &dir::Expression) -> (bool, Option<bool>) {
+    if let dir::Expression::ScalarLiteral(ScalarLiteral::Boolean(value)) = expression {
         (true, Some(*value))
     } else {
         (false, None)
@@ -169,7 +169,7 @@ mod tests {
     #[test]
     fn test_equal_true_detected() {
         let test = TestProgram::for_rule_without_prelude(NoBooleanLiteralCompare);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_boolean_literal_compare/test_equal_true_detected.ds",
             r#"
 const result = x == true;
@@ -182,7 +182,7 @@ const result = x == true;
     #[test]
     fn test_equal_false_detected() {
         let test = TestProgram::for_rule_without_prelude(NoBooleanLiteralCompare);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_boolean_literal_compare/test_equal_false_detected.ds",
             r#"
 const result = x == false;
@@ -195,7 +195,7 @@ const result = x == false;
     #[test]
     fn test_not_equal_true_detected() {
         let test = TestProgram::for_rule_without_prelude(NoBooleanLiteralCompare);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_boolean_literal_compare/test_not_equal_true_detected.ds",
             r#"
 const result = x != true;
@@ -208,7 +208,7 @@ const result = x != true;
     #[test]
     fn test_not_equal_false_detected() {
         let test = TestProgram::for_rule_without_prelude(NoBooleanLiteralCompare);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_boolean_literal_compare/test_not_equal_false_detected.ds",
             r#"
 const result = x != false;
@@ -221,7 +221,7 @@ const result = x != false;
     #[test]
     fn test_strict_equal_true_detected() {
         let test = TestProgram::for_rule_without_prelude(NoBooleanLiteralCompare);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_boolean_literal_compare/test_strict_equal_true_detected.ds",
             r#"
 const result = x === true;
@@ -234,7 +234,7 @@ const result = x === true;
     #[test]
     fn test_strict_not_equal_false_detected() {
         let test = TestProgram::for_rule_without_prelude(NoBooleanLiteralCompare);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_boolean_literal_compare/test_strict_not_equal_false_detected.ds",
             r#"
 const result = x !== false;
@@ -247,7 +247,7 @@ const result = x !== false;
     #[test]
     fn test_literal_on_left_detected() {
         let test = TestProgram::for_rule_without_prelude(NoBooleanLiteralCompare);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_boolean_literal_compare/test_literal_on_left_detected.ds",
             r#"
 const result = true == x;
@@ -260,7 +260,7 @@ const result = true == x;
     #[test]
     fn test_false_on_left_detected() {
         let test = TestProgram::for_rule_without_prelude(NoBooleanLiteralCompare);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_boolean_literal_compare/test_false_on_left_detected.ds",
             r#"
 const result = false != x;
@@ -273,7 +273,7 @@ const result = false != x;
     #[test]
     fn test_non_boolean_comparison_allowed() {
         let test = TestProgram::for_rule_without_prelude(NoBooleanLiteralCompare);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_boolean_literal_compare/test_non_boolean_comparison_allowed.ds",
             r#"
 const result = x == 42;
@@ -286,7 +286,7 @@ const result = x == 42;
     #[test]
     fn test_boolean_variable_comparison_allowed() {
         let test = TestProgram::for_rule_without_prelude(NoBooleanLiteralCompare);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_boolean_literal_compare/test_boolean_variable_comparison_allowed.ds",
             r#"
 const result = x == y;
@@ -299,7 +299,7 @@ const result = x == y;
     #[test]
     fn test_in_if_condition_detected() {
         let test = TestProgram::for_rule_without_prelude(NoBooleanLiteralCompare);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_boolean_literal_compare/test_in_if_condition_detected.ds",
             r#"
 function foo(x: bool) {
@@ -316,7 +316,7 @@ function foo(x: bool) {
     #[test]
     fn test_in_ternary_condition_detected() {
         let test = TestProgram::for_rule_without_prelude(NoBooleanLiteralCompare);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_boolean_literal_compare/test_in_ternary_condition_detected.ds",
             r#"
 const result = (x == false) ? 1 : 2;
@@ -329,7 +329,7 @@ const result = (x == false) ? 1 : 2;
     #[test]
     fn test_fix_equal_true() {
         let test = TestProgram::for_rule_without_prelude(NoBooleanLiteralCompare);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_boolean_literal_compare/test_fix_equal_true.ds",
             r#"
 const result = x === true
@@ -347,7 +347,7 @@ const result = x;
     #[test]
     fn test_fix_equal_false() {
         let test = TestProgram::for_rule_without_prelude(NoBooleanLiteralCompare);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_boolean_literal_compare/test_fix_equal_false.ds",
             r#"
 const result = x === false
@@ -365,7 +365,7 @@ const result = !x;
     #[test]
     fn test_fix_not_equal_true() {
         let test = TestProgram::for_rule_without_prelude(NoBooleanLiteralCompare);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_boolean_literal_compare/test_fix_not_equal_true.ds",
             r#"
 const result = x !== true
@@ -383,7 +383,7 @@ const result = !x;
     #[test]
     fn test_fix_not_equal_false() {
         let test = TestProgram::for_rule_without_prelude(NoBooleanLiteralCompare);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_boolean_literal_compare/test_fix_not_equal_false.ds",
             r#"
 const result = x !== false
@@ -401,7 +401,7 @@ const result = x;
     #[test]
     fn test_fix_preserves_precedence_for_compound_expression() {
         let test = TestProgram::for_rule_without_prelude(NoBooleanLiteralCompare);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_boolean_literal_compare/test_fix_preserves_precedence_for_compound_expression.ds",
             r#"
 const x = (a && b) == false

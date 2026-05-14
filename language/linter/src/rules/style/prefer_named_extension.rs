@@ -1,8 +1,8 @@
 use crate::LintMeta;
-use destack_ast::{self as ast, Declaration};
+use destack_dir::{self as dir, Declaration};
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintReport, LintRule, declare_lint};
+use crate::{LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer named extensions for foreign types.
@@ -13,7 +13,7 @@ declare_lint! {
         id = "prefer-named-extension",
         code = "LY045",
         category = Style,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = No,
@@ -29,11 +29,11 @@ impl LintRule for PreferNamedExtension {
         PreferNamedExtension::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
-        for node_id in ctx.tree.iter_nodes::<ast::Declaration>() {
-            let declaration = ctx.tree.get(node_id);
+        for node_id in ctx.dir.iter_nodes::<dir::Declaration>() {
+            let declaration = ctx.dir.get(node_id);
 
             let Declaration::Extension(declaration) = declaration else {
                 continue;
@@ -49,8 +49,8 @@ impl LintRule for PreferNamedExtension {
             // check if the target type appears to be from another module
             // (has a path with more than one segment)
             let is_foreign = matches!(
-                ctx.tree.get(declaration.target_type),
-                ast::TypeExpression::Reference { path, .. } if path.segments.len() > 1
+                ctx.dir.get(declaration.target_type),
+                dir::TypeExpression::Reference { path, .. } if path.segments.len() > 1
             );
 
             if is_foreign {
@@ -66,7 +66,7 @@ impl LintRule for PreferNamedExtension {
                         PREFER_NAMED_EXTENSION.category,
                         severity,
                         "prefer named extension for foreign type",
-                        ctx.tree.get_span(node_id),
+                        ctx.dir.get_span(node_id),
                     )
                     .label("add a name to this extension"),
                 );
@@ -83,7 +83,7 @@ mod tests {
     #[test]
     fn test_anonymous_extension_of_foreign_type_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferNamedExtension);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_named_extension/test_anonymous_extension_of_foreign_type_detected.ds",
             r#"
 extension of std.io.File {
@@ -97,7 +97,7 @@ extension of std.io.File {
     #[test]
     fn test_named_extension_of_foreign_type_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferNamedExtension);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_named_extension/test_named_extension_of_foreign_type_allowed.ds",
             r#"
 extension FileHelpers of std.io.File {
@@ -111,7 +111,7 @@ extension FileHelpers of std.io.File {
     #[test]
     fn test_anonymous_extension_of_local_type_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferNamedExtension);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_named_extension/test_anonymous_extension_of_local_type_allowed.ds",
             r#"
 struct Point { x: int32, y: int32 }

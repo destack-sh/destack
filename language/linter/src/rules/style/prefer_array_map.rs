@@ -7,7 +7,7 @@ use crate::rules::common::{
     expand_span_to_statement_terminator, expression_method_call, is_array_type,
     member_receiver_text, statement_expression_ancestor,
 };
-use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Suggest `.map()` over `forEach` with push.
@@ -33,7 +33,7 @@ impl LintRule for PreferArrayMap {
         PreferArrayMap::meta()
     }
 
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let mut visitor = PreferArrayMapVisitor::new(ctx, meta);
         visitor.run();
@@ -63,7 +63,7 @@ struct EmptyArrayDeclaration {
 /// Visitor that flags forEach with unconditional push patterns.
 struct PreferArrayMapVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The array symbol for this module profile.
@@ -78,7 +78,7 @@ struct PreferArrayMapVisitor<'a, 'b> {
 
 impl<'a, 'b> PreferArrayMapVisitor<'a, 'b> {
     /// Build a visitor for prefer-array-map checks.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         let array_symbol = ctx.language_item(LanguageItem::Array);
         let for_each_name = ctx.string_id("forEach");
         let push_name = ctx.string_id("push");
@@ -96,7 +96,7 @@ impl<'a, 'b> PreferArrayMapVisitor<'a, 'b> {
     /// Walk the DIR tree roots.
     fn run(&mut self) {
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         for root_id in roots {
             let expression = tree.get(root_id);
@@ -107,7 +107,7 @@ impl<'a, 'b> PreferArrayMapVisitor<'a, 'b> {
     /// Check if this is a forEach with unconditional push pattern.
     fn check_call(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) {
         // match forEach call
-        let Some(call) = expression_method_call(self.ctx.tree, expression_id) else {
+        let Some(call) = expression_method_call(self.ctx.dir.tree(), expression_id) else {
             return;
         };
         if call.method_name != self.for_each_name {
@@ -132,7 +132,7 @@ impl<'a, 'b> PreferArrayMapVisitor<'a, 'b> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<MapPattern> {
-        let call = expression_method_call(self.ctx.tree, expression_id)?;
+        let call = expression_method_call(self.ctx.dir.tree(), expression_id)?;
 
         // keep simple callback-only forEach calls
         if !call.generic_arguments.is_empty() || call.arguments.len() != 1 {
@@ -140,7 +140,7 @@ impl<'a, 'b> PreferArrayMapVisitor<'a, 'b> {
         }
 
         // keep positional callback expressions
-        let callback_argument = self.ctx.tree.get(call.arguments[0]);
+        let callback_argument = self.ctx.dir.get(call.arguments[0]);
         let dir::Argument::Positional {
             value: callback_id, ..
         } = callback_argument
@@ -149,11 +149,11 @@ impl<'a, 'b> PreferArrayMapVisitor<'a, 'b> {
         };
 
         // keep inline sync callbacks with one named parameter
-        let callback_expression = self.ctx.tree.get(*callback_id);
+        let callback_expression = self.ctx.dir.get(*callback_id);
         let dir::Expression::Declaration(declaration) = callback_expression else {
             return None;
         };
-        let callback_declaration = self.ctx.tree.get(*declaration);
+        let callback_declaration = self.ctx.dir.get(*declaration);
         let dir::Declaration::Function(declaration) = callback_declaration else {
             return None;
         };
@@ -165,7 +165,7 @@ impl<'a, 'b> PreferArrayMapVisitor<'a, 'b> {
         }
 
         // keep one plain named callback parameter
-        let parameter = self.ctx.tree.get(declaration.signature.parameters[0]);
+        let parameter = self.ctx.dir.get(declaration.signature.parameters[0]);
         let dir::Parameter::Named {
             visibility: None,
             is_readonly: false,
@@ -180,7 +180,7 @@ impl<'a, 'b> PreferArrayMapVisitor<'a, 'b> {
 
         // keep one push call in callback body
         let push_call_id = self.push_call_from_callback_body(body_id)?;
-        let push_call = expression_method_call(self.ctx.tree, push_call_id)?;
+        let push_call = expression_method_call(self.ctx.dir.tree(), push_call_id)?;
         if push_call.method_name != self.push_name {
             return None;
         }
@@ -189,7 +189,7 @@ impl<'a, 'b> PreferArrayMapVisitor<'a, 'b> {
         if !push_call.generic_arguments.is_empty() || push_call.arguments.len() != 1 {
             return None;
         }
-        let pushed_argument = self.ctx.tree.get(push_call.arguments[0]);
+        let pushed_argument = self.ctx.dir.get(push_call.arguments[0]);
         let dir::Argument::Positional {
             value: pushed_value_id,
             ..
@@ -213,11 +213,11 @@ impl<'a, 'b> PreferArrayMapVisitor<'a, 'b> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<dir::LocalNodeId<dir::Expression>> {
-        let expression = self.ctx.tree.get(expression_id);
+        let expression = self.ctx.dir.get(expression_id);
 
         // block callbacks: keep single body expression
         if let dir::Expression::Block(block) = expression {
-            let block = self.ctx.tree.get(*block);
+            let block = self.ctx.dir.get(*block);
             if block.len() != 1 {
                 return None;
             }
@@ -245,7 +245,7 @@ impl<'a, 'b> PreferArrayMapVisitor<'a, 'b> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<dir::LocalNodeId<dir::Expression>> {
-        statement_expression_ancestor(self.ctx.tree, expression_id)
+        statement_expression_ancestor(self.ctx.dir.tree(), expression_id)
     }
 
     /// Resolve the immediate previous expression in the same container.
@@ -254,11 +254,11 @@ impl<'a, 'b> PreferArrayMapVisitor<'a, 'b> {
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<dir::LocalNodeId<dir::Expression>> {
         // check block containers first
-        if let Some(parent_id) = self.ctx.tree.get_parent_id(expression_id.id)
-            && self.ctx.tree.get_node_type(parent_id) == dir::NodeType::Block
+        if let Some(parent_id) = self.ctx.dir.get_parent_id(expression_id.id)
+            && self.ctx.dir.get_node_type(parent_id) == dir::NodeType::Block
         {
             let block_id = dir::LocalNodeId::<dir::Block>::new(parent_id);
-            let block = self.ctx.tree.get(block_id);
+            let block = self.ctx.dir.get(block_id);
             let expression_ids = block.iter_expressions().collect::<Vec<_>>();
             let index = expression_ids
                 .iter()
@@ -289,7 +289,7 @@ impl<'a, 'b> PreferArrayMapVisitor<'a, 'b> {
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<EmptyArrayDeclaration> {
         let expression_id = self.unwrap_statement_expression(expression_id);
-        let expression = self.ctx.tree.get(expression_id);
+        let expression = self.ctx.dir.get(expression_id);
         let dir::Expression::Let { declarators, .. } = expression else {
             return None;
         };
@@ -297,9 +297,9 @@ impl<'a, 'b> PreferArrayMapVisitor<'a, 'b> {
             return None;
         }
 
-        let declarator = self.ctx.tree.get(declarators[0]);
+        let declarator = self.ctx.dir.get(declarators[0]);
         let initializer_id = declarator.value?;
-        let initializer = self.ctx.tree.get(initializer_id);
+        let initializer = self.ctx.dir.get(initializer_id);
         if !matches!(
             initializer,
             dir::Expression::ArrayExpression { elements } if elements.is_empty()
@@ -307,8 +307,7 @@ impl<'a, 'b> PreferArrayMapVisitor<'a, 'b> {
             return None;
         }
 
-        let pattern = self.ctx.tree.get(declarator.pattern);
-        let symbol = pattern.symbol()?.into_global(self.ctx.module_id());
+        let symbol = self.ctx.symbol_for_node(declarator.pattern)?;
         Some(EmptyArrayDeclaration {
             symbol,
             initializer_id,
@@ -329,11 +328,11 @@ impl<'a, 'b> PreferArrayMapVisitor<'a, 'b> {
         }
 
         // read receiver text for `receiver.map(...)`
-        let expression = self.ctx.tree.get(expression_id);
+        let expression = self.ctx.dir.get(expression_id);
         let dir::Expression::Call { left, .. } = expression else {
             return None;
         };
-        let member_expression = self.ctx.tree.get(*left);
+        let member_expression = self.ctx.dir.get(*left);
         let dir::Expression::Member {
             left: receiver_expression_id,
             name,
@@ -361,12 +360,8 @@ impl<'a, 'b> PreferArrayMapVisitor<'a, 'b> {
             .get_span_text(self.ctx.get_span(pattern.pushed_value_id))
             .to_string();
         let parameter_name = self.ctx.strings.get(pattern.parameter_name);
-        let replacement = format!(
-            "{receiver}.map(({parameter}) => ({value}))",
-            receiver = receiver_text,
-            parameter = parameter_name,
-            value = pushed_value_text,
-        );
+        let replacement =
+            format!("{receiver_text}.map(({parameter_name}) => ({pushed_value_text}))",);
 
         // replace initializer and remove the old forEach statement
         let mut edit_builder = self.ctx.edit_builder();
@@ -409,7 +404,7 @@ impl<'a, 'b> PreferArrayMapVisitor<'a, 'b> {
             span,
         )
         .label("use array.map(...) instead");
-        if self.ctx.include_fixes
+        if self.ctx.compute_fixes
             && let Some(fix) = self.map_fix(expression_id, pattern)
         {
             diagnostic = diagnostic.fix(fix);

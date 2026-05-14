@@ -230,7 +230,12 @@ impl NodeVisitor for ReadSymbolCollector<'_> {
         expression: &dir::Expression,
     ) {
         // assignment left side is write only here, only visit the right side
-        if let dir::Expression::Assign { left: _, right } = expression {
+        if let dir::Expression::Assign {
+            left: _,
+            operator: _,
+            right,
+        } = expression
+        {
             let right_expression = tree.get(*right);
             self.visit_expression(tree, *right, right_expression);
             return;
@@ -238,6 +243,7 @@ impl NodeVisitor for ReadSymbolCollector<'_> {
 
         // let declarator patterns are writes, only visit initializers
         if let dir::Expression::Let {
+            kind: _,
             export: _,
             is_ambient: _,
             mutability: _,
@@ -287,8 +293,6 @@ pub fn expression_reference_is_read(
                 current_id = parent_id;
             }
             dir::Expression::As {
-                operator: _,
-                source: _,
                 expression: value,
                 target_type: _,
             }
@@ -298,25 +302,29 @@ pub fn expression_reference_is_read(
             } if *value == current_id => {
                 current_id = parent_id;
             }
-            dir::Expression::Maybe { left } | dir::Expression::Must { left }
+            dir::Expression::Maybe { left, .. } | dir::Expression::Must { left, .. }
                 if *left == current_id =>
             {
                 current_id = parent_id;
             }
 
             // plain assignment left side is write only
-            dir::Expression::Assign { left, right: _ }
-                if assign_pattern_contains_expression(tree, *left, current_id) =>
-            {
+            dir::Expression::Assign {
+                left,
+                operator: dir::AssignOperator::Assign,
+                right: _,
+            } if assign_pattern_contains_expression(tree, *left, current_id) => {
                 return false;
             }
 
             // update assignments read previous value only when the result is consumed
-            dir::Expression::AssignBinary {
+            dir::Expression::Assign {
                 left,
-                operator: _,
+                operator,
                 right: _,
-            } if *left == current_id => {
+            } if *operator != dir::AssignOperator::Assign
+                && assign_pattern_contains_expression(tree, *left, current_id) =>
+            {
                 return !expression_is_standalone_statement(tree, parent_id);
             }
 

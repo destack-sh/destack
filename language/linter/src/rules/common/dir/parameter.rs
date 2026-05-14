@@ -3,35 +3,42 @@ use std::collections::HashSet;
 use destack_dir as dir;
 use destack_source::{ModuleId, Span};
 
-use crate::LintModuleDirContext;
+use crate::LintModuleContext;
 
 /// Resolve one direct binding name and symbol from a simple pattern binding.
 pub fn pattern_binding_name_and_symbol(
     tree: &dir::Tree,
+    symbols: &dir::BindingTable,
     pattern_id: dir::LocalNodeId<dir::Pattern>,
 ) -> Option<(dir::StringId, dir::LocalSymbolId)> {
     let pattern = tree.get(pattern_id);
-    let dir::Pattern::Binding { name, symbol, .. } = pattern else {
+    let dir::Pattern::Binding { name, .. } = pattern else {
         return None;
     };
+    let symbol = symbols.symbol_for_declaration(pattern_id.into_global_any(symbols.module_id))?;
 
-    Some((*name, *symbol))
+    Some((*name, symbol))
 }
 
 /// Resolve one binding name and symbol pair from a parameter.
 pub fn parameter_binding_name_and_symbol(
     tree: &dir::Tree,
+    symbols: &dir::BindingTable,
     parameter_id: dir::LocalNodeId<dir::Parameter>,
 ) -> Option<(dir::StringId, dir::LocalSymbolId)> {
     let parameter = tree.get(parameter_id);
     match parameter {
-        dir::Parameter::Named { name, symbol, .. }
-        | dir::Parameter::VariadicNamed { name, symbol, .. } => Some((*name, *symbol)),
+        dir::Parameter::Named { name, .. } | dir::Parameter::VariadicNamed { name, .. } => {
+            let symbol =
+                symbols.symbol_for_declaration(parameter_id.into_global_any(symbols.module_id))?;
+
+            Some((*name, symbol))
+        }
         dir::Parameter::Pattern { pattern, .. }
         | dir::Parameter::VariadicPattern { pattern, .. } => {
-            pattern_binding_name_and_symbol(tree, *pattern)
+            pattern_binding_name_and_symbol(tree, symbols, *pattern)
         }
-        dir::Parameter::Error { .. } => None,
+        dir::Parameter::Error => None,
     }
 }
 
@@ -83,8 +90,11 @@ pub fn collect_parameter_value_binding_symbols(
     let parameter = tree.get(parameter_id);
 
     // collect the parameter root symbol when it lives in value space
-    let parameter_symbol = parameter.symbol();
-    collect_symbol_when_value_space(symbols, parameter_symbol, bindings);
+    if let Some(parameter_symbol) =
+        symbols.symbol_for_declaration(parameter_id.into_global_any(symbols.module_id))
+    {
+        collect_symbol_when_value_space(symbols, parameter_symbol, bindings);
+    }
 
     // collect nested pattern symbols for pattern parameters
     match parameter {
@@ -94,7 +104,7 @@ pub fn collect_parameter_value_binding_symbols(
         }
         dir::Parameter::Named { .. }
         | dir::Parameter::VariadicNamed { .. }
-        | dir::Parameter::Error { .. } => {}
+        | dir::Parameter::Error => {}
     }
 }
 
@@ -108,7 +118,9 @@ pub fn collect_pattern_value_binding_symbols(
     let pattern = tree.get(pattern_id);
 
     // collect the pattern binding symbol when present
-    if let Some(symbol_id) = pattern.symbol() {
+    if let Some(symbol_id) =
+        symbols.symbol_for_declaration(pattern_id.into_global_any(symbols.module_id))
+    {
         collect_symbol_when_value_space(symbols, symbol_id, bindings);
     }
 
@@ -158,7 +170,9 @@ pub fn collect_pattern_field_value_binding_symbols(
     let field = tree.get(field_id);
 
     // collect the field binding symbol when present
-    if let Some(symbol_id) = field.symbol() {
+    if let Some(symbol_id) =
+        symbols.symbol_for_declaration(field_id.into_global_any(symbols.module_id))
+    {
         collect_symbol_when_value_space(symbols, symbol_id, bindings);
     }
 
@@ -264,7 +278,7 @@ fn collect_signature_parameter_value_binding_symbols(
 
 /// Resolve a precise report span for one unused binding inside a parameter pattern.
 pub fn parameter_binding_span(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     parameter_id: dir::LocalNodeId<dir::Parameter>,
     local_node_id: dir::LocalNodeIdAny,
 ) -> Span {

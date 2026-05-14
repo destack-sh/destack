@@ -460,10 +460,10 @@ fn evaluate_terminal_boolean_type_query(
     match query {
         TypeBooleanQuery::StrictBoolean => matches!(
             ty,
-            dir::Type::Literal(dir::LiteralType {
-                value: dir::TypeLiteral::Primitive(dir::PrimitiveType::Boolean)
-                    | dir::TypeLiteral::ScalarLiteral(dir::ScalarLiteral::Boolean(_))
-            })
+            dir::Type::Literal(
+                dir::LiteralType::Primitive(dir::PrimitiveType::Boolean)
+                    | dir::LiteralType::ScalarLiteral(dir::ScalarLiteral::Boolean(_))
+            )
         ),
         TypeBooleanQuery::Array { .. } => matches!(
             ty,
@@ -471,14 +471,12 @@ fn evaluate_terminal_boolean_type_query(
         ),
         TypeBooleanQuery::String { .. } => match ty {
             dir::Type::TemplateLiteral(_) => true,
-            dir::Type::Literal(literal) => type_literal_is_string_like(&literal.value),
+            dir::Type::Literal(literal) => type_literal_is_string_like(literal),
             _ => false,
         },
         TypeBooleanQuery::Float => matches!(
             ty,
-            dir::Type::Literal(dir::LiteralType {
-                value: dir::TypeLiteral::Primitive(dir::PrimitiveType::Float(_))
-            })
+            dir::Type::Literal(dir::LiteralType::Primitive(dir::PrimitiveType::Float(_)))
         ),
         TypeBooleanQuery::Function => match ty {
             dir::Type::Function(_) => true,
@@ -492,9 +490,7 @@ fn evaluate_terminal_boolean_type_query(
         TypeBooleanQuery::ReferenceSymbolForm { .. } => false,
         TypeBooleanQuery::InferVar => matches!(ty, dir::Type::InferVariable(_)),
         TypeBooleanQuery::PromiseSpreadElementCompatible { promise_symbol } => match ty {
-            dir::Type::Literal(dir::LiteralType {
-                value: dir::TypeLiteral::Any | dir::TypeLiteral::Unknown,
-            }) => true,
+            dir::Type::Literal(dir::LiteralType::Any | dir::LiteralType::Unknown) => true,
             dir::Type::Slice(slice) => slice.element.is_some_and(|element_type_id| {
                 evaluate_boolean_type_query_inner(
                     types,
@@ -523,13 +519,13 @@ fn evaluate_terminal_boolean_type_query(
         TypeBooleanQuery::HasUsefulToString => match ty {
             dir::Type::Literal(literal) => {
                 matches!(
-                    literal.value,
-                    dir::TypeLiteral::Primitive(dir::PrimitiveType::String)
-                        | dir::TypeLiteral::Primitive(dir::PrimitiveType::Boolean)
-                        | dir::TypeLiteral::Primitive(dir::PrimitiveType::Integer(_))
-                        | dir::TypeLiteral::Primitive(dir::PrimitiveType::Float(_))
-                        | dir::TypeLiteral::Primitive(dir::PrimitiveType::Bigint)
-                        | dir::TypeLiteral::ScalarLiteral(_)
+                    literal,
+                    dir::LiteralType::Primitive(dir::PrimitiveType::String)
+                        | dir::LiteralType::Primitive(dir::PrimitiveType::Boolean)
+                        | dir::LiteralType::Primitive(dir::PrimitiveType::Integer(_))
+                        | dir::LiteralType::Primitive(dir::PrimitiveType::Float(_))
+                        | dir::LiteralType::Primitive(dir::PrimitiveType::Bigint)
+                        | dir::LiteralType::ScalarLiteral(_)
                 )
             }
             dir::Type::Slice(slice) => slice.element.is_none_or(|element_type_id| {
@@ -573,40 +569,29 @@ fn evaluate_terminal_boolean_type_query(
         },
         TypeBooleanQuery::Any => matches!(
             ty,
-            dir::Type::Literal(dir::LiteralType {
-                value: dir::TypeLiteral::Any | dir::TypeLiteral::Unknown
-            })
+            dir::Type::Literal(dir::LiteralType::Any | dir::LiteralType::Unknown)
         ),
         TypeBooleanQuery::PromiseOrAny { .. } => matches!(
             ty,
-            dir::Type::Literal(dir::LiteralType {
-                value: dir::TypeLiteral::Any | dir::TypeLiteral::Unknown
-            })
+            dir::Type::Literal(dir::LiteralType::Any | dir::LiteralType::Unknown)
         ),
-        TypeBooleanQuery::ExplicitAny => matches!(
-            ty,
-            dir::Type::Literal(dir::LiteralType {
-                value: dir::TypeLiteral::Any
-            })
-        ),
+        TypeBooleanQuery::ExplicitAny => matches!(ty, dir::Type::Literal(dir::LiteralType::Any)),
         TypeBooleanQuery::Promise { .. } => false,
         TypeBooleanQuery::VoidOrNever => matches!(
             ty,
-            dir::Type::Literal(dir::LiteralType {
-                value: dir::TypeLiteral::Void | dir::TypeLiteral::Never
-            })
+            dir::Type::Literal(dir::LiteralType::Void | dir::LiteralType::Never)
         ),
         TypeBooleanQuery::TemplateInterpolation { .. } => match ty {
             dir::Type::TemplateLiteral(_) => true,
             dir::Type::Literal(literal) => {
-                type_literal_is_string_like(&literal.value)
+                type_literal_is_string_like(literal)
                     || matches!(
-                        literal.value,
-                        dir::TypeLiteral::Primitive(
+                        literal,
+                        dir::LiteralType::Primitive(
                             dir::PrimitiveType::Bigint
                                 | dir::PrimitiveType::Integer(_)
                                 | dir::PrimitiveType::Float(_),
-                        ) | dir::TypeLiteral::ScalarLiteral(
+                        ) | dir::LiteralType::ScalarLiteral(
                             dir::ScalarLiteral::Integer(_)
                                 | dir::ScalarLiteral::Bigint(_)
                                 | dir::ScalarLiteral::Float(_),
@@ -616,38 +601,38 @@ fn evaluate_terminal_boolean_type_query(
             _ => false,
         },
         TypeBooleanQuery::StringLikePropertyKey => match ty {
-            dir::Type::Literal(literal) => type_literal_is_string_like_property_key(&literal.value),
+            dir::Type::Literal(literal) => type_literal_is_string_like_property_key(literal),
             _ => false,
         },
         TypeBooleanQuery::NumericPropertyKey => match ty {
-            dir::Type::Literal(literal) => type_literal_is_numeric_property_key(&literal.value),
+            dir::Type::Literal(literal) => type_literal_is_numeric_property_key(literal),
             _ => false,
         },
         TypeBooleanQuery::SymbolLikePropertyKey => match ty {
-            dir::Type::Literal(literal) => type_literal_is_symbol_like_property_key(&literal.value),
+            dir::Type::Literal(literal) => type_literal_is_symbol_like_property_key(literal),
             _ => false,
         },
         TypeBooleanQuery::DefinitelyNonErrorValue { .. } => matches!(
             ty,
-            dir::Type::Literal(dir::LiteralType {
-                value: dir::TypeLiteral::Never
-                    | dir::TypeLiteral::Undefined
-                    | dir::TypeLiteral::Void
-                    | dir::TypeLiteral::Null
-                    | dir::TypeLiteral::Primitive(_)
-                    | dir::TypeLiteral::ScalarLiteral(_)
-            })
+            dir::Type::Literal(
+                dir::LiteralType::Never
+                    | dir::LiteralType::Undefined
+                    | dir::LiteralType::Void
+                    | dir::LiteralType::Null
+                    | dir::LiteralType::Primitive(_)
+                    | dir::LiteralType::ScalarLiteral(_)
+            )
         ),
         TypeBooleanQuery::MaybeNullish => matches!(
             ty,
-            dir::Type::Literal(dir::LiteralType {
-                value: dir::TypeLiteral::Null
-                    | dir::TypeLiteral::Undefined
-                    | dir::TypeLiteral::Void
-                    | dir::TypeLiteral::Any
-                    | dir::TypeLiteral::Infer
-                    | dir::TypeLiteral::Unknown
-            }) | dir::Type::InferVariable(_)
+            dir::Type::Literal(
+                dir::LiteralType::Null
+                    | dir::LiteralType::Undefined
+                    | dir::LiteralType::Void
+                    | dir::LiteralType::Any
+                    | dir::LiteralType::Infer
+                    | dir::LiteralType::Unknown
+            ) | dir::Type::InferVariable(_)
                 | dir::Type::Conditional(_)
                 | dir::Type::Mapped(_)
                 | dir::Type::Index(_)
@@ -665,14 +650,14 @@ fn evaluate_terminal_boolean_type_query(
                 | dir::Type::Unevaluated(_)
         ),
         TypeBooleanQuery::HasNonNullishFalsy { strings } => match ty {
-            dir::Type::Literal(literal) => match &literal.value {
-                dir::TypeLiteral::Null | dir::TypeLiteral::Undefined | dir::TypeLiteral::Void => {
+            dir::Type::Literal(literal) => match literal {
+                dir::LiteralType::Null | dir::LiteralType::Undefined | dir::LiteralType::Void => {
                     false
                 }
-                dir::TypeLiteral::Never => false,
-                dir::TypeLiteral::Any | dir::TypeLiteral::Infer | dir::TypeLiteral::Unknown => true,
-                dir::TypeLiteral::Object => false,
-                dir::TypeLiteral::Primitive(primitive) => matches!(
+                dir::LiteralType::Never => false,
+                dir::LiteralType::Any | dir::LiteralType::Infer | dir::LiteralType::Unknown => true,
+                dir::LiteralType::Object => false,
+                dir::LiteralType::Primitive(primitive) => matches!(
                     primitive,
                     dir::PrimitiveType::Boolean
                         | dir::PrimitiveType::Bigint
@@ -680,7 +665,7 @@ fn evaluate_terminal_boolean_type_query(
                         | dir::PrimitiveType::Integer(_)
                         | dir::PrimitiveType::Float(_)
                 ),
-                dir::TypeLiteral::ScalarLiteral(literal) => match literal {
+                dir::LiteralType::ScalarLiteral(literal) => match literal {
                     dir::ScalarLiteral::Null => true,
                     dir::ScalarLiteral::Boolean(false) => true,
                     dir::ScalarLiteral::Boolean(true) => false,
@@ -692,7 +677,7 @@ fn evaluate_terminal_boolean_type_query(
                         true
                     }
                 },
-                dir::TypeLiteral::Intrinsic(_) => true,
+                dir::LiteralType::Intrinsic(_) => true,
             },
             dir::Type::Slice(_)
             | dir::Type::FixedArray(_)
@@ -756,12 +741,12 @@ fn generic_argument_is_void_or_never_type(
 }
 
 /// Return true when one type literal is string-like.
-fn type_literal_is_string_like(value: &dir::TypeLiteral) -> bool {
+fn type_literal_is_string_like(value: &dir::LiteralType) -> bool {
     matches!(
         value,
-        dir::TypeLiteral::Primitive(dir::PrimitiveType::String)
-            | dir::TypeLiteral::ScalarLiteral(dir::ScalarLiteral::String(_))
-            | dir::TypeLiteral::Intrinsic(
+        dir::LiteralType::Primitive(dir::PrimitiveType::String)
+            | dir::LiteralType::ScalarLiteral(dir::ScalarLiteral::String(_))
+            | dir::LiteralType::Intrinsic(
                 dir::IntrinsicType::Uppercase
                     | dir::IntrinsicType::Lowercase
                     | dir::IntrinsicType::Capitalize
@@ -771,44 +756,43 @@ fn type_literal_is_string_like(value: &dir::TypeLiteral) -> bool {
 }
 
 /// Return true when one type literal is string-like for object property keys.
-fn type_literal_is_string_like_property_key(value: &dir::TypeLiteral) -> bool {
+fn type_literal_is_string_like_property_key(value: &dir::LiteralType) -> bool {
     matches!(
         value,
-        dir::TypeLiteral::Primitive(dir::PrimitiveType::String)
-            | dir::TypeLiteral::Primitive(dir::PrimitiveType::Boolean)
-            | dir::TypeLiteral::Primitive(dir::PrimitiveType::Character)
-            | dir::TypeLiteral::ScalarLiteral(dir::ScalarLiteral::String(_))
-            | dir::TypeLiteral::ScalarLiteral(dir::ScalarLiteral::Boolean(_))
-            | dir::TypeLiteral::ScalarLiteral(dir::ScalarLiteral::Character(_))
-            | dir::TypeLiteral::ScalarLiteral(dir::ScalarLiteral::RegexString { .. })
-            | dir::TypeLiteral::Null
-            | dir::TypeLiteral::Undefined
+        dir::LiteralType::Primitive(dir::PrimitiveType::String)
+            | dir::LiteralType::Primitive(dir::PrimitiveType::Boolean)
+            | dir::LiteralType::Primitive(dir::PrimitiveType::Character)
+            | dir::LiteralType::ScalarLiteral(dir::ScalarLiteral::String(_))
+            | dir::LiteralType::ScalarLiteral(dir::ScalarLiteral::Boolean(_))
+            | dir::LiteralType::ScalarLiteral(dir::ScalarLiteral::Character(_))
+            | dir::LiteralType::ScalarLiteral(dir::ScalarLiteral::RegexString { .. })
+            | dir::LiteralType::Null
+            | dir::LiteralType::Undefined
     )
 }
 
 /// Return true when one type literal is numeric for object property keys.
-fn type_literal_is_numeric_property_key(value: &dir::TypeLiteral) -> bool {
-    match value {
-        dir::TypeLiteral::Primitive(
+fn type_literal_is_numeric_property_key(value: &dir::LiteralType) -> bool {
+    matches!(
+        value,
+        dir::LiteralType::Primitive(
             dir::PrimitiveType::Bigint
-            | dir::PrimitiveType::Integer(_)
-            | dir::PrimitiveType::Float(_),
-        )
-        | dir::TypeLiteral::ScalarLiteral(
+                | dir::PrimitiveType::Integer(_)
+                | dir::PrimitiveType::Float(_),
+        ) | dir::LiteralType::ScalarLiteral(
             dir::ScalarLiteral::Integer(_)
-            | dir::ScalarLiteral::Float(_)
-            | dir::ScalarLiteral::Bigint(_),
-        ) => true,
-        _ => false,
-    }
+                | dir::ScalarLiteral::Float(_)
+                | dir::ScalarLiteral::Bigint(_),
+        )
+    )
 }
 
 /// Return true when one type literal is symbol-like for object property keys.
-fn type_literal_is_symbol_like_property_key(value: &dir::TypeLiteral) -> bool {
+fn type_literal_is_symbol_like_property_key(value: &dir::LiteralType) -> bool {
     matches!(
         value,
-        dir::TypeLiteral::Primitive(dir::PrimitiveType::Symbol)
-            | dir::TypeLiteral::Primitive(dir::PrimitiveType::UniqueSymbol)
+        dir::LiteralType::Primitive(dir::PrimitiveType::Symbol)
+            | dir::LiteralType::Primitive(dir::PrimitiveType::UniqueSymbol)
     )
 }
 
@@ -1432,22 +1416,22 @@ fn type_truthiness_inner(
         )
     } else {
         match ty {
-            dir::Type::Literal(literal) => match &literal.value {
-                dir::TypeLiteral::Never => TypeTruthiness::Unknown,
-                dir::TypeLiteral::Any | dir::TypeLiteral::Infer | dir::TypeLiteral::Unknown => {
+            dir::Type::Literal(literal) => match literal {
+                dir::LiteralType::Never => TypeTruthiness::Unknown,
+                dir::LiteralType::Any | dir::LiteralType::Infer | dir::LiteralType::Unknown => {
                     TypeTruthiness::Unknown
                 }
-                dir::TypeLiteral::Void | dir::TypeLiteral::Null | dir::TypeLiteral::Undefined => {
+                dir::LiteralType::Void | dir::LiteralType::Null | dir::LiteralType::Undefined => {
                     TypeTruthiness::AlwaysFalsy
                 }
-                dir::TypeLiteral::Object => TypeTruthiness::AlwaysTruthy,
-                dir::TypeLiteral::Primitive(primitive) => match primitive {
+                dir::LiteralType::Object => TypeTruthiness::AlwaysTruthy,
+                dir::LiteralType::Primitive(primitive) => match primitive {
                     dir::PrimitiveType::Symbol | dir::PrimitiveType::UniqueSymbol => {
                         TypeTruthiness::AlwaysTruthy
                     }
                     _ => TypeTruthiness::Unknown,
                 },
-                dir::TypeLiteral::ScalarLiteral(literal) => match literal {
+                dir::LiteralType::ScalarLiteral(literal) => match literal {
                     dir::ScalarLiteral::Null => TypeTruthiness::AlwaysFalsy,
                     dir::ScalarLiteral::Boolean(value) => {
                         if *value {
@@ -1488,7 +1472,7 @@ fn type_truthiness_inner(
                         TypeTruthiness::Unknown
                     }
                 },
-                dir::TypeLiteral::Intrinsic(_) => TypeTruthiness::Unknown,
+                dir::LiteralType::Intrinsic(_) => TypeTruthiness::Unknown,
             },
             dir::Type::Slice(_)
             | dir::Type::FixedArray(_)
@@ -1553,18 +1537,18 @@ fn type_nullishness_inner(
         )
     } else {
         match ty {
-            dir::Type::Literal(literal) => match &literal.value {
-                dir::TypeLiteral::Null | dir::TypeLiteral::Undefined | dir::TypeLiteral::Void => {
+            dir::Type::Literal(literal) => match literal {
+                dir::LiteralType::Null | dir::LiteralType::Undefined | dir::LiteralType::Void => {
                     TypeNullishness::Always
                 }
-                dir::TypeLiteral::Never => TypeNullishness::Maybe,
-                dir::TypeLiteral::Any | dir::TypeLiteral::Infer | dir::TypeLiteral::Unknown => {
+                dir::LiteralType::Never => TypeNullishness::Maybe,
+                dir::LiteralType::Any | dir::LiteralType::Infer | dir::LiteralType::Unknown => {
                     TypeNullishness::Maybe
                 }
-                dir::TypeLiteral::Object
-                | dir::TypeLiteral::Primitive(_)
-                | dir::TypeLiteral::Intrinsic(_)
-                | dir::TypeLiteral::ScalarLiteral(_) => TypeNullishness::Never,
+                dir::LiteralType::Object
+                | dir::LiteralType::Primitive(_)
+                | dir::LiteralType::Intrinsic(_)
+                | dir::LiteralType::ScalarLiteral(_) => TypeNullishness::Never,
             },
             dir::Type::Slice(_)
             | dir::Type::FixedArray(_)

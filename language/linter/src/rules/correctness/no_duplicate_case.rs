@@ -1,10 +1,10 @@
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
     ExpressionDuplicateTracker, expression_numeric_value, match_selector_expression_id,
 };
-use crate::{ConstValue, LintAstContext, LintFix, LintMeta, LintReport, LintRule, declare_lint};
+use crate::{ConstValue, LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow duplicate case labels in switch statements.
@@ -15,7 +15,7 @@ declare_lint! {
         id = "no-duplicate-case",
         code = "LC012",
         category = Correctness,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Always,
@@ -32,18 +32,18 @@ impl LintRule for NoDuplicateCase {
         NoDuplicateCase::meta()
     }
 
-    /// Check module AST nodes for duplicate switch case selectors.
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    /// Check module source nodes for duplicate switch case selectors.
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // inspect candidate expressions
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let ast::Expression::Match { form, cases, .. } = ctx.tree.get(node_id) else {
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let dir::Expression::Match { form, cases, .. } = ctx.dir.get(node_id) else {
                 continue;
             };
 
             // only check switch statements, not match expressions
-            if *form != ast::MatchForm::Switch {
+            if *form != dir::MatchForm::Switch {
                 continue;
             }
 
@@ -52,7 +52,7 @@ impl LintRule for NoDuplicateCase {
             let mut seen_constant_values: Vec<ConstValue> = Vec::new();
             let mut seen_number_values: Vec<f64> = Vec::new();
             for case_id in cases {
-                let case = ctx.tree.get(*case_id);
+                let case = ctx.dir.get(*case_id);
                 let Some(expr_id) = match_selector_expression_id(ctx, case.selector()) else {
                     continue;
                 };
@@ -114,7 +114,7 @@ impl LintRule for NoDuplicateCase {
                         NO_DUPLICATE_CASE.category,
                         severity,
                         "duplicate case label",
-                        ctx.tree.get_span(*case_id),
+                        ctx.dir.get_span(*case_id),
                     )
                     .label("this case was already handled");
 
@@ -143,10 +143,10 @@ fn number_const_value(value: ConstValue) -> Option<f64> {
 
 /// Build an unsafe fix that removes the duplicate switch case.
 fn duplicate_case_fix(
-    ctx: &LintAstContext<'_>,
-    case_id: ast::LocalNodeId<ast::MatchCase>,
+    ctx: &LintModuleContext<'_>,
+    case_id: dir::LocalNodeId<dir::MatchCase>,
 ) -> Option<LintFix> {
-    let case_span = ctx.tree.get_span(case_id);
+    let case_span = ctx.dir.get_span(case_id);
     let edits = ctx.edit_builder().replace(case_span, "").into_edits();
     Some(LintFix::r#unsafe("Remove duplicate switch case").with_edits(edits))
 }
@@ -159,7 +159,7 @@ mod tests {
     #[test]
     fn test_detects_duplicate_integer_case() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateCase);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_duplicate_case/test_detects_duplicate_integer_case.ds",
             r#"
 let x = 1;
@@ -176,7 +176,7 @@ switch (x) {
     #[test]
     fn test_fix_removes_duplicate_integer_case() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateCase);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_duplicate_case/test_fix_removes_duplicate_integer_case.ds",
             r#"
 let x = 1;
@@ -203,7 +203,7 @@ switch (x) {
     #[test]
     fn test_detects_duplicate_string_case() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateCase);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_duplicate_case/test_detects_duplicate_string_case.ds",
             r#"
 let x = "a";
@@ -220,7 +220,7 @@ switch (x) {
     #[test]
     fn test_detects_duplicate_boolean_case() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateCase);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_duplicate_case/test_detects_duplicate_boolean_case.ds",
             r#"
 let x = true;
@@ -237,7 +237,7 @@ switch (x) {
     #[test]
     fn test_allows_unique_cases() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateCase);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_duplicate_case/test_allows_unique_cases.ds",
             r#"
 let x = 1;
@@ -254,7 +254,7 @@ switch (x) {
     #[test]
     fn test_ignores_match_expression() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateCase);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_duplicate_case/test_ignores_match_expression.ds",
             r#"
 let x = 1;
@@ -270,7 +270,7 @@ match (x) {
     #[test]
     fn test_mutation_fix_removes_duplicate_string_case() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateCase);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_duplicate_case/test_mutation_fix_removes_duplicate_string_case.ds",
             r#"
 let x = "a";
@@ -297,7 +297,7 @@ switch (x) {
     #[test]
     fn test_detects_duplicate_constant_folded_case() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateCase);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_duplicate_case/test_detects_duplicate_constant_folded_case.ds",
             r#"
 let x = 2;

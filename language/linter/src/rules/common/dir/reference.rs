@@ -1,7 +1,7 @@
 use destack_core::StringId;
 use destack_dir as dir;
 
-use crate::LintModuleDirContext;
+use crate::LintModuleContext;
 
 use super::{assign_pattern_target_expression, expression_unwrap_transparent};
 
@@ -27,7 +27,7 @@ pub struct ReferencePath {
 
 /// Resolve the target symbol for a reference expression.
 pub fn expression_target_symbol(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<dir::GlobalSymbolId> {
     ctx.expression_target_symbol(expression_id)
@@ -35,10 +35,10 @@ pub fn expression_target_symbol(
 
 /// Resolve the target symbol for one assignment pattern.
 pub fn assign_pattern_target_symbol(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     assign_pattern_id: dir::LocalNodeId<dir::AssignPattern>,
 ) -> Option<dir::GlobalSymbolId> {
-    let expression_id = assign_pattern_target_expression(ctx.tree, assign_pattern_id)?;
+    let expression_id = assign_pattern_target_expression(ctx.dir.tree(), assign_pattern_id)?;
 
     expression_target_symbol(ctx, expression_id)
 }
@@ -80,7 +80,7 @@ pub fn expression_is_new_target(
 
 /// Resolve a reference path for member expressions.
 pub fn expression_reference_path(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<ReferencePath> {
     // collect member names walking left
@@ -95,23 +95,23 @@ pub fn expression_reference_path(
 
 /// Resolve a reference path for one assignment pattern.
 pub fn assign_pattern_reference_path(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     assign_pattern_id: dir::LocalNodeId<dir::AssignPattern>,
 ) -> Option<ReferencePath> {
-    let expression_id = assign_pattern_target_expression(ctx.tree, assign_pattern_id)?;
+    let expression_id = assign_pattern_target_expression(ctx.dir.tree(), assign_pattern_id)?;
 
     expression_reference_path(ctx, expression_id)
 }
 
 /// Return true when two expressions have equivalent source form.
 pub fn expressions_have_equivalent_source_form(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     left_id: dir::LocalNodeId<dir::Expression>,
     right_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     // normalize transparent wrappers before comparisons
-    let left_id = expression_unwrap_transparent(ctx.tree, left_id);
-    let right_id = expression_unwrap_transparent(ctx.tree, right_id);
+    let left_id = expression_unwrap_transparent(ctx.dir.tree(), left_id);
+    let right_id = expression_unwrap_transparent(ctx.dir.tree(), right_id);
 
     // compare canonicalized reference paths first
     let left_path = expression_reference_path(ctx, left_id);
@@ -128,11 +128,12 @@ pub fn expressions_have_equivalent_source_form(
 
 /// Return true when one assignment pattern has the same source form as one expression.
 pub fn assign_pattern_has_equivalent_source_form(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     assign_pattern_id: dir::LocalNodeId<dir::AssignPattern>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    let Some(assign_expression_id) = assign_pattern_target_expression(ctx.tree, assign_pattern_id)
+    let Some(assign_expression_id) =
+        assign_pattern_target_expression(ctx.dir.tree(), assign_pattern_id)
     else {
         return false;
     };
@@ -150,7 +151,7 @@ fn normalize_expression_source_text(source: &str) -> String {
 
 /// Return true when one expression resolves to a symbol.
 pub fn expression_is_symbol(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
     symbol_id: dir::GlobalSymbolId,
 ) -> bool {
@@ -159,7 +160,7 @@ pub fn expression_is_symbol(
 
 /// Return true when one expression resolves to any symbol in `symbols`.
 pub fn expression_is_any_symbol(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
     symbols: &[dir::GlobalSymbolId],
 ) -> bool {
@@ -177,10 +178,7 @@ pub fn expression_static_string_literal(
     let expression = tree.get(expression_id);
 
     // match direct string literals
-    if let dir::Expression::ScalarLiteral {
-        value: dir::ScalarLiteral::String(value),
-    } = expression
-    {
+    if let dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(value)) = expression {
         return Some(*value);
     }
 
@@ -205,9 +203,8 @@ pub fn expression_regex_literal(
     let expression = tree.get(expression_id);
 
     // match direct regex literals
-    let dir::Expression::ScalarLiteral {
-        value: dir::ScalarLiteral::RegexString { content, flags },
-    } = expression
+    let dir::Expression::ScalarLiteral(dir::ScalarLiteral::RegexString { content, flags }) =
+        expression
     else {
         return None;
     };
@@ -247,10 +244,10 @@ pub fn expression_static_property_access(
     }
 
     // match bracket member access with static string keys
-    let dir::Expression::Index { left, right } = expression else {
+    let dir::Expression::Index { left, index, .. } = expression else {
         return None;
     };
-    let index_id = right.as_ref().copied()?;
+    let index_id = index.as_ref().copied()?;
     let property_name = expression_static_string_literal(tree, index_id)?;
 
     Some((*left, property_name))
@@ -338,7 +335,7 @@ pub fn promise_rejection_callback(
 }
 /// Return receiver text for one member expression.
 pub fn member_receiver_text(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     left_expression_id: dir::LocalNodeId<dir::Expression>,
     member_text: &str,
     member_name: StringId,
@@ -449,12 +446,12 @@ pub fn call_like_invocation_is_receiver_bound(
 }
 /// Get the base of a reference path.
 fn expression_reference_path_base(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
     members: &mut Vec<StringId>,
 ) -> Option<ReferenceBase> {
     // inspect the expression node
-    let expression = ctx.tree.get(expression_id);
+    let expression = ctx.dir.get(expression_id);
 
     // match the base or member steps
     match expression {
@@ -507,6 +504,7 @@ pub struct CallLikeExpressionInfo<'a> {
 pub fn expression_call_like(expression: &dir::Expression) -> Option<CallLikeExpressionInfo<'_>> {
     match expression {
         dir::Expression::Call {
+            position: _,
             left,
             generic_arguments,
             arguments,
@@ -538,6 +536,7 @@ pub fn expression_method_call(
     // match call expression
     let expression = tree.get(expression_id);
     let dir::Expression::Call {
+        position: _,
         left,
         generic_arguments,
         arguments,
@@ -567,7 +566,7 @@ pub fn expression_method_call(
 /// Return one path when the expression is a path-like reference without generic arguments.
 fn expression_path_without_generic_arguments(expression: &dir::Expression) -> Option<&dir::Path> {
     match expression {
-        dir::Expression::Path {
+        dir::Expression::QualifiedReference {
             path,
             generic_arguments,
         } if generic_arguments.is_empty() => Some(path),

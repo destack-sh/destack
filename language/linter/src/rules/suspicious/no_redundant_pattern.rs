@@ -1,8 +1,8 @@
 use crate::LintMeta;
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintReport, LintRule, declare_lint};
+use crate::{LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow patterns that bind nothing useful.
@@ -13,7 +13,7 @@ declare_lint! {
         id = "no-redundant-pattern",
         code = "LU026",
         category = Suspicious,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = No,
@@ -29,22 +29,22 @@ impl LintRule for NoRedundantPattern {
         NoRedundantPattern::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // check let/const declarations with patterns that bind nothing
-        for node_id in ctx.tree.iter_nodes::<ast::Declarator>() {
-            let declarator = ctx.tree.get(node_id);
+        for node_id in ctx.dir.iter_nodes::<dir::Declarator>() {
+            let declarator = ctx.dir.get(node_id);
 
             // only check destructuring patterns
-            let pattern = ctx.tree.get(declarator.pattern);
+            let pattern = ctx.dir.get(declarator.pattern);
             let is_destructuring = matches!(
                 pattern,
-                ast::Pattern::Object { .. }
-                    | ast::Pattern::Sequence { .. }
-                    | ast::Pattern::Tuple { .. }
-                    | ast::Pattern::TaggedObject { .. }
-                    | ast::Pattern::TaggedTuple { .. }
+                dir::Pattern::Object { .. }
+                    | dir::Pattern::Sequence { .. }
+                    | dir::Pattern::Tuple { .. }
+                    | dir::Pattern::TaggedObject { .. }
+                    | dir::Pattern::TaggedTuple { .. }
             );
 
             if !is_destructuring {
@@ -65,7 +65,7 @@ impl LintRule for NoRedundantPattern {
                         NO_REDUNDANT_PATTERN.category,
                         severity,
                         "pattern binds no values",
-                        ctx.tree.get_span(declarator.pattern),
+                        ctx.dir.get_span(declarator.pattern),
                     )
                     .label("this destructuring doesn't bind any values"),
                 );
@@ -75,56 +75,56 @@ impl LintRule for NoRedundantPattern {
 }
 
 /// Check if a pattern binds any values (not just wildcards).
-fn binds_anything(ctx: &LintAstContext<'_>, pattern_id: ast::LocalNodeId<ast::Pattern>) -> bool {
-    let pattern = ctx.tree.get(pattern_id);
+fn binds_anything(ctx: &LintModuleContext<'_>, pattern_id: dir::LocalNodeId<dir::Pattern>) -> bool {
+    let pattern = ctx.dir.get(pattern_id);
 
     match pattern {
         // wildcard binds nothing
-        ast::Pattern::Wildcard => false,
+        dir::Pattern::Wildcard => false,
 
         // assignment patterns bind through the wrapped pattern
-        ast::Pattern::Assign { pattern, .. } => binds_anything(ctx, *pattern),
+        dir::Pattern::Assign { pattern, .. } => binds_anything(ctx, *pattern),
 
         // binding always binds something
-        ast::Pattern::Binding { .. } => true,
+        dir::Pattern::Binding { .. } => true,
 
         // expression patterns don't bind (they match)
-        ast::Pattern::Expression { .. }
-        | ast::Pattern::Range { .. }
-        | ast::Pattern::TypeExpression { .. } => false,
+        dir::Pattern::Expression { .. }
+        | dir::Pattern::Range { .. }
+        | dir::Pattern::TypeExpression { .. } => false,
 
         // check nested patterns
-        ast::Pattern::Object { fields }
-        | ast::Pattern::Sequence { fields }
-        | ast::Pattern::Tuple { fields } => fields
+        dir::Pattern::Object { fields }
+        | dir::Pattern::Sequence { fields }
+        | dir::Pattern::Tuple { fields } => fields
             .iter()
             .any(|field_id| field_binds_anything(ctx, *field_id)),
 
-        ast::Pattern::TaggedObject { fields, .. } | ast::Pattern::TaggedTuple { fields, .. } => {
+        dir::Pattern::TaggedObject { fields, .. } | dir::Pattern::TaggedTuple { fields, .. } => {
             fields
                 .iter()
                 .any(|field_id| field_binds_anything(ctx, *field_id))
         }
 
         // union patterns bind if any arm binds
-        ast::Pattern::Union { patterns } => patterns.iter().any(|p| binds_anything(ctx, *p)),
+        dir::Pattern::Union { patterns } => patterns.iter().any(|p| binds_anything(ctx, *p)),
 
         // reference/value patterns bind if inner binds
-        ast::Pattern::Must(inner)
-        | ast::Pattern::BorrowOf { right: inner, .. }
-        | ast::Pattern::MoveOf { right: inner, .. } => binds_anything(ctx, *inner),
+        dir::Pattern::Must(inner)
+        | dir::Pattern::BorrowOf { right: inner, .. }
+        | dir::Pattern::MoveOf { right: inner, .. } => binds_anything(ctx, *inner),
     }
 }
 
 /// Check if a pattern field binds anything.
 fn field_binds_anything(
-    ctx: &LintAstContext<'_>,
-    field_id: ast::LocalNodeId<ast::PatternField>,
+    ctx: &LintModuleContext<'_>,
+    field_id: dir::LocalNodeId<dir::PatternField>,
 ) -> bool {
-    let field = ctx.tree.get(field_id);
+    let field = ctx.dir.get(field_id);
 
     match field {
-        ast::PatternField::Named { pattern, .. } => {
+        dir::PatternField::Named { pattern, .. } => {
             // named field with no pattern binds by name
             if pattern.is_none() {
                 return true;
@@ -135,18 +135,18 @@ fn field_binds_anything(
         }
 
         // computed fields bind if their nested pattern binds
-        ast::PatternField::Computed { pattern, .. } => binds_anything(ctx, *pattern),
+        dir::PatternField::Computed { pattern, .. } => binds_anything(ctx, *pattern),
 
         // positional field binds if its pattern binds
-        ast::PatternField::Positional { pattern, .. } => binds_anything(ctx, *pattern),
+        dir::PatternField::Positional { pattern, .. } => binds_anything(ctx, *pattern),
 
         // spread binds if its nested pattern binds
-        ast::PatternField::Spread { pattern, .. } => {
+        dir::PatternField::Spread { pattern, .. } => {
             pattern.map(|p| binds_anything(ctx, p)).unwrap_or(false)
         }
 
         // elision doesn't bind
-        ast::PatternField::Elision => false,
+        dir::PatternField::Elision => false,
     }
 }
 
@@ -158,7 +158,7 @@ mod tests {
     #[test]
     fn test_detects_all_wildcards_object() {
         let test = TestProgram::for_rule_without_prelude(NoRedundantPattern);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_redundant_pattern/test_detects_all_wildcards_object.ds",
             r#"
 const { a: _, b: _ } = obj
@@ -170,7 +170,7 @@ const { a: _, b: _ } = obj
     #[test]
     fn test_detects_all_wildcards_array() {
         let test = TestProgram::for_rule_without_prelude(NoRedundantPattern);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_redundant_pattern/test_detects_all_wildcards_array.ds",
             r#"
 const [_, _] = arr
@@ -182,7 +182,7 @@ const [_, _] = arr
     #[test]
     fn test_allows_binding_pattern() {
         let test = TestProgram::for_rule_without_prelude(NoRedundantPattern);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_redundant_pattern/test_allows_binding_pattern.ds",
             r#"
 const { a, b } = obj
@@ -194,7 +194,7 @@ const { a, b } = obj
     #[test]
     fn test_allows_mixed_pattern() {
         let test = TestProgram::for_rule_without_prelude(NoRedundantPattern);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_redundant_pattern/test_allows_mixed_pattern.ds",
             r#"
 const { a, _b } = obj
@@ -206,7 +206,7 @@ const { a, _b } = obj
     #[test]
     fn test_allows_array_with_binding() {
         let test = TestProgram::for_rule_without_prelude(NoRedundantPattern);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_redundant_pattern/test_allows_array_with_binding.ds",
             r#"
 const [_, x] = arr
@@ -218,7 +218,7 @@ const [_, x] = arr
     #[test]
     fn test_allows_simple_binding() {
         let test = TestProgram::for_rule_without_prelude(NoRedundantPattern);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_redundant_pattern/test_allows_simple_binding.ds",
             r#"
 const x = getValue()

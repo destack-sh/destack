@@ -6,7 +6,7 @@ use crate::rules::common::{
     binary_expression_chain_members, binary_expression_is_nested_same_operator,
     expression_is_in_type_position, expression_type_map, normalized_flow_type_id,
 };
-use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow duplicate constituents in union and intersection types.
@@ -35,12 +35,12 @@ impl LintRule for NoDuplicateTypeConstituents {
     }
 
     /// Check module DIR nodes for duplicate type constituent chains.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // inspect top-level type union and intersection chains
-        for expression_id in ctx.tree.iter_node_ids_of_type::<dir::Expression>() {
-            let expression = ctx.tree.get(expression_id);
+        for expression_id in ctx.dir.iter_node_ids_of_type::<dir::Expression>() {
+            let expression = ctx.dir.get(expression_id);
             let dir::Expression::Binary { operator, .. } = expression else {
                 continue;
             };
@@ -52,10 +52,10 @@ impl LintRule for NoDuplicateTypeConstituents {
             ) {
                 continue;
             }
-            if binary_expression_is_nested_same_operator(ctx.tree, expression_id, *operator) {
+            if binary_expression_is_nested_same_operator(ctx.dir.tree(), expression_id, *operator) {
                 continue;
             }
-            if !expression_is_in_type_position(ctx.tree, expression_id) {
+            if !expression_is_in_type_position(ctx.dir.tree(), expression_id) {
                 continue;
             }
 
@@ -75,14 +75,14 @@ struct Constituent {
 
 /// Report duplicate constituents for one top-level type chain.
 fn report_duplicate_constituents(
-    ctx: &mut LintModuleDirContext<'_>,
+    ctx: &mut LintModuleContext<'_>,
     meta: &LintMeta,
     expression_id: dir::LocalNodeId<dir::Expression>,
     operator: dir::BinaryOperator,
 ) {
     let mut expression_constituents = Vec::new();
     binary_expression_chain_members(
-        ctx.tree,
+        ctx.dir.tree(),
         expression_id,
         operator,
         &mut expression_constituents,
@@ -98,7 +98,7 @@ fn report_duplicate_constituents(
             ctx.artifacts.as_ref(),
             ctx.profile_id,
             ctx.module_id(),
-            ctx.tree,
+            ctx.dir.tree(),
             ctx.types,
             constituent_expression_id,
             |_, type_id| type_id,
@@ -148,7 +148,7 @@ fn report_duplicate_constituents(
 
         // attach one replacement fix once to avoid overlapping edit conflicts
         if duplicate_position == 0
-            && ctx.include_fixes
+            && ctx.compute_fixes
             && let Some(replacement_text) = replacement.as_ref()
         {
             let chain_span = ctx.get_span(expression_id);
@@ -192,7 +192,7 @@ fn duplicate_constituent_pairs(constituents: &[Constituent]) -> Vec<(usize, usiz
 
 /// Build one deduplicated replacement expression text.
 fn deduplicated_constituent_replacement(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     constituents: &[Constituent],
     operator: dir::BinaryOperator,
     duplicate_pairs: &[(usize, usize)],

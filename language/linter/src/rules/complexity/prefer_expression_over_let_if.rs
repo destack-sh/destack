@@ -1,11 +1,11 @@
 use crate::LintMeta;
-use destack_ast::{self as ast, Pattern};
+use destack_dir::{self as dir, Pattern};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
     assign_pattern_is_unqualified_path_name, expression_unwrap_statement_source_form,
 };
-use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer direct expressions over let-if sequences.
@@ -15,7 +15,7 @@ declare_lint! {
         id = "prefer-expression-over-let-if",
         code = "LX024",
         category = Complexity,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -28,10 +28,10 @@ declare_lint! {
 
 /// Get the binding name from a pattern if it's a simple identifier.
 fn get_binding_name(
-    ctx: &LintAstContext<'_>,
-    pattern_id: ast::LocalNodeId<Pattern>,
+    ctx: &LintModuleContext<'_>,
+    pattern_id: dir::LocalNodeId<Pattern>,
 ) -> Option<destack_core::StringId> {
-    let pattern = ctx.tree.get(pattern_id);
+    let pattern = ctx.dir.get(pattern_id);
     match pattern {
         Pattern::Binding {
             name,
@@ -44,15 +44,15 @@ fn get_binding_name(
 
 /// Check if an expression is an assignment to a specific variable.
 fn is_assignment_to(
-    ctx: &LintAstContext<'_>,
-    expr_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    expr_id: dir::LocalNodeId<dir::Expression>,
     target_name: destack_core::StringId,
 ) -> bool {
-    let expr = ctx.tree.get(expr_id);
+    let expr = ctx.dir.get(expr_id);
     match expr {
-        ast::Expression::Assign { left, .. } => {
+        dir::Expression::Assign { left, .. } => {
             // check if left is the same variable
-            if assign_pattern_is_unqualified_path_name(ctx.tree, *left, target_name) {
+            if assign_pattern_is_unqualified_path_name(ctx.dir.tree(), *left, target_name) {
                 return true;
             }
 
@@ -64,15 +64,15 @@ fn is_assignment_to(
 
 /// Check if an expression (which should be a block) contains only an assignment to the target.
 fn expr_is_simple_assignment(
-    ctx: &LintAstContext<'_>,
-    expr_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    expr_id: dir::LocalNodeId<dir::Expression>,
     target_name: destack_core::StringId,
 ) -> bool {
-    let expr = ctx.tree.get(expr_id);
+    let expr = ctx.dir.get(expr_id);
 
     // if it's a block expression, check its contents
-    if let ast::Expression::Block(block_id) = expr {
-        let block = ctx.tree.get(*block_id);
+    if let dir::Expression::Block(block_id) = expr {
+        let block = ctx.dir.get(*block_id);
         if block.len() == 1 {
             return is_assignment_to(ctx, block.first_expression().unwrap(), target_name);
         }
@@ -86,12 +86,12 @@ impl LintRule for PreferExpressionOverLetIf {
         PreferExpressionOverLetIf::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // look for blocks with potential let-if patterns
-        for block_id in ctx.tree.iter_nodes::<ast::Block>() {
-            let block = ctx.tree.get(block_id);
+        for block_id in ctx.dir.iter_nodes::<dir::Block>() {
+            let block = ctx.dir.get(block_id);
             let expression_ids = block.iter_expressions().collect::<Vec<_>>();
 
             // need at least 2 expressions
@@ -105,13 +105,15 @@ impl LintRule for PreferExpressionOverLetIf {
                 let second_id = expression_ids[i + 1];
 
                 // unwrap statement wrappers
-                let let_expression_id = expression_unwrap_statement_source_form(ctx.tree, first_id);
-                let if_expression_id = expression_unwrap_statement_source_form(ctx.tree, second_id);
-                let first_expr = ctx.tree.get(let_expression_id);
-                let second_expr = ctx.tree.get(if_expression_id);
+                let let_expression_id =
+                    expression_unwrap_statement_source_form(ctx.dir.tree(), first_id);
+                let if_expression_id =
+                    expression_unwrap_statement_source_form(ctx.dir.tree(), second_id);
+                let first_expr = ctx.dir.get(let_expression_id);
+                let second_expr = ctx.dir.get(if_expression_id);
 
                 // first must be a let without initializer
-                let ast::Expression::Let { declarators, .. } = first_expr else {
+                let dir::Expression::Let { declarators, .. } = first_expr else {
                     continue;
                 };
 
@@ -119,7 +121,7 @@ impl LintRule for PreferExpressionOverLetIf {
                 if declarators.len() != 1 {
                     continue;
                 }
-                let decl = ctx.tree.get(declarators[0]);
+                let decl = ctx.dir.get(declarators[0]);
                 if decl.value.is_some() {
                     continue;
                 }
@@ -130,7 +132,7 @@ impl LintRule for PreferExpressionOverLetIf {
                 };
 
                 // second must be an if-else that assigns to the variable in both branches
-                let ast::Expression::If {
+                let dir::Expression::If {
                     then_expression,
                     condition,
                     else_expression: Some(else_expr),
@@ -139,7 +141,7 @@ impl LintRule for PreferExpressionOverLetIf {
                 else {
                     continue;
                 };
-                let ast::IfCondition::Expression { condition } = condition else {
+                let dir::IfCondition::Expression { condition } = condition else {
                     continue;
                 };
 
@@ -162,7 +164,7 @@ impl LintRule for PreferExpressionOverLetIf {
                     PREFER_EXPRESSION_OVER_LET_IF.category,
                     severity,
                     "prefer direct expression over let-if sequence",
-                    ctx.tree.get_span(first_id),
+                    ctx.dir.get_span(first_id),
                 )
                 .label("use if expression to initialize directly");
                 if ctx.compute_fixes
@@ -188,23 +190,23 @@ impl LintRule for PreferExpressionOverLetIf {
 /// Build one suggestion fix by rewriting let-if assignment chains to one if-expression init.
 #[allow(clippy::too_many_arguments)]
 fn prefer_expression_over_let_if_fix(
-    ctx: &LintAstContext<'_>,
-    let_expression_id: ast::LocalNodeId<ast::Expression>,
-    if_expression_id: ast::LocalNodeId<ast::Expression>,
-    condition_expression_id: ast::LocalNodeId<ast::Expression>,
-    then_expression_id: ast::LocalNodeId<ast::Expression>,
-    else_expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    let_expression_id: dir::LocalNodeId<dir::Expression>,
+    if_expression_id: dir::LocalNodeId<dir::Expression>,
+    condition_expression_id: dir::LocalNodeId<dir::Expression>,
+    then_expression_id: dir::LocalNodeId<dir::Expression>,
+    else_expression_id: dir::LocalNodeId<dir::Expression>,
     target_name: destack_core::StringId,
 ) -> Option<LintFix> {
     let let_text = ctx
-        .get_span_text(ctx.tree.get_span(let_expression_id))
+        .get_span_text(ctx.dir.get_span(let_expression_id))
         .to_string();
     if let_text.trim().is_empty() {
         return None;
     }
 
     let condition_text = ctx
-        .get_span_text(ctx.tree.get_span(condition_expression_id))
+        .get_span_text(ctx.dir.get_span(condition_expression_id))
         .to_string();
     if condition_text.trim().is_empty() {
         return None;
@@ -217,8 +219,8 @@ fn prefer_expression_over_let_if_fix(
         "{let_text} = if {condition_text} {{\n    {then_value_text}\n}} else {{\n    {else_value_text}\n}}"
     );
 
-    let let_span = ctx.tree.get_span(let_expression_id);
-    let if_span = ctx.tree.get_span(if_expression_id);
+    let let_span = ctx.dir.get_span(let_expression_id);
+    let if_span = ctx.dir.get_span(if_expression_id);
     if if_span.start <= let_span.start {
         return None;
     }
@@ -236,31 +238,31 @@ fn prefer_expression_over_let_if_fix(
 
 /// Return the assignment right-hand side text for one branch expression.
 fn assignment_value_text(
-    ctx: &LintAstContext<'_>,
-    branch_expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    branch_expression_id: dir::LocalNodeId<dir::Expression>,
     target_name: destack_core::StringId,
 ) -> Option<String> {
-    let branch_expression = ctx.tree.get(branch_expression_id);
-    let ast::Expression::Block(block_id) = branch_expression else {
+    let branch_expression = ctx.dir.get(branch_expression_id);
+    let dir::Expression::Block(block_id) = branch_expression else {
         return None;
     };
-    let block = ctx.tree.get(*block_id);
+    let block = ctx.dir.get(*block_id);
     if block.len() != 1 {
         return None;
     }
 
     let branch_statement_id = block.first_expression().unwrap();
     let assignment_expression_id =
-        expression_unwrap_statement_source_form(ctx.tree, branch_statement_id);
-    let assignment_expression = ctx.tree.get(assignment_expression_id);
-    let ast::Expression::Assign { left, right, .. } = assignment_expression else {
+        expression_unwrap_statement_source_form(ctx.dir.tree(), branch_statement_id);
+    let assignment_expression = ctx.dir.get(assignment_expression_id);
+    let dir::Expression::Assign { left, right, .. } = assignment_expression else {
         return None;
     };
-    if !assign_pattern_is_unqualified_path_name(ctx.tree, *left, target_name) {
+    if !assign_pattern_is_unqualified_path_name(ctx.dir.tree(), *left, target_name) {
         return None;
     }
 
-    let right_text = ctx.get_span_text(ctx.tree.get_span(*right)).to_string();
+    let right_text = ctx.get_span_text(ctx.dir.get_span(*right)).to_string();
     if right_text.trim().is_empty() {
         return None;
     }
@@ -276,7 +278,7 @@ mod tests {
     #[test]
     fn test_let_if_sequence_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferExpressionOverLetIf);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_expression_over_let_if/test_let_if_sequence_detected.ds",
             r#"
 function foo(cond: bool) {
@@ -296,7 +298,7 @@ function foo(cond: bool) {
     #[test]
     fn test_direct_expression_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferExpressionOverLetIf);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_expression_over_let_if/test_direct_expression_allowed.ds",
             r#"
 function foo(cond: bool) {
@@ -311,7 +313,7 @@ function foo(cond: bool) {
     #[test]
     fn test_let_with_initializer_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferExpressionOverLetIf);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_expression_over_let_if/test_let_with_initializer_allowed.ds",
             r#"
 function foo(cond: bool) {
@@ -329,7 +331,7 @@ function foo(cond: bool) {
     #[test]
     fn test_if_without_else_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferExpressionOverLetIf);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_expression_over_let_if/test_if_without_else_allowed.ds",
             r#"
 function foo(cond: bool) {
@@ -347,7 +349,7 @@ function foo(cond: bool) {
     #[test]
     fn test_fix_rewrites_let_if_chain_to_if_expression_init() {
         let test = TestProgram::for_rule_without_prelude(PreferExpressionOverLetIf);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_expression_over_let_if/test_fix_rewrites_let_if_chain_to_if_expression_init.ds",
             r#"
 function run(flag: bool) {
@@ -383,7 +385,7 @@ function run(flag: bool) {
     #[test]
     fn test_no_fix_when_if_branch_contains_multiple_statements() {
         let test = TestProgram::for_rule_without_prelude(PreferExpressionOverLetIf);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_expression_over_let_if/test_no_fix_when_if_branch_contains_multiple_statements.ds",
             r#"
 function run(flag: bool) {

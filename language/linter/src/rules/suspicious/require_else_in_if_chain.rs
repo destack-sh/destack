@@ -1,9 +1,9 @@
 use crate::LintMeta;
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_is_else_if_branch;
-use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Require final else in if-else-if chains.
@@ -14,7 +14,7 @@ declare_lint! {
         id = "require-else-in-if-chain",
         code = "LU043",
         category = Suspicious,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -30,17 +30,17 @@ impl LintRule for RequireElseInIfChain {
         RequireElseInIfChain::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
             // only lint the chain head to avoid duplicate diagnostics
-            if expression_is_else_if_branch(ctx.tree, ctx.parents, node_id) {
+            if expression_is_else_if_branch(ctx.dir.tree(), node_id) {
                 continue;
             }
 
-            let expression = ctx.tree.get(node_id);
-            let ast::Expression::If {
+            let expression = ctx.dir.get(node_id);
+            let dir::Expression::If {
                 else_expression: Some(else_expr),
                 ..
             } = expression
@@ -65,7 +65,7 @@ impl LintRule for RequireElseInIfChain {
                 REQUIRE_ELSE_IN_IF_CHAIN.category,
                 severity,
                 "if-else-if chain lacks final else clause",
-                ctx.tree.get_span(terminal_else_if_id),
+                ctx.dir.get_span(terminal_else_if_id),
             )
             .label("add final else clause");
             if ctx.compute_fixes
@@ -80,15 +80,15 @@ impl LintRule for RequireElseInIfChain {
 
 /// Follow else wrappers and return the terminal else-if without fallback else.
 fn find_terminal_else_if_without_fallback(
-    ctx: &LintAstContext<'_>,
-    else_expression_id: ast::LocalNodeId<ast::Expression>,
-) -> Option<ast::LocalNodeId<ast::Expression>> {
+    ctx: &LintModuleContext<'_>,
+    else_expression_id: dir::LocalNodeId<dir::Expression>,
+) -> Option<dir::LocalNodeId<dir::Expression>> {
     let mut current_id = else_expression_id;
 
     loop {
-        let current_expression = ctx.tree.get(current_id);
+        let current_expression = ctx.dir.get(current_id);
 
-        let ast::Expression::If {
+        let dir::Expression::If {
             else_expression, ..
         } = current_expression
         else {
@@ -105,13 +105,13 @@ fn find_terminal_else_if_without_fallback(
 
 /// Build an unsafe fix by appending an empty final else branch.
 fn require_else_in_if_chain_fix(
-    ctx: &LintAstContext<'_>,
-    terminal_else_if_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    terminal_else_if_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<LintFix> {
-    let terminal_expression = ctx.tree.get(terminal_else_if_id);
+    let terminal_expression = ctx.dir.get(terminal_else_if_id);
     if !matches!(
         terminal_expression,
-        ast::Expression::If {
+        dir::Expression::If {
             else_expression: None,
             ..
         }
@@ -119,7 +119,7 @@ fn require_else_in_if_chain_fix(
         return None;
     }
 
-    let terminal_span = ctx.tree.get_span(terminal_else_if_id);
+    let terminal_span = ctx.dir.get_span(terminal_else_if_id);
     let terminal_text = ctx.get_span_text(terminal_span);
     let replacement = format!("{terminal_text} else {{}}");
     let edits = ctx
@@ -137,7 +137,7 @@ mod tests {
     #[test]
     fn test_if_else_if_without_else_detected() {
         let test = TestProgram::for_rule_without_prelude(RequireElseInIfChain);
-        let result = test.lint_ast(
+        let result = test.lint(
             "require_else_in_if_chain/test_if_else_if_without_else_detected.ds",
             r#"
 function foo(x: int32) {
@@ -168,7 +168,7 @@ function foo(x: int32) {
     #[test]
     fn test_if_else_if_else_allowed() {
         let test = TestProgram::for_rule_without_prelude(RequireElseInIfChain);
-        let result = test.lint_ast(
+        let result = test.lint(
             "require_else_in_if_chain/test_if_else_if_else_allowed.ds",
             r#"
 function foo(x: int32) {
@@ -189,7 +189,7 @@ function foo(x: int32) {
     #[test]
     fn test_simple_if_allowed() {
         let test = TestProgram::for_rule_without_prelude(RequireElseInIfChain);
-        let result = test.lint_ast(
+        let result = test.lint(
             "require_else_in_if_chain/test_simple_if_allowed.ds",
             r#"
 function foo(x: int32) {
@@ -206,7 +206,7 @@ function foo(x: int32) {
     #[test]
     fn test_simple_if_else_allowed() {
         let test = TestProgram::for_rule_without_prelude(RequireElseInIfChain);
-        let result = test.lint_ast(
+        let result = test.lint(
             "require_else_in_if_chain/test_simple_if_else_allowed.ds",
             r#"
 function foo(x: int32) {
@@ -225,7 +225,7 @@ function foo(x: int32) {
     #[test]
     fn test_reports_chain_once() {
         let test = TestProgram::for_rule_without_prelude(RequireElseInIfChain);
-        let result = test.lint_ast(
+        let result = test.lint(
             "require_else_in_if_chain/test_reports_chain_once.ds",
             r#"
 if (x == 0) {
@@ -244,7 +244,7 @@ if (x == 0) {
     #[test]
     fn test_allows_else_block_with_nested_if() {
         let test = TestProgram::for_rule_without_prelude(RequireElseInIfChain);
-        let result = test.lint_ast(
+        let result = test.lint(
             "require_else_in_if_chain/test_allows_else_block_with_nested_if.ds",
             r#"
 if (x > 0) {

@@ -2,13 +2,12 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression}
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    assign_pattern_has_equivalent_source_form, expression_reference_path,
-    expression_unwrap_parenthesized, expressions_have_equivalent_source_form,
-    has_non_nullish_falsy_type, is_maybe_nullish_type, is_strict_boolean_type, span_has_comment,
+    assign_pattern_has_equivalent_source_form, assign_pattern_target_expression,
+    expression_reference_path, expression_unwrap_parenthesized,
+    expressions_have_equivalent_source_form, has_non_nullish_falsy_type, is_maybe_nullish_type,
+    is_strict_boolean_type, span_has_comment,
 };
-use crate::{
-    ConstValue, LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint,
-};
+use crate::{ConstValue, LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer nullish coalescing over `||` for nullish defaulting.
@@ -36,7 +35,7 @@ impl LintRule for PreferNullishCoalescing {
         PreferNullishCoalescing::meta()
     }
 
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let mut visitor = PreferNullishCoalescingVisitor::new(ctx, self.meta());
         visitor.run();
     }
@@ -45,7 +44,7 @@ impl LintRule for PreferNullishCoalescing {
 /// Node visitor that checks nullish-coalescing preference candidates.
 struct PreferNullishCoalescingVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The rule options for this module.
@@ -56,7 +55,7 @@ struct PreferNullishCoalescingVisitor<'a, 'b> {
 
 impl<'a, 'b> PreferNullishCoalescingVisitor<'a, 'b> {
     /// Build a visitor for prefer-nullish-coalescing checks.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         let rule_options = prefer_nullish_coalescing_options(ctx);
 
         Self {
@@ -70,7 +69,7 @@ impl<'a, 'b> PreferNullishCoalescingVisitor<'a, 'b> {
     /// Walk the DIR tree roots.
     fn run(&mut self) {
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         for root_id in roots {
             let expression = tree.get(root_id);
@@ -241,13 +240,14 @@ impl NodeVisitor for PreferNullishCoalescingVisitor<'_, '_> {
         }
 
         // check logical-or assignments
-        if let dir::Expression::AssignBinary {
+        if let dir::Expression::Assign {
             left,
             operator: dir::AssignOperator::OrAssign,
             right,
         } = expression
+            && let Some(left) = assign_pattern_target_expression(self.ctx.dir.tree(), *left)
         {
-            self.check_or_assignment(id, *left, *right);
+            self.check_or_assignment(id, left, *right);
         }
 
         // check ternary null-check expressions
@@ -288,7 +288,7 @@ struct PreferNullishCoalescingOptions {
 
 /// Resolve rule options from linter configuration.
 fn prefer_nullish_coalescing_options(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
 ) -> PreferNullishCoalescingOptions {
     PreferNullishCoalescingOptions {
         ignore_conditional_tests: ctx
@@ -308,7 +308,7 @@ fn prefer_nullish_coalescing_options(
 
 /// Extract one `left ?? fallback` candidate from a ternary null check.
 fn ternary_nullish_candidate(
-    ctx: &mut LintModuleDirContext<'_>,
+    ctx: &mut LintModuleContext<'_>,
     condition_id: dir::LocalNodeId<dir::Expression>,
     then_expression_id: dir::LocalNodeId<dir::Expression>,
     else_expression_id: dir::LocalNodeId<dir::Expression>,
@@ -317,8 +317,8 @@ fn ternary_nullish_candidate(
     dir::LocalNodeId<dir::Expression>,
 )> {
     // keep one binary comparison condition
-    let condition_id = expression_unwrap_parenthesized(ctx.tree, condition_id);
-    let condition = ctx.tree.get(condition_id);
+    let condition_id = expression_unwrap_parenthesized(ctx.dir.tree(), condition_id);
+    let condition = ctx.dir.get(condition_id);
     let dir::Expression::Binary {
         left,
         operator,
@@ -339,8 +339,8 @@ fn ternary_nullish_candidate(
     }
 
     // normalize branch expressions
-    let then_expression_id = expression_unwrap_parenthesized(ctx.tree, then_expression_id);
-    let else_expression_id = expression_unwrap_parenthesized(ctx.tree, else_expression_id);
+    let then_expression_id = expression_unwrap_parenthesized(ctx.dir.tree(), then_expression_id);
+    let else_expression_id = expression_unwrap_parenthesized(ctx.dir.tree(), else_expression_id);
 
     // map comparison polarity to ternary fallback branch
     if is_not_equal_check
@@ -359,7 +359,7 @@ fn ternary_nullish_candidate(
 
 /// Return the checked expression and polarity for one nullish binary comparison.
 fn nullish_binary_target(
-    ctx: &mut LintModuleDirContext<'_>,
+    ctx: &mut LintModuleContext<'_>,
     left_id: dir::LocalNodeId<dir::Expression>,
     operator: dir::BinaryOperator,
     right_id: dir::LocalNodeId<dir::Expression>,
@@ -384,10 +384,10 @@ fn nullish_binary_target(
 
 /// Return true when one expression is a null or undefined literal.
 fn expression_is_nullish_literal(
-    ctx: &mut LintModuleDirContext<'_>,
+    ctx: &mut LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    let expression_id = expression_unwrap_parenthesized(ctx.tree, expression_id);
+    let expression_id = expression_unwrap_parenthesized(ctx.dir.tree(), expression_id);
     let Some(const_value) = ctx.const_value(expression_id) else {
         return false;
     };
@@ -397,13 +397,13 @@ fn expression_is_nullish_literal(
 
 /// Build a safe `||` to `??` fix for one expression.
 fn make_nullish_fix(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
     left_id: dir::LocalNodeId<dir::Expression>,
     right_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<LintFix> {
     let expression_span = ctx.get_span(expression_id);
-    if span_has_comment(ctx.ast, expression_span) {
+    if span_has_comment(ctx.dir.tree(), expression_span) {
         return None;
     }
 
@@ -413,12 +413,12 @@ fn make_nullish_fix(
         return None;
     }
 
-    let left_text = if expression_needs_parentheses_for_nullish_operand(ctx.tree, left_id) {
+    let left_text = if expression_needs_parentheses_for_nullish_operand(ctx.dir.tree(), left_id) {
         format!("({left_text})")
     } else {
         left_text.to_owned()
     };
-    let right_text = if expression_needs_parentheses_for_nullish_operand(ctx.tree, right_id) {
+    let right_text = if expression_needs_parentheses_for_nullish_operand(ctx.dir.tree(), right_id) {
         format!("({right_text})")
     } else {
         right_text.to_owned()
@@ -434,13 +434,13 @@ fn make_nullish_fix(
 
 /// Build a safe `||=` to `??=` fix for one expression.
 fn make_nullish_assignment_fix(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
     left_id: dir::LocalNodeId<dir::Expression>,
     right_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<LintFix> {
     let expression_span = ctx.get_span(expression_id);
-    if span_has_comment(ctx.ast, expression_span) {
+    if span_has_comment(ctx.dir.tree(), expression_span) {
         return None;
     }
 
@@ -461,24 +461,24 @@ fn make_nullish_assignment_fix(
 
 /// Return true when this expression should not be linted.
 fn should_skip_expression_context(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
     options: PreferNullishCoalescingOptions,
 ) -> bool {
     // skip mixed logical shapes when configured
     if options.ignore_mixed_logical_expressions
-        && expression_is_mixed_logical(ctx.tree, expression_id)
+        && expression_is_mixed_logical(ctx.dir.tree(), expression_id)
     {
         return true;
     }
 
-    let Some(parent_id) = ctx.tree.get_parent(expression_id.id) else {
+    let Some(parent_id) = ctx.dir.get_parent(expression_id.id) else {
         return false;
     };
 
     // skip mixed logical chains when configured
     if options.ignore_mixed_logical_expressions && parent_id.ty == dir::NodeType::Expression {
-        let parent = ctx.tree.get(parent_id.into_typed::<dir::Expression>());
+        let parent = ctx.dir.get(parent_id.into_typed::<dir::Expression>());
         if matches!(
             parent,
             dir::Expression::Binary {
@@ -494,7 +494,7 @@ fn should_skip_expression_context(
 
     // skip condition positions when configured
     if options.ignore_conditional_tests {
-        return expression_is_condition(ctx.tree, expression_id, parent_id);
+        return expression_is_condition(ctx.dir.tree(), expression_id, parent_id);
     }
 
     false
@@ -586,12 +586,6 @@ fn expression_is_condition(
                     return *condition == expression_id;
                 }
             }
-            dir::Expression::Loop {
-                condition: Some(condition),
-                ..
-            } => {
-                return *condition == expression_id;
-            }
             dir::Expression::For {
                 condition: Some(condition),
                 ..
@@ -621,7 +615,7 @@ fn expression_is_condition(
 
 /// Return true when the left side is a safe candidate for `??`.
 fn left_side_prefers_nullish(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     let Some(type_id) = ctx.expression_type_id(expression_id) else {
@@ -646,24 +640,24 @@ fn left_side_prefers_nullish(
 
 /// Return true when this `||` expression is the lowering shape of one `||=` expression.
 fn logical_or_is_or_assign_lowering(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
     left_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    let Some(parent_id) = ctx.tree.get_parent(expression_id.id) else {
+    let Some(parent_id) = ctx.dir.get_parent(expression_id.id) else {
         return false;
     };
     if parent_id.ty != dir::NodeType::Expression {
         return false;
     }
 
-    let parent_expression = ctx.tree.get(parent_id.into_typed::<dir::Expression>());
+    let parent_expression = ctx.dir.get(parent_id.into_typed::<dir::Expression>());
 
-    // skip explicit assign-binary wrappers
-    if let dir::Expression::AssignBinary {
+    // skip explicit nullish assignment wrappers
+    if let dir::Expression::Assign {
+        left: _,
         operator: dir::AssignOperator::OrAssign,
         right,
-        ..
     } = parent_expression
     {
         return *right == expression_id;
@@ -672,6 +666,7 @@ fn logical_or_is_or_assign_lowering(
     // skip lowered `a = a || b` wrappers
     let dir::Expression::Assign {
         left: assignment_left,
+        operator: _,
         right: assignment_right,
     } = parent_expression
     else {

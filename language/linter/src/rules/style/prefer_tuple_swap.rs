@@ -1,9 +1,9 @@
 use crate::LintMeta;
-use destack_ast::{self as ast, Expression, Pattern};
+use destack_dir::{self as dir, Expression, Pattern};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{assign_pattern_expression, expression_path_segments};
-use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer tuple swap form over a temporary variable.
@@ -24,7 +24,7 @@ declare_lint! {
         id = "prefer-tuple-swap",
         code = "LY060",
         category = Style,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Always,
@@ -40,12 +40,12 @@ impl LintRule for PreferTupleSwap {
         PreferTupleSwap::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // look for blocks containing expression sequences
-        for block_id in ctx.tree.iter_nodes::<ast::Block>() {
-            let block = ctx.tree.get(block_id);
+        for block_id in ctx.dir.iter_nodes::<dir::Block>() {
+            let block = ctx.dir.get(block_id);
             let expression_ids = block.iter_expressions().collect::<Vec<_>>();
 
             // need at least 3 expressions for a swap pattern
@@ -73,14 +73,14 @@ impl LintRule for PreferTupleSwap {
                             "use tuple swap `({}, {}) = ({}, {})` instead of temporary variable",
                             swap_info.var_a, swap_info.var_b, swap_info.var_b, swap_info.var_a
                         ),
-                        ctx.tree.get_span(first_id),
+                        ctx.dir.get_span(first_id),
                     )
                     .label("swap pattern starts here");
 
                     // compute fixes only when requested by the runner
                     if ctx.compute_fixes {
-                        let first_span = ctx.tree.get_span(first_id);
-                        let third_span = ctx.tree.get_span(third_id);
+                        let first_span = ctx.dir.get_span(first_id);
+                        let third_span = ctx.dir.get_span(third_id);
                         let replace_span = destack_source::Span::new(
                             first_span.file,
                             first_span.start,
@@ -113,10 +113,10 @@ struct SwapInfo {
 /// Detect a swap pattern across three consecutive expressions.
 /// Pattern: `let temp = a; a = b; b = temp`
 fn detect_swap_pattern(
-    ctx: &LintAstContext<'_>,
-    first_id: ast::LocalNodeId<Expression>,
-    second_id: ast::LocalNodeId<Expression>,
-    third_id: ast::LocalNodeId<Expression>,
+    ctx: &LintModuleContext<'_>,
+    first_id: dir::LocalNodeId<Expression>,
+    second_id: dir::LocalNodeId<Expression>,
+    third_id: dir::LocalNodeId<Expression>,
 ) -> Option<SwapInfo> {
     let first = unwrap_statement(ctx, first_id);
     let second = unwrap_statement(ctx, second_id);
@@ -128,7 +128,7 @@ fn detect_swap_pattern(
             if declarators.len() != 1 {
                 return None;
             }
-            let declarator = ctx.tree.get(declarators[0]);
+            let declarator = ctx.dir.get(declarators[0]);
             let temp_name = get_simple_binding_name(ctx, declarator.pattern)?;
             let init_id = declarator.value?;
             let var_a = get_simple_path_from_expression(ctx, init_id)?;
@@ -140,7 +140,7 @@ fn detect_swap_pattern(
     // second expression: a = b (assignment)
     let (assigned_var, var_b) = match second {
         Expression::Assign { left, right, .. } => {
-            let left_expression_id = assign_pattern_expression(ctx.tree, *left)?;
+            let left_expression_id = assign_pattern_expression(ctx.dir.tree(), *left)?;
             let assigned = get_simple_path_from_expression(ctx, left_expression_id)?;
             let source = get_simple_path_from_expression(ctx, *right)?;
             (assigned, source)
@@ -156,7 +156,7 @@ fn detect_swap_pattern(
     // third expression: b = temp
     let (final_assigned, final_source) = match third {
         Expression::Assign { left, right, .. } => {
-            let left_expression_id = assign_pattern_expression(ctx.tree, *left)?;
+            let left_expression_id = assign_pattern_expression(ctx.dir.tree(), *left)?;
             let assigned = get_simple_path_from_expression(ctx, left_expression_id)?;
             let source = get_simple_path_from_expression(ctx, *right)?;
             (assigned, source)
@@ -174,18 +174,18 @@ fn detect_swap_pattern(
 
 /// Unwrap a Statement expression wrapper if present.
 fn unwrap_statement<'a>(
-    ctx: &'a LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<Expression>,
+    ctx: &'a LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<Expression>,
 ) -> &'a Expression {
-    ctx.tree.get(expression_id)
+    ctx.dir.get(expression_id)
 }
 
 /// Get a simple identifier name from a binding pattern.
 fn get_simple_binding_name(
-    ctx: &LintAstContext<'_>,
-    pattern_id: ast::LocalNodeId<Pattern>,
+    ctx: &LintModuleContext<'_>,
+    pattern_id: dir::LocalNodeId<Pattern>,
 ) -> Option<String> {
-    let pattern = ctx.tree.get(pattern_id);
+    let pattern = ctx.dir.get(pattern_id);
     match pattern {
         Pattern::Binding {
             name,
@@ -198,10 +198,10 @@ fn get_simple_binding_name(
 
 /// Get a simple path name from an expression (single identifier).
 fn get_simple_path_from_expression(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<Expression>,
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<Expression>,
 ) -> Option<String> {
-    let path_segments = expression_path_segments(ctx.tree, expression_id)?;
+    let path_segments = expression_path_segments(ctx.dir.tree(), expression_id)?;
     if path_segments.len() != 1 {
         return None;
     }
@@ -217,7 +217,7 @@ mod tests {
     #[test]
     fn test_detects_swap_with_const() {
         let test = TestProgram::for_rule_without_prelude(PreferTupleSwap);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_tuple_swap/test_detects_swap_with_const.ds",
             r#"
 function swap() {
@@ -235,7 +235,7 @@ function swap() {
     #[test]
     fn test_detects_swap_with_let() {
         let test = TestProgram::for_rule_without_prelude(PreferTupleSwap);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_tuple_swap/test_detects_swap_with_let.ds",
             r#"
 function swap() {
@@ -251,7 +251,7 @@ function swap() {
     #[test]
     fn test_allows_tuple_swap() {
         let test = TestProgram::for_rule_without_prelude(PreferTupleSwap);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_tuple_swap/test_allows_tuple_swap.ds",
             r#"
 function swap() {
@@ -265,7 +265,7 @@ function swap() {
     #[test]
     fn test_allows_non_swap_temp() {
         let test = TestProgram::for_rule_without_prelude(PreferTupleSwap);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_tuple_swap/test_allows_non_swap_temp.ds",
             r#"
 function notSwap() {
@@ -282,7 +282,7 @@ function notSwap() {
     #[test]
     fn test_allows_different_variables() {
         let test = TestProgram::for_rule_without_prelude(PreferTupleSwap);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_tuple_swap/test_allows_different_variables.ds",
             r#"
 function notSwap() {
@@ -299,7 +299,7 @@ function notSwap() {
     #[test]
     fn test_allows_complex_expressions() {
         let test = TestProgram::for_rule_without_prelude(PreferTupleSwap);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_tuple_swap/test_allows_complex_expressions.ds",
             r#"
 function notSwap() {
@@ -316,7 +316,7 @@ function notSwap() {
     #[test]
     fn test_fix_rewrites_swap_to_tuple_assignment() {
         let test = TestProgram::for_rule_without_prelude(PreferTupleSwap);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_tuple_swap/test_fix_rewrites_swap_to_tuple_assignment.ds",
             r#"
 function swap() {
@@ -340,7 +340,7 @@ function swap() {
     #[test]
     fn test_mutation_fix_rewrites_let_swap_to_tuple_assignment() {
         let test = TestProgram::for_rule_without_prelude(PreferTupleSwap);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_tuple_swap/test_mutation_fix_rewrites_let_swap_to_tuple_assignment.ds",
             r#"
 function swap() {

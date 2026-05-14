@@ -7,7 +7,7 @@ use crate::rules::common::{
     TaintAnalysis, TaintCache, assign_pattern_target_expression, expression_is_symbol,
     expression_static_property_access,
 };
-use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow tainted values in browser redirect APIs.
@@ -34,7 +34,7 @@ impl LintRule for NoOpenRedirect {
         NoOpenRedirect::meta()
     }
 
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let mut visitor = NoOpenRedirectVisitor::new(ctx, meta);
         visitor.run();
@@ -44,7 +44,7 @@ impl LintRule for NoOpenRedirect {
 /// Visitor that flags open redirect patterns.
 struct NoOpenRedirectVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The location lib symbol.
@@ -63,7 +63,7 @@ struct NoOpenRedirectVisitor<'a, 'b> {
 
 impl<'a, 'b> NoOpenRedirectVisitor<'a, 'b> {
     /// Build a new visitor.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         // intern names
         let location_name = ctx.string_id("location");
         let href_name = ctx.string_id("href");
@@ -88,7 +88,7 @@ impl<'a, 'b> NoOpenRedirectVisitor<'a, 'b> {
     /// Walk the module expression roots.
     fn run(&mut self) {
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         // inspect dir roots
         for root_id in roots {
@@ -135,8 +135,11 @@ impl<'a, 'b> NoOpenRedirectVisitor<'a, 'b> {
         };
 
         // check if argument is potentially tainted
-        let argument = self.ctx.tree.get(*first_arg);
-        if !self.expression_is_tainted(argument.value()) {
+        let argument = self.ctx.dir.get(*first_arg);
+        let Some(value) = argument.value() else {
+            return;
+        };
+        if !self.expression_is_tainted(value) {
             return;
         }
 
@@ -175,11 +178,11 @@ impl<'a, 'b> NoOpenRedirectVisitor<'a, 'b> {
 
         // match location.href and window.location
         if let Some((receiver_id, property_name)) =
-            expression_static_property_access(self.ctx.tree, expression_id)
+            expression_static_property_access(self.ctx.dir.tree(), expression_id)
+            && property_name == self.href_name
+            && self.is_location_ref(receiver_id)
         {
-            if property_name == self.href_name && self.is_location_ref(receiver_id) {
-                return true;
-            }
+            return true;
         }
 
         false
@@ -188,7 +191,7 @@ impl<'a, 'b> NoOpenRedirectVisitor<'a, 'b> {
     /// Return true when the expression is a redirect method.
     fn is_redirect_method(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
         // match location.assign or location.replace
-        expression_static_property_access(self.ctx.tree, expression_id).is_some_and(
+        expression_static_property_access(self.ctx.dir.tree(), expression_id).is_some_and(
             |(receiver_id, property_name)| {
                 (property_name == self.assign_name || property_name == self.replace_name)
                     && self.is_location_ref(receiver_id)
@@ -207,7 +210,7 @@ impl<'a, 'b> NoOpenRedirectVisitor<'a, 'b> {
             self.ctx.artifacts.as_ref(),
             self.ctx.profile_id,
             self.ctx.module_id(),
-            self.ctx.tree,
+            self.ctx.dir.tree(),
             self.ctx.strings,
             self.ctx.symbols,
             self.ctx.types,
@@ -230,8 +233,9 @@ impl NodeVisitor for NoOpenRedirectVisitor<'_, '_> {
         expression: &dir::Expression,
     ) {
         // check assignments
-        if let dir::Expression::Assign { left, right } = expression {
-            let Some(left_expression_id) = assign_pattern_target_expression(self.ctx.tree, *left)
+        if let dir::Expression::Assign { left, right, .. } = expression {
+            let Some(left_expression_id) =
+                assign_pattern_target_expression(self.ctx.dir.tree(), *left)
             else {
                 return;
             };

@@ -1,11 +1,11 @@
 use crate::LintMeta;
-use destack_ast::{self as ast, BinaryOperator, Expression, UnaryOperator};
+use destack_dir::{self as dir, BinaryOperator, Expression, UnaryOperator};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
     expression_is_equal, expression_is_type_annotation, expression_unwrap_parenthesized_source_form,
 };
-use crate::{LintAstContext, LintReport, LintRule, declare_lint};
+use crate::{LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Suggest simplifying complex boolean expressions.
@@ -18,7 +18,7 @@ declare_lint! {
         id = "no-complex-boolean-expression",
         code = "LX015",
         category = Complexity,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = No,
@@ -34,14 +34,14 @@ impl LintRule for NoComplexBooleanExpression {
         NoComplexBooleanExpression::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expression = ctx.tree.get(node_id);
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let expression = ctx.dir.get(node_id);
 
             // skip type expression contexts
-            if expression_is_type_annotation(ctx.tree, ctx.parents, node_id) {
+            if expression_is_type_annotation(ctx.dir.tree(), node_id) {
                 continue;
             }
 
@@ -51,8 +51,8 @@ impl LintRule for NoComplexBooleanExpression {
                 right,
             } = expression
             {
-                let inner_id = expression_unwrap_parenthesized_source_form(ctx.tree, *right);
-                let inner = ctx.tree.get(inner_id);
+                let inner_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), *right);
+                let inner = ctx.dir.get(inner_id);
                 if let Expression::Unary {
                     operator: UnaryOperator::Not,
                     ..
@@ -70,7 +70,7 @@ impl LintRule for NoComplexBooleanExpression {
                             NO_COMPLEX_BOOLEAN_EXPRESSION.category,
                             severity,
                             "double negation can be simplified",
-                            ctx.tree.get_span(node_id),
+                            ctx.dir.get_span(node_id),
                         )
                         .label("simplify to just the inner expression"),
                     );
@@ -111,7 +111,7 @@ impl LintRule for NoComplexBooleanExpression {
                                     "||"
                                 }
                             ),
-                            ctx.tree.get_span(node_id),
+                            ctx.dir.get_span(node_id),
                         )
                         .label("simplify to just one operand"),
                     );
@@ -137,7 +137,7 @@ impl LintRule for NoComplexBooleanExpression {
                             NO_COMPLEX_BOOLEAN_EXPRESSION.category,
                             severity,
                             format!("expression is {result}"),
-                            ctx.tree.get_span(node_id),
+                            ctx.dir.get_span(node_id),
                         )
                         .label(suggestion),
                     );
@@ -149,19 +149,19 @@ impl LintRule for NoComplexBooleanExpression {
 
 /// Return whether `right` is the negation of `left`.
 fn is_negation_of(
-    ctx: &LintAstContext<'_>,
-    left_id: ast::LocalNodeId<Expression>,
-    right_id: ast::LocalNodeId<Expression>,
+    ctx: &LintModuleContext<'_>,
+    left_id: dir::LocalNodeId<Expression>,
+    right_id: dir::LocalNodeId<Expression>,
 ) -> bool {
-    let right_id = expression_unwrap_parenthesized_source_form(ctx.tree, right_id);
-    let right = ctx.tree.get(right_id);
+    let right_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), right_id);
+    let right = ctx.dir.get(right_id);
     if let Expression::Unary {
         operator: UnaryOperator::Not,
         right: inner_id,
     } = right
     {
-        let left_id = expression_unwrap_parenthesized_source_form(ctx.tree, left_id);
-        let inner_id = expression_unwrap_parenthesized_source_form(ctx.tree, *inner_id);
+        let left_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), left_id);
+        let inner_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), *inner_id);
         expression_is_equal(ctx, left_id, inner_id)
     } else {
         false
@@ -176,7 +176,7 @@ mod tests {
     #[test]
     fn test_detects_double_negation() {
         let test = TestProgram::for_rule_without_prelude(NoComplexBooleanExpression);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_complex_boolean_expression/test_detects_double_negation.ds",
             r#"
 let x = !!value
@@ -189,7 +189,7 @@ let x = !!value
     #[test]
     fn test_detects_redundant_and() {
         let test = TestProgram::for_rule_without_prelude(NoComplexBooleanExpression);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_complex_boolean_expression/test_detects_redundant_and.ds",
             r#"
 let x = a && a
@@ -202,7 +202,7 @@ let x = a && a
     #[test]
     fn test_detects_redundant_or() {
         let test = TestProgram::for_rule_without_prelude(NoComplexBooleanExpression);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_complex_boolean_expression/test_detects_redundant_or.ds",
             r#"
 let x = b || b
@@ -215,7 +215,7 @@ let x = b || b
     #[test]
     fn test_detects_contradiction_and() {
         let test = TestProgram::for_rule_without_prelude(NoComplexBooleanExpression);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_complex_boolean_expression/test_detects_contradiction_and.ds",
             r#"
 let x = a && !a
@@ -228,7 +228,7 @@ let x = a && !a
     #[test]
     fn test_detects_contradiction_or() {
         let test = TestProgram::for_rule_without_prelude(NoComplexBooleanExpression);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_complex_boolean_expression/test_detects_contradiction_or.ds",
             r#"
 let x = a || !a
@@ -241,7 +241,7 @@ let x = a || !a
     #[test]
     fn test_allows_valid_expressions() {
         let test = TestProgram::for_rule_without_prelude(NoComplexBooleanExpression);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_complex_boolean_expression/test_allows_valid_expressions.ds",
             r#"
 let x = a && b

@@ -1,12 +1,12 @@
 use crate::LintMeta;
-use destack_ast::{
-    self as ast, Declaration, FunctionForm, FunctionRole, Key, Member, Name, NodeVisitor,
+use destack_dir::{
+    self as dir, Declaration, FunctionForm, FunctionRole, Key, Member, Name, NodeVisitor,
     NodeVisitorOptions, Property, walk_expression,
 };
 use destack_source::Span;
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Require explicit return type annotations on functions.
@@ -17,7 +17,7 @@ declare_lint! {
         id = "explicit-function-return-type",
         code = "LY011",
         category = Style,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -33,13 +33,13 @@ impl LintRule for ExplicitFunctionReturnType {
         ExplicitFunctionReturnType::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let constructor_name = ctx.string_id("constructor");
 
         // declaration functions
-        for node_id in ctx.tree.iter_nodes::<ast::Declaration>() {
-            let declaration = ctx.tree.get(node_id);
+        for node_id in ctx.dir.iter_nodes::<dir::Declaration>() {
+            let declaration = ctx.dir.get(node_id);
             let Declaration::Function(declaration) = declaration else {
                 continue;
             };
@@ -61,15 +61,15 @@ impl LintRule for ExplicitFunctionReturnType {
             report_missing_return_type(
                 ctx,
                 severity,
-                ctx.tree.get_span(node_id),
+                ctx.dir.get_span(node_id),
                 declaration.body,
                 "function is missing explicit return type",
             );
         }
 
         // class and interface methods
-        for node_id in ctx.tree.iter_nodes::<ast::Member>() {
-            let member = ctx.tree.get(node_id);
+        for node_id in ctx.dir.iter_nodes::<dir::Member>() {
+            let member = ctx.dir.get(node_id);
             let Member::Method {
                 key,
                 signature,
@@ -97,15 +97,15 @@ impl LintRule for ExplicitFunctionReturnType {
             report_missing_return_type(
                 ctx,
                 severity,
-                ctx.tree.get_span(node_id),
+                ctx.dir.get_span(node_id),
                 *body,
                 "method is missing explicit return type",
             );
         }
 
         // object literal methods
-        for node_id in ctx.tree.iter_nodes::<ast::Property>() {
-            let property = ctx.tree.get(node_id);
+        for node_id in ctx.dir.iter_nodes::<dir::Property>() {
+            let property = ctx.dir.get(node_id);
             let Property::Method {
                 key,
                 signature,
@@ -133,7 +133,7 @@ impl LintRule for ExplicitFunctionReturnType {
             report_missing_return_type(
                 ctx,
                 severity,
-                ctx.tree.get_span(node_id),
+                ctx.dir.get_span(node_id),
                 *body,
                 "method is missing explicit return type",
             );
@@ -143,10 +143,10 @@ impl LintRule for ExplicitFunctionReturnType {
 
 /// Return true when one signature should report a missing return type.
 fn signature_requires_explicit_return_type(
-    ctx: &LintAstContext<'_>,
-    signature: &ast::FunctionSignature,
+    ctx: &LintModuleContext<'_>,
+    signature: &dir::FunctionSignature,
     key: Option<&Key>,
-    constructor_name: ast::StringId,
+    constructor_name: dir::StringId,
 ) -> bool {
     if signature.form == FunctionForm::Lambda {
         return false;
@@ -167,9 +167,9 @@ fn signature_requires_explicit_return_type(
 
 /// Return true when one method key is the constructor name.
 fn method_key_is_constructor(
-    _ctx: &LintAstContext<'_>,
+    _ctx: &LintModuleContext<'_>,
     key: Option<&Key>,
-    constructor_name: ast::StringId,
+    constructor_name: dir::StringId,
 ) -> bool {
     let Some(key) = key else {
         return false;
@@ -186,10 +186,10 @@ fn method_key_is_constructor(
 
 /// Report one missing return type diagnostic with one conservative fix.
 fn report_missing_return_type(
-    ctx: &mut LintAstContext<'_>,
+    ctx: &mut LintModuleContext<'_>,
     severity: LintSeverity,
     function_span: Span,
-    body_expression_id: Option<ast::LocalNodeId<ast::Expression>>,
+    body_expression_id: Option<dir::LocalNodeId<dir::Expression>>,
     message: &str,
 ) {
     let mut diagnostic = LintReport::new(
@@ -214,15 +214,15 @@ fn report_missing_return_type(
 
 /// Build a safe fix by inserting a `: void` return annotation.
 fn explicit_function_return_type_fix(
-    ctx: &LintAstContext<'_>,
+    ctx: &LintModuleContext<'_>,
     function_span: Span,
-    body_expression_id: ast::LocalNodeId<ast::Expression>,
+    body_expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<LintFix> {
     if contains_return_expression(ctx, body_expression_id) {
         return None;
     }
 
-    let body_span = ctx.tree.get_span(body_expression_id);
+    let body_span = ctx.dir.get_span(body_expression_id);
     if body_span.start <= function_span.start || body_span.start >= function_span.end {
         return None;
     }
@@ -236,12 +236,12 @@ fn explicit_function_return_type_fix(
 
 /// Return true when an expression contains a return in this function body.
 fn contains_return_expression(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    let expression = ctx.tree.get(expression_id);
+    let expression = ctx.dir.get(expression_id);
     let mut visitor = ReturnDetectorVisitor::default();
-    visitor.visit_expression(ctx.tree, expression_id, expression);
+    visitor.visit_expression(ctx.dir.tree(), expression_id, expression);
     visitor.has_return
 }
 
@@ -261,22 +261,22 @@ impl NodeVisitor for ReturnDetectorVisitor {
 
     fn visit_expression(
         &mut self,
-        tree: &ast::Tree,
-        id: ast::LocalNodeId<ast::Expression>,
-        expression: &ast::Expression,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::Expression>,
+        expression: &dir::Expression,
     ) {
         if self.has_return {
             return;
         }
 
-        if matches!(expression, ast::Expression::Return { .. }) {
+        if matches!(expression, dir::Expression::Return { .. }) {
             self.has_return = true;
             return;
         }
 
-        if let ast::Expression::Declaration(declaration) = expression {
+        if let dir::Expression::Declaration(declaration) = expression {
             let declaration = tree.get(*declaration);
-            if matches!(declaration, ast::Declaration::Function(_)) {
+            if matches!(declaration, dir::Declaration::Function(_)) {
                 return;
             }
         }
@@ -293,7 +293,7 @@ mod tests {
     #[test]
     fn test_detects_missing_return_type() {
         let test = TestProgram::for_rule_without_prelude(ExplicitFunctionReturnType);
-        let result = test.lint_ast(
+        let result = test.lint(
             "explicit_function_return_type/test_detects_missing_return_type.ts",
             r#"
 function foo() {
@@ -308,7 +308,7 @@ function foo() {
     #[test]
     fn test_allows_explicit_return_type() {
         let test = TestProgram::for_rule_without_prelude(ExplicitFunctionReturnType);
-        let result = test.lint_ast(
+        let result = test.lint(
             "explicit_function_return_type/test_allows_explicit_return_type.ts",
             r#"
 function foo(): number {
@@ -323,7 +323,7 @@ function foo(): number {
     #[test]
     fn test_allows_void_return_type() {
         let test = TestProgram::for_rule_without_prelude(ExplicitFunctionReturnType);
-        let result = test.lint_ast(
+        let result = test.lint(
             "explicit_function_return_type/test_allows_void_return_type.ts",
             r#"
 function foo(): void {
@@ -338,7 +338,7 @@ function foo(): void {
     #[test]
     fn test_allows_arrow_functions() {
         let test = TestProgram::for_rule_without_prelude(ExplicitFunctionReturnType);
-        let result = test.lint_ast(
+        let result = test.lint(
             "explicit_function_return_type/test_allows_arrow_functions.ts",
             r#"
 const foo = () => 42;
@@ -351,7 +351,7 @@ const foo = () => 42;
     #[test]
     fn test_detects_missing_return_type_on_class_method() {
         let test = TestProgram::for_rule_without_prelude(ExplicitFunctionReturnType);
-        let result = test.lint_ast(
+        let result = test.lint(
             "explicit_function_return_type/test_detects_missing_return_type_on_class_method.ts",
             r#"
 class Service {
@@ -368,7 +368,7 @@ class Service {
     #[test]
     fn test_allows_constructor_without_return_type() {
         let test = TestProgram::for_rule_without_prelude(ExplicitFunctionReturnType);
-        let result = test.lint_ast(
+        let result = test.lint(
             "explicit_function_return_type/test_allows_constructor_without_return_type.ts",
             r#"
 class Service {
@@ -385,7 +385,7 @@ class Service {
     #[test]
     fn test_allows_setter_without_return_type() {
         let test = TestProgram::for_rule_without_prelude(ExplicitFunctionReturnType);
-        let result = test.lint_ast(
+        let result = test.lint(
             "explicit_function_return_type/test_allows_setter_without_return_type.ts",
             r#"
 class Service {
@@ -402,7 +402,7 @@ class Service {
     #[test]
     fn test_fix_adds_void_return_type_for_non_returning_method() {
         let test = TestProgram::for_rule_without_prelude(ExplicitFunctionReturnType);
-        let result = test.lint_ast(
+        let result = test.lint(
             "explicit_function_return_type/test_fix_adds_void_return_type_for_non_returning_method.ts",
             r#"
 class Logger {
@@ -428,7 +428,7 @@ class Logger {
     #[test]
     fn test_fix_adds_void_return_type_for_non_returning_function() {
         let test = TestProgram::for_rule_without_prelude(ExplicitFunctionReturnType);
-        let result = test.lint_ast(
+        let result = test.lint(
             "explicit_function_return_type/test_fix_adds_void_return_type_for_non_returning_function.ts",
             r#"
 function logMessage(message: string) {
@@ -450,7 +450,7 @@ function logMessage(message: string): void {
     #[test]
     fn test_no_fix_when_function_returns_value() {
         let test = TestProgram::for_rule_without_prelude(ExplicitFunctionReturnType);
-        let result = test.lint_ast(
+        let result = test.lint(
             "explicit_function_return_type/test_no_fix_when_function_returns_value.ts",
             r#"
 function toNumber(value: string) {
@@ -466,7 +466,7 @@ function toNumber(value: string) {
     #[test]
     fn test_fix_ignores_return_inside_nested_function_body() {
         let test = TestProgram::for_rule_without_prelude(ExplicitFunctionReturnType);
-        let result = test.lint_ast(
+        let result = test.lint(
             "explicit_function_return_type/test_fix_ignores_return_inside_nested_function_body.ts",
             r#"
 function run(message: string) {

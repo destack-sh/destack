@@ -1,8 +1,8 @@
 use crate::LintMeta;
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow template interpolation in regular strings.
@@ -13,7 +13,7 @@ declare_lint! {
         id = "no-template-curly-in-string",
         code = "LU031",
         category = Suspicious,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -29,12 +29,12 @@ impl LintRule for NoTemplateCurlyInString {
         NoTemplateCurlyInString::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expr = ctx.tree.get(node_id);
-            let ast::Expression::ScalarLiteral(ast::ScalarLiteral::String(string_id)) = expr else {
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let expr = ctx.dir.get(node_id);
+            let dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(string_id)) = expr else {
                 continue;
             };
 
@@ -45,7 +45,7 @@ impl LintRule for NoTemplateCurlyInString {
             }
 
             // detect template interpolation from source text to avoid escaped `${` false positives
-            let span = ctx.tree.get_span(node_id);
+            let span = ctx.dir.get_span(node_id);
             let literal_text = ctx.get_span_text(span);
             if !contains_template_interpolation(literal_text) {
                 continue;
@@ -146,7 +146,7 @@ fn is_escaped(source: &str, index: usize) -> bool {
 
 /// Build a fix to convert a regular string literal to a template literal.
 fn template_literal_fix(
-    ctx: &LintAstContext<'_>,
+    ctx: &LintModuleContext<'_>,
     span: destack_source::Span,
     literal_text: &str,
 ) -> Option<LintFix> {
@@ -168,7 +168,7 @@ mod tests {
     #[test]
     fn test_detects_template_in_double_quoted_string() {
         let test = TestProgram::for_rule_without_prelude(NoTemplateCurlyInString);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_template_curly_in_string/test_detects_template_in_double_quoted_string.ds",
             r#"
 const x = "Hello ${name}"
@@ -182,7 +182,7 @@ const x = "Hello ${name}"
     #[test]
     fn test_detects_template_in_single_quoted_string() {
         let test = TestProgram::for_rule_without_prelude(NoTemplateCurlyInString);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_template_curly_in_string/test_detects_template_in_single_quoted_string.ds",
             r#"
 const x = 'Hello ${name}'
@@ -200,7 +200,7 @@ const x = `Hello ${name}`;
     #[test]
     fn test_detects_multiple_templates() {
         let test = TestProgram::for_rule_without_prelude(NoTemplateCurlyInString);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_template_curly_in_string/test_detects_multiple_templates.ds",
             r#"
 const x = "${a} + ${b} = ${c}"
@@ -213,7 +213,7 @@ const x = "${a} + ${b} = ${c}"
     #[test]
     fn test_allows_template_literal() {
         let test = TestProgram::for_rule_without_prelude(NoTemplateCurlyInString);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_template_curly_in_string/test_allows_template_literal.ds",
             r#"
 const x = `Hello ${name}`
@@ -226,7 +226,7 @@ const x = `Hello ${name}`
     #[test]
     fn test_allows_regular_string() {
         let test = TestProgram::for_rule_without_prelude(NoTemplateCurlyInString);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_template_curly_in_string/test_allows_regular_string.ds",
             r#"
 const x = "Hello world"
@@ -239,7 +239,7 @@ const x = "Hello world"
     #[test]
     fn test_allows_dollar_without_brace() {
         let test = TestProgram::for_rule_without_prelude(NoTemplateCurlyInString);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_template_curly_in_string/test_allows_dollar_without_brace.ds",
             r#"
 const x = "Price: $100"
@@ -252,7 +252,7 @@ const x = "Price: $100"
     #[test]
     fn test_allows_incomplete_template() {
         let test = TestProgram::for_rule_without_prelude(NoTemplateCurlyInString);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_template_curly_in_string/test_allows_incomplete_template.ds",
             r#"
 const x = "${unclosed"
@@ -265,7 +265,7 @@ const x = "${unclosed"
     #[test]
     fn test_allows_escaped_template_marker() {
         let test = TestProgram::for_rule_without_prelude(NoTemplateCurlyInString);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_template_curly_in_string/test_allows_escaped_template_marker.ds",
             r#"
 const x = "\${name}"
@@ -278,7 +278,7 @@ const x = "\${name}"
     #[test]
     fn test_fix_converts_to_template_literal() {
         let test = TestProgram::for_rule_without_prelude(NoTemplateCurlyInString);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_template_curly_in_string/test_fix_converts_to_template_literal.ds",
             r#"
 const x = "Hello ${name}"
@@ -296,7 +296,7 @@ const x = `Hello ${name}`;
     #[test]
     fn test_no_fix_when_content_contains_backtick() {
         let test = TestProgram::for_rule_without_prelude(NoTemplateCurlyInString);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_template_curly_in_string/test_no_fix_when_content_contains_backtick.ds",
             r#"
 const x = "value: ${name}, marker: `"
@@ -310,7 +310,7 @@ const x = "value: ${name}, marker: `"
     #[test]
     fn test_mutation_detects_nested_braces() {
         let test = TestProgram::for_rule_without_prelude(NoTemplateCurlyInString);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_template_curly_in_string/test_mutation_detects_nested_braces.ds",
             r#"
 const x = "value: ${format({ id: userId })}"

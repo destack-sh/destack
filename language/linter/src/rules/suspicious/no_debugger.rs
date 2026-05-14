@@ -1,8 +1,8 @@
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_statement_ancestor;
-use crate::{LintAstContext, LintFix, LintMeta, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow debugger statements in production code.
@@ -13,7 +13,7 @@ declare_lint! {
         id = "no-debugger",
         code = "LU008",
         category = Suspicious,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -29,14 +29,14 @@ impl LintRule for NoDebugger {
         NoDebugger::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // inspect expression nodes for debugger usage
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
             // keep only debugger expressions
-            let expression = ctx.tree.get(node_id);
-            if !matches!(expression, ast::Expression::Debugger) {
+            let expression = ctx.dir.get(node_id);
+            if !matches!(expression, dir::Expression::Debugger) {
                 continue;
             }
 
@@ -47,7 +47,7 @@ impl LintRule for NoDebugger {
             }
 
             // build one base diagnostic before optional fix attachment
-            let span = ctx.tree.get_span(node_id);
+            let span = ctx.dir.get_span(node_id);
             let diagnostic = LintReport::new(
                 NO_DEBUGGER.id,
                 NO_DEBUGGER.code,
@@ -66,9 +66,9 @@ impl LintRule for NoDebugger {
 
             // prefer deleting the full enclosing statement as a safe fix
             if let Some(statement_expression_id) =
-                expression_statement_ancestor(ctx.tree, ctx.parents, node_id)
+                expression_statement_ancestor(ctx.dir.tree(), node_id)
             {
-                let statement_span = ctx.tree.get_span(statement_expression_id);
+                let statement_span = ctx.dir.get_span(statement_expression_id);
                 let diagnostic = diagnostic
                     .fix(LintFix::safe("Remove debugger statement").delete(statement_span));
                 ctx.report(diagnostic);
@@ -89,7 +89,7 @@ mod tests {
     #[test]
     fn test_detects_debugger_statement() {
         let test = TestProgram::for_rule_without_prelude(NoDebugger);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_debugger/test_detects_debugger_statement.ds",
             r#"
 debugger;
@@ -101,7 +101,7 @@ debugger;
     #[test]
     fn test_detects_debugger_expression() {
         let test = TestProgram::for_rule_without_prelude(NoDebugger);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_debugger/test_detects_debugger_expression.ds",
             r#"
 let x = debugger;
@@ -113,7 +113,7 @@ let x = debugger;
     #[test]
     fn test_detects_multiple_debuggers() {
         let test = TestProgram::for_rule_without_prelude(NoDebugger);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_debugger/test_detects_multiple_debuggers.ds",
             r#"
 debugger;
@@ -129,7 +129,7 @@ debugger;
     #[test]
     fn test_no_debugger_clean_code() {
         let test = TestProgram::for_rule_without_prelude(NoDebugger);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_debugger/test_no_debugger_clean_code.ds",
             r#"
 let x = 1;
@@ -144,7 +144,7 @@ function foo() {
     #[test]
     fn test_fix_removes_debugger_statement() {
         let test = TestProgram::for_rule_without_prelude(NoDebugger);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_debugger/test_fix_removes_debugger_statement.ds",
             r#"
 debugger;
@@ -159,7 +159,7 @@ debugger;
     #[test]
     fn test_fix_preserves_surrounding_code() {
         let test = TestProgram::for_rule_without_prelude(NoDebugger);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_debugger/test_fix_preserves_surrounding_code.ds",
             r#"
 let x = 1;
@@ -180,7 +180,7 @@ let y = 2;
     #[test]
     fn test_fix_without_semicolon() {
         let test = TestProgram::for_rule_without_prelude(NoDebugger);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_debugger/test_fix_without_semicolon.ds",
             r#"
 let x = debugger;

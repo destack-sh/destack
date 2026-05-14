@@ -1,11 +1,11 @@
 use crate::LintMeta;
-use destack_ast::{self as ast, UnaryOperator};
+use destack_dir::{self as dir, UnaryOperator};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
     expression_has_side_effects, expression_unwrap_parenthesized_source_form,
 };
-use crate::{LintAstContext, LintReport, LintRule, declare_lint};
+use crate::{LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow statement expressions that have no effect.
@@ -15,7 +15,7 @@ declare_lint! {
         id = "no-unused-expressions",
         code = "LX022",
         category = Complexity,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = No,
@@ -31,7 +31,7 @@ impl LintRule for NoUnusedExpressions {
         NoUnusedExpressions::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         // resolve lint metadata
         let meta = self.meta();
 
@@ -48,45 +48,45 @@ enum StatementListOwner {
     /// Module root expressions.
     Module,
     /// Block body expressions.
-    Block(ast::LocalNodeId<ast::Block>),
+    Block(dir::LocalNodeId<dir::Block>),
     /// Namespace or global declaration expressions.
-    Declaration(ast::LocalNodeId<ast::Declaration>),
+    Declaration(dir::LocalNodeId<dir::Declaration>),
 }
 
 /// Collect every statement-expression candidate in one module.
 fn collect_statement_expression_ids(
-    ctx: &LintAstContext<'_>,
-) -> Vec<ast::LocalNodeId<ast::Expression>> {
+    ctx: &LintModuleContext<'_>,
+) -> Vec<dir::LocalNodeId<dir::Expression>> {
     let mut statement_expression_ids = Vec::new();
 
     // module roots
-    for statement_expression_id in ctx.roots {
-        statement_expression_ids.push(*statement_expression_id);
+    for statement_expression_id in ctx.roots.iter().copied() {
+        statement_expression_ids.push(statement_expression_id);
     }
 
     // block statement lists
-    for block_id in ctx.tree.iter_nodes::<ast::Block>() {
-        let block = ctx.tree.get(block_id);
+    for block_id in ctx.dir.iter_nodes::<dir::Block>() {
+        let block = ctx.dir.get(block_id);
         for statement_expression_id in block.iter_expressions() {
             statement_expression_ids.push(statement_expression_id);
         }
     }
 
     // namespace and global statement lists
-    for declaration_id in ctx.tree.iter_nodes::<ast::Declaration>() {
-        let declaration = ctx.tree.get(declaration_id);
+    for declaration_id in ctx.dir.iter_nodes::<dir::Declaration>() {
+        let declaration = ctx.dir.get(declaration_id);
         match declaration {
-            ast::Declaration::Global(declaration) => {
+            dir::Declaration::Global(declaration) => {
                 for statement_expression_id in &declaration.expressions {
                     statement_expression_ids.push(*statement_expression_id);
                 }
             }
-            ast::Declaration::Module(declaration) => {
+            dir::Declaration::Module(declaration) => {
                 for statement_expression_id in &declaration.expressions {
                     statement_expression_ids.push(*statement_expression_id);
                 }
             }
-            ast::Declaration::Namespace(declaration) => {
+            dir::Declaration::Namespace(declaration) => {
                 for statement_expression_id in &declaration.expressions {
                     statement_expression_ids.push(*statement_expression_id);
                 }
@@ -100,9 +100,9 @@ fn collect_statement_expression_ids(
 
 /// Check one root or block expression as a statement candidate.
 fn check_statement_candidate(
-    ctx: &mut LintAstContext<'_>,
+    ctx: &mut LintModuleContext<'_>,
     meta: &'static LintMeta,
-    statement_expression_id: ast::LocalNodeId<ast::Expression>,
+    statement_expression_id: dir::LocalNodeId<dir::Expression>,
 ) {
     // resolve statement wrapper semantics
     let Some(inner_expression_id) = statement_expression_inner_id(ctx, statement_expression_id)
@@ -134,7 +134,7 @@ fn check_statement_candidate(
             NO_UNUSED_EXPRESSIONS.category,
             severity,
             "expression statement has no effect",
-            ctx.tree.get_span(statement_expression_id),
+            ctx.dir.get_span(statement_expression_id),
         )
         .label("expected an assignment or call in statement position"),
     );
@@ -142,11 +142,11 @@ fn check_statement_candidate(
 
 /// Return one inner expression id when an expression is statement like.
 fn statement_expression_inner_id(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
-) -> Option<ast::LocalNodeId<ast::Expression>> {
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> Option<dir::LocalNodeId<dir::Expression>> {
     // keep only implicit expression statements at root and block level
-    if ctx.tree.get(expression_id).is_top_level_statement() {
+    if ctx.dir.get(expression_id).is_top_level_statement() {
         return None;
     }
 
@@ -155,9 +155,9 @@ fn statement_expression_inner_id(
 
 /// Return true when one statement expression is in a directive prologue.
 fn expression_statement_is_directive(
-    ctx: &LintAstContext<'_>,
-    statement_expression_id: ast::LocalNodeId<ast::Expression>,
-    inner_expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    statement_expression_id: dir::LocalNodeId<dir::Expression>,
+    inner_expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     // allow callers to disable directive handling
     if !ctx
@@ -189,8 +189,8 @@ fn expression_statement_is_directive(
 
 /// Return true when all statement expressions in one prefix are directive literals.
 fn expression_prefix_is_all_directives(
-    ctx: &LintAstContext<'_>,
-    statement_prefix: &[ast::LocalNodeId<ast::Expression>],
+    ctx: &LintModuleContext<'_>,
+    statement_prefix: &[dir::LocalNodeId<dir::Expression>],
 ) -> bool {
     // require every earlier statement to be a string literal statement
     statement_prefix.iter().all(|expression_id| {
@@ -204,23 +204,23 @@ fn expression_prefix_is_all_directives(
 
 /// Return true when one expression is a string literal statement payload.
 fn expression_is_string_literal_statement(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    let expression_id = expression_unwrap_parenthesized_source_form(ctx.tree, expression_id);
+    let expression_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), expression_id);
     matches!(
-        ctx.tree.get(expression_id),
-        ast::Expression::ScalarLiteral(ast::ScalarLiteral::String(_))
+        ctx.dir.get(expression_id),
+        dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(_))
     )
 }
 
 /// Return the surrounding statement list owner and one statement index.
 fn statement_list_owner_and_index(
-    ctx: &LintAstContext<'_>,
-    statement_expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    statement_expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<(StatementListOwner, usize)> {
     // module roots
-    if let Some(statement_index) = expression_index_in_slice(ctx.roots, statement_expression_id) {
+    if let Some(statement_index) = expression_index_in_slice(&ctx.roots, statement_expression_id) {
         return Some((StatementListOwner::Module, statement_index));
     }
 
@@ -246,22 +246,23 @@ fn statement_list_owner_and_index(
 
 /// Return the expression slice for one statement list owner.
 fn statement_list_owner_expressions(
-    ctx: &LintAstContext<'_>,
+    ctx: &LintModuleContext<'_>,
     owner: StatementListOwner,
-) -> Vec<ast::LocalNodeId<ast::Expression>> {
+) -> Vec<dir::LocalNodeId<dir::Expression>> {
     match owner {
         StatementListOwner::Module => ctx.roots.to_vec(),
         StatementListOwner::Block(block_id) => ctx
-            .tree
+            .dir
+            .tree()
             .get(block_id)
             .iter_expressions()
             .collect::<Vec<_>>(),
         StatementListOwner::Declaration(declaration_id) => {
-            let declaration = ctx.tree.get(declaration_id);
+            let declaration = ctx.dir.get(declaration_id);
             match declaration {
-                ast::Declaration::Global(declaration) => declaration.expressions.clone(),
-                ast::Declaration::Module(declaration) => declaration.expressions.clone(),
-                ast::Declaration::Namespace(declaration) => declaration.expressions.clone(),
+                dir::Declaration::Global(declaration) => declaration.expressions.clone(),
+                dir::Declaration::Module(declaration) => declaration.expressions.clone(),
+                dir::Declaration::Namespace(declaration) => declaration.expressions.clone(),
                 _ => Vec::new(),
             }
         }
@@ -270,7 +271,7 @@ fn statement_list_owner_expressions(
 
 /// Return true when one statement list owner can host directives.
 fn statement_list_owner_is_directive_capable(
-    ctx: &LintAstContext<'_>,
+    ctx: &LintModuleContext<'_>,
     owner: StatementListOwner,
 ) -> bool {
     match owner {
@@ -284,16 +285,16 @@ fn statement_list_owner_is_directive_capable(
 
 /// Return block id and statement index when one statement belongs to one block body.
 fn block_statement_list_index(
-    ctx: &LintAstContext<'_>,
-    statement_expression_id: ast::LocalNodeId<ast::Expression>,
-) -> Option<(ast::LocalNodeId<ast::Block>, usize)> {
+    ctx: &LintModuleContext<'_>,
+    statement_expression_id: dir::LocalNodeId<dir::Expression>,
+) -> Option<(dir::LocalNodeId<dir::Block>, usize)> {
     // require a block parent for statement expressions
-    let block_id = ctx.parents.get(statement_expression_id)?;
-    if ctx.tree.get_node_type(block_id) != ast::NodeType::Block {
+    let block_id = ctx.dir.get_parent_id(statement_expression_id.id)?;
+    if ctx.dir.get_node_type(block_id) != dir::NodeType::Block {
         return None;
     }
-    let block_id = ast::LocalNodeId::<ast::Block>::new(block_id);
-    let block = ctx.tree.get(block_id);
+    let block_id = dir::LocalNodeId::<dir::Block>::new(block_id);
+    let block = ctx.dir.get(block_id);
     let expression_ids = block.iter_expressions().collect::<Vec<_>>();
     let statement_index = expression_index_in_slice(&expression_ids, statement_expression_id)?;
 
@@ -302,21 +303,21 @@ fn block_statement_list_index(
 
 /// Return declaration id and statement index when one statement belongs to one declaration body.
 fn declaration_statement_list_index(
-    ctx: &LintAstContext<'_>,
-    statement_expression_id: ast::LocalNodeId<ast::Expression>,
-) -> Option<(ast::LocalNodeId<ast::Declaration>, usize)> {
+    ctx: &LintModuleContext<'_>,
+    statement_expression_id: dir::LocalNodeId<dir::Expression>,
+) -> Option<(dir::LocalNodeId<dir::Declaration>, usize)> {
     // require a declaration parent for namespace and global bodies
-    let declaration_id = ctx.parents.get(statement_expression_id)?;
-    if ctx.tree.get_node_type(declaration_id) != ast::NodeType::Declaration {
+    let declaration_id = ctx.dir.get_parent_id(statement_expression_id.id)?;
+    if ctx.dir.get_node_type(declaration_id) != dir::NodeType::Declaration {
         return None;
     }
 
-    let declaration_id = ast::LocalNodeId::<ast::Declaration>::new(declaration_id);
-    let declaration = ctx.tree.get(declaration_id);
+    let declaration_id = dir::LocalNodeId::<dir::Declaration>::new(declaration_id);
+    let declaration = ctx.dir.get(declaration_id);
     let expressions = match declaration {
-        ast::Declaration::Global(declaration) => declaration.expressions.as_slice(),
-        ast::Declaration::Module(declaration) => declaration.expressions.as_slice(),
-        ast::Declaration::Namespace(declaration) => declaration.expressions.as_slice(),
+        dir::Declaration::Global(declaration) => declaration.expressions.as_slice(),
+        dir::Declaration::Module(declaration) => declaration.expressions.as_slice(),
+        dir::Declaration::Namespace(declaration) => declaration.expressions.as_slice(),
         _ => return None,
     };
     let statement_index = expression_index_in_slice(expressions, statement_expression_id)?;
@@ -326,35 +327,35 @@ fn declaration_statement_list_index(
 
 /// Return true when one block can host a directive prologue.
 fn block_statement_list_is_directive_capable(
-    ctx: &LintAstContext<'_>,
-    block_id: ast::LocalNodeId<ast::Block>,
+    ctx: &LintModuleContext<'_>,
+    block_id: dir::LocalNodeId<dir::Block>,
 ) -> bool {
     // resolve the parent expression for this block
-    let Some(block_expression_raw_id) = ctx.parents.get(block_id) else {
+    let Some(block_expression_raw_id) = ctx.dir.get_parent_id(block_id.id) else {
         return false;
     };
-    if ctx.tree.get_node_type(block_expression_raw_id) != ast::NodeType::Expression {
+    if ctx.dir.get_node_type(block_expression_raw_id) != dir::NodeType::Expression {
         return false;
     }
-    let block_expression_id = ast::LocalNodeId::<ast::Expression>::new(block_expression_raw_id);
-    let block_expression = ctx.tree.get(block_expression_id);
-    if !matches!(block_expression, ast::Expression::Block(inner) if *inner == block_id) {
+    let block_expression_id = dir::LocalNodeId::<dir::Expression>::new(block_expression_raw_id);
+    let block_expression = ctx.dir.get(block_expression_id);
+    if !matches!(block_expression, dir::Expression::Block(inner) if *inner == block_id) {
         return false;
     }
 
     // resolve owner node for this block expression
-    let Some(owner_raw_id) = ctx.parents.get(block_expression_id) else {
+    let Some(owner_raw_id) = ctx.dir.get_parent_id(block_expression_id.id) else {
         return false;
     };
-    let owner_type = ctx.tree.get_node_type(owner_raw_id);
+    let owner_type = ctx.dir.get_node_type(owner_raw_id);
 
     // allow function declaration bodies
-    if owner_type == ast::NodeType::Declaration {
-        let owner_id = ast::LocalNodeId::<ast::Declaration>::new(owner_raw_id);
-        let owner = ctx.tree.get(owner_id);
+    if owner_type == dir::NodeType::Declaration {
+        let owner_id = dir::LocalNodeId::<dir::Declaration>::new(owner_raw_id);
+        let owner = ctx.dir.get(owner_id);
         return matches!(
             owner,
-            ast::Declaration::Function(ast::FunctionDeclaration {
+            dir::Declaration::Function(dir::FunctionDeclaration {
                 body: Some(body_expression_id),
                 ..
             }) if *body_expression_id == block_expression_id
@@ -362,12 +363,12 @@ fn block_statement_list_is_directive_capable(
     }
 
     // allow class and interface method bodies
-    if owner_type == ast::NodeType::Member {
-        let owner_id = ast::LocalNodeId::<ast::Member>::new(owner_raw_id);
-        let owner = ctx.tree.get(owner_id);
+    if owner_type == dir::NodeType::Member {
+        let owner_id = dir::LocalNodeId::<dir::Member>::new(owner_raw_id);
+        let owner = ctx.dir.get(owner_id);
         return matches!(
             owner,
-            ast::Member::Method {
+            dir::Member::Method {
                 body: Some(body_expression_id),
                 ..
             } if *body_expression_id == block_expression_id
@@ -375,12 +376,12 @@ fn block_statement_list_is_directive_capable(
     }
 
     // allow object method bodies
-    if owner_type == ast::NodeType::Property {
-        let owner_id = ast::LocalNodeId::<ast::Property>::new(owner_raw_id);
-        let owner = ctx.tree.get(owner_id);
+    if owner_type == dir::NodeType::Property {
+        let owner_id = dir::LocalNodeId::<dir::Property>::new(owner_raw_id);
+        let owner = ctx.dir.get(owner_id);
         return matches!(
             owner,
-            ast::Property::Method {
+            dir::Property::Method {
                 body: Some(body_expression_id),
                 ..
             } if *body_expression_id == block_expression_id
@@ -392,12 +393,12 @@ fn block_statement_list_is_directive_capable(
 
 /// Return true when one expression shape is disallowed as a statement expression.
 fn expression_is_disallowed_in_statement(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     // normalize transparent wrappers first
     let expression_id = statement_expression_subject_id(ctx, expression_id);
-    let expression = ctx.tree.get(expression_id);
+    let expression = ctx.dir.get(expression_id);
 
     // handle the option-sensitive upstream special cases first
     if let Some(is_disallowed) = expression_disallowed_by_rule_options(ctx, expression) {
@@ -420,26 +421,26 @@ fn expression_is_disallowed_in_statement(
 
 /// Return the effective subject expression for statement classification.
 fn statement_expression_subject_id(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
-) -> ast::LocalNodeId<ast::Expression> {
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> dir::LocalNodeId<dir::Expression> {
     let mut current_expression_id =
-        expression_unwrap_parenthesized_source_form(ctx.tree, expression_id);
+        expression_unwrap_parenthesized_source_form(ctx.dir.tree(), expression_id);
 
     loop {
-        let current_expression = ctx.tree.get(current_expression_id);
+        let current_expression = ctx.dir.get(current_expression_id);
         match current_expression {
-            ast::Expression::Must { left, .. } | ast::Expression::Maybe { left, .. } => {
+            dir::Expression::Must { left, .. } | dir::Expression::Maybe { left, .. } => {
                 current_expression_id =
-                    expression_unwrap_parenthesized_source_form(ctx.tree, *left);
+                    expression_unwrap_parenthesized_source_form(ctx.dir.tree(), *left);
             }
-            ast::Expression::Instantiation { left, .. } => {
+            dir::Expression::Instantiation { left, .. } => {
                 current_expression_id =
-                    expression_unwrap_parenthesized_source_form(ctx.tree, *left);
+                    expression_unwrap_parenthesized_source_form(ctx.dir.tree(), *left);
             }
-            ast::Expression::BorrowOf { right, .. } | ast::Expression::MoveOf { right, .. } => {
+            dir::Expression::BorrowOf { right, .. } | dir::Expression::MoveOf { right, .. } => {
                 current_expression_id =
-                    expression_unwrap_parenthesized_source_form(ctx.tree, *right);
+                    expression_unwrap_parenthesized_source_form(ctx.dir.tree(), *right);
             }
             _ => return current_expression_id,
         }
@@ -448,20 +449,20 @@ fn statement_expression_subject_id(
 
 /// Return one option-sensitive classification result when the rule has a special case.
 fn expression_disallowed_by_rule_options(
-    ctx: &LintAstContext<'_>,
-    expression: &ast::Expression,
+    ctx: &LintModuleContext<'_>,
+    expression: &dir::Expression,
 ) -> Option<bool> {
     match expression {
-        ast::Expression::TaggedTemplateExpression { .. } => Some(
+        dir::Expression::TaggedTemplateExpression { .. } => Some(
             !ctx.options
                 .complexity
                 .no_unused_expressions_allow_tagged_templates,
         ),
-        ast::Expression::TreeExpression { .. } => {
+        dir::Expression::TreeExpression { .. } => {
             Some(ctx.options.complexity.no_unused_expressions_enforce_for_jsx)
         }
-        ast::Expression::If {
-            form: ast::IfForm::Ternary,
+        dir::Expression::If {
+            form: dir::IfForm::Ternary,
             then_expression,
             else_expression: Some(else_expression),
             ..
@@ -469,17 +470,17 @@ fn expression_disallowed_by_rule_options(
             expression_is_disallowed_in_statement(ctx, *then_expression)
                 || expression_is_disallowed_in_statement(ctx, *else_expression),
         ),
-        ast::Expression::Binary {
+        dir::Expression::Binary {
             operator, right, ..
         } if ctx
             .options
             .complexity
             .no_unused_expressions_allow_short_circuit
-            && matches!(operator, ast::BinaryOperator::And | ast::BinaryOperator::Or) =>
+            && matches!(operator, dir::BinaryOperator::And | dir::BinaryOperator::Or) =>
         {
             Some(expression_is_disallowed_in_statement(ctx, *right))
         }
-        ast::Expression::Unary { operator, .. } => Some(!matches!(
+        dir::Expression::Unary { operator, .. } => Some(!matches!(
             operator,
             UnaryOperator::PreIncrement
                 | UnaryOperator::PostIncrement
@@ -492,69 +493,69 @@ fn expression_disallowed_by_rule_options(
 }
 
 /// Return true when one expression family is obviously effectful in statement position.
-fn expression_is_known_effectful_statement(expression: &ast::Expression) -> bool {
+fn expression_is_known_effectful_statement(expression: &dir::Expression) -> bool {
     matches!(
         expression,
-        ast::Expression::Call { .. }
-            | ast::Expression::Assign { .. }
-            | ast::Expression::New { .. }
-            | ast::Expression::Await { .. }
-            | ast::Expression::AwaitMaybe { .. }
-            | ast::Expression::AwaitMust { .. }
-            | ast::Expression::Yield { .. }
-            | ast::Expression::Import { .. }
-            | ast::Expression::Export { .. }
-            | ast::Expression::Let { .. }
-            | ast::Expression::Using { .. }
-            | ast::Expression::Declaration(_)
-            | ast::Expression::Return { .. }
-            | ast::Expression::Break { .. }
-            | ast::Expression::Continue { .. }
-            | ast::Expression::Throw { .. }
-            | ast::Expression::If { .. }
-            | ast::Expression::For { .. }
-            | ast::Expression::ForEach { .. }
-            | ast::Expression::While { .. }
-            | ast::Expression::Loop { .. }
-            | ast::Expression::Match { .. }
-            | ast::Expression::Try { .. }
-            | ast::Expression::Block(_)
-            | ast::Expression::Labelled { .. }
-            | ast::Expression::Debugger
-            | ast::Expression::Error
-            | ast::Expression::Stub
+        dir::Expression::Call { .. }
+            | dir::Expression::Assign { .. }
+            | dir::Expression::New { .. }
+            | dir::Expression::Await { .. }
+            | dir::Expression::AwaitMaybe { .. }
+            | dir::Expression::AwaitMust { .. }
+            | dir::Expression::Yield { .. }
+            | dir::Expression::Import { .. }
+            | dir::Expression::Export { .. }
+            | dir::Expression::Let { .. }
+            | dir::Expression::Using { .. }
+            | dir::Expression::Declaration(_)
+            | dir::Expression::Return { .. }
+            | dir::Expression::Break { .. }
+            | dir::Expression::Continue { .. }
+            | dir::Expression::Throw { .. }
+            | dir::Expression::If { .. }
+            | dir::Expression::For { .. }
+            | dir::Expression::ForEach { .. }
+            | dir::Expression::While { .. }
+            | dir::Expression::Loop { .. }
+            | dir::Expression::Match { .. }
+            | dir::Expression::Try { .. }
+            | dir::Expression::Block(_)
+            | dir::Expression::Label { .. }
+            | dir::Expression::Debugger
+            | dir::Expression::Error
+            | dir::Expression::Stub
     )
 }
 
 /// Return true when one expression family is obviously pure in statement position.
-fn expression_is_known_pure_statement(expression: &ast::Expression) -> bool {
+fn expression_is_known_pure_statement(expression: &dir::Expression) -> bool {
     matches!(
         expression,
-        ast::Expression::Identifier { .. }
-            | ast::Expression::QualifiedReference { .. }
-            | ast::Expression::Member { .. }
-            | ast::Expression::PrivateMember { .. }
-            | ast::Expression::Index { .. }
-            | ast::Expression::Binary { .. }
-            | ast::Expression::Type { .. }
-            | ast::Expression::ScalarLiteral(_)
-            | ast::Expression::ArrayExpression { .. }
-            | ast::Expression::TupleExpression { .. }
-            | ast::Expression::ObjectExpression { .. }
-            | ast::Expression::SequenceExpression { .. }
-            | ast::Expression::TemplateExpression { .. }
-            | ast::Expression::PrivateIdentifier { .. }
-            | ast::Expression::ImportMeta
-            | ast::Expression::NewTarget
-            | ast::Expression::This
-            | ast::Expression::Super
+        dir::Expression::Identifier { .. }
+            | dir::Expression::QualifiedReference { .. }
+            | dir::Expression::Member { .. }
+            | dir::Expression::PrivateMember { .. }
+            | dir::Expression::Index { .. }
+            | dir::Expression::Binary { .. }
+            | dir::Expression::Type { .. }
+            | dir::Expression::ScalarLiteral(_)
+            | dir::Expression::ArrayExpression { .. }
+            | dir::Expression::TupleExpression { .. }
+            | dir::Expression::ObjectExpression { .. }
+            | dir::Expression::SequenceExpression { .. }
+            | dir::Expression::TemplateExpression { .. }
+            | dir::Expression::PrivateIdentifier { .. }
+            | dir::Expression::ImportMeta
+            | dir::Expression::NewTarget
+            | dir::Expression::This
+            | dir::Expression::Super
     )
 }
 
 /// Return index of one expression id in one expression slice.
 fn expression_index_in_slice(
-    expressions: &[ast::LocalNodeId<ast::Expression>],
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    expressions: &[dir::LocalNodeId<dir::Expression>],
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<usize> {
     expressions
         .iter()
@@ -569,7 +570,7 @@ mod tests {
     #[test]
     fn test_detects_unused_literal() {
         let test = TestProgram::for_rule_without_prelude(NoUnusedExpressions);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unused_expressions/test_detects_unused_literal.ds",
             r#"
 5;
@@ -581,7 +582,7 @@ mod tests {
     #[test]
     fn test_detects_unused_literal_without_semicolon() {
         let test = TestProgram::for_rule_without_prelude(NoUnusedExpressions);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unused_expressions/test_detects_unused_literal_without_semicolon.ds",
             r#"
 5
@@ -593,7 +594,7 @@ mod tests {
     #[test]
     fn test_detects_unused_binary_expression() {
         let test = TestProgram::for_rule_without_prelude(NoUnusedExpressions);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unused_expressions/test_detects_unused_binary_expression.ds",
             r#"
 x + 1;
@@ -605,7 +606,7 @@ x + 1;
     #[test]
     fn test_detects_unused_template_expression() {
         let test = TestProgram::for_rule_without_prelude(NoUnusedExpressions);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unused_expressions/test_detects_unused_template_expression.ds",
             r#"
 `value`;
@@ -617,7 +618,7 @@ x + 1;
     #[test]
     fn test_allows_function_call() {
         let test = TestProgram::for_rule_without_prelude(NoUnusedExpressions);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unused_expressions/test_allows_function_call.ds",
             r#"
 doSomething();
@@ -629,7 +630,7 @@ doSomething();
     #[test]
     fn test_allows_assignment() {
         let test = TestProgram::for_rule_without_prelude(NoUnusedExpressions);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unused_expressions/test_allows_assignment.ds",
             r#"
 x = 5;
@@ -641,7 +642,7 @@ x = 5;
     #[test]
     fn test_allows_void_unary_statement() {
         let test = TestProgram::for_rule_without_prelude(NoUnusedExpressions);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unused_expressions/test_allows_void_unary_statement.ds",
             r#"
 void maybeValue;
@@ -656,7 +657,7 @@ void maybeValue;
             TestProgram::for_rule_without_prelude(NoUnusedExpressions).with_options(|options| {
                 options.complexity.no_unused_expressions_ignore_directives = true
             });
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unused_expressions/test_allows_module_directive_prologue_strings.ds",
             r#"
 "use strict";
@@ -670,7 +671,7 @@ doSomething();
     #[test]
     fn test_reports_string_after_non_directive_statement() {
         let test = TestProgram::for_rule_without_prelude(NoUnusedExpressions);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unused_expressions/test_reports_string_after_non_directive_statement.ds",
             r#"
 doSomething();
@@ -686,7 +687,7 @@ doSomething();
             TestProgram::for_rule_without_prelude(NoUnusedExpressions).with_options(|options| {
                 options.complexity.no_unused_expressions_allow_short_circuit = true
             });
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unused_expressions/test_allows_short_circuit_when_enabled.ds",
             r#"
 ready && doSomething();
@@ -699,7 +700,7 @@ ready && doSomething();
     fn test_allows_ternary_when_enabled() {
         let test = TestProgram::for_rule_without_prelude(NoUnusedExpressions)
             .with_options(|options| options.complexity.no_unused_expressions_allow_ternary = true);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unused_expressions/test_allows_ternary_when_enabled.ds",
             r#"
 ready ? doSomething() : doOtherThing();
@@ -716,7 +717,7 @@ ready ? doSomething() : doOtherThing();
                     .complexity
                     .no_unused_expressions_allow_tagged_templates = true
             });
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unused_expressions/test_allows_tagged_templates_when_enabled.ds",
             r#"
 sql`SELECT * FROM users`;
@@ -728,7 +729,7 @@ sql`SELECT * FROM users`;
     #[test]
     fn test_allows_tree_expression_by_default() {
         let test = TestProgram::for_rule_without_prelude(NoUnusedExpressions);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unused_expressions/test_allows_tree_expression_by_default.ds",
             r#"
 <View />;
@@ -743,7 +744,7 @@ sql`SELECT * FROM users`;
             TestProgram::for_rule_without_prelude(NoUnusedExpressions).with_options(|options| {
                 options.complexity.no_unused_expressions_enforce_for_jsx = true
             });
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unused_expressions/test_reports_tree_expression_when_enforced.ds",
             r#"
 <View />;
@@ -758,7 +759,7 @@ sql`SELECT * FROM users`;
             TestProgram::for_rule_without_prelude(NoUnusedExpressions).with_options(|options| {
                 options.complexity.no_unused_expressions_ignore_directives = true
             });
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unused_expressions/test_allows_namespace_directive_prologue_strings.ts",
             r#"
 namespace Demo {
@@ -773,7 +774,7 @@ namespace Demo {
     #[test]
     fn test_reports_namespace_string_after_non_directive_statement() {
         let test = TestProgram::for_rule_without_prelude(NoUnusedExpressions);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unused_expressions/test_reports_namespace_string_after_non_directive_statement.ts",
             r#"
 namespace Demo {
@@ -788,7 +789,7 @@ namespace Demo {
     #[test]
     fn test_reports_module_directive_when_disabled() {
         let test = TestProgram::for_rule_without_prelude(NoUnusedExpressions);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unused_expressions/test_reports_module_directive_when_disabled.ts",
             r#"
 "use strict";

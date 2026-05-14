@@ -6,7 +6,7 @@ use destack_dir::{
 use destack_source::LabeledSpan;
 use destack_workspace::LintSeverity;
 
-use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow functions in loops that capture mutable outer bindings.
@@ -34,7 +34,7 @@ impl LintRule for NoLoopFunc {
         NoLoopFunc::meta()
     }
 
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let mut visitor = NoLoopFuncVisitor::new(ctx, meta);
         visitor.run();
@@ -44,7 +44,7 @@ impl LintRule for NoLoopFunc {
 /// Visitor that reports loop function captures.
 struct NoLoopFuncVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// Active loop scopes for the current traversal stack.
@@ -55,7 +55,7 @@ struct NoLoopFuncVisitor<'a, 'b> {
 
 impl<'a, 'b> NoLoopFuncVisitor<'a, 'b> {
     /// Build a visitor for loop function checks.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         Self {
             ctx,
             meta,
@@ -67,7 +67,7 @@ impl<'a, 'b> NoLoopFuncVisitor<'a, 'b> {
     /// Walk all module roots.
     fn run(&mut self) {
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
         for root_id in roots {
             let root_expression = tree.get(root_id);
             self.visit_expression(tree, root_id, root_expression);
@@ -78,26 +78,29 @@ impl<'a, 'b> NoLoopFuncVisitor<'a, 'b> {
     fn check_loop_function_declaration(
         &mut self,
         function_expression_id: dir::LocalNodeId<dir::Expression>,
-        function_scope_id: dir::LocalScopeId,
+        function_scope: Option<dir::LocalScope>,
         body_expression_id: dir::LocalNodeId<dir::Expression>,
     ) {
         // skip when no loop is active
         if self.active_loop_scopes.is_empty() {
             return;
         }
+        let Some(function_scope) = function_scope else {
+            return;
+        };
 
         // skip immediately invoked function expressions
-        if expression_is_immediately_invoked(self.ctx.tree, function_expression_id) {
+        if expression_is_immediately_invoked(self.ctx.dir.tree(), function_expression_id) {
             return;
         }
 
         // collect mutable captured symbols that are loop related
         let mut collector = CapturedMutableSymbolCollector::new(
             self.ctx.module_id(),
-            self.ctx.tree,
+            self.ctx.dir.tree(),
             self.ctx.symbols,
             self.ctx.types,
-            function_scope_id,
+            function_scope.id,
             self.active_loop_scopes.as_slice(),
         );
         collector.collect(body_expression_id);
@@ -175,13 +178,13 @@ impl NodeVisitor for NoLoopFuncVisitor<'_, '_> {
     ) {
         // track loop scope while visiting loop expressions
         let loop_scope = match expression {
-            dir::Expression::Loop { scope, .. }
-            | dir::Expression::ForEach { scope, .. }
-            | dir::Expression::For { scope, .. } => Some(*scope),
+            dir::Expression::Loop { .. }
+            | dir::Expression::ForEach { .. }
+            | dir::Expression::For { .. } => self.ctx.scope_for_node(id),
             _ => None,
         };
         if let Some(loop_scope_id) = loop_scope {
-            self.active_loop_scopes.push(loop_scope_id);
+            self.active_loop_scopes.push(loop_scope_id.id);
             walk_expression(self, tree, id, expression);
             self.active_loop_scopes.pop();
             return;
@@ -195,7 +198,7 @@ impl NodeVisitor for NoLoopFuncVisitor<'_, '_> {
             {
                 self.check_loop_function_declaration(
                     id,
-                    function_declaration.scope,
+                    self.ctx.scope_for_node(*declaration),
                     body_expression_id,
                 );
 
@@ -279,7 +282,7 @@ impl<'a> CapturedMutableSymbolCollector<'a> {
         }
 
         // skip symbols declared inside this function scope
-        let symbol_scope_id = symbol.scope.0;
+        let symbol_scope_id = symbol.scope.id;
         if scope_is_descendant_of(self.symbols, symbol_scope_id, self.function_scope_id) {
             return;
         }
@@ -346,10 +349,10 @@ fn scope_is_descendant_of(
         }
 
         let scope = symbols.get_scope_by_id(scope_id);
-        let Some((parent_scope_id, _)) = scope.parent else {
+        let Some(parent_scope) = scope.parent else {
             return false;
         };
-        scope_id = parent_scope_id;
+        scope_id = parent_scope.id;
     }
 }
 

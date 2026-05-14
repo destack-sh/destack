@@ -322,8 +322,6 @@ impl<'a> TaintAnalysis<'a> {
                 }
             }
             dir::Expression::As {
-                operator: _,
-                source: _,
                 expression: value,
                 target_type: _,
             }
@@ -344,8 +342,7 @@ impl<'a> TaintAnalysis<'a> {
                     self.expression_taint_labels_inner(*right, expression_stack, symbol_stack);
                 labels.merge(&right_labels);
             }
-            dir::Expression::Binary { left, right, .. }
-            | dir::Expression::AssignBinary { left, right, .. } => {
+            dir::Expression::Binary { left, right, .. } => {
                 // binary expressions taint from both operands
                 let left_labels =
                     self.expression_taint_labels_inner(*left, expression_stack, symbol_stack);
@@ -355,7 +352,11 @@ impl<'a> TaintAnalysis<'a> {
                     self.expression_taint_labels_inner(*right, expression_stack, symbol_stack);
                 labels.merge(&right_labels);
             }
-            dir::Expression::Assign { left, right } => {
+            dir::Expression::Assign {
+                left,
+                operator: _,
+                right,
+            } => {
                 // assignments taint from both the target and the assigned value
                 let left_labels =
                     self.assign_pattern_taint_labels_inner(*left, expression_stack, symbol_stack);
@@ -367,24 +368,24 @@ impl<'a> TaintAnalysis<'a> {
             }
             dir::Expression::Member { left, .. }
             | dir::Expression::PrivateMember { left, .. }
-            | dir::Expression::Maybe { left }
-            | dir::Expression::Must { left }
+            | dir::Expression::Maybe { left, .. }
+            | dir::Expression::Must { left, .. }
             | dir::Expression::Instantiation { left, .. } => {
                 // member and wrapper expressions preserve receiver taint
                 let left_labels =
                     self.expression_taint_labels_inner(*left, expression_stack, symbol_stack);
                 labels.merge(&left_labels);
             }
-            dir::Expression::Index { left, right } => {
+            dir::Expression::Index { left, index, .. } => {
                 // indexing taints from receiver and optional index
                 let left_labels =
                     self.expression_taint_labels_inner(*left, expression_stack, symbol_stack);
                 labels.merge(&left_labels);
 
-                if let Some(right) = right {
-                    let right_labels =
-                        self.expression_taint_labels_inner(*right, expression_stack, symbol_stack);
-                    labels.merge(&right_labels);
+                if let Some(index) = index {
+                    let index_labels =
+                        self.expression_taint_labels_inner(*index, expression_stack, symbol_stack);
+                    labels.merge(&index_labels);
                 }
             }
             dir::Expression::Call {
@@ -402,11 +403,11 @@ impl<'a> TaintAnalysis<'a> {
                 // propagate taint from call arguments
                 for argument_id in arguments.iter().copied() {
                     let argument = self.tree.get(argument_id);
-                    let argument_labels = self.expression_taint_labels_inner(
-                        argument.value(),
-                        expression_stack,
-                        symbol_stack,
-                    );
+                    let Some(value) = argument.value() else {
+                        continue;
+                    };
+                    let argument_labels =
+                        self.expression_taint_labels_inner(value, expression_stack, symbol_stack);
                     labels.merge(&argument_labels);
                 }
 
@@ -462,11 +463,11 @@ impl<'a> TaintAnalysis<'a> {
                 // aggregate values taint from their elements
                 for argument_id in elements.iter().copied() {
                     let argument = self.tree.get(argument_id);
-                    let element_labels = self.expression_taint_labels_inner(
-                        argument.value(),
-                        expression_stack,
-                        symbol_stack,
-                    );
+                    let Some(value) = argument.value() else {
+                        continue;
+                    };
+                    let element_labels =
+                        self.expression_taint_labels_inner(value, expression_stack, symbol_stack);
                     labels.merge(&element_labels);
                 }
             }
@@ -500,7 +501,7 @@ impl<'a> TaintAnalysis<'a> {
                             );
                             labels.merge(&value_labels);
                         }
-                        dir::Property::Error { .. } => {}
+                        dir::Property::Error => {}
                     }
                 }
             }
@@ -514,8 +515,11 @@ impl<'a> TaintAnalysis<'a> {
                 if let Some(arguments) = arguments {
                     for argument_id in arguments.iter().copied() {
                         let argument = self.tree.get(argument_id);
+                        let Some(value) = argument.value() else {
+                            continue;
+                        };
                         let argument_labels = self.expression_taint_labels_inner(
-                            argument.value(),
+                            value,
                             expression_stack,
                             symbol_stack,
                         );
@@ -526,56 +530,15 @@ impl<'a> TaintAnalysis<'a> {
                 if let Some(elements) = elements {
                     for element_id in elements.iter().copied() {
                         let element = self.tree.get(element_id);
+                        let Some(value) = element.value() else {
+                            continue;
+                        };
                         let element_labels = self.expression_taint_labels_inner(
-                            element.value(),
+                            value,
                             expression_stack,
                             symbol_stack,
                         );
                         labels.merge(&element_labels);
-                    }
-                }
-            }
-            dir::Expression::TaggedScalarExpression { value, .. } => {
-                // tagged scalar values taint from the payload
-                let value_labels =
-                    self.expression_taint_labels_inner(*value, expression_stack, symbol_stack);
-                labels.merge(&value_labels);
-            }
-            dir::Expression::TaggedTupleExpression { elements, .. } => {
-                // tagged tuple values taint from all payload elements
-                for element_id in elements.iter().copied() {
-                    let element = self.tree.get(element_id);
-                    let element_labels = self.expression_taint_labels_inner(
-                        element.value(),
-                        expression_stack,
-                        symbol_stack,
-                    );
-                    labels.merge(&element_labels);
-                }
-            }
-            dir::Expression::TaggedObjectExpression { properties, .. } => {
-                // tagged object values taint from all payload fields
-                for property_id in properties.iter().copied() {
-                    let property = self.tree.get(property_id);
-                    match property {
-                        dir::Property::Field { value, .. } => {
-                            let value_labels = self.expression_taint_labels_inner(
-                                *value,
-                                expression_stack,
-                                symbol_stack,
-                            );
-                            labels.merge(&value_labels);
-                        }
-                        dir::Property::Method { .. } => {}
-                        dir::Property::Spread { value, .. } => {
-                            let value_labels = self.expression_taint_labels_inner(
-                                *value,
-                                expression_stack,
-                                symbol_stack,
-                            );
-                            labels.merge(&value_labels);
-                        }
-                        dir::Property::Error { .. } => {}
                     }
                 }
             }
@@ -760,11 +723,11 @@ impl<'a> TaintAnalysis<'a> {
         };
         for argument_id in arguments.iter().copied() {
             let argument = self.tree.get(argument_id);
-            let argument_labels = self.expression_taint_labels_inner(
-                argument.value(),
-                expression_stack,
-                symbol_stack,
-            );
+            let Some(value) = argument.value() else {
+                continue;
+            };
+            let argument_labels =
+                self.expression_taint_labels_inner(value, expression_stack, symbol_stack);
             labels.merge(&argument_labels);
         }
 
@@ -879,13 +842,13 @@ fn expression_is_heuristically_tainted(
     let expression_id = expression_unwrap_parenthesized(tree, expression_id);
     let expression = tree.get(expression_id);
 
-    if matches!(expression, dir::Expression::ScalarLiteral { .. }) {
+    if matches!(expression, dir::Expression::ScalarLiteral(_)) {
         return false;
     }
 
     matches!(
         expression,
-        dir::Expression::Path { .. }
+        dir::Expression::QualifiedReference { .. }
             | dir::Expression::Member { .. }
             | dir::Expression::Call { .. }
             | dir::Expression::Index { .. }

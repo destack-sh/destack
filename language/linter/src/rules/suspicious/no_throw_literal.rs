@@ -3,7 +3,7 @@ use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_unwrap_parenthesized;
-use crate::{LintFix, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow throwing literals.
@@ -31,20 +31,20 @@ impl LintRule for NoThrowLiteral {
     }
 
     /// Check module DIR nodes for literal throws.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         // resolve lint metadata
         let meta = self.meta();
 
         // walk expressions for throw statements
-        for (node_id, expression) in ctx.tree.iter_nodes_of_type::<dir::Expression>() {
+        for (node_id, expression) in ctx.dir.iter_nodes_of_type::<dir::Expression>() {
             // skip non throw expressions
             let dir::Expression::Throw { value } = expression else {
                 continue;
             };
 
             // resolve the thrown expression
-            let thrown_id = expression_unwrap_parenthesized(ctx.tree, *value);
-            let thrown = ctx.tree.get(thrown_id);
+            let thrown_id = expression_unwrap_parenthesized(ctx.dir.tree(), *value);
+            let thrown = ctx.dir.get(thrown_id);
             let is_undefined_identifier = thrown_expression_is_undefined_identifier(ctx, thrown_id);
             if !is_literal_expression(thrown) && !is_undefined_identifier {
                 continue;
@@ -74,7 +74,7 @@ impl LintRule for NoThrowLiteral {
             .label("throw an Error object instead");
 
             // compute fixes only when requested by the runner
-            if ctx.include_fixes
+            if ctx.compute_fixes
                 && let Some(fix) = no_throw_literal_fix(ctx, node_id, thrown_id)
             {
                 diagnostic = diagnostic.fix(fix);
@@ -89,7 +89,7 @@ impl LintRule for NoThrowLiteral {
 fn is_literal_expression(expression: &dir::Expression) -> bool {
     matches!(
         expression,
-        dir::Expression::ScalarLiteral { .. }
+        dir::Expression::ScalarLiteral(_)
             | dir::Expression::TemplateExpression { .. }
             | dir::Expression::ArrayExpression { .. }
             | dir::Expression::TupleExpression { .. }
@@ -99,17 +99,20 @@ fn is_literal_expression(expression: &dir::Expression) -> bool {
 
 /// Return true when the thrown expression is the bare identifier `undefined`.
 fn thrown_expression_is_undefined_identifier(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     let undefined_name = ctx.string_id("undefined");
-    let expression = ctx.tree.get(expression_id);
+    let expression = ctx.dir.get(expression_id);
 
     match expression {
-        dir::Expression::TypeLiteral {
-            value: dir::TypeLiteral::Undefined,
-        } => true,
-        dir::Expression::Path {
+        dir::Expression::Type { value } => matches!(
+            ctx.dir.get(*value),
+            dir::TypeExpression::Literal {
+                value: dir::TypeLiteral::Undefined,
+            }
+        ),
+        dir::Expression::QualifiedReference {
             path,
             generic_arguments,
         } => {
@@ -123,11 +126,11 @@ fn thrown_expression_is_undefined_identifier(
 
 /// Build one unsafe fix by wrapping a thrown literal in Error.
 fn no_throw_literal_fix(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     throw_id: dir::LocalNodeId<dir::Expression>,
     thrown_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<LintFix> {
-    let thrown_expression = ctx.tree.get(thrown_id);
+    let thrown_expression = ctx.dir.get(thrown_id);
     let thrown_span = ctx.get_span(thrown_id);
     let thrown_text = ctx.get_span_text(thrown_span);
     if thrown_text.trim().is_empty() {
@@ -136,10 +139,8 @@ fn no_throw_literal_fix(
 
     let replacement_value = if matches!(
         thrown_expression,
-        dir::Expression::ScalarLiteral {
-            value: dir::ScalarLiteral::String(_),
-            ..
-        } | dir::Expression::TemplateExpression { .. }
+        dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(_))
+            | dir::Expression::TemplateExpression { .. }
     ) {
         format!("new Error({thrown_text})")
     } else {

@@ -1,12 +1,12 @@
 use crate::LintMeta;
-use destack_ast::{self as ast, AssignOperator, BinaryOperator, ScalarLiteral};
+use destack_dir::{self as dir, AssignOperator, BinaryOperator, ScalarLiteral};
 use destack_workspace::{LintSeverity, OperatorAssignmentMode};
 
 use crate::rules::common::{
     assign_pattern_expression, expression_is_equal, expression_path_segments,
     expression_unwrap_parenthesized_source_form, span_has_comment,
 };
-use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer compound assignment operators.
@@ -16,7 +16,7 @@ declare_lint! {
         id = "operator-assignment",
         code = "LY028",
         category = Style,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -32,16 +32,16 @@ impl LintRule for OperatorAssignment {
         OperatorAssignment::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // scan all assignment expressions
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let ast::Expression::Assign {
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let dir::Expression::Assign {
                 left,
                 operator,
                 right,
-            } = ctx.tree.get(node_id)
+            } = ctx.dir.get(node_id)
             else {
                 continue;
             };
@@ -57,12 +57,13 @@ impl LintRule for OperatorAssignment {
             }
 
             // normalize the assignment and binary shapes
-            let normalized_right_id = expression_unwrap_parenthesized_source_form(ctx.tree, *right);
-            let ast::Expression::Binary {
+            let normalized_right_id =
+                expression_unwrap_parenthesized_source_form(ctx.dir.tree(), *right);
+            let dir::Expression::Binary {
                 left: binary_left_id,
                 operator: binary_operator,
                 right: binary_right_id,
-            } = ctx.tree.get(normalized_right_id)
+            } = ctx.dir.get(normalized_right_id)
             else {
                 continue;
             };
@@ -73,15 +74,15 @@ impl LintRule for OperatorAssignment {
             };
 
             // resolve normalized operands for structural comparison
-            let Some(assignment_left_id) = assign_pattern_expression(ctx.tree, *left) else {
+            let Some(assignment_left_id) = assign_pattern_expression(ctx.dir.tree(), *left) else {
                 continue;
             };
             let normalized_assignment_left_id =
-                expression_unwrap_parenthesized_source_form(ctx.tree, assignment_left_id);
+                expression_unwrap_parenthesized_source_form(ctx.dir.tree(), assignment_left_id);
             let normalized_binary_left_id =
-                expression_unwrap_parenthesized_source_form(ctx.tree, *binary_left_id);
+                expression_unwrap_parenthesized_source_form(ctx.dir.tree(), *binary_left_id);
             let normalized_binary_right_id =
-                expression_unwrap_parenthesized_source_form(ctx.tree, *binary_right_id);
+                expression_unwrap_parenthesized_source_form(ctx.dir.tree(), *binary_right_id);
 
             // report when assignment target appears on binary left side
             let left_matches_left = expression_is_equal(
@@ -107,7 +108,7 @@ impl LintRule for OperatorAssignment {
                 continue;
             }
 
-            let expression_span = ctx.tree.get_span(node_id);
+            let expression_span = ctx.dir.get_span(node_id);
             let mut diagnostic = LintReport::new(
                 OPERATOR_ASSIGNMENT.id,
                 OPERATOR_ASSIGNMENT.code,
@@ -125,10 +126,10 @@ impl LintRule for OperatorAssignment {
             if ctx.compute_fixes
                 && left_matches_left
                 && can_fix_assignment_target(ctx, normalized_assignment_left_id)
-                && !span_has_comment(ctx.tree, expression_span)
+                && !span_has_comment(ctx.dir.tree(), expression_span)
             {
-                let left_text = ctx.get_span_text(ctx.tree.get_span(*left));
-                let right_text = ctx.get_span_text(ctx.tree.get_span(*binary_right_id));
+                let left_text = ctx.get_span_text(ctx.dir.get_span(*left));
+                let right_text = ctx.get_span_text(ctx.dir.get_span(*binary_right_id));
                 let replacement = format!("{left_text} {} {right_text}", shorthand.assignment_text);
                 let edits = ctx
                     .edit_builder()
@@ -148,13 +149,13 @@ impl OperatorAssignment {
     /// Report shorthand assignment operators when the mode disallows them.
     fn check_disallowed_shorthand_assignment(
         &self,
-        ctx: &mut LintAstContext<'_>,
+        ctx: &mut LintModuleContext<'_>,
         meta: &'static LintMeta,
-        node_id: ast::LocalNodeId<ast::Expression>,
-        left_id: ast::LocalNodeId<ast::AssignPattern>,
+        node_id: dir::LocalNodeId<dir::Expression>,
+        left_id: dir::LocalNodeId<dir::AssignPattern>,
         operator: AssignOperator,
     ) {
-        let Some(left_id) = assign_pattern_expression(ctx.tree, left_id) else {
+        let Some(left_id) = assign_pattern_expression(ctx.dir.tree(), left_id) else {
             return;
         };
 
@@ -167,8 +168,8 @@ impl OperatorAssignment {
             return;
         }
 
-        let expression_span = ctx.tree.get_span(node_id);
-        let left_text = ctx.get_span_text(ctx.tree.get_span(left_id));
+        let expression_span = ctx.dir.get_span(node_id);
+        let left_text = ctx.get_span_text(ctx.dir.get_span(left_id));
         ctx.report(
             LintReport::new(
                 OPERATOR_ASSIGNMENT.id,
@@ -266,39 +267,40 @@ fn expanded_assignment_operator_text(operator: AssignOperator) -> Option<&'stati
 
 /// Return true when one assignment target can be safely auto fixed.
 fn can_fix_assignment_target(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    let expression_id = expression_unwrap_parenthesized_source_form(ctx.tree, expression_id);
-    let expression = ctx.tree.get(expression_id);
+    let expression_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), expression_id);
+    let expression = ctx.dir.get(expression_id);
 
     match expression {
         // bare references are safe rewrite targets
-        ast::Expression::Identifier { .. }
-        | ast::Expression::QualifiedReference { .. }
-        | ast::Expression::This => true,
+        dir::Expression::Identifier { .. }
+        | dir::Expression::QualifiedReference { .. }
+        | dir::Expression::This => true,
 
         // dot member targets are safe when their receiver is stable
-        ast::Expression::Member { left, .. } => {
-            let object_id = expression_unwrap_parenthesized_source_form(ctx.tree, *left);
-            expression_path_segments(ctx.tree, object_id).is_some()
-                || matches!(ctx.tree.get(object_id), ast::Expression::This)
+        dir::Expression::Member { left, .. } => {
+            let object_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), *left);
+            expression_path_segments(ctx.dir.tree(), object_id).is_some()
+                || matches!(ctx.dir.get(object_id), dir::Expression::This)
         }
 
         // bracket member targets are safe when receiver and index are stable
-        ast::Expression::Index { left, index, .. } => {
-            let object_id = expression_unwrap_parenthesized_source_form(ctx.tree, *left);
-            let object_is_stable = expression_path_segments(ctx.tree, object_id).is_some()
-                || matches!(ctx.tree.get(object_id), ast::Expression::This);
+        dir::Expression::Index { left, index, .. } => {
+            let object_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), *left);
+            let object_is_stable = expression_path_segments(ctx.dir.tree(), object_id).is_some()
+                || matches!(ctx.dir.get(object_id), dir::Expression::This);
 
             let index_is_stable_literal = index.is_some_and(|index_id| {
-                let index_id = expression_unwrap_parenthesized_source_form(ctx.tree, index_id);
+                let index_id =
+                    expression_unwrap_parenthesized_source_form(ctx.dir.tree(), index_id);
                 matches!(
-                    ctx.tree.get(index_id),
-                    ast::Expression::ScalarLiteral(ScalarLiteral::String(_))
-                        | ast::Expression::ScalarLiteral(ScalarLiteral::Integer(_))
-                        | ast::Expression::ScalarLiteral(ScalarLiteral::Float(_))
-                        | ast::Expression::ScalarLiteral(ScalarLiteral::Bigint(_))
+                    ctx.dir.get(index_id),
+                    dir::Expression::ScalarLiteral(ScalarLiteral::String(_))
+                        | dir::Expression::ScalarLiteral(ScalarLiteral::Integer(_))
+                        | dir::Expression::ScalarLiteral(ScalarLiteral::Float(_))
+                        | dir::Expression::ScalarLiteral(ScalarLiteral::Bigint(_))
                 )
             });
 
@@ -317,7 +319,7 @@ mod tests {
     #[test]
     fn test_detects_add_assignment() {
         let test = TestProgram::for_rule_without_prelude(OperatorAssignment);
-        let result = test.lint_ast(
+        let result = test.lint(
             "operator_assignment/test_detects_add_assignment.ds",
             r#"
 let x = 1
@@ -337,7 +339,7 @@ x += 1;
     #[test]
     fn test_detects_member_assignment() {
         let test = TestProgram::for_rule_without_prelude(OperatorAssignment);
-        let result = test.lint_ast(
+        let result = test.lint(
             "operator_assignment/test_detects_member_assignment.ds",
             r#"
 foo.bar = foo.bar + baz
@@ -355,7 +357,7 @@ foo.bar += baz;
     #[test]
     fn test_detects_unsigned_shift_assignment() {
         let test = TestProgram::for_rule_without_prelude(OperatorAssignment);
-        let result = test.lint_ast(
+        let result = test.lint(
             "operator_assignment/test_detects_unsigned_shift_assignment.ds",
             r#"
 x = x >>> y
@@ -373,7 +375,7 @@ x >>>= y;
     #[test]
     fn test_detects_commutative_right_side_without_fix() {
         let test = TestProgram::for_rule_without_prelude(OperatorAssignment);
-        let result = test.lint_ast(
+        let result = test.lint(
             "operator_assignment/test_detects_commutative_right_side_without_fix.ds",
             r#"
 x = y * x
@@ -387,7 +389,7 @@ x = y * x
     #[test]
     fn test_allows_non_commutative_right_side_match() {
         let test = TestProgram::for_rule_without_prelude(OperatorAssignment);
-        let result = test.lint_ast(
+        let result = test.lint(
             "operator_assignment/test_allows_non_commutative_right_side_match.ds",
             r#"
 x = y - x
@@ -399,7 +401,7 @@ x = y - x
     #[test]
     fn test_allows_logical_expression_assignment() {
         let test = TestProgram::for_rule_without_prelude(OperatorAssignment);
-        let result = test.lint_ast(
+        let result = test.lint(
             "operator_assignment/test_allows_logical_expression_assignment.ds",
             r#"
 x = x && y
@@ -411,7 +413,7 @@ x = x && y
     #[test]
     fn test_detects_parenthesized_binary_expression() {
         let test = TestProgram::for_rule_without_prelude(OperatorAssignment);
-        let result = test.lint_ast(
+        let result = test.lint(
             "operator_assignment/test_detects_parenthesized_binary_expression.ds",
             r#"
 x = (x + y)
@@ -429,7 +431,7 @@ x += y;
     #[test]
     fn test_reports_dynamic_member_assignment_without_fix() {
         let test = TestProgram::for_rule_without_prelude(OperatorAssignment);
-        let result = test.lint_ast(
+        let result = test.lint(
             "operator_assignment/test_reports_dynamic_member_assignment_without_fix.ds",
             r#"
 foo[bar].baz = foo[bar].baz + qux
@@ -443,7 +445,7 @@ foo[bar].baz = foo[bar].baz + qux
     #[test]
     fn test_skips_fix_when_comments_are_present() {
         let test = TestProgram::for_rule_without_prelude(OperatorAssignment);
-        let result = test.lint_ast(
+        let result = test.lint(
             "operator_assignment/test_skips_fix_when_comments_are_present.ds",
             r#"
 x = x /* keep */ + y
@@ -460,7 +462,7 @@ x = x /* keep */ + y
             TestProgram::for_rule_without_prelude(OperatorAssignment).with_options(|options| {
                 options.style.operator_assignment_mode = OperatorAssignmentMode::Never
             });
-        let result = test.lint_ast(
+        let result = test.lint(
             "operator_assignment/test_reports_shorthand_assignment_when_mode_is_never.ds",
             r#"
 x += y
@@ -477,7 +479,7 @@ x += y
             TestProgram::for_rule_without_prelude(OperatorAssignment).with_options(|options| {
                 options.style.operator_assignment_mode = OperatorAssignmentMode::Never
             });
-        let result = test.lint_ast(
+        let result = test.lint(
             "operator_assignment/test_ignores_logical_assignment_when_mode_is_never.ds",
             r#"
 x &&= y

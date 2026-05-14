@@ -3,7 +3,7 @@ use destack_core::StringId;
 use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
-use crate::{LintFix, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow default exports.
@@ -30,12 +30,12 @@ impl LintRule for NoDefaultExport {
         NoDefaultExport::meta()
     }
 
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let default_name = ctx.string_id("default");
 
         // check default export dependency items in export and re-export expressions
-        for (node_id, item) in ctx.tree.iter_nodes_of_type::<dir::DependencyItem>() {
+        for (node_id, item) in ctx.dir.iter_nodes_of_type::<dir::DependencyItem>() {
             if !dependency_item_exports_default(ctx, node_id, item, default_name) {
                 continue;
             }
@@ -59,7 +59,7 @@ impl LintRule for NoDefaultExport {
         }
 
         // check for declarations with export=Default (export default function/class)
-        for (node_id, declaration) in ctx.tree.iter_nodes_of_type::<dir::Declaration>() {
+        for (node_id, declaration) in ctx.dir.iter_nodes_of_type::<dir::Declaration>() {
             let export = match declaration {
                 dir::Declaration::Global(_) => None,
                 dir::Declaration::Module(_) => None,
@@ -89,7 +89,7 @@ impl LintRule for NoDefaultExport {
                 .label("use named exports instead");
 
                 // compute fixes only when requested by the runner
-                if ctx.include_fixes
+                if ctx.compute_fixes
                     && let Some(fix) = default_export_declaration_fix(ctx, node_id)
                 {
                     diagnostic = diagnostic.fix(fix);
@@ -103,12 +103,12 @@ impl LintRule for NoDefaultExport {
 
 /// Return true when a dependency item belongs to an export expression and exports `default`.
 fn dependency_item_exports_default(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     item_id: dir::LocalNodeId<dir::DependencyItem>,
     item: &dir::DependencyItem,
     default_name: StringId,
 ) -> bool {
-    let Some(parent_id) = ctx.tree.get_parent(item_id.id) else {
+    let Some(parent_id) = ctx.dir.get_parent(item_id.id) else {
         return false;
     };
     let Ok(parent_id) = parent_id.try_into_typed::<dir::Expression>() else {
@@ -116,13 +116,11 @@ fn dependency_item_exports_default(
     };
 
     // only inspect export nodes, not imports
-    match ctx.tree.get(parent_id) {
-        dir::Expression::Export { .. } | dir::Expression::ReExport { .. } => {}
-        _ => return false,
-    }
+    let dir::Expression::Export { .. } = ctx.dir.get(parent_id) else {
+        return false;
+    };
 
     match item {
-        dir::DependencyItem::Value { binding, .. } => *binding == dir::DependencyBinding::Default,
         dir::DependencyItem::Item {
             binding,
             space,
@@ -130,7 +128,7 @@ fn dependency_item_exports_default(
             alias,
             ..
         } => {
-            if *space != dir::DependencySpace::Value {
+            if space.unwrap_or(dir::DependencySpace::Value) != dir::DependencySpace::Value {
                 return false;
             }
 
@@ -160,11 +158,11 @@ fn dependency_item_export_name(
 
 /// Build an unsafe fix that rewrites declaration default exports to named exports.
 fn default_export_declaration_fix(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     declaration_id: dir::LocalNodeId<dir::Declaration>,
 ) -> Option<LintFix> {
     // only rewrite named function and class declarations
-    let declaration = ctx.tree.get(declaration_id);
+    let declaration = ctx.dir.get(declaration_id);
     match declaration {
         dir::Declaration::Function(declaration) => declaration.name?,
         dir::Declaration::Class(declaration) => declaration.name?,

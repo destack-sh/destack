@@ -1,5 +1,6 @@
-use destack_ast::StringId;
-use destack_dir::{self as dir, LanguageItem, NodeVisitor, NodeVisitorOptions, walk_expression};
+use destack_dir::{
+    self as dir, LanguageItem, NodeVisitor, NodeVisitorOptions, StringId, walk_expression,
+};
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLanguageItem;
@@ -7,7 +8,7 @@ use crate::rules::common::{
     expression_is_promise_like, expression_is_standalone_statement,
     expression_unwrap_parenthesized, is_function_type, supports_promise_spread_elements,
 };
-use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Require Promise results to be handled.
@@ -36,7 +37,7 @@ impl LintRule for NoFloatingPromises {
     }
 
     /// Check module DIR nodes for floating Promise expressions.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let mut visitor = FloatingPromiseVisitor::new(ctx, meta);
         visitor.run();
@@ -46,7 +47,7 @@ impl LintRule for NoFloatingPromises {
 /// Node visitor that flags floating Promise expressions.
 struct FloatingPromiseVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The Promise symbol.
@@ -65,7 +66,7 @@ struct FloatingPromiseVisitor<'a, 'b> {
 
 impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
     /// Build a visitor for floating Promise checks.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         let promise_symbol = ctx.language_item(LanguageItem::Promise);
         let ignore_void = ctx.options.correctness.no_floating_promises_ignore_void;
         let then_name = ctx.string_id("then");
@@ -87,7 +88,7 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
     /// Walk the DIR tree roots.
     fn run(&mut self) {
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         // inspect dir roots
         for root_id in roots {
@@ -98,8 +99,8 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
 
     /// Return true when an expression produces a Promise value.
     fn is_promise_expression(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        let expression_id = expression_unwrap_parenthesized(self.ctx.tree, expression_id);
-        let expression = self.ctx.tree.get(expression_id);
+        let expression_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), expression_id);
+        let expression = self.ctx.dir.get(expression_id);
 
         // preserve Promise checks for explicit void discards
         if let dir::Expression::Unary {
@@ -112,8 +113,8 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
 
         // follow Promise handler chains through member receivers
         if let dir::Expression::Call { left, .. } = expression {
-            let left_id = expression_unwrap_parenthesized(self.ctx.tree, *left);
-            let left_expression = self.ctx.tree.get(left_id);
+            let left_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), *left);
+            let left_expression = self.ctx.dir.get(left_id);
             if let dir::Expression::Member {
                 left: receiver,
                 name,
@@ -129,7 +130,7 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
 
         expression_is_promise_like(
             self.ctx.module_id(),
-            self.ctx.tree,
+            self.ctx.dir.tree(),
             self.ctx.types,
             self.promise_symbol,
             expression_id,
@@ -141,8 +142,8 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> bool {
-        let expression_id = expression_unwrap_parenthesized(self.ctx.tree, expression_id);
-        let expression = self.ctx.tree.get(expression_id);
+        let expression_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), expression_id);
+        let expression = self.ctx.dir.get(expression_id);
 
         // preserve Promise array checks for explicit void discards
         if let dir::Expression::Unary {
@@ -162,8 +163,8 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
 
     /// Return true when a call is a Promise handler chain.
     fn is_handler_call(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        let expression_id = expression_unwrap_parenthesized(self.ctx.tree, expression_id);
-        let expression = self.ctx.tree.get(expression_id);
+        let expression_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), expression_id);
+        let expression = self.ctx.dir.get(expression_id);
         let dir::Expression::Call {
             left, arguments, ..
         } = expression
@@ -172,8 +173,8 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
         };
 
         // resolve left id
-        let left_id = expression_unwrap_parenthesized(self.ctx.tree, *left);
-        let left_expression = self.ctx.tree.get(left_id);
+        let left_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), *left);
+        let left_expression = self.ctx.dir.get(left_id);
         let dir::Expression::Member { name, .. } = left_expression else {
             return false;
         };
@@ -192,8 +193,10 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
         let Some(second_argument_id) = arguments.get(1) else {
             return false;
         };
-        let second_argument = self.ctx.tree.get(*second_argument_id);
-        let handler_id = second_argument.value();
+        let second_argument = self.ctx.dir.get(*second_argument_id);
+        let Some(handler_id) = second_argument.value() else {
+            return false;
+        };
         let Some(handler_type_id) = self.ctx.expression_type_id(handler_id) else {
             return false;
         };
@@ -203,8 +206,8 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
 
     /// Return true when the Promise expression is handled.
     fn is_handled_expression(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        let expression_id = expression_unwrap_parenthesized(self.ctx.tree, expression_id);
-        let expression = self.ctx.tree.get(expression_id);
+        let expression_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), expression_id);
+        let expression = self.ctx.dir.get(expression_id);
 
         // branch by expression kind
         match expression {
@@ -263,7 +266,7 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
         });
 
         // compute fixes only when requested by the runner
-        if self.ctx.include_fixes
+        if self.ctx.compute_fixes
             && let Some(fix) = self.no_floating_promises_fix(inner_id)
         {
             diagnostic = diagnostic.fix(fix);
@@ -283,8 +286,8 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
         }
 
         // do not stack `void` on existing explicit void expressions
-        let expression_id = expression_unwrap_parenthesized(self.ctx.tree, expression_id);
-        let expression = self.ctx.tree.get(expression_id);
+        let expression_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), expression_id);
+        let expression = self.ctx.dir.get(expression_id);
         if matches!(
             expression,
             dir::Expression::Unary {
@@ -297,7 +300,7 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
 
         // preserve replacement span, but normalize redundant parentheses
         let replacement_span = self.ctx.get_span(expression_id);
-        let normalized_id = expression_unwrap_parenthesized(self.ctx.tree, expression_id);
+        let normalized_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), expression_id);
         let normalized_span = self.ctx.get_span(normalized_id);
         let expression_text = self.ctx.get_span_text(normalized_span);
         if expression_text.trim().is_empty() {

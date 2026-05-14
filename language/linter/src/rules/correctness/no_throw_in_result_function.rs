@@ -5,7 +5,7 @@ use crate::rules::common::{
     expression_enters_nested_declaration_scope,
     function_signature_return_type_contains_reference_segment,
 };
-use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow `throw` in functions returning `Result`.
@@ -34,7 +34,7 @@ impl LintRule for NoThrowInResultFunction {
     }
 
     /// Check module DIR nodes for throws in Result-returning callables.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // intern "Result" name for return type expression checks
@@ -42,7 +42,8 @@ impl LintRule for NoThrowInResultFunction {
 
         // collect declaration functions with Result return type
         let mut callables: Vec<_> = ctx
-            .tree
+            .dir
+            .tree()
             .iter_nodes_of_type::<dir::Declaration>()
             .filter_map(|(decl_id, decl)| {
                 // keep function declarations with executable bodies
@@ -51,7 +52,7 @@ impl LintRule for NoThrowInResultFunction {
 
                     // check if return type is Result or wraps Result in static arguments
                     if function_signature_return_type_contains_reference_segment(
-                        ctx.tree,
+                        ctx.dir.tree(),
                         &declaration.signature,
                         result_name,
                     ) {
@@ -63,7 +64,7 @@ impl LintRule for NoThrowInResultFunction {
             .collect();
 
         // collect member methods with Result return type
-        for (member_id, member) in ctx.tree.iter_nodes_of_type::<dir::Member>() {
+        for (member_id, member) in ctx.dir.iter_nodes_of_type::<dir::Member>() {
             let dir::Member::Method {
                 signature,
                 body: Some(body_id),
@@ -75,7 +76,7 @@ impl LintRule for NoThrowInResultFunction {
 
             // enforce this lint guard
             if !function_signature_return_type_contains_reference_segment(
-                ctx.tree,
+                ctx.dir.tree(),
                 signature,
                 result_name,
             ) {
@@ -96,7 +97,7 @@ impl LintRule for NoThrowInResultFunction {
 /// Visitor that finds throw expressions in a function body.
 struct ThrowInResultVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The callable owner node for severity checking.
@@ -109,11 +110,7 @@ struct ThrowInResultVisitor<'a, 'b> {
 
 impl<'a, 'b> ThrowInResultVisitor<'a, 'b> {
     /// Build a new visitor.
-    fn new(
-        ctx: &'a mut LintModuleDirContext<'b>,
-        meta: &'a LintMeta,
-        owner: CallableOwner,
-    ) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta, owner: CallableOwner) -> Self {
         Self {
             ctx,
             meta,
@@ -125,7 +122,7 @@ impl<'a, 'b> ThrowInResultVisitor<'a, 'b> {
 
     /// Walk the function body.
     fn run(&mut self, body_id: dir::LocalNodeId<dir::Expression>) {
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
         let body = tree.get(body_id);
         self.visit_expression(tree, body_id, body);
     }

@@ -3,7 +3,7 @@ use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{ExpressionDuplicateTracker, span_has_comment};
-use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow duplicate decorators on the same target.
@@ -14,7 +14,7 @@ declare_lint! {
         id = "no-duplicate-decorators",
         code = "LU009",
         category = Suspicious,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -30,16 +30,16 @@ impl LintRule for NoDuplicateDecorators {
         NoDuplicateDecorators::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // check each decorated node
-        for decorators in ctx.tree.get_all_decorators().values() {
+        for decorators in ctx.dir.get_all_decorators().values() {
             // collect decorator ids for comparison
             let mut seen = ExpressionDuplicateTracker::new();
 
             for decorator_id in decorators {
-                let decorator = ctx.tree.get(*decorator_id);
+                let decorator = ctx.dir.get(*decorator_id);
 
                 // check against all previously seen decorators
                 // report if we found a duplicate
@@ -58,7 +58,7 @@ impl LintRule for NoDuplicateDecorators {
                         .decorator_name(*decorator_id)
                         .unwrap_or_else(|| "<unknown>".to_string());
 
-                    let span = ctx.tree.get_span(*decorator_id);
+                    let span = ctx.dir.get_span(*decorator_id);
                     let mut diagnostic = LintReport::new(
                         NO_DUPLICATE_DECORATORS.id,
                         NO_DUPLICATE_DECORATORS.code,
@@ -68,7 +68,7 @@ impl LintRule for NoDuplicateDecorators {
                         span,
                     )
                     .label("this decorator is already applied with identical arguments");
-                    if ctx.compute_fixes && !span_has_comment(ctx.tree, span) {
+                    if ctx.compute_fixes && !span_has_comment(ctx.dir.tree(), span) {
                         let fix_span = duplicate_decorator_fix_span(ctx, span);
                         let fix =
                             LintFix::suggestion("Remove duplicate decorator").delete(fix_span);
@@ -83,7 +83,7 @@ impl LintRule for NoDuplicateDecorators {
 }
 
 /// Return a deletion span that removes one duplicate decorator line cleanly.
-fn duplicate_decorator_fix_span(ctx: &LintAstContext<'_>, annotation_span: Span) -> Span {
+fn duplicate_decorator_fix_span(ctx: &LintModuleContext<'_>, annotation_span: Span) -> Span {
     let source = ctx.source_text().as_bytes();
     let mut start = annotation_span.start as usize;
     let mut end = annotation_span.end as usize;
@@ -121,7 +121,7 @@ mod tests {
     #[test]
     fn test_flags_duplicate_decorator() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateDecorators);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_duplicate_decorators/test_flags_duplicate_decorator.ds",
             r#"
 @inline
@@ -135,7 +135,7 @@ function foo() {}
     #[test]
     fn test_flags_duplicate_decorator_with_same_args() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateDecorators);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_duplicate_decorators/test_flags_duplicate_decorator_with_same_args.ds",
             r#"
 @cache(100)
@@ -149,7 +149,7 @@ function foo() {}
     #[test]
     fn test_allows_different_decorators() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateDecorators);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_duplicate_decorators/test_allows_different_decorators.ds",
             r#"
 @inline
@@ -164,7 +164,7 @@ function foo() {}
     #[test]
     fn test_allows_same_decorator_different_args() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateDecorators);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_duplicate_decorators/test_allows_same_decorator_different_args.ds",
             r#"
 @validate({ min: 1 })
@@ -179,7 +179,7 @@ function foo() {}
     #[test]
     fn test_allows_same_decorator_different_numeric_args() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateDecorators);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_duplicate_decorators/test_allows_same_decorator_different_numeric_args.ds",
             r#"
 @cache(10)
@@ -194,7 +194,7 @@ function foo() {}
     #[test]
     fn test_allows_single_decorator() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateDecorators);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_duplicate_decorators/test_allows_single_decorator.ds",
             r#"
 @inline
@@ -208,7 +208,7 @@ function foo() {}
     #[test]
     fn test_flags_triple_decorator() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateDecorators);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_duplicate_decorators/test_flags_triple_decorator.ds",
             r#"
 @inline
@@ -224,7 +224,7 @@ function foo() {}
     #[test]
     fn test_flags_only_exact_duplicates_among_multiple() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateDecorators);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_duplicate_decorators/test_flags_only_exact_duplicates_among_multiple.ds",
             r#"
 @cache(10)
@@ -240,7 +240,7 @@ function foo() {}
     #[test]
     fn test_fix_removes_duplicate_decorator() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateDecorators);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_duplicate_decorators/test_fix_removes_duplicate_decorator.ds",
             r#"
 @inline
@@ -262,7 +262,7 @@ function foo() {}
     #[test]
     fn test_mutation_fix_collapses_multiple_duplicate_decorators() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateDecorators);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_duplicate_decorators/test_mutation_fix_collapses_multiple_duplicate_decorators.ds",
             r#"
 @inline
@@ -287,7 +287,7 @@ function foo() {}
     #[test]
     fn test_reports_without_fix_when_duplicate_decorator_contains_comment() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateDecorators);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_duplicate_decorators/test_reports_without_fix_when_duplicate_decorator_contains_comment.ds",
             r#"
 @cache(/* keep */ 100)

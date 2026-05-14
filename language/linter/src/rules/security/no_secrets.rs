@@ -1,7 +1,7 @@
 use crate::LintMeta;
 use aho_corasick::{AhoCorasick, MatchKind};
-use destack_ast as ast;
 use destack_core::StringId;
+use destack_dir as dir;
 use destack_workspace::LintSeverity;
 use indexmap::IndexMap;
 use regex::bytes::{
@@ -11,7 +11,7 @@ use regex::bytes::{
 use std::collections::HashMap;
 use std::sync::LazyLock;
 
-use crate::{LintAstContext, LintReport, LintRule, declare_lint};
+use crate::{LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow hardcoded secrets and credentials.
@@ -22,7 +22,7 @@ declare_lint! {
         id = "no-secrets",
         code = "LS009",
         category = Security,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         declarations = Exclude,
@@ -545,22 +545,22 @@ impl LintRule for NoSecrets {
         NoSecrets::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let mut secret_match_cache: HashMap<StringId, Option<SecretMatch>> = HashMap::new();
         let entropy_threshold =
             no_secrets_entropy_threshold(ctx.options.security.no_secrets_entropy_threshold);
 
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expression = ctx.tree.get(node_id);
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let expression = ctx.dir.get(node_id);
             match expression {
                 // string literals: check for secrets
-                ast::Expression::ScalarLiteral(ast::ScalarLiteral::String(s)) => {
+                dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(s)) => {
                     let secret_match = if let Some(secret_match) = secret_match_cache.get(s) {
                         *secret_match
                     } else {
                         let string_ref = ctx.strings.get(*s);
-                        let string_value: &str = &string_ref;
+                        let string_value: &str = string_ref;
                         let secret_match = detect_secret(string_value, entropy_threshold);
                         secret_match_cache.insert(*s, secret_match);
                         secret_match
@@ -584,7 +584,7 @@ impl LintRule for NoSecrets {
                                 NO_SECRETS.category,
                                 severity,
                                 message,
-                                ctx.tree.get_span(node_id),
+                                ctx.dir.get_span(node_id),
                             )
                             .label("use environment variables instead"),
                         );
@@ -592,15 +592,15 @@ impl LintRule for NoSecrets {
                 }
 
                 // let bindings: check for suspicious variable names with string values
-                ast::Expression::Let { declarators, .. }
-                | ast::Expression::Using { declarators, .. } => {
+                dir::Expression::Let { declarators, .. }
+                | dir::Expression::Using { declarators, .. } => {
                     for declarator_id in declarators {
-                        let declarator = ctx.tree.get(*declarator_id);
-                        let pattern = ctx.tree.get(declarator.pattern);
+                        let declarator = ctx.dir.get(*declarator_id);
+                        let pattern = ctx.dir.get(declarator.pattern);
 
                         // check if the name looks suspicious
                         let name: &str = match pattern {
-                            ast::Pattern::Binding { name, .. } => &ctx.strings.get(*name),
+                            dir::Pattern::Binding { name, .. } => ctx.strings.get(*name),
                             _ => continue,
                         };
                         if !is_suspicious_name(name) {
@@ -611,13 +611,13 @@ impl LintRule for NoSecrets {
                         let Some(value_id) = declarator.value else {
                             continue;
                         };
-                        let value = ctx.tree.get(value_id);
+                        let value = ctx.dir.get(value_id);
                         let is_suspicious = match value {
-                            ast::Expression::ScalarLiteral(ast::ScalarLiteral::String(s)) => {
-                                let string_value: &str = &ctx.strings.get(*s);
+                            dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(s)) => {
+                                let string_value: &str = ctx.strings.get(*s);
                                 is_suspicious_value(string_value)
                             }
-                            ast::Expression::TemplateExpression { .. } => true,
+                            dir::Expression::TemplateExpression { .. } => true,
                             _ => false,
                         };
 
@@ -633,7 +633,7 @@ impl LintRule for NoSecrets {
                                     NO_SECRETS.category,
                                     severity,
                                     format!("possible hardcoded secret in '{name}'"),
-                                    ctx.tree.get_span(*declarator_id),
+                                    ctx.dir.get_span(*declarator_id),
                                 )
                                 .label("use environment variables instead"),
                             );
@@ -663,7 +663,7 @@ mod tests {
     fn test_detects_aws_access_key() {
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
         // AWS access key: AKIA + 16 uppercase alphanumeric chars (20 total)
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_secrets/test_detects_aws_access_key.ts",
             r#"const key = "AKIAIOSFODNN7REALKEY";"#,
         );
@@ -674,7 +674,7 @@ mod tests {
     fn test_detects_github_pat() {
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
         // GitHub PAT: ghp_ + 36 alphanumeric chars
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_secrets/test_detects_github_pat.ts",
             r#"const token = "ghp_aB1cD2eF3gH4iJ5kL6mN7oP8qR9sT0uV1wX2";"#,
         );
@@ -684,7 +684,7 @@ mod tests {
     #[test]
     fn test_detects_stripe_live_key() {
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_secrets/test_detects_stripe_live_key.ts",
             r#"const key = "sk_live_abcdefghijklmnopqrstuvwx";"#,
         );
@@ -694,7 +694,7 @@ mod tests {
     #[test]
     fn test_detects_slack_token() {
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_secrets/test_detects_slack_token.ts",
             r#"const token = "xoxb-123456789012-1234567890123-abcdefghijklmnopqrstuvwx";"#,
         );
@@ -705,7 +705,7 @@ mod tests {
     fn test_detects_openai_key() {
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
         // OpenAI: sk- + 48 alphanumeric chars
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_secrets/test_detects_openai_key.ts",
             r#"const key = "sk-aB1cD2eF3gH4iJ5kL6mN7oP8qR9sT0uV1wX2yZ3aB4cD5eF6g";"#,
         );
@@ -716,7 +716,7 @@ mod tests {
     fn test_detects_private_key() {
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
         // Gitleaks requires full key block with BEGIN, content (64+ chars), and END markers
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_secrets/test_detects_private_key.ts",
             r#"const key = "-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA0Z3VS5JJcds3xfn/ygWyF8PbnGy0AHB7MxszR8GxfRzPCfuK\n-----END RSA PRIVATE KEY-----";"#,
         );
@@ -726,7 +726,7 @@ mod tests {
     #[test]
     fn test_detects_jwt() {
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_secrets/test_detects_jwt.ts",
             r#"const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U";"#,
         );
@@ -737,7 +737,7 @@ mod tests {
     fn test_detects_sendgrid_key() {
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
         // SendGrid: SG. + 22 chars + . + 43 chars
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_secrets/test_detects_sendgrid_key.ts",
             r#"const key = "SG.aB1cD2eF3gH4iJ5kL6mN7o.P8qR9sT0uV1wX2yZ3aB4cD5eF6gH7iJ8kL9mN0oP1q";"#,
         );
@@ -747,7 +747,7 @@ mod tests {
     #[test]
     fn test_detects_google_api_key() {
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_secrets/test_detects_google_api_key.ts",
             r#"const key = "AIzaSyDaGmWKa4JsXZ-HjGw7ISLn_3namBGewQe";"#,
         );
@@ -757,7 +757,7 @@ mod tests {
     #[test]
     fn test_detects_generic_api_key_pattern() {
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_secrets/test_detects_generic_api_key_pattern.ts",
             r#"const key = "key=aaaaaaaaaa";"#,
         );
@@ -770,7 +770,7 @@ mod tests {
         let suffix = "a".repeat(50);
         let token = format!("pypi-AgEIcHlwaS5vcmc{suffix}");
         let source = format!("const token = \"{token}\";");
-        let result = test.lint_ast("no_secrets/test_detects_pypi_upload_token.ts", &source);
+        let result = test.lint("no_secrets/test_detects_pypi_upload_token.ts", &source);
         test.result(result).assert_lint("no-secrets");
     }
 
@@ -780,7 +780,7 @@ mod tests {
         let suffix = "a".repeat(138);
         let token = format!("hvb.{suffix}");
         let source = format!("const token = \"{token}\";");
-        let result = test.lint_ast("no_secrets/test_detects_vault_batch_token.ts", &source);
+        let result = test.lint("no_secrets/test_detects_vault_batch_token.ts", &source);
         test.result(result).assert_lint("no-secrets");
     }
 
@@ -790,7 +790,7 @@ mod tests {
         let suffix = "a".repeat(43);
         let url = format!("https://hooks.slack.com/services/{suffix}");
         let source = format!("const url = \"{url}\";");
-        let result = test.lint_ast("no_secrets/test_detects_slack_webhook_url.ts", &source);
+        let result = test.lint("no_secrets/test_detects_slack_webhook_url.ts", &source);
         test.result(result).assert_lint("no-secrets");
     }
 
@@ -799,7 +799,7 @@ mod tests {
     #[test]
     fn test_detects_hardcoded_password() {
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_secrets/test_detects_hardcoded_password.ts",
             r#"const password = "supersecretpassword123";"#,
         );
@@ -809,7 +809,7 @@ mod tests {
     #[test]
     fn test_detects_hardcoded_api_key_by_name() {
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_secrets/test_detects_hardcoded_api_key_by_name.ts",
             r#"const apiKey = "some_long_api_key_value";"#,
         );
@@ -819,7 +819,7 @@ mod tests {
     #[test]
     fn test_detects_hardcoded_secret() {
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_secrets/test_detects_hardcoded_secret.ts",
             r#"const clientSecret = "verysecretvalue1234";"#,
         );
@@ -829,7 +829,7 @@ mod tests {
     #[test]
     fn test_detects_hardcoded_acronym_api_key_by_name() {
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_secrets/test_detects_hardcoded_acronym_api_key_by_name.ts",
             r#"const APIKey = "some_long_api_key_value";"#,
         );
@@ -842,7 +842,7 @@ mod tests {
     fn test_detects_high_entropy_string() {
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
         // random-looking string with high entropy
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_secrets/test_detects_high_entropy_string.ts",
             r#"const config = "Kj8mNpQrStUvWxYz1234AbCdEfGhIjKl";"#,
         );
@@ -854,7 +854,7 @@ mod tests {
         let test = TestProgram::for_rule_without_prelude(NoSecrets).with_options(|options| {
             options.security.no_secrets_entropy_threshold = 50;
         });
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_secrets/test_allows_high_entropy_string_with_higher_threshold.ts",
             r#"const config = "Kj8mNpQrStUvWxYz1234AbCdEfGhIjKl";"#,
         );
@@ -866,7 +866,7 @@ mod tests {
     #[test]
     fn test_allows_env_variable() {
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_secrets/test_allows_env_variable.ts",
             r#"const password = process.env.PASSWORD;"#,
         );
@@ -876,7 +876,7 @@ mod tests {
     #[test]
     fn test_allows_short_password() {
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_secrets/test_allows_short_password.ts",
             r#"const password = "short";"#,
         );
@@ -886,7 +886,7 @@ mod tests {
     #[test]
     fn test_allows_placeholder_password() {
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_secrets/test_allows_placeholder_password.ts",
             r#"const password = "your_password_here";"#,
         );
@@ -896,7 +896,7 @@ mod tests {
     #[test]
     fn test_allows_example_value() {
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_secrets/test_allows_example_value.ts",
             r#"const apiKey = "example_api_key_here";"#,
         );
@@ -907,7 +907,7 @@ mod tests {
     fn test_allows_test_key() {
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
         // Stripe test keys are generally safe
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_secrets/test_allows_test_key.ts",
             r#"const key = "sk_test_abcdefghijklmnopqrstuvwx";"#,
         );
@@ -918,7 +918,7 @@ mod tests {
     #[test]
     fn test_allows_non_secret_names() {
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_secrets/test_allows_non_secret_names.ts",
             r#"const username = "john_doe_123";"#,
         );
@@ -928,7 +928,7 @@ mod tests {
     #[test]
     fn test_allows_secretary_name() {
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_secrets/test_allows_secretary_name.ts",
             r#"const secretary = "monthly_schedule";"#,
         );
@@ -938,7 +938,7 @@ mod tests {
     #[test]
     fn test_allows_urls_without_credentials() {
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_secrets/test_allows_urls_without_credentials.ts",
             r#"const url = "https://api.example.com/v1/users";"#,
         );
@@ -948,7 +948,7 @@ mod tests {
     #[test]
     fn test_allows_file_paths() {
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_secrets/test_allows_file_paths.ts",
             r#"const path = "/etc/ssl/certs/ca-certificates.crt";"#,
         );
@@ -959,7 +959,7 @@ mod tests {
     fn test_allows_low_entropy_strings() {
         let test = TestProgram::for_rule_without_prelude(NoSecrets);
         // repetitive string has low entropy
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_secrets/test_allows_low_entropy_strings.ts",
             r#"const data = "aaaaaaaaaaaaaaaaaaaaaaaaaaaa";"#,
         );

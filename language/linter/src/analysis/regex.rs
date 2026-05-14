@@ -1,15 +1,15 @@
 use std::sync::Arc;
 
-use regex_syntax::ast::ErrorKind as AstErrorKind;
+use regex_syntax::ast::ErrorKind as RegexAstErrorKind;
 use regex_syntax::hir::{ErrorKind as HirErrorKind, Hir};
 use regex_syntax::{Error as RegexError, Parser, ParserBuilder};
 
 /// The kind of error produced while parsing a regex.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LintRegexErrorKind {
-    /// The regex failed while parsing into an AST.
-    Parse(AstErrorKind),
-    /// The regex failed while translating the AST into HIR.
+    /// The regex failed while parsing into the regex AST.
+    Parse(RegexAstErrorKind),
+    /// The regex failed while translating the regex AST into HIR.
     Translate(HirErrorKind),
     /// The regex failed with an unclassified error.
     Other,
@@ -332,11 +332,11 @@ pub(crate) fn find_useless_backreference(
         let is_named_backreference_escape = regex.contains("\\k<");
         let is_backreference_related_error = matches!(
             kind,
-            LintRegexErrorKind::Parse(AstErrorKind::UnsupportedBackreference)
-                | LintRegexErrorKind::Parse(AstErrorKind::UnsupportedLookAround)
+            LintRegexErrorKind::Parse(RegexAstErrorKind::UnsupportedBackreference)
+                | LintRegexErrorKind::Parse(RegexAstErrorKind::UnsupportedLookAround)
         ) || matches!(
             kind,
-            LintRegexErrorKind::Parse(AstErrorKind::EscapeUnrecognized)
+            LintRegexErrorKind::Parse(RegexAstErrorKind::EscapeUnrecognized)
         ) && is_named_backreference_escape;
         if !is_backreference_related_error {
             return None;
@@ -363,9 +363,9 @@ fn has_masked_non_backreference_syntax_error(regex: &str, flags: Option<&str>) -
     matches!(
         error.kind,
         LintRegexErrorKind::Parse(
-            AstErrorKind::RepetitionCountInvalid
-                | AstErrorKind::RepetitionCountDecimalEmpty
-                | AstErrorKind::RepetitionCountUnclosed
+            RegexAstErrorKind::RepetitionCountInvalid
+                | RegexAstErrorKind::RepetitionCountDecimalEmpty
+                | RegexAstErrorKind::RepetitionCountUnclosed
         )
     )
 }

@@ -1,8 +1,8 @@
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{argument_value_expression_id, expression_path_segments};
-use crate::{LintAstContext, LintMeta, LintReport, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow placeholder implementations.
@@ -13,7 +13,7 @@ declare_lint! {
         id = "no-placeholder-implementation",
         code = "LR021",
         category = Restriction,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = No,
@@ -40,13 +40,13 @@ impl LintRule for NoPlaceholderImplementation {
         NoPlaceholderImplementation::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // inspect candidate expressions
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expression = ctx.tree.get(node_id);
-            let ast::Expression::Throw { value } = expression else {
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let expression = ctx.dir.get(node_id);
+            let dir::Expression::Throw { value } = expression else {
                 continue;
             };
 
@@ -72,7 +72,7 @@ impl LintRule for NoPlaceholderImplementation {
                         NO_PLACEHOLDER_IMPLEMENTATION.category,
                         severity,
                         "placeholder implementation",
-                        ctx.tree.get_span(node_id),
+                        ctx.dir.get_span(node_id),
                     )
                     .label("implement the functionality"),
                 );
@@ -83,29 +83,29 @@ impl LintRule for NoPlaceholderImplementation {
 
 /// Return one lowercase placeholder message from a throw payload expression.
 fn extract_placeholder_message(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<String> {
-    let expression = ctx.tree.get(expression_id);
+    let expression = ctx.dir.get(expression_id);
 
     // match direct string literals
-    if let ast::Expression::ScalarLiteral(ast::ScalarLiteral::String(value)) = expression {
+    if let dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(value)) = expression {
         return Some(ctx.strings.get(*value).to_ascii_lowercase());
     }
 
     // match static template literals
-    if let ast::Expression::TemplateExpression { value } = expression
-        && let ast::TemplateLiteral::String { string } = value
+    if let dir::Expression::TemplateExpression { value } = expression
+        && let dir::TemplateLiteral::String { string } = value
     {
         return Some(ctx.strings.get(*string).to_ascii_lowercase());
     }
 
     // match Error constructor or call payloads
     let (callee_id, arguments) = match expression {
-        ast::Expression::New {
+        dir::Expression::New {
             left, arguments, ..
         }
-        | ast::Expression::Call {
+        | dir::Expression::Call {
             left, arguments, ..
         } => (left, arguments),
         _ => return None,
@@ -114,17 +114,18 @@ fn extract_placeholder_message(
         return None;
     }
     let first_argument_id = arguments.first().copied()?;
-    let first_value_expression_id = argument_value_expression_id(ctx.tree, first_argument_id)?;
-    let first_value_expression = ctx.tree.get(first_value_expression_id);
+    let first_value_expression_id =
+        argument_value_expression_id(ctx.dir.tree(), first_argument_id)?;
+    let first_value_expression = ctx.dir.get(first_value_expression_id);
 
     // enforce this lint guard
-    if let ast::Expression::ScalarLiteral(ast::ScalarLiteral::String(value)) =
+    if let dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(value)) =
         first_value_expression
     {
         return Some(ctx.strings.get(*value).to_ascii_lowercase());
     }
-    if let ast::Expression::TemplateExpression { value } = first_value_expression
-        && let ast::TemplateLiteral::String { string } = value
+    if let dir::Expression::TemplateExpression { value } = first_value_expression
+        && let dir::TemplateLiteral::String { string } = value
     {
         return Some(ctx.strings.get(*string).to_ascii_lowercase());
     }
@@ -134,10 +135,10 @@ fn extract_placeholder_message(
 
 /// Return true when one expression names one error constructor or helper.
 fn expression_is_error_constructor(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    let Some(segments) = expression_path_segments(ctx.tree, expression_id) else {
+    let Some(segments) = expression_path_segments(ctx.dir.tree(), expression_id) else {
         return false;
     };
     let Some(last_segment) = segments.last().copied() else {
@@ -159,7 +160,7 @@ mod tests {
     #[test]
     fn test_detects_throw_not_implemented() {
         let test = TestProgram::for_rule_without_prelude(NoPlaceholderImplementation);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_placeholder_implementation/test_detects_throw_not_implemented.ts",
             r#"throw "not implemented";"#,
         );
@@ -170,7 +171,7 @@ mod tests {
     #[test]
     fn test_detects_throw_todo() {
         let test = TestProgram::for_rule_without_prelude(NoPlaceholderImplementation);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_placeholder_implementation/test_detects_throw_todo.ts",
             r#"throw "TODO: implement this";"#,
         );
@@ -181,7 +182,7 @@ mod tests {
     #[test]
     fn test_detects_throw_new_error() {
         let test = TestProgram::for_rule_without_prelude(NoPlaceholderImplementation);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_placeholder_implementation/test_detects_throw_new_error.ts",
             r#"throw new Error("not implemented");"#,
         );
@@ -192,7 +193,7 @@ mod tests {
     #[test]
     fn test_allows_real_error() {
         let test = TestProgram::for_rule_without_prelude(NoPlaceholderImplementation);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_placeholder_implementation/test_allows_real_error.ts",
             r#"throw new Error("Invalid input");"#,
         );
@@ -203,7 +204,7 @@ mod tests {
     #[test]
     fn test_allows_throw_variable() {
         let test = TestProgram::for_rule_without_prelude(NoPlaceholderImplementation);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_placeholder_implementation/test_allows_throw_variable.ts",
             "throw error;",
         );
@@ -214,7 +215,7 @@ mod tests {
     #[test]
     fn test_detects_throw_type_error_placeholder() {
         let test = TestProgram::for_rule_without_prelude(NoPlaceholderImplementation);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_placeholder_implementation/test_detects_throw_type_error_placeholder.ts",
             r#"throw new TypeError("TODO: add implementation");"#,
         );
@@ -225,7 +226,7 @@ mod tests {
     #[test]
     fn test_detects_throw_error_call_placeholder() {
         let test = TestProgram::for_rule_without_prelude(NoPlaceholderImplementation);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_placeholder_implementation/test_detects_throw_error_call_placeholder.ts",
             r#"throw Error("not yet implemented");"#,
         );

@@ -1,8 +1,8 @@
 use crate::LintMeta;
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow empty destructuring patterns.
@@ -13,7 +13,7 @@ declare_lint! {
         id = "no-empty-pattern",
         code = "LU014",
         category = Suspicious,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -29,16 +29,16 @@ impl LintRule for NoEmptyPattern {
         NoEmptyPattern::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
-        for node_id in ctx.tree.iter_nodes::<ast::Pattern>() {
-            let pattern = ctx.tree.get(node_id);
+        for node_id in ctx.dir.iter_nodes::<dir::Pattern>() {
+            let pattern = ctx.dir.get(node_id);
 
             let is_empty = match pattern {
-                ast::Pattern::Object { fields } => fields.is_empty(),
-                ast::Pattern::Sequence { fields } => fields.is_empty(),
-                ast::Pattern::Tuple { fields } => fields.is_empty(),
+                dir::Pattern::Object { fields } => fields.is_empty(),
+                dir::Pattern::Sequence { fields } => fields.is_empty(),
+                dir::Pattern::Tuple { fields } => fields.is_empty(),
                 _ => false,
             };
             if !is_empty {
@@ -46,7 +46,7 @@ impl LintRule for NoEmptyPattern {
             }
 
             // allow parameter object patterns when configured
-            if matches!(pattern, ast::Pattern::Object { .. })
+            if matches!(pattern, dir::Pattern::Object { .. })
                 && ctx
                     .options
                     .correctness
@@ -62,9 +62,9 @@ impl LintRule for NoEmptyPattern {
             }
 
             let kind = match pattern {
-                ast::Pattern::Object { .. } => "object",
-                ast::Pattern::Sequence { .. } => "sequence",
-                ast::Pattern::Tuple { .. } => "tuple",
+                dir::Pattern::Object { .. } => "object",
+                dir::Pattern::Sequence { .. } => "sequence",
+                dir::Pattern::Tuple { .. } => "tuple",
                 _ => unreachable!(),
             };
 
@@ -75,7 +75,7 @@ impl LintRule for NoEmptyPattern {
                     NO_EMPTY_PATTERN.category,
                     severity,
                     format!("empty {kind} destructuring pattern"),
-                    ctx.tree.get_span(node_id),
+                    ctx.dir.get_span(node_id),
                 )
                 .label("this pattern doesn't bind any values");
                 if ctx.compute_fixes
@@ -92,38 +92,38 @@ impl LintRule for NoEmptyPattern {
 
 /// Return true when an object pattern is used as a callable parameter.
 fn object_pattern_is_parameter_position(
-    ctx: &LintAstContext<'_>,
-    pattern_id: ast::LocalNodeId<ast::Pattern>,
+    ctx: &LintModuleContext<'_>,
+    pattern_id: dir::LocalNodeId<dir::Pattern>,
 ) -> bool {
-    let Some(parent_id) = ctx.parents.get(pattern_id) else {
+    let Some(parent_id) = ctx.dir.get_parent_id(pattern_id.id) else {
         return false;
     };
 
-    matches!(ctx.tree.get_node_type(parent_id), ast::NodeType::Parameter)
+    matches!(ctx.dir.get_node_type(parent_id), dir::NodeType::Parameter)
 }
 
 /// Build a safe replacement for empty declarator patterns.
 fn no_empty_pattern_fix(
-    ctx: &LintAstContext<'_>,
-    pattern_id: ast::LocalNodeId<ast::Pattern>,
+    ctx: &LintModuleContext<'_>,
+    pattern_id: dir::LocalNodeId<dir::Pattern>,
 ) -> Option<LintFix> {
     // keep declaration patterns only
     let mut declarator_for_pattern = None;
-    for declarator_id in ctx.tree.iter_nodes::<ast::Declarator>() {
-        let declarator = ctx.tree.get(declarator_id);
+    for declarator_id in ctx.dir.iter_nodes::<dir::Declarator>() {
+        let declarator = ctx.dir.get(declarator_id);
         if declarator.pattern == pattern_id {
             declarator_for_pattern = Some(declarator_id);
             break;
         }
     }
     let declarator_id = declarator_for_pattern?;
-    let declarator = ctx.tree.get(declarator_id);
+    let declarator = ctx.dir.get(declarator_id);
 
     // keep declarators with initializer so rewrite preserves behavior
     declarator.value?;
 
     // replace the empty pattern with `_`
-    let pattern_span = ctx.tree.get_span(pattern_id);
+    let pattern_span = ctx.dir.get_span(pattern_id);
     let edits = ctx.edit_builder().replace(pattern_span, "_").into_edits();
     Some(LintFix::safe("Replace empty pattern with wildcard binding").with_edits(edits))
 }
@@ -136,7 +136,7 @@ mod tests {
     #[test]
     fn test_detects_empty_object_pattern() {
         let test = TestProgram::for_rule_without_prelude(NoEmptyPattern);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_empty_pattern/test_detects_empty_object_pattern.ds",
             r#"
 const {} = obj
@@ -154,7 +154,7 @@ const _ = obj;
     #[test]
     fn test_detects_empty_array_pattern() {
         let test = TestProgram::for_rule_without_prelude(NoEmptyPattern);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_empty_pattern/test_detects_empty_array_pattern.ds",
             r#"
 const [] = arr
@@ -172,7 +172,7 @@ const _ = arr;
     #[test]
     fn test_detects_empty_tuple_pattern() {
         let test = TestProgram::for_rule_without_prelude(NoEmptyPattern);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_empty_pattern/test_detects_empty_tuple_pattern.ds",
             r#"
 const () = tuple
@@ -190,7 +190,7 @@ const _ = tuple;
     #[test]
     fn test_detects_empty_pattern_in_function_param() {
         let test = TestProgram::for_rule_without_prelude(NoEmptyPattern);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_empty_pattern/test_detects_empty_pattern_in_function_param.ds",
             r#"
 function foo({}) {}
@@ -208,7 +208,7 @@ function foo({}) {}
                 .correctness
                 .no_empty_pattern_allow_object_patterns_as_parameters = true;
         });
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_empty_pattern/test_allows_empty_object_pattern_in_function_param_when_configured.ds",
             r#"
 function foo({}) {}
@@ -220,7 +220,7 @@ function foo({}) {}
     #[test]
     fn test_allows_non_empty_object_pattern() {
         let test = TestProgram::for_rule_without_prelude(NoEmptyPattern);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_empty_pattern/test_allows_non_empty_object_pattern.ds",
             r#"
 const { x } = obj
@@ -232,7 +232,7 @@ const { x } = obj
     #[test]
     fn test_allows_non_empty_array_pattern() {
         let test = TestProgram::for_rule_without_prelude(NoEmptyPattern);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_empty_pattern/test_allows_non_empty_array_pattern.ds",
             r#"
 const [x] = arr

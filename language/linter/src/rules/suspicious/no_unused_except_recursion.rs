@@ -4,7 +4,7 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression}
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{is_simple_identifier, rename_local_symbol_fix};
-use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow parameters that are only used in recursive self calls.
@@ -32,33 +32,35 @@ impl LintRule for NoUnusedExceptRecursion {
         NoUnusedExceptRecursion::meta()
     }
 
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // inspect function declarations
-        for declaration_id in ctx.tree.iter_node_ids_of_type::<dir::Declaration>() {
-            let declaration = ctx.tree.get(declaration_id);
+        for declaration_id in ctx.dir.iter_node_ids_of_type::<dir::Declaration>() {
+            let declaration = ctx.dir.get(declaration_id);
             let dir::Declaration::Function(declaration) = declaration else {
                 continue;
             };
             let Some(body_expression) = declaration.body else {
                 continue;
             };
+            let Some(symbol) = ctx.local_symbol_for_node(declaration_id) else {
+                continue;
+            };
 
             report_recursive_only_parameters(
                 ctx,
                 meta,
-                declaration.symbol,
+                symbol,
                 &declaration.signature,
                 body_expression,
             );
         }
 
         // inspect class and extension methods
-        for member_id in ctx.tree.iter_node_ids_of_type::<dir::Member>() {
-            let member = ctx.tree.get(member_id);
+        for member_id in ctx.dir.iter_node_ids_of_type::<dir::Member>() {
+            let member = ctx.dir.get(member_id);
             let dir::Member::Method {
-                symbol,
                 signature,
                 body: Some(body_expression),
                 ..
@@ -67,14 +69,17 @@ impl LintRule for NoUnusedExceptRecursion {
                 continue;
             };
 
-            report_recursive_only_parameters(ctx, meta, *symbol, signature, *body_expression);
+            let Some(symbol) = ctx.local_symbol_for_node(member_id) else {
+                continue;
+            };
+            report_recursive_only_parameters(ctx, meta, symbol, signature, *body_expression);
         }
     }
 }
 
 /// Report parameters used only for recursive self calls in one callable body.
 fn report_recursive_only_parameters(
-    ctx: &mut LintModuleDirContext<'_>,
+    ctx: &mut LintModuleContext<'_>,
     meta: &LintMeta,
     function_symbol: dir::LocalSymbolId,
     signature: &dir::FunctionSignature,
@@ -84,8 +89,10 @@ fn report_recursive_only_parameters(
 
     // collect parameters for this callable
     for parameter_id in &signature.parameters {
-        let parameter = ctx.tree.get(*parameter_id);
-        parameter_by_symbol.insert(parameter.symbol(), *parameter_id);
+        let Some(symbol_id) = ctx.local_symbol_for_node(*parameter_id) else {
+            continue;
+        };
+        parameter_by_symbol.insert(symbol_id, *parameter_id);
     }
 
     // skip callables without parameters
@@ -100,8 +107,8 @@ fn report_recursive_only_parameters(
         function_symbol.into_global(ctx.module_id()),
         parameter_by_symbol.keys().copied().collect(),
     );
-    let body_expression = ctx.tree.get(body_expression_id);
-    visitor.visit_expression(ctx.tree, body_expression_id, body_expression);
+    let body_expression = ctx.dir.get(body_expression_id);
+    visitor.visit_expression(ctx.dir.tree(), body_expression_id, body_expression);
 
     // report symbols used only in recursive arguments
     for (parameter_symbol, parameter_id) in parameter_by_symbol {
@@ -134,7 +141,7 @@ fn report_recursive_only_parameters(
             span,
         )
         .label("this parameter is only forwarded into recursive self calls");
-        if ctx.include_fixes
+        if ctx.compute_fixes
             && let Some(replacement_name) =
                 recursion_parameter_replacement_name(ctx, parameter_symbol)
             && let Some(fix) = rename_local_symbol_fix(
@@ -153,7 +160,7 @@ fn report_recursive_only_parameters(
 
 /// Build one underscore-prefixed replacement name for a recursion-only parameter.
 fn recursion_parameter_replacement_name(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     symbol_id: dir::LocalSymbolId,
 ) -> Option<String> {
     let symbol = ctx.symbols.get_symbol(symbol_id);
@@ -169,7 +176,7 @@ fn recursion_parameter_replacement_name(
         return None;
     }
 
-    let scope_id = symbol.scope.0;
+    let scope_id = symbol.scope.id;
     let mut candidate = base_name.clone();
     let mut suffix = 2_u32;
     loop {
@@ -188,7 +195,7 @@ fn recursion_parameter_replacement_name(
 
 /// Return true when a scope or one of its descendants defines a given name.
 fn scope_subtree_contains_name(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     scope_id: dir::LocalScopeId,
     name_id: dir::StringId,
 ) -> bool {
@@ -331,6 +338,7 @@ impl NodeVisitor for RecursiveParameterUseVisitor<'_> {
 
         // call arguments need recursive-context tracking
         if let dir::Expression::Call {
+            position: _,
             left,
             generic_arguments,
             arguments,
@@ -363,10 +371,12 @@ impl NodeVisitor for RecursiveParameterUseVisitor<'_> {
             // visit arguments in recursive context when needed
             for argument_id in arguments {
                 let argument = tree.get(*argument_id);
+                let Some(argument_expression_id) = argument.value() else {
+                    continue;
+                };
                 if is_recursive_call {
                     self.recursive_argument_depth += 1;
                 }
-                let argument_expression_id = argument.value();
                 let argument_expression = tree.get(argument_expression_id);
                 self.visit_expression(tree, argument_expression_id, argument_expression);
                 if is_recursive_call {

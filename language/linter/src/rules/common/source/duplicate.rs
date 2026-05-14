@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 
-use destack_ast as ast;
 use destack_core::StableHasher;
+use destack_dir as dir;
 
-use crate::LintAstContext;
+use crate::LintModuleContext;
 use crate::rules::common::{
     blocks_equal, expression_is_equal, expression_path_segments, stable_hash_debug,
 };
@@ -19,7 +19,7 @@ pub struct ExpressionDuplicateTracker {
 #[derive(Debug, Clone, Copy)]
 struct ExpressionDuplicateCandidate {
     /// Previously seen expression id.
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
     /// Cached structural key for quick rejection before deep equality.
     structural_key: u64,
 }
@@ -28,7 +28,7 @@ struct ExpressionDuplicateCandidate {
 #[derive(Debug, Default)]
 pub struct BlockDuplicateTracker {
     /// Candidate buckets keyed by a coarse block prefilter.
-    buckets: HashMap<u64, Vec<ast::LocalNodeId<ast::Block>>>,
+    buckets: HashMap<u64, Vec<dir::LocalNodeId<dir::Block>>>,
 }
 
 impl ExpressionDuplicateTracker {
@@ -40,9 +40,9 @@ impl ExpressionDuplicateTracker {
     /// Return a matching prior expression and insert current when unique.
     pub fn find_duplicate_or_insert(
         &mut self,
-        ctx: &LintAstContext<'_>,
-        expression_id: ast::LocalNodeId<ast::Expression>,
-    ) -> Option<ast::LocalNodeId<ast::Expression>> {
+        ctx: &LintModuleContext<'_>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<dir::LocalNodeId<dir::Expression>> {
         let key = expression_coarse_key(ctx, expression_id);
         let structural_key = expression_structural_key(ctx, expression_id);
         let candidates = self.buckets.entry(key).or_default();
@@ -74,9 +74,9 @@ impl BlockDuplicateTracker {
     /// Return a matching prior block and insert current when unique.
     pub fn find_duplicate_or_insert(
         &mut self,
-        ctx: &LintAstContext<'_>,
-        block_id: ast::LocalNodeId<ast::Block>,
-    ) -> Option<ast::LocalNodeId<ast::Block>> {
+        ctx: &LintModuleContext<'_>,
+        block_id: dir::LocalNodeId<dir::Block>,
+    ) -> Option<dir::LocalNodeId<dir::Block>> {
         let key = block_prefilter_key(ctx, block_id);
         let candidates = self.buckets.entry(key).or_default();
 
@@ -93,37 +93,37 @@ impl BlockDuplicateTracker {
 
 /// Build a coarse key for expression bucketing.
 fn expression_coarse_key(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> u64 {
-    let expression = ctx.tree.get(expression_id);
+    let expression = ctx.dir.get(expression_id);
     let expression = unwrap_expression(ctx, expression);
 
     let mut hasher = StableHasher::new();
     std::mem::discriminant(expression).hash(&mut hasher);
 
-    if let Some(segments) = expression_path_segments(ctx.tree, expression_id) {
+    if let Some(segments) = expression_path_segments(ctx.dir.tree(), expression_id) {
         segments.len().hash(&mut hasher);
         return hasher.finish();
     }
 
     match expression {
-        ast::Expression::ScalarLiteral(literal) => {
+        dir::Expression::ScalarLiteral(literal) => {
             std::mem::discriminant(literal).hash(&mut hasher);
         }
-        ast::Expression::Type { value } => {
-            std::mem::discriminant(ctx.tree.get(*value)).hash(&mut hasher);
+        dir::Expression::Type { value } => {
+            std::mem::discriminant(ctx.dir.get(*value)).hash(&mut hasher);
         }
-        ast::Expression::Binary { operator, .. } => {
+        dir::Expression::Binary { operator, .. } => {
             hash_debug_into(&mut hasher, operator);
         }
-        ast::Expression::Unary { operator, .. } => {
+        dir::Expression::Unary { operator, .. } => {
             hash_debug_into(&mut hasher, operator);
         }
-        ast::Expression::Assign { operator, .. } => {
+        dir::Expression::Assign { operator, .. } => {
             hash_debug_into(&mut hasher, operator);
         }
-        ast::Expression::Call {
+        dir::Expression::Call {
             generic_arguments,
             arguments,
             ..
@@ -131,7 +131,7 @@ fn expression_coarse_key(
             (!generic_arguments.is_empty()).hash(&mut hasher);
             arguments.len().hash(&mut hasher);
         }
-        ast::Expression::New {
+        dir::Expression::New {
             generic_arguments,
             arguments,
             ..
@@ -139,18 +139,18 @@ fn expression_coarse_key(
             (!generic_arguments.is_empty()).hash(&mut hasher);
             arguments.len().hash(&mut hasher);
         }
-        ast::Expression::ArrayExpression { elements }
-        | ast::Expression::TupleExpression { elements } => {
+        dir::Expression::ArrayExpression { elements }
+        | dir::Expression::TupleExpression { elements } => {
             elements.len().hash(&mut hasher);
         }
-        ast::Expression::ObjectExpression { properties, .. } => {
+        dir::Expression::ObjectExpression { properties, .. } => {
             properties.len().hash(&mut hasher);
         }
-        ast::Expression::Block(block_id) => {
-            let block = ctx.tree.get(*block_id);
+        dir::Expression::Block(block_id) => {
+            let block = ctx.dir.get(*block_id);
             block.len().hash(&mut hasher);
         }
-        ast::Expression::If {
+        dir::Expression::If {
             form,
             else_expression,
             ..
@@ -158,7 +158,7 @@ fn expression_coarse_key(
             hash_debug_into(&mut hasher, form);
             else_expression.is_some().hash(&mut hasher);
         }
-        ast::Expression::Match { form, cases, .. } => {
+        dir::Expression::Match { form, cases, .. } => {
             hash_debug_into(&mut hasher, form);
             cases.len().hash(&mut hasher);
         }
@@ -170,16 +170,16 @@ fn expression_coarse_key(
 
 /// Build a structural key used for fast candidate rejection.
 fn expression_structural_key(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> u64 {
-    let expression = ctx.tree.get(expression_id);
+    let expression = ctx.dir.get(expression_id);
     let expression = unwrap_expression(ctx, expression);
 
     let mut hasher = StableHasher::new();
     std::mem::discriminant(expression).hash(&mut hasher);
 
-    if let Some(segments) = expression_path_segments(ctx.tree, expression_id) {
+    if let Some(segments) = expression_path_segments(ctx.dir.tree(), expression_id) {
         segments.len().hash(&mut hasher);
         for segment in segments {
             segment.hash(&mut hasher);
@@ -189,13 +189,13 @@ fn expression_structural_key(
     }
 
     match expression {
-        ast::Expression::ScalarLiteral(literal) => {
+        dir::Expression::ScalarLiteral(literal) => {
             hash_debug_into(&mut hasher, literal);
         }
-        ast::Expression::Type { value } => {
-            hash_debug_into(&mut hasher, ctx.tree.get(*value));
+        dir::Expression::Type { value } => {
+            hash_debug_into(&mut hasher, ctx.dir.get(*value));
         }
-        ast::Expression::Binary {
+        dir::Expression::Binary {
             operator,
             left,
             right,
@@ -204,11 +204,11 @@ fn expression_structural_key(
             hash_expression_kind(ctx, &mut hasher, *left);
             hash_expression_kind(ctx, &mut hasher, *right);
         }
-        ast::Expression::Unary { operator, right } => {
+        dir::Expression::Unary { operator, right } => {
             hash_debug_into(&mut hasher, operator);
             hash_expression_kind(ctx, &mut hasher, *right);
         }
-        ast::Expression::Assign {
+        dir::Expression::Assign {
             left,
             operator,
             right,
@@ -217,13 +217,13 @@ fn expression_structural_key(
             hash_assign_pattern_kind(ctx, &mut hasher, *left);
             hash_expression_kind(ctx, &mut hasher, *right);
         }
-        ast::Expression::Call {
+        dir::Expression::Call {
             left,
             generic_arguments,
             arguments,
             ..
         }
-        | ast::Expression::New {
+        | dir::Expression::New {
             left,
             generic_arguments,
             arguments,
@@ -236,20 +236,20 @@ fn expression_structural_key(
                 hash_argument_shape(ctx, &mut hasher, *argument_id);
             }
         }
-        ast::Expression::ArrayExpression { elements }
-        | ast::Expression::TupleExpression { elements } => {
+        dir::Expression::ArrayExpression { elements }
+        | dir::Expression::TupleExpression { elements } => {
             elements.len().hash(&mut hasher);
             for argument_id in elements {
                 hash_argument_shape(ctx, &mut hasher, *argument_id);
             }
         }
-        ast::Expression::ObjectExpression { properties, .. } => {
+        dir::Expression::ObjectExpression { properties, .. } => {
             properties.len().hash(&mut hasher);
         }
-        ast::Expression::Block(block_id) => {
+        dir::Expression::Block(block_id) => {
             block_prefilter_key(ctx, *block_id).hash(&mut hasher);
         }
-        ast::Expression::If {
+        dir::Expression::If {
             form,
             condition,
             then_expression,
@@ -264,7 +264,7 @@ fn expression_structural_key(
                 false.hash(&mut hasher);
             }
         }
-        ast::Expression::Match { form, value, cases } => {
+        dir::Expression::Match { form, value, cases } => {
             hash_debug_into(&mut hasher, form);
             hash_expression_kind(ctx, &mut hasher, *value);
             cases.len().hash(&mut hasher);
@@ -277,30 +277,30 @@ fn expression_structural_key(
 
 /// Hash one assignment pattern shape into the running hasher.
 fn hash_assign_pattern_kind(
-    ctx: &LintAstContext<'_>,
+    ctx: &LintModuleContext<'_>,
     hasher: &mut StableHasher,
-    assign_pattern_id: ast::LocalNodeId<ast::AssignPattern>,
+    assign_pattern_id: dir::LocalNodeId<dir::AssignPattern>,
 ) {
-    let assign_pattern = ctx.tree.get(assign_pattern_id);
+    let assign_pattern = ctx.dir.get(assign_pattern_id);
     std::mem::discriminant(assign_pattern).hash(hasher);
 
     match assign_pattern {
-        ast::AssignPattern::Expression { value } => {
+        dir::AssignPattern::Expression { value } => {
             hash_expression_kind(ctx, hasher, *value);
         }
-        ast::AssignPattern::Assign { pattern, value } => {
+        dir::AssignPattern::Assign { pattern, value } => {
             hash_assign_pattern_kind(ctx, hasher, *pattern);
             hash_expression_kind(ctx, hasher, *value);
         }
-        ast::AssignPattern::Sequence { fields } | ast::AssignPattern::Object { fields } => {
+        dir::AssignPattern::Sequence { fields } | dir::AssignPattern::Object { fields } => {
             fields.len().hash(hasher);
         }
     }
 }
 
 /// Build a coarse prefilter key for one block.
-fn block_prefilter_key(ctx: &LintAstContext<'_>, block_id: ast::LocalNodeId<ast::Block>) -> u64 {
-    let block = ctx.tree.get(block_id);
+fn block_prefilter_key(ctx: &LintModuleContext<'_>, block_id: dir::LocalNodeId<dir::Block>) -> u64 {
+    let block = ctx.dir.get(block_id);
     let mut hasher = StableHasher::new();
     block.len().hash(&mut hasher);
 
@@ -313,53 +313,53 @@ fn block_prefilter_key(ctx: &LintAstContext<'_>, block_id: ast::LocalNodeId<ast:
 
 /// Hash one normalized expression kind.
 fn hash_expression_kind(
-    ctx: &LintAstContext<'_>,
+    ctx: &LintModuleContext<'_>,
     hasher: &mut StableHasher,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) {
-    let expression = ctx.tree.get(expression_id);
+    let expression = ctx.dir.get(expression_id);
     let expression = unwrap_expression(ctx, expression);
     std::mem::discriminant(expression).hash(hasher);
 }
 
 /// Hash one argument shape.
 fn hash_argument_shape(
-    ctx: &LintAstContext<'_>,
+    ctx: &LintModuleContext<'_>,
     hasher: &mut StableHasher,
-    argument_id: ast::LocalNodeId<ast::Argument>,
+    argument_id: dir::LocalNodeId<dir::Argument>,
 ) {
-    let argument = ctx.tree.get(argument_id);
+    let argument = ctx.dir.get(argument_id);
     std::mem::discriminant(argument).hash(hasher);
 
     match argument {
-        ast::Argument::Positional { value, .. } | ast::Argument::Spread { value, .. } => {
+        dir::Argument::Positional { value, .. } | dir::Argument::Spread { value, .. } => {
             hash_expression_kind(ctx, hasher, *value);
         }
-        ast::Argument::Named { name, value, .. } => {
+        dir::Argument::Named { name, value, .. } => {
             name.string().hash(hasher);
             hash_expression_kind(ctx, hasher, *value);
         }
-        ast::Argument::Labeled { label, value, .. } => {
+        dir::Argument::Labeled { label, value, .. } => {
             label.hash(hasher);
             hash_expression_kind(ctx, hasher, *value);
         }
-        ast::Argument::Error => {}
+        dir::Argument::Error => {}
     }
 }
 
 /// Hash one if condition shape.
 fn hash_if_condition_shape(
-    ctx: &LintAstContext<'_>,
+    ctx: &LintModuleContext<'_>,
     hasher: &mut StableHasher,
-    condition: &ast::IfCondition,
+    condition: &dir::IfCondition,
 ) {
     std::mem::discriminant(condition).hash(hasher);
 
     match condition {
-        ast::IfCondition::Expression { condition } => {
+        dir::IfCondition::Expression { condition } => {
             hash_expression_kind(ctx, hasher, *condition);
         }
-        ast::IfCondition::Let {
+        dir::IfCondition::Let {
             kind,
             mutability,
             declarator: _,
@@ -377,14 +377,14 @@ fn hash_debug_into(hasher: &mut StableHasher, value: &impl std::fmt::Debug) {
 
 /// Unwrap parenthesized expressions for normalized hashing.
 fn unwrap_expression<'a>(
-    ctx: &'a LintAstContext<'_>,
-    expression: &'a ast::Expression,
-) -> &'a ast::Expression {
+    ctx: &'a LintModuleContext<'_>,
+    expression: &'a dir::Expression,
+) -> &'a dir::Expression {
     match expression {
-        ast::Expression::Parenthesized {
+        dir::Expression::Parenthesized {
             expression: inner_expression_id,
         } => {
-            let inner_expression = ctx.tree.get(*inner_expression_id);
+            let inner_expression = ctx.dir.get(*inner_expression_id);
             unwrap_expression(ctx, inner_expression)
         }
         _ => expression,

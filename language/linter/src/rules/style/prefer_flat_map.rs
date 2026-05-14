@@ -7,7 +7,7 @@ use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::{
     const_i64, expression_method_call, is_array_type, member_receiver_text,
 };
-use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Suggest `.flatMap()` over `.map().flat()`.
@@ -34,7 +34,7 @@ impl LintRule for PreferFlatMap {
         PreferFlatMap::meta()
     }
 
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let mut visitor = PreferFlatMapVisitor::new(ctx, meta);
         visitor.run();
@@ -44,7 +44,7 @@ impl LintRule for PreferFlatMap {
 /// Visitor that flags map().flat() patterns.
 struct PreferFlatMapVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The array symbol for this module profile.
@@ -61,7 +61,7 @@ struct PreferFlatMapVisitor<'a, 'b> {
 
 impl<'a, 'b> PreferFlatMapVisitor<'a, 'b> {
     /// Build a visitor for prefer-flat-map checks.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         let array_symbol = ctx.language_item(LanguageItem::Array);
         let map_name = ctx.string_id("map");
         let flat_name = ctx.string_id("flat");
@@ -81,7 +81,7 @@ impl<'a, 'b> PreferFlatMapVisitor<'a, 'b> {
     /// Walk the DIR tree roots.
     fn run(&mut self) {
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         for root_id in roots {
             let expression = tree.get(root_id);
@@ -102,7 +102,7 @@ impl<'a, 'b> PreferFlatMapVisitor<'a, 'b> {
         }
 
         // match outer .flat() call
-        let Some(flat_call) = expression_method_call(self.ctx.tree, expression_id) else {
+        let Some(flat_call) = expression_method_call(self.ctx.dir.tree(), expression_id) else {
             return;
         };
         if flat_call.method_name != self.flat_name {
@@ -110,7 +110,7 @@ impl<'a, 'b> PreferFlatMapVisitor<'a, 'b> {
         }
 
         // check flat() member static arguments
-        let flat_member = self.ctx.tree.get(flat_call.callee_id);
+        let flat_member = self.ctx.dir.get(flat_call.callee_id);
         let dir::Expression::Member { left: _, name: _ } = flat_member else {
             return;
         };
@@ -121,7 +121,8 @@ impl<'a, 'b> PreferFlatMapVisitor<'a, 'b> {
         }
 
         // match inner .map() call as receiver of flat
-        let Some(map_call) = expression_method_call(self.ctx.tree, flat_call.receiver_id) else {
+        let Some(map_call) = expression_method_call(self.ctx.dir.tree(), flat_call.receiver_id)
+        else {
             return;
         };
         if map_call.method_name != self.map_name {
@@ -143,7 +144,7 @@ impl<'a, 'b> PreferFlatMapVisitor<'a, 'b> {
 
         // check map() member static arguments
         let map_member_id = map_call.callee_id;
-        let map_member = self.ctx.tree.get(map_member_id);
+        let map_member = self.ctx.dir.get(map_member_id);
         let dir::Expression::Member { left: _, name: _ } = map_member else {
             return;
         };
@@ -170,8 +171,10 @@ impl<'a, 'b> PreferFlatMapVisitor<'a, 'b> {
         }
 
         // get the expression from the argument
-        let argument = self.ctx.tree.get(arguments[0]);
-        let expression_id = argument.value();
+        let argument = self.ctx.dir.get(arguments[0]);
+        let Some(expression_id) = argument.value() else {
+            return false;
+        };
 
         // single argument must be literal 1
         let Some(const_value) = self.ctx.const_value(expression_id) else {
@@ -248,7 +251,7 @@ impl<'a, 'b> PreferFlatMapVisitor<'a, 'b> {
         let last_argument_id = *map_arguments.last()?;
 
         // derive receiver text from the map member expression
-        let map_member_expression = self.ctx.tree.get(map_member_id);
+        let map_member_expression = self.ctx.dir.get(map_member_id);
         let dir::Expression::Member { left, name, .. } = map_member_expression else {
             return None;
         };
@@ -264,7 +267,7 @@ impl<'a, 'b> PreferFlatMapVisitor<'a, 'b> {
         let arguments_text = self.ctx.get_span_text(arguments_span);
 
         let flat_map_name = self.ctx.strings.get(self.flat_map_name);
-        let replacement = format!("{receiver_text}.{}({arguments_text})", flat_map_name);
+        let replacement = format!("{receiver_text}.{flat_map_name}({arguments_text})");
 
         // replace the full map().flat() expression
         let expression_span = self.ctx.get_span(expression_id);

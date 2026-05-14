@@ -7,7 +7,7 @@ use crate::rules::common::{
     collect_module_read_symbol_usage, collect_parameter_value_binding_symbols,
     parameter_binding_span,
 };
-use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow parameters that are never used.
@@ -36,14 +36,17 @@ impl LintRule for NoUnusedParameters {
     }
 
     /// Check module DIR nodes for unused function and method parameters.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
-        let read_symbols = collect_module_read_symbol_usage(ctx.module_id(), ctx.tree, ctx.types);
+        let read_symbols =
+            collect_module_read_symbol_usage(ctx.module_id(), ctx.dir.tree(), ctx.types);
 
         // inspect all parameters
-        for parameter_id in ctx.tree.iter_node_ids_of_type::<dir::Parameter>() {
-            let parameter = ctx.tree.get(parameter_id);
-            let symbol_id = parameter.symbol();
+        for parameter_id in ctx.dir.iter_node_ids_of_type::<dir::Parameter>() {
+            let parameter = ctx.dir.get(parameter_id);
+            let Some(symbol_id) = ctx.local_symbol_for_node(parameter_id) else {
+                continue;
+            };
 
             // keep value space bindings only
             if !symbol_is_value_binding(ctx, symbol_id) {
@@ -51,7 +54,7 @@ impl LintRule for NoUnusedParameters {
             }
 
             // keep callable body parameters only
-            if !parameter_requires_usage(ctx.tree, parameter_id) {
+            if !parameter_requires_usage(ctx.dir.tree(), parameter_id) {
                 continue;
             }
 
@@ -92,7 +95,7 @@ impl LintRule for NoUnusedParameters {
                     .label("this parameter is never used");
 
                     // compute fixes only when requested by the runner
-                    if ctx.include_fixes
+                    if ctx.compute_fixes
                         && let Some(fix) = unused_named_parameter_fix(ctx, parameter_id)
                     {
                         diagnostic = diagnostic.fix(fix);
@@ -105,7 +108,7 @@ impl LintRule for NoUnusedParameters {
 
                     // collect nested pattern bindings from this parameter
                     collect_parameter_value_binding_symbols(
-                        ctx.tree,
+                        ctx.dir.tree(),
                         ctx.symbols,
                         parameter_id,
                         &mut bindings,
@@ -182,7 +185,7 @@ impl LintRule for NoUnusedParameters {
                         );
                     }
                 }
-                dir::Parameter::Error { .. } => continue,
+                dir::Parameter::Error => continue,
             }
         }
     }
@@ -190,7 +193,7 @@ impl LintRule for NoUnusedParameters {
 
 /// Build an unsafe fix by prefixing an unused named parameter with `_`.
 fn unused_named_parameter_fix(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     parameter_id: dir::LocalNodeId<dir::Parameter>,
 ) -> Option<LintFix> {
     let parameter_span = ctx.get_span(parameter_id);
@@ -233,7 +236,7 @@ fn unused_named_parameter_fix(
 }
 
 /// Return true when this symbol is a value space binding.
-fn symbol_is_value_binding(ctx: &LintModuleDirContext<'_>, symbol_id: dir::LocalSymbolId) -> bool {
+fn symbol_is_value_binding(ctx: &LintModuleContext<'_>, symbol_id: dir::LocalSymbolId) -> bool {
     let symbol = ctx.symbols.get_symbol(symbol_id);
     symbol.space == dir::SymbolSpace::Value
 }
@@ -272,12 +275,12 @@ fn parameter_requires_usage(
 }
 
 /// Return true when the parameter name is `this`.
-fn is_this_parameter_name(ctx: &LintModuleDirContext<'_>, name: dir::StringId) -> bool {
+fn is_this_parameter_name(ctx: &LintModuleContext<'_>, name: dir::StringId) -> bool {
     ctx.strings.get(name) == "this"
 }
 
 /// Return true when the parameter name should be ignored by configuration.
-fn parameter_name_is_ignored(ctx: &LintModuleDirContext<'_>, name: dir::StringId) -> bool {
+fn parameter_name_is_ignored(ctx: &LintModuleContext<'_>, name: dir::StringId) -> bool {
     let text = ctx.strings.get(name);
     if text == "_" {
         return true;

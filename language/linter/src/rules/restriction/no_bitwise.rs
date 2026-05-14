@@ -1,9 +1,9 @@
 use crate::LintMeta;
-use destack_ast::{self as ast, AssignOperator, BinaryOperator, UnaryOperator};
+use destack_dir::{self as dir, AssignOperator, BinaryOperator, UnaryOperator};
 use destack_workspace::{BitwiseOperator, LintSeverity};
 
 use crate::rules::common::expression_unwrap_parenthesized_source_form;
-use crate::{LintAstContext, LintReport, LintRule, declare_lint};
+use crate::{LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow bitwise operators.
@@ -15,7 +15,7 @@ declare_lint! {
         id = "no-bitwise",
         code = "LR004",
         category = Restriction,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = No,
@@ -54,16 +54,16 @@ fn bitwise_assign_operator(operator: &AssignOperator) -> Option<BitwiseOperator>
 
 /// Return whether this expression is the configured `x | 0` int32 hint form.
 fn expression_is_bitwise_int32_hint(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
     operator: BitwiseOperator,
 ) -> bool {
     if !ctx.options.restriction.allow_bitwise_int32_hint || operator != BitwiseOperator::Or {
         return false;
     }
 
-    let expression_id = expression_unwrap_parenthesized_source_form(ctx.tree, expression_id);
-    let ast::Expression::Binary { right, .. } = ctx.tree.get(expression_id) else {
+    let expression_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), expression_id);
+    let dir::Expression::Binary { right, .. } = ctx.dir.get(expression_id) else {
         return false;
     };
 
@@ -72,15 +72,15 @@ fn expression_is_bitwise_int32_hint(
 
 /// Return whether this expression is a numeric zero literal.
 fn expression_is_zero_literal(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    let expression_id = expression_unwrap_parenthesized_source_form(ctx.tree, expression_id);
+    let expression_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), expression_id);
 
-    match ctx.tree.get(expression_id) {
-        ast::Expression::ScalarLiteral(literal) => match literal {
-            ast::ScalarLiteral::Integer(0) => true,
-            ast::ScalarLiteral::Float(value) => *value == 0.0,
+    match ctx.dir.get(expression_id) {
+        dir::Expression::ScalarLiteral(literal) => match literal {
+            dir::ScalarLiteral::Integer(0) => true,
+            dir::ScalarLiteral::Float(value) => *value == 0.0,
             _ => false,
         },
         _ => false,
@@ -92,22 +92,22 @@ impl LintRule for NoBitwise {
         NoBitwise::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expression = ctx.tree.get(node_id);
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let expression = ctx.dir.get(node_id);
 
             let operator = match expression {
-                ast::Expression::Binary { operator, .. } => bitwise_binary_operator(operator),
-                ast::Expression::Unary { operator, .. } => {
+                dir::Expression::Binary { operator, .. } => bitwise_binary_operator(operator),
+                dir::Expression::Unary { operator, .. } => {
                     if matches!(operator, UnaryOperator::ElementwiseNot) {
                         Some(BitwiseOperator::Not)
                     } else {
                         None
                     }
                 }
-                ast::Expression::Assign { operator, .. } => bitwise_assign_operator(operator),
+                dir::Expression::Assign { operator, .. } => bitwise_assign_operator(operator),
                 _ => None,
             };
 
@@ -128,7 +128,7 @@ impl LintRule for NoBitwise {
             if !severity.is_enabled() {
                 continue;
             }
-            let span = ctx.tree.get_span(node_id);
+            let span = ctx.dir.get_span(node_id);
             ctx.report(
                 LintReport::new(
                     NO_BITWISE.id,
@@ -152,56 +152,56 @@ mod tests {
     #[test]
     fn test_detects_bitwise_and() {
         let test = TestProgram::for_rule_without_prelude(NoBitwise);
-        let result = test.lint_ast("no_bitwise/test_detects_bitwise_and.ts", "let x = a & b;");
+        let result = test.lint("no_bitwise/test_detects_bitwise_and.ts", "let x = a & b;");
         test.result(result).assert_lint("no-bitwise");
     }
 
     #[test]
     fn test_detects_bitwise_or() {
         let test = TestProgram::for_rule_without_prelude(NoBitwise);
-        let result = test.lint_ast("no_bitwise/test_detects_bitwise_or.ts", "let x = a | b;");
+        let result = test.lint("no_bitwise/test_detects_bitwise_or.ts", "let x = a | b;");
         test.result(result).assert_lint("no-bitwise");
     }
 
     #[test]
     fn test_detects_bitwise_xor() {
         let test = TestProgram::for_rule_without_prelude(NoBitwise);
-        let result = test.lint_ast("no_bitwise/test_detects_bitwise_xor.ts", "let x = a ^ b;");
+        let result = test.lint("no_bitwise/test_detects_bitwise_xor.ts", "let x = a ^ b;");
         test.result(result).assert_lint("no-bitwise");
     }
 
     #[test]
     fn test_detects_bitwise_not() {
         let test = TestProgram::for_rule_without_prelude(NoBitwise);
-        let result = test.lint_ast("no_bitwise/test_detects_bitwise_not.ts", "let x = ~a;");
+        let result = test.lint("no_bitwise/test_detects_bitwise_not.ts", "let x = ~a;");
         test.result(result).assert_lint("no-bitwise");
     }
 
     #[test]
     fn test_detects_shift_left() {
         let test = TestProgram::for_rule_without_prelude(NoBitwise);
-        let result = test.lint_ast("no_bitwise/test_detects_shift_left.ts", "let x = a << b;");
+        let result = test.lint("no_bitwise/test_detects_shift_left.ts", "let x = a << b;");
         test.result(result).assert_lint("no-bitwise");
     }
 
     #[test]
     fn test_detects_shift_right() {
         let test = TestProgram::for_rule_without_prelude(NoBitwise);
-        let result = test.lint_ast("no_bitwise/test_detects_shift_right.ts", "let x = a >> b;");
+        let result = test.lint("no_bitwise/test_detects_shift_right.ts", "let x = a >> b;");
         test.result(result).assert_lint("no-bitwise");
     }
 
     #[test]
     fn test_detects_bitwise_assign() {
         let test = TestProgram::for_rule_without_prelude(NoBitwise);
-        let result = test.lint_ast("no_bitwise/test_detects_bitwise_assign.ts", "x &= 1;");
+        let result = test.lint("no_bitwise/test_detects_bitwise_assign.ts", "x &= 1;");
         test.result(result).assert_lint("no-bitwise");
     }
 
     #[test]
     fn test_detects_unsigned_shift_right() {
         let test = TestProgram::for_rule_without_prelude(NoBitwise);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_bitwise/test_detects_unsigned_shift_right.ts",
             "let x = a >>> b;",
         );
@@ -211,7 +211,7 @@ mod tests {
     #[test]
     fn test_detects_unsigned_shift_right_assign() {
         let test = TestProgram::for_rule_without_prelude(NoBitwise);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_bitwise/test_detects_unsigned_shift_right_assign.ts",
             "x >>>= 1;",
         );
@@ -221,21 +221,21 @@ mod tests {
     #[test]
     fn test_allows_logical_and() {
         let test = TestProgram::for_rule_without_prelude(NoBitwise);
-        let result = test.lint_ast("no_bitwise/test_allows_logical_and.ts", "let x = a && b;");
+        let result = test.lint("no_bitwise/test_allows_logical_and.ts", "let x = a && b;");
         test.result(result).assert_no_lint("no-bitwise");
     }
 
     #[test]
     fn test_allows_logical_or() {
         let test = TestProgram::for_rule_without_prelude(NoBitwise);
-        let result = test.lint_ast("no_bitwise/test_allows_logical_or.ts", "let x = a || b;");
+        let result = test.lint("no_bitwise/test_allows_logical_or.ts", "let x = a || b;");
         test.result(result).assert_no_lint("no-bitwise");
     }
 
     #[test]
     fn test_allows_arithmetic() {
         let test = TestProgram::for_rule_without_prelude(NoBitwise);
-        let result = test.lint_ast("no_bitwise/test_allows_arithmetic.ts", "let x = a + b * c;");
+        let result = test.lint("no_bitwise/test_allows_arithmetic.ts", "let x = a + b * c;");
         test.result(result).assert_no_lint("no-bitwise");
     }
 
@@ -247,7 +247,7 @@ mod tests {
                 .allowed_bitwise_operators
                 .push(BitwiseOperator::Not);
         });
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_bitwise/test_allows_configured_bitwise_not.ts",
             "let x = ~a;",
         );
@@ -259,7 +259,7 @@ mod tests {
         let test = TestProgram::for_rule_without_prelude(NoBitwise).with_options(|options| {
             options.restriction.allow_bitwise_int32_hint = true;
         });
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_bitwise/test_allows_configured_int32_hint.ts",
             "let x = (value) | 0;",
         );
@@ -271,7 +271,7 @@ mod tests {
         let test = TestProgram::for_rule_without_prelude(NoBitwise).with_options(|options| {
             options.restriction.allow_bitwise_int32_hint = true;
         });
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_bitwise/test_still_flags_non_hint_bitwise_or_with_zero_on_left.ts",
             "let x = 0 | value;",
         );

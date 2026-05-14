@@ -1,5 +1,5 @@
-use crate::{LintAstContext, LintMeta, LintReport, LintRule, declare_lint};
-use destack_ast::{self as ast, LocalNodeId, Tree, TypeExpression};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
+use destack_dir::{self as dir, LocalNodeId, Tree, TypeExpression};
 use destack_workspace::LintSeverity;
 
 declare_lint! {
@@ -11,7 +11,7 @@ declare_lint! {
         id = "no-complex-type",
         code = "LX016",
         category = Complexity,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = No,
@@ -27,19 +27,19 @@ impl LintRule for NoComplexType {
         NoComplexType::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         // resolve lint metadata and threshold
         let meta = self.meta();
         let max_type_complexity = ctx.options.complexity.max_type_complexity;
 
         // check only top level type annotation roots
-        for type_expression_id in ctx.tree.iter_nodes::<ast::TypeExpression>() {
+        for type_expression_id in ctx.dir.iter_nodes::<dir::TypeExpression>() {
             if has_type_expression_parent(ctx, type_expression_id) {
                 continue;
             }
 
             // compute structural complexity score for this type expression
-            let complexity = type_expression_complexity(ctx.tree, type_expression_id);
+            let complexity = type_expression_complexity(ctx.dir.tree(), type_expression_id);
             if complexity <= max_type_complexity {
                 continue;
             }
@@ -58,7 +58,7 @@ impl LintRule for NoComplexType {
                     NO_COMPLEX_TYPE.category,
                     severity,
                     format!("type has complexity {complexity} (max {max_type_complexity})"),
-                    ctx.tree.get_span(type_expression_id),
+                    ctx.dir.get_span(type_expression_id),
                 )
                 .label("consider extracting a named type alias"),
             );
@@ -68,14 +68,14 @@ impl LintRule for NoComplexType {
 
 /// Return true when one type expression has a parent type expression.
 fn has_type_expression_parent(
-    ctx: &LintAstContext<'_>,
+    ctx: &LintModuleContext<'_>,
     type_expression_id: LocalNodeId<TypeExpression>,
 ) -> bool {
-    let Some(parent_id) = ctx.parents.get(type_expression_id) else {
+    let Some(parent_id) = ctx.dir.get_parent_id(type_expression_id.id) else {
         return false;
     };
 
-    ctx.tree.get_node_type(parent_id) == ast::NodeType::TypeExpression
+    ctx.dir.get_node_type(parent_id) == dir::NodeType::TypeExpression
 }
 
 /// Compute one nesting style complexity score for a type expression.
@@ -167,7 +167,7 @@ fn type_expression_complexity_inner(
             for member_id in members {
                 let member = tree.get(*member_id);
                 match member {
-                    ast::TypeMember::Field {
+                    dir::TypeMember::Field {
                         declared_type: Some(declared_type),
                         ..
                     } => {
@@ -177,11 +177,11 @@ fn type_expression_complexity_inner(
                             current_depth,
                         ));
                     }
-                    ast::TypeMember::Field {
+                    dir::TypeMember::Field {
                         declared_type: None,
                         ..
                     } => {}
-                    ast::TypeMember::Method { signature, .. } => {
+                    dir::TypeMember::Method { signature, .. } => {
                         if let Some(return_type) = signature.return_type {
                             max_depth = max_depth.max(type_expression_complexity_inner(
                                 tree,
@@ -190,7 +190,7 @@ fn type_expression_complexity_inner(
                             ));
                         }
                     }
-                    ast::TypeMember::CallSignature { signature } => {
+                    dir::TypeMember::CallSignature { signature } => {
                         if let Some(return_type) = signature.return_type {
                             max_depth = max_depth.max(type_expression_complexity_inner(
                                 tree,
@@ -199,7 +199,7 @@ fn type_expression_complexity_inner(
                             ));
                         }
                     }
-                    ast::TypeMember::ConstructSignature { signature } => {
+                    dir::TypeMember::ConstructSignature { signature } => {
                         if let Some(return_type) = signature.return_type {
                             max_depth = max_depth.max(type_expression_complexity_inner(
                                 tree,
@@ -208,7 +208,7 @@ fn type_expression_complexity_inner(
                             ));
                         }
                     }
-                    ast::TypeMember::IndexSignature {
+                    dir::TypeMember::IndexSignature {
                         key_type,
                         value_type,
                         ..
@@ -224,7 +224,7 @@ fn type_expression_complexity_inner(
                             current_depth,
                         ));
                     }
-                    ast::TypeMember::AssociatedType {
+                    dir::TypeMember::AssociatedType {
                         constraint, value, ..
                     } => {
                         if let Some(constraint) = constraint {
@@ -243,7 +243,7 @@ fn type_expression_complexity_inner(
                             ));
                         }
                     }
-                    ast::TypeMember::AssociatedConst { declared_type, .. } => {
+                    dir::TypeMember::AssociatedConst { declared_type, .. } => {
                         if let Some(declared_type) = declared_type {
                             max_depth = max_depth.max(type_expression_complexity_inner(
                                 tree,
@@ -252,7 +252,7 @@ fn type_expression_complexity_inner(
                             ));
                         }
                     }
-                    ast::TypeMember::Error => {}
+                    dir::TypeMember::Error => {}
                 }
             }
         }
@@ -392,19 +392,19 @@ fn type_expression_complexity_inner(
             for element_id in elements {
                 let element = tree.get(*element_id);
                 match element {
-                    ast::TupleElement::Element { value, .. }
-                    | ast::TupleElement::Spread { value, .. } => {
+                    dir::TupleElement::Element { value, .. }
+                    | dir::TupleElement::Spread { value, .. } => {
                         max_depth = max_depth.max(type_expression_complexity_inner(
                             tree,
                             *value,
                             current_depth,
                         ));
                     }
-                    ast::TupleElement::Error => {}
+                    dir::TupleElement::Error => {}
                 }
             }
         }
-        TypeExpression::ScalarLiteral { .. }
+        TypeExpression::ScalarLiteral { value: _ }
         | TypeExpression::Literal { .. }
         | TypeExpression::Intrinsic
         | TypeExpression::Declaration { .. }
@@ -430,7 +430,7 @@ mod tests {
     fn test_detects_complex_type_alias() {
         let test = TestProgram::for_rule_without_prelude(NoComplexType)
             .with_options(|options| options.complexity.max_type_complexity = 3);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_complex_type/test_detects_complex_type_alias.ds",
             r#"
 type Value = Array<Map<string, List<Set<int32>>>>;
@@ -442,7 +442,7 @@ type Value = Array<Map<string, List<Set<int32>>>>;
     #[test]
     fn test_allows_simple_type_annotation() {
         let test = TestProgram::for_rule_without_prelude(NoComplexType);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_complex_type/test_allows_simple_type_annotation.ds",
             r#"
 let value: Array<string>;
@@ -455,7 +455,7 @@ let value: Array<string>;
     fn test_detects_complex_parameter_type() {
         let test = TestProgram::for_rule_without_prelude(NoComplexType)
             .with_options(|options| options.complexity.max_type_complexity = 2);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_complex_type/test_detects_complex_parameter_type.ds",
             r#"
 function run(value: Array<Map<string, Set<int32>>>): void {}
@@ -468,7 +468,7 @@ function run(value: Array<Map<string, Set<int32>>>): void {}
     fn test_ignores_runtime_expression_complexity() {
         let test = TestProgram::for_rule_without_prelude(NoComplexType)
             .with_options(|options| options.complexity.max_type_complexity = 1);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_complex_type/test_ignores_runtime_expression_complexity.ds",
             r#"
 let value = a | b | c | d;

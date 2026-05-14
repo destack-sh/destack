@@ -1,9 +1,9 @@
 use crate::LintMeta;
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_is_unqualified_path_name;
-use crate::{LintAstContext, LintReport, LintRule, declare_lint};
+use crate::{LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow catch clauses that only rethrow the caught error.
@@ -14,7 +14,7 @@ declare_lint! {
         id = "no-useless-catch",
         code = "LU035",
         category = Suspicious,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = No,
@@ -30,16 +30,16 @@ impl LintRule for NoUselessCatch {
         NoUselessCatch::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let ast::Expression::Try {
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let dir::Expression::Try {
                 catch_pattern,
                 catch_expression,
                 finally_expression,
                 ..
-            } = ctx.tree.get(node_id)
+            } = ctx.dir.get(node_id)
             else {
                 continue;
             };
@@ -63,9 +63,9 @@ impl LintRule for NoUselessCatch {
 
                 let has_finally_clause = finally_expression.is_some();
                 let diagnostic_span = if has_finally_clause {
-                    ctx.tree.get_span(*catch_expr_id)
+                    ctx.dir.get_span(*catch_expr_id)
                 } else {
-                    ctx.tree.get_span(node_id)
+                    ctx.dir.get_span(node_id)
                 };
 
                 let diagnostic = LintReport::new(
@@ -86,31 +86,31 @@ impl LintRule for NoUselessCatch {
 
 /// Get the binding name from a simple catch pattern.
 fn get_pattern_binding_name(
-    ctx: &LintAstContext<'_>,
-    pattern_id: ast::LocalNodeId<ast::Pattern>,
-) -> Option<ast::StringId> {
-    let pattern = ctx.tree.get(pattern_id);
+    ctx: &LintModuleContext<'_>,
+    pattern_id: dir::LocalNodeId<dir::Pattern>,
+) -> Option<dir::StringId> {
+    let pattern = ctx.dir.get(pattern_id);
     match pattern {
-        ast::Pattern::Binding { name, .. } => Some(*name),
+        dir::Pattern::Binding { name, .. } => Some(*name),
         _ => None,
     }
 }
 
 /// Check if an expression is `throw <name>` where name matches the given string id.
 fn is_throw_of_name(
-    ctx: &LintAstContext<'_>,
-    expr_id: ast::LocalNodeId<ast::Expression>,
-    name: ast::StringId,
+    ctx: &LintModuleContext<'_>,
+    expr_id: dir::LocalNodeId<dir::Expression>,
+    name: dir::StringId,
 ) -> bool {
-    let expr = ctx.tree.get(expr_id);
+    let expr = ctx.dir.get(expr_id);
     match expr {
         // direct throw
-        ast::Expression::Throw { value } => {
-            expression_is_unqualified_path_name(ctx.tree, *value, name)
+        dir::Expression::Throw { value } => {
+            expression_is_unqualified_path_name(ctx.dir.tree(), *value, name)
         }
         // block with exactly one throw of the caught name
-        ast::Expression::Block(block_id) => {
-            let block = ctx.tree.get(*block_id);
+        dir::Expression::Block(block_id) => {
+            let block = ctx.dir.get(*block_id);
             block.len() == 1
                 && block
                     .first_expression()
@@ -128,7 +128,7 @@ mod tests {
     #[test]
     fn test_detects_useless_catch_throw() {
         let test = TestProgram::for_rule_without_prelude(NoUselessCatch);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_catch/test_detects_useless_catch_throw.ds",
             r#"
 try {
@@ -144,7 +144,7 @@ try {
     #[test]
     fn test_detects_useless_catch_block_throw() {
         let test = TestProgram::for_rule_without_prelude(NoUselessCatch);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_catch/test_detects_useless_catch_block_throw.ds",
             r#"
 try {
@@ -160,7 +160,7 @@ try {
     #[test]
     fn test_allows_catch_with_logging() {
         let test = TestProgram::for_rule_without_prelude(NoUselessCatch);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_catch/test_allows_catch_with_logging.ds",
             r#"
 try {
@@ -177,7 +177,7 @@ try {
     #[test]
     fn test_allows_catch_with_different_throw() {
         let test = TestProgram::for_rule_without_prelude(NoUselessCatch);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_catch/test_allows_catch_with_different_throw.ds",
             r#"
 try {
@@ -193,7 +193,7 @@ try {
     #[test]
     fn test_detects_useless_catch_with_finally_without_fix() {
         let test = TestProgram::for_rule_without_prelude(NoUselessCatch);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_catch/test_detects_useless_catch_with_finally_without_fix.ds",
             r#"
 try {
@@ -213,7 +213,7 @@ try {
     #[test]
     fn test_allows_catch_with_extra_unreachable_statement() {
         let test = TestProgram::for_rule_without_prelude(NoUselessCatch);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_catch/test_allows_catch_with_extra_unreachable_statement.ds",
             r#"
 try {
@@ -230,7 +230,7 @@ try {
     #[test]
     fn test_reports_useless_catch_without_fix() {
         let test = TestProgram::for_rule_without_prelude(NoUselessCatch);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_catch/test_reports_useless_catch_without_fix.ds",
             r#"
 try {
