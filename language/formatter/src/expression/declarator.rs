@@ -1,7 +1,7 @@
 use crate::annotation::{infix_or_postfix_annotations, prefix_annotations};
 use crate::operator::format_declarator_assignment;
 use crate::{DestackFormatter, FormatNode};
-use destack_ast::{Declarator, LocalNodeId, Tree};
+use destack_dir::{Declarator, LocalNodeId, Tree};
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::write;
 

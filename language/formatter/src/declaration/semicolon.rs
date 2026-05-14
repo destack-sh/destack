@@ -1,8 +1,8 @@
-use destack_ast::{
+use destack_core::StringId;
+use destack_dir::{
     Comment, Declaration, DependencyBinding, DependencyItem, Expression, FunctionForm, IfForm,
     LocalNodeId, WhileForm,
 };
-use destack_core::StringId;
 use destack_fir::format::{Buffer, FormatResult, hard_line_break};
 use destack_fir::prelude::{block_indent, empty_line, format_with, line_suffix, space, token};
 use destack_fir::write;
@@ -399,7 +399,7 @@ pub(crate) fn statement_wrapper_needs_semicolon(
             | Expression::For { .. }
             | Expression::Loop { .. }
             | Expression::Match { .. }
-            | Expression::Labelled { .. }
+            | Expression::Label { .. }
     ) {
         return false;
     }

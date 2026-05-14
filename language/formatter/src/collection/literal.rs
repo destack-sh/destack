@@ -6,11 +6,11 @@ use crate::template::{
 use crate::tree::is_jsx_whitespace_char;
 use crate::{DestackFormatContext, DestackFormatter};
 
-use destack_ast::{
-    Argument, Expression, FloatType, IntegerType, LiteralType, LocalNodeId, Path, ScalarLiteral,
-    TemplateLiteral, TypeLiteral,
-};
 use destack_core::StringId;
+use destack_dir::{
+    Argument, Expression, FloatType, IntegerType, LocalNodeId, Path, ScalarLiteral,
+    TemplateLiteral, TokenLiteral, TypeLiteral,
+};
 use destack_fir::format::{
     Buffer, Format, FormatNodes, FormatResult, RemoveSoftLinesBuffer, text, token,
 };
@@ -42,7 +42,7 @@ impl<'ast> Format<DestackFormatContext<'ast>> for Path {
 fn scalar_literal_source_info(
     context: &DestackFormatContext<'_>,
     span: Span,
-) -> (Option<String>, Option<LiteralType>) {
+) -> (Option<String>, Option<TokenLiteral>) {
     let token = context.first_non_trivia_token_in_span(span);
 
     (
@@ -120,7 +120,7 @@ pub(crate) fn format_scalar_literal<'ast>(
 ) -> FormatResult<()> {
     let (source_lexeme, literal_type) = scalar_literal_source_info(f.context(), span);
     let source_lexeme = source_lexeme.unwrap_or_default();
-    let is_tree_text = literal_type == Some(LiteralType::TreeString);
+    let is_tree_text = literal_type == Some(TokenLiteral::TreeString);
 
     match scalar {
         ScalarLiteral::Null => token("null").format(f)?,

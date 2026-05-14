@@ -6,21 +6,64 @@ use crate::collection::TrailingSeparator;
 use crate::collection::literal::format_scalar_literal;
 use crate::collection::property::{format_name_with_quotes, is_identifier_for_quotes};
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
-use destack_ast::{
+use destack_core::{StringId, StringPool};
+use destack_dir::{
     DecoratorPosition, DependencyBinding, DependencyItem, DependencySpace, Expression,
     ImportAttribute, ImportAttributeClause, ImportAttributeClauseKind, ImportAttributeValue,
     Keyword, LocalNodeId, Name, ScalarLiteral, TokenSpan, TokenType, Tree,
 };
-use destack_core::{StringId, StringPool};
 use destack_fir::format::{FormatError, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::write;
-use destack_query::format::{
-    ImportDeclarationKey, categorize_import, sort_dependency_items as query_sort_dependency_items,
-    sort_import_declaration_indices,
-};
 use destack_source::{FileId, NodeSpanList, NodeSpanRegion, NodeSpanType, Span};
 use destack_workspace::{ImportSortOrder, QuoteProperty, TrailingComma};
+use std::cmp::Ordering;
+
+/// The import group category for declaration ordering.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) enum ImportGroup {
+    /// Builtin modules with protocol prefixes.
+    Builtin = 0,
+    /// External packages.
+    Package = 1,
+    /// Path aliases.
+    Alias = 2,
+    /// Relative imports.
+    Relative = 3,
+}
+
+impl ImportGroup {
+    /// Categorize one import target path into a group.
+    pub(crate) fn from_path(path: &str) -> Self {
+        // builtin protocols: `protocol:module` but not urls
+        if let Some(colon_position) = path.find(':')
+            && !path[colon_position..].starts_with("://")
+        {
+            return Self::Builtin;
+        }
+
+        // relative imports
+        if path.starts_with("./") || path.starts_with("../") || path.starts_with('/') {
+            return Self::Relative;
+        }
+
+        // alias imports
+        if is_alias_specifier(path) {
+            return Self::Alias;
+        }
+
+        Self::Package
+    }
+}
+
+/// One import declaration key for ordering.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct ImportDeclarationKey<'a> {
+    /// The import target string.
+    pub(crate) target: &'a str,
+    /// Whether this declaration is a side effect only import.
+    pub(crate) is_side_effect: bool,
+}
 
 /// Format a dependency item name.
 fn format_dependency_item_name<'ast>(
@@ -187,6 +230,49 @@ pub(crate) fn sort_imports(
         .collect()
 }
 
+/// Categorize one import target path into a group.
+pub(crate) fn categorize_import(target: &str) -> ImportGroup {
+    ImportGroup::from_path(target)
+}
+
+/// Compare two import targets by canonical declaration order.
+pub(crate) fn compare_import_targets(left: &str, right: &str) -> Ordering {
+    match categorize_import(left).cmp(&categorize_import(right)) {
+        Ordering::Equal => left.cmp(right),
+        ordering => ordering,
+    }
+}
+
+/// Return declaration indices ordered by canonical import order.
+pub(crate) fn sort_import_declaration_indices(keys: &[ImportDeclarationKey<'_>]) -> Vec<usize> {
+    let mut side_effect_indices = Vec::new();
+    let mut regular_indices = Vec::new();
+
+    // split side effect and regular imports
+    for (index, key) in keys.iter().enumerate() {
+        if key.is_side_effect {
+            side_effect_indices.push(index);
+        } else {
+            regular_indices.push(index);
+        }
+    }
+
+    // sort regular imports by canonical target order
+    regular_indices.sort_by(|left, right| {
+        let left_target = keys[*left].target;
+        let right_target = keys[*right].target;
+
+        compare_import_targets(left_target, right_target)
+    });
+
+    // put side effects first
+    let mut result = Vec::with_capacity(keys.len());
+    result.extend(side_effect_indices);
+    result.extend(regular_indices);
+
+    result
+}
+
 /// Sort dependency items by kind and configured key order.
 pub(crate) fn sort_dependency_items(
     items: &[LocalNodeId<DependencyItem>],
@@ -194,7 +280,35 @@ pub(crate) fn sort_dependency_items(
     strings: &StringPool,
     sort_order: ImportSortOrder,
 ) -> Vec<LocalNodeId<DependencyItem>> {
-    query_sort_dependency_items(items, tree, strings, sort_order)
+    let mut sorted_items = items.to_vec();
+    sorted_items.sort_by(|left_id, right_id| {
+        let left_item = tree.get(*left_id);
+        let right_item = tree.get(*right_id);
+
+        // type imports come before value imports
+        let left_is_type = dependency_item_space(left_item) == Some(DependencySpace::Type);
+        let right_is_type = dependency_item_space(right_item) == Some(DependencySpace::Type);
+        match (left_is_type, right_is_type) {
+            (true, false) => return Ordering::Less,
+            (false, true) => return Ordering::Greater,
+            _ => {}
+        }
+
+        // sort by declared item key
+        let left_key = dependency_item_sort_key(left_item)
+            .map(|string_id| strings.get(string_id))
+            .unwrap_or("");
+        let right_key = dependency_item_sort_key(right_item)
+            .map(|string_id| strings.get(string_id))
+            .unwrap_or("");
+
+        match sort_order {
+            ImportSortOrder::Natural => natural_cmp(left_key, right_key),
+            ImportSortOrder::Alphabetical => left_key.cmp(right_key),
+        }
+    });
+
+    sorted_items
 }
 
 /// Determine if a blank line should be inserted between two imports.
@@ -235,6 +349,86 @@ pub(crate) fn should_insert_blank_between(
     }
 
     false
+}
+
+/// Return true when one import path uses a known alias prefix.
+fn is_alias_specifier(specifier: &str) -> bool {
+    specifier.starts_with("@/") || specifier.starts_with("~/") || specifier.starts_with('#')
+}
+
+/// Return one dependency item's dependency space when it is valid.
+fn dependency_item_space(item: &DependencyItem) -> Option<DependencySpace> {
+    match item {
+        DependencyItem::Item { space, .. } => *space,
+        DependencyItem::Error => None,
+    }
+}
+
+/// Return one dependency item's sort key when present.
+fn dependency_item_sort_key(item: &DependencyItem) -> Option<StringId> {
+    match item {
+        DependencyItem::Item { alias, name, .. } => {
+            alias.or_else(|| name.map(|name| name.string()))
+        }
+        DependencyItem::Error => None,
+    }
+}
+
+/// Compare two strings using natural sort order.
+fn natural_cmp(left: &str, right: &str) -> Ordering {
+    let mut left_characters = left.chars().peekable();
+    let mut right_characters = right.chars().peekable();
+
+    loop {
+        match (left_characters.peek(), right_characters.peek()) {
+            (None, None) => return Ordering::Equal,
+            (None, Some(_)) => return Ordering::Less,
+            (Some(_), None) => return Ordering::Greater,
+            (Some(left_character), Some(right_character)) => {
+                // compare numeric runs as integers
+                if left_character.is_ascii_digit() && right_character.is_ascii_digit() {
+                    let mut left_number: u64 = 0;
+                    while let Some(&character) = left_characters.peek()
+                        && character.is_ascii_digit()
+                    {
+                        left_number = left_number
+                            .saturating_mul(10)
+                            .saturating_add((character as u64) - ('0' as u64));
+                        left_characters.next();
+                    }
+
+                    let mut right_number: u64 = 0;
+                    while let Some(&character) = right_characters.peek()
+                        && character.is_ascii_digit()
+                    {
+                        right_number = right_number
+                            .saturating_mul(10)
+                            .saturating_add((character as u64) - ('0' as u64));
+                        right_characters.next();
+                    }
+
+                    match left_number.cmp(&right_number) {
+                        Ordering::Equal => continue,
+                        ordering => return ordering,
+                    }
+                }
+
+                // compare case insensitively first
+                let left_lower = left_character.to_ascii_lowercase();
+                let right_lower = right_character.to_ascii_lowercase();
+                match left_lower.cmp(&right_lower) {
+                    Ordering::Equal => match left_character.cmp(right_character) {
+                        Ordering::Equal => {
+                            left_characters.next();
+                            right_characters.next();
+                        }
+                        ordering => return ordering,
+                    },
+                    ordering => return ordering,
+                }
+            }
+        }
+    }
 }
 
 /// Return one dependency item's binding when it is valid.

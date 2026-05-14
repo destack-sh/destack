@@ -1,4 +1,4 @@
-use destack_ast::BlockContext;
+use destack_dir::BlockContext;
 use destack_source::FileType;
 
 use crate::{

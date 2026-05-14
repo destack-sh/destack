@@ -2,7 +2,7 @@ use super::comment::Comments;
 use super::context::DestackFormatContext;
 use std::ops::Deref;
 
-use destack_ast::{LocalNodeId, Node, TokenSpan, Tree, TreeImpl};
+use destack_dir::{LocalNodeId, Node, TokenSpan, Tree, TreeStore};
 use destack_source::Span;
 
 /// Source text wrapper for formatter byte and span queries.
@@ -393,7 +393,7 @@ impl<'a> DestackFormatContext<'a> {
     pub fn node_has_newline<T>(&self, node_id: LocalNodeId<T>) -> bool
     where
         T: Node,
-        Tree: TreeImpl<T>,
+        Tree: TreeStore<T>,
     {
         self.has_newline(self.span(node_id))
     }

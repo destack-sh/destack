@@ -20,7 +20,7 @@ use crate::declaration::{
     write_statement_terminator,
 };
 use crate::tree::tree_control_child_should_expand;
-use destack_ast::{Comment, Expression, IfForm, LocalNodeId, TokenType};
+use destack_dir::{Comment, Expression, IfForm, LocalNodeId, TokenType};
 use destack_fir::format::{Buffer, Format, FormatResult};
 use destack_fir::prelude::{format_with, group, space, token};
 use destack_fir::write;
@@ -97,8 +97,8 @@ pub(crate) fn format_statement_expression<'ast>(
         // block
         Expression::Block(node) => node.format(f)?,
 
-        // labelled statement
-        Expression::Labelled { label, body } => {
+        // labeled statement
+        Expression::Label { label, body } => {
             let body_span = f.context().span(*body);
             let separator_comments = if let Some(separator_token) =
                 f.context().previous_non_trivia_token_before_span(body_span)

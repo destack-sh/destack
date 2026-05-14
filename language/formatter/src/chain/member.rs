@@ -4,11 +4,11 @@ use super::groups::{
 use crate::expression::parenthesized_expression_needs_preserved_wrapper;
 use crate::operator::{is_chain_expression, write_postfix_base_expression};
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_ast::{
+use destack_core::StringId;
+use destack_dir::{
     Argument, Declarator, DecoratorPosition, Expression, GenericArgument, IfForm, LocalNodeId,
     NodeType, PostfixPosition, ScalarLiteral, TokenType, Tree,
 };
-use destack_core::StringId;
 use destack_fir::format::{Buffer, FormatError, FormatResult};
 use destack_fir::prelude::token;
 use destack_fir::write;

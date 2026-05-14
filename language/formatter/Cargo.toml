@@ -18,13 +18,12 @@ timings = []
 [dependencies]
 # language
 destack_artifact = { workspace = true }
-destack_ast = { workspace = true }
 destack_core = { workspace = true }
 destack_css = { workspace = true }
+destack_dir = { workspace = true }
 destack_fir = { workspace = true }
 destack_html = { workspace = true }
 destack_parser = { workspace = true }
-destack_query = { workspace = true }
 destack_source = { workspace = true }
 destack_workspace = { path = "../workspace", default-features = false }
 

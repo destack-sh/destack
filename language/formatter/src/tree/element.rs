@@ -3,7 +3,7 @@ use crate::context::with_following_span_start;
 use crate::expression::format_generic_argument_list;
 use crate::tree::{tree_argument_is_wrapped_in_braces, write_tree_expression_argument};
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_ast::{Argument, Expression, GenericArgument, LocalNodeId, ScalarLiteral};
+use destack_dir::{Argument, Expression, GenericArgument, LocalNodeId, ScalarLiteral};
 use destack_fir::format::{Buffer, Format, FormatResult};
 use destack_fir::prelude::{
     expand_parent, format_with, group, hard_line_break, soft_line_break, soft_line_break_or_space,

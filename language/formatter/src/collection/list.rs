@@ -4,7 +4,7 @@ use crate::annotation::{FormatTrailingComments, write_comment_slice};
 use crate::context::with_following_span_start;
 use crate::file::{ignore_ranges_for_nodes, write_ignored_span};
 use crate::{DestackFormatContext, FormatNode};
-use destack_ast::{Comment, LocalNodeId, Node, TokenSpan, TokenType, Tree, TreeImpl};
+use destack_dir::{Comment, LocalNodeId, Node, TokenSpan, TokenType, Tree, TreeStore};
 use destack_fir::format::{FormatResult, GroupId};
 use destack_fir::prelude::*;
 use destack_fir::write;
@@ -35,7 +35,7 @@ pub(crate) struct FormatSeparatedElement<T: Node + Clone> {
 impl<'ast, T> Format<DestackFormatContext<'ast>> for FormatSeparatedElement<T>
 where
     T: Node + Clone + FormatNode<'ast, T>,
-    Tree: TreeImpl<T>,
+    Tree: TreeStore<T>,
 {
     fn format(&self, f: &mut Formatter<'_, DestackFormatContext<'ast>>) -> FormatResult<()> {
         let element_span = f.context().span(self.element);
@@ -88,7 +88,7 @@ where
             |index| &gap_comment_nodes[..index],
         );
         let (comments_before_separator, comments_after_separator) =
-            split_gap_comments_around_separator(&gap_comments, source_separator);
+            split_gap_comments_around_separator(gap_comments, source_separator);
 
         if !gap_comments.is_empty() {
             let leading_comments: &[Comment] = if source_separator.is_some() {
@@ -215,7 +215,7 @@ fn next_leading_comment_start<T: Node + Clone>(
     next_element: Option<LocalNodeId<T>>,
 ) -> Option<usize>
 where
-    Tree: TreeImpl<T>,
+    Tree: TreeStore<T>,
 {
     let next_element = next_element?;
     let next_element_span = context.span(next_element);
@@ -463,7 +463,7 @@ pub(crate) fn separated_entries<'ast, 'e, T>(
 ) -> impl Format<DestackFormatContext<'ast>> + use<'ast, 'e, T>
 where
     T: Node + Clone + FormatNode<'ast, T>,
-    Tree: TreeImpl<T>,
+    Tree: TreeStore<T>,
 {
     format_with(move |f: &mut Formatter<'_, DestackFormatContext<'ast>>| {
         let has_elements = !elements.is_empty();
@@ -527,7 +527,7 @@ fn format_list_with_ignored_ranges<'ast, T>(
 ) -> FormatResult<bool>
 where
     T: Node + Clone + FormatNode<'ast, T>,
-    Tree: TreeImpl<T>,
+    Tree: TreeStore<T>,
 {
     let mut skip_until: Option<u32> = None;
     let mut needs_separator = false;
@@ -593,7 +593,7 @@ fn list_element_following_span_start<T>(
 ) -> u32
 where
     T: Node + Clone,
-    Tree: TreeImpl<T>,
+    Tree: TreeStore<T>,
 {
     let element_span = context.span(*element_id);
     let next_element = elements

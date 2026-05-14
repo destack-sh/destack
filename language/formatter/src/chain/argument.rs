@@ -1,5 +1,5 @@
 use crate::DestackFormatContext;
-use destack_ast::{Argument, Declaration, Expression, FunctionForm, LocalNodeId, Tree};
+use destack_dir::{Argument, Declaration, Expression, FunctionForm, LocalNodeId, Tree};
 
 /// Get the value expression of any argument variant.
 pub(crate) fn argument_value_id_if_present(

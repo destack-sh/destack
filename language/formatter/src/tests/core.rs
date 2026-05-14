@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use crate::{DestackFormatContext, DestackFormatOptions, format_file_source};
-use destack_ast::{NodeParentIndex, TokenSpan, Tree};
 use destack_core::StringPool;
+use destack_dir::{NodeParentIndex, TokenSpan, Tree};
 use destack_fir::format;
 use destack_fir::format::Format;
 use destack_parser::{ParseResult, Parser, ParserOptions};

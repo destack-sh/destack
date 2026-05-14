@@ -14,7 +14,7 @@ use crate::file::{
     node_has_ignore_directive, node_has_trailing_ignore_directive, write_ignored_node,
 };
 use crate::{DestackFormatter, FormatNode};
-use destack_ast::{
+use destack_dir::{
     Declaration, Keyword, LocalNodeId, Member, NodeType, TypeExpression, Visibility,
 };
 use destack_fir::format::{Buffer, FormatResult};

@@ -15,7 +15,7 @@ use crate::expression::format_expression;
 use crate::file::{
     ignore_range_for_node, ignore_ranges_for_nodes, node_has_ignore_directive, write_ignored_span,
 };
-use destack_ast::{
+use destack_dir::{
     Block, BlockContext, Comment, Declaration, DecoratorPosition, Expression, FunctionForm,
     FunctionRole, FunctionSignature, IfForm, LocalNodeId, Member, NodeType, Property, TokenSpan,
     Tree, TypeExpression, TypeLiteral,
@@ -1243,7 +1243,7 @@ pub(crate) fn expression_is_in_statement_context(
                                 finally_expression.id == expression_id.id
                             })
                 }
-                Expression::Labelled { body, .. } => body.id == expression_id.id,
+                Expression::Label { body, .. } => body.id == expression_id.id,
                 _ => false,
             };
 

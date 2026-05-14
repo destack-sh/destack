@@ -1,5 +1,5 @@
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_ast::{Comment, Expression, LocalNodeId, NodeType};
+use destack_dir::{Comment, Expression, LocalNodeId, NodeType};
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::write;
 

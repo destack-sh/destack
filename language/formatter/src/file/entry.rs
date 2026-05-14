@@ -2,9 +2,9 @@ use std::error::Error;
 use std::fmt::{self, Display};
 use std::sync::Arc;
 
-use destack_ast::{Expression, LocalNodeId, NodeParentIndex};
 use destack_core::StringPool;
 use destack_css::{CssFormatOptions, format_stylesheet, parse_css};
+use destack_dir::{Expression, LocalNodeId, NodeParentIndex};
 use destack_fir::format as fir_format;
 use destack_html::{HtmlFormatOptions, format_document, parse_html};
 use destack_parser::{Parser, ParserOptions};

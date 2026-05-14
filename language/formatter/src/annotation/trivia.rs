@@ -1,7 +1,7 @@
 use crate::context::FormatNodeWithoutTrailingComments;
 use crate::jsdoc::format_jsdoc_comment;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
-use destack_ast::{Comment, CommentContent, LocalNodeId, Node, Tree, TreeImpl};
+use destack_dir::{Comment, CommentContent, LocalNodeId, Node, Tree, TreeStore};
 use destack_fir::format::{Buffer, Format, FormatResult, Formatter, hard_line_break};
 use destack_fir::prelude::{
     block_indent, empty_line, expand_parent, format_with, group, line_suffix, soft_block_indent,
@@ -436,7 +436,7 @@ pub(crate) fn format_node_with_trailing_comments<'ast, T>(
 ) -> impl Format<DestackFormatContext<'ast>> + use<'ast, T>
 where
     T: FormatNode<'ast, T> + Node + Clone + 'ast,
-    Tree: TreeImpl<T>,
+    Tree: TreeStore<T>,
 {
     format_with(move |f: &mut DestackFormatter<'ast, '_>| {
         let node_span = f.context().span(node_id);

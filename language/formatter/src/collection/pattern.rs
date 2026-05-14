@@ -9,9 +9,9 @@ use crate::annotation::{
 use crate::collection::{TrailingSeparator, separated_entries};
 use crate::context::MemoizeFormatExt;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
-use destack_ast::{
+use destack_dir::{
     AssignPattern, AssignPatternField, Declarator, DecoratorPosition, Expression, LocalNodeId,
-    Mutability, Node, NodeType, Parameter, Pattern, PatternField, RangeEnd, Tree, TreeImpl,
+    Mutability, Node, NodeType, Parameter, Pattern, PatternField, RangeEnd, Tree, TreeStore,
     TypeExpression,
 };
 use destack_fir::prelude::*;
@@ -20,7 +20,11 @@ use destack_workspace::TrailingComma;
 
 impl<'ast> Format<DestackFormatContext<'ast>> for Mutability {
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
-        write!(f, [self.to_keyword()])
+        match self {
+            Mutability::Immutable => write!(f, [token("readonly")]),
+            Mutability::Exclusive => write!(f, [token("exclusive")]),
+            Mutability::Mutable => Ok(()),
+        }
     }
 }
 
@@ -198,7 +202,7 @@ fn format_empty_pattern_delimiter_with_interior_annotations<'ast, T>(
 ) -> FormatResult<()>
 where
     T: Node + Clone + 'ast,
-    Tree: TreeImpl<T>,
+    Tree: TreeStore<T>,
 {
     let span = f.context().span(node_id);
     let mut interior_items = Vec::new();

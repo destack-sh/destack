@@ -16,7 +16,7 @@ use crate::declaration::statement::format_block;
 use crate::expression::ExpressionLeftSide;
 use crate::operator::AssignmentLikeLayout;
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_ast::{
+use destack_dir::{
     Argument, Declaration, ExportKind, Expression, FunctionDeclaration, FunctionForm,
     FunctionSignature, IfForm, LocalNodeId, Name, NodeType, Parameter, TemplateLiteral,
 };
@@ -324,26 +324,20 @@ fn lambda_declaration_tree_argument_id(
     context: &DestackFormatContext<'_>,
     declaration_id: LocalNodeId<Declaration>,
 ) -> Option<LocalNodeId<Argument>> {
-    let Some((declaration_expression_id, parent_type)) = context.parent(declaration_id) else {
-        return None;
-    };
+    let (declaration_expression_id, parent_type) = context.parent(declaration_id)?;
     if parent_type != NodeType::Expression {
         return None;
     }
 
     let declaration_expression_id = LocalNodeId::<Expression>::new(declaration_expression_id);
-    let Some((argument_id, parent_type)) = context.parent(declaration_expression_id) else {
-        return None;
-    };
+    let (argument_id, parent_type) = context.parent(declaration_expression_id)?;
     if parent_type != NodeType::Argument {
         return None;
     }
 
     let argument_id = LocalNodeId::<Argument>::new(argument_id);
 
-    let Some((tree_expression_id, parent_type)) = context.parent_by_id(argument_id.id) else {
-        return None;
-    };
+    let (tree_expression_id, parent_type) = context.parent_by_id(argument_id.id)?;
     if parent_type != NodeType::Expression {
         return None;
     }

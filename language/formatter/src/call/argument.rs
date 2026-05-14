@@ -16,7 +16,7 @@ use crate::annotation::{
 use crate::expression::write_expression_without_trailing_comments;
 use crate::tree::has_multiline_jsx_argument;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
-use destack_ast::{
+use destack_dir::{
     Argument, Declaration, DecoratorPosition, Expression, LocalNodeId, NodeType, TypeExpression,
 };
 use destack_fir::format::{Buffer, FormatResult};
@@ -203,16 +203,15 @@ fn argument_value_trailing_span(
         return value_span;
     };
 
-    if let Some(body_id) = function.body {
-        if let Some(body_span) = context
+    if let Some(body_id) = function.body
+        && let Some(body_span) = context
             .tree
             .get_side_span(*declaration_id, NodeSpanType::Region(NodeSpanRegion::Body))
-        {
-            let start = value_span.start;
-            let end = body_span.end.max(context.span(body_id).end);
+    {
+        let start = value_span.start;
+        let end = body_span.end.max(context.span(body_id).end);
 
-            return Span::new(value_span.file, start, end);
-        }
+        return Span::new(value_span.file, start, end);
     }
 
     if let Some(parameter_span) = context.tree.get_side_span(
@@ -359,18 +358,10 @@ fn format_call_arguments_impl<'ast>(
     else if call_uses_simple_list_layout(f.context(), call_node_id, left, arguments) {
         write_simple_call_argument_list(f, call_span, arguments)
     }
-    // preserve intentional empty lines between arguments
-    else if arguments_have_empty_line(f.context(), arguments) {
-        format_all_args_broken_out(
-            f,
-            call_span,
-            arguments,
-            group_id,
-            disallow_trailing_separator,
-        )
-    }
-    // function composition
-    else if is_function_composition_args(f.context(), arguments) {
+    // force expanded layouts
+    else if arguments_have_empty_line(f.context(), arguments)
+        || is_function_composition_args(f.context(), arguments)
+    {
         format_all_args_broken_out(
             f,
             call_span,

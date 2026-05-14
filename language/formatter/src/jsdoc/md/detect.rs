@@ -1,4 +1,4 @@
-/// Check if the text contains markdown constructs that require full AST parsing.
+/// Check if the text contains markdown constructs that require full markdown parsing.
 /// Returns `false` only for pure plain-text paragraphs that `wrap_plain_paragraphs()`
 /// can handle directly (no lists, tables, code fences, headings, blockquotes, or
 /// inline markdown like emphasis/links).

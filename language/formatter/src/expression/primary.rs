@@ -16,7 +16,7 @@ use crate::declaration::expression_is_in_statement_context;
 use crate::operator::format_generic_argument_list;
 use crate::tree::format_tree_literal_expression;
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_ast::{
+use destack_dir::{
     Argument, Expression, Keyword, LocalNodeId, NodeType, TokenSpan, TokenType, Tree,
 };
 use destack_fir::format::{Buffer, FormatResult};

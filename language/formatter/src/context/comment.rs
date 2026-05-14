@@ -1,6 +1,6 @@
 use super::source::SourceText;
 use crate::file::comment_text_has_suppression_directive;
-use destack_ast::Comment;
+use destack_dir::Comment;
 use destack_source::Span;
 
 /// One saved comment cursor state for speculative formatting.

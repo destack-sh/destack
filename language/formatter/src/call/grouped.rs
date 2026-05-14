@@ -10,7 +10,7 @@ use crate::declaration::{
     format_function_declaration, format_lambda_declaration_with_options,
 };
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_ast::{
+use destack_dir::{
     Argument, Declaration, Expression, FunctionForm, FunctionSignature, GenericArgument,
     LocalNodeId, Parameter, ScalarLiteral, TypeExpression, UnaryOperator,
 };
@@ -62,25 +62,25 @@ fn can_group_lambda_argument(
     };
 
     // reference return types only group for block bodies
-    if let Some(return_type_id) = function.signature.return_type {
-        if matches!(
+    if let Some(return_type_id) = function.signature.return_type
+        && matches!(
             context.tree.get(return_type_id),
             TypeExpression::Reference { .. }
-        ) {
-            let body_expression_id = transparent_inner_expression(context, body_id);
-            let Expression::Block(block_id) = context.tree.get(body_expression_id) else {
-                return false;
-            };
+        )
+    {
+        let body_expression_id = transparent_inner_expression(context, body_id);
+        let Expression::Block(block_id) = context.tree.get(body_expression_id) else {
+            return false;
+        };
 
-            let block = context.tree.get(*block_id);
-            let body_span = context
-                .tree
-                .get_side_span(declaration_id, NodeSpanType::Region(NodeSpanRegion::Body))
-                .unwrap_or_else(|| context.span(body_id));
+        let block = context.tree.get(*block_id);
+        let body_span = context
+            .tree
+            .get_side_span(declaration_id, NodeSpanType::Region(NodeSpanRegion::Body))
+            .unwrap_or_else(|| context.span(body_id));
 
-            if block.is_empty() && !context.comments().has_comment_before(body_span.end) {
-                return false;
-            }
+        if block.is_empty() && !context.comments().has_comment_before(body_span.end) {
+            return false;
         }
     }
 

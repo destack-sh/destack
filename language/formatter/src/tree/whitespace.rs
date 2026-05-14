@@ -1,6 +1,6 @@
 use super::argument::tree_argument_is_wrapped_in_braces;
 use crate::DestackFormatContext;
-use destack_ast::{Argument, Expression, LocalNodeId, ScalarLiteral};
+use destack_dir::{Argument, Expression, LocalNodeId, ScalarLiteral};
 
 /// Check whether a tree text child is whitespace-only.
 pub(crate) fn tree_text_is_whitespace_only(

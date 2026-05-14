@@ -4,7 +4,7 @@ use crate::annotation::{
 use crate::chain::transparent_inner_expression;
 use crate::expression::{write_expression_without_trailing_comments, write_type_expression_node};
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_ast::{
+use destack_dir::{
     Expression, GenericArgument, LocalNodeId, NodeType, TypeExpression, TypeLiteral,
 };
 use destack_fir::format::{Buffer, FormatResult};

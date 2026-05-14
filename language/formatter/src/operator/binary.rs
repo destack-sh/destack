@@ -1,6 +1,6 @@
 use crate::context::with_following_span_start;
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_ast::{
+use destack_dir::{
     Argument, BinaryOperator, Expression, IfCondition, IfForm, LocalNodeId, MatchForm, Member,
     NodeType, OperatorPrecedence, Property, TokenType,
 };

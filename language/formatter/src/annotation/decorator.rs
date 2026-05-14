@@ -1,7 +1,7 @@
 use crate::expression::format_expression;
 use crate::file::node_has_ignore_directive;
 use crate::{DestackFormatter, FormatNode};
-use destack_ast::{Decorator, Expression, LocalNodeId, Tree};
+use destack_dir::{Decorator, Expression, LocalNodeId, Tree};
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::token;
 use destack_fir::write;

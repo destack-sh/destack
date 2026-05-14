@@ -1,6 +1,6 @@
 use crate::DestackFormatContext;
 use crate::operator::assign_pattern_target_expression;
-use destack_ast::{
+use destack_dir::{
     Argument, Expression, GenericArgument, IfCondition, IfForm, LocalNodeId, NodeType, Pattern,
     Property, ScalarLiteral, TokenType, Tree, TypeExpression, UnaryOperator,
 };

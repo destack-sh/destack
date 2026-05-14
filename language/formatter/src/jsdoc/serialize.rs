@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use destack_ast::Comment;
+use destack_dir::Comment;
 use destack_fir::format::{Buffer, Format, FormatResult, Formatter};
 use destack_fir::prelude::{hard_line_break, text, token};
 use destack_fir::write;

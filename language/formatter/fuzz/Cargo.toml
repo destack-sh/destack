@@ -13,7 +13,7 @@ rust-version = "1.88.0"
 cargo-fuzz = true
 
 [dependencies]
-destack_ast = { path = "../../ast" }
+destack_dir = { path = "../../dir" }
 destack_fir = { path = "../../fir" }
 destack_formatter = { path = ".." }
 destack_parser = { path = "../../parser" }
