@@ -1,5 +1,6 @@
-use crate::link::binary::BinaryLinker;
-use crate::link::{LinkState, ScriptLinker};
+use super::binary::BinaryLinker;
+use super::script::ScriptLinker;
+use super::state::LinkState;
 use crate::{Compiler, CompilerResult, LinkError};
 use destack_artifact::{ArtifactPayload, EmitFormat, PackageOutput};
 use destack_source::{PackageId, TargetId};

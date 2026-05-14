@@ -3,7 +3,7 @@ use crate::{Compiler, LinkError, LinkResult};
 use destack_artifact::{
     EmitFormat, ModuleOutput, OutputFile, PackageOutput, ScriptOutput, TargetOutputName,
 };
-use destack_codegen_js::{PrintedScriptModule, Module};
+use destack_codegen_js::{Module, PrintedScriptModule};
 use destack_source::{FileType, ModuleId};
 use destack_workspace::config::{BundleMode, Target};
 use indexmap::IndexMap;
@@ -142,7 +142,7 @@ impl<'a> ScriptLinker<'a> {
                 )
                 .map_err(|message| LinkError::Internal {
                     anchor: (self.package_id).into(),
-                package: self.package_id,
+                    package: self.package_id,
                     message,
                 })?;
 
@@ -209,8 +209,8 @@ impl<'a> ScriptLinker<'a> {
 
         Err(LinkError::Internal {
             anchor: (self.package_id).into(),
-                package: self.package_id,
-            message: "FUGU #Incomplete: ScriptLinker.render_runtime_document".to_string(),
+            package: self.package_id,
+            message: "TODO #Incomplete: ScriptLinker.render_runtime_document".to_string(),
         })
     }
 }

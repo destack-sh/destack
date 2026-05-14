@@ -1,10 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use css::print::{print_layer_name_list, print_media_query_list, print_supports_condition};
-use css::{
-    ComponentValue, ComponentValueList, DeclarationBlock, Function, ImportResource, ImportRule,
-    LocalNodeId, Rule, SupportsCondition, Token, Tree, UrlResource,
-};
 use destack_artifact::{ArtifactKey, Css, Data};
 use destack_css as css;
 use destack_source::{FileType, ModuleEdge, ModuleEdgeRelation, ModuleId, StringId};
@@ -181,15 +176,15 @@ impl<'a> ScriptLinker<'a> {
     }
 
     /// Return whether one CSS import rule carries wrapper conditions.
-    pub(super) fn css_import_has_wrappers(&self, import_rule: &ImportRule) -> bool {
+    pub(super) fn css_import_has_wrappers(&self, import_rule: &css::ImportRule) -> bool {
         import_rule.media.is_some() || import_rule.supports.is_some() || import_rule.layer.is_some()
     }
 
     /// Return one stable import-context signature when this import wraps its target.
     pub(super) fn css_import_context_signature(
         &self,
-        tree: &Tree,
-        import_rule: &ImportRule,
+        tree: &css::Tree,
+        import_rule: &css::ImportRule,
     ) -> Option<String> {
         if !self.css_import_has_wrappers(import_rule) {
             return None;
@@ -199,7 +194,7 @@ impl<'a> ScriptLinker<'a> {
 
         if let Some(layer) = &import_rule.layer {
             let layer = match &layer.name {
-                Some(name) => format!("layer={}", print_layer_name_list(name)),
+                Some(name) => format!("layer={}", css::print::print_layer_name_list(name)),
                 None => "layer".to_string(),
             };
 
@@ -209,12 +204,15 @@ impl<'a> ScriptLinker<'a> {
         if let Some(supports_condition) = &import_rule.supports {
             parts.push(format!(
                 "supports={}",
-                print_supports_condition(tree, *supports_condition)
+                css::print::print_supports_condition(tree, *supports_condition)
             ));
         }
 
         if let Some(media) = &import_rule.media {
-            parts.push(format!("media={}", print_media_query_list(tree, *media)));
+            parts.push(format!(
+                "media={}",
+                css::print::print_media_query_list(tree, *media)
+            ));
         }
 
         Some(parts.join("|"))
@@ -252,8 +250,8 @@ impl<'a> ScriptLinker<'a> {
         &self,
         module: &Module,
         module_edges: &[ModuleEdge],
-        tree: &mut Tree,
-        rule_id: LocalNodeId<Rule>,
+        tree: &mut css::Tree,
+        rule_id: css::LocalNodeId<css::Rule>,
         import_targets: &mut BTreeMap<u32, Option<ModuleId>>,
         rewrites: &mut IndexMap<String, (ModuleId, String)>,
         next_rewrite_index: &mut usize,
@@ -265,7 +263,7 @@ impl<'a> ScriptLinker<'a> {
 
         // current rule
         match tree.get(rule_id).clone() {
-            Rule::Import(rule) => {
+            css::Rule::Import(rule) => {
                 let import_target = self.resolve_css_import_target(
                     module,
                     module_edges,
@@ -275,44 +273,44 @@ impl<'a> ScriptLinker<'a> {
                 import_targets.insert(rule_id.id, import_target);
                 supports_condition = rule.supports;
             }
-            Rule::Style(rule) => {
+            css::Rule::Style(rule) => {
                 declaration_block = rule.declarations;
                 nested_rules = rule.rules.clone();
             }
-            Rule::Nesting(rule) => {
+            css::Rule::Nesting(rule) => {
                 declaration_block = rule.declarations;
                 nested_rules = rule.rules.clone();
             }
-            Rule::Media(rule) => {
+            css::Rule::Media(rule) => {
                 nested_rules = rule.rules.clone();
             }
-            Rule::Supports(rule) => {
+            css::Rule::Supports(rule) => {
                 supports_condition = Some(rule.condition);
                 nested_rules = rule.rules.clone();
             }
-            Rule::LayerBlock(rule) => {
+            css::Rule::LayerBlock(rule) => {
                 nested_rules = rule.rules.clone();
             }
-            Rule::Container(rule) => {
+            css::Rule::Container(rule) => {
                 nested_rules = rule.rules.clone();
             }
-            Rule::Scope(rule) => {
+            css::Rule::Scope(rule) => {
                 nested_rules = rule.rules.clone();
             }
-            Rule::StartingStyle(rule) => {
+            css::Rule::StartingStyle(rule) => {
                 nested_rules = rule.rules.clone();
             }
-            Rule::Keyframes(rule) => {
+            css::Rule::Keyframes(rule) => {
                 nested_rules = rule.rules.clone();
             }
-            Rule::MozDocument(rule) => {
+            css::Rule::MozDocument(rule) => {
                 nested_rules = rule.rules.clone();
             }
-            Rule::LayerStatement(_) => {}
-            Rule::FontFeatureValues(_) => {}
-            Rule::Namespace(_) => {}
-            Rule::CustomMedia(_) => {}
-            Rule::Property(rule) => {
+            css::Rule::LayerStatement(_) => {}
+            css::Rule::FontFeatureValues(_) => {}
+            css::Rule::Namespace(_) => {}
+            css::Rule::CustomMedia(_) => {}
+            css::Rule::Property(rule) => {
                 if let Some(mut initial_value) = rule.initial_value {
                     self.plan_css_component_value_rewrites(
                         module,
@@ -323,7 +321,7 @@ impl<'a> ScriptLinker<'a> {
                         next_rewrite_index,
                     )?;
 
-                    let Rule::Property(rule) = tree.get_mut(rule_id) else {
+                    let css::Rule::Property(rule) = tree.get_mut(rule_id) else {
                         return Err(LinkError::Internal {
                             anchor: (self.package_id).into(),
                             package: self.package_id,
@@ -337,7 +335,7 @@ impl<'a> ScriptLinker<'a> {
                     rule.initial_value = Some(initial_value);
                 }
             }
-            Rule::Unknown(mut rule) => {
+            css::Rule::Unknown(mut rule) => {
                 self.plan_css_component_value_rewrites(
                     module,
                     module_edges,
@@ -358,7 +356,7 @@ impl<'a> ScriptLinker<'a> {
                     )?;
                 }
 
-                let Rule::Unknown(current_rule) = tree.get_mut(rule_id) else {
+                let css::Rule::Unknown(current_rule) = tree.get_mut(rule_id) else {
                     return Err(LinkError::Internal {
                         anchor: (self.package_id).into(),
                         package: self.package_id,
@@ -372,7 +370,7 @@ impl<'a> ScriptLinker<'a> {
                 current_rule.prelude = rule.prelude;
                 current_rule.block = rule.block;
             }
-            Rule::Custom(mut rule) => {
+            css::Rule::Custom(mut rule) => {
                 self.plan_css_component_value_rewrites(
                     module,
                     module_edges,
@@ -382,7 +380,7 @@ impl<'a> ScriptLinker<'a> {
                     next_rewrite_index,
                 )?;
 
-                let Rule::Custom(current_rule) = tree.get_mut(rule_id) else {
+                let css::Rule::Custom(current_rule) = tree.get_mut(rule_id) else {
                     return Err(LinkError::Internal {
                         anchor: (self.package_id).into(),
                         package: self.package_id,
@@ -395,32 +393,32 @@ impl<'a> ScriptLinker<'a> {
                 };
                 current_rule.components = rule.components;
             }
-            Rule::Page(rule) => {
+            css::Rule::Page(rule) => {
                 declaration_block = rule.declarations;
                 page_margin_rules = rule.page_margin_rules.clone();
             }
-            Rule::FontFace(rule) => {
+            css::Rule::FontFace(rule) => {
                 declaration_block = rule.declarations;
             }
-            Rule::FontPaletteValues(rule) => {
+            css::Rule::FontPaletteValues(rule) => {
                 declaration_block = rule.declarations;
             }
-            Rule::CounterStyle(rule) => {
+            css::Rule::CounterStyle(rule) => {
                 declaration_block = rule.declarations;
             }
-            Rule::Viewport(rule) => {
+            css::Rule::Viewport(rule) => {
                 declaration_block = rule.declarations;
             }
-            Rule::ViewTransition(rule) => {
+            css::Rule::ViewTransition(rule) => {
                 declaration_block = rule.declarations;
             }
-            Rule::NestedDeclarations(rule) => {
+            css::Rule::NestedDeclarations(rule) => {
                 declaration_block = rule.declarations;
             }
-            Rule::Keyframe(rule) => {
+            css::Rule::Keyframe(rule) => {
                 declaration_block = rule.declarations;
             }
-            Rule::Ignored(_) => {}
+            css::Rule::Ignored(_) => {}
         }
 
         // supports
@@ -480,8 +478,8 @@ impl<'a> ScriptLinker<'a> {
         &self,
         module: &Module,
         module_edges: &[ModuleEdge],
-        tree: &mut Tree,
-        rule_id: LocalNodeId<css::PageMarginRule>,
+        tree: &mut css::Tree,
+        rule_id: css::LocalNodeId<css::PageMarginRule>,
         rewrites: &mut IndexMap<String, (ModuleId, String)>,
         next_rewrite_index: &mut usize,
     ) -> LinkResult<()> {
@@ -509,8 +507,8 @@ impl<'a> ScriptLinker<'a> {
         &self,
         module: &Module,
         module_edges: &[ModuleEdge],
-        tree: &mut Tree,
-        declaration_block_id: LocalNodeId<DeclarationBlock>,
+        tree: &mut css::Tree,
+        declaration_block_id: css::LocalNodeId<css::DeclarationBlock>,
         rewrites: &mut IndexMap<String, (ModuleId, String)>,
         next_rewrite_index: &mut usize,
     ) -> LinkResult<()> {
@@ -539,14 +537,14 @@ impl<'a> ScriptLinker<'a> {
         &self,
         module: &Module,
         module_edges: &[ModuleEdge],
-        tree: &Tree,
-        components: &mut ComponentValueList,
+        tree: &css::Tree,
+        components: &mut css::ComponentValueList,
         rewrites: &mut IndexMap<String, (ModuleId, String)>,
         next_rewrite_index: &mut usize,
     ) -> LinkResult<()> {
         for value in &mut components.values {
             match value {
-                ComponentValue::Token(Token::UnquotedUrl {
+                css::ComponentValue::Token(css::Token::UnquotedUrl {
                     value: url,
                     url_resource,
                 }) => {
@@ -563,7 +561,9 @@ impl<'a> ScriptLinker<'a> {
                         rewrites.insert(placeholder, (module_id, suffix));
                     }
                 }
-                ComponentValue::Function(function) if function.name_eq(&tree.strings, "url") => {
+                css::ComponentValue::Function(function)
+                    if function.name_eq(&tree.strings, "url") =>
+                {
                     self.plan_css_url_function_rewrite(
                         module,
                         module_edges,
@@ -573,7 +573,7 @@ impl<'a> ScriptLinker<'a> {
                         next_rewrite_index,
                     )?;
                 }
-                ComponentValue::Function(function) => {
+                css::ComponentValue::Function(function) => {
                     self.plan_css_component_value_rewrites(
                         module,
                         module_edges,
@@ -583,7 +583,7 @@ impl<'a> ScriptLinker<'a> {
                         next_rewrite_index,
                     )?;
                 }
-                ComponentValue::Block(block) => {
+                css::ComponentValue::Block(block) => {
                     self.plan_css_component_value_rewrites(
                         module,
                         module_edges,
@@ -593,7 +593,7 @@ impl<'a> ScriptLinker<'a> {
                         next_rewrite_index,
                     )?;
                 }
-                ComponentValue::Token(_) => {}
+                css::ComponentValue::Token(_) => {}
             }
         }
 
@@ -605,15 +605,15 @@ impl<'a> ScriptLinker<'a> {
         &self,
         module: &Module,
         module_edges: &[ModuleEdge],
-        tree: &mut Tree,
-        condition_id: LocalNodeId<SupportsCondition>,
+        tree: &mut css::Tree,
+        condition_id: css::LocalNodeId<css::SupportsCondition>,
         rewrites: &mut IndexMap<String, (ModuleId, String)>,
         next_rewrite_index: &mut usize,
     ) -> LinkResult<()> {
         let condition = tree.get(condition_id).clone();
 
         match condition {
-            SupportsCondition::Not(condition) => self.plan_css_supports_condition_rewrites(
+            css::SupportsCondition::Not(condition) => self.plan_css_supports_condition_rewrites(
                 module,
                 module_edges,
                 tree,
@@ -621,7 +621,7 @@ impl<'a> ScriptLinker<'a> {
                 rewrites,
                 next_rewrite_index,
             )?,
-            SupportsCondition::And(conditions) | SupportsCondition::Or(conditions) => {
+            css::SupportsCondition::And(conditions) | css::SupportsCondition::Or(conditions) => {
                 for condition in conditions {
                     self.plan_css_supports_condition_rewrites(
                         module,
@@ -633,8 +633,9 @@ impl<'a> ScriptLinker<'a> {
                     )?;
                 }
             }
-            SupportsCondition::Declaration { .. } => {
-                let SupportsCondition::Declaration { value, .. } = tree.get(condition_id) else {
+            css::SupportsCondition::Declaration { .. } => {
+                let css::SupportsCondition::Declaration { value, .. } = tree.get(condition_id)
+                else {
                     return Err(LinkError::Internal {
                         anchor: (self.package_id).into(),
                         package: self.package_id,
@@ -657,7 +658,7 @@ impl<'a> ScriptLinker<'a> {
                 )?;
 
                 let condition = tree.get_mut(condition_id);
-                let SupportsCondition::Declaration { value, .. } = condition else {
+                let css::SupportsCondition::Declaration { value, .. } = condition else {
                     return Err(LinkError::Internal {
                         anchor: (self.package_id).into(),
                         package: self.package_id,
@@ -670,7 +671,7 @@ impl<'a> ScriptLinker<'a> {
                 };
                 value.components = components;
             }
-            SupportsCondition::Selector(_) | SupportsCondition::Unknown(_) => {}
+            css::SupportsCondition::Selector(_) | css::SupportsCondition::Unknown(_) => {}
         }
 
         Ok(())
@@ -681,8 +682,8 @@ impl<'a> ScriptLinker<'a> {
         &self,
         module: &Module,
         module_edges: &[ModuleEdge],
-        tree: &Tree,
-        function: &mut Function,
+        tree: &css::Tree,
+        function: &mut css::Function,
         rewrites: &mut IndexMap<String, (ModuleId, String)>,
         next_rewrite_index: &mut usize,
     ) -> LinkResult<()> {
@@ -697,8 +698,8 @@ impl<'a> ScriptLinker<'a> {
 
         for value in &mut function.arguments.values {
             match value {
-                ComponentValue::Token(Token::String(_))
-                | ComponentValue::Token(Token::UnquotedUrl { .. }) => {
+                css::ComponentValue::Token(css::Token::String(_))
+                | css::ComponentValue::Token(css::Token::UnquotedUrl { .. }) => {
                     let rewrite = self
                         .plan_css_asset_rewrite(
                             module,
@@ -718,16 +719,16 @@ impl<'a> ScriptLinker<'a> {
 
                     let (placeholder, module_id, suffix) = rewrite;
 
-                    *value = ComponentValue::Token(Token::String(placeholder.clone()));
+                    *value = css::ComponentValue::Token(css::Token::String(placeholder.clone()));
                     rewrites.insert(placeholder, (module_id, suffix));
 
                     return Ok(());
                 }
-                ComponentValue::Token(Token::WhiteSpace(_))
-                | ComponentValue::Token(Token::Comment(_)) => {}
-                ComponentValue::Function(_)
-                | ComponentValue::Block(_)
-                | ComponentValue::Token(_) => {
+                css::ComponentValue::Token(css::Token::WhiteSpace(_))
+                | css::ComponentValue::Token(css::Token::Comment(_)) => {}
+                css::ComponentValue::Function(_)
+                | css::ComponentValue::Block(_)
+                | css::ComponentValue::Token(_) => {
                     return Err(LinkError::InvalidTarget {
                         anchor: module.id.into(),
                         package: self.package_id,
@@ -757,7 +758,7 @@ impl<'a> ScriptLinker<'a> {
         &self,
         module: &Module,
         module_edges: &[ModuleEdge],
-        resource: Option<&UrlResource>,
+        resource: Option<&css::UrlResource>,
         url: &str,
         next_rewrite_index: &mut usize,
     ) -> LinkResult<Option<(String, ModuleId, String)>> {
@@ -777,7 +778,7 @@ impl<'a> ScriptLinker<'a> {
         &self,
         module: &Module,
         module_edges: &[ModuleEdge],
-        resource: &UrlResource,
+        resource: &css::UrlResource,
         specifier: &str,
         next_rewrite_index: &mut usize,
     ) -> LinkResult<Option<(String, ModuleId, String)>> {
@@ -822,7 +823,7 @@ impl<'a> ScriptLinker<'a> {
         &self,
         _module: &Module,
         module_edges: &[ModuleEdge],
-        resource: Option<&ImportResource>,
+        resource: Option<&css::ImportResource>,
         specifier: &str,
     ) -> LinkResult<Option<ModuleId>> {
         let Some(resource) = resource else {
@@ -850,7 +851,7 @@ impl<'a> ScriptLinker<'a> {
         &self,
         _module: &Module,
         module_edges: &[ModuleEdge],
-        resource: &UrlResource,
+        resource: &css::UrlResource,
         specifier: &str,
     ) -> LinkResult<Option<ModuleId>> {
         let specifier_id = StringId::for_text(specifier);
@@ -866,11 +867,15 @@ impl<'a> ScriptLinker<'a> {
     }
 
     /// Return one canonical CSS url() value string from one argument list.
-    fn css_function_url_value(&self, _tree: &Tree, arguments: &ComponentValueList) -> String {
+    fn css_function_url_value(
+        &self,
+        _tree: &css::Tree,
+        arguments: &css::ComponentValueList,
+    ) -> String {
         if arguments.values.len() == 1 {
             match &arguments.values[0] {
-                ComponentValue::Token(Token::String(value))
-                | ComponentValue::Token(Token::UnquotedUrl { value, .. }) => {
+                css::ComponentValue::Token(css::Token::String(value))
+                | css::ComponentValue::Token(css::Token::UnquotedUrl { value, .. }) => {
                     return value.clone();
                 }
                 _ => {}
@@ -881,9 +886,11 @@ impl<'a> ScriptLinker<'a> {
             .values
             .iter()
             .find_map(|value| match value {
-                ComponentValue::Token(Token::String(value))
-                | ComponentValue::Token(Token::UnquotedUrl { value, .. }) => Some(value.clone()),
-                ComponentValue::Token(Token::WhiteSpace(_)) => None,
+                css::ComponentValue::Token(css::Token::String(value))
+                | css::ComponentValue::Token(css::Token::UnquotedUrl { value, .. }) => {
+                    Some(value.clone())
+                }
+                css::ComponentValue::Token(css::Token::WhiteSpace(_)) => None,
                 _ => None,
             })
             .unwrap_or_default()

@@ -2,7 +2,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use destack_artifact::{ArtifactKey, Data, DirExported, DirImported, ModuleOutput};
-use destack_dir::DependencyTarget;
+use destack_dir as dir;
 use destack_source::{
     File, FileId, FileType, ModuleEdge, ModuleEdgeRelation, ModuleId, PackageId, ProfileId, Span,
     StringId, TargetId,
@@ -229,12 +229,12 @@ fn module_dependency_edges(imported: &DirImported, exported: &DirExported) -> Ve
 /// Push one concrete module edge when the target is a module.
 fn push_module_edge(
     edges: &mut Vec<ModuleEdge>,
-    target: Option<DependencyTarget>,
+    target: Option<dir::DependencyTarget>,
     relation: ModuleEdgeRelation,
     specifier: Option<StringId>,
     loader: Option<destack_source::Loader>,
 ) {
-    let Some(DependencyTarget::Module(module_id)) = target else {
+    let Some(dir::DependencyTarget::Module(module_id)) = target else {
         return;
     };
 
