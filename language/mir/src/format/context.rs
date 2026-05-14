@@ -10,8 +10,9 @@ use destack_source::{File, FileType, IndentStyle, LineEnding};
 use crate::parse::TokenType;
 use crate::{
     Access, Block, Function, Global, Instruction, Lifetime, LifetimeOrigin, Local, LocalNodeId,
-    Node, NodeType, ReferenceKind, TensorDimension, TensorLayout, Terminator, Tree, TreeImpl, Type,
-    TypeAlias, TypeReference, Value, function_signature_parts,
+    Node, NodeType, ReferenceKind, TensorDimension, TensorDimensionOrder, TensorLayout,
+    TensorStride, Terminator, Tree, TreeImpl, Type, TypeAlias, TypeReference, Value,
+    function_signature_parts,
 };
 
 use super::r#type::format_type_declaration;
@@ -834,7 +835,7 @@ fn type_key_for_alias_inner(
     key
 }
 
-/// Format a shape key for a tensor or vector.
+/// Format a tensor shape key.
 fn format_shape_key(shape: &[TensorDimension]) -> String {
     // build a stable shape string
     let mut result = String::new();
@@ -847,9 +848,8 @@ fn format_shape_key(shape: &[TensorDimension]) -> String {
             TensorDimension::Static(value) => {
                 result.push_str(&value.to_string());
             }
-            TensorDimension::Dynamic => {
-                result.push_str("dynamic");
-            }
+            TensorDimension::Symbol(name) => result.push_str(name),
+            TensorDimension::Dynamic => result.push_str("dynamic"),
         }
     }
     result.push(')');
@@ -885,17 +885,44 @@ fn push_lifetime_key(result: &mut String, lifetime: &Lifetime) {
     result.push(')');
 }
 
-/// Format a tensor layout key for a tensor or vector.
+/// Format a tensor layout key.
 fn format_tensor_layout_key(layout: &TensorLayout) -> String {
     // encode layout in the structural key
     match layout {
-        TensorLayout::RowMajor => "layout(rowMajor)".to_string(),
-        TensorLayout::ColumnMajor => "layout(columnMajor)".to_string(),
+        TensorLayout::Dense {
+            order: TensorDimensionOrder::RowMajor,
+        } => "layout(dense(rowMajor))".to_string(),
+        TensorLayout::Dense {
+            order: TensorDimensionOrder::ColumnMajor,
+        } => "layout(dense(columnMajor))".to_string(),
         TensorLayout::Strided { strides } => {
-            let stride_shape = format_shape_key(strides);
-            format!("layout(strided({stride_shape}))")
+            let stride_key = format_stride_key(strides);
+            format!("layout(strided({stride_key}))")
+        }
+        TensorLayout::Backend { name } => format!("layout(backend({name}))"),
+    }
+}
+
+/// Format a tensor stride key.
+fn format_stride_key(strides: &[TensorStride]) -> String {
+    // build a stable stride string
+    let mut result = String::new();
+    result.push('(');
+    for (index, stride) in strides.iter().enumerate() {
+        if index > 0 {
+            result.push(',');
+        }
+        match stride {
+            TensorStride::Static(value) => {
+                result.push_str(&value.to_string());
+            }
+            TensorStride::Symbol(name) => result.push_str(name),
+            TensorStride::Dynamic => result.push_str("dynamic"),
         }
     }
+    result.push(')');
+
+    result
 }
 
 /// Collect type usage counts for formatting.

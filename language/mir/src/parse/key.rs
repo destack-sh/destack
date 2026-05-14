@@ -93,7 +93,7 @@ pub(super) enum TypeKey {
         variants: Vec<UnionVariant>,
         copy: Copy,
     },
-    /// Fixed-width SIMD vector.
+    /// Fixed-width vector value.
     Vector {
         element: TypeReference,
         lanes: u32,
