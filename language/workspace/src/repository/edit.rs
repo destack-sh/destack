@@ -118,6 +118,13 @@ impl RepositoryChange {
 
         self.edits.push(edit);
     }
+
+    /// Append another repository change.
+    pub fn extend(&mut self, change: RepositoryChange) {
+        for edit in change.edits {
+            self.push(edit);
+        }
+    }
 }
 
 impl Default for RepositoryChange {
