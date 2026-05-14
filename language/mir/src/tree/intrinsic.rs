@@ -40,7 +40,7 @@ pub enum Intrinsic {
     /// `(T, T) -> T`
     RotateRight,
 
-    // checked arithmetic (returns (result, overflow_flag) tuple)
+    // overflowing arithmetic
     /// Add with overflow detection.
     /// `(T, T) -> (T, bool)`
     AddOverflow,
@@ -51,7 +51,7 @@ pub enum Intrinsic {
     /// `(T, T) -> (T, bool)`
     MulOverflow,
 
-    // unchecked arithmetic (UB on overflow - optimizer can assume no overflow)
+    // unchecked arithmetic, optimizer may assume no overflow
     /// Unchecked add (UB on overflow).
     /// `(T, T) -> T`
     AddUnchecked,
@@ -223,23 +223,23 @@ impl Intrinsic {
             Intrinsic::RotateLeft => "math.bits.rotateLeft",
             Intrinsic::RotateRight => "math.bits.rotateRight",
 
-            // checked arithmetic
-            Intrinsic::AddOverflow => "math.arithmetic.add.overflow",
-            Intrinsic::SubOverflow => "math.arithmetic.sub.overflow",
-            Intrinsic::MulOverflow => "math.arithmetic.mul.overflow",
+            // overflowing arithmetic
+            Intrinsic::AddOverflow => "math.arithmetic.overflowing.add",
+            Intrinsic::SubOverflow => "math.arithmetic.overflowing.subtract",
+            Intrinsic::MulOverflow => "math.arithmetic.overflowing.multiply",
 
             // unchecked arithmetic
-            Intrinsic::AddUnchecked => "math.arithmetic.add.unchecked",
-            Intrinsic::SubUnchecked => "math.arithmetic.sub.unchecked",
-            Intrinsic::MulUnchecked => "math.arithmetic.mul.unchecked",
-            Intrinsic::DivUnchecked => "math.arithmetic.div.unchecked",
-            Intrinsic::RemUnchecked => "math.arithmetic.rem.unchecked",
-            Intrinsic::ShlUnchecked => "math.arithmetic.shl.unchecked",
-            Intrinsic::ShrUnchecked => "math.arithmetic.shr.unchecked",
+            Intrinsic::AddUnchecked => "math.arithmetic.unchecked.add",
+            Intrinsic::SubUnchecked => "math.arithmetic.unchecked.subtract",
+            Intrinsic::MulUnchecked => "math.arithmetic.unchecked.multiply",
+            Intrinsic::DivUnchecked => "math.arithmetic.unchecked.divide",
+            Intrinsic::RemUnchecked => "math.arithmetic.unchecked.remainder",
+            Intrinsic::ShlUnchecked => "math.arithmetic.unchecked.shiftLeft",
+            Intrinsic::ShrUnchecked => "math.arithmetic.unchecked.shiftRight",
 
             // saturating arithmetic
-            Intrinsic::SatAdd => "math.arithmetic.add.saturating",
-            Intrinsic::SatSub => "math.arithmetic.sub.saturating",
+            Intrinsic::SatAdd => "math.arithmetic.saturating.add",
+            Intrinsic::SatSub => "math.arithmetic.saturating.subtract",
 
             // memory
             Intrinsic::Memcpy => "memory.raw.copyBytes",
@@ -391,18 +391,18 @@ impl FromStr for Intrinsic {
             "math.bits.bitReverse" => Ok(Intrinsic::BitReverse),
             "math.bits.rotateLeft" => Ok(Intrinsic::RotateLeft),
             "math.bits.rotateRight" => Ok(Intrinsic::RotateRight),
-            "math.arithmetic.add.overflow" => Ok(Intrinsic::AddOverflow),
-            "math.arithmetic.sub.overflow" => Ok(Intrinsic::SubOverflow),
-            "math.arithmetic.mul.overflow" => Ok(Intrinsic::MulOverflow),
-            "math.arithmetic.add.unchecked" => Ok(Intrinsic::AddUnchecked),
-            "math.arithmetic.sub.unchecked" => Ok(Intrinsic::SubUnchecked),
-            "math.arithmetic.mul.unchecked" => Ok(Intrinsic::MulUnchecked),
-            "math.arithmetic.div.unchecked" => Ok(Intrinsic::DivUnchecked),
-            "math.arithmetic.rem.unchecked" => Ok(Intrinsic::RemUnchecked),
-            "math.arithmetic.shl.unchecked" => Ok(Intrinsic::ShlUnchecked),
-            "math.arithmetic.shr.unchecked" => Ok(Intrinsic::ShrUnchecked),
-            "math.arithmetic.add.saturating" => Ok(Intrinsic::SatAdd),
-            "math.arithmetic.sub.saturating" => Ok(Intrinsic::SatSub),
+            "math.arithmetic.overflowing.add" => Ok(Intrinsic::AddOverflow),
+            "math.arithmetic.overflowing.subtract" => Ok(Intrinsic::SubOverflow),
+            "math.arithmetic.overflowing.multiply" => Ok(Intrinsic::MulOverflow),
+            "math.arithmetic.unchecked.add" => Ok(Intrinsic::AddUnchecked),
+            "math.arithmetic.unchecked.subtract" => Ok(Intrinsic::SubUnchecked),
+            "math.arithmetic.unchecked.multiply" => Ok(Intrinsic::MulUnchecked),
+            "math.arithmetic.unchecked.divide" => Ok(Intrinsic::DivUnchecked),
+            "math.arithmetic.unchecked.remainder" => Ok(Intrinsic::RemUnchecked),
+            "math.arithmetic.unchecked.shiftLeft" => Ok(Intrinsic::ShlUnchecked),
+            "math.arithmetic.unchecked.shiftRight" => Ok(Intrinsic::ShrUnchecked),
+            "math.arithmetic.saturating.add" => Ok(Intrinsic::SatAdd),
+            "math.arithmetic.saturating.subtract" => Ok(Intrinsic::SatSub),
             "memory.raw.copyBytes" => Ok(Intrinsic::Memcpy),
             "memory.raw.moveBytes" => Ok(Intrinsic::Memmove),
             "memory.raw.setBytes" => Ok(Intrinsic::Memset),
@@ -461,9 +461,9 @@ pub enum IntrinsicSignature {
     /// Examples: fma, select
     Ternary,
 
-    /// Checked arithmetic: (T, T) -> (T, bool)
-    /// Examples: addOverflow, subOverflow, mulOverflow
-    CheckedBinary,
+    /// Overflowing arithmetic: (T, T) -> (T, bool)
+    /// Examples: overflowingAdd, overflowingSubtract, overflowingMultiply
+    OverflowingBinary,
 
     /// Transmute or space.cast: (T) -> U (reinterpret bits)
     Transmute,
@@ -518,9 +518,9 @@ impl Intrinsic {
             // bit manipulation (binary)
             Intrinsic::RotateLeft | Intrinsic::RotateRight => IntrinsicSignature::Binary,
 
-            // checked arithmetic
+            // overflowing arithmetic
             Intrinsic::AddOverflow | Intrinsic::SubOverflow | Intrinsic::MulOverflow => {
-                IntrinsicSignature::CheckedBinary
+                IntrinsicSignature::OverflowingBinary
             }
 
             // unchecked arithmetic
@@ -600,7 +600,7 @@ impl Intrinsic {
             IntrinsicSignature::Unary => 1,
             IntrinsicSignature::Binary => 2,
             IntrinsicSignature::Ternary => 3,
-            IntrinsicSignature::CheckedBinary => 2,
+            IntrinsicSignature::OverflowingBinary => 2,
             IntrinsicSignature::Transmute => 1,
             IntrinsicSignature::Comparison => 2,
             IntrinsicSignature::PointerDiff => 2,
@@ -620,7 +620,7 @@ impl Intrinsic {
             IntrinsicSignature::Unary => true,
             IntrinsicSignature::Binary => true,
             IntrinsicSignature::Ternary => true,
-            IntrinsicSignature::CheckedBinary => true,
+            IntrinsicSignature::OverflowingBinary => true,
             IntrinsicSignature::Transmute => true,
             IntrinsicSignature::Comparison => true,
             IntrinsicSignature::PointerDiff => true,
@@ -651,9 +651,9 @@ impl Intrinsic {
             // comparisons: bool
             Intrinsic::RawEq => IntrinsicResultType::Boolean,
 
-            // checked arithmetic: (T, bool) tuple
+            // overflowing arithmetic: (T, bool) tuple
             Intrinsic::AddOverflow | Intrinsic::SubOverflow | Intrinsic::MulOverflow => {
-                IntrinsicResultType::CheckedArithmetic
+                IntrinsicResultType::OverflowingArithmetic
             }
 
             // memory comparison: i32
@@ -702,8 +702,8 @@ pub enum IntrinsicResultType {
     Pointee(u8),
 
     /// Result type is a tuple (T, bool) where T is the first argument type.
-    /// Used for checked arithmetic (add_overflow, etc.).
-    CheckedArithmetic,
+    /// Used for overflowing arithmetic.
+    OverflowingArithmetic,
 
     /// Result type is a tuple (T, bool) where T is the pointee of pointer argument N.
     /// Used for atomic compare-and-swap.
@@ -751,7 +751,7 @@ impl IntrinsicResultType {
     pub fn needs_tuple(self) -> bool {
         matches!(
             self,
-            IntrinsicResultType::CheckedArithmetic | IntrinsicResultType::PointeeAndBool(_)
+            IntrinsicResultType::OverflowingArithmetic | IntrinsicResultType::PointeeAndBool(_)
         )
     }
 
@@ -761,7 +761,7 @@ impl IntrinsicResultType {
             IntrinsicResultType::SameAsArgument(n)
             | IntrinsicResultType::Pointee(n)
             | IntrinsicResultType::PointeeAndBool(n) => Some(n),
-            IntrinsicResultType::CheckedArithmetic => Some(0),
+            IntrinsicResultType::OverflowingArithmetic => Some(0),
             _ => None,
         }
     }
