@@ -1,14 +1,16 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{FrameLayout, Materialization, Safepoint, StackMap};
+use crate::{FrameLayout, FrameState, Materialization, Safepoint, StackMap};
 
-/// One program layout.
+/// Runtime value layout id inside one program layout.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct LayoutId(pub u32);
+pub struct ValueLayoutId(pub u32);
 
-/// Program execution metadata.
+/// Runtime layout tables for one compiled program.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Metadata {
+pub struct ProgramLayout {
+    /// Frame states by id.
+    pub frame_states: Vec<FrameState>,
     /// Frame layouts by id.
     pub frame_layouts: Vec<FrameLayout>,
     /// Safepoints by id.

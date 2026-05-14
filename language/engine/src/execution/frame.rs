@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{FrameStateId, LayoutId};
+use crate::{FrameStateId, ValueLayoutId};
 
 /// Captured frame.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -33,7 +33,7 @@ pub struct FrameSlot {
     /// Whether this slot stores one word.
     pub is_word: bool,
     /// The slot value layout.
-    pub layout: LayoutId,
+    pub layout: ValueLayoutId,
 }
 
 /// Byte layout for one frame.
