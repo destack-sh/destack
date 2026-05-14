@@ -19,14 +19,18 @@ impl Compiler {
         artifact_key: ArtifactKey,
     ) -> CompilerResult<ArtifactPayload> {
         match artifact_key {
-            ArtifactKey::Ast { .. } | ArtifactKey::Data { .. } => Err(CompilerError::Internal {
-                message: format!("source artifact key reached compiler provider: {artifact_key:?}"),
-            }),
+            ArtifactKey::DirParsed { .. } | ArtifactKey::Data { .. } => {
+                Err(CompilerError::Internal {
+                    message: format!(
+                        "source artifact key reached compiler provider: {artifact_key:?}"
+                    ),
+                })
+            }
             ArtifactKey::GlobalEnvironment { profile } => {
                 self.provide_global_environment(profile, context)
             }
-            ArtifactKey::DirDeclared { module, profile } => {
-                self.provide_dir_declared(module, profile, context)
+            ArtifactKey::DirBound { module, profile } => {
+                self.provide_dir_bound(module, profile, context)
             }
             ArtifactKey::DirImported { module, profile } => {
                 self.provide_dir_imported(module, profile, context)
