@@ -95,9 +95,7 @@ impl FunctionLowerer<'_> {
         // resolve primitive string directly
         if matches!(
             dir_type,
-            dir::Type::Literal(dir::LiteralType {
-                value: dir::TypeLiteral::Primitive(dir::PrimitiveType::String)
-            })
+            dir::Type::Literal(dir::LiteralType::Primitive(dir::PrimitiveType::String))
         ) {
             return self
                 .context

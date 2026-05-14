@@ -277,13 +277,7 @@ impl ModuleLowerer<'_> {
                 // scan members for a matching method
                 for member_id in members {
                     let member = self.dir_tree.get(*member_id);
-                    let dir::Member::Method {
-                        key,
-                        signature,
-                        symbol: method_symbol,
-                        ..
-                    } = member
-                    else {
+                    let dir::Member::Method { key, signature, .. } = member else {
                         continue;
                     };
 
@@ -309,7 +303,7 @@ impl ModuleLowerer<'_> {
                     }
 
                     // resolve the method function id
-                    let method_symbol = method_symbol.into_global(self.module_id);
+                    let method_symbol = self.require_symbol_for_node(*member_id)?;
                     let function_id = self.method_function_id(*member_id, method_symbol)?;
                     return Ok(function_id);
                 }

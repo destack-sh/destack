@@ -307,6 +307,7 @@ impl FunctionLowerer<'_> {
                 }
                 .into());
             }
+            let argument_value = self.require_argument_value(expression_id, argument)?;
             let (value, _) = if let Some(target_type_id) = parameter_type_ids.get(index).copied() {
                 let target_mir_type = parameter_mir_types
                     .get(index + parameter_offset)
@@ -315,12 +316,12 @@ impl FunctionLowerer<'_> {
                     .map_err(CompilerError::from)?;
                 self.lower_value_for_target(
                     expression_id,
-                    argument.value(),
+                    argument_value,
                     Some(target_type_id),
                     target_mir_type,
                 )?
             } else {
-                let (value, value_type) = self.lower_value_expression(argument.value())?;
+                let (value, value_type) = self.lower_value_expression(argument_value)?;
                 (value, value_type)
             };
             argument_values.push(value);
@@ -966,7 +967,8 @@ impl FunctionLowerer<'_> {
                 }
                 .into());
             }
-            let (value, _) = self.lower_value_expression(argument.value())?;
+            let argument_value = self.require_argument_value(expression_id, argument)?;
+            let (value, _) = self.lower_value_expression(argument_value)?;
             argument_values.push(value);
         }
 

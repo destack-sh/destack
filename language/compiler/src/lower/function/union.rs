@@ -283,28 +283,17 @@ impl FunctionLowerer<'_> {
         let left = self.unwrap_expression(left);
         let right = self.unwrap_expression(right);
 
-        // match member access against a scalar literal
-        let literal_value = match (
-            self.context.dir_tree.get(left),
-            self.context.dir_tree.get(right),
-        ) {
-            (dir::Expression::ScalarLiteral { value }, dir::Expression::Member { .. })
-            | (dir::Expression::ScalarLiteral { value }, dir::Expression::PrivateMember { .. }) => {
-                (right, DiscriminantLiteralValue::Scalar(value))
-            }
-            (dir::Expression::Member { .. }, dir::Expression::ScalarLiteral { value })
-            | (dir::Expression::PrivateMember { .. }, dir::Expression::ScalarLiteral { value }) => {
-                (left, DiscriminantLiteralValue::Scalar(value))
-            }
-            (dir::Expression::TypeLiteral { value }, dir::Expression::Member { .. })
-            | (dir::Expression::TypeLiteral { value }, dir::Expression::PrivateMember { .. }) => {
-                (right, DiscriminantLiteralValue::Type(value))
-            }
-            (dir::Expression::Member { .. }, dir::Expression::TypeLiteral { value })
-            | (dir::Expression::PrivateMember { .. }, dir::Expression::TypeLiteral { value }) => {
-                (left, DiscriminantLiteralValue::Type(value))
-            }
-            _ => return Ok(None),
+        // match member access against a literal
+        let literal_value = if let Some(literal) = self.discriminant_literal_for_expression(left)
+            && self.is_member_expression(right)
+        {
+            (right, literal)
+        } else if self.is_member_expression(left)
+            && let Some(literal) = self.discriminant_literal_for_expression(right)
+        {
+            (left, literal)
+        } else {
+            return Ok(None);
         };
 
         let (member_id, literal_value) = literal_value;
@@ -531,30 +520,45 @@ impl FunctionLowerer<'_> {
         // resolve literal expressions used in union comparisons
         let expression = self.context.dir_tree.get(expression_id);
         match expression {
-            dir::Expression::ScalarLiteral {
-                value: dir::ScalarLiteral::Null,
-            } => Some(UnionLiteralValue::Null),
-            dir::Expression::ScalarLiteral { value } => {
-                Some(UnionLiteralValue::Scalar(value.clone()))
+            dir::Expression::ScalarLiteral(dir::ScalarLiteral::Null) => {
+                Some(UnionLiteralValue::Null)
             }
-            dir::Expression::TypeLiteral {
-                value: dir::TypeLiteral::Null,
-            } => Some(UnionLiteralValue::Null),
-            dir::Expression::TypeLiteral {
-                value: dir::TypeLiteral::Undefined,
-            } => Some(UnionLiteralValue::Undefined),
+            dir::Expression::ScalarLiteral(value) => Some(UnionLiteralValue::Scalar(value.clone())),
             dir::Expression::Type { .. } => {
                 let type_id = self.type_for_expression(expression_id)?;
                 match self.context.types.get_type(type_id) {
-                    dir::Type::Literal(dir::LiteralType {
-                        value: dir::TypeLiteral::Null,
-                    }) => Some(UnionLiteralValue::Null),
-                    dir::Type::Literal(dir::LiteralType {
-                        value: dir::TypeLiteral::Undefined,
-                    }) => Some(UnionLiteralValue::Undefined),
+                    dir::Type::Literal(dir::LiteralType::Null) => Some(UnionLiteralValue::Null),
+                    dir::Type::Literal(dir::LiteralType::Undefined) => {
+                        Some(UnionLiteralValue::Undefined)
+                    }
                     _ => None,
                 }
             }
+            _ => None,
+        }
+    }
+
+    /// Return whether one expression is a member access.
+    fn is_member_expression(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
+        matches!(
+            self.context.dir_tree.get(expression_id),
+            dir::Expression::Member { .. } | dir::Expression::PrivateMember { .. }
+        )
+    }
+
+    /// Resolve a literal expression usable in discriminant comparisons.
+    fn discriminant_literal_for_expression(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<DiscriminantLiteralValue<'_>> {
+        match self.context.dir_tree.get(expression_id) {
+            dir::Expression::ScalarLiteral(value) => Some(DiscriminantLiteralValue::Scalar(value)),
+            dir::Expression::Type { value } => match self.context.dir_tree.get(*value) {
+                dir::TypeExpression::Literal { value } => {
+                    Some(DiscriminantLiteralValue::Type(value))
+                }
+                _ => None,
+            },
             _ => None,
         }
     }
@@ -572,21 +576,12 @@ impl FunctionLowerer<'_> {
             .position(
                 |element| match (self.context.types.get_type(*element), literal) {
                     (
-                        dir::Type::Literal(dir::LiteralType {
-                            value: dir::TypeLiteral::ScalarLiteral(value),
-                        }),
+                        dir::Type::Literal(dir::LiteralType::ScalarLiteral(value)),
                         UnionLiteralValue::Scalar(literal),
                     ) => value == literal,
+                    (dir::Type::Literal(dir::LiteralType::Null), UnionLiteralValue::Null) => true,
                     (
-                        dir::Type::Literal(dir::LiteralType {
-                            value: dir::TypeLiteral::Null,
-                        }),
-                        UnionLiteralValue::Null,
-                    ) => true,
-                    (
-                        dir::Type::Literal(dir::LiteralType {
-                            value: dir::TypeLiteral::Undefined,
-                        }),
+                        dir::Type::Literal(dir::LiteralType::Undefined),
                         UnionLiteralValue::Undefined,
                     ) => true,
                     _ => false,

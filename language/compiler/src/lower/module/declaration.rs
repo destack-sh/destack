@@ -28,7 +28,7 @@ impl ModuleLowerer<'_> {
         }
 
         // resolve the declaration symbol
-        let symbol = declaration.symbol().into_global(self.module_id);
+        let symbol = self.require_symbol_for_node(declaration_id)?;
 
         Ok(symbol)
     }
@@ -47,7 +47,7 @@ impl ModuleLowerer<'_> {
 
             // struct declarations: lower the type and its methods
             dir::Declaration::Struct(declaration) => {
-                let type_symbol = declaration.symbol.into_global(self.module_id);
+                let type_symbol = self.require_symbol_for_node(declaration_id)?;
                 let members = &declaration.members;
 
                 // lower the struct type so it's cached
@@ -84,7 +84,7 @@ impl ModuleLowerer<'_> {
 
             // class declarations: lower the type and its methods
             dir::Declaration::Class(declaration) => {
-                let type_symbol = declaration.symbol.into_global(self.module_id);
+                let type_symbol = self.require_symbol_for_node(declaration_id)?;
                 let members = &declaration.members;
 
                 // lower the nominal reference type for class methods
@@ -119,7 +119,7 @@ impl ModuleLowerer<'_> {
 
             // enum declarations: lower the backing type and its methods
             dir::Declaration::Enum(declaration) => {
-                let type_symbol = declaration.symbol.into_global(self.module_id);
+                let type_symbol = self.require_symbol_for_node(declaration_id)?;
                 let members = &declaration.members;
                 let anchor = declaration_id
                     .into_global_any(self.module_id)
@@ -168,18 +168,25 @@ impl ModuleLowerer<'_> {
     /// Declare static member fields for every nominal module declaration.
     pub(crate) fn declare_static_member_fields(&mut self) -> CompilerResult<()> {
         // scan nominal declarations
-        for (_, declaration) in self.dir_tree.iter_nodes_of_type::<dir::Declaration>() {
+        for (declaration_id, declaration) in self.dir_tree.iter_nodes_of_type::<dir::Declaration>()
+        {
             match declaration {
                 dir::Declaration::Struct(declaration) => {
-                    let owner_symbol = declaration.symbol.into_global(self.module_id);
+                    let Some(owner_symbol) = self.symbol_for_node(declaration_id) else {
+                        continue;
+                    };
                     self.lower_static_member_fields(owner_symbol, &declaration.members)?;
                 }
                 dir::Declaration::Class(declaration) => {
-                    let owner_symbol = declaration.symbol.into_global(self.module_id);
+                    let Some(owner_symbol) = self.symbol_for_node(declaration_id) else {
+                        continue;
+                    };
                     self.lower_static_member_fields(owner_symbol, &declaration.members)?;
                 }
                 dir::Declaration::Enum(declaration) => {
-                    let owner_symbol = declaration.symbol.into_global(self.module_id);
+                    let Some(owner_symbol) = self.symbol_for_node(declaration_id) else {
+                        continue;
+                    };
                     self.lower_static_member_fields(owner_symbol, &declaration.members)?;
                 }
                 _ => {}
@@ -203,7 +210,6 @@ impl ModuleLowerer<'_> {
                 key,
                 default,
                 mutability,
-                symbol,
                 ..
             } = member
             else {
@@ -227,7 +233,7 @@ impl ModuleLowerer<'_> {
             };
 
             // resolve the field type from the initializer expression
-            let symbol_id = symbol.into_global(self.module_id);
+            let symbol_id = self.require_symbol_for_node(*member_id)?;
             let type_id = self.declared_or_inferred_type_id_for_node_or_error(
                 value_id.into_global_any(self.module_id),
             )?;

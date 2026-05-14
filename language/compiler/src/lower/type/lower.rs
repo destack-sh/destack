@@ -2,7 +2,6 @@ use std::collections::{HashMap, HashSet};
 use {destack_dir as dir, destack_mir as mir};
 
 use destack_artifact::DiagnosticAnchor;
-use destack_ast::{StringId, StringPool};
 use destack_source::ModuleId;
 use destack_workspace::{ProfileId, ProviderContext};
 
@@ -30,7 +29,7 @@ pub(crate) struct TypeLowerer<'a> {
     /// Provider context for artifact dependencies.
     pub(super) context: &'a dyn ProviderContext,
     /// Declared DIR strings for this module.
-    pub(super) strings: &'a StringPool,
+    pub(super) strings: &'a dir::StringPool,
     /// Profile used for cross-module artifact reads.
     pub(super) profile: ProfileId,
     /// DIR tree being lowered.
@@ -88,7 +87,7 @@ impl<'a> TypeLowerer<'a> {
         pointer_bytes: u8,
         compiler: &'a Compiler,
         context: &'a dyn ProviderContext,
-        strings: &'a StringPool,
+        strings: &'a dir::StringPool,
         profile: ProfileId,
         dir_tree: &'a dir::Tree,
         symbols: &'a dir::BindingTable,
@@ -127,17 +126,17 @@ impl<'a> TypeLowerer<'a> {
         }
     }
 
-    /// Read one symbol record from local or declared DIR.
+    /// Read one symbol record from local or bound DIR.
     pub(crate) fn symbol(&self, symbol: dir::GlobalSymbolId) -> Option<dir::Symbol> {
         if symbol.module_id == self.symbols.module_id {
             Some(self.symbols.get_symbol(symbol.local_id).clone())
         } else {
-            let declared = self
+            let bound = self
                 .compiler
-                .dir_declared(self.context, symbol.module_id, self.profile)
+                .dir_bound(self.context, symbol.module_id, self.profile)
                 .ok()?;
 
-            Some(declared.bindings.get_symbol(symbol.local_id).clone())
+            Some(bound.bindings.get_symbol(symbol.local_id).clone())
         }
     }
 
@@ -210,8 +209,8 @@ impl<'a> TypeLowerer<'a> {
     pub(crate) fn field_index_for_type(
         &self,
         ty: mir::LocalNodeId<mir::Type>,
-        field_name: StringId,
-        strings: &StringPool,
+        field_name: dir::StringId,
+        strings: &dir::StringPool,
         tree: &mir::Tree,
     ) -> Option<usize> {
         let mut target_ty = ty;
@@ -740,17 +739,16 @@ impl<'a> TypeLowerer<'a> {
             .into());
         }
 
-        let declared =
-            match self
-                .compiler
-                .dir_declared(self.context, symbol.module_id, self.profile)
-            {
-                Ok(declared) => declared,
-                Err(_) => {
-                    self.remote_nominal_layouts_in_progress.remove(&symbol);
-                    return Ok(None);
-                }
-            };
+        let bound = match self
+            .compiler
+            .dir_bound(self.context, symbol.module_id, self.profile)
+        {
+            Ok(bound) => bound,
+            Err(_) => {
+                self.remote_nominal_layouts_in_progress.remove(&symbol);
+                return Ok(None);
+            }
+        };
         let checked = match self
             .compiler
             .dir_checked(self.context, symbol.module_id, self.profile)
@@ -761,8 +759,7 @@ impl<'a> TypeLowerer<'a> {
                 return Ok(None);
             }
         };
-        let Some(members) =
-            self.struct_members_for_symbol(symbol, &declared.bindings, &declared.tree)
+        let Some(members) = self.struct_members_for_symbol(symbol, &bound.bindings, &bound.tree)
         else {
             self.remote_nominal_layouts_in_progress.remove(&symbol);
             return Ok(None);
@@ -775,8 +772,8 @@ impl<'a> TypeLowerer<'a> {
             self.context,
             self.compiler.repository.string_pool().as_ref(),
             self.profile,
-            &declared.tree,
-            &declared.bindings,
+            &bound.tree,
+            &bound.bindings,
             self.vector_symbol,
         );
         let mut fields = Vec::new();
@@ -784,7 +781,7 @@ impl<'a> TypeLowerer<'a> {
         for (source_index, member_id) in members.iter().enumerate() {
             let dir::Member::Field {
                 key, declared_type, ..
-            } = declared.tree.get(*member_id)
+            } = bound.tree.get(*member_id)
             else {
                 continue;
             };
@@ -1159,16 +1156,15 @@ impl<'a> TypeLowerer<'a> {
         &self,
         types: &dir::TypeTable,
         type_id: dir::LocalTypeId,
-    ) -> Option<StringId> {
+    ) -> Option<dir::StringId> {
         let dir::Type::Literal(literal) = types.get_type(type_id) else {
             return None;
         };
-        let dir::TypeLiteral::ScalarLiteral(dir::ScalarLiteral::String(value)) = literal.value
-        else {
+        let dir::LiteralType::ScalarLiteral(dir::ScalarLiteral::String(value)) = literal else {
             return None;
         };
 
-        Some(value)
+        Some(*value)
     }
 
     /// Return one string static argument.
@@ -1176,7 +1172,7 @@ impl<'a> TypeLowerer<'a> {
         &self,
         arguments: &[dir::StaticArgument],
         index: usize,
-    ) -> Option<StringId> {
+    ) -> Option<dir::StringId> {
         let dir::StaticArgument::Evaluated {
             value:
                 dir::StaticExpression::ScalarLiteral {
@@ -1225,10 +1221,10 @@ impl<'a> TypeLowerer<'a> {
     }
 
     /// Return the source name for one symbol when artifacts are available.
-    fn symbol_name(&self, symbol: dir::GlobalSymbolId) -> Option<StringId> {
+    fn symbol_name(&self, symbol: dir::GlobalSymbolId) -> Option<dir::StringId> {
         let dir = self
             .compiler
-            .dir_declared(self.context, symbol.module_id, self.profile)
+            .dir_bound(self.context, symbol.module_id, self.profile)
             .ok()?;
         dir.bindings.get_symbol(symbol.local_id).name()
     }
@@ -1311,6 +1307,7 @@ impl<'a> TypeLowerer<'a> {
         builder: &mut mir::ModuleBuilder,
     ) -> mir::LocalNodeId<mir::Type> {
         match int_type {
+            dir::IntegerType::Integer { .. } => todo!("lower generic integer type"),
             dir::IntegerType::Fixed { width, is_signed } => builder.type_int(width, is_signed),
             dir::IntegerType::Pointer { is_signed: true } => self.ty_isize,
             dir::IntegerType::Pointer { is_signed: false } => self.ty_usize,

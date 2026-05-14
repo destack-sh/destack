@@ -25,12 +25,9 @@ impl FunctionLowerer<'_> {
         // require a compile time integer literal
         let index_expression = self.unwrap_expression(expression_id);
         match self.context.dir_tree.get(index_expression) {
-            dir::Expression::ScalarLiteral {
-                value: dir::ScalarLiteral::Integer(value),
-            }
-            | dir::Expression::ScalarLiteral {
-                value: dir::ScalarLiteral::Bigint(value),
-            } if *value >= 0 => Ok(*value as usize),
+            dir::Expression::ScalarLiteral(
+                dir::ScalarLiteral::Integer(value) | dir::ScalarLiteral::Bigint(value),
+            ) if *value >= 0 => Ok(*value as usize),
             _ => Err(self
                 .error(expression_id, "tuple index must be a constant integer")
                 .into()),
@@ -175,7 +172,7 @@ impl FunctionLowerer<'_> {
         symbol: dir::GlobalSymbolId,
     ) -> Option<StaticMemberKind> {
         // load checked dir data for this symbol
-        let dir = self.artifact_dir_data_if_present(symbol.module_id)?;
+        let dir = self.bound_dir_if_present(symbol.module_id)?;
         let tree = &dir.tree;
         let symbols = &dir.bindings;
 
@@ -229,7 +226,7 @@ impl FunctionLowerer<'_> {
         symbol: dir::GlobalSymbolId,
     ) -> Option<dir::FunctionRole> {
         // load checked dir data for this symbol
-        let dir = self.artifact_dir_data_if_present(symbol.module_id)?;
+        let dir = self.bound_dir_if_present(symbol.module_id)?;
         let tree = &dir.tree;
         let symbols = &dir.bindings;
 

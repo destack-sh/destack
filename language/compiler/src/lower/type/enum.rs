@@ -22,9 +22,9 @@ pub(crate) fn enum_field_value_for_symbol(
     member_symbol: dir::GlobalSymbolId,
     anchor: DiagnosticAnchor,
 ) -> CompilerResult<Option<EnumFieldValueDescriptor>> {
-    // load the declared and checked dir artifacts for this symbol
-    let declared = compiler.dir_declared(context, member_symbol.module_id, profile);
-    let declared = match declared {
+    // load the bound and checked DIR artifacts for this symbol
+    let bound = compiler.dir_bound(context, member_symbol.module_id, profile);
+    let bound = match bound {
         Ok(snapshot) => snapshot,
         Err(error) => return Err(error.into()),
     };
@@ -33,7 +33,7 @@ pub(crate) fn enum_field_value_for_symbol(
         Ok(snapshot) => snapshot,
         Err(error) => return Err(error.into()),
     };
-    let symbols = &declared.bindings;
+    let symbols = &bound.bindings;
     let types = &checked.types;
 
     // require the member symbol to be an enum field

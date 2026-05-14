@@ -229,13 +229,7 @@ impl ModuleLowerer<'_> {
             for member_id in members {
                 let member = self.dir_tree.get(*member_id);
                 // skip non method members
-                let dir::Member::Method {
-                    key,
-                    signature,
-                    symbol: method_symbol,
-                    ..
-                } = member
-                else {
+                let dir::Member::Method { key, signature, .. } = member else {
                     continue;
                 };
 
@@ -255,7 +249,7 @@ impl ModuleLowerer<'_> {
                 let signature_type_id = self.method_signature_type_id(*member_id)?;
                 let key = MethodKey::new(name, signature.role, signature_type_id);
 
-                let method_symbol = method_symbol.into_global(self.module_id);
+                let method_symbol = self.require_symbol_for_node(*member_id)?;
                 methods.push(VtableMethod {
                     key,
                     is_override: signature.is_override,

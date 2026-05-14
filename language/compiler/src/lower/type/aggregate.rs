@@ -30,9 +30,9 @@ impl TypeLowerer<'_> {
     ) -> Option<u64> {
         for _ in 0..MAX_ARRAY_COUNT_UNWRAP_STEPS {
             match types.get_type(type_id) {
-                dir::Type::Literal(dir::LiteralType {
-                    value: dir::TypeLiteral::ScalarLiteral(dir::ScalarLiteral::Integer(value)),
-                }) => return u64::try_from(*value).ok(),
+                dir::Type::Literal(dir::LiteralType::ScalarLiteral(
+                    dir::ScalarLiteral::Integer(value),
+                )) => return u64::try_from(*value).ok(),
                 dir::Type::Value(value) => type_id = value.value,
                 dir::Type::Reference(reference) => {
                     type_id = types.get_value_type_id(reference.symbol)?;

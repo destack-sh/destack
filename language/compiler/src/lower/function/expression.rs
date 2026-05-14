@@ -1,7 +1,5 @@
 use {destack_dir as dir, destack_mir as mir};
 
-use destack_dir::GuardEntry;
-
 use crate::{CompilerError, CompilerResult, LowerError, ScalarType};
 
 use super::{FunctionLowerer, RUNTIME_CHECK_MESSAGES};
@@ -21,6 +19,20 @@ impl FunctionLowerer<'_> {
                 | dir::Expression::Satisfies { expression, .. } => current_id = *expression,
                 _ => return current_id,
             }
+        }
+    }
+
+    /// Resolve one expression as a type literal value.
+    pub(crate) fn type_literal_for_expression(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<&dir::TypeLiteral> {
+        match self.context.dir_tree.get(expression_id) {
+            dir::Expression::Type { value } => match self.context.dir_tree.get(*value) {
+                dir::TypeExpression::Literal { value } => Some(value),
+                _ => None,
+            },
+            _ => None,
         }
     }
 
@@ -245,13 +257,13 @@ impl FunctionLowerer<'_> {
         };
 
         // handle constant guards early
-        if let GuardEntry::Constant(value) = guard_entry {
+        if let dir::GuardEntry::Constant(value) = guard_entry {
             let value = self.state.builder.bconst(value);
             return Ok((value, self.context.type_lowerer.ty_bool));
         }
 
         // reject type descriptor guards until RTTI is lowered (#Incomplete)
-        if guard_entry == GuardEntry::TypeDescriptor {
+        if guard_entry == dir::GuardEntry::TypeDescriptor {
             return Err(LowerError::UnsupportedConstruct {
                 anchor: self.diagnostic_anchor(
                     expression_id
@@ -281,7 +293,7 @@ impl FunctionLowerer<'_> {
             self.context.types.get_type(left_type_id),
             dir::Type::Union { .. }
         );
-        if guard_entry == GuardEntry::UnionTag && !is_union_value {
+        if guard_entry == dir::GuardEntry::UnionTag && !is_union_value {
             return Err(LowerError::Internal {
                 anchor: (self.context.module_id).into(),
                 module: self.context.module_id,
@@ -530,11 +542,11 @@ impl FunctionLowerer<'_> {
 
         // match nullable comparisons with null literals
         let (value_id, literal) = match (
-            self.context.dir_tree.get(left),
-            self.context.dir_tree.get(right),
+            self.type_literal_for_expression(left),
+            self.type_literal_for_expression(right),
         ) {
-            (dir::Expression::TypeLiteral { value }, _) => (right, value),
-            (_, dir::Expression::TypeLiteral { value }) => (left, value),
+            (Some(value), _) => (right, value),
+            (_, Some(value)) => (left, value),
             _ => return Ok(None),
         };
 

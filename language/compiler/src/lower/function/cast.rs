@@ -737,9 +737,7 @@ impl FunctionLowerer<'_> {
         // resolve literals that do not carry payload data
         let is_nullish_literal = matches!(
             self.context.types.get_type(source_type_id),
-            dir::Type::Literal(dir::LiteralType {
-                value: dir::TypeLiteral::Null | dir::TypeLiteral::Undefined,
-            })
+            dir::Type::Literal(dir::LiteralType::Null | dir::LiteralType::Undefined)
         );
 
         // build the union payload
@@ -879,9 +877,7 @@ impl FunctionLowerer<'_> {
         let source_type_id = self.type_for_expression_or_error(value_id)?;
         if matches!(
             self.context.types.get_type(source_type_id),
-            dir::Type::Literal(dir::LiteralType {
-                value: dir::TypeLiteral::Undefined
-            })
+            dir::Type::Literal(dir::LiteralType::Undefined)
         ) {
             return Err(LowerError::UnsupportedConstruct {
                 anchor: self.diagnostic_anchor(
@@ -910,9 +906,7 @@ impl FunctionLowerer<'_> {
         // handle null literals without lowering a payload value
         let is_null_literal = matches!(
             self.context.types.get_type(source_type_id),
-            dir::Type::Literal(dir::LiteralType {
-                value: dir::TypeLiteral::Null,
-            })
+            dir::Type::Literal(dir::LiteralType::Null)
         );
         let value = if is_null_literal {
             let node = expression_id
@@ -1038,7 +1032,7 @@ impl FunctionLowerer<'_> {
                             .into_global_any(self.context.module_id)
                             .into_anchored(Some(self.context.profile)),
                     ),
-                    message: "FUGU #Broken: interface to interface upcast requires RTTI"
+                    message: "TODO #Broken: interface to interface upcast requires RTTI"
                         .to_string(),
                 }
                 .into());
@@ -1255,13 +1249,11 @@ impl FunctionLowerer<'_> {
                 .ok()
                 .flatten()
                 .or_else(|| self.concrete_symbol_for_expression(*left)),
-            dir::Expression::TaggedScalarExpression { ty, .. }
-            | dir::Expression::TaggedTupleExpression { ty, .. }
-            | dir::Expression::TaggedObjectExpression { ty, .. } => {
+            dir::Expression::ObjectExpression { ty: Some(ty), .. } => {
                 let type_id = self.type_id_for_type_expression(*ty)?;
                 self.concrete_symbol_for_type(type_id)
             }
-            dir::Expression::Path { .. } => {
+            dir::Expression::Identifier { .. } | dir::Expression::QualifiedReference { .. } => {
                 let symbol = self.resolve_expression_symbol(expression_id).ok()?;
                 match self.context.symbol_form(symbol) {
                     Some(dir::SymbolForm::Class | dir::SymbolForm::Struct) => Some(symbol),

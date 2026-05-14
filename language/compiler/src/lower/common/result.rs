@@ -117,9 +117,7 @@ fn is_void_type_inner(
     }
 
     match types.get_type(type_id) {
-        dir::Type::Literal(dir::LiteralType {
-            value: dir::TypeLiteral::Void,
-        }) => true,
+        dir::Type::Literal(dir::LiteralType::Void) => true,
         dir::Type::Reference(reference) => {
             if let Some(target) = types.get_alias_target_type_id(reference.symbol) {
                 return is_void_type_inner(types, target, visited);
@@ -153,9 +151,9 @@ fn result_variant_info(
 
     for field in &fields {
         if field.key == kind_key
-            && let dir::Type::Literal(dir::LiteralType {
-                value: dir::TypeLiteral::ScalarLiteral(dir::ScalarLiteral::String(literal)),
-            }) = types.get_type(field.ty)
+            && let dir::Type::Literal(dir::LiteralType::ScalarLiteral(dir::ScalarLiteral::String(
+                literal,
+            ))) = types.get_type(field.ty)
         {
             kind_literal = Some(*literal);
         }

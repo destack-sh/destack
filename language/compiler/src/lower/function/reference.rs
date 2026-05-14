@@ -56,7 +56,7 @@ impl FunctionLowerer<'_> {
             }
 
             // resolved paths borrow from their storage owner
-            dir::Expression::Path { .. } => {
+            dir::Expression::Identifier { .. } | dir::Expression::QualifiedReference { .. } => {
                 let target_symbol = self.resolve_expression_symbol(expression)?;
                 if let Some(field) = self.capture_field_for_symbol(target_symbol) {
                     if field.mode == dir::CaptureMode::Borrow {
@@ -269,7 +269,7 @@ impl FunctionLowerer<'_> {
             dir::Expression::Parenthesized { expression } => {
                 self.lower_reference_of_expression(expression_id, mutability, *expression)
             }
-            dir::Expression::Path { .. } => {
+            dir::Expression::Identifier { .. } | dir::Expression::QualifiedReference { .. } => {
                 let target_symbol = self.resolve_expression_symbol(right)?;
                 if let Some(field) = self.capture_field_for_symbol(target_symbol) {
                     return self.borrow_captured_binding(expression_id, &field, mutability);
@@ -372,8 +372,8 @@ impl FunctionLowerer<'_> {
                         .field_addr(aggregate_value, field_index as u32, result_type);
                 Ok((value, result_type))
             }
-            dir::Expression::Index { left, right } => {
-                let index_expr = right
+            dir::Expression::Index { left, index, .. } => {
+                let index = index
                     .ok_or_else(|| LowerError::UnsupportedConstruct {
                         anchor: self.diagnostic_anchor(
                             expression_id
@@ -386,20 +386,14 @@ impl FunctionLowerer<'_> {
 
                 // lower array and index expressions
                 let (array_value, _) = self.lower_value_expression(*left)?;
-                let (index_value, _) = self.lower_value_expression(index_expr)?;
+                let (index_value, _) = self.lower_value_expression(index)?;
 
                 // emit null checks when enabled
                 let array_type = self.lower_type_for_expression(*left)?;
                 self.emit_null_check(expression_id, array_value, array_type)?;
 
                 // emit bounds checks when enabled
-                self.emit_bounds_check(
-                    expression_id,
-                    array_value,
-                    array_type,
-                    index_value,
-                    index_expr,
-                )?;
+                self.emit_bounds_check(expression_id, array_value, array_type, index_value, index)?;
 
                 // emit element.address
                 let value = self
