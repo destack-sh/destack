@@ -4,7 +4,7 @@ use destack_artifact::{
 use destack_workspace::ProviderError;
 
 use crate::{
-    CheckError, DeclareError, ElaborateError, ExpandError, ExportError, GenerateError, ImportError,
+    BindError, CheckError, ElaborateError, ExpandError, ExportError, GenerateError, ImportError,
     LinkError, LowerError, MaterializeError, OptimizeError, VerifyError,
 };
 
@@ -60,7 +60,7 @@ macro_rules! impl_compiler_error_from_diagnostic {
 }
 
 impl_compiler_error_from_diagnostic!(CheckError);
-impl_compiler_error_from_diagnostic!(DeclareError);
+impl_compiler_error_from_diagnostic!(BindError);
 impl_compiler_error_from_diagnostic!(ElaborateError);
 impl_compiler_error_from_diagnostic!(MaterializeError);
 impl_compiler_error_from_diagnostic!(ExpandError);

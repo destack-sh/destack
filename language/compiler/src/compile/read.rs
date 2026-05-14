@@ -11,8 +11,10 @@ use destack_workspace::{
 
 use crate::Compiler;
 
+#[allow(dead_code)]
 const TARGET_CONFIGURATION_DOMAIN: &[u8] = b"destack.compiler.target-configuration.v1";
 
+#[allow(dead_code)]
 impl Compiler {
     /// Return one module from one repository revision.
     pub(crate) fn module(&self, revision: Revision, module_id: ModuleId) -> Arc<Module> {
@@ -160,6 +162,7 @@ impl Compiler {
 }
 
 /// Build one effective target key for artifact dependency identity.
+#[allow(dead_code)]
 fn target_key(target: &Target) -> TargetKey {
     let mut hasher = StableHasher::new();
     hasher.update_len_prefixed(TARGET_CONFIGURATION_DOMAIN);

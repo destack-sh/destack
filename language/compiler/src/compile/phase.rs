@@ -2,8 +2,8 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u8)]
 pub enum CompilePhase {
-    /// Declare source into base DIR.
-    Declare = 1,
+    /// Bind source into base DIR.
+    Bind = 1,
     /// Resolve imports into dependency tables.
     Import = 2,
     /// Expand macros into DIR patches.
@@ -43,7 +43,7 @@ impl CompilePhase {
     /// Return the display name for this phase.
     pub fn name(&self) -> &str {
         match self {
-            Self::Declare => "declare",
+            Self::Bind => "bind",
             Self::Import => "import",
             Self::Expand => "expand",
             Self::Export => "export",
@@ -61,7 +61,7 @@ impl CompilePhase {
     /// Return the description for this phase.
     pub fn description(&self) -> &str {
         match self {
-            Self::Declare => "parse and bind source into DIR",
+            Self::Bind => "parse and bind source into DIR",
             Self::Import => "resolve imports into dependency tables",
             Self::Expand => "expand macros into DIR patches",
             Self::Export => "resolve exports over expanded DIR",
@@ -79,7 +79,7 @@ impl CompilePhase {
     /// Return the one letter code for this phase.
     pub fn letter(&self) -> char {
         match self {
-            Self::Declare => 'D',
+            Self::Bind => 'B',
             Self::Import => 'I',
             Self::Expand => 'X',
             Self::Export => 'T',
@@ -96,7 +96,7 @@ impl CompilePhase {
 
     /// All phases in build order.
     pub const ALL: [CompilePhase; 12] = [
-        Self::Declare,
+        Self::Bind,
         Self::Import,
         Self::Expand,
         Self::Export,

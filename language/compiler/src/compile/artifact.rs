@@ -3,9 +3,9 @@ use std::sync::Arc;
 #[cfg(feature = "native")]
 use destack_artifact::MirOptimized;
 use destack_artifact::{
-    ArtifactKey, ArtifactStore, ArtifactVersion, Ast, Data, DirChecked, DirDeclared, DirElaborated,
-    DirExpanded, DirExported, DirImported, DirMaterialized, GlobalEnvironment, MirLowered,
-    MirVerified, ModuleOutput, PackageOutput,
+    ArtifactKey, ArtifactStore, ArtifactVersion, Data, DirBound, DirChecked, DirElaborated,
+    DirExpanded, DirExported, DirImported, DirMaterialized, DirParsed, GlobalEnvironment,
+    MirLowered, MirVerified, ModuleOutput, PackageOutput,
 };
 use destack_source::{ModuleId, PackageId, ProfileId, TargetId};
 use destack_workspace::{ProviderContext, ProviderError};
@@ -38,16 +38,16 @@ impl Compiler {
         load(&self.artifacts, version).ok_or(ProviderError::Corrupt { version: *version })
     }
 
-    /// Return the AST payload.
-    pub fn ast(
+    /// Return the parsed DIR payload.
+    pub fn dir_parsed(
         &self,
         context: &dyn ProviderContext,
         module: ModuleId,
-    ) -> Result<Arc<Ast>, ProviderError> {
-        let artifact_key = ArtifactKey::ast(module);
+    ) -> Result<Arc<DirParsed>, ProviderError> {
+        let artifact_key = ArtifactKey::dir_parsed(module);
         let version = self.artifact_version(context, artifact_key)?;
 
-        self.required_artifact(&version, |artifacts, version| artifacts.ast(version))
+        self.required_artifact(&version, |artifacts, version| artifacts.dir_parsed(version))
     }
 
     /// Return the parsed data payload.
@@ -76,19 +76,17 @@ impl Compiler {
         })
     }
 
-    /// Return the declared DIR payload.
-    pub fn dir_declared(
+    /// Return the bound DIR payload.
+    pub fn dir_bound(
         &self,
         context: &dyn ProviderContext,
         module: ModuleId,
         profile: ProfileId,
-    ) -> Result<Arc<DirDeclared>, ProviderError> {
-        let artifact_key = ArtifactKey::dir_declared(module, profile);
+    ) -> Result<Arc<DirBound>, ProviderError> {
+        let artifact_key = ArtifactKey::dir_bound(module, profile);
         let version = self.artifact_version(context, artifact_key)?;
 
-        self.required_artifact(&version, |artifacts, version| {
-            artifacts.dir_declared(version)
-        })
+        self.required_artifact(&version, |artifacts, version| artifacts.dir_bound(version))
     }
 
     /// Return the imported DIR payload.
