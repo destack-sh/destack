@@ -286,7 +286,7 @@ impl<'a> CommandContext<'a> {
         let logical_path = command_input_logical_path(kind, name, file_type);
         let path = self.root.join(&logical_path);
 
-        // publish the new command-local file text
+        // publish the new command scoped file text
         self.session
             .apply_file(
                 self.session.head(),
@@ -375,40 +375,23 @@ impl<'a> CommandContext<'a> {
         let package_id = module.package_id;
         let target_id = TargetId::new(package_id, target_name);
 
-        // distinguish explicit targets from implicit target fallback
-        let existing_target = self
-            .repository
-            .target(revision, target_id)
-            .map_err(|error| format!("failed to read target snapshot: {error}"))?;
-        let is_explicit_target = existing_target.is_some();
         let effective_target = self
             .repository
             .effective_target(revision, target_id)
             .map_err(|error| format!("failed to read target snapshot: {error}"))?;
 
-        // named targets are already complete configuration entries
-        if let Some(overrides) = overrides
-            && !overrides.is_empty()
-            && is_explicit_target
-        {
-            return Err(
-                "ad-hoc target overrides are not supported for named targets"
-                    .to_string()
-                    .into(),
-            );
-        }
-
         // resolve repository target or build a known built in target
-        let target = if let Some(target) = effective_target {
+        let mut target = if let Some(target) = effective_target {
             target
         } else {
-            let mut target = Target::implicit_for_name(target_name)
-                .ok_or_else(|| format!("unknown target '{target_name}'"))?;
-            if let Some(overrides) = overrides {
-                overrides.apply_to_target(&mut target);
-            }
-            target
+            Target::implicit_for_name(target_name)
+                .ok_or_else(|| format!("unknown target '{target_name}'"))?
         };
+
+        // apply command output redirection
+        if let Some(overrides) = overrides {
+            overrides.apply_to_target(&mut target);
+        }
 
         Ok(ResolvedTarget {
             id: target_id,
@@ -440,19 +423,13 @@ impl<'a> CommandContext<'a> {
             .map_err(|error| format!("failed to read module snapshot: {error}"))?
             .ok_or_else(|| format!("missing module snapshot for {module_id:?}"))?;
         // use the package default target when it is unambiguous
-        if let Some((target_id, target)) = self
+        if let Some((target_id, mut target)) = self
             .repository
             .package_default_target(revision, module.package_id)
             .map_err(|error| format!("failed to read target snapshot: {error}"))?
         {
-            if let Some(overrides) = overrides
-                && !overrides.is_empty()
-            {
-                return Err(
-                    "ad-hoc target overrides are not supported for named targets"
-                        .to_string()
-                        .into(),
-                );
+            if let Some(overrides) = overrides {
+                overrides.apply_to_target(&mut target);
             }
 
             return Ok(ResolvedTarget {
@@ -469,10 +446,6 @@ impl<'a> CommandContext<'a> {
 
     /// Decide whether optimization should run for a target.
     pub(super) fn should_optimize(&self, target: &Target) -> bool {
-        if target.optimize {
-            return true;
-        }
-
         !matches!(target.optimize_level, OptimizeLevel::O0)
     }
 

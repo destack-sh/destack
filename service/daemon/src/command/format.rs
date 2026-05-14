@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_ast::NodeParentIndex;
+use destack_core::StringPool;
 use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
 use destack_json::{JsonFormatOptions, format_json, parse as parse_json};
@@ -90,7 +91,8 @@ impl CommandContext<'_> {
                 }
             };
 
-            let (formatted, diagnostics) = format_file(file.clone(), default_formatting);
+            let strings = self.repository.string_pool().clone();
+            let (formatted, diagnostics) = format_file(file.clone(), default_formatting, strings);
             command_diagnostics.merge_from(&diagnostics);
             if check_and_collect_errors(&file_for_id, &diagnostics, suppress_output, self.output) {
                 summary.errors += 1;
@@ -305,16 +307,19 @@ fn print_diagnostics_to_output(
 }
 
 /// Format a single file and return the formatted content.
-fn format_file(file: Arc<File>, formatter: FormatterOptions) -> (String, DiagnosticCollector) {
+fn format_file(
+    file: Arc<File>,
+    formatter: FormatterOptions,
+    strings: Arc<StringPool>,
+) -> (String, DiagnosticCollector) {
     let language_type = LanguageType::try_from(file.ty)
         .unwrap_or_else(|_| panic!("formatter received non-code file type: {:?}", file.ty));
-    let mut parser = Parser::lex_file(file.clone(), language_type);
+    let mut parser = Parser::lex_file(file.clone(), language_type, strings);
     let expressions = parser.parse();
     let diagnostics = parser.diagnostics.clone();
 
     let side_span = parser.compute_side_span();
     let (tokens, side_tokens) = parser.take_tokens();
-    let strings = parser.strings.into_immutable();
     let parents = NodeParentIndex::from_tree(&parser.tree);
     let format_options = DestackFormatOptions {
         language_type,
@@ -327,7 +332,7 @@ fn format_file(file: Arc<File>, formatter: FormatterOptions) -> (String, Diagnos
         &tokens,
         &side_tokens,
         &side_span,
-        &strings,
+        parser.strings.as_ref(),
         parents,
     );
 
@@ -480,7 +485,8 @@ fn format_single_file(
                     None
                 }
             };
-            let (result, diagnostics) = format_file(file.clone(), formatting_options);
+            let strings = repository.string_pool().clone();
+            let (result, diagnostics) = format_file(file.clone(), formatting_options, strings);
             command_diagnostics.merge_from(&diagnostics);
 
             if check_and_collect_errors(&file_for_id, &diagnostics, suppress_output, output) {

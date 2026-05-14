@@ -351,17 +351,19 @@ fn create_isolate(
         .map_err(|error| error.to_string())?;
 
     let artifact_store = repository.artifact_store();
-    let (tree, strings) = if let Some(version) = optimized_version
+    let tree = if let Some(version) = optimized_version
         && let Some(mir) = artifact_store.mir_optimized(&version)
+        && let Some(tree) = mir.latest_patch_tree()
     {
-        (mir.tree.clone(), mir.strings.clone().into_immutable())
+        tree.clone()
     } else if let Some(version) = lowered_version
         && let Some(mir) = artifact_store.mir_lowered(&version)
     {
-        (mir.tree.clone(), mir.strings.clone().into_immutable())
+        mir.tree.clone()
     } else {
         return Err(format!("missing MIR for target {target_id:?} (run requires lowering)").into());
     };
+    let strings = repository.string_pool().as_ref().clone();
 
     let isolate_id = IsolateId::new(1);
 
