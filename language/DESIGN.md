@@ -880,15 +880,15 @@ Async functions and generators are closures that can pause and be resumed at a l
 | produced `T` | value eventually produced by async code |
 
 As in TypeScript, `await` and `yield` are the suspension points for the `Promise`s and `Generator` (and `AsyncGenerator`) coroutines where the entire stack up to that point is parked, and some other task is run.
-In managed land, suspension works as before, and managed values can be stored in parked frames because it's all - well - managed.
-Borrowed access can _also_ cross suspension, but only when the compiler can keep its origin alive and at a stable address in the parked continuation.
-Exclusive access is the important exception: `&exclusive T` cannot cross `await` or `yield`, because another local task may run before this continuation resumes.
+In pure managed land, suspension works as before, and managed values can be stored in parked frames because it's all - well - managed.
 
 ```ds
+type User = { name: string, /* ... * / };
+
 async function read(user: User): Promise<string> {
-    const name = &readonly user.name;
+    const name = user.name;
     await tick();
-    return name.clone(); // valid because `user` is kept alive during suspension
+    return name; // valid as before
 }
 ```
 
@@ -896,6 +896,26 @@ Frame-owned values can also be borrowed across suspension points:
 
 ```ds
 async function read(user: ^User): Promise<string> {
+    const name = &readonly user.name;
+    await tick();
+    return name.clone();
+}
+```
+
+Borrowed access is also valid across suspension points _if_ it originates in an owned or static value:
+
+```ds
+async function read(user: &User): Promise<string> {
+    const name = &readonly user.name;
+    await tick();
+    return name.clone();
+}
+```
+
+Borrowed access to managed values can _not_ cross suspension:
+
+```ds
+async function read(user: User): Promise<string> {
     const name = &readonly user.name;
     await tick();
     return name.clone();
