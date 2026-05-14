@@ -170,6 +170,10 @@ export {
     JsonReplacer,
 } from "destack:json";
 export {
+    Random,
+    RandomSeed,
+} from "destack:random";
+export {
     Promise,
     Generator,
     AsyncIterator,
@@ -369,6 +373,10 @@ export {
     svd,
     norm,
     relayout,
+    uniform,
+    uniformRange,
+    normal,
+    bernoulli,
     relu,
     gelu,
     sigmoid,

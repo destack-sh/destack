@@ -258,15 +258,6 @@ define_language_items! {
         }
     }
 
-    /// Random types.
-    random {
-        /// `destack:random/random`.
-        random {
-            /// Random generator type.
-            Random => (Newtype, "random/random", "Random"),
-        }
-    }
-
     /// Macro types.
     macro {
         /// `destack:macro/eval`.
