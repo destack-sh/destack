@@ -1,4 +1,8 @@
-use crate::tests::{TestIsolate, run_mir_expect, run_mir_with_frame_ok};
+use crate::diagnostic::Error;
+use crate::tests::{
+    TestIsolate, assert_runtime_error_matches, run_mir_expect, run_mir_with_frame,
+    run_mir_with_frame_ok,
+};
 use crate::{Value, Word};
 
 /// Create a tensor value from the provided elements.
@@ -287,6 +291,100 @@ b0(v0: tensor<int32, (2, 2)>):
     );
 }
 
+/// Tensor reduce requires the destination shape produced by removing reduced axes.
+#[test]
+fn test_tensor_reduce_rejects_wrong_destination_shape() {
+    let mir = r#"
+function tensorReduce(v0: tensor<int32, (2, 2)>): int32 {
+b0(v0: tensor<int32, (2, 2)>):
+    v1: int32 = 0int32
+    v2: tensor<int32, (2, 2)> = tensor.reduce add, v0, v1, axes(1)
+    v3: int64 = 0int64
+    v4: int32 = tensor.extract v2, [v3, v3]
+    return v4
+}"#;
+    let result = run_mir_with_frame(mir, "tensorReduce", |interp| {
+        vec![tensor_from_values(interp, "tensorReduce", 0, &[1, 2, 3, 4])]
+    });
+
+    assert_runtime_error_matches!(result, Error::InvalidInstruction);
+}
+
+/// Tensor index reduce returns the selected source index within the reduced axis.
+#[test]
+fn test_tensor_index_reduce() {
+    let mir = r#"
+function tensorIndexReduce(v0: tensor<int32, (2, 3)>): uint64 {
+b0(v0: tensor<int32, (2, 3)>):
+    v1: tensor<uint64, (2)> = tensor.indexReduce max, v0, axis(1), tieBreak(first)
+    v2: int64 = 1int64
+    v3: uint64 = tensor.extract v1, [v2]
+    return v3
+}"#;
+    run_tensor_expect(
+        mir,
+        "tensorIndexReduce",
+        |interp| {
+            vec![tensor_from_values(
+                interp,
+                "tensorIndexReduce",
+                0,
+                &[1, 4, 2, 7, 5, 7],
+            )]
+        },
+        Value::uint64(0),
+    );
+}
+
+/// Tensor index reduce requires an unsigned index result element.
+#[test]
+fn test_tensor_index_reduce_rejects_signed_index_result() {
+    let mir = r#"
+function tensorIndexReduce(v0: tensor<int32, (2, 3)>): int64 {
+b0(v0: tensor<int32, (2, 3)>):
+    v1: tensor<int64, (2)> = tensor.indexReduce max, v0, axis(1), tieBreak(first)
+    v2: int64 = 0int64
+    v3: int64 = tensor.extract v1, [v2]
+    return v3
+}"#;
+    let result = run_mir_with_frame(mir, "tensorIndexReduce", |interp| {
+        vec![tensor_from_values(
+            interp,
+            "tensorIndexReduce",
+            0,
+            &[1, 4, 2, 7, 5, 7],
+        )]
+    });
+
+    assert_runtime_error_matches!(result, Error::InvalidInstruction);
+}
+
+/// Tensor index reduce can pick the last matching source index.
+#[test]
+fn test_tensor_index_reduce_tie_break_last() {
+    let mir = r#"
+function tensorIndexReduceLast(v0: tensor<int32, (2, 3)>): uint64 {
+b0(v0: tensor<int32, (2, 3)>):
+    v1: tensor<uint64, (2)> = tensor.indexReduce max, v0, axis(1), tieBreak(last)
+    v2: int64 = 1int64
+    v3: uint64 = tensor.extract v1, [v2]
+    return v3
+}"#;
+    run_tensor_expect(
+        mir,
+        "tensorIndexReduceLast",
+        |interp| {
+            vec![tensor_from_values(
+                interp,
+                "tensorIndexReduceLast",
+                0,
+                &[1, 4, 2, 7, 5, 7],
+            )]
+        },
+        Value::uint64(2),
+    );
+}
+
 /// Tensor dot multiplies matrices with the given contraction dimensions.
 #[test]
 fn test_tensor_dot() {
@@ -504,4 +602,32 @@ b0:
     return v7
 }"#;
     run_mir_expect(mir, "tensorViewValue", &[], Value::int32(2));
+}
+
+/// Strided tensor views apply runtime strides.
+#[test]
+fn test_tensor_view_strided() {
+    let mir = r#"
+function tensorViewStrided(): int32 {
+b0:
+    v0: ref<int32[6], raw, space(stack)> = stack.alloc int32[6]
+    v1: tensorView<int32, raw, space(stack), (2, 3)> = cast.bit v0 -> tensorView<int32, raw, space(stack), (2, 3)>
+    v2: int32 = 0int32
+    v3: int32 = 1int32
+    v4: int32 = 2int32
+    v5: int32 = 3int32
+    v6: int32 = 4int32
+    v7: int32 = 5int32
+    v8: int32 = 6int32
+    tensor.store v1, [v2, v2], v3
+    tensor.store v1, [v2, v3], v4
+    tensor.store v1, [v2, v4], v5
+    tensor.store v1, [v3, v2], v6
+    tensor.store v1, [v3, v3], v7
+    tensor.store v1, [v3, v4], v8
+    v9: tensorView<int32, raw, space(stack), (2, 2), layout(strided)> = tensor.view v1, offsets(v2, v2), sizes(v4, v4), strides(v3, v4)
+    v10: int32 = tensor.load v9, [v3, v3]
+    return v10
+}"#;
+    run_mir_expect(mir, "tensorViewStrided", &[], Value::int32(6));
 }

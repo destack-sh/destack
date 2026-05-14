@@ -889,7 +889,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         Ok(Word::uint(rotated, width))
     }
 
-    // checked arithmetic
+    // overflowing arithmetic
 
     /// Add with overflow detection.
     #[inline]

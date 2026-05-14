@@ -720,6 +720,8 @@ pub(crate) enum Op {
     CastWideIntToWord,
     /// Cast wide integer bytes into wide integer bytes.
     CastWideInt,
+    /// Cast one dense tensor pointer into a tensor view descriptor.
+    CastTensorView,
 
     // ============================================================================
     // calls
@@ -962,6 +964,8 @@ pub(crate) enum Op {
     TensorConcat,
     /// Reduce tensor elements with one kernel.
     TensorReduce,
+    /// Reduce tensor elements and return source indices.
+    TensorIndexReduce,
     /// Compute a tensor dot product.
     TensorDot,
     /// Compute a tensor convolution.

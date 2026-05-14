@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::ptr;
 
@@ -22,9 +23,10 @@ use crate::program::{
     ElementBinaryKernel, ElementUnaryKernel, Instruction, Projection, ScalarLayout, TensorAddress,
     TensorBinary, TensorBroadcast, TensorConcat, TensorContiguousBinary, TensorContiguousUnary,
     TensorConvert, TensorConvolution, TensorCopy, TensorDot, TensorExtract, TensorFill,
-    TensorGather, TensorLayout, TensorLayoutId, TensorLoad, TensorPad, TensorReduce, TensorReshape,
-    TensorScatter, TensorSelect, TensorSlice, TensorStore, TensorTranspose, TensorUnary,
-    TensorView, U32RangeId, WordLayout,
+    TensorGather, TensorIndexReduce, TensorLayout, TensorLayoutId, TensorLoad, TensorPad,
+    TensorReduce, TensorReshape, TensorScatter, TensorSelect, TensorSlice, TensorStore,
+    TensorTranspose, TensorUnary, TensorView, TensorViewCast, U32RangeId, WordLayout,
+    tensor_element_span_len,
 };
 
 const POINTER_BYTE_LEN: usize = usize::BITS as usize / 8;
@@ -49,6 +51,59 @@ fn frame_offsets<'a>(machine: &'a Machine<'_, '_>, range: U32RangeId) -> &'a [u3
     let table = machine.side_table_ptr();
 
     unsafe { (*table).u32_range(range) }
+}
+
+/// Return the byte offset for one tensor view stride slot.
+fn tensor_view_stride_offset(view_offset: u32, axis: usize) -> Result<u32, Error> {
+    let slot = axis.checked_add(1).ok_or(Error::InvalidInstruction)?;
+    let byte_offset = slot
+        .checked_mul(Word::BYTE_LEN)
+        .ok_or(Error::InvalidInstruction)?;
+    let byte_offset = u32::try_from(byte_offset).map_err(|_| Error::InvalidInstruction)?;
+
+    view_offset
+        .checked_add(byte_offset)
+        .ok_or(Error::InvalidInstruction)
+}
+
+/// Load one tensor view base pointer.
+#[inline(always)]
+fn load_tensor_view_pointer(machine: &Machine<'_, '_>, view_offset: u32) -> Word {
+    machine.load_word_at(view_offset)
+}
+
+/// Load one tensor view runtime stride list.
+fn load_tensor_view_strides(
+    machine: &Machine<'_, '_>,
+    view_offset: u32,
+    layout: &TensorLayout,
+) -> Result<Vec<u64>, Error> {
+    let mut strides = Vec::with_capacity(layout.shape.len());
+
+    for axis in 0..layout.shape.len() {
+        let offset = tensor_view_stride_offset(view_offset, axis)?;
+        let stride = machine.load_word_at(offset);
+        strides.push(word_to_u64(stride)?);
+    }
+
+    Ok(strides)
+}
+
+/// Store one tensor view descriptor.
+fn store_tensor_view_descriptor(
+    machine: &mut Machine<'_, '_>,
+    view_offset: u32,
+    pointer: Word,
+    strides: &[u64],
+) -> Result<(), Error> {
+    machine.store_word_at(view_offset, pointer);
+
+    for (axis, stride) in strides.iter().copied().enumerate() {
+        let offset = tensor_view_stride_offset(view_offset, axis)?;
+        machine.store_word_at(offset, Word::uint(stride, Word::BIT_LEN));
+    }
+
+    Ok(())
 }
 
 /// Read one tensor index vector from word frame offsets.
@@ -1787,6 +1842,7 @@ fn fill_tensor_view<O, S>(
     machine: &mut Machine<'_, '_>,
     base_pointer: Word,
     layout: &TensorLayout,
+    strides: &[u64],
     element: Projection,
     fill_value: Word,
     mut offset_pointer: O,
@@ -1796,10 +1852,37 @@ where
     O: FnMut(Word, Projection, usize, usize) -> Result<Word, Error>,
     S: FnMut(&mut Machine<'_, '_>, Word, Projection, Word) -> Result<(), Error>,
 {
-    // write each addressable element through the selected concrete accessor
-    for offset in 0..layout.element_span_len {
-        let pointer = offset_pointer(base_pointer, element, offset, layout.element_span_len)?;
-        store_element(machine, pointer, element, fill_value)?
+    let span_len = tensor_element_span_len(&layout.shape, strides)?;
+    let mut error = None;
+
+    // write each logical element through the selected concrete accessor
+    for_each_index(&layout.shape, |index| {
+        if error.is_some() {
+            return;
+        }
+
+        let offset = match tensor_linear_index(index, &layout.shape, strides) {
+            Ok(offset) => offset,
+            Err(current_error) => {
+                error = Some(current_error);
+                return;
+            }
+        };
+        let pointer = match offset_pointer(base_pointer, element, offset, span_len) {
+            Ok(pointer) => pointer,
+            Err(current_error) => {
+                error = Some(current_error);
+                return;
+            }
+        };
+
+        if let Err(current_error) = store_element(machine, pointer, element, fill_value) {
+            error = Some(current_error);
+        }
+    });
+
+    if let Some(error) = error {
+        return Err(error);
     }
 
     Ok(())
@@ -1812,6 +1895,8 @@ fn copy_tensor_view<TO, SO, L, S>(
     source_pointer: Word,
     target_layout: &TensorLayout,
     source_layout: &TensorLayout,
+    target_strides: &[u64],
+    source_strides: &[u64],
     target_element: Projection,
     source_element: Projection,
     mut target_offset: TO,
@@ -1825,26 +1910,90 @@ where
     L: FnMut(&mut Machine<'_, '_>, Word, Projection) -> Result<Word, Error>,
     S: FnMut(&mut Machine<'_, '_>, Word, Projection, Word) -> Result<(), Error>,
 {
-    // copy each addressable element through the selected concrete accessors
-    for offset in 0..target_layout.element_span_len {
-        let source_pointer = source_offset(
+    let target_span_len = tensor_element_span_len(&target_layout.shape, target_strides)?;
+    let source_span_len = tensor_element_span_len(&source_layout.shape, source_strides)?;
+    let mut error = None;
+
+    // copy each logical element through the selected concrete accessors
+    for_each_index(&target_layout.shape, |index| {
+        if error.is_some() {
+            return;
+        }
+
+        let target_index = match tensor_linear_index(index, &target_layout.shape, target_strides) {
+            Ok(offset) => offset,
+            Err(current_error) => {
+                error = Some(current_error);
+                return;
+            }
+        };
+        let source_index = match tensor_linear_index(index, &source_layout.shape, source_strides) {
+            Ok(offset) => offset,
+            Err(current_error) => {
+                error = Some(current_error);
+                return;
+            }
+        };
+
+        let source_pointer = match source_offset(
             source_pointer,
             source_element,
-            offset,
-            source_layout.element_span_len,
-        )?;
-        let target_pointer = target_offset(
+            source_index,
+            source_span_len,
+        ) {
+            Ok(pointer) => pointer,
+            Err(current_error) => {
+                error = Some(current_error);
+                return;
+            }
+        };
+        let target_pointer = match target_offset(
             target_pointer,
             target_element,
-            offset,
-            target_layout.element_span_len,
-        )?;
-        let value = load_element(machine, source_pointer, source_element)?;
+            target_index,
+            target_span_len,
+        ) {
+            Ok(pointer) => pointer,
+            Err(current_error) => {
+                error = Some(current_error);
+                return;
+            }
+        };
+        let value = match load_element(machine, source_pointer, source_element) {
+            Ok(value) => value,
+            Err(current_error) => {
+                error = Some(current_error);
+                return;
+            }
+        };
 
-        store_element(machine, target_pointer, target_element, value)?
+        if let Err(current_error) = store_element(machine, target_pointer, target_element, value) {
+            error = Some(current_error);
+        }
+    });
+
+    if let Some(error) = error {
+        return Err(error);
     }
 
     Ok(())
+}
+
+/// Execute a dense pointer to tensor view cast.
+pub(crate) fn execute_tensor_view_cast(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Result<(), Error> {
+    let TensorViewCast {
+        dest_offset,
+        pointer_offset,
+        view_layout,
+    } = machine.side::<TensorViewCast>(instruction);
+
+    let layout = tensor_layout(machine, *view_layout);
+    let pointer = machine.load_word_at(*pointer_offset);
+
+    store_tensor_view_descriptor(machine, *dest_offset, pointer, &layout.strides)
 }
 
 /// Execute tensor.load.
@@ -1866,18 +2015,14 @@ pub(crate) fn execute_tensor_load(
     let layout = tensor_layout(machine, *view_layout);
     let index_values = frame_offsets(machine, *indices);
     let index = tensor_index_values(machine, index_values)?;
-    let offset = tensor_linear_index(&index, &layout.shape, &layout.strides)?;
+    let strides = load_tensor_view_strides(machine, *view_offset, layout)?;
+    let span_len = tensor_element_span_len(&layout.shape, &strides)?;
+    let offset = tensor_linear_index(&index, &layout.shape, &strides)?;
 
     // load through the concrete memory accessors selected by lower
-    let view_value = machine.load_word_at(*view_offset);
+    let view_value = load_tensor_view_pointer(machine, *view_offset);
     let element = machine.projection(*element);
-    let pointer = offset_tensor_view_pointer(
-        view_value,
-        element,
-        offset,
-        layout.element_span_len,
-        *address,
-    )?;
+    let pointer = offset_tensor_view_pointer(view_value, element, offset, span_len, *address)?;
 
     let value = load_tensor_element(machine, pointer, element, *address)?;
     machine.store_word_at(*dest_offset, value);
@@ -1904,18 +2049,14 @@ pub(crate) fn execute_tensor_store(
     let layout = tensor_layout(machine, *view_layout);
     let index_values = frame_offsets(machine, *indices);
     let index = tensor_index_values(machine, index_values)?;
-    let offset = tensor_linear_index(&index, &layout.shape, &layout.strides)?;
+    let strides = load_tensor_view_strides(machine, *view_offset, layout)?;
+    let span_len = tensor_element_span_len(&layout.shape, &strides)?;
+    let offset = tensor_linear_index(&index, &layout.shape, &strides)?;
 
     // store through the concrete memory accessors selected by lower
-    let view_value = machine.load_word_at(*view_offset);
+    let view_value = load_tensor_view_pointer(machine, *view_offset);
     let element = machine.projection(*element);
-    let pointer = offset_tensor_view_pointer(
-        view_value,
-        element,
-        offset,
-        layout.element_span_len,
-        *address,
-    )?;
+    let pointer = offset_tensor_view_pointer(view_value, element, offset, span_len, *address)?;
 
     let value = machine.load_word_at(*value_offset);
     store_tensor_element(machine, pointer, element, value, *address)?;
@@ -1940,7 +2081,8 @@ pub(crate) fn execute_tensor_fill(
     // resolve the repeated value and base view once
     let layout = tensor_layout(machine, *view_layout);
     let fill_value = machine.load_word_at(*value_offset);
-    let base_pointer = machine.load_word_at(*view_offset);
+    let strides = load_tensor_view_strides(machine, *view_offset, layout)?;
+    let base_pointer = load_tensor_view_pointer(machine, *view_offset);
 
     // write each addressable element through one concrete memory accessor
     let element = machine.projection(*element);
@@ -1949,6 +2091,7 @@ pub(crate) fn execute_tensor_fill(
             machine,
             base_pointer,
             layout,
+            &strides,
             element,
             fill_value,
             offset_heap_view_pointer,
@@ -1958,6 +2101,7 @@ pub(crate) fn execute_tensor_fill(
             machine,
             base_pointer,
             layout,
+            &strides,
             element,
             fill_value,
             offset_shared_heap_view_pointer,
@@ -1967,6 +2111,7 @@ pub(crate) fn execute_tensor_fill(
             machine,
             base_pointer,
             layout,
+            &strides,
             element,
             fill_value,
             offset_raw_view_pointer,
@@ -1976,6 +2121,7 @@ pub(crate) fn execute_tensor_fill(
             machine,
             base_pointer,
             layout,
+            &strides,
             element,
             fill_value,
             offset_shared_raw_view_pointer,
@@ -1985,6 +2131,7 @@ pub(crate) fn execute_tensor_fill(
             machine,
             base_pointer,
             layout,
+            &strides,
             element,
             fill_value,
             offset_stack_view_pointer,
@@ -1994,6 +2141,7 @@ pub(crate) fn execute_tensor_fill(
             machine,
             base_pointer,
             layout,
+            &strides,
             element,
             fill_value,
             offset_frame_view_pointer,
@@ -2003,6 +2151,7 @@ pub(crate) fn execute_tensor_fill(
             machine,
             base_pointer,
             layout,
+            &strides,
             element,
             fill_value,
             offset_static_view_pointer,
@@ -2034,761 +2183,44 @@ pub(crate) fn execute_tensor_copy(
     let target_layout = tensor_layout(machine, *target_layout);
     let source_layout = tensor_layout(machine, *source_layout);
 
-    // require identical flattened storage widths
-    if target_layout.element_span_len != source_layout.element_span_len {
+    // require identical logical shapes
+    if target_layout.shape != source_layout.shape {
         return Err(Error::TypeMismatch {
-            expected: "matching tensor sizes".to_string(),
-            actual: format!(
-                "{} vs {}",
-                target_layout.element_span_len, source_layout.element_span_len
-            ),
+            expected: "matching tensor shapes".to_string(),
+            actual: format!("{:?} vs {:?}", target_layout.shape, source_layout.shape),
         });
     }
 
     // resolve both view pointers and element descriptors once
-    let target_pointer = machine.load_word_at(*target_frame_offset);
-    let source_pointer = machine.load_word_at(*source_frame_offset);
+    let target_strides = load_tensor_view_strides(machine, *target_frame_offset, target_layout)?;
+    let source_strides = load_tensor_view_strides(machine, *source_frame_offset, source_layout)?;
+    let target_pointer = load_tensor_view_pointer(machine, *target_frame_offset);
+    let source_pointer = load_tensor_view_pointer(machine, *source_frame_offset);
     let source_element = machine.projection(*source_element);
     let target_element = machine.projection(*target_element);
 
-    // copy through one concrete address pair
-    match (*target_address, *source_address) {
-        (TensorAddress::Heap, TensorAddress::Heap) => {
-            copy_tensor_view(
-                machine,
-                target_pointer,
-                source_pointer,
-                target_layout,
-                source_layout,
-                target_element,
-                source_element,
-                offset_heap_view_pointer,
-                offset_heap_view_pointer,
-                load_heap_tensor_element,
-                store_heap_tensor_element,
-            )?;
-        }
-        (TensorAddress::Heap, TensorAddress::SharedHeap) => {
-            copy_tensor_view(
-                machine,
-                target_pointer,
-                source_pointer,
-                target_layout,
-                source_layout,
-                target_element,
-                source_element,
-                offset_heap_view_pointer,
-                offset_shared_heap_view_pointer,
-                load_shared_heap_tensor_element,
-                store_heap_tensor_element,
-            )?;
-        }
-        (TensorAddress::Heap, TensorAddress::Raw) => {
-            copy_tensor_view(
-                machine,
-                target_pointer,
-                source_pointer,
-                target_layout,
-                source_layout,
-                target_element,
-                source_element,
-                offset_heap_view_pointer,
-                offset_raw_view_pointer,
-                load_raw_tensor_element,
-                store_heap_tensor_element,
-            )?;
-        }
-        (TensorAddress::Heap, TensorAddress::SharedRaw) => {
-            copy_tensor_view(
-                machine,
-                target_pointer,
-                source_pointer,
-                target_layout,
-                source_layout,
-                target_element,
-                source_element,
-                offset_heap_view_pointer,
-                offset_shared_raw_view_pointer,
-                load_shared_raw_tensor_element,
-                store_heap_tensor_element,
-            )?;
-        }
-        (TensorAddress::Heap, TensorAddress::Stack) => {
-            copy_tensor_view(
-                machine,
-                target_pointer,
-                source_pointer,
-                target_layout,
-                source_layout,
-                target_element,
-                source_element,
-                offset_heap_view_pointer,
-                offset_stack_view_pointer,
-                load_stack_tensor_element,
-                store_heap_tensor_element,
-            )?;
-        }
-        (TensorAddress::Heap, TensorAddress::Frame) => {
-            copy_tensor_view(
-                machine,
-                target_pointer,
-                source_pointer,
-                target_layout,
-                source_layout,
-                target_element,
-                source_element,
-                offset_heap_view_pointer,
-                offset_frame_view_pointer,
-                load_frame_tensor_element,
-                store_heap_tensor_element,
-            )?;
-        }
-        (TensorAddress::Heap, TensorAddress::Static) => {
-            copy_tensor_view(
-                machine,
-                target_pointer,
-                source_pointer,
-                target_layout,
-                source_layout,
-                target_element,
-                source_element,
-                offset_heap_view_pointer,
-                offset_static_view_pointer,
-                load_static_tensor_element,
-                store_heap_tensor_element,
-            )?;
-        }
-        (TensorAddress::SharedHeap, TensorAddress::Heap) => {
-            copy_tensor_view(
-                machine,
-                target_pointer,
-                source_pointer,
-                target_layout,
-                source_layout,
-                target_element,
-                source_element,
-                offset_shared_heap_view_pointer,
-                offset_heap_view_pointer,
-                load_heap_tensor_element,
-                store_shared_heap_tensor_element,
-            )?;
-        }
-        (TensorAddress::SharedHeap, TensorAddress::SharedHeap) => {
-            copy_tensor_view(
-                machine,
-                target_pointer,
-                source_pointer,
-                target_layout,
-                source_layout,
-                target_element,
-                source_element,
-                offset_shared_heap_view_pointer,
-                offset_shared_heap_view_pointer,
-                load_shared_heap_tensor_element,
-                store_shared_heap_tensor_element,
-            )?;
-        }
-        (TensorAddress::SharedHeap, TensorAddress::Raw) => {
-            copy_tensor_view(
-                machine,
-                target_pointer,
-                source_pointer,
-                target_layout,
-                source_layout,
-                target_element,
-                source_element,
-                offset_shared_heap_view_pointer,
-                offset_raw_view_pointer,
-                load_raw_tensor_element,
-                store_shared_heap_tensor_element,
-            )?;
-        }
-        (TensorAddress::SharedHeap, TensorAddress::SharedRaw) => {
-            copy_tensor_view(
-                machine,
-                target_pointer,
-                source_pointer,
-                target_layout,
-                source_layout,
-                target_element,
-                source_element,
-                offset_shared_heap_view_pointer,
-                offset_shared_raw_view_pointer,
-                load_shared_raw_tensor_element,
-                store_shared_heap_tensor_element,
-            )?;
-        }
-        (TensorAddress::SharedHeap, TensorAddress::Stack) => {
-            copy_tensor_view(
-                machine,
-                target_pointer,
-                source_pointer,
-                target_layout,
-                source_layout,
-                target_element,
-                source_element,
-                offset_shared_heap_view_pointer,
-                offset_stack_view_pointer,
-                load_stack_tensor_element,
-                store_shared_heap_tensor_element,
-            )?;
-        }
-        (TensorAddress::SharedHeap, TensorAddress::Frame) => {
-            copy_tensor_view(
-                machine,
-                target_pointer,
-                source_pointer,
-                target_layout,
-                source_layout,
-                target_element,
-                source_element,
-                offset_shared_heap_view_pointer,
-                offset_frame_view_pointer,
-                load_frame_tensor_element,
-                store_shared_heap_tensor_element,
-            )?;
-        }
-        (TensorAddress::SharedHeap, TensorAddress::Static) => {
-            copy_tensor_view(
-                machine,
-                target_pointer,
-                source_pointer,
-                target_layout,
-                source_layout,
-                target_element,
-                source_element,
-                offset_shared_heap_view_pointer,
-                offset_static_view_pointer,
-                load_static_tensor_element,
-                store_shared_heap_tensor_element,
-            )?;
-        }
-        (TensorAddress::Raw, TensorAddress::Heap) => {
-            copy_tensor_view(
-                machine,
-                target_pointer,
-                source_pointer,
-                target_layout,
-                source_layout,
-                target_element,
-                source_element,
-                offset_raw_view_pointer,
-                offset_heap_view_pointer,
-                load_heap_tensor_element,
-                store_raw_tensor_element,
-            )?;
-        }
-        (TensorAddress::Raw, TensorAddress::SharedHeap) => {
-            copy_tensor_view(
-                machine,
-                target_pointer,
-                source_pointer,
-                target_layout,
-                source_layout,
-                target_element,
-                source_element,
-                offset_raw_view_pointer,
-                offset_shared_heap_view_pointer,
-                load_shared_heap_tensor_element,
-                store_raw_tensor_element,
-            )?;
-        }
-        (TensorAddress::Raw, TensorAddress::Raw) => {
-            copy_tensor_view(
-                machine,
-                target_pointer,
-                source_pointer,
-                target_layout,
-                source_layout,
-                target_element,
-                source_element,
-                offset_raw_view_pointer,
-                offset_raw_view_pointer,
-                load_raw_tensor_element,
-                store_raw_tensor_element,
-            )?;
-        }
-        (TensorAddress::Raw, TensorAddress::SharedRaw) => {
-            copy_tensor_view(
-                machine,
-                target_pointer,
-                source_pointer,
-                target_layout,
-                source_layout,
-                target_element,
-                source_element,
-                offset_raw_view_pointer,
-                offset_shared_raw_view_pointer,
-                load_shared_raw_tensor_element,
-                store_raw_tensor_element,
-            )?;
-        }
-        (TensorAddress::Raw, TensorAddress::Stack) => {
-            copy_tensor_view(
-                machine,
-                target_pointer,
-                source_pointer,
-                target_layout,
-                source_layout,
-                target_element,
-                source_element,
-                offset_raw_view_pointer,
-                offset_stack_view_pointer,
-                load_stack_tensor_element,
-                store_raw_tensor_element,
-            )?;
-        }
-        (TensorAddress::Raw, TensorAddress::Frame) => {
-            copy_tensor_view(
-                machine,
-                target_pointer,
-                source_pointer,
-                target_layout,
-                source_layout,
-                target_element,
-                source_element,
-                offset_raw_view_pointer,
-                offset_frame_view_pointer,
-                load_frame_tensor_element,
-                store_raw_tensor_element,
-            )?;
-        }
-        (TensorAddress::Raw, TensorAddress::Static) => {
-            copy_tensor_view(
-                machine,
-                target_pointer,
-                source_pointer,
-                target_layout,
-                source_layout,
-                target_element,
-                source_element,
-                offset_raw_view_pointer,
-                offset_static_view_pointer,
-                load_static_tensor_element,
-                store_raw_tensor_element,
-            )?;
-        }
-        (TensorAddress::SharedRaw, TensorAddress::Heap) => {
-            copy_tensor_view(
-                machine,
-                target_pointer,
-                source_pointer,
-                target_layout,
-                source_layout,
-                target_element,
-                source_element,
-                offset_shared_raw_view_pointer,
-                offset_heap_view_pointer,
-                load_heap_tensor_element,
-                store_shared_raw_tensor_element,
-            )?;
-        }
-        (TensorAddress::SharedRaw, TensorAddress::SharedHeap) => {
-            copy_tensor_view(
-                machine,
-                target_pointer,
-                source_pointer,
-                target_layout,
-                source_layout,
-                target_element,
-                source_element,
-                offset_shared_raw_view_pointer,
-                offset_shared_heap_view_pointer,
-                load_shared_heap_tensor_element,
-                store_shared_raw_tensor_element,
-            )?;
-        }
-        (TensorAddress::SharedRaw, TensorAddress::Raw) => {
-            copy_tensor_view(
-                machine,
-                target_pointer,
-                source_pointer,
-                target_layout,
-                source_layout,
-                target_element,
-                source_element,
-                offset_shared_raw_view_pointer,
-                offset_raw_view_pointer,
-                load_raw_tensor_element,
-                store_shared_raw_tensor_element,
-            )?;
-        }
-        (TensorAddress::SharedRaw, TensorAddress::SharedRaw) => {
-            copy_tensor_view(
-                machine,
-                target_pointer,
-                source_pointer,
-                target_layout,
-                source_layout,
-                target_element,
-                source_element,
-                offset_shared_raw_view_pointer,
-                offset_shared_raw_view_pointer,
-                load_shared_raw_tensor_element,
-                store_shared_raw_tensor_element,
-            )?;
-        }
-        (TensorAddress::SharedRaw, TensorAddress::Stack) => {
-            copy_tensor_view(
-                machine,
-                target_pointer,
-                source_pointer,
-                target_layout,
-                source_layout,
-                target_element,
-                source_element,
-                offset_shared_raw_view_pointer,
-                offset_stack_view_pointer,
-                load_stack_tensor_element,
-                store_shared_raw_tensor_element,
-            )?;
-        }
-        (TensorAddress::SharedRaw, TensorAddress::Frame) => {
-            copy_tensor_view(
-                machine,
-                target_pointer,
-                source_pointer,
-                target_layout,
-                source_layout,
-                target_element,
-                source_element,
-                offset_shared_raw_view_pointer,
-                offset_frame_view_pointer,
-                load_frame_tensor_element,
-                store_shared_raw_tensor_element,
-            )?;
-        }
-        (TensorAddress::SharedRaw, TensorAddress::Static) => {
-            copy_tensor_view(
-                machine,
-                target_pointer,
-                source_pointer,
-                target_layout,
-                source_layout,
-                target_element,
-                source_element,
-                offset_shared_raw_view_pointer,
-                offset_static_view_pointer,
-                load_static_tensor_element,
-                store_shared_raw_tensor_element,
-            )?;
-        }
-        (TensorAddress::Stack, TensorAddress::Heap) => {
-            copy_tensor_view(
-                machine,
-                target_pointer,
-                source_pointer,
-                target_layout,
-                source_layout,
-                target_element,
-                source_element,
-                offset_stack_view_pointer,
-                offset_heap_view_pointer,
-                load_heap_tensor_element,
-                store_stack_tensor_element,
-            )?;
-        }
-        (TensorAddress::Stack, TensorAddress::SharedHeap) => {
-            copy_tensor_view(
-                machine,
-                target_pointer,
-                source_pointer,
-                target_layout,
-                source_layout,
-                target_element,
-                source_element,
-                offset_stack_view_pointer,
-                offset_shared_heap_view_pointer,
-                load_shared_heap_tensor_element,
-                store_stack_tensor_element,
-            )?;
-        }
-        (TensorAddress::Stack, TensorAddress::Raw) => {
-            copy_tensor_view(
-                machine,
-                target_pointer,
-                source_pointer,
-                target_layout,
-                source_layout,
-                target_element,
-                source_element,
-                offset_stack_view_pointer,
-                offset_raw_view_pointer,
-                load_raw_tensor_element,
-                store_stack_tensor_element,
-            )?;
-        }
-        (TensorAddress::Stack, TensorAddress::SharedRaw) => {
-            copy_tensor_view(
-                machine,
-                target_pointer,
-                source_pointer,
-                target_layout,
-                source_layout,
-                target_element,
-                source_element,
-                offset_stack_view_pointer,
-                offset_shared_raw_view_pointer,
-                load_shared_raw_tensor_element,
-                store_stack_tensor_element,
-            )?;
-        }
-        (TensorAddress::Stack, TensorAddress::Stack) => {
-            copy_tensor_view(
-                machine,
-                target_pointer,
-                source_pointer,
-                target_layout,
-                source_layout,
-                target_element,
-                source_element,
-                offset_stack_view_pointer,
-                offset_stack_view_pointer,
-                load_stack_tensor_element,
-                store_stack_tensor_element,
-            )?;
-        }
-        (TensorAddress::Stack, TensorAddress::Frame) => {
-            copy_tensor_view(
-                machine,
-                target_pointer,
-                source_pointer,
-                target_layout,
-                source_layout,
-                target_element,
-                source_element,
-                offset_stack_view_pointer,
-                offset_frame_view_pointer,
-                load_frame_tensor_element,
-                store_stack_tensor_element,
-            )?;
-        }
-        (TensorAddress::Stack, TensorAddress::Static) => {
-            copy_tensor_view(
-                machine,
-                target_pointer,
-                source_pointer,
-                target_layout,
-                source_layout,
-                target_element,
-                source_element,
-                offset_stack_view_pointer,
-                offset_static_view_pointer,
-                load_static_tensor_element,
-                store_stack_tensor_element,
-            )?;
-        }
-        (TensorAddress::Frame, TensorAddress::Heap) => {
-            copy_tensor_view(
-                machine,
-                target_pointer,
-                source_pointer,
-                target_layout,
-                source_layout,
-                target_element,
-                source_element,
-                offset_frame_view_pointer,
-                offset_heap_view_pointer,
-                load_heap_tensor_element,
-                store_frame_tensor_element,
-            )?;
-        }
-        (TensorAddress::Frame, TensorAddress::SharedHeap) => {
-            copy_tensor_view(
-                machine,
-                target_pointer,
-                source_pointer,
-                target_layout,
-                source_layout,
-                target_element,
-                source_element,
-                offset_frame_view_pointer,
-                offset_shared_heap_view_pointer,
-                load_shared_heap_tensor_element,
-                store_frame_tensor_element,
-            )?;
-        }
-        (TensorAddress::Frame, TensorAddress::Raw) => {
-            copy_tensor_view(
-                machine,
-                target_pointer,
-                source_pointer,
-                target_layout,
-                source_layout,
-                target_element,
-                source_element,
-                offset_frame_view_pointer,
-                offset_raw_view_pointer,
-                load_raw_tensor_element,
-                store_frame_tensor_element,
-            )?;
-        }
-        (TensorAddress::Frame, TensorAddress::SharedRaw) => {
-            copy_tensor_view(
-                machine,
-                target_pointer,
-                source_pointer,
-                target_layout,
-                source_layout,
-                target_element,
-                source_element,
-                offset_frame_view_pointer,
-                offset_shared_raw_view_pointer,
-                load_shared_raw_tensor_element,
-                store_frame_tensor_element,
-            )?;
-        }
-        (TensorAddress::Frame, TensorAddress::Stack) => {
-            copy_tensor_view(
-                machine,
-                target_pointer,
-                source_pointer,
-                target_layout,
-                source_layout,
-                target_element,
-                source_element,
-                offset_frame_view_pointer,
-                offset_stack_view_pointer,
-                load_stack_tensor_element,
-                store_frame_tensor_element,
-            )?;
-        }
-        (TensorAddress::Frame, TensorAddress::Frame) => {
-            copy_tensor_view(
-                machine,
-                target_pointer,
-                source_pointer,
-                target_layout,
-                source_layout,
-                target_element,
-                source_element,
-                offset_frame_view_pointer,
-                offset_frame_view_pointer,
-                load_frame_tensor_element,
-                store_frame_tensor_element,
-            )?;
-        }
-        (TensorAddress::Frame, TensorAddress::Static) => {
-            copy_tensor_view(
-                machine,
-                target_pointer,
-                source_pointer,
-                target_layout,
-                source_layout,
-                target_element,
-                source_element,
-                offset_frame_view_pointer,
-                offset_static_view_pointer,
-                load_static_tensor_element,
-                store_frame_tensor_element,
-            )?;
-        }
-        (TensorAddress::Static, TensorAddress::Heap) => {
-            copy_tensor_view(
-                machine,
-                target_pointer,
-                source_pointer,
-                target_layout,
-                source_layout,
-                target_element,
-                source_element,
-                offset_static_view_pointer,
-                offset_heap_view_pointer,
-                load_heap_tensor_element,
-                store_static_tensor_element,
-            )?;
-        }
-        (TensorAddress::Static, TensorAddress::SharedHeap) => {
-            copy_tensor_view(
-                machine,
-                target_pointer,
-                source_pointer,
-                target_layout,
-                source_layout,
-                target_element,
-                source_element,
-                offset_static_view_pointer,
-                offset_shared_heap_view_pointer,
-                load_shared_heap_tensor_element,
-                store_static_tensor_element,
-            )?;
-        }
-        (TensorAddress::Static, TensorAddress::Raw) => {
-            copy_tensor_view(
-                machine,
-                target_pointer,
-                source_pointer,
-                target_layout,
-                source_layout,
-                target_element,
-                source_element,
-                offset_static_view_pointer,
-                offset_raw_view_pointer,
-                load_raw_tensor_element,
-                store_static_tensor_element,
-            )?;
-        }
-        (TensorAddress::Static, TensorAddress::SharedRaw) => {
-            copy_tensor_view(
-                machine,
-                target_pointer,
-                source_pointer,
-                target_layout,
-                source_layout,
-                target_element,
-                source_element,
-                offset_static_view_pointer,
-                offset_shared_raw_view_pointer,
-                load_shared_raw_tensor_element,
-                store_static_tensor_element,
-            )?;
-        }
-        (TensorAddress::Static, TensorAddress::Stack) => {
-            copy_tensor_view(
-                machine,
-                target_pointer,
-                source_pointer,
-                target_layout,
-                source_layout,
-                target_element,
-                source_element,
-                offset_static_view_pointer,
-                offset_stack_view_pointer,
-                load_stack_tensor_element,
-                store_static_tensor_element,
-            )?;
-        }
-        (TensorAddress::Static, TensorAddress::Frame) => {
-            copy_tensor_view(
-                machine,
-                target_pointer,
-                source_pointer,
-                target_layout,
-                source_layout,
-                target_element,
-                source_element,
-                offset_static_view_pointer,
-                offset_frame_view_pointer,
-                load_frame_tensor_element,
-                store_static_tensor_element,
-            )?;
-        }
-        (TensorAddress::Static, TensorAddress::Static) => {
-            copy_tensor_view(
-                machine,
-                target_pointer,
-                source_pointer,
-                target_layout,
-                source_layout,
-                target_element,
-                source_element,
-                offset_static_view_pointer,
-                offset_static_view_pointer,
-                load_static_tensor_element,
-                store_static_tensor_element,
-            )?;
-        }
-    }
+    // copy through the selected address spaces
+    copy_tensor_view(
+        machine,
+        target_pointer,
+        source_pointer,
+        target_layout,
+        source_layout,
+        &target_strides,
+        &source_strides,
+        target_element,
+        source_element,
+        |pointer, element, offset, length| {
+            offset_tensor_view_pointer(pointer, element, offset, length, *target_address)
+        },
+        |pointer, element, offset, length| {
+            offset_tensor_view_pointer(pointer, element, offset, length, *source_address)
+        },
+        |machine, pointer, element| load_tensor_element(machine, pointer, element, *source_address),
+        |machine, pointer, element, value| {
+            store_tensor_element(machine, pointer, element, value, *target_address)
+        },
+    )?;
 
     Ok(())
 }
@@ -3243,7 +2675,6 @@ pub(crate) fn execute_tensor_reduce(
 ) -> Result<(), Error> {
     let TensorReduce { kernel, .. } = machine.side::<TensorReduce>(instruction);
     let operation = tensor_reduce_operation(*kernel);
-
     execute_tensor_reduce_elements(machine, instruction, operation)
 }
 
@@ -3274,13 +2705,9 @@ fn execute_tensor_reduce_elements(
     // resolve source tensor
     let tensor_value = frame_value(machine, *tensor_offset);
     let init_value = machine.load_word_at(*initial_offset);
-    let reduce_axes: HashSet<u32> = axes.iter().copied().collect();
-    let mut reduced_shape = Vec::with_capacity(axes.len());
-    for axis in axes {
-        let Some(size) = source_layout.shape.get(*axis as usize) else {
-            return Err(Error::InvalidInstruction);
-        };
-        reduced_shape.push(*size);
+    let reduction = tensor_reduction(&source_layout.shape, axes)?;
+    if dest_layout.shape.as_ref() != reduction.output_shape.as_slice() {
+        return Err(Error::InvalidInstruction);
     }
     let mut source_index = vec![0u64; source_layout.shape.len()];
 
@@ -3292,7 +2719,7 @@ fn execute_tensor_reduce_elements(
         |machine, output_index| {
             let mut output_cursor = 0usize;
             for (dim, element) in source_index.iter_mut().enumerate() {
-                if reduce_axes.contains(&(dim as u32)) {
+                if reduction.axis_mask[dim] {
                     *element = 0;
                     continue;
                 }
@@ -3308,7 +2735,7 @@ fn execute_tensor_reduce_elements(
             let mut reduce_error = None;
 
             // accumulate the reduced axes for this destination index
-            for_each_index(&reduced_shape, |reduced_index| {
+            for_each_index(&reduction.reduced_shape, |reduced_index| {
                 if reduce_error.is_some() {
                     return;
                 }
@@ -3374,6 +2801,238 @@ fn tensor_reduce_operation(
         mir::TensorReduceOperator::Or => reduce_or,
         mir::TensorReduceOperator::Xor => reduce_xor,
     }
+}
+
+/// Shape information for one tensor reduction.
+struct TensorReduction {
+    /// The source axes reduced by this operation.
+    axis_mask: Vec<bool>,
+    /// The shape traversed inside the reduction loop.
+    reduced_shape: Vec<u64>,
+    /// The result shape after removing reduced axes.
+    output_shape: Vec<u64>,
+    /// The number of elements read for one output element.
+    element_count: u64,
+}
+
+/// Compute shape information for one tensor reduction.
+fn tensor_reduction(source_shape: &[u64], axes: &[u32]) -> Result<TensorReduction, Error> {
+    let mut axis_mask = vec![false; source_shape.len()];
+    let mut reduced_shape = Vec::with_capacity(axes.len());
+    let mut element_count = 1u64;
+
+    for axis in axes {
+        let axis = *axis as usize;
+        if axis >= source_shape.len() || axis_mask[axis] {
+            return Err(Error::InvalidInstruction);
+        }
+
+        let dim = source_shape[axis];
+        axis_mask[axis] = true;
+        reduced_shape.push(dim);
+        element_count = element_count
+            .checked_mul(dim)
+            .ok_or(Error::InvalidInstruction)?;
+    }
+
+    let output_shape = source_shape
+        .iter()
+        .enumerate()
+        .filter_map(|(index, dim)| (!axis_mask[index]).then_some(*dim))
+        .collect();
+
+    Ok(TensorReduction {
+        axis_mask,
+        reduced_shape,
+        output_shape,
+        element_count,
+    })
+}
+
+/// Execute tensor index reduction.
+pub(crate) fn execute_tensor_index_reduce(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Result<(), Error> {
+    // decode side records
+    let TensorIndexReduce {
+        dest_offset,
+        tensor_offset,
+        axis,
+        source_layout,
+        dest_layout,
+        kernel,
+        tie_break,
+    } = machine.side::<TensorIndexReduce>(instruction);
+    let axes = [*axis];
+
+    // resolve compiled tensor descriptors
+    let source_layout = tensor_layout(machine, *source_layout);
+    let dest_layout = tensor_layout(machine, *dest_layout);
+    let element_layout = source_layout.element_layout;
+
+    // resolve reduced shape
+    let tensor_value = frame_value(machine, *tensor_offset);
+    let reduction = tensor_reduction(&source_layout.shape, &axes)?;
+    if reduction.element_count == 0 {
+        return Err(Error::InvalidInstruction);
+    }
+    if dest_layout.shape.as_ref() != reduction.output_shape.as_slice() {
+        return Err(Error::InvalidInstruction);
+    }
+    if !tensor_index_layout_can_store(dest_layout.element_layout, reduction.element_count) {
+        return Err(Error::InvalidInstruction);
+    }
+    let mut source_index = vec![0u64; source_layout.shape.len()];
+
+    // store result
+    store_tensor_indexed_elements(
+        machine,
+        *dest_offset,
+        dest_layout,
+        |machine, output_index| {
+            let mut output_cursor = 0usize;
+            for (dim, element) in source_index.iter_mut().enumerate() {
+                if reduction.axis_mask[dim] {
+                    *element = 0;
+                } else {
+                    *element = output_index
+                        .get(output_cursor)
+                        .copied()
+                        .ok_or(Error::InvalidInstruction)?;
+                    output_cursor += 1;
+                }
+            }
+
+            let mut best_value = None;
+            let mut best_index = 0u64;
+            let mut linear_index = 0u64;
+            let mut reduce_error = None;
+
+            // scan the reduced axis for this destination index
+            for_each_index(&reduction.reduced_shape, |reduced_index| {
+                if reduce_error.is_some() {
+                    return;
+                }
+
+                for (reduce_position, axis) in axes.iter().enumerate() {
+                    source_index[*axis as usize] = reduced_index[reduce_position];
+                }
+
+                let source_offset = match tensor_linear_index(
+                    &source_index,
+                    &source_layout.shape,
+                    &source_layout.strides,
+                ) {
+                    Ok(offset) => offset,
+                    Err(error) => {
+                        reduce_error = Some(error);
+                        return;
+                    }
+                };
+                let source_value = match load_frame_tensor_element_at(
+                    machine,
+                    tensor_value,
+                    source_layout,
+                    source_offset,
+                ) {
+                    Ok(value) => value,
+                    Err(error) => {
+                        reduce_error = Some(error);
+                        return;
+                    }
+                };
+
+                let is_selected = match best_value {
+                    Some(value) => tensor_index_reduce_select(
+                        element_layout,
+                        *kernel,
+                        *tie_break,
+                        value,
+                        source_value,
+                    ),
+                    None => Ok(true),
+                };
+                match is_selected {
+                    Ok(true) => {
+                        best_value = Some(source_value);
+                        best_index = linear_index;
+                    }
+                    Ok(false) => {}
+                    Err(error) => {
+                        reduce_error = Some(error);
+                        return;
+                    }
+                }
+
+                linear_index += 1;
+            });
+
+            if let Some(error) = reduce_error {
+                return Err(error);
+            }
+
+            Ok(Word::uint(best_index, Word::BIT_LEN))
+        },
+    )?;
+
+    Ok(())
+}
+
+/// Return whether an index result layout can store every reduced position.
+fn tensor_index_layout_can_store(layout: ScalarLayout, element_count: u64) -> bool {
+    let ScalarLayout::Int {
+        width,
+        is_signed: false,
+    } = layout
+    else {
+        return false;
+    };
+
+    let max_index = element_count - 1;
+    let needed_bits = (u64::BITS - max_index.leading_zeros()).max(1) as u16;
+
+    width >= needed_bits
+}
+
+/// Return whether `candidate` should replace `current`.
+fn tensor_index_reduce_select(
+    layout: ScalarLayout,
+    operator: mir::TensorIndexReduceOperator,
+    tie_break: mir::TensorIndexTieBreak,
+    current: Word,
+    candidate: Word,
+) -> Result<bool, Error> {
+    let comparison = compare_tensor_words(layout, current, candidate)?;
+    let is_equal_last =
+        comparison == Ordering::Equal && tie_break == mir::TensorIndexTieBreak::Last;
+    let is_better = match operator {
+        mir::TensorIndexReduceOperator::Min => comparison == Ordering::Greater,
+        mir::TensorIndexReduceOperator::Max => comparison == Ordering::Less,
+    };
+
+    Ok(is_better || is_equal_last)
+}
+
+/// Compare two tensor scalar words.
+fn compare_tensor_words(layout: ScalarLayout, left: Word, right: Word) -> Result<Ordering, Error> {
+    let ordering = match layout {
+        ScalarLayout::Int {
+            is_signed: true, ..
+        } => left.as_i64().cmp(&right.as_i64()),
+        ScalarLayout::Int { .. } => left.as_u64().cmp(&right.as_u64()),
+        ScalarLayout::Float { width: 32 } => left
+            .as_f32()
+            .partial_cmp(&right.as_f32())
+            .ok_or(Error::InvalidInstruction)?,
+        ScalarLayout::Float { width: 64 } => left
+            .as_f64()
+            .partial_cmp(&right.as_f64())
+            .ok_or(Error::InvalidInstruction)?,
+        _ => return Err(Error::InvalidInstruction),
+    };
+
+    Ok(ordering)
 }
 
 /// Execute tensor.dot.
@@ -4309,28 +3968,75 @@ pub(crate) fn execute_tensor_view(
             });
         }
     }
-    for (expected, actual) in dest_layout.strides.iter().zip(strides.iter()) {
-        if *expected != *actual {
-            return Err(Error::TypeMismatch {
-                expected: "tensor.view stride".to_string(),
-                actual: format!("{actual} vs {expected}"),
+
+    if offsets.len() != source_layout.shape.len()
+        || sizes.len() != dest_layout.shape.len()
+        || strides.len() != source_layout.shape.len()
+        || dest_layout.shape.len() != source_layout.shape.len()
+    {
+        return Err(Error::TypeMismatch {
+            expected: "tensor.view rank".to_string(),
+            actual: format!(
+                "offsets={}, sizes={}, strides={}, source_rank={}, dest_rank={}",
+                offsets.len(),
+                sizes.len(),
+                strides.len(),
+                source_layout.shape.len(),
+                dest_layout.shape.len(),
+            ),
+        });
+    }
+
+    let source_strides = load_tensor_view_strides(machine, *view_offset, source_layout)?;
+    let mut dest_strides = Vec::with_capacity(strides.len());
+    for (source_stride, stride) in source_strides.iter().copied().zip(strides.iter().copied()) {
+        let dest_stride = source_stride
+            .checked_mul(stride)
+            .ok_or(Error::InvalidInstruction)?;
+        dest_strides.push(dest_stride);
+    }
+
+    if dest_strides.len() != dest_layout.shape.len() {
+        return Err(Error::TypeMismatch {
+            expected: "tensor.view stride rank".to_string(),
+            actual: format!("{} vs {}", dest_strides.len(), dest_layout.shape.len()),
+        });
+    }
+
+    for axis in 0..source_layout.shape.len() {
+        let offset = offsets[axis];
+        let size = sizes[axis];
+        let stride = strides[axis];
+        let source_size = source_layout.shape[axis];
+
+        if size == 0 {
+            continue;
+        }
+
+        let last_step = size.checked_sub(1).ok_or(Error::InvalidInstruction)?;
+        let last_distance = last_step
+            .checked_mul(stride)
+            .ok_or(Error::InvalidInstruction)?;
+        let last_index = offset
+            .checked_add(last_distance)
+            .ok_or(Error::InvalidInstruction)?;
+        if last_index >= source_size {
+            return Err(Error::IndexOutOfBounds {
+                index: last_index,
+                length: source_size,
             });
         }
     }
 
-    let offset = tensor_linear_index(&offsets, &source_layout.shape, &source_layout.strides)?;
+    let offset = tensor_linear_index(&offsets, &source_layout.shape, &source_strides)?;
 
-    let view_value = machine.load_word_at(*view_offset);
+    let view_value = load_tensor_view_pointer(machine, *view_offset);
     let element = machine.projection(*element);
-    let pointer = offset_tensor_view_pointer(
-        view_value,
-        element,
-        offset,
-        source_layout.element_span_len,
-        *address,
-    )?;
+    let source_span_len = tensor_element_span_len(&source_layout.shape, &source_strides)?;
+    let pointer =
+        offset_tensor_view_pointer(view_value, element, offset, source_span_len, *address)?;
 
-    machine.store_word_at(*dest_offset, pointer);
+    store_tensor_view_descriptor(machine, *dest_offset, pointer, &dest_strides)?;
 
     Ok(())
 }

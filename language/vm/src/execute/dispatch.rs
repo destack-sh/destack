@@ -834,6 +834,7 @@ macro_rules! dispatch_instruction {
                 $step!(super::execute_cast_wide_int_to_word($machine, instruction))
             }
             Op::CastWideInt => $step!(super::execute_cast_wide_int($machine, instruction)),
+            Op::CastTensorView => $step!(super::execute_tensor_view_cast($machine, instruction)),
             Op::Call => $transfer!(super::execute_call($machine, instruction, $block_pc)),
             Op::CallBranch => $transfer!(super::execute_call_branch($machine, instruction)),
             Op::CallIndirect => {
@@ -1027,6 +1028,9 @@ macro_rules! dispatch_instruction {
             Op::TensorFill => $step!(super::execute_tensor_fill($machine, instruction)),
             Op::TensorGather => $step!(super::execute_tensor_gather($machine, instruction)),
             Op::TensorExtract => $step!(super::execute_tensor_extract($machine, instruction)),
+            Op::TensorIndexReduce => {
+                $step!(super::execute_tensor_index_reduce($machine, instruction))
+            }
             Op::TensorLoad => $step!(super::execute_tensor_load($machine, instruction)),
             Op::TensorSplat => $step!(super::execute_tensor_splat($machine, instruction)),
             Op::TensorPad => $step!(super::execute_tensor_pad($machine, instruction)),

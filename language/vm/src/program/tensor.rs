@@ -72,19 +72,9 @@ impl TensorLayout {
         ty: mir::LocalNodeId<mir::Type>,
     ) -> Result<Self> {
         // resolve tensor type data
-        let (shape, layout, element) = match tree.get(ty) {
-            mir::Type::Tensor {
-                shape,
-                layout,
-                element,
-                ..
-            }
-            | mir::Type::TensorView {
-                shape,
-                layout,
-                element,
-                ..
-            } => (shape, layout, element),
+        let (shape, element) = match tree.get(ty) {
+            mir::Type::Tensor { shape, element, .. } => (shape, element),
+            mir::Type::TensorView { shape, element, .. } => (shape, element),
             _ => {
                 return Err(Error::TypeMismatch {
                     expected: "tensor type".to_string(),
@@ -96,13 +86,13 @@ impl TensorLayout {
             context: "tensor element type".to_string(),
         })?;
 
-        // compile shape and strides
+        // compile shape
         let shape = static_shape(shape)?;
-        let strides = match layout {
-            mir::TensorLayout::RowMajor => Ok(row_major_strides(&shape)),
-            mir::TensorLayout::ColumnMajor => Ok(column_major_strides(&shape)),
-            mir::TensorLayout::Strided { strides } => static_strides(strides),
-        }?;
+        let strides = match tree.get(ty) {
+            mir::Type::Tensor { layout, .. } => static_tensor_strides(&shape, layout)?,
+            mir::Type::TensorView { layout, .. } => static_tensor_view_strides(&shape, layout)?,
+            _ => return Err(Error::InvalidInstruction),
+        };
         let element_count = tensor_element_count(&shape);
         let element_span_len = tensor_element_span_len(&shape, &strides)?;
         let is_contiguous = element_count == element_span_len;
@@ -136,6 +126,31 @@ impl TensorLayout {
     }
 }
 
+/// Compile a static owning tensor stride list.
+fn static_tensor_strides(shape: &[u64], layout: &mir::TensorLayout) -> Result<Vec<u64>> {
+    match layout {
+        mir::TensorLayout::Dense {
+            order: mir::TensorDimensionOrder::RowMajor,
+        } => Ok(row_major_strides(shape)),
+        mir::TensorLayout::Dense {
+            order: mir::TensorDimensionOrder::ColumnMajor,
+        } => Ok(column_major_strides(shape)),
+    }
+}
+
+/// Compile a static tensor view stride list.
+fn static_tensor_view_strides(shape: &[u64], layout: &mir::TensorViewLayout) -> Result<Vec<u64>> {
+    match layout {
+        mir::TensorViewLayout::Dense {
+            order: mir::TensorDimensionOrder::RowMajor,
+        } => Ok(row_major_strides(shape)),
+        mir::TensorViewLayout::Dense {
+            order: mir::TensorDimensionOrder::ColumnMajor,
+        } => Ok(column_major_strides(shape)),
+        mir::TensorViewLayout::Strided => Ok(row_major_strides(shape)),
+    }
+}
+
 /// Convert tensor dimensions to a static shape.
 pub(crate) fn static_shape(shape: &[mir::TensorDimension]) -> Result<Vec<u64>> {
     let mut dims = Vec::with_capacity(shape.len());
@@ -147,27 +162,15 @@ pub(crate) fn static_shape(shape: &[mir::TensorDimension]) -> Result<Vec<u64>> {
                     name: "tensor dynamic shape".to_string(),
                 });
             }
-        }
-    }
-
-    Ok(dims)
-}
-
-/// Convert tensor strides to a static list.
-pub(crate) fn static_strides(strides: &[mir::TensorDimension]) -> Result<Vec<u64>> {
-    let mut values = Vec::with_capacity(strides.len());
-    for dim in strides {
-        match dim {
-            mir::TensorDimension::Static(value) => values.push(*value),
-            mir::TensorDimension::Dynamic => {
+            mir::TensorDimension::Symbol(name) => {
                 return Err(Error::UnsupportedInstruction {
-                    name: "tensor dynamic stride".to_string(),
+                    name: format!("tensor symbolic shape {name}"),
                 });
             }
         }
     }
 
-    Ok(values)
+    Ok(dims)
 }
 
 /// Compute row-major strides for a shape.

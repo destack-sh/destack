@@ -1,8 +1,8 @@
 use destack_mir as mir;
 
 use crate::program::{
-    FrameSelect, Instruction, IntegerCast, Op, PointerCast, ValueLayout, WideIntegerCast,
-    value_layout_from_type, word_layout_from_type,
+    FrameSelect, Instruction, IntegerCast, Op, PointerCast, TensorViewCast, ValueLayout,
+    WideIntegerCast, value_layout_from_type, word_layout_from_type,
 };
 use crate::{Error, Result};
 
@@ -18,6 +18,7 @@ impl<'a> BlockLowerer<'a> {
         operator: mir::CastOperator,
         argument: mir::ValueReference,
         to_type: mir::TypeReference,
+        pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
         // require SSA values and the target type
         let destination = destination
@@ -35,6 +36,23 @@ impl<'a> BlockLowerer<'a> {
         })?;
         let destination_type = self.value_type_for_value(destination)?;
         let argument_type = self.value_type_for_value(argument)?;
+
+        // build tensor view descriptors from dense pointer casts
+        if operator == mir::CastOperator::Bitcast
+            && matches!(self.tree.get(to_type), mir::Type::TensorView { .. })
+        {
+            let view_layout = self.tensor_layout(pool, to_type)?;
+
+            return Ok(pool.instruction_with_side(
+                Op::CastTensorView,
+                TensorViewCast {
+                    dest_offset: value_offset(self, destination)?,
+                    pointer_offset: word_offset(self, argument)?,
+                    view_layout,
+                },
+            ));
+        }
+
         let destination_is_word = self.layout_for_type(destination_type)?.is_word();
         let argument_is_word = self.layout_for_type(argument_type)?.is_word();
 

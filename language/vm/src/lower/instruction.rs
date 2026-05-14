@@ -80,7 +80,7 @@ impl<'a> BlockLowerer<'a> {
                 operator,
                 argument,
                 to_type,
-            } => self.lower_cast(*destination, *operator, *argument, *to_type)?,
+            } => self.lower_cast(*destination, *operator, *argument, *to_type, pool)?,
 
             mir::Instruction::Select {
                 destination,
@@ -349,6 +349,7 @@ fn is_tensor_instruction(inst: &mir::Instruction) -> bool {
             | mir::Instruction::TensorPad { .. }
             | mir::Instruction::TensorConcat { .. }
             | mir::Instruction::TensorReduce { .. }
+            | mir::Instruction::TensorIndexReduce { .. }
             | mir::Instruction::TensorDot { .. }
             | mir::Instruction::TensorConvolution { .. }
             | mir::Instruction::TensorGather { .. }

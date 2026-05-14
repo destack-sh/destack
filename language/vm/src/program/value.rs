@@ -394,21 +394,7 @@ pub(crate) fn value_layout_from_type(
         | mir::Type::Union { .. }
         | mir::Type::Vector { .. }
         | mir::Type::Tensor { .. } => ValueLayout::FrameBytes { ty },
-        mir::Type::TensorView {
-            kind,
-            address_space,
-            access,
-            element,
-            is_nullable,
-            ..
-        } => match element.ty() {
-            Some(element) => ValueLayout::Pointer {
-                pointee: element,
-                pointer_class: pointer_class_from_reference(address_space.clone(), *kind),
-                reference: ReferenceMeta::new(*kind, address_space.clone(), *access, *is_nullable),
-            },
-            None => ValueLayout::Unknown,
-        },
+        mir::Type::TensorView { .. } => ValueLayout::FrameBytes { ty },
     }
 }
 

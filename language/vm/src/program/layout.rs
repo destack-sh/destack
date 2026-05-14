@@ -61,6 +61,11 @@ pub(crate) enum LayoutShape {
         /// The flattened logical length.
         element_count: usize,
     },
+    /// One tensor view descriptor with data and stride slots.
+    TensorView {
+        /// The number of tensor axes.
+        rank: usize,
+    },
 }
 
 /// One compiled field layout.
@@ -143,7 +148,10 @@ impl Layout {
             LayoutShape::Array { element, .. }
             | LayoutShape::Vector { element, .. }
             | LayoutShape::Tensor { element, .. } => Some(*element),
-            LayoutShape::Scalar | LayoutShape::Fields(_) | LayoutShape::Slice => None,
+            LayoutShape::Scalar
+            | LayoutShape::Fields(_)
+            | LayoutShape::Slice
+            | LayoutShape::TensorView { .. } => None,
         }
     }
 
@@ -153,7 +161,10 @@ impl Layout {
             LayoutShape::Array { length, .. } => Some(*length),
             LayoutShape::Vector { element_count, .. } => Some(*element_count),
             LayoutShape::Tensor { element_count, .. } => Some(*element_count),
-            LayoutShape::Scalar | LayoutShape::Fields(_) | LayoutShape::Slice => None,
+            LayoutShape::Scalar
+            | LayoutShape::Fields(_)
+            | LayoutShape::Slice
+            | LayoutShape::TensorView { .. } => None,
         }
     }
 
@@ -344,8 +355,8 @@ fn build_layout(
         | mir::Type::TypeId
         | mir::Type::Reference { .. }
         | mir::Type::FunctionPointer { .. }
-        | mir::Type::Float { .. }
-        | mir::Type::TensorView { .. } => raw_scalar_layout(tree, ty),
+        | mir::Type::Float { .. } => raw_scalar_layout(tree, ty),
+        mir::Type::TensorView { shape, .. } => build_tensor_view_layout(shape)?,
         mir::Type::FunctionSignature { .. } => scalar_layout(0, 1),
         mir::Type::Atomic { value } => {
             let value = value.ty().ok_or_else(|| Error::MissingRepresentation {
@@ -530,8 +541,7 @@ fn raw_scalar_size_alignment(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) 
         | mir::Type::TypeId
         | mir::Type::Reference { .. }
         | mir::Type::Callable { .. }
-        | mir::Type::FunctionPointer { .. }
-        | mir::Type::TensorView { .. } => {
+        | mir::Type::FunctionPointer { .. } => {
             let byte_len = tree.pointer_bytes() as usize;
 
             (byte_len, byte_len.max(1))
@@ -773,6 +783,28 @@ fn build_tensor_layout(
     ))
 }
 
+/// Build one tensor view descriptor layout.
+fn build_tensor_view_layout(shape: &[mir::TensorDimension]) -> Result<Layout> {
+    let rank = shape.len();
+    let slots = rank
+        .checked_add(1)
+        .ok_or_else(|| Error::InvariantViolation {
+            context: format!("tensor view rank overflow: rank={rank}"),
+        })?;
+    let byte_len = slots
+        .checked_mul(Word::BYTE_LEN)
+        .ok_or_else(|| Error::InvariantViolation {
+            context: format!("tensor view byte length overflow: slots={slots}"),
+        })?;
+
+    Ok(Layout {
+        byte_len,
+        shape: LayoutShape::TensorView { rank },
+        reference_map: ReferenceMap::empty(),
+        alignment: Word::BYTE_LEN,
+    })
+}
+
 /// Build one repeated element layout.
 fn repeated_layout(
     element_type: mir::LocalNodeId<mir::Type>,
@@ -869,11 +901,6 @@ fn heap_reference_space(
 
     match tree.get(ty) {
         mir::Type::Reference {
-            kind,
-            address_space,
-            ..
-        } if is_heap_reference_kind(*kind) => Some(address_space.clone()),
-        mir::Type::TensorView {
             kind,
             address_space,
             ..
@@ -1166,6 +1193,28 @@ fn append_reference_offsets(
             }
         }
 
+        // tensor view descriptors trace the backing storage pointer
+        LayoutShape::TensorView { .. } => {
+            let mir::Type::TensorView {
+                kind,
+                address_space,
+                ..
+            } = tree.get(repr_type(tree, ty))
+            else {
+                return Err(Error::InvariantViolation {
+                    context: "tensor view layout requested for non-tensor-view type".to_string(),
+                });
+            };
+
+            if is_heap_reference_kind(*kind) {
+                match address_space {
+                    mir::AddressSpace::Local => local_offsets.push(base_offset),
+                    mir::AddressSpace::Shared => shared_offsets.push(base_offset),
+                    _ => {}
+                }
+            }
+        }
+
         // repeated layouts recurse once per logical element
         LayoutShape::Array { element, length }
         | LayoutShape::Vector {
@@ -1220,19 +1269,28 @@ fn compute_tensor_element_count(
     shape: &[mir::TensorDimension],
     layout: &mir::TensorLayout,
 ) -> Result<usize> {
-    let shape: Vec<u64> = shape
-        .iter()
-        .map(|dimension| match dimension {
-            mir::TensorDimension::Static(value) => *value,
-            mir::TensorDimension::Dynamic => 0,
-        })
-        .collect();
+    let mut static_shape = Vec::with_capacity(shape.len());
+    for dimension in shape {
+        match dimension {
+            mir::TensorDimension::Static(value) => static_shape.push(*value),
+            mir::TensorDimension::Dynamic => {
+                return Err(Error::UnsupportedInstruction {
+                    name: "tensor dynamic shape".to_string(),
+                });
+            }
+            mir::TensorDimension::Symbol(name) => {
+                return Err(Error::UnsupportedInstruction {
+                    name: format!("tensor symbolic shape {name}"),
+                });
+            }
+        }
+    }
 
     let element_count = match layout {
-        mir::TensorLayout::RowMajor | mir::TensorLayout::ColumnMajor => {
+        mir::TensorLayout::Dense { .. } => {
             let mut element_count = 1u64;
 
-            for dimension in shape.iter().copied() {
+            for dimension in static_shape.iter().copied() {
                 element_count =
                     element_count
                         .checked_mul(dimension)
@@ -1245,52 +1303,6 @@ fn compute_tensor_element_count(
 
             usize::try_from(element_count).map_err(|_| Error::InvariantViolation {
                 context: format!("tensor element count too large: {element_count}"),
-            })?
-        }
-        mir::TensorLayout::Strided { strides } => {
-            let strides: Vec<u64> = strides
-                .iter()
-                .map(|dimension| match dimension {
-                    mir::TensorDimension::Static(value) => *value,
-                    mir::TensorDimension::Dynamic => 0,
-                })
-                .collect();
-            let mut max_index = 0u64;
-
-            // compute the highest reachable logical element index
-            for (dimension, stride) in shape.iter().copied().zip(strides.iter().copied()) {
-                if dimension == 0 {
-                    continue;
-                }
-
-                let extent = (dimension - 1)
-                    .checked_mul(stride)
-                    .ok_or_else(|| Error::InvariantViolation {
-                        context: format!(
-                            "strided tensor extent overflow: dimension={dimension}, stride={stride}",
-                        ),
-                    })?;
-                max_index =
-                    max_index
-                        .checked_add(extent)
-                        .ok_or_else(|| Error::InvariantViolation {
-                            context: format!(
-                                "strided tensor element count overflow: max_index={max_index}, extent={extent}",
-                            ),
-                        })?;
-            }
-
-            let element_count =
-                max_index
-                    .checked_add(1)
-                    .ok_or_else(|| Error::InvariantViolation {
-                        context: format!(
-                            "strided tensor element count overflow: max_index={max_index}"
-                        ),
-                    })?;
-
-            usize::try_from(element_count).map_err(|_| Error::InvariantViolation {
-                context: format!("strided tensor element count too large: {element_count}"),
             })?
         }
     };

@@ -6,10 +6,11 @@ use super::{
     FrameSelect, Intrinsic, MoveRange, Projection, SliceProjection, SwitchCase, TailCall,
     TailCallClass, TailCallIndirect, TailCallInterface, TensorBinary, TensorBroadcast,
     TensorConcat, TensorContiguousBinary, TensorContiguousUnary, TensorConvert, TensorConvolution,
-    TensorCopy, TensorDot, TensorExtract, TensorFill, TensorGather, TensorLayout, TensorLoad,
-    TensorPad, TensorReduce, TensorReshape, TensorScatter, TensorSelect, TensorSlice, TensorStore,
-    TensorTranspose, TensorUnary, TensorView, VectorBinary, VectorConvert, VectorExtract,
-    VectorInsert, VectorReduce, VectorSelect, VectorShuffle, VectorSplat, VectorUnary,
+    TensorCopy, TensorDot, TensorExtract, TensorFill, TensorGather, TensorIndexReduce,
+    TensorLayout, TensorLoad, TensorPad, TensorReduce, TensorReshape, TensorScatter, TensorSelect,
+    TensorSlice, TensorStore, TensorTranspose, TensorUnary, TensorView, TensorViewCast,
+    VectorBinary, VectorConvert, VectorExtract, VectorInsert, VectorReduce, VectorSelect,
+    VectorShuffle, VectorSplat, VectorUnary,
 };
 
 /// Identifier for one pooled check constraint.
@@ -289,6 +290,7 @@ side_record_table! {
     tensor_store: TensorStore,
     tensor_fill: TensorFill,
     tensor_copy: TensorCopy,
+    tensor_view_cast: TensorViewCast,
     tensor_reshape: TensorReshape,
     tensor_broadcast: TensorBroadcast,
     tensor_transpose: TensorTranspose,
@@ -296,6 +298,7 @@ side_record_table! {
     tensor_pad: TensorPad,
     tensor_concat: TensorConcat,
     tensor_reduce: TensorReduce,
+    tensor_index_reduce: TensorIndexReduce,
     tensor_dot: TensorDot,
     tensor_convolution: TensorConvolution,
     tensor_gather: TensorGather,
