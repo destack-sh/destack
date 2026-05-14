@@ -1,10 +1,14 @@
 use std::cell::UnsafeCell;
 use std::mem::MaybeUninit;
-use std::sync::atomic::{AtomicU8, Ordering};
+use std::ptr::null_mut;
+use std::sync::atomic::{AtomicPtr, AtomicU8, Ordering};
 
 #[cfg(not(target_arch = "wasm32"))]
 use crate::platform;
 use crate::platform::PageFrame;
+
+/// The number of page entries stored in one sparse table chunk.
+const PAGE_CHUNK_LEN: usize = 1024;
 
 /// The atomic state tag for one mapped page.
 #[repr(u8)]
@@ -73,8 +77,10 @@ pub(super) struct PageTable {
     /// The native page-frame width.
     #[cfg(not(target_arch = "wasm32"))]
     frame_bytes: usize,
-    /// The page entries indexed by page number.
-    entries: Box<[PageEntry]>,
+    /// The number of pages covered by the table.
+    page_count: usize,
+    /// The sparse page entry chunks indexed by page chunk.
+    chunks: Box<[AtomicPtr<PageChunk>]>,
 }
 
 impl PageTable {
@@ -84,8 +90,9 @@ impl PageTable {
         let _ = base_address;
 
         let page_count = byte_len / frame_bytes;
-        let entries = (0..page_count)
-            .map(|_| PageEntry::empty())
+        let chunk_count = page_count.div_ceil(PAGE_CHUNK_LEN);
+        let chunks = (0..chunk_count)
+            .map(|_| AtomicPtr::new(null_mut()))
             .collect::<Vec<_>>()
             .into_boxed_slice();
 
@@ -96,37 +103,145 @@ impl PageTable {
             byte_len,
             #[cfg(not(target_arch = "wasm32"))]
             frame_bytes,
-            entries,
+            page_count,
+            chunks,
         }
     }
 
-    /// Return one page entry by index.
-    pub(super) fn entry(&self, page_index: usize) -> &PageEntry {
-        &self.entries[page_index]
+    /// Return one page entry by index when its chunk exists.
+    fn entry(&self, page_index: usize) -> Option<&PageEntry> {
+        let (chunk_index, entry_index) = self.chunk_location(page_index);
+        let chunk = self.chunk(chunk_index)?;
+
+        Some(&chunk.entries[entry_index])
+    }
+
+    /// Return one page entry by index, creating its chunk when needed.
+    fn ensure_entry(&self, page_index: usize) -> &PageEntry {
+        let (chunk_index, entry_index) = self.chunk_location(page_index);
+        let chunk = self.ensure_chunk(chunk_index);
+
+        &chunk.entries[entry_index]
+    }
+
+    /// Return one page state.
+    pub(super) fn state(&self, page_index: usize) -> PageState {
+        let Some(entry) = self.entry(page_index) else {
+            return PageState::Reserved;
+        };
+
+        entry.state()
+    }
+
+    /// Store one page state.
+    pub(super) fn set_state(&self, page_index: usize, state: PageState) {
+        let entry = match state {
+            PageState::Reserved => self.entry(page_index),
+            _ => Some(self.ensure_entry(page_index)),
+        };
+
+        if let Some(entry) = entry {
+            entry.set_state(state);
+        }
     }
 
     /// Return true when one page is mapped.
     pub(super) fn is_mapped(&self, page_index: usize) -> bool {
-        self.entry(page_index).is_mapped()
+        self.entry(page_index)
+            .is_some_and(|entry| entry.is_mapped())
     }
 
     /// Return every mapped page index.
     pub(super) fn mapped_pages(&self) -> impl Iterator<Item = usize> + '_ {
-        self.entries
-            .iter()
-            .enumerate()
-            .filter_map(|(page_index, entry)| entry.is_mapped().then_some(page_index))
+        self.mapped_states().map(|(page_index, _)| page_index)
     }
 
     /// Return every mapped page state.
     pub(super) fn mapped_states(&self) -> impl Iterator<Item = (usize, PageState)> + '_ {
-        self.entries
+        let page_count = self.page_count;
+
+        self.chunks
             .iter()
             .enumerate()
-            .filter_map(|(page_index, entry)| match entry.state() {
-                PageState::Reserved => None,
-                state => Some((page_index, state)),
+            .filter_map(|(chunk_index, slot)| {
+                let chunk = Self::slot_chunk(slot)?;
+
+                Some((chunk_index, chunk))
             })
+            .flat_map(move |(chunk_index, chunk)| {
+                let page_start = chunk_index * PAGE_CHUNK_LEN;
+
+                chunk
+                    .entries
+                    .iter()
+                    .enumerate()
+                    .filter_map(move |(entry_index, entry)| {
+                        let page_index = page_start + entry_index;
+                        let is_inside_table = page_index < page_count;
+                        if !is_inside_table {
+                            return None;
+                        }
+
+                        match entry.state() {
+                            PageState::Reserved => None,
+                            state => Some((page_index, state)),
+                        }
+                    })
+            })
+    }
+
+    /// Return one chunk and entry index for a page index.
+    fn chunk_location(&self, page_index: usize) -> (usize, usize) {
+        debug_assert!(page_index < self.page_count);
+
+        (page_index / PAGE_CHUNK_LEN, page_index % PAGE_CHUNK_LEN)
+    }
+
+    /// Return one page chunk when it has been allocated.
+    fn chunk(&self, chunk_index: usize) -> Option<&PageChunk> {
+        self.chunks.get(chunk_index).and_then(Self::slot_chunk)
+    }
+
+    /// Return one page chunk from one atomic slot.
+    fn slot_chunk(slot: &AtomicPtr<PageChunk>) -> Option<&PageChunk> {
+        let pointer = slot.load(Ordering::Acquire);
+        if pointer.is_null() {
+            None
+        } else {
+            Some(unsafe { &*pointer })
+        }
+    }
+
+    /// Return one page chunk, allocating it if needed.
+    fn ensure_chunk(&self, chunk_index: usize) -> &PageChunk {
+        let slot = &self.chunks[chunk_index];
+        if let Some(chunk) = Self::slot_chunk(slot) {
+            return chunk;
+        }
+
+        // publish one fresh chunk, or use the chunk another thread published first
+        let chunk = Box::into_raw(Box::new(PageChunk::new()));
+        let pointer =
+            match slot.compare_exchange(null_mut(), chunk, Ordering::AcqRel, Ordering::Acquire) {
+                Ok(_) => chunk,
+                Err(existing) => {
+                    unsafe {
+                        drop(Box::from_raw(chunk));
+                    }
+                    existing
+                }
+            };
+
+        unsafe { &*pointer }
+    }
+
+    /// Return the number of allocated chunks.
+    #[cfg(test)]
+    fn allocated_chunk_count(&self) -> usize {
+        self.chunks
+            .iter()
+            .filter(|slot| !slot.load(Ordering::Acquire).is_null())
+            .count()
     }
 
     /// Mark the watched shared page modified and writable.
@@ -137,7 +252,9 @@ impl PageTable {
         }
 
         let page_index = (address - self.base_address) / self.frame_bytes;
-        let entry = self.entry(page_index);
+        let Some(entry) = self.entry(page_index) else {
+            return false;
+        };
         if !entry.is_shared() {
             return false;
         }
@@ -158,6 +275,40 @@ impl PageTable {
         entry.mark_modified();
 
         true
+    }
+}
+
+impl Drop for PageTable {
+    fn drop(&mut self) {
+        for slot in &self.chunks {
+            let pointer = slot.load(Ordering::Relaxed);
+            if pointer.is_null() {
+                continue;
+            }
+
+            unsafe {
+                drop(Box::from_raw(pointer));
+            }
+        }
+    }
+}
+
+/// One sparse chunk of page entries.
+#[derive(Debug)]
+struct PageChunk {
+    /// The page entries covered by this chunk.
+    entries: Box<[PageEntry]>,
+}
+
+impl PageChunk {
+    /// Create one reserved page chunk.
+    fn new() -> Self {
+        let entries = (0..PAGE_CHUNK_LEN)
+            .map(|_| PageEntry::empty())
+            .collect::<Vec<_>>()
+            .into_boxed_slice();
+
+        Self { entries }
     }
 }
 
@@ -262,5 +413,42 @@ impl PageEntry {
     /// Return the mapped page frame.
     fn frame(&self) -> PageFrame {
         unsafe { (*self.frame.get()).assume_init() }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Sparse page tables allocate no entry chunks on reservation.
+    #[test]
+    fn test_reserve_starts_without_chunks() {
+        let table = PageTable::new(0, PAGE_CHUNK_LEN * 4 * 4096, 4096);
+
+        assert_eq!(table.allocated_chunk_count(), 0);
+        assert!(!table.is_mapped(0));
+        assert!(table.mapped_pages().next().is_none());
+    }
+
+    /// Setting page states allocates only the touched chunks.
+    #[test]
+    fn test_set_state_allocates_touched_chunks() {
+        let table = PageTable::new(0, PAGE_CHUNK_LEN * 4 * 4096, 4096);
+        let first = PageFrame { offset: 0 };
+        let second = PageFrame { offset: 4096 };
+        let page_index = PAGE_CHUNK_LEN + 3;
+
+        table.set_state(0, PageState::Owned(first));
+        table.set_state(page_index, PageState::Shared(second));
+
+        let pages = table.mapped_pages().collect::<Vec<_>>();
+        let states = table.mapped_states().collect::<Vec<_>>();
+
+        assert_eq!(table.allocated_chunk_count(), 2);
+        assert_eq!(pages, vec![0, page_index]);
+        assert!(matches!(states[0], (0, PageState::Owned(frame)) if frame == first));
+        assert!(
+            matches!(states[1], (index, PageState::Shared(frame)) if index == page_index && frame == second)
+        );
     }
 }
