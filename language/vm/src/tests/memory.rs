@@ -1,7 +1,7 @@
 use crate::diagnostic::Error;
 use crate::tests::{
     assert_runtime_error_matches, create_isolate, create_isolate_with_data_layout, run_mir,
-    run_mir_expect, run_mir_ok, run_mir_with_frame_ok,
+    run_mir_expect, run_mir_ok, run_mir_with_frame_ok, test_shared_heap_options,
 };
 use crate::{SharedHeap, Value, Word};
 use destack_heap::{
@@ -208,7 +208,7 @@ fn test_shared_heap_reference_value_roundtrip() {
 /// Preserve shared raw bytes across image roundtrips and later writes.
 #[test]
 fn test_roundtrip_shared_memory_image() {
-    let options = destack_heap::HeapOptions::shared();
+    let options = test_shared_heap_options();
     let allocator = std::sync::Arc::new(
         Allocator::try_new(options.page_bytes, options.allocator_chunk_bytes)
             .expect("valid explicit allocator options should build"),
@@ -264,7 +264,7 @@ fn test_roundtrip_shared_memory_image() {
 /// Shared raw-space budgeting counts committed page bytes.
 #[test]
 fn test_shared_raw_budget_tracks_committed_usage() {
-    let options = destack_heap::HeapOptions::shared();
+    let options = test_shared_heap_options();
     let allocator = std::sync::Arc::new(
         Allocator::try_new(options.page_bytes, options.allocator_chunk_bytes)
             .expect("valid explicit allocator options should build"),
@@ -302,10 +302,10 @@ fn test_shared_raw_budget_tracks_committed_usage() {
 #[test]
 fn test_new_slice_allocates_slice_value() {
     let mir = r#"
-function allocArray(): slice<int32> {
+function allocArray(): slice<int32, managed> {
 b0:
     v0: int64 = 10int64
-    v1: slice<int32> = new.slice int32, v0
+    v1: slice<int32, managed> = new.slice int32, v0
     return v1
 }"#;
     let mut isolate = create_isolate(mir);
@@ -359,7 +359,7 @@ fn test_slice_element_address_loads_and_stores() {
 function accessSlice(): int32 {
 b0:
     v0: int64 = 3int64
-    v1: slice<int32> = new.slice int32, v0
+    v1: slice<int32, managed> = new.slice int32, v0
     v2: int64 = 1int64
     v3: ref<int32, managed> = element.address v1, v2
     v4: int32 = 42int32
@@ -762,10 +762,10 @@ b0:
 #[test]
 fn test_new_slice_uses_pointer_stride_for_heap_references() {
     let mir = r#"
-function allocArray(): slice<ref<int32, managed, readonly>> {
+function allocArray(): slice<ref<int32, managed, readonly>, managed> {
 b0:
     v0: int64 = 2int64
-    v1: slice<ref<int32, managed, readonly>> = new.slice ref<int32, managed, readonly>, v0
+    v1: slice<ref<int32, managed, readonly>, managed> = new.slice ref<int32, managed, readonly>, v0
     return v1
 }"#;
     let data_layout = DataLayout { pointer_bytes: 8 };

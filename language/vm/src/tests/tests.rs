@@ -14,6 +14,9 @@ use destack_source::FileId;
 use crate::diagnostic::{Error, RuntimeResult};
 use crate::{Continuation, Isolate, IsolateId, IsolateOptions, Outcome, RootSet, Word};
 
+/// The virtual heap-space width used by ordinary VM tests.
+const TEST_HEAP_SPACE_BYTES: usize = 16 * 1024 * 1024;
+
 /// The isolate and authoritative heap used by one test runtime.
 pub(crate) struct TestIsolate {
     /// The VM isolate under test.
@@ -32,7 +35,7 @@ pub(crate) struct TestIsolate {
 
 /// Create one local test heap.
 pub(crate) fn create_test_heap() -> Heap {
-    let options = HeapOptions::local();
+    let options = test_local_heap_options();
     let allocator = Arc::new(
         Allocator::try_new(options.page_bytes, options.allocator_chunk_bytes)
             .expect("test allocator should build"),
@@ -44,7 +47,7 @@ pub(crate) fn create_test_heap() -> Heap {
 
 /// Create one shared test heap.
 pub(crate) fn create_test_shared_heap() -> SharedHeap {
-    let options = HeapOptions::shared();
+    let options = test_shared_heap_options();
     let allocator = Arc::new(
         Allocator::try_new(options.page_bytes, options.allocator_chunk_bytes)
             .expect("test allocator should build"),
@@ -52,6 +55,24 @@ pub(crate) fn create_test_shared_heap() -> SharedHeap {
 
     SharedHeap::with_allocator_limits_and_options(allocator, SharedHeapLimits::default(), options)
         .expect("test shared heap should build")
+}
+
+/// Create heap options for ordinary local VM tests.
+fn test_local_heap_options() -> HeapOptions {
+    HeapOptions {
+        heap_space_bytes: TEST_HEAP_SPACE_BYTES,
+        raw_space_bytes: TEST_HEAP_SPACE_BYTES,
+        ..HeapOptions::local()
+    }
+}
+
+/// Create heap options for ordinary shared VM tests.
+pub(crate) fn test_shared_heap_options() -> HeapOptions {
+    HeapOptions {
+        heap_space_bytes: TEST_HEAP_SPACE_BYTES,
+        raw_space_bytes: TEST_HEAP_SPACE_BYTES,
+        ..HeapOptions::shared()
+    }
 }
 
 impl TestIsolate {
@@ -69,11 +90,13 @@ impl TestIsolate {
         let mut isolate =
             Isolate::build_with_options(isolate_id, tree, strings, IsolateOptions::test())
                 .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
+
         let mut statics = StaticSpace::empty();
         let heap = create_test_heap();
         let shared_heap = create_test_shared_heap();
         let shared_gc = shared_heap.register_collector_worker();
         let shared_allocator = shared_heap.allocator();
+
         isolate
             .initialize(&heap, &shared_heap, &mut statics)
             .unwrap_or_else(|error| panic!("failed to initialize isolate globals: {error}"));
