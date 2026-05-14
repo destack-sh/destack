@@ -1,4 +1,3 @@
-mod ast;
 mod binary;
 mod css;
 mod data;
@@ -15,7 +14,6 @@ mod payload;
 mod query;
 mod script;
 
-pub use ast::*;
 pub use binary::*;
 pub use css::*;
 pub use data::*;

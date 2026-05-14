@@ -1,9 +1,48 @@
 use destack_dir as dir;
 use serde::{Deserialize, Serialize};
 
-/// Declared DIR base for one source module.
+/// Parsed DIR for one source module.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DirDeclared {
+pub struct DirParsed {
+    /// The parsed tree.
+    pub tree: dir::Tree,
+    /// The parsed parent index.
+    pub parents: dir::NodeParentIndex,
+    /// The top-level expressions.
+    pub roots: Vec<dir::LocalNodeId<dir::Expression>>,
+    /// The module tokens.
+    pub tokens: Vec<dir::TokenSpan>,
+    /// The module side tokens.
+    pub side_tokens: Vec<dir::TokenSpan>,
+    /// Stable anchor expression for diagnostics.
+    pub anchor_expression: dir::LocalNodeId<dir::Expression>,
+}
+
+impl DirParsed {
+    /// Create a parsed DIR artifact from one tree.
+    pub fn from_tree(
+        tree: dir::Tree,
+        roots: Vec<dir::LocalNodeId<dir::Expression>>,
+        tokens: Vec<dir::TokenSpan>,
+        side_tokens: Vec<dir::TokenSpan>,
+        anchor_expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Self {
+        let parents = dir::NodeParentIndex::from_tree(&tree);
+
+        Self {
+            tree,
+            parents,
+            roots,
+            tokens,
+            side_tokens,
+            anchor_expression,
+        }
+    }
+}
+
+/// Bound DIR base for one source module.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DirBound {
     /// The source tree.
     pub tree: dir::Tree,
     /// Source bindings.

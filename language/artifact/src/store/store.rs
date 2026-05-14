@@ -6,10 +6,11 @@ use destack_source::DiagnosticCollection;
 use super::entry::{ArtifactEntry, ArtifactOutcome};
 use super::pin::ArtifactPin;
 use crate::{
-    ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactPayload, ArtifactVersion, Ast, Data,
-    DirChecked, DirDeclared, DirElaborated, DirExpanded, DirExported, DirImported, DirMaterialized,
-    GlobalEnvironment, MirLowered, MirOptimized, MirVerified, ModuleLinted, ModuleOutput,
-    ModuleQueryIndex, PackageLinted, PackageOutput, WorkspaceLinted, WorkspaceQueryIndex,
+    ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactPayload, ArtifactVersion, Data,
+    DirBound, DirChecked, DirElaborated, DirExpanded, DirExported, DirImported, DirMaterialized,
+    DirParsed, GlobalEnvironment, MirLowered, MirOptimized, MirVerified, ModuleLinted,
+    ModuleOutput, ModuleQueryIndex, PackageLinted, PackageOutput, WorkspaceLinted,
+    WorkspaceQueryIndex,
 };
 
 /// One versioned artifact family map.
@@ -23,16 +24,16 @@ pub struct ArtifactStore {
     /// The live retain count for each exact artifact version.
     retained_versions: DashMap<ArtifactVersion, usize>,
 
-    /// AST artifacts by module.
-    ast: ArtifactMap<Ast>,
+    /// DIR artifacts by module.
+    dir_parsed: ArtifactMap<DirParsed>,
     /// Parsed data artifacts by module.
     data: ArtifactMap<Data>,
 
     /// Global environment by profile.
     global_environment: ArtifactMap<GlobalEnvironment>,
 
-    /// Declared DIR artifacts by module and profile.
-    dir_declared: ArtifactMap<DirDeclared>,
+    /// Bound DIR artifacts by module and profile.
+    dir_bound: ArtifactMap<DirBound>,
     /// Imported DIR artifacts by module and profile.
     dir_imported: ArtifactMap<DirImported>,
     /// Expanded DIR artifacts by module and profile.
@@ -148,9 +149,9 @@ impl ArtifactStore {
     pub fn has(&self, version: &ArtifactVersion) -> bool {
         match &version.key {
             ArtifactKey::GlobalEnvironment { .. } => self.global_environment.contains_key(version),
-            ArtifactKey::Ast { .. } => self.ast.contains_key(version),
+            ArtifactKey::DirParsed { .. } => self.dir_parsed.contains_key(version),
             ArtifactKey::Data { .. } => self.data.contains_key(version),
-            ArtifactKey::DirDeclared { .. } => self.dir_declared.contains_key(version),
+            ArtifactKey::DirBound { .. } => self.dir_bound.contains_key(version),
             ArtifactKey::DirImported { .. } => self.dir_imported.contains_key(version),
             ArtifactKey::DirExpanded { .. } => self.dir_expanded.contains_key(version),
             ArtifactKey::DirExported { .. } => self.dir_exported.contains_key(version),
@@ -205,12 +206,12 @@ impl ArtifactStore {
                 matches!(&version.key, ArtifactKey::GlobalEnvironment { .. }),
                 "GlobalEnvironment",
             ),
-            ArtifactPayload::Ast(payload) => Self::insert_payload(
-                &self.ast,
+            ArtifactPayload::DirParsed(payload) => Self::insert_payload(
+                &self.dir_parsed,
                 version,
                 payload,
-                matches!(&version.key, ArtifactKey::Ast { .. }),
-                "Ast",
+                matches!(&version.key, ArtifactKey::DirParsed { .. }),
+                "DirParsed",
             ),
             ArtifactPayload::Data(payload) => Self::insert_payload(
                 &self.data,
@@ -219,12 +220,12 @@ impl ArtifactStore {
                 matches!(&version.key, ArtifactKey::Data { .. }),
                 "Data",
             ),
-            ArtifactPayload::DirDeclared(payload) => Self::insert_payload(
-                &self.dir_declared,
+            ArtifactPayload::DirBound(payload) => Self::insert_payload(
+                &self.dir_bound,
                 version,
                 payload,
-                matches!(&version.key, ArtifactKey::DirDeclared { .. }),
-                "DirDeclared",
+                matches!(&version.key, ArtifactKey::DirBound { .. }),
+                "DirBound",
             ),
             ArtifactPayload::DirImported(payload) => Self::insert_payload(
                 &self.dir_imported,
@@ -367,9 +368,11 @@ impl ArtifactStore {
             .map(|entry| entry.value().clone())
     }
 
-    /// Get one AST artifact.
-    pub fn ast(&self, version: &ArtifactVersion) -> Option<Arc<Ast>> {
-        self.ast.get(version).map(|entry| entry.value().clone())
+    /// Get one DIR artifact.
+    pub fn dir_parsed(&self, version: &ArtifactVersion) -> Option<Arc<DirParsed>> {
+        self.dir_parsed
+            .get(version)
+            .map(|entry| entry.value().clone())
     }
 
     /// Get one data artifact.
@@ -377,9 +380,9 @@ impl ArtifactStore {
         self.data.get(version).map(|entry| entry.value().clone())
     }
 
-    /// Get one declared DIR artifact.
-    pub fn dir_declared(&self, version: &ArtifactVersion) -> Option<Arc<DirDeclared>> {
-        self.dir_declared
+    /// Get one bound DIR artifact.
+    pub fn dir_bound(&self, version: &ArtifactVersion) -> Option<Arc<DirBound>> {
+        self.dir_bound
             .get(version)
             .map(|entry| entry.value().clone())
     }
