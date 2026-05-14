@@ -12,6 +12,8 @@ pub(crate) struct FileSystemSource<'a> {
     repository: &'a Repository,
     /// The filesystem root scanned by this source.
     root: &'a Path,
+    /// The repository path where this source root is mounted.
+    mount_path: PathBuf,
     /// The directories waiting to be scanned.
     pending_directories: Vec<PathBuf>,
     /// The directories already scanned.
@@ -35,9 +37,19 @@ pub(crate) struct FileSystemFile {
 impl<'a> FileSystemSource<'a> {
     /// Create one filesystem repository source.
     pub(crate) fn new(repository: &'a Repository, root: &'a Path) -> Self {
+        Self::mounted(repository, root, PathBuf::new())
+    }
+
+    /// Create one mounted filesystem repository source.
+    pub(crate) fn mounted(
+        repository: &'a Repository,
+        root: &'a Path,
+        mount_path: impl Into<PathBuf>,
+    ) -> Self {
         Self {
             repository,
             root,
+            mount_path: mount_path.into(),
             pending_directories: Vec::new(),
             visited_directories: HashSet::new(),
             ignore_set: IgnoreSet::new(),
@@ -65,7 +77,9 @@ impl<'a> FileSystemSource<'a> {
 
     /// Return one file descriptor when the path is visible as a file.
     fn file(&mut self, logical_path: &Path) -> Result<Option<FileSystemFile>, SourceError> {
-        let path = self.physical_path(logical_path);
+        let Some(path) = self.physical_path(logical_path) else {
+            return Ok(None);
+        };
 
         // source visibility
         self.load_ignore_rules_for_path(&path);
@@ -186,13 +200,36 @@ impl<'a> FileSystemSource<'a> {
     }
 
     /// Resolve one logical repository path into this source's physical path space.
-    fn physical_path(&self, logical_path: &Path) -> PathBuf {
-        // absolute paths stay absolute and will fail ownership unless inside root
+    fn physical_path(&self, logical_path: &Path) -> Option<PathBuf> {
+        // absolute paths are never owned by repository sources
         if logical_path.is_absolute() {
-            return logical_path.to_path_buf();
+            return None;
         }
 
-        self.root.join(logical_path)
+        // map repository path through the source mount
+        let relative_path = self.source_relative_path(logical_path)?;
+
+        Some(self.root.join(relative_path))
+    }
+
+    /// Resolve one physical source path into repository path space.
+    fn repository_path(&self, path: &Path) -> PathBuf {
+        let relative_path = path.strip_prefix(self.root).unwrap_or(path);
+        let repository_path = self.mount_path.join(relative_path);
+        let repository_path = normalize_source_path(repository_path.to_string_lossy());
+
+        PathBuf::from(repository_path)
+    }
+
+    /// Resolve one repository path into source relative path space.
+    fn source_relative_path(&self, path: &Path) -> Option<PathBuf> {
+        // root mounted sources own ordinary relative paths directly
+        if self.mount_path.as_os_str().is_empty() {
+            return Some(path.to_path_buf());
+        }
+
+        // mounted sources own paths below their mount only
+        path.strip_prefix(&self.mount_path).ok().map(PathBuf::from)
     }
 
     /// Load one source file content.
@@ -226,6 +263,11 @@ impl<'a> FileSystemSource<'a> {
             Ok(FileContent::Text { content })
         }
     }
+}
+
+/// Normalize one repository source path.
+fn normalize_source_path(path: impl AsRef<str>) -> String {
+    path.as_ref().replace('\\', "/")
 }
 
 impl RepositorySource for FileSystemSource<'_> {
@@ -277,7 +319,7 @@ impl RepositorySource for FileSystemSource<'_> {
 
                 // collect filesystem files
                 if metadata.is_file {
-                    let repository_path = PathBuf::from(self.repository.logical_path(&path));
+                    let repository_path = self.repository_path(&path);
 
                     // skip files outside this source sync
                     if !(self.include_path)(&repository_path) {
@@ -308,7 +350,9 @@ impl RepositorySource for FileSystemSource<'_> {
     }
 
     fn owns(&mut self, path: &Path) -> Result<bool, SourceError> {
-        let physical_path = self.physical_path(path);
+        let Some(physical_path) = self.physical_path(path) else {
+            return Ok(false);
+        };
         self.load_ignore_rules_for_path(&physical_path);
 
         // repository path authority
@@ -331,7 +375,9 @@ impl RepositorySource for FileSystemSource<'_> {
     }
 
     fn exists(&mut self, path: &Path) -> Result<bool, SourceError> {
-        let physical_path = self.physical_path(path);
+        let Some(physical_path) = self.physical_path(path) else {
+            return Ok(false);
+        };
 
         // source authority
         if !self.owns(path)? {
