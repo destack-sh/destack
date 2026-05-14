@@ -1,20 +1,10 @@
 use destack_artifact::ArtifactKey;
-use destack_runtime::runtime::bindings::BindingPolicy;
 use destack_source::{ModuleId, ProfileId, TargetId};
 use destack_vm::{Isolate, IsolateId, IsolateOptions, Value};
-use destack_workspace::{Repository, Revision, Target};
+use destack_workspace::{Repository, Revision};
 
 use crate::common::InputSource;
 use crate::error::{CliError, CliResult};
-
-/// Create binding policy from target configuration.
-pub fn binding_policy_for_target(target: &Target) -> BindingPolicy {
-    // map execution mode into runtime binding settings
-    let mode = target.runtime_options.execution_mode();
-
-    // build the policy object
-    BindingPolicy::new(mode)
-}
 
 /// Create a VM isolate from the module MIR.
 pub fn create_isolate(
@@ -36,19 +26,21 @@ pub fn create_isolate(
         .map_err(|error| CliError::message(error.to_string()))?;
 
     let artifact_store = repository.artifact_store();
-    let (tree, strings) = if let Some(version) = optimized_version
+    let tree = if let Some(version) = optimized_version
         && let Some(mir) = artifact_store.mir_optimized(&version)
+        && let Some(tree) = mir.latest_patch_tree()
     {
-        (mir.tree.clone(), mir.strings.clone().into_immutable())
+        tree.clone()
     } else if let Some(version) = lowered_version
         && let Some(mir) = artifact_store.mir_lowered(&version)
     {
-        (mir.tree.clone(), mir.strings.clone().into_immutable())
+        mir.tree.clone()
     } else {
         return Err(CliError::message(format!(
             "missing MIR for target {target_id:?} (run requires lowering)"
         )));
     };
+    let strings = repository.string_pool().as_ref().clone();
 
     // construct the isolate from mir state
     Isolate::build_with_options(IsolateId::new(1), tree, strings, options)

@@ -25,9 +25,7 @@ use serde::de::DeserializeOwned;
 use serde_json::{Map, Value, json};
 
 use crate::common::program::{
-    ArrowParenthesesArg, FormatterOptionsArgs, ImportSortOrderArg, IndentStyleArg, LineEndingArg,
-    LintPresetArg, LinterOptionsArgs, OrganizeImportsArg, QuotePropertyArg, QuoteStyleArg,
-    TrailingCommaArg,
+    FormatterOptionsArgs, IndentStyleArg, LineEndingArg, LintPresetArg, LinterOptionsArgs,
 };
 use crate::common::{
     CommandError, CommandReport, DiagnosticFormat, FormatOptions, InputSource, LineWriter,
@@ -333,60 +331,6 @@ fn formatter_override_value(args: &FormatterOptionsArgs) -> Option<Value> {
         object.insert("lineWidth".to_string(), json!(line_width));
     }
 
-    // syntax
-    if let Some(quote_style) = args.quote_style {
-        object.insert(
-            "quoteStyle".to_string(),
-            json!(quote_style_override_value(quote_style)),
-        );
-    }
-    if let Some(trailing_comma) = args.trailing_comma {
-        object.insert(
-            "trailingComma".to_string(),
-            json!(trailing_comma_override_value(trailing_comma)),
-        );
-    }
-    if let Some(bracket_spacing) = args.bracket_spacing {
-        object.insert("bracketSpacing".to_string(), json!(bracket_spacing));
-    }
-    if let Some(arrow_parens) = args.arrow_parens {
-        object.insert(
-            "arrowParens".to_string(),
-            json!(arrow_parentheses_override_value(arrow_parens)),
-        );
-    }
-    if let Some(quote_props) = args.quote_props {
-        object.insert(
-            "quoteProps".to_string(),
-            json!(quote_property_override_value(quote_props)),
-        );
-    }
-
-    // trees
-    if let Some(bracket_same_line) = args.bracket_same_line {
-        object.insert("bracketSameLine".to_string(), json!(bracket_same_line));
-    }
-    if let Some(single_attribute_per_line) = args.single_attribute_per_line {
-        object.insert(
-            "singleAttributePerLine".to_string(),
-            json!(single_attribute_per_line),
-        );
-    }
-
-    // imports
-    if let Some(organize_imports) = args.organize_imports {
-        object.insert(
-            "organizeImports".to_string(),
-            json!(organize_imports_override_value(organize_imports)),
-        );
-    }
-    if let Some(import_sort_order) = args.import_sort_order {
-        object.insert(
-            "importSortOrder".to_string(),
-            json!(import_sort_order_override_value(import_sort_order)),
-        );
-    }
-
     if object.is_empty() {
         return None;
     }
@@ -459,57 +403,6 @@ fn line_ending_override_value(value: LineEndingArg) -> &'static str {
         LineEndingArg::Lf => "lf",
         LineEndingArg::Crlf => "crlf",
         LineEndingArg::Cr => "cr",
-    }
-}
-
-/// Convert one quote style argument to one config value.
-fn quote_style_override_value(value: QuoteStyleArg) -> &'static str {
-    match value {
-        QuoteStyleArg::Double => "double",
-        QuoteStyleArg::Single => "single",
-        QuoteStyleArg::Semantic => "semantic",
-    }
-}
-
-/// Convert one trailing comma argument to one config value.
-fn trailing_comma_override_value(value: TrailingCommaArg) -> &'static str {
-    match value {
-        TrailingCommaArg::All => "all",
-        TrailingCommaArg::Es5 => "es5",
-        TrailingCommaArg::None => "none",
-    }
-}
-
-/// Convert one arrow parentheses argument to one config value.
-fn arrow_parentheses_override_value(value: ArrowParenthesesArg) -> &'static str {
-    match value {
-        ArrowParenthesesArg::Always => "always",
-        ArrowParenthesesArg::Avoid => "avoid",
-    }
-}
-
-/// Convert one quote property argument to one config value.
-fn quote_property_override_value(value: QuotePropertyArg) -> &'static str {
-    match value {
-        QuotePropertyArg::AsNeeded => "as-needed",
-        QuotePropertyArg::Consistent => "consistent",
-        QuotePropertyArg::Preserve => "preserve",
-    }
-}
-
-/// Convert one organize imports argument to one config value.
-fn organize_imports_override_value(value: OrganizeImportsArg) -> &'static str {
-    match value {
-        OrganizeImportsArg::On => "on",
-        OrganizeImportsArg::Off => "off",
-    }
-}
-
-/// Convert one import sort order argument to one config value.
-fn import_sort_order_override_value(value: ImportSortOrderArg) -> &'static str {
-    match value {
-        ImportSortOrderArg::Natural => "natural",
-        ImportSortOrderArg::Alphabetical => "alphabetical",
     }
 }
 

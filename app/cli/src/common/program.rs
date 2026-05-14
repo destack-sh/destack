@@ -7,8 +7,7 @@ use destack_daemon::protocol::ConfigPatch;
 use destack_session::{Session, open_repository_from_fs};
 use destack_source::{FileSystem, IndentStyle, LineEnding, PhysicalFileSystem};
 use destack_workspace::{
-    ArrowParentheses, FormatterOptions, HostEnvironment, ImportSortOrder, LintPreset, LintSeverity,
-    LinterOptions, OrganizeImports, QuoteProperty, QuoteStyle, Ref, Repository, TrailingComma,
+    FormatterOptions, HostEnvironment, LintPreset, LintSeverity, LinterOptions, Ref, Repository,
 };
 
 use crate::pipeline::daemon::config_patches_from_program;
@@ -82,129 +81,6 @@ impl From<LineEndingArg> for LineEnding {
             LineEndingArg::Lf => LineEnding::LineFeed,
             LineEndingArg::Crlf => LineEnding::CarriageReturnLineFeed,
             LineEndingArg::Cr => LineEnding::CarriageReturn,
-        }
-    }
-}
-
-/// Whether to organize imports.
-#[derive(Clone, Copy, Debug, Default, ValueEnum)]
-pub enum OrganizeImportsArg {
-    /// Organize imports: sort statements by group and specifiers alphabetically.
-    On,
-    /// Don't reorder imports (preserve original order).
-    #[default]
-    Off,
-}
-
-impl From<OrganizeImportsArg> for OrganizeImports {
-    fn from(value: OrganizeImportsArg) -> Self {
-        match value {
-            OrganizeImportsArg::On => OrganizeImports::On,
-            OrganizeImportsArg::Off => OrganizeImports::Off,
-        }
-    }
-}
-
-/// Sort order for import specifiers.
-#[derive(Clone, Copy, Debug, Default, ValueEnum)]
-pub enum ImportSortOrderArg {
-    /// Natural sort: numbers ordered as integers (a1 < a2 < a10).
-    #[default]
-    Natural,
-    /// Alphabetical/lexicographic sort (a1 < a10 < a2).
-    Alphabetical,
-}
-
-impl From<ImportSortOrderArg> for ImportSortOrder {
-    fn from(value: ImportSortOrderArg) -> Self {
-        match value {
-            ImportSortOrderArg::Natural => ImportSortOrder::Natural,
-            ImportSortOrderArg::Alphabetical => ImportSortOrder::Alphabetical,
-        }
-    }
-}
-
-/// Quote style for string literals.
-#[derive(Clone, Copy, Debug, Default, ValueEnum)]
-pub enum QuoteStyleArg {
-    /// Use double quotes for strings: `"hello"`.
-    #[default]
-    Double,
-    /// Use single quotes for strings: `'hello'`.
-    Single,
-    /// Use single quotes for single characters, double quotes for strings.
-    Semantic,
-}
-
-impl From<QuoteStyleArg> for QuoteStyle {
-    fn from(value: QuoteStyleArg) -> Self {
-        match value {
-            QuoteStyleArg::Double => QuoteStyle::Double,
-            QuoteStyleArg::Single => QuoteStyle::Single,
-            QuoteStyleArg::Semantic => QuoteStyle::Semantic,
-        }
-    }
-}
-
-/// Trailing comma policy.
-#[derive(Clone, Copy, Debug, Default, ValueEnum)]
-pub enum TrailingCommaArg {
-    /// Add trailing commas everywhere valid in ES2017+.
-    #[default]
-    All,
-    /// Add trailing commas where valid in ES5 (not function params).
-    Es5,
-    /// Never add trailing commas.
-    None,
-}
-
-impl From<TrailingCommaArg> for TrailingComma {
-    fn from(value: TrailingCommaArg) -> Self {
-        match value {
-            TrailingCommaArg::All => TrailingComma::All,
-            TrailingCommaArg::Es5 => TrailingComma::Es5,
-            TrailingCommaArg::None => TrailingComma::None,
-        }
-    }
-}
-
-/// Arrow function parentheses policy.
-#[derive(Clone, Copy, Debug, Default, ValueEnum)]
-pub enum ArrowParenthesesArg {
-    /// Always include parentheses: `(x) => x`.
-    #[default]
-    Always,
-    /// Omit parentheses when possible: `x => x`.
-    Avoid,
-}
-
-impl From<ArrowParenthesesArg> for ArrowParentheses {
-    fn from(value: ArrowParenthesesArg) -> Self {
-        match value {
-            ArrowParenthesesArg::Always => ArrowParentheses::Always,
-            ArrowParenthesesArg::Avoid => ArrowParentheses::Avoid,
-        }
-    }
-}
-
-/// Object property quote style.
-#[derive(Clone, Copy, Debug, Default, ValueEnum)]
-pub enum QuotePropertyArg {
-    /// Only quote properties when required.
-    #[default]
-    AsNeeded,
-    /// Quote all properties consistently if any require quotes.
-    Consistent,
-    /// Preserve the original quoting from source.
-    Preserve,
-}
-
-impl From<QuotePropertyArg> for QuoteProperty {
-    fn from(value: QuotePropertyArg) -> Self {
-        match value {
-            QuotePropertyArg::AsNeeded => QuoteProperty::AsNeeded,
-            QuotePropertyArg::Consistent => QuoteProperty::Consistent,
-            QuotePropertyArg::Preserve => QuoteProperty::Preserve,
         }
     }
 }
@@ -318,42 +194,6 @@ pub struct FormatterOptionsArgs {
     /// The maximum line width (default: 100).
     #[arg(long = "line-width")]
     pub line_width: Option<u16>,
-
-    /// Quote style for strings (double|single|semantic, default: semantic).
-    #[arg(long = "quote-style", value_enum)]
-    pub quote_style: Option<QuoteStyleArg>,
-
-    /// Trailing comma policy (all|es5|none, default: all).
-    #[arg(long = "trailing-comma", value_enum)]
-    pub trailing_comma: Option<TrailingCommaArg>,
-
-    /// Include spaces inside object braces (default: true).
-    #[arg(long = "bracket-spacing")]
-    pub bracket_spacing: Option<bool>,
-
-    /// Arrow function parentheses (always|avoid, default: always).
-    #[arg(long = "arrow-parens", value_enum)]
-    pub arrow_parens: Option<ArrowParenthesesArg>,
-
-    /// Object property quoting (as-needed|consistent|preserve, default: as-needed).
-    #[arg(long = "quote-props", value_enum)]
-    pub quote_props: Option<QuotePropertyArg>,
-
-    /// Put closing bracket on same line as last attribute in JSX/trees.
-    #[arg(long = "bracket-same-line")]
-    pub bracket_same_line: Option<bool>,
-
-    /// Force each JSX/tree attribute onto its own line.
-    #[arg(long = "single-attribute-per-line")]
-    pub single_attribute_per_line: Option<bool>,
-
-    /// Whether to organize imports (on|off, default: off).
-    #[arg(long = "organize-imports", value_enum)]
-    pub organize_imports: Option<OrganizeImportsArg>,
-
-    /// Sort order for import specifiers (natural|alphabetical, default: natural).
-    #[arg(long = "import-sort-order", value_enum)]
-    pub import_sort_order: Option<ImportSortOrderArg>,
 }
 
 impl From<FormatterOptionsArgs> for FormatterOptions {
@@ -371,36 +211,6 @@ impl From<FormatterOptionsArgs> for FormatterOptions {
         }
         if let Some(width) = args.line_width {
             options.line_width = width;
-        }
-        // syntax
-        if let Some(quote_style) = args.quote_style {
-            options.quote_style = quote_style.into();
-        }
-        if let Some(trailing_comma) = args.trailing_comma {
-            options.trailing_comma = trailing_comma.into();
-        }
-        if let Some(bracket_spacing) = args.bracket_spacing {
-            options.bracket_spacing = bracket_spacing;
-        }
-        if let Some(arrow_parens) = args.arrow_parens {
-            options.arrow_parentheses = arrow_parens.into();
-        }
-        if let Some(quote_props) = args.quote_props {
-            options.quote_property = quote_props.into();
-        }
-        // tree/jsx
-        if let Some(bracket_same_line) = args.bracket_same_line {
-            options.bracket_same_line = bracket_same_line;
-        }
-        if let Some(single_attribute_per_line) = args.single_attribute_per_line {
-            options.single_attribute_per_line = single_attribute_per_line;
-        }
-        // imports
-        if let Some(organize) = args.organize_imports {
-            options.organize_imports = organize.into();
-        }
-        if let Some(sort_order) = args.import_sort_order {
-            options.import_sort_order = sort_order.into();
         }
         options
     }

@@ -1,9 +1,8 @@
 use clap::{Args, ValueEnum};
 use destack_workspace::{
-    EffectOptionsJson, EffectSourceJson, HeapOptionsJson, HeapSpaceOptionsJson,
-    RandomSimulationOptionsJson, RuntimeAccessJson, RuntimeOptionsJson, RuntimeWorldJson,
-    SchedulerModeJson, SchedulerOptionsJson, SchedulerPolicyJson, SimulationOptionsJson,
-    TimeSimulationOptionsJson, TraceModeJson, TraceOptionsJson,
+    HeapOptionsJson, HeapSpaceOptionsJson, RandomModeJson, RandomOptionsJson, RuntimeOptionsJson,
+    SchedulerModeJson, SchedulerOptionsJson, SchedulerPolicyJson, TimeModeJson, TimeOptionsJson,
+    TraceModeJson, TraceOptionsJson,
 };
 use std::path::PathBuf;
 
@@ -13,14 +12,6 @@ pub struct RuntimeArgs {
     /// Runtime execution mode.
     #[arg(long = "runtime-execution-mode", value_enum)]
     pub execution_mode: Option<ExecutionModeArg>,
-
-    /// Runtime default effect backend for binding calls.
-    #[arg(long = "runtime-effect-backend", value_enum)]
-    pub effect_backend: Option<RuntimeWorldArg>,
-
-    /// Runtime default effect access for binding calls.
-    #[arg(long = "runtime-effect-access", value_enum)]
-    pub effect_access: Option<RuntimeAccessArg>,
 
     /// Replay path (file or directory).
     #[arg(long = "runtime-replay-path")]
@@ -123,8 +114,6 @@ impl RuntimeArgs {
     /// Return true when any runtime override is set.
     pub fn is_empty(&self) -> bool {
         self.execution_mode.is_none()
-            && self.effect_backend.is_none()
-            && self.effect_access.is_none()
             && self.replay_path.is_none()
             && self.replay_template.is_none()
             && self.replay_chunk_mb.is_none()
@@ -177,59 +166,29 @@ impl RuntimeArgs {
             None
         };
 
-        let effect = if self.effect_backend.is_some()
-            || self.effect_access.is_some()
-            || self.time_mode.is_some()
-            || self.random_mode.is_some()
-            || self.execution_mode.is_some()
-        {
-            Some(EffectOptionsJson {
-                backend: self.effect_backend.map(Into::into),
-                access: self.effect_access.map(Into::into),
-                rules: None,
-                time: self.time_mode.map(EffectSourceJson::from).or_else(|| {
-                    self.execution_mode
-                        .and_then(ExecutionModeArg::effect_source)
-                }),
-                random: self.random_mode.map(EffectSourceJson::from).or_else(|| {
-                    self.execution_mode
-                        .and_then(ExecutionModeArg::effect_source)
-                }),
-            })
-        } else {
-            None
-        };
+        let time =
+            if self.time_mode.is_some() || self.time_epoch_ns.is_some() || self.time_zone.is_some()
+            {
+                Some(TimeOptionsJson {
+                    mode: self.time_mode.map(Into::into),
+                    epoch_ns: self.time_epoch_ns,
+                    time_zone: self.time_zone.clone(),
+                })
+            } else {
+                None
+            };
 
-        let simulation = if self.time_epoch_ns.is_some()
-            || self.time_zone.is_some()
-            || self.random_seed.is_some()
-            || self.random_per_runnable
-        {
-            Some(SimulationOptionsJson {
-                time: if self.time_epoch_ns.is_some() || self.time_zone.is_some() {
-                    Some(TimeSimulationOptionsJson {
-                        epoch_ns: self.time_epoch_ns,
-                        time_zone: self.time_zone.clone(),
-                    })
-                } else {
-                    None
-                },
-                random: if self.random_seed.is_some() || self.random_per_runnable {
-                    Some(RandomSimulationOptionsJson {
-                        seed: self.random_seed,
-                        per_runnable: if self.random_per_runnable {
-                            Some(true)
-                        } else {
-                            None
-                        },
-                    })
-                } else {
-                    None
-                },
-            })
-        } else {
-            None
-        };
+        let random =
+            if self.random_mode.is_some() || self.random_seed.is_some() || self.random_per_runnable
+            {
+                Some(RandomOptionsJson {
+                    mode: self.random_mode.map(Into::into),
+                    seed: self.random_seed,
+                    per_runnable: self.random_per_runnable.then_some(true),
+                })
+            } else {
+                None
+            };
 
         let scheduler = if self.scheduler_policy.is_some()
             || self.scheduler_tick_budget_ns.is_some()
@@ -285,9 +244,9 @@ impl RuntimeArgs {
 
         Some(RuntimeOptionsJson {
             scheduler,
-            effect,
-            simulation,
             trace,
+            time,
+            random,
             heap,
             platform: None,
             ..Default::default()
@@ -329,54 +288,6 @@ impl From<ExecutionModeArg> for TraceModeJson {
     }
 }
 
-impl ExecutionModeArg {
-    /// Return the effect source implied by the execution mode.
-    fn effect_source(self) -> Option<EffectSourceJson> {
-        match self {
-            ExecutionModeArg::Replay => Some(EffectSourceJson::Trace),
-            ExecutionModeArg::Fast | ExecutionModeArg::Deterministic | ExecutionModeArg::Record => {
-                None
-            }
-        }
-    }
-}
-
-/// Runtime world for CLI arguments.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-pub enum RuntimeWorldArg {
-    /// Use host-backed platform bindings.
-    Host,
-    /// Use simulation-backed platform bindings.
-    Simulation,
-}
-
-impl From<RuntimeWorldArg> for RuntimeWorldJson {
-    fn from(value: RuntimeWorldArg) -> Self {
-        match value {
-            RuntimeWorldArg::Host => RuntimeWorldJson::Host,
-            RuntimeWorldArg::Simulation => RuntimeWorldJson::Simulation,
-        }
-    }
-}
-
-/// Runtime default access policy for CLI arguments.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-pub enum RuntimeAccessArg {
-    /// Allow matching binding calls.
-    Allow,
-    /// Deny matching binding calls.
-    Deny,
-}
-
-impl From<RuntimeAccessArg> for RuntimeAccessJson {
-    fn from(value: RuntimeAccessArg) -> Self {
-        match value {
-            RuntimeAccessArg::Allow => RuntimeAccessJson::Allow,
-            RuntimeAccessArg::Deny => RuntimeAccessJson::Deny,
-        }
-    }
-}
-
 /// Scheduler policy for CLI arguments.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum SchedulerPolicyArg {
@@ -408,11 +319,11 @@ pub enum TimeModeArg {
     Virtual,
 }
 
-impl From<TimeModeArg> for EffectSourceJson {
+impl From<TimeModeArg> for TimeModeJson {
     fn from(value: TimeModeArg) -> Self {
         match value {
             TimeModeArg::Host => Self::Host,
-            TimeModeArg::Virtual => Self::Simulation,
+            TimeModeArg::Virtual => Self::Virtual,
         }
     }
 }
@@ -426,11 +337,11 @@ pub enum RandomModeArg {
     Deterministic,
 }
 
-impl From<RandomModeArg> for EffectSourceJson {
+impl From<RandomModeArg> for RandomModeJson {
     fn from(value: RandomModeArg) -> Self {
         match value {
             RandomModeArg::Host => Self::Host,
-            RandomModeArg::Deterministic => Self::Simulation,
+            RandomModeArg::Deterministic => Self::Deterministic,
         }
     }
 }
