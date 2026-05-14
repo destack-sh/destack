@@ -7,7 +7,7 @@
 /// @intrinsic
 /// declare function typeOf<T>(value: T): Type<T>;
 /// ```
-@languageItem("Intrinsic")
+@languageItem("decorator.intrinsic")
 export newtype intrinsic = (string,) | ();
 
 /// Compiler language item marker.
@@ -15,10 +15,11 @@ export newtype intrinsic = (string,) | ();
 /// Marks a declaration as a compiler-known language item.
 /// `@intrinsic` controls implementation, while `@languageItem` gives the toolchain a stable symbol identity.
 /// A declaration may use either marker or both.
+/// Language item keys use the exported stdlib module name and the declaration name.
 ///
 /// ```
-/// @languageItem("Type")
-/// declare function typeOf<T>(value: T): Type<T>;
+/// @languageItem("memory.Unique")
+/// export newtype Unique<T> = intrinsic;
 /// ```
-@languageItem("LanguageItem")
+@languageItem("decorator.languageItem")
 export newtype languageItem = (string,) | ();

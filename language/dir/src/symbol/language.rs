@@ -58,11 +58,23 @@ macro_rules! define_language_items {
                 }
             }
 
+            /// Return the language item namespace.
+            pub fn namespace(&self) -> &'static str {
+                match self {
+                    $($($(Self::$name => stringify!($module_group),)*)*)*
+                }
+            }
+
             /// Return the exported name to look up in the module.
             pub fn export_name(&self) -> &'static str {
                 match self {
                     $($($(Self::$name => $export,)*)*)*
                 }
+            }
+
+            /// Return the stable `@languageItem` key.
+            pub fn key(&self) -> String {
+                format!("{}.{}", self.namespace(), self.export_name())
             }
 
             /// Return the expected declaration form.
@@ -81,7 +93,7 @@ macro_rules! define_language_items {
 
         impl std::fmt::Display for LanguageItem {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                write!(f, "{}", self.export_name())
+                write!(f, "{}.{}", self.namespace(), self.export_name())
             }
         }
     };
@@ -659,8 +671,10 @@ mod tests {
 
     #[test]
     fn test_add_properties() {
+        assert_eq!(LanguageItem::Add.namespace(), "ops");
         assert_eq!(LanguageItem::Add.module(), "ops/plus");
         assert_eq!(LanguageItem::Add.export_name(), "Add");
+        assert_eq!(LanguageItem::Add.key(), "ops.Add");
         assert_eq!(LanguageItem::Add.form(), LanguageItemForm::NewtypeInterface);
     }
 }

@@ -1,15 +1,15 @@
 import { type Type as DirType } from "./dir/type.ds";
 
 /// Stable type identifier.
-@languageItem("TypeId")
+@languageItem("reflect.TypeId")
 export newtype TypeId = intrinsic;
 
 /// Reflected semantic type for `T`.
-@languageItem("Type")
+@languageItem("reflect.Type")
 export type Type<T = unknown> = DirType<T>;
 
 /// Target-specific layout for one type.
-@languageItem("Layout")
+@languageItem("reflect.Layout")
 export struct Layout {
     /// The total size in bytes.
     size: usize;
@@ -22,7 +22,7 @@ export struct Layout {
 }
 
 /// Target-specific layout for one aggregate field.
-@languageItem("LayoutField")
+@languageItem("reflect.LayoutField")
 export struct LayoutField {
     /// The field name when one exists.
     name?: string;
@@ -37,7 +37,7 @@ export struct LayoutField {
 }
 
 /// Return the reflected type for a value.
-@languageItem("TypeOf")
+@languageItem("reflect.typeOf")
 @intrinsic("reflect.typeOf")
 export declare function typeOf<T>(value: T): Type<T>;
 
@@ -50,21 +50,21 @@ export declare function type<T>(): Type<T>;
 export declare function equalTypes<A, B>(left: Type<A>, right: Type<B>): boolean;
 
 /// Return the target-specific size of `T`.
-@languageItem("SizeOf")
+@languageItem("reflect.sizeOf")
 @intrinsic("reflect.sizeOf")
 export declare function sizeOf<T>(): usize;
 
 /// Return the target-specific alignment of `T`.
-@languageItem("AlignOf")
+@languageItem("reflect.alignOf")
 @intrinsic("reflect.alignOf")
 export declare function alignOf<T>(): usize;
 
 /// Return the target-specific stride of `T`.
-@languageItem("StrideOf")
+@languageItem("reflect.strideOf")
 @intrinsic("reflect.strideOf")
 export declare function strideOf<T>(): usize;
 
 /// Return the target-specific layout of `T`.
-@languageItem("LayoutOf")
+@languageItem("reflect.layoutOf")
 @intrinsic("reflect.layoutOf")
 export declare function layoutOf<T>(): Layout;

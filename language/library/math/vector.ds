@@ -1,5 +1,5 @@
 /// Fixed-width vector type.
-@languageItem("Vector")
+@languageItem("math.Vector")
 export newtype Vector<T, comptime N: int> = intrinsic;
 
 /// Return the number of lanes in `Vector<T, N>`.

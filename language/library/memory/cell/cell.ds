@@ -2,7 +2,7 @@ import { todo } from "destack:error";
 import { Copy } from "../capability.ds";
 
 /// Unsafe interior mutable storage.
-@languageItem("UnsafeCell")
+@languageItem("memory.UnsafeCell")
 export newtype UnsafeCell<T> = intrinsic;
 
 export extension<T> of UnsafeCell<T> {

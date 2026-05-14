@@ -83,7 +83,7 @@ export interface PromiseRejectedResult {
 export type PromiseSettledResult<T> = PromiseFulfilledResult<T> | PromiseRejectedResult;
 
 /// Worker-local async result object.
-@languageItem("Promise")
+@languageItem("async.Promise")
 export class Promise<T> {
     /// The current settlement state.
     private state: PromiseState<T>;

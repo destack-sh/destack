@@ -31,7 +31,7 @@ struct MapEntrySegment<K, V> {
 }
 
 /// A borrow-stable hash map.
-@languageItem("Map")
+@languageItem("collections.Map")
 export class Map<K, V> {
     /// The entry segments.
     segments: Array<MapEntrySegment<K, V>>;
@@ -44,7 +44,7 @@ export class Map<K, V> {
 }
 
 /// Key-value map alias.
-@languageItem("Record")
+@languageItem("collections.Record")
 export type Record<K, V> = Map<K, V>;
 
 extension<K: Hash, V> of Map<K, V> implements

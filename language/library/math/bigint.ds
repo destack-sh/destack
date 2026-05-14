@@ -3,7 +3,7 @@ import { MaybeUninit, Unique } from "destack:memory";
 import { Add, Divide, Multiply, Remainder, Subtract } from "destack:ops";
 
 /// Arbitrary-precision integer.
-@languageItem("BigInt")
+@languageItem("math.BigInt")
 export class BigInt {
     /// The sign of this integer.
     private sign: int8 = 0;

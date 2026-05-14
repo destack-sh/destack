@@ -3,7 +3,7 @@ import { Access } from "destack:memory";
 /// Interface for dereference projection `*a`.
 ///
 /// `A` selects the access form required by the operator use.
-@languageItem("Dereference")
+@languageItem("ops.Dereference")
 export newtype interface Dereference<A: Access = "readonly"> {
     /// The projected result form.
     type Output;

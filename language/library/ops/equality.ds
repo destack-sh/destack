@@ -2,7 +2,7 @@
 ///
 /// `a == b` becomes `a.equal(b)`.
 /// `a != b` becomes `!a.equal(b)`.
-@languageItem("Equal")
+@languageItem("ops.Equal")
 export newtype interface Equal<T = this> {
     equal(other: T): boolean;
 }
@@ -10,7 +10,7 @@ export newtype interface Equal<T = this> {
 /// Interface for partial equality.
 ///
 /// Some values, like floating-point NaN, do not have total equality.
-@languageItem("PartialEqual")
+@languageItem("ops.PartialEqual")
 export newtype interface PartialEqual<T = this> {
     partialEqual(other: T): boolean | null;
 }

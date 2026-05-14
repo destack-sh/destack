@@ -2,7 +2,7 @@ import { todo } from "destack:error";
 import { type MaybeUninit, type Unique } from "destack:memory";
 
 /// Immutable UTF-8 string.
-@languageItem("String")
+@languageItem("string.String")
 export class String {
     /// The owned UTF-8 bytes.
     bytes: Unique<[uint8]>;

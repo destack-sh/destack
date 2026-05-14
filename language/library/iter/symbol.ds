@@ -1,5 +1,5 @@
 /// Global symbol constructor and registry.
-@languageItem("Symbol")
+@languageItem("iter.Symbol")
 export declare const Symbol: {
     /// Create a new unique symbol.
     (description?: string): symbol;

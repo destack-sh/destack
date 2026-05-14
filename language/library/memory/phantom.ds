@@ -1,7 +1,7 @@
 import { Clone, Copy } from "./capability.ds";
 
 /// Zero-sized marker for ownership, variance, and drop behavior.
-@languageItem("PhantomData")
+@languageItem("memory.PhantomData")
 export newtype PhantomData<T> = intrinsic;
 
 export extension<T> of PhantomData<T> implements Copy, Clone {

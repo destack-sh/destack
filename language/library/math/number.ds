@@ -1,5 +1,5 @@
 /// Number constants and parsing functions.
-@languageItem("Number")
+@languageItem("math.Number")
 export class Number {
     /// The largest finite float64 value.
     static readonly MAX_VALUE: float64;
