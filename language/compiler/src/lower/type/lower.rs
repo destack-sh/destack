@@ -37,7 +37,7 @@ pub(crate) struct TypeLowerer<'a> {
     pub(super) dir_tree: &'a dir::Tree,
     /// Symbol table for local declaration form reads.
     pub(super) symbols: &'a dir::BindingTable,
-    /// Cached Vector type symbol for SIMD lowering.
+    /// Cached Vector type symbol for vector lowering.
     pub(crate) vector_symbol: Option<dir::GlobalSymbolId>,
     /// Cached MIR types by DIR type id.
     pub(crate) type_cache: HashMap<dir::LocalTypeId, TypeCacheEntry>,

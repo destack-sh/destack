@@ -193,6 +193,16 @@ impl FunctionLowerer<'_> {
                 .lower_vector_splat_intrinsic(expression_id, arguments, result_type)
                 .map(|(value, ty)| (Some(value), ty));
         }
+        if name == "math.vector.extract" {
+            return self
+                .lower_vector_extract_intrinsic(expression_id, arguments, result_type)
+                .map(|(value, ty)| (Some(value), ty));
+        }
+        if name == "math.vector.insert" {
+            return self
+                .lower_vector_insert_intrinsic(expression_id, arguments, result_type)
+                .map(|(value, ty)| (Some(value), ty));
+        }
         if name == "math.vector.shuffle" {
             return self
                 .lower_vector_shuffle_intrinsic(
@@ -206,6 +216,17 @@ impl FunctionLowerer<'_> {
         if name == "math.vector.select" {
             return self
                 .lower_vector_select_intrinsic(expression_id, arguments, result_type)
+                .map(|(value, ty)| (Some(value), ty));
+        }
+        if name == "math.vector.convert" {
+            return self
+                .lower_vector_convert_intrinsic(expression_id, arguments, result_type)
+                .map(|(value, ty)| (Some(value), ty));
+        }
+
+        if Self::is_vector_compare_intrinsic(name) {
+            return self
+                .lower_vector_compare_intrinsic(expression_id, name, arguments, result_type)
                 .map(|(value, ty)| (Some(value), ty));
         }
 
@@ -277,6 +298,91 @@ impl FunctionLowerer<'_> {
         }
 
         let value = self.state.builder.vector_splat(result_type, argument);
+
+        Ok((value, result_type))
+    }
+
+    /// Lower a vector extract intrinsic.
+    fn lower_vector_extract_intrinsic(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        arguments: &[dir::LocalNodeId<dir::Argument>],
+        result_type: mir::LocalNodeId<mir::Type>,
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+        let [vector_id, index_id] = arguments else {
+            return Err(self
+                .error(expression_id, "extract expects a vector and lane index")
+                .into());
+        };
+
+        // lower vector and lane
+        let vector_expr = self.argument_expression(expression_id, *vector_id)?;
+        let (vector, vector_type) = self.lower_value_expression(vector_expr)?;
+        let index_expr = self.argument_expression(expression_id, *index_id)?;
+        let (index, _) = self.lower_value_expression(index_expr)?;
+
+        // require scalar result
+        let element_type = self.vector_element_type(expression_id, vector_type, "extract")?;
+        if result_type != element_type {
+            return Err(self
+                .error(
+                    expression_id,
+                    "extract result type must match vector element type",
+                )
+                .into());
+        }
+
+        let value = self.state.builder.vector_extract(vector, index);
+
+        Ok((value, result_type))
+    }
+
+    /// Lower a vector insert intrinsic.
+    fn lower_vector_insert_intrinsic(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        arguments: &[dir::LocalNodeId<dir::Argument>],
+        result_type: mir::LocalNodeId<mir::Type>,
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+        let [vector_id, index_id, lane_id] = arguments else {
+            return Err(self
+                .error(
+                    expression_id,
+                    "insert expects a vector, lane index, and value",
+                )
+                .into());
+        };
+
+        // lower vector, lane, and value
+        let vector_expr = self.argument_expression(expression_id, *vector_id)?;
+        let (vector, vector_type) = self.lower_value_expression(vector_expr)?;
+        let index_expr = self.argument_expression(expression_id, *index_id)?;
+        let (index, _) = self.lower_value_expression(index_expr)?;
+        let lane_expr = self.argument_expression(expression_id, *lane_id)?;
+        let (lane, lane_type) = self.lower_value_expression(lane_expr)?;
+
+        // require unchanged vector type
+        let element_type = self.vector_element_type(expression_id, vector_type, "insert")?;
+        if result_type != vector_type {
+            return Err(self
+                .error(
+                    expression_id,
+                    "insert result type must match input vector type",
+                )
+                .into());
+        }
+
+        // require lane element type
+        if lane_type != element_type {
+            return Err(self
+                .error(
+                    expression_id,
+                    "insert value type must match vector element type",
+                )
+                .into());
+        }
+
+        let value = self.state.builder.vector_insert(vector, index, lane);
 
         Ok((value, result_type))
     }
@@ -501,6 +607,91 @@ impl FunctionLowerer<'_> {
         Ok((value, result_type))
     }
 
+    /// Lower a vector convert intrinsic.
+    fn lower_vector_convert_intrinsic(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        arguments: &[dir::LocalNodeId<dir::Argument>],
+        result_type: mir::LocalNodeId<mir::Type>,
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+        let (argument, argument_type) =
+            self.lower_single_positional_argument(expression_id, arguments, "convert")?;
+
+        // require unchanged lane count
+        let (_, argument_lanes) = self.vector_type_info(expression_id, argument_type, "convert")?;
+        let (_, result_lanes) = self.vector_type_info(expression_id, result_type, "convert")?;
+        if argument_lanes != result_lanes {
+            return Err(self
+                .error(expression_id, "convert lane count must stay unchanged")
+                .into());
+        }
+
+        let value =
+            self.state
+                .builder
+                .vector_convert(result_type, mir::VectorConvertMode::Exact, argument);
+
+        Ok((value, result_type))
+    }
+
+    /// Lower a vector compare intrinsic.
+    fn lower_vector_compare_intrinsic(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        name: &str,
+        arguments: &[dir::LocalNodeId<dir::Argument>],
+        result_type: mir::LocalNodeId<mir::Type>,
+    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+        let [left_id, right_id] = arguments else {
+            return Err(self
+                .error(expression_id, "vector comparison expects two vectors")
+                .into());
+        };
+
+        // lower operands
+        let left_expr = self.argument_expression(expression_id, *left_id)?;
+        let (left, left_type) = self.lower_value_expression(left_expr)?;
+        let right_expr = self.argument_expression(expression_id, *right_id)?;
+        let (right, right_type) = self.lower_value_expression(right_expr)?;
+
+        // require matching input vectors
+        let (left_element, left_lanes) =
+            self.vector_type_info(expression_id, left_type, "compare")?;
+        let (right_element, right_lanes) =
+            self.vector_type_info(expression_id, right_type, "compare")?;
+        let (result_element, result_lanes) =
+            self.vector_type_info(expression_id, result_type, "compare")?;
+
+        if left_element != right_element || left_lanes != right_lanes {
+            return Err(self
+                .error(
+                    expression_id,
+                    "compare values must have matching vector types",
+                )
+                .into());
+        }
+
+        // require boolean result vector
+        if left_lanes != result_lanes
+            || !matches!(
+                self.state.builder.tree().get(result_element),
+                mir::Type::Boolean
+            )
+        {
+            return Err(self
+                .error(expression_id, "compare result must be a boolean vector")
+                .into());
+        }
+
+        let operator = self.vector_compare_operator(expression_id, name, left_element)?;
+        let value = self
+            .state
+            .builder
+            .vector_compare(result_type, operator, left, right);
+
+        Ok((value, result_type))
+    }
+
     /// Lower vector reduce intrinsics and return None when the name does not match.
     fn lower_vector_reduce_intrinsic(
         &mut self,
@@ -534,6 +725,96 @@ impl FunctionLowerer<'_> {
         let value = self.state.builder.vector_reduce(operator, argument);
 
         Ok(Some((value, result_type)))
+    }
+
+    /// Check whether a name is a vector comparison intrinsic.
+    fn is_vector_compare_intrinsic(name: &str) -> bool {
+        matches!(
+            name,
+            "math.vector.equal"
+                | "math.vector.notEqual"
+                | "math.vector.less"
+                | "math.vector.lessEqual"
+                | "math.vector.greater"
+                | "math.vector.greaterEqual"
+        )
+    }
+
+    /// Resolve a vector comparison operator for an element type.
+    fn vector_compare_operator(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        name: &str,
+        element_type: mir::LocalNodeId<mir::Type>,
+    ) -> CompilerResult<mir::BinaryOperator> {
+        let Some(name) = name.strip_prefix("math.vector.") else {
+            return Err(self
+                .error(expression_id, "invalid vector comparison intrinsic")
+                .into());
+        };
+        let operator = match self.state.builder.tree().get(element_type) {
+            mir::Type::Float(_) => match name {
+                "equal" => mir::BinaryOperator::FloatEqual,
+                "notEqual" => mir::BinaryOperator::FloatNotEqual,
+                "less" => mir::BinaryOperator::FloatLessThan,
+                "lessEqual" => mir::BinaryOperator::FloatLessEqual,
+                "greater" => mir::BinaryOperator::FloatGreaterThan,
+                "greaterEqual" => mir::BinaryOperator::FloatGreaterEqual,
+                _ => {
+                    return Err(self
+                        .error(expression_id, "invalid vector comparison intrinsic")
+                        .into());
+                }
+            },
+            mir::Type::Int {
+                is_signed: true, ..
+            }
+            | mir::Type::Isize => match name {
+                "equal" => mir::BinaryOperator::Equal,
+                "notEqual" => mir::BinaryOperator::NotEqual,
+                "less" => mir::BinaryOperator::SignedLessThan,
+                "lessEqual" => mir::BinaryOperator::SignedLessEqual,
+                "greater" => mir::BinaryOperator::SignedGreaterThan,
+                "greaterEqual" => mir::BinaryOperator::SignedGreaterEqual,
+                _ => {
+                    return Err(self
+                        .error(expression_id, "invalid vector comparison intrinsic")
+                        .into());
+                }
+            },
+            mir::Type::Int {
+                is_signed: false, ..
+            }
+            | mir::Type::Usize => match name {
+                "equal" => mir::BinaryOperator::Equal,
+                "notEqual" => mir::BinaryOperator::NotEqual,
+                "less" => mir::BinaryOperator::UnsignedLessThan,
+                "lessEqual" => mir::BinaryOperator::UnsignedLessEqual,
+                "greater" => mir::BinaryOperator::UnsignedGreaterThan,
+                "greaterEqual" => mir::BinaryOperator::UnsignedGreaterEqual,
+                _ => {
+                    return Err(self
+                        .error(expression_id, "invalid vector comparison intrinsic")
+                        .into());
+                }
+            },
+            mir::Type::Boolean if matches!(name, "equal" | "notEqual") => match name {
+                "equal" => mir::BinaryOperator::Equal,
+                "notEqual" => mir::BinaryOperator::NotEqual,
+                _ => {
+                    return Err(self
+                        .error(expression_id, "invalid vector comparison intrinsic")
+                        .into());
+                }
+            },
+            _ => {
+                return Err(self
+                    .error(expression_id, "unsupported vector comparison element type")
+                    .into());
+            }
+        };
+
+        Ok(operator)
     }
 
     /// Lower intrinsic names that map directly to MIR intrinsics.
