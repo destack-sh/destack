@@ -105,10 +105,12 @@ impl HeapSpace {
 
         // rewrite root slots first
         roots.visit_root_slots(&mut |mut slot: RootSlot<'_>| {
-            let reference = slot.load()?;
+            let Some(reference) = slot.load_heap_reference()? else {
+                return Ok(());
+            };
 
             if let Some(next_reference) = self.forwarded_reference(reference)? {
-                slot.store(next_reference)?;
+                slot.store_heap_reference(next_reference)?;
             }
 
             Ok(())
