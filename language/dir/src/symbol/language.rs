@@ -166,6 +166,41 @@ define_language_items! {
         }
     }
 
+    /// Tensor types.
+    tensor {
+        /// `destack:tensor/shape`.
+        shape {
+            /// Tensor shape type.
+            TensorShape => (Struct, "tensor/shape", "Shape"),
+        }
+
+        /// `destack:tensor/layout`.
+        layout {
+            /// Tensor layout type.
+            TensorLayout => (Newtype, "tensor/layout", "Layout"),
+            /// Tensor view layout type.
+            TensorViewLayout => (Newtype, "tensor/layout", "ViewLayout"),
+        }
+
+        /// `destack:tensor/view`.
+        view {
+            /// Tensor view type.
+            TensorView => (Newtype, "tensor/view", "TensorView"),
+        }
+
+        /// `destack:tensor/buffer`.
+        buffer {
+            /// Tensor buffer type.
+            TensorBuffer => (Class, "tensor/buffer", "TensorBuffer"),
+        }
+
+        /// `destack:tensor/tensor`.
+        tensor {
+            /// Owning tensor type.
+            Tensor => (Class, "tensor/tensor", "Tensor"),
+        }
+    }
+
     /// Macro types.
     macro {
         /// `destack:macro/eval`.
