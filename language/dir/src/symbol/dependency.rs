@@ -1,6 +1,4 @@
-use crate::{
-    Declaration, Expression, GlobalNodeIdAny, LocalNodeId, LocalScopeId, LocalSymbolId, StringId,
-};
+use crate::{Declaration, Expression, GlobalNodeIdAny, LocalNodeId, LocalScopeId, StringId};
 use destack_source::{Loader, ModuleEdgeRelation, ModuleId};
 use serde::{Deserialize, Serialize};
 
@@ -26,10 +24,6 @@ pub struct StringModule {
     pub scope: LocalScopeId,
     /// The expressions declared inside the module body.
     pub expressions: Vec<LocalNodeId<Expression>>,
-    /// The default export symbol for the declaration.
-    pub default_symbol: LocalSymbolId,
-    /// The export assignment symbol for the declaration.
-    pub export_assignment_symbol: LocalSymbolId,
 }
 
 /// The target of a resolved dependency.
