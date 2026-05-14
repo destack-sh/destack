@@ -1,4 +1,4 @@
-use destack_artifact::{ArtifactKey, DiagnosticAnchor, DirChecked, DirDeclared, GlobalEnvironment};
+use destack_artifact::{ArtifactKey, DiagnosticAnchor, DirBound, DirChecked, GlobalEnvironment};
 use destack_core::StringPool;
 use destack_source::ModuleId;
 use destack_workspace::{ProfileId, ProviderContext};
@@ -59,11 +59,11 @@ impl<'a, 'b> BuiltinTypeLayouts<'a, 'b> {
         }
     }
 
-    /// Read one committed declared DIR snapshot for a module.
-    fn require_declared_dir_data(&self, module_id: ModuleId) -> CompilerResult<Arc<DirDeclared>> {
+    /// Read one committed bound DIR snapshot for a module.
+    fn require_bound_dir(&self, module_id: ModuleId) -> CompilerResult<Arc<DirBound>> {
         let snapshot = self
             .compiler
-            .dir_declared(self.context, module_id, self.profile);
+            .dir_bound(self.context, module_id, self.profile);
 
         match snapshot {
             Ok(snapshot) => Ok(snapshot),
@@ -258,11 +258,11 @@ impl<'a, 'b> BuiltinTypeLayouts<'a, 'b> {
         // require checked DIR for the module
         self.require_checked_module(symbol.module_id)?;
 
-        // load the declared structure and checked type store
-        let declared = self.require_declared_dir_data(symbol.module_id)?;
+        // load the bound structure and checked type store
+        let bound = self.require_bound_dir(symbol.module_id)?;
         let checked = self.require_checked_dir_data(symbol.module_id)?;
-        let tree = &declared.tree;
-        let symbols = &declared.bindings;
+        let tree = &bound.tree;
+        let symbols = &bound.bindings;
 
         // resolve struct members for the symbol
         let Some(members) = self.struct_members_for_symbol(symbol, symbols, tree) else {
@@ -301,7 +301,7 @@ impl<'a, 'b> BuiltinTypeLayouts<'a, 'b> {
         // resolve the module symbol name
         let Ok(dir) = self
             .compiler
-            .dir_declared(self.context, symbol.module_id, self.profile)
+            .dir_bound(self.context, symbol.module_id, self.profile)
         else {
             return;
         };

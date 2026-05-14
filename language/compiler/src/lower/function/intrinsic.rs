@@ -944,7 +944,8 @@ impl FunctionLowerer<'_> {
                     .error(expression_id, "unsupported non-positional argument")
                     .into());
             }
-            let (value, _) = self.lower_value_expression(argument.value())?;
+            let argument_value = self.require_argument_value(expression_id, argument)?;
+            let (value, _) = self.lower_value_expression(argument_value)?;
             argument_values.push(value);
         }
 
@@ -1057,7 +1058,7 @@ impl FunctionLowerer<'_> {
                 .into());
         }
 
-        Ok(argument.value())
+        self.require_argument_value(expression_id, argument)
     }
 
     /// Parse the atomic metadata arguments in their defined order.
@@ -1218,9 +1219,7 @@ impl FunctionLowerer<'_> {
         }
 
         match self.context.dir_tree.get(current) {
-            dir::Expression::ScalarLiteral {
-                value: dir::ScalarLiteral::Boolean(value),
-            } => Ok(*value),
+            dir::Expression::ScalarLiteral(dir::ScalarLiteral::Boolean(value)) => Ok(*value),
             _ => Err(self
                 .error(
                     expression_id,

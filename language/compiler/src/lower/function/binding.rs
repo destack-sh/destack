@@ -148,14 +148,16 @@ impl FunctionLowerer<'_> {
         &self,
         receiver_id: dir::LocalNodeId<dir::Expression>,
     ) -> bool {
-        let dir::Expression::Path { .. } = self.context.dir_tree.get(receiver_id) else {
+        let (dir::Expression::Identifier { .. } | dir::Expression::QualifiedReference { .. }) =
+            self.context.dir_tree.get(receiver_id)
+        else {
             return false;
         };
         let Ok(symbol) = self.resolve_expression_symbol(receiver_id) else {
             return false;
         };
 
-        let Some(dir) = self.artifact_dir_data_if_present(symbol.module_id) else {
+        let Some(dir) = self.bound_dir_if_present(symbol.module_id) else {
             return false;
         };
 

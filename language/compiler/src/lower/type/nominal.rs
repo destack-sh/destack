@@ -1,8 +1,7 @@
 use std::collections::HashSet;
 
 use destack_core::StringId;
-use destack_dir::{self as dir};
-use destack_mir as mir;
+use {destack_dir as dir, destack_mir as mir};
 
 use crate::lower::{
     FieldInput, FieldLayoutKind, LayoutPolicy, TypeCacheEntry, TypeLowerer, static_key_from_key,
@@ -309,12 +308,12 @@ impl ModuleLowerer<'_> {
     ) -> LowerResult<HashSet<dir::GlobalSymbolId>> {
         // collect class symbols in declaration order
         let mut class_symbols = Vec::new();
-        for (_declaration_id, declaration) in self.dir_tree.iter_nodes_of_type::<dir::Declaration>()
+        for (declaration_id, declaration) in self.dir_tree.iter_nodes_of_type::<dir::Declaration>()
         {
-            let dir::Declaration::Class(declaration) = declaration else {
+            let dir::Declaration::Class(_) = declaration else {
                 continue;
             };
-            class_symbols.push(declaration.symbol.into_global(self.module_id));
+            class_symbols.push(self.require_symbol_for_node(declaration_id)?);
         }
 
         // deduplicate and sort for determinism

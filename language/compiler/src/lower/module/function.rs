@@ -131,7 +131,7 @@ impl<'a> AddressTakenCollector<'a> {
                     self.record_reference_target(tree, *left);
                 }
             }
-            dir::Expression::Path { .. } => {
+            dir::Expression::Identifier { .. } | dir::Expression::QualifiedReference { .. } => {
                 let node_id = expression_id.into_global_any(self.module_id);
                 if let Some(symbol) = self.types.symbol_resolution(node_id) {
                     self.locals.insert(symbol);
@@ -226,7 +226,9 @@ impl ModuleLowerer<'_> {
 
             // resolve capture layouts early for closure values
             if declaration.body.is_some() {
-                let symbol_id = declaration.symbol.into_global(self.module_id);
+                let Some(symbol_id) = self.symbol_for_node(declaration_id) else {
+                    continue;
+                };
                 self.function_environment_layout_for_symbol(symbol_id)?;
                 self.enqueue_function_declaration(declaration_id);
             }
@@ -253,7 +255,9 @@ impl ModuleLowerer<'_> {
             }
 
             // skip functions without bindings
-            let symbol_id = declaration.symbol.into_global(self.module_id);
+            let Some(symbol_id) = self.symbol_for_node(declaration_id) else {
+                continue;
+            };
             let Some(function_id) = self.function_for_symbol(symbol_id) else {
                 continue;
             };
@@ -278,7 +282,7 @@ impl ModuleLowerer<'_> {
         declaration: &dir::FunctionDeclaration,
     ) -> CompilerResult<mir::LocalNodeId<mir::Function>> {
         // resolve function name and symbol
-        let symbol_id = declaration.symbol.into_global(self.module_id);
+        let symbol_id = self.require_symbol_for_node(declaration_id)?;
         let name = self.function_name_for_declaration(symbol_id, declaration.name)?;
 
         // skip when the function is already registered
@@ -378,9 +382,7 @@ impl ModuleLowerer<'_> {
                 let dir_type = self.types.get_type(type_id);
                 if matches!(
                     dir_type,
-                    dir::Type::Literal(dir::LiteralType {
-                        value: dir::TypeLiteral::Never
-                    }) | dir::Type::Value(_)
+                    dir::Type::Literal(dir::LiteralType::Never) | dir::Type::Value(_)
                 ) {
                     continue;
                 }
@@ -397,9 +399,7 @@ impl ModuleLowerer<'_> {
                 let dir_type = self.types.get_type(resolved_type);
                 if matches!(
                     dir_type,
-                    dir::Type::Literal(dir::LiteralType {
-                        value: dir::TypeLiteral::Never
-                    }) | dir::Type::Value(_)
+                    dir::Type::Literal(dir::LiteralType::Never) | dir::Type::Value(_)
                 ) {
                     continue;
                 }
@@ -412,11 +412,10 @@ impl ModuleLowerer<'_> {
             {
                 for declarator_id in declarators {
                     let declarator = self.dir_tree.get(*declarator_id);
-                    let Some(symbol_id) = self.dir_tree.get(declarator.pattern).symbol() else {
+                    let Some(symbol) = self.symbol_for_node(declarator.pattern) else {
                         continue;
                     };
 
-                    let symbol = symbol_id.into_global(self.module_id);
                     let Some(type_id) = self.types.get_value_type_id(symbol) else {
                         continue;
                     };
@@ -424,9 +423,7 @@ impl ModuleLowerer<'_> {
                     let dir_type = self.types.get_type(type_id);
                     if matches!(
                         dir_type,
-                        dir::Type::Literal(dir::LiteralType {
-                            value: dir::TypeLiteral::Never
-                        }) | dir::Type::Value(_)
+                        dir::Type::Literal(dir::LiteralType::Never) | dir::Type::Value(_)
                     ) {
                         continue;
                     }
@@ -483,7 +480,7 @@ impl ModuleLowerer<'_> {
         declaration: &dir::FunctionDeclaration,
     ) -> CompilerResult<mir::LocalNodeId<mir::Function>> {
         // resolve function name and symbol
-        let symbol_id = declaration.symbol.into_global(self.module_id);
+        let symbol_id = self.require_symbol_for_node(declaration_id)?;
         let name = self.function_name_for_declaration(symbol_id, declaration.name)?;
 
         // resolve capture layout
@@ -648,12 +645,15 @@ impl ModuleLowerer<'_> {
 
         // add parameter locals
         for (index, parameter_id) in declaration.signature.parameters.iter().enumerate() {
-            let parameter = self.dir_tree.get(*parameter_id);
             let ty = parameter_types[index];
             let value = function_lowerer.state.builder.function_parameter(index);
+            let parameter_symbol = function_lowerer
+                .context
+                .require_symbol_for_node(*parameter_id)?
+                .local_id;
             function_lowerer.define_local_binding(
                 parameter_id.into_any(),
-                parameter.symbol(),
+                parameter_symbol,
                 None,
                 value,
                 ty,
@@ -723,8 +723,7 @@ impl ModuleLowerer<'_> {
     ) -> Option<dir::GlobalSymbolId> {
         // prefer explicit this parameters
         if let Some(parameter_id) = signature.this_parameter {
-            let parameter = self.dir_tree.get(parameter_id);
-            return Some(parameter.symbol().into_global(self.module_id));
+            return self.symbol_for_node(parameter_id);
         }
 
         // resolve implicit this for member methods
@@ -733,7 +732,7 @@ impl ModuleLowerer<'_> {
             .declaration
             .is_some_and(|primary| primary.local_id.ty == dir::NodeType::Member);
         if is_member {
-            let scope = self.symbols.get_scope_by_id(symbol_data.scope.0);
+            let scope = self.symbols.get_scope_by_id(symbol_data.scope.id);
             let this_name = self.strings.intern("this");
             if let Some(symbol) = self
                 .symbols
@@ -752,7 +751,7 @@ impl ModuleLowerer<'_> {
     /// Resolve the module-local owner path for an anonymous lambda.
     fn lambda_owner_name(&self, symbol_id: dir::GlobalSymbolId) -> Option<String> {
         let symbol_data = self.symbols.get_symbol(symbol_id.local_id);
-        let mut scope_id = symbol_data.scope.0;
+        let mut scope_id = symbol_data.scope.id;
         let mut seen_scopes = HashSet::new();
         loop {
             if !seen_scopes.insert(scope_id) {
@@ -767,8 +766,7 @@ impl ModuleLowerer<'_> {
                 }
             }
 
-            let (parent_id, _) = scope.parent?;
-            scope_id = parent_id;
+            scope_id = scope.parent?.id;
         }
     }
 
@@ -825,7 +823,6 @@ impl ModuleLowerer<'_> {
             signature,
             body,
             is_static,
-            symbol,
             ..
         } = member
         else {
@@ -841,7 +838,7 @@ impl ModuleLowerer<'_> {
         let mut constructor_symbol = None;
 
         // resolve the method symbol
-        let method_symbol = symbol.into_global(self.module_id);
+        let method_symbol = self.require_symbol_for_node(member_id)?;
 
         // resolve the method name
         let name_str = if is_constructor {
@@ -1127,8 +1124,10 @@ impl ModuleLowerer<'_> {
 
         // add declared parameter locals
         for parameter_id in &signature.parameters {
-            // resolve the parameter symbol
-            let parameter = self.dir_tree.get(*parameter_id);
+            let parameter_symbol = function_lowerer
+                .context
+                .require_symbol_for_node(*parameter_id)?
+                .local_id;
 
             // bind the parameter local
             let ty = parameter_types[param_index];
@@ -1138,7 +1137,7 @@ impl ModuleLowerer<'_> {
                 .function_parameter(param_index);
             function_lowerer.define_local_binding(
                 parameter_id.into_any(),
-                parameter.symbol(),
+                parameter_symbol,
                 None,
                 value,
                 ty,

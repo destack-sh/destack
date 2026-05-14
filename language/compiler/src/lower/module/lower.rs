@@ -2,10 +2,8 @@ use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 use {destack_dir as dir, destack_mir as mir};
 
-use destack_artifact::{DiagnosticAnchor, DirDeclared, GlobalEnvironment, LanguageIntrinsics};
-use destack_ast::StringId;
+use destack_artifact::{DiagnosticAnchor, DirBound, GlobalEnvironment, LanguageIntrinsics};
 use destack_core::StringPool;
-use destack_dir::{GuardTable, LanguageItem};
 use destack_source::{ModuleId, TargetId};
 use destack_workspace::{CheckFailurePolicy, Module, ProfileId, ProviderContext, Target};
 use indexmap::IndexSet;
@@ -44,7 +42,7 @@ pub(crate) struct ModuleLowerer<'a> {
     /// Provide access to inferred and declared types.
     pub(crate) types: &'a dir::TypeTable,
     /// Elaborated type guard entries.
-    pub(crate) guards: &'a GuardTable,
+    pub(crate) guards: &'a dir::GuardTable,
     /// Provide access to capture metadata for closures.
     pub(crate) captures: &'a dir::CaptureTable,
     /// Runtime check configuration for this target.
@@ -62,7 +60,7 @@ pub(crate) struct ModuleLowerer<'a> {
     /// Map DIR symbols to MIR global bindings.
     pub(crate) globals_by_symbol: HashMap<dir::GlobalSymbolId, GlobalBinding>,
     /// Map string literal contents to MIR globals.
-    pub(crate) string_literal_globals: HashMap<StringId, mir::LocalNodeId<mir::Global>>,
+    pub(crate) string_literal_globals: HashMap<dir::StringId, mir::LocalNodeId<mir::Global>>,
     /// Map function environment layouts by function symbol.
     pub(crate) function_environment_layouts:
         HashMap<dir::GlobalSymbolId, FunctionEnvironmentLayout>,
@@ -73,11 +71,11 @@ pub(crate) struct ModuleLowerer<'a> {
     /// Lower and cache DIR types into MIR types.
     pub(crate) type_lowerer: TypeLowerer<'a>,
     /// Synthetic name for call signatures in dispatch tables.
-    pub(crate) dispatch_call_name: StringId,
+    pub(crate) dispatch_call_name: dir::StringId,
     /// Synthetic name for construct signatures in dispatch tables.
-    pub(crate) dispatch_construct_name: StringId,
+    pub(crate) dispatch_construct_name: dir::StringId,
     /// Synthetic name for vtable header fields.
-    pub(crate) vtable_field_name: StringId,
+    pub(crate) vtable_field_name: dir::StringId,
 
     /// Track interface slot data for dispatch lowering.
     pub(crate) interface_slots_by_symbol: HashMap<dir::GlobalSymbolId, Vec<InterfaceEntry>>,
@@ -147,7 +145,7 @@ impl<'a> ModuleLowerer<'a> {
         module_node: dir::LocalNodeIdAny,
         symbols: &'a dir::BindingTable,
         types: &'a dir::TypeTable,
-        guards: &'a GuardTable,
+        guards: &'a dir::GuardTable,
         captures: &'a dir::CaptureTable,
         target: &'a TargetId,
         pointer_bytes: u8,
@@ -254,12 +252,12 @@ impl<'a> ModuleLowerer<'a> {
 
         let mut intrinsics = LanguageIntrinsics::new();
         for module_id in &environment.modules {
-            let declared = compiler
-                .dir_declared(context, *module_id, profile)
+            let bound = compiler
+                .dir_bound(context, *module_id, profile)
                 .map_err(CompilerError::from)?;
             Self::collect_intrinsic_bindings(
                 *module_id,
-                declared.as_ref(),
+                bound.as_ref(),
                 compiler.repository.string_pool().as_ref(),
                 &mut intrinsics,
             );
@@ -288,7 +286,7 @@ impl<'a> ModuleLowerer<'a> {
     /// Resolve one compiler language symbol in this lowerer.
     pub(crate) fn language_item(
         &self,
-        symbol: LanguageItem,
+        symbol: dir::LanguageItem,
     ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
         let environment = self.global_environment()?;
 
@@ -309,15 +307,15 @@ impl<'a> ModuleLowerer<'a> {
         Ok(environment.language.item(symbol))
     }
 
-    /// Collect intrinsic bindings from one declared DIR module.
+    /// Collect intrinsic bindings from one bound DIR module.
     fn collect_intrinsic_bindings(
         module_id: ModuleId,
-        declared: &DirDeclared,
+        bound: &DirBound,
         strings: &StringPool,
         intrinsics: &mut LanguageIntrinsics,
     ) {
-        for symbol_id in declared.bindings.symbol_ids() {
-            let symbol = declared.bindings.get_symbol(symbol_id);
+        for symbol_id in bound.bindings.symbol_ids() {
+            let symbol = bound.bindings.get_symbol(symbol_id);
             let Some(declaration) = symbol.declaration else {
                 continue;
             };
@@ -326,7 +324,7 @@ impl<'a> ModuleLowerer<'a> {
             }
 
             let Some(name) =
-                Self::intrinsic_name_for_declaration(declared, strings, declaration.local_id)
+                Self::intrinsic_name_for_declaration(bound, strings, declaration.local_id)
             else {
                 continue;
             };
@@ -339,14 +337,14 @@ impl<'a> ModuleLowerer<'a> {
 
     /// Resolve the intrinsic binding name attached to one declaration.
     fn intrinsic_name_for_declaration(
-        declared: &DirDeclared,
+        bound: &DirBound,
         strings: &StringPool,
         declaration: dir::LocalNodeIdAny,
     ) -> Option<String> {
-        for decorator_id in declared.tree.get_decorators(declaration.id) {
-            let decorator = declared.tree.get(decorator_id);
+        for decorator_id in bound.tree.get_decorators(declaration.id) {
+            let decorator = bound.tree.get(decorator_id);
             let Some(name) = Self::intrinsic_name_for_expression(
-                declared,
+                bound,
                 strings,
                 decorator.expression,
                 declaration.id,
@@ -362,21 +360,21 @@ impl<'a> ModuleLowerer<'a> {
 
     /// Resolve an intrinsic decorator expression to its binding name.
     fn intrinsic_name_for_expression(
-        declared: &DirDeclared,
+        bound: &DirBound,
         strings: &StringPool,
         expression_id: dir::LocalNodeId<dir::Expression>,
         declaration_id: u32,
     ) -> Option<String> {
-        let expression = declared.tree.get(expression_id);
+        let expression = bound.tree.get(expression_id);
 
         match expression {
             dir::Expression::Call {
                 left, arguments, ..
-            } if Self::is_intrinsic_decorator_name(declared, *left) => {
-                Self::intrinsic_name_for_arguments(declared, strings, arguments)
+            } if Self::is_intrinsic_decorator_name(bound, *left) => {
+                Self::intrinsic_name_for_arguments(bound, strings, arguments)
             }
-            _ if Self::is_intrinsic_decorator_name(declared, expression_id) => {
-                Self::default_intrinsic_name(declared, strings, declaration_id)
+            _ if Self::is_intrinsic_decorator_name(bound, expression_id) => {
+                Self::default_intrinsic_name(bound, strings, declaration_id)
             }
             _ => None,
         }
@@ -384,48 +382,50 @@ impl<'a> ModuleLowerer<'a> {
 
     /// Check whether an expression names the intrinsic decorator.
     fn is_intrinsic_decorator_name(
-        declared: &DirDeclared,
+        bound: &DirBound,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> bool {
-        let expression = declared.tree.get(expression_id);
+        let expression = bound.tree.get(expression_id);
         let name = match expression {
-            dir::Expression::Path { path, .. } => path.last_segment(),
+            dir::Expression::Identifier { name } => Some(*name),
+            dir::Expression::QualifiedReference { path, .. } => path.last_segment(),
             _ => None,
         };
 
-        name == Some(StringId::for_text("intrinsic"))
+        name == Some(dir::StringId::for_text("intrinsic"))
     }
 
     /// Resolve the explicit intrinsic binding name from decorator arguments.
     fn intrinsic_name_for_arguments(
-        declared: &DirDeclared,
+        bound: &DirBound,
         strings: &StringPool,
         arguments: &[dir::LocalNodeId<dir::Argument>],
     ) -> Option<String> {
         let [argument_id] = arguments else {
             return None;
         };
-        let argument = declared.tree.get(*argument_id);
-        let expression = declared.tree.get(argument.value());
+        let argument = bound.tree.get(*argument_id);
+        let value = argument.value()?;
+        let expression = bound.tree.get(value);
 
         match expression {
-            dir::Expression::ScalarLiteral {
-                value: dir::ScalarLiteral::String(name),
-            } => Some(strings.get(*name).to_string()),
+            dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(name)) => {
+                Some(strings.get(*name).to_string())
+            }
             _ => None,
         }
     }
 
     /// Resolve the default intrinsic binding name from the decorated declaration.
     fn default_intrinsic_name(
-        declared: &DirDeclared,
+        bound: &DirBound,
         strings: &StringPool,
         declaration_id: u32,
     ) -> Option<String> {
-        let symbol = declared
+        let symbol = bound
             .bindings
             .symbol_ids()
-            .map(|symbol_id| declared.bindings.get_symbol(symbol_id))
+            .map(|symbol_id| bound.bindings.get_symbol(symbol_id))
             .find(|symbol| {
                 symbol
                     .declaration
@@ -439,13 +439,10 @@ impl<'a> ModuleLowerer<'a> {
         Some(strings.get(name).to_string())
     }
 
-    /// Read one committed declared DIR snapshot for a module when available.
-    pub(crate) fn artifact_dir_data_if_present(
-        &self,
-        module_id: ModuleId,
-    ) -> Option<Arc<DirDeclared>> {
+    /// Read one committed bound DIR snapshot for a module when available.
+    pub(crate) fn bound_dir_if_present(&self, module_id: ModuleId) -> Option<Arc<DirBound>> {
         self.compiler
-            .dir_declared(self.context, module_id, self.profile)
+            .dir_bound(self.context, module_id, self.profile)
             .ok()
     }
 
@@ -476,12 +473,12 @@ impl<'a> ModuleLowerer<'a> {
         let symbol = self.symbols.get_symbol(symbol.local_id);
 
         // prefer no heap when explicitly requested
-        if self.symbol_has_language_decorator(symbol, LanguageItem::NoHeap) {
+        if self.symbol_has_language_decorator(symbol, dir::LanguageItem::NoHeap) {
             return mir::AllocationMode::NoHeap;
         }
 
         // apply no managed only when requested explicitly
-        if self.symbol_has_language_decorator(symbol, LanguageItem::NoManaged) {
+        if self.symbol_has_language_decorator(symbol, dir::LanguageItem::NoManaged) {
             return mir::AllocationMode::NoManaged;
         }
 
@@ -492,7 +489,7 @@ impl<'a> ModuleLowerer<'a> {
     fn symbol_has_language_decorator(
         &self,
         symbol: &dir::Symbol,
-        language_item: LanguageItem,
+        language_item: dir::LanguageItem,
     ) -> bool {
         let Some(declaration) = symbol.declaration else {
             return false;
@@ -853,9 +850,7 @@ impl<'a> ModuleLowerer<'a> {
                 );
             }
 
-            let dir::Expression::ScalarLiteral {
-                value: dir::ScalarLiteral::String(string_id),
-            } = expression
+            let dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(string_id)) = expression
             else {
                 continue;
             };
@@ -866,29 +861,29 @@ impl<'a> ModuleLowerer<'a> {
         // add runtime check messages when panic uses literals
         if matches!(self.runtime_checks.failure, CheckFailurePolicy::Panic) {
             if self.runtime_checks.bounds {
-                let literal_id = StringId::for_text(RUNTIME_CHECK_MESSAGES.bounds_check);
+                let literal_id = dir::StringId::for_text(RUNTIME_CHECK_MESSAGES.bounds_check);
                 literals.insert(literal_id);
             }
 
             if self.runtime_checks.null {
-                let literal_id = StringId::for_text(RUNTIME_CHECK_MESSAGES.null_check);
+                let literal_id = dir::StringId::for_text(RUNTIME_CHECK_MESSAGES.null_check);
                 literals.insert(literal_id);
             }
 
             if self.runtime_checks.division {
-                let zero_id = StringId::for_text(RUNTIME_CHECK_MESSAGES.division_by_zero);
+                let zero_id = dir::StringId::for_text(RUNTIME_CHECK_MESSAGES.division_by_zero);
                 literals.insert(zero_id);
-                let overflow_id = StringId::for_text(RUNTIME_CHECK_MESSAGES.division_overflow);
+                let overflow_id = dir::StringId::for_text(RUNTIME_CHECK_MESSAGES.division_overflow);
                 literals.insert(overflow_id);
             }
 
             if self.runtime_checks.overflow {
-                let literal_id = StringId::for_text(RUNTIME_CHECK_MESSAGES.integer_overflow);
+                let literal_id = dir::StringId::for_text(RUNTIME_CHECK_MESSAGES.integer_overflow);
                 literals.insert(literal_id);
             }
 
             if self.runtime_checks.shift {
-                let literal_id = StringId::for_text(RUNTIME_CHECK_MESSAGES.shift_out_of_range);
+                let literal_id = dir::StringId::for_text(RUNTIME_CHECK_MESSAGES.shift_out_of_range);
                 literals.insert(literal_id);
             }
         }
@@ -960,23 +955,15 @@ impl<'a> ModuleLowerer<'a> {
         for (declaration_id, declaration) in self.dir_tree.iter_nodes_of_type::<dir::Declaration>()
         {
             let symbol = match declaration {
-                dir::Declaration::Struct(declaration) => {
-                    declaration.symbol.into_global(self.module_id)
-                }
-                dir::Declaration::Class(declaration) => {
-                    declaration.symbol.into_global(self.module_id)
-                }
-                dir::Declaration::Enum(declaration) => {
-                    declaration.symbol.into_global(self.module_id)
-                }
-                dir::Declaration::Interface(declaration) => {
-                    declaration.symbol.into_global(self.module_id)
-                }
+                dir::Declaration::Struct(_)
+                | dir::Declaration::Class(_)
+                | dir::Declaration::Enum(_)
+                | dir::Declaration::Interface(_) => self.require_symbol_for_node(declaration_id)?,
                 dir::Declaration::Type(declaration) => {
                     if !declaration.is_nominal {
                         continue;
                     }
-                    declaration.symbol.into_global(self.module_id)
+                    self.require_symbol_for_node(declaration_id)?
                 }
                 _ => continue,
             };
@@ -1127,11 +1114,12 @@ impl<'a> ModuleLowerer<'a> {
 
 /// Return whether one expression is an unqualified reference to a name.
 fn expression_is_unqualified_name(expression: &dir::Expression, name: &str) -> bool {
-    let name = StringId::for_text(name);
-    let path = match expression {
-        dir::Expression::Path { path, .. } => path,
-        _ => return false,
-    };
-
-    path.segments.len() == 1 && path.first_segment() == Some(name)
+    let name = dir::StringId::for_text(name);
+    match expression {
+        dir::Expression::Identifier { name: actual } => *actual == name,
+        dir::Expression::QualifiedReference { path, .. } => {
+            path.segments.len() == 1 && path.segments.first().copied() == Some(name)
+        }
+        _ => false,
+    }
 }

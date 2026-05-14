@@ -245,193 +245,6 @@ impl FunctionLowerer<'_> {
         Ok((value, struct_type))
     }
 
-    /// Lower a tagged scalar expression (newtype constructor) to a newtype value.
-    ///
-    /// ```ds
-    /// newtype UserId = int32;
-    ///
-    /// function make(value: int32): UserId {
-    ///     return UserId(value);
-    /// }
-    /// ```
-    /// ->
-    /// ```mir
-    /// v0: int32 = ...
-    /// v1: newtype<int32> = cast.bit v0 -> newtype<int32>
-    /// ```
-    pub(crate) fn lower_tagged_scalar_expression(
-        &mut self,
-        expression_id: dir::LocalNodeId<dir::Expression>,
-        ty_expr: dir::LocalNodeId<dir::TypeExpression>,
-        value_id: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
-        // get the newtype result type from explicit syntax
-        let newtype_type = self.lower_type_for_type_expression(ty_expr)?;
-        let node = expression_id
-            .into_global_any(self.context.module_id)
-            .into_anchored(Some(self.context.profile));
-
-        // require a nominal newtype wrapper
-        let inner_type = match self.state.builder.tree().get(newtype_type) {
-            mir::Type::Newtype { inner, .. } => inner
-                .ty()
-                .ok_or_else(|| LowerError::UnsupportedConstruct {
-                    anchor: self.diagnostic_anchor(node),
-                    message: "tagged scalar inner type is not concrete".to_string(),
-                })
-                .map_err(CompilerError::from)?,
-            _ => {
-                return Err(LowerError::UnsupportedConstruct {
-                    anchor: self.diagnostic_anchor(node),
-                    message: "tagged scalar expression requires a newtype".to_string(),
-                }
-                .into());
-            }
-        };
-
-        // reject tuple payloads for scalar constructors
-        if matches!(
-            self.state.builder.tree().get(inner_type),
-            mir::Type::Tuple { .. }
-        ) {
-            return Err(LowerError::UnsupportedConstruct {
-                anchor: self.diagnostic_anchor(
-                    expression_id
-                        .into_global_any(self.context.module_id)
-                        .into_anchored(Some(self.context.profile)),
-                ),
-                message: "tuple newtypes require a tagged tuple expression".to_string(),
-            }
-            .into());
-        }
-
-        // lower the payload value
-        let (value, value_type) = self.lower_value_expression(value_id)?;
-
-        // require the payload type to match the newtype inner type
-        if value_type != inner_type {
-            return Err(LowerError::UnsupportedConstruct {
-                anchor: self.diagnostic_anchor(
-                    expression_id
-                        .into_global_any(self.context.module_id)
-                        .into_anchored(Some(self.context.profile)),
-                ),
-                message: "newtype payload type does not match inner type".to_string(),
-            }
-            .into());
-        }
-
-        // wrap the payload value
-        let wrapped_value = self.state.builder.bitcast(value, newtype_type);
-        Ok((wrapped_value, newtype_type))
-    }
-
-    /// Lower a tagged tuple expression (tuple newtype constructor) to a newtype value.
-    ///
-    /// ```ds
-    /// newtype Pair = (int32, int32);
-    ///
-    /// function make(x: int32, y: int32): Pair {
-    ///     return Pair(x, y);
-    /// }
-    /// ```
-    /// ->
-    /// ```mir
-    /// v0: int32 = ...
-    /// v1: int32 = ...
-    /// v2: (int32, int32) = tuple (int32, int32) (v0, v1)
-    /// v3: newtype<(int32, int32)> = cast.bit v2 -> newtype<(int32, int32)>
-    /// ```
-    pub(crate) fn lower_tagged_tuple_expression(
-        &mut self,
-        expression_id: dir::LocalNodeId<dir::Expression>,
-        ty_expr: dir::LocalNodeId<dir::TypeExpression>,
-        elements: &[dir::LocalNodeId<dir::Argument>],
-    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
-        // get the newtype result type from explicit syntax
-        let newtype_type = self.lower_type_for_type_expression(ty_expr)?;
-        let node = expression_id
-            .into_global_any(self.context.module_id)
-            .into_anchored(Some(self.context.profile));
-
-        // require a nominal newtype wrapper
-        let inner_type = match self.state.builder.tree().get(newtype_type) {
-            mir::Type::Newtype { inner, .. } => inner
-                .ty()
-                .ok_or_else(|| LowerError::UnsupportedConstruct {
-                    anchor: self.diagnostic_anchor(node),
-                    message: "tagged tuple inner type is not concrete".to_string(),
-                })
-                .map_err(CompilerError::from)?,
-            _ => {
-                return Err(LowerError::UnsupportedConstruct {
-                    anchor: self.diagnostic_anchor(node),
-                    message: "tagged tuple expression requires a newtype".to_string(),
-                }
-                .into());
-            }
-        };
-
-        // require a tuple payload for tuple constructors
-        let tuple_elements = match self.state.builder.tree().get(inner_type) {
-            mir::Type::Tuple { elements, .. } => elements.clone(),
-            _ => {
-                return Err(LowerError::UnsupportedConstruct {
-                    anchor: self.diagnostic_anchor(
-                        expression_id
-                            .into_global_any(self.context.module_id)
-                            .into_anchored(Some(self.context.profile)),
-                    ),
-                    message: "tagged tuple expression requires a tuple newtype".to_string(),
-                }
-                .into());
-            }
-        };
-
-        // lower each element value
-        let mut element_values = Vec::with_capacity(elements.len());
-        for element_id in elements {
-            let element = self.context.dir_tree.get(*element_id);
-            match element {
-                dir::Argument::Positional { value, .. } | dir::Argument::Labeled { value, .. } => {
-                    let (value, _) = self.lower_value_expression(*value)?;
-                    element_values.push(value);
-                }
-                _ => {
-                    return Err(LowerError::UnsupportedConstruct {
-                        anchor: self.diagnostic_anchor(
-                            expression_id
-                                .into_global_any(self.context.module_id)
-                                .into_anchored(Some(self.context.profile)),
-                        ),
-                        message: "unsupported tuple newtype element kind".to_string(),
-                    }
-                    .into());
-                }
-            }
-        }
-
-        // require matching tuple arity
-        if element_values.len() != tuple_elements.len() {
-            return Err(LowerError::UnsupportedConstruct {
-                anchor: self.diagnostic_anchor(
-                    expression_id
-                        .into_global_any(self.context.module_id)
-                        .into_anchored(Some(self.context.profile)),
-                ),
-                message: "tuple newtype arity does not match inner type".to_string(),
-            }
-            .into());
-        }
-
-        // construct the tuple payload
-        let tuple_value = self.state.builder.tuple(inner_type, element_values);
-
-        // wrap the tuple payload
-        let wrapped_value = self.state.builder.bitcast(tuple_value, newtype_type);
-        Ok((wrapped_value, newtype_type))
-    }
-
     /// Lower a constructor call expression to a struct value.
     ///
     /// ```ds
@@ -475,7 +288,7 @@ impl FunctionLowerer<'_> {
             // load the constructor member
             let constructor = self.context.dir_tree.get(constructor_id);
             // require a constructor method member
-            let dir::Member::Method { symbol, .. } = constructor else {
+            let dir::Member::Method { .. } = constructor else {
                 return Err(LowerError::UnsupportedConstruct {
                     anchor: self.diagnostic_anchor(
                         constructor_id
@@ -487,7 +300,7 @@ impl FunctionLowerer<'_> {
                 .into());
             };
 
-            let constructor_symbol = symbol.into_global(self.context.module_id);
+            let constructor_symbol = self.context.require_symbol_for_node(constructor_id)?;
             let function_id = self
                 .function_for_symbol(constructor_symbol)
                 .ok_or_else(|| LowerError::UnsupportedConstruct {
@@ -519,7 +332,8 @@ impl FunctionLowerer<'_> {
                     }
                     .into());
                 }
-                let (value, _) = self.lower_value_expression(argument.value())?;
+                let argument_value = self.require_argument_value(expression_id, argument)?;
+                let (value, _) = self.lower_value_expression(argument_value)?;
                 argument_values.push(value);
             }
 
@@ -880,7 +694,7 @@ impl FunctionLowerer<'_> {
         };
 
         let symbol = match self.context.dir_tree.get(*left) {
-            dir::Expression::Path { .. } => {
+            dir::Expression::Identifier { .. } | dir::Expression::QualifiedReference { .. } => {
                 let symbol = self.resolve_expression_symbol(*left)?;
                 Some(symbol)
             }

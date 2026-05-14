@@ -36,7 +36,7 @@ impl ModuleLowerer<'_> {
                             .into_global_any(self.module_id)
                             .into_anchored(Some(self.profile)),
                     ),
-                    message: format!("unsupported root expression `{}`", expression.kind_name()),
+                    message: "unsupported root expression".to_string(),
                 }))?
             }
         }

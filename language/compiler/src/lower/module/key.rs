@@ -1,5 +1,5 @@
 use destack_core::StringId;
-use destack_dir::{self as dir};
+use destack_dir as dir;
 
 use crate::{LowerError, LowerResult};
 

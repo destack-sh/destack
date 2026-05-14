@@ -271,7 +271,7 @@ impl ModuleLowerer<'_> {
         let name = self
             .qualified_symbol_name(symbol)
             .or_else(|| {
-                let dir = self.artifact_dir_data_if_present(symbol.module_id)?;
+                let dir = self.bound_dir_if_present(symbol.module_id)?;
                 self.symbol_path_from_symbols(symbol, &dir.bindings)
             })
             .ok_or_else(|| LowerError::UnsupportedConstruct {
@@ -456,26 +456,26 @@ impl ModuleLowerer<'_> {
     /// Resolve a metadata name for scalar and literal types.
     fn type_literal_metadata_name(&self, dir_type: &dir::Type) -> Option<String> {
         // only handle type literal nodes
-        let dir::Type::Literal(dir::LiteralType { value }) = dir_type else {
+        let dir::Type::Literal(value) = dir_type else {
             return None;
         };
 
         match value {
-            dir::TypeLiteral::Never => Some("never".to_string()),
-            dir::TypeLiteral::Any => Some("any".to_string()),
-            dir::TypeLiteral::Infer => Some("_".to_string()),
-            dir::TypeLiteral::Undefined => Some("undefined".to_string()),
-            dir::TypeLiteral::Unknown => Some("unknown".to_string()),
-            dir::TypeLiteral::Object => Some("object".to_string()),
-            dir::TypeLiteral::Void => Some("void".to_string()),
-            dir::TypeLiteral::Null => Some("null".to_string()),
-            dir::TypeLiteral::Primitive(primitive) => {
+            dir::LiteralType::Never => Some("never".to_string()),
+            dir::LiteralType::Any => Some("any".to_string()),
+            dir::LiteralType::Infer => Some("_".to_string()),
+            dir::LiteralType::Undefined => Some("undefined".to_string()),
+            dir::LiteralType::Unknown => Some("unknown".to_string()),
+            dir::LiteralType::Object => Some("object".to_string()),
+            dir::LiteralType::Void => Some("void".to_string()),
+            dir::LiteralType::Null => Some("null".to_string()),
+            dir::LiteralType::Primitive(primitive) => {
                 Some(self.primitive_metadata_name(*primitive))
             }
-            dir::TypeLiteral::Intrinsic(intrinsic) => {
+            dir::LiteralType::Intrinsic(intrinsic) => {
                 Some(self.intrinsic_metadata_name(*intrinsic))
             }
-            dir::TypeLiteral::ScalarLiteral(literal) => {
+            dir::LiteralType::ScalarLiteral(literal) => {
                 Some(self.scalar_literal_metadata_name(literal))
             }
         }
@@ -489,7 +489,7 @@ impl ModuleLowerer<'_> {
         };
 
         let name = self.qualified_symbol_name(reference.symbol).or_else(|| {
-            let dir = self.artifact_dir_data_if_present(reference.symbol.module_id)?;
+            let dir = self.bound_dir_if_present(reference.symbol.module_id)?;
             self.symbol_path_from_symbols(reference.symbol, &dir.bindings)
         })?;
 
@@ -524,7 +524,7 @@ impl ModuleLowerer<'_> {
         // use nominal names without suffix adjustments
         if let dir::Type::Reference(reference) = dir_type {
             return self.qualified_symbol_name(reference.symbol).or_else(|| {
-                let dir = self.artifact_dir_data_if_present(reference.symbol.module_id)?;
+                let dir = self.bound_dir_if_present(reference.symbol.module_id)?;
                 self.symbol_path_from_symbols(reference.symbol, &dir.bindings)
             });
         }
@@ -671,12 +671,12 @@ impl ModuleLowerer<'_> {
                 dir::NodeType::Expression => {
                     let expression_id = dir::LocalNodeId::<dir::Expression>::new(node_id.id);
                     let expression = self.dir_tree.get(expression_id);
-                    if let dir::Expression::Declaration(declaration) = expression {
-                        let declaration = self.dir_tree.get(*declaration);
+                    if let dir::Expression::Declaration(declaration_id) = expression {
                         if context.declaration_symbol.is_none() {
-                            context.declaration_symbol =
-                                Some(declaration.symbol().into_global(self.module_id));
+                            context.declaration_symbol = self.symbol_for_node(*declaration_id);
                         }
+
+                        let declaration = self.dir_tree.get(*declaration_id);
 
                         // apply declaration naming context
                         self.apply_declaration_context(declaration, source_id, &mut context);
@@ -697,8 +697,9 @@ impl ModuleLowerer<'_> {
 
                         // fill declaration symbol from the parameter owner
                         if context.declaration_symbol.is_none() {
-                            context.declaration_symbol =
-                                self.owner_symbol_from_symbol(parameter.symbol());
+                            context.declaration_symbol = self
+                                .symbol_for_node(parameter_id)
+                                .and_then(|symbol| self.owner_symbol_from_symbol(symbol.local_id));
                         }
                     }
                 }
@@ -710,7 +711,9 @@ impl ModuleLowerer<'_> {
 
                     // fill declaration symbol from the member owner
                     if context.declaration_symbol.is_none() {
-                        context.declaration_symbol = self.owner_symbol_from_symbol(member.symbol());
+                        context.declaration_symbol = self
+                            .symbol_for_node(member_id)
+                            .and_then(|symbol| self.owner_symbol_from_symbol(symbol.local_id));
                     }
 
                     // apply member naming context
@@ -724,8 +727,9 @@ impl ModuleLowerer<'_> {
 
                     // fill declaration symbol from the property owner
                     if context.declaration_symbol.is_none() {
-                        context.declaration_symbol =
-                            self.owner_symbol_from_symbol(self.property_symbol(property));
+                        context.declaration_symbol = self
+                            .symbol_for_node(property_id)
+                            .and_then(|symbol| self.owner_symbol_from_symbol(symbol.local_id));
                     }
 
                     // apply property naming context
@@ -757,8 +761,7 @@ impl ModuleLowerer<'_> {
 
                     // fill declaration symbol from the declaration
                     if context.declaration_symbol.is_none() {
-                        context.declaration_symbol =
-                            Some(declaration.symbol().into_global(self.module_id));
+                        context.declaration_symbol = self.symbol_for_node(declaration_id);
                     }
 
                     // apply declaration naming context
@@ -899,28 +902,28 @@ impl ModuleLowerer<'_> {
                 Some(strings.get(*name).to_string())
             }
             // handle pattern parameters
-            dir::Parameter::Pattern {
-                symbol, pattern, ..
-            } => {
+            dir::Parameter::Pattern { pattern, .. } => {
                 // prefer the bound symbol name
-                let symbol = self.symbols.get_symbol(*symbol);
-                if let Some(name_id) = symbol.name() {
-                    return Some(strings.get(name_id).to_string());
+                if let Some(symbol) = self.symbol_for_node(*pattern) {
+                    let symbol = self.symbols.get_symbol(symbol.local_id);
+                    if let Some(name_id) = symbol.name() {
+                        return Some(strings.get(name_id).to_string());
+                    }
                 }
 
                 // fall back to the pattern binding name
                 self.pattern_binding_name(*pattern)
             }
-            dir::Parameter::VariadicPattern {
-                symbol, pattern, ..
-            } => {
-                let symbol = self.symbols.get_symbol(*symbol);
-                if let Some(name_id) = symbol.name() {
-                    return Some(strings.get(name_id).to_string());
+            dir::Parameter::VariadicPattern { pattern, .. } => {
+                if let Some(symbol) = self.symbol_for_node(*pattern) {
+                    let symbol = self.symbols.get_symbol(symbol.local_id);
+                    if let Some(name_id) = symbol.name() {
+                        return Some(strings.get(name_id).to_string());
+                    }
                 }
                 self.pattern_binding_name(*pattern)
             }
-            dir::Parameter::Error { .. } => None,
+            dir::Parameter::Error => None,
         }
     }
 
@@ -950,26 +953,8 @@ impl ModuleLowerer<'_> {
         &self,
         pattern_id: dir::LocalNodeId<dir::Pattern>,
     ) -> Option<dir::LocalSymbolId> {
-        // load the pattern node
-        let pattern = self.dir_tree.get(pattern_id);
-
-        // return the binding symbol when present
-        pattern.symbol()
-    }
-
-    /// Resolve a property symbol from a property node.
-    fn property_symbol(&self, property: &dir::Property) -> dir::LocalSymbolId {
-        // extract the symbol from each property kind
-        match property {
-            // handle field properties
-            dir::Property::Field { symbol, .. } => *symbol,
-            // handle method properties
-            dir::Property::Method { symbol, .. } => *symbol,
-            // handle spread properties
-            dir::Property::Spread { symbol, .. } => *symbol,
-            // malformed slots still preserve a declaration symbol
-            dir::Property::Error { symbol } => *symbol,
-        }
+        self.symbol_for_node(pattern_id)
+            .map(|symbol| symbol.local_id)
     }
 
     /// Resolve the owning declaration symbol for a local symbol.
@@ -979,7 +964,7 @@ impl ModuleLowerer<'_> {
     ) -> Option<dir::GlobalSymbolId> {
         // seed with the symbol scope
         let symbol = self.symbols.get_symbol(symbol_id);
-        let mut scope_id = symbol.scope.0;
+        let mut scope_id = symbol.scope.id;
 
         // walk up scopes to find an owner
         let mut seen_scopes = HashSet::new();
@@ -996,10 +981,10 @@ impl ModuleLowerer<'_> {
             }
 
             // move to the parent scope
-            let Some((parent_id, _)) = scope.parent else {
+            let Some(parent_scope) = scope.parent else {
                 break;
             };
-            scope_id = parent_id;
+            scope_id = parent_scope.id;
         }
 
         // fall back to the symbol itself when no owner is registered
@@ -1061,7 +1046,7 @@ impl ModuleLowerer<'_> {
         let module = self
             .compiler
             .module(self.context.revision(), symbol_id.module_id);
-        let dir = self.artifact_dir_data_if_present(symbol_id.module_id)?;
+        let dir = self.bound_dir_if_present(symbol_id.module_id)?;
         self.qualified_symbol_name_for_module(symbol_id, module.as_ref(), &dir.bindings)
     }
 
@@ -1130,7 +1115,7 @@ impl ModuleLowerer<'_> {
         let mut segments = vec![symbol_name];
 
         // walk owner scopes for namespaces and types
-        let mut scope_id = symbol.scope.0;
+        let mut scope_id = symbol.scope.id;
         let mut seen_scopes = HashSet::new();
         loop {
             // avoid cycles in scope ownership
@@ -1152,10 +1137,10 @@ impl ModuleLowerer<'_> {
             }
 
             // climb to the parent scope
-            let Some((parent_id, _)) = scope.parent else {
+            let Some(parent_scope) = scope.parent else {
                 break;
             };
-            scope_id = parent_id;
+            scope_id = parent_scope.id;
         }
 
         // reverse for root to leaf order

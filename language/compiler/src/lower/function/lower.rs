@@ -2,9 +2,8 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use {destack_dir as dir, destack_mir as mir};
 
-use destack_artifact::{DiagnosticAnchor, DirChecked, DirDeclared, LanguageIntrinsics};
+use destack_artifact::{DiagnosticAnchor, DirBound, DirChecked, LanguageIntrinsics};
 use destack_core::{StringId, StringPool};
-use destack_dir::GuardTable;
 use destack_source::ModuleId;
 use destack_workspace::{ProfileId, ProviderContext};
 
@@ -37,7 +36,7 @@ pub(crate) struct FunctionLoweringContext<'a> {
     /// Provide access to inferred and declared types.
     pub(crate) types: &'a dir::TypeTable,
     /// Elaborated type guard entries.
-    pub(crate) guards: &'a GuardTable,
+    pub(crate) guards: &'a dir::GuardTable,
     /// Provide access to capture metadata for closures.
     pub(crate) captures: &'a dir::CaptureTable,
     /// Provide access to the program string pool for name resolution.
@@ -93,17 +92,35 @@ pub(crate) struct FunctionLoweringContext<'a> {
 }
 
 impl FunctionLoweringContext<'_> {
-    /// Read one symbol record from local or declared DIR.
+    /// Resolve the symbol declared by one local DIR node or fail loudly.
+    pub(crate) fn require_symbol_for_node<T: dir::Node>(
+        &self,
+        node_id: dir::LocalNodeId<T>,
+    ) -> Result<dir::GlobalSymbolId, LowerError> {
+        let global_node_id = node_id.into_global_any(self.module_id);
+        let symbol_id = self.symbols.symbol_for_declaration(global_node_id);
+
+        symbol_id
+            .map(|symbol_id| symbol_id.into_global(self.module_id))
+            .ok_or_else(|| LowerError::UnsupportedConstruct {
+                anchor: self
+                    .type_lowerer
+                    .diagnostic_anchor(global_node_id.into_anchored(Some(self.profile))),
+                message: "node missing bound symbol".to_string(),
+            })
+    }
+
+    /// Read one symbol record from local or bound DIR.
     pub(crate) fn symbol(&self, symbol_id: dir::GlobalSymbolId) -> Option<dir::Symbol> {
         if symbol_id.module_id == self.module_id {
             Some(self.symbols.get_symbol(symbol_id.local_id).clone())
         } else {
-            let declared = self
+            let bound = self
                 .compiler
-                .dir_declared(self.provider, symbol_id.module_id, self.profile)
+                .dir_bound(self.provider, symbol_id.module_id, self.profile)
                 .ok()?;
 
-            Some(declared.bindings.get_symbol(symbol_id.local_id).clone())
+            Some(bound.bindings.get_symbol(symbol_id.local_id).clone())
         }
     }
 
@@ -230,19 +247,35 @@ impl<'a> FunctionLowerer<'a> {
         self.context.type_lowerer.diagnostic_anchor(node)
     }
 
-    /// Read one committed declared DIR snapshot for a module when available.
-    pub(crate) fn artifact_dir_data_if_present(
+    /// Resolve the value expression for one positional argument.
+    pub(crate) fn require_argument_value(
         &self,
-        module_id: ModuleId,
-    ) -> Option<Arc<DirDeclared>> {
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        argument: &dir::Argument,
+    ) -> CompilerResult<dir::LocalNodeId<dir::Expression>> {
+        argument.value().ok_or_else(|| {
+            LowerError::UnsupportedConstruct {
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
+                message: "argument must have a value".to_string(),
+            }
+            .into()
+        })
+    }
+
+    /// Read one committed bound DIR snapshot for a module when available.
+    pub(crate) fn bound_dir_if_present(&self, module_id: ModuleId) -> Option<Arc<DirBound>> {
         self.context
             .compiler
-            .dir_declared(self.context.provider, module_id, self.context.profile)
+            .dir_bound(self.context.provider, module_id, self.context.profile)
             .ok()
     }
 
     /// Read one committed checked DIR snapshot for a module.
-    pub(crate) fn require_analyzed_dir_data(
+    pub(crate) fn require_checked_dir(
         &self,
         module_id: ModuleId,
     ) -> CompilerResult<Arc<DirChecked>> {
@@ -287,7 +320,7 @@ impl<'a> FunctionLowerer<'a> {
         match self.context.dir_tree.get(expression_id) {
             dir::Expression::Block(block_id) => self.lower_tail_block(*block_id),
             dir::Expression::Return { .. }
-            | dir::Expression::Labelled { .. }
+            | dir::Expression::Label { .. }
             | dir::Expression::Let { .. }
             | dir::Expression::Loop { .. }
             | dir::Expression::For { .. }
@@ -489,26 +522,21 @@ impl<'a> FunctionLowerer<'a> {
                 self.lower_value_expression(*expression)
             }
 
-            dir::Expression::Path { .. } => {
+            dir::Expression::Identifier { .. } | dir::Expression::QualifiedReference { .. } => {
                 let target_symbol = self.resolve_expression_symbol(expression_id)?;
 
                 self.lower_reference_expression(expression_id, target_symbol)
             }
 
-            dir::Expression::ScalarLiteral { value } => {
+            dir::Expression::ScalarLiteral(value) => {
                 self.lower_scalar_literal(expression_id, value)
             }
 
             dir::Expression::As {
-                operator,
-                source: _,
                 expression,
                 target_type: _,
             } => {
-                let operator = match operator {
-                    Some(operator) => *operator,
-                    None => self.classify_explicit_cast_operator(expression_id, *expression)?,
-                };
+                let operator = self.classify_explicit_cast_operator(expression_id, *expression)?;
 
                 self.lower_cast_expression(expression_id, operator, *expression)
             }
@@ -533,7 +561,7 @@ impl<'a> FunctionLowerer<'a> {
                 self.lower_runtime_type_guard_expression(expression_id, *value, target_type_id)
             }
 
-            dir::Expression::Assign { left, right } => {
+            dir::Expression::Assign { left, right, .. } => {
                 self.lower_assign_expression(expression_id, *left, *right)
             }
 
@@ -541,6 +569,7 @@ impl<'a> FunctionLowerer<'a> {
                 left,
                 generic_arguments,
                 arguments,
+                ..
             } => self.lower_call_expression(expression_id, left, arguments, generic_arguments),
 
             dir::Expression::New {
@@ -573,8 +602,8 @@ impl<'a> FunctionLowerer<'a> {
                 self.lower_member_expression(expression_id, *left, name)
             }
 
-            dir::Expression::Index { left, right } => {
-                let index_expr = right
+            dir::Expression::Index { left, index, .. } => {
+                let index = index
                     .ok_or_else(|| LowerError::UnsupportedConstruct {
                         anchor: self.diagnostic_anchor(
                             expression_id
@@ -584,7 +613,7 @@ impl<'a> FunctionLowerer<'a> {
                         message: "missing index expression".to_string(),
                     })
                     .map_err(CompilerError::from)?;
-                self.lower_index_expression(expression_id, *left, index_expr)
+                self.lower_index_expression(expression_id, *left, index)
             }
 
             dir::Expression::Unary { operator, right } => {
@@ -625,22 +654,15 @@ impl<'a> FunctionLowerer<'a> {
                 }
             },
 
-            dir::Expression::TaggedObjectExpression { ty, properties } => {
-                self.lower_tagged_object_expression(expression_id, *ty, properties)
-            }
-
-            dir::Expression::TaggedScalarExpression { ty, value } => {
-                self.lower_tagged_scalar_expression(expression_id, *ty, *value)
-            }
-
-            dir::Expression::TaggedTupleExpression { ty, elements } => {
-                self.lower_tagged_tuple_expression(expression_id, *ty, elements)
-            }
+            dir::Expression::ObjectExpression {
+                ty: Some(ty),
+                properties,
+            } => self.lower_tagged_object_expression(expression_id, *ty, properties),
 
             dir::Expression::Declaration(declaration_id) => {
                 // lower function declarations used as values
                 let declaration = self.context.dir_tree.get(*declaration_id);
-                let dir::Declaration::Function(declaration) = declaration else {
+                let dir::Declaration::Function(_) = declaration else {
                     return Err(LowerError::UnsupportedConstruct {
                         anchor: self.diagnostic_anchor(
                             expression_id
@@ -652,7 +674,7 @@ impl<'a> FunctionLowerer<'a> {
                     .into());
                 };
 
-                let symbol = declaration.symbol.into_global(self.context.module_id);
+                let symbol = self.context.require_symbol_for_node(*declaration_id)?;
                 self.lower_reference_expression(expression_id, symbol)
             }
 
@@ -664,7 +686,7 @@ impl<'a> FunctionLowerer<'a> {
                         .into_global_any(self.context.module_id)
                         .into_anchored(Some(self.context.profile)),
                 ),
-                message: format!("unsupported value expression '{}'", expression.kind_name()),
+                message: "unsupported value expression".to_string(),
             }))?,
         }
     }
@@ -845,7 +867,7 @@ impl<'a> FunctionLowerer<'a> {
 
         // update the assignment target
         match self.context.dir_tree.get(left) {
-            dir::Expression::Path { .. } => {
+            dir::Expression::Identifier { .. } | dir::Expression::QualifiedReference { .. } => {
                 let target_symbol = self.resolve_expression_symbol(left)?;
                 if let Some(field) = self.capture_field_for_symbol(target_symbol) {
                     self.store_captured_binding(expression_id, &field, value)?;

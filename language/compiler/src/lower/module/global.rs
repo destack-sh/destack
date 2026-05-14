@@ -33,7 +33,6 @@ impl ModuleLowerer<'_> {
             let pattern_id = declarator.pattern;
             let pattern = self.dir_tree.get(pattern_id);
             let dir::Pattern::Binding {
-                symbol: symbol_id,
                 pattern: nested_pattern,
                 ..
             } = pattern
@@ -48,6 +47,7 @@ impl ModuleLowerer<'_> {
                 }
                 .into());
             };
+            let symbol_id = self.require_symbol_for_node(pattern_id)?.local_id;
             if nested_pattern.is_some() {
                 return Err(LowerError::UnsupportedConstruct {
                     anchor: self.diagnostic_anchor(
@@ -62,7 +62,7 @@ impl ModuleLowerer<'_> {
             }
 
             // binding name (module-level bindings must have names)
-            let name = self.symbol_name(*symbol_id, pattern_id.into_global_any(self.module_id))?;
+            let name = self.symbol_name(symbol_id, pattern_id.into_global_any(self.module_id))?;
 
             // type (resolve before initializer so we can create properly-typed constants)
             let type_id = self
@@ -123,7 +123,7 @@ impl ModuleLowerer<'_> {
     ) -> CompilerResult<Option<mir::GlobalInitializer>> {
         let expression = self.dir_tree.get(expression_id);
         let initializer = match expression {
-            dir::Expression::ScalarLiteral { value } => {
+            dir::Expression::ScalarLiteral(value) => {
                 self.lower_const_scalar_literal(value, mir_type)
             }
             dir::Expression::Parenthesized { expression } => {

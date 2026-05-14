@@ -58,8 +58,8 @@ impl Compiler {
         }
 
         // load DIR artifacts
-        let declared = self
-            .dir_declared(context, module_id, profile)
+        let bound = self
+            .dir_bound(context, module_id, profile)
             .map_err(CompilerError::from)?;
         let checked = self
             .dir_checked(context, module_id, profile)
@@ -78,11 +78,11 @@ impl Compiler {
                 context,
                 module.as_ref(),
                 profile,
-                &declared.tree,
-                &declared.roots,
+                &bound.tree,
+                &bound.roots,
                 self.repository.string_pool().as_ref(),
-                declared.module_node,
-                &declared.bindings,
+                bound.module_node,
+                &bound.bindings,
                 &checked.types,
                 &elaborated.guards,
                 &checked.captures,

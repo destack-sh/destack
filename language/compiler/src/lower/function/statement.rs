@@ -7,6 +7,17 @@ use crate::lower::{access_for_storage_mutability, lower_mutability};
 use super::FunctionLowerer;
 use crate::lower::{BreakContext, LocalBinding, LoopContext, Terminates};
 
+/// Internal loop lowering form.
+#[derive(Debug, Clone, Copy)]
+enum LowerLoopForm {
+    /// Loop without a condition.
+    Infinite,
+    /// Loop with a condition before the body.
+    While,
+    /// Loop with a condition after the body.
+    DoWhile,
+}
+
 impl FunctionLowerer<'_> {
     /// Resolve an explicit control transfer target.
     fn control_target_symbol(
@@ -15,8 +26,8 @@ impl FunctionLowerer<'_> {
     ) -> Option<dir::GlobalSymbolId> {
         let node_id = expression_id.into_global_any(self.context.module_id);
 
-        match self.context.types.control_resolution(node_id) {
-            Some(dir::ControlResolution::Label(symbol)) => Some(symbol),
+        match self.context.types.label_resolution(node_id) {
+            Some(dir::LabelResolution::Symbol(symbol)) => Some(symbol),
             _ => None,
         }
     }
@@ -27,8 +38,8 @@ impl FunctionLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<Terminates> {
         match self.context.dir_tree.get(expression_id) {
-            dir::Expression::Labelled { body, symbol, .. } => {
-                self.lower_labelled_statement(expression_id, *symbol, *body)
+            dir::Expression::Label { body, .. } => {
+                self.lower_labelled_statement(expression_id, *body)
             }
             dir::Expression::Block(block_id) => {
                 let block = self.context.dir_tree.get(*block_id);
@@ -119,29 +130,29 @@ impl FunctionLowerer<'_> {
                 }
             },
 
-            dir::Expression::Loop {
-                kind,
+            dir::Expression::While {
+                form,
                 condition,
                 body,
-                symbol,
-                ..
-            } => self.lower_loop_statement(*kind, *condition, *body, *symbol, None),
+            } => {
+                let form = match form {
+                    dir::WhileForm::While => LowerLoopForm::While,
+                    dir::WhileForm::DoWhile => LowerLoopForm::DoWhile,
+                };
+                self.lower_loop_statement(form, Some(*condition), *body, None)
+            }
+
+            dir::Expression::Loop { body } => {
+                self.lower_loop_statement(LowerLoopForm::Infinite, None, *body, None)
+            }
 
             dir::Expression::For {
                 initialization,
                 condition,
                 increment,
                 body,
-                symbol,
                 ..
-            } => self.lower_for_statement(
-                *initialization,
-                *condition,
-                *increment,
-                *body,
-                *symbol,
-                None,
-            ),
+            } => self.lower_for_statement(*initialization, *condition, *increment, *body, None),
 
             dir::Expression::Break { .. } => {
                 let target_symbol = self.control_target_symbol(expression_id);
@@ -155,15 +166,12 @@ impl FunctionLowerer<'_> {
                 self.lower_continue_statement(expression_id, target_symbol)
             }
 
-            dir::Expression::Match {
-                form,
-                value,
-                cases,
-                symbol,
-                ..
-            } => self.lower_match_statement(expression_id, *form, *value, cases, *symbol),
+            dir::Expression::Match { form, value, cases } => {
+                self.lower_match_statement(expression_id, *form, *value, cases)
+            }
 
             dir::Expression::Call {
+                position: _,
                 left,
                 arguments,
                 generic_arguments,
@@ -213,37 +221,44 @@ impl FunctionLowerer<'_> {
     /// TODO #Architecture: should we elaborate labelled statements away..?
     fn lower_labelled_statement(
         &mut self,
-        _expression_id: dir::LocalNodeId<dir::Expression>,
-        label_symbol: dir::LocalSymbolId,
+        expression_id: dir::LocalNodeId<dir::Expression>,
         body_id: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<Terminates> {
-        let label_symbol = label_symbol.into_global(self.context.module_id);
+        let label_symbol = self.control_target_symbol(expression_id);
         let body = self.context.dir_tree.get(body_id);
 
         match body {
-            dir::Expression::Loop {
-                kind,
+            dir::Expression::While {
+                form,
                 condition,
                 body,
-                symbol,
-                ..
-            } => self.lower_loop_statement(*kind, *condition, *body, *symbol, Some(label_symbol)),
+            } => {
+                let form = match form {
+                    dir::WhileForm::While => LowerLoopForm::While,
+                    dir::WhileForm::DoWhile => LowerLoopForm::DoWhile,
+                };
+                self.lower_loop_statement(form, Some(*condition), *body, label_symbol)
+            }
+            dir::Expression::Loop { body } => {
+                self.lower_loop_statement(LowerLoopForm::Infinite, None, *body, label_symbol)
+            }
             dir::Expression::For {
                 initialization,
                 condition,
                 increment,
                 body,
-                symbol,
                 ..
             } => self.lower_for_statement(
                 *initialization,
                 *condition,
                 *increment,
                 *body,
-                *symbol,
-                Some(label_symbol),
+                label_symbol,
             ),
             _ => {
+                let Some(label_symbol) = label_symbol else {
+                    return self.lower_statement_expression(body_id);
+                };
                 let break_block = self.state.builder.block();
                 let label_context = BreakContext { break_block };
                 self.state
@@ -316,10 +331,9 @@ impl FunctionLowerer<'_> {
     /// Lower a loop statement (while, do-while, or infinite loop).
     fn lower_loop_statement(
         &mut self,
-        kind: dir::LoopKind,
+        kind: LowerLoopForm,
         condition: Option<dir::LocalNodeId<dir::Expression>>,
         body_id: dir::LocalNodeId<dir::Block>,
-        loop_symbol_id: dir::LocalSymbolId,
         label_symbol: Option<dir::GlobalSymbolId>,
     ) -> CompilerResult<Terminates> {
         let header_block = self.state.builder.block();
@@ -327,15 +341,10 @@ impl FunctionLowerer<'_> {
         let exit_block = self.state.builder.block();
 
         // register loop context for break/continue
-        let global_loop_symbol_id = loop_symbol_id.into_global(self.context.module_id);
         let loop_context = LoopContext {
             continue_block: header_block,
             break_block: exit_block,
         };
-        self.state
-            .control
-            .loops_by_symbol
-            .insert(global_loop_symbol_id, loop_context);
         self.state.control.loop_stack.push(loop_context);
         self.state.control.break_stack.push(BreakContext {
             break_block: exit_block,
@@ -348,7 +357,7 @@ impl FunctionLowerer<'_> {
         }
 
         match kind {
-            dir::LoopKind::NoTest => {
+            LowerLoopForm::Infinite => {
                 // infinite loop: jump to body, loop back unconditionally
                 self.state.builder.jump(body_block);
 
@@ -358,7 +367,7 @@ impl FunctionLowerer<'_> {
                     self.state.builder.jump(body_block);
                 }
             }
-            dir::LoopKind::PreTest => {
+            LowerLoopForm::While => {
                 // while loop: check condition first, then body
                 self.state.builder.jump(header_block);
 
@@ -396,7 +405,7 @@ impl FunctionLowerer<'_> {
                     self.state.builder.jump(header_block);
                 }
             }
-            dir::LoopKind::PostTest => {
+            LowerLoopForm::DoWhile => {
                 // do-while loop: body first, then check condition
                 self.state.builder.jump(body_block);
 
@@ -443,10 +452,6 @@ impl FunctionLowerer<'_> {
         // cleanup loop context
         self.state.control.loop_stack.pop();
         self.state.control.break_stack.pop();
-        self.state
-            .control
-            .loops_by_symbol
-            .remove(&global_loop_symbol_id);
         if let Some(label_symbol) = label_symbol {
             self.state.control.loops_by_symbol.remove(&label_symbol);
         }
@@ -463,7 +468,6 @@ impl FunctionLowerer<'_> {
         condition: Option<dir::LocalNodeId<dir::Expression>>,
         increment: Option<dir::LocalNodeId<dir::Expression>>,
         body_id: dir::LocalNodeId<dir::Block>,
-        loop_symbol_id: dir::LocalSymbolId,
         label_symbol: Option<dir::GlobalSymbolId>,
     ) -> CompilerResult<Terminates> {
         // lower initialization in current block
@@ -477,15 +481,10 @@ impl FunctionLowerer<'_> {
         let exit_block = self.state.builder.block();
 
         // register loop context: continue goes to increment block, break goes to exit
-        let global_loop_symbol_id = loop_symbol_id.into_global(self.context.module_id);
         let loop_context = LoopContext {
             continue_block: increment_block,
             break_block: exit_block,
         };
-        self.state
-            .control
-            .loops_by_symbol
-            .insert(global_loop_symbol_id, loop_context);
         self.state.control.loop_stack.push(loop_context);
         self.state.control.break_stack.push(BreakContext {
             break_block: exit_block,
@@ -538,10 +537,6 @@ impl FunctionLowerer<'_> {
         // cleanup loop context
         self.state.control.loop_stack.pop();
         self.state.control.break_stack.pop();
-        self.state
-            .control
-            .loops_by_symbol
-            .remove(&global_loop_symbol_id);
         if let Some(label_symbol) = label_symbol {
             self.state.control.loops_by_symbol.remove(&label_symbol);
         }
@@ -659,7 +654,6 @@ impl FunctionLowerer<'_> {
         form: dir::MatchForm,
         value_id: dir::LocalNodeId<dir::Expression>,
         cases: &[dir::LocalNodeId<dir::MatchCase>],
-        _symbol: dir::LocalSymbolId,
     ) -> CompilerResult<Terminates> {
         // match expressions must be elaborated before lowering
         if form == dir::MatchForm::Match {
@@ -861,9 +855,7 @@ impl FunctionLowerer<'_> {
         let pattern = self.context.dir_tree.get(pattern_id);
         match pattern {
             dir::Pattern::Wildcard => Ok(()),
-            dir::Pattern::Binding {
-                symbol, pattern, ..
-            } => {
+            dir::Pattern::Binding { pattern, .. } => {
                 if pattern.is_some() {
                     return Err(LowerError::UnsupportedConstruct {
                         anchor: self.diagnostic_anchor(
@@ -875,9 +867,10 @@ impl FunctionLowerer<'_> {
                     }
                     .into());
                 }
+                let symbol = self.context.require_symbol_for_node(pattern_id)?.local_id;
                 self.define_local_binding(
                     pattern_id.into_any(),
-                    *symbol,
+                    symbol,
                     mutability,
                     value,
                     value_type,
@@ -907,9 +900,7 @@ impl FunctionLowerer<'_> {
         let pattern = self.context.dir_tree.get(pattern_id);
         match pattern {
             dir::Pattern::Wildcard => Ok(()),
-            dir::Pattern::Binding {
-                symbol, pattern, ..
-            } => {
+            dir::Pattern::Binding { pattern, .. } => {
                 if pattern.is_some() {
                     return Err(LowerError::UnsupportedConstruct {
                         anchor: self.diagnostic_anchor(
@@ -923,15 +914,16 @@ impl FunctionLowerer<'_> {
                 }
 
                 // resolve the local type and allocate storage without an initializer
+                let symbol = self.context.require_symbol_for_node(pattern_id)?.local_id;
                 let value_type = self.uninitialized_binding_type(
                     expression_id,
                     pattern_id,
-                    *symbol,
+                    symbol,
                     type_expression,
                 )?;
                 self.define_uninitialized_local_binding(
                     pattern_id.into_any(),
-                    *symbol,
+                    symbol,
                     mutability,
                     value_type,
                 )
@@ -986,9 +978,7 @@ impl FunctionLowerer<'_> {
         }
         if matches!(
             dir_type,
-            dir::Type::Literal(dir::LiteralType {
-                value: dir::TypeLiteral::Primitive(dir::PrimitiveType::String)
-            })
+            dir::Type::Literal(dir::LiteralType::Primitive(dir::PrimitiveType::String))
         ) && let Some(string_type) = self.context.type_lowerer.string_type()
         {
             return Ok(string_type);

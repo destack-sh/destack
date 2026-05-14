@@ -35,9 +35,7 @@ impl dir::NodeVisitor for StringLiteralCollector {
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
-        if let dir::Expression::ScalarLiteral {
-            value: dir::ScalarLiteral::String(string_id),
-        } = expression
+        if let dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(string_id)) = expression
         {
             self.literals.insert(*string_id);
         }

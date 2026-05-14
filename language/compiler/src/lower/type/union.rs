@@ -162,9 +162,9 @@ impl TypeLowerer<'_> {
         for element_id in &source_types {
             // null and undefined are tag-only variants
             let element_type = match types.get_type(*element_id) {
-                dir::Type::Literal(dir::LiteralType {
-                    value: dir::TypeLiteral::Null | dir::TypeLiteral::Undefined,
-                }) => self.ty_void,
+                dir::Type::Literal(dir::LiteralType::Null | dir::LiteralType::Undefined) => {
+                    self.ty_void
+                }
                 _ => self.lower_type(types, *element_id, module_id, node, builder)?,
             };
 
@@ -344,9 +344,7 @@ impl TypeLowerer<'_> {
 
         for element_id in elements {
             match types.get_type(*element_id) {
-                dir::Type::Literal(dir::LiteralType {
-                    value: dir::TypeLiteral::Null,
-                }) => {
+                dir::Type::Literal(dir::LiteralType::Null) => {
                     has_null = true;
                 }
                 _ => {
@@ -681,11 +679,11 @@ impl TypeLowerer<'_> {
 
                 Ok(None)
             }
-            dir::Type::Literal(dir::LiteralType { value }) => {
+            dir::Type::Literal(value) => {
                 let literal = match value {
-                    dir::TypeLiteral::Null => DiscriminantValue::Null,
-                    dir::TypeLiteral::Undefined => DiscriminantValue::Undefined,
-                    dir::TypeLiteral::ScalarLiteral(scalar) => match scalar {
+                    dir::LiteralType::Null => DiscriminantValue::Null,
+                    dir::LiteralType::Undefined => DiscriminantValue::Undefined,
+                    dir::LiteralType::ScalarLiteral(scalar) => match scalar {
                         dir::ScalarLiteral::Null => DiscriminantValue::Null,
                         dir::ScalarLiteral::Boolean(value) => DiscriminantValue::Boolean(*value),
                         dir::ScalarLiteral::Integer(value) => {
@@ -717,7 +715,7 @@ impl TypeLowerer<'_> {
                             return Ok(None);
                         }
                     },
-                    dir::TypeLiteral::Primitive(dir::PrimitiveType::UniqueSymbol) => {
+                    dir::LiteralType::Primitive(dir::PrimitiveType::UniqueSymbol) => {
                         DiscriminantValue::UniqueSymbol
                     }
                     _ => return Ok(None),
