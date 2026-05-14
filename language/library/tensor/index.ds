@@ -11,8 +11,8 @@ export {
     MemoryOrder,
     DenseLayout,
     StridedLayout,
-    BackendLayout,
     Layout,
+    ViewLayout,
     NamedAxis,
 } from "./layout.ds";
 export {

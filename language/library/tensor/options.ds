@@ -16,7 +16,7 @@ export struct TensorCreateOptions<comptime Rank: int> {
     device?: Device;
 
     /// Tensor layout.
-    layout?: Layout<Rank>;
+    layout?: Layout;
 
     /// Stream used to order initialization work.
     stream?: Stream;
@@ -28,7 +28,7 @@ export struct TensorOutputOptions<T, comptime Rank: int> {
     device?: Device;
 
     /// Result tensor layout.
-    layout?: Layout<Rank>;
+    layout?: Layout;
 
     /// Stream used to order the work.
     stream?: Stream;
@@ -46,7 +46,7 @@ export struct TensorReduceOptions<T, comptime Rank: int> {
     device?: Device;
 
     /// Result tensor layout.
-    layout?: Layout<Rank>;
+    layout?: Layout;
 
     /// Stream used to order the work.
     stream?: Stream;
@@ -64,7 +64,7 @@ export struct TensorConvertOptions<T, comptime Rank: int> {
     device?: Device;
 
     /// Result tensor layout.
-    layout?: Layout<Rank>;
+    layout?: Layout;
 
     /// Stream used to order the work.
     stream?: Stream;
@@ -82,7 +82,7 @@ export struct TensorConvolutionOptions<T, comptime Rank: int> {
     device?: Device;
 
     /// Result tensor layout.
-    layout?: Layout<Rank>;
+    layout?: Layout;
 
     /// Stream used to order the work.
     stream?: Stream;
@@ -100,7 +100,7 @@ export struct TensorScatterOptions<T, comptime Rank: int> {
     device?: Device;
 
     /// Result tensor layout.
-    layout?: Layout<Rank>;
+    layout?: Layout;
 
     /// Stream used to order the work.
     stream?: Stream;

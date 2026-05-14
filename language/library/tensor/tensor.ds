@@ -29,7 +29,7 @@ export class Tensor<T, comptime Rank: int> {
     readonly shape: Shape<Rank>;
 
     /// The tensor layout.
-    readonly layout: Layout<Rank>;
+    readonly layout: Layout;
 
     /// The tensor buffer.
     readonly buffer: TensorBuffer<T>;
@@ -217,7 +217,7 @@ extension<T, comptime Rank: int> of Tensor<T, Rank> implements
     }
 
     /// Return a contiguous copy.
-    contiguous(layout: Layout<Rank> = Layout<Rank>.rowMajor()): Tensor<T, Rank> {
+    contiguous(layout: Layout = Layout.rowMajor()): Tensor<T, Rank> {
         todo("Tensor.contiguous")
     }
 
