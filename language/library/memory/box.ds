@@ -1,7 +1,8 @@
 import { todo, Result } from "destack:error";
+import { As, Borrow } from "destack:convert";
 import { Dereference } from "destack:ops";
 import { AllocationError } from "./allocator.ds";
-import { Clone, Unpin, Zeroable } from "./capability.ds";
+import { Clone, Default, Unpin, Zeroable } from "./capability.ds";
 import { Access, Borrowed, Unique, WithAccess } from "./form.ds";
 import { MaybeUninit } from "./init.ds";
 import { Pin } from "./pin.ds";
@@ -9,7 +10,7 @@ import { Pin } from "./pin.ds";
 /// A uniquely owned heap allocation.
 export newtype Box<T> = Unique<T>;
 
-extension<T, A: Access = "readonly"> of Box<T> implements Dereference<A> {
+extension<T, A: Access = "readonly"> of Box<T> implements Dereference<A>, As<T, A>, Borrow<T, A> {
     /// The projected result form.
     type Output = WithAccess<&T, A>;
 
@@ -93,6 +94,16 @@ extension<T, A: Access = "readonly"> of Box<T> implements Dereference<A> {
     dereference(): this.Output {
         todo("Box.dereference")
     }
+
+    /// Borrow the boxed value.
+    as(this: WithAccess<&Box<T>, A>): WithAccess<&T, A> {
+        this.dereference()
+    }
+
+    /// Borrow the boxed value.
+    borrow(this: WithAccess<&Box<T>, A>): WithAccess<&T, A> {
+        this.dereference()
+    }
 }
 
 extension<T> of Box<T> implements Unpin {}
@@ -102,5 +113,13 @@ where T implements Clone {
     /// Clone the boxed value into a new box.
     clone(): Box<T> {
         todo("Box.clone")
+    }
+}
+
+extension<T> of Box<T> implements Default
+where T implements Default {
+    /// Create a box with the default value.
+    static default(): Box<T> {
+        Box.new(T.default())
     }
 }

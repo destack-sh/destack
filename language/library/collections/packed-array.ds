@@ -1,8 +1,8 @@
 import { todo } from "destack:error";
-import { Iterable, Iterator } from "destack:iter";
-import { MaybeUninit, Unique } from "destack:memory";
+import { As, Borrow, From, ToOwned } from "destack:convert";
+import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
+import { Access, Clone, Default, MaybeUninit, Unique, WithAccess } from "destack:memory";
 import { Index, IndexSet } from "destack:ops";
-import { From } from "destack:convert";
 import { Array } from "./array.ds";
 import { Slice } from "./slice.ds";
 
@@ -25,6 +25,10 @@ extension<T> of PackedArray<T> implements
     Iterable<&T>,
     Iterable<&readonly T>,
     Iterable<&exclusive T>,
+    From<Iterable<T>>,
+    FromIterator<T>,
+    Extend<T, "exclusive">,
+    Default,
     From<Array<T>>
 {
     /// The indexed output type.
@@ -43,6 +47,16 @@ extension<T> of PackedArray<T> implements
     /// Create a packed array from `values`.
     static from(values: Iterable<T>): PackedArray<T> {
         todo("PackedArray.from")
+    }
+
+    /// Create a packed array from `values`.
+    static fromIterator(values: Iterator<T>): PackedArray<T> {
+        todo("PackedArray.fromIterator")
+    }
+
+    /// Create the default packed array.
+    static default(): PackedArray<T> {
+        PackedArray.new()
     }
 
     /// Create a packed array from a stable array.
@@ -145,17 +159,7 @@ extension<T> of PackedArray<T> implements
         todo("PackedArray.shrinkToFit")
     }
 
-    /// Return the initialized storage as a slice.
-    asSlice(this: &PackedArray<T>): &Slice<T> {
-        todo("PackedArray.asSlice")
-    }
-
-    /// Return the initialized storage as a readonly slice.
-    asReadonlySlice(this: &readonly PackedArray<T>): &readonly Slice<T> {
-        todo("PackedArray.asReadonlySlice")
-    }
-
-    /// Return a slice copy of the selected range.
+    /// Return a copy of the selected range.
     slice(start?: number, end?: number): PackedArray<T> {
         todo("PackedArray.slice")
     }
@@ -193,5 +197,28 @@ extension<T> of PackedArray<T> implements
     /// Consume this array into owned values.
     iterator(this: ^PackedArray<T>): Iterator<T> {
         todo("PackedArray.iterator")
+    }
+}
+
+extension<T, A: Access = "readonly"> of PackedArray<T> implements As<Slice<T>, A>, Borrow<Slice<T>, A> {
+    /// Borrow the initialized storage as a slice.
+    as(this: WithAccess<&PackedArray<T>, A>): WithAccess<&Slice<T>, A> {
+        todo("PackedArray.as")
+    }
+
+    /// Borrow the initialized storage as a slice.
+    borrow(this: WithAccess<&PackedArray<T>, A>): WithAccess<&Slice<T>, A> {
+        this.as()
+    }
+}
+
+extension<T> of Slice<T> implements ToOwned
+where T implements Clone {
+    /// The owned value type.
+    type Owned = PackedArray<T>;
+
+    /// Copy this slice into packed storage.
+    toOwned(this: &readonly Slice<T>): PackedArray<T> {
+        todo("Slice.toOwned")
     }
 }

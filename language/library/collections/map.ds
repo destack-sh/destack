@@ -1,16 +1,13 @@
 import { todo } from "destack:error";
-import { Iterable, Iterator } from "destack:iter";
-import { MaybeUninit, Unique } from "destack:memory";
+import { Borrow, From } from "destack:convert";
+import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
+import { Default, MaybeUninit, Unique } from "destack:memory";
 import { Equal, Hash, Index, IndexSet } from "destack:ops";
-import { From } from "destack:convert";
 import { Array } from "./array.ds";
 import { PackedMap } from "./packed-map.ds";
 
 /// One stable map entry.
 export struct MapEntry<K, V> {
-    /// The cached key hash.
-    hash: uint64;
-
     /// The entry key.
     key: K;
 
@@ -18,10 +15,19 @@ export struct MapEntry<K, V> {
     value: V;
 }
 
+/// One stable map slot.
+struct MapSlot<K, V> {
+    /// The cached key hash.
+    hash: uint64;
+
+    /// The slot entry.
+    entry: MapEntry<K, V>;
+}
+
 /// One stable map entry segment.
-struct MapEntrySegment<K, V> {
+struct MapSlotSegment<K, V> {
     /// The entry storage.
-    entries: Unique<[MaybeUninit<MapEntry<K, V>>]>;
+    slots: Unique<[MaybeUninit<MapSlot<K, V>>]>;
 
     /// The number of initialized entries.
     length: usize = 0;
@@ -34,7 +40,7 @@ struct MapEntrySegment<K, V> {
 @languageItem("collections.Map")
 export class Map<K, V> {
     /// The entry segments.
-    segments: Array<MapEntrySegment<K, V>>;
+    segments: Array<MapSlotSegment<K, V>>;
 
     /// The hash index.
     index: Unique<[uint32]>;
@@ -43,22 +49,13 @@ export class Map<K, V> {
     entryCount: usize = 0;
 }
 
-/// Key-value map alias.
+/// Object type with keys `K` and values `V`.
 @languageItem("collections.Record")
-export type Record<K, V> = Map<K, V>;
+export type Record<K extends string | number | symbol, V> = {
+    [P in K]: V;
+};
 
-extension<K: Hash, V> of Map<K, V> implements
-    Index<K>,
-    IndexSet<K, V>,
-    Iterable<[K, V]>,
-    Iterable<&MapEntry<K, V>>,
-    Iterable<&readonly MapEntry<K, V>>,
-    Iterable<&exclusive MapEntry<K, V>>,
-    From<PackedMap<K, V>>
-where K implements Equal<K> {
-    /// The indexed output type.
-    type Output = V | undefined;
-
+extension<K, V> of Map<K, V> implements Default {
     /// Create an empty map.
     static new(): Map<K, V> {
         todo("Map.new")
@@ -69,9 +66,35 @@ where K implements Equal<K> {
         todo("Map.withCapacity")
     }
 
+    /// Create the default map.
+    static default(): Map<K, V> {
+        Map.new()
+    }
+}
+
+extension<K: Hash, V> of Map<K, V> implements
+    Index<K>,
+    IndexSet<K, V>,
+    Iterable<(K, V)>,
+    Iterable<MapEntry<&readonly K, &V>>,
+    Iterable<MapEntry<&readonly K, &readonly V>>,
+    Iterable<MapEntry<&readonly K, &exclusive V>>,
+    From<Iterable<(K, V)>>,
+    FromIterator<(K, V)>,
+    Extend<(K, V)>,
+    From<PackedMap<K, V>>
+where K implements Equal<K> {
+    /// The indexed output type.
+    type Output = V | undefined;
+
     /// Create a map from entries.
-    static from(entries: Iterable<[K, V]>): Map<K, V> {
+    static from(entries: Iterable<(K, V)>): Map<K, V> {
         todo("Map.from")
+    }
+
+    /// Create a map from entries.
+    static fromIterator(entries: Iterator<(K, V)>): Map<K, V> {
+        todo("Map.fromIterator")
     }
 
     /// Create a map from a packed map.
@@ -90,37 +113,44 @@ where K implements Equal<K> {
     }
 
     /// Return a value by key.
-    get(key: &readonly K): V | undefined {
+    get<Q: Hash>(key: &readonly Q): V | undefined
+    where K implements Borrow<Q>, Q implements Equal<Q> {
         todo("Map.get")
     }
 
     /// Borrow a value by key.
-    get(this: &Map<K, V>, key: &readonly K): &V | undefined {
+    get<Q: Hash>(this: &Map<K, V>, key: &readonly Q): &V | undefined
+    where K implements Borrow<Q>, Q implements Equal<Q> {
         todo("Map.get")
     }
 
     /// Borrow a value by key with readonly access.
-    get(this: &readonly Map<K, V>, key: &readonly K): &readonly V | undefined {
+    get<Q: Hash>(this: &readonly Map<K, V>, key: &readonly Q): &readonly V | undefined
+    where K implements Borrow<Q>, Q implements Equal<Q> {
         todo("Map.get")
     }
 
     /// Borrow a value by key with exclusive access.
-    get(this: &exclusive Map<K, V>, key: &readonly K): &exclusive V | undefined {
+    get<Q: Hash>(this: &exclusive Map<K, V>, key: &readonly Q): &exclusive V | undefined
+    where K implements Borrow<Q>, Q implements Equal<Q> {
         todo("Map.get")
     }
 
     /// Return an entry by key.
-    entry(this: &Map<K, V>, key: &readonly K): &MapEntry<K, V> | undefined {
+    entry<Q: Hash>(this: &Map<K, V>, key: &readonly Q): MapEntry<&readonly K, &V> | undefined
+    where K implements Borrow<Q>, Q implements Equal<Q> {
         todo("Map.entry")
     }
 
     /// Return an entry by key with readonly access.
-    entry(this: &readonly Map<K, V>, key: &readonly K): &readonly MapEntry<K, V> | undefined {
+    entry<Q: Hash>(this: &readonly Map<K, V>, key: &readonly Q): MapEntry<&readonly K, &readonly V> | undefined
+    where K implements Borrow<Q>, Q implements Equal<Q> {
         todo("Map.entry")
     }
 
-    /// Return an entry by key with exclusive access.
-    entry(this: &exclusive Map<K, V>, key: &readonly K): &exclusive MapEntry<K, V> | undefined {
+    /// Return an entry by key with exclusive value access.
+    entry<Q: Hash>(this: &exclusive Map<K, V>, key: &readonly Q): MapEntry<&readonly K, &exclusive V> | undefined
+    where K implements Borrow<Q>, Q implements Equal<Q> {
         todo("Map.entry")
     }
 
@@ -130,12 +160,13 @@ where K implements Equal<K> {
     }
 
     /// Replace a key-value pair through the index operator.
-    indexSet(this: &exclusive Map<K, V>, key: K, value: V): void {
+    indexSet(this: &Map<K, V>, key: K, value: V): void {
         this.set(key, value);
     }
 
     /// Return whether `key` exists.
-    has(key: &readonly K): boolean {
+    has<Q: Hash>(key: &readonly Q): boolean
+    where K implements Borrow<Q>, Q implements Equal<Q> {
         todo("Map.has")
     }
 
@@ -155,12 +186,18 @@ where K implements Equal<K> {
     }
 
     /// Insert or replace a key-value pair.
-    set(this: &exclusive Map<K, V>, key: K, value: V): this {
+    set(this: &Map<K, V>, key: K, value: V): this {
         todo("Map.set")
     }
 
+    /// Insert or replace all entries.
+    extend(this: &Map<K, V>, entries: Iterable<(K, V)>): void {
+        todo("Map.extend")
+    }
+
     /// Remove a key-value pair.
-    remove(this: &exclusive Map<K, V>, key: &readonly K): V | undefined {
+    remove<Q: Hash>(this: &exclusive Map<K, V>, key: &readonly Q): V | undefined
+    where K implements Borrow<Q>, Q implements Equal<Q> {
         todo("Map.remove")
     }
 
@@ -174,7 +211,7 @@ where K implements Equal<K> {
         todo("Map.reserve")
     }
 
-    /// Rebuild storage and release tombstones.
+    /// Release tombstones.
     compact(this: &exclusive Map<K, V>): void {
         todo("Map.compact")
     }
@@ -194,43 +231,48 @@ where K implements Equal<K> {
         todo("Map.values")
     }
 
+    /// Return all values with exclusive access.
+    values(this: &exclusive Map<K, V>): Iterator<&exclusive V> {
+        todo("Map.values")
+    }
+
     /// Return all entries.
-    entries(this: &Map<K, V>): Iterator<&MapEntry<K, V>> {
+    entries(this: &Map<K, V>): Iterator<MapEntry<&readonly K, &V>> {
         todo("Map.entries")
     }
 
     /// Return all entries with readonly access.
-    entries(this: &readonly Map<K, V>): Iterator<&readonly MapEntry<K, V>> {
+    entries(this: &readonly Map<K, V>): Iterator<MapEntry<&readonly K, &readonly V>> {
         todo("Map.entries")
     }
 
-    /// Return all entries with exclusive access.
-    entries(this: &exclusive Map<K, V>): Iterator<&exclusive MapEntry<K, V>> {
+    /// Return all entries with exclusive value access.
+    entries(this: &exclusive Map<K, V>): Iterator<MapEntry<&readonly K, &exclusive V>> {
         todo("Map.entries")
     }
 
     /// Return an iterator over copied entries.
-    iterator(): Iterator<[K, V]> {
+    iterator(): Iterator<(K, V)> {
         todo("Map.iterator")
     }
 
     /// Return an iterator over borrowed entries.
-    iterator(this: &Map<K, V>): Iterator<&MapEntry<K, V>> {
+    iterator(this: &Map<K, V>): Iterator<MapEntry<&readonly K, &V>> {
         todo("Map.iterator")
     }
 
     /// Return an iterator over readonly borrowed entries.
-    iterator(this: &readonly Map<K, V>): Iterator<&readonly MapEntry<K, V>> {
+    iterator(this: &readonly Map<K, V>): Iterator<MapEntry<&readonly K, &readonly V>> {
         todo("Map.iterator")
     }
 
-    /// Return an iterator over exclusive borrowed entries.
-    iterator(this: &exclusive Map<K, V>): Iterator<&exclusive MapEntry<K, V>> {
+    /// Return an iterator over entries with exclusive value access.
+    iterator(this: &exclusive Map<K, V>): Iterator<MapEntry<&readonly K, &exclusive V>> {
         todo("Map.iterator")
     }
 
     /// Consume this map into owned entries.
-    iterator(this: ^Map<K, V>): Iterator<[K, V]> {
+    iterator(this: ^Map<K, V>): Iterator<(K, V)> {
         todo("Map.iterator")
     }
 

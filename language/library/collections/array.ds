@@ -1,8 +1,8 @@
 import { todo } from "destack:error";
-import { Iterable, Iterator } from "destack:iter";
-import { MaybeUninit, Unique } from "destack:memory";
-import { Index, IndexSet } from "destack:ops";
 import { From } from "destack:convert";
+import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
+import { Default, MaybeUninit, Unique } from "destack:memory";
+import { Index, IndexSet } from "destack:ops";
 import { PackedArray } from "./packed-array.ds";
 
 /// Readonly view of a dynamic array.
@@ -45,6 +45,10 @@ extension<T> of Array<T> implements
     Iterable<&T>,
     Iterable<&readonly T>,
     Iterable<&exclusive T>,
+    From<Iterable<T>>,
+    FromIterator<T>,
+    Extend<T>,
+    Default,
     From<PackedArray<T>>
 {
     /// The indexed output type.
@@ -63,6 +67,16 @@ extension<T> of Array<T> implements
     /// Create an array from `values`.
     static from(values: Iterable<T>): Array<T> {
         todo("Array.from")
+    }
+
+    /// Create an array from `values`.
+    static fromIterator(values: Iterator<T>): Array<T> {
+        todo("Array.fromIterator")
+    }
+
+    /// Create the default array.
+    static default(): Array<T> {
+        Array.new()
     }
 
     /// Create an array from a packed array.
@@ -106,7 +120,7 @@ extension<T> of Array<T> implements
     }
 
     /// Replace the element at `index`.
-    indexSet(this: &exclusive Array<T>, index: number, value: T): void {
+    indexSet(this: &Array<T>, index: number, value: T): void {
         todo("Array.indexSet")
     }
 
@@ -314,14 +328,4 @@ extension<T> of Array<T> implements
     iterator(this: ^Array<T>): Iterator<T> {
         todo("Array.iterator")
     }
-}
-
-/// Create an array with the given elements.
-export function arrayOf<T>(...elements: T[]): Array<T> {
-    todo("arrayOf")
-}
-
-/// Create an array with `length` copies of `value`.
-export function arrayFill<T>(length: usize, value: T): Array<T> {
-    todo("arrayFill")
 }

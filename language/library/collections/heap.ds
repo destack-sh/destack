@@ -1,5 +1,7 @@
 import { todo } from "destack:error";
-import { Iterable, Iterator } from "destack:iter";
+import { From } from "destack:convert";
+import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
+import { Default } from "destack:memory";
 import { Compare } from "destack:ops";
 import { PackedArray } from "./packed-array.ds";
 
@@ -9,7 +11,7 @@ export struct BinaryHeap<T> {
     storage: PackedArray<T>;
 }
 
-extension<T: Compare<T>> of BinaryHeap<T> implements Iterable<T>, Iterable<&T>, Iterable<&readonly T>, Iterable<&exclusive T> {
+extension<T> of BinaryHeap<T> implements Default {
     /// Create an empty binary heap.
     static new(): BinaryHeap<T> {
         todo("BinaryHeap.new")
@@ -20,14 +22,39 @@ extension<T: Compare<T>> of BinaryHeap<T> implements Iterable<T>, Iterable<&T>, 
         todo("BinaryHeap.withCapacity")
     }
 
+    /// Create the default binary heap.
+    static default(): BinaryHeap<T> {
+        BinaryHeap.new()
+    }
+}
+
+extension<T: Compare<T>> of BinaryHeap<T> implements
+    Iterable<T>,
+    Iterable<&T>,
+    Iterable<&readonly T>,
+    Iterable<&exclusive T>,
+    From<Iterable<T>>,
+    FromIterator<T>,
+    Extend<T, "exclusive">
+{
     /// Create a binary heap from values.
     static from(values: Iterable<T>): BinaryHeap<T> {
         todo("BinaryHeap.from")
     }
 
+    /// Create a binary heap from `values`.
+    static fromIterator(values: Iterator<T>): BinaryHeap<T> {
+        todo("BinaryHeap.fromIterator")
+    }
+
     /// Return the number of elements.
     get size(): number {
         this.storage.length
+    }
+
+    /// Return the allocated element count.
+    get capacity(): usize {
+        this.storage.capacity
     }
 
     /// Return whether this heap has no elements.
@@ -55,6 +82,11 @@ extension<T: Compare<T>> of BinaryHeap<T> implements Iterable<T>, Iterable<&T>, 
         todo("BinaryHeap.push")
     }
 
+    /// Push all `values`.
+    extend(this: &exclusive BinaryHeap<T>, values: Iterable<T>): void {
+        todo("BinaryHeap.extend")
+    }
+
     /// Remove and return the greatest element.
     pop(this: &exclusive BinaryHeap<T>): T | undefined {
         todo("BinaryHeap.pop")
@@ -68,6 +100,11 @@ extension<T: Compare<T>> of BinaryHeap<T> implements Iterable<T>, Iterable<&T>, 
     /// Reserve room for at least `additional` more elements.
     reserve(this: &exclusive BinaryHeap<T>, additional: usize): void {
         todo("BinaryHeap.reserve")
+    }
+
+    /// Shrink capacity to fit current elements.
+    shrinkToFit(this: &exclusive BinaryHeap<T>): void {
+        todo("BinaryHeap.shrinkToFit")
     }
 
     /// Convert this heap into a sorted packed array.

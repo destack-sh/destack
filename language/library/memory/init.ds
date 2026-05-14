@@ -1,10 +1,10 @@
-import { Zeroable } from "./capability.ds";
+import { Default, Zeroable } from "./capability.ds";
 
 /// Storage for `T` whose lifetime may not have started.
 @languageItem("memory.MaybeUninit")
 export newtype MaybeUninit<T> = intrinsic;
 
-export extension<T> of MaybeUninit<T> {
+export extension<T> of MaybeUninit<T> implements Default {
     /// Create initialized storage for `value`.
     @intrinsic("memory.init.new")
     static new(value: ^T): MaybeUninit<T>;
@@ -12,6 +12,11 @@ export extension<T> of MaybeUninit<T> {
     /// Create uninitialized storage for `T`.
     @intrinsic("memory.init.uninit")
     static uninit(): MaybeUninit<T>;
+
+    /// Create the default uninitialized storage.
+    static default(): MaybeUninit<T> {
+        MaybeUninit.uninit()
+    }
 
     /// Create zeroed storage for `T`.
     @intrinsic("memory.init.zeroed")

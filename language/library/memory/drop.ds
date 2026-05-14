@@ -1,3 +1,5 @@
+import { Default } from "./capability.ds";
+
 /// Ownership finalization capability.
 @languageItem("memory.Drop")
 export newtype interface Drop {
@@ -37,6 +39,14 @@ export extension<T> of ManuallyDrop<T> {
     /// Drop the wrapped value.
     @intrinsic("memory.manuallyDrop.dropInner")
     dropInner(this: ^ManuallyDrop<T>): void;
+}
+
+export extension<T> of ManuallyDrop<T> implements Default
+where T implements Default {
+    /// Wrap the default value.
+    static default(): ManuallyDrop<T> {
+        ManuallyDrop.new(T.default())
+    }
 }
 
 /// End ownership of `value` at this point.

@@ -1,3 +1,5 @@
+import { Access, WithAccess } from "destack:memory";
+
 /// A yielded iterator value.
 export type IteratorYield<TYield> = {
     /// The iterator is not complete.
@@ -35,6 +37,26 @@ export interface Iterator<T, TReturn = unknown, TNext = unknown> {
 export interface Iterable<T, TReturn = unknown, TNext = unknown> {
     /// Return a new iterator for this receiver form.
     iterator(): Iterator<T, TReturn, TNext>;
+}
+
+/// Collection built from an iterator.
+export newtype interface FromIterator<T> {
+    /// Build this value from `values`.
+    static fromIterator(values: Iterator<T>): this;
+}
+
+/// Collection extended from an iterable sequence.
+export newtype interface Extend<T, A: Access = "mutable"> {
+    /// Append `values`.
+    extend(this: WithAccess<&this, A>, values: Iterable<T>): void;
+}
+
+export extension<T, TReturn = unknown, TNext = unknown> of Iterator<T, TReturn, TNext> {
+    /// Collect this iterator into `C`.
+    collect<C>(): C
+    where C implements FromIterator<T> {
+        C.fromIterator(this)
+    }
 }
 
 /// A value that is both iterable and its own iterator.

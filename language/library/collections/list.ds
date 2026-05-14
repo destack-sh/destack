@@ -1,39 +1,81 @@
 import { todo } from "destack:error";
-import { Iterable, Iterator } from "destack:iter";
+import { From } from "destack:convert";
+import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
+import { Default, MaybeUninit } from "destack:memory";
+import { Array } from "./array.ds";
 
-/// One linked-list node.
+/// Key for one linked list node.
+newtype LinkedListNodeKey = uint32;
+
+/// One linked list node.
 struct LinkedListNode<T> {
-    /// The previous node.
-    previous?: *LinkedListNode<T>;
+    /// The previous node key.
+    previous: LinkedListNodeKey | undefined = undefined;
 
-    /// The next node.
-    next?: *LinkedListNode<T>;
+    /// The next node key.
+    next: LinkedListNodeKey | undefined = undefined;
 
-    /// The stored value.
-    value: T;
+    /// The next free node key.
+    nextFree: LinkedListNodeKey | undefined = undefined;
+
+    /// The node value storage.
+    value: MaybeUninit<T>;
+
+    /// True when this node currently holds a value.
+    isOccupied: boolean = true;
 }
 
 /// A borrow-stable linked list.
 export class LinkedList<T> {
-    /// The first node.
-    head?: *LinkedListNode<T>;
+    /// The first node key.
+    head: LinkedListNodeKey | undefined = undefined;
 
-    /// The last node.
-    tail?: *LinkedListNode<T>;
+    /// The last node key.
+    tail: LinkedListNodeKey | undefined = undefined;
+
+    /// The node storage.
+    nodes: Array<LinkedListNode<T>>;
+
+    /// The first free node key.
+    firstFree: LinkedListNodeKey | undefined = undefined;
 
     /// The number of nodes.
     elementCount: usize = 0;
 }
 
-extension<T> of LinkedList<T> implements Iterable<T>, Iterable<&T>, Iterable<&readonly T>, Iterable<&exclusive T> {
+extension<T> of LinkedList<T> implements
+    Iterable<T>,
+    Iterable<&T>,
+    Iterable<&readonly T>,
+    Iterable<&exclusive T>,
+    From<Iterable<T>>,
+    FromIterator<T>,
+    Extend<T>,
+    Default
+{
     /// Create an empty list.
     static new(): LinkedList<T> {
         todo("LinkedList.new")
     }
 
+    /// Create a list with room for at least `capacity` nodes.
+    static withCapacity(capacity: usize): LinkedList<T> {
+        todo("LinkedList.withCapacity")
+    }
+
     /// Create a list from values.
     static from(values: Iterable<T>): LinkedList<T> {
         todo("LinkedList.from")
+    }
+
+    /// Create a linked list from `values`.
+    static fromIterator(values: Iterator<T>): LinkedList<T> {
+        todo("LinkedList.fromIterator")
+    }
+
+    /// Create the default linked list.
+    static default(): LinkedList<T> {
+        LinkedList.new()
     }
 
     /// Return the number of elements.
@@ -59,6 +101,11 @@ extension<T> of LinkedList<T> implements Iterable<T>, Iterable<&T>, Iterable<&re
     /// Push `value` to the front.
     pushFront(this: &LinkedList<T>, value: T): void {
         todo("LinkedList.pushFront")
+    }
+
+    /// Append all `values` to the back.
+    extend(this: &LinkedList<T>, values: Iterable<T>): void {
+        todo("LinkedList.extend")
     }
 
     /// Remove and return the back element.
@@ -104,6 +151,16 @@ extension<T> of LinkedList<T> implements Iterable<T>, Iterable<&T>, Iterable<&re
     /// Remove all elements.
     clear(this: &exclusive LinkedList<T>): void {
         todo("LinkedList.clear")
+    }
+
+    /// Reserve room for at least `additional` more nodes.
+    reserve(this: &LinkedList<T>, additional: usize): void {
+        todo("LinkedList.reserve")
+    }
+
+    /// Release tombstone nodes.
+    compact(this: &exclusive LinkedList<T>): void {
+        todo("LinkedList.compact")
     }
 
     /// Return an iterator over copied values.

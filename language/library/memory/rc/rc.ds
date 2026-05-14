@@ -1,7 +1,8 @@
 import { todo, Result } from "destack:error";
+import { As, Borrow } from "destack:convert";
 import { Dereference } from "destack:ops";
 import { AllocationError } from "../allocator.ds";
-import { Clone, Unpin, Zeroable } from "../capability.ds";
+import { Clone, Default, Unpin, Zeroable } from "../capability.ds";
 import { MaybeUninit } from "../init.ds";
 import { Pin } from "../pin.ds";
 import { Weak } from "./weak.ds";
@@ -26,7 +27,7 @@ export struct Rc<T> {
     allocation: *RcAllocation<T>;
 }
 
-extension<T> of Rc<T> implements Clone, Dereference {
+extension<T> of Rc<T> implements Clone, Dereference, As<T>, Borrow<T> {
     /// The projected result form.
     type Output = &readonly T;
 
@@ -153,5 +154,23 @@ extension<T> of Rc<T> implements Clone, Dereference {
     /// Borrow the referenced value.
     dereference(): this.Output {
         todo("Rc.dereference")
+    }
+
+    /// Borrow the referenced value.
+    as(this: &readonly Rc<T>): &readonly T {
+        this.dereference()
+    }
+
+    /// Borrow the referenced value.
+    borrow(this: &readonly Rc<T>): &readonly T {
+        this.dereference()
+    }
+}
+
+extension<T> of Rc<T> implements Default
+where T implements Default {
+    /// Create a reference-counted handle with the default value.
+    static default(): Rc<T> {
+        Rc.new(T.default())
     }
 }

@@ -1,7 +1,8 @@
 import { todo } from "destack:error";
-import { Iterable, Iterator } from "destack:iter";
-import { MaybeUninit, Unique } from "destack:memory";
 import { From } from "destack:convert";
+import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
+import { Default, MaybeUninit, Unique } from "destack:memory";
+import { Index, IndexSet } from "destack:ops";
 import { Deque } from "./deque.ds";
 
 /// A packed ring-buffer double-ended queue.
@@ -20,12 +21,21 @@ export struct PackedDeque<T> {
 }
 
 extension<T> of PackedDeque<T> implements
+    Index<number>,
+    IndexSet<number, T>,
     Iterable<T>,
     Iterable<&T>,
     Iterable<&readonly T>,
     Iterable<&exclusive T>,
+    From<Iterable<T>>,
+    FromIterator<T>,
+    Extend<T, "exclusive">,
+    Default,
     From<Deque<T>>
 {
+    /// The indexed output type.
+    type Output = T;
+
     /// Create an empty packed deque.
     static new(): PackedDeque<T> {
         todo("PackedDeque.new")
@@ -39,6 +49,16 @@ extension<T> of PackedDeque<T> implements
     /// Create a packed deque from values.
     static from(values: Iterable<T>): PackedDeque<T> {
         todo("PackedDeque.from")
+    }
+
+    /// Create a packed deque from `values`.
+    static fromIterator(values: Iterator<T>): PackedDeque<T> {
+        todo("PackedDeque.fromIterator")
+    }
+
+    /// Create the default packed deque.
+    static default(): PackedDeque<T> {
+        PackedDeque.new()
     }
 
     /// Create a packed deque from a stable deque.
@@ -66,6 +86,31 @@ extension<T> of PackedDeque<T> implements
         this.elementCount == 0
     }
 
+    /// Return the element at `index` by value.
+    index(index: number): T {
+        todo("PackedDeque.index")
+    }
+
+    /// Borrow the element at `index`.
+    index(this: &PackedDeque<T>, index: number): &T {
+        todo("PackedDeque.index")
+    }
+
+    /// Borrow the element at `index` with readonly access.
+    index(this: &readonly PackedDeque<T>, index: number): &readonly T {
+        todo("PackedDeque.index")
+    }
+
+    /// Borrow the element at `index` with exclusive access.
+    index(this: &exclusive PackedDeque<T>, index: number): &exclusive T {
+        todo("PackedDeque.index")
+    }
+
+    /// Replace the element at `index`.
+    indexSet(this: &exclusive PackedDeque<T>, index: number, value: T): void {
+        todo("PackedDeque.indexSet")
+    }
+
     /// Push `value` to the back.
     pushBack(this: &exclusive PackedDeque<T>, value: T): void {
         todo("PackedDeque.pushBack")
@@ -74,6 +119,11 @@ extension<T> of PackedDeque<T> implements
     /// Push `value` to the front.
     pushFront(this: &exclusive PackedDeque<T>, value: T): void {
         todo("PackedDeque.pushFront")
+    }
+
+    /// Append all `values` to the back.
+    extend(this: &exclusive PackedDeque<T>, values: Iterable<T>): void {
+        todo("PackedDeque.extend")
     }
 
     /// Remove and return the back element.

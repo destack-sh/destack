@@ -1,0 +1,228 @@
+import { todo } from "destack:error";
+import { From } from "destack:convert";
+import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
+import { Default, MaybeUninit } from "destack:memory";
+import { Index, IndexSet } from "destack:ops";
+import { PackedArray } from "./packed-array.ds";
+
+/// Key for one live slab entry.
+export newtype SlabKey = {
+    /// The slot index.
+    index: uint32;
+
+    /// The slot generation.
+    generation: uint32;
+};
+
+/// One slab storage slot.
+struct SlabSlot<T> {
+    /// The current slot generation.
+    generation: uint32 = 0;
+
+    /// The next free slot index.
+    nextFree: uint32 | undefined = undefined;
+
+    /// True when this slot currently holds a value.
+    isOccupied: boolean = false;
+
+    /// The slot value storage.
+    value: MaybeUninit<T>;
+}
+
+/// A generational slab with stable keys and reusable slots.
+export struct Slab<T> {
+    /// The slot storage.
+    slots: PackedArray<SlabSlot<T>>;
+
+    /// The first free slot index.
+    firstFree: uint32 | undefined = undefined;
+
+    /// The number of live entries.
+    entryCount: usize = 0;
+}
+
+extension<T> of Slab<T> implements
+    Index<SlabKey>,
+    IndexSet<SlabKey, T>,
+    Iterable<(SlabKey, T)>,
+    Iterable<&T>,
+    Iterable<&readonly T>,
+    Iterable<&exclusive T>,
+    From<Iterable<T>>,
+    FromIterator<T>,
+    Extend<T, "exclusive">,
+    Default
+{
+    /// The indexed output type.
+    type Output = T | undefined;
+
+    /// Create an empty slab.
+    static new(): Slab<T> {
+        todo("Slab.new")
+    }
+
+    /// Create a slab with room for at least `capacity` entries.
+    static withCapacity(capacity: usize): Slab<T> {
+        todo("Slab.withCapacity")
+    }
+
+    /// Create a slab from values.
+    static from(values: Iterable<T>): Slab<T> {
+        todo("Slab.from")
+    }
+
+    /// Create a slab from `values`.
+    static fromIterator(values: Iterator<T>): Slab<T> {
+        todo("Slab.fromIterator")
+    }
+
+    /// Create the default slab.
+    static default(): Slab<T> {
+        Slab.new()
+    }
+
+    /// Return the number of live entries.
+    get size(): number {
+        this.entryCount as number
+    }
+
+    /// Return the allocated slot count.
+    get capacity(): usize {
+        this.slots.capacity
+    }
+
+    /// Return whether this slab has no live entries.
+    get isEmpty(): boolean {
+        this.entryCount == 0
+    }
+
+    /// Insert `value` and return its key.
+    insert(this: &exclusive Slab<T>, value: T): SlabKey {
+        todo("Slab.insert")
+    }
+
+    /// Insert all `values`.
+    extend(this: &exclusive Slab<T>, values: Iterable<T>): void {
+        todo("Slab.extend")
+    }
+
+    /// Remove and return the value for `key`.
+    remove(this: &exclusive Slab<T>, key: SlabKey): T | undefined {
+        todo("Slab.remove")
+    }
+
+    /// Return whether `key` identifies a live entry.
+    has(key: SlabKey): boolean {
+        todo("Slab.has")
+    }
+
+    /// Return the value for `key` by value.
+    get(key: SlabKey): T | undefined {
+        todo("Slab.get")
+    }
+
+    /// Borrow the value for `key`.
+    get(this: &Slab<T>, key: SlabKey): &T | undefined {
+        todo("Slab.get")
+    }
+
+    /// Borrow the value for `key` with readonly access.
+    get(this: &readonly Slab<T>, key: SlabKey): &readonly T | undefined {
+        todo("Slab.get")
+    }
+
+    /// Borrow the value for `key` with exclusive access.
+    get(this: &exclusive Slab<T>, key: SlabKey): &exclusive T | undefined {
+        todo("Slab.get")
+    }
+
+    /// Return the value for `key` through the index operator.
+    index(key: SlabKey): T | undefined {
+        this.get(key)
+    }
+
+    /// Replace the value for `key` through the index operator.
+    indexSet(this: &exclusive Slab<T>, key: SlabKey, value: T): void {
+        this.set(key, value)
+    }
+
+    /// Insert or replace the value for `key`.
+    set(this: &exclusive Slab<T>, key: SlabKey, value: T): boolean {
+        todo("Slab.set")
+    }
+
+    /// Reserve room for at least `additional` more entries.
+    reserve(this: &exclusive Slab<T>, additional: usize): void {
+        todo("Slab.reserve")
+    }
+
+    /// Remove all entries.
+    clear(this: &exclusive Slab<T>): void {
+        todo("Slab.clear")
+    }
+
+    /// Shrink storage to fit live and reusable slots.
+    shrinkToFit(this: &exclusive Slab<T>): void {
+        todo("Slab.shrinkToFit")
+    }
+
+    /// Return all live keys.
+    keys(this: &readonly Slab<T>): Iterator<SlabKey> {
+        todo("Slab.keys")
+    }
+
+    /// Return all live values.
+    values(this: &Slab<T>): Iterator<&T> {
+        todo("Slab.values")
+    }
+
+    /// Return all live values with readonly access.
+    values(this: &readonly Slab<T>): Iterator<&readonly T> {
+        todo("Slab.values")
+    }
+
+    /// Return all live values with exclusive access.
+    values(this: &exclusive Slab<T>): Iterator<&exclusive T> {
+        todo("Slab.values")
+    }
+
+    /// Return all live entries.
+    entries(this: &Slab<T>): Iterator<(SlabKey, &T)> {
+        todo("Slab.entries")
+    }
+
+    /// Return all live entries with readonly access.
+    entries(this: &readonly Slab<T>): Iterator<(SlabKey, &readonly T)> {
+        todo("Slab.entries")
+    }
+
+    /// Return all live entries with exclusive access.
+    entries(this: &exclusive Slab<T>): Iterator<(SlabKey, &exclusive T)> {
+        todo("Slab.entries")
+    }
+
+    /// Return an iterator over copied entries.
+    iterator(): Iterator<(SlabKey, T)> {
+        todo("Slab.iterator")
+    }
+
+    /// Return an iterator over borrowed values.
+    iterator(this: &Slab<T>): Iterator<&T> {
+        todo("Slab.iterator")
+    }
+
+    /// Return an iterator over readonly borrowed values.
+    iterator(this: &readonly Slab<T>): Iterator<&readonly T> {
+        todo("Slab.iterator")
+    }
+
+    /// Return an iterator over exclusive borrowed values.
+    iterator(this: &exclusive Slab<T>): Iterator<&exclusive T> {
+        todo("Slab.iterator")
+    }
+
+    /// Consume this slab into owned values.
+    iterator(this: ^Slab<T>): Iterator<T> {
+        todo("Slab.iterator")
+    }
+}

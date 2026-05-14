@@ -1,7 +1,8 @@
 import { todo } from "destack:error";
-import { Iterable, Iterator } from "destack:iter";
+import { Borrow, From } from "destack:convert";
+import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
+import { Default } from "destack:memory";
 import { Equal, Hash } from "destack:ops";
-import { From } from "destack:convert";
 import { PackedMap } from "./packed-map.ds";
 import { Set } from "./set.ds";
 
@@ -11,13 +12,7 @@ export struct PackedSet<T> {
     map: PackedMap<T, void>;
 }
 
-extension<T: Hash> of PackedSet<T> implements
-    Iterable<T>,
-    Iterable<&T>,
-    Iterable<&readonly T>,
-    Iterable<&exclusive T>,
-    From<Set<T>>
-where T implements Equal<T> {
+extension<T> of PackedSet<T> implements Default {
     /// Create an empty packed set.
     static new(): PackedSet<T> {
         todo("PackedSet.new")
@@ -28,9 +23,30 @@ where T implements Equal<T> {
         todo("PackedSet.withCapacity")
     }
 
+    /// Create the default packed set.
+    static default(): PackedSet<T> {
+        PackedSet.new()
+    }
+}
+
+extension<T: Hash> of PackedSet<T> implements
+    Iterable<T>,
+    Iterable<&T>,
+    Iterable<&readonly T>,
+    Iterable<&exclusive T>,
+    From<Iterable<T>>,
+    FromIterator<T>,
+    Extend<T, "exclusive">,
+    From<Set<T>>
+where T implements Equal<T> {
     /// Create a packed set from values.
     static from(values: Iterable<T>): PackedSet<T> {
         todo("PackedSet.from")
+    }
+
+    /// Create a packed set from `values`.
+    static fromIterator(values: Iterator<T>): PackedSet<T> {
+        todo("PackedSet.fromIterator")
     }
 
     /// Create a packed set from a stable set.
@@ -54,22 +70,26 @@ where T implements Equal<T> {
     }
 
     /// Return whether `value` is present.
-    has(value: &readonly T): boolean {
+    has<Q: Hash>(value: &readonly Q): boolean
+    where T implements Borrow<Q>, Q implements Equal<Q> {
         todo("PackedSet.has")
     }
 
     /// Borrow the stored value equal to `value`.
-    get(this: &PackedSet<T>, value: &readonly T): &T | undefined {
+    get<Q: Hash>(this: &PackedSet<T>, value: &readonly Q): &T | undefined
+    where T implements Borrow<Q>, Q implements Equal<Q> {
         todo("PackedSet.get")
     }
 
     /// Borrow the stored value equal to `value` with readonly access.
-    get(this: &readonly PackedSet<T>, value: &readonly T): &readonly T | undefined {
+    get<Q: Hash>(this: &readonly PackedSet<T>, value: &readonly Q): &readonly T | undefined
+    where T implements Borrow<Q>, Q implements Equal<Q> {
         todo("PackedSet.get")
     }
 
     /// Borrow the stored value equal to `value` with exclusive access.
-    get(this: &exclusive PackedSet<T>, value: &readonly T): &exclusive T | undefined {
+    get<Q: Hash>(this: &exclusive PackedSet<T>, value: &readonly Q): &exclusive T | undefined
+    where T implements Borrow<Q>, Q implements Equal<Q> {
         todo("PackedSet.get")
     }
 
@@ -78,8 +98,14 @@ where T implements Equal<T> {
         todo("PackedSet.add")
     }
 
+    /// Add all `values`.
+    extend(this: &exclusive PackedSet<T>, values: Iterable<T>): void {
+        todo("PackedSet.extend")
+    }
+
     /// Remove `value`.
-    remove(this: &exclusive PackedSet<T>, value: &readonly T): T | undefined {
+    remove<Q: Hash>(this: &exclusive PackedSet<T>, value: &readonly Q): T | undefined
+    where T implements Borrow<Q>, Q implements Equal<Q> {
         todo("PackedSet.remove")
     }
 

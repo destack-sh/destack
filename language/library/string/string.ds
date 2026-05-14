@@ -1,5 +1,11 @@
 import { todo } from "destack:error";
-import { type MaybeUninit, type Unique } from "destack:memory";
+import { Borrow, ToOwned } from "destack:convert";
+import { Slice } from "destack:collections";
+import { Default, MaybeUninit, Unique } from "destack:memory";
+
+/// Borrowed UTF-8 string view.
+@languageItem("string.StringView")
+export newtype StringView = Slice<uint8>;
 
 /// Immutable UTF-8 string.
 @languageItem("string.String")
@@ -20,7 +26,17 @@ export class StringBuilder {
     capacity: usize = 0;
 }
 
-extension of String {
+extension of String implements Default {
+    /// Create an empty string.
+    static new(): String {
+        todo("String.new")
+    }
+
+    /// Create the default string.
+    static default(): String {
+        String.new()
+    }
+
     /// The length in UTF-16 code units.
     get length(): number {
         todo("String.length")
@@ -135,5 +151,34 @@ extension of String {
     /// String concatenation via + operator.
     add(other: String): String {
         todo("String.add")
+    }
+}
+
+extension of StringBuilder implements Default {
+    /// Create an empty string builder.
+    static new(): StringBuilder {
+        todo("StringBuilder.new")
+    }
+
+    /// Create the default string builder.
+    static default(): StringBuilder {
+        StringBuilder.new()
+    }
+}
+
+extension of String implements Borrow<StringView> {
+    /// Borrow this string as UTF-8 text.
+    borrow(this: &readonly String): &readonly StringView {
+        todo("String.borrow")
+    }
+}
+
+extension of StringView implements ToOwned {
+    /// The owned value type.
+    type Owned = String;
+
+    /// Copy this view into an owned string.
+    toOwned(this: &readonly StringView): String {
+        todo("StringView.toOwned")
     }
 }

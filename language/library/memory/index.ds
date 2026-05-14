@@ -55,7 +55,7 @@ export {
     Allocator,
     defaultAllocator,
 } from "./allocator.ds";
-export { Copy, Clone, Send, Sync, Unpin, Zeroable } from "./capability.ds";
+export { Copy, Clone, Default, Send, Sync, Unpin, Zeroable } from "./capability.ds";
 export { Pin } from "./pin.ds";
 export { Drop, ManuallyDrop, drop, forget } from "./drop.ds";
 export { Dispose, AsyncDispose } from "./dispose.ds";
