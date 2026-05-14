@@ -2,9 +2,7 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    Block, Constant, Function, Global, Instruction, Local, LocalNodeId, ProvenanceId, Type, Value,
-};
+use crate::{Block, Constant, Function, Global, Local, LocalNodeId, ProvenanceId, Type, Value};
 use destack_core::StringId;
 
 /// Table of debug information for MIR nodes.
@@ -14,14 +12,14 @@ pub struct DebugMetadata {
     pub scopes: Vec<DebugScope>,
     /// Debug bindings indexed by id.
     pub bindings: Vec<DebugBinding>,
-    /// Inlined call sites indexed by id.
-    pub inline_calls: Vec<DebugInlineCall>,
+    /// Inline frames indexed by id.
+    pub inline_frames: Vec<InlineFrame>,
     /// Function scopes keyed by function id.
     pub function_scopes: HashMap<LocalNodeId<Function>, DebugScopeId>,
     /// Block scopes keyed by block id.
     pub block_scopes: HashMap<LocalNodeId<Block>, DebugScopeId>,
-    /// Instruction locations keyed by instruction id.
-    pub instruction_locations: HashMap<LocalNodeId<Instruction>, DebugLocation>,
+    /// Debug locations keyed by source-level execution point.
+    pub locations: HashMap<DebugPoint, DebugLocation>,
     /// Binding location ranges keyed by debug binding id.
     pub binding_ranges: HashMap<DebugBindingId, Vec<DebugBindingRange>>,
 }
@@ -68,14 +66,14 @@ impl DebugMetadata {
         id
     }
 
-    /// Create a new inline call entry.
-    pub fn create_inline_call(
+    /// Create a new inline frame entry.
+    pub fn create_inline_frame(
         &mut self,
         callee_scope: DebugScopeId,
         call_location: DebugLocation,
-    ) -> DebugInlineCallId {
-        let id = DebugInlineCallId::new(self.inline_calls.len() as u32);
-        self.inline_calls.push(DebugInlineCall {
+    ) -> InlineFrameId {
+        let id = InlineFrameId::new(self.inline_frames.len() as u32);
+        self.inline_frames.push(InlineFrame {
             callee_scope,
             call_location,
         });
@@ -96,31 +94,22 @@ impl DebugMetadata {
         self.block_scopes.insert(block_id, scope_id);
     }
 
-    /// Record the debug location for one instruction.
-    pub fn set_instruction_location(
-        &mut self,
-        instruction_id: LocalNodeId<Instruction>,
-        location: DebugLocation,
-    ) {
-        self.instruction_locations.insert(instruction_id, location);
+    /// Record the debug location for one source-level execution point.
+    pub fn set_location(&mut self, point: DebugPoint, location: DebugLocation) {
+        self.locations.insert(point, location);
     }
 
     /// Append one binding location range.
     pub fn add_binding_range(
         &mut self,
         binding: DebugBindingId,
-        location: DebugValueLocation,
-        start: Option<LocalNodeId<Instruction>>,
-        end: Option<LocalNodeId<Instruction>>,
+        value: DebugValue,
+        range: DebugRange,
     ) {
         self.binding_ranges
             .entry(binding)
             .or_default()
-            .push(DebugBindingRange {
-                location,
-                start,
-                end,
-            });
+            .push(DebugBindingRange { value, range });
     }
 
     /// Return the debug scope for an id.
@@ -133,9 +122,53 @@ impl DebugMetadata {
         &self.bindings[id.index()]
     }
 
-    /// Return the inline call for an id.
-    pub fn inline_call(&self, id: DebugInlineCallId) -> &DebugInlineCall {
-        &self.inline_calls[id.index()]
+    /// Return the inline frame for an id.
+    pub fn inline_frame(&self, id: InlineFrameId) -> &InlineFrame {
+        &self.inline_frames[id.index()]
+    }
+}
+
+/// Source-level execution point inside one MIR function.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct DebugPoint {
+    /// The owning function.
+    pub function: LocalNodeId<Function>,
+    /// The owning block.
+    pub block: LocalNodeId<Block>,
+    /// The MIR program point ordinal inside the block.
+    ///
+    /// Points are counted at block entry, after each instruction, and after the terminator.
+    pub point: u32,
+}
+
+impl DebugPoint {
+    /// Create one source-level execution point.
+    pub const fn new(
+        function: LocalNodeId<Function>,
+        block: LocalNodeId<Block>,
+        point: u32,
+    ) -> Self {
+        Self {
+            function,
+            block,
+            point,
+        }
+    }
+}
+
+/// Half-open range over source-level execution points in one block.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct DebugRange {
+    /// The first covered point.
+    pub start: DebugPoint,
+    /// The first point after the covered range in the same block.
+    pub end: DebugPoint,
+}
+
+impl DebugRange {
+    /// Create one half-open same-block source-level range.
+    pub const fn new(start: DebugPoint, end: DebugPoint) -> Self {
+        Self { start, end }
     }
 }
 
@@ -171,12 +204,12 @@ impl DebugBindingId {
     }
 }
 
-/// Identifier for an inlined call.
+/// Identifier for an inline frame.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct DebugInlineCallId(u32);
+pub struct InlineFrameId(u32);
 
-impl DebugInlineCallId {
-    /// Create an inline call id from a raw index.
+impl InlineFrameId {
+    /// Create an inline frame id from a raw index.
     pub fn new(index: u32) -> Self {
         Self(index)
     }
@@ -226,9 +259,9 @@ pub struct DebugBinding {
     pub kind: DebugBindingKind,
 }
 
-/// One inlined call site.
+/// One inline frame.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct DebugInlineCall {
+pub struct InlineFrame {
     /// The inlined callee function scope.
     pub callee_scope: DebugScopeId,
     /// The source location of the call expression.
@@ -242,8 +275,8 @@ pub struct DebugLocation {
     pub scope: DebugScopeId,
     /// The provenance record for this location when one exists.
     pub provenance: Option<ProvenanceId>,
-    /// The inlined call containing this location.
-    pub inline_call: Option<DebugInlineCallId>,
+    /// The inline frame containing this location.
+    pub inline_frame: Option<InlineFrameId>,
 }
 
 /// One fragment of a split debug value.
@@ -254,12 +287,12 @@ pub struct DebugValueFragment {
     /// Byte size covered by this piece.
     pub size_bytes: u32,
     /// Storage for this piece.
-    pub location: Box<DebugValueLocation>,
+    pub value: Box<DebugValue>,
 }
 
 /// Storage location for a debug binding.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum DebugValueLocation {
+pub enum DebugValue {
     /// The binding is stored in an SSA value.
     Value(Value),
     /// The binding is stored in a local slot.
@@ -272,17 +305,15 @@ pub enum DebugValueLocation {
     Composite(Vec<DebugValueFragment>),
     /// The binding existed semantically but is unavailable here.
     OptimizedOut,
-    /// The binding has no meaningful value here.
-    Undefined,
+    /// The binding is not available at this point.
+    Unavailable,
 }
 
-/// One binding location valid over a half-open instruction range.
+/// One binding value valid over a half-open debug range.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DebugBindingRange {
-    /// The storage location over the covered range.
-    pub location: DebugValueLocation,
-    /// The first covered instruction, or function entry.
-    pub start: Option<LocalNodeId<Instruction>>,
-    /// The first instruction after the covered range, if bounded.
-    pub end: Option<LocalNodeId<Instruction>>,
+    /// The value over the covered range.
+    pub value: DebugValue,
+    /// The covered debug range.
+    pub range: DebugRange,
 }
