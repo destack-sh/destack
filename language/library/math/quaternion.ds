@@ -2,6 +2,7 @@ import { todo } from "destack:error";
 import { Multiply } from "destack:ops";
 import { sqrt } from "./float.ds";
 import { Vector3 } from "./linear.ds";
+import { Matrix3 } from "./matrix.ds";
 
 /// Quaternion rotation value.
 export struct Quaternion<T: float> {
@@ -38,14 +39,39 @@ extension<T: float> of Quaternion<T> implements Multiply<Quaternion<T>> {
         todo("Quaternion.fromAxisAngle")
     }
 
+    /// Create a rotation from Euler angles in radians.
+    static fromEuler(euler: Vector3<T>): Quaternion<T> {
+        todo("Quaternion.fromEuler")
+    }
+
+    /// Create a rotation from `from` to `to`.
+    static fromToRotation(from: Vector3<T>, to: Vector3<T>): Quaternion<T> {
+        todo("Quaternion.fromToRotation")
+    }
+
+    /// Create a rotation looking in `forward` with `up` as vertical reference.
+    static lookRotation(forward: Vector3<T>, up: Vector3<T>): Quaternion<T> {
+        todo("Quaternion.lookRotation")
+    }
+
+    /// Return the dot product with `other`.
+    dot(other: Quaternion<T>): T {
+        this.x * other.x + this.y * other.y + this.z * other.z + this.w * other.w
+    }
+
     /// Return the squared length.
     lengthSquared(): T {
-        this.x * this.x + this.y * this.y + this.z * this.z + this.w * this.w
+        this.dot(this)
+    }
+
+    /// Return the length.
+    length(): T {
+        sqrt(this.lengthSquared())
     }
 
     /// Return the normalized quaternion.
     normalized(): Quaternion<T> {
-        let length = sqrt(this.lengthSquared());
+        let length = this.length();
 
         Quaternion {
             x: this.x / length,
@@ -53,6 +79,51 @@ extension<T: float> of Quaternion<T> implements Multiply<Quaternion<T>> {
             z: this.z / length,
             w: this.w / length,
         }
+    }
+
+    /// Return a normalized quaternion, or identity when the length is zero.
+    normalizedOrIdentity(): Quaternion<T> {
+        todo("Quaternion.normalizedOrIdentity")
+    }
+
+    /// Return the conjugate quaternion.
+    conjugate(): Quaternion<T> {
+        Quaternion { x: -this.x, y: -this.y, z: -this.z, w: this.w }
+    }
+
+    /// Return the inverse rotation.
+    inverse(): Quaternion<T> {
+        todo("Quaternion.inverse")
+    }
+
+    /// Return the rotation axis.
+    axis(): Vector3<T> {
+        todo("Quaternion.axis")
+    }
+
+    /// Return the rotation angle in radians.
+    angle(): T {
+        todo("Quaternion.angle")
+    }
+
+    /// Return the angle to `other` in radians.
+    angleTo(other: Quaternion<T>): T {
+        todo("Quaternion.angleTo")
+    }
+
+    /// Convert this rotation to Euler angles in radians.
+    toEuler(): Vector3<T> {
+        todo("Quaternion.toEuler")
+    }
+
+    /// Convert this rotation to axis-angle representation.
+    toAxisAngle(): [Vector3<T>, T] {
+        todo("Quaternion.toAxisAngle")
+    }
+
+    /// Convert this rotation to a matrix.
+    toMatrix(): Matrix3<T> {
+        todo("Quaternion.toMatrix")
     }
 
     /// Multiply by `other`.
@@ -68,5 +139,20 @@ extension<T: float> of Quaternion<T> implements Multiply<Quaternion<T>> {
     /// Rotate `vector`.
     rotate(vector: Vector3<T>): Vector3<T> {
         todo("Quaternion.rotate")
+    }
+
+    /// Linearly interpolate toward `other` and normalize the result.
+    nlerp(other: Quaternion<T>, weight: T): Quaternion<T> {
+        todo("Quaternion.nlerp")
+    }
+
+    /// Spherically interpolate toward `other`.
+    slerp(other: Quaternion<T>, weight: T): Quaternion<T> {
+        todo("Quaternion.slerp")
+    }
+
+    /// Spherically interpolate toward `other` without clamping `weight`.
+    slerpUnclamped(other: Quaternion<T>, weight: T): Quaternion<T> {
+        todo("Quaternion.slerpUnclamped")
     }
 }

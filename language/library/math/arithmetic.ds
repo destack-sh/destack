@@ -1,124 +1,252 @@
-/// Add with overflow detection.
-///
-/// Returns a tuple of the result and a boolean indicating overflow.
-/// The result is the wrapped value if overflow occurred.
-@intrinsic("math.arithmetic.add.overflow")
-export declare function addOverflow<T: int>(a: T, b: T): [T, boolean];
+import { todo } from "destack:error";
 
 /// Return `a + b`, or `undefined` on overflow.
-@intrinsic("math.arithmetic.add.checked")
-export declare function addChecked<T: int>(a: T, b: T): T | undefined;
+export function checkedAdd<T: int>(a: T, b: T): T | undefined {
+    let (result, overflow) = overflowingAdd(a, b);
 
-/// Add with wraparound semantics.
-@intrinsic("math.arithmetic.add.wrapping")
-export declare function addWrapping<T: int>(a: T, b: T): T;
+    if (overflow) {
+        return undefined;
+    }
 
-/// Subtract with overflow detection.
-///
-/// Returns a tuple of the result and a boolean indicating overflow.
-/// The result is the wrapped value if overflow occurred.
-@intrinsic("math.arithmetic.sub.overflow")
-export declare function subOverflow<T: int>(a: T, b: T): [T, boolean];
+    result
+}
 
 /// Return `a - b`, or `undefined` on overflow.
-@intrinsic("math.arithmetic.sub.checked")
-export declare function subChecked<T: int>(a: T, b: T): T | undefined;
+export function checkedSubtract<T: int>(a: T, b: T): T | undefined {
+    let (result, overflow) = overflowingSubtract(a, b);
 
-/// Subtract with wraparound semantics.
-@intrinsic("math.arithmetic.sub.wrapping")
-export declare function subWrapping<T: int>(a: T, b: T): T;
+    if (overflow) {
+        return undefined;
+    }
 
-/// Multiply with overflow detection.
-///
-/// Returns a tuple of the result and a boolean indicating overflow.
-/// The result is the wrapped value if overflow occurred.
-@intrinsic("math.arithmetic.mul.overflow")
-export declare function mulOverflow<T: int>(a: T, b: T): [T, boolean];
+    result
+}
 
 /// Return `a * b`, or `undefined` on overflow.
-@intrinsic("math.arithmetic.mul.checked")
-export declare function mulChecked<T: int>(a: T, b: T): T | undefined;
+export function checkedMultiply<T: int>(a: T, b: T): T | undefined {
+    let (result, overflow) = overflowingMultiply(a, b);
 
-/// Multiply with wraparound semantics.
-@intrinsic("math.arithmetic.mul.wrapping")
-export declare function mulWrapping<T: int>(a: T, b: T): T;
+    if (overflow) {
+        return undefined;
+    }
+
+    result
+}
 
 /// Return `a / b`, or `undefined` on division by zero or overflow.
-@intrinsic("math.arithmetic.div.checked")
-export declare function divChecked<T: int>(a: T, b: T): T | undefined;
+export function checkedDivide<T: int>(a: T, b: T): T | undefined {
+    todo("checkedDivide")
+}
 
 /// Return `a % b`, or `undefined` on division by zero or overflow.
-@intrinsic("math.arithmetic.rem.checked")
-export declare function remChecked<T: int>(a: T, b: T): T | undefined;
+export function checkedRemainder<T: int>(a: T, b: T): T | undefined {
+    todo("checkedRemainder")
+}
 
-/// Unchecked add.
-///
-/// Adds two integers without overflow checking.
-/// Behavior is undefined if the result overflows.
-/// Allows the optimizer to assume no overflow occurs.
-@intrinsic("math.arithmetic.add.unchecked")
-export declare function addUnchecked<T: int>(a: T, b: T): T;
+/// Return Euclidean division, or `undefined` on division by zero or overflow.
+export function checkedDivideEuclidean<T: int>(a: T, b: T): T | undefined {
+    todo("checkedDivideEuclidean")
+}
 
-/// Unchecked subtract.
-///
-/// Subtracts two integers without overflow checking.
-/// Behavior is undefined if the result overflows.
-@intrinsic("math.arithmetic.sub.unchecked")
-export declare function subUnchecked<T: int>(a: T, b: T): T;
+/// Return Euclidean remainder, or `undefined` on division by zero or overflow.
+export function checkedRemainderEuclidean<T: int>(a: T, b: T): T | undefined {
+    todo("checkedRemainderEuclidean")
+}
 
-/// Unchecked multiply.
-///
-/// Multiplies two integers without overflow checking.
-/// Behavior is undefined if the result overflows.
-@intrinsic("math.arithmetic.mul.unchecked")
-export declare function mulUnchecked<T: int>(a: T, b: T): T;
+/// Return `-value`, or `undefined` on overflow.
+export function checkedNegate<T: int>(value: T): T | undefined {
+    todo("checkedNegate")
+}
 
-/// Unchecked divide.
-///
-/// Divides two integers without checking for division by zero or overflow.
-/// Behavior is undefined if divisor is zero or if the result overflows
-/// (e.g., INT_MIN / -1).
-@intrinsic("math.arithmetic.div.unchecked")
-export declare function divUnchecked<T: int>(a: T, b: T): T;
+/// Return absolute value, or `undefined` on overflow.
+export function checkedAbs<T: int>(value: T): T | undefined {
+    todo("checkedAbs")
+}
 
-/// Unchecked remainder.
-///
-/// Computes remainder without checking for division by zero or overflow.
-/// Behavior is undefined if divisor is zero.
-@intrinsic("math.arithmetic.rem.unchecked")
-export declare function remUnchecked<T: int>(a: T, b: T): T;
+/// Return `base ** exponent`, or `undefined` on overflow.
+export function checkedPower<T: int>(base: T, exponent: uint32): T | undefined {
+    todo("checkedPower")
+}
 
-/// Unchecked shift left.
-///
-/// Shifts left without checking if shift amount exceeds bit width.
-/// Behavior is undefined if `amount` >= bit width of T.
-@intrinsic("math.arithmetic.shl.unchecked")
-export declare function shlUnchecked<T: int>(value: T, amount: T): T;
+/// Return `value << amount`, or `undefined` when the shift is invalid.
+export function checkedShiftLeft<T: int>(value: T, amount: uint32): T | undefined {
+    todo("checkedShiftLeft")
+}
 
-/// Unchecked shift right.
-///
-/// Shifts right without checking if shift amount exceeds bit width.
-/// Behavior is undefined if `amount` >= bit width of T.
-/// Sign extension applies of signed types.
-@intrinsic("math.arithmetic.shr.unchecked")
-export declare function shrUnchecked<T: int>(value: T, amount: T): T;
+/// Return `value >> amount`, or `undefined` when the shift is invalid.
+export function checkedShiftRight<T: int>(value: T, amount: uint32): T | undefined {
+    todo("checkedShiftRight")
+}
 
-/// Saturating add.
-///
-/// Adds two integers, saturating at the numeric bounds instead of overflowing.
-/// Returns T.MAX on overflow, T.MIN on underflow.
-@intrinsic("math.arithmetic.add.saturating")
-export declare function addSaturating<T: int>(a: T, b: T): T;
+/// Add and report whether overflow occurred.
+@intrinsic("math.arithmetic.overflowing.add")
+export declare function overflowingAdd<T: int>(a: T, b: T): [T, boolean];
 
-/// Saturating subtract.
-///
-/// Subtracts two integers, saturating at the numeric bounds instead of overflowing.
-/// Returns T.MAX on overflow, T.MIN on underflow.
-@intrinsic("math.arithmetic.sub.saturating")
-export declare function subSaturating<T: int>(a: T, b: T): T;
+/// Subtract and report whether overflow occurred.
+@intrinsic("math.arithmetic.overflowing.subtract")
+export declare function overflowingSubtract<T: int>(a: T, b: T): [T, boolean];
 
-/// Saturating multiply.
-///
-/// Multiplies two integers, saturating at the numeric bounds instead of overflowing.
-@intrinsic("math.arithmetic.mul.saturating")
-export declare function mulSaturating<T: int>(a: T, b: T): T;
+/// Multiply and report whether overflow occurred.
+@intrinsic("math.arithmetic.overflowing.multiply")
+export declare function overflowingMultiply<T: int>(a: T, b: T): [T, boolean];
+
+/// Divide and report whether overflow occurred.
+export function overflowingDivide<T: int>(a: T, b: T): [T, boolean] {
+    todo("overflowingDivide")
+}
+
+/// Return remainder and report whether overflow occurred.
+export function overflowingRemainder<T: int>(a: T, b: T): [T, boolean] {
+    todo("overflowingRemainder")
+}
+
+/// Divide using Euclidean rules and report whether overflow occurred.
+export function overflowingDivideEuclidean<T: int>(a: T, b: T): [T, boolean] {
+    todo("overflowingDivideEuclidean")
+}
+
+/// Return Euclidean remainder and report whether overflow occurred.
+export function overflowingRemainderEuclidean<T: int>(a: T, b: T): [T, boolean] {
+    todo("overflowingRemainderEuclidean")
+}
+
+/// Negate and report whether overflow occurred.
+export function overflowingNegate<T: int>(value: T): [T, boolean] {
+    todo("overflowingNegate")
+}
+
+/// Return absolute value and report whether overflow occurred.
+export function overflowingAbs<T: int>(value: T): [T, boolean] {
+    todo("overflowingAbs")
+}
+
+/// Raise to `exponent` and report whether overflow occurred.
+export function overflowingPower<T: int>(base: T, exponent: uint32): [T, boolean] {
+    todo("overflowingPower")
+}
+
+/// Shift left and report whether the shift was invalid.
+export function overflowingShiftLeft<T: int>(value: T, amount: uint32): [T, boolean] {
+    todo("overflowingShiftLeft")
+}
+
+/// Shift right and report whether the shift was invalid.
+export function overflowingShiftRight<T: int>(value: T, amount: uint32): [T, boolean] {
+    todo("overflowingShiftRight")
+}
+
+/// Add with wraparound arithmetic.
+export function wrappingAdd<T: int>(a: T, b: T): T {
+    todo("wrappingAdd")
+}
+
+/// Subtract with wraparound arithmetic.
+export function wrappingSubtract<T: int>(a: T, b: T): T {
+    todo("wrappingSubtract")
+}
+
+/// Multiply with wraparound arithmetic.
+export function wrappingMultiply<T: int>(a: T, b: T): T {
+    todo("wrappingMultiply")
+}
+
+/// Divide with wraparound arithmetic.
+export function wrappingDivide<T: int>(a: T, b: T): T {
+    todo("wrappingDivide")
+}
+
+/// Return remainder with wraparound arithmetic.
+export function wrappingRemainder<T: int>(a: T, b: T): T {
+    todo("wrappingRemainder")
+}
+
+/// Divide using Euclidean wraparound arithmetic.
+export function wrappingDivideEuclidean<T: int>(a: T, b: T): T {
+    todo("wrappingDivideEuclidean")
+}
+
+/// Return Euclidean remainder with wraparound arithmetic.
+export function wrappingRemainderEuclidean<T: int>(a: T, b: T): T {
+    todo("wrappingRemainderEuclidean")
+}
+
+/// Negate with wraparound arithmetic.
+export function wrappingNegate<T: int>(value: T): T {
+    todo("wrappingNegate")
+}
+
+/// Return absolute value with wraparound arithmetic.
+export function wrappingAbs<T: int>(value: T): T {
+    todo("wrappingAbs")
+}
+
+/// Raise to `exponent` with wraparound arithmetic.
+export function wrappingPower<T: int>(base: T, exponent: uint32): T {
+    todo("wrappingPower")
+}
+
+/// Shift left with wraparound arithmetic.
+export function wrappingShiftLeft<T: int>(value: T, amount: uint32): T {
+    todo("wrappingShiftLeft")
+}
+
+/// Shift right with wraparound arithmetic.
+export function wrappingShiftRight<T: int>(value: T, amount: uint32): T {
+    todo("wrappingShiftRight")
+}
+
+/// Add with saturation at numeric bounds.
+@intrinsic("math.arithmetic.saturating.add")
+export declare function saturatingAdd<T: int>(a: T, b: T): T;
+
+/// Subtract with saturation at numeric bounds.
+@intrinsic("math.arithmetic.saturating.subtract")
+export declare function saturatingSubtract<T: int>(a: T, b: T): T;
+
+/// Multiply with saturation at numeric bounds.
+export function saturatingMultiply<T: int>(a: T, b: T): T {
+    todo("saturatingMultiply")
+}
+
+/// Negate with saturation at numeric bounds.
+export function saturatingNegate<T: int>(value: T): T {
+    todo("saturatingNegate")
+}
+
+/// Return absolute value with saturation at numeric bounds.
+export function saturatingAbs<T: int>(value: T): T {
+    todo("saturatingAbs")
+}
+
+/// Raise to `exponent` with saturation at numeric bounds.
+export function saturatingPower<T: int>(base: T, exponent: uint32): T {
+    todo("saturatingPower")
+}
+
+/// Add without overflow checks.
+@intrinsic("math.arithmetic.unchecked.add")
+export declare function uncheckedAdd<T: int>(a: T, b: T): T;
+
+/// Subtract without overflow checks.
+@intrinsic("math.arithmetic.unchecked.subtract")
+export declare function uncheckedSubtract<T: int>(a: T, b: T): T;
+
+/// Multiply without overflow checks.
+@intrinsic("math.arithmetic.unchecked.multiply")
+export declare function uncheckedMultiply<T: int>(a: T, b: T): T;
+
+/// Divide without division checks.
+@intrinsic("math.arithmetic.unchecked.divide")
+export declare function uncheckedDivide<T: int>(a: T, b: T): T;
+
+/// Return remainder without division checks.
+@intrinsic("math.arithmetic.unchecked.remainder")
+export declare function uncheckedRemainder<T: int>(a: T, b: T): T;
+
+/// Shift left without checking the shift amount.
+@intrinsic("math.arithmetic.unchecked.shiftLeft")
+export declare function uncheckedShiftLeft<T: int>(value: T, amount: uint32): T;
+
+/// Shift right without checking the shift amount.
+@intrinsic("math.arithmetic.unchecked.shiftRight")
+export declare function uncheckedShiftRight<T: int>(value: T, amount: uint32): T;

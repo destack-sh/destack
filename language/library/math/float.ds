@@ -1,6 +1,13 @@
+import { todo } from "destack:error";
+
 /// Square root.
 @intrinsic("math.float.sqrt")
 export declare function sqrt<T: float>(x: T): T;
+
+/// Cube root.
+export function cbrt<T: float>(x: T): T {
+    todo("cbrt")
+}
 
 /// Absolute value.
 @intrinsic("math.float.abs")
@@ -18,29 +25,69 @@ export declare function cos<T: float>(x: T): T;
 @intrinsic("math.float.tan")
 export declare function tan<T: float>(x: T): T;
 
-/// Arc sine (inverse sine).
+/// Hyperbolic sine.
+export function sinh<T: float>(x: T): T {
+    (exp(x) - exp(-x)) / 2
+}
+
+/// Hyperbolic cosine.
+export function cosh<T: float>(x: T): T {
+    (exp(x) + exp(-x)) / 2
+}
+
+/// Hyperbolic tangent.
+export function tanh<T: float>(x: T): T {
+    sinh(x) / cosh(x)
+}
+
+/// Arc sine.
 @intrinsic("math.float.asin")
 export declare function asin<T: float>(x: T): T;
 
-/// Arc cosine (inverse cosine).
+/// Arc cosine.
 @intrinsic("math.float.acos")
 export declare function acos<T: float>(x: T): T;
 
-/// Arc tangent (inverse tangent).
+/// Arc tangent.
 @intrinsic("math.float.atan")
 export declare function atan<T: float>(x: T): T;
 
-/// Natural exponential (e^x).
+/// Inverse hyperbolic sine.
+export function asinh<T: float>(x: T): T {
+    log(x + sqrt(x * x + 1))
+}
+
+/// Inverse hyperbolic cosine.
+export function acosh<T: float>(x: T): T {
+    log(x + sqrt(x * x - 1))
+}
+
+/// Inverse hyperbolic tangent.
+export function atanh<T: float>(x: T): T {
+    log((1 + x) / (1 - x)) / 2
+}
+
+/// Natural exponential.
 @intrinsic("math.float.exp")
 export declare function exp<T: float>(x: T): T;
 
-/// Base-2 exponential (2^x).
+/// Natural exponential minus one.
+export function expm1<T: float>(x: T): T {
+    exp(x) - 1
+}
+
+/// Base-2 exponential.
 @intrinsic("math.float.exp2")
 export declare function exp2<T: float>(x: T): T;
 
-/// Natural logarithm (ln).
+/// Natural logarithm.
 @intrinsic("math.float.log")
 export declare function log<T: float>(x: T): T;
+
+/// Natural logarithm of one plus `x`.
+export function log1p<T: float>(x: T): T {
+    log(1 + x)
+}
 
 /// Base-2 logarithm.
 @intrinsic("math.float.log2")
@@ -58,7 +105,7 @@ export declare function floor<T: float>(x: T): T;
 @intrinsic("math.float.ceil")
 export declare function ceil<T: float>(x: T): T;
 
-/// Round toward zero (truncate).
+/// Round toward zero.
 @intrinsic("math.float.trunc")
 export declare function trunc<T: float>(x: T): T;
 
@@ -66,38 +113,56 @@ export declare function trunc<T: float>(x: T): T;
 @intrinsic("math.float.round")
 export declare function round<T: float>(x: T): T;
 
-/// Arc tangent of y/x (two-argument form).
-///
-/// Returns the angle in radians between the positive x-axis and the point (x, y).
-/// Handles quadrant determination correctly.
+/// Arc tangent of y/x.
 @intrinsic("math.float.atan2")
 export declare function atan2<T: float>(y: T, x: T): T;
 
-/// Power (base^exponent).
+/// Power.
 @intrinsic("math.float.pow")
 export declare function pow<T: float>(base: T, exponent: T): T;
 
 /// Copy sign.
-///
-/// Returns a value with the magnitude of `magnitude` and the sign of `sign`.
 @intrinsic("math.float.copySign")
-export declare function copysign<T: float>(magnitude: T, sign: T): T;
+export declare function copySign<T: float>(magnitude: T, sign: T): T;
 
 /// Minimum of two floats.
-///
-/// Returns the smaller of two values (IEEE 754 minNum semantics).
 @intrinsic("math.float.min")
 export declare function min<T: float>(a: T, b: T): T;
 
 /// Maximum of two floats.
-///
-/// Returns the larger of two values (IEEE 754 maxNum semantics).
 @intrinsic("math.float.max")
 export declare function max<T: float>(a: T, b: T): T;
 
 /// Fused multiply-add.
-///
-/// Computes (a * b) + c with a single rounding operation.
-/// More accurate than separate multiply and add operations.
 @intrinsic("math.float.fma")
 export declare function fma<T: float>(a: T, b: T, c: T): T;
+
+/// Return whether `x` is finite.
+export function isFinite<T: float>(x: T): boolean {
+    todo("isFinite")
+}
+
+/// Return whether `x` is NaN.
+export function isNaN<T: float>(x: T): boolean {
+    x != x
+}
+
+/// Return whether `x` is infinite.
+export function isInfinite<T: float>(x: T): boolean {
+    todo("isInfinite")
+}
+
+/// Return whether `x` is subnormal.
+export function isSubnormal<T: float>(x: T): boolean {
+    todo("isSubnormal")
+}
+
+/// Return whether `x` has a negative sign bit.
+export function isSignNegative<T: float>(x: T): boolean {
+    todo("isSignNegative")
+}
+
+/// Return whether `x` has a positive sign bit.
+export function isSignPositive<T: float>(x: T): boolean {
+    todo("isSignPositive")
+}
