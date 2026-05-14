@@ -179,7 +179,7 @@ fn generic_parameter_defaults_for_symbol(
     }
 
     // fall back to loading declaration defaults from the owning module
-    let module_dir = ctx.bound_dir(declaration_id.module_id)?;
+    let module_dir = ctx.dir_parsed(declaration_id.module_id)?;
     let generic_parameters =
         generic_parameters_for_declaration(&module_dir.tree, declaration_id.local_id)?;
     Some(
@@ -399,7 +399,7 @@ fn expression_source_signature_for_module(
     }
 
     // load the referenced module when the expression comes from another module
-    let module_dir = ctx.bound_dir(module_id)?;
+    let module_dir = ctx.dir_parsed(module_id)?;
     let source_id = module_dir.tree.get_source(expression_id.id);
     if module_dir.tree.get_node_type(source_id) != dir::NodeType::Expression {
         return None;
@@ -482,7 +482,7 @@ fn type_expression_source_text_for_module(
         return Some(file.text()[span.start as usize..span.end as usize].to_string());
     }
 
-    let module_dir = ctx.bound_dir(module_id)?;
+    let module_dir = ctx.dir_parsed(module_id)?;
     let source_id = module_dir.tree.get_source(type_expression_id.id);
     if module_dir.tree.get_node_type(source_id) != dir::NodeType::TypeExpression {
         return None;

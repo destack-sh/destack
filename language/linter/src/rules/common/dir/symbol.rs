@@ -330,10 +330,13 @@ pub fn symbol_decorators_for(
     let Some(dir) = artifacts.dir_bound(symbol_id.module_id, profile_id) else {
         return Vec::new();
     };
+    let Some(parsed) = artifacts.dir_parsed(symbol_id.module_id) else {
+        return Vec::new();
+    };
 
     symbol_decorators_in_module(
         symbol_id.module_id,
-        &dir.tree,
+        &parsed.tree,
         local_strings,
         &dir.bindings,
         &dir.types,

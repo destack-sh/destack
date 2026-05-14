@@ -216,12 +216,12 @@ fn build_adjacency(
         let mut dependencies = Vec::new();
 
         // collect imported module edges so binding targets stay visible
-        if let Some(imported) = ctx.imported_dir(module_id) {
+        if let Some(imported) = ctx.dir_imported(module_id) {
             collect_imported_module_dependencies(&imported, &mut dependencies);
         }
 
         // collect namespace re export edges
-        if let Some(exported) = ctx.exported_dir(module_id) {
+        if let Some(exported) = ctx.dir_exported(module_id) {
             collect_exported_module_dependencies(&exported, &mut dependencies);
         }
 

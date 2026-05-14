@@ -116,7 +116,7 @@ impl<'a, 'b> PreferStructLiteralVisitor<'a, 'b> {
         }
 
         // load the declaration module tree for cross module struct constructors
-        let module_dir = self.ctx.bound_dir(declaration_id.module_id)?;
+        let module_dir = self.ctx.dir_parsed(declaration_id.module_id)?;
         let declaration = module_dir
             .tree
             .get(declaration_id.into_local_typed::<dir::Declaration>());

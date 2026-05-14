@@ -209,7 +209,7 @@ fn is_declaration_file(file_type: FileType, ctx: &LintWorkspaceContext) -> bool 
 
 /// Return true when the module has exports in the active profile DIR.
 fn module_has_exports(ctx: &LintWorkspaceContext, module_id: ModuleId) -> bool {
-    let Some(dir) = ctx.exported_dir(module_id) else {
+    let Some(dir) = ctx.dir_exported(module_id) else {
         return false;
     };
 
@@ -221,11 +221,11 @@ fn module_has_exports(ctx: &LintWorkspaceContext, module_id: ModuleId) -> bool {
 fn module_dependencies(ctx: &LintWorkspaceContext, module_id: ModuleId) -> Vec<ModuleId> {
     let mut dependencies = Vec::new();
 
-    if let Some(imported) = ctx.imported_dir(module_id) {
+    if let Some(imported) = ctx.dir_imported(module_id) {
         collect_imported_module_dependencies(&imported, &mut dependencies);
     }
 
-    if let Some(exported) = ctx.exported_dir(module_id) {
+    if let Some(exported) = ctx.dir_exported(module_id) {
         collect_exported_module_dependencies(&exported, &mut dependencies);
     }
 

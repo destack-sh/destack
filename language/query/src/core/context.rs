@@ -100,6 +100,8 @@ pub(crate) struct DirQueryContext<'a> {
     module_id: ModuleId,
     /// The revision for this dir view.
     revision: Revision,
+    /// The parsed DIR artifact.
+    parsed: &'a DirParsed,
     /// The bound DIR artifact.
     bound: &'a DirBound,
     /// The imported DIR artifact.
@@ -127,7 +129,10 @@ impl<'a> DirQueryContext<'a> {
 
     /// Return the visible DIR tree view.
     pub(crate) fn view(self) -> dir::View<'a> {
-        dir::View::with_patches(&self.bound.tree, std::slice::from_ref(&self.expanded.patch))
+        dir::View::with_patches(
+            &self.parsed.tree,
+            std::slice::from_ref(&self.expanded.patch),
+        )
     }
 
     /// Return whether one DIR symbol is visible in this query view.
@@ -248,6 +253,7 @@ impl QueryContext {
         DirQueryContext {
             module_id: self.module_id,
             revision: self.revision,
+            parsed: self.dir_parsed.as_ref(),
             bound: self.dir_bound.as_ref(),
             imported: self.dir_imported.as_ref(),
             expanded: self.dir_expanded.as_ref(),

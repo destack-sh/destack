@@ -337,6 +337,9 @@ impl LintRunner {
         let bound = artifacts
             .dir_bound(module.id, profile.id())
             .expect("lint DIR pass requires committed bound DIR artifact");
+        let parsed = artifacts
+            .dir_parsed(module.id)
+            .expect("lint DIR pass requires committed parsed DIR artifact");
         let expanded = artifacts
             .dir_expanded(module.id, profile.id())
             .expect("lint DIR pass requires committed expanded DIR artifact");
@@ -352,14 +355,12 @@ impl LintRunner {
             revision,
             profile,
             file,
-            bound.as_ref(),
+            parsed.as_ref(),
             expanded.as_ref(),
             strings.as_ref(),
             &bound.bindings,
             &checked.types,
-            bound.namespace_symbol,
             bound.namespace_scope,
-            bound.default_symbol,
             options,
             self.compute_fixes,
         );
