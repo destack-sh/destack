@@ -1,9 +1,0 @@
-packages:
-  - npm
-  - ../test/fixtures/resolver/pnpm
-  - ../test/fixtures/resolver/pnpm-workspace/**
-
-ignoredBuiltDependencies:
-  - esbuild
-
-ignoreScripts: true
