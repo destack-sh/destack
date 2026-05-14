@@ -82,7 +82,7 @@ impl Interpreter {
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
         let frame_entry = program.frame_entry(frame_state_id).cloned();
         let target_block_id = point.block;
-        let instruction_index = point.instruction_index as usize;
+        let pc = point.pc as usize;
         let expected_function = point.function;
 
         // resolve the frame and lowered target block
@@ -133,7 +133,7 @@ impl Interpreter {
 
         // advance the frame to the resumed position
         frame.block = target_index as u32;
-        frame.pc = instruction_index;
+        frame.pc = pc;
 
         Ok(())
     }

@@ -306,7 +306,7 @@ impl ContinuationFrame {
             stack_offset,
             frame_base,
         );
-        frame.pc = point.instruction_index as usize;
+        frame.pc = point.pc as usize;
         frame.return_state = self.return_state;
 
         Ok(frame)
