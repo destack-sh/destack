@@ -6,17 +6,13 @@ use serde::{Deserialize, Serialize};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::world::BranchId;
 use crate::world::trace::{
-    TraceCheckpointIndex, TraceChunkIndex, TraceCursor, TraceHeader, TraceRecord, TraceTrailer,
+    TRACE_DEFAULT_MAX_CHUNK_BYTES, TRACE_DEFAULT_MAX_EVENTS_PER_CHUNK, TraceCheckpointIndex,
+    TraceChunkIndex, TraceCursor, TraceHeader, TraceRecord, TraceTrailer,
 };
 use destack_core::{FNV_OFFSET_BASIS_128, fnv1a_128_update};
 use postcard::experimental::serialized_size;
 
-use super::chunk::{TraceChunk, TraceChunkChain};
-
-/// Default maximum number of events in a chunk.
-const DEFAULT_MAX_EVENTS_PER_CHUNK: usize = 1024;
-/// Default maximum chunk size in bytes.
-const DEFAULT_MAX_CHUNK_BYTES: u64 = 4 * 1024 * 1024;
+use super::chunk::{TRACE_EVENT_LENGTH_BYTES, TraceChunk, TracePrefix};
 
 /// Sequence number for events within a trace log.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -80,8 +76,8 @@ pub(super) struct TraceState {
     next_sequence: TraceSequence,
     /// Next chunk offset for trailer entries.
     next_offset: u64,
-    /// Shared immutable chunk history.
-    head: Option<Arc<TraceChunkChain>>,
+    /// Shared immutable trace prefix.
+    head: Option<Arc<TracePrefix>>,
     /// Mutable local append frontier.
     tail: TraceTail,
 }
@@ -106,12 +102,12 @@ impl TraceState {
     pub(super) fn head_chunk_count(&self) -> usize {
         self.head
             .as_ref()
-            .map(|chain| chain.chunk_count as usize)
+            .map(|prefix| prefix.chunk_count as usize)
             .unwrap_or(0)
     }
 
     /// Return the shared immutable trace head.
-    pub(super) fn head(&self) -> Option<&Arc<TraceChunkChain>> {
+    pub(super) fn head(&self) -> Option<&Arc<TracePrefix>> {
         self.head.as_ref()
     }
 
@@ -206,10 +202,10 @@ impl TraceState {
 
         let parent = self.head.clone();
         let chunks = std::mem::take(&mut self.tail.sealed);
-        let chain = Arc::new(TraceChunkChain::new(parent, chunks));
-        let next_index = chain.chunk_count;
+        let prefix = Arc::new(TracePrefix::new(parent, chunks));
+        let next_index = prefix.chunk_count;
 
-        self.head = Some(chain);
+        self.head = Some(prefix);
         self.tail.active = TraceChunk::new(next_index, self.next_sequence);
     }
 }
@@ -229,8 +225,8 @@ pub(crate) struct TraceLogImage {
     next_sequence: TraceSequence,
     /// Next chunk offset for trailer entries.
     next_offset: u64,
-    /// Shared immutable chunk history for this branch image.
-    head: Option<Arc<TraceChunkChain>>,
+    /// Shared immutable trace prefix for this branch image.
+    head: Option<Arc<TracePrefix>>,
 }
 
 #[allow(dead_code)]
@@ -254,26 +250,8 @@ impl TraceLogImage {
     pub(super) fn chunk_count(&self) -> usize {
         self.head
             .as_ref()
-            .map(|chain| chain.chunk_count as usize)
+            .map(|prefix| prefix.chunk_count as usize)
             .unwrap_or(0)
-    }
-
-    /// Report whether this image shares the same immutable trace head.
-    pub(crate) fn shares_head_with(&self, other: &Self) -> bool {
-        match (&self.head, &other.head) {
-            (Some(left), Some(right)) => Arc::ptr_eq(left, right),
-            (None, None) => true,
-            _ => false,
-        }
-    }
-
-    /// Report whether this image extends the other image's immutable trace head.
-    pub(crate) fn extends_head_of(&self, other: &Self) -> bool {
-        match (&self.head, &other.head) {
-            (_, None) => true,
-            (Some(left), Some(right)) => TraceChunkChain::contains(left, right),
-            (None, Some(_)) => false,
-        }
     }
 }
 
@@ -290,10 +268,10 @@ impl TraceLog {
     pub fn new(mut header: TraceHeader) -> Self {
         // normalize chunk limits
         if header.max_events_per_chunk == 0 {
-            header.max_events_per_chunk = DEFAULT_MAX_EVENTS_PER_CHUNK as u32;
+            header.max_events_per_chunk = TRACE_DEFAULT_MAX_EVENTS_PER_CHUNK;
         }
         if header.max_chunk_bytes == 0 {
-            header.max_chunk_bytes = DEFAULT_MAX_CHUNK_BYTES;
+            header.max_chunk_bytes = TRACE_DEFAULT_MAX_CHUNK_BYTES;
         }
 
         let max_events_per_chunk = header.max_events_per_chunk as usize;
@@ -359,7 +337,7 @@ impl TraceLog {
     pub(crate) fn image(&self) -> TraceLogImage {
         let mut state = self.state.lock();
 
-        // materialize the current tail so captured images share immutable chains
+        // materialize the current tail so captured images share immutable prefixes
         state.materialize_tail();
 
         TraceLogImage {
@@ -401,6 +379,13 @@ impl TraceLog {
             }
             .boxed()
         })? as u64;
+        if encoded_len > u32::MAX as u64 {
+            return Err(RuntimeError::TraceEncodeFailed {
+                name: "event".to_string(),
+            }
+            .boxed());
+        }
+        let record_len = encoded_len + TRACE_EVENT_LENGTH_BYTES as u64;
 
         let mut state = self.state.lock();
         let sequence = state.next_sequence;
@@ -409,7 +394,7 @@ impl TraceLog {
         // rotate the active chunk before appending when it is full
         let is_rotation_required = !state.tail.active.is_empty()
             && state.tail.active.should_rotate_for_event(
-                encoded_len,
+                record_len,
                 state.max_events_per_chunk,
                 state.max_chunk_bytes,
             );
@@ -419,10 +404,12 @@ impl TraceLog {
 
         // append the encoded event to the active chunk
         let chunk = &mut state.tail.active;
-        let start = chunk.data.len();
-        let end = start + encoded_len as usize;
-        chunk.data.resize(end, 0);
-        let encoded_len = postcard::to_slice(&event, &mut chunk.data[start..end])
+        let start = chunk.bytes.len();
+        let payload_start = start + TRACE_EVENT_LENGTH_BYTES;
+        let end = start + record_len as usize;
+        chunk.bytes.resize(end, 0);
+        chunk.bytes[start..payload_start].copy_from_slice(&(encoded_len as u32).to_le_bytes());
+        let encoded_len = postcard::to_slice(&event, &mut chunk.bytes[payload_start..end])
             .map_err(|_| {
                 RuntimeError::TraceEncodeFailed {
                     name: "event".to_string(),
@@ -430,13 +417,12 @@ impl TraceLog {
                 .boxed()
             })?
             .len();
-        let encoded_end = start + encoded_len;
+        let encoded_end = payload_start + encoded_len;
 
         chunk.update_checksum_for_range(start, encoded_end);
-        chunk.data.truncate(encoded_end);
-        chunk.header.byte_length = chunk.data.len() as u64;
-        chunk.event_lengths.push(encoded_len as u32);
-        chunk.header.event_count = chunk.event_lengths.len() as u32;
+        chunk.bytes.truncate(encoded_end);
+        chunk.header.byte_length = chunk.bytes.len() as u64;
+        chunk.header.event_count += 1;
         chunk.header.sequence_end = sequence;
 
         // keep trailer metadata aligned with the active chunk
@@ -485,7 +471,7 @@ pub(super) fn compute_log_hash(
 
     for checkpoint in checkpoints {
         hash = fnv1a_128_update(hash, &checkpoint.checkpoint_id.get().to_le_bytes());
-        hash = fnv1a_128_update(hash, &checkpoint.revision.get().to_le_bytes());
+        hash = fnv1a_128_update(hash, &checkpoint.revision_id.get().to_le_bytes());
         hash = fnv1a_128_update(hash, &checkpoint.sequence.get().to_le_bytes());
         hash = fnv1a_128_update(hash, &checkpoint.size_bytes.to_le_bytes());
         hash = fnv1a_128_update(hash, &checkpoint.hash.to_le_bytes());
@@ -502,7 +488,7 @@ mod tests {
     use super::*;
     use crate::runtime::time::Instant;
     use crate::world::trace::{EnvironmentConfig, Outcome, TraceRecord};
-    use crate::world::{CheckpointId, Revision};
+    use crate::world::{CheckpointId, RevisionId};
 
     /// Build one explicit trace header for log tests.
     fn test_trace_header() -> TraceHeader {
@@ -560,7 +546,7 @@ mod tests {
 
         log.record_checkpoint_exact(TraceCheckpointIndex {
             checkpoint_id: CheckpointId::new(2),
-            revision: Revision::new(2),
+            revision_id: RevisionId::new(2),
             sequence: TraceSequence::new(5),
             path: "memory://checkpoint/2".to_string(),
             hash: 22,
@@ -569,7 +555,7 @@ mod tests {
         .expect("record later checkpoint");
         log.record_checkpoint_exact(TraceCheckpointIndex {
             checkpoint_id: CheckpointId::new(1),
-            revision: Revision::new(1),
+            revision_id: RevisionId::new(1),
             sequence: TraceSequence::new(3),
             path: "memory://checkpoint/1".to_string(),
             hash: 11,

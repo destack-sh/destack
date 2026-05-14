@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 /// Time source selection for runtime clocks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub enum TimeMode {
+pub enum ClockSource {
     /// Use the host clock directly.
     #[default]
     Host,
@@ -12,8 +12,8 @@ pub enum TimeMode {
 /// Runtime clock configuration.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct TimeOptions {
-    /// Clock mode selection.
-    pub mode: TimeMode,
+    /// Clock source selection.
+    pub source: ClockSource,
     /// Epoch in nanoseconds for virtual time.
     pub epoch_ns: Option<u64>,
     /// Time zone identifier or fixed offset string.
@@ -24,8 +24,8 @@ pub struct TimeOptions {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct TimeOptionsJson {
-    /// Clock mode selection.
-    pub mode: Option<TimeModeJson>,
+    /// Clock source selection.
+    pub source: Option<ClockSourceJson>,
     /// Epoch in nanoseconds for virtual time.
     pub epoch_ns: Option<u64>,
     /// Time zone identifier or fixed offset string.
@@ -35,8 +35,8 @@ pub struct TimeOptionsJson {
 impl TimeOptionsJson {
     /// Inherit unset time settings from one parent config.
     pub fn extend_from(&mut self, parent: &Self) {
-        if self.mode.is_none() {
-            self.mode = parent.mode;
+        if self.source.is_none() {
+            self.source = parent.source;
         }
 
         if self.epoch_ns.is_none() {
@@ -50,9 +50,9 @@ impl TimeOptionsJson {
 
     /// Apply time overrides to a base set of options.
     pub fn apply_to(&self, options: &mut TimeOptions) {
-        // apply mode overrides
-        if let Some(mode) = self.mode {
-            options.mode = TimeMode::from(mode);
+        // apply source overrides
+        if let Some(source) = self.source {
+            options.source = ClockSource::from(source);
         }
 
         // apply epoch overrides
@@ -66,22 +66,22 @@ impl TimeOptionsJson {
         }
     }
 }
-/// Time mode for JSON deserialization.
+/// Clock source for JSON deserialization.
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
-pub enum TimeModeJson {
+pub enum ClockSourceJson {
     /// Use the host clock directly.
     Host,
     /// Use a virtualized clock derived from runtime state.
     Virtual,
 }
 
-impl From<TimeModeJson> for TimeMode {
-    fn from(value: TimeModeJson) -> Self {
+impl From<ClockSourceJson> for ClockSource {
+    fn from(value: ClockSourceJson) -> Self {
         match value {
-            TimeModeJson::Host => TimeMode::Host,
-            TimeModeJson::Virtual => TimeMode::Virtual,
+            ClockSourceJson::Host => ClockSource::Host,
+            ClockSourceJson::Virtual => ClockSource::Virtual,
         }
     }
 }

@@ -1,20 +1,50 @@
 use std::collections::BTreeMap;
 
 use crate::host::binding::{
-    BindingAffinity, BindingDescriptor, BindingEffect, BindingEngine, BindingProvider,
+    BindingAffinity, BindingDescriptor, BindingDeterminism, BindingEngine, BindingProvider,
     current_platform_name,
 };
 use crate::world::{EdgeId, EntityId};
 use destack_source::matches as glob_matches;
 use destack_workspace::{
-    ExecutionMode, RuntimeIdentitySelector, RuntimeLabelOperator, RuntimeLabelRequirement,
-    RuntimeLabelSelector,
+    ExecutionMode, PackageSelector, RuntimeIdentitySelector, RuntimeLabelOperator,
+    RuntimeLabelRequirement, RuntimeLabelSelector,
 };
 use serde::{Deserialize, Serialize};
 
-/// Selector clauses for binding call policies.
+/// Selector clauses for policy subjects.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub struct CallSelector {
+pub struct SubjectSelector {
+    /// Package selector.
+    pub package: Option<PackageSelector>,
+    /// Runtime identity selector.
+    pub runtime: Option<RuntimeIdentitySelector>,
+    /// Worker identity selector.
+    pub worker: Option<RuntimeIdentitySelector>,
+    /// Execution-mode selector.
+    pub execution: Option<Vec<ExecutionMode>>,
+}
+
+/// Subject facts for one policy evaluation.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct Subject<'a> {
+    /// Package name for selector matching.
+    pub(crate) package_name: Option<&'a str>,
+    /// Runtime name for selector matching.
+    pub(crate) runtime_name: &'a str,
+    /// Runtime labels for selector matching.
+    pub(crate) runtime_labels: &'a BTreeMap<String, String>,
+    /// Worker name for selector matching.
+    pub(crate) worker_name: &'a str,
+    /// Worker labels for selector matching.
+    pub(crate) worker_labels: &'a BTreeMap<String, String>,
+    /// Execution mode for selector matching.
+    pub(crate) mode: ExecutionMode,
+}
+
+/// Selector clauses for attempted actions.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct ActionSelector {
     /// Glob selector for full binding names.
     pub binding: Option<String>,
     /// Glob selector for required action names.
@@ -25,39 +55,42 @@ pub struct CallSelector {
     pub module: Option<String>,
     /// Binding engine selector.
     pub engine: Option<BindingEngine>,
-    /// Execution selector.
-    pub execution: Option<Vec<ExecutionMode>>,
     /// Target-platform selector.
     pub platforms: Option<Vec<String>>,
     /// Binding provider selector.
     pub provider: Option<BindingProvider>,
     /// Binding affinity selector.
     pub affinity: Option<BindingAffinity>,
-    /// Binding effect selector.
-    pub effect: Option<BindingEffect>,
-    /// Runtime identity selector.
-    pub runtime: Option<RuntimeIdentitySelector>,
-    /// Worker identity selector.
-    pub worker: Option<RuntimeIdentitySelector>,
+    /// Binding determinism selector.
+    pub determinism: Option<BindingDeterminism>,
 }
 
-/// Selector matching subject for one binding call.
+/// Attempt facts for one policy action.
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct CallSubject<'a> {
-    /// Runtime name for selector matching.
-    pub(crate) runtime_name: &'a str,
-    /// Runtime labels for selector matching.
-    pub(crate) runtime_labels: &'a BTreeMap<String, String>,
-    /// Worker name for selector matching.
-    pub(crate) worker_name: &'a str,
-    /// Worker labels for selector matching.
-    pub(crate) worker_labels: &'a BTreeMap<String, String>,
+pub(crate) struct Attempt {
     /// Binding metadata when the event is a binding call.
     pub(crate) binding: Option<BindingDescriptor>,
-    /// Execution mode for selector matching.
-    pub(crate) mode: ExecutionMode,
     /// Engine for binding-call selector matching.
     pub(crate) engine: Option<BindingEngine>,
+}
+
+/// Selector for one policy target.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum TargetSelector {
+    /// Match any target.
+    #[default]
+    Any,
+    /// Match topology entities.
+    Entity {
+        /// Entity selector expression.
+        selector: EntitySelector,
+    },
+    /// Match topology edges.
+    Edge {
+        /// Edge selector expression.
+        selector: EdgeSelector,
+    },
 }
 
 /// Selector for one topology entity target.
@@ -216,7 +249,70 @@ impl EdgeSelector {
     }
 }
 
-impl CallSelector {
+impl SubjectSelector {
+    /// Return true when this selector has no clauses.
+    pub fn is_empty(&self) -> bool {
+        self.package.as_ref().is_none_or(PackageSelector::is_empty)
+            && self.runtime.is_none()
+            && self.worker.is_none()
+            && self.execution.is_none()
+    }
+
+    /// Return true when this selector matches one policy subject.
+    pub(crate) fn matches(&self, subject: Subject<'_>) -> bool {
+        // package
+        if let Some(package) = &self.package
+            && !matches_package_selector(package, subject.package_name)
+        {
+            return false;
+        }
+
+        // runtime
+        if let Some(runtime) = &self.runtime
+            && !matches_identity_selector(runtime, subject.runtime_name, subject.runtime_labels)
+        {
+            return false;
+        }
+
+        // worker
+        if let Some(worker) = &self.worker
+            && !matches_identity_selector(worker, subject.worker_name, subject.worker_labels)
+        {
+            return false;
+        }
+
+        // execution mode
+        if let Some(modes) = &self.execution
+            && !modes.contains(&subject.mode)
+        {
+            return false;
+        }
+
+        true
+    }
+}
+
+impl<'a> Subject<'a> {
+    /// Create one subject from runtime and worker facts.
+    pub(crate) fn new(
+        runtime_name: &'a str,
+        runtime_labels: &'a BTreeMap<String, String>,
+        worker_name: &'a str,
+        worker_labels: &'a BTreeMap<String, String>,
+        mode: ExecutionMode,
+    ) -> Self {
+        Self {
+            package_name: None,
+            runtime_name,
+            runtime_labels,
+            worker_name,
+            worker_labels,
+            mode,
+        }
+    }
+}
+
+impl ActionSelector {
     /// Create one selector for one binding name glob.
     pub fn binding(pattern: impl Into<String>) -> Self {
         Self {
@@ -249,14 +345,6 @@ impl CallSelector {
         self
     }
 
-    /// Add one execution selector.
-    pub fn execution(mut self, mode: ExecutionMode) -> Self {
-        let mut modes = self.execution.take().unwrap_or_default();
-        modes.push(mode);
-        self.execution = Some(modes);
-        self
-    }
-
     /// Add one target-platform selector.
     pub fn platform(mut self, platform: impl Into<String>) -> Self {
         let mut platforms = self.platforms.take().unwrap_or_default();
@@ -277,25 +365,9 @@ impl CallSelector {
         self
     }
 
-    /// Set the binding-effect selector.
-    pub fn effect(mut self, effect: BindingEffect) -> Self {
-        self.effect = Some(effect);
-        self
-    }
-
-    /// Set runtime name selector.
-    pub fn runtime_name(mut self, name: impl Into<String>) -> Self {
-        let mut selector = self.runtime.take().unwrap_or_default();
-        selector.name = Some(name.into());
-        self.runtime = Some(selector);
-        self
-    }
-
-    /// Set worker name selector.
-    pub fn worker_name(mut self, name: impl Into<String>) -> Self {
-        let mut selector = self.worker.take().unwrap_or_default();
-        selector.name = Some(name.into());
-        self.worker = Some(selector);
+    /// Set the binding-determinism selector.
+    pub fn determinism(mut self, determinism: BindingDeterminism) -> Self {
+        self.determinism = Some(determinism);
         self
     }
 
@@ -306,13 +378,10 @@ impl CallSelector {
             && self.component.is_none()
             && self.module.is_none()
             && self.engine.is_none()
-            && self.execution.is_none()
             && self.platforms.is_none()
             && self.provider.is_none()
             && self.affinity.is_none()
-            && self.effect.is_none()
-            && self.runtime.is_none()
-            && self.worker.is_none()
+            && self.determinism.is_none()
     }
 
     /// Return true when this selector requires binding metadata.
@@ -323,23 +392,18 @@ impl CallSelector {
             || self.module.is_some()
             || self.provider.is_some()
             || self.affinity.is_some()
-            || self.effect.is_some()
+            || self.determinism.is_some()
     }
 
     /// Return true when this selector matches one binding call.
-    pub(crate) fn matches(&self, subject: CallSubject<'_>) -> bool {
+    pub(crate) fn matches(&self, attempt: Attempt) -> bool {
         // binding metadata
-        if self.requires_binding() && subject.binding.is_none() {
-            return false;
-        }
-
-        // identity
-        if !self.matches_identity(subject) {
+        if self.requires_binding() && attempt.binding.is_none() {
             return false;
         }
 
         // execution
-        if !self.matches_execution(subject) {
+        if !self.matches_execution(attempt) {
             return false;
         }
 
@@ -349,40 +413,17 @@ impl CallSelector {
         }
 
         // binding
-        if let Some(binding) = subject.binding {
+        if let Some(binding) = attempt.binding {
             return self.matches_binding(binding);
         }
 
         true
     }
 
-    /// Return true when runtime and worker identity clauses match.
-    fn matches_identity(&self, subject: CallSubject<'_>) -> bool {
-        if let Some(runtime) = &self.runtime
-            && !matches_identity_selector(runtime, subject.runtime_name, subject.runtime_labels)
-        {
-            return false;
-        }
-
-        if let Some(worker) = &self.worker
-            && !matches_identity_selector(worker, subject.worker_name, subject.worker_labels)
-        {
-            return false;
-        }
-
-        true
-    }
-
     /// Return true when execution mode and engine clauses match.
-    fn matches_execution(&self, subject: CallSubject<'_>) -> bool {
+    fn matches_execution(&self, attempt: Attempt) -> bool {
         if let Some(engine) = self.engine
-            && subject.engine != Some(engine)
-        {
-            return false;
-        }
-
-        if let Some(modes) = &self.execution
-            && !modes.contains(&subject.mode)
+            && attempt.engine != Some(engine)
         {
             return false;
         }
@@ -444,14 +485,44 @@ impl CallSelector {
             return false;
         }
 
-        if let Some(effect) = self.effect
-            && effect != binding.effect
+        if let Some(determinism) = self.determinism
+            && determinism != binding.determinism
         {
             return false;
         }
 
         true
     }
+}
+
+impl TargetSelector {
+    /// Match all targets.
+    pub fn any() -> Self {
+        Self::Any
+    }
+
+    /// Match one entity selector.
+    pub fn entity(selector: EntitySelector) -> Self {
+        Self::Entity { selector }
+    }
+
+    /// Match one edge selector.
+    pub fn edge(selector: EdgeSelector) -> Self {
+        Self::Edge { selector }
+    }
+}
+
+/// Return true when one rule matches one subject and attempt.
+pub(crate) fn matches_rule_selectors(
+    rule: &super::Rule,
+    subject: Subject<'_>,
+    attempt: Attempt,
+) -> bool {
+    if !rule.subject.matches(subject) {
+        return false;
+    }
+
+    rule.action.matches(attempt)
 }
 
 /// Return true when one identity selector matches name and labels.
@@ -473,6 +544,22 @@ fn matches_identity_selector(
     }
 
     true
+}
+
+/// Return true when one package selector matches one package name.
+fn matches_package_selector(selector: &PackageSelector, package_name: Option<&str>) -> bool {
+    let Some(package_name) = package_name else {
+        return false;
+    };
+
+    if selector.patterns.is_empty() {
+        return true;
+    }
+
+    selector
+        .patterns
+        .iter()
+        .any(|pattern| glob_match(pattern, package_name))
 }
 
 /// Return true when one label selector matches labels.

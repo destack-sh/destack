@@ -25,11 +25,11 @@ pub enum PolicyAccess {
     Deny,
 }
 
-/// Runtime world used for allowed effects.
+/// Binding route used for allowed actions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub enum PolicyWorld {
+pub enum PolicyRoute {
     /// Execute against the live host.
     #[default]
     Host,
@@ -93,8 +93,8 @@ pub struct PolicyRule {
     pub resource: String,
     /// Access outcome selected by this rule.
     pub access: PolicyAccess,
-    /// World selected when access is allowed.
-    pub world: Option<PolicyWorld>,
+    /// Route selected when access is allowed.
+    pub route: Option<PolicyRoute>,
 }
 
 /// Static policy configuration.
@@ -137,9 +137,9 @@ impl PolicyOptions {
             }
 
             // deny rules
-            if rule.access == PolicyAccess::Deny && rule.world.is_some() {
+            if rule.access == PolicyAccess::Deny && rule.route.is_some() {
                 return Err(format!(
-                    "policy.rules[{index}].world is only valid when access is allow"
+                    "policy.rules[{index}].route is only valid when access is allow"
                 ));
             }
         }
@@ -256,14 +256,14 @@ pub struct PolicyRuleJson {
     pub resource: String,
     /// Access outcome selected by this rule.
     pub access: PolicyAccess,
-    /// World selected when access is allowed.
-    pub world: Option<PolicyWorld>,
+    /// Route selected when access is allowed.
+    pub route: Option<PolicyRoute>,
 }
 
 impl From<&PolicyRuleJson> for PolicyRule {
     fn from(value: &PolicyRuleJson) -> Self {
-        let world = match value.access {
-            PolicyAccess::Allow => Some(value.world.unwrap_or_default()),
+        let route = match value.access {
+            PolicyAccess::Allow => Some(value.route.unwrap_or_default()),
             PolicyAccess::Deny => None,
         };
 
@@ -273,7 +273,7 @@ impl From<&PolicyRuleJson> for PolicyRule {
             action: value.action.clone(),
             resource: value.resource.clone(),
             access: value.access,
-            world,
+            route,
         }
     }
 }
@@ -312,9 +312,9 @@ impl PolicyOptionsJson {
                 }
 
                 // deny rules
-                if rule.access == PolicyAccess::Deny && rule.world.is_some() {
+                if rule.access == PolicyAccess::Deny && rule.route.is_some() {
                     return Err(format!(
-                        "policy.rules[{index}].world is only valid when access is allow"
+                        "policy.rules[{index}].route is only valid when access is allow"
                     ));
                 }
             }

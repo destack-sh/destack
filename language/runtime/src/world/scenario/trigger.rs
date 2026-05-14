@@ -2,62 +2,6 @@ use serde::{Deserialize, Serialize};
 
 use super::Hook;
 
-/// Activation window for runtime rules.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum ActivationWindow {
-    /// Activate the rule immediately.
-    Immediate,
-    /// Activate once virtual time reaches this timestamp.
-    AtVirtualNs {
-        /// Activation timestamp in virtual nanoseconds.
-        virtual_ns: u64,
-    },
-    /// Activate once this number of matching calls has elapsed.
-    AfterCallCount {
-        /// Matching call count before activation.
-        call_count: u64,
-    },
-}
-
-impl ActivationWindow {
-    /// Return true when this activation window is reached.
-    pub fn is_reached(&self, total_calls_seen: u64, now_virtual_ns: u64) -> bool {
-        match self {
-            Self::Immediate => true,
-            Self::AtVirtualNs { virtual_ns } => now_virtual_ns >= *virtual_ns,
-            Self::AfterCallCount { call_count } => total_calls_seen >= *call_count,
-        }
-    }
-}
-
-/// Lifetime window for runtime rules.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum Lifetime {
-    /// Keep the rule active until explicitly disabled.
-    UntilDisabled,
-    /// Keep the rule active for this virtual duration.
-    ForDurationNs {
-        /// Active duration in virtual nanoseconds.
-        duration_ns: u64,
-    },
-    /// Keep the rule active for this number of matching calls.
-    ForCallCount {
-        /// Active call budget before expiration.
-        call_count: u64,
-    },
-}
-
-/// Bounded probability value in parts-per-million.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct ProbabilityPpm(pub u32);
-
-impl ProbabilityPpm {
-    /// Create one parts-per-million probability value.
-    pub fn new(value: u32) -> Self {
-        Self(value)
-    }
-}
-
 /// Runtime trigger controls.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Trigger {
@@ -172,5 +116,61 @@ impl Trigger {
     pub fn skip_hits(mut self, skip_hits: u64) -> Self {
         self.skip_hits = Some(skip_hits);
         self
+    }
+}
+
+/// Activation window for runtime rules.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ActivationWindow {
+    /// Activate the rule immediately.
+    Immediate,
+    /// Activate once monotonic scenario time reaches this timestamp.
+    AtTimeNs {
+        /// Activation timestamp in monotonic nanoseconds.
+        time_ns: u64,
+    },
+    /// Activate once this number of matching calls has elapsed.
+    AfterCallCount {
+        /// Matching call count before activation.
+        call_count: u64,
+    },
+}
+
+impl ActivationWindow {
+    /// Return true when this activation window is reached.
+    pub fn is_reached(&self, total_calls_seen: u64, now_ns: u64) -> bool {
+        match self {
+            Self::Immediate => true,
+            Self::AtTimeNs { time_ns } => now_ns >= *time_ns,
+            Self::AfterCallCount { call_count } => total_calls_seen >= *call_count,
+        }
+    }
+}
+
+/// Lifetime window for runtime rules.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum Lifetime {
+    /// Keep the rule active until explicitly disabled.
+    UntilDisabled,
+    /// Keep the rule active for this monotonic duration.
+    ForDurationNs {
+        /// Active duration in nanoseconds.
+        duration_ns: u64,
+    },
+    /// Keep the rule active for this number of matching calls.
+    ForCallCount {
+        /// Active call budget before expiration.
+        call_count: u64,
+    },
+}
+
+/// Bounded probability value in parts-per-million.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct ProbabilityPpm(pub u32);
+
+impl ProbabilityPpm {
+    /// Create one parts-per-million probability value.
+    pub fn new(value: u32) -> Self {
+        Self(value)
     }
 }

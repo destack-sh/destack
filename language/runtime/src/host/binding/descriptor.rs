@@ -20,8 +20,8 @@ pub struct BindingDescriptor {
     pub signature: SignatureHash,
     /// Payload codec id for record/replay.
     pub codec: CodecId,
-    /// Observable effect class.
-    pub effect: BindingEffect,
+    /// Observable determinism class.
+    pub determinism: BindingDeterminism,
     /// Replay routing for the binding.
     pub replay_kind: BindingReplayKind,
     /// Replay payload policy for recorded bindings.
@@ -44,7 +44,7 @@ impl BindingDescriptor {
     pub const fn new(
         name: &'static str,
         signature: &'static str,
-        effect: BindingEffect,
+        determinism: BindingDeterminism,
         replay_kind: BindingReplayKind,
         replay_payload: BindingReplayPayload,
         requires: &'static [&'static str],
@@ -57,7 +57,7 @@ impl BindingDescriptor {
             id: BindingId::from_name(name),
             signature: SignatureHash::from_signature(signature),
             codec: DEFAULT_BINDING_CODEC,
-            effect,
+            determinism,
             replay_kind,
             replay_payload,
             requires,
@@ -188,22 +188,22 @@ pub enum BindingAffinity {
     Main,
 }
 
-/// Observable effect kind for one binding.
+/// Observable determinism kind for one binding.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum BindingEffect {
+pub enum BindingDeterminism {
     /// Pure binding.
     Pure,
     /// Deterministic binding.
     Deterministic,
     /// Recordable external binding.
-    ExternalRecordable,
+    RecordableExternal,
     /// Non-recordable external binding.
-    ExternalNonRecordable,
+    OpaqueExternal,
 }
 
-/// Runtime world selected for one binding call.
+/// Runtime route selected for one binding call.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub enum RuntimeWorld {
+pub enum BindingRoute {
     /// Use host-backed bindings.
     #[default]
     Host,

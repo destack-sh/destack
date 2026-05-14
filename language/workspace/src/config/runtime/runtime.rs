@@ -3,14 +3,14 @@ use serde::{Deserialize, Serialize};
 
 use crate::{ExecutionMode, ReplayPayloadMode};
 
-use super::random::{RandomMode, RandomOptions, RandomOptionsJson};
+use super::random::{RandomOptions, RandomOptionsJson, RandomSource};
 use super::replay::ReplayOptions;
-use super::time::{TimeMode, TimeOptions, TimeOptionsJson};
+use super::time::{ClockSource, TimeOptions, TimeOptionsJson};
 use super::{
     HeapOptions, HeapOptionsJson, HostOptions, HostOptionsJson, PlatformOptions,
     PlatformOptionsJson, RuntimeDiagnosticOptions, RuntimeDiagnosticOptionsJson, SchedulerMode,
-    SchedulerOptions, SchedulerOptionsJson, SimulationOptions, SimulationOptionsJson, TraceMode,
-    TraceOptions, TraceOptionsJson, WorkerOptions, WorkerOptionsJson,
+    SchedulerOptions, SchedulerOptionsJson, TraceMode, TraceOptions, TraceOptionsJson,
+    WorkerOptions, WorkerOptionsJson,
 };
 
 /// Runtime configuration.
@@ -28,8 +28,6 @@ pub struct RuntimeOptions {
     pub time: TimeOptions,
     /// Runtime randomness source configuration.
     pub random: RandomOptions,
-    /// Runtime simulation configuration.
-    pub simulation: SimulationOptions,
     /// Runtime trace configuration.
     pub trace: TraceOptions,
     /// Runtime heap configuration.
@@ -62,19 +60,19 @@ impl RuntimeOptions {
 
         // replay uses virtual facts supplied by trace playback
         if mode == ExecutionMode::Replay {
-            self.time.mode = TimeMode::Virtual;
-            self.random.mode = RandomMode::Deterministic;
+            self.time.source = ClockSource::Virtual;
+            self.random.source = RandomSource::Deterministic;
         }
     }
 
     /// Apply one collapsed time summary onto the runtime planes.
-    pub fn set_time_mode(&mut self, mode: TimeMode) {
-        self.time.mode = mode;
+    pub fn set_clock_source(&mut self, source: ClockSource) {
+        self.time.source = source;
     }
 
     /// Apply one collapsed randomness summary onto the runtime planes.
-    pub fn set_random_mode(&mut self, mode: RandomMode) {
-        self.random.mode = mode;
+    pub fn set_random_source(&mut self, source: RandomSource) {
+        self.random.source = source;
     }
 
     /// Return the collapsed execution summary.
@@ -98,13 +96,13 @@ impl RuntimeOptions {
     }
 
     /// Return the collapsed time-source summary.
-    pub fn time_mode(&self) -> TimeMode {
-        self.time.mode
+    pub fn clock_source(&self) -> ClockSource {
+        self.time.source
     }
 
     /// Return the collapsed randomness summary.
-    pub fn random_mode(&self) -> RandomMode {
-        self.random.mode
+    pub fn random_source(&self) -> RandomSource {
+        self.random.source
     }
 
     /// Return the configured trace payload policy.
@@ -119,23 +117,12 @@ impl RuntimeOptions {
 
     /// Return derived clock configuration for runtime internals.
     pub fn time_options(&self) -> TimeOptions {
-        let mut options = self.time.clone();
-        options.epoch_ns = options.epoch_ns.or(self.simulation.time.epoch_ns);
-        options.time_zone = options
-            .time_zone
-            .clone()
-            .or_else(|| self.simulation.time.time_zone.clone());
-
-        options
+        self.time.clone()
     }
 
     /// Return derived randomness configuration for runtime internals.
     pub fn random_options(&self) -> RandomOptions {
-        let mut options = self.random.clone();
-        options.seed = options.seed.or(self.simulation.random.seed);
-        options.per_runnable |= self.simulation.random.per_runnable;
-
-        options
+        self.random.clone()
     }
 
     /// Return derived trace-storage configuration for runtime internals.
@@ -221,8 +208,6 @@ pub struct RuntimeOptionsJson {
     pub time: Option<TimeOptionsJson>,
     /// Runtime randomness source configuration.
     pub random: Option<RandomOptionsJson>,
-    /// Runtime simulation configuration.
-    pub simulation: Option<SimulationOptionsJson>,
     /// Runtime trace configuration.
     pub trace: Option<TraceOptionsJson>,
     /// Runtime heap configuration.
@@ -271,13 +256,6 @@ impl RuntimeOptionsJson {
             }
         } else {
             self.random = parent.random.clone();
-        }
-        if let Some(simulation) = &mut self.simulation {
-            if let Some(parent_simulation) = &parent.simulation {
-                simulation.extend_from(parent_simulation);
-            }
-        } else {
-            self.simulation = parent.simulation.clone();
         }
         if let Some(trace) = &mut self.trace {
             if let Some(parent_trace) = &parent.trace {
@@ -335,10 +313,6 @@ impl RuntimeOptionsJson {
 
         if let Some(random) = &self.random {
             random.apply_to(&mut options.random);
-        }
-
-        if let Some(simulation) = &self.simulation {
-            simulation.apply_to(&mut options.simulation);
         }
 
         if let Some(trace) = &self.trace {

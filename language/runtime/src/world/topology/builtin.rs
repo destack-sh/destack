@@ -1,10 +1,7 @@
 use std::collections::BTreeMap;
 
 use crate::host::ResourceKind;
-use crate::world::policy::{
-    base_edge_faults, base_entity_faults, edge_kind_faults, entity_kind_faults,
-    resource_kind_faults,
-};
+use crate::world::scenario::{edge_kind_faults, entity_kind_faults, resource_kind_faults};
 
 use super::{EdgeDefinition, EntityDefinition, EntityKind};
 
@@ -161,14 +158,21 @@ pub(super) fn builtin_edge_kinds() -> Vec<EdgeDefinition> {
         .collect()
 }
 
-/// Return base fault verbs supported by all entity kinds.
-pub(super) fn base_supported_entity_faults() -> std::collections::BTreeSet<String> {
-    base_entity_faults()
+/// Return whether one entity kind id is builtin.
+pub(super) fn is_builtin_entity_kind(kind: &str) -> bool {
+    BUILTIN_ENTITY_KIND_DESCRIPTORS
+        .iter()
+        .any(|descriptor| descriptor.kind_id == kind)
+        || ResourceKind::all()
+            .iter()
+            .any(|resource_kind| resource_kind.kind_id() == kind)
 }
 
-/// Return base fault verbs supported by all edge kinds.
-pub(super) fn base_supported_edge_faults() -> std::collections::BTreeSet<String> {
-    base_edge_faults()
+/// Return whether one edge kind id is builtin.
+pub(super) fn is_builtin_edge_kind(kind: &str) -> bool {
+    BUILTIN_EDGE_KIND_DESCRIPTORS
+        .iter()
+        .any(|descriptor| descriptor.kind_id == kind)
 }
 
 /// Build system labels for one kind id.
@@ -177,86 +181,4 @@ fn labels_for_kind(kind_id: &str) -> BTreeMap<String, String> {
     labels.insert(EntityKind::LABEL_KIND.to_string(), kind_id.to_string());
 
     labels
-}
-
-#[cfg(test)]
-mod tests {
-    use std::collections::BTreeSet;
-
-    use crate::host::ResourceKind;
-    use crate::world::policy::resource_kind_faults;
-
-    use super::{
-        BUILTIN_EDGE_KIND_DESCRIPTORS, BUILTIN_ENTITY_KIND_DESCRIPTORS, builtin_edge_kinds,
-        builtin_entity_kinds, builtin_resource_entity_kinds,
-    };
-
-    /// Ensure builtin entity kind descriptors stay unique.
-    #[test]
-    fn test_builtin_entity_kind_descriptors_are_unique() {
-        // collect all builtin entity kind ids
-        let kind_ids = BUILTIN_ENTITY_KIND_DESCRIPTORS
-            .iter()
-            .map(|descriptor| descriptor.kind_id)
-            .collect::<Vec<_>>();
-        let unique_kind_ids = kind_ids.iter().copied().collect::<BTreeSet<_>>();
-
-        // every declared builtin entity kind should be unique
-        assert_eq!(kind_ids.len(), unique_kind_ids.len());
-        assert_eq!(builtin_entity_kinds().len(), unique_kind_ids.len());
-    }
-
-    /// Ensure builtin edge kind descriptors stay unique.
-    #[test]
-    fn test_builtin_edge_kind_descriptors_are_unique() {
-        // collect all builtin edge kind ids
-        let kind_ids = BUILTIN_EDGE_KIND_DESCRIPTORS
-            .iter()
-            .map(|descriptor| descriptor.kind_id)
-            .collect::<Vec<_>>();
-        let unique_kind_ids = kind_ids.iter().copied().collect::<BTreeSet<_>>();
-
-        // every declared builtin edge kind should be unique
-        assert_eq!(kind_ids.len(), unique_kind_ids.len());
-        assert_eq!(builtin_edge_kinds().len(), unique_kind_ids.len());
-    }
-
-    /// Ensure resource kinds map one to one onto builtin resource entity kinds.
-    #[test]
-    fn test_builtin_resource_entity_kinds_cover_all_resource_kinds() {
-        // derive the resource kind ids from the canonical resource registry
-        let expected_kind_ids = ResourceKind::all()
-            .iter()
-            .map(|resource_kind| resource_kind.kind_id().to_string())
-            .collect::<BTreeSet<_>>();
-
-        // derive the topology kind ids from the builtin resource catalog
-        let actual_kind_ids = builtin_resource_entity_kinds()
-            .into_iter()
-            .map(|kind| kind.kind.0)
-            .collect::<BTreeSet<_>>();
-
-        // every resource kind should appear exactly once in builtin topology metadata
-        assert_eq!(actual_kind_ids, expected_kind_ids);
-    }
-
-    /// Ensure representative resource kinds map to the expected fault families.
-    #[test]
-    fn test_builtin_resource_fault_profiles_cover_representative_kinds() {
-        let socket_faults = resource_kind_faults(ResourceKind::Socket);
-        let file_faults = resource_kind_faults(ResourceKind::File);
-        let timer_faults = resource_kind_faults(ResourceKind::Timer);
-        let process_faults = resource_kind_faults(ResourceKind::Process);
-        let shared_memory_faults = resource_kind_faults(ResourceKind::SharedMemory);
-        let poll_faults = resource_kind_faults(ResourceKind::Poll);
-        let watch_faults = resource_kind_faults(ResourceKind::Watch);
-
-        assert!(socket_faults.contains("runtime.fault.transport.drop"));
-        assert!(file_faults.contains("runtime.fault.durability.violate"));
-        assert!(timer_faults.contains("runtime.fault.clock.jump"));
-        assert!(process_faults.contains("runtime.fault.process.crash"));
-        assert!(!shared_memory_faults.contains("runtime.fault.durability.violate"));
-        assert!(!poll_faults.contains("runtime.fault.transport.drop"));
-        assert!(watch_faults.contains("runtime.fault.transport.drop"));
-    }
 }
