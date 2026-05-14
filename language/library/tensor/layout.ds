@@ -19,7 +19,7 @@ export struct DenseLayout {
     order: MemoryOrder = MemoryOrder.RowMajor;
 }
 
-/// Explicit strided tensor layout.
+/// Explicit strided tensor view layout.
 export struct StridedLayout<comptime Rank: int> {
     /// The layout variant.
     kind: "strided" = "strided";
@@ -28,57 +28,73 @@ export struct StridedLayout<comptime Rank: int> {
     strides: FixedArray<Stride, Rank>;
 }
 
-/// Backend-defined tensor layout.
-export struct BackendLayout {
-    /// The layout variant.
-    kind: "backend" = "backend";
-
-    /// The backend layout name.
-    name: string;
-}
-
-/// Tensor layout descriptor for `Rank` axes.
+/// Dense tensor layout descriptor.
 @languageItem("tensor.Layout")
-@derive(Tagged)
-export newtype Layout<comptime Rank: int> =
-    | DenseLayout
-    | StridedLayout<Rank>
-    | BackendLayout;
+export newtype Layout = DenseLayout;
 
-extension<comptime Rank: int> of Layout<Rank> {
+/// Tensor view layout descriptor for `Rank` axes.
+@languageItem("tensor.ViewLayout")
+@derive(Tagged)
+export newtype ViewLayout<comptime Rank: int> =
+    | DenseLayout
+    | StridedLayout<Rank>;
+
+extension of Layout {
     /// Return row-major dense layout.
-    static rowMajor(): Layout<Rank> {
-        DenseLayout { kind: "dense", order: MemoryOrder.RowMajor } as Layout<Rank>
+    static rowMajor(): Layout {
+        DenseLayout { kind: "dense", order: MemoryOrder.RowMajor } as Layout
     }
 
     /// Return column-major dense layout.
-    static columnMajor(): Layout<Rank> {
-        DenseLayout { kind: "dense", order: MemoryOrder.ColumnMajor } as Layout<Rank>
-    }
-
-    /// Return strided layout.
-    static strided(strides: FixedArray<Stride, Rank>): Layout<Rank> {
-        StridedLayout<Rank> { kind: "strided", strides } as Layout<Rank>
-    }
-
-    /// Return backend-defined layout.
-    static backend(name: string): Layout<Rank> {
-        BackendLayout { kind: "backend", name } as Layout<Rank>
+    static columnMajor(): Layout {
+        DenseLayout { kind: "dense", order: MemoryOrder.ColumnMajor } as Layout
     }
 
     /// Return whether this layout is dense.
     isDense(): boolean {
-        todo("Layout.isDense")
+        true
+    }
+
+    /// Return whether this layout stores logical neighbors contiguously.
+    isContiguous<comptime Rank: int>(shape: Shape<Rank>): boolean {
+        true
+    }
+
+    /// Return the linear element offset for `indices`.
+    offset<comptime Rank: int>(indices: FixedArray<usize, Rank>, shape: Shape<Rank>): isize {
+        todo("Layout.offset")
+    }
+}
+
+extension<comptime Rank: int> of ViewLayout<Rank> {
+    /// Return row-major dense layout.
+    static rowMajor(): ViewLayout<Rank> {
+        DenseLayout { kind: "dense", order: MemoryOrder.RowMajor } as ViewLayout<Rank>
+    }
+
+    /// Return column-major dense layout.
+    static columnMajor(): ViewLayout<Rank> {
+        DenseLayout { kind: "dense", order: MemoryOrder.ColumnMajor } as ViewLayout<Rank>
+    }
+
+    /// Return strided layout.
+    static strided(strides: FixedArray<Stride, Rank>): ViewLayout<Rank> {
+        StridedLayout<Rank> { kind: "strided", strides } as ViewLayout<Rank>
+    }
+
+    /// Return whether this layout is dense.
+    isDense(): boolean {
+        todo("ViewLayout.isDense")
     }
 
     /// Return whether this layout stores logical neighbors contiguously.
     isContiguous(shape: Shape<Rank>): boolean {
-        todo("Layout.isContiguous")
+        todo("ViewLayout.isContiguous")
     }
 
     /// Return the linear element offset for `indices`.
     offset(indices: FixedArray<usize, Rank>, shape: Shape<Rank>): isize {
-        todo("Layout.offset")
+        todo("ViewLayout.offset")
     }
 }
 

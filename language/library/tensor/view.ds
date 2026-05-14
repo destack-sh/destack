@@ -3,7 +3,7 @@ import { Slice } from "destack:collections";
 import { Access } from "destack:memory";
 import { Index, IndexSet } from "destack:ops";
 import { Coordinate, Shape } from "./shape.ds";
-import { Layout } from "./layout.ds";
+import { ViewLayout } from "./layout.ds";
 
 /// Borrowed view over a tensor buffer.
 @languageItem("tensor.TensorView")
@@ -25,7 +25,7 @@ extension<T, comptime Rank: int, A: Access> of TensorView<T, Rank, A> implements
 
     /// Return the tensor layout.
     @intrinsic("tensor.view.layout")
-    get layout(): Layout<Rank>;
+    get layout(): ViewLayout<Rank>;
 
     /// Return the total element count.
     @intrinsic("tensor.view.size")
@@ -67,7 +67,7 @@ extension<T, comptime Rank: int> of TensorView<T, Rank, "mutable"> {
     static fromSlice(
         slice: &Slice<T>,
         shape: Shape<Rank>,
-        layout: Layout<Rank> = Layout<Rank>.rowMajor(),
+        layout: ViewLayout<Rank> = ViewLayout<Rank>.rowMajor(),
     ): TensorView<T, Rank, "mutable">;
 }
 
@@ -78,7 +78,7 @@ extension<T, comptime Rank: int> of TensorView<T, Rank, "readonly"> {
     static fromSlice(
         slice: &readonly Slice<T>,
         shape: Shape<Rank>,
-        layout: Layout<Rank> = Layout<Rank>.rowMajor(),
+        layout: ViewLayout<Rank> = ViewLayout<Rank>.rowMajor(),
     ): TensorView<T, Rank, "readonly">;
 }
 
@@ -89,7 +89,7 @@ extension<T, comptime Rank: int> of TensorView<T, Rank, "exclusive"> {
     static fromSlice(
         slice: &exclusive Slice<T>,
         shape: Shape<Rank>,
-        layout: Layout<Rank> = Layout<Rank>.rowMajor(),
+        layout: ViewLayout<Rank> = ViewLayout<Rank>.rowMajor(),
     ): TensorView<T, Rank, "exclusive">;
 }
 
