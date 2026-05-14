@@ -1,8 +1,9 @@
 import { todo, Result } from "destack:error";
+import { As, Borrow } from "destack:convert";
 import { Dereference } from "destack:ops";
 import { Atomic } from "destack:sync";
 import { AllocationError } from "../allocator.ds";
-import { Clone, Unpin, Zeroable } from "../capability.ds";
+import { Clone, Default, Unpin, Zeroable } from "../capability.ds";
 import { MaybeUninit } from "../init.ds";
 import { Pin } from "../pin.ds";
 import { Weak } from "./weak.ds";
@@ -27,7 +28,7 @@ export struct Arc<T> {
     allocation: *ArcAllocation<T>;
 }
 
-extension<T> of Arc<T> implements Clone, Dereference {
+extension<T> of Arc<T> implements Clone, Dereference, As<T>, Borrow<T> {
     /// The projected result form.
     type Output = &readonly T;
 
@@ -154,5 +155,23 @@ extension<T> of Arc<T> implements Clone, Dereference {
     /// Borrow the referenced value.
     dereference(): this.Output {
         todo("Arc.dereference")
+    }
+
+    /// Borrow the referenced value.
+    as(this: &readonly Arc<T>): &readonly T {
+        this.dereference()
+    }
+
+    /// Borrow the referenced value.
+    borrow(this: &readonly Arc<T>): &readonly T {
+        this.dereference()
+    }
+}
+
+extension<T> of Arc<T> implements Default
+where T implements Default {
+    /// Create a shared reference-counted handle with the default value.
+    static default(): Arc<T> {
+        Arc.new(T.default())
     }
 }

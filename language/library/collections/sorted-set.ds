@@ -1,6 +1,9 @@
 import { todo } from "destack:error";
-import { Iterable, Iterator } from "destack:iter";
+import { Borrow, From } from "destack:convert";
+import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
+import { Default } from "destack:memory";
 import { Compare } from "destack:ops";
+import { RangeBounds } from "destack:range";
 import { SortedMap } from "./sorted-map.ds";
 
 /// A borrow-stable sorted set.
@@ -9,15 +12,40 @@ export class SortedSet<T> {
     map: SortedMap<T, void>;
 }
 
-extension<T: Compare<T>> of SortedSet<T> implements Iterable<T>, Iterable<&T>, Iterable<&readonly T>, Iterable<&exclusive T> {
+extension<T> of SortedSet<T> implements Default {
     /// Create an empty sorted set.
     static new(): SortedSet<T> {
         todo("SortedSet.new")
     }
 
+    /// Create a sorted set with room for at least `capacity` values.
+    static withCapacity(capacity: usize): SortedSet<T> {
+        todo("SortedSet.withCapacity")
+    }
+
+    /// Create the default sorted set.
+    static default(): SortedSet<T> {
+        SortedSet.new()
+    }
+}
+
+extension<T: Compare<T>> of SortedSet<T> implements
+    Iterable<T>,
+    Iterable<&T>,
+    Iterable<&readonly T>,
+    Iterable<&exclusive T>,
+    From<Iterable<T>>,
+    FromIterator<T>,
+    Extend<T>
+{
     /// Create a sorted set from values.
     static from(values: Iterable<T>): SortedSet<T> {
         todo("SortedSet.from")
+    }
+
+    /// Create a sorted set from `values`.
+    static fromIterator(values: Iterator<T>): SortedSet<T> {
+        todo("SortedSet.fromIterator")
     }
 
     /// Return the number of elements.
@@ -31,22 +59,26 @@ extension<T: Compare<T>> of SortedSet<T> implements Iterable<T>, Iterable<&T>, I
     }
 
     /// Return whether `value` is present.
-    has(value: &readonly T): boolean {
+    has<Q: Compare<Q>>(value: &readonly Q): boolean
+    where T implements Borrow<Q> {
         todo("SortedSet.has")
     }
 
     /// Borrow the stored value equal to `value`.
-    get(this: &SortedSet<T>, value: &readonly T): &T | undefined {
+    get<Q: Compare<Q>>(this: &SortedSet<T>, value: &readonly Q): &T | undefined
+    where T implements Borrow<Q> {
         todo("SortedSet.get")
     }
 
     /// Borrow the stored value equal to `value` with readonly access.
-    get(this: &readonly SortedSet<T>, value: &readonly T): &readonly T | undefined {
+    get<Q: Compare<Q>>(this: &readonly SortedSet<T>, value: &readonly Q): &readonly T | undefined
+    where T implements Borrow<Q> {
         todo("SortedSet.get")
     }
 
     /// Borrow the stored value equal to `value` with exclusive access.
-    get(this: &exclusive SortedSet<T>, value: &readonly T): &exclusive T | undefined {
+    get<Q: Compare<Q>>(this: &exclusive SortedSet<T>, value: &readonly Q): &exclusive T | undefined
+    where T implements Borrow<Q> {
         todo("SortedSet.get")
     }
 
@@ -55,14 +87,65 @@ extension<T: Compare<T>> of SortedSet<T> implements Iterable<T>, Iterable<&T>, I
         todo("SortedSet.add")
     }
 
+    /// Add all `values`.
+    extend(this: &SortedSet<T>, values: Iterable<T>): void {
+        todo("SortedSet.extend")
+    }
+
     /// Remove `value`.
-    remove(this: &exclusive SortedSet<T>, value: &readonly T): T | undefined {
+    remove<Q: Compare<Q>>(this: &exclusive SortedSet<T>, value: &readonly Q): T | undefined
+    where T implements Borrow<Q> {
         todo("SortedSet.remove")
     }
 
     /// Remove all values.
     clear(this: &exclusive SortedSet<T>): void {
         todo("SortedSet.clear")
+    }
+
+    /// Reserve room for at least `additional` more values.
+    reserve(this: &SortedSet<T>, additional: usize): void {
+        todo("SortedSet.reserve")
+    }
+
+    /// Release tombstone nodes.
+    compact(this: &exclusive SortedSet<T>): void {
+        todo("SortedSet.compact")
+    }
+
+    /// Return the union of two sets.
+    union(other: &readonly SortedSet<T>): SortedSet<T> {
+        todo("SortedSet.union")
+    }
+
+    /// Return the intersection with `other`.
+    intersection(other: &readonly SortedSet<T>): SortedSet<T> {
+        todo("SortedSet.intersection")
+    }
+
+    /// Return this set without values in `other`.
+    difference(other: &readonly SortedSet<T>): SortedSet<T> {
+        todo("SortedSet.difference")
+    }
+
+    /// Return values present in exactly one set.
+    symmetricDifference(other: &readonly SortedSet<T>): SortedSet<T> {
+        todo("SortedSet.symmetricDifference")
+    }
+
+    /// Return whether this set is a subset of `other`.
+    isSubsetOf(other: &readonly SortedSet<T>): boolean {
+        todo("SortedSet.isSubsetOf")
+    }
+
+    /// Return whether this set is a superset of `other`.
+    isSupersetOf(other: &readonly SortedSet<T>): boolean {
+        todo("SortedSet.isSupersetOf")
+    }
+
+    /// Return whether this set has no overlap with `other`.
+    isDisjointFrom(other: &readonly SortedSet<T>): boolean {
+        todo("SortedSet.isDisjointFrom")
     }
 
     /// Return the first value.
@@ -83,6 +166,24 @@ extension<T: Compare<T>> of SortedSet<T> implements Iterable<T>, Iterable<&T>, I
     /// Return the last value with exclusive access.
     last(this: &exclusive SortedSet<T>): &exclusive T | undefined {
         todo("SortedSet.last")
+    }
+
+    /// Return values in `range`.
+    range<Q: Compare<Q>, R: RangeBounds<Q>>(this: &SortedSet<T>, range: R): Iterator<&T>
+    where T implements Borrow<Q> {
+        todo("SortedSet.range")
+    }
+
+    /// Return values in `range` with readonly access.
+    range<Q: Compare<Q>, R: RangeBounds<Q>>(this: &readonly SortedSet<T>, range: R): Iterator<&readonly T>
+    where T implements Borrow<Q> {
+        todo("SortedSet.range")
+    }
+
+    /// Return values in `range` with exclusive access.
+    range<Q: Compare<Q>, R: RangeBounds<Q>>(this: &exclusive SortedSet<T>, range: R): Iterator<&exclusive T>
+    where T implements Borrow<Q> {
+        todo("SortedSet.range")
     }
 
     /// Return an iterator over copied values.

@@ -1,6 +1,7 @@
 import { panic, todo } from "destack:error";
-import { Iterable, Iterator } from "destack:iter";
-import { Copy, Raw } from "destack:memory";
+import { From } from "destack:convert";
+import { FromIterator, Iterable, Iterator } from "destack:iter";
+import { Copy, Default, Raw } from "destack:memory";
 import { Index, IndexSet } from "destack:ops";
 import { Bound, RangeBounds } from "destack:range";
 
@@ -12,8 +13,31 @@ extension<T> of Slice<T> implements
     Iterable<T>,
     Iterable<&T>,
     Iterable<&readonly T>,
-    Iterable<&exclusive T>
+    Iterable<&exclusive T>,
+    From<Iterable<T>>,
+    FromIterator<T>,
+    Default
 {
+    /// Create an empty slice.
+    static new(): Slice<T> {
+        todo("Slice.new")
+    }
+
+    /// Create a slice from `values`.
+    static from(values: Iterable<T>): Slice<T> {
+        todo("Slice.from")
+    }
+
+    /// Create a slice from `values`.
+    static fromIterator(values: Iterator<T>): Slice<T> {
+        todo("Slice.fromIterator")
+    }
+
+    /// Create the default slice.
+    static default(): Slice<T> {
+        Slice.new()
+    }
+
     /// Build a raw slice from raw storage.
     @unsafe
     @intrinsic("collections.slice.fromRaw")

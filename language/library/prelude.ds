@@ -16,6 +16,7 @@ export {
     Pin,
     PhantomData,
     MaybeUninit,
+    Default,
     Managed,
     Borrowed,
     ReadonlyBorrowed,
@@ -146,8 +147,10 @@ export {
 } from "destack:error";
 export {
     As,
+    Borrow,
     From,
     Into,
+    ToOwned,
     TryFrom,
     TryInto,
 } from "destack:convert";
@@ -189,6 +192,8 @@ export {
     Iterator,
     Iterable,
     IterableIterator,
+    FromIterator,
+    Extend,
 } from "destack:iter";
 export {
     Array,
@@ -203,17 +208,16 @@ export {
     PackedMap,
     PackedMapEntry,
     PackedSet,
-    Queue,
     ReadonlyArray,
     Record,
     Set,
     Slice,
+    Slab,
+    SlabKey,
     SmallArray,
     SortedMap,
+    SortedMapEntry,
     SortedSet,
-    Stack,
-    arrayFill,
-    arrayOf,
 } from "destack:collections";
 
 // math

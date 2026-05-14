@@ -1,7 +1,7 @@
 import { panic, todo } from "destack:error";
-import { From } from "destack:convert";
-import { Iterable, Iterator } from "destack:iter";
-import { Copy, MaybeUninit, Unique } from "destack:memory";
+import { As, Borrow, From } from "destack:convert";
+import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
+import { Access, Copy, Default, MaybeUninit, Unique, WithAccess } from "destack:memory";
 import { Index, IndexSet } from "destack:ops";
 import { Bound, RangeBounds } from "destack:range";
 import { Array, FixedArray } from "./array.ds";
@@ -30,6 +30,10 @@ extension<T, comptime N: number> of SmallArray<T, N> implements
     Iterable<&T>,
     Iterable<&readonly T>,
     Iterable<&exclusive T>,
+    From<Iterable<T>>,
+    FromIterator<T>,
+    Extend<T, "exclusive">,
+    Default,
     From<Array<T>>,
     From<PackedArray<T>>,
     From<FixedArray<T, N>>
@@ -50,6 +54,16 @@ extension<T, comptime N: number> of SmallArray<T, N> implements
     /// Create a small array from `values`.
     static from(values: Iterable<T>): SmallArray<T, N> {
         todo("SmallArray.from")
+    }
+
+    /// Create a small array from `values`.
+    static fromIterator(values: Iterator<T>): SmallArray<T, N> {
+        todo("SmallArray.fromIterator")
+    }
+
+    /// Create the default small array.
+    static default(): SmallArray<T, N> {
+        SmallArray.new()
     }
 
     /// Create a small array from a stable array.
@@ -220,21 +234,6 @@ extension<T, comptime N: number> of SmallArray<T, N> implements
         todo("SmallArray.shrinkToFit")
     }
 
-    /// Return the initialized storage as a slice.
-    asSlice(this: &SmallArray<T, N>): &Slice<T> {
-        todo("SmallArray.asSlice")
-    }
-
-    /// Return the initialized storage as a readonly slice.
-    asReadonlySlice(this: &readonly SmallArray<T, N>): &readonly Slice<T> {
-        todo("SmallArray.asReadonlySlice")
-    }
-
-    /// Return the initialized storage as an exclusive slice.
-    asExclusiveSlice(this: &exclusive SmallArray<T, N>): &exclusive Slice<T> {
-        todo("SmallArray.asExclusiveSlice")
-    }
-
     /// Return a copy of the selected range.
     slice(start?: number, end?: number): SmallArray<T, N> {
         todo("SmallArray.slice")
@@ -276,6 +275,18 @@ extension<T, comptime N: number> of SmallArray<T, N> implements
     /// Consume this array into owned values.
     iterator(this: ^SmallArray<T, N>): Iterator<T> {
         todo("SmallArray.iterator")
+    }
+}
+
+extension<T, comptime N: number, A: Access = "readonly"> of SmallArray<T, N> implements As<Slice<T>, A>, Borrow<Slice<T>, A> {
+    /// Borrow the initialized storage as a slice.
+    as(this: WithAccess<&SmallArray<T, N>, A>): WithAccess<&Slice<T>, A> {
+        todo("SmallArray.as")
+    }
+
+    /// Borrow the initialized storage as a slice.
+    borrow(this: WithAccess<&SmallArray<T, N>, A>): WithAccess<&Slice<T>, A> {
+        this.as()
     }
 }
 

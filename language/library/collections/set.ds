@@ -1,7 +1,8 @@
 import { todo } from "destack:error";
-import { Iterable, Iterator } from "destack:iter";
+import { Borrow, From } from "destack:convert";
+import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
+import { Default } from "destack:memory";
 import { Equal, Hash } from "destack:ops";
-import { From } from "destack:convert";
 import { Map } from "./map.ds";
 import { PackedSet } from "./packed-set.ds";
 
@@ -12,13 +13,7 @@ export class Set<T> {
     map: Map<T, void>;
 }
 
-extension<T: Hash> of Set<T> implements
-    Iterable<T>,
-    Iterable<&T>,
-    Iterable<&readonly T>,
-    Iterable<&exclusive T>,
-    From<PackedSet<T>>
-where T implements Equal<T> {
+extension<T> of Set<T> implements Default {
     /// Create an empty set.
     static new(): Set<T> {
         todo("Set.new")
@@ -29,9 +24,30 @@ where T implements Equal<T> {
         todo("Set.withCapacity")
     }
 
+    /// Create the default set.
+    static default(): Set<T> {
+        Set.new()
+    }
+}
+
+extension<T: Hash> of Set<T> implements
+    Iterable<T>,
+    Iterable<&T>,
+    Iterable<&readonly T>,
+    Iterable<&exclusive T>,
+    From<Iterable<T>>,
+    FromIterator<T>,
+    Extend<T>,
+    From<PackedSet<T>>
+where T implements Equal<T> {
     /// Create a set from values.
     static from(values: Iterable<T>): Set<T> {
         todo("Set.from")
+    }
+
+    /// Create a set from `values`.
+    static fromIterator(values: Iterator<T>): Set<T> {
+        todo("Set.fromIterator")
     }
 
     /// Create a set from a packed set.
@@ -50,22 +66,26 @@ where T implements Equal<T> {
     }
 
     /// Return whether `value` is present.
-    has(value: &readonly T): boolean {
+    has<Q: Hash>(value: &readonly Q): boolean
+    where T implements Borrow<Q>, Q implements Equal<Q> {
         todo("Set.has")
     }
 
     /// Borrow the stored value equal to `value`.
-    get(this: &Set<T>, value: &readonly T): &T | undefined {
+    get<Q: Hash>(this: &Set<T>, value: &readonly Q): &T | undefined
+    where T implements Borrow<Q>, Q implements Equal<Q> {
         todo("Set.get")
     }
 
     /// Borrow the stored value equal to `value` with readonly access.
-    get(this: &readonly Set<T>, value: &readonly T): &readonly T | undefined {
+    get<Q: Hash>(this: &readonly Set<T>, value: &readonly Q): &readonly T | undefined
+    where T implements Borrow<Q>, Q implements Equal<Q> {
         todo("Set.get")
     }
 
     /// Borrow the stored value equal to `value` with exclusive access.
-    get(this: &exclusive Set<T>, value: &readonly T): &exclusive T | undefined {
+    get<Q: Hash>(this: &exclusive Set<T>, value: &readonly Q): &exclusive T | undefined
+    where T implements Borrow<Q>, Q implements Equal<Q> {
         todo("Set.get")
     }
 
@@ -74,8 +94,14 @@ where T implements Equal<T> {
         todo("Set.add")
     }
 
+    /// Add all `values`.
+    extend(this: &Set<T>, values: Iterable<T>): void {
+        todo("Set.extend")
+    }
+
     /// Remove `value`.
-    remove(this: &exclusive Set<T>, value: &readonly T): T | undefined {
+    remove<Q: Hash>(this: &exclusive Set<T>, value: &readonly Q): T | undefined
+    where T implements Borrow<Q>, Q implements Equal<Q> {
         todo("Set.remove")
     }
 
@@ -89,7 +115,7 @@ where T implements Equal<T> {
         todo("Set.reserve")
     }
 
-    /// Rebuild storage and release tombstones.
+    /// Release tombstones.
     compact(this: &exclusive Set<T>): void {
         todo("Set.compact")
     }

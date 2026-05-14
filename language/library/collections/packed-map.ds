@@ -1,20 +1,26 @@
 import { todo } from "destack:error";
-import { Iterable, Iterator } from "destack:iter";
-import { MaybeUninit, Unique } from "destack:memory";
+import { Borrow, From } from "destack:convert";
+import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
+import { Default, MaybeUninit, Unique } from "destack:memory";
 import { Equal, Hash, Index, IndexSet } from "destack:ops";
-import { From } from "destack:convert";
 import { Map } from "./map.ds";
 
 /// One packed hash table entry.
 export struct PackedMapEntry<K, V> {
-    /// The cached key hash.
-    hash: uint64;
-
     /// The entry key.
     key: K;
 
     /// The entry value.
     value: V;
+}
+
+/// One packed hash table slot.
+struct PackedMapSlot<K, V> {
+    /// The cached key hash.
+    hash: uint64;
+
+    /// The slot entry.
+    entry: PackedMapEntry<K, V>;
 }
 
 /// A packed open-addressing hash map.
@@ -23,7 +29,7 @@ export struct PackedMap<K, V> {
     control: Unique<[uint8]>;
 
     /// The entry storage.
-    entries: Unique<[MaybeUninit<PackedMapEntry<K, V>>]>;
+    entries: Unique<[MaybeUninit<PackedMapSlot<K, V>>]>;
 
     /// The number of live entries.
     entryCount: usize = 0;
@@ -32,18 +38,7 @@ export struct PackedMap<K, V> {
     entryCapacity: usize = 0;
 }
 
-extension<K: Hash, V> of PackedMap<K, V> implements
-    Index<K>,
-    IndexSet<K, V>,
-    Iterable<[K, V]>,
-    Iterable<&PackedMapEntry<K, V>>,
-    Iterable<&readonly PackedMapEntry<K, V>>,
-    Iterable<&exclusive PackedMapEntry<K, V>>,
-    From<Map<K, V>>
-where K implements Equal<K> {
-    /// The indexed output type.
-    type Output = V | undefined;
-
+extension<K, V> of PackedMap<K, V> implements Default {
     /// Create an empty packed map.
     static new(): PackedMap<K, V> {
         todo("PackedMap.new")
@@ -54,9 +49,35 @@ where K implements Equal<K> {
         todo("PackedMap.withCapacity")
     }
 
+    /// Create the default packed map.
+    static default(): PackedMap<K, V> {
+        PackedMap.new()
+    }
+}
+
+extension<K: Hash, V> of PackedMap<K, V> implements
+    Index<K>,
+    IndexSet<K, V>,
+    Iterable<(K, V)>,
+    Iterable<PackedMapEntry<&readonly K, &V>>,
+    Iterable<PackedMapEntry<&readonly K, &readonly V>>,
+    Iterable<PackedMapEntry<&readonly K, &exclusive V>>,
+    From<Iterable<(K, V)>>,
+    FromIterator<(K, V)>,
+    Extend<(K, V), "exclusive">,
+    From<Map<K, V>>
+where K implements Equal<K> {
+    /// The indexed output type.
+    type Output = V | undefined;
+
     /// Create a packed map from entries.
-    static from(entries: Iterable<[K, V]>): PackedMap<K, V> {
+    static from(entries: Iterable<(K, V)>): PackedMap<K, V> {
         todo("PackedMap.from")
+    }
+
+    /// Create a packed map from entries.
+    static fromIterator(entries: Iterator<(K, V)>): PackedMap<K, V> {
+        todo("PackedMap.fromIterator")
     }
 
     /// Create a packed map from a stable map.
@@ -80,22 +101,26 @@ where K implements Equal<K> {
     }
 
     /// Return a value by key.
-    get(key: &readonly K): V | undefined {
+    get<Q: Hash>(key: &readonly Q): V | undefined
+    where K implements Borrow<Q>, Q implements Equal<Q> {
         todo("PackedMap.get")
     }
 
     /// Borrow a value by key.
-    get(this: &PackedMap<K, V>, key: &readonly K): &V | undefined {
+    get<Q: Hash>(this: &PackedMap<K, V>, key: &readonly Q): &V | undefined
+    where K implements Borrow<Q>, Q implements Equal<Q> {
         todo("PackedMap.get")
     }
 
     /// Borrow a value by key with readonly access.
-    get(this: &readonly PackedMap<K, V>, key: &readonly K): &readonly V | undefined {
+    get<Q: Hash>(this: &readonly PackedMap<K, V>, key: &readonly Q): &readonly V | undefined
+    where K implements Borrow<Q>, Q implements Equal<Q> {
         todo("PackedMap.get")
     }
 
     /// Borrow a value by key with exclusive access.
-    get(this: &exclusive PackedMap<K, V>, key: &readonly K): &exclusive V | undefined {
+    get<Q: Hash>(this: &exclusive PackedMap<K, V>, key: &readonly Q): &exclusive V | undefined
+    where K implements Borrow<Q>, Q implements Equal<Q> {
         todo("PackedMap.get")
     }
 
@@ -110,7 +135,8 @@ where K implements Equal<K> {
     }
 
     /// Return whether `key` exists.
-    has(key: &readonly K): boolean {
+    has<Q: Hash>(key: &readonly Q): boolean
+    where K implements Borrow<Q>, Q implements Equal<Q> {
         todo("PackedMap.has")
     }
 
@@ -124,8 +150,14 @@ where K implements Equal<K> {
         todo("PackedMap.set")
     }
 
+    /// Insert or replace all entries.
+    extend(this: &exclusive PackedMap<K, V>, entries: Iterable<(K, V)>): void {
+        todo("PackedMap.extend")
+    }
+
     /// Remove a key-value pair.
-    remove(this: &exclusive PackedMap<K, V>, key: &readonly K): V | undefined {
+    remove<Q: Hash>(this: &exclusive PackedMap<K, V>, key: &readonly Q): V | undefined
+    where K implements Borrow<Q>, Q implements Equal<Q> {
         todo("PackedMap.remove")
     }
 
@@ -159,43 +191,48 @@ where K implements Equal<K> {
         todo("PackedMap.values")
     }
 
+    /// Return all values with exclusive access.
+    values(this: &exclusive PackedMap<K, V>): Iterator<&exclusive V> {
+        todo("PackedMap.values")
+    }
+
     /// Return all entries.
-    entries(this: &PackedMap<K, V>): Iterator<&PackedMapEntry<K, V>> {
+    entries(this: &PackedMap<K, V>): Iterator<PackedMapEntry<&readonly K, &V>> {
         todo("PackedMap.entries")
     }
 
     /// Return all entries with readonly access.
-    entries(this: &readonly PackedMap<K, V>): Iterator<&readonly PackedMapEntry<K, V>> {
+    entries(this: &readonly PackedMap<K, V>): Iterator<PackedMapEntry<&readonly K, &readonly V>> {
         todo("PackedMap.entries")
     }
 
-    /// Return all entries with exclusive access.
-    entries(this: &exclusive PackedMap<K, V>): Iterator<&exclusive PackedMapEntry<K, V>> {
+    /// Return all entries with exclusive value access.
+    entries(this: &exclusive PackedMap<K, V>): Iterator<PackedMapEntry<&readonly K, &exclusive V>> {
         todo("PackedMap.entries")
     }
 
     /// Return an iterator over copied entries.
-    iterator(): Iterator<[K, V]> {
+    iterator(): Iterator<(K, V)> {
         todo("PackedMap.iterator")
     }
 
     /// Return an iterator over borrowed entries.
-    iterator(this: &PackedMap<K, V>): Iterator<&PackedMapEntry<K, V>> {
+    iterator(this: &PackedMap<K, V>): Iterator<PackedMapEntry<&readonly K, &V>> {
         todo("PackedMap.iterator")
     }
 
     /// Return an iterator over readonly borrowed entries.
-    iterator(this: &readonly PackedMap<K, V>): Iterator<&readonly PackedMapEntry<K, V>> {
+    iterator(this: &readonly PackedMap<K, V>): Iterator<PackedMapEntry<&readonly K, &readonly V>> {
         todo("PackedMap.iterator")
     }
 
-    /// Return an iterator over exclusive borrowed entries.
-    iterator(this: &exclusive PackedMap<K, V>): Iterator<&exclusive PackedMapEntry<K, V>> {
+    /// Return an iterator over entries with exclusive value access.
+    iterator(this: &exclusive PackedMap<K, V>): Iterator<PackedMapEntry<&readonly K, &exclusive V>> {
         todo("PackedMap.iterator")
     }
 
     /// Consume this map into owned entries.
-    iterator(this: ^PackedMap<K, V>): Iterator<[K, V]> {
+    iterator(this: ^PackedMap<K, V>): Iterator<(K, V)> {
         todo("PackedMap.iterator")
     }
 }

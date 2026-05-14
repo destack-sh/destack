@@ -1,4 +1,4 @@
-export { Array, arrayFill, arrayOf } from "./array.ds";
+export { Array } from "./array.ds";
 export { FixedArray, ReadonlyArray } from "./array.ds";
 export { PackedArray } from "./packed-array.ds";
 export { SmallArray } from "./small-array.ds";
@@ -7,10 +7,10 @@ export { Map, MapEntry, Record } from "./map.ds";
 export { PackedMap, PackedMapEntry } from "./packed-map.ds";
 export { Set } from "./set.ds";
 export { PackedSet } from "./packed-set.ds";
+export { Slab, SlabKey } from "./slab.ds";
 export { Deque } from "./deque.ds";
-export { Queue, Stack } from "./deque.ds";
 export { PackedDeque } from "./packed-deque.ds";
 export { LinkedList } from "./list.ds";
-export { SortedMap } from "./sorted-map.ds";
+export { SortedMap, SortedMapEntry } from "./sorted-map.ds";
 export { SortedSet } from "./sorted-set.ds";
 export { BinaryHeap } from "./heap.ds";

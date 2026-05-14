@@ -1,4 +1,5 @@
 import { todo } from "destack:error";
+import { As, Borrow } from "destack:convert";
 import { Dereference } from "destack:ops";
 import { Unpin } from "./capability.ds";
 
@@ -6,7 +7,7 @@ import { Unpin } from "./capability.ds";
 @languageItem("memory.Pin")
 export newtype Pin<T> = intrinsic;
 
-export extension<T> of Pin<T> implements Dereference<"readonly"> {
+export extension<T> of Pin<T> implements Dereference<"readonly">, As<T>, Borrow<T> {
     /// The projected result form.
     type Output = &readonly T;
 
@@ -46,5 +47,15 @@ export extension<T> of Pin<T> implements Dereference<"readonly"> {
     /// Borrow the pinned root.
     dereference(): this.Output {
         todo("Pin.dereference")
+    }
+
+    /// Borrow the pinned root.
+    as(this: &readonly Pin<T>): &readonly T {
+        this.dereference()
+    }
+
+    /// Borrow the pinned root.
+    borrow(this: &readonly Pin<T>): &readonly T {
+        this.dereference()
     }
 }
