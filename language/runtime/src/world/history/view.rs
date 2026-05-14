@@ -4,13 +4,13 @@ use std::sync::Arc;
 use crate::diagnostic::RuntimeResult;
 use crate::host::ResourceId;
 use crate::runtime::{RuntimeImage, WorkerId, WorkerImage};
-use crate::world::Resource;
 use crate::world::policy::Policy;
 use crate::world::topology::{
     Edge, EdgeDefinition, EdgeKind, Entity, EntityDefinition, EntityKind, RuntimeId,
 };
+use crate::world::{Resource, WorldImage};
 
-use super::{Moment, WorldImage};
+use super::Moment;
 
 /// One branch divergence between two committed branch heads.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

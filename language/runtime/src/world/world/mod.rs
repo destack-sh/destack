@@ -1,18 +1,20 @@
-mod command;
-mod policy;
+mod image;
+mod mutation;
 mod resource;
 mod runtime;
+mod snapshot;
 mod state;
 mod tick;
 mod wake;
 mod world;
 
-pub(crate) use crate::world::history::lineage;
 pub use crate::world::history::*;
 pub(crate) use crate::world::topology;
 pub use crate::world::topology::*;
-pub use command::*;
+pub use image::*;
+pub use mutation::*;
 pub use resource::*;
+pub use snapshot::*;
 pub(crate) use state::*;
 pub use wake::*;
 pub use world::*;

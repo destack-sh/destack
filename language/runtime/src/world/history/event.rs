@@ -2,38 +2,42 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::ResourceId;
 use crate::runtime::{RuntimeId, WorkerId};
 use crate::world::trace::{
-    Observation, ObservationCategory, ObservationRecord, ObservationScope, Outcome, Trace,
-    TraceRecord, TraceSequence,
+    EntrypointInvocation, Observation, ObservationCategory, ObservationRecord, ObservationScope,
+    Outcome, Trace, TraceRecord, TraceSequence,
 };
-use crate::world::{Command, World};
+use crate::world::{Mutation, World};
 
-use super::{BranchId, LineageView, Moment};
+use super::{BranchId, HistoryView, Moment};
 
-/// Query-visible event class projected from trace and observation state.
+/// Query-visible event class projected from trace and custom event state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EventKind {
     /// One input that entered the world.
-    Command,
+    Mutation,
+    /// One entrypoint invocation that entered the world.
+    Entrypoint,
     /// One observed outcome that replay could not derive.
     Outcome,
     /// One retained or user-visible history anchor.
     Anchor,
-    /// One explicit emitted observation.
-    Observation,
+    /// One emitted custom event.
+    Custom,
 }
 
-/// Query-visible event payload projected from trace or observation state.
+/// Query-visible event payload projected from trace or custom event state.
 #[derive(Debug, Clone)]
 #[allow(clippy::large_enum_variant)]
 pub enum EventPayload {
     /// One projected trace input.
-    Command(Command),
+    Mutation(Mutation),
+    /// One projected entrypoint invocation.
+    Entrypoint(EntrypointInvocation),
     /// One projected trace outcome.
     Outcome(Outcome),
     /// One projected trace anchor.
     Anchor(String),
-    /// One explicit observation payload.
-    Observation(Observation),
+    /// One emitted custom event payload.
+    Custom(Observation),
 }
 
 /// One normalized query event at one precise execution coordinate.
@@ -50,7 +54,7 @@ pub struct Event {
 impl Event {
     /// Report whether this event is one projected input.
     pub const fn is_input(&self) -> bool {
-        matches!(self.kind, EventKind::Command)
+        matches!(self.kind, EventKind::Mutation | EventKind::Entrypoint)
     }
 
     /// Report whether this event is one projected outcome.
@@ -63,15 +67,23 @@ impl Event {
         matches!(self.kind, EventKind::Anchor)
     }
 
-    /// Report whether this event is one emitted observation.
-    pub const fn is_observation(&self) -> bool {
-        matches!(self.kind, EventKind::Observation)
+    /// Report whether this event is one emitted custom event.
+    pub const fn is_custom(&self) -> bool {
+        matches!(self.kind, EventKind::Custom)
     }
 
     /// Return one projected input payload when present.
-    pub const fn input(&self) -> Option<&Command> {
+    pub const fn input(&self) -> Option<&Mutation> {
         match &self.payload {
-            EventPayload::Command(input) => Some(input),
+            EventPayload::Mutation(input) => Some(input),
+            _ => None,
+        }
+    }
+
+    /// Return one projected entrypoint invocation when present.
+    pub const fn entrypoint(&self) -> Option<&EntrypointInvocation> {
+        match &self.payload {
+            EventPayload::Entrypoint(invocation) => Some(invocation),
             _ => None,
         }
     }
@@ -92,10 +104,10 @@ impl Event {
         }
     }
 
-    /// Return one observation payload when present.
-    pub const fn observation(&self) -> Option<&Observation> {
+    /// Return one custom event payload when present.
+    pub const fn custom(&self) -> Option<&Observation> {
         match &self.payload {
-            EventPayload::Observation(observation) => Some(observation),
+            EventPayload::Custom(event) => Some(event),
             _ => None,
         }
     }
@@ -103,39 +115,44 @@ impl Event {
     /// Return the stable event name when available.
     pub fn name(&self) -> Option<&str> {
         match &self.payload {
-            EventPayload::Command(input) => Some(input.name()),
+            EventPayload::Mutation(input) => Some(input.name()),
+            EventPayload::Entrypoint(_) => Some("runtime.instance.entrypoint.run"),
             EventPayload::Outcome(outcome) => Some(outcome.name()),
             EventPayload::Anchor(_) => Some("label"),
-            EventPayload::Observation(observation) => Some(observation.name.as_str()),
+            EventPayload::Custom(event) => Some(event.name.as_str()),
         }
     }
 
-    /// Return the event category when this event wraps one observation.
+    /// Return the event category when this event wraps one custom event.
     pub const fn category(&self) -> Option<ObservationCategory> {
         match &self.payload {
-            EventPayload::Observation(observation) => Some(observation.category),
+            EventPayload::Custom(event) => Some(event.category),
             _ => None,
         }
     }
 
-    /// Return the event scope when this event wraps one observation.
+    /// Return the event scope when this event wraps one custom event.
     pub fn scope(&self) -> Option<&ObservationScope> {
-        self.observation().map(|observation| &observation.scope)
+        self.custom().map(|event| &event.scope)
     }
 
-    /// Return the event label value when this event wraps one labeled observation.
+    /// Return the event label value when this event wraps one labeled custom event.
     pub fn label_value(&self, key: &str) -> Option<&str> {
-        self.observation()
-            .and_then(|observation| observation.label_value(key))
+        self.custom().and_then(|event| event.label_value(key))
     }
 
     /// Build one projected trace event at the moment after one record.
     pub(super) fn from_trace(moment: Moment, record: TraceRecord) -> Self {
         match record {
-            TraceRecord::Command(input) => Self {
+            TraceRecord::Mutation(input) => Self {
                 moment,
-                kind: EventKind::Command,
-                payload: EventPayload::Command(input),
+                kind: EventKind::Mutation,
+                payload: EventPayload::Mutation(input),
+            },
+            TraceRecord::Entrypoint(invocation) => Self {
+                moment,
+                kind: EventKind::Entrypoint,
+                payload: EventPayload::Entrypoint(invocation),
             },
             TraceRecord::Outcome(outcome) => Self {
                 moment,
@@ -150,20 +167,23 @@ impl Event {
         }
     }
 
-    /// Build one projected observation event.
+    /// Build one projected custom event.
     pub(super) fn from_observation(record: ObservationRecord) -> Self {
         Self {
             moment: record.moment,
-            kind: EventKind::Observation,
-            payload: EventPayload::Observation(record.observation),
+            kind: EventKind::Custom,
+            payload: EventPayload::Custom(record.observation),
         }
     }
 
     /// Return the stable event-order rank at one shared moment.
     pub(super) fn order_rank(&self) -> u8 {
         match self.kind {
-            EventKind::Command | EventKind::Outcome | EventKind::Anchor => 0,
-            EventKind::Observation => 1,
+            EventKind::Mutation
+            | EventKind::Entrypoint
+            | EventKind::Outcome
+            | EventKind::Anchor => 0,
+            EventKind::Custom => 1,
         }
     }
 }
@@ -236,7 +256,7 @@ impl EventSet {
 
     /// Keep only projected input events.
     pub fn inputs(self) -> Self {
-        self.kind(EventKind::Command)
+        self.kind(EventKind::Mutation)
     }
 
     /// Keep only projected outcome events.
@@ -249,9 +269,9 @@ impl EventSet {
         self.kind(EventKind::Anchor)
     }
 
-    /// Keep only emitted observation events.
-    pub fn observations(self) -> Self {
-        self.kind(EventKind::Observation)
+    /// Keep only emitted custom events.
+    pub fn custom(self) -> Self {
+        self.kind(EventKind::Custom)
     }
 
     /// Keep only events with one exact stable name.
@@ -259,12 +279,12 @@ impl EventSet {
         self.filter(|event| event.name() == Some(name))
     }
 
-    /// Keep only observation events in one exact category.
+    /// Keep only custom events in one exact category.
     pub fn category(self, category: ObservationCategory) -> Self {
         self.filter(|event| event.category() == Some(category))
     }
 
-    /// Keep only observation events labeled with one exact key-value pair.
+    /// Keep only custom events labeled with one exact key-value pair.
     pub fn label(self, key: &str, value: &str) -> Self {
         self.filter(|event| match event.label_value(key) {
             Some(label) => value == label,
@@ -272,37 +292,37 @@ impl EventSet {
         })
     }
 
-    /// Keep only observation events on one exact scope.
+    /// Keep only custom events on one exact scope.
     pub fn on(self, scope: ObservationScope) -> Self {
         self.filter(|event| event.scope() == Some(&scope))
     }
 
-    /// Keep only world-scoped observation events.
+    /// Keep only world-scoped custom events.
     pub fn world(self) -> Self {
         self.on(ObservationScope::world())
     }
 
-    /// Keep only runtime-scoped observation events.
+    /// Keep only runtime-scoped custom events.
     pub fn runtime(self, runtime_id: RuntimeId) -> Self {
         self.filter(|event| event.scope().and_then(|scope| scope.runtime_id()) == Some(runtime_id))
     }
 
-    /// Keep only worker-scoped observation events.
+    /// Keep only worker-scoped custom events.
     pub fn worker(self, worker_id: WorkerId) -> Self {
         self.filter(|event| event.scope().and_then(|scope| scope.worker_id()) == Some(worker_id))
     }
 
-    /// Keep only entity-scoped observation events.
+    /// Keep only entity-scoped custom events.
     pub fn entity(self, entity_id: &str) -> Self {
         self.filter(|event| event.scope().and_then(|scope| scope.entity_id()) == Some(entity_id))
     }
 
-    /// Keep only edge-scoped observation events.
+    /// Keep only edge-scoped custom events.
     pub fn edge(self, edge_id: &str) -> Self {
         self.filter(|event| event.scope().and_then(|scope| scope.edge_id()) == Some(edge_id))
     }
 
-    /// Keep only resource-scoped observation events.
+    /// Keep only resource-scoped custom events.
     pub fn resource(self, resource_id: ResourceId) -> Self {
         self.filter(|event| {
             event.scope().and_then(|scope| scope.resource_id()) == Some(resource_id)
@@ -322,37 +342,37 @@ impl EventSet {
     }
 }
 
-/// One lineage-rooted committed event query.
+/// One history-rooted committed event query.
 #[derive(Debug, Clone, Copy)]
 pub struct EventQuery<'a> {
-    /// The lineage view that owns the query.
-    lineage: LineageView<'a>,
+    /// The history view that owns the query.
+    history: HistoryView<'a>,
 }
 
 impl<'a> EventQuery<'a> {
-    /// Create one committed event query on one lineage view.
-    pub(super) const fn new(lineage: LineageView<'a>) -> Self {
-        Self { lineage }
+    /// Create one committed event query on one history view.
+    pub(super) const fn new(history: HistoryView<'a>) -> Self {
+        Self { history }
     }
 
     /// Return every committed event visible on one branch.
     pub fn branch(self, branch_id: BranchId) -> RuntimeResult<EventSet> {
-        self.lineage.events_on(branch_id)
+        self.history.events_on(branch_id)
     }
 
     /// Return every committed event visible on one branch and its descendants.
     pub fn descendants_of(self, branch_id: BranchId) -> RuntimeResult<EventSet> {
-        self.lineage.events_descendants_of(branch_id)
+        self.history.events_descendants_of(branch_id)
     }
 
     /// Return every committed event up to one target moment.
     pub fn up_to(self, moment: Moment) -> RuntimeResult<EventSet> {
-        self.lineage.events_up_to(moment)
+        self.history.events_up_to(moment)
     }
 
     /// Return every committed event in one exact branch-local range.
     pub fn between(self, start: Moment, end: Moment) -> RuntimeResult<EventSet> {
-        self.lineage.events_between(start, end)
+        self.history.events_between(start, end)
     }
 }
 

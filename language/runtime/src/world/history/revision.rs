@@ -5,40 +5,22 @@ use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::time::Instant;
-use crate::world::World;
 use crate::world::trace::{TraceImage, TraceSequence};
+use crate::world::{World, WorldImage};
 
-use super::{BranchId, ImageId, TraceImageId, WorldImage};
+use super::{BranchId, ImageId};
 
-/// Revision handle for one world lineage.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub struct Revision(u128);
-
-impl Revision {
-    /// Create a new revision handle.
-    pub const fn new(value: u128) -> Self {
-        Self(value)
-    }
-
-    /// Return the raw revision handle value.
-    pub const fn get(self) -> u128 {
-        self.0
-    }
-}
-
-/// Revision state for one world lineage.
+/// Revision metadata for one world history.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RevisionState {
+pub struct Revision {
     /// The branch that owns this revision.
     pub branch_id: BranchId,
-    /// The parent revision in this branch lineage.
-    pub parent_revision: Option<Revision>,
+    /// The parent revision in this branch history.
+    pub parent_revision_id: Option<RevisionId>,
     /// The trace sequence captured by this revision.
     pub sequence: TraceSequence,
     /// The captured world image for this revision.
     pub image_id: ImageId,
-    /// The captured trace image for this revision.
-    pub trace_image_id: TraceImageId,
     /// The wall-clock instant captured by this revision.
     pub wall: Instant,
     /// The monotonic instant captured by this revision.
@@ -47,35 +29,51 @@ pub struct RevisionState {
     pub labels: BTreeMap<String, String>,
 }
 
+/// Revision identifier for one world history.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct RevisionId(u128);
+
+impl RevisionId {
+    /// Create a new revision identifier.
+    pub const fn new(value: u128) -> Self {
+        Self(value)
+    }
+
+    /// Return the raw revision identifier value.
+    pub const fn get(self) -> u128 {
+        self.0
+    }
+}
+
 impl World {
-    /// Return the active branch revision handle for this world.
-    pub fn revision(&self) -> Revision {
-        let lineage = self.lineage.read();
-        let branch = lineage
+    /// Return the active branch revision identifier for this world.
+    pub fn revision_id(&self) -> RevisionId {
+        let history = self.history.read();
+        let branch = history
             .branches
             .get(&self.state.branch_id)
-            .expect("world lineage must contain the active branch");
+            .expect("world history must contain the active branch");
 
-        branch.head_revision
+        branch.head_revision_id
     }
 
     /// Return metadata for the active branch revision.
-    pub fn current_revision_state(&self) -> RevisionState {
-        let lineage = self.lineage.read();
-        let revision = lineage
+    pub fn current_revision(&self) -> Revision {
+        let history = self.history.read();
+        let revision = history
             .revisions
-            .get(&self.revision())
-            .expect("world lineage must contain the active revision");
+            .get(&self.revision_id())
+            .expect("world history must contain the active revision");
 
         revision.clone()
     }
 
     /// Return metadata for one specific revision.
-    pub fn revision_state(&self, revision: Revision) -> RuntimeResult<RevisionState> {
-        let lineage = self.lineage.read();
-        let revision = lineage.revisions.get(&revision).ok_or_else(|| {
+    pub fn revision(&self, revision_id: RevisionId) -> RuntimeResult<Revision> {
+        let history = self.history.read();
+        let revision = history.revisions.get(&revision_id).ok_or_else(|| {
             RuntimeError::RevisionNotFound {
-                revision_id: revision.get(),
+                revision_id: revision_id.get(),
             }
             .boxed()
         })?;
@@ -86,62 +84,48 @@ impl World {
     /// Resolve one revision and its retained data.
     pub(crate) fn revision_data(
         &self,
-        revision: Revision,
-    ) -> RuntimeResult<(RevisionState, Arc<WorldImage>, Arc<TraceImage>)> {
-        let revision_state = {
-            let lineage = self.lineage.read();
-            lineage.revision_state(revision)?
+        revision_id: RevisionId,
+    ) -> RuntimeResult<(Revision, Arc<WorldImage>, Arc<TraceImage>)> {
+        let revision = {
+            let history = self.history.read();
+            history.revision(revision_id)?
         };
 
-        let lineage = self.lineage.read();
-        let image = lineage
-            .image(revision_state.image_id)
+        let history = self.history.read();
+        let image = history
+            .image(revision.image_id)
             .map_err(|error| match *error {
                 RuntimeError::ImageNotFound { .. } => RuntimeError::RevisionImageMissing {
-                    revision_id: revision.get(),
-                    image_id: revision_state.image_id.get(),
+                    revision_id: revision_id.get(),
+                    image_id: revision.image_id.get(),
                 }
                 .boxed(),
                 _ => error,
             })?;
-        let trace_image = lineage
-            .trace_image(revision_state.trace_image_id)
-            .map_err(|error| match *error {
-                RuntimeError::ImageNotFound { .. } => RuntimeError::RevisionTraceImageMissing {
-                    revision_id: revision.get(),
-                }
-                .boxed(),
-                _ => error,
-            })?;
+        let trace_image = history.trace_image(revision_id)?;
 
-        Ok((revision_state, image, trace_image))
+        Ok((revision, image, trace_image))
     }
 
     /// Return the nearest retained base revision for one target revision.
-    pub(crate) fn nearest_image_revision(&self, revision: Revision) -> RuntimeResult<Revision> {
-        let lineage = self.lineage.read();
+    pub(crate) fn nearest_image_revision(
+        &self,
+        revision_id: RevisionId,
+    ) -> RuntimeResult<RevisionId> {
+        let history = self.history.read();
 
-        lineage.nearest_image_revision(revision, |image_id| lineage.contains_image(image_id))
+        history.nearest_image_revision(revision_id, |image_id| history.contains_image(image_id))
     }
 
     /// Return one retained trace image by revision identifier.
-    pub(crate) fn trace_image(&self, revision: Revision) -> RuntimeResult<Arc<TraceImage>> {
-        let lineage = self.lineage.read();
-        let revision_state = lineage.revision_state(revision)?;
+    pub(crate) fn trace_image(&self, revision_id: RevisionId) -> RuntimeResult<Arc<TraceImage>> {
+        let history = self.history.read();
 
-        lineage
-            .trace_image(revision_state.trace_image_id)
-            .map_err(|error| match *error {
-                RuntimeError::ImageNotFound { .. } => RuntimeError::RevisionTraceImageMissing {
-                    revision_id: revision.get(),
-                }
-                .boxed(),
-                _ => error,
-            })
+        history.trace_image(revision_id)
     }
 
-    /// Return handles for all known revisions in stable order.
-    pub fn revisions(&self) -> Vec<Revision> {
-        self.lineage.read().revisions.keys().copied().collect()
+    /// Return identifiers for all known revisions in stable order.
+    pub fn revisions(&self) -> Vec<RevisionId> {
+        self.history.read().revisions.keys().copied().collect()
     }
 }
