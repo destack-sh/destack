@@ -282,6 +282,13 @@ impl Frame {
                 context: format!("missing frame state for image point: {point:?}"),
             })
         })?;
+        program
+            .debug_point_for_frame_state(frame_state)
+            .ok_or_else(|| {
+                RuntimeError::new(Error::InvariantViolation {
+                    context: format!("missing debug point for frame state: {frame_state:?}"),
+                })
+            })?;
 
         Ok(FrameImage {
             frame_state,
@@ -339,7 +346,7 @@ impl Frame {
         Ok(Self {
             function_ptr,
             block: block as u32,
-            pc: point.instruction_index as usize,
+            pc: point.pc as usize,
             return_state: image.return_state,
             stack_offset,
             byte_len: image.byte_len,

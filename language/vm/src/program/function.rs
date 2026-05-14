@@ -192,8 +192,8 @@ pub(crate) struct Block {
     pub start: u32,
     /// Number of instructions in this block.
     pub len: u32,
-    /// Source MIR boundary for each lowered PC in this block.
-    pub source_boundary_by_pc: Vec<u32>,
+    /// Source MIR point for each lowered PC in this block.
+    pub source_point_by_pc: Vec<u32>,
 }
 
 /// Instruction bytes emitted for one block during lowering.
@@ -203,8 +203,8 @@ pub(crate) struct BlockCode {
     pub mir_block: mir::LocalNodeId<mir::Block>,
     /// Instructions including terminator.
     pub instructions: Vec<Instruction>,
-    /// Source MIR boundary for each lowered PC in this block.
-    pub source_boundary_by_pc: Vec<u32>,
+    /// Source MIR point for each lowered PC in this block.
+    pub source_point_by_pc: Vec<u32>,
 }
 
 /// One lowered switch case.

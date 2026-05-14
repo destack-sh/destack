@@ -127,7 +127,7 @@ impl<'a, 'table> FunctionLowerer<'a, 'table> {
                 mir_block: block.mir_block,
                 start,
                 len,
-                source_boundary_by_pc: block.source_boundary_by_pc,
+                source_point_by_pc: block.source_point_by_pc,
             });
         }
 
@@ -254,8 +254,8 @@ impl<'a> BlockLowerer<'a> {
     /// Lower the block into program form.
     fn lower(self, pool: &mut Pool<'_, '_>) -> Result<BlockCode> {
         let mut instructions = Vec::with_capacity(self.block.instructions.len() + 1);
-        let mut source_boundary_by_pc = Vec::with_capacity(self.block.instructions.len() + 2);
-        source_boundary_by_pc.push(0);
+        let mut source_point_by_pc = Vec::with_capacity(self.block.instructions.len() + 2);
+        source_point_by_pc.push(0);
 
         // convert regular instructions
         let mut inst_index = 0usize;
@@ -270,14 +270,14 @@ impl<'a> BlockLowerer<'a> {
 
             // internal instructions still belong to the current MIR operation
             for _ in 1..lowered_len {
-                source_boundary_by_pc.push(inst_index as u32);
+                source_point_by_pc.push(inst_index as u32);
             }
 
             inst_index += 1;
 
-            // record the boundary after the MIR operation is complete
+            // record the source point after the MIR operation is complete
             if lowered_len > 0 {
-                source_boundary_by_pc.push(inst_index as u32);
+                source_point_by_pc.push(inst_index as u32);
             }
         }
 
@@ -291,12 +291,12 @@ impl<'a> BlockLowerer<'a> {
             instructions.push(lowered_terminator);
         }
 
-        source_boundary_by_pc.push((self.block.instructions.len() + 1) as u32);
+        source_point_by_pc.push((self.block.instructions.len() + 1) as u32);
 
         Ok(BlockCode {
             mir_block: self.mir_block,
             instructions,
-            source_boundary_by_pc,
+            source_point_by_pc,
         })
     }
 

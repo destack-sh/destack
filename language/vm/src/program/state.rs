@@ -44,6 +44,8 @@ impl FrameStateTable {
 pub(crate) struct FrameState {
     /// The lowered VM program point.
     pub(crate) point: ProgramPoint,
+    /// The source-level MIR debug point.
+    pub(crate) debug_point: mir::DebugPoint,
     /// Entry recipe for block-entry states.
     pub(crate) entry: Option<FrameEntry>,
     /// Caller return destination for post-call states.
@@ -70,28 +72,28 @@ pub(crate) struct FrameBinding {
     pub(crate) destination: engine::FrameSlotId,
 }
 
-/// One lowered instruction boundary inside the VM program.
+/// One lowered VM program point.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) struct ProgramPoint {
     /// The owning function.
     pub(crate) function: mir::LocalNodeId<mir::Function>,
     /// The owning block.
     pub(crate) block: mir::LocalNodeId<mir::Block>,
-    /// The lowered instruction index within the block.
-    pub(crate) instruction_index: u32,
+    /// The lowered program counter inside the block.
+    pub(crate) pc: u32,
 }
 
 impl ProgramPoint {
-    /// Create one lowered instruction boundary.
+    /// Create one lowered VM program point.
     pub(crate) const fn new(
         function: mir::LocalNodeId<mir::Function>,
         block: mir::LocalNodeId<mir::Block>,
-        instruction_index: u32,
+        pc: u32,
     ) -> Self {
         Self {
             function,
             block,
-            instruction_index,
+            pc,
         }
     }
 }
