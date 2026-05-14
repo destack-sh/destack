@@ -37,6 +37,7 @@ impl ModuleLowerer<'_> {
         &mut self,
         parameter_id: dir::LocalNodeId<dir::Parameter>,
     ) -> CodegenJsResult<js::LocalNodeId<js::Parameter>> {
+        let source_parameter_id = parameter_id;
         let parameter = self.dir_tree.get(parameter_id);
         match parameter {
             dir::Parameter::Named {
@@ -46,7 +47,6 @@ impl ModuleLowerer<'_> {
                 is_optional,
                 declared_type: _,
                 default,
-                symbol,
             } => {
                 let modifiers = self.build_binding_modifier(
                     if *is_optional {
@@ -89,7 +89,7 @@ impl ModuleLowerer<'_> {
                 let parameter_id =
                     self.tree
                         .insert_from_source(parameter, self.module.id, parameter_id);
-                self.set_source_node_symbol(parameter_id, *symbol);
+                self.copy_source_node_symbol(parameter_id, source_parameter_id);
                 Ok(parameter_id)
             }
             dir::Parameter::Pattern {
@@ -97,7 +97,6 @@ impl ModuleLowerer<'_> {
                 is_optional,
                 declared_type: _,
                 default,
-                symbol,
             } => {
                 let modifiers = self.build_binding_modifier(
                     if *is_optional {
@@ -136,7 +135,7 @@ impl ModuleLowerer<'_> {
                 let parameter_id =
                     self.tree
                         .insert_from_source(parameter, self.module.id, parameter_id);
-                self.set_source_node_symbol(parameter_id, *symbol);
+                self.copy_source_node_symbol(parameter_id, source_parameter_id);
                 Ok(parameter_id)
             }
             dir::Parameter::VariadicNamed {
@@ -144,7 +143,6 @@ impl ModuleLowerer<'_> {
                 visibility,
                 is_readonly,
                 declared_type: _,
-                symbol,
             } => {
                 let modifiers = self.build_binding_modifier(
                     None,
@@ -173,13 +171,12 @@ impl ModuleLowerer<'_> {
                 let parameter_id =
                     self.tree
                         .insert_from_source(parameter, self.module.id, parameter_id);
-                self.set_source_node_symbol(parameter_id, *symbol);
+                self.copy_source_node_symbol(parameter_id, source_parameter_id);
                 Ok(parameter_id)
             }
             dir::Parameter::VariadicPattern {
                 pattern,
                 declared_type: _,
-                symbol,
             } => {
                 let modifiers = None;
                 let pattern = self.lower_pattern(*pattern)?;
@@ -196,10 +193,10 @@ impl ModuleLowerer<'_> {
                 let parameter_id =
                     self.tree
                         .insert_from_source(parameter, self.module.id, parameter_id);
-                self.set_source_node_symbol(parameter_id, *symbol);
+                self.copy_source_node_symbol(parameter_id, source_parameter_id);
                 Ok(parameter_id)
             }
-            dir::Parameter::Error { .. } => Err(CodegenJsError::UnsupportedConstruct {
+            dir::Parameter::Error => Err(CodegenJsError::UnsupportedConstruct {
                 node: parameter_id.into_global_any(self.module.id),
                 message: Some("parameter error slots are not lowered to JS".to_string()),
             }),
@@ -231,9 +228,9 @@ impl ModuleLowerer<'_> {
                     .expect_node::<js::Expression>(value.into_global_any(self.module.id), self)?;
                 js::Argument::Spread { value }
             }
-            dir::Argument::Error { value } => {
+            dir::Argument::Error => {
                 return Err(CodegenJsError::UnsupportedConstruct {
-                    node: value.into_global_any(self.module.id),
+                    node: argument_id.into_global_any(self.module.id),
                     message: Some("argument error slots are not lowered to JS".to_string()),
                 });
             }

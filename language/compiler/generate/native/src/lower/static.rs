@@ -317,8 +317,7 @@ fn type_id(
 mod tests {
     use destack_source::FileId;
 
-    use mir::parse::ParseOptions;
-
+    
     use super::*;
 
     const POINTER_BYTES: u8 = 8;
@@ -369,7 +368,7 @@ global table: ref?<void, raw, readonly, space(static)>[2], readonly, space(stati
     /// Parse one MIR source and return one global by name.
     fn parse_global(source: &str, name: &str) -> (mir::Tree, mir::Global) {
         let (tree, strings) =
-            mir::parse::Parser::parse(FileId::new(0), source, ParseOptions::default())
+            mir::parse::Parser::parse(FileId::new(0), source, mir::parse::ParseOptions::default())
                 .finish()
                 .expect("failed to parse MIR");
 

@@ -23,20 +23,22 @@ impl Compiler {
 
         // snapshot module for this generate pass
         let module = self.module(context.revision(), module_id);
-        let ast = self.ast(context, module_id).map_err(CompilerError::from)?;
-        let declared = self
-            .dir_declared(context, module_id, profile)
+        let parsed = self
+            .dir_parsed(context, module_id)
+            .map_err(CompilerError::from)?;
+        let bound = self
+            .dir_bound(context, module_id, profile)
             .map_err(CompilerError::from)?;
         let checked = self
             .dir_checked(context, module_id, profile)
             .map_err(CompilerError::from)?;
-        let state = GenerateState::new(module_id, &declared.tree);
+        let state = GenerateState::new(module_id, &bound.tree);
 
         // generate one script output through the current backend
         let (artifact, warnings, errors) = destack_codegen_js::ScriptOutputGenerator::new(
             module.clone(),
-            ast,
-            declared.clone(),
+            parsed,
+            bound.clone(),
             checked,
             self.repository.string_pool().clone(),
             target,

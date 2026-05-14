@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    Ast, DirChecked, DirDeclared, EmitFormat, ScriptDeclaration, ScriptLanguage, ScriptOutput,
+    DirBound, DirChecked, DirParsed, EmitFormat, ScriptDeclaration, ScriptLanguage, ScriptOutput,
 };
 use destack_core::StringPool;
 use destack_js as js;
@@ -15,10 +15,10 @@ use crate::{CodegenJsError, CodegenJsResult, CodegenJsWarning};
 pub struct ScriptOutputGenerator<'a> {
     /// The current module snapshot.
     module: Arc<Module>,
-    /// The current module AST.
-    ast: Arc<Ast>,
-    /// The current declared DIR artifact.
-    declared: Arc<DirDeclared>,
+    /// The current parsed DIR.
+    parsed: Arc<DirParsed>,
+    /// The current bound DIR artifact.
+    bound: Arc<DirBound>,
     /// The current checked DIR artifact.
     checked: Arc<DirChecked>,
     /// The shared string pool.
@@ -31,16 +31,16 @@ impl<'a> ScriptOutputGenerator<'a> {
     /// Create one script output generator.
     pub fn new(
         module: Arc<Module>,
-        ast: Arc<Ast>,
-        declared: Arc<DirDeclared>,
+        parsed: Arc<DirParsed>,
+        bound: Arc<DirBound>,
         checked: Arc<DirChecked>,
         strings: Arc<StringPool>,
         target: &'a Target,
     ) -> Self {
         Self {
             module,
-            ast,
-            declared,
+            parsed,
+            bound,
             checked,
             strings,
             target,
@@ -61,8 +61,8 @@ impl<'a> ScriptOutputGenerator<'a> {
 
         // current module inputs
         let module = self.module.as_ref();
-        let ast = self.ast.as_ref();
-        let declared = self.declared.as_ref();
+        let parsed = self.parsed.as_ref();
+        let bound = self.bound.as_ref();
         let checked = self.checked.as_ref();
 
         // resource modules are linked directly in the script linker
@@ -78,9 +78,9 @@ impl<'a> ScriptOutputGenerator<'a> {
         // emit one lowered JavaScript module tree
         let lower = lower_module(
             module,
-            ast,
+            parsed,
             self.strings.as_ref(),
-            declared,
+            bound,
             checked,
             self.target,
         )?;

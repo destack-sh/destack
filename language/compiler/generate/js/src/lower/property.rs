@@ -42,7 +42,6 @@ impl ModuleLowerer<'_> {
                 key,
                 value,
                 is_shorthand,
-                symbol: _,
             } => {
                 let modifiers = None;
                 let key = self.lower_key(*key)?;
@@ -61,7 +60,6 @@ impl ModuleLowerer<'_> {
                 key,
                 signature,
                 body,
-                symbol: _,
             } => {
                 let modifiers = None;
                 let key = key.map(|key| self.lower_key(key)).transpose()?;
@@ -77,7 +75,7 @@ impl ModuleLowerer<'_> {
                     body,
                 }
             }
-            dir::Property::Spread { value, symbol: _ } => {
+            dir::Property::Spread { value } => {
                 let modifiers = None;
                 let value = self
                     .lower_expression(*value)
@@ -327,7 +325,6 @@ impl ModuleLowerer<'_> {
                 visibility,
                 is_static,
                 is_accessor,
-                symbol: _,
                 ..
             } => {
                 let modifiers = self.build_member_modifier(
@@ -382,7 +379,6 @@ impl ModuleLowerer<'_> {
                 visibility,
                 is_static,
                 is_accessor,
-                symbol: _,
                 ..
             } => {
                 let modifiers = self.build_member_modifier(

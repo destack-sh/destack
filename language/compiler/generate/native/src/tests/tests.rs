@@ -1,13 +1,12 @@
 use destack_mir as mir;
 use destack_source::FileId;
-use mir::parse::ParseOptions;
 
 use crate::CodegenCraneliftBackend;
 
 /// Helper to compile MIR text to CLIF text.
 pub(crate) fn compile_mir_to_clif(source: &str) -> String {
     let (tree, strings) =
-        mir::parse::Parser::parse(FileId::new(0), source, ParseOptions::default())
+        mir::parse::Parser::parse(FileId::new(0), source, mir::parse::ParseOptions::default())
             .finish()
             .expect("failed to parse MIR");
 

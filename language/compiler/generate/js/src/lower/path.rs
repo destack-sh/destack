@@ -1,4 +1,4 @@
-use destack_ast::StringId;
+use destack_core::StringId;
 use smallvec::SmallVec;
 use {destack_dir as dir, destack_js as js};
 

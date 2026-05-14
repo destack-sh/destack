@@ -1,4 +1,4 @@
-use destack_artifact::{Ast, DirChecked, DirDeclared};
+use destack_artifact::{DirBound, DirChecked, DirParsed};
 use destack_core::StringPool;
 use destack_js as js;
 use destack_workspace::{Module, Target};
@@ -20,13 +20,13 @@ pub struct ModuleLowerOutput {
 /// Lower one patched DIR module into a structured JavaScript module.
 pub fn lower_module(
     module: &Module,
-    ast: &Ast,
+    parsed: &DirParsed,
     strings: &StringPool,
-    declared: &DirDeclared,
+    bound: &DirBound,
     checked: &DirChecked,
     target: &Target,
 ) -> CodegenJsResult<ModuleLowerOutput> {
-    let mut lowerer = ModuleLowerer::new(module, ast, strings, declared, checked, target);
+    let mut lowerer = ModuleLowerer::new(module, parsed, strings, bound, checked, target);
     lowerer.lower_module()?;
 
     Ok(ModuleLowerOutput {
