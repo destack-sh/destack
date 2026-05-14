@@ -18,6 +18,15 @@ export struct SortedMapEntry<K, V> {
     value: V;
 }
 
+/// Mutating access to one sorted map entry.
+export struct SortedMapEntryHandle<K, V> {
+    /// The borrowed map.
+    private map: &exclusive SortedMap<K, V>;
+
+    /// The queried key.
+    private entryKey: K;
+}
+
 /// One sorted map tree node.
 struct SortedMapNode<K, V> {
     /// The node entry storage.
@@ -55,6 +64,43 @@ export class SortedMap<K, V> {
 
     /// The number of live entries.
     entryCount: usize = 0;
+}
+
+extension<K: Compare<K>, V> of SortedMapEntryHandle<K, V> {
+    /// Borrow the queried key.
+    get key(): &readonly K {
+        todo("SortedMapEntryHandle.key")
+    }
+
+    /// Return whether this handle points at an occupied entry.
+    get isOccupied(): boolean {
+        todo("SortedMapEntryHandle.isOccupied")
+    }
+
+    /// Borrow the current value.
+    get(this: &SortedMapEntryHandle<K, V>): &V | undefined {
+        todo("SortedMapEntryHandle.get")
+    }
+
+    /// Insert `value` when this handle is vacant.
+    orInsert(this: &exclusive SortedMapEntryHandle<K, V>, value: V): &V {
+        todo("SortedMapEntryHandle.orInsert")
+    }
+
+    /// Insert a value produced by `makeValue` when this handle is vacant.
+    orInsertWith(this: &exclusive SortedMapEntryHandle<K, V>, makeValue: () => V): &V {
+        todo("SortedMapEntryHandle.orInsertWith")
+    }
+
+    /// Insert or replace the value.
+    set(this: &exclusive SortedMapEntryHandle<K, V>, value: V): &V {
+        todo("SortedMapEntryHandle.set")
+    }
+
+    /// Remove the entry.
+    remove(this: &exclusive SortedMapEntryHandle<K, V>): V | undefined {
+        todo("SortedMapEntryHandle.remove")
+    }
 }
 
 extension<K, V> of SortedMap<K, V> implements Default {
@@ -148,6 +194,11 @@ extension<K: Compare<K>, V> of SortedMap<K, V> implements
         todo("SortedMap.has")
     }
 
+    /// Return mutating access to the entry for `key`.
+    entry(this: &exclusive SortedMap<K, V>, key: K): SortedMapEntryHandle<K, V> {
+        todo("SortedMap.entry")
+    }
+
     /// Insert a key-value pair only when `key` is absent.
     insert(this: &SortedMap<K, V>, key: K, value: V): boolean {
         todo("SortedMap.insert")
@@ -172,6 +223,27 @@ extension<K: Compare<K>, V> of SortedMap<K, V> implements
     /// Remove all entries.
     clear(this: &exclusive SortedMap<K, V>): void {
         todo("SortedMap.clear")
+    }
+
+    /// Retain only entries accepted by `predicate`.
+    retain(
+        this: &exclusive SortedMap<K, V>,
+        predicate: (key: &readonly K, value: &exclusive V) => boolean,
+    ): void {
+        todo("SortedMap.retain")
+    }
+
+    /// Remove all entries and return them.
+    drain(this: &exclusive SortedMap<K, V>): Iterator<(K, V)> {
+        todo("SortedMap.drain")
+    }
+
+    /// Remove entries accepted by `predicate` and return them.
+    extractIf(
+        this: &exclusive SortedMap<K, V>,
+        predicate: (key: &readonly K, value: &exclusive V) => boolean,
+    ): Iterator<(K, V)> {
+        todo("SortedMap.extractIf")
     }
 
     /// Reserve room for at least `additional` more entries.

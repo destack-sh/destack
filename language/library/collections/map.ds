@@ -15,6 +15,15 @@ export struct MapEntry<K, V> {
     value: V;
 }
 
+/// Mutating access to one map entry.
+export struct MapEntryHandle<K, V> {
+    /// The borrowed map.
+    private map: &exclusive Map<K, V>;
+
+    /// The queried key.
+    private entryKey: K;
+}
+
 /// One stable map slot.
 struct MapSlot<K, V> {
     /// The cached key hash.
@@ -54,6 +63,44 @@ export class Map<K, V> {
 export type Record<K extends string | number | symbol, V> = {
     [P in K]: V;
 };
+
+extension<K: Hash, V> of MapEntryHandle<K, V>
+where K implements Equal<K> {
+    /// Borrow the queried key.
+    get key(): &readonly K {
+        todo("MapEntryHandle.key")
+    }
+
+    /// Return whether this handle points at an occupied entry.
+    get isOccupied(): boolean {
+        todo("MapEntryHandle.isOccupied")
+    }
+
+    /// Borrow the current value.
+    get(this: &MapEntryHandle<K, V>): &V | undefined {
+        todo("MapEntryHandle.get")
+    }
+
+    /// Insert `value` when this handle is vacant.
+    orInsert(this: &exclusive MapEntryHandle<K, V>, value: V): &V {
+        todo("MapEntryHandle.orInsert")
+    }
+
+    /// Insert a value produced by `makeValue` when this handle is vacant.
+    orInsertWith(this: &exclusive MapEntryHandle<K, V>, makeValue: () => V): &V {
+        todo("MapEntryHandle.orInsertWith")
+    }
+
+    /// Insert or replace the value.
+    set(this: &exclusive MapEntryHandle<K, V>, value: V): &V {
+        todo("MapEntryHandle.set")
+    }
+
+    /// Remove the entry.
+    remove(this: &exclusive MapEntryHandle<K, V>): V | undefined {
+        todo("MapEntryHandle.remove")
+    }
+}
 
 extension<K, V> of Map<K, V> implements Default {
     /// Create an empty map.
@@ -136,21 +183,26 @@ where K implements Equal<K> {
         todo("Map.get")
     }
 
-    /// Return an entry by key.
-    entry<Q: Hash>(this: &Map<K, V>, key: &readonly Q): MapEntry<&readonly K, &V> | undefined
+    /// Return a borrowed entry by key.
+    getEntry<Q: Hash>(this: &Map<K, V>, key: &readonly Q): MapEntry<&readonly K, &V> | undefined
     where K implements Borrow<Q>, Q implements Equal<Q> {
-        todo("Map.entry")
+        todo("Map.getEntry")
     }
 
-    /// Return an entry by key with readonly access.
-    entry<Q: Hash>(this: &readonly Map<K, V>, key: &readonly Q): MapEntry<&readonly K, &readonly V> | undefined
+    /// Return a borrowed entry by key with readonly access.
+    getEntry<Q: Hash>(this: &readonly Map<K, V>, key: &readonly Q): MapEntry<&readonly K, &readonly V> | undefined
     where K implements Borrow<Q>, Q implements Equal<Q> {
-        todo("Map.entry")
+        todo("Map.getEntry")
     }
 
-    /// Return an entry by key with exclusive value access.
-    entry<Q: Hash>(this: &exclusive Map<K, V>, key: &readonly Q): MapEntry<&readonly K, &exclusive V> | undefined
+    /// Return a borrowed entry by key with exclusive value access.
+    getEntry<Q: Hash>(this: &exclusive Map<K, V>, key: &readonly Q): MapEntry<&readonly K, &exclusive V> | undefined
     where K implements Borrow<Q>, Q implements Equal<Q> {
+        todo("Map.getEntry")
+    }
+
+    /// Return mutating access to the entry for `key`.
+    entry(this: &exclusive Map<K, V>, key: K): MapEntryHandle<K, V> {
         todo("Map.entry")
     }
 
@@ -204,6 +256,24 @@ where K implements Equal<K> {
     /// Remove all entries.
     clear(this: &exclusive Map<K, V>): void {
         todo("Map.clear")
+    }
+
+    /// Retain only entries accepted by `predicate`.
+    retain(this: &exclusive Map<K, V>, predicate: (key: &readonly K, value: &exclusive V) => boolean): void {
+        todo("Map.retain")
+    }
+
+    /// Remove all entries and return them.
+    drain(this: &exclusive Map<K, V>): Iterator<(K, V)> {
+        todo("Map.drain")
+    }
+
+    /// Remove entries accepted by `predicate` and return them.
+    extractIf(
+        this: &exclusive Map<K, V>,
+        predicate: (key: &readonly K, value: &exclusive V) => boolean,
+    ): Iterator<(K, V)> {
+        todo("Map.extractIf")
     }
 
     /// Reserve room for at least `additional` more entries.

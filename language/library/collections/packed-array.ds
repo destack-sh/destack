@@ -149,6 +149,16 @@ extension<T> of PackedArray<T> implements
         todo("PackedArray.retain")
     }
 
+    /// Remove all elements and return them.
+    drain(this: &exclusive PackedArray<T>): Iterator<T> {
+        todo("PackedArray.drain")
+    }
+
+    /// Remove elements accepted by `predicate` and return them.
+    extractIf(this: &exclusive PackedArray<T>, predicate: (value: &T, index: usize) => boolean): Iterator<T> {
+        todo("PackedArray.extractIf")
+    }
+
     /// Reserve room for at least `additional` more elements.
     reserve(this: &exclusive PackedArray<T>, additional: usize): void {
         todo("PackedArray.reserve")

@@ -171,6 +171,21 @@ extension<T> of PackedDeque<T> implements
         todo("PackedDeque.clear")
     }
 
+    /// Retain only elements accepted by `predicate`.
+    retain(this: &exclusive PackedDeque<T>, predicate: (value: &T, index: usize) => boolean): void {
+        todo("PackedDeque.retain")
+    }
+
+    /// Remove all elements and return them.
+    drain(this: &exclusive PackedDeque<T>): Iterator<T> {
+        todo("PackedDeque.drain")
+    }
+
+    /// Remove elements accepted by `predicate` and return them.
+    extractIf(this: &exclusive PackedDeque<T>, predicate: (value: &T, index: usize) => boolean): Iterator<T> {
+        todo("PackedDeque.extractIf")
+    }
+
     /// Reserve room for at least `additional` more elements.
     reserve(this: &exclusive PackedDeque<T>, additional: usize): void {
         todo("PackedDeque.reserve")
