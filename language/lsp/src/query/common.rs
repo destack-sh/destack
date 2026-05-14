@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::cmp;
 
-use destack_ast::TokenSpan;
+use destack_dir::TokenSpan;
 use destack_source::{File, Span};
 use destack_workspace::{Repository, Revision};
 use {destack_lsp_types as lsp, destack_query as query};

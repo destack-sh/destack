@@ -3,8 +3,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use destack_artifact::ArtifactKey;
-use destack_ast::{Expression, LocalNodeId, NodeParentIndex};
 use destack_core::{StableHasher, StringPool};
+use destack_dir::{Expression, LocalNodeId, NodeParentIndex};
 use destack_fir::format as fir_format;
 use destack_formatter::{
     DestackFormatContext, DestackFormatOptions, format_file_source, statement_list,
@@ -139,7 +139,7 @@ pub(super) fn diagnostic_result_id(diagnostics: &[destack_source::Diagnostic]) -
 }
 
 /// Format a file and return the formatted content.
-/// Requires module AST state from the repository graph.
+/// Requires parsed DIR state from the repository graph.
 pub(super) fn format_file(
     repository: &Repository,
     revision: Revision,
@@ -161,28 +161,28 @@ pub(super) fn format_file(
     // resolve module state for this file
     let module_id = repository.module_id_for_file(revision, file_id).ok()??;
     repository.file(revision, file_id).ok().flatten()?;
-    let ast_key = ArtifactKey::ast(module_id);
-    let ast_version = repository
-        .artifact_version(revision, &ast_key)
+    let parsed_key = ArtifactKey::dir_parsed(module_id);
+    let parsed_version = repository
+        .artifact_version(revision, &parsed_key)
         .ok()
         .flatten()?;
-    let ast = repository.artifact_store().ast(&ast_version)?;
+    let parsed = repository.artifact_store().dir_parsed(&parsed_version)?;
 
     // build format context from committed semantic state
-    let side_span = Parser::compute_side_span_from_tree(&ast.tree);
+    let side_span = Parser::compute_side_span_from_tree(&parsed.tree);
     let strings = repository.string_pool();
     let context = DestackFormatContext::new(
         format_options,
         file.as_ref(),
-        &ast.tree,
-        &ast.tokens,
-        &ast.side_tokens,
+        &parsed.tree,
+        &parsed.tokens,
+        &parsed.side_tokens,
         &side_span,
         strings.as_ref(),
-        ast.parents.clone(),
+        parsed.parents.clone(),
     );
 
-    format_expressions(&context, &ast.roots)
+    format_expressions(&context, &parsed.roots)
 }
 
 /// Format expressions and return the result string.
