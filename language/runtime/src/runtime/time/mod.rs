@@ -1,7 +1,6 @@
 mod clock;
 mod instant;
 mod nanos;
-pub(crate) mod timer;
 mod r#virtual;
 
 pub(crate) use clock::*;

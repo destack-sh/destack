@@ -2,16 +2,18 @@ mod dispatch;
 mod image;
 mod r#loop;
 mod microtask;
-mod runnable;
+mod root;
 mod task;
-mod tick;
+#[cfg(test)]
+mod tests;
 mod timer;
-mod watch;
+mod waiter;
+mod wake;
 
 pub use image::*;
 pub use r#loop::*;
 pub use microtask::*;
-pub use runnable::*;
 pub use task::*;
-pub use tick::*;
 pub use timer::*;
+pub use waiter::*;
+pub use wake::*;

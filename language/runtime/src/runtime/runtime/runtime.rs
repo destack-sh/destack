@@ -1,15 +1,17 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::poller::HostPoller;
+use crate::host::poller::{HostPoller, PollerEvent};
 use crate::host::resource::ResourceRebinders;
-use crate::host::{Host, HostSession};
-use crate::runtime::Collector;
+use crate::host::{Host, HostEvent, HostSession};
+use crate::runtime::SharedCollector;
 use crate::runtime::engine::{Engine, Entry};
 use crate::runtime::heap::{RootSink, SharedHeap};
-use crate::runtime::runtime::{RuntimeEvent, RuntimeHostOptions, poller_for_options};
-use crate::runtime::scheduler::{TickResult, Timer};
+use crate::runtime::runtime::RuntimeHostOptions;
+use crate::runtime::scheduler::{
+    HostWake, ResourceInterest, ResourceWake, ScheduledTimer, TickResult, Wake,
+};
 use crate::runtime::time::Instant;
 use crate::runtime::worker::{Worker, WorkerId, WorkerImage, WorkerOptions, WorkerOptionsImage};
-use crate::world::{RuntimeId, Wake, WorldState};
+use crate::world::{RuntimeId, WorkerWake, WorldState};
 use destack_core::CaptureMode;
 use destack_workspace::{ExecutionMode, RuntimeOptions};
 use serde::{Deserialize, Serialize};
@@ -91,7 +93,7 @@ impl Runtime {
         world: &mut WorldState,
         host: Arc<dyn Host>,
         allocator: Arc<heap::Allocator>,
-        collector: Arc<Collector>,
+        collector: Arc<SharedCollector>,
         engine: impl Into<Engine>,
     ) -> RuntimeResult<Self> {
         let process_args = process_args.into();
@@ -311,37 +313,35 @@ impl Runtime {
         let event_handled = self.poll_events(world)?;
 
         // workers
-        let worker_ids = self.worker_ids();
-        let worker_count = worker_ids.len();
+        let worker_count = self.workers.len();
         let start_index = if worker_count == 0 {
             0
         } else {
             self.next_worker_cursor % worker_count
         };
-        let host = &self.host;
+        let shared = &self.shared;
+        let statics = &self.statics;
         let workers = &mut self.workers;
-        for offset in 0..worker_count {
-            let worker_index = (start_index + offset) % worker_count;
-            let worker_id = worker_ids[worker_index];
-            let worker = workers
-                .get_mut(&worker_id)
-                .map(Box::as_mut)
-                .ok_or_else(|| {
-                    RuntimeError::WorkerNotFound {
-                        worker_id: worker_id.0,
-                    }
-                    .boxed()
-                })?;
-            if worker.tick(world, &self.shared, &self.statics, host)? {
+
+        for (worker_index, worker) in workers.values_mut().enumerate().skip(start_index) {
+            if worker.tick(world, shared, statics)? {
                 self.next_worker_cursor = (worker_index + 1) % worker_count;
 
-                return Ok(TickResult::Worked);
+                return Ok(TickResult::Progress);
+            }
+        }
+
+        for (worker_index, worker) in workers.values_mut().enumerate().take(start_index) {
+            if worker.tick(world, shared, statics)? {
+                self.next_worker_cursor = worker_index + 1;
+
+                return Ok(TickResult::Progress);
             }
         }
 
         // event handling counts as runnable scheduler progress
         if event_handled {
-            return Ok(TickResult::Worked);
+            return Ok(TickResult::Progress);
         }
 
         Ok(TickResult::Idle)
@@ -363,7 +363,7 @@ impl Runtime {
         let worker_options = Arc::new(options.clone());
         let host_options = RuntimeHostOptions::from_runtime_options(options);
         let host = host_options.host_session(host, runtime_id);
-        let poller = poller_for_options(options)?;
+        let poller = host_options.poller()?;
         let runtime_name = options
             .name
             .clone()
@@ -414,7 +414,7 @@ impl Runtime {
     fn join_mark(&mut self, worker_id: WorkerId) -> RuntimeResult<()> {
         let worker = self
             .worker_mut(worker_id)
-            .ok_or_else(|| RuntimeError::WorkerNotFound {
+            .ok_or(RuntimeError::WorkerNotFound {
                 worker_id: worker_id.0,
             })?;
 
@@ -430,14 +430,14 @@ impl Runtime {
     }
 
     /// Return the next virtual deadline across all workers and simulation.
-    pub(crate) fn next_deadline(&self, world: &mut WorldState) -> Option<Instant> {
+    pub(crate) fn next_deadline(&mut self, world: &mut WorldState) -> Option<Instant> {
         // current virtual timestamps: monotonic deadlines are projected onto wall time
         let wall_now = world.wall();
         let mono_now = world.mono();
 
         world.next_deadline(
             self.workers
-                .values()
+                .values_mut()
                 .map(|worker| worker.event_loop.next_deadline(wall_now, mono_now)),
         )
     }
@@ -446,14 +446,13 @@ impl Runtime {
     pub(crate) fn collect_due_timers(
         &mut self,
         world: &mut WorldState,
-    ) -> RuntimeResult<Vec<(RuntimeId, WorkerId, Timer)>> {
+    ) -> RuntimeResult<Vec<(RuntimeId, WorkerId, ScheduledTimer)>> {
         let wall_now = world.wall();
         let mono_now = world.mono();
         let mut worker_timers = Vec::new();
 
         for worker in self.workers.values_mut() {
-            let ready_timers = worker.event_loop.poll_timers(wall_now, mono_now)?;
-            for timer in ready_timers {
+            while let Some(timer) = worker.event_loop.pop_ready_timer(wall_now, mono_now)? {
                 worker_timers.push((self.id, worker.id, timer));
             }
         }
@@ -462,140 +461,107 @@ impl Runtime {
     }
 
     /// Poll runtime-owned event sources and deliver events to worker event loops.
+    #[inline(never)]
     fn poll_events(&mut self, world: &mut WorldState) -> RuntimeResult<bool> {
-        let mut events = Vec::new();
+        let mut handled_any = false;
+        let is_marking_shared = self.shared.is_marking();
 
         // host events
         let poll_result = self.host.poll(Some(0))?;
         for event in poll_result.events {
-            events.push(RuntimeEvent::Host { event });
+            if self.deliver_host_event(world, event, is_marking_shared)? {
+                handled_any = true;
+            }
         }
 
         // poller events
         let polled_events = self.poller.poll(Some(0))?;
         for event in polled_events {
-            events.push(RuntimeEvent::Poller { event });
-        }
-
-        self.deliver_events(world, events)
-    }
-
-    /// Deliver coordinator-owned events into worker event loops.
-    fn deliver_events(
-        &mut self,
-        world: &mut WorldState,
-        events: Vec<RuntimeEvent>,
-    ) -> RuntimeResult<bool> {
-        let mut handled_any = false;
-        let is_marking_shared = self.shared.is_marking();
-
-        for item in events {
-            match item {
-                RuntimeEvent::Host { event } => {
-                    let kind = event.kind();
-                    let targets = self
-                        .worker_ids()
-                        .into_iter()
-                        .filter(|worker_id| {
-                            self.worker(*worker_id)
-                                .map(|worker| worker.watches_host_event(kind))
-                                .unwrap_or(false)
-                        })
-                        .collect::<Vec<_>>();
-
-                    // unmatched event
-                    if targets.is_empty() {
-                        handled_any = true;
-                        continue;
-                    }
-
-                    // matched host event
-                    for worker_id in targets {
-                        let worker = self.worker_mut(worker_id).ok_or_else(|| {
-                            RuntimeError::WorkerNotFound {
-                                worker_id: worker_id.0,
-                            }
-                            .boxed()
-                        })?;
-                        worker.event_loop.enqueue_host_events(vec![event.clone()]);
-                        worker.hooks.on_ingress_enqueue(world);
-
-                        // shared mark: event can change direct worker roots without a worker tick
-                        if is_marking_shared {
-                            self.shared.queue_root_scan(worker_id);
-                        }
-
-                        handled_any = true;
-                    }
-                }
-                RuntimeEvent::Poller { event } => {
-                    let targets = self
-                        .worker_ids()
-                        .into_iter()
-                        .filter(|worker_id| {
-                            self.worker(*worker_id)
-                                .map(|worker| worker.watches_event(event.token))
-                                .unwrap_or(false)
-                        })
-                        .collect::<Vec<_>>();
-
-                    // unmatched event
-                    if targets.is_empty() {
-                        handled_any = true;
-                        continue;
-                    }
-
-                    // matched poller event
-                    for worker_id in targets {
-                        let worker = self.worker_mut(worker_id).ok_or_else(|| {
-                            RuntimeError::WorkerNotFound {
-                                worker_id: worker_id.0,
-                            }
-                            .boxed()
-                        })?;
-                        worker.event_loop.enqueue_events(vec![event]);
-                        worker.hooks.on_ingress_enqueue(world);
-
-                        // shared mark: event can change direct worker roots without a worker tick
-                        if is_marking_shared {
-                            self.shared.queue_root_scan(worker_id);
-                        }
-
-                        handled_any = true;
-                    }
-                }
+            if self.deliver_poller_event(world, event, is_marking_shared)? {
+                handled_any = true;
             }
         }
 
         Ok(handled_any)
     }
 
+    /// Deliver one host event into matching worker event loops.
+    fn deliver_host_event(
+        &mut self,
+        world: &mut WorldState,
+        event: HostEvent,
+        is_marking_shared: bool,
+    ) -> RuntimeResult<bool> {
+        let kind = event.kind();
+        let shared = &self.shared;
+
+        for (worker_id, worker) in &mut self.workers {
+            if !worker.has_host_waiter(kind) {
+                continue;
+            }
+
+            worker
+                .event_loop
+                .enqueue_wake(Wake::Host(HostWake::new(event.clone())));
+            worker.hooks.on_ingress_enqueue(world);
+
+            // shared mark: event can change direct worker roots without a worker tick
+            if is_marking_shared {
+                shared.queue_root_scan(*worker_id);
+            }
+        }
+
+        Ok(true)
+    }
+
+    /// Deliver one poller event into matching worker event loops.
+    fn deliver_poller_event(
+        &mut self,
+        world: &mut WorldState,
+        event: PollerEvent,
+        is_marking_shared: bool,
+    ) -> RuntimeResult<bool> {
+        let interest = ResourceInterest::from_poller_mask(event.mask);
+        let shared = &self.shared;
+
+        for (worker_id, worker) in &mut self.workers {
+            if !worker.has_resource_waiter(event.resource_id, interest) {
+                continue;
+            }
+
+            worker
+                .event_loop
+                .enqueue_wake(Wake::Resource(ResourceWake::poller(event)));
+            worker.hooks.on_ingress_enqueue(world);
+
+            // shared mark: event can change direct worker roots without a worker tick
+            if is_marking_shared {
+                shared.queue_root_scan(*worker_id);
+            }
+        }
+
+        Ok(true)
+    }
+
     /// Deliver one batch of due worker-timer wakes.
     pub(crate) fn deliver_wakes(
         &mut self,
         world: &mut WorldState,
-        wakes: Vec<Wake>,
+        wakes: Vec<WorkerWake>,
     ) -> RuntimeResult<()> {
         for wake in wakes {
-            match wake {
-                Wake::WorkerTimer {
-                    runtime_id,
-                    worker_id,
-                    timer,
-                } => {
-                    if runtime_id != self.id {
-                        continue;
-                    }
-
-                    let worker = self.worker_mut(worker_id).ok_or_else(|| {
-                        RuntimeError::WorkerNotFound {
-                            worker_id: worker_id.0,
-                        }
-                        .boxed()
-                    })?;
-                    worker.deliver_timer_wake(world, timer)?;
-                }
+            if wake.runtime_id != self.id {
+                continue;
             }
+
+            let worker = self.worker_mut(wake.worker_id).ok_or_else(|| {
+                RuntimeError::WorkerNotFound {
+                    worker_id: wake.worker_id.0,
+                }
+                .boxed()
+            })?;
+            worker.event_loop.enqueue_wake(wake.wake);
+            worker.hooks.on_ingress_enqueue(world);
         }
 
         Ok(())
@@ -607,7 +573,6 @@ impl Runtime {
         options.scheduler = self.worker_options.scheduler.clone();
         options.time = self.worker_options.time.clone();
         options.random = self.worker_options.random.clone();
-        options.simulation = self.worker_options.simulation.clone();
         options.trace = self.worker_options.trace.clone();
     }
 
@@ -680,7 +645,7 @@ impl Runtime {
         &mut self,
         execution_mode: ExecutionMode,
         host: Arc<dyn Host>,
-        collector: Arc<Collector>,
+        collector: Arc<SharedCollector>,
     ) -> RuntimeResult<Option<Self>> {
         let shared = self.shared.fork(collector)?;
 
@@ -720,7 +685,7 @@ impl Runtime {
     pub(crate) fn from_image(
         world: &mut WorldState,
         allocator: Arc<heap::Allocator>,
-        collector: Arc<Collector>,
+        collector: Arc<SharedCollector>,
         host: Arc<dyn Host>,
         runtime_id: RuntimeId,
         runtime_name: String,
@@ -817,7 +782,7 @@ impl Runtime {
 
 #[cfg(test)]
 mod tests {
-    use super::{Runtime, RuntimeEvent};
+    use super::Runtime;
     use crate::host::{
         HostEvent, HostEventKind, LifecycleEvent, LifecycleSourceKind, LifecycleState,
     };
@@ -845,15 +810,15 @@ mod tests {
 
     /// Build runtime-owned shared heap state for one test world.
     fn runtime_shared_heap(world: &World, options: &RuntimeOptions) -> SharedHeap {
-        let lineage = world.lineage.read();
+        let history = world.history.read();
 
-        SharedHeap::new(lineage.allocator(), lineage.collector(), options)
+        SharedHeap::new(history.allocator(), history.collector(), options)
             .expect("runtime shared heap should construct")
     }
 
     /// Queue one shared direct-root rescan when events mutate worker state during marking.
     #[test]
-    fn test_deliver_events_queues_shared_root_rescan_during_mark() {
+    fn test_deliver_host_event_queues_shared_root_rescan_during_mark() {
         let options = RuntimeOptions::default();
         let mut world = World::from_options(&options).expect("world should construct");
         let shared = runtime_shared_heap(&world, &options);
@@ -873,7 +838,7 @@ mod tests {
         let shared_root = allocate_shared_bytes(shared.heap(), &[0xA1])
             .expect("shared allocation should succeed");
 
-        // watched host state: the shared root only lives through the event loop
+        // suspended host state: the shared root only lives through the event loop
         let continuation = start_worker_continuation(
             &mut worker,
             &shared,
@@ -883,13 +848,13 @@ mod tests {
         );
 
         worker
-            .watch_host_event(
+            .add_host_waiter(
                 HostEventKind::Lifecycle,
                 continuation,
                 engine::Value::SharedHeapReference(shared_root),
                 0,
             )
-            .expect("host event watch should register");
+            .expect("host waiter should register");
 
         let mut runtime = Runtime::new(
             Vec::new().into(),
@@ -913,7 +878,7 @@ mod tests {
         let outcome = runtime
             .tick(world_state)
             .expect("runtime tick should publish initial roots");
-        assert_eq!(outcome, TickResult::Worked);
+        assert_eq!(outcome, TickResult::Progress);
         assert!(
             runtime
                 .shared
@@ -924,14 +889,13 @@ mod tests {
 
         // events should requeue the touched worker even before it ticks
         let handled = runtime
-            .deliver_events(
+            .deliver_host_event(
                 world_state,
-                vec![RuntimeEvent::Host {
-                    event: HostEvent::Lifecycle(LifecycleEvent {
-                        source_kind: LifecycleSourceKind::Application,
-                        state: LifecycleState::Running,
-                    }),
-                }],
+                HostEvent::Lifecycle(LifecycleEvent {
+                    source_kind: LifecycleSourceKind::Application,
+                    state: LifecycleState::Running,
+                }),
+                true,
             )
             .expect("event delivery should succeed");
 
@@ -967,7 +931,7 @@ mod tests {
         let shared_root = allocate_shared_bytes(shared.heap(), &[0xB2])
             .expect("shared allocation should succeed");
 
-        // watched host state: the shared root only lives through the event loop
+        // suspended host state: the shared root only lives through the event loop
         let continuation = start_worker_continuation(
             &mut worker,
             &shared,
@@ -977,13 +941,13 @@ mod tests {
         );
 
         worker
-            .watch_host_event(
+            .add_host_waiter(
                 HostEventKind::Lifecycle,
                 continuation,
                 engine::Value::SharedHeapReference(shared_root),
                 0,
             )
-            .expect("host event watch should register");
+            .expect("host waiter should register");
 
         let mut runtime = Runtime::new(
             Vec::new().into(),
@@ -1015,7 +979,7 @@ mod tests {
             .tick(world_state)
             .expect("runtime tick should succeed");
 
-        assert_eq!(outcome, TickResult::Worked);
+        assert_eq!(outcome, TickResult::Progress);
         assert!(
             runtime
                 .shared

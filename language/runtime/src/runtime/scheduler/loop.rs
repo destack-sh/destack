@@ -1,66 +1,33 @@
-use std::collections::VecDeque;
-use std::sync::OnceLock;
-
 use destack_workspace::{SchedulerOptions, SchedulerPolicy};
-use parking_lot::Mutex;
-use rustc_hash::{FxHashMap, FxHashSet};
-use serde::{Deserialize, Serialize};
-use {destack_engine as engine, destack_heap as heap};
+use rustc_hash::FxHashMap;
+use std::collections::VecDeque;
 
-use super::{Microtask, MicrotaskId, Task, TaskId, Timer, TimerHandle, TimerQueue};
+use super::timer::TimerQueue;
+use super::{Microtask, MicrotaskId, Task, TaskId, Waiter, Wake, WakeKey};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::poller::{PollerEvent, PollerToken};
-use crate::host::{HostError, HostEvent, HostEventKind, ResourceId};
-use crate::runtime::engine::{ContinuationImage, Engine};
-use crate::runtime::heap::RootSink;
-use crate::runtime::{ExecutionContext, ExecutionContextId};
+use crate::host::poller::PollerEvent;
+use crate::host::{HostError, HostEvent};
 
-/// Watch payload that can be dispatched as one event loop task.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct EventLoopWatch {
-    /// Runnable continuation image to restore when dispatched.
-    pub runnable: ContinuationImage,
-    /// Resume value passed into the continuation.
-    pub resume_value: engine::Value,
-    /// Task priority used when queueing watched tasks.
-    pub priority: u8,
-}
-
-/// Event loop for task queues, microtasks, timers, and host events.
+/// Event loop for tasks, microtasks, timers, waiters, and wakes.
 #[derive(Debug, Default)]
 pub struct EventLoop {
+    /// Configured event loop options.
+    pub(super) options: SchedulerOptions,
     /// Pending macrotasks.
     pub(super) tasks: VecDeque<Task>,
     /// Pending microtasks that drain before macrotasks.
     pub(super) microtasks: VecDeque<Microtask>,
-    /// Pending poller events.
-    pub(super) poller_events: VecDeque<PollerEvent>,
-    /// Pending host events.
-    pub(super) host_events: VecDeque<HostEvent>,
-    /// Ready timers waiting for dispatch.
-    pub(super) ready_timers: Mutex<VecDeque<Timer>>,
+    /// Pending external wakes.
+    pub(super) wakes: VecDeque<Wake>,
     /// Timer queue for scheduled timer fires.
-    pub(super) timers: Mutex<TimerQueue>,
-    /// Timer handles canceled after scheduling and before dispatch.
-    pub(super) canceled_timers: Mutex<FxHashSet<TimerHandle>>,
-    /// Configured event loop options.
-    pub(super) options: SchedulerOptions,
-
-    /// Timer watch dispatch table keyed by timer handle.
-    pub(super) timer_watches: FxHashMap<ResourceId, EventLoopWatch>,
-    /// External event watch dispatch table keyed by poller token.
-    pub(super) poller_event_watches: FxHashMap<PollerToken, EventLoopWatch>,
-    /// Host event watch dispatch table keyed by host event kind.
-    pub(super) host_event_watches: FxHashMap<HostEventKind, EventLoopWatch>,
+    pub(super) timers: TimerQueue,
+    /// Suspended continuations keyed by their wake source.
+    pub(super) waiters: FxHashMap<WakeKey, Waiter>,
 
     /// Next task identifier to issue.
     pub(super) next_task_id: u64,
     /// Next microtask identifier to issue.
     pub(super) next_microtask_id: u64,
-    /// Number of host events dispatched since the last poller event.
-    pub(super) host_events_since_poller: u64,
-    /// Canonical execution context identifier for this event loop.
-    pub(super) execution_context_id: OnceLock<ExecutionContextId>,
 }
 
 impl EventLoop {
@@ -76,40 +43,6 @@ impl EventLoop {
     /// Borrow the configured scheduler options.
     pub fn options(&self) -> &SchedulerOptions {
         &self.options
-    }
-
-    /// Return the canonical execution context identifier for this event loop.
-    pub fn execution_context_id(&self) -> ExecutionContextId {
-        let Some(execution_context_id) = self.execution_context_id.get().copied() else {
-            panic!("event loop execution context was not initialized");
-        };
-
-        execution_context_id
-    }
-
-    /// Initialize and return the canonical execution context identifier for this event loop.
-    pub fn initialize_execution_context(
-        &self,
-        execution_context_id: ExecutionContextId,
-    ) -> ExecutionContextId {
-        *self
-            .execution_context_id
-            .get_or_init(|| execution_context_id)
-    }
-
-    /// Return one execution context bound to this event loop.
-    pub fn execution_context(&self, is_process_main: bool) -> ExecutionContext {
-        let execution_context_id = self.execution_context_id();
-
-        ExecutionContext {
-            id: execution_context_id,
-            is_process_main,
-        }
-    }
-
-    /// Borrow the timer queue.
-    pub fn timers(&self) -> &Mutex<TimerQueue> {
-        &self.timers
     }
 
     /// Enqueue a macrotask for execution.
@@ -128,16 +61,27 @@ impl EventLoop {
         self.microtasks.push_back(microtask);
     }
 
-    /// Enqueue external events.
-    pub fn enqueue_events(&mut self, events: Vec<PollerEvent>) {
-        let mut events = events;
-        self.sort_host_events(&mut events);
-        self.poller_events.extend(events);
+    /// Enqueue one wake.
+    pub fn enqueue_wake(&mut self, wake: Wake) {
+        self.wakes.push_back(wake);
     }
 
-    /// Enqueue host events.
-    pub fn enqueue_host_events(&mut self, events: Vec<HostEvent>) {
-        self.host_events.extend(events);
+    /// Enqueue poller wakes.
+    pub fn enqueue_poller_wakes(&mut self, events: Vec<PollerEvent>) {
+        let mut events = events;
+        self.sort_poller_wakes(&mut events);
+        self.wakes.extend(
+            events
+                .into_iter()
+                .map(super::ResourceWake::poller)
+                .map(Wake::Resource),
+        );
+    }
+
+    /// Enqueue host wakes.
+    pub fn enqueue_host_wakes(&mut self, events: Vec<HostEvent>) {
+        self.wakes
+            .extend(events.into_iter().map(super::HostWake::new).map(Wake::Host));
     }
 
     /// Allocate the next task identifier.
@@ -169,97 +113,17 @@ impl EventLoop {
         !self.microtasks.is_empty()
     }
 
-    /// Return whether this event loop currently retains any queued or watched work.
+    /// Return whether this event loop currently retains any queued or suspended work.
     pub(super) fn is_quiescent(&self) -> bool {
-        if !self.tasks.is_empty()
-            || !self.microtasks.is_empty()
-            || !self.poller_events.is_empty()
-            || !self.host_events.is_empty()
-            || !self.ready_timers.lock().is_empty()
-        {
+        if !self.tasks.is_empty() || !self.microtasks.is_empty() || !self.wakes.is_empty() {
             return false;
         }
 
-        let timers = self.timers.lock();
-        if timers.has_pending_timers() || !self.canceled_timers.lock().is_empty() {
+        if self.timers.has_pending_timers() {
             return false;
         }
-        drop(timers);
 
-        self.timer_watches.is_empty()
-            && self.poller_event_watches.is_empty()
-            && self.host_event_watches.is_empty()
-    }
-
-    /// Visit GC roots retained by queued and watched event-loop state.
-    pub(crate) fn visit_roots(
-        &mut self,
-        engine: &mut Engine,
-        roots: &mut RootSink<'_>,
-    ) -> RuntimeResult<()> {
-        // queued tasks
-        for task in &self.tasks {
-            engine.visit_continuation_roots(&task.runnable, roots)?;
-            visit_value_roots(&task.resume_value, roots)?;
-        }
-
-        // queued microtasks
-        for microtask in &self.microtasks {
-            engine.visit_continuation_roots(&microtask.continuation, roots)?;
-            visit_value_roots(&microtask.resume_value, roots)?;
-        }
-
-        // watched continuations
-        for watch in self.timer_watches.values() {
-            engine.visit_continuation_image_roots(&watch.runnable, roots)?;
-            visit_value_roots(&watch.resume_value, roots)?;
-        }
-        for watch in self.poller_event_watches.values() {
-            engine.visit_continuation_image_roots(&watch.runnable, roots)?;
-            visit_value_roots(&watch.resume_value, roots)?;
-        }
-        for watch in self.host_event_watches.values() {
-            engine.visit_continuation_image_roots(&watch.runnable, roots)?;
-            visit_value_roots(&watch.resume_value, roots)?;
-        }
-
-        Ok(())
-    }
-
-    /// Visit mutable local root slots retained by queued scheduler state.
-    pub(crate) fn visit_root_slots(
-        &mut self,
-        engine: &mut Engine,
-        visit: &mut dyn FnMut(heap::RootSlot<'_>) -> heap::HeapResult<()>,
-    ) -> RuntimeResult<()> {
-        // queued work
-        for task in &mut self.tasks {
-            engine.visit_continuation_root_slots(&mut task.runnable, visit)?;
-            visit_value_root_slot(&mut task.resume_value, visit)?;
-        }
-
-        for microtask in &mut self.microtasks {
-            engine.visit_continuation_root_slots(&mut microtask.continuation, visit)?;
-            visit_value_root_slot(&mut microtask.resume_value, visit)?;
-        }
-
-        // watched work
-        for watch in self.timer_watches.values_mut() {
-            engine.visit_continuation_image_root_slots(&mut watch.runnable, visit)?;
-            visit_value_root_slot(&mut watch.resume_value, visit)?;
-        }
-
-        for watch in self.poller_event_watches.values_mut() {
-            engine.visit_continuation_image_root_slots(&mut watch.runnable, visit)?;
-            visit_value_root_slot(&mut watch.resume_value, visit)?;
-        }
-
-        for watch in self.host_event_watches.values_mut() {
-            engine.visit_continuation_image_root_slots(&mut watch.runnable, visit)?;
-            visit_value_root_slot(&mut watch.resume_value, visit)?;
-        }
-
-        Ok(())
+        self.waiters.is_empty()
     }
 
     /// Validate one scheduler options payload.
@@ -294,7 +158,6 @@ impl EventLoop {
         // reject invalid budget and timing values
         if matches!(options.tick_budget_ns, Some(0))
             || matches!(options.microtask_budget, Some(0))
-            || matches!(options.host_event_budget, Some(0))
             || matches!(options.max_microtask_depth, Some(0))
             || matches!(options.timer_resolution_ns, Some(0))
             || matches!(options.max_timer_coalesce_ns, Some(0))
@@ -308,42 +171,4 @@ impl EventLoop {
 
         Ok(())
     }
-}
-
-/// Visit heap roots embedded in one resume value.
-fn visit_value_roots(value: &engine::Value, roots: &mut RootSink<'_>) -> RuntimeResult<()> {
-    // direct heap roots
-    match value {
-        engine::Value::HeapReference(reference) => {
-            roots.push_heap(*reference);
-        }
-        engine::Value::SharedHeapReference(reference) => {
-            roots.push_shared_heap(*reference);
-        }
-
-        // non root payloads
-        engine::Value::Void
-        | engine::Value::Bool(_)
-        | engine::Value::Int { .. }
-        | engine::Value::UInt { .. }
-        | engine::Value::Float32 { .. }
-        | engine::Value::Float64 { .. }
-        | engine::Value::Char(_)
-        | engine::Value::RawPointer(_)
-        | engine::Value::SharedRawPointer(_) => {}
-    }
-
-    Ok(())
-}
-
-/// Visit the mutable local root slot in one value.
-fn visit_value_root_slot(
-    value: &mut engine::Value,
-    visit: &mut dyn FnMut(heap::RootSlot<'_>) -> heap::HeapResult<()>,
-) -> RuntimeResult<()> {
-    let engine::Value::HeapReference(reference) = value else {
-        return Ok(());
-    };
-
-    visit(heap::RootSlot::Reference(reference)).map_err(Box::<RuntimeError>::from)
 }

@@ -3,9 +3,8 @@ use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::poller::HostPoller;
+use crate::host::poller::{HostPoller, create_host_poller_for_runtime};
 use crate::host::{Host, HostSession};
-use crate::runtime::runtime::poller_for_backend;
 use crate::world::RuntimeId;
 use destack_workspace::{PollerBackend, RuntimeOptions};
 
@@ -31,6 +30,6 @@ impl RuntimeHostOptions {
 
     /// Build one poller for this runtime host settings snapshot.
     pub(crate) fn poller(&self) -> RuntimeResult<Box<dyn HostPoller>> {
-        poller_for_backend(self.poller_backend)
+        create_host_poller_for_runtime(self.poller_backend)
     }
 }

@@ -7,7 +7,7 @@ impl Runtime {
     pub(crate) fn shared_gc_in_flight(&self) -> bool {
         self.shared.is_concurrent()
             && (self.shared.heap().gc_phase() != SharedGcPhase::Idle
-                || self.shared.collector_work().is_busy()
+                || self.shared.collection().is_busy()
                 || self.shared_gc_pending_cleanup())
     }
 
@@ -121,7 +121,7 @@ impl Runtime {
 
     /// Drive shared collection through one collector thread.
     fn advance_shared_gc_concurrent(&mut self) -> RuntimeResult<bool> {
-        if let Some(error) = self.shared.collector_work().take_failure() {
+        if let Some(error) = self.shared.collection().take_failure() {
             return Err(error);
         }
 
