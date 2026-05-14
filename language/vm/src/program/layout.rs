@@ -1424,7 +1424,7 @@ type View {
     fn test_build_layout_traces_heap_slice_descriptor() {
         let mir_text = r#"
 type View {
-    items: slice<int32>;
+    items: slice<int32, managed>;
 }"#;
         let (tree, strings) = parse_tree_with_layout(mir_text, DataLayout::default());
         let ty = lookup_type_alias(&tree, &strings, "View");
