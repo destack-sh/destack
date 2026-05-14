@@ -305,7 +305,7 @@ fn overload_definition_span_for_call_site(
     let dir_tree = ctx.dir().view();
 
     // require a call/new parent where this expression is the callee
-    let parent = dir_tree.get_parent(expression_id)?;
+    let parent = dir_tree.get_parent_for(expression_id)?;
     if parent.ty != NodeType::Expression {
         return None;
     }

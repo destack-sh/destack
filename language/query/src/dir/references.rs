@@ -209,6 +209,7 @@ fn collect_expression_reference_spans(
         let dir_tree = dir.view();
         dir_tree
             .iter_nodes_of_type::<Expression>()
+            .into_iter()
             .filter_map(|(expression_id, expression)| {
                 let resolved_target_symbol = expression_reference_target(dir, expression_id);
 
@@ -434,7 +435,7 @@ fn expression_is_member_receiver_expression(
     dir_tree: dir::View<'_>,
     expression_id: dir::LocalNodeId<Expression>,
 ) -> bool {
-    let Some(parent) = dir_tree.get_parent(expression_id) else {
+    let Some(parent) = dir_tree.get_parent_for(expression_id) else {
         return false;
     };
     if parent.ty != NodeType::Expression {
@@ -460,7 +461,7 @@ fn resolve_expression_reference_span(
 ) -> Option<Span> {
     let span = get_node_tree_main_span(parsed, dir.view(), expression_id.into());
 
-    let Some(parent) = dir_tree.get_parent(expression_id) else {
+    let Some(parent) = dir_tree.get_parent_for(expression_id) else {
         return Some(span);
     };
     if parent.ty != NodeType::Expression {
@@ -761,6 +762,7 @@ fn collect_dependency_reference_spans(
         let dir_tree = dir.view();
         dir_tree
             .iter_nodes_of_type::<DependencyItem>()
+            .into_iter()
             .filter_map(|(item_id, _)| {
                 let target = dependency_symbol_target(dir, item_id)?;
                 symbol_matches_reference_target(repository, dir.revision(), target, canonical_id)
@@ -857,6 +859,7 @@ fn namespace_import_aliases_for_module(
     let dir_tree = dir.view();
     dir_tree
         .iter_nodes_of_type::<DependencyItem>()
+        .into_iter()
         .filter_map(|(item_id, item)| {
             let DependencyItem::Item { binding, space, .. } = item else {
                 return None;

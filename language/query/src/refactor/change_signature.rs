@@ -216,7 +216,7 @@ fn constructor_owner_symbol(
     }
 
     // walk to the parent declaration for the owning class
-    let parent = dir_tree.get_parent(member_id)?;
+    let parent = dir_tree.get_parent_for(member_id)?;
     if parent.ty != dir::NodeType::Declaration {
         return None;
     }
