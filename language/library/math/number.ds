@@ -1,6 +1,9 @@
 /// Number constants and parsing functions.
 @languageItem("math.Number")
 export class Number {
+    /// Difference between 1 and the next representable float64 value.
+    static readonly EPSILON: float64;
+
     /// The largest finite float64 value.
     static readonly MAX_VALUE: float64;
 

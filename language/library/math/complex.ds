@@ -1,4 +1,5 @@
-import { Add, Divide, Equal, Multiply, Negate, Subtract } from "destack:ops";
+import { todo } from "destack:error";
+import { Add, Divide, Equal, Multiply, Negate, Power, Subtract } from "destack:ops";
 import { atan2, cos, sin, sqrt } from "./float.ds";
 
 /// Complex number with floating-point components.
@@ -11,11 +12,18 @@ export struct Complex<T: float> {
     imaginary: T;
 }
 
+/// Single-precision complex number.
+export type Complexf = Complex<float32>;
+
+/// Double-precision complex number.
+export type Complexd = Complex<float64>;
+
 extension<T: float> of Complex<T> implements
     Add<Complex<T>>,
     Subtract<Complex<T>>,
     Multiply<Complex<T>>,
     Divide<Complex<T>>,
+    Power<Complex<T>>,
     Negate,
     Equal<Complex<T>>
 {
@@ -25,6 +33,21 @@ extension<T: float> of Complex<T> implements
     /// Create a complex value from cartesian components.
     static new(real: T, imaginary: T): Complex<T> {
         Complex { real, imaginary }
+    }
+
+    /// Return zero.
+    static zero(): Complex<T> {
+        Complex { real: 0, imaginary: 0 }
+    }
+
+    /// Return one.
+    static one(): Complex<T> {
+        Complex { real: 1, imaginary: 0 }
+    }
+
+    /// Return the imaginary unit.
+    static i(): Complex<T> {
+        Complex { real: 0, imaginary: 1 }
     }
 
     /// Create a complex value from polar components.
@@ -53,6 +76,76 @@ extension<T: float> of Complex<T> implements
     /// Return the complex conjugate.
     conjugate(): Complex<T> {
         Complex { real: this.real, imaginary: -this.imaginary }
+    }
+
+    /// Return the multiplicative inverse.
+    inverse(): Complex<T> {
+        todo("Complex.inverse")
+    }
+
+    /// Return this value divided by its magnitude.
+    normalized(): Complex<T> {
+        todo("Complex.normalized")
+    }
+
+    /// Return the complex exponential.
+    exp(): Complex<T> {
+        todo("Complex.exp")
+    }
+
+    /// Return the natural logarithm.
+    log(): Complex<T> {
+        todo("Complex.log")
+    }
+
+    /// Return the square root.
+    sqrt(): Complex<T> {
+        todo("Complex.sqrt")
+    }
+
+    /// Raise this value to `exponent`.
+    power(exponent: Complex<T>): Complex<T> {
+        todo("Complex.power")
+    }
+
+    /// Return the complex sine.
+    sin(): Complex<T> {
+        todo("Complex.sin")
+    }
+
+    /// Return the complex cosine.
+    cos(): Complex<T> {
+        todo("Complex.cos")
+    }
+
+    /// Return the complex tangent.
+    tan(): Complex<T> {
+        todo("Complex.tan")
+    }
+
+    /// Return the hyperbolic sine.
+    sinh(): Complex<T> {
+        todo("Complex.sinh")
+    }
+
+    /// Return the hyperbolic cosine.
+    cosh(): Complex<T> {
+        todo("Complex.cosh")
+    }
+
+    /// Return the hyperbolic tangent.
+    tanh(): Complex<T> {
+        todo("Complex.tanh")
+    }
+
+    /// Return whether both components are finite.
+    isFinite(): boolean {
+        todo("Complex.isFinite")
+    }
+
+    /// Return whether either component is NaN.
+    isNaN(): boolean {
+        todo("Complex.isNaN")
     }
 
     /// Add `other`.

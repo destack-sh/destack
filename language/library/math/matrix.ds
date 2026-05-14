@@ -1,5 +1,5 @@
 import { todo } from "destack:error";
-import { Multiply } from "destack:ops";
+import { Add, Multiply, Subtract } from "destack:ops";
 import { Vector2, Vector3, Vector4 } from "./linear.ds";
 
 /// Two-by-two matrix in row-major field order.
@@ -71,13 +71,27 @@ export type Matrix3i = Matrix3<int32>;
 /// Four-by-four signed integer matrix.
 export type Matrix4i = Matrix4<int32>;
 
-extension<T: int | float> of Matrix2<T> implements Multiply<Matrix2<T>> {
+extension<T: int | float> of Matrix2<T> implements
+    Add<Matrix2<T>>,
+    Subtract<Matrix2<T>>,
+    Multiply<Matrix2<T>>
+{
     /// The arithmetic result type.
     type Output = Matrix2<T>;
 
     /// Return the identity matrix.
     static identity(): Matrix2<T> {
         todo("Matrix2.identity")
+    }
+
+    /// Return the zero matrix.
+    static zero(): Matrix2<T> {
+        todo("Matrix2.zero")
+    }
+
+    /// Create a matrix from rows.
+    static rows(x: Vector2<T>, y: Vector2<T>): Matrix2<T> {
+        Matrix2 { m00: x.x, m01: x.y, m10: y.x, m11: y.y }
     }
 
     /// Return the determinant.
@@ -88,6 +102,26 @@ extension<T: int | float> of Matrix2<T> implements Multiply<Matrix2<T>> {
     /// Return the transposed matrix.
     transpose(): Matrix2<T> {
         Matrix2 { m00: this.m00, m01: this.m10, m10: this.m01, m11: this.m11 }
+    }
+
+    /// Add `other`.
+    add(other: Matrix2<T>): this.Output {
+        Matrix2 {
+            m00: this.m00 + other.m00,
+            m01: this.m01 + other.m01,
+            m10: this.m10 + other.m10,
+            m11: this.m11 + other.m11,
+        }
+    }
+
+    /// Subtract `other`.
+    subtract(other: Matrix2<T>): this.Output {
+        Matrix2 {
+            m00: this.m00 - other.m00,
+            m01: this.m01 - other.m01,
+            m10: this.m10 - other.m10,
+            m11: this.m11 - other.m11,
+        }
     }
 
     /// Multiply by `other`.
@@ -109,15 +143,69 @@ extension<T: int | float> of Matrix2<T> implements Multiply<Matrix2<T>> {
     }
 }
 
-extension<T: int | float> of Matrix3<T> {
+extension<T: float> of Matrix2<T> {
+    /// Return the inverse matrix.
+    inverse(): Matrix2<T> {
+        todo("Matrix2.inverse")
+    }
+}
+
+extension<T: int | float> of Matrix3<T> implements
+    Add<Matrix3<T>>,
+    Subtract<Matrix3<T>>,
+    Multiply<Matrix3<T>>
+{
+    /// The arithmetic result type.
+    type Output = Matrix3<T>;
+
     /// Return the identity matrix.
     static identity(): Matrix3<T> {
         todo("Matrix3.identity")
     }
 
+    /// Return the zero matrix.
+    static zero(): Matrix3<T> {
+        todo("Matrix3.zero")
+    }
+
+    /// Create a matrix from rows.
+    static rows(x: Vector3<T>, y: Vector3<T>, z: Vector3<T>): Matrix3<T> {
+        Matrix3 { x, y, z }
+    }
+
+    /// Return a two-dimensional scale matrix.
+    static scale(scale: Vector2<T>): Matrix3<T> {
+        todo("Matrix3.scale")
+    }
+
+    /// Return a two-dimensional translation matrix.
+    static translation(offset: Vector2<T>): Matrix3<T> {
+        todo("Matrix3.translation")
+    }
+
+    /// Return the determinant.
+    determinant(): T {
+        todo("Matrix3.determinant")
+    }
+
     /// Return the transposed matrix.
     transpose(): Matrix3<T> {
         todo("Matrix3.transpose")
+    }
+
+    /// Add `other`.
+    add(other: Matrix3<T>): this.Output {
+        todo("Matrix3.add")
+    }
+
+    /// Subtract `other`.
+    subtract(other: Matrix3<T>): this.Output {
+        todo("Matrix3.subtract")
+    }
+
+    /// Multiply by `other`.
+    multiply(other: Matrix3<T>): this.Output {
+        todo("Matrix3.multiply")
     }
 
     /// Transform `vector`.
@@ -126,10 +214,64 @@ extension<T: int | float> of Matrix3<T> {
     }
 }
 
-extension<T: int | float> of Matrix4<T> {
+extension<T: float> of Matrix3<T> {
+    /// Return the inverse matrix.
+    inverse(): Matrix3<T> {
+        todo("Matrix3.inverse")
+    }
+}
+
+extension<T: int | float> of Matrix4<T> implements
+    Add<Matrix4<T>>,
+    Subtract<Matrix4<T>>,
+    Multiply<Matrix4<T>>
+{
+    /// The arithmetic result type.
+    type Output = Matrix4<T>;
+
     /// Return the identity matrix.
     static identity(): Matrix4<T> {
         todo("Matrix4.identity")
+    }
+
+    /// Return the zero matrix.
+    static zero(): Matrix4<T> {
+        todo("Matrix4.zero")
+    }
+
+    /// Create a matrix from rows.
+    static rows(x: Vector4<T>, y: Vector4<T>, z: Vector4<T>, w: Vector4<T>): Matrix4<T> {
+        Matrix4 { x, y, z, w }
+    }
+
+    /// Return a three-dimensional scale matrix.
+    static scale(scale: Vector3<T>): Matrix4<T> {
+        todo("Matrix4.scale")
+    }
+
+    /// Return a three-dimensional translation matrix.
+    static translation(offset: Vector3<T>): Matrix4<T> {
+        todo("Matrix4.translation")
+    }
+
+    /// Return a perspective projection matrix.
+    static perspective(fovY: T, aspect: T, near: T, far: T): Matrix4<T> {
+        todo("Matrix4.perspective")
+    }
+
+    /// Return an orthographic projection matrix.
+    static orthographic(left: T, right: T, bottom: T, top: T, near: T, far: T): Matrix4<T> {
+        todo("Matrix4.orthographic")
+    }
+
+    /// Return a view matrix looking from `eye` toward `target`.
+    static lookAt(eye: Vector3<T>, target: Vector3<T>, up: Vector3<T>): Matrix4<T> {
+        todo("Matrix4.lookAt")
+    }
+
+    /// Return the determinant.
+    determinant(): T {
+        todo("Matrix4.determinant")
     }
 
     /// Return the transposed matrix.
@@ -137,8 +279,40 @@ extension<T: int | float> of Matrix4<T> {
         todo("Matrix4.transpose")
     }
 
+    /// Add `other`.
+    add(other: Matrix4<T>): this.Output {
+        todo("Matrix4.add")
+    }
+
+    /// Subtract `other`.
+    subtract(other: Matrix4<T>): this.Output {
+        todo("Matrix4.subtract")
+    }
+
+    /// Multiply by `other`.
+    multiply(other: Matrix4<T>): this.Output {
+        todo("Matrix4.multiply")
+    }
+
     /// Transform `vector`.
     transform(vector: Vector4<T>): Vector4<T> {
         todo("Matrix4.transform")
+    }
+
+    /// Transform `point` with affine coordinates.
+    transformPoint(point: Vector3<T>): Vector3<T> {
+        todo("Matrix4.transformPoint")
+    }
+
+    /// Transform `direction` without translation.
+    transformDirection(direction: Vector3<T>): Vector3<T> {
+        todo("Matrix4.transformDirection")
+    }
+}
+
+extension<T: float> of Matrix4<T> {
+    /// Return the inverse matrix.
+    inverse(): Matrix4<T> {
+        todo("Matrix4.inverse")
     }
 }

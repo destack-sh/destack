@@ -1,6 +1,12 @@
+import { Slice } from "destack:collections";
+import { todo } from "destack:error";
+
 /// Fixed-width vector type.
 @languageItem("math.Vector")
 export newtype Vector<T, comptime N: int> = intrinsic;
+
+/// Vector mask type.
+export type Mask<comptime N: int> = Vector<boolean, N>;
 
 /// Return the number of lanes in `Vector<T, N>`.
 export type LaneCount<V> =
@@ -35,7 +41,7 @@ export declare function insert<T, comptime N: int>(
 /// Rearranges elements from two input vectors according to a mask.
 /// Each element in the result comes from either `a` or `b` as specified by the mask.
 @intrinsic("math.vector.shuffle")
-export declare function shuffle<T, comptime N: int, comptime M: int, comptime Mask: [uint32; M]>(
+export declare function shuffle<T, comptime N: int, comptime M: int, comptime Pattern: [uint32; M]>(
     a: Vector<T, N>,
     b: Vector<T, N>,
 ): Vector<T, M>;
@@ -53,6 +59,61 @@ export declare function select<T, comptime N: int>(
 /// Convert vector lanes to `U`.
 @intrinsic("math.vector.convert")
 export declare function convert<U, T, comptime N: int>(value: Vector<T, N>): Vector<U, N>;
+
+/// Load `N` contiguous values from `source`.
+export function load<T, comptime N: int>(source: &readonly Slice<T>): Vector<T, N> {
+    todo("vector.load")
+}
+
+/// Store `value` into `destination`.
+export function store<T, comptime N: int>(
+    destination: &exclusive Slice<T>,
+    value: Vector<T, N>,
+): void {
+    todo("vector.store")
+}
+
+/// Return a lane mask for equality.
+@intrinsic("math.vector.equal")
+export declare function equal<T, comptime N: int>(
+    left: Vector<T, N>,
+    right: Vector<T, N>,
+): Mask<N>;
+
+/// Return a lane mask for inequality.
+@intrinsic("math.vector.notEqual")
+export declare function notEqual<T, comptime N: int>(
+    left: Vector<T, N>,
+    right: Vector<T, N>,
+): Mask<N>;
+
+/// Return a lane mask for less-than comparison.
+@intrinsic("math.vector.less")
+export declare function less<T, comptime N: int>(
+    left: Vector<T, N>,
+    right: Vector<T, N>,
+): Mask<N>;
+
+/// Return a lane mask for less-than-or-equal comparison.
+@intrinsic("math.vector.lessEqual")
+export declare function lessEqual<T, comptime N: int>(
+    left: Vector<T, N>,
+    right: Vector<T, N>,
+): Mask<N>;
+
+/// Return a lane mask for greater-than comparison.
+@intrinsic("math.vector.greater")
+export declare function greater<T, comptime N: int>(
+    left: Vector<T, N>,
+    right: Vector<T, N>,
+): Mask<N>;
+
+/// Return a lane mask for greater-than-or-equal comparison.
+@intrinsic("math.vector.greaterEqual")
+export declare function greaterEqual<T, comptime N: int>(
+    left: Vector<T, N>,
+    right: Vector<T, N>,
+): Mask<N>;
 
 /// Horizontal reduction: sum all lanes.
 @intrinsic("math.vector.reduce.add")

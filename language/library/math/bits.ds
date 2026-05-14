@@ -1,47 +1,95 @@
+import { todo } from "destack:error";
+import { sizeOf } from "destack:reflect";
+
 /// Count leading zeros in an integer.
-///
-/// Returns the number of leading zero bits in the binary representation.
-/// For a zero value, returns the bit width of the type.
 @intrinsic("math.bits.leadingZeroCount")
-export declare function clz<T: int>(value: T): uint32;
+export declare function leadingZeroCount<T: int>(value: T): uint32;
+
+/// Count leading zeros in an integer.
+export function clz<T: int>(value: T): uint32 {
+    leadingZeroCount(value)
+}
 
 /// Count trailing zeros in an integer.
-///
-/// Returns the number of trailing zero bits in the binary representation.
-/// For a zero value, returns the bit width of the type.
 @intrinsic("math.bits.trailingZeroCount")
-export declare function ctz<T: int>(value: T): uint32;
+export declare function trailingZeroCount<T: int>(value: T): uint32;
 
-/// Population count (count of set bits).
-///
-/// Returns the number of bits set to 1 in the binary representation.
+/// Count trailing zeros in an integer.
+export function ctz<T: int>(value: T): uint32 {
+    trailingZeroCount(value)
+}
+
+/// Count leading ones in an integer.
+export function leadingOneCount<T: int>(value: T): uint32 {
+    leadingZeroCount(~value)
+}
+
+/// Count trailing ones in an integer.
+export function trailingOneCount<T: int>(value: T): uint32 {
+    trailingZeroCount(~value)
+}
+
+/// Count set bits in an integer.
 @intrinsic("math.bits.populationCount")
-export declare function popcnt<T: int>(value: T): uint32;
+export declare function oneCount<T: int>(value: T): uint32;
 
-/// Byte swap (endianness conversion).
-///
-/// Reverses the byte order of an integer.
-/// Converts between big-endian and little-endian representations.
+/// Count set bits in an integer.
+export function popcnt<T: int>(value: T): uint32 {
+    oneCount(value)
+}
+
+/// Count unset bits in an integer.
+export function zeroCount<T: int>(value: T): uint32 {
+    ((sizeOf<T>() * 8) as uint32) - oneCount(value)
+}
+
+/// Reverse byte order.
 @intrinsic("math.bits.byteSwap")
 export declare function byteSwap<T: int>(value: T): T;
 
+/// Return `value` with bytes interpreted as big-endian.
+export function fromBigEndian<T: int>(value: T): T {
+    todo("fromBigEndian")
+}
+
+/// Return `value` with bytes interpreted as little-endian.
+export function fromLittleEndian<T: int>(value: T): T {
+    todo("fromLittleEndian")
+}
+
+/// Return `value` encoded as big-endian.
+export function toBigEndian<T: int>(value: T): T {
+    todo("toBigEndian")
+}
+
+/// Return `value` encoded as little-endian.
+export function toLittleEndian<T: int>(value: T): T {
+    todo("toLittleEndian")
+}
+
 /// Reverse all bits.
-///
-/// Reverses the bit order within the integer.
-/// The MSB becomes the LSB and vice versa.
 @intrinsic("math.bits.bitReverse")
 export declare function bitReverse<T: int>(value: T): T;
 
+/// Reverse all bits.
+export function reverseBits<T: int>(value: T): T {
+    bitReverse(value)
+}
+
 /// Rotate bits left.
-///
-/// Rotates the bits of `value` left by `amount` positions.
-/// Bits that overflow on the left wrap around to the right.
 @intrinsic("math.bits.rotateLeft")
 export declare function rotateLeft<T: int>(value: T, amount: uint32): T;
 
 /// Rotate bits right.
-///
-/// Rotates the bits of `value` right by `amount` positions.
-/// Bits that overflow on the right wrap around to the left.
 @intrinsic("math.bits.rotateRight")
 export declare function rotateRight<T: int>(value: T, amount: uint32): T;
+
+/// Return whether `value` is a power of two.
+export function isPowerOfTwo<T: int>(value: T): boolean {
+    value > 0 && (value & (value - 1)) == 0
+}
+
+/// Return the next power of two greater than or equal to `value`.
+export function nextPowerOfTwo<T: int>(value: T): T | undefined {
+    todo("nextPowerOfTwo")
+}

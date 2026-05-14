@@ -1,4 +1,5 @@
-import { Add, Negate, Subtract } from "destack:ops";
+import { todo } from "destack:error";
+import { Add, Divide, Multiply, Negate, Subtract } from "destack:ops";
 import { sqrt } from "./float.ds";
 
 /// Two-dimensional vector.
@@ -64,13 +65,29 @@ export type Vector3i = Vector3<int32>;
 /// Four-dimensional signed integer vector.
 export type Vector4i = Vector4<int32>;
 
-extension<T: int | float> of Vector2<T> implements Add<Vector2<T>>, Subtract<Vector2<T>>, Negate {
+extension<T: int | float> of Vector2<T> implements
+    Add<Vector2<T>>,
+    Subtract<Vector2<T>>,
+    Multiply<T>,
+    Divide<T>,
+    Negate
+{
     /// The arithmetic result type.
     type Output = Vector2<T>;
 
     /// Create a vector from components.
     static new(x: T, y: T): Vector2<T> {
         Vector2 { x, y }
+    }
+
+    /// Return the zero vector.
+    static zero(): Vector2<T> {
+        Vector2 { x: 0, y: 0 }
+    }
+
+    /// Return a vector with every component set to `value`.
+    static splat(value: T): Vector2<T> {
+        Vector2 { x: value, y: value }
     }
 
     /// Return the dot product with `other`.
@@ -83,6 +100,31 @@ extension<T: int | float> of Vector2<T> implements Add<Vector2<T>>, Subtract<Vec
         this.dot(this)
     }
 
+    /// Return the squared distance to `other`.
+    distanceSquared(other: Vector2<T>): T {
+        this.subtract(other).lengthSquared()
+    }
+
+    /// Return the componentwise minimum with `other`.
+    min(other: Vector2<T>): Vector2<T> {
+        todo("Vector2.min")
+    }
+
+    /// Return the componentwise maximum with `other`.
+    max(other: Vector2<T>): Vector2<T> {
+        todo("Vector2.max")
+    }
+
+    /// Clamp each component between `minimum` and `maximum`.
+    clamp(minimum: Vector2<T>, maximum: Vector2<T>): Vector2<T> {
+        todo("Vector2.clamp")
+    }
+
+    /// Return the componentwise absolute value.
+    abs(): Vector2<T> {
+        todo("Vector2.abs")
+    }
+
     /// Add `other`.
     add(other: Vector2<T>): this.Output {
         Vector2 { x: this.x + other.x, y: this.y + other.y }
@@ -91,6 +133,16 @@ extension<T: int | float> of Vector2<T> implements Add<Vector2<T>>, Subtract<Vec
     /// Subtract `other`.
     subtract(other: Vector2<T>): this.Output {
         Vector2 { x: this.x - other.x, y: this.y - other.y }
+    }
+
+    /// Multiply by `scalar`.
+    multiply(scalar: T): this.Output {
+        Vector2 { x: this.x * scalar, y: this.y * scalar }
+    }
+
+    /// Divide by `scalar`.
+    divide(scalar: T): this.Output {
+        Vector2 { x: this.x / scalar, y: this.y / scalar }
     }
 
     /// Negate this vector.
@@ -105,21 +157,92 @@ extension<T: float> of Vector2<T> {
         sqrt(this.lengthSquared())
     }
 
+    /// Return the Euclidean distance to `other`.
+    distance(other: Vector2<T>): T {
+        sqrt(this.distanceSquared(other))
+    }
+
+    /// Return the angle to `other` in radians.
+    angleTo(other: Vector2<T>): T {
+        todo("Vector2.angleTo")
+    }
+
+    /// Return the signed angle to `other` in radians.
+    signedAngleTo(other: Vector2<T>): T {
+        todo("Vector2.signedAngleTo")
+    }
+
     /// Return the normalized vector.
     normalized(): Vector2<T> {
         let length = this.length();
 
         Vector2 { x: this.x / length, y: this.y / length }
     }
+
+    /// Return a normalized vector, or zero when the length is zero.
+    normalizedOrZero(): Vector2<T> {
+        todo("Vector2.normalizedOrZero")
+    }
+
+    /// Return this vector limited to `length`.
+    limitLength(length: T): Vector2<T> {
+        todo("Vector2.limitLength")
+    }
+
+    /// Linearly interpolate toward `other`.
+    lerp(other: Vector2<T>, weight: T): Vector2<T> {
+        todo("Vector2.lerp")
+    }
+
+    /// Spherically interpolate toward `other`.
+    slerp(other: Vector2<T>, weight: T): Vector2<T> {
+        todo("Vector2.slerp")
+    }
+
+    /// Return this vector projected onto `normal`.
+    project(normal: Vector2<T>): Vector2<T> {
+        todo("Vector2.project")
+    }
+
+    /// Return this vector reflected around `normal`.
+    reflect(normal: Vector2<T>): Vector2<T> {
+        todo("Vector2.reflect")
+    }
+
+    /// Return whether this vector is approximately unit length.
+    isNormalized(): boolean {
+        todo("Vector2.isNormalized")
+    }
+
+    /// Return whether all components are finite.
+    isFinite(): boolean {
+        todo("Vector2.isFinite")
+    }
 }
 
-extension<T: int | float> of Vector3<T> implements Add<Vector3<T>>, Subtract<Vector3<T>>, Negate {
+extension<T: int | float> of Vector3<T> implements
+    Add<Vector3<T>>,
+    Subtract<Vector3<T>>,
+    Multiply<T>,
+    Divide<T>,
+    Negate
+{
     /// The arithmetic result type.
     type Output = Vector3<T>;
 
     /// Create a vector from components.
     static new(x: T, y: T, z: T): Vector3<T> {
         Vector3 { x, y, z }
+    }
+
+    /// Return the zero vector.
+    static zero(): Vector3<T> {
+        Vector3 { x: 0, y: 0, z: 0 }
+    }
+
+    /// Return a vector with every component set to `value`.
+    static splat(value: T): Vector3<T> {
+        Vector3 { x: value, y: value, z: value }
     }
 
     /// Return the dot product with `other`.
@@ -141,6 +264,31 @@ extension<T: int | float> of Vector3<T> implements Add<Vector3<T>>, Subtract<Vec
         this.dot(this)
     }
 
+    /// Return the squared distance to `other`.
+    distanceSquared(other: Vector3<T>): T {
+        this.subtract(other).lengthSquared()
+    }
+
+    /// Return the componentwise minimum with `other`.
+    min(other: Vector3<T>): Vector3<T> {
+        todo("Vector3.min")
+    }
+
+    /// Return the componentwise maximum with `other`.
+    max(other: Vector3<T>): Vector3<T> {
+        todo("Vector3.max")
+    }
+
+    /// Clamp each component between `minimum` and `maximum`.
+    clamp(minimum: Vector3<T>, maximum: Vector3<T>): Vector3<T> {
+        todo("Vector3.clamp")
+    }
+
+    /// Return the componentwise absolute value.
+    abs(): Vector3<T> {
+        todo("Vector3.abs")
+    }
+
     /// Add `other`.
     add(other: Vector3<T>): this.Output {
         Vector3 { x: this.x + other.x, y: this.y + other.y, z: this.z + other.z }
@@ -149,6 +297,16 @@ extension<T: int | float> of Vector3<T> implements Add<Vector3<T>>, Subtract<Vec
     /// Subtract `other`.
     subtract(other: Vector3<T>): this.Output {
         Vector3 { x: this.x - other.x, y: this.y - other.y, z: this.z - other.z }
+    }
+
+    /// Multiply by `scalar`.
+    multiply(scalar: T): this.Output {
+        Vector3 { x: this.x * scalar, y: this.y * scalar, z: this.z * scalar }
+    }
+
+    /// Divide by `scalar`.
+    divide(scalar: T): this.Output {
+        Vector3 { x: this.x / scalar, y: this.y / scalar, z: this.z / scalar }
     }
 
     /// Negate this vector.
@@ -163,21 +321,97 @@ extension<T: float> of Vector3<T> {
         sqrt(this.lengthSquared())
     }
 
+    /// Return the Euclidean distance to `other`.
+    distance(other: Vector3<T>): T {
+        sqrt(this.distanceSquared(other))
+    }
+
+    /// Return the angle to `other` in radians.
+    angleTo(other: Vector3<T>): T {
+        todo("Vector3.angleTo")
+    }
+
+    /// Return the signed angle to `other` around `axis` in radians.
+    signedAngleTo(other: Vector3<T>, axis: Vector3<T>): T {
+        todo("Vector3.signedAngleTo")
+    }
+
     /// Return the normalized vector.
     normalized(): Vector3<T> {
         let length = this.length();
 
         Vector3 { x: this.x / length, y: this.y / length, z: this.z / length }
     }
+
+    /// Return a normalized vector, or zero when the length is zero.
+    normalizedOrZero(): Vector3<T> {
+        todo("Vector3.normalizedOrZero")
+    }
+
+    /// Return this vector limited to `length`.
+    limitLength(length: T): Vector3<T> {
+        todo("Vector3.limitLength")
+    }
+
+    /// Linearly interpolate toward `other`.
+    lerp(other: Vector3<T>, weight: T): Vector3<T> {
+        todo("Vector3.lerp")
+    }
+
+    /// Spherically interpolate toward `other`.
+    slerp(other: Vector3<T>, weight: T): Vector3<T> {
+        todo("Vector3.slerp")
+    }
+
+    /// Return this vector projected onto `normal`.
+    project(normal: Vector3<T>): Vector3<T> {
+        todo("Vector3.project")
+    }
+
+    /// Return this vector projected onto a plane.
+    projectOnPlane(normal: Vector3<T>): Vector3<T> {
+        todo("Vector3.projectOnPlane")
+    }
+
+    /// Return this vector reflected around `normal`.
+    reflect(normal: Vector3<T>): Vector3<T> {
+        todo("Vector3.reflect")
+    }
+
+    /// Return whether this vector is approximately unit length.
+    isNormalized(): boolean {
+        todo("Vector3.isNormalized")
+    }
+
+    /// Return whether all components are finite.
+    isFinite(): boolean {
+        todo("Vector3.isFinite")
+    }
 }
 
-extension<T: int | float> of Vector4<T> implements Add<Vector4<T>>, Subtract<Vector4<T>>, Negate {
+extension<T: int | float> of Vector4<T> implements
+    Add<Vector4<T>>,
+    Subtract<Vector4<T>>,
+    Multiply<T>,
+    Divide<T>,
+    Negate
+{
     /// The arithmetic result type.
     type Output = Vector4<T>;
 
     /// Create a vector from components.
     static new(x: T, y: T, z: T, w: T): Vector4<T> {
         Vector4 { x, y, z, w }
+    }
+
+    /// Return the zero vector.
+    static zero(): Vector4<T> {
+        Vector4 { x: 0, y: 0, z: 0, w: 0 }
+    }
+
+    /// Return a vector with every component set to `value`.
+    static splat(value: T): Vector4<T> {
+        Vector4 { x: value, y: value, z: value, w: value }
     }
 
     /// Return the dot product with `other`.
@@ -188,6 +422,31 @@ extension<T: int | float> of Vector4<T> implements Add<Vector4<T>>, Subtract<Vec
     /// Return the squared length.
     lengthSquared(): T {
         this.dot(this)
+    }
+
+    /// Return the squared distance to `other`.
+    distanceSquared(other: Vector4<T>): T {
+        this.subtract(other).lengthSquared()
+    }
+
+    /// Return the componentwise minimum with `other`.
+    min(other: Vector4<T>): Vector4<T> {
+        todo("Vector4.min")
+    }
+
+    /// Return the componentwise maximum with `other`.
+    max(other: Vector4<T>): Vector4<T> {
+        todo("Vector4.max")
+    }
+
+    /// Clamp each component between `minimum` and `maximum`.
+    clamp(minimum: Vector4<T>, maximum: Vector4<T>): Vector4<T> {
+        todo("Vector4.clamp")
+    }
+
+    /// Return the componentwise absolute value.
+    abs(): Vector4<T> {
+        todo("Vector4.abs")
     }
 
     /// Add `other`.
@@ -210,6 +469,26 @@ extension<T: int | float> of Vector4<T> implements Add<Vector4<T>>, Subtract<Vec
         }
     }
 
+    /// Multiply by `scalar`.
+    multiply(scalar: T): this.Output {
+        Vector4 {
+            x: this.x * scalar,
+            y: this.y * scalar,
+            z: this.z * scalar,
+            w: this.w * scalar,
+        }
+    }
+
+    /// Divide by `scalar`.
+    divide(scalar: T): this.Output {
+        Vector4 {
+            x: this.x / scalar,
+            y: this.y / scalar,
+            z: this.z / scalar,
+            w: this.w / scalar,
+        }
+    }
+
     /// Negate this vector.
     negate(): this.Output {
         Vector4 { x: -this.x, y: -this.y, z: -this.z, w: -this.w }
@@ -222,6 +501,16 @@ extension<T: float> of Vector4<T> {
         sqrt(this.lengthSquared())
     }
 
+    /// Return the Euclidean distance to `other`.
+    distance(other: Vector4<T>): T {
+        sqrt(this.distanceSquared(other))
+    }
+
+    /// Return the angle to `other` in radians.
+    angleTo(other: Vector4<T>): T {
+        todo("Vector4.angleTo")
+    }
+
     /// Return the normalized vector.
     normalized(): Vector4<T> {
         let length = this.length();
@@ -232,5 +521,40 @@ extension<T: float> of Vector4<T> {
             z: this.z / length,
             w: this.w / length,
         }
+    }
+
+    /// Return a normalized vector, or zero when the length is zero.
+    normalizedOrZero(): Vector4<T> {
+        todo("Vector4.normalizedOrZero")
+    }
+
+    /// Return this vector limited to `length`.
+    limitLength(length: T): Vector4<T> {
+        todo("Vector4.limitLength")
+    }
+
+    /// Linearly interpolate toward `other`.
+    lerp(other: Vector4<T>, weight: T): Vector4<T> {
+        todo("Vector4.lerp")
+    }
+
+    /// Return this vector projected onto `normal`.
+    project(normal: Vector4<T>): Vector4<T> {
+        todo("Vector4.project")
+    }
+
+    /// Return this vector reflected around `normal`.
+    reflect(normal: Vector4<T>): Vector4<T> {
+        todo("Vector4.reflect")
+    }
+
+    /// Return whether this vector is approximately unit length.
+    isNormalized(): boolean {
+        todo("Vector4.isNormalized")
+    }
+
+    /// Return whether all components are finite.
+    isFinite(): boolean {
+        todo("Vector4.isFinite")
     }
 }
