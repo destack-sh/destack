@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::callable_return_usage;
-use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow returning a value from a constructor.
@@ -32,12 +32,12 @@ impl LintRule for NoConstructorReturn {
     }
 
     /// Check module DIR members for constructor return values.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // inspect constructor methods with concrete bodies
-        for member_id in ctx.tree.iter_node_ids_of_type::<dir::Member>() {
-            let member = ctx.tree.get(member_id);
+        for member_id in ctx.dir.iter_node_ids_of_type::<dir::Member>() {
+            let member = ctx.dir.get(member_id);
             let dir::Member::Method {
                 signature,
                 body: Some(body_expression_id),
@@ -54,7 +54,7 @@ impl LintRule for NoConstructorReturn {
 
             // analyze explicit constructor return values
             let return_usage =
-                callable_return_usage(ctx.tree, signature, Some(*body_expression_id));
+                callable_return_usage(ctx.dir.tree(), signature, Some(*body_expression_id));
             if return_usage.return_value_nodes.is_empty() {
                 continue;
             }
@@ -76,7 +76,7 @@ impl LintRule for NoConstructorReturn {
                 .label("constructors should not return values");
 
                 // attach the unsafe rewrite when requested
-                if ctx.include_fixes
+                if ctx.compute_fixes
                     && let Some(fix) = no_constructor_return_fix(ctx, return_expression_id)
                 {
                     diagnostic = diagnostic.fix(fix);
@@ -90,10 +90,10 @@ impl LintRule for NoConstructorReturn {
 
 /// Build an unsafe fix for one constructor return value.
 fn no_constructor_return_fix(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     return_expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<LintFix> {
-    let return_expression = ctx.tree.get(return_expression_id);
+    let return_expression = ctx.dir.get(return_expression_id);
     let dir::Expression::Return {
         value: Some(value_expression_id),
     } = return_expression
@@ -122,12 +122,12 @@ fn no_constructor_return_fix(
 
 /// Return statement-safe text for one constructor return value expression.
 fn statement_safe_return_value_text(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     value_expression_id: dir::LocalNodeId<dir::Expression>,
     _return_expression: &dir::Expression,
     value_text: &str,
 ) -> String {
-    let value_expression = ctx.tree.get(value_expression_id);
+    let value_expression = ctx.dir.get(value_expression_id);
     if matches!(
         value_expression,
         dir::Expression::ObjectExpression { .. } | dir::Expression::Declaration { .. }

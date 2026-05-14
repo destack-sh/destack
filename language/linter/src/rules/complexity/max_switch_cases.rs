@@ -1,9 +1,9 @@
 use crate::LintMeta;
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::block_is_empty_without_comment;
-use crate::{LintAstContext, LintReport, LintRule, declare_lint};
+use crate::{LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Limit the number of cases in a switch statement.
@@ -14,7 +14,7 @@ declare_lint! {
         id = "max-switch-cases",
         code = "LX012",
         category = Complexity,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = No,
@@ -30,17 +30,17 @@ impl LintRule for MaxSwitchCases {
         MaxSwitchCases::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         // resolve lint metadata and threshold
         let meta = self.meta();
         let max_switch_cases = ctx.options.complexity.max_switch_cases;
 
         // check each switch expression against non-empty non-default case count
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let ast::Expression::Match { form, cases, .. } = ctx.tree.get(node_id) else {
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let dir::Expression::Match { form, cases, .. } = ctx.dir.get(node_id) else {
                 continue;
             };
-            if *form != ast::MatchForm::Switch {
+            if *form != dir::MatchForm::Switch {
                 continue;
             }
 
@@ -48,7 +48,7 @@ impl LintRule for MaxSwitchCases {
             let case_count = cases
                 .iter()
                 .copied()
-                .filter(|case_id| switch_case_counts(ctx.tree, *case_id))
+                .filter(|case_id| switch_case_counts(ctx.dir.tree(), *case_id))
                 .count();
             if case_count > max_switch_cases {
                 let severity = ctx.get_effective_severity(meta, node_id);
@@ -62,7 +62,7 @@ impl LintRule for MaxSwitchCases {
                         MAX_SWITCH_CASES.category,
                         severity,
                         format!("switch has {case_count} cases (max {max_switch_cases})"),
-                        ctx.tree.get_span(node_id),
+                        ctx.dir.get_span(node_id),
                     )
                     .label("consider using a lookup table or refactoring"),
                 );
@@ -72,7 +72,7 @@ impl LintRule for MaxSwitchCases {
 }
 
 /// Return true when one switch case counts toward the max-switch-cases limit.
-fn switch_case_counts(tree: &ast::Tree, case_id: ast::LocalNodeId<ast::MatchCase>) -> bool {
+fn switch_case_counts(tree: &dir::Tree, case_id: dir::LocalNodeId<dir::MatchCase>) -> bool {
     // resolve selector and skip default cases
     let case = tree.get(case_id);
     if case.selector().is_default() {
@@ -81,18 +81,18 @@ fn switch_case_counts(tree: &ast::Tree, case_id: ast::LocalNodeId<ast::MatchCase
 
     // require non-empty case body content
     match case {
-        ast::MatchCase::Expression { body, .. } => expression_has_case_content(tree, *body),
-        ast::MatchCase::Block { body, .. } => !block_is_empty_without_comment(tree, *body),
+        dir::MatchCase::Expression { body, .. } => expression_has_case_content(tree, *body),
+        dir::MatchCase::Block { body, .. } => !block_is_empty_without_comment(tree, *body),
     }
 }
 
 /// Return true when one case expression body has executable content.
 fn expression_has_case_content(
-    tree: &ast::Tree,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    tree: &dir::Tree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     let expression = tree.get(expression_id);
-    if let ast::Expression::Block(block_id) = expression {
+    if let dir::Expression::Block(block_id) = expression {
         return !block_is_empty_without_comment(tree, *block_id);
     }
 
@@ -108,7 +108,7 @@ mod tests {
     fn test_detects_too_many_cases() {
         let test = TestProgram::for_rule_without_prelude(MaxSwitchCases)
             .with_options(|options| options.complexity.max_switch_cases = 5);
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_switch_cases/test_detects_too_many_cases.ds",
             r#"
 let x = 1;
@@ -128,7 +128,7 @@ switch (x) {
     #[test]
     fn test_allows_few_cases() {
         let test = TestProgram::for_rule_without_prelude(MaxSwitchCases);
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_switch_cases/test_allows_few_cases.ds",
             r#"
 let x = 1;
@@ -146,7 +146,7 @@ switch (x) {
     fn test_allows_exactly_at_limit() {
         let test = TestProgram::for_rule_without_prelude(MaxSwitchCases)
             .with_options(|options| options.complexity.max_switch_cases = 3);
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_switch_cases/test_allows_exactly_at_limit.ds",
             r#"
 let x = 1;
@@ -165,7 +165,7 @@ switch (x) {
         let test = TestProgram::for_rule_without_prelude(MaxSwitchCases)
             .with_options(|options| options.complexity.max_switch_cases = 2);
         // match expressions are not switch statements
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_switch_cases/test_ignores_match_expression.ds",
             r#"
 function testMatch(x: int32): int32 {
@@ -186,7 +186,7 @@ function testMatch(x: int32): int32 {
     fn test_excludes_default_case_from_count() {
         let test = TestProgram::for_rule_without_prelude(MaxSwitchCases)
             .with_options(|options| options.complexity.max_switch_cases = 1);
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_switch_cases/test_excludes_default_case_from_count.ds",
             r#"
 let x = 1;
@@ -203,7 +203,7 @@ switch (x) {
     fn test_excludes_empty_cases_from_count() {
         let test = TestProgram::for_rule_without_prelude(MaxSwitchCases)
             .with_options(|options| options.complexity.max_switch_cases = 1);
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_switch_cases/test_excludes_empty_cases_from_count.ds",
             r#"
 let x = 1;

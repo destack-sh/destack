@@ -1,11 +1,11 @@
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
     block_expression_ancestor, block_is_empty_without_comment, block_is_function_body,
     block_is_static_block_body, span_has_comment,
 };
-use crate::{LintAstContext, LintFix, LintMeta, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow empty block statements.
@@ -16,7 +16,7 @@ declare_lint! {
         id = "no-empty",
         code = "LU012",
         category = Suspicious,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -32,25 +32,25 @@ impl LintRule for NoEmpty {
         NoEmpty::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // inspect explicit block nodes
-        for node_id in ctx.tree.iter_nodes::<ast::Block>() {
+        for node_id in ctx.dir.iter_nodes::<dir::Block>() {
             // skip implicit blocks, only explicit braces can be empty statements
-            let block = ctx.tree.get(node_id);
+            let block = ctx.dir.get(node_id);
             if !block.is_explicit() {
                 continue;
             }
 
             // keep only blocks without code and without comments
-            if !block_is_empty_without_comment(ctx.tree, node_id) {
+            if !block_is_empty_without_comment(ctx.dir.tree(), node_id) {
                 continue;
             }
 
             // allow empty function and static block bodies
-            if block_is_function_body(ctx.tree, ctx.parents, node_id)
-                || block_is_static_block_body(ctx.tree, ctx.parents, node_id)
+            if block_is_function_body(ctx.dir.tree(), node_id)
+                || block_is_static_block_body(ctx.dir.tree(), node_id)
             {
                 continue;
             }
@@ -67,7 +67,7 @@ impl LintRule for NoEmpty {
             }
 
             // build the diagnostic for this empty block
-            let span = ctx.tree.get_span(node_id);
+            let span = ctx.dir.get_span(node_id);
             let mut diagnostic = LintReport::new(
                 NO_EMPTY.id,
                 NO_EMPTY.code,
@@ -92,14 +92,14 @@ impl LintRule for NoEmpty {
         }
 
         // inspect empty switch expressions separately
-        for expression_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let ast::Expression::Match { form, cases, .. } = ctx.tree.get(expression_id) else {
+        for expression_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let dir::Expression::Match { form, cases, .. } = ctx.dir.get(expression_id) else {
                 continue;
             };
-            if *form != ast::MatchForm::Switch || !cases.is_empty() {
+            if *form != dir::MatchForm::Switch || !cases.is_empty() {
                 continue;
             }
-            if span_has_comment(ctx.tree, ctx.tree.get_span(expression_id)) {
+            if span_has_comment(ctx.dir.tree(), ctx.dir.get_span(expression_id)) {
                 continue;
             }
 
@@ -115,7 +115,7 @@ impl LintRule for NoEmpty {
                     NO_EMPTY.category,
                     severity,
                     "empty switch statement",
-                    ctx.tree.get_span(expression_id),
+                    ctx.dir.get_span(expression_id),
                 )
                 .label("this switch has no cases"),
             );
@@ -124,26 +124,28 @@ impl LintRule for NoEmpty {
 }
 
 /// Return true when one explicit block is the catch body of a try expression.
-fn block_is_catch_body(ctx: &LintAstContext<'_>, block_id: ast::LocalNodeId<ast::Block>) -> bool {
+fn block_is_catch_body(
+    ctx: &LintModuleContext<'_>,
+    block_id: dir::LocalNodeId<dir::Block>,
+) -> bool {
     // resolve the owning block expression first
-    let Some(block_expression_id) = block_expression_ancestor(ctx.tree, ctx.parents, block_id)
-    else {
+    let Some(block_expression_id) = block_expression_ancestor(ctx.dir.tree(), block_id) else {
         return false;
     };
 
     // keep only try catch bodies
-    let Some(parent_id) = ctx.parents.get(block_expression_id) else {
+    let Some(parent_id) = ctx.dir.get_parent_id(block_expression_id.id) else {
         return false;
     };
-    if ctx.tree.get_node_type(parent_id) != ast::NodeType::Expression {
+    if ctx.dir.get_node_type(parent_id) != dir::NodeType::Expression {
         return false;
     }
 
-    let parent_expression_id = ast::LocalNodeId::<ast::Expression>::new(parent_id);
-    let parent_expression = ctx.tree.get(parent_expression_id);
+    let parent_expression_id = dir::LocalNodeId::<dir::Expression>::new(parent_id);
+    let parent_expression = ctx.dir.get(parent_expression_id);
     matches!(
         parent_expression,
-        ast::Expression::Try {
+        dir::Expression::Try {
             catch_expression: Some(catch_expression_id),
             ..
         } if *catch_expression_id == block_expression_id
@@ -158,7 +160,7 @@ mod tests {
     #[test]
     fn test_detects_empty_block() {
         let test = TestProgram::for_rule_without_prelude(NoEmpty);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_empty/test_detects_empty_block.ds",
             r#"
 {}
@@ -172,7 +174,7 @@ mod tests {
     #[test]
     fn test_detects_empty_if_block() {
         let test = TestProgram::for_rule_without_prelude(NoEmpty);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_empty/test_detects_empty_if_block.ds",
             r#"
 if (true) {}
@@ -184,7 +186,7 @@ if (true) {}
     #[test]
     fn test_allows_empty_function_body() {
         let test = TestProgram::for_rule_without_prelude(NoEmpty);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_empty/test_allows_empty_function_body.ds",
             r#"
 function foo() {}
@@ -196,7 +198,7 @@ function foo() {}
     #[test]
     fn test_no_empty_with_content() {
         let test = TestProgram::for_rule_without_prelude(NoEmpty);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_empty/test_no_empty_with_content.ds",
             r#"
 { let x = 1; }
@@ -209,7 +211,7 @@ function foo() {}
     fn test_no_empty_module_level() {
         // implicit module level blocks should not trigger
         let test = TestProgram::for_rule_without_prelude(NoEmpty);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_empty/test_no_empty_module_level.ds",
             r#"
 let x = 1;
@@ -221,7 +223,7 @@ let x = 1;
     #[test]
     fn test_no_empty_block_with_comment() {
         let test = TestProgram::for_rule_without_prelude(NoEmpty);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_empty/test_no_empty_block_with_comment.ds",
             r#"
 { /* intentionally empty */ }
@@ -233,7 +235,7 @@ let x = 1;
     #[test]
     fn test_detects_empty_switch() {
         let test = TestProgram::for_rule_without_prelude(NoEmpty);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_empty/test_detects_empty_switch.ds",
             r#"
 switch (value) {}
@@ -245,7 +247,7 @@ switch (value) {}
     #[test]
     fn test_allows_empty_switch_with_comment() {
         let test = TestProgram::for_rule_without_prelude(NoEmpty);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_empty/test_allows_empty_switch_with_comment.ds",
             r#"
 switch (value) { /* intentionally empty */ }
@@ -259,7 +261,7 @@ switch (value) { /* intentionally empty */ }
         let test = TestProgram::for_rule_without_prelude(NoEmpty).with_options(|options| {
             options.correctness.no_empty_allow_empty_catch = true;
         });
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_empty/test_allows_empty_catch_when_configured.ds",
             r#"
 try {
@@ -273,7 +275,7 @@ try {
     #[test]
     fn test_fix_adds_comment_to_empty_block() {
         let test = TestProgram::for_rule_without_prelude(NoEmpty);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_empty/test_fix_adds_comment_to_empty_block.ds",
             r#"
 {}
@@ -293,7 +295,7 @@ try {
     #[test]
     fn test_mutation_fix_adds_comment_to_empty_if_block() {
         let test = TestProgram::for_rule_without_prelude(NoEmpty);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_empty/test_mutation_fix_adds_comment_to_empty_if_block.ds",
             r#"
 if (ready) {}

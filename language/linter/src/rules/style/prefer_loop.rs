@@ -1,8 +1,8 @@
 use crate::LintMeta;
-use destack_ast::{self as ast, ScalarLiteral};
+use destack_dir::{self as dir, ScalarLiteral};
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer `loop` over `while(true)` or `for(;;)`.
@@ -13,7 +13,7 @@ declare_lint! {
         id = "prefer-loop",
         code = "LY043",
         category = Style,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Always,
@@ -29,25 +29,25 @@ impl LintRule for PreferLoop {
         PreferLoop::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expression = ctx.tree.get(node_id);
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let expression = ctx.dir.get(node_id);
 
             let body_id = match expression {
                 // while (true) or while (1)
-                ast::Expression::While {
+                dir::Expression::While {
                     condition, body, ..
                 } => {
-                    if is_always_true(ctx.tree, *condition) {
+                    if is_always_true(ctx.dir.tree(), *condition) {
                         Some(*body)
                     } else {
                         None
                     }
                 }
                 // for (;;)
-                ast::Expression::For {
+                dir::Expression::For {
                     initialization,
                     condition,
                     increment,
@@ -73,8 +73,8 @@ impl LintRule for PreferLoop {
             }
 
             // make fix: replace with loop
-            let span = ctx.tree.get_span(node_id);
-            let body_span = ctx.tree.get_span(body_id);
+            let span = ctx.dir.get_span(node_id);
+            let body_span = ctx.dir.get_span(body_id);
             let body_text = ctx.get_span_text(body_span);
             let replacement = format!("loop {body_text}");
             let edits = ctx.edit_builder().replace(span, replacement).into_edits();
@@ -97,18 +97,18 @@ impl LintRule for PreferLoop {
 }
 
 /// Check if an expression is always truthy (true or 1).
-fn is_always_true(tree: &ast::Tree, expression_id: ast::LocalNodeId<ast::Expression>) -> bool {
+fn is_always_true(tree: &dir::Tree, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
     let expression = tree.get(expression_id);
 
     // unwrap parentheses
-    if let ast::Expression::Parenthesized { expression } = expression {
+    if let dir::Expression::Parenthesized { expression } = expression {
         return is_always_true(tree, *expression);
     }
 
     matches!(
         expression,
-        ast::Expression::ScalarLiteral(ScalarLiteral::Boolean(true))
-            | ast::Expression::ScalarLiteral(ScalarLiteral::Integer(1))
+        dir::Expression::ScalarLiteral(ScalarLiteral::Boolean(true))
+            | dir::Expression::ScalarLiteral(ScalarLiteral::Integer(1))
     )
 }
 
@@ -120,7 +120,7 @@ mod tests {
     #[test]
     fn test_detects_while_true() {
         let test = TestProgram::for_rule_without_prelude(PreferLoop);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_loop/test_detects_while_true.ds",
             r#"
 while (true) {
@@ -134,7 +134,7 @@ while (true) {
     #[test]
     fn test_detects_while_one() {
         let test = TestProgram::for_rule_without_prelude(PreferLoop);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_loop/test_detects_while_one.ds",
             r#"
 while (1) {
@@ -148,7 +148,7 @@ while (1) {
     #[test]
     fn test_detects_for_empty() {
         let test = TestProgram::for_rule_without_prelude(PreferLoop);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_loop/test_detects_for_empty.ds",
             r#"
 for (;;) {
@@ -162,7 +162,7 @@ for (;;) {
     #[test]
     fn test_allows_loop() {
         let test = TestProgram::for_rule_without_prelude(PreferLoop);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_loop/test_allows_loop.ds",
             r#"
 loop {
@@ -176,7 +176,7 @@ loop {
     #[test]
     fn test_allows_while_condition() {
         let test = TestProgram::for_rule_without_prelude(PreferLoop);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_loop/test_allows_while_condition.ds",
             r#"
 while (x > 0) {
@@ -190,7 +190,7 @@ while (x > 0) {
     #[test]
     fn test_allows_for_with_condition() {
         let test = TestProgram::for_rule_without_prelude(PreferLoop);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_loop/test_allows_for_with_condition.ds",
             r#"
 for (let i = 0; i < 10; i++) {
@@ -205,7 +205,7 @@ for (let i = 0; i < 10; i++) {
     fn test_allows_for_with_partial() {
         let test = TestProgram::for_rule_without_prelude(PreferLoop);
         // for loop with just initialization is not infinite
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_loop/test_allows_for_with_partial.ds",
             r#"
 for (let i = 0;;) {
@@ -220,7 +220,7 @@ for (let i = 0;;) {
     #[test]
     fn test_fix_while_true() {
         let test = TestProgram::for_rule_without_prelude(PreferLoop);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_loop/test_fix_while_true.ds",
             r#"
 while (true) {
@@ -242,7 +242,7 @@ loop {
     #[test]
     fn test_fix_for_empty() {
         let test = TestProgram::for_rule_without_prelude(PreferLoop);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_loop/test_fix_for_empty.ds",
             r#"
 for (;;) {

@@ -1,20 +1,20 @@
-use destack_ast::{self as ast};
+use destack_dir::{self as dir};
 
 use crate::rules::common::expression_path_segments;
 
-/// Regex pattern info extracted from one AST expression.
+/// Regex pattern info extracted from one source expression.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct AstRegexPatternInfo {
+pub struct RegexPatternInfo {
     /// The regex pattern string id.
-    pub pattern_id: ast::StringId,
+    pub pattern_id: dir::StringId,
     /// Optional regex flags string id when statically known.
-    pub flags_id: Option<ast::StringId>,
+    pub flags_id: Option<dir::StringId>,
     /// Whether constructor flags are present but not statically known.
     pub has_unknown_flags: bool,
 }
 
 /// Return canonical global qualifier names for `RegExp` constructor lookups.
-pub fn regexp_global_qualifier_names(strings: &ast::StringPool) -> [ast::StringId; 4] {
+pub fn regexp_global_qualifier_names(strings: &dir::StringPool) -> [dir::StringId; 4] {
     [
         strings.intern("globalThis"),
         strings.intern("window"),
@@ -25,21 +25,21 @@ pub fn regexp_global_qualifier_names(strings: &ast::StringPool) -> [ast::StringI
 
 /// Resolve regex pattern info from a regex literal or `RegExp` constructor call.
 pub fn regex_pattern_info(
-    strings: &ast::StringPool,
-    tree: &ast::Tree,
-    expression_id: ast::LocalNodeId<ast::Expression>,
-    regexp_name: ast::StringId,
-    global_qualifier_names: &[ast::StringId],
-) -> Option<AstRegexPatternInfo> {
+    strings: &dir::StringPool,
+    tree: &dir::Tree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+    regexp_name: dir::StringId,
+    global_qualifier_names: &[dir::StringId],
+) -> Option<RegexPatternInfo> {
     // normalize expression shape
     let expression_id = super::expression_unwrap_parenthesized_source_form(tree, expression_id);
     let expression = tree.get(expression_id);
 
     // support direct regex literals
-    if let ast::Expression::ScalarLiteral(ast::ScalarLiteral::RegexString { content, flags }) =
+    if let dir::Expression::ScalarLiteral(dir::ScalarLiteral::RegexString { content, flags }) =
         expression
     {
-        return Some(AstRegexPatternInfo {
+        return Some(RegexPatternInfo {
             pattern_id: *content,
             flags_id: *flags,
             has_unknown_flags: false,
@@ -48,10 +48,10 @@ pub fn regex_pattern_info(
 
     // support `RegExp(...)` and `new RegExp(...)`
     let (callee_id, arguments) = match expression {
-        ast::Expression::Call {
+        dir::Expression::Call {
             left, arguments, ..
         }
-        | ast::Expression::New {
+        | dir::Expression::New {
             left, arguments, ..
         } => (*left, arguments.as_slice()),
         _ => return None,
@@ -70,7 +70,7 @@ pub fn regex_pattern_info(
     // require first positional string pattern argument
     let first_argument_id = *arguments.first()?;
     let first_argument = tree.get(first_argument_id);
-    let ast::Argument::Positional {
+    let dir::Argument::Positional {
         value: pattern_value,
         ..
     } = first_argument
@@ -78,14 +78,14 @@ pub fn regex_pattern_info(
         return None;
     };
     let pattern_expression = tree.get(*pattern_value);
-    let ast::Expression::ScalarLiteral(ast::ScalarLiteral::String(pattern_string_id)) =
+    let dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(pattern_string_id)) =
         pattern_expression
     else {
         return None;
     };
     let pattern = {
         let pattern_text = strings.get(*pattern_string_id);
-        decode_string_content(pattern_text.as_ref())?
+        decode_string_content(pattern_text)?
     };
     let pattern_id = strings.intern(pattern.as_ref());
 
@@ -93,7 +93,7 @@ pub fn regex_pattern_info(
     let mut has_unknown_flags = false;
     let flags_id = arguments.get(1).and_then(|flags_argument_id| {
         let flags_argument = tree.get(*flags_argument_id);
-        let ast::Argument::Positional {
+        let dir::Argument::Positional {
             value: flags_value, ..
         } = flags_argument
         else {
@@ -101,7 +101,7 @@ pub fn regex_pattern_info(
             return None;
         };
         let flags_expression = tree.get(*flags_value);
-        let ast::Expression::ScalarLiteral(ast::ScalarLiteral::String(flags_string_id)) =
+        let dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(flags_string_id)) =
             flags_expression
         else {
             has_unknown_flags = true;
@@ -116,7 +116,7 @@ pub fn regex_pattern_info(
         Some(flags_id)
     });
 
-    Some(AstRegexPatternInfo {
+    Some(RegexPatternInfo {
         pattern_id,
         flags_id,
         has_unknown_flags,
@@ -125,9 +125,9 @@ pub fn regex_pattern_info(
 
 /// Return true when one path resolves to a global `RegExp` constructor.
 pub fn path_is_regexp_constructor(
-    path_segments: &[ast::StringId],
-    regexp_name: ast::StringId,
-    global_qualifier_names: &[ast::StringId],
+    path_segments: &[dir::StringId],
+    regexp_name: dir::StringId,
+    global_qualifier_names: &[dir::StringId],
 ) -> bool {
     if path_segments == [regexp_name] {
         return true;

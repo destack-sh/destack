@@ -1,11 +1,11 @@
 use crate::LintMeta;
-use destack_ast::{self as ast, ScalarLiteral};
+use destack_dir::{self as dir, ScalarLiteral};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
     expression_is_equal, expression_negated_source_text, source_text_contains_comment_token,
 };
-use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow ternary operators that can be simplified.
@@ -16,7 +16,7 @@ declare_lint! {
         id = "no-unneeded-ternary",
         code = "LY025",
         category = Style,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -32,12 +32,12 @@ impl LintRule for NoUnneededTernary {
         NoUnneededTernary::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expr = ctx.tree.get(node_id);
-            let ast::Expression::If {
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let expr = ctx.dir.get(node_id);
+            let dir::Expression::If {
                 condition,
                 then_expression,
                 else_expression: Some(else_expression),
@@ -48,13 +48,13 @@ impl LintRule for NoUnneededTernary {
             };
 
             let condition_id = match condition {
-                ast::IfCondition::Expression { condition } => *condition,
-                ast::IfCondition::Let { .. } => continue,
+                dir::IfCondition::Expression { condition } => *condition,
+                dir::IfCondition::Let { .. } => continue,
             };
-            let then_expr = ctx.tree.get(*then_expression);
-            let else_expr = ctx.tree.get(*else_expression);
-            let expression_span = ctx.tree.get_span(node_id);
-            let condition_span = ctx.tree.get_span(condition_id);
+            let then_expr = ctx.dir.get(*then_expression);
+            let else_expr = ctx.dir.get(*else_expression);
+            let expression_span = ctx.dir.get_span(node_id);
+            let condition_span = ctx.dir.get_span(condition_id);
             let condition_text = ctx.get_span_text(condition_span);
             let can_fix = !source_text_contains_comment_token(ctx.get_span_text(expression_span));
 
@@ -126,7 +126,7 @@ impl LintRule for NoUnneededTernary {
                     continue;
                 }
 
-                let alternate_span = ctx.tree.get_span(*else_expression);
+                let alternate_span = ctx.dir.get_span(*else_expression);
                 let alternate_text = ctx.get_span_text(alternate_span);
                 let mut diagnostic = LintReport::new(
                     NO_UNNEEDED_TERNARY.id,
@@ -154,10 +154,10 @@ impl LintRule for NoUnneededTernary {
     }
 }
 
-fn is_boolean_literal(expr: &ast::Expression, value: bool) -> bool {
+fn is_boolean_literal(expr: &dir::Expression, value: bool) -> bool {
     matches!(
         expr,
-        ast::Expression::ScalarLiteral(ScalarLiteral::Boolean(v)) if *v == value
+        dir::Expression::ScalarLiteral(ScalarLiteral::Boolean(v)) if *v == value
     )
 }
 
@@ -169,7 +169,7 @@ mod tests {
     #[test]
     fn test_detects_true_false() {
         let test = TestProgram::for_rule_without_prelude(NoUnneededTernary);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unneeded_ternary/test_detects_true_false.ds",
             r#"
 const result = x ? true : false
@@ -181,7 +181,7 @@ const result = x ? true : false
     #[test]
     fn test_detects_false_true() {
         let test = TestProgram::for_rule_without_prelude(NoUnneededTernary);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unneeded_ternary/test_detects_false_true.ds",
             r#"
 const result = x ? false : true
@@ -193,7 +193,7 @@ const result = x ? false : true
     #[test]
     fn test_allows_useful_ternary() {
         let test = TestProgram::for_rule_without_prelude(NoUnneededTernary);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unneeded_ternary/test_allows_useful_ternary.ds",
             r#"
 const result = x ? "yes" : "no"
@@ -205,7 +205,7 @@ const result = x ? "yes" : "no"
     #[test]
     fn test_allows_if_else() {
         let test = TestProgram::for_rule_without_prelude(NoUnneededTernary);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unneeded_ternary/test_allows_if_else.ds",
             r#"
 const result = if (x) { true } else { false }
@@ -218,7 +218,7 @@ const result = if (x) { true } else { false }
     #[test]
     fn test_fix_true_false() {
         let test = TestProgram::for_rule_without_prelude(NoUnneededTernary);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unneeded_ternary/test_fix_true_false.ds",
             r#"
 const result = x ? true : false
@@ -236,7 +236,7 @@ const result = x;
     #[test]
     fn test_has_no_fix_when_expression_contains_comment() {
         let test = TestProgram::for_rule_without_prelude(NoUnneededTernary);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unneeded_ternary/test_has_no_fix_when_expression_contains_comment.ds",
             r#"
 const result = x ? /* keep */ true : false
@@ -250,7 +250,7 @@ const result = x ? /* keep */ true : false
     #[test]
     fn test_fix_false_true() {
         let test = TestProgram::for_rule_without_prelude(NoUnneededTernary);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unneeded_ternary/test_fix_false_true.ds",
             r#"
 const result = x ? false : true
@@ -268,7 +268,7 @@ const result = !x;
     #[test]
     fn test_fix_false_true_with_compound_condition() {
         let test = TestProgram::for_rule_without_prelude(NoUnneededTernary);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unneeded_ternary/test_fix_false_true_with_compound_condition.ds",
             r#"
 const result = a && b ? false : true
@@ -286,7 +286,7 @@ const result = !(a && b);
     #[test]
     fn test_allows_default_assignment_ternary_by_default() {
         let test = TestProgram::for_rule_without_prelude(NoUnneededTernary);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unneeded_ternary/test_allows_default_assignment_ternary_by_default.ds",
             r#"
 const result = value ? value : fallback
@@ -299,7 +299,7 @@ const result = value ? value : fallback
     fn test_flags_default_assignment_ternary_when_disabled() {
         let test = TestProgram::for_rule_without_prelude(NoUnneededTernary)
             .with_options(|options| options.style.no_unneeded_ternary_default_assignment = false);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unneeded_ternary/test_flags_default_assignment_ternary_when_disabled.ds",
             r#"
 const result = value ? value : fallback

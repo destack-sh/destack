@@ -1,13 +1,13 @@
 use crate::LintMeta;
-use destack_ast::{
-    self as ast, AssignOperator, Block, Declarator, Expression, IfCondition, IfForm, LetKind,
+use destack_core::StringId;
+use destack_dir::{
+    self as dir, AssignOperator, Block, Declarator, Expression, IfCondition, IfForm, LetKind,
     LocalNodeId, Pattern, Tree,
 };
-use destack_core::StringId;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{assign_pattern_expression, expression_path_segments};
-use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer expression-based if over statement-based pattern.
@@ -19,7 +19,7 @@ declare_lint! {
         id = "prefer-expression",
         code = "LY037",
         category = Style,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -54,18 +54,18 @@ impl LintRule for PreferExpression {
         PreferExpression::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
-        for root_id in ctx.roots.iter() {
-            check_expression(ctx, meta, ctx.tree, *root_id);
+        for root_id in ctx.roots.clone() {
+            check_expression(ctx, meta, ctx.dir.tree(), root_id);
         }
     }
 }
 
 /// Recursively check expressions for the pattern.
 fn check_expression(
-    ctx: &mut LintAstContext<'_>,
+    ctx: &mut LintModuleContext<'_>,
     meta: &'static LintMeta,
     tree: &Tree,
     expression_id: LocalNodeId<Expression>,
@@ -97,7 +97,7 @@ fn check_expression(
         }
         Expression::Declaration(declaration_id) => {
             let declaration = tree.get(*declaration_id);
-            if let ast::Declaration::Function(declaration) = declaration
+            if let dir::Declaration::Function(declaration) = declaration
                 && let Some(body_expression_id) = declaration.body
             {
                 check_expression(ctx, meta, tree, body_expression_id);
@@ -109,7 +109,7 @@ fn check_expression(
 
 /// Check a block for the uninitialized-let-then-if pattern.
 fn check_block(
-    ctx: &mut LintAstContext<'_>,
+    ctx: &mut LintModuleContext<'_>,
     meta: &'static LintMeta,
     tree: &Tree,
     block_id: LocalNodeId<Block>,
@@ -281,7 +281,7 @@ fn branch_assigned_value(
 
 /// Build a safe rewrite from `let x; if (...) { x = a } else { x = b }` to expression form.
 fn prefer_expression_fix(
-    ctx: &LintAstContext<'_>,
+    ctx: &LintModuleContext<'_>,
     candidate: ExpressionPatternCandidate,
 ) -> Option<LintFix> {
     let declaration_kind = match candidate.declaration_kind {
@@ -289,10 +289,10 @@ fn prefer_expression_fix(
         LetKind::Const => "const",
     };
 
-    let declarator_text = ctx.get_span_text(ctx.tree.get_span(candidate.declarator_id));
-    let condition_text = ctx.get_span_text(ctx.tree.get_span(candidate.condition_expression_id));
-    let then_value_text = ctx.get_span_text(ctx.tree.get_span(candidate.then_value_expression_id));
-    let else_value_text = ctx.get_span_text(ctx.tree.get_span(candidate.else_value_expression_id));
+    let declarator_text = ctx.get_span_text(ctx.dir.get_span(candidate.declarator_id));
+    let condition_text = ctx.get_span_text(ctx.dir.get_span(candidate.condition_expression_id));
+    let then_value_text = ctx.get_span_text(ctx.dir.get_span(candidate.then_value_expression_id));
+    let else_value_text = ctx.get_span_text(ctx.dir.get_span(candidate.else_value_expression_id));
 
     let replacement = format!(
         "{declaration_kind} {declarator_text} = if {condition_text} {{ {then_value_text} }} else {{ {else_value_text} }};"
@@ -300,8 +300,8 @@ fn prefer_expression_fix(
 
     let edits = ctx
         .edit_builder()
-        .replace(ctx.tree.get_span(candidate.let_expression_id), replacement)
-        .replace(ctx.tree.get_span(candidate.if_expression_id), "")
+        .replace(ctx.dir.get_span(candidate.let_expression_id), replacement)
+        .replace(ctx.dir.get_span(candidate.if_expression_id), "")
         .into_edits();
 
     Some(LintFix::safe("Rewrite adjacent let-if assignment to expression form").with_edits(edits))
@@ -343,7 +343,7 @@ mod tests {
     #[test]
     fn test_detects_uninitialized_let_with_if_assignment() {
         let test = TestProgram::for_rule_without_prelude(PreferExpression);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_expression/test_detects_uninitialized_let_with_if_assignment.ds",
             r#"
 function foo(condition: boolean) {
@@ -370,7 +370,7 @@ function foo(condition: boolean) {
     #[test]
     fn test_fix_preserves_type_annotation() {
         let test = TestProgram::for_rule_without_prelude(PreferExpression);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_expression/test_fix_preserves_type_annotation.ds",
             r#"
 function foo(condition: boolean) {
@@ -397,7 +397,7 @@ function foo(condition: boolean) {
     #[test]
     fn test_allows_initialized_let() {
         let test = TestProgram::for_rule_without_prelude(PreferExpression);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_expression/test_allows_initialized_let.ds",
             r#"
 function foo(condition: boolean) {
@@ -416,7 +416,7 @@ function foo(condition: boolean) {
     #[test]
     fn test_allows_expression_based_if() {
         let test = TestProgram::for_rule_without_prelude(PreferExpression);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_expression/test_allows_expression_based_if.ds",
             r#"
 function foo(condition: boolean) {
@@ -430,7 +430,7 @@ function foo(condition: boolean) {
     #[test]
     fn test_allows_if_without_else() {
         let test = TestProgram::for_rule_without_prelude(PreferExpression);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_expression/test_allows_if_without_else.ds",
             r#"
 function foo(condition: boolean) {
@@ -447,7 +447,7 @@ function foo(condition: boolean) {
     #[test]
     fn test_allows_if_not_assigning_to_same_variable() {
         let test = TestProgram::for_rule_without_prelude(PreferExpression);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_expression/test_allows_if_not_assigning_to_same_variable.ds",
             r#"
 function foo(condition: boolean) {
@@ -467,7 +467,7 @@ function foo(condition: boolean) {
     #[test]
     fn test_allows_non_adjacent_statements() {
         let test = TestProgram::for_rule_without_prelude(PreferExpression);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_expression/test_allows_non_adjacent_statements.ds",
             r#"
 function foo(condition: boolean) {
@@ -487,7 +487,7 @@ function foo(condition: boolean) {
     #[test]
     fn test_allows_if_expression_without_assignment_branches() {
         let test = TestProgram::for_rule_without_prelude(PreferExpression);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_expression/test_allows_if_expression_without_assignment_branches.ds",
             r#"
 function foo(condition: boolean): int32 {
@@ -508,7 +508,7 @@ function foo(condition: boolean): int32 {
     #[test]
     fn test_allows_branch_with_multiple_statements() {
         let test = TestProgram::for_rule_without_prelude(PreferExpression);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_expression/test_allows_branch_with_multiple_statements.ds",
             r#"
 function foo(condition: boolean) {

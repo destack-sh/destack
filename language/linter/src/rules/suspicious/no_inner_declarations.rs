@@ -1,9 +1,9 @@
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{declaration_at_allowed_root, declaration_expression};
-use crate::{LintAstContext, LintMeta, LintReport, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow function declarations in nested blocks.
@@ -14,7 +14,7 @@ declare_lint! {
         id = "no-inner-declarations",
         code = "LU020",
         category = Suspicious,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = No,
@@ -30,25 +30,25 @@ impl LintRule for NoInnerDeclarations {
         NoInnerDeclarations::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // nested functions
-        for declaration_id in ctx.tree.iter_nodes::<ast::Declaration>() {
-            let declaration = ctx.tree.get(declaration_id);
-            if !matches!(declaration, ast::Declaration::Function(_)) {
+        for declaration_id in ctx.dir.iter_nodes::<dir::Declaration>() {
+            let declaration = ctx.dir.get(declaration_id);
+            if !matches!(declaration, dir::Declaration::Function(_)) {
                 continue;
             }
 
             // require one declaration wrapper expression
             let Some(declaration_expression_id) =
-                declaration_expression(ctx.tree, ctx.parents, declaration_id)
+                declaration_expression(ctx.dir.tree(), declaration_id)
             else {
                 continue;
             };
 
             // allow declaration roots at module, function, and static block boundaries
-            if declaration_at_allowed_root(ctx.tree, ctx.parents, declaration_expression_id) {
+            if declaration_at_allowed_root(ctx.dir.tree(), declaration_expression_id) {
                 continue;
             }
 
@@ -56,7 +56,7 @@ impl LintRule for NoInnerDeclarations {
                 ctx,
                 meta,
                 declaration_id,
-                ctx.tree.get_span(declaration_id),
+                ctx.dir.get_span(declaration_id),
                 "function declaration in nested block",
             );
         }
@@ -64,10 +64,10 @@ impl LintRule for NoInnerDeclarations {
 }
 
 /// Report one nested inner declaration diagnostic when the rule is enabled.
-fn report_nested_declaration<T: ast::Node>(
-    ctx: &mut LintAstContext<'_>,
+fn report_nested_declaration<T: dir::Node>(
+    ctx: &mut LintModuleContext<'_>,
     meta: &LintMeta,
-    node_id: ast::LocalNodeId<T>,
+    node_id: dir::LocalNodeId<T>,
     span: Span,
     message: &str,
 ) {
@@ -97,7 +97,7 @@ mod tests {
     #[test]
     fn test_detects_function_in_if() {
         let test = TestProgram::for_rule_without_prelude(NoInnerDeclarations);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_inner_declarations/test_detects_function_in_if.ts",
             r#"
 if (true) {
@@ -111,7 +111,7 @@ if (true) {
     #[test]
     fn test_detects_function_in_while() {
         let test = TestProgram::for_rule_without_prelude(NoInnerDeclarations);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_inner_declarations/test_detects_function_in_while.ts",
             r#"
 while (true) {
@@ -125,7 +125,7 @@ while (true) {
     #[test]
     fn test_allows_top_level_function() {
         let test = TestProgram::for_rule_without_prelude(NoInnerDeclarations);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_inner_declarations/test_allows_top_level_function.ts",
             "function foo() {}",
         );
@@ -135,7 +135,7 @@ while (true) {
     #[test]
     fn test_allows_function_inside_function() {
         let test = TestProgram::for_rule_without_prelude(NoInnerDeclarations);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_inner_declarations/test_allows_function_inside_function.ts",
             r#"
 function outer() {
@@ -149,7 +149,7 @@ function outer() {
     #[test]
     fn test_detects_function_in_nested_block_inside_function() {
         let test = TestProgram::for_rule_without_prelude(NoInnerDeclarations);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_inner_declarations/test_detects_function_in_nested_block_inside_function.ts",
             r#"
 function outer() {
@@ -165,7 +165,7 @@ function outer() {
     #[test]
     fn test_allows_function_in_static_block_root() {
         let test = TestProgram::for_rule_without_prelude(NoInnerDeclarations);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_inner_declarations/test_allows_function_in_static_block_root.ts",
             r#"
 class Foo {

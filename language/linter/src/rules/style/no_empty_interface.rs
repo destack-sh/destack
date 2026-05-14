@@ -1,9 +1,8 @@
-use destack_ast::{self as ast};
 use destack_dir as dir;
 use destack_source::{NodeSpanRegion, NodeSpanType};
 use destack_workspace::LintSeverity;
 
-use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow empty interface declarations.
@@ -33,12 +32,12 @@ impl LintRule for NoEmptyInterface {
     }
 
     /// Check module DIR declarations for empty interfaces.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // inspect interface declarations only
-        for declaration_id in ctx.tree.iter_node_ids_of_type::<dir::Declaration>() {
-            let declaration = ctx.tree.get(declaration_id);
+        for declaration_id in ctx.dir.iter_node_ids_of_type::<dir::Declaration>() {
+            let declaration = ctx.dir.get(declaration_id);
             let dir::Declaration::Interface(declaration) = declaration else {
                 continue;
             };
@@ -53,12 +52,12 @@ impl LintRule for NoEmptyInterface {
 
             // resolve source declaration data used for fixes
             let Some(source_declaration_id) =
-                ctx.source_node_id::<ast::Declaration>(declaration_id.into_any())
+                ctx.source_node_id::<dir::Declaration>(declaration_id.into_any())
             else {
                 continue;
             };
-            let source_declaration = ctx.ast.get(source_declaration_id);
-            let ast::Declaration::Interface(source_declaration) = source_declaration else {
+            let source_declaration = ctx.dir.get(source_declaration_id);
+            let dir::Declaration::Interface(source_declaration) = source_declaration else {
                 continue;
             };
 
@@ -101,7 +100,7 @@ impl LintRule for NoEmptyInterface {
                 span,
             )
             .label("use `type X = Parent` or `newtype X = Parent` instead");
-            if ctx.include_fixes
+            if ctx.compute_fixes
                 && let Some(fix) = no_empty_interface_single_extends_fix(
                     ctx,
                     source_declaration_id,
@@ -119,10 +118,10 @@ impl LintRule for NoEmptyInterface {
 
 /// Build a type alias fix for one empty single-extends interface.
 fn no_empty_interface_single_extends_fix(
-    ctx: &LintModuleDirContext<'_>,
-    source_declaration_id: ast::LocalNodeId<ast::Declaration>,
-    interface_name_id: ast::StringId,
-    declaration: &ast::InterfaceDeclaration,
+    ctx: &LintModuleContext<'_>,
+    source_declaration_id: dir::LocalNodeId<dir::Declaration>,
+    interface_name_id: dir::StringId,
+    declaration: &dir::InterfaceDeclaration,
 ) -> Option<LintFix> {
     // keep interfaces with where clauses out of the automatic rewrite
     if !declaration.where_clauses.is_empty() {
@@ -132,19 +131,20 @@ fn no_empty_interface_single_extends_fix(
     // build the replacement alias from the source declaration text
     let parent = declaration.extends.first()?;
     let parent_span = ctx
-        .ast
+        .dir
+        .tree()
         .get_side_span(
             parent.expression,
             NodeSpanType::Region(NodeSpanRegion::Type),
         )
-        .unwrap_or_else(|| ctx.ast.get_span(parent.expression));
+        .unwrap_or_else(|| ctx.dir.get_span(parent.expression));
     let parent_text = ctx.get_span_text(parent_span);
     let interface_name = ctx.strings.get(interface_name_id);
     let generic_text = generic_parameters_text(ctx, &declaration.generic_parameters);
-    let replacement = format!("type {}{generic_text} = {parent_text}", interface_name);
+    let replacement = format!("type {interface_name}{generic_text} = {parent_text}");
     let edits = ctx
         .edit_builder()
-        .replace(ctx.ast.get_span(source_declaration_id), replacement)
+        .replace(ctx.dir.get_span(source_declaration_id), replacement)
         .into_edits();
 
     Some(LintFix::safe("Convert to type alias").with_edits(edits))
@@ -152,8 +152,8 @@ fn no_empty_interface_single_extends_fix(
 
 /// Build source text for generic parameter declarations.
 fn generic_parameters_text(
-    ctx: &LintModuleDirContext<'_>,
-    parameters: &[ast::LocalNodeId<ast::GenericParameter>],
+    ctx: &LintModuleContext<'_>,
+    parameters: &[dir::LocalNodeId<dir::GenericParameter>],
 ) -> String {
     if parameters.is_empty() {
         return String::new();
@@ -163,7 +163,7 @@ fn generic_parameters_text(
     let parameter_text = parameters
         .iter()
         .map(|parameter_id| {
-            ctx.get_span_text(ctx.ast.get_span(*parameter_id))
+            ctx.get_span_text(ctx.dir.get_span(*parameter_id))
                 .to_string()
         })
         .collect::<Vec<_>>()

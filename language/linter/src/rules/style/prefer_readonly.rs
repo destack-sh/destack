@@ -4,7 +4,7 @@ use destack_dir::{self as dir, Member};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{collect_assigned_symbol_usage, expression_unwrap_parenthesized};
-use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer `readonly` for private fields that are never mutated.
@@ -34,7 +34,7 @@ impl LintRule for PreferReadonly {
     }
 
     /// Check module DIR nodes for non-mutated private fields.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let candidate_fields = collect_private_mutable_field_candidates(ctx);
         if candidate_fields.is_empty() {
@@ -72,12 +72,12 @@ impl LintRule for PreferReadonly {
 
 /// Collect mutable private field candidates keyed by their symbol id.
 fn collect_private_mutable_field_candidates(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
 ) -> HashMap<dir::GlobalSymbolId, dir::LocalNodeId<Member>> {
     let mut candidates = HashMap::new();
 
     // inspect class and struct member fields
-    for (_declaration_id, declaration) in ctx.tree.iter_nodes_of_type::<dir::Declaration>() {
+    for (_declaration_id, declaration) in ctx.dir.iter_nodes_of_type::<dir::Declaration>() {
         let members = match declaration {
             dir::Declaration::Class(declaration) => &declaration.members,
             dir::Declaration::Struct(declaration) => &declaration.members,
@@ -85,12 +85,11 @@ fn collect_private_mutable_field_candidates(
         };
 
         for member_id in members {
-            let member = ctx.tree.get(*member_id);
+            let member = ctx.dir.get(*member_id);
             let Member::Field {
                 key,
                 visibility,
                 is_readonly,
-                symbol,
                 ..
             } = member
             else {
@@ -104,7 +103,9 @@ fn collect_private_mutable_field_candidates(
                 continue;
             }
 
-            let global_symbol_id = symbol.into_global(ctx.module_id());
+            let Some(global_symbol_id) = ctx.symbol_for_node(*member_id) else {
+                continue;
+            };
             candidates.insert(global_symbol_id, *member_id);
         }
     }
@@ -122,16 +123,16 @@ fn field_is_private(visibility: Option<dir::Visibility>, key: &dir::Key) -> bool
 
 /// Collect candidate field symbols that are mutated outside constructor initialization.
 fn collect_mutated_candidate_fields(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     candidates: &HashMap<dir::GlobalSymbolId, dir::LocalNodeId<Member>>,
 ) -> HashSet<dir::GlobalSymbolId> {
     let assigned_symbols = collect_assigned_symbol_usage(
         ctx.module_id(),
-        ctx.tree,
+        ctx.dir.tree(),
         ctx.types,
         |assignment_expression_id, assigned_expression_id| {
             !assignment_is_constructor_self_initialization(
-                ctx.tree,
+                ctx.dir.tree(),
                 assignment_expression_id,
                 assigned_expression_id,
             )
@@ -215,7 +216,7 @@ fn expression_is_this_reference(
         dir::Expression::MoveOf { right, .. } | dir::Expression::BorrowOf { right, .. } => {
             expression_is_this_reference(tree, *right)
         }
-        dir::Expression::Maybe { left } | dir::Expression::Must { left } => {
+        dir::Expression::Maybe { left, .. } | dir::Expression::Must { left, .. } => {
             expression_is_this_reference(tree, *left)
         }
         _ => false,

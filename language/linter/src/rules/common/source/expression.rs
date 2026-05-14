@@ -1,20 +1,20 @@
-use destack_ast::{self as ast, NodeVisitor};
+use destack_dir::{self as dir, NodeVisitor};
 use destack_source::Span;
 
 use crate::rules::common::{
     span_has_comment, stable_hash_debug, stable_hash_token, stable_hash_token_hashed_value,
 };
-use crate::{ConstValue, LintAstContext};
+use crate::{ConstValue, LintModuleContext};
 
-/// Return the AST expression id with parenthesized source form unwrapped.
+/// Return the source expression id with parenthesized source form unwrapped.
 pub fn expression_unwrap_parenthesized_source_form(
-    tree: &ast::Tree,
-    mut expression_id: ast::LocalNodeId<ast::Expression>,
-) -> ast::LocalNodeId<ast::Expression> {
+    tree: &dir::Tree,
+    mut expression_id: dir::LocalNodeId<dir::Expression>,
+) -> dir::LocalNodeId<dir::Expression> {
     // follow parenthesized wrappers until a non parenthesized expression is found
     loop {
         let expression = tree.get(expression_id);
-        let ast::Expression::Parenthesized { expression } = expression else {
+        let dir::Expression::Parenthesized { expression } = expression else {
             return expression_id;
         };
 
@@ -22,30 +22,30 @@ pub fn expression_unwrap_parenthesized_source_form(
     }
 }
 
-/// Return the AST expression id with statement source form unwrapped.
+/// Return the source expression id with statement source form unwrapped.
 pub fn expression_unwrap_statement_source_form(
-    tree: &ast::Tree,
-    expression_id: ast::LocalNodeId<ast::Expression>,
-) -> ast::LocalNodeId<ast::Expression> {
+    tree: &dir::Tree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> dir::LocalNodeId<dir::Expression> {
     let _ = tree;
     expression_id
 }
 
 /// Return one simple expression target from one assignment pattern.
 pub fn assign_pattern_expression(
-    tree: &ast::Tree,
-    mut assign_pattern_id: ast::LocalNodeId<ast::AssignPattern>,
-) -> Option<ast::LocalNodeId<ast::Expression>> {
+    tree: &dir::Tree,
+    mut assign_pattern_id: dir::LocalNodeId<dir::AssignPattern>,
+) -> Option<dir::LocalNodeId<dir::Expression>> {
     loop {
         let assign_pattern = tree.get(assign_pattern_id);
 
         // keep direct expression targets
-        if let ast::AssignPattern::Expression { value } = assign_pattern {
+        if let dir::AssignPattern::Expression { value } = assign_pattern {
             return Some(*value);
         }
 
         // unwrap defaulted targets before checking the base
-        if let ast::AssignPattern::Assign { pattern, .. } = assign_pattern {
+        if let dir::AssignPattern::Assign { pattern, .. } = assign_pattern {
             assign_pattern_id = *pattern;
             continue;
         }
@@ -57,8 +57,8 @@ pub fn assign_pattern_expression(
 
 /// Return true when one assignment pattern is one unqualified path name.
 pub fn assign_pattern_is_unqualified_path_name(
-    tree: &ast::Tree,
-    assign_pattern_id: ast::LocalNodeId<ast::AssignPattern>,
+    tree: &dir::Tree,
+    assign_pattern_id: dir::LocalNodeId<dir::AssignPattern>,
     target_name: destack_core::StringId,
 ) -> bool {
     let Some(expression_id) = assign_pattern_expression(tree, assign_pattern_id) else {
@@ -70,11 +70,12 @@ pub fn assign_pattern_is_unqualified_path_name(
 
 /// Return true when one assignment pattern matches one expression.
 pub fn assign_pattern_is_equal(
-    ctx: &LintAstContext<'_>,
-    assign_pattern_id: ast::LocalNodeId<ast::AssignPattern>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    assign_pattern_id: dir::LocalNodeId<dir::AssignPattern>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    let Some(assign_expression_id) = assign_pattern_expression(ctx.tree, assign_pattern_id) else {
+    let Some(assign_expression_id) = assign_pattern_expression(ctx.dir.tree(), assign_pattern_id)
+    else {
         return false;
     };
 
@@ -83,24 +84,24 @@ pub fn assign_pattern_is_equal(
 
 /// Return true when two assignment patterns are structurally equal.
 pub fn assign_patterns_are_equal(
-    ctx: &LintAstContext<'_>,
-    left_id: ast::LocalNodeId<ast::AssignPattern>,
-    right_id: ast::LocalNodeId<ast::AssignPattern>,
+    ctx: &LintModuleContext<'_>,
+    left_id: dir::LocalNodeId<dir::AssignPattern>,
+    right_id: dir::LocalNodeId<dir::AssignPattern>,
 ) -> bool {
-    let left_pattern = ctx.tree.get(left_id);
-    let right_pattern = ctx.tree.get(right_id);
+    let left_pattern = ctx.dir.get(left_id);
+    let right_pattern = ctx.dir.get(right_id);
 
     match (left_pattern, right_pattern) {
         (
-            ast::AssignPattern::Expression { value: left_value },
-            ast::AssignPattern::Expression { value: right_value },
+            dir::AssignPattern::Expression { value: left_value },
+            dir::AssignPattern::Expression { value: right_value },
         ) => expression_is_equal(ctx, *left_value, *right_value),
         (
-            ast::AssignPattern::Assign {
+            dir::AssignPattern::Assign {
                 pattern: left_pattern,
                 value: left_value,
             },
-            ast::AssignPattern::Assign {
+            dir::AssignPattern::Assign {
                 pattern: right_pattern,
                 value: right_value,
             },
@@ -109,18 +110,18 @@ pub fn assign_patterns_are_equal(
                 && expression_is_equal(ctx, *left_value, *right_value)
         }
         (
-            ast::AssignPattern::Sequence {
+            dir::AssignPattern::Sequence {
                 fields: left_fields,
             },
-            ast::AssignPattern::Sequence {
+            dir::AssignPattern::Sequence {
                 fields: right_fields,
             },
         )
         | (
-            ast::AssignPattern::Object {
+            dir::AssignPattern::Object {
                 fields: left_fields,
             },
-            ast::AssignPattern::Object {
+            dir::AssignPattern::Object {
                 fields: right_fields,
             },
         ) => {
@@ -138,21 +139,21 @@ pub fn assign_patterns_are_equal(
 
 /// Return true when two assignment pattern fields are structurally equal.
 pub fn assign_pattern_fields_are_equal(
-    ctx: &LintAstContext<'_>,
-    left_id: ast::LocalNodeId<ast::AssignPatternField>,
-    right_id: ast::LocalNodeId<ast::AssignPatternField>,
+    ctx: &LintModuleContext<'_>,
+    left_id: dir::LocalNodeId<dir::AssignPatternField>,
+    right_id: dir::LocalNodeId<dir::AssignPatternField>,
 ) -> bool {
-    let left_field = ctx.tree.get(left_id);
-    let right_field = ctx.tree.get(right_id);
+    let left_field = ctx.dir.get(left_id);
+    let right_field = ctx.dir.get(right_id);
 
     match (left_field, right_field) {
         (
-            ast::AssignPatternField::Named {
+            dir::AssignPatternField::Named {
                 name: left_name,
                 is_shorthand: left_is_shorthand,
                 pattern: left_pattern,
             },
-            ast::AssignPatternField::Named {
+            dir::AssignPatternField::Named {
                 name: right_name,
                 is_shorthand: right_is_shorthand,
                 pattern: right_pattern,
@@ -169,11 +170,11 @@ pub fn assign_pattern_fields_are_equal(
                 }
         }
         (
-            ast::AssignPatternField::Computed {
+            dir::AssignPatternField::Computed {
                 key: left_key,
                 pattern: left_pattern,
             },
-            ast::AssignPatternField::Computed {
+            dir::AssignPatternField::Computed {
                 key: right_key,
                 pattern: right_pattern,
             },
@@ -182,18 +183,18 @@ pub fn assign_pattern_fields_are_equal(
                 && assign_patterns_are_equal(ctx, *left_pattern, *right_pattern)
         }
         (
-            ast::AssignPatternField::Positional {
+            dir::AssignPatternField::Positional {
                 pattern: left_pattern,
             },
-            ast::AssignPatternField::Positional {
+            dir::AssignPatternField::Positional {
                 pattern: right_pattern,
             },
         ) => assign_patterns_are_equal(ctx, *left_pattern, *right_pattern),
         (
-            ast::AssignPatternField::Spread {
+            dir::AssignPatternField::Spread {
                 pattern: left_pattern,
             },
-            ast::AssignPatternField::Spread {
+            dir::AssignPatternField::Spread {
                 pattern: right_pattern,
             },
         ) => match (left_pattern, right_pattern) {
@@ -203,7 +204,7 @@ pub fn assign_pattern_fields_are_equal(
             (None, None) => true,
             _ => false,
         },
-        (ast::AssignPatternField::Elision, ast::AssignPatternField::Elision) => true,
+        (dir::AssignPatternField::Elision, dir::AssignPatternField::Elision) => true,
         _ => false,
     }
 }
@@ -221,21 +222,21 @@ pub enum ConditionAssignmentStyle {
 
 /// Return the assignment wrapping style for one conditional expression.
 pub fn condition_assignment_style(
-    tree: &ast::Tree,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    tree: &dir::Tree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> ConditionAssignmentStyle {
     // inspect the outer condition expression
     let expression = tree.get(expression_id);
     match expression {
         // let and using expressions are valid binding conditions
-        ast::Expression::Let { .. } | ast::Expression::Using { .. } => {
+        dir::Expression::Let { .. } | dir::Expression::Using { .. } => {
             ConditionAssignmentStyle::None
         }
-        ast::Expression::Assign { .. } => ConditionAssignmentStyle::Bare,
-        ast::Expression::Parenthesized { expression } => {
+        dir::Expression::Assign { .. } => ConditionAssignmentStyle::Bare,
+        dir::Expression::Parenthesized { expression } => {
             // single parens around assignment are still ambiguous
             let inner_expression = tree.get(*expression);
-            if matches!(inner_expression, ast::Expression::Assign { .. }) {
+            if matches!(inner_expression, dir::Expression::Assign { .. }) {
                 ConditionAssignmentStyle::SingleParenthesized
             } else {
                 ConditionAssignmentStyle::None
@@ -247,15 +248,15 @@ pub fn condition_assignment_style(
 
 /// Return the condition expression id for supported control-flow expressions.
 pub fn control_flow_condition_expression(
-    expression: &ast::Expression,
-) -> Option<ast::LocalNodeId<ast::Expression>> {
+    expression: &dir::Expression,
+) -> Option<dir::LocalNodeId<dir::Expression>> {
     match expression {
-        ast::Expression::If { condition, .. } => match condition {
-            ast::IfCondition::Expression { condition } => Some(*condition),
-            ast::IfCondition::Let { .. } => None,
+        dir::Expression::If { condition, .. } => match condition {
+            dir::IfCondition::Expression { condition } => Some(*condition),
+            dir::IfCondition::Let { .. } => None,
         },
-        ast::Expression::While { condition, .. } => Some(*condition),
-        ast::Expression::For {
+        dir::Expression::While { condition, .. } => Some(*condition),
+        dir::Expression::For {
             condition: Some(condition),
             ..
         } => Some(*condition),
@@ -265,25 +266,24 @@ pub fn control_flow_condition_expression(
 
 /// Return the outer expression id including parenthesized source form.
 pub fn expression_outer_parenthesized_source_form(
-    tree: &ast::Tree,
-    parents: &ast::NodeParentIndex,
-    expression_id: ast::LocalNodeId<ast::Expression>,
-) -> ast::LocalNodeId<ast::Expression> {
+    tree: &dir::Tree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> dir::LocalNodeId<dir::Expression> {
     // start from one normalized inner expression
     let mut current_id = expression_unwrap_parenthesized_source_form(tree, expression_id);
 
     // climb through direct parenthesized wrappers
     loop {
-        let Some(parent_id) = parents.get(current_id) else {
+        let Some(parent_id) = tree.get_parent_id(current_id.id) else {
             return current_id;
         };
-        if tree.get_node_type(parent_id) != ast::NodeType::Expression {
+        if tree.get_node_type(parent_id) != dir::NodeType::Expression {
             return current_id;
         }
 
-        let parent_expression_id = ast::LocalNodeId::<ast::Expression>::new(parent_id);
+        let parent_expression_id = dir::LocalNodeId::<dir::Expression>::new(parent_id);
         let parent_expression = tree.get(parent_expression_id);
-        if let ast::Expression::Parenthesized { expression } = parent_expression
+        if let dir::Expression::Parenthesized { expression } = parent_expression
             && *expression == current_id
         {
             current_id = parent_expression_id;
@@ -296,27 +296,26 @@ pub fn expression_outer_parenthesized_source_form(
 
 /// Return the surrounding statement expression for a standalone expression.
 pub fn expression_statement_ancestor(
-    tree: &ast::Tree,
-    parents: &ast::NodeParentIndex,
-    expression_id: ast::LocalNodeId<ast::Expression>,
-) -> Option<ast::LocalNodeId<ast::Expression>> {
+    tree: &dir::Tree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> Option<dir::LocalNodeId<dir::Expression>> {
     // start from the outer source form
-    let mut current_id = expression_outer_parenthesized_source_form(tree, parents, expression_id);
+    let mut current_id = expression_outer_parenthesized_source_form(tree, expression_id);
 
     // root expressions are statement-position by default
-    if parents.get(current_id).is_none() {
+    if tree.get_parent_id(current_id.id).is_none() {
         return Some(current_id);
     }
 
     // walk out through statement-like wrappers until one block boundary is found
     loop {
-        let parent_id = parents.get(current_id)?;
+        let parent_id = tree.get_parent_id(current_id.id)?;
 
-        if tree.get_node_type(parent_id) == ast::NodeType::Expression {
-            let parent_expression_id = ast::LocalNodeId::<ast::Expression>::new(parent_id);
+        if tree.get_node_type(parent_id) == dir::NodeType::Expression {
+            let parent_expression_id = dir::LocalNodeId::<dir::Expression>::new(parent_id);
             let parent_expression = tree.get(parent_expression_id);
 
-            if let ast::Expression::Labelled { body, .. } = parent_expression
+            if let dir::Expression::Label { body, .. } = parent_expression
                 && *body == current_id
             {
                 current_id = parent_expression_id;
@@ -326,11 +325,11 @@ pub fn expression_statement_ancestor(
             return None;
         }
 
-        if tree.get_node_type(parent_id) == ast::NodeType::Block {
-            let block_id = ast::LocalNodeId::<ast::Block>::new(parent_id);
+        if tree.get_node_type(parent_id) == dir::NodeType::Block {
+            let block_id = dir::LocalNodeId::<dir::Block>::new(parent_id);
             let block = tree.get(block_id);
 
-            if block.context == ast::BlockContext::Statement
+            if block.context == dir::BlockContext::Statement
                 && block
                     .iter_expressions()
                     .any(|child_id| child_id == current_id)
@@ -345,12 +344,11 @@ pub fn expression_statement_ancestor(
 
 /// Return the enclosing statement span for a standalone expression.
 pub fn expression_statement_span(
-    tree: &ast::Tree,
-    parents: &ast::NodeParentIndex,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    tree: &dir::Tree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<Span> {
     // resolve the enclosing statement wrapper
-    let statement_expression_id = expression_statement_ancestor(tree, parents, expression_id)?;
+    let statement_expression_id = expression_statement_ancestor(tree, expression_id)?;
 
     // return the statement span
     Some(tree.get_span(statement_expression_id))
@@ -358,35 +356,31 @@ pub fn expression_statement_span(
 
 /// Return true when one expression is the direct child of a statement wrapper.
 pub fn expression_is_direct_statement(
-    tree: &ast::Tree,
-    parents: &ast::NodeParentIndex,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    tree: &dir::Tree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    let outer_expression_id =
-        expression_outer_parenthesized_source_form(tree, parents, expression_id);
-    expression_statement_ancestor(tree, parents, expression_id) == Some(outer_expression_id)
+    let outer_expression_id = expression_outer_parenthesized_source_form(tree, expression_id);
+    expression_statement_ancestor(tree, expression_id) == Some(outer_expression_id)
 }
 
 /// Return true when one expression is a direct leading expression in a block.
 pub fn expression_is_direct_block_leading_expression(
-    tree: &ast::Tree,
-    parents: &ast::NodeParentIndex,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    tree: &dir::Tree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     // normalize outer source form first
-    let outer_expression_id =
-        expression_outer_parenthesized_source_form(tree, parents, expression_id);
-    let Some(parent_id) = parents.get(outer_expression_id) else {
+    let outer_expression_id = expression_outer_parenthesized_source_form(tree, expression_id);
+    let Some(parent_id) = tree.get_parent_id(outer_expression_id.id) else {
         return false;
     };
 
     // require one enclosing block
-    if tree.get_node_type(parent_id) != ast::NodeType::Block {
+    if tree.get_node_type(parent_id) != dir::NodeType::Block {
         return false;
     }
 
     // keep only leading block expressions, not value tails
-    let block_id = ast::LocalNodeId::<ast::Block>::new(parent_id);
+    let block_id = dir::LocalNodeId::<dir::Block>::new(parent_id);
     let block = tree.get(block_id);
 
     block
@@ -397,33 +391,33 @@ pub fn expression_is_direct_block_leading_expression(
 }
 
 /// Return true when one expression can safely start an expression statement.
-pub fn expression_can_start_expression_statement(expression: &ast::Expression) -> bool {
+pub fn expression_can_start_expression_statement(expression: &dir::Expression) -> bool {
     matches!(
         expression,
-        ast::Expression::Identifier { .. }
-            | ast::Expression::QualifiedReference { .. }
-            | ast::Expression::Member { .. }
-            | ast::Expression::Index { .. }
-            | ast::Expression::Call { .. }
-            | ast::Expression::New { .. }
-            | ast::Expression::Await { .. }
-            | ast::Expression::Unary { .. }
-            | ast::Expression::Maybe { .. }
-            | ast::Expression::Must { .. }
-            | ast::Expression::ScalarLiteral(_)
-            | ast::Expression::Type { .. }
-            | ast::Expression::TemplateExpression { .. }
-            | ast::Expression::TaggedTemplateExpression { .. }
+        dir::Expression::Identifier { .. }
+            | dir::Expression::QualifiedReference { .. }
+            | dir::Expression::Member { .. }
+            | dir::Expression::Index { .. }
+            | dir::Expression::Call { .. }
+            | dir::Expression::New { .. }
+            | dir::Expression::Await { .. }
+            | dir::Expression::Unary { .. }
+            | dir::Expression::Maybe { .. }
+            | dir::Expression::Must { .. }
+            | dir::Expression::ScalarLiteral(_)
+            | dir::Expression::Type { .. }
+            | dir::Expression::TemplateExpression { .. }
+            | dir::Expression::TaggedTemplateExpression { .. }
     )
 }
 
 /// Return the trailing non null assertion span when one expression text ends with `!`.
 pub fn expression_trailing_bang_span(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<Span> {
     // resolve one text slice for the expression span
-    let expression_span = ctx.tree.get_span(expression_id);
+    let expression_span = ctx.dir.get_span(expression_id);
     let expression_text = ctx.get_span_text(expression_span);
 
     // require one trailing non whitespace `!` character
@@ -443,17 +437,17 @@ pub fn expression_trailing_bang_span(
 
 /// Build one negated expression string while preserving precedence.
 pub fn expression_negated_source_text(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> String {
     // keep the original source text for replacement fidelity
-    let expression_span = ctx.tree.get_span(expression_id);
+    let expression_span = ctx.dir.get_span(expression_id);
     let expression_text = ctx.get_span_text(expression_span);
 
     // normalize the expression shape for precedence checks
     let normalized_expression_id =
-        expression_unwrap_parenthesized_source_form(ctx.tree, expression_id);
-    let normalized_expression = ctx.tree.get(normalized_expression_id);
+        expression_unwrap_parenthesized_source_form(ctx.dir.tree(), expression_id);
+    let normalized_expression = ctx.dir.get(normalized_expression_id);
 
     // preserve precedence for non-atomic expressions
     if expression_needs_parentheses_for_prefix_not(normalized_expression) {
@@ -464,43 +458,42 @@ pub fn expression_negated_source_text(
 }
 
 /// Return true when one expression needs parentheses under prefix `!`.
-fn expression_needs_parentheses_for_prefix_not(expression: &ast::Expression) -> bool {
+fn expression_needs_parentheses_for_prefix_not(expression: &dir::Expression) -> bool {
     !expression_can_start_expression_statement(expression)
-        && !matches!(expression, ast::Expression::Parenthesized { .. })
+        && !matches!(expression, dir::Expression::Parenthesized { .. })
 }
 
 /// Return true when one expression starts a nested declaration scope.
-pub fn expression_starts_nested_declaration_scope(expression: &ast::Expression) -> bool {
-    matches!(expression, ast::Expression::Declaration(_))
+pub fn expression_starts_nested_declaration_scope(expression: &dir::Expression) -> bool {
+    matches!(expression, dir::Expression::Declaration(_))
 }
 
 /// Return true when one declaration expression is immediately invoked.
 pub fn expression_is_immediately_invoked(
-    tree: &ast::Tree,
-    parents: &ast::NodeParentIndex,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    tree: &dir::Tree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     let mut current_expression_id = expression_id;
 
     loop {
         // resolve one expression parent
-        let Some(parent_id) = parents.get(current_expression_id) else {
+        let Some(parent_id) = tree.get_parent_id(current_expression_id.id) else {
             return false;
         };
-        if tree.get_node_type(parent_id) != ast::NodeType::Expression {
+        if tree.get_node_type(parent_id) != dir::NodeType::Expression {
             return false;
         }
 
         // keep climbing through parenthesized wrappers
-        let parent_expression_id = ast::LocalNodeId::<ast::Expression>::new(parent_id);
+        let parent_expression_id = dir::LocalNodeId::<dir::Expression>::new(parent_id);
         let parent_expression = tree.get(parent_expression_id);
         match parent_expression {
-            ast::Expression::Parenthesized { expression }
+            dir::Expression::Parenthesized { expression }
                 if *expression == current_expression_id =>
             {
                 current_expression_id = parent_expression_id;
             }
-            ast::Expression::Call { left, .. } | ast::Expression::New { left, .. } => {
+            dir::Expression::Call { left, .. } | dir::Expression::New { left, .. } => {
                 return *left == current_expression_id;
             }
             _ => return false,
@@ -510,13 +503,13 @@ pub fn expression_is_immediately_invoked(
 
 /// Return true when one expression subtree contains an assignment expression.
 pub fn expression_contains_assignment(
-    tree: &ast::Tree,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    tree: &dir::Tree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     // visit one expression subtree and stop once assignment is found
     let expression = tree.get(expression_id);
     let mut visitor = AssignmentSearchVisitor {
-        options: ast::NodeVisitorOptions::default(),
+        options: dir::NodeVisitorOptions::default(),
         found_assignment: false,
     };
     visitor.visit_expression(tree, expression_id, expression);
@@ -526,52 +519,51 @@ pub fn expression_contains_assignment(
 
 /// Return true when one expression subtree mentions this identifier name.
 pub fn expression_subtree_mentions_identifier_name(
-    tree: &ast::Tree,
-    expression_id: ast::LocalNodeId<ast::Expression>,
-    name: ast::StringId,
+    tree: &dir::Tree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+    name: dir::StringId,
 ) -> bool {
-    subtree_mentions_identifier_name(tree, ast::NodeType::Expression, expression_id.id, name)
+    subtree_mentions_identifier_name(tree, dir::NodeType::Expression, expression_id.id, name)
 }
 
-/// Return true when one AST subtree mentions this identifier name.
+/// Return true when one source subtree mentions this identifier name.
 pub fn subtree_mentions_identifier_name(
-    tree: &ast::Tree,
-    node_type: ast::NodeType,
+    tree: &dir::Tree,
+    node_type: dir::NodeType,
     node_id: u32,
-    name: ast::StringId,
+    name: dir::StringId,
 ) -> bool {
     // walk only the relevant subtree
     let mut visitor = IdentifierNameSearchVisitor {
-        options: ast::NodeVisitorOptions::default(),
+        options: dir::NodeVisitorOptions::default(),
         name,
         found_name: false,
     };
-    ast::walk_any(&mut visitor, tree, node_type, node_id);
+    dir::walk_any(&mut visitor, tree, node_type, node_id);
 
     visitor.found_name
 }
 
 /// Return true when one expression is the target of optional chaining.
 pub fn expression_is_optional_chain_target(
-    tree: &ast::Tree,
-    parents: &ast::NodeParentIndex,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    tree: &dir::Tree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     // require one expression parent
-    let Some(parent_id) = parents.get(expression_id) else {
+    let Some(parent_id) = tree.get_parent_id(expression_id.id) else {
         return false;
     };
-    if tree.get_node_type(parent_id) != ast::NodeType::Expression {
+    if tree.get_node_type(parent_id) != dir::NodeType::Expression {
         return false;
     }
 
     // keep optional chain wrappers that reference this expression directly
-    let parent_expression_id = ast::LocalNodeId::<ast::Expression>::new(parent_id);
+    let parent_expression_id = dir::LocalNodeId::<dir::Expression>::new(parent_id);
     let parent_expression = tree.get(parent_expression_id);
     matches!(
         parent_expression,
-        ast::Expression::Maybe {
-            position: ast::PostfixPosition::Indirect,
+        dir::Expression::Maybe {
+            position: dir::PostfixPosition::Indirect,
             left,
         } if *left == expression_id
     )
@@ -581,31 +573,30 @@ pub fn expression_is_optional_chain_target(
 #[derive(Debug)]
 pub struct IfBranchChain {
     /// Branch body expressions in source order.
-    pub branch_expressions: Vec<ast::LocalNodeId<ast::Expression>>,
+    pub branch_expressions: Vec<dir::LocalNodeId<dir::Expression>>,
     /// Whether the chain ends with an explicit `else` branch.
     pub ends_with_else: bool,
 }
 
 /// Return true when an `if` expression is an `else if` child branch.
 pub fn expression_is_else_if_branch(
-    tree: &ast::Tree,
-    parents: &ast::NodeParentIndex,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    tree: &dir::Tree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     // require an expression parent
-    let Some(parent_id) = parents.get(expression_id) else {
+    let Some(parent_id) = tree.get_parent_id(expression_id.id) else {
         return false;
     };
-    if tree.get_node_type(parent_id) != ast::NodeType::Expression {
+    if tree.get_node_type(parent_id) != dir::NodeType::Expression {
         return false;
     }
 
     // keep parent `if` expressions that reference this node as their `else`
-    let parent_expression_id = ast::LocalNodeId::<ast::Expression>::new(parent_id);
+    let parent_expression_id = dir::LocalNodeId::<dir::Expression>::new(parent_id);
     let parent_expression = tree.get(parent_expression_id);
     matches!(
         parent_expression,
-        ast::Expression::If {
+        dir::Expression::If {
             else_expression: Some(else_expression_id),
             ..
         } if *else_expression_id == expression_id
@@ -614,8 +605,8 @@ pub fn expression_is_else_if_branch(
 
 /// Return one normalized branch chain for an `if` expression.
 pub fn if_expression_branch_chain(
-    tree: &ast::Tree,
-    if_expression_id: ast::LocalNodeId<ast::Expression>,
+    tree: &dir::Tree,
+    if_expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<IfBranchChain> {
     // require one `if` expression entry point
     let mut current_if_id = if_expression_id;
@@ -623,7 +614,7 @@ pub fn if_expression_branch_chain(
 
     loop {
         let current_expression = tree.get(current_if_id);
-        let ast::Expression::If {
+        let dir::Expression::If {
             form: _,
             then_expression,
             else_expression,
@@ -647,8 +638,8 @@ pub fn if_expression_branch_chain(
         let else_expression = tree.get(*else_expression_id);
         if matches!(
             else_expression,
-            ast::Expression::If {
-                form: ast::IfForm::If,
+            dir::Expression::If {
+                form: dir::IfForm::If,
                 ..
             }
         ) {
@@ -666,9 +657,9 @@ pub fn if_expression_branch_chain(
 
 /// Return true when one expression is a direct unqualified path to a name.
 pub fn expression_is_unqualified_path_name(
-    tree: &ast::Tree,
-    expression_id: ast::LocalNodeId<ast::Expression>,
-    name: ast::StringId,
+    tree: &dir::Tree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+    name: dir::StringId,
 ) -> bool {
     // normalize wrappers and resolve path segments
     let Some(path_segments) = expression_path_segments(tree, expression_id) else {
@@ -681,20 +672,19 @@ pub fn expression_is_unqualified_path_name(
 
 /// Return true when one expression belongs to one type annotation position.
 pub fn expression_is_type_annotation(
-    tree: &ast::Tree,
-    parents: &ast::NodeParentIndex,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    tree: &dir::Tree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     // start from one normalized expression id
     let mut current_id = expression_unwrap_parenthesized_source_form(tree, expression_id).id;
 
     // climb ancestors until one type annotation slot is found
-    while let Some(parent_id) = parents.get_by_id(current_id) {
+    while let Some(parent_id) = tree.get_parent_id(current_id) {
         let parent_type = tree.get_node_type(parent_id);
 
         // check declarator annotation slots
-        if parent_type == ast::NodeType::Declarator {
-            let declarator_id = ast::LocalNodeId::<ast::Declarator>::new(parent_id);
+        if parent_type == dir::NodeType::Declarator {
+            let declarator_id = dir::LocalNodeId::<dir::Declarator>::new(parent_id);
             let declarator = tree.get(declarator_id);
             if declarator.ty.is_some_and(|ty_id| ty_id.id == current_id) {
                 return true;
@@ -702,15 +692,15 @@ pub fn expression_is_type_annotation(
         }
 
         // check parameter annotation slots
-        if parent_type == ast::NodeType::Parameter {
-            let parameter_id = ast::LocalNodeId::<ast::Parameter>::new(parent_id);
+        if parent_type == dir::NodeType::Parameter {
+            let parameter_id = dir::LocalNodeId::<dir::Parameter>::new(parent_id);
             let parameter = tree.get(parameter_id);
             let parameter_type = match parameter {
-                ast::Parameter::Named { declared_type, .. }
-                | ast::Parameter::Pattern { declared_type, .. }
-                | ast::Parameter::VariadicNamed { declared_type, .. }
-                | ast::Parameter::VariadicPattern { declared_type, .. } => *declared_type,
-                ast::Parameter::Error => None,
+                dir::Parameter::Named { declared_type, .. }
+                | dir::Parameter::Pattern { declared_type, .. }
+                | dir::Parameter::VariadicNamed { declared_type, .. }
+                | dir::Parameter::VariadicPattern { declared_type, .. } => *declared_type,
+                dir::Parameter::Error => None,
             };
             if parameter_type.is_some_and(|ty_id| ty_id.id == current_id) {
                 return true;
@@ -718,16 +708,16 @@ pub fn expression_is_type_annotation(
         }
 
         // check declaration type expression slots
-        if parent_type == ast::NodeType::Declaration {
-            let declaration_id = ast::LocalNodeId::<ast::Declaration>::new(parent_id);
+        if parent_type == dir::NodeType::Declaration {
+            let declaration_id = dir::LocalNodeId::<dir::Declaration>::new(parent_id);
             let declaration = tree.get(declaration_id);
             match declaration {
-                ast::Declaration::Type(declaration) => {
+                dir::Declaration::Type(declaration) => {
                     if declaration.value.id == current_id {
                         return true;
                     }
                 }
-                ast::Declaration::Function(declaration) => {
+                dir::Declaration::Function(declaration) => {
                     if declaration
                         .signature
                         .return_type
@@ -741,11 +731,11 @@ pub fn expression_is_type_annotation(
         }
 
         // check member type expression slots
-        if parent_type == ast::NodeType::Member {
-            let member_id = ast::LocalNodeId::<ast::Member>::new(parent_id);
+        if parent_type == dir::NodeType::Member {
+            let member_id = dir::LocalNodeId::<dir::Member>::new(parent_id);
             let member = tree.get(member_id);
             match member {
-                ast::Member::AssociatedType {
+                dir::Member::AssociatedType {
                     constraint, value, ..
                 } => {
                     if constraint.is_some_and(|ty_id| ty_id.id == current_id)
@@ -754,17 +744,17 @@ pub fn expression_is_type_annotation(
                         return true;
                     }
                 }
-                ast::Member::AssociatedConst { declared_type, .. } => {
+                dir::Member::AssociatedConst { declared_type, .. } => {
                     if declared_type.is_some_and(|ty_id| ty_id.id == current_id) {
                         return true;
                     }
                 }
-                ast::Member::Field { declared_type, .. } => {
+                dir::Member::Field { declared_type, .. } => {
                     if declared_type.is_some_and(|value_id| value_id.id == current_id) {
                         return true;
                     }
                 }
-                ast::Member::Method { signature, .. } => {
+                dir::Member::Method { signature, .. } => {
                     if signature
                         .return_type
                         .is_some_and(|return_type_id| return_type_id.id == current_id)
@@ -777,10 +767,10 @@ pub fn expression_is_type_annotation(
         }
 
         // check property method return types
-        if parent_type == ast::NodeType::Property {
-            let property_id = ast::LocalNodeId::<ast::Property>::new(parent_id);
+        if parent_type == dir::NodeType::Property {
+            let property_id = dir::LocalNodeId::<dir::Property>::new(parent_id);
             let property = tree.get(property_id);
-            if let ast::Property::Method { signature, .. } = property
+            if let dir::Property::Method { signature, .. } = property
                 && signature
                     .return_type
                     .is_some_and(|return_type_id| return_type_id.id == current_id)
@@ -790,8 +780,8 @@ pub fn expression_is_type_annotation(
         }
 
         // check where clause type slots
-        if parent_type == ast::NodeType::WhereClause {
-            let where_clause_id = ast::LocalNodeId::<ast::WhereClause>::new(parent_id);
+        if parent_type == dir::NodeType::WhereClause {
+            let where_clause_id = dir::LocalNodeId::<dir::WhereClause>::new(parent_id);
             let where_clause = tree.get(where_clause_id);
             if where_clause.right.id == current_id {
                 return true;
@@ -807,21 +797,21 @@ pub fn expression_is_type_annotation(
 /// Visitor that tracks whether one expression subtree contains assignment.
 struct AssignmentSearchVisitor {
     /// Traversal options for expression walk.
-    options: ast::NodeVisitorOptions,
+    options: dir::NodeVisitorOptions,
     /// Whether an assignment node has been encountered.
     found_assignment: bool,
 }
 
-impl ast::NodeVisitor for AssignmentSearchVisitor {
-    fn options(&self) -> &ast::NodeVisitorOptions {
+impl dir::NodeVisitor for AssignmentSearchVisitor {
+    fn options(&self) -> &dir::NodeVisitorOptions {
         &self.options
     }
 
     fn visit_expression(
         &mut self,
-        tree: &ast::Tree,
-        expression_id: ast::LocalNodeId<ast::Expression>,
-        expression: &ast::Expression,
+        tree: &dir::Tree,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        expression: &dir::Expression,
     ) {
         // stop traversal after first assignment match
         if self.found_assignment {
@@ -829,35 +819,35 @@ impl ast::NodeVisitor for AssignmentSearchVisitor {
         }
 
         // record assignment match and stop descending
-        if matches!(expression, ast::Expression::Assign { .. }) {
+        if matches!(expression, dir::Expression::Assign { .. }) {
             self.found_assignment = true;
             return;
         }
 
-        ast::walk_expression(self, tree, expression_id, expression);
+        dir::walk_expression(self, tree, expression_id, expression);
     }
 }
 
 /// Visitor that tracks whether one expression subtree mentions a name.
 struct IdentifierNameSearchVisitor {
     /// Visitor options.
-    options: ast::NodeVisitorOptions,
+    options: dir::NodeVisitorOptions,
     /// The target identifier name.
-    name: ast::StringId,
+    name: dir::StringId,
     /// Whether a matching mention has been found.
     found_name: bool,
 }
 
-impl ast::NodeVisitor for IdentifierNameSearchVisitor {
-    fn options(&self) -> &ast::NodeVisitorOptions {
+impl dir::NodeVisitor for IdentifierNameSearchVisitor {
+    fn options(&self) -> &dir::NodeVisitorOptions {
         &self.options
     }
 
     fn visit_expression(
         &mut self,
-        tree: &ast::Tree,
-        expression_id: ast::LocalNodeId<ast::Expression>,
-        expression: &ast::Expression,
+        tree: &dir::Tree,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        expression: &dir::Expression,
     ) {
         // stop once the target name has been found
         if self.found_name {
@@ -870,14 +860,14 @@ impl ast::NodeVisitor for IdentifierNameSearchVisitor {
             return;
         }
 
-        ast::walk_expression(self, tree, expression_id, expression);
+        dir::walk_expression(self, tree, expression_id, expression);
     }
 
     fn visit_declaration(
         &mut self,
-        tree: &ast::Tree,
-        declaration_id: ast::LocalNodeId<ast::Declaration>,
-        declaration: &ast::Declaration,
+        tree: &dir::Tree,
+        declaration_id: dir::LocalNodeId<dir::Declaration>,
+        declaration: &dir::Declaration,
     ) {
         // stop once the target name has been found
         if self.found_name {
@@ -893,14 +883,14 @@ impl ast::NodeVisitor for IdentifierNameSearchVisitor {
             return;
         }
 
-        ast::walk_declaration(self, tree, declaration_id, declaration);
+        dir::walk_declaration(self, tree, declaration_id, declaration);
     }
 
     fn visit_parameter(
         &mut self,
-        tree: &ast::Tree,
-        parameter_id: ast::LocalNodeId<ast::Parameter>,
-        parameter: &ast::Parameter,
+        tree: &dir::Tree,
+        parameter_id: dir::LocalNodeId<dir::Parameter>,
+        parameter: &dir::Parameter,
     ) {
         // stop once the target name has been found
         if self.found_name {
@@ -909,7 +899,7 @@ impl ast::NodeVisitor for IdentifierNameSearchVisitor {
 
         // match named parameters before descending
         let parameter_name = match parameter {
-            ast::Parameter::Named { name, .. } | ast::Parameter::VariadicNamed { name, .. } => {
+            dir::Parameter::Named { name, .. } | dir::Parameter::VariadicNamed { name, .. } => {
                 Some(*name)
             }
             _ => None,
@@ -919,14 +909,14 @@ impl ast::NodeVisitor for IdentifierNameSearchVisitor {
             return;
         }
 
-        ast::walk_parameter(self, tree, parameter_id, parameter);
+        dir::walk_parameter(self, tree, parameter_id, parameter);
     }
 
     fn visit_pattern(
         &mut self,
-        tree: &ast::Tree,
-        pattern_id: ast::LocalNodeId<ast::Pattern>,
-        pattern: &ast::Pattern,
+        tree: &dir::Tree,
+        pattern_id: dir::LocalNodeId<dir::Pattern>,
+        pattern: &dir::Pattern,
     ) {
         // stop once the target name has been found
         if self.found_name {
@@ -934,21 +924,21 @@ impl ast::NodeVisitor for IdentifierNameSearchVisitor {
         }
 
         // match binding patterns before descending
-        if let ast::Pattern::Binding { name, .. } = pattern
+        if let dir::Pattern::Binding { name, .. } = pattern
             && *name == self.name
         {
             self.found_name = true;
             return;
         }
 
-        ast::walk_pattern(self, tree, pattern_id, pattern);
+        dir::walk_pattern(self, tree, pattern_id, pattern);
     }
 }
 
 /// Return true when one block has no expressions and no comment trivia.
 pub fn block_is_empty_without_comment(
-    tree: &ast::Tree,
-    block_id: ast::LocalNodeId<ast::Block>,
+    tree: &dir::Tree,
+    block_id: dir::LocalNodeId<dir::Block>,
 ) -> bool {
     let block = tree.get(block_id);
     if !block.is_empty() {
@@ -961,18 +951,17 @@ pub fn block_is_empty_without_comment(
 
 /// Return the block expression id for one block node.
 pub fn block_expression_ancestor(
-    tree: &ast::Tree,
-    parents: &ast::NodeParentIndex,
-    block_id: ast::LocalNodeId<ast::Block>,
-) -> Option<ast::LocalNodeId<ast::Expression>> {
-    let parent_id = parents.get(block_id)?;
-    if tree.get_node_type(parent_id) != ast::NodeType::Expression {
+    tree: &dir::Tree,
+    block_id: dir::LocalNodeId<dir::Block>,
+) -> Option<dir::LocalNodeId<dir::Expression>> {
+    let parent_id = tree.get_parent_id(block_id.id)?;
+    if tree.get_node_type(parent_id) != dir::NodeType::Expression {
         return None;
     }
 
-    let expression_id = ast::LocalNodeId::<ast::Expression>::new(parent_id);
+    let expression_id = dir::LocalNodeId::<dir::Expression>::new(parent_id);
     let expression = tree.get(expression_id);
-    if !matches!(expression, ast::Expression::Block(current_id) if *current_id == block_id) {
+    if !matches!(expression, dir::Expression::Block(current_id) if *current_id == block_id) {
         return None;
     }
 
@@ -980,27 +969,23 @@ pub fn block_expression_ancestor(
 }
 
 /// Return true when one block expression is the body of a function or method.
-pub fn block_is_function_body(
-    tree: &ast::Tree,
-    parents: &ast::NodeParentIndex,
-    block_id: ast::LocalNodeId<ast::Block>,
-) -> bool {
+pub fn block_is_function_body(tree: &dir::Tree, block_id: dir::LocalNodeId<dir::Block>) -> bool {
     // resolve the expression that owns this block
-    let Some(block_expression_id) = block_expression_ancestor(tree, parents, block_id) else {
+    let Some(block_expression_id) = block_expression_ancestor(tree, block_id) else {
         return false;
     };
 
     // resolve the parent node that owns the expression
-    let Some(owner_id) = parents.get(block_expression_id) else {
+    let Some(owner_id) = tree.get_parent_id(block_expression_id.id) else {
         return false;
     };
 
     // allow direct function declaration bodies
-    if tree.get_node_type(owner_id) == ast::NodeType::Declaration {
-        let declaration = tree.get(ast::LocalNodeId::<ast::Declaration>::new(owner_id));
+    if tree.get_node_type(owner_id) == dir::NodeType::Declaration {
+        let declaration = tree.get(dir::LocalNodeId::<dir::Declaration>::new(owner_id));
         if matches!(
             declaration,
-            ast::Declaration::Function(ast::FunctionDeclaration {
+            dir::Declaration::Function(dir::FunctionDeclaration {
                 body: Some(body_id),
                 ..
             }) if *body_id == block_expression_id
@@ -1010,11 +995,11 @@ pub fn block_is_function_body(
     }
 
     // allow method bodies
-    if tree.get_node_type(owner_id) == ast::NodeType::Member {
-        let member = tree.get(ast::LocalNodeId::<ast::Member>::new(owner_id));
+    if tree.get_node_type(owner_id) == dir::NodeType::Member {
+        let member = tree.get(dir::LocalNodeId::<dir::Member>::new(owner_id));
         if matches!(
             member,
-            ast::Member::Method {
+            dir::Member::Method {
                 body: Some(body_id),
                 ..
             } if *body_id == block_expression_id
@@ -1028,47 +1013,45 @@ pub fn block_is_function_body(
 
 /// Return true when one block expression belongs to a static block member.
 pub fn block_is_static_block_body(
-    tree: &ast::Tree,
-    parents: &ast::NodeParentIndex,
-    block_id: ast::LocalNodeId<ast::Block>,
+    tree: &dir::Tree,
+    block_id: dir::LocalNodeId<dir::Block>,
 ) -> bool {
     // resolve the expression that wraps this block
-    let Some(block_expression_id) = block_expression_ancestor(tree, parents, block_id) else {
+    let Some(block_expression_id) = block_expression_ancestor(tree, block_id) else {
         return false;
     };
 
     // require a member owner for static blocks
-    let Some(owner_id) = parents.get(block_expression_id) else {
+    let Some(owner_id) = tree.get_parent_id(block_expression_id.id) else {
         return false;
     };
-    if tree.get_node_type(owner_id) != ast::NodeType::Member {
+    if tree.get_node_type(owner_id) != dir::NodeType::Member {
         return false;
     }
 
     // accept only static block members with the same body expression
-    let member = tree.get(ast::LocalNodeId::<ast::Member>::new(owner_id));
+    let member = tree.get(dir::LocalNodeId::<dir::Member>::new(owner_id));
     matches!(
         member,
-        ast::Member::StaticBlock { body, .. } if *body == block_expression_id
+        dir::Member::StaticBlock { body, .. } if *body == block_expression_id
     )
 }
 
 /// Return one declaration wrapper expression id for a declaration node.
 pub fn declaration_expression(
-    tree: &ast::Tree,
-    parents: &ast::NodeParentIndex,
-    declaration_id: ast::LocalNodeId<ast::Declaration>,
-) -> Option<ast::LocalNodeId<ast::Expression>> {
+    tree: &dir::Tree,
+    declaration_id: dir::LocalNodeId<dir::Declaration>,
+) -> Option<dir::LocalNodeId<dir::Expression>> {
     // resolve the declaration parent node
-    let parent_id = parents.get(declaration_id)?;
-    if tree.get_node_type(parent_id) != ast::NodeType::Expression {
+    let parent_id = tree.get_parent_id(declaration_id.id)?;
+    if tree.get_node_type(parent_id) != dir::NodeType::Expression {
         return None;
     }
 
     // require an expression::declaration wrapper with the same declaration id
-    let expression_id = ast::LocalNodeId::<ast::Expression>::new(parent_id);
+    let expression_id = dir::LocalNodeId::<dir::Expression>::new(parent_id);
     let expression = tree.get(expression_id);
-    if !matches!(expression, ast::Expression::Declaration(current) if *current == declaration_id) {
+    if !matches!(expression, dir::Expression::Declaration(current) if *current == declaration_id) {
         return None;
     }
 
@@ -1077,41 +1060,40 @@ pub fn declaration_expression(
 
 /// Return true when one declaration expression is at an allowed root location.
 pub fn declaration_at_allowed_root(
-    tree: &ast::Tree,
-    parents: &ast::NodeParentIndex,
-    declaration_expression_id: ast::LocalNodeId<ast::Expression>,
+    tree: &dir::Tree,
+    declaration_expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     // default to allowed when parent structure is missing
-    let Some(parent_id) = parents.get(declaration_expression_id) else {
+    let Some(parent_id) = tree.get_parent_id(declaration_expression_id.id) else {
         return true;
     };
 
     // declarations are allowed only when directly under a block
-    if tree.get_node_type(parent_id) != ast::NodeType::Block {
+    if tree.get_node_type(parent_id) != dir::NodeType::Block {
         return false;
     }
-    let block_id = ast::LocalNodeId::<ast::Block>::new(parent_id);
+    let block_id = dir::LocalNodeId::<dir::Block>::new(parent_id);
     let block = tree.get(block_id);
     if !block.is_explicit() {
         return true;
     }
 
     // resolve the expression that owns this block
-    let Some(block_expression_id) = block_expression_ancestor(tree, parents, block_id) else {
+    let Some(block_expression_id) = block_expression_ancestor(tree, block_id) else {
         return false;
     };
 
     // default to allowed when the block expression has no owner
-    let Some(owner_id) = parents.get(block_expression_id) else {
+    let Some(owner_id) = tree.get_parent_id(block_expression_id.id) else {
         return true;
     };
 
     // allow function declaration roots
-    if tree.get_node_type(owner_id) == ast::NodeType::Declaration {
-        let declaration = tree.get(ast::LocalNodeId::<ast::Declaration>::new(owner_id));
+    if tree.get_node_type(owner_id) == dir::NodeType::Declaration {
+        let declaration = tree.get(dir::LocalNodeId::<dir::Declaration>::new(owner_id));
         if matches!(
             declaration,
-            ast::Declaration::Function(ast::FunctionDeclaration {
+            dir::Declaration::Function(dir::FunctionDeclaration {
                 body: Some(body_id),
                 ..
             }) if *body_id == block_expression_id
@@ -1121,11 +1103,11 @@ pub fn declaration_at_allowed_root(
     }
 
     // allow static block roots
-    if tree.get_node_type(owner_id) == ast::NodeType::Member {
-        let member = tree.get(ast::LocalNodeId::<ast::Member>::new(owner_id));
+    if tree.get_node_type(owner_id) == dir::NodeType::Member {
+        let member = tree.get(dir::LocalNodeId::<dir::Member>::new(owner_id));
         if matches!(
             member,
-            ast::Member::StaticBlock { body, .. } if *body == block_expression_id
+            dir::Member::StaticBlock { body, .. } if *body == block_expression_id
         ) {
             return true;
         }
@@ -1136,9 +1118,9 @@ pub fn declaration_at_allowed_root(
 
 /// Return path segments when the expression is a non-generic reference chain.
 pub fn expression_path_segments(
-    tree: &ast::Tree,
-    expression_id: ast::LocalNodeId<ast::Expression>,
-) -> Option<Vec<ast::StringId>> {
+    tree: &dir::Tree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> Option<Vec<dir::StringId>> {
     let mut segments = Vec::new();
 
     collect_expression_path_segments(tree, expression_id, &mut segments)?;
@@ -1148,20 +1130,20 @@ pub fn expression_path_segments(
 
 /// Collect path segments for one non-generic reference chain.
 fn collect_expression_path_segments(
-    tree: &ast::Tree,
-    expression_id: ast::LocalNodeId<ast::Expression>,
-    segments: &mut Vec<ast::StringId>,
+    tree: &dir::Tree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+    segments: &mut Vec<dir::StringId>,
 ) -> Option<()> {
     // normalize wrappers first
     let expression_id = expression_unwrap_parenthesized_source_form(tree, expression_id);
     let expression = tree.get(expression_id);
 
     match expression {
-        ast::Expression::Identifier { name } => {
+        dir::Expression::Identifier { name } => {
             segments.push(*name);
             Some(())
         }
-        ast::Expression::QualifiedReference {
+        dir::Expression::QualifiedReference {
             path,
             generic_arguments,
         } => {
@@ -1172,7 +1154,7 @@ fn collect_expression_path_segments(
             segments.extend_from_slice(&path.segments);
             Some(())
         }
-        ast::Expression::Member {
+        dir::Expression::Member {
             left,
             name: Some(name),
         } => {
@@ -1186,23 +1168,23 @@ fn collect_expression_path_segments(
 
 /// Return one static string literal value from an expression source form.
 pub fn expression_static_string_literal_source_form(
-    tree: &ast::Tree,
-    expression_id: ast::LocalNodeId<ast::Expression>,
-) -> Option<ast::StringId> {
+    tree: &dir::Tree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> Option<dir::StringId> {
     // normalize expression shape
     let expression_id = expression_unwrap_parenthesized_source_form(tree, expression_id);
     let expression = tree.get(expression_id);
 
     // match direct string literals
-    if let ast::Expression::ScalarLiteral(ast::ScalarLiteral::String(value)) = expression {
+    if let dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(value)) = expression {
         return Some(*value);
     }
 
     // match template literals without interpolations
-    let ast::Expression::TemplateExpression { value } = expression else {
+    let dir::Expression::TemplateExpression { value } = expression else {
         return None;
     };
-    let ast::TemplateLiteral::String { string } = value else {
+    let dir::TemplateLiteral::String { string } = value else {
         return None;
     };
 
@@ -1211,22 +1193,22 @@ pub fn expression_static_string_literal_source_form(
 
 /// Return one static property access pair as `(left, property_name)` from source form.
 pub fn expression_static_property_access_source_form(
-    tree: &ast::Tree,
-    expression_id: ast::LocalNodeId<ast::Expression>,
-) -> Option<(ast::LocalNodeId<ast::Expression>, ast::StringId)> {
+    tree: &dir::Tree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> Option<(dir::LocalNodeId<dir::Expression>, dir::StringId)> {
     // normalize expression shape
     let expression_id = expression_unwrap_parenthesized_source_form(tree, expression_id);
     let expression = tree.get(expression_id);
 
     // match dot member access
-    if let ast::Expression::Member { left, name, .. } = expression {
+    if let dir::Expression::Member { left, name, .. } = expression {
         let name = (*name)?;
 
         return Some((*left, name));
     }
 
     // match bracket member access with static string keys
-    let ast::Expression::Index { left, index, .. } = expression else {
+    let dir::Expression::Index { left, index, .. } = expression else {
         return None;
     };
     let index_id = index.as_ref().copied()?;
@@ -1237,16 +1219,16 @@ pub fn expression_static_property_access_source_form(
 
 /// Return the value expression id for one argument node.
 pub fn argument_value_expression_id(
-    tree: &ast::Tree,
-    argument_id: ast::LocalNodeId<ast::Argument>,
-) -> Option<ast::LocalNodeId<ast::Expression>> {
+    tree: &dir::Tree,
+    argument_id: dir::LocalNodeId<dir::Argument>,
+) -> Option<dir::LocalNodeId<dir::Expression>> {
     let argument = tree.get(argument_id);
     match argument {
-        ast::Argument::Positional { value, .. }
-        | ast::Argument::Spread { value, .. }
-        | ast::Argument::Named { value, .. }
-        | ast::Argument::Labeled { value, .. } => Some(*value),
-        ast::Argument::Error => None,
+        dir::Argument::Positional { value, .. }
+        | dir::Argument::Spread { value, .. }
+        | dir::Argument::Named { value, .. }
+        | dir::Argument::Labeled { value, .. } => Some(*value),
+        dir::Argument::Error => None,
     }
 }
 
@@ -1264,8 +1246,8 @@ pub fn const_value_f64(value: ConstValue) -> Option<f64> {
 
 /// Evaluate an expression as a numeric constant when possible.
 pub fn expression_numeric_value(
-    ctx: &mut LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &mut LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<f64> {
     // resolve direct constant values first
     if let Some(value) = ctx.const_value(expression_id) {
@@ -1273,9 +1255,9 @@ pub fn expression_numeric_value(
     }
 
     // normalize expression shape and require a binary expression
-    let expression_id = expression_unwrap_parenthesized_source_form(ctx.tree, expression_id);
-    let expression = ctx.tree.get(expression_id);
-    let ast::Expression::Binary {
+    let expression_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), expression_id);
+    let expression = ctx.dir.get(expression_id);
+    let dir::Expression::Binary {
         operator,
         left,
         right,
@@ -1290,20 +1272,20 @@ pub fn expression_numeric_value(
 
     // apply numeric operator semantics
     match operator {
-        ast::BinaryOperator::Add => Some(left_value + right_value),
-        ast::BinaryOperator::Subtract => Some(left_value - right_value),
-        ast::BinaryOperator::Multiply => Some(left_value * right_value),
-        ast::BinaryOperator::Divide => Some(left_value / right_value),
-        ast::BinaryOperator::Remainder => Some(left_value % right_value),
-        ast::BinaryOperator::Exponent => Some(left_value.powf(right_value)),
+        dir::BinaryOperator::Add => Some(left_value + right_value),
+        dir::BinaryOperator::Subtract => Some(left_value - right_value),
+        dir::BinaryOperator::Multiply => Some(left_value * right_value),
+        dir::BinaryOperator::Divide => Some(left_value / right_value),
+        dir::BinaryOperator::Remainder => Some(left_value % right_value),
+        dir::BinaryOperator::Exponent => Some(left_value.powf(right_value)),
         _ => None,
     }
 }
 
 /// Evaluate an expression as a signed numeric constant when possible.
 pub fn expression_numeric_sign(
-    ctx: &mut LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &mut LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<i8> {
     // resolve numeric value
     let value = expression_numeric_value(ctx, expression_id)?;
@@ -1326,50 +1308,50 @@ pub fn expression_numeric_sign(
 /// Compares expressions by structure, ignoring parentheses.
 /// Handles paths, literals, and recursively compares binary/unary operations.
 pub fn expression_is_equal(
-    ctx: &LintAstContext<'_>,
-    left_id: ast::LocalNodeId<ast::Expression>,
-    right_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    left_id: dir::LocalNodeId<dir::Expression>,
+    right_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    let left_id = expression_unwrap_parenthesized_source_form(ctx.tree, left_id);
-    let right_id = expression_unwrap_parenthesized_source_form(ctx.tree, right_id);
-    let left = ctx.tree.get(left_id);
-    let right = ctx.tree.get(right_id);
+    let left_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), left_id);
+    let right_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), right_id);
+    let left = ctx.dir.get(left_id);
+    let right = ctx.dir.get(right_id);
     match (left, right) {
         // identifiers: compare names
         (
-            ast::Expression::Identifier { name: left_name },
-            ast::Expression::Identifier { name: right_name },
+            dir::Expression::Identifier { name: left_name },
+            dir::Expression::Identifier { name: right_name },
         ) => string_ids_equal(ctx, *left_name, *right_name),
 
         // qualified references: compare segments
         (
-            ast::Expression::QualifiedReference {
+            dir::Expression::QualifiedReference {
                 path: left_path, ..
             },
-            ast::Expression::QualifiedReference {
+            dir::Expression::QualifiedReference {
                 path: right_path, ..
             },
         ) => paths_equal(ctx, left_path, right_path),
 
         // scalar literals: direct comparison
         (
-            ast::Expression::ScalarLiteral(left_literal),
-            ast::Expression::ScalarLiteral(right_literal),
+            dir::Expression::ScalarLiteral(left_literal),
+            dir::Expression::ScalarLiteral(right_literal),
         ) => left_literal == right_literal,
 
         // type expressions: compare recursively
-        (ast::Expression::Type { value: left }, ast::Expression::Type { value: right }) => {
+        (dir::Expression::Type { value: left }, dir::Expression::Type { value: right }) => {
             type_expression_is_equal(ctx, *left, *right)
         }
 
         // binary expressions: compare operator and operands recursively
         (
-            ast::Expression::Binary {
+            dir::Expression::Binary {
                 operator: left_operator,
                 left: left_left,
                 right: left_right,
             },
-            ast::Expression::Binary {
+            dir::Expression::Binary {
                 operator: right_operator,
                 left: right_left,
                 right: right_right,
@@ -1382,11 +1364,11 @@ pub fn expression_is_equal(
 
         // unary expressions: compare operator and operand recursively
         (
-            ast::Expression::Unary {
+            dir::Expression::Unary {
                 operator: left_operator,
                 right: left_right,
             },
-            ast::Expression::Unary {
+            dir::Expression::Unary {
                 operator: right_operator,
                 right: right_right,
             },
@@ -1394,12 +1376,12 @@ pub fn expression_is_equal(
 
         // member access: compare object and member name
         (
-            ast::Expression::Member {
+            dir::Expression::Member {
                 left: left_object,
                 name: left_name,
                 ..
             },
-            ast::Expression::Member {
+            dir::Expression::Member {
                 left: right_object,
                 name: right_name,
                 ..
@@ -1415,12 +1397,12 @@ pub fn expression_is_equal(
 
         // index access: compare object and index
         (
-            ast::Expression::Index {
+            dir::Expression::Index {
                 left: left_object,
                 index: left_index,
                 position: left_position,
             },
-            ast::Expression::Index {
+            dir::Expression::Index {
                 left: right_object,
                 index: right_index,
                 position: right_position,
@@ -1441,12 +1423,12 @@ pub fn expression_is_equal(
 
         // value of: compare mutability, variance, and operand
         (
-            ast::Expression::MoveOf {
+            dir::Expression::MoveOf {
                 mutability: left_mutability,
                 variance: left_variance,
                 right: left_right,
             },
-            ast::Expression::MoveOf {
+            dir::Expression::MoveOf {
                 mutability: right_mutability,
                 variance: right_variance,
                 right: right_right,
@@ -1459,12 +1441,12 @@ pub fn expression_is_equal(
 
         // reference of: compare mutability, variance, and operand
         (
-            ast::Expression::BorrowOf {
+            dir::Expression::BorrowOf {
                 mutability: left_mutability,
                 variance: left_variance,
                 right: left_right,
             },
-            ast::Expression::BorrowOf {
+            dir::Expression::BorrowOf {
                 mutability: right_mutability,
                 variance: right_variance,
                 right: right_right,
@@ -1477,47 +1459,47 @@ pub fn expression_is_equal(
 
         // await expressions: compare inner expression
         (
-            ast::Expression::Await {
+            dir::Expression::Await {
                 expression: left_expression,
             },
-            ast::Expression::Await {
+            dir::Expression::Await {
                 expression: right_expression,
             },
         ) => expression_is_equal(ctx, *left_expression, *right_expression),
 
         // await? expressions: compare inner expression
         (
-            ast::Expression::AwaitMaybe {
+            dir::Expression::AwaitMaybe {
                 expression: left_expression,
             },
-            ast::Expression::AwaitMaybe {
+            dir::Expression::AwaitMaybe {
                 expression: right_expression,
             },
         ) => expression_is_equal(ctx, *left_expression, *right_expression),
 
         // await! expressions: compare inner expression
         (
-            ast::Expression::AwaitMust {
+            dir::Expression::AwaitMust {
                 expression: left_expression,
             },
-            ast::Expression::AwaitMust {
+            dir::Expression::AwaitMust {
                 expression: right_expression,
             },
         ) => expression_is_equal(ctx, *left_expression, *right_expression),
 
         // throw expressions: compare value
         (
-            ast::Expression::Throw { value: left_value },
-            ast::Expression::Throw { value: right_value },
+            dir::Expression::Throw { value: left_value },
+            dir::Expression::Throw { value: right_value },
         ) => expression_is_equal(ctx, *left_value, *right_value),
 
         // maybe expressions: compare position and operand
         (
-            ast::Expression::Maybe {
+            dir::Expression::Maybe {
                 position: left_position,
                 left: left_left,
             },
-            ast::Expression::Maybe {
+            dir::Expression::Maybe {
                 position: right_position,
                 left: right_left,
             },
@@ -1525,11 +1507,11 @@ pub fn expression_is_equal(
 
         // must expressions: compare position and operand
         (
-            ast::Expression::Must {
+            dir::Expression::Must {
                 position: left_position,
                 left: left_left,
             },
-            ast::Expression::Must {
+            dir::Expression::Must {
                 position: right_position,
                 left: right_left,
             },
@@ -1537,12 +1519,12 @@ pub fn expression_is_equal(
 
         // assignment: compare operator and operands
         (
-            ast::Expression::Assign {
+            dir::Expression::Assign {
                 left: left_left,
                 operator: left_operator,
                 right: left_right,
             },
-            ast::Expression::Assign {
+            dir::Expression::Assign {
                 left: right_left,
                 operator: right_operator,
                 right: right_right,
@@ -1555,12 +1537,12 @@ pub fn expression_is_equal(
 
         // call expressions: compare callee and arguments
         (
-            ast::Expression::Call {
+            dir::Expression::Call {
                 left: left_callee,
                 arguments: left_args,
                 ..
             },
-            ast::Expression::Call {
+            dir::Expression::Call {
                 left: right_callee,
                 arguments: right_args,
                 ..
@@ -1571,7 +1553,7 @@ pub fn expression_is_equal(
         }
 
         // blocks: compare contents
-        (ast::Expression::Block(left_block), ast::Expression::Block(right_block)) => {
+        (dir::Expression::Block(left_block), dir::Expression::Block(right_block)) => {
             blocks_equal(ctx, *left_block, *right_block)
         }
 
@@ -1582,32 +1564,32 @@ pub fn expression_is_equal(
 
 /// Return whether two type expressions are structurally equal.
 pub fn type_expression_is_equal(
-    ctx: &LintAstContext<'_>,
-    left_id: ast::LocalNodeId<ast::TypeExpression>,
-    right_id: ast::LocalNodeId<ast::TypeExpression>,
+    ctx: &LintModuleContext<'_>,
+    left_id: dir::LocalNodeId<dir::TypeExpression>,
+    right_id: dir::LocalNodeId<dir::TypeExpression>,
 ) -> bool {
-    let left = ctx.tree.get(left_id);
-    let right = ctx.tree.get(right_id);
+    let left = ctx.dir.get(left_id);
+    let right = ctx.dir.get(right_id);
 
     match (left, right) {
         (
-            ast::TypeExpression::Parenthesized { expression: left },
-            ast::TypeExpression::Parenthesized { expression: right },
+            dir::TypeExpression::Parenthesized { expression: left },
+            dir::TypeExpression::Parenthesized { expression: right },
         ) => type_expression_is_equal(ctx, *left, *right),
         (
-            ast::TypeExpression::ScalarLiteral { value: left },
-            ast::TypeExpression::ScalarLiteral { value: right },
+            dir::TypeExpression::ScalarLiteral { value: left },
+            dir::TypeExpression::ScalarLiteral { value: right },
         ) => left == right,
         (
-            ast::TypeExpression::Literal { value: left },
-            ast::TypeExpression::Literal { value: right },
+            dir::TypeExpression::Literal { value: left },
+            dir::TypeExpression::Literal { value: right },
         ) => left == right,
         (
-            ast::TypeExpression::Reference {
+            dir::TypeExpression::Reference {
                 path: left_path,
                 generic_arguments: left_arguments,
             },
-            ast::TypeExpression::Reference {
+            dir::TypeExpression::Reference {
                 path: right_path,
                 generic_arguments: right_arguments,
             },
@@ -1616,12 +1598,12 @@ pub fn type_expression_is_equal(
                 && generic_arguments_are_equal(ctx, left_arguments, right_arguments)
         }
         (
-            ast::TypeExpression::Member {
+            dir::TypeExpression::Member {
                 left: left_target,
                 name: left_name,
                 generic_arguments: left_arguments,
             },
-            ast::TypeExpression::Member {
+            dir::TypeExpression::Member {
                 left: right_target,
                 name: right_name,
                 generic_arguments: right_arguments,
@@ -1632,64 +1614,64 @@ pub fn type_expression_is_equal(
                 && generic_arguments_are_equal(ctx, left_arguments, right_arguments)
         }
         (
-            ast::TypeExpression::Readonly {
+            dir::TypeExpression::Readonly {
                 target_type: left_target,
             },
-            ast::TypeExpression::Readonly {
+            dir::TypeExpression::Readonly {
                 target_type: right_target,
             },
         )
         | (
-            ast::TypeExpression::KeyOf {
+            dir::TypeExpression::KeyOf {
                 target_type: left_target,
             },
-            ast::TypeExpression::KeyOf {
+            dir::TypeExpression::KeyOf {
                 target_type: right_target,
             },
         )
         | (
-            ast::TypeExpression::Must {
+            dir::TypeExpression::Must {
                 target_type: left_target,
             },
-            ast::TypeExpression::Must {
+            dir::TypeExpression::Must {
                 target_type: right_target,
             },
         )
         | (
-            ast::TypeExpression::AsComptime {
+            dir::TypeExpression::AsComptime {
                 target_type: left_target,
             },
-            ast::TypeExpression::AsComptime {
+            dir::TypeExpression::AsComptime {
                 target_type: right_target,
             },
         )
         | (
-            ast::TypeExpression::Not {
+            dir::TypeExpression::Not {
                 target_type: left_target,
             },
-            ast::TypeExpression::Not {
+            dir::TypeExpression::Not {
                 target_type: right_target,
             },
         ) => type_expression_is_equal(ctx, *left_target, *right_target),
         (
-            ast::TypeExpression::OwnedOf {
+            dir::TypeExpression::OwnedOf {
                 mutability: left_mutability,
                 variance: left_variance,
                 target_type: left_target,
             },
-            ast::TypeExpression::OwnedOf {
+            dir::TypeExpression::OwnedOf {
                 mutability: right_mutability,
                 variance: right_variance,
                 target_type: right_target,
             },
         )
         | (
-            ast::TypeExpression::BorrowedOf {
+            dir::TypeExpression::BorrowedOf {
                 mutability: left_mutability,
                 variance: left_variance,
                 target_type: left_target,
             },
-            ast::TypeExpression::BorrowedOf {
+            dir::TypeExpression::BorrowedOf {
                 mutability: right_mutability,
                 variance: right_variance,
                 target_type: right_target,
@@ -1700,11 +1682,11 @@ pub fn type_expression_is_equal(
                 && type_expression_is_equal(ctx, *left_target, *right_target)
         }
         (
-            ast::TypeExpression::PointerOf {
+            dir::TypeExpression::PointerOf {
                 mutability: left_mutability,
                 target_type: left_target,
             },
-            ast::TypeExpression::PointerOf {
+            dir::TypeExpression::PointerOf {
                 mutability: right_mutability,
                 target_type: right_target,
             },
@@ -1713,15 +1695,15 @@ pub fn type_expression_is_equal(
                 && type_expression_is_equal(ctx, *left_target, *right_target)
         }
         (
-            ast::TypeExpression::TypeOfValue { value: left_value },
-            ast::TypeExpression::TypeOfValue { value: right_value },
+            dir::TypeExpression::TypeOfValue { value: left_value },
+            dir::TypeExpression::TypeOfValue { value: right_value },
         ) => expression_is_equal(ctx, *left_value, *right_value),
         (
-            ast::TypeExpression::Index {
+            dir::TypeExpression::Index {
                 left: left_target,
                 index: left_index,
             },
-            ast::TypeExpression::Index {
+            dir::TypeExpression::Index {
                 left: right_target,
                 index: right_index,
             },
@@ -1730,24 +1712,29 @@ pub fn type_expression_is_equal(
                 && type_expression_is_equal(ctx, *left_index, *right_index)
         }
         (
-            ast::TypeExpression::Union { elements: left },
-            ast::TypeExpression::Union { elements: right },
+            dir::TypeExpression::Union { elements: left },
+            dir::TypeExpression::Union { elements: right },
         )
         | (
-            ast::TypeExpression::Intersection { elements: left },
-            ast::TypeExpression::Intersection { elements: right },
+            dir::TypeExpression::Intersection { elements: left },
+            dir::TypeExpression::Intersection { elements: right },
         ) => type_expression_list_equal(ctx, left, right),
         _ => {
-            let left = ctx.tree.get(left_id);
-            let right = ctx.tree.get(right_id);
+            let left = ctx.dir.get(left_id);
+            let right = ctx.dir.get(right_id);
 
             let mut left_collector = ExpressionSignatureCollector::new(ctx.strings);
-            ast::NodeVisitor::visit_type_expression(&mut left_collector, ctx.tree, left_id, left);
+            dir::NodeVisitor::visit_type_expression(
+                &mut left_collector,
+                ctx.dir.tree(),
+                left_id,
+                left,
+            );
 
             let mut right_collector = ExpressionSignatureCollector::new(ctx.strings);
-            ast::NodeVisitor::visit_type_expression(
+            dir::NodeVisitor::visit_type_expression(
                 &mut right_collector,
-                ctx.tree,
+                ctx.dir.tree(),
                 right_id,
                 right,
             );
@@ -1759,12 +1746,12 @@ pub fn type_expression_is_equal(
 
 /// Check if two blocks have identical expressions.
 pub fn blocks_equal(
-    ctx: &LintAstContext<'_>,
-    left_id: ast::LocalNodeId<ast::Block>,
-    right_id: ast::LocalNodeId<ast::Block>,
+    ctx: &LintModuleContext<'_>,
+    left_id: dir::LocalNodeId<dir::Block>,
+    right_id: dir::LocalNodeId<dir::Block>,
 ) -> bool {
-    let left = ctx.tree.get(left_id);
-    let right = ctx.tree.get(right_id);
+    let left = ctx.dir.get(left_id);
+    let right = ctx.dir.get(right_id);
     if left.len() != right.len() {
         return false;
     }
@@ -1778,7 +1765,7 @@ pub fn blocks_equal(
 }
 
 /// Return whether two paths are equal.
-pub fn paths_equal(ctx: &LintAstContext<'_>, left: &ast::Path, right: &ast::Path) -> bool {
+pub fn paths_equal(ctx: &LintModuleContext<'_>, left: &dir::Path, right: &dir::Path) -> bool {
     if left.segments.len() != right.segments.len() {
         return false;
     }
@@ -1794,9 +1781,9 @@ pub fn paths_equal(ctx: &LintAstContext<'_>, left: &ast::Path, right: &ast::Path
 
 /// Return whether two string IDs refer to equal strings.
 pub fn string_ids_equal(
-    ctx: &LintAstContext<'_>,
-    left: ast::StringId,
-    right: ast::StringId,
+    ctx: &LintModuleContext<'_>,
+    left: dir::StringId,
+    right: dir::StringId,
 ) -> bool {
     let left_string = ctx.strings.get(left);
     let right_string = ctx.strings.get(right);
@@ -1805,9 +1792,9 @@ pub fn string_ids_equal(
 
 /// Return whether two argument lists are equal.
 pub fn arguments_are_equal(
-    ctx: &LintAstContext<'_>,
-    left: &[ast::LocalNodeId<ast::Argument>],
-    right: &[ast::LocalNodeId<ast::Argument>],
+    ctx: &LintModuleContext<'_>,
+    left: &[dir::LocalNodeId<dir::Argument>],
+    right: &[dir::LocalNodeId<dir::Argument>],
 ) -> bool {
     if left.len() != right.len() {
         return false;
@@ -1824,9 +1811,9 @@ pub fn arguments_are_equal(
 
 /// Return whether two generic argument lists are structurally equal.
 pub fn generic_arguments_are_equal(
-    ctx: &LintAstContext<'_>,
-    left: &[ast::LocalNodeId<ast::GenericArgument>],
-    right: &[ast::LocalNodeId<ast::GenericArgument>],
+    ctx: &LintModuleContext<'_>,
+    left: &[dir::LocalNodeId<dir::GenericArgument>],
+    right: &[dir::LocalNodeId<dir::GenericArgument>],
 ) -> bool {
     if left.len() != right.len() {
         return false;
@@ -1843,32 +1830,32 @@ pub fn generic_arguments_are_equal(
 
 /// Return whether two generic arguments are structurally equal.
 pub fn generic_argument_is_equal(
-    ctx: &LintAstContext<'_>,
-    left_id: ast::LocalNodeId<ast::GenericArgument>,
-    right_id: ast::LocalNodeId<ast::GenericArgument>,
+    ctx: &LintModuleContext<'_>,
+    left_id: dir::LocalNodeId<dir::GenericArgument>,
+    right_id: dir::LocalNodeId<dir::GenericArgument>,
 ) -> bool {
-    let left = ctx.tree.get(left_id);
-    let right = ctx.tree.get(right_id);
+    let left = ctx.dir.get(left_id);
+    let right = ctx.dir.get(right_id);
 
     match (left, right) {
         (
-            ast::GenericArgument::Type { value: left_type },
-            ast::GenericArgument::Type { value: right_type },
+            dir::GenericArgument::Type { value: left_type },
+            dir::GenericArgument::Type { value: right_type },
         ) => type_expression_is_equal(ctx, *left_type, *right_type),
         (
-            ast::GenericArgument::Value { value: left_value },
-            ast::GenericArgument::Value { value: right_value },
+            dir::GenericArgument::Value { value: left_value },
+            dir::GenericArgument::Value { value: right_value },
         ) => expression_is_equal(ctx, *left_value, *right_value),
-        (ast::GenericArgument::Error, ast::GenericArgument::Error) => true,
+        (dir::GenericArgument::Error, dir::GenericArgument::Error) => true,
         _ => false,
     }
 }
 
 /// Return whether two type expression lists are structurally equal.
 fn type_expression_list_equal(
-    ctx: &LintAstContext<'_>,
-    left: &[ast::LocalNodeId<ast::TypeExpression>],
-    right: &[ast::LocalNodeId<ast::TypeExpression>],
+    ctx: &LintModuleContext<'_>,
+    left: &[dir::LocalNodeId<dir::TypeExpression>],
+    right: &[dir::LocalNodeId<dir::TypeExpression>],
 ) -> bool {
     if left.len() != right.len() {
         return false;
@@ -1885,42 +1872,42 @@ fn type_expression_list_equal(
 
 /// Return whether two arguments are structurally equal.
 pub fn argument_is_equal(
-    ctx: &LintAstContext<'_>,
-    left_id: ast::LocalNodeId<ast::Argument>,
-    right_id: ast::LocalNodeId<ast::Argument>,
+    ctx: &LintModuleContext<'_>,
+    left_id: dir::LocalNodeId<dir::Argument>,
+    right_id: dir::LocalNodeId<dir::Argument>,
 ) -> bool {
-    let left = ctx.tree.get(left_id);
-    let right = ctx.tree.get(right_id);
+    let left = ctx.dir.get(left_id);
+    let right = ctx.dir.get(right_id);
 
     match (left, right) {
         // positional arguments
         (
-            ast::Argument::Positional {
+            dir::Argument::Positional {
                 value: left_value, ..
             },
-            ast::Argument::Positional {
+            dir::Argument::Positional {
                 value: right_value, ..
             },
         ) => expression_is_equal(ctx, *left_value, *right_value),
 
         // spread arguments
         (
-            ast::Argument::Spread {
+            dir::Argument::Spread {
                 value: left_value, ..
             },
-            ast::Argument::Spread {
+            dir::Argument::Spread {
                 value: right_value, ..
             },
         ) => expression_is_equal(ctx, *left_value, *right_value),
 
         // named arguments
         (
-            ast::Argument::Named {
+            dir::Argument::Named {
                 name: left_name,
                 value: left_value,
                 ..
             },
-            ast::Argument::Named {
+            dir::Argument::Named {
                 name: right_name,
                 value: right_value,
                 ..
@@ -1932,12 +1919,12 @@ pub fn argument_is_equal(
 
         // labeled arguments
         (
-            ast::Argument::Labeled {
+            dir::Argument::Labeled {
                 label: left_label,
                 value: left_value,
                 ..
             },
-            ast::Argument::Labeled {
+            dir::Argument::Labeled {
                 label: right_label,
                 value: right_value,
                 ..
@@ -1958,76 +1945,76 @@ pub fn argument_is_equal(
 /// or that need to distinguish between pure and impure expressions.
 /// #Cleanup: can expression_has_side_effects use NodeVisitor..?
 pub fn expression_has_side_effects(
-    ctx: &LintAstContext<'_>,
-    expr_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    expr_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    let expr = ctx.tree.get(expr_id);
+    let expr = ctx.dir.get(expr_id);
     match expr {
         // pure: literals
-        ast::Expression::ScalarLiteral(_) | ast::Expression::PrivateIdentifier { .. } => false,
-        ast::Expression::Type { value } => type_expression_has_side_effects(ctx, *value),
+        dir::Expression::ScalarLiteral(_) | dir::Expression::PrivateIdentifier { .. } => false,
+        dir::Expression::Type { value } => type_expression_has_side_effects(ctx, *value),
 
         // pure: references
-        ast::Expression::Identifier { .. }
-        | ast::Expression::QualifiedReference { .. }
-        | ast::Expression::ImportMeta
-        | ast::Expression::NewTarget
-        | ast::Expression::This
-        | ast::Expression::Super => false,
+        dir::Expression::Identifier { .. }
+        | dir::Expression::QualifiedReference { .. }
+        | dir::Expression::ImportMeta
+        | dir::Expression::NewTarget
+        | dir::Expression::This
+        | dir::Expression::Super => false,
 
         // pure: containers (if elements are pure)
-        ast::Expression::ArrayExpression { elements }
-        | ast::Expression::TupleExpression { elements } => elements.iter().any(|arg_id| {
-            let arg = ctx.tree.get(*arg_id);
+        dir::Expression::ArrayExpression { elements }
+        | dir::Expression::TupleExpression { elements } => elements.iter().any(|arg_id| {
+            let arg = ctx.dir.get(*arg_id);
             match arg {
-                ast::Argument::Positional { value, .. }
-                | ast::Argument::Spread { value, .. }
-                | ast::Argument::Named { value, .. }
-                | ast::Argument::Labeled { value, .. } => expression_has_side_effects(ctx, *value),
-                ast::Argument::Error => true,
+                dir::Argument::Positional { value, .. }
+                | dir::Argument::Spread { value, .. }
+                | dir::Argument::Named { value, .. }
+                | dir::Argument::Labeled { value, .. } => expression_has_side_effects(ctx, *value),
+                dir::Argument::Error => true,
             }
         }),
-        ast::Expression::FixedArrayExpression { value, length } => {
+        dir::Expression::FixedArrayExpression { value, length } => {
             expression_has_side_effects(ctx, *value) || expression_has_side_effects(ctx, *length)
         }
 
         // pure: member access (if object is pure)
-        ast::Expression::Member { left, .. } | ast::Expression::PrivateMember { left, .. } => {
+        dir::Expression::Member { left, .. } | dir::Expression::PrivateMember { left, .. } => {
             expression_has_side_effects(ctx, *left)
         }
 
         // pure: instantiation (if target is pure)
-        ast::Expression::Instantiation { left, .. } => expression_has_side_effects(ctx, *left),
+        dir::Expression::Instantiation { left, .. } => expression_has_side_effects(ctx, *left),
 
         // pure: index access (if object and index are pure)
-        ast::Expression::Index { left, index, .. } => {
+        dir::Expression::Index { left, index, .. } => {
             expression_has_side_effects(ctx, *left)
                 || index.is_some_and(|idx| expression_has_side_effects(ctx, idx))
         }
 
         // pure: unary/binary ops on pure expressions
-        ast::Expression::Unary { right, .. } => expression_has_side_effects(ctx, *right),
-        ast::Expression::Is { value, target_type } => {
+        dir::Expression::Unary { right, .. } => expression_has_side_effects(ctx, *right),
+        dir::Expression::Is { value, target_type } => {
             expression_has_side_effects(ctx, *value)
                 || type_expression_has_side_effects(ctx, *target_type)
         }
-        ast::Expression::InstanceOf { value, target } => {
+        dir::Expression::InstanceOf { value, target } => {
             expression_has_side_effects(ctx, *value) || expression_has_side_effects(ctx, *target)
         }
-        ast::Expression::Binary { left, right, .. } => {
+        dir::Expression::Binary { left, right, .. } => {
             expression_has_side_effects(ctx, *left) || expression_has_side_effects(ctx, *right)
         }
-        ast::Expression::RangeExpression { start, end, .. } => {
+        dir::Expression::RangeExpression { start, end, .. } => {
             start.is_some_and(|start| expression_has_side_effects(ctx, start))
                 || end.is_some_and(|end| expression_has_side_effects(ctx, end))
         }
 
         // pure: type operations
-        ast::Expression::As {
+        dir::Expression::As {
             expression,
             target_type,
         }
-        | ast::Expression::Satisfies {
+        | dir::Expression::Satisfies {
             expression,
             target_type,
         } => {
@@ -2036,168 +2023,168 @@ pub fn expression_has_side_effects(
         }
 
         // pure: reference/value of (if operand is pure)
-        ast::Expression::BorrowOf { right, .. } | ast::Expression::MoveOf { right, .. } => {
+        dir::Expression::BorrowOf { right, .. } | dir::Expression::MoveOf { right, .. } => {
             expression_has_side_effects(ctx, *right)
         }
 
         // side effects: calls, assignments, new, await, yield, etc
-        ast::Expression::Call { .. }
-        | ast::Expression::Assign { .. }
-        | ast::Expression::New { .. }
-        | ast::Expression::Await { .. }
-        | ast::Expression::AwaitMaybe { .. }
-        | ast::Expression::AwaitMust { .. }
-        | ast::Expression::Yield { .. }
-        | ast::Expression::Throw { .. } => true,
+        dir::Expression::Call { .. }
+        | dir::Expression::Assign { .. }
+        | dir::Expression::New { .. }
+        | dir::Expression::Await { .. }
+        | dir::Expression::AwaitMaybe { .. }
+        | dir::Expression::AwaitMust { .. }
+        | dir::Expression::Yield { .. }
+        | dir::Expression::Throw { .. } => true,
 
         // side effects: control flow
-        ast::Expression::Return { .. }
-        | ast::Expression::Break { .. }
-        | ast::Expression::Continue { .. }
-        | ast::Expression::For { .. }
-        | ast::Expression::ForEach { .. }
-        | ast::Expression::While { .. }
-        | ast::Expression::Loop { .. }
-        | ast::Expression::If { .. }
-        | ast::Expression::Match { .. }
-        | ast::Expression::Try { .. } => true,
+        dir::Expression::Return { .. }
+        | dir::Expression::Break { .. }
+        | dir::Expression::Continue { .. }
+        | dir::Expression::For { .. }
+        | dir::Expression::ForEach { .. }
+        | dir::Expression::While { .. }
+        | dir::Expression::Loop { .. }
+        | dir::Expression::If { .. }
+        | dir::Expression::Match { .. }
+        | dir::Expression::Try { .. } => true,
 
         // side effects: declarations, imports, exports
-        ast::Expression::Declaration(_)
-        | ast::Expression::Block(_)
-        | ast::Expression::Let { .. }
-        | ast::Expression::LetElse { .. }
-        | ast::Expression::Using { .. }
-        | ast::Expression::Import { .. }
-        | ast::Expression::Export { .. }
-        | ast::Expression::Labelled { .. } => true,
+        dir::Expression::Declaration(_)
+        | dir::Expression::Block(_)
+        | dir::Expression::Let { .. }
+        | dir::Expression::LetElse { .. }
+        | dir::Expression::Using { .. }
+        | dir::Expression::Import { .. }
+        | dir::Expression::Export { .. }
+        | dir::Expression::Label { .. } => true,
 
         // side effects: debugger, error, stub
-        ast::Expression::Debugger
-        | ast::Expression::Error
-        | ast::Expression::Missing
-        | ast::Expression::Stub => true,
+        dir::Expression::Debugger
+        | dir::Expression::Error
+        | dir::Expression::Missing
+        | dir::Expression::Stub => true,
 
         // wrapped expressions: check inner
-        ast::Expression::Parenthesized { expression } => {
+        dir::Expression::Parenthesized { expression } => {
             expression_has_side_effects(ctx, *expression)
         }
 
         // maybe/must propagation: check inner for side effect
-        ast::Expression::Maybe { left, .. } | ast::Expression::Must { left, .. } => {
+        dir::Expression::Maybe { left, .. } | dir::Expression::Must { left, .. } => {
             expression_has_side_effects(ctx, *left)
         }
 
         // templates: conservatively assume side effects (could have interpolations with calls)
-        ast::Expression::TemplateExpression { .. }
-        | ast::Expression::TaggedTemplateExpression { .. } => true,
+        dir::Expression::TemplateExpression { .. }
+        | dir::Expression::TaggedTemplateExpression { .. } => true,
 
         // object expressions: check properties for side effects
-        ast::Expression::ObjectExpression { .. }
-        | ast::Expression::TreeExpression { .. }
-        | ast::Expression::SequenceExpression { .. } => true,
+        dir::Expression::ObjectExpression { .. }
+        | dir::Expression::TreeExpression { .. }
+        | dir::Expression::SequenceExpression { .. } => true,
 
         // comptime: check if body has side effects
-        ast::Expression::Comptime { body } => expression_has_side_effects(ctx, *body),
+        dir::Expression::Comptime { body } => expression_has_side_effects(ctx, *body),
     }
 }
 
 /// Return whether one type expression subtree contains side effects.
 pub fn type_expression_has_side_effects(
-    ctx: &LintAstContext<'_>,
-    type_expression_id: ast::LocalNodeId<ast::TypeExpression>,
+    ctx: &LintModuleContext<'_>,
+    type_expression_id: dir::LocalNodeId<dir::TypeExpression>,
 ) -> bool {
-    let type_expression = ctx.tree.get(type_expression_id);
+    let type_expression = ctx.dir.get(type_expression_id);
 
     match type_expression {
         // pure leaves
-        ast::TypeExpression::ScalarLiteral { .. }
-        | ast::TypeExpression::Literal { .. }
-        | ast::TypeExpression::Intrinsic
-        | ast::TypeExpression::Const
-        | ast::TypeExpression::This
-        | ast::TypeExpression::Missing
-        | ast::TypeExpression::Error => false,
+        dir::TypeExpression::ScalarLiteral { value: _ }
+        | dir::TypeExpression::Literal { .. }
+        | dir::TypeExpression::Intrinsic
+        | dir::TypeExpression::Const
+        | dir::TypeExpression::This
+        | dir::TypeExpression::Missing
+        | dir::TypeExpression::Error => false,
 
         // wrapped type expressions
-        ast::TypeExpression::Parenthesized { expression }
-        | ast::TypeExpression::Readonly {
+        dir::TypeExpression::Parenthesized { expression }
+        | dir::TypeExpression::Readonly {
             target_type: expression,
         }
-        | ast::TypeExpression::Shared {
+        | dir::TypeExpression::Shared {
             target_type: expression,
         }
-        | ast::TypeExpression::KeyOf {
+        | dir::TypeExpression::KeyOf {
             target_type: expression,
         }
-        | ast::TypeExpression::Must {
+        | dir::TypeExpression::Must {
             target_type: expression,
         }
-        | ast::TypeExpression::AsComptime {
+        | dir::TypeExpression::AsComptime {
             target_type: expression,
         }
-        | ast::TypeExpression::Not {
+        | dir::TypeExpression::Not {
             target_type: expression,
         }
-        | ast::TypeExpression::OwnedOf {
-            target_type: expression,
-            ..
-        }
-        | ast::TypeExpression::BorrowedOf {
+        | dir::TypeExpression::OwnedOf {
             target_type: expression,
             ..
         }
-        | ast::TypeExpression::PointerOf {
+        | dir::TypeExpression::BorrowedOf {
+            target_type: expression,
+            ..
+        }
+        | dir::TypeExpression::PointerOf {
             target_type: expression,
             ..
         } => type_expression_has_side_effects(ctx, *expression),
 
         // mostly pure type forms
-        ast::TypeExpression::Tuple { .. }
-        | ast::TypeExpression::ArrayTuple { .. }
-        | ast::TypeExpression::Array { .. }
-        | ast::TypeExpression::Slice { .. }
-        | ast::TypeExpression::FixedArray { .. }
-        | ast::TypeExpression::Object { .. }
-        | ast::TypeExpression::Declaration { .. }
-        | ast::TypeExpression::FunctionTypeDeclaration(_)
-        | ast::TypeExpression::ConstructorTypeDeclaration(_)
-        | ast::TypeExpression::Reference { .. }
-        | ast::TypeExpression::Infer { .. }
-        | ast::TypeExpression::Predicate { .. } => false,
+        dir::TypeExpression::Tuple { .. }
+        | dir::TypeExpression::ArrayTuple { .. }
+        | dir::TypeExpression::Array { .. }
+        | dir::TypeExpression::Slice { .. }
+        | dir::TypeExpression::FixedArray { .. }
+        | dir::TypeExpression::Object { .. }
+        | dir::TypeExpression::Declaration { .. }
+        | dir::TypeExpression::FunctionTypeDeclaration(_)
+        | dir::TypeExpression::ConstructorTypeDeclaration(_)
+        | dir::TypeExpression::Reference { .. }
+        | dir::TypeExpression::Infer { .. }
+        | dir::TypeExpression::Predicate { .. } => false,
 
         // type expressions that contain runtime expressions
-        ast::TypeExpression::TypeOfValue { value } => expression_has_side_effects(ctx, *value),
+        dir::TypeExpression::TypeOfValue { value } => expression_has_side_effects(ctx, *value),
 
         // composite type expressions
-        ast::TypeExpression::Member {
+        dir::TypeExpression::Member {
             left,
             generic_arguments,
             ..
         } => {
             type_expression_has_side_effects(ctx, *left)
                 || generic_arguments.iter().any(|argument_id| {
-                    let argument = ctx.tree.get(*argument_id);
+                    let argument = ctx.dir.get(*argument_id);
                     match argument {
-                        ast::GenericArgument::Type { value } => {
+                        dir::GenericArgument::Type { value } => {
                             type_expression_has_side_effects(ctx, *value)
                         }
-                        ast::GenericArgument::Value { value } => {
+                        dir::GenericArgument::Value { value } => {
                             expression_has_side_effects(ctx, *value)
                         }
-                        ast::GenericArgument::Error => true,
+                        dir::GenericArgument::Error => true,
                     }
                 })
         }
-        ast::TypeExpression::Union { elements }
-        | ast::TypeExpression::Intersection { elements } => elements
+        dir::TypeExpression::Union { elements }
+        | dir::TypeExpression::Intersection { elements } => elements
             .iter()
             .any(|element_id| type_expression_has_side_effects(ctx, *element_id)),
-        ast::TypeExpression::Range { start, end, .. } => {
+        dir::TypeExpression::Range { start, end, .. } => {
             start.is_some_and(|start| type_expression_has_side_effects(ctx, start))
                 || end.is_some_and(|end| type_expression_has_side_effects(ctx, end))
         }
-        ast::TypeExpression::Conditional {
+        dir::TypeExpression::Conditional {
             left,
             extends_type,
             then_type,
@@ -2208,13 +2195,13 @@ pub fn type_expression_has_side_effects(
                 || type_expression_has_side_effects(ctx, *then_type)
                 || type_expression_has_side_effects(ctx, *else_type)
         }
-        ast::TypeExpression::In { left, right }
-        | ast::TypeExpression::Extends { left, right }
-        | ast::TypeExpression::Implements { left, right } => {
+        dir::TypeExpression::In { left, right }
+        | dir::TypeExpression::Extends { left, right }
+        | dir::TypeExpression::Implements { left, right } => {
             type_expression_has_side_effects(ctx, *left)
                 || type_expression_has_side_effects(ctx, *right)
         }
-        ast::TypeExpression::Mapped {
+        dir::TypeExpression::Mapped {
             parameter, value, ..
         } => {
             type_expression_has_side_effects(ctx, parameter.source_type)
@@ -2223,50 +2210,53 @@ pub fn type_expression_has_side_effects(
                     .is_some_and(|key_remap| type_expression_has_side_effects(ctx, key_remap))
                 || value.is_some_and(|value| type_expression_has_side_effects(ctx, value))
         }
-        ast::TypeExpression::Index { left, index } => {
+        dir::TypeExpression::Index { left, index } => {
             type_expression_has_side_effects(ctx, *left)
                 || type_expression_has_side_effects(ctx, *index)
         }
-        ast::TypeExpression::TemplateLiteral { spans, .. } => spans
+        dir::TypeExpression::TemplateLiteral { spans, .. } => spans
             .iter()
             .any(|span_id| type_expression_has_side_effects(ctx, *span_id)),
     }
 }
 
 /// Check if an operator is a comparison operator.
-pub fn is_comparison_operator(operator: &ast::BinaryOperator) -> bool {
+pub fn is_comparison_operator(operator: &dir::BinaryOperator) -> bool {
     matches!(
         operator,
-        ast::BinaryOperator::Equal
-            | ast::BinaryOperator::NotEqual
-            | ast::BinaryOperator::EqualStrict
-            | ast::BinaryOperator::NotEqualStrict
-            | ast::BinaryOperator::LessThan
-            | ast::BinaryOperator::LessThanOrEqual
-            | ast::BinaryOperator::GreaterThan
-            | ast::BinaryOperator::GreaterThanOrEqual
+        dir::BinaryOperator::Equal
+            | dir::BinaryOperator::NotEqual
+            | dir::BinaryOperator::EqualStrict
+            | dir::BinaryOperator::NotEqualStrict
+            | dir::BinaryOperator::LessThan
+            | dir::BinaryOperator::LessThanOrEqual
+            | dir::BinaryOperator::GreaterThan
+            | dir::BinaryOperator::GreaterThanOrEqual
     )
 }
 
 /// Check if an expression is a literal value (scalar or type literal).
-pub fn expression_is_literal(expression: &ast::Expression) -> bool {
+pub fn expression_is_literal(expression: &dir::Expression) -> bool {
     match expression {
-        ast::Expression::ScalarLiteral(_) => true,
-        ast::Expression::Type { .. } => false,
+        dir::Expression::ScalarLiteral(_) => true,
+        dir::Expression::Type { .. } => false,
         _ => false,
     }
 }
 
 /// Check if an expression is a constant expression (evaluates to a fixed value at compile time).
-pub fn expression_is_constant_expression(ctx: &LintAstContext<'_>, expr: &ast::Expression) -> bool {
+pub fn expression_is_constant_expression(
+    ctx: &LintModuleContext<'_>,
+    expr: &dir::Expression,
+) -> bool {
     match expr {
-        ast::Expression::ScalarLiteral(_) => true,
-        ast::Expression::Type { value } => type_expression_is_constant(ctx, *value),
-        ast::Expression::Parenthesized { expression } => {
-            expression_is_constant_expression(ctx, ctx.tree.get(*expression))
+        dir::Expression::ScalarLiteral(_) => true,
+        dir::Expression::Type { value } => type_expression_is_constant(ctx, *value),
+        dir::Expression::Parenthesized { expression } => {
+            expression_is_constant_expression(ctx, ctx.dir.get(*expression))
         }
-        ast::Expression::Unary { right, .. } => {
-            expression_is_constant_expression(ctx, ctx.tree.get(*right))
+        dir::Expression::Unary { right, .. } => {
+            expression_is_constant_expression(ctx, ctx.dir.get(*right))
         }
         _ => false,
     }
@@ -2277,24 +2267,24 @@ pub fn expression_is_constant_expression(ctx: &LintAstContext<'_>, expr: &ast::E
 /// Returns Some(true) for truthy constants, Some(false) for falsy constants, None otherwise.
 /// Handles booleans, integers, floats, null/undefined, parenthesized expressions, and unary not.
 pub fn expression_constant_to_bool(
-    ctx: &LintAstContext<'_>,
-    expr: &ast::Expression,
+    ctx: &LintModuleContext<'_>,
+    expr: &dir::Expression,
 ) -> Option<bool> {
     match expr {
-        ast::Expression::ScalarLiteral(lit) => match lit {
-            ast::ScalarLiteral::Boolean(b) => Some(*b),
-            ast::ScalarLiteral::Integer(value) => Some(*value != 0),
-            ast::ScalarLiteral::Float(value) => Some(*value != 0.0),
-            ast::ScalarLiteral::Bigint(value) => Some(*value != 0),
+        dir::Expression::ScalarLiteral(lit) => match lit {
+            dir::ScalarLiteral::Boolean(b) => Some(*b),
+            dir::ScalarLiteral::Integer(value) => Some(*value != 0),
+            dir::ScalarLiteral::Float(value) => Some(*value != 0.0),
+            dir::ScalarLiteral::Bigint(value) => Some(*value != 0),
             _ => None,
         },
-        ast::Expression::Type { value } => type_expression_constant_to_bool(ctx, *value),
-        ast::Expression::Parenthesized { expression } => {
-            expression_constant_to_bool(ctx, ctx.tree.get(*expression))
+        dir::Expression::Type { value } => type_expression_constant_to_bool(ctx, *value),
+        dir::Expression::Parenthesized { expression } => {
+            expression_constant_to_bool(ctx, ctx.dir.get(*expression))
         }
-        ast::Expression::Unary { operator, right } => {
-            if *operator == ast::UnaryOperator::Not {
-                expression_constant_to_bool(ctx, ctx.tree.get(*right)).map(|b| !b)
+        dir::Expression::Unary { operator, right } => {
+            if *operator == dir::UnaryOperator::Not {
+                expression_constant_to_bool(ctx, ctx.dir.get(*right)).map(|b| !b)
             } else {
                 None
             }
@@ -2305,44 +2295,44 @@ pub fn expression_constant_to_bool(
 
 /// Return true when one type expression is constant.
 fn type_expression_is_constant(
-    ctx: &LintAstContext<'_>,
-    type_expression_id: ast::LocalNodeId<ast::TypeExpression>,
+    ctx: &LintModuleContext<'_>,
+    type_expression_id: dir::LocalNodeId<dir::TypeExpression>,
 ) -> bool {
-    let type_expression = ctx.tree.get(type_expression_id);
+    let type_expression = ctx.dir.get(type_expression_id);
 
     match type_expression {
-        ast::TypeExpression::Parenthesized { expression } => {
+        dir::TypeExpression::Parenthesized { expression } => {
             type_expression_is_constant(ctx, *expression)
         }
-        ast::TypeExpression::ScalarLiteral { .. }
-        | ast::TypeExpression::Literal { .. }
-        | ast::TypeExpression::Intrinsic
-        | ast::TypeExpression::Const
-        | ast::TypeExpression::This => true,
+        dir::TypeExpression::ScalarLiteral { value: _ }
+        | dir::TypeExpression::Literal { .. }
+        | dir::TypeExpression::Intrinsic
+        | dir::TypeExpression::Const
+        | dir::TypeExpression::This => true,
         _ => false,
     }
 }
 
 /// Return the boolean value of one constant type expression when known.
 fn type_expression_constant_to_bool(
-    ctx: &LintAstContext<'_>,
-    type_expression_id: ast::LocalNodeId<ast::TypeExpression>,
+    ctx: &LintModuleContext<'_>,
+    type_expression_id: dir::LocalNodeId<dir::TypeExpression>,
 ) -> Option<bool> {
-    let type_expression = ctx.tree.get(type_expression_id);
+    let type_expression = ctx.dir.get(type_expression_id);
 
     match type_expression {
-        ast::TypeExpression::Parenthesized { expression } => {
+        dir::TypeExpression::Parenthesized { expression } => {
             type_expression_constant_to_bool(ctx, *expression)
         }
-        ast::TypeExpression::ScalarLiteral { value } => match value {
-            ast::ScalarLiteral::Boolean(value) => Some(*value),
-            ast::ScalarLiteral::Integer(value) => Some(*value != 0),
-            ast::ScalarLiteral::Float(value) => Some(*value != 0.0),
-            ast::ScalarLiteral::Bigint(value) => Some(*value != 0),
+        dir::TypeExpression::ScalarLiteral { value } => match value {
+            dir::ScalarLiteral::Boolean(value) => Some(*value),
+            dir::ScalarLiteral::Integer(value) => Some(*value != 0),
+            dir::ScalarLiteral::Float(value) => Some(*value != 0.0),
+            dir::ScalarLiteral::Bigint(value) => Some(*value != 0),
             _ => None,
         },
-        ast::TypeExpression::Literal { value } => match value {
-            ast::TypeLiteral::Null | ast::TypeLiteral::Undefined => Some(false),
+        dir::TypeExpression::Literal { value } => match value {
+            dir::TypeLiteral::Null | dir::TypeLiteral::Undefined => Some(false),
             _ => None,
         },
         _ => None,
@@ -2351,9 +2341,9 @@ fn type_expression_constant_to_bool(
 
 /// Compare two expressions using one structural signature.
 fn expression_signature_equal(
-    ctx: &LintAstContext<'_>,
-    left_id: ast::LocalNodeId<ast::Expression>,
-    right_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    left_id: dir::LocalNodeId<dir::Expression>,
+    right_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     let left_signature = expression_signature(ctx, left_id);
     let right_signature = expression_signature(ctx, right_id);
@@ -2362,40 +2352,40 @@ fn expression_signature_equal(
 
 /// Build a structural signature for one expression subtree.
 fn expression_signature(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Vec<u64> {
-    expression_signature_for_tree(ctx.tree, ctx.strings, expression_id)
+    expression_signature_for_tree(ctx.dir.tree(), ctx.strings, expression_id)
 }
 
 /// Build a structural signature for one expression subtree.
 pub fn expression_signature_for_tree(
-    tree: &ast::Tree,
-    strings: &ast::StringPool,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    tree: &dir::Tree,
+    strings: &dir::StringPool,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Vec<u64> {
     let expression = tree.get(expression_id);
     let mut collector = ExpressionSignatureCollector::new(strings);
-    ast::NodeVisitor::visit_expression(&mut collector, tree, expression_id, expression);
+    dir::NodeVisitor::visit_expression(&mut collector, tree, expression_id, expression);
     collector.finish()
 }
 
 /// Collect a structural signature for an expression subtree.
 struct ExpressionSignatureCollector<'a> {
     /// String pool for identifier and literal names.
-    strings: &'a ast::StringPool,
+    strings: &'a dir::StringPool,
     /// Visitor options.
-    visitor_options: ast::NodeVisitorOptions,
+    visitor_options: dir::NodeVisitorOptions,
     /// Signature token stream.
     tokens: Vec<u64>,
 }
 
 impl<'a> ExpressionSignatureCollector<'a> {
     /// Build an empty signature collector.
-    fn new(strings: &'a ast::StringPool) -> Self {
+    fn new(strings: &'a dir::StringPool) -> Self {
         Self {
             strings,
-            visitor_options: ast::NodeVisitorOptions::default(),
+            visitor_options: dir::NodeVisitorOptions::default(),
             tokens: Vec::new(),
         }
     }
@@ -2418,51 +2408,51 @@ impl<'a> ExpressionSignatureCollector<'a> {
     }
 
     /// Push one string id as text.
-    fn push_string_id(&mut self, key: &str, string_id: ast::StringId) {
-        self.push_token(key, &self.strings.get(string_id));
+    fn push_string_id(&mut self, key: &str, string_id: dir::StringId) {
+        self.push_token(key, self.strings.get(string_id));
     }
 }
 
-impl ast::NodeVisitor for ExpressionSignatureCollector<'_> {
+impl dir::NodeVisitor for ExpressionSignatureCollector<'_> {
     /// Return visitor options.
-    fn options(&self) -> &ast::NodeVisitorOptions {
+    fn options(&self) -> &dir::NodeVisitorOptions {
         &self.visitor_options
     }
 
-    /// Visit any AST node and record its node type.
-    fn visit_any(&mut self, _tree: &ast::Tree, ty: ast::NodeType, _id: u32) {
+    /// Visit any source node and record its node type.
+    fn visit_any(&mut self, _tree: &dir::Tree, ty: dir::NodeType, _id: u32) {
         self.push_debug("node", ty);
     }
 
     /// Visit one expression node and record expression specific signature tokens.
     fn visit_expression(
         &mut self,
-        tree: &ast::Tree,
-        id: ast::LocalNodeId<ast::Expression>,
-        expression: &ast::Expression,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::Expression>,
+        expression: &dir::Expression,
     ) {
         self.push_debug("expression", std::mem::discriminant(expression));
         match expression {
-            ast::Expression::Labelled { label, .. } => {
+            dir::Expression::Label { label, .. } => {
                 self.push_string_id("expression_label", *label);
             }
-            ast::Expression::Import { space, target, .. } => {
+            dir::Expression::Import { space, target, .. } => {
                 self.push_debug("expression_import_space", *space);
                 self.push_string_id("expression_import_target", *target);
             }
-            ast::Expression::Export { space, target, .. } => {
+            dir::Expression::Export { space, target, .. } => {
                 self.push_debug("expression_export_space", *space);
                 if let Some(target) = target {
                     self.push_string_id("expression_export_target", *target);
                 }
             }
-            ast::Expression::If { form, .. } => {
+            dir::Expression::If { form, .. } => {
                 self.push_debug("expression_if_form", *form);
             }
-            ast::Expression::While { form, .. } => {
+            dir::Expression::While { form, .. } => {
                 self.push_debug("expression_while_form", *form);
             }
-            ast::Expression::ForEach {
+            dir::Expression::ForEach {
                 asynchrony,
                 operator,
                 ..
@@ -2470,51 +2460,51 @@ impl ast::NodeVisitor for ExpressionSignatureCollector<'_> {
                 self.push_debug("expression_foreach_asynchrony", *asynchrony);
                 self.push_debug("expression_foreach_operator", *operator);
             }
-            ast::Expression::Match { form, .. } => {
+            dir::Expression::Match { form, .. } => {
                 self.push_debug("expression_match_form", *form);
             }
-            ast::Expression::Break { label, value } => {
+            dir::Expression::Break { label, value } => {
                 self.push_debug("expression_break_has_label", label.is_some());
                 self.push_debug("expression_break_has_value", value.is_some());
                 if let Some(label) = label {
                     self.push_string_id("expression_break_label", *label);
                 }
             }
-            ast::Expression::Continue { label } => {
+            dir::Expression::Continue { label } => {
                 self.push_debug("expression_continue_has_label", label.is_some());
                 if let Some(label) = label {
                     self.push_string_id("expression_continue_label", *label);
                 }
             }
-            ast::Expression::Yield { cardinality, .. } => {
+            dir::Expression::Yield { cardinality, .. } => {
                 self.push_debug("expression_yield_cardinality", *cardinality);
             }
-            ast::Expression::Identifier { name } => {
+            dir::Expression::Identifier { name } => {
                 self.push_string_id("expression_identifier", *name);
             }
-            ast::Expression::QualifiedReference { path, .. } => {
+            dir::Expression::QualifiedReference { path, .. } => {
                 self.push_debug("expression_path_len", path.segments.len());
                 for segment in &path.segments {
                     self.push_string_id("expression_path_segment", *segment);
                 }
             }
-            ast::Expression::PrivateIdentifier { name } => {
+            dir::Expression::PrivateIdentifier { name } => {
                 self.push_string_id("expression_private_identifier", *name);
             }
-            ast::Expression::ScalarLiteral(literal) => {
+            dir::Expression::ScalarLiteral(literal) => {
                 self.push_debug("expression_scalar_literal", literal);
             }
-            ast::Expression::Type { .. } => {
+            dir::Expression::Type { .. } => {
                 self.push_debug("expression_type", true);
             }
-            ast::Expression::TemplateExpression { value }
-            | ast::Expression::TaggedTemplateExpression { value, .. } => {
+            dir::Expression::TemplateExpression { value }
+            | dir::Expression::TaggedTemplateExpression { value, .. } => {
                 self.push_debug("expression_template", value);
             }
-            ast::Expression::Unary { operator, .. } => {
+            dir::Expression::Unary { operator, .. } => {
                 self.push_debug("expression_unary", *operator);
             }
-            ast::Expression::MoveOf {
+            dir::Expression::MoveOf {
                 mutability,
                 variance,
                 ..
@@ -2522,7 +2512,7 @@ impl ast::NodeVisitor for ExpressionSignatureCollector<'_> {
                 self.push_debug("expression_valueof_mutability", *mutability);
                 self.push_debug("expression_valueof_variance", *variance);
             }
-            ast::Expression::BorrowOf {
+            dir::Expression::BorrowOf {
                 mutability,
                 variance,
                 ..
@@ -2530,45 +2520,45 @@ impl ast::NodeVisitor for ExpressionSignatureCollector<'_> {
                 self.push_debug("expression_referenceof_mutability", *mutability);
                 self.push_debug("expression_referenceof_variance", *variance);
             }
-            ast::Expression::Member { name, .. } | ast::Expression::PrivateMember { name, .. } => {
+            dir::Expression::Member { name, .. } | dir::Expression::PrivateMember { name, .. } => {
                 if let Some(name) = name {
                     self.push_string_id("expression_member", *name);
                 }
             }
-            ast::Expression::Index { position, .. }
-            | ast::Expression::Call { position, .. }
-            | ast::Expression::Maybe { position, .. }
-            | ast::Expression::Must { position, .. } => {
+            dir::Expression::Index { position, .. }
+            | dir::Expression::Call { position, .. }
+            | dir::Expression::Maybe { position, .. }
+            | dir::Expression::Must { position, .. } => {
                 self.push_debug("expression_postfix_position", *position);
             }
-            ast::Expression::Binary { operator, .. } => {
+            dir::Expression::Binary { operator, .. } => {
                 self.push_debug("expression_binary", *operator);
             }
-            ast::Expression::Assign { operator, .. } => {
+            dir::Expression::Assign { operator, .. } => {
                 self.push_debug("expression_assign", *operator);
             }
             _ => {}
         }
 
-        ast::walk_expression(self, tree, id, expression);
+        dir::walk_expression(self, tree, id, expression);
     }
 
     /// Visit one type expression node and record type specific signature tokens.
     fn visit_type_expression(
         &mut self,
-        tree: &ast::Tree,
-        id: ast::LocalNodeId<ast::TypeExpression>,
-        type_expression: &ast::TypeExpression,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+        type_expression: &dir::TypeExpression,
     ) {
         self.push_debug("type_expression", std::mem::discriminant(type_expression));
         match type_expression {
-            ast::TypeExpression::ScalarLiteral { value } => {
+            dir::TypeExpression::ScalarLiteral { value } => {
                 self.push_debug("type_expression_scalar_literal", value);
             }
-            ast::TypeExpression::Literal { value } => {
+            dir::TypeExpression::Literal { value } => {
                 self.push_debug("type_expression_literal", value);
             }
-            ast::TypeExpression::Reference {
+            dir::TypeExpression::Reference {
                 path,
                 generic_arguments,
             } => {
@@ -2581,7 +2571,7 @@ impl ast::NodeVisitor for ExpressionSignatureCollector<'_> {
                     self.push_string_id("type_expression_path_segment", *segment);
                 }
             }
-            ast::TypeExpression::Member {
+            dir::TypeExpression::Member {
                 name,
                 generic_arguments,
                 ..
@@ -2592,7 +2582,7 @@ impl ast::NodeVisitor for ExpressionSignatureCollector<'_> {
                     !generic_arguments.is_empty(),
                 );
             }
-            ast::TypeExpression::Mapped {
+            dir::TypeExpression::Mapped {
                 parameter,
                 readonly,
                 optional,
@@ -2602,16 +2592,16 @@ impl ast::NodeVisitor for ExpressionSignatureCollector<'_> {
                 self.push_debug("type_expression_mapped_readonly", *readonly);
                 self.push_debug("type_expression_mapped_optional", *optional);
             }
-            ast::TypeExpression::TemplateLiteral { strings, .. } => {
+            dir::TypeExpression::TemplateLiteral { strings, .. } => {
                 self.push_debug("type_expression_template_len", strings.len());
                 for string in strings {
                     self.push_string_id("type_expression_template_string", *string);
                 }
             }
-            ast::TypeExpression::Infer { name, .. } => {
+            dir::TypeExpression::Infer { name, .. } => {
                 self.push_string_id("type_expression_infer", *name);
             }
-            ast::TypeExpression::Predicate {
+            dir::TypeExpression::Predicate {
                 asserts, subject, ..
             } => {
                 self.push_debug("type_expression_predicate_asserts", *asserts);
@@ -2620,95 +2610,95 @@ impl ast::NodeVisitor for ExpressionSignatureCollector<'_> {
             _ => {}
         }
 
-        ast::walk_type_expression(self, tree, id, type_expression);
+        dir::walk_type_expression(self, tree, id, type_expression);
     }
 
     /// Visit one declaration node and record declaration signature tokens.
     fn visit_declaration(
         &mut self,
-        tree: &ast::Tree,
-        id: ast::LocalNodeId<ast::Declaration>,
-        declaration: &ast::Declaration,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::Declaration>,
+        declaration: &dir::Declaration,
     ) {
         self.push_debug("declaration", std::mem::discriminant(declaration));
-        ast::walk_declaration(self, tree, id, declaration);
+        dir::walk_declaration(self, tree, id, declaration);
     }
 
     /// Visit one property node and record property signature tokens.
     fn visit_property(
         &mut self,
-        tree: &ast::Tree,
-        id: ast::LocalNodeId<ast::Property>,
-        property: &ast::Property,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::Property>,
+        property: &dir::Property,
     ) {
         self.push_debug("property", std::mem::discriminant(property));
-        ast::walk_property(self, tree, id, property);
+        dir::walk_property(self, tree, id, property);
     }
 
     /// Visit one member node and record member signature tokens.
     fn visit_member(
         &mut self,
-        tree: &ast::Tree,
-        id: ast::LocalNodeId<ast::Member>,
-        member: &ast::Member,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::Member>,
+        member: &dir::Member,
     ) {
         self.push_debug("member", std::mem::discriminant(member));
-        ast::walk_member(self, tree, id, member);
+        dir::walk_member(self, tree, id, member);
     }
 
     /// Visit one parameter node and record parameter signature tokens.
     fn visit_parameter(
         &mut self,
-        tree: &ast::Tree,
-        id: ast::LocalNodeId<ast::Parameter>,
-        parameter: &ast::Parameter,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::Parameter>,
+        parameter: &dir::Parameter,
     ) {
         self.push_debug("parameter", std::mem::discriminant(parameter));
-        ast::walk_parameter(self, tree, id, parameter);
+        dir::walk_parameter(self, tree, id, parameter);
     }
 
     /// Visit one argument node and record argument signature tokens.
     fn visit_argument(
         &mut self,
-        tree: &ast::Tree,
-        id: ast::LocalNodeId<ast::Argument>,
-        argument: &ast::Argument,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::Argument>,
+        argument: &dir::Argument,
     ) {
         self.push_debug("argument", std::mem::discriminant(argument));
-        ast::walk_argument(self, tree, id, argument);
+        dir::walk_argument(self, tree, id, argument);
     }
 
     /// Visit one pattern node and record pattern signature tokens.
     fn visit_pattern(
         &mut self,
-        tree: &ast::Tree,
-        id: ast::LocalNodeId<ast::Pattern>,
-        pattern: &ast::Pattern,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::Pattern>,
+        pattern: &dir::Pattern,
     ) {
         self.push_debug("pattern", std::mem::discriminant(pattern));
-        ast::walk_pattern(self, tree, id, pattern);
+        dir::walk_pattern(self, tree, id, pattern);
     }
 
     /// Visit one pattern field node and record field signature tokens.
     fn visit_pattern_field(
         &mut self,
-        tree: &ast::Tree,
-        id: ast::LocalNodeId<ast::PatternField>,
-        pattern_field: &ast::PatternField,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::PatternField>,
+        pattern_field: &dir::PatternField,
     ) {
         self.push_debug("pattern_field", std::mem::discriminant(pattern_field));
-        ast::walk_pattern_field(self, tree, id, pattern_field);
+        dir::walk_pattern_field(self, tree, id, pattern_field);
     }
 
     /// Visit one match case node and record case signature tokens.
     fn visit_match_case(
         &mut self,
-        tree: &ast::Tree,
-        id: ast::LocalNodeId<ast::MatchCase>,
-        match_case: &ast::MatchCase,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::MatchCase>,
+        match_case: &dir::MatchCase,
     ) {
         self.push_debug("match_case", std::mem::discriminant(match_case));
-        ast::walk_match_case(self, tree, id, match_case);
+        dir::walk_match_case(self, tree, id, match_case);
     }
 }
 

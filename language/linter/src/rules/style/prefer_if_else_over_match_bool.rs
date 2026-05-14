@@ -1,8 +1,8 @@
 use crate::LintMeta;
-use destack_ast::{self as ast, Expression, MatchCase, Pattern, ScalarLiteral};
+use destack_dir::{self as dir, Expression, MatchCase, Pattern, ScalarLiteral};
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Suggest using if/else instead of match on booleans.
@@ -28,7 +28,7 @@ declare_lint! {
         id = "prefer-if-else-over-match-bool",
         code = "LY040",
         category = Style,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -44,13 +44,13 @@ impl LintRule for PreferIfElseOverMatchBool {
         PreferIfElseOverMatchBool::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expression = ctx.tree.get(node_id);
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let expression = ctx.dir.get(node_id);
 
-            let ast::Expression::Match { value, cases, .. } = expression else {
+            let dir::Expression::Match { value, cases, .. } = expression else {
                 continue;
             };
 
@@ -83,7 +83,7 @@ impl LintRule for PreferIfElseOverMatchBool {
                 PREFER_IF_ELSE_OVER_MATCH_BOOL.category,
                 severity,
                 "use `if/else` instead of `match` on boolean",
-                ctx.tree.get_span(node_id),
+                ctx.dir.get_span(node_id),
             )
             .label("replace with if/else");
             if ctx.compute_fixes
@@ -99,16 +99,16 @@ impl LintRule for PreferIfElseOverMatchBool {
 
 /// Get the boolean literal value from a match case pattern, if it is one.
 fn get_case_pattern(
-    ctx: &LintAstContext<'_>,
-    case_id: ast::LocalNodeId<MatchCase>,
+    ctx: &LintModuleContext<'_>,
+    case_id: dir::LocalNodeId<MatchCase>,
 ) -> Option<bool> {
-    let case = ctx.tree.get(case_id);
+    let case = ctx.dir.get(case_id);
 
     let selector = match case {
         MatchCase::Block { selector, .. } | MatchCase::Expression { selector, .. } => selector,
     };
 
-    let ast::MatchSelector::Pattern {
+    let dir::MatchSelector::Pattern {
         pattern: pattern_id,
         guard,
     } = selector
@@ -119,14 +119,14 @@ fn get_case_pattern(
         return None;
     }
 
-    let pattern = ctx.tree.get(*pattern_id);
+    let pattern = ctx.dir.get(*pattern_id);
 
     // check if it's an expression pattern with a boolean literal
     let Pattern::Expression { value } = pattern else {
         return None;
     };
 
-    let expression = ctx.tree.get(*value);
+    let expression = ctx.dir.get(*value);
 
     match expression {
         Expression::ScalarLiteral(ScalarLiteral::Boolean(b)) => Some(*b),
@@ -136,10 +136,10 @@ fn get_case_pattern(
 
 /// Build a safe rewrite from `match bool` to `if/else` for expression arm bodies.
 fn prefer_if_else_over_match_bool_fix(
-    ctx: &LintAstContext<'_>,
-    match_expression_id: ast::LocalNodeId<Expression>,
-    value_expression_id: ast::LocalNodeId<Expression>,
-    case_ids: &[ast::LocalNodeId<MatchCase>],
+    ctx: &LintModuleContext<'_>,
+    match_expression_id: dir::LocalNodeId<Expression>,
+    value_expression_id: dir::LocalNodeId<Expression>,
+    case_ids: &[dir::LocalNodeId<MatchCase>],
 ) -> Option<LintFix> {
     // keep exactly two expression-body boolean cases
     if case_ids.len() != 2 {
@@ -160,13 +160,13 @@ fn prefer_if_else_over_match_bool_fix(
     };
 
     // rewrite the whole match expression to if/else
-    let value_text = ctx.get_span_text(ctx.tree.get_span(value_expression_id));
-    let true_body_text = ctx.get_span_text(ctx.tree.get_span(true_body_id));
-    let false_body_text = ctx.get_span_text(ctx.tree.get_span(false_body_id));
+    let value_text = ctx.get_span_text(ctx.dir.get_span(value_expression_id));
+    let true_body_text = ctx.get_span_text(ctx.dir.get_span(true_body_id));
+    let false_body_text = ctx.get_span_text(ctx.dir.get_span(false_body_id));
     let replacement =
         format!("if {value_text} {{ {true_body_text} }} else {{ {false_body_text} }}");
 
-    let match_span = ctx.tree.get_span(match_expression_id);
+    let match_span = ctx.dir.get_span(match_expression_id);
     let mut edit_builder = ctx.edit_builder().replace(match_span, replacement);
 
     // remove a leading `match ` token when the expression span starts at the selector value
@@ -184,16 +184,16 @@ fn prefer_if_else_over_match_bool_fix(
 
 /// Return `(bool_value, body_expression)` for one simple boolean expression case.
 fn bool_expression_case_body(
-    ctx: &LintAstContext<'_>,
-    case_id: ast::LocalNodeId<MatchCase>,
-) -> Option<(bool, ast::LocalNodeId<Expression>)> {
-    let case = ctx.tree.get(case_id);
+    ctx: &LintModuleContext<'_>,
+    case_id: dir::LocalNodeId<MatchCase>,
+) -> Option<(bool, dir::LocalNodeId<Expression>)> {
+    let case = ctx.dir.get(case_id);
     let (selector, body) = match case {
         MatchCase::Expression { selector, body } => (selector, *body),
         MatchCase::Block { .. } => return None,
     };
 
-    let ast::MatchSelector::Pattern {
+    let dir::MatchSelector::Pattern {
         pattern: pattern_id,
         guard,
     } = selector
@@ -204,12 +204,12 @@ fn bool_expression_case_body(
         return None;
     }
 
-    let pattern = ctx.tree.get(*pattern_id);
+    let pattern = ctx.dir.get(*pattern_id);
     let Pattern::Expression { value } = pattern else {
         return None;
     };
 
-    let expression = ctx.tree.get(*value);
+    let expression = ctx.dir.get(*value);
     let Expression::ScalarLiteral(ScalarLiteral::Boolean(boolean_value)) = expression else {
         return None;
     };
@@ -225,7 +225,7 @@ mod tests {
     #[test]
     fn test_match_bool_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferIfElseOverMatchBool);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_if_else_over_match_bool/test_match_bool_detected.ds",
             r#"
 function foo(condition: bool) {
@@ -250,7 +250,7 @@ function foo(condition: bool) {
     #[test]
     fn test_match_bool_false_first_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferIfElseOverMatchBool);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_if_else_over_match_bool/test_match_bool_false_first_detected.ds",
             r#"
 function foo(condition: bool) {
@@ -275,7 +275,7 @@ function foo(condition: bool) {
     #[test]
     fn test_if_else_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferIfElseOverMatchBool);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_if_else_over_match_bool/test_if_else_allowed.ds",
             r#"
 function foo(condition: bool) {
@@ -294,7 +294,7 @@ function foo(condition: bool) {
     #[test]
     fn test_match_non_bool_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferIfElseOverMatchBool);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_if_else_over_match_bool/test_match_non_bool_allowed.ds",
             r#"
 function foo(x: int32) {
@@ -312,7 +312,7 @@ function foo(x: int32) {
     #[test]
     fn test_match_enum_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferIfElseOverMatchBool);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_if_else_over_match_bool/test_match_enum_allowed.ds",
             r#"
 function foo(x: int32?) {
@@ -330,7 +330,7 @@ function foo(x: int32?) {
     #[test]
     fn test_match_bool_with_wildcard_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferIfElseOverMatchBool);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_if_else_over_match_bool/test_match_bool_with_wildcard_allowed.ds",
             r#"
 function foo(condition: bool) {
@@ -349,7 +349,7 @@ function foo(condition: bool) {
     #[test]
     fn test_match_bool_with_guard_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferIfElseOverMatchBool);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_if_else_over_match_bool/test_match_bool_with_guard_allowed.ds",
             r#"
 function foo(condition: bool) {
@@ -367,7 +367,7 @@ function foo(condition: bool) {
     #[test]
     fn test_no_fix_for_block_body_cases() {
         let test = TestProgram::for_rule_without_prelude(PreferIfElseOverMatchBool);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_if_else_over_match_bool/test_no_fix_for_block_body_cases.ds",
             r#"
 function foo(condition: bool) {
@@ -390,7 +390,7 @@ function foo(condition: bool) {
     #[test]
     fn test_match_more_than_two_arms_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferIfElseOverMatchBool);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_if_else_over_match_bool/test_match_more_than_two_arms_allowed.ds",
             r#"
 function foo(x: int32) {
@@ -409,7 +409,7 @@ function foo(x: int32) {
     #[test]
     fn test_match_bool_same_value_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferIfElseOverMatchBool);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_if_else_over_match_bool/test_match_bool_same_value_allowed.ds",
             r#"
 function foo(condition: bool) {

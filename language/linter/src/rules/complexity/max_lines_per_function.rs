@@ -1,12 +1,12 @@
 use crate::LintMeta;
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
     CallableOwnerId, callable_owner_span, count_file_span_lines, declaration_expression,
     expression_is_immediately_invoked, for_each_callable_signature,
 };
-use crate::{LintAstContext, LintReport, LintRule, declare_lint};
+use crate::{LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Limit the number of lines per function.
@@ -17,7 +17,7 @@ declare_lint! {
         id = "max-lines-per-function",
         code = "LX006",
         category = Complexity,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = No,
@@ -33,7 +33,7 @@ impl LintRule for MaxLinesPerFunction {
         MaxLinesPerFunction::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         // resolve lint metadata, threshold, and source file
         let meta = self.meta();
         let max_lines = ctx.options.complexity.max_lines_per_function;
@@ -46,7 +46,7 @@ impl LintRule for MaxLinesPerFunction {
         let file = ctx.file.clone();
 
         // check all callable owners that have a body expression
-        for_each_callable_signature(ctx.tree, |owner_id, _signature, body_id| {
+        for_each_callable_signature(ctx.dir.tree(), |owner_id, _signature, body_id| {
             // skip signature-only callables without a body
             let Some(body_id) = body_id else {
                 return;
@@ -58,7 +58,7 @@ impl LintRule for MaxLinesPerFunction {
             }
 
             // resolve owner span for line counting
-            let owner_span = callable_owner_span(ctx.tree, owner_id);
+            let owner_span = callable_owner_span(ctx.dir.tree(), owner_id);
             let line_count =
                 count_file_span_lines(file.as_ref(), owner_span, skip_comments, skip_blank_lines);
             if line_count <= max_lines {
@@ -93,11 +93,11 @@ impl LintRule for MaxLinesPerFunction {
 }
 
 /// Report one max-lines-per-function violation for a callable owner.
-fn report_line_limit_violation<T: ast::Node>(
-    ctx: &mut LintAstContext<'_>,
+fn report_line_limit_violation<T: dir::Node>(
+    ctx: &mut LintModuleContext<'_>,
     meta: &'static LintMeta,
-    owner_id: ast::LocalNodeId<T>,
-    body_id: ast::LocalNodeId<ast::Expression>,
+    owner_id: dir::LocalNodeId<T>,
+    body_id: dir::LocalNodeId<dir::Expression>,
     line_count: usize,
     max_lines: usize,
 ) {
@@ -115,22 +115,22 @@ fn report_line_limit_violation<T: ast::Node>(
             MAX_LINES_PER_FUNCTION.category,
             severity,
             format!("function has {line_count} lines (max {max_lines})"),
-            ctx.tree.get_span(body_id),
+            ctx.dir.get_span(body_id),
         )
         .label("consider breaking into smaller functions"),
     );
 }
 
 /// Return true when one callable owner is an immediately invoked function expression.
-fn callable_owner_is_iife(ctx: &LintAstContext<'_>, owner_id: CallableOwnerId) -> bool {
+fn callable_owner_is_iife(ctx: &LintModuleContext<'_>, owner_id: CallableOwnerId) -> bool {
     let CallableOwnerId::Declaration(declaration_id) = owner_id else {
         return false;
     };
-    let Some(expression_id) = declaration_expression(ctx.tree, ctx.parents, declaration_id) else {
+    let Some(expression_id) = declaration_expression(ctx.dir.tree(), declaration_id) else {
         return false;
     };
 
-    expression_is_immediately_invoked(ctx.tree, ctx.parents, expression_id)
+    expression_is_immediately_invoked(ctx.dir.tree(), expression_id)
 }
 
 #[cfg(test)]
@@ -147,7 +147,7 @@ mod tests {
             source.push_str(&format!("    let x{i} = {i};\n"));
         }
         source.push_str("}\n");
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_lines_per_function/test_detects_long_function.ds",
             &source,
         );
@@ -157,7 +157,7 @@ mod tests {
     #[test]
     fn test_allows_short_function() {
         let test = TestProgram::for_rule_without_prelude(MaxLinesPerFunction);
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_lines_per_function/test_allows_short_function.ds",
             r#"
 function foo() {
@@ -179,7 +179,7 @@ function foo() {
             source.push_str(&format!("    let x{i} = {i};\n"));
         }
         source.push_str("}\n");
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_lines_per_function/test_allows_exactly_at_limit.ds",
             &source,
         );
@@ -195,7 +195,7 @@ function foo() {
             source.push_str(&format!("    let x{i} = {i};\n"));
         }
         source.push_str("};\n");
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_lines_per_function/test_checks_arrow_functions.ds",
             &source,
         );
@@ -211,7 +211,7 @@ function foo() {
             source.push_str(&format!("        let x{i} = {i};\n"));
         }
         source.push_str("    }\n}\n");
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_lines_per_function/test_checks_class_methods.ds",
             &source,
         );
@@ -227,7 +227,7 @@ function foo() {
             source.push_str(&format!("        let x{i} = {i};\n"));
         }
         source.push_str("    }\n};\n");
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_lines_per_function/test_checks_object_methods.ds",
             &source,
         );
@@ -237,7 +237,7 @@ function foo() {
     #[test]
     fn test_ignores_function_declarations() {
         let test = TestProgram::for_rule_without_prelude(MaxLinesPerFunction);
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_lines_per_function/test_ignores_function_declarations.ds",
             r#"
 declare function foo(): void;
@@ -253,7 +253,7 @@ declare function foo(): void;
                 options.complexity.max_lines_per_function = 3;
                 options.complexity.max_lines_per_function_skip_comments = true;
             });
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_lines_per_function/test_skips_comment_lines_when_enabled.ds",
             r#"
 function foo() {
@@ -272,7 +272,7 @@ function foo() {
                 options.complexity.max_lines_per_function = 3;
                 options.complexity.max_lines_per_function_skip_blank_lines = true;
             });
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_lines_per_function/test_skips_blank_lines_when_enabled.ds",
             r#"
 function foo() {
@@ -288,7 +288,7 @@ function foo() {
     fn test_ignores_iife_by_default() {
         let test = TestProgram::for_rule_without_prelude(MaxLinesPerFunction)
             .with_options(|options| options.complexity.max_lines_per_function = 3);
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_lines_per_function/test_ignores_iife_by_default.ds",
             r#"
 (function () {
@@ -307,7 +307,7 @@ function foo() {
                 options.complexity.max_lines_per_function = 3;
                 options.complexity.max_lines_per_function_iifes = true;
             });
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_lines_per_function/test_checks_iife_when_enabled.ds",
             r#"
 (function () {

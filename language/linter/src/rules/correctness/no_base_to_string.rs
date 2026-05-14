@@ -1,11 +1,12 @@
-use destack_ast::StringId;
-use destack_dir::{self as dir, LanguageItem, NodeVisitor, NodeVisitorOptions, walk_expression};
+use destack_dir::{
+    self as dir, LanguageItem, NodeVisitor, NodeVisitorOptions, StringId, walk_expression,
+};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
     expression_method_call, expression_target_symbol, has_useful_to_string_type,
 };
-use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow `.toString()` on objects without useful representation.
@@ -36,7 +37,7 @@ impl LintRule for NoBaseToString {
     }
 
     /// Check module DIR nodes for base toString calls.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         // resolve lint metadata and language item names
         let meta = self.meta();
         let to_string_name = ctx.string_id("toString");
@@ -60,7 +61,7 @@ impl LintRule for NoBaseToString {
 /// Visitor that flags `.toString()` on objects without useful representation.
 struct BaseToStringVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The interned "toString" name.
@@ -78,7 +79,7 @@ struct BaseToStringVisitor<'a, 'b> {
 impl<'a, 'b> BaseToStringVisitor<'a, 'b> {
     /// Build a visitor for base toString checks.
     fn new(
-        ctx: &'a mut LintModuleDirContext<'b>,
+        ctx: &'a mut LintModuleContext<'b>,
         meta: &'a LintMeta,
         to_string_name: StringId,
         to_locale_string_name: StringId,
@@ -99,7 +100,7 @@ impl<'a, 'b> BaseToStringVisitor<'a, 'b> {
     /// Walk the DIR tree roots.
     fn run(&mut self) {
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         // inspect dir roots
         for root_id in roots {
@@ -111,7 +112,7 @@ impl<'a, 'b> BaseToStringVisitor<'a, 'b> {
     /// Check a method call for base toString usage.
     fn check_to_string_like(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) {
         // match method call pattern
-        let Some(method_call) = expression_method_call(self.ctx.tree, expression_id) else {
+        let Some(method_call) = expression_method_call(self.ctx.dir.tree(), expression_id) else {
             return;
         };
 
@@ -161,7 +162,7 @@ impl<'a, 'b> BaseToStringVisitor<'a, 'b> {
         };
 
         // match call expression
-        let expression = self.ctx.tree.get(expression_id);
+        let expression = self.ctx.dir.get(expression_id);
         let dir::Expression::Call {
             left, arguments, ..
         } = expression
@@ -181,8 +182,10 @@ impl<'a, 'b> BaseToStringVisitor<'a, 'b> {
         let Some(argument_id) = arguments.first() else {
             return;
         };
-        let argument = self.ctx.tree.get(*argument_id);
-        let argument_value = argument.value();
+        let argument = self.ctx.dir.get(*argument_id);
+        let Some(argument_value) = argument.value() else {
+            return;
+        };
         let Some(type_id) = self.ctx.expression_type_id(argument_value) else {
             return;
         };
@@ -216,7 +219,7 @@ impl<'a, 'b> BaseToStringVisitor<'a, 'b> {
     /// Check join() calls for array element stringification.
     fn check_join_call(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) {
         // match method call pattern
-        let Some(method_call) = expression_method_call(self.ctx.tree, expression_id) else {
+        let Some(method_call) = expression_method_call(self.ctx.dir.tree(), expression_id) else {
             return;
         };
         if method_call.method_name != self.join_name {
@@ -264,8 +267,10 @@ impl<'a, 'b> BaseToStringVisitor<'a, 'b> {
 
         // inspect candidate nodes
         for argument_id in arguments {
-            let argument = self.ctx.tree.get(*argument_id);
-            let value_expression_id = argument.value();
+            let argument = self.ctx.dir.get(*argument_id);
+            let Some(value_expression_id) = argument.value() else {
+                continue;
+            };
             let Some(type_id) = self.ctx.expression_type_id(value_expression_id) else {
                 continue;
             };

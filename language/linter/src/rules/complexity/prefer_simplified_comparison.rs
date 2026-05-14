@@ -1,9 +1,9 @@
 use crate::LintMeta;
-use destack_ast::{self as ast, BinaryOperator};
+use destack_dir::{self as dir, BinaryOperator};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{expression_numeric_value, expression_unwrap_parenthesized_source_form};
-use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Suggest simplifying comparisons.
@@ -13,7 +13,7 @@ declare_lint! {
         id = "prefer-simplified-comparison",
         code = "LX026",
         category = Complexity,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Always,
@@ -29,13 +29,13 @@ impl LintRule for PreferSimplifiedComparison {
         PreferSimplifiedComparison::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expression = ctx.tree.get(node_id);
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let expression = ctx.dir.get(node_id);
 
-            let ast::Expression::Binary {
+            let dir::Expression::Binary {
                 operator,
                 left,
                 right,
@@ -55,9 +55,9 @@ impl LintRule for PreferSimplifiedComparison {
             }
 
             // build simplified replacement expression
-            let expression_span = ctx.tree.get_span(node_id);
-            let left_span = ctx.tree.get_span(*left);
-            let right_span = ctx.tree.get_span(simplification.simplified_right);
+            let expression_span = ctx.dir.get_span(node_id);
+            let left_span = ctx.dir.get_span(*left);
+            let right_span = ctx.dir.get_span(simplification.simplified_right);
             let left_text = ctx.get_span_text(left_span);
             let right_text = ctx.get_span_text(right_span);
             let replacement = format!("{left_text} {} {right_text}", simplification.operator_text);
@@ -91,14 +91,14 @@ struct ComparisonSimplification {
     /// The diagnostic message.
     message: &'static str,
     /// The expression to keep on the right side.
-    simplified_right: ast::LocalNodeId<ast::Expression>,
+    simplified_right: dir::LocalNodeId<dir::Expression>,
 }
 
 /// Return one simplification for a comparison operator and right-hand side.
 fn simplification_for_operator(
-    ctx: &mut LintAstContext<'_>,
+    ctx: &mut LintModuleContext<'_>,
     operator: BinaryOperator,
-    right_id: ast::LocalNodeId<ast::Expression>,
+    right_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<ComparisonSimplification> {
     match operator {
         BinaryOperator::GreaterThanOrEqual => {
@@ -139,16 +139,16 @@ fn simplification_for_operator(
 
 /// Return the base expression id when one side is `base +/- 1`.
 fn right_add_or_sub_one(
-    ctx: &mut LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &mut LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
     operator: BinaryOperator,
-) -> Option<ast::LocalNodeId<ast::Expression>> {
-    let expression = expression_unwrap_parenthesized_source_form(ctx.tree, expression_id);
-    let ast::Expression::Binary {
+) -> Option<dir::LocalNodeId<dir::Expression>> {
+    let expression = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), expression_id);
+    let dir::Expression::Binary {
         left,
         operator: inner_operator,
         right,
-    } = ctx.tree.get(expression)
+    } = ctx.dir.get(expression)
     else {
         return None;
     };
@@ -156,7 +156,7 @@ fn right_add_or_sub_one(
         return None;
     }
 
-    let right_expression = expression_unwrap_parenthesized_source_form(ctx.tree, *right);
+    let right_expression = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), *right);
     if expression_numeric_value(ctx, right_expression)? != 1.0 {
         return None;
     }
@@ -172,7 +172,7 @@ mod tests {
     #[test]
     fn test_gte_plus_one_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferSimplifiedComparison);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_simplified_comparison/test_gte_plus_one_detected.ds",
             r#"
 function foo(x: int32, y: int32): bool {
@@ -188,7 +188,7 @@ function foo(x: int32, y: int32): bool {
     #[test]
     fn test_gt_comparison_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferSimplifiedComparison);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_simplified_comparison/test_gt_comparison_allowed.ds",
             r#"
 function foo(x: int32, y: int32): bool {
@@ -203,7 +203,7 @@ function foo(x: int32, y: int32): bool {
     #[test]
     fn test_lte_minus_one_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferSimplifiedComparison);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_simplified_comparison/test_lte_minus_one_detected.ds",
             r#"
 function foo(x: int32, y: int32): bool {
@@ -218,7 +218,7 @@ function foo(x: int32, y: int32): bool {
     #[test]
     fn test_normal_comparison_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferSimplifiedComparison);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_simplified_comparison/test_normal_comparison_allowed.ds",
             r#"
 function foo(x: int32, y: int32): bool {
@@ -233,7 +233,7 @@ function foo(x: int32, y: int32): bool {
     #[test]
     fn test_fix_gte_plus_one() {
         let test = TestProgram::for_rule_without_prelude(PreferSimplifiedComparison);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_simplified_comparison/test_fix_gte_plus_one.ds",
             r#"
 function foo(x: int32, y: int32): bool {
@@ -255,7 +255,7 @@ function foo(x: int32, y: int32): bool {
     #[test]
     fn test_fix_lte_minus_one() {
         let test = TestProgram::for_rule_without_prelude(PreferSimplifiedComparison);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_simplified_comparison/test_fix_lte_minus_one.ds",
             r#"
 function foo(x: int32, y: int32): bool {
@@ -277,7 +277,7 @@ function foo(x: int32, y: int32): bool {
     #[test]
     fn test_fix_gt_minus_one() {
         let test = TestProgram::for_rule_without_prelude(PreferSimplifiedComparison);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_simplified_comparison/test_fix_gt_minus_one.ds",
             r#"
 function foo(x: int32, y: int32): bool {
@@ -299,7 +299,7 @@ function foo(x: int32, y: int32): bool {
     #[test]
     fn test_fix_lt_plus_one() {
         let test = TestProgram::for_rule_without_prelude(PreferSimplifiedComparison);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_simplified_comparison/test_fix_lt_plus_one.ds",
             r#"
 function foo(x: int32, y: int32): bool {
@@ -321,7 +321,7 @@ function foo(x: int32, y: int32): bool {
     #[test]
     fn test_mutation_fix_parenthesized_rhs_expression() {
         let test = TestProgram::for_rule_without_prelude(PreferSimplifiedComparison);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_simplified_comparison/test_mutation_fix_parenthesized_rhs_expression.ds",
             r#"
 function foo(x: int32, y: int32, z: int32): bool {

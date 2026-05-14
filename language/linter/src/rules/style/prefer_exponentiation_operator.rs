@@ -6,7 +6,7 @@ use crate::LintRequirement::RequireLibSymbol;
 use crate::rules::common::{
     expression_is_symbol, expression_static_property_access, span_has_comment,
 };
-use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer `**` over `Math.pow()`.
@@ -35,7 +35,7 @@ impl LintRule for PreferExponentiationOperator {
     }
 
     /// Check module DIR nodes for Math.pow usage.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let mut visitor = ExponentiationVisitor::new(ctx, meta);
         visitor.run();
@@ -45,7 +45,7 @@ impl LintRule for PreferExponentiationOperator {
 /// Node visitor that flags Math.pow usage.
 struct ExponentiationVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The Math symbol for this module.
@@ -58,7 +58,7 @@ struct ExponentiationVisitor<'a, 'b> {
 
 impl<'a, 'b> ExponentiationVisitor<'a, 'b> {
     /// Build a visitor for prefer-exponentiation-operator checks.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         let math_name = ctx.string_id("Math");
         let pow_name = ctx.string_id("pow");
         let math_symbol = ctx.declared_library_symbol(math_name);
@@ -75,7 +75,7 @@ impl<'a, 'b> ExponentiationVisitor<'a, 'b> {
     /// Walk the DIR tree roots.
     fn run(&mut self) {
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         for root_id in roots {
             let expression = tree.get(root_id);
@@ -136,8 +136,8 @@ impl<'a, 'b> ExponentiationVisitor<'a, 'b> {
         let [base_argument_id, exponent_argument_id] = arguments else {
             return None;
         };
-        let base_argument = self.ctx.tree.get(*base_argument_id);
-        let exponent_argument = self.ctx.tree.get(*exponent_argument_id);
+        let base_argument = self.ctx.dir.get(*base_argument_id);
+        let exponent_argument = self.ctx.dir.get(*exponent_argument_id);
         let dir::Argument::Positional { value: base_id, .. } = base_argument else {
             return None;
         };
@@ -157,7 +157,7 @@ impl<'a, 'b> ExponentiationVisitor<'a, 'b> {
 
         // replace the full call expression
         let expression_span = self.ctx.get_span(expression_id);
-        if span_has_comment(self.ctx.ast, expression_span) {
+        if span_has_comment(self.ctx.dir.tree(), expression_span) {
             return None;
         }
 
@@ -174,7 +174,7 @@ impl<'a, 'b> ExponentiationVisitor<'a, 'b> {
     fn is_math_pow(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
         // match static property access with `pow`
         let Some((receiver_id, property_name)) =
-            expression_static_property_access(self.ctx.tree, expression_id)
+            expression_static_property_access(self.ctx.dir.tree(), expression_id)
         else {
             return false;
         };
@@ -204,6 +204,7 @@ impl NodeVisitor for ExponentiationVisitor<'_, '_> {
     ) {
         // check call expressions for Math.pow
         if let dir::Expression::Call {
+            position: _,
             left,
             generic_arguments,
             arguments,

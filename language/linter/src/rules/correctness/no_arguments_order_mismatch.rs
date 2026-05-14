@@ -7,7 +7,7 @@ use crate::rules::common::{
     argument_expression_id, expression_candidate_symbols, expression_declared_or_inferred_type_id,
     expression_unwrap_parenthesized, is_string_type, symbol_declaration_for,
 };
-use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow positional arguments that appear swapped by parameter name.
@@ -37,10 +37,10 @@ impl LintRule for NoArgumentsOrderMismatch {
     }
 
     /// Check module DIR nodes for likely swapped positional arguments.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
-        for (expression_id, expression) in ctx.tree.iter_nodes_of_type::<dir::Expression>() {
+        for (expression_id, expression) in ctx.dir.iter_nodes_of_type::<dir::Expression>() {
             let (callee_expression_id, argument_ids) = match expression {
                 dir::Expression::Call {
                     left, arguments, ..
@@ -51,7 +51,7 @@ impl LintRule for NoArgumentsOrderMismatch {
                 _ => continue,
             };
 
-            let argument_name_hints = argument_name_hints(ctx.tree, argument_ids);
+            let argument_name_hints = argument_name_hints(ctx.dir.tree(), argument_ids);
             if argument_name_hints.len() < 2 {
                 continue;
             }
@@ -128,7 +128,7 @@ impl LintRule for NoArgumentsOrderMismatch {
 /// When local signature and type information is available, each argument should
 /// fit the opposite parameter.
 fn swapped_pair_type_compatible(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     callee_expression_id: dir::LocalNodeId<dir::Expression>,
     argument_ids: &[dir::LocalNodeId<dir::Argument>],
     first_index: usize,
@@ -155,7 +155,8 @@ fn swapped_pair_type_compatible(
             continue;
         }
 
-        let Some(parameters) = declaration_parameters(ctx.tree, declaration_id.local_id) else {
+        let Some(parameters) = declaration_parameters(ctx.dir.tree(), declaration_id.local_id)
+        else {
             continue;
         };
         let Some(first_parameter_id) = parameters.get(first_index).copied() else {
@@ -165,12 +166,12 @@ fn swapped_pair_type_compatible(
             continue;
         };
         let Some(first_argument_expression_id) =
-            argument_expression_id(ctx.tree, argument_ids[first_index])
+            argument_expression_id(ctx.dir.tree(), argument_ids[first_index])
         else {
             continue;
         };
         let Some(second_argument_expression_id) =
-            argument_expression_id(ctx.tree, argument_ids[second_index])
+            argument_expression_id(ctx.dir.tree(), argument_ids[second_index])
         else {
             continue;
         };
@@ -178,7 +179,7 @@ fn swapped_pair_type_compatible(
         // require stable argument and parameter types before rejecting
         let Some(first_argument_type_id) = expression_declared_or_inferred_type_id(
             ctx.module_id(),
-            ctx.tree,
+            ctx.dir.tree(),
             ctx.types,
             first_argument_expression_id,
         ) else {
@@ -186,7 +187,7 @@ fn swapped_pair_type_compatible(
         };
         let Some(second_argument_type_id) = expression_declared_or_inferred_type_id(
             ctx.module_id(),
-            ctx.tree,
+            ctx.dir.tree(),
             ctx.types,
             second_argument_expression_id,
         ) else {
@@ -217,7 +218,7 @@ fn swapped_pair_type_compatible(
 
 /// Return true when one argument and parameter pair is obviously string incompatible.
 fn type_pair_has_string_mismatch(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     left_type_id: dir::LocalTypeId,
     right_type_id: dir::LocalTypeId,
 ) -> bool {
@@ -254,11 +255,9 @@ fn expression_name_hint(
     let expression_id = expression_unwrap_parenthesized(tree, expression_id);
     let expression = tree.get(expression_id);
     match expression {
-        dir::Expression::Path { path, .. } => path.last_segment(),
+        dir::Expression::QualifiedReference { path, .. } => path.last_segment(),
         dir::Expression::Member { name, .. } | dir::Expression::PrivateMember { name, .. } => *name,
         dir::Expression::As {
-            operator: _,
-            source: _,
             expression: value,
             target_type: _,
         }
@@ -269,7 +268,7 @@ fn expression_name_hint(
         dir::Expression::MoveOf { right, .. } | dir::Expression::BorrowOf { right, .. } => {
             expression_name_hint(tree, *right)
         }
-        dir::Expression::Maybe { left } | dir::Expression::Must { left } => {
+        dir::Expression::Maybe { left, .. } | dir::Expression::Must { left, .. } => {
             expression_name_hint(tree, *left)
         }
         _ => None,
@@ -281,7 +280,7 @@ fn expression_name_hint(
 /// When multiple resolution candidates disagree about parameter names, this
 /// returns none to avoid noisy false positives.
 fn stable_parameter_names_for_call_target(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     callee_expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<Vec<Option<StringId>>> {
     let candidate_symbols =
@@ -310,7 +309,7 @@ fn stable_parameter_names_for_call_target(
 
 /// Return parameter names for one symbol declaration.
 fn parameter_names_for_symbol(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<Vec<Option<StringId>>> {
     let declaration_id = symbol_declaration_for(
@@ -322,10 +321,10 @@ fn parameter_names_for_symbol(
     )?;
 
     if declaration_id.module_id == ctx.module_id() {
-        return declaration_parameter_names(ctx.tree, declaration_id.local_id);
+        return declaration_parameter_names(ctx.dir.tree(), declaration_id.local_id);
     }
 
-    let module_dir = ctx.declared_dir(declaration_id.module_id)?;
+    let module_dir = ctx.bound_dir(declaration_id.module_id)?;
     declaration_parameter_names(&module_dir.tree, declaration_id.local_id)
 }
 
@@ -345,7 +344,7 @@ fn declaration_parameter_names(
 
 /// Return one parameter type from declared annotation or inferred symbol type.
 fn parameter_declared_or_inferred_type_id(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     parameter_id: dir::LocalNodeId<dir::Parameter>,
 ) -> Option<dir::LocalTypeId> {
     let global_parameter_id = parameter_id.into_global_any(ctx.module_id());
@@ -356,8 +355,7 @@ fn parameter_declared_or_inferred_type_id(
     }
 
     // otherwise use bound parameter symbol value type
-    let parameter = ctx.tree.get(parameter_id);
-    let parameter_symbol = parameter.symbol().into_global(ctx.module_id());
+    let parameter_symbol = ctx.symbol_for_node(parameter_id)?;
     ctx.types.get_value_type_id(parameter_symbol)
 }
 
@@ -437,7 +435,7 @@ fn parameter_name_for_signature_parameter(
         }
         dir::Parameter::Pattern { pattern, .. }
         | dir::Parameter::VariadicPattern { pattern, .. } => pattern_name_hint(tree, *pattern),
-        dir::Parameter::Error { .. } => None,
+        dir::Parameter::Error => None,
     }
 }
 

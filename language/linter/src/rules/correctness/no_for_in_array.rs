@@ -3,7 +3,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::is_array_like_iteration_type;
-use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow iterating over arrays with for-in.
@@ -32,7 +32,7 @@ impl LintRule for NoForInArray {
     }
 
     /// Check module DIR nodes for for-in on arrays.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let mut visitor = ForInArrayVisitor::new(ctx, meta);
         visitor.run();
@@ -42,7 +42,7 @@ impl LintRule for NoForInArray {
 /// Node visitor that flags for-in on arrays.
 struct ForInArrayVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The language item Array symbol for this module.
@@ -53,7 +53,7 @@ struct ForInArrayVisitor<'a, 'b> {
 
 impl<'a, 'b> ForInArrayVisitor<'a, 'b> {
     /// Build a visitor for for-in array checks.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         let array_symbol = ctx.language_item(LanguageItem::Array);
         Self {
             ctx,
@@ -66,7 +66,7 @@ impl<'a, 'b> ForInArrayVisitor<'a, 'b> {
     /// Walk the DIR tree roots.
     fn run(&mut self) {
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         for root_id in roots {
             let expression = tree.get(root_id);

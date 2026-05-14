@@ -6,7 +6,7 @@ use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::{
     expression_enters_nested_declaration_scope, expression_method_call, is_array_type,
 };
-use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow `unshift` in loops.
@@ -33,7 +33,7 @@ impl LintRule for NoArrayUnshiftLoop {
         NoArrayUnshiftLoop::meta()
     }
 
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let mut visitor = NoArrayUnshiftLoopVisitor::new(ctx, meta);
         visitor.run();
@@ -43,7 +43,7 @@ impl LintRule for NoArrayUnshiftLoop {
 /// Visitor that flags unshift calls inside loops.
 struct NoArrayUnshiftLoopVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The language item Array symbol for this module.
@@ -58,7 +58,7 @@ struct NoArrayUnshiftLoopVisitor<'a, 'b> {
 
 impl<'a, 'b> NoArrayUnshiftLoopVisitor<'a, 'b> {
     /// Build a visitor for no-array-unshift-loop checks.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         let array_symbol = ctx.language_item(LanguageItem::Array);
         let unshift_name = ctx.string_id("unshift");
 
@@ -75,7 +75,7 @@ impl<'a, 'b> NoArrayUnshiftLoopVisitor<'a, 'b> {
     /// Walk the DIR tree roots.
     fn run(&mut self) {
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         for root_id in roots {
             let expression = tree.get(root_id);
@@ -91,7 +91,7 @@ impl<'a, 'b> NoArrayUnshiftLoopVisitor<'a, 'b> {
         }
 
         // match method call pattern
-        let Some(method_call) = expression_method_call(self.ctx.tree, expression_id) else {
+        let Some(method_call) = expression_method_call(self.ctx.dir.tree(), expression_id) else {
             return;
         };
 
@@ -262,10 +262,8 @@ impl NodeVisitor for NoArrayUnshiftLoopVisitor<'_, '_> {
 
         // handle loop expressions with custom traversal
         match expression {
-            dir::Expression::Loop {
-                condition, body, ..
-            } => {
-                self.visit_loop(tree, *condition, *body);
+            dir::Expression::Loop { body } => {
+                self.visit_loop(tree, None, *body);
                 return;
             }
             dir::Expression::ForEach {

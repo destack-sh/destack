@@ -11,7 +11,7 @@ use crate::rules::common::{
     expression_is_promise_like, expression_type_or_call_return_type_map,
     expression_unwrap_parenthesized, is_promise_type, remove_first_async_keyword,
 };
-use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow async functions with no await expression.
@@ -40,14 +40,14 @@ impl LintRule for RequireAwait {
     }
 
     /// Check module DIR nodes for async callables without await or Promise like returns.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         // resolve metadata and Promise symbol once
         let meta = self.meta();
         let promise_symbol = ctx.get_language_item(LanguageItem::Promise);
         let async_function_symbols = collect_async_function_symbols(ctx);
 
         // check function declarations
-        for (declaration_id, declaration) in ctx.tree.iter_nodes_of_type::<dir::Declaration>() {
+        for (declaration_id, declaration) in ctx.dir.iter_nodes_of_type::<dir::Declaration>() {
             let dir::Declaration::Function(declaration) = declaration else {
                 continue;
             };
@@ -64,7 +64,7 @@ impl LintRule for RequireAwait {
         }
 
         // check class or struct methods
-        for (member_id, member) in ctx.tree.iter_nodes_of_type::<dir::Member>() {
+        for (member_id, member) in ctx.dir.iter_nodes_of_type::<dir::Member>() {
             let dir::Member::Method {
                 signature, body, ..
             } = member
@@ -84,7 +84,7 @@ impl LintRule for RequireAwait {
         }
 
         // check object literal methods
-        for (property_id, property) in ctx.tree.iter_nodes_of_type::<dir::Property>() {
+        for (property_id, property) in ctx.dir.iter_nodes_of_type::<dir::Property>() {
             let dir::Property::Method {
                 signature, body, ..
             } = property
@@ -106,35 +106,37 @@ impl LintRule for RequireAwait {
 }
 
 /// Collect async callable symbols for Promise call checks.
-fn collect_async_function_symbols(ctx: &LintModuleDirContext<'_>) -> HashSet<dir::GlobalSymbolId> {
+fn collect_async_function_symbols(ctx: &LintModuleContext<'_>) -> HashSet<dir::GlobalSymbolId> {
     let mut symbols = HashSet::new();
 
     // keep named async function declarations only
-    for declaration_id in ctx.tree.iter_node_ids_of_type::<dir::Declaration>() {
-        let declaration = ctx.tree.get(declaration_id);
+    for declaration_id in ctx.dir.iter_node_ids_of_type::<dir::Declaration>() {
+        let declaration = ctx.dir.get(declaration_id);
         let dir::Declaration::Function(declaration) = declaration else {
             continue;
         };
         if declaration.signature.asynchrony != Asynchrony::Async {
             continue;
         }
-        let symbol_id = declaration.symbol.into_global(ctx.module_id());
+        let Some(symbol_id) = ctx.symbol_for_node(declaration_id) else {
+            continue;
+        };
         symbols.insert(symbol_id);
     }
 
     // keep async function expression and arrow bindings
-    for declarator_id in ctx.tree.iter_node_ids_of_type::<dir::Declarator>() {
-        let declarator = ctx.tree.get(declarator_id);
+    for declarator_id in ctx.dir.iter_node_ids_of_type::<dir::Declarator>() {
+        let declarator = ctx.dir.get(declarator_id);
         let Some(value_id) = declarator.value else {
             continue;
         };
-        if !expression_is_async_callable_value(ctx.tree, value_id) {
+        if !expression_is_async_callable_value(ctx.dir.tree(), value_id) {
             continue;
         }
 
         let mut binding_symbols = HashSet::new();
         collect_pattern_value_binding_symbols(
-            ctx.tree,
+            ctx.dir.tree(),
             ctx.symbols,
             declarator.pattern,
             &mut binding_symbols,
@@ -150,7 +152,7 @@ fn collect_async_function_symbols(ctx: &LintModuleDirContext<'_>) -> HashSet<dir
 
 /// Check one async callable node for missing await usage.
 fn check_async_callable<T: dir::Node>(
-    ctx: &mut LintModuleDirContext<'_>,
+    ctx: &mut LintModuleContext<'_>,
     meta: &LintMeta,
     node_id: dir::LocalNodeId<T>,
     signature: &dir::FunctionSignature,
@@ -167,7 +169,7 @@ fn check_async_callable<T: dir::Node>(
     };
 
     // ignore empty async bodies
-    if function_body_is_empty(ctx.tree, body_id) {
+    if function_body_is_empty(ctx.dir.tree(), body_id) {
         return;
     }
 
@@ -176,7 +178,7 @@ fn check_async_callable<T: dir::Node>(
         ctx.artifacts.as_ref(),
         ctx.profile_id,
         ctx.module_id(),
-        ctx.tree,
+        ctx.dir.tree(),
         ctx.types,
         body_id,
         signature.is_generator,
@@ -210,7 +212,7 @@ fn check_async_callable<T: dir::Node>(
     .label("add await or remove async keyword");
 
     // attach one unsafe async removal fix when token shape is known
-    if ctx.include_fixes
+    if ctx.compute_fixes
         && let Some(fix) = require_await_fix(ctx, span)
     {
         diagnostic = diagnostic.fix(fix);
@@ -544,7 +546,7 @@ fn expression_is_async_callable_value(
 }
 
 /// Build one unsafe fix that removes the `async` keyword token.
-fn require_await_fix(ctx: &LintModuleDirContext<'_>, callable_span: Span) -> Option<LintFix> {
+fn require_await_fix(ctx: &LintModuleContext<'_>, callable_span: Span) -> Option<LintFix> {
     // resolve callable source text
     let callable_text = ctx.get_span_text(callable_span);
     let replacement = remove_first_async_keyword(callable_text)?;

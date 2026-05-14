@@ -1,15 +1,15 @@
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_source::Span;
 
 /// The callable owner node that holds one function signature.
 #[derive(Debug, Copy, Clone)]
 pub enum CallableOwnerId {
     /// A function declaration owner.
-    Declaration(ast::LocalNodeId<ast::Declaration>),
+    Declaration(dir::LocalNodeId<dir::Declaration>),
     /// A class or interface method owner.
-    Member(ast::LocalNodeId<ast::Member>),
+    Member(dir::LocalNodeId<dir::Member>),
     /// An object or type literal method owner.
-    Property(ast::LocalNodeId<ast::Property>),
+    Property(dir::LocalNodeId<dir::Property>),
 }
 
 /// Controls how `this` parameters contribute to effective parameter counts.
@@ -23,19 +23,19 @@ pub enum ThisParameterCount {
     Always,
 }
 
-/// Visit each callable function signature in one AST module.
+/// Visit each callable function signature in one source module.
 pub fn for_each_callable_signature(
-    tree: &ast::Tree,
+    tree: &dir::Tree,
     mut callback: impl FnMut(
         CallableOwnerId,
-        &ast::FunctionSignature,
-        Option<ast::LocalNodeId<ast::Expression>>,
+        &dir::FunctionSignature,
+        Option<dir::LocalNodeId<dir::Expression>>,
     ),
 ) {
     // visit declaration functions
-    for declaration_id in tree.iter_nodes::<ast::Declaration>() {
+    for declaration_id in tree.iter_nodes::<dir::Declaration>() {
         let declaration = tree.get(declaration_id);
-        let ast::Declaration::Function(declaration) = declaration else {
+        let dir::Declaration::Function(declaration) = declaration else {
             continue;
         };
 
@@ -47,9 +47,9 @@ pub fn for_each_callable_signature(
     }
 
     // visit class and interface methods
-    for member_id in tree.iter_nodes::<ast::Member>() {
+    for member_id in tree.iter_nodes::<dir::Member>() {
         let member = tree.get(member_id);
-        let ast::Member::Method {
+        let dir::Member::Method {
             signature, body, ..
         } = member
         else {
@@ -60,9 +60,9 @@ pub fn for_each_callable_signature(
     }
 
     // visit object and type literal methods
-    for property_id in tree.iter_nodes::<ast::Property>() {
+    for property_id in tree.iter_nodes::<dir::Property>() {
         let property = tree.get(property_id);
-        let ast::Property::Method {
+        let dir::Property::Method {
             signature, body, ..
         } = property
         else {
@@ -74,7 +74,7 @@ pub fn for_each_callable_signature(
 }
 
 /// Return the source span of one callable owner node.
-pub fn callable_owner_span(tree: &ast::Tree, owner_id: CallableOwnerId) -> Span {
+pub fn callable_owner_span(tree: &dir::Tree, owner_id: CallableOwnerId) -> Span {
     match owner_id {
         CallableOwnerId::Declaration(declaration_id) => tree.get_span(declaration_id),
         CallableOwnerId::Member(member_id) => tree.get_span(member_id),
@@ -84,19 +84,19 @@ pub fn callable_owner_span(tree: &ast::Tree, owner_id: CallableOwnerId) -> Span 
 
 /// Return the type expression id of one parameter when it exists.
 pub fn parameter_type_expression_id(
-    parameter: &ast::Parameter,
-) -> Option<ast::LocalNodeId<ast::TypeExpression>> {
+    parameter: &dir::Parameter,
+) -> Option<dir::LocalNodeId<dir::TypeExpression>> {
     match parameter {
-        ast::Parameter::Named { declared_type, .. }
-        | ast::Parameter::Pattern { declared_type, .. }
-        | ast::Parameter::VariadicNamed { declared_type, .. }
-        | ast::Parameter::VariadicPattern { declared_type, .. } => *declared_type,
-        ast::Parameter::Error => None,
+        dir::Parameter::Named { declared_type, .. }
+        | dir::Parameter::Pattern { declared_type, .. }
+        | dir::Parameter::VariadicNamed { declared_type, .. }
+        | dir::Parameter::VariadicPattern { declared_type, .. } => *declared_type,
+        dir::Parameter::Error => None,
     }
 }
 
 /// Return true when one parameter is explicitly typed as `void`.
-pub fn parameter_is_void_type(tree: &ast::Tree, parameter: &ast::Parameter) -> bool {
+pub fn parameter_is_void_type(tree: &dir::Tree, parameter: &dir::Parameter) -> bool {
     // resolve one parameter type annotation
     let Some(type_expression_id) = parameter_type_expression_id(parameter) else {
         return false;
@@ -106,16 +106,16 @@ pub fn parameter_is_void_type(tree: &ast::Tree, parameter: &ast::Parameter) -> b
     let type_expression = tree.get(type_expression_id);
     matches!(
         type_expression,
-        ast::TypeExpression::Literal {
-            value: ast::TypeLiteral::Void,
+        dir::TypeExpression::Literal {
+            value: dir::TypeLiteral::Void,
         }
     )
 }
 
 /// Return one effective parameter count for a function signature.
 pub fn function_signature_parameter_count(
-    tree: &ast::Tree,
-    signature: &ast::FunctionSignature,
+    tree: &dir::Tree,
+    signature: &dir::FunctionSignature,
     this_parameter_count: ThisParameterCount,
 ) -> usize {
     // start from parameters
@@ -144,6 +144,6 @@ pub fn function_signature_parameter_count(
 }
 
 /// Return generic parameter count for one function signature.
-pub fn function_signature_generic_parameter_count(signature: &ast::FunctionSignature) -> usize {
+pub fn function_signature_generic_parameter_count(signature: &dir::FunctionSignature) -> usize {
     signature.generic_parameters.len()
 }

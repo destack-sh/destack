@@ -115,7 +115,7 @@ pub fn resolution_target_symbols(resolution: &dir::Resolution) -> Vec<dir::Globa
     match resolution {
         dir::Resolution::Symbol(symbol) => vec![*symbol],
         dir::Resolution::Dependency(dependency) => dependency_resolution_target_symbols(dependency),
-        dir::Resolution::Control(_) => Vec::new(),
+        dir::Resolution::Label(_) => Vec::new(),
         dir::Resolution::Dispatch(dispatch) => dispatch_resolution_target_symbols(dispatch),
     }
 }
@@ -276,10 +276,7 @@ fn decorator_string_arguments(
             continue;
         };
         let expression = tree.get(*value);
-        let dir::Expression::ScalarLiteral {
-            value: dir::ScalarLiteral::String(value),
-        } = expression
-        else {
+        let dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(value)) = expression else {
             continue;
         };
 
@@ -301,7 +298,7 @@ pub fn symbol_for(
         return Some(local_symbols.get_symbol(symbol_id.local_id).clone());
     }
 
-    let dir = artifacts.dir_declared(symbol_id.module_id, profile_id)?;
+    let dir = artifacts.dir_bound(symbol_id.module_id, profile_id)?;
     Some(dir.bindings.get_symbol(symbol_id.local_id).clone())
 }
 
@@ -330,7 +327,7 @@ pub fn symbol_decorators_for(
         );
     }
 
-    let Some(dir) = artifacts.dir_declared(symbol_id.module_id, profile_id) else {
+    let Some(dir) = artifacts.dir_bound(symbol_id.module_id, profile_id) else {
         return Vec::new();
     };
 
@@ -385,11 +382,12 @@ pub fn symbol_initializer_expression(
     }
 
     // resolve the declaration initializer in the local tree
-    declaration_initializer_expression(tree, declaration_id, symbol_id.local_id)
+    declaration_initializer_expression(local_symbols, tree, declaration_id, symbol_id.local_id)
 }
 
 /// Resolve one initializer expression from a symbol declaration node.
 pub fn declaration_initializer_expression(
+    symbols: &dir::BindingTable,
     tree: &dir::Tree,
     declaration_id: dir::GlobalNodeIdAny,
     symbol_id: dir::LocalSymbolId,
@@ -415,7 +413,7 @@ pub fn declaration_initializer_expression(
                 dir::Property::Field { value, .. } => Some(*value),
                 dir::Property::Method { .. } => None,
                 dir::Property::Spread { value, .. } => Some(*value),
-                dir::Property::Error { .. } => None,
+                dir::Property::Error => None,
             }
         }
 
@@ -429,7 +427,7 @@ pub fn declaration_initializer_expression(
                 | dir::Member::AssociatedType { .. }
                 | dir::Member::StaticBlock { .. }
                 | dir::Member::ComptimeBlock { .. }
-                | dir::Member::Error { .. } => None,
+                | dir::Member::Error => None,
             }
         }
 
@@ -443,7 +441,7 @@ pub fn declaration_initializer_expression(
                 dir::Parameter::VariadicNamed { .. } | dir::Parameter::VariadicPattern { .. } => {
                     None
                 }
-                dir::Parameter::Error { .. } => None,
+                dir::Parameter::Error => None,
             }
         }
 
@@ -454,10 +452,11 @@ pub fn declaration_initializer_expression(
                 dir::Expression::Let { declarators, .. }
                 | dir::Expression::Using { declarators, .. } => declarators.iter().find_map(|id| {
                     let declarator = tree.get(*id);
-                    let pattern = tree.get(declarator.pattern);
-                    (pattern.symbol() == Some(symbol_id))
-                        .then_some(declarator.value)
-                        .flatten()
+                    (symbols.symbol_for_declaration(
+                        declarator.pattern.into_global_any(symbols.module_id),
+                    ) == Some(symbol_id))
+                    .then_some(declarator.value)
+                    .flatten()
                 }),
                 _ => None,
             }

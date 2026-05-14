@@ -10,7 +10,7 @@ use crate::rules::common::{
     assign_pattern_contains_expression, assign_pattern_target_symbol,
     fresh_name_in_expression_scope, is_array_type, strip_dot_member_suffix,
 };
-use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer `for-of` over index-based `for` loops.
@@ -48,7 +48,7 @@ impl LintRule for PreferForOf {
         PreferForOf::meta()
     }
 
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let mut visitor = PreferForOfVisitor::new(ctx, meta);
         visitor.run();
@@ -58,7 +58,7 @@ impl LintRule for PreferForOf {
 /// Visitor that flags index-based for loops.
 struct PreferForOfVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The language item Array symbol for this module.
@@ -71,7 +71,7 @@ struct PreferForOfVisitor<'a, 'b> {
 
 impl<'a, 'b> PreferForOfVisitor<'a, 'b> {
     /// Build a visitor for prefer-for-of checks.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         let array_symbol = ctx.language_item(LanguageItem::Array);
         let length_name = ctx.string_id("length");
 
@@ -87,7 +87,7 @@ impl<'a, 'b> PreferForOfVisitor<'a, 'b> {
     /// Walk the DIR tree roots.
     fn run(&mut self) {
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         for root_id in roots {
             let expression = tree.get(root_id);
@@ -151,7 +151,7 @@ impl<'a, 'b> PreferForOfVisitor<'a, 'b> {
             span,
         )
         .label("use for-of to iterate directly over elements");
-        if self.ctx.include_fixes
+        if self.ctx.compute_fixes
             && let Some(fix) = self.prefer_for_of_fix(expression_id, body, pattern, &index_accesses)
         {
             diagnostic = diagnostic.fix(fix);
@@ -167,7 +167,7 @@ impl<'a, 'b> PreferForOfVisitor<'a, 'b> {
         cond_id: LocalNodeId<dir::Expression>,
     ) -> Option<ForLoopPattern> {
         // match initialization: let i = 0
-        let init = self.ctx.tree.get(init_id);
+        let init = self.ctx.dir.get(init_id);
         let dir::Expression::Let {
             mutability: Mutability::Mutable,
             declarators,
@@ -180,28 +180,25 @@ impl<'a, 'b> PreferForOfVisitor<'a, 'b> {
             return None;
         }
 
-        let declarator = self.ctx.tree.get(declarators[0]);
+        let declarator = self.ctx.dir.get(declarators[0]);
         let value_id = declarator.value?;
 
         // check the initializer is 0
-        let value = self.ctx.tree.get(value_id);
+        let value = self.ctx.dir.get(value_id);
         let is_zero = matches!(
             value,
-            dir::Expression::ScalarLiteral {
-                value: dir::ScalarLiteral::Integer(0)
-            }
+            dir::Expression::ScalarLiteral(dir::ScalarLiteral::Integer(0))
         );
         if !is_zero {
             return None;
         }
 
         // get the index symbol
-        let pattern = self.ctx.tree.get(declarator.pattern);
-        let index_local = pattern.symbol()?;
+        let index_local = self.ctx.local_symbol_for_node(declarator.pattern)?;
         let index_symbol = GlobalSymbolId::new(self.ctx.module_id(), index_local);
 
         // match condition: i < arr.length
-        let cond = self.ctx.tree.get(cond_id);
+        let cond = self.ctx.dir.get(cond_id);
         let dir::Expression::Binary {
             left,
             operator: dir::BinaryOperator::LessThan,
@@ -217,7 +214,7 @@ impl<'a, 'b> PreferForOfVisitor<'a, 'b> {
         }
 
         // match right as arr.length
-        let right_expr = self.ctx.tree.get(*right);
+        let right_expr = self.ctx.dir.get(*right);
         let dir::Expression::Member { left, name, .. } = right_expr else {
             return None;
         };
@@ -247,7 +244,7 @@ impl<'a, 'b> PreferForOfVisitor<'a, 'b> {
         incr_id: LocalNodeId<dir::Expression>,
         index_symbol: GlobalSymbolId,
     ) -> bool {
-        let incr = self.ctx.tree.get(incr_id);
+        let incr = self.ctx.dir.get(incr_id);
 
         // match ++i and i++
         if let dir::Expression::Unary { operator, right } = incr
@@ -260,12 +257,17 @@ impl<'a, 'b> PreferForOfVisitor<'a, 'b> {
         }
 
         // match i = i + 1 (desugared from i += 1)
-        if let dir::Expression::Assign { left, right } = incr {
+        if let dir::Expression::Assign {
+            left,
+            operator: _,
+            right,
+        } = incr
+        {
             if assign_pattern_target_symbol(self.ctx, *left) != Some(index_symbol) {
                 return false;
             }
 
-            let right_expr = self.ctx.tree.get(*right);
+            let right_expr = self.ctx.dir.get(*right);
             if let dir::Expression::Binary {
                 left: bin_left,
                 operator: dir::BinaryOperator::Add,
@@ -279,22 +281,18 @@ impl<'a, 'b> PreferForOfVisitor<'a, 'b> {
                     }
 
                     // check that bin_left is 1
-                    let bin_left_expr = self.ctx.tree.get(*bin_left);
+                    let bin_left_expr = self.ctx.dir.get(*bin_left);
                     return matches!(
                         bin_left_expr,
-                        dir::Expression::ScalarLiteral {
-                            value: dir::ScalarLiteral::Integer(1)
-                        }
+                        dir::Expression::ScalarLiteral(dir::ScalarLiteral::Integer(1))
                     );
                 }
 
                 // check that bin_right is 1
-                let bin_right_expr = self.ctx.tree.get(*bin_right);
+                let bin_right_expr = self.ctx.dir.get(*bin_right);
                 return matches!(
                     bin_right_expr,
-                    dir::Expression::ScalarLiteral {
-                        value: dir::ScalarLiteral::Integer(1)
-                    }
+                    dir::Expression::ScalarLiteral(dir::ScalarLiteral::Integer(1))
                 );
             }
         }
@@ -321,8 +319,8 @@ impl<'a, 'b> PreferForOfVisitor<'a, 'b> {
             options: NodeVisitorOptions::default(),
         };
 
-        let body = self.ctx.tree.get(body_id);
-        collector.visit_block(self.ctx.tree, body_id, body);
+        let body = self.ctx.dir.get(body_id);
+        collector.visit_block(self.ctx.dir.tree(), body_id, body);
 
         // require at least one use and all uses to be indexing
         if !collector.found_any_use || !collector.all_uses_are_indexing {
@@ -415,9 +413,9 @@ impl NodeVisitor for IndexUseCollector<'_> {
         expression: &dir::Expression,
     ) {
         // check for index expressions arr[i]
-        if let dir::Expression::Index { left, right } = expression {
+        if let dir::Expression::Index { left, index, .. } = expression {
             // check if right side exists (it's optional in Index)
-            if let Some(right_id) = right {
+            if let Some(right_id) = index {
                 // if this is arr[i], mark as valid use
                 if self.expression_target_symbol(*left) == Some(self.array_symbol)
                     && self.expression_target_symbol(*right_id) == Some(self.index_symbol)
@@ -467,8 +465,8 @@ fn index_expression_is_write_target(
         return assign_pattern_contains_expression(tree, *left, expression_id);
     }
 
-    if let dir::Expression::AssignBinary { left, .. } = parent_expression {
-        return *left == expression_id;
+    if let dir::Expression::Assign { left, .. } = parent_expression {
+        return assign_pattern_contains_expression(tree, *left, expression_id);
     }
 
     if let dir::Expression::Unary { operator, right } = parent_expression

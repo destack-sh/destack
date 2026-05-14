@@ -6,7 +6,7 @@ use crate::rules::common::{
     CallLikeExpressionInfo, expression_call_like, expression_target_symbol,
     expression_unwrap_parenthesized, is_async_function_type, remove_first_async_keyword,
 };
-use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow async functions as Promise executors.
@@ -35,7 +35,7 @@ impl LintRule for NoAsyncPromiseExecutor {
     }
 
     /// Check module DIR nodes for async Promise executors.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         // resolve lint metadata
         let meta = self.meta();
 
@@ -48,7 +48,7 @@ impl LintRule for NoAsyncPromiseExecutor {
 /// Node visitor that flags async Promise executors.
 struct AsyncPromiseExecutorVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The language item Promise symbol for this module.
@@ -59,7 +59,7 @@ struct AsyncPromiseExecutorVisitor<'a, 'b> {
 
 impl<'a, 'b> AsyncPromiseExecutorVisitor<'a, 'b> {
     /// Build a visitor for async Promise executor checks.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         let promise_symbol = ctx.language_item(LanguageItem::Promise);
         Self {
             ctx,
@@ -72,7 +72,7 @@ impl<'a, 'b> AsyncPromiseExecutorVisitor<'a, 'b> {
     /// Walk the DIR tree roots.
     fn run(&mut self) {
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         for root_id in roots {
             let expression = tree.get(root_id);
@@ -98,8 +98,10 @@ impl<'a, 'b> AsyncPromiseExecutorVisitor<'a, 'b> {
         let Some(argument_id) = call_like.arguments.first() else {
             return;
         };
-        let argument = self.ctx.tree.get(*argument_id);
-        let value_id = argument.value();
+        let argument = self.ctx.dir.get(*argument_id);
+        let Some(value_id) = argument.value() else {
+            return;
+        };
 
         // resolve the executor type
         let Some(type_id) = self.ctx.expression_type_id(value_id) else {
@@ -128,7 +130,7 @@ impl<'a, 'b> AsyncPromiseExecutorVisitor<'a, 'b> {
         .label("remove async from the executor function");
 
         // compute fixes only when requested by the runner
-        if self.ctx.include_fixes
+        if self.ctx.compute_fixes
             && let Some(fix) = async_promise_executor_fix(self.ctx, value_id)
         {
             diagnostic = diagnostic.fix(fix);
@@ -140,12 +142,12 @@ impl<'a, 'b> AsyncPromiseExecutorVisitor<'a, 'b> {
 
 /// Build an unsafe fix that removes the async modifier from an inline executor.
 fn async_promise_executor_fix(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<LintFix> {
     // require a direct inline declaration expression
-    let expression_id = expression_unwrap_parenthesized(ctx.tree, expression_id);
-    let expression = ctx.tree.get(expression_id);
+    let expression_id = expression_unwrap_parenthesized(ctx.dir.tree(), expression_id);
+    let expression = ctx.dir.get(expression_id);
     if !matches!(expression, dir::Expression::Declaration { .. }) {
         return None;
     }
@@ -160,11 +162,11 @@ fn async_promise_executor_fix(
 
     // remove one redundant parenthesized wrapper when the rewritten executor
     // already has the arrow function's own parameter parentheses
-    let replacement_span = if let Some(parent) = ctx.tree.get_parent(expression_id.id)
+    let replacement_span = if let Some(parent) = ctx.dir.get_parent(expression_id.id)
         && parent.ty == dir::NodeType::Expression
     {
         let parent_id = parent.into_typed::<dir::Expression>();
-        let parent_expression = ctx.tree.get(parent_id);
+        let parent_expression = ctx.dir.get(parent_id);
         if matches!(
             parent_expression,
             dir::Expression::Parenthesized {

@@ -8,9 +8,8 @@ use destack_workspace::{
 };
 
 use crate::{
-    BoxedLintRule, LintAstContext, LintLevel, LintModuleDirContext, LintPackageAstContext,
-    LintPackageDirContext, LintReport, LintScope, LintWorkspaceAstContext, LintWorkspaceDirContext,
-    all_rules, recommended_rules, strict_rules,
+    BoxedLintRule, LintLevel, LintModuleContext, LintPackageContext, LintReport, LintScope,
+    LintWorkspaceContext, all_rules, recommended_rules, strict_rules,
 };
 
 /// Per lint rule performance metrics.
@@ -301,15 +300,6 @@ impl LintRunner {
         let mut performance = LintPerformanceReport::default();
 
         let diagnostics = match level {
-            LintLevel::Ast => self.lint_module_ast(
-                repository,
-                artifacts,
-                revision,
-                module,
-                profile,
-                options,
-                Some(&mut performance),
-            ),
             LintLevel::Dir => self.lint_module_dir(
                 repository,
                 artifacts,
@@ -328,75 +318,6 @@ impl LintRunner {
         }
     }
 
-    /// Lint a module at a specific IR level.
-    fn lint_module_ast(
-        &self,
-        repository: Arc<Repository>,
-        artifacts: Arc<ArtifactCache>,
-        revision: Revision,
-        module: Arc<Module>,
-        _profile: Profile,
-        options: &LinterOptions,
-        mut performance: Option<&mut LintPerformanceReport>,
-    ) -> Vec<LintReport> {
-        let module = module.as_ref();
-        let ast = artifacts
-            .ast(module.id)
-            .expect("lint AST pass requires committed AST artifact");
-        let Some(file) = Self::repository_file(repository.as_ref(), revision, module.file_id)
-        else {
-            return Vec::new();
-        };
-        let strings = repository.string_pool().clone();
-        let mut ctx = LintAstContext::new(
-            repository,
-            artifacts,
-            module,
-            revision,
-            file,
-            &ast.tree,
-            &ast.parents,
-            &ast.roots,
-            strings.as_ref(),
-            options,
-            self.compute_fixes,
-        );
-
-        // check ast rules
-        for rule in &self.rules {
-            let meta = rule.meta();
-            if meta.level == LintLevel::Ast
-                && meta.scope == LintScope::Module
-                && ctx.is_rule_supported(meta)
-                && ctx.is_rule_enabled(meta)
-            {
-                let severity = ctx.get_severity(meta);
-                if let Some(performance) = performance.as_deref_mut() {
-                    let diagnostics_before = ctx.diagnostics().len();
-                    let start = Instant::now();
-                    rule.check_module_ast(severity, &mut ctx);
-                    let duration = start.elapsed();
-                    let diagnostics_after = ctx.diagnostics().len();
-                    let diagnostics_added = diagnostics_after.saturating_sub(diagnostics_before);
-
-                    performance.record(
-                        meta.id,
-                        meta.code,
-                        meta.name,
-                        meta.category,
-                        meta.level,
-                        duration,
-                        diagnostics_added,
-                    );
-                } else {
-                    rule.check_module_ast(severity, &mut ctx);
-                }
-            }
-        }
-
-        ctx.take_diagnostics()
-    }
-
     /// Lint a module at DIR level.
     fn lint_module_dir(
         &self,
@@ -408,18 +329,14 @@ impl LintRunner {
         options: &LinterOptions,
         mut performance: Option<&mut LintPerformanceReport>,
     ) -> Vec<LintReport> {
-        // context
         let module = module.as_ref();
-        let ast = artifacts
-            .ast(module.id)
-            .expect("lint DIR pass requires committed AST artifact");
         let Some(file) = Self::repository_file(repository.as_ref(), revision, module.file_id)
         else {
             return Vec::new();
         };
-        let declared = artifacts
-            .dir_declared(module.id, profile.id())
-            .expect("lint DIR pass requires committed declared DIR artifact");
+        let bound = artifacts
+            .dir_bound(module.id, profile.id())
+            .expect("lint DIR pass requires committed bound DIR artifact");
         let expanded = artifacts
             .dir_expanded(module.id, profile.id())
             .expect("lint DIR pass requires committed expanded DIR artifact");
@@ -428,23 +345,21 @@ impl LintRunner {
             .expect("lint DIR pass requires committed checked DIR artifact");
 
         let strings = repository.string_pool().clone();
-        let mut ctx = LintModuleDirContext::new(
+        let mut ctx = LintModuleContext::new(
             repository,
             artifacts,
             module,
             revision,
             profile,
             file,
-            &ast.tree,
-            declared.as_ref(),
+            bound.as_ref(),
             expanded.as_ref(),
             strings.as_ref(),
-            &declared.bindings,
+            &bound.bindings,
             &checked.types,
-            declared.roots.clone(),
-            declared.namespace_symbol,
-            declared.namespace_scope,
-            declared.default_symbol,
+            bound.namespace_symbol,
+            bound.namespace_scope,
+            bound.default_symbol,
             options,
             self.compute_fixes,
         );
@@ -461,7 +376,7 @@ impl LintRunner {
                 if let Some(performance) = performance.as_deref_mut() {
                     let diagnostics_before = ctx.diagnostics().len();
                     let start = Instant::now();
-                    rule.check_module_dir(severity, &mut ctx);
+                    rule.check_module(severity, &mut ctx);
                     let duration = start.elapsed();
                     let diagnostics_after = ctx.diagnostics().len();
                     let diagnostics_added = diagnostics_after.saturating_sub(diagnostics_before);
@@ -476,7 +391,7 @@ impl LintRunner {
                         diagnostics_added,
                     );
                 } else {
-                    rule.check_module_dir(severity, &mut ctx);
+                    rule.check_module(severity, &mut ctx);
                 }
             }
         }
@@ -557,142 +472,6 @@ impl LintRunner {
         }
     }
 
-    /// Lint the active workspace at AST level using workspace-scope rules.
-    pub fn lint_workspace_ast(
-        &self,
-        repository: Arc<Repository>,
-        revision: Revision,
-        options: &LinterOptions,
-    ) -> Vec<LintReport> {
-        self.lint_workspace_ast_profiled(repository, revision, options)
-            .diagnostics
-    }
-
-    /// Lint the active workspace at AST level and collect performance metrics.
-    pub fn lint_workspace_ast_profiled(
-        &self,
-        repository: Arc<Repository>,
-        revision: Revision,
-        options: &LinterOptions,
-    ) -> LintRunReport {
-        if !options.enabled {
-            return LintRunReport::default();
-        }
-
-        let mut performance = LintPerformanceReport::default();
-        let Some(workspace) = Self::repository_workspace(repository.as_ref(), revision) else {
-            return LintRunReport::default();
-        };
-        let artifacts = Arc::new(ArtifactCache::new(repository.clone(), revision));
-        let mut ctx = LintWorkspaceAstContext::new(
-            repository,
-            artifacts,
-            workspace,
-            revision,
-            options.clone(),
-        );
-
-        for rule in &self.rules {
-            let meta = rule.meta();
-            if meta.scope != LintScope::Workspace
-                || meta.level != LintLevel::Ast
-                || !ctx.is_rule_supported(meta)
-                || !ctx.is_rule_enabled(meta)
-            {
-                continue;
-            }
-
-            let diagnostics_before = ctx.diagnostics().len();
-            let start = Instant::now();
-            rule.check_workspace_ast(&mut ctx);
-            let duration = start.elapsed();
-            let diagnostics_after = ctx.diagnostics().len();
-            let diagnostics_added = diagnostics_after.saturating_sub(diagnostics_before);
-
-            performance.record(
-                meta.id,
-                meta.code,
-                meta.name,
-                meta.category,
-                meta.level,
-                duration,
-                diagnostics_added,
-            );
-        }
-
-        LintRunReport {
-            diagnostics: ctx.take_diagnostics(),
-            performance,
-        }
-    }
-
-    /// Lint one package at AST level using package-scope rules.
-    pub fn lint_package_ast(
-        &self,
-        repository: Arc<Repository>,
-        revision: Revision,
-        package_id: PackageId,
-        options: &LinterOptions,
-    ) -> Vec<LintReport> {
-        self.lint_package_ast_profiled(repository, revision, package_id, options)
-            .diagnostics
-    }
-
-    /// Lint one package at AST level and collect performance metrics.
-    pub fn lint_package_ast_profiled(
-        &self,
-        repository: Arc<Repository>,
-        revision: Revision,
-        package_id: PackageId,
-        options: &LinterOptions,
-    ) -> LintRunReport {
-        if !options.enabled {
-            return LintRunReport::default();
-        }
-
-        let mut performance = LintPerformanceReport::default();
-        let Some(package) = Self::repository_package(repository.as_ref(), revision, package_id)
-        else {
-            return LintRunReport::default();
-        };
-        let artifacts = Arc::new(ArtifactCache::new(repository.clone(), revision));
-        let mut ctx =
-            LintPackageAstContext::new(repository, artifacts, package, revision, options.clone());
-
-        for rule in &self.rules {
-            let meta = rule.meta();
-            if meta.scope != LintScope::Package
-                || meta.level != LintLevel::Ast
-                || !ctx.is_rule_supported(meta)
-                || !ctx.is_rule_enabled(meta)
-            {
-                continue;
-            }
-
-            let diagnostics_before = ctx.diagnostics().len();
-            let start = Instant::now();
-            rule.check_package_ast(&mut ctx);
-            let duration = start.elapsed();
-            let diagnostics_after = ctx.diagnostics().len();
-            let diagnostics_added = diagnostics_after.saturating_sub(diagnostics_before);
-
-            performance.record(
-                meta.id,
-                meta.code,
-                meta.name,
-                meta.category,
-                meta.level,
-                duration,
-                diagnostics_added,
-            );
-        }
-
-        LintRunReport {
-            diagnostics: ctx.take_diagnostics(),
-            performance,
-        }
-    }
-
     /// Lint the active workspace at DIR level using workspace-scope rules.
     pub fn lint_workspace_dir(
         &self,
@@ -722,7 +501,7 @@ impl LintRunner {
             return LintRunReport::default();
         };
         let artifacts = Arc::new(ArtifactCache::new(repository.clone(), revision));
-        let mut ctx = LintWorkspaceDirContext::new(
+        let mut ctx = LintWorkspaceContext::new(
             repository,
             artifacts,
             workspace,
@@ -743,7 +522,7 @@ impl LintRunner {
 
             let diagnostics_before = ctx.diagnostics().len();
             let start = Instant::now();
-            rule.check_workspace_dir(&mut ctx);
+            rule.check_workspace(&mut ctx);
             let duration = start.elapsed();
             let diagnostics_after = ctx.diagnostics().len();
             let diagnostics_added = diagnostics_after.saturating_sub(diagnostics_before);
@@ -797,7 +576,7 @@ impl LintRunner {
             return LintRunReport::default();
         };
         let artifacts = Arc::new(ArtifactCache::new(repository.clone(), revision));
-        let mut ctx = LintPackageDirContext::new(
+        let mut ctx = LintPackageContext::new(
             repository,
             artifacts,
             package,
@@ -818,7 +597,7 @@ impl LintRunner {
 
             let diagnostics_before = ctx.diagnostics().len();
             let start = Instant::now();
-            rule.check_package_dir(&mut ctx);
+            rule.check_package(&mut ctx);
             let duration = start.elapsed();
             let diagnostics_after = ctx.diagnostics().len();
             let diagnostics_added = diagnostics_after.saturating_sub(diagnostics_before);

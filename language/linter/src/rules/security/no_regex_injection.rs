@@ -3,7 +3,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLibSymbol;
 use crate::rules::common::{TaintAnalysis, TaintCache, expression_is_symbol};
-use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow tainted values in dynamic regular expression patterns.
@@ -31,7 +31,7 @@ impl LintRule for NoRegexInjection {
         NoRegexInjection::meta()
     }
 
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let mut visitor = NoRegexInjectionVisitor::new(ctx, meta);
         visitor.run();
@@ -41,7 +41,7 @@ impl LintRule for NoRegexInjection {
 /// Visitor that flags regex injection patterns.
 struct NoRegexInjectionVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The RegExp symbol for this module.
@@ -54,7 +54,7 @@ struct NoRegexInjectionVisitor<'a, 'b> {
 
 impl<'a, 'b> NoRegexInjectionVisitor<'a, 'b> {
     /// Build a new visitor.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         let regexp_name = ctx.string_id("RegExp");
         let regexp_symbol = ctx.declared_library_symbol(regexp_name);
 
@@ -70,7 +70,7 @@ impl<'a, 'b> NoRegexInjectionVisitor<'a, 'b> {
     /// Walk the module expression roots.
     fn run(&mut self) {
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         for root_id in roots {
             let expression = tree.get(root_id);
@@ -96,8 +96,11 @@ impl<'a, 'b> NoRegexInjectionVisitor<'a, 'b> {
         };
 
         // check if the pattern argument is potentially tainted
-        let argument = self.ctx.tree.get(*first_arg);
-        if !self.expression_is_tainted(argument.value()) {
+        let argument = self.ctx.dir.get(*first_arg);
+        let Some(value) = argument.value() else {
+            return;
+        };
+        if !self.expression_is_tainted(value) {
             return;
         }
 
@@ -122,8 +125,11 @@ impl<'a, 'b> NoRegexInjectionVisitor<'a, 'b> {
         };
 
         // check if the pattern argument is potentially tainted
-        let argument = self.ctx.tree.get(*first_arg);
-        if !self.expression_is_tainted(argument.value()) {
+        let argument = self.ctx.dir.get(*first_arg);
+        let Some(value) = argument.value() else {
+            return;
+        };
+        if !self.expression_is_tainted(value) {
             return;
         }
 
@@ -164,7 +170,7 @@ impl<'a, 'b> NoRegexInjectionVisitor<'a, 'b> {
             self.ctx.artifacts.as_ref(),
             self.ctx.profile_id,
             self.ctx.module_id(),
-            self.ctx.tree,
+            self.ctx.dir.tree(),
             self.ctx.strings,
             self.ctx.symbols,
             self.ctx.types,

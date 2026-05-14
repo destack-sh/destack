@@ -205,13 +205,13 @@ impl Linter {
         };
         let module = module.as_ref();
 
-        // only code modules carry AST and DIR products
+        // only code modules carry source and checked DIR products
         if !module.is_code() {
             return Ok(Vec::new());
         }
 
         let artifact_keys = vec![
-            ArtifactKey::ast(module_id),
+            ArtifactKey::dir_parsed(module_id),
             ArtifactKey::dir_checked(module_id, profile_id),
         ];
 
@@ -251,17 +251,9 @@ impl Linter {
             return Ok(());
         }
 
-        // run module scoped AST and DIR lint rules
+        // run module scoped lint rules
         let runner = Self::cached_runner(&options);
-        let ast_diagnostics = runner.lint_module_by_id(
-            self.repository.clone(),
-            revision,
-            module_id,
-            profile.clone(),
-            &options,
-            LintLevel::Ast,
-        );
-        let dir_diagnostics = runner.lint_module_by_id(
+        let diagnostics = runner.lint_module_by_id(
             self.repository.clone(),
             revision,
             module_id,
@@ -270,7 +262,7 @@ impl Linter {
             LintLevel::Dir,
         );
 
-        self.record_lint_diagnostics(context, ast_diagnostics.into_iter().chain(dir_diagnostics))
+        self.record_lint_diagnostics(context, diagnostics)
     }
 
     /// Lint one package and record package scoped diagnostics.
@@ -306,13 +298,8 @@ impl Linter {
             return Ok(());
         }
 
-        // run package scoped AST rules once
         let runner = Self::cached_runner(&options);
-        let ast_diagnostics =
-            runner.lint_package_ast(self.repository.clone(), revision, package_id, &options);
-        self.record_lint_diagnostics(context, ast_diagnostics)?;
-
-        // run package scoped DIR rules once per active profile
+        // run package scoped rules once per active profile
         let mut profiles = HashSet::new();
         for module_id in &module_ids {
             let profile_id = self.module_profile_id(revision, *module_id)?;
@@ -344,13 +331,8 @@ impl Linter {
             return Ok(());
         }
 
-        // run workspace scoped AST rules once
         let runner = Self::cached_runner(&options);
-        let ast_diagnostics =
-            runner.lint_workspace_ast(self.repository.clone(), revision, &options);
-        self.record_lint_diagnostics(context, ast_diagnostics)?;
-
-        // run workspace scoped DIR rules once per active profile
+        // run workspace scoped rules once per active profile
         let mut profiles = HashSet::new();
         let module_ids =
             self.repository

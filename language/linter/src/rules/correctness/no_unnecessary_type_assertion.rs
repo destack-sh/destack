@@ -5,7 +5,7 @@ use crate::rules::common::{
     expression_declared_or_inferred_type_id, expression_target_symbol, is_any_type,
     symbol_value_type_id_for, unwrap_value_type_id,
 };
-use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow explicit type assertions that do not change semantics.
@@ -34,12 +34,13 @@ impl LintRule for NoUnnecessaryTypeAssertion {
     }
 
     /// Check module DIR nodes for redundant type assertions.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // scan all assertion expressions
-        for expression_id in ctx.tree.iter_node_ids_of_type::<dir::Expression>() {
-            let Some(assertion) = assertion_expression_operands(ctx.tree, expression_id) else {
+        for expression_id in ctx.dir.iter_node_ids_of_type::<dir::Expression>() {
+            let Some(assertion) = assertion_expression_operands(ctx.dir.tree(), expression_id)
+            else {
                 continue;
             };
 
@@ -77,7 +78,7 @@ impl LintRule for NoUnnecessaryTypeAssertion {
                 span,
                 assertion.source_expression,
                 "this assertion repeats the existing type",
-                ctx.include_fixes,
+                ctx.compute_fixes,
             );
             ctx.report(diagnostic);
         }
@@ -86,7 +87,7 @@ impl LintRule for NoUnnecessaryTypeAssertion {
 
 /// Compare source expression type against one assertion target type.
 fn source_expression_matches_target_type(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     source_expression_id: dir::LocalNodeId<dir::Expression>,
     target_type_expression_id: dir::LocalNodeId<dir::TypeExpression>,
     target_type_id: dir::LocalTypeId,
@@ -100,19 +101,19 @@ fn source_expression_matches_target_type(
 
     // redundant `any as any`
     let target_is_any = is_any_type(ctx.types, target_type_id)
-        || assertion_target_is_explicit_any(ctx.tree, target_type_expression_id);
+        || assertion_target_is_explicit_any(ctx.dir.tree(), target_type_expression_id);
     target_is_any && source_expression_is_declared_any(ctx, source_expression_id)
 }
 
 /// Resolve the semantic type id for one source expression.
 fn source_expression_type_id(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<dir::LocalTypeId> {
     // keep this rule aligned with explicit expression types only
     let type_id = expression_declared_or_inferred_type_id(
         ctx.module_id(),
-        ctx.tree,
+        ctx.dir.tree(),
         ctx.types,
         expression_id,
     )?;
@@ -122,13 +123,16 @@ fn source_expression_type_id(
 
 /// Return true when one source expression is explicitly declared as `any`.
 fn source_expression_is_declared_any(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     // local expression types are enough when present
-    if let Some(type_id) =
-        expression_declared_or_inferred_type_id(ctx.module_id(), ctx.tree, ctx.types, expression_id)
-    {
+    if let Some(type_id) = expression_declared_or_inferred_type_id(
+        ctx.module_id(),
+        ctx.dir.tree(),
+        ctx.types,
+        expression_id,
+    ) {
         let type_id = unwrap_value_type_id(ctx.types, type_id);
         return is_any_type(ctx.types, type_id);
     }
@@ -177,12 +181,12 @@ fn assertion_target_is_explicit_any(
 
 /// Build one redundant assertion diagnostic with a safe fix.
 fn redundant_assertion_diagnostic(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     severity: LintSeverity,
     assertion_span: destack_source::Span,
     source_expression: dir::LocalNodeId<dir::Expression>,
     label: &str,
-    include_fixes: bool,
+    compute_fixes: bool,
 ) -> LintReport {
     let diagnostic = LintReport::new(
         NO_UNNECESSARY_TYPE_ASSERTION.id,
@@ -195,7 +199,7 @@ fn redundant_assertion_diagnostic(
     .label(label);
 
     // keep a no fix diagnostic when fixes are disabled
-    if !include_fixes {
+    if !compute_fixes {
         return diagnostic;
     }
 
@@ -227,8 +231,6 @@ fn assertion_expression_operands(
     let expression = tree.get(expression_id);
     match expression {
         dir::Expression::As {
-            operator: _,
-            source: _,
             expression,
             target_type,
         } => Some(AssertionExpressionOperands {
@@ -241,7 +243,7 @@ fn assertion_expression_operands(
 
 /// Resolve the semantic type id for one assertion target type expression.
 fn assertion_target_type_id(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     type_expression_id: dir::LocalNodeId<dir::TypeExpression>,
 ) -> Option<dir::LocalTypeId> {
     let global_type_expression_id = type_expression_id.into_global_any(ctx.module_id());

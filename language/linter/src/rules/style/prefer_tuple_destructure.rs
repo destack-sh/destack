@@ -1,4 +1,3 @@
-use destack_ast as ast;
 use std::collections::{HashMap, HashSet};
 
 use destack_dir as dir;
@@ -8,7 +7,7 @@ use crate::rules::common::{
     expression_declared_or_inferred_type_id, expression_target_symbol,
     expression_unwrap_parenthesized, tuple_type_arity,
 };
-use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer tuple destructuring over indexed access.
@@ -37,12 +36,12 @@ impl LintRule for PreferTupleDestructure {
     }
 
     /// Check module DIR declarators for repeated tuple index reads.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let mut access_groups = HashMap::new();
 
         // collect direct tuple index reads grouped by resolved tuple symbol
-        for declarator_id in ctx.tree.iter_node_ids_of_type::<dir::Declarator>() {
+        for declarator_id in ctx.dir.iter_node_ids_of_type::<dir::Declarator>() {
             let Some(tuple_access) = tuple_indexed_access(ctx, declarator_id) else {
                 continue;
             };
@@ -86,7 +85,7 @@ impl LintRule for PreferTupleDestructure {
             .label("use tuple destructuring instead");
 
             // attach the multi declarator rewrite only when one exact source rewrite is safe
-            if ctx.include_fixes
+            if ctx.compute_fixes
                 && let Some(fix) = prefer_tuple_destructure_fix(ctx, &access_group)
             {
                 diagnostic = diagnostic.fix(fix);
@@ -151,42 +150,45 @@ fn tuple_access_group_has_multiple_indices(access_group: &TupleAccessGroup) -> b
 
 /// Resolve one declarator as a direct tuple index read when possible.
 fn tuple_indexed_access(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     declarator_id: dir::LocalNodeId<dir::Declarator>,
 ) -> Option<TupleAccess> {
-    let declarator = ctx.tree.get(declarator_id);
+    let declarator = ctx.dir.get(declarator_id);
     let value_id = declarator.value?;
 
     // keep simple binding declarators only
-    let pattern = ctx.tree.get(declarator.pattern);
+    let pattern = ctx.dir.get(declarator.pattern);
     if !matches!(
         pattern,
         dir::Pattern::Binding {
             name: _,
             pattern: None,
-            symbol: _,
         }
     ) {
         return None;
     }
 
     // keep direct tuple index expressions only
-    let value_id = expression_unwrap_parenthesized(ctx.tree, value_id);
-    let dir::Expression::Index { left, right } = ctx.tree.get(value_id) else {
+    let value_id = expression_unwrap_parenthesized(ctx.dir.tree(), value_id);
+    let dir::Expression::Index { left, index, .. } = ctx.dir.get(value_id) else {
         return None;
     };
-    let index_expression_id = (*right)?;
-    let left_id = expression_unwrap_parenthesized(ctx.tree, *left);
+    let index_expression_id = (*index)?;
+    let left_id = expression_unwrap_parenthesized(ctx.dir.tree(), *left);
 
     // resolve the direct tuple reference symbol and source text
     let source_symbol = expression_target_symbol(ctx, left_id)?;
     let source_text = direct_reference_text(ctx, left_id)?;
 
     // resolve one fixed tuple type for the indexed source
-    let source_type_id =
-        expression_declared_or_inferred_type_id(ctx.module_id(), ctx.tree, ctx.types, left_id)?;
+    let source_type_id = expression_declared_or_inferred_type_id(
+        ctx.module_id(),
+        ctx.dir.tree(),
+        ctx.types,
+        left_id,
+    )?;
     let tuple_arity = tuple_type_arity(ctx.types, source_type_id)?;
-    let index = integer_literal_index(ctx.tree, index_expression_id)?;
+    let index = integer_literal_index(ctx.dir.tree(), index_expression_id)?;
     if index >= tuple_arity {
         return None;
     }
@@ -202,14 +204,14 @@ fn tuple_indexed_access(
 
 /// Return the exact source text for one direct reference expression.
 fn direct_reference_text(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<String> {
-    let expression = ctx.tree.get(expression_id);
+    let expression = ctx.dir.get(expression_id);
 
     // keep plain symbol references only
     match expression {
-        dir::Expression::Path {
+        dir::Expression::QualifiedReference {
             generic_arguments, ..
         } if generic_arguments.is_empty() => {
             Some(ctx.get_span_text(ctx.get_span(expression_id)).to_string())
@@ -225,10 +227,7 @@ fn integer_literal_index(
 ) -> Option<usize> {
     let expression_id = expression_unwrap_parenthesized(tree, expression_id);
     let expression = tree.get(expression_id);
-    let dir::Expression::ScalarLiteral {
-        value: dir::ScalarLiteral::Integer(index),
-    } = expression
-    else {
+    let dir::Expression::ScalarLiteral(dir::ScalarLiteral::Integer(index)) = expression else {
         return None;
     };
     if *index < 0 {
@@ -240,7 +239,7 @@ fn integer_literal_index(
 
 /// Build a safe tuple destructure rewrite for one multi declarator let expression.
 fn prefer_tuple_destructure_fix(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     access_group: &TupleAccessGroup,
 ) -> Option<LintFix> {
     // keep at least two exact accesses for a rewrite
@@ -250,13 +249,14 @@ fn prefer_tuple_destructure_fix(
 
     // keep one parent let expression for all declarators
     let first_declarator_id = access_group.accesses.first()?.declarator_id;
-    let parent_node_id = ctx.tree.get_parent(first_declarator_id.id)?;
+    let parent_node_id = ctx.dir.get_parent(first_declarator_id.id)?;
     if parent_node_id.ty != dir::NodeType::Expression {
         return None;
     }
     let parent_expression_id = parent_node_id.into_typed::<dir::Expression>();
-    let parent_expression = ctx.tree.get(parent_expression_id);
+    let parent_expression = ctx.dir.get(parent_expression_id);
     let dir::Expression::Let {
+        kind: _,
         export: _,
         is_ambient: _,
         mutability: _,
@@ -272,7 +272,7 @@ fn prefer_tuple_destructure_fix(
         return None;
     }
     for access in &access_group.accesses {
-        let access_parent_node_id = ctx.tree.get_parent(access.declarator_id.id)?;
+        let access_parent_node_id = ctx.dir.get_parent(access.declarator_id.id)?;
         if access_parent_node_id != parent_node_id {
             return None;
         }
@@ -285,12 +285,11 @@ fn prefer_tuple_destructure_fix(
             return None;
         }
 
-        let declarator = ctx.tree.get(access.declarator_id);
-        let pattern = ctx.tree.get(declarator.pattern);
+        let declarator = ctx.dir.get(access.declarator_id);
+        let pattern = ctx.dir.get(declarator.pattern);
         let dir::Pattern::Binding {
             name,
             pattern: None,
-            symbol: _,
         } = pattern
         else {
             return None;
@@ -309,9 +308,9 @@ fn prefer_tuple_destructure_fix(
     // build one exact tuple destructuring replacement
     let names = names_by_index.into_iter().flatten().collect::<Vec<_>>();
     let source_expression_id =
-        ctx.source_node_id::<ast::Expression>(parent_expression_id.into_any())?;
-    let source_expression = ctx.ast.get(source_expression_id);
-    let ast::Expression::Let {
+        ctx.source_node_id::<dir::Expression>(parent_expression_id.into_any())?;
+    let source_expression = ctx.dir.get(source_expression_id);
+    let dir::Expression::Let {
         kind,
         export: _,
         is_ambient: _,
@@ -323,8 +322,8 @@ fn prefer_tuple_destructure_fix(
         return None;
     };
     let let_keyword = match kind {
-        ast::LetKind::Const => "const",
-        ast::LetKind::Let => "let",
+        dir::LetKind::Const => "const",
+        dir::LetKind::Let => "let",
     };
     let replacement = format!(
         "{let_keyword} ({}) = {}",

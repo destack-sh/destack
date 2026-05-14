@@ -1,13 +1,13 @@
 use crate::LintMeta;
 use std::collections::HashMap;
 
-use destack_ast as ast;
 use destack_core::StringId;
+use destack_dir as dir;
 use destack_source::LabeledSpan;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_statement_ancestor;
-use crate::{LintAstContext, LintReport, LintRule, declare_lint};
+use crate::{LintModuleContext, LintReport, LintRule, declare_lint};
 
 const MIN_DUPLICATE_STRING_LENGTH: usize = 10;
 const IGNORED_DUPLICATE_STRINGS: [&str; 1] = ["application/json"];
@@ -22,7 +22,7 @@ declare_lint! {
         id = "no-duplicate-string",
         code = "LY016",
         category = Style,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = No,
@@ -38,16 +38,16 @@ impl LintRule for NoDuplicateString {
         NoDuplicateString::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // collect all string literals with their locations
         let max_occurrences = ctx.options.complexity.max_duplicate_string_occurrences;
-        let mut string_occurrences: HashMap<StringId, Vec<ast::LocalNodeId<ast::Expression>>> =
+        let mut string_occurrences: HashMap<StringId, Vec<dir::LocalNodeId<dir::Expression>>> =
             HashMap::new();
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expression = ctx.tree.get(node_id);
-            if let ast::Expression::ScalarLiteral(ast::ScalarLiteral::String(string_id)) =
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let expression = ctx.dir.get(node_id);
+            if let dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(string_id)) =
                 expression
             {
                 let string_value = ctx.strings.get(*string_id);
@@ -77,7 +77,7 @@ impl LintRule for NoDuplicateString {
                     let truncated = string_value.chars().take(27).collect::<String>();
                     format!("\"{truncated}...\"")
                 } else {
-                    format!("\"{}\"", &*string_value)
+                    format!("\"{string_value}\"")
                 };
 
                 let mut lint = LintReport::new(
@@ -89,12 +89,12 @@ impl LintRule for NoDuplicateString {
                         "string {display_value} is repeated {} times (max {max_occurrences})",
                         occurrences.len()
                     ),
-                    ctx.tree.get_span(first_occurrence),
+                    ctx.dir.get_span(first_occurrence),
                 )
                 .label("consider extracting to a constant");
                 for occurrence in occurrences.iter().skip(1) {
                     lint = lint.secondary(LabeledSpan::new(
-                        ctx.tree.get_span(*occurrence),
+                        ctx.dir.get_span(*occurrence),
                         "consider extracting to a constant",
                     ));
                 }
@@ -106,8 +106,8 @@ impl LintRule for NoDuplicateString {
 
 /// Return true when one string literal should be considered for duplication checks.
 fn string_value_is_reportable(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
     string_value: &str,
 ) -> bool {
     let trimmed_value = string_value.trim();
@@ -119,7 +119,7 @@ fn string_value_is_reportable(
         return false;
     }
 
-    if expression_statement_ancestor(ctx.tree, ctx.parents, expression_id).is_some() {
+    if expression_statement_ancestor(ctx.dir.tree(), expression_id).is_some() {
         return false;
     }
 
@@ -137,7 +137,7 @@ mod tests {
     fn test_detects_duplicate_strings() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateString)
             .with_options(|options| options.complexity.max_duplicate_string_occurrences = 2);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_duplicate_string/test_detects_duplicate_strings.ds",
             r#"
 let a = "hello world";
@@ -152,7 +152,7 @@ let c = "hello world";
     fn test_allows_few_occurrences() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateString)
             .with_options(|options| options.complexity.max_duplicate_string_occurrences = 3);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_duplicate_string/test_allows_few_occurrences.ds",
             r#"
 let a = "hello world";
@@ -167,7 +167,7 @@ let c = "hello world";
     fn test_ignores_short_strings() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateString)
             .with_options(|options| options.complexity.max_duplicate_string_occurrences = 1);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_duplicate_string/test_ignores_short_strings.ds",
             r#"
 let a = "";
@@ -185,7 +185,7 @@ let f = "a";
     fn test_ignores_string_without_separators() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateString)
             .with_options(|options| options.complexity.max_duplicate_string_occurrences = 1);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_duplicate_string/test_ignores_string_without_separators.ds",
             r#"
 let a = "helloworld";
@@ -199,7 +199,7 @@ let b = "helloworld";
     fn test_ignores_application_json_literal() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateString)
             .with_options(|options| options.complexity.max_duplicate_string_occurrences = 1);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_duplicate_string/test_ignores_application_json_literal.ds",
             r#"
 let a = "application/json";
@@ -213,7 +213,7 @@ let b = "application/json";
     fn test_ignores_standalone_expression_statements() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateString)
             .with_options(|options| options.complexity.max_duplicate_string_occurrences = 1);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_duplicate_string/test_ignores_standalone_expression_statements.ds",
             r#"
 "hello world";
@@ -227,7 +227,7 @@ let b = "application/json";
     fn test_counts_unique_strings_separately() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateString)
             .with_options(|options| options.complexity.max_duplicate_string_occurrences = 2);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_duplicate_string/test_counts_unique_strings_separately.ds",
             r#"
 let a = "hello";
@@ -243,7 +243,7 @@ let d = "world";
     fn test_handles_unicode_display_truncation() {
         let test = TestProgram::for_rule_without_prelude(NoDuplicateString)
             .with_options(|options| options.complexity.max_duplicate_string_occurrences = 1);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_duplicate_string/test_handles_unicode_display_truncation.ds",
             r#"
 let a = "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀";

@@ -1,7 +1,7 @@
-use destack_ast::{self as ast};
+use destack_dir::{self as dir};
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintMeta, LintReport, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow magic numbers.
@@ -13,7 +13,7 @@ declare_lint! {
         id = "no-magic-numbers",
         code = "LR016",
         category = Restriction,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = No,
@@ -29,15 +29,15 @@ impl LintRule for NoMagicNumbers {
         NoMagicNumbers::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let allowed_numbers = &ctx.options.restriction.allowed_magic_numbers;
 
         // inspect candidate expressions
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
             // extract numeric literals with unary sign context
-            let expression = ctx.tree.get(node_id);
-            let ast::Expression::ScalarLiteral(literal) = expression else {
+            let expression = ctx.dir.get(node_id);
+            let dir::Expression::ScalarLiteral(literal) = expression else {
                 continue;
             };
             let Some((numeric_value, report_expression_id)) =
@@ -54,7 +54,7 @@ impl LintRule for NoMagicNumbers {
             if !severity.is_enabled() {
                 continue;
             }
-            let span = ctx.tree.get_span(report_expression_id);
+            let span = ctx.dir.get_span(report_expression_id);
             ctx.report(
                 LintReport::new(
                     NO_MAGIC_NUMBERS.id,
@@ -72,28 +72,28 @@ impl LintRule for NoMagicNumbers {
 
 /// Resolve one numeric literal value and the expression span that should be reported.
 fn numeric_literal_value_and_report_expression(
-    ctx: &LintAstContext<'_>,
-    literal_expression_id: ast::LocalNodeId<ast::Expression>,
-    literal: &ast::ScalarLiteral,
-) -> Option<(f64, ast::LocalNodeId<ast::Expression>)> {
+    ctx: &LintModuleContext<'_>,
+    literal_expression_id: dir::LocalNodeId<dir::Expression>,
+    literal: &dir::ScalarLiteral,
+) -> Option<(f64, dir::LocalNodeId<dir::Expression>)> {
     let literal_value = match literal {
-        ast::ScalarLiteral::Integer(value) => *value as f64,
-        ast::ScalarLiteral::Float(value) => *value,
+        dir::ScalarLiteral::Integer(value) => *value as f64,
+        dir::ScalarLiteral::Float(value) => *value,
         _ => return None,
     };
 
     // require optional structure
-    let Some(parent_id) = ctx.parents.get(literal_expression_id) else {
+    let Some(parent_id) = ctx.dir.get_parent_id(literal_expression_id.id) else {
         return Some((literal_value, literal_expression_id));
     };
-    if ctx.tree.get_node_type(parent_id) != ast::NodeType::Expression {
+    if ctx.dir.get_node_type(parent_id) != dir::NodeType::Expression {
         return Some((literal_value, literal_expression_id));
     }
 
     // resolve parent expression id
-    let parent_expression_id = ast::LocalNodeId::<ast::Expression>::new(parent_id);
-    let parent_expression = ctx.tree.get(parent_expression_id);
-    let ast::Expression::Unary { operator, right } = parent_expression else {
+    let parent_expression_id = dir::LocalNodeId::<dir::Expression>::new(parent_id);
+    let parent_expression = ctx.dir.get(parent_expression_id);
+    let dir::Expression::Unary { operator, right } = parent_expression else {
         return Some((literal_value, literal_expression_id));
     };
     if *right != literal_expression_id {
@@ -102,8 +102,8 @@ fn numeric_literal_value_and_report_expression(
 
     // branch by expression kind
     match operator {
-        ast::UnaryOperator::Negate => Some((-literal_value, parent_expression_id)),
-        ast::UnaryOperator::Plus => Some((literal_value, parent_expression_id)),
+        dir::UnaryOperator::Negate => Some((-literal_value, parent_expression_id)),
+        dir::UnaryOperator::Plus => Some((literal_value, parent_expression_id)),
         _ => Some((literal_value, literal_expression_id)),
     }
 }
@@ -116,7 +116,7 @@ mod tests {
     #[test]
     fn test_detects_magic_integer() {
         let test = TestProgram::for_rule_without_prelude(NoMagicNumbers);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_magic_numbers/test_detects_magic_integer.ts",
             "let x = 42;",
         );
@@ -126,7 +126,7 @@ mod tests {
     #[test]
     fn test_detects_magic_float() {
         let test = TestProgram::for_rule_without_prelude(NoMagicNumbers);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_magic_numbers/test_detects_magic_float.ts",
             "let x = 3.14;",
         );
@@ -136,21 +136,21 @@ mod tests {
     #[test]
     fn test_allows_zero() {
         let test = TestProgram::for_rule_without_prelude(NoMagicNumbers);
-        let result = test.lint_ast("no_magic_numbers/test_allows_zero.ts", "let x = 0;");
+        let result = test.lint("no_magic_numbers/test_allows_zero.ts", "let x = 0;");
         test.result(result).assert_no_lint("no-magic-numbers");
     }
 
     #[test]
     fn test_allows_one() {
         let test = TestProgram::for_rule_without_prelude(NoMagicNumbers);
-        let result = test.lint_ast("no_magic_numbers/test_allows_one.ts", "let x = 1;");
+        let result = test.lint("no_magic_numbers/test_allows_one.ts", "let x = 1;");
         test.result(result).assert_no_lint("no-magic-numbers");
     }
 
     #[test]
     fn test_allows_negative_one() {
         let test = TestProgram::for_rule_without_prelude(NoMagicNumbers);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_magic_numbers/test_allows_negative_one.ts",
             "let x = -1;",
         );
@@ -160,7 +160,7 @@ mod tests {
     #[test]
     fn test_detects_negative_magic_number() {
         let test = TestProgram::for_rule_without_prelude(NoMagicNumbers);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_magic_numbers/test_detects_negative_magic_number.ts",
             "let x = -3;",
         );
@@ -172,7 +172,7 @@ mod tests {
         let test = TestProgram::for_rule_without_prelude(NoMagicNumbers).with_options(|options| {
             options.restriction.allowed_magic_numbers.push(-3.0);
         });
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_magic_numbers/test_allows_configured_negative_magic_number.ts",
             "let x = -3;",
         );
@@ -182,14 +182,14 @@ mod tests {
     #[test]
     fn test_allows_two() {
         let test = TestProgram::for_rule_without_prelude(NoMagicNumbers);
-        let result = test.lint_ast("no_magic_numbers/test_allows_two.ts", "let x = 2;");
+        let result = test.lint("no_magic_numbers/test_allows_two.ts", "let x = 2;");
         test.result(result).assert_no_lint("no-magic-numbers");
     }
 
     #[test]
     fn test_allows_strings() {
         let test = TestProgram::for_rule_without_prelude(NoMagicNumbers);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_magic_numbers/test_allows_strings.ts",
             r#"let x = "hello";"#,
         );

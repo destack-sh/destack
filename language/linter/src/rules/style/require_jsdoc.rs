@@ -1,9 +1,9 @@
 use crate::LintMeta;
-use destack_ast::{self as ast, Declaration};
+use destack_dir::{self as dir, Declaration};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_or_declaration_has_doc;
-use crate::{LintAstContext, LintReport, LintRule, declare_lint};
+use crate::{LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Require documentation on public items.
@@ -14,7 +14,7 @@ declare_lint! {
         id = "require-jsdoc",
         code = "LY062",
         category = Style,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = No,
@@ -30,19 +30,19 @@ impl LintRule for RequireJsdoc {
         RequireJsdoc::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // iterate over Expression nodes to find declarations
         // (annotations are attached to Expression nodes, not Declaration nodes)
-        for expr_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let ast::Expression::Declaration(decl_id) = ctx.tree.get(expr_id) else {
+        for expr_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let dir::Expression::Declaration(decl_id) = ctx.dir.get(expr_id) else {
                 continue;
             };
 
             // check if declaration is exported and lacks documentation
             let declaration_id = *decl_id;
-            let declaration = ctx.tree.get(declaration_id);
+            let declaration = ctx.dir.get(declaration_id);
             let (is_exported, decl_type) = match declaration {
                 Declaration::Function(declaration) => (declaration.export.is_some(), "function"),
                 Declaration::Struct(declaration) => (declaration.export.is_some(), "struct"),
@@ -71,7 +71,7 @@ impl LintRule for RequireJsdoc {
                         REQUIRE_JSDOC.category,
                         severity,
                         format!("public {decl_type} lacks documentation"),
-                        ctx.tree.get_span(expr_id),
+                        ctx.dir.get_span(expr_id),
                     )
                     .label("add documentation comment"),
                 );
@@ -88,7 +88,7 @@ mod tests {
     #[test]
     fn test_exported_function_without_doc_detected() {
         let test = TestProgram::for_rule_without_prelude(RequireJsdoc);
-        let result = test.lint_ast(
+        let result = test.lint(
             "require_jsdoc/test_exported_function_without_doc_detected.ds",
             r#"
 export function foo() {}
@@ -100,7 +100,7 @@ export function foo() {}
     #[test]
     fn test_exported_function_with_doc_allowed() {
         let test = TestProgram::for_rule_without_prelude(RequireJsdoc);
-        let result = test.lint_ast(
+        let result = test.lint(
             "require_jsdoc/test_exported_function_with_doc_allowed.ds",
             r#"
 /// Does something important.
@@ -113,7 +113,7 @@ export function foo() {}
     #[test]
     fn test_private_function_without_doc_allowed() {
         let test = TestProgram::for_rule_without_prelude(RequireJsdoc);
-        let result = test.lint_ast(
+        let result = test.lint(
             "require_jsdoc/test_private_function_without_doc_allowed.ds",
             r#"
 function foo() {}

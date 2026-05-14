@@ -1,9 +1,8 @@
-use destack_ast as ast;
 use destack_dir::{self as dir};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{declaration_has_extends_heritage, members_are_all_fields};
-use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer struct for data-only classes.
@@ -34,12 +33,12 @@ impl LintRule for PreferStruct {
     }
 
     /// Check module DIR declarations for data-only classes.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // inspect class declarations only
-        for declaration_id in ctx.tree.iter_node_ids_of_type::<dir::Declaration>() {
-            let declaration = ctx.tree.get(declaration_id);
+        for declaration_id in ctx.dir.iter_node_ids_of_type::<dir::Declaration>() {
+            let declaration = ctx.dir.get(declaration_id);
             let dir::Declaration::Class(_) = declaration else {
                 continue;
             };
@@ -65,9 +64,9 @@ impl LintRule for PreferStruct {
             .label("use struct instead");
 
             // attach the rewrite when source form is available
-            if ctx.include_fixes
+            if ctx.compute_fixes
                 && let Some(source_declaration_id) =
-                    ctx.source_node_id::<ast::Declaration>(declaration_id.into_any())
+                    ctx.source_node_id::<dir::Declaration>(declaration_id.into_any())
                 && let Some(fix) = prefer_struct_fix(ctx, source_declaration_id)
             {
                 diagnostic = diagnostic.fix(fix);
@@ -79,10 +78,7 @@ impl LintRule for PreferStruct {
 }
 
 /// Return true when one class declaration can use struct semantics instead.
-fn class_is_struct_candidate(
-    ctx: &LintModuleDirContext<'_>,
-    declaration: &dir::Declaration,
-) -> bool {
+fn class_is_struct_candidate(ctx: &LintModuleContext<'_>, declaration: &dir::Declaration) -> bool {
     let dir::Declaration::Class(class_declaration) = declaration else {
         return false;
     };
@@ -103,15 +99,15 @@ fn class_is_struct_candidate(
     }
 
     // keep non field members out of this style rule
-    members_are_all_fields(ctx.tree, &class_declaration.members)
+    members_are_all_fields(ctx.dir.tree(), &class_declaration.members)
 }
 
 /// Build an unsafe fix by replacing the `class` keyword with `struct`.
 fn prefer_struct_fix(
-    ctx: &LintModuleDirContext<'_>,
-    declaration_id: ast::LocalNodeId<ast::Declaration>,
+    ctx: &LintModuleContext<'_>,
+    declaration_id: dir::LocalNodeId<dir::Declaration>,
 ) -> Option<LintFix> {
-    let declaration_span = ctx.ast.get_span(declaration_id);
+    let declaration_span = ctx.dir.get_span(declaration_id);
     let declaration_text = ctx.get_span_text(declaration_span);
     let class_offset = declaration_text.find("class")?;
 

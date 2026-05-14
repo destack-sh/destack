@@ -1,9 +1,9 @@
 use crate::LintMeta;
-use destack_ast::{self as ast, Expression, ScalarLiteral};
+use destack_dir::{self as dir, Expression, ScalarLiteral};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{expression_path_segments, expression_statement_span};
-use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow assertions on constant values.
@@ -27,7 +27,7 @@ declare_lint! {
         id = "no-constant-assertion",
         code = "LU006",
         category = Suspicious,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -43,11 +43,11 @@ impl LintRule for NoConstantAssertion {
         NoConstantAssertion::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expression = ctx.tree.get(node_id);
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let expression = ctx.dir.get(node_id);
 
             let Expression::Call {
                 left, arguments, ..
@@ -66,9 +66,9 @@ impl LintRule for NoConstantAssertion {
                 continue;
             };
 
-            let first_arg = ctx.tree.get(*first_arg_id);
+            let first_arg = ctx.dir.get(*first_arg_id);
             let arg_value = match first_arg {
-                ast::Argument::Positional { value, .. } | ast::Argument::Labeled { value, .. } => {
+                dir::Argument::Positional { value, .. } | dir::Argument::Labeled { value, .. } => {
                     *value
                 }
                 _ => continue,
@@ -101,7 +101,7 @@ impl LintRule for NoConstantAssertion {
                 NO_CONSTANT_ASSERTION.category,
                 severity,
                 message,
-                ctx.tree.get_span(node_id),
+                ctx.dir.get_span(node_id),
             )
             .label(label);
 
@@ -120,11 +120,11 @@ impl LintRule for NoConstantAssertion {
 
 /// Build a safe fix by removing one standalone constant-true assertion statement.
 fn constant_true_assertion_fix(
-    ctx: &LintAstContext<'_>,
-    call_expression_id: ast::LocalNodeId<Expression>,
-    argument_expression_id: ast::LocalNodeId<Expression>,
+    ctx: &LintModuleContext<'_>,
+    call_expression_id: dir::LocalNodeId<Expression>,
+    argument_expression_id: dir::LocalNodeId<Expression>,
 ) -> Option<LintFix> {
-    let argument_expression = ctx.tree.get(argument_expression_id);
+    let argument_expression = ctx.dir.get(argument_expression_id);
     if !matches!(
         argument_expression,
         Expression::ScalarLiteral(ScalarLiteral::Boolean(true))
@@ -132,21 +132,21 @@ fn constant_true_assertion_fix(
         return None;
     }
 
-    let statement_span = expression_statement_span(ctx.tree, ctx.parents, call_expression_id)?;
+    let statement_span = expression_statement_span(ctx.dir.tree(), call_expression_id)?;
     let edits = ctx.edit_builder().delete(statement_span).into_edits();
     Some(LintFix::suggestion("Remove constant-true assertion").with_edits(edits))
 }
 
 /// Check if an expression is a call to an assert function.
-fn is_assert_call(ctx: &LintAstContext<'_>, callee_id: ast::LocalNodeId<Expression>) -> bool {
-    let callee = ctx.tree.get(callee_id);
+fn is_assert_call(ctx: &LintModuleContext<'_>, callee_id: dir::LocalNodeId<Expression>) -> bool {
+    let callee = ctx.dir.get(callee_id);
 
     match callee {
         // direct or qualified call: assert(...) or Debug.assert(...)
         Expression::Identifier { .. }
         | Expression::QualifiedReference { .. }
         | Expression::Member { .. } => {
-            let Some(path_segments) = expression_path_segments(ctx.tree, callee_id) else {
+            let Some(path_segments) = expression_path_segments(ctx.dir.tree(), callee_id) else {
                 return false;
             };
 
@@ -163,10 +163,10 @@ fn is_assert_call(ctx: &LintAstContext<'_>, callee_id: ast::LocalNodeId<Expressi
 
 /// Get the constant truthiness of an expression, if it can be determined at compile time.
 fn get_constant_truthiness(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<Expression>,
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<Expression>,
 ) -> Option<bool> {
-    let expression = ctx.tree.get(expression_id);
+    let expression = ctx.dir.get(expression_id);
 
     match expression {
         // boolean literals
@@ -190,10 +190,10 @@ fn get_constant_truthiness(
         Expression::Type {
             value: type_expression_id,
         } => {
-            let type_expression = ctx.tree.get(*type_expression_id);
+            let type_expression = ctx.dir.get(*type_expression_id);
             match type_expression {
-                ast::TypeExpression::Literal {
-                    value: ast::TypeLiteral::Null | ast::TypeLiteral::Undefined,
+                dir::TypeExpression::Literal {
+                    value: dir::TypeLiteral::Null | dir::TypeLiteral::Undefined,
                 } => Some(false),
                 _ => None,
             }
@@ -223,7 +223,7 @@ mod tests {
     #[test]
     fn test_assert_true_detected() {
         let test = TestProgram::for_rule_without_prelude(NoConstantAssertion);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_constant_assertion/test_assert_true_detected.ds",
             r#"
 assert(true)
@@ -235,7 +235,7 @@ assert(true)
     #[test]
     fn test_fix_removes_assert_true_statement() {
         let test = TestProgram::for_rule_without_prelude(NoConstantAssertion);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_constant_assertion/test_fix_removes_assert_true_statement.ds",
             r#"
 assert(true)
@@ -254,7 +254,7 @@ const value = 1;
     #[test]
     fn test_assert_false_detected() {
         let test = TestProgram::for_rule_without_prelude(NoConstantAssertion);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_constant_assertion/test_assert_false_detected.ds",
             r#"
 assert(false)
@@ -266,7 +266,7 @@ assert(false)
     #[test]
     fn test_no_fix_for_assert_false() {
         let test = TestProgram::for_rule_without_prelude(NoConstantAssertion);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_constant_assertion/test_no_fix_for_assert_false.ds",
             r#"
 assert(false)
@@ -280,7 +280,7 @@ assert(false)
     #[test]
     fn test_console_assert_true_detected() {
         let test = TestProgram::for_rule_without_prelude(NoConstantAssertion);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_constant_assertion/test_console_assert_true_detected.ds",
             r#"
 console.assert(true)
@@ -292,7 +292,7 @@ console.assert(true)
     #[test]
     fn test_mutation_fix_removes_console_assert_true_statement() {
         let test = TestProgram::for_rule_without_prelude(NoConstantAssertion);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_constant_assertion/test_mutation_fix_removes_console_assert_true_statement.ds",
             r#"
 console.assert(true)
@@ -311,7 +311,7 @@ run();
     #[test]
     fn test_console_assert_false_detected() {
         let test = TestProgram::for_rule_without_prelude(NoConstantAssertion);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_constant_assertion/test_console_assert_false_detected.ds",
             r#"
 console.assert(false)
@@ -323,7 +323,7 @@ console.assert(false)
     #[test]
     fn test_assert_zero_detected() {
         let test = TestProgram::for_rule_without_prelude(NoConstantAssertion);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_constant_assertion/test_assert_zero_detected.ds",
             r#"
 assert(0)
@@ -335,7 +335,7 @@ assert(0)
     #[test]
     fn test_assert_nonzero_detected() {
         let test = TestProgram::for_rule_without_prelude(NoConstantAssertion);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_constant_assertion/test_assert_nonzero_detected.ds",
             r#"
 assert(1)
@@ -347,7 +347,7 @@ assert(1)
     #[test]
     fn test_assert_empty_string_detected() {
         let test = TestProgram::for_rule_without_prelude(NoConstantAssertion);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_constant_assertion/test_assert_empty_string_detected.ds",
             r#"
 assert("")
@@ -359,7 +359,7 @@ assert("")
     #[test]
     fn test_assert_non_empty_string_detected() {
         let test = TestProgram::for_rule_without_prelude(NoConstantAssertion);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_constant_assertion/test_assert_non_empty_string_detected.ds",
             r#"
 assert("hello")
@@ -371,7 +371,7 @@ assert("hello")
     #[test]
     fn test_assert_null_detected() {
         let test = TestProgram::for_rule_without_prelude(NoConstantAssertion);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_constant_assertion/test_assert_null_detected.ds",
             r#"
 assert(null)
@@ -383,7 +383,7 @@ assert(null)
     #[test]
     fn test_assert_variable_allowed() {
         let test = TestProgram::for_rule_without_prelude(NoConstantAssertion);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_constant_assertion/test_assert_variable_allowed.ds",
             r#"
 assert(isValid)
@@ -395,7 +395,7 @@ assert(isValid)
     #[test]
     fn test_assert_comparison_allowed() {
         let test = TestProgram::for_rule_without_prelude(NoConstantAssertion);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_constant_assertion/test_assert_comparison_allowed.ds",
             r#"
 assert(x > 0)
@@ -407,7 +407,7 @@ assert(x > 0)
     #[test]
     fn test_assert_function_call_allowed() {
         let test = TestProgram::for_rule_without_prelude(NoConstantAssertion);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_constant_assertion/test_assert_function_call_allowed.ds",
             r#"
 assert(validate())
@@ -419,7 +419,7 @@ assert(validate())
     #[test]
     fn test_non_assert_call_allowed() {
         let test = TestProgram::for_rule_without_prelude(NoConstantAssertion);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_constant_assertion/test_non_assert_call_allowed.ds",
             r#"
 log(true)
@@ -431,7 +431,7 @@ log(true)
     #[test]
     fn test_debug_assert_detected() {
         let test = TestProgram::for_rule_without_prelude(NoConstantAssertion);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_constant_assertion/test_debug_assert_detected.ds",
             r#"
 Debug.assert(true)
@@ -443,7 +443,7 @@ Debug.assert(true)
     #[test]
     fn test_parenthesized_true_detected() {
         let test = TestProgram::for_rule_without_prelude(NoConstantAssertion);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_constant_assertion/test_parenthesized_true_detected.ds",
             r#"
 assert((true))

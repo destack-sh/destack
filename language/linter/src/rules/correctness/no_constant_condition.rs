@@ -1,8 +1,8 @@
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::control_flow_condition_expression;
-use crate::{LintAstContext, LintFix, LintMeta, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow constant expressions in conditions.
@@ -13,7 +13,7 @@ declare_lint! {
         id = "no-constant-condition",
         code = "LC009",
         category = Correctness,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -30,21 +30,21 @@ impl LintRule for NoConstantCondition {
         NoConstantCondition::meta()
     }
 
-    /// Check module AST nodes for constant conditional expressions.
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    /// Check module source nodes for constant conditional expressions.
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // walk conditional expressions
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expression = ctx.tree.get(node_id);
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let expression = ctx.dir.get(node_id);
 
             // resolve the condition expression to inspect
             let condition_id = match expression {
-                ast::Expression::While {
+                dir::Expression::While {
                     form, condition, ..
                 } => {
                     // align source defaults: allow `while (true)` as an explicit infinite loop
-                    if *form == ast::WhileForm::While && ctx.const_bool(*condition) == Some(true) {
+                    if *form == dir::WhileForm::While && ctx.const_bool(*condition) == Some(true) {
                         continue;
                     }
                     *condition
@@ -75,7 +75,7 @@ impl LintRule for NoConstantCondition {
                 NO_CONSTANT_CONDITION.category,
                 severity,
                 "unexpected constant condition",
-                ctx.tree.get_span(condition_id),
+                ctx.dir.get_span(condition_id),
             )
             .label("this condition is always the same");
 
@@ -93,41 +93,41 @@ impl LintRule for NoConstantCondition {
 
 /// Build a conservative fix for constant conditions.
 fn no_constant_condition_fix(
-    ctx: &mut LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &mut LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<LintFix> {
     // inspect the conditional expression shape
-    let expression = ctx.tree.get(expression_id);
+    let expression = ctx.dir.get(expression_id);
 
     // simplify constant if expressions
-    if let ast::Expression::If {
+    if let dir::Expression::If {
         condition,
         then_expression,
         else_expression,
         ..
     } = expression
     {
-        let ast::IfCondition::Expression { condition } = condition else {
+        let dir::IfCondition::Expression { condition } = condition else {
             return None;
         };
         let condition_is_true = ctx.const_bool(*condition)?;
 
         // keep the selected branch text
         if condition_is_true {
-            let replacement = ctx.get_span_text(ctx.tree.get_span(*then_expression));
+            let replacement = ctx.get_span_text(ctx.dir.get_span(*then_expression));
             let edits = ctx
                 .edit_builder()
-                .replace(ctx.tree.get_span(expression_id), replacement)
+                .replace(ctx.dir.get_span(expression_id), replacement)
                 .into_edits();
             return Some(LintFix::safe("Inline always-true condition branch").with_edits(edits));
         }
 
         // use else branch when present
         if let Some(else_expression_id) = else_expression {
-            let replacement = ctx.get_span_text(ctx.tree.get_span(*else_expression_id));
+            let replacement = ctx.get_span_text(ctx.dir.get_span(*else_expression_id));
             let edits = ctx
                 .edit_builder()
-                .replace(ctx.tree.get_span(expression_id), replacement)
+                .replace(ctx.dir.get_span(expression_id), replacement)
                 .into_edits();
             return Some(LintFix::safe("Inline always-false else branch").with_edits(edits));
         }
@@ -136,7 +136,7 @@ fn no_constant_condition_fix(
     }
 
     // avoid deletion fixes for never-running loops
-    if let ast::Expression::For {
+    if let dir::Expression::For {
         condition: Some(condition),
         ..
     } = expression
@@ -146,8 +146,8 @@ fn no_constant_condition_fix(
     }
 
     // avoid deletion fixes for never-running loops
-    if let ast::Expression::While {
-        form: ast::WhileForm::While,
+    if let dir::Expression::While {
+        form: dir::WhileForm::While,
         condition,
         ..
     } = expression
@@ -166,7 +166,7 @@ mod tests {
     #[test]
     fn test_detects_if_true() {
         let test = TestProgram::for_rule_without_prelude(NoConstantCondition);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_constant_condition/test_detects_if_true.ds",
             r#"
 if (true) { foo(); }
@@ -186,7 +186,7 @@ if (true) { foo(); }
     #[test]
     fn test_detects_if_false() {
         let test = TestProgram::for_rule_without_prelude(NoConstantCondition);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_constant_condition/test_detects_if_false.ds",
             r#"
 if (false) { foo(); }
@@ -200,7 +200,7 @@ if (false) { foo(); }
     #[test]
     fn test_allows_while_true_by_default() {
         let test = TestProgram::for_rule_without_prelude(NoConstantCondition);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_constant_condition/test_allows_while_true_by_default.ds",
             r#"
 while (true) { foo(); }
@@ -212,7 +212,7 @@ while (true) { foo(); }
     #[test]
     fn test_detects_if_number() {
         let test = TestProgram::for_rule_without_prelude(NoConstantCondition);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_constant_condition/test_detects_if_number.ds",
             r#"
 if (1) { foo(); }
@@ -224,7 +224,7 @@ if (1) { foo(); }
     #[test]
     fn test_fix_false_condition_with_else_branch() {
         let test = TestProgram::for_rule_without_prelude(NoConstantCondition);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_constant_condition/test_fix_false_condition_with_else_branch.ds",
             r#"
 if (false) { foo(); } else { bar(); }
@@ -244,7 +244,7 @@ if (false) { foo(); } else { bar(); }
     #[test]
     fn test_fix_while_false_removes_loop() {
         let test = TestProgram::for_rule_without_prelude(NoConstantCondition);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_constant_condition/test_fix_while_false_removes_loop.ds",
             r#"
 while (false) { foo(); }
@@ -258,7 +258,7 @@ while (false) { foo(); }
     #[test]
     fn test_no_constant_with_variable() {
         let test = TestProgram::for_rule_without_prelude(NoConstantCondition);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_constant_condition/test_no_constant_with_variable.ds",
             r#"
 if (x) { foo(); }
@@ -270,7 +270,7 @@ if (x) { foo(); }
     #[test]
     fn test_no_constant_with_comparison() {
         let test = TestProgram::for_rule_without_prelude(NoConstantCondition);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_constant_condition/test_no_constant_with_comparison.ds",
             r#"
 if (x > 0) { foo(); }
@@ -282,7 +282,7 @@ if (x > 0) { foo(); }
     #[test]
     fn test_detects_do_while_true() {
         let test = TestProgram::for_rule_without_prelude(NoConstantCondition);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_constant_condition/test_detects_do_while_true.ds",
             r#"
 do { foo(); } while (true);
@@ -294,7 +294,7 @@ do { foo(); } while (true);
     #[test]
     fn test_detects_for_true() {
         let test = TestProgram::for_rule_without_prelude(NoConstantCondition);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_constant_condition/test_detects_for_true.ds",
             r#"
 for (; true; ) { foo(); }
@@ -306,7 +306,7 @@ for (; true; ) { foo(); }
     #[test]
     fn test_detects_for_false() {
         let test = TestProgram::for_rule_without_prelude(NoConstantCondition);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_constant_condition/test_detects_for_false.ds",
             r#"
 for (; false; ) { foo(); }

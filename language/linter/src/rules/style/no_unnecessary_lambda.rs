@@ -5,7 +5,7 @@ use crate::rules::common::{
     block_single_return_value, expression_reference_path, expression_target_symbol,
     expression_unwrap_statement, expression_unwrap_transparent,
 };
-use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow lambdas that only wrap a direct function call.
@@ -35,18 +35,18 @@ impl LintRule for NoUnnecessaryLambda {
     }
 
     /// Check module DIR nodes for direct forwarding lambdas.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // inspect lambda declaration expressions only
-        for expression_id in ctx.tree.iter_node_ids_of_type::<dir::Expression>() {
-            let expression = ctx.tree.get(expression_id);
+        for expression_id in ctx.dir.iter_node_ids_of_type::<dir::Expression>() {
+            let expression = ctx.dir.get(expression_id);
             let dir::Expression::Declaration(declaration) = expression else {
                 continue;
             };
 
             let declaration_id = *declaration;
-            let declaration = ctx.tree.get(declaration_id);
+            let declaration = ctx.dir.get(declaration_id);
             let dir::Declaration::Function(declaration) = declaration else {
                 continue;
             };
@@ -72,8 +72,9 @@ impl LintRule for NoUnnecessaryLambda {
             let Some(call_expression_id) = lambda_forwarded_call_body(ctx, declaration.body) else {
                 continue;
             };
-            let call_expression = ctx.tree.get(call_expression_id);
+            let call_expression = ctx.dir.get(call_expression_id);
             let dir::Expression::Call {
+                position: _,
                 left,
                 generic_arguments,
                 arguments,
@@ -124,25 +125,22 @@ impl LintRule for NoUnnecessaryLambda {
 
 /// Return plain named parameter symbols for one lambda signature.
 fn lambda_parameter_symbols(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     signature: &dir::FunctionSignature,
 ) -> Option<Vec<dir::LocalSymbolId>> {
     let mut symbols = Vec::with_capacity(signature.parameters.len());
 
     // keep plain named parameters without defaults
     for parameter_id in &signature.parameters {
-        let parameter = ctx.tree.get(*parameter_id);
-        let dir::Parameter::Named {
-            default, symbol, ..
-        } = parameter
-        else {
+        let parameter = ctx.dir.get(*parameter_id);
+        let dir::Parameter::Named { default, .. } = parameter else {
             return None;
         };
         if default.is_some() {
             return None;
         }
 
-        symbols.push(*symbol);
+        symbols.push(ctx.local_symbol_for_node(*parameter_id)?);
     }
 
     Some(symbols)
@@ -150,12 +148,12 @@ fn lambda_parameter_symbols(
 
 /// Return the forwarded call expression for one lambda body.
 fn lambda_forwarded_call_body(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     body_expression_id: Option<dir::LocalNodeId<dir::Expression>>,
 ) -> Option<dir::LocalNodeId<dir::Expression>> {
     let body_expression_id = body_expression_id?;
-    let body_expression_id = expression_unwrap_statement(ctx.tree, body_expression_id);
-    let body_expression = ctx.tree.get(body_expression_id);
+    let body_expression_id = expression_unwrap_statement(ctx.dir.tree(), body_expression_id);
+    let body_expression = ctx.dir.get(body_expression_id);
 
     // keep direct expression bodies first
     if matches!(body_expression, dir::Expression::Call { .. }) {
@@ -167,9 +165,9 @@ fn lambda_forwarded_call_body(
         return None;
     };
 
-    let returned_value_id = block_single_return_value(ctx.tree, *block)?;
-    let returned_value_id = expression_unwrap_transparent(ctx.tree, returned_value_id);
-    let returned_value = ctx.tree.get(returned_value_id);
+    let returned_value_id = block_single_return_value(ctx.dir.tree(), *block)?;
+    let returned_value_id = expression_unwrap_transparent(ctx.dir.tree(), returned_value_id);
+    let returned_value = ctx.dir.get(returned_value_id);
     if !matches!(returned_value, dir::Expression::Call { .. }) {
         return None;
     }
@@ -179,11 +177,11 @@ fn lambda_forwarded_call_body(
 
 /// Return true when one callee is a direct function reference.
 fn callee_is_direct_function_reference(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     callee_expression_id: dir::LocalNodeId<dir::Expression>,
     parameter_symbols: &[dir::LocalSymbolId],
 ) -> bool {
-    let callee_expression_id = expression_unwrap_transparent(ctx.tree, callee_expression_id);
+    let callee_expression_id = expression_unwrap_transparent(ctx.dir.tree(), callee_expression_id);
 
     // keep direct references only, not member access with receiver binding
     let Some(reference_path) = expression_reference_path(ctx, callee_expression_id) else {
@@ -208,17 +206,17 @@ fn callee_is_direct_function_reference(
 
 /// Return true when call arguments forward the lambda parameters in order.
 fn arguments_forward_parameters(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     argument_ids: &[dir::LocalNodeId<dir::Argument>],
     parameter_symbols: &[dir::LocalSymbolId],
 ) -> bool {
     for (argument_id, parameter_symbol_id) in argument_ids.iter().zip(parameter_symbols) {
-        let argument = ctx.tree.get(*argument_id);
+        let argument = ctx.dir.get(*argument_id);
         let dir::Argument::Positional { value, .. } = argument else {
             return false;
         };
 
-        let value_expression_id = expression_unwrap_transparent(ctx.tree, *value);
+        let value_expression_id = expression_unwrap_transparent(ctx.dir.tree(), *value);
         let value_symbol = expression_target_symbol(ctx, value_expression_id);
         if value_symbol != Some(parameter_symbol_id.into_global(ctx.module_id())) {
             return false;

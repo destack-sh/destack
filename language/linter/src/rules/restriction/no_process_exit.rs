@@ -6,7 +6,7 @@ use crate::LintRequirement::RequireLibSymbol;
 use crate::rules::common::{
     expression_is_symbol, expression_static_property_access, statement_expression_ancestor,
 };
-use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow process exit calls.
@@ -34,7 +34,7 @@ impl LintRule for NoProcessExit {
     }
 
     /// Check module DIR nodes for process exit calls.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // cli entrypoints often exit deliberately
@@ -51,7 +51,7 @@ impl LintRule for NoProcessExit {
 /// Node visitor that flags process.exit usage.
 struct NoProcessExitVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The process symbol for this module.
@@ -66,7 +66,7 @@ struct NoProcessExitVisitor<'a, 'b> {
 
 impl<'a, 'b> NoProcessExitVisitor<'a, 'b> {
     /// Build a visitor for no-process-exit checks.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         let process_name = ctx.string_id("process");
         let process_symbol = ctx.declared_library_symbol(process_name);
         let exit_name = ctx.string_id("exit");
@@ -86,7 +86,7 @@ impl<'a, 'b> NoProcessExitVisitor<'a, 'b> {
     fn run(&mut self) {
         // capture roots and tree references
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         // walk the module expression tree
         for root_id in roots {
@@ -103,7 +103,7 @@ impl<'a, 'b> NoProcessExitVisitor<'a, 'b> {
     ) {
         // match static property access
         let Some((receiver_id, property_name)) =
-            expression_static_property_access(self.ctx.tree, left)
+            expression_static_property_access(self.ctx.dir.tree(), left)
         else {
             return;
         };
@@ -138,7 +138,7 @@ impl<'a, 'b> NoProcessExitVisitor<'a, 'b> {
         .label("avoid calling process.exit");
 
         // compute fixes only when requested by the runner
-        if self.ctx.include_fixes
+        if self.ctx.compute_fixes
             && let Some(fix) = no_process_exit_fix(self.ctx, expression_id)
         {
             diagnostic = diagnostic.fix(fix);
@@ -158,7 +158,7 @@ impl<'a, 'b> NoProcessExitVisitor<'a, 'b> {
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> bool {
         let Some((receiver_id, property_name)) =
-            expression_static_property_access(self.ctx.tree, expression_id)
+            expression_static_property_access(self.ctx.dir.tree(), expression_id)
         else {
             return false;
         };
@@ -176,18 +176,18 @@ impl<'a, 'b> NoProcessExitVisitor<'a, 'b> {
     ) -> bool {
         let mut current_id = expression_id.id;
 
-        while let Some(parent_id) = self.ctx.tree.get_parent(current_id) {
+        while let Some(parent_id) = self.ctx.dir.get_parent(current_id) {
             current_id = parent_id.id;
             if parent_id.ty != dir::NodeType::Argument {
                 continue;
             }
 
             let argument_id = parent_id.into_typed::<dir::Argument>();
-            if !argument_is_function_like(self.ctx.tree, argument_id) {
+            if !argument_is_function_like(self.ctx.dir.tree(), argument_id) {
                 continue;
             }
 
-            let Some(call_parent_id) = self.ctx.tree.get_parent(argument_id.id) else {
+            let Some(call_parent_id) = self.ctx.dir.get_parent(argument_id.id) else {
                 continue;
             };
             if call_parent_id.ty != dir::NodeType::Expression {
@@ -195,7 +195,7 @@ impl<'a, 'b> NoProcessExitVisitor<'a, 'b> {
             }
 
             let call_id = call_parent_id.into_typed::<dir::Expression>();
-            let dir::Expression::Call { left, .. } = self.ctx.tree.get(call_id) else {
+            let dir::Expression::Call { left, .. } = self.ctx.dir.get(call_id) else {
                 continue;
             };
             if self.is_process_event_handler_registration(*left) {
@@ -213,7 +213,9 @@ fn argument_is_function_like(
     argument_id: dir::LocalNodeId<dir::Argument>,
 ) -> bool {
     let argument = tree.get(argument_id);
-    expression_is_function_like(tree, argument.value())
+    argument
+        .value()
+        .is_some_and(|value| expression_is_function_like(tree, value))
 }
 
 /// Return true when one expression is a function declaration expression.
@@ -230,10 +232,10 @@ fn expression_is_function_like(
 
 /// Build an unsafe fix by removing one standalone process exit statement.
 fn no_process_exit_fix(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     call_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<LintFix> {
-    let statement_id = statement_expression_ancestor(ctx.tree, call_id)?;
+    let statement_id = statement_expression_ancestor(ctx.dir.tree(), call_id)?;
     let statement_span = ctx.get_span(statement_id);
     let edits = ctx.edit_builder().delete(statement_span).into_edits();
     Some(LintFix::r#unsafe("Remove process.exit statement").with_edits(edits))

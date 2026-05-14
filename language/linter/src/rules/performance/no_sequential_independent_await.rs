@@ -5,7 +5,7 @@ use destack_source::LabeledSpan;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{assign_pattern_target_symbol, collect_pattern_value_binding_symbols};
-use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow sequential independent awaits in the same block.
@@ -33,12 +33,12 @@ impl LintRule for NoSequentialIndependentAwait {
         NoSequentialIndependentAwait::meta()
     }
 
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // check sequential awaits in each block
-        for block_id in ctx.tree.iter_node_ids_of_type::<dir::Block>() {
-            let block = ctx.tree.get(block_id);
+        for block_id in ctx.dir.iter_node_ids_of_type::<dir::Block>() {
+            let block = ctx.dir.get(block_id);
             let expression_ids = block.iter_expressions().collect::<Vec<_>>();
             report_sequential_independent_awaits(ctx, meta, expression_ids.as_slice());
         }
@@ -58,7 +58,7 @@ struct AwaitStatement {
 
 /// Report sequential awaits in one block when the second does not depend on the first.
 fn report_sequential_independent_awaits(
-    ctx: &mut LintModuleDirContext<'_>,
+    ctx: &mut LintModuleContext<'_>,
     meta: &LintMeta,
     expression_ids: &[dir::LocalNodeId<dir::Expression>],
 ) {
@@ -73,7 +73,7 @@ fn report_sequential_independent_awaits(
 
         if let Some(previous_await_statement) = previous_await.as_ref()
             && awaits_are_independent(
-                ctx.tree,
+                ctx.dir.tree(),
                 ctx.module_id(),
                 ctx.types,
                 previous_await_statement,
@@ -107,11 +107,11 @@ fn report_sequential_independent_awaits(
 
 /// Extract one await statement shape from one expression statement when possible.
 fn await_statement_from_expression(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<AwaitStatement> {
     let statement_id = expression_id;
-    let statement = ctx.tree.get(statement_id);
+    let statement = ctx.dir.get(statement_id);
 
     // keep direct await statements
     if let Some(await_operand_expression_id) = await_operand_expression_id(statement) {
@@ -123,8 +123,8 @@ fn await_statement_from_expression(
     }
 
     // keep assignment await forms like: value = await fetch()
-    if let dir::Expression::Assign { left, right } = statement
-        && let Some(await_operand_expression_id) = await_operand_expression_id(ctx.tree.get(*right))
+    if let dir::Expression::Assign { left, right, .. } = statement
+        && let Some(await_operand_expression_id) = await_operand_expression_id(ctx.dir.get(*right))
     {
         let mut bound_symbols = HashSet::new();
 
@@ -145,7 +145,7 @@ fn await_statement_from_expression(
     if let dir::Expression::Return { value } = statement
         && let Some(value_expression_id) = value
         && let Some(await_operand_expression_id) =
-            await_operand_expression_id(ctx.tree.get(*value_expression_id))
+            await_operand_expression_id(ctx.dir.get(*value_expression_id))
     {
         return Some(AwaitStatement {
             statement_expression_id: expression_id,
@@ -165,15 +165,15 @@ fn await_statement_from_expression(
         return None;
     }
 
-    let declarator = ctx.tree.get(declarators[0]);
+    let declarator = ctx.dir.get(declarators[0]);
     let value_expression_id = declarator.value?;
     let await_operand_expression_id =
-        await_operand_expression_id(ctx.tree.get(value_expression_id))?;
+        await_operand_expression_id(ctx.dir.get(value_expression_id))?;
 
     // collect all local bindings introduced by the declaration pattern
     let mut bound_symbols = HashSet::new();
     collect_pattern_value_binding_symbols(
-        ctx.tree,
+        ctx.dir.tree(),
         ctx.symbols,
         declarator.pattern,
         &mut bound_symbols,

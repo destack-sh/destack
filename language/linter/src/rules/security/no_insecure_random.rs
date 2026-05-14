@@ -4,7 +4,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLibSymbol;
 use crate::rules::common::{expression_is_symbol, expression_static_property_access};
-use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow insecure random number generators.
@@ -32,7 +32,7 @@ impl LintRule for NoInsecureRandom {
     }
 
     /// Check module DIR nodes for Math.random usage.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // walk the module for Math.random calls
@@ -44,7 +44,7 @@ impl LintRule for NoInsecureRandom {
 /// Node visitor that flags Math.random usage.
 struct NoInsecureRandomVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The Math symbol for this module.
@@ -57,7 +57,7 @@ struct NoInsecureRandomVisitor<'a, 'b> {
 
 impl<'a, 'b> NoInsecureRandomVisitor<'a, 'b> {
     /// Build a visitor for no-insecure-random checks.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         let math_name = ctx.string_id("Math");
         let random_name = ctx.string_id("random");
         let math_symbol = ctx.declared_library_symbol(math_name);
@@ -75,7 +75,7 @@ impl<'a, 'b> NoInsecureRandomVisitor<'a, 'b> {
     fn run(&mut self) {
         // capture roots and tree references
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         // walk the module expression tree
         for root_id in roots {
@@ -120,7 +120,7 @@ impl<'a, 'b> NoInsecureRandomVisitor<'a, 'b> {
     fn is_math_random(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
         // match static property access for random
         let Some((receiver_id, property_name)) =
-            expression_static_property_access(self.ctx.tree, expression_id)
+            expression_static_property_access(self.ctx.dir.tree(), expression_id)
         else {
             return false;
         };

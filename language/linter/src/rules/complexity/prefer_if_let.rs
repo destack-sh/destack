@@ -1,9 +1,9 @@
 use crate::LintMeta;
-use destack_ast::{self as ast, MatchCase};
+use destack_dir::{self as dir, MatchCase};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::pattern_matches_all;
-use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Suggest if-let over single-arm match.
@@ -13,7 +13,7 @@ declare_lint! {
         id = "prefer-if-let",
         code = "LX025",
         category = Complexity,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -29,13 +29,13 @@ impl LintRule for PreferIfLet {
         PreferIfLet::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expression = ctx.tree.get(node_id);
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let expression = ctx.dir.get(node_id);
 
-            let ast::Expression::Match { value, cases, .. } = expression else {
+            let dir::Expression::Match { value, cases, .. } = expression else {
                 continue;
             };
 
@@ -45,12 +45,12 @@ impl LintRule for PreferIfLet {
             }
 
             // check if second case is a wildcard or default
-            let first_case = ctx.tree.get(cases[0]);
-            let second_case = ctx.tree.get(cases[1]);
+            let first_case = ctx.dir.get(cases[0]);
+            let second_case = ctx.dir.get(cases[1]);
 
             // keep first case as plain pattern without guard
             let first_selector = first_case.selector();
-            if !matches!(first_selector, ast::MatchSelector::Pattern { .. })
+            if !matches!(first_selector, dir::MatchSelector::Pattern { .. })
                 || first_selector.has_guard()
             {
                 continue;
@@ -79,7 +79,7 @@ impl LintRule for PreferIfLet {
                 PREFER_IF_LET.category,
                 severity,
                 "match with single pattern and wildcard can be if-let",
-                ctx.tree.get_span(node_id),
+                ctx.dir.get_span(node_id),
             )
             .label("use if-let instead");
             if ctx.compute_fixes
@@ -95,14 +95,14 @@ impl LintRule for PreferIfLet {
 
 /// Build a safe match-to-if-let rewrite.
 fn prefer_if_let_fix(
-    ctx: &LintAstContext<'_>,
-    match_expression_id: ast::LocalNodeId<ast::Expression>,
-    value_expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    match_expression_id: dir::LocalNodeId<dir::Expression>,
+    value_expression_id: dir::LocalNodeId<dir::Expression>,
     first_case: &MatchCase,
     second_case: &MatchCase,
 ) -> Option<LintFix> {
     let value_text = ctx
-        .get_span_text(ctx.tree.get_span(value_expression_id))
+        .get_span_text(ctx.dir.get_span(value_expression_id))
         .to_string();
     if value_text.trim().is_empty() {
         return None;
@@ -112,7 +112,7 @@ fn prefer_if_let_fix(
         MatchCase::Expression { selector, body } => (selector, expression_body_text(ctx, *body)?),
         MatchCase::Block { selector, body } => (selector, block_body_text(ctx, *body)?),
     };
-    let ast::MatchSelector::Pattern {
+    let dir::MatchSelector::Pattern {
         pattern,
         guard: None,
     } = first_selector
@@ -120,7 +120,7 @@ fn prefer_if_let_fix(
         return None;
     };
 
-    let pattern_text = ctx.get_span_text(ctx.tree.get_span(*pattern)).to_string();
+    let pattern_text = ctx.get_span_text(ctx.dir.get_span(*pattern)).to_string();
     if pattern_text.trim().is_empty() {
         return None;
     }
@@ -137,7 +137,7 @@ fn prefer_if_let_fix(
         replacement_text.push_str(&second_body_text);
     }
 
-    let match_span = ctx.tree.get_span(match_expression_id);
+    let match_span = ctx.dir.get_span(match_expression_id);
     let mut edit_builder = ctx.edit_builder().replace(match_span, replacement_text);
 
     // remove the `match ` prefix when the expression span starts at the selector value
@@ -155,11 +155,11 @@ fn prefer_if_let_fix(
 
 /// Render one expression case body for use as an if branch body.
 fn expression_body_text(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<String> {
     let body_text = ctx
-        .get_span_text(ctx.tree.get_span(expression_id))
+        .get_span_text(ctx.dir.get_span(expression_id))
         .to_string();
     if body_text.trim().is_empty() {
         return None;
@@ -170,10 +170,10 @@ fn expression_body_text(
 
 /// Render one block case body for use as an if branch body.
 fn block_body_text(
-    ctx: &LintAstContext<'_>,
-    block_id: ast::LocalNodeId<ast::Block>,
+    ctx: &LintModuleContext<'_>,
+    block_id: dir::LocalNodeId<dir::Block>,
 ) -> Option<String> {
-    let body_text = ctx.get_span_text(ctx.tree.get_span(block_id)).to_string();
+    let body_text = ctx.get_span_text(ctx.dir.get_span(block_id)).to_string();
     if body_text.trim().is_empty() {
         return None;
     }
@@ -189,7 +189,7 @@ mod tests {
     #[test]
     fn test_single_arm_match_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferIfLet);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_if_let/test_single_arm_match_detected.ds",
             r#"
 function foo(x: int32?) {
@@ -206,7 +206,7 @@ function foo(x: int32?) {
     #[test]
     fn test_if_let_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferIfLet);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_if_let/test_if_let_allowed.ds",
             r#"
 function foo(x: int32?) {
@@ -222,7 +222,7 @@ function foo(x: int32?) {
     #[test]
     fn test_multi_arm_match_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferIfLet);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_if_let/test_multi_arm_match_allowed.ds",
             r#"
 function foo(x: int32) {
@@ -240,7 +240,7 @@ function foo(x: int32) {
     #[test]
     fn test_fix_rewrites_single_pattern_match_to_if_let() {
         let test = TestProgram::for_rule_without_prelude(PreferIfLet);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_if_let/test_fix_rewrites_single_pattern_match_to_if_let.ds",
             r#"
 function run(x: int32?) {
@@ -265,7 +265,7 @@ function run(x: int32?) {
     #[test]
     fn test_no_fix_for_match_guard_case() {
         let test = TestProgram::for_rule_without_prelude(PreferIfLet);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_if_let/test_no_fix_for_match_guard_case.ds",
             r#"
 function run(x: int32?) {
@@ -282,7 +282,7 @@ function run(x: int32?) {
     #[test]
     fn test_fix_preserves_non_empty_wildcard_as_else_branch() {
         let test = TestProgram::for_rule_without_prelude(PreferIfLet);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_if_let/test_fix_preserves_non_empty_wildcard_as_else_branch.ds",
             r#"
 function run(x: int32?) {

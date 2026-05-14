@@ -8,7 +8,7 @@ use crate::rules::common::{
     is_string_type, regex_suffix_literal, single_quoted_string_literal,
     string_literal_utf16_length, strip_dot_member_suffix,
 };
-use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer `endsWith()` over `slice(-n) === suffix`.
@@ -36,7 +36,7 @@ impl LintRule for PreferStringEndsWith {
     }
 
     /// Check module DIR nodes for slice comparisons that should use endsWith().
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let mut visitor = PreferStringEndsWithVisitor::new(ctx, meta);
         visitor.run();
@@ -46,7 +46,7 @@ impl LintRule for PreferStringEndsWith {
 /// Node visitor that flags prefer-string-endswith patterns.
 struct PreferStringEndsWithVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The language item String symbol for this module.
@@ -65,7 +65,7 @@ struct PreferStringEndsWithVisitor<'a, 'b> {
 
 impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
     /// Build a visitor for prefer-string-endswith checks.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         // resolve the language item String symbol for this module
         let string_symbol = ctx.language_item(LanguageItem::String);
 
@@ -91,7 +91,7 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
     /// Walk the DIR tree roots.
     fn run(&mut self) {
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         for root_id in roots {
             let expression = tree.get(root_id);
@@ -134,8 +134,9 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
         suffix_id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<EndsWithMatch> {
         // match call expression
-        let expression = self.ctx.tree.get(slice_id);
+        let expression = self.ctx.dir.get(slice_id);
         let dir::Expression::Call {
+            position: _,
             left,
             generic_arguments,
             arguments,
@@ -149,7 +150,7 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
         let [argument_id] = arguments.as_slice() else {
             return None;
         };
-        let argument = self.ctx.tree.get(*argument_id);
+        let argument = self.ctx.dir.get(*argument_id);
         let dir::Argument::Positional {
             value: argument_expression_id,
             ..
@@ -159,7 +160,7 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
         };
 
         // match member access for slice
-        let member_expression = self.ctx.tree.get(*left);
+        let member_expression = self.ctx.dir.get(*left);
         let dir::Expression::Member {
             left: receiver_id,
             name,
@@ -213,7 +214,7 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
         .label("use endsWith() to check the suffix");
 
         let mut diagnostic = diagnostic;
-        if self.ctx.include_fixes
+        if self.ctx.compute_fixes
             && let Some(fix) = self.ends_with_fix(expression_id, ends_with_match)
         {
             diagnostic = diagnostic.fix(fix);
@@ -230,6 +231,7 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
     ) {
         // match call expression
         let dir::Expression::Call {
+            position: _,
             left,
             generic_arguments,
             arguments,
@@ -245,7 +247,7 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
         }
 
         // match `.test(...)` call
-        let member_expression = self.ctx.tree.get(*left);
+        let member_expression = self.ctx.dir.get(*left);
         let dir::Expression::Member {
             left: regex_expression_id,
             name,
@@ -266,7 +268,7 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
         };
 
         // require one positional string argument
-        let first_argument = self.ctx.tree.get(arguments[0]);
+        let first_argument = self.ctx.dir.get(arguments[0]);
         let dir::Argument::Positional {
             value: argument_id, ..
         } = first_argument
@@ -294,7 +296,7 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
             span,
         )
         .label("use endsWith() for anchored suffix checks");
-        if self.ctx.include_fixes
+        if self.ctx.compute_fixes
             && let Some(fix) = self.regex_ends_with_fix(expression_id, *argument_id, &suffix_text)
         {
             diagnostic = diagnostic.fix(fix);
@@ -366,7 +368,7 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
         let suffix_span = self.ctx.get_span(ends_with_match.suffix_id);
         let suffix_text = self.ctx.get_span_text(suffix_span);
         let method_name = self.ctx.strings.get(self.ends_with_name);
-        let replacement = format!("{receiver_text}.{}({suffix_text})", method_name);
+        let replacement = format!("{receiver_text}.{method_name}({suffix_text})");
 
         // replace the full comparison expression
         let expression_span = self.ctx.get_span(expression_id);
@@ -384,13 +386,13 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<String> {
-        let (pattern_id, flags_id) = expression_regex_literal(self.ctx.tree, expression_id)?;
+        let (pattern_id, flags_id) = expression_regex_literal(self.ctx.dir.tree(), expression_id)?;
 
         let pattern = self.ctx.strings.get(pattern_id);
         let flags = flags_id
             .map(|flags_id| self.ctx.strings.get(flags_id).to_string())
             .unwrap_or_default();
-        regex_suffix_literal(pattern.as_ref(), &flags)
+        regex_suffix_literal(pattern, &flags)
     }
 
     /// Build a safe fix from one regex test suffix check to endsWith.
@@ -408,7 +410,7 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
 
         let quoted_suffix = single_quoted_string_literal(suffix_text);
         let method_name = self.ctx.strings.get(self.ends_with_name);
-        let replacement = format!("({argument_text}).{}({quoted_suffix})", method_name);
+        let replacement = format!("({argument_text}).{method_name}({quoted_suffix})");
 
         let expression_span = self.ctx.get_span(expression_id);
         let edits = self
@@ -426,7 +428,7 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
         suffix_id: dir::LocalNodeId<dir::Expression>,
     ) -> bool {
         // unwrap negation
-        let argument_expression = self.ctx.tree.get(argument_id);
+        let argument_expression = self.ctx.dir.get(argument_id);
         let dir::Expression::Unary {
             operator: dir::UnaryOperator::Negate,
             right,
@@ -436,7 +438,7 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
         };
 
         // match suffix.length member access
-        let member_expression = self.ctx.tree.get(*right);
+        let member_expression = self.ctx.dir.get(*right);
         let dir::Expression::Member { left, name, .. } = member_expression else {
             return false;
         };
@@ -458,14 +460,11 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
     /// Return the length for a string literal suffix.
     fn string_literal_length(&self, suffix_id: dir::LocalNodeId<dir::Expression>) -> Option<usize> {
         // unwrap parenthesized expressions
-        let suffix_id = expression_unwrap_parenthesized(self.ctx.tree, suffix_id);
+        let suffix_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), suffix_id);
 
         // match string literals
-        let expression = self.ctx.tree.get(suffix_id);
-        let dir::Expression::ScalarLiteral {
-            value: dir::ScalarLiteral::String(value),
-        } = expression
-        else {
+        let expression = self.ctx.dir.get(suffix_id);
+        let dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(value)) = expression else {
             return None;
         };
 
@@ -479,8 +478,8 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
         argument_id: dir::LocalNodeId<dir::Expression>,
         suffix_id: dir::LocalNodeId<dir::Expression>,
     ) -> bool {
-        let argument_id = expression_unwrap_parenthesized(self.ctx.tree, argument_id);
-        let argument_expression = self.ctx.tree.get(argument_id);
+        let argument_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), argument_id);
+        let argument_expression = self.ctx.dir.get(argument_id);
         let dir::Expression::Binary {
             left,
             operator: dir::BinaryOperator::Subtract,
@@ -499,10 +498,10 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         target_id: dir::LocalNodeId<dir::Expression>,
     ) -> bool {
-        let expression_id = expression_unwrap_parenthesized(self.ctx.tree, expression_id);
-        let target_id = expression_unwrap_parenthesized(self.ctx.tree, target_id);
+        let expression_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), expression_id);
+        let target_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), target_id);
 
-        let expression = self.ctx.tree.get(expression_id);
+        let expression = self.ctx.dir.get(expression_id);
         let dir::Expression::Member { left, name, .. } = expression else {
             return false;
         };

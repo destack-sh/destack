@@ -4,7 +4,7 @@ use destack_workspace::LintSeverity;
 use crate::rules::common::{
     expressions_have_equivalent_source_form, is_binary_comparison_operator,
 };
-use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow comparing a value to itself.
@@ -33,11 +33,11 @@ impl LintRule for NoSelfCompare {
     }
 
     /// Check module DIR nodes for self comparisons.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // inspect expression nodes for self comparisons
-        for (node_id, expression) in ctx.tree.iter_nodes_of_type::<dir::Expression>() {
+        for (node_id, expression) in ctx.dir.iter_nodes_of_type::<dir::Expression>() {
             // filter to comparison binary expressions
             let dir::Expression::Binary {
                 left,

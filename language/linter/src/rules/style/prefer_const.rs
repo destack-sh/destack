@@ -12,7 +12,7 @@ use crate::rules::common::{
     expression_assignment_target, expression_is_standalone_statement, expression_reference_is_read,
     statement_expression_ancestor,
 };
-use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Require `const` declarations for never reassigned variables.
@@ -39,7 +39,7 @@ impl LintRule for PreferConst {
         PreferConst::meta()
     }
 
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // collect mutable declaration symbols by declaration site
@@ -106,7 +106,7 @@ impl LintRule for PreferConst {
                 .label("this binding can be const");
 
                 if can_fix_declaration
-                    && ctx.include_fixes
+                    && ctx.compute_fixes
                     && let Some(fix) = build_prefer_const_fix(ctx, declaration.expression_id)
                 {
                     diagnostic = diagnostic.fix(fix);
@@ -140,10 +140,10 @@ struct BindingGroup {
 
 /// Build a safe rewrite from `let` to `const`.
 fn build_prefer_const_fix(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     expression_id: LocalNodeId<dir::Expression>,
 ) -> Option<LintFix> {
-    let statement_id = statement_expression_ancestor(ctx.tree, expression_id)?;
+    let statement_id = statement_expression_ancestor(ctx.dir.tree(), expression_id)?;
     let statement_span = ctx.get_span(statement_id);
     let statement_text = ctx.get_span_text(statement_span);
     if statement_text.contains('{') || statement_text.contains('[') {
@@ -176,7 +176,7 @@ fn binding_keyword(expression_text: &str) -> Option<&'static str> {
 /// Collector for let declarations.
 struct LetDeclarationCollector<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The module ID for creating GlobalSymbolIds.
     module_id: ModuleId,
     /// Collected let declarations with all bound symbols.
@@ -187,7 +187,7 @@ struct LetDeclarationCollector<'a, 'b> {
 
 impl<'a, 'b> LetDeclarationCollector<'a, 'b> {
     /// Build a collector for let declarations.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>) -> Self {
         let module_id = ctx.module_id();
 
         Self {
@@ -201,7 +201,7 @@ impl<'a, 'b> LetDeclarationCollector<'a, 'b> {
     /// Walk the DIR tree roots.
     fn run(&mut self) {
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         for root_id in roots {
             let expression = tree.get(root_id);
@@ -288,7 +288,7 @@ impl NodeVisitor for LetDeclarationCollector<'_, '_> {
 
 /// Return true when one bound symbol should use const.
 fn symbol_should_be_const(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     declaration: &LetDeclaration,
     symbol_id: GlobalSymbolId,
 ) -> bool {
@@ -300,28 +300,28 @@ fn symbol_should_be_const(
 }
 
 /// Return true when one symbol has write references after its declaration.
-fn symbol_has_write_references(ctx: &LintModuleDirContext<'_>, symbol_id: GlobalSymbolId) -> bool {
+fn symbol_has_write_references(ctx: &LintModuleContext<'_>, symbol_id: GlobalSymbolId) -> bool {
     let reference_ids = collect_local_symbol_direct_reference_expression_ids(
         ctx.module_id(),
-        ctx.tree,
+        ctx.dir.tree(),
         ctx.types,
         symbol_id.local_id,
     );
 
     reference_ids
         .into_iter()
-        .any(|reference_id| reference_write_kind(ctx.tree, reference_id).is_some())
+        .any(|reference_id| reference_write_kind(ctx.dir.tree(), reference_id).is_some())
 }
 
 /// Return true when one symbol has exactly one const-eligible assignment.
 fn symbol_has_single_const_eligible_assignment(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     declaration_expression_id: LocalNodeId<dir::Expression>,
     symbol_id: GlobalSymbolId,
 ) -> bool {
     let reference_ids = collect_local_symbol_direct_reference_expression_ids(
         ctx.module_id(),
-        ctx.tree,
+        ctx.dir.tree(),
         ctx.types,
         symbol_id.local_id,
     );
@@ -330,12 +330,12 @@ fn symbol_has_single_const_eligible_assignment(
 
     for reference_id in reference_ids {
         if assignment_expression_id.is_none()
-            && expression_reference_is_read(ctx.tree, reference_id)
+            && expression_reference_is_read(ctx.dir.tree(), reference_id)
         {
             is_read_before_assignment = true;
         }
 
-        match reference_write_kind(ctx.tree, reference_id) {
+        match reference_write_kind(ctx.dir.tree(), reference_id) {
             Some(ReferenceWriteKind::SimpleAssign(parent_id)) => {
                 if assignment_expression_id.is_some() {
                     return false;
@@ -390,35 +390,37 @@ fn reference_write_kind(
 
     match parent_expression {
         dir::Expression::Assign { .. } => Some(ReferenceWriteKind::SimpleAssign(parent_id)),
-        dir::Expression::AssignBinary { .. } | dir::Expression::Unary { .. } => {
-            Some(ReferenceWriteKind::OtherWrite)
-        }
+        dir::Expression::Unary { .. } => Some(ReferenceWriteKind::OtherWrite),
         _ => None,
     }
 }
 
 /// Return true when one assignment can become a const declaration.
 fn assignment_can_become_const_declaration(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     declaration_expression_id: LocalNodeId<dir::Expression>,
     assignment_expression_id: LocalNodeId<dir::Expression>,
 ) -> bool {
-    if !expression_is_standalone_statement(ctx.tree, assignment_expression_id) {
+    if !expression_is_standalone_statement(ctx.dir.tree(), assignment_expression_id) {
         return false;
     }
 
-    let (declaration_scope_id, _, _) = ctx.symbols.get_scope(declaration_expression_id, ctx.tree);
-    let (assignment_scope_id, _, _) = ctx.symbols.get_scope(assignment_expression_id, ctx.tree);
-    if declaration_scope_id != assignment_scope_id {
+    let Some(declaration_scope) = ctx.scope_for_node(declaration_expression_id) else {
+        return false;
+    };
+    let Some(assignment_scope) = ctx.scope_for_node(assignment_expression_id) else {
+        return false;
+    };
+    if declaration_scope.id != assignment_scope.id {
         return false;
     }
 
     let Some(statement_expression_id) =
-        statement_expression_ancestor(ctx.tree, assignment_expression_id)
+        statement_expression_ancestor(ctx.dir.tree(), assignment_expression_id)
     else {
         return false;
     };
-    let Some(parent) = ctx.tree.get_parent(statement_expression_id.id) else {
+    let Some(parent) = ctx.dir.get_parent(statement_expression_id.id) else {
         return true;
     };
 

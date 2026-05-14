@@ -3,7 +3,7 @@ use destack_source::LabeledSpan;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{pattern_is_total, pattern_subsumes_semantically};
-use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow match or switch arms that are subsumed by previous arms.
@@ -32,19 +32,16 @@ impl LintRule for NoOverlappingMatchArms {
     }
 
     /// Check module DIR nodes for overlapping match arms.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // walk every match or switch expression
-        for expression_id in ctx.tree.iter_node_ids_of_type::<dir::Expression>() {
-            let expression = ctx.tree.get(expression_id);
+        for expression_id in ctx.dir.iter_node_ids_of_type::<dir::Expression>() {
+            let expression = ctx.dir.get(expression_id);
             let dir::Expression::Match {
-                source: _,
                 form: _,
                 value: _,
                 cases,
-                scope: _,
-                symbol: _,
             } = expression
             else {
                 continue;
@@ -53,7 +50,7 @@ impl LintRule for NoOverlappingMatchArms {
 
             // compare each arm against prior unguarded coverage
             for case_id in cases {
-                let case = ctx.tree.get(*case_id);
+                let case = ctx.dir.get(*case_id);
                 let selector = case.selector();
 
                 // resolve one overlapping prior case when present
@@ -80,7 +77,7 @@ impl LintRule for NoOverlappingMatchArms {
                     ));
 
                     // attach the delete only when fixes are enabled
-                    if ctx.include_fixes
+                    if ctx.compute_fixes
                         && let Some(fix) = overlapping_match_arm_fix(ctx, *case_id)
                     {
                         diagnostic = diagnostic.fix(fix);
@@ -121,7 +118,7 @@ enum SelectorCoverage {
 
 /// Return the first prior case that subsumes the current selector.
 fn subsuming_prior_case_id(
-    ctx: &mut LintModuleDirContext<'_>,
+    ctx: &mut LintModuleContext<'_>,
     prior_coverages: &[PriorCaseCoverage],
     selector: &dir::MatchSelector,
 ) -> Option<dir::LocalNodeId<dir::MatchCase>> {
@@ -149,7 +146,7 @@ fn subsuming_prior_case_id(
 
 /// Return tracked coverage for one selector, or none when guarded.
 fn selector_coverage(
-    ctx: &mut LintModuleDirContext<'_>,
+    ctx: &mut LintModuleContext<'_>,
     selector: &dir::MatchSelector,
 ) -> Option<SelectorCoverage> {
     // default always matches every remaining value
@@ -165,7 +162,7 @@ fn selector_coverage(
     }
 
     // wildcard and unconstrained bindings are total
-    if pattern_is_total(ctx.tree, pattern_id) {
+    if pattern_is_total(ctx.dir.tree(), pattern_id) {
         return Some(SelectorCoverage::Any);
     }
 
@@ -174,7 +171,7 @@ fn selector_coverage(
 
 /// Build an unsafe fix that removes one subsumed match arm.
 fn overlapping_match_arm_fix(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     case_id: dir::LocalNodeId<dir::MatchCase>,
 ) -> Option<LintFix> {
     let case_span = ctx.get_span(case_id);

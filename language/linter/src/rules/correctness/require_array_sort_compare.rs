@@ -4,7 +4,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::{is_array_type, is_string_array_type};
-use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Require comparison function for array `.sort()`.
@@ -34,7 +34,7 @@ impl LintRule for RequireArraySortCompare {
     }
 
     /// Check module DIR nodes for sort calls without comparator.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let mut visitor = ArraySortVisitor::new(ctx, meta);
         visitor.run();
@@ -44,7 +44,7 @@ impl LintRule for RequireArraySortCompare {
 /// Node visitor that flags sort calls without comparison functions.
 struct ArraySortVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The language item Array symbol for this module.
@@ -61,7 +61,7 @@ struct ArraySortVisitor<'a, 'b> {
 
 impl<'a, 'b> ArraySortVisitor<'a, 'b> {
     /// Build a visitor for array sort checks.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         let array_symbol = ctx.language_item(LanguageItem::Array);
         let sort_name = ctx.string_id("sort");
         let to_sorted_name = ctx.string_id("toSorted");
@@ -81,7 +81,7 @@ impl<'a, 'b> ArraySortVisitor<'a, 'b> {
     /// Walk the DIR tree roots.
     fn run(&mut self) {
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         // inspect dir roots
         for root_id in roots {
@@ -98,7 +98,7 @@ impl<'a, 'b> ArraySortVisitor<'a, 'b> {
         arguments: &[dir::LocalNodeId<dir::Argument>],
     ) {
         // match member access for sort method
-        let left_expression = self.ctx.tree.get(left);
+        let left_expression = self.ctx.dir.get(left);
         let dir::Expression::Member {
             left: receiver,
             name,

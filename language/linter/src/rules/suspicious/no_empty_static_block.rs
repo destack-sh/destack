@@ -1,8 +1,8 @@
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::block_is_empty_without_comment;
-use crate::{LintAstContext, LintFix, LintMeta, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow empty static initialization blocks in classes.
@@ -13,7 +13,7 @@ declare_lint! {
         id = "no-empty-static-block",
         code = "LU015",
         category = Suspicious,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Always,
@@ -29,22 +29,22 @@ impl LintRule for NoEmptyStaticBlock {
         NoEmptyStaticBlock::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // inspect class members for static blocks
-        for node_id in ctx.tree.iter_nodes::<ast::Member>() {
-            let member = ctx.tree.get(node_id);
-            let ast::Member::StaticBlock { body, .. } = member else {
+        for node_id in ctx.dir.iter_nodes::<dir::Member>() {
+            let member = ctx.dir.get(node_id);
+            let dir::Member::StaticBlock { body, .. } = member else {
                 continue;
             };
 
             // require an empty uncommented block body
-            let body_expr = ctx.tree.get(*body);
-            let ast::Expression::Block(block_id) = body_expr else {
+            let body_expr = ctx.dir.get(*body);
+            let dir::Expression::Block(block_id) = body_expr else {
                 continue;
             };
-            if !block_is_empty_without_comment(ctx.tree, *block_id) {
+            if !block_is_empty_without_comment(ctx.dir.tree(), *block_id) {
                 continue;
             }
 
@@ -55,7 +55,7 @@ impl LintRule for NoEmptyStaticBlock {
             }
 
             // build the empty static block diagnostic
-            let member_span = ctx.tree.get_span(node_id);
+            let member_span = ctx.dir.get_span(node_id);
             let mut diagnostic = LintReport::new(
                 NO_EMPTY_STATIC_BLOCK.id,
                 NO_EMPTY_STATIC_BLOCK.code,
@@ -68,7 +68,7 @@ impl LintRule for NoEmptyStaticBlock {
 
             // add comment insertion fix when enabled
             if ctx.compute_fixes {
-                let block_span = ctx.tree.get_span(*block_id);
+                let block_span = ctx.dir.get_span(*block_id);
                 let edits = ctx
                     .edit_builder()
                     .replace(block_span, "{\n        // intentionally empty\n    }")
@@ -91,7 +91,7 @@ mod tests {
     #[test]
     fn test_detects_empty_static_block() {
         let test = TestProgram::for_rule_without_prelude(NoEmptyStaticBlock);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_empty_static_block/test_detects_empty_static_block.ts",
             r#"
 class Foo {
@@ -105,7 +105,7 @@ class Foo {
     #[test]
     fn test_allows_static_block_with_code() {
         let test = TestProgram::for_rule_without_prelude(NoEmptyStaticBlock);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_empty_static_block/test_allows_static_block_with_code.ts",
             r#"
 class Foo {
@@ -121,7 +121,7 @@ class Foo {
     #[test]
     fn test_allows_static_block_with_comment() {
         let test = TestProgram::for_rule_without_prelude(NoEmptyStaticBlock);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_empty_static_block/test_allows_static_block_with_comment.ts",
             r#"
 class Foo {
@@ -135,7 +135,7 @@ class Foo {
     #[test]
     fn test_fix_removes_empty_static_block() {
         let test = TestProgram::for_rule_without_prelude(NoEmptyStaticBlock);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_empty_static_block/test_fix_removes_empty_static_block.ts",
             r#"
 class Foo {

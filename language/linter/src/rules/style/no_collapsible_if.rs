@@ -1,9 +1,9 @@
 use crate::LintMeta;
-use destack_ast::{self as ast, Block};
+use destack_dir::{self as dir, Block};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{expression_unwrap_parenthesized_source_form, span_has_comment};
-use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Suggest merging nested if statements without else.
@@ -28,7 +28,7 @@ declare_lint! {
         id = "no-collapsible-if",
         code = "LY015",
         category = Style,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -44,15 +44,15 @@ impl LintRule for NoCollapsibleIf {
         NoCollapsibleIf::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expression = ctx.tree.get(node_id);
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let expression = ctx.dir.get(node_id);
 
             // match outer if statement without else
-            let ast::Expression::If {
-                form: ast::IfForm::If,
+            let dir::Expression::If {
+                form: dir::IfForm::If,
                 condition: outer_condition,
                 then_expression: then_expression_id,
                 else_expression: None,
@@ -62,12 +62,12 @@ impl LintRule for NoCollapsibleIf {
                 continue;
             };
             let outer_condition_id = match outer_condition {
-                ast::IfCondition::Expression { condition } => *condition,
-                ast::IfCondition::Let { .. } => continue,
+                dir::IfCondition::Expression { condition } => *condition,
+                dir::IfCondition::Let { .. } => continue,
             };
 
             // get the then block
-            let then_block = ctx.tree.get(*then_expression_id);
+            let then_block = ctx.dir.get(*then_expression_id);
 
             // check if the then block contains only a single if statement without else
             let Some(inner_if_id) =
@@ -77,8 +77,8 @@ impl LintRule for NoCollapsibleIf {
             };
 
             // get the inner if expression details
-            let inner_if = ctx.tree.get(inner_if_id);
-            let ast::Expression::If {
+            let inner_if = ctx.dir.get(inner_if_id);
+            let dir::Expression::If {
                 condition: inner_condition,
                 then_expression: inner_then_id,
                 ..
@@ -87,8 +87,8 @@ impl LintRule for NoCollapsibleIf {
                 continue;
             };
             let inner_condition_id = match inner_condition {
-                ast::IfCondition::Expression { condition } => *condition,
-                ast::IfCondition::Let { .. } => continue,
+                dir::IfCondition::Expression { condition } => *condition,
+                dir::IfCondition::Let { .. } => continue,
             };
 
             let severity = ctx.get_effective_severity(meta, node_id);
@@ -96,7 +96,7 @@ impl LintRule for NoCollapsibleIf {
                 continue;
             }
 
-            let outer_span = ctx.tree.get_span(node_id);
+            let outer_span = ctx.dir.get_span(node_id);
             let mut diagnostic = LintReport::new(
                 NO_COLLAPSIBLE_IF.id,
                 NO_COLLAPSIBLE_IF.code,
@@ -108,10 +108,10 @@ impl LintRule for NoCollapsibleIf {
             .label("combine conditions using `&&`");
 
             // skip fixes when nested if range includes comment trivia
-            if ctx.compute_fixes && !span_has_comment(ctx.tree, outer_span) {
+            if ctx.compute_fixes && !span_has_comment(ctx.dir.tree(), outer_span) {
                 let outer_cond_text = and_condition_operand_text(ctx, outer_condition_id);
                 let inner_cond_text = and_condition_operand_text(ctx, inner_condition_id);
-                let inner_then_span = ctx.tree.get_span(*inner_then_id);
+                let inner_then_span = ctx.dir.get_span(*inner_then_id);
                 let inner_then_text = ctx.get_span_text(inner_then_span);
 
                 // preserve precedence for both condition sub-expressions
@@ -132,15 +132,15 @@ impl LintRule for NoCollapsibleIf {
 
 /// Return one `&&` operand text with minimal precedence-preserving wrapping.
 fn and_condition_operand_text(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> String {
-    let expression_span = ctx.tree.get_span(expression_id);
+    let expression_span = ctx.dir.get_span(expression_id);
     let expression_text = ctx.get_span_text(expression_span);
     let expression_text = strip_one_outer_parentheses(expression_text);
     let normalized_expression_id =
-        expression_unwrap_parenthesized_source_form(ctx.tree, expression_id);
-    let normalized_expression = ctx.tree.get(normalized_expression_id);
+        expression_unwrap_parenthesized_source_form(ctx.dir.tree(), expression_id);
+    let normalized_expression = ctx.dir.get(normalized_expression_id);
     if expression_needs_parentheses_for_and_operand(normalized_expression) {
         return format!("({expression_text})");
     }
@@ -178,24 +178,24 @@ fn strip_one_outer_parentheses(text: &str) -> &str {
 }
 
 /// Return true when an expression needs wrapping as one `&&` operand.
-fn expression_needs_parentheses_for_and_operand(expression: &ast::Expression) -> bool {
+fn expression_needs_parentheses_for_and_operand(expression: &dir::Expression) -> bool {
     matches!(
         expression,
-        ast::Expression::If {
-            form: ast::IfForm::Ternary,
+        dir::Expression::If {
+            form: dir::IfForm::Ternary,
             ..
-        } | ast::Expression::Assign { .. }
-            | ast::Expression::Binary {
-                operator: ast::BinaryOperator::Equal
-                    | ast::BinaryOperator::NotEqual
-                    | ast::BinaryOperator::EqualStrict
-                    | ast::BinaryOperator::NotEqualStrict
-                    | ast::BinaryOperator::LessThan
-                    | ast::BinaryOperator::LessThanOrEqual
-                    | ast::BinaryOperator::GreaterThan
-                    | ast::BinaryOperator::GreaterThanOrEqual
-                    | ast::BinaryOperator::Or
-                    | ast::BinaryOperator::Coalesce,
+        } | dir::Expression::Assign { .. }
+            | dir::Expression::Binary {
+                operator: dir::BinaryOperator::Equal
+                    | dir::BinaryOperator::NotEqual
+                    | dir::BinaryOperator::EqualStrict
+                    | dir::BinaryOperator::NotEqualStrict
+                    | dir::BinaryOperator::LessThan
+                    | dir::BinaryOperator::LessThanOrEqual
+                    | dir::BinaryOperator::GreaterThan
+                    | dir::BinaryOperator::GreaterThanOrEqual
+                    | dir::BinaryOperator::Or
+                    | dir::BinaryOperator::Coalesce,
                 ..
             }
     )
@@ -204,19 +204,19 @@ fn expression_needs_parentheses_for_and_operand(expression: &ast::Expression) ->
 /// Check if a then expression contains only a single if statement without else.
 /// Returns the inner if expression ID if found.
 fn find_single_if_without_else(
-    ctx: &LintAstContext<'_>,
-    expression: &ast::Expression,
-    expression_id: ast::LocalNodeId<ast::Expression>,
-) -> Option<ast::LocalNodeId<ast::Expression>> {
+    ctx: &LintModuleContext<'_>,
+    expression: &dir::Expression,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> Option<dir::LocalNodeId<dir::Expression>> {
     // handle block wrapper
-    if let ast::Expression::Block(block_id) = expression {
-        let block: &Block = ctx.tree.get(*block_id);
+    if let dir::Expression::Block(block_id) = expression {
+        let block: &Block = ctx.dir.get(*block_id);
         if block.len() != 1 {
             return None;
         }
 
         let inner_id = block.first_expression()?;
-        let single_expression = ctx.tree.get(inner_id);
+        let single_expression = ctx.dir.get(inner_id);
         return is_if_without_else(ctx, single_expression, inner_id);
     }
 
@@ -226,13 +226,13 @@ fn find_single_if_without_else(
 /// Check if an expression is an if without else (possibly wrapped in a Statement).
 /// Returns the if expression ID if it's a valid collapsible if.
 fn is_if_without_else(
-    _ctx: &LintAstContext<'_>,
-    expression: &ast::Expression,
-    expression_id: ast::LocalNodeId<ast::Expression>,
-) -> Option<ast::LocalNodeId<ast::Expression>> {
+    _ctx: &LintModuleContext<'_>,
+    expression: &dir::Expression,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> Option<dir::LocalNodeId<dir::Expression>> {
     // check if it's an if without else
-    if let ast::Expression::If {
-        form: ast::IfForm::If,
+    if let dir::Expression::If {
+        form: dir::IfForm::If,
         else_expression: None,
         ..
     } = expression
@@ -251,7 +251,7 @@ mod tests {
     #[test]
     fn test_nested_if_without_else_detected() {
         let test = TestProgram::for_rule_without_prelude(NoCollapsibleIf);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_collapsible_if/test_nested_if_without_else_detected.ds",
             r#"
 function foo(a: bool, b: bool) {
@@ -269,7 +269,7 @@ function foo(a: bool, b: bool) {
     #[test]
     fn test_nested_three_levels_detected() {
         let test = TestProgram::for_rule_without_prelude(NoCollapsibleIf);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_collapsible_if/test_nested_three_levels_detected.ds",
             r#"
 function foo(a: bool, b: bool, c: bool) {
@@ -290,7 +290,7 @@ function foo(a: bool, b: bool, c: bool) {
     #[test]
     fn test_outer_has_else_allowed() {
         let test = TestProgram::for_rule_without_prelude(NoCollapsibleIf);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_collapsible_if/test_outer_has_else_allowed.ds",
             r#"
 function foo(a: bool, b: bool) {
@@ -310,7 +310,7 @@ function foo(a: bool, b: bool) {
     #[test]
     fn test_inner_has_else_allowed() {
         let test = TestProgram::for_rule_without_prelude(NoCollapsibleIf);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_collapsible_if/test_inner_has_else_allowed.ds",
             r#"
 function foo(a: bool, b: bool) {
@@ -330,7 +330,7 @@ function foo(a: bool, b: bool) {
     #[test]
     fn test_multiple_statements_in_then_allowed() {
         let test = TestProgram::for_rule_without_prelude(NoCollapsibleIf);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_collapsible_if/test_multiple_statements_in_then_allowed.ds",
             r#"
 function foo(a: bool, b: bool) {
@@ -349,7 +349,7 @@ function foo(a: bool, b: bool) {
     #[test]
     fn test_simple_if_allowed() {
         let test = TestProgram::for_rule_without_prelude(NoCollapsibleIf);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_collapsible_if/test_simple_if_allowed.ds",
             r#"
 function foo(a: bool) {
@@ -365,7 +365,7 @@ function foo(a: bool) {
     #[test]
     fn test_if_else_allowed() {
         let test = TestProgram::for_rule_without_prelude(NoCollapsibleIf);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_collapsible_if/test_if_else_allowed.ds",
             r#"
 function foo(a: bool) {
@@ -383,7 +383,7 @@ function foo(a: bool) {
     #[test]
     fn test_already_combined_condition_allowed() {
         let test = TestProgram::for_rule_without_prelude(NoCollapsibleIf);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_collapsible_if/test_already_combined_condition_allowed.ds",
             r#"
 function foo(a: bool, b: bool) {
@@ -399,7 +399,7 @@ function foo(a: bool, b: bool) {
     #[test]
     fn test_fix_nested_if() {
         let test = TestProgram::for_rule_without_prelude(NoCollapsibleIf);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_collapsible_if/test_fix_nested_if.ds",
             r#"
 function foo(a: bool, b: bool) {
@@ -427,7 +427,7 @@ function foo(a: bool, b: bool) {
     #[test]
     fn test_fix_wraps_conditions_to_preserve_precedence() {
         let test = TestProgram::for_rule_without_prelude(NoCollapsibleIf);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_collapsible_if/test_fix_wraps_conditions_to_preserve_precedence.ds",
             r#"
 function foo(a: bool, b: bool, c: bool) {
@@ -455,7 +455,7 @@ function foo(a: bool, b: bool, c: bool) {
     #[test]
     fn test_no_fix_when_nested_if_has_comments() {
         let test = TestProgram::for_rule_without_prelude(NoCollapsibleIf);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_collapsible_if/test_no_fix_when_nested_if_has_comments.ds",
             r#"
 function foo(a: bool, b: bool) {

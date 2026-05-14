@@ -1,10 +1,10 @@
 use crate::LintMeta;
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::span_has_comment;
-use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow unnecessary computed property keys in objects.
@@ -15,7 +15,7 @@ declare_lint! {
         id = "no-useless-computed-key",
         code = "LU036",
         category = Suspicious,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -31,23 +31,23 @@ impl LintRule for NoUselessComputedKey {
         NoUselessComputedKey::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
-        for node_id in ctx.tree.iter_nodes::<ast::Property>() {
-            let property = ctx.tree.get(node_id);
+        for node_id in ctx.dir.iter_nodes::<dir::Property>() {
+            let property = ctx.dir.get(node_id);
             let key = match property {
-                ast::Property::Field { key, .. } => key,
-                ast::Property::Method { key: Some(key), .. } => key,
+                dir::Property::Field { key, .. } => key,
+                dir::Property::Method { key: Some(key), .. } => key,
                 _ => continue,
             };
 
             // check for computed key with string literal
-            let ast::Key::Expression(expr_id) = key else {
+            let dir::Key::Expression(expr_id) = key else {
                 continue;
             };
 
-            let expr = ctx.tree.get(*expr_id);
+            let expr = ctx.dir.get(*expr_id);
             let Some((label_text, replacement_text)) = computed_key_replacement(ctx, expr) else {
                 continue;
             };
@@ -57,7 +57,7 @@ impl LintRule for NoUselessComputedKey {
                 continue;
             }
 
-            let property_span = ctx.tree.get_span(node_id);
+            let property_span = ctx.dir.get_span(node_id);
             let mut diagnostic = LintReport::new(
                 NO_USELESS_COMPUTED_KEY.id,
                 NO_USELESS_COMPUTED_KEY.code,
@@ -70,7 +70,7 @@ impl LintRule for NoUselessComputedKey {
 
             if ctx.compute_fixes
                 && let Some(key_span) = computed_key_bracket_span(ctx, *expr_id)
-                && !span_has_comment(ctx.tree, key_span)
+                && !span_has_comment(ctx.dir.tree(), key_span)
             {
                 let edits = ctx
                     .edit_builder()
@@ -87,24 +87,24 @@ impl LintRule for NoUselessComputedKey {
 
 /// Return label and replacement text for one useless computed key expression.
 fn computed_key_replacement(
-    ctx: &LintAstContext<'_>,
-    expression: &ast::Expression,
+    ctx: &LintModuleContext<'_>,
+    expression: &dir::Expression,
 ) -> Option<(String, String)> {
     match expression {
-        ast::Expression::ScalarLiteral(ast::ScalarLiteral::String(string_id)) => {
+        dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(string_id)) => {
             let string_text = ctx.strings.get(*string_id);
             if string_text == "__proto__" {
                 return None;
             }
 
-            let quoted = format!("\"{}\"", string_text);
+            let quoted = format!("\"{string_text}\"");
             Some((quoted.clone(), quoted))
         }
-        ast::Expression::ScalarLiteral(ast::ScalarLiteral::Integer(value)) => {
+        dir::Expression::ScalarLiteral(dir::ScalarLiteral::Integer(value)) => {
             let value_text = value.to_string();
             Some((value_text.clone(), value_text))
         }
-        ast::Expression::ScalarLiteral(ast::ScalarLiteral::Float(value)) => {
+        dir::Expression::ScalarLiteral(dir::ScalarLiteral::Float(value)) => {
             let value_text = value.to_string();
             Some((value_text.clone(), value_text))
         }
@@ -114,11 +114,11 @@ fn computed_key_replacement(
 
 /// Return one span that covers `[<expression>]` around a computed key expression.
 fn computed_key_bracket_span(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<Span> {
     let source = ctx.source_text().as_bytes();
-    let expression_span = ctx.tree.get_span(expression_id);
+    let expression_span = ctx.dir.get_span(expression_id);
 
     let mut left_cursor = expression_span.start as usize;
     while left_cursor > 0 && source[left_cursor - 1].is_ascii_whitespace() {
@@ -153,7 +153,7 @@ mod tests {
     #[test]
     fn test_detects_computed_string_key() {
         let test = TestProgram::for_rule_without_prelude(NoUselessComputedKey);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_computed_key/test_detects_computed_string_key.ds",
             r#"
 const obj = { ["x"]: 1 }
@@ -165,7 +165,7 @@ const obj = { ["x"]: 1 }
     #[test]
     fn test_detects_computed_string_key_multi_char() {
         let test = TestProgram::for_rule_without_prelude(NoUselessComputedKey);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_computed_key/test_detects_computed_string_key_multi_char.ds",
             r#"
 const obj = { ["foo"]: 1 }
@@ -177,7 +177,7 @@ const obj = { ["foo"]: 1 }
     #[test]
     fn test_detects_computed_numeric_key() {
         let test = TestProgram::for_rule_without_prelude(NoUselessComputedKey);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_computed_key/test_detects_computed_numeric_key.ds",
             r#"
 const obj = { [0]: 1 }
@@ -195,7 +195,7 @@ const obj = { 0: 1 };
     #[test]
     fn test_allows_proto_computed_key() {
         let test = TestProgram::for_rule_without_prelude(NoUselessComputedKey);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_computed_key/test_allows_proto_computed_key.ds",
             r#"
 const obj = { ["__proto__"]: value }
@@ -208,7 +208,7 @@ const obj = { ["__proto__"]: value }
     #[test]
     fn test_detects_non_identifier_computed_key() {
         let test = TestProgram::for_rule_without_prelude(NoUselessComputedKey);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_computed_key/test_detects_non_identifier_computed_key.ds",
             r#"
 const obj = { ["Content-Type"]: "json" }
@@ -226,7 +226,7 @@ const obj = { "Content-Type": "json" };
     #[test]
     fn test_allows_variable_computed_key() {
         let test = TestProgram::for_rule_without_prelude(NoUselessComputedKey);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_computed_key/test_allows_variable_computed_key.ds",
             r#"
 const key = "x"
@@ -240,7 +240,7 @@ const obj = { [key]: 1 }
     #[test]
     fn test_allows_static_key() {
         let test = TestProgram::for_rule_without_prelude(NoUselessComputedKey);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_computed_key/test_allows_static_key.ds",
             r#"
 const obj = { x: 1 }
@@ -253,7 +253,7 @@ const obj = { x: 1 }
     #[test]
     fn test_detects_numeric_string_key() {
         let test = TestProgram::for_rule_without_prelude(NoUselessComputedKey);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_computed_key/test_detects_numeric_string_key.ds",
             r#"
 const obj = { ["123"]: 1 }
@@ -271,7 +271,7 @@ const obj = { "123": 1 };
     #[test]
     fn test_fix_computed_to_static() {
         let test = TestProgram::for_rule_without_prelude(NoUselessComputedKey);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_computed_key/test_fix_computed_to_static.ds",
             r#"
 const obj = { ["foo"]: 1 }
@@ -289,7 +289,7 @@ const obj = { "foo": 1 };
     #[test]
     fn test_has_no_fix_when_computed_key_contains_comment() {
         let test = TestProgram::for_rule_without_prelude(NoUselessComputedKey);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_computed_key/test_has_no_fix_when_computed_key_contains_comment.ds",
             r#"
 const obj = { [/* keep */ "foo"]: 1 }

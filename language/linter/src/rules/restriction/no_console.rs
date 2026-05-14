@@ -6,7 +6,7 @@ use crate::LintRequirement::RequireLibSymbol;
 use crate::rules::common::{
     expression_is_standalone_statement, expression_is_symbol, expression_static_property_name,
 };
-use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow console usage.
@@ -34,7 +34,7 @@ impl LintRule for NoConsole {
     }
 
     /// Check module DIR nodes for console usage.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let mut visitor = NoConsoleVisitor::new(ctx, meta);
         visitor.run();
@@ -44,7 +44,7 @@ impl LintRule for NoConsole {
 /// Node visitor that flags console usage.
 struct NoConsoleVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The console symbol for this module.
@@ -59,7 +59,7 @@ struct NoConsoleVisitor<'a, 'b> {
 
 impl<'a, 'b> NoConsoleVisitor<'a, 'b> {
     /// Build a visitor for no-console checks.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         let console_name = ctx.string_id("console");
         let console_symbol = ctx.declared_library_symbol(console_name);
         let allowed_methods = ctx
@@ -84,7 +84,7 @@ impl<'a, 'b> NoConsoleVisitor<'a, 'b> {
     fn run(&mut self) {
         // capture roots and tree references
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         // walk the module expression tree
         for root_id in roots {
@@ -114,7 +114,7 @@ impl<'a, 'b> NoConsoleVisitor<'a, 'b> {
         .label("remove console usage");
 
         // compute fixes only when requested by the runner
-        if self.ctx.include_fixes
+        if self.ctx.compute_fixes
             && let Some(fix) = no_console_fix(self.ctx, expression_id)
         {
             diagnostic = diagnostic.fix(fix);
@@ -130,7 +130,8 @@ impl<'a, 'b> NoConsoleVisitor<'a, 'b> {
 
     /// Return whether the console property access is allowed by configuration.
     fn is_allowed_console_member(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        let Some(property_name) = expression_static_property_name(self.ctx.tree, expression_id)
+        let Some(property_name) =
+            expression_static_property_name(self.ctx.dir.tree(), expression_id)
         else {
             return false;
         };
@@ -147,23 +148,23 @@ impl<'a, 'b> NoConsoleVisitor<'a, 'b> {
 
 /// Build an unsafe fix by removing one standalone console statement.
 fn no_console_fix(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<LintFix> {
     // remove `console...;` when the reported expression is directly statement scoped
-    if expression_is_standalone_statement(ctx.tree, expression_id) {
+    if expression_is_standalone_statement(ctx.dir.tree(), expression_id) {
         let statement_span = ctx.get_span(expression_id);
         let edits = ctx.edit_builder().delete(statement_span).into_edits();
         return Some(LintFix::r#unsafe("Remove console statement").with_edits(edits));
     }
 
-    let parent = ctx.tree.get_parent(expression_id.id)?;
+    let parent = ctx.dir.get_parent(expression_id.id)?;
     if parent.ty != dir::NodeType::Expression {
         return None;
     }
 
     let parent_id = parent.into_typed::<dir::Expression>();
-    let parent_expression = ctx.tree.get(parent_id);
+    let parent_expression = ctx.dir.get(parent_id);
 
     // remove call statements when the reported expression is the call callee
     let dir::Expression::Call { left, .. } = parent_expression else {
@@ -173,7 +174,7 @@ fn no_console_fix(
         return None;
     }
 
-    if !expression_is_standalone_statement(ctx.tree, parent_id) {
+    if !expression_is_standalone_statement(ctx.dir.tree(), parent_id) {
         return None;
     }
 

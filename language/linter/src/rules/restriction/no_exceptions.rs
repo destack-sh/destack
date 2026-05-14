@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
-use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow `throw` and `try/catch` in favor of Result types.
@@ -29,9 +29,9 @@ impl LintRule for NoExceptions {
         NoExceptions::meta()
     }
 
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
-        for (expression_id, expression) in ctx.tree.iter_nodes_of_type::<dir::Expression>() {
+        for (expression_id, expression) in ctx.dir.iter_nodes_of_type::<dir::Expression>() {
             let diagnostic = match expression {
                 dir::Expression::Throw { .. } => build_throw_diagnostic(ctx, meta, expression_id),
                 dir::Expression::Try { .. } => build_try_diagnostic(ctx, meta, expression_id),
@@ -47,7 +47,7 @@ impl LintRule for NoExceptions {
 
 /// Build one diagnostic for a throw expression.
 fn build_throw_diagnostic(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     meta: &LintMeta,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<LintReport> {
@@ -73,7 +73,7 @@ fn build_throw_diagnostic(
 
 /// Build one diagnostic for a try expression.
 fn build_try_diagnostic(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     meta: &LintMeta,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<LintReport> {

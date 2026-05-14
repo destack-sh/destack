@@ -1,8 +1,8 @@
 use crate::LintMeta;
-use destack_ast::{self as ast, TypeLiteral};
+use destack_dir::{self as dir, TypeLiteral};
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer precise numeric types over `number`.
@@ -13,7 +13,7 @@ declare_lint! {
         id = "prefer-precise-numeric",
         code = "LY050",
         category = Style,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Always,
@@ -29,14 +29,14 @@ impl LintRule for PreferPreciseNumeric {
         PreferPreciseNumeric::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
-        for node_id in ctx.tree.iter_nodes::<ast::TypeExpression>() {
-            let expression = ctx.tree.get(node_id);
+        for node_id in ctx.dir.iter_nodes::<dir::TypeExpression>() {
+            let expression = ctx.dir.get(node_id);
 
             // look for TypeLiteral::Number expressions
-            let ast::TypeExpression::Literal {
+            let dir::TypeExpression::Literal {
                 value: TypeLiteral::Number,
             } = expression
             else {
@@ -48,7 +48,7 @@ impl LintRule for PreferPreciseNumeric {
                 continue;
             }
 
-            let span = ctx.tree.get_span(node_id);
+            let span = ctx.dir.get_span(node_id);
             let edits = ctx.edit_builder().replace(span, "float64").into_edits();
             let fix = LintFix::safe("Replace `number` with `float64`").with_edits(edits);
 
@@ -76,7 +76,7 @@ mod tests {
     #[test]
     fn test_number_type_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferPreciseNumeric);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_precise_numeric/test_number_type_detected.ds",
             r#"
 function foo(x: number): number {
@@ -92,7 +92,7 @@ function foo(x: number): number {
     #[test]
     fn test_int32_type_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferPreciseNumeric);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_precise_numeric/test_int32_type_allowed.ds",
             r#"
 function foo(x: int32): int32 {
@@ -106,7 +106,7 @@ function foo(x: int32): int32 {
     #[test]
     fn test_float64_type_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferPreciseNumeric);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_precise_numeric/test_float64_type_allowed.ds",
             r#"
 function foo(x: float64): float64 {
@@ -120,7 +120,7 @@ function foo(x: float64): float64 {
     #[test]
     fn test_fix_number_parameter_and_return() {
         let test = TestProgram::for_rule_without_prelude(PreferPreciseNumeric);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_precise_numeric/test_fix_number_parameter_and_return.ds",
             r#"
 function foo(x: number): number {
@@ -142,7 +142,7 @@ function foo(x: float64): float64 {
     #[test]
     fn test_fix_number_in_type_alias() {
         let test = TestProgram::for_rule_without_prelude(PreferPreciseNumeric);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_precise_numeric/test_fix_number_in_type_alias.ds",
             r#"
 type Box = { value: number, items: number[] }
@@ -160,7 +160,7 @@ type Box = { value: float64, items: float64[] };
     #[test]
     fn test_mutation_flags_number_in_union_members() {
         let test = TestProgram::for_rule_without_prelude(PreferPreciseNumeric);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_precise_numeric/test_mutation_flags_number_in_union_members.ds",
             r#"
 type Metric = number | "auto"

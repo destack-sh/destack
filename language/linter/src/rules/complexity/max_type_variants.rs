@@ -1,8 +1,8 @@
 use crate::LintMeta;
-use destack_ast::{self as ast, TypeExpression};
+use destack_dir::{self as dir, TypeExpression};
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintReport, LintRule, declare_lint};
+use crate::{LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Limit the number of variants in a union type or enum.
@@ -13,7 +13,7 @@ declare_lint! {
         id = "max-type-variants",
         code = "LX014",
         category = Complexity,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = No,
@@ -29,14 +29,14 @@ impl LintRule for MaxTypeVariants {
         MaxTypeVariants::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         // resolve lint metadata and threshold
         let meta = self.meta();
         let max_type_variants = ctx.options.complexity.max_type_variants;
 
         // check top level union type expressions only
-        for type_expression_id in ctx.tree.iter_nodes::<ast::TypeExpression>() {
-            let ast::TypeExpression::Union { .. } = ctx.tree.get(type_expression_id) else {
+        for type_expression_id in ctx.dir.iter_nodes::<dir::TypeExpression>() {
+            let dir::TypeExpression::Union { .. } = ctx.dir.get(type_expression_id) else {
                 continue;
             };
             if union_has_parent_union(ctx, type_expression_id) {
@@ -57,9 +57,9 @@ impl LintRule for MaxTypeVariants {
         }
 
         // check enum variant counts
-        for declaration_id in ctx.tree.iter_nodes::<ast::Declaration>() {
-            let declaration = ctx.tree.get(declaration_id);
-            let ast::Declaration::Enum(declaration) = declaration else {
+        for declaration_id in ctx.dir.iter_nodes::<dir::Declaration>() {
+            let declaration = ctx.dir.get(declaration_id);
+            let dir::Declaration::Enum(declaration) = declaration else {
                 continue;
             };
             let variant_count = declaration.fields.len();
@@ -79,30 +79,30 @@ impl LintRule for MaxTypeVariants {
 
 /// Return true when one union expression has an outer union parent.
 fn union_has_parent_union(
-    ctx: &LintAstContext<'_>,
-    type_expression_id: ast::LocalNodeId<ast::TypeExpression>,
+    ctx: &LintModuleContext<'_>,
+    type_expression_id: dir::LocalNodeId<dir::TypeExpression>,
 ) -> bool {
-    let Some(parent_id) = ctx.parents.get(type_expression_id) else {
+    let Some(parent_id) = ctx.dir.get_parent_id(type_expression_id.id) else {
         return false;
     };
-    if ctx.tree.get_node_type(parent_id) != ast::NodeType::TypeExpression {
+    if ctx.dir.get_node_type(parent_id) != dir::NodeType::TypeExpression {
         return false;
     }
 
     // keep only parent union expressions
-    let parent_expression_id = ast::LocalNodeId::<ast::TypeExpression>::new(parent_id);
+    let parent_expression_id = dir::LocalNodeId::<dir::TypeExpression>::new(parent_id);
     matches!(
-        ctx.tree.get(parent_expression_id),
-        ast::TypeExpression::Union { .. }
+        ctx.dir.get(parent_expression_id),
+        dir::TypeExpression::Union { .. }
     )
 }
 
 /// Count flattened union variants for one union expression.
 fn count_union_variants(
-    ctx: &LintAstContext<'_>,
-    type_expression_id: ast::LocalNodeId<ast::TypeExpression>,
+    ctx: &LintModuleContext<'_>,
+    type_expression_id: dir::LocalNodeId<dir::TypeExpression>,
 ) -> usize {
-    let type_expression = ctx.tree.get(type_expression_id);
+    let type_expression = ctx.dir.get(type_expression_id);
     let TypeExpression::Union { elements } = type_expression else {
         return 1;
     };
@@ -114,16 +114,18 @@ fn count_union_variants(
 }
 
 /// Report one variant count overflow diagnostic.
-fn report_variant_overflow<T: ast::Node + Clone>(
-    ctx: &mut LintAstContext<'_>,
+fn report_variant_overflow<T: dir::Node + Clone>(
+    ctx: &mut LintModuleContext<'_>,
     meta: &'static LintMeta,
-    owner_id: ast::LocalNodeId<T>,
+    owner_id: dir::LocalNodeId<T>,
     type_kind: &str,
     variant_count: usize,
     max_type_variants: usize,
-) {
+) where
+    dir::Tree: dir::TreeStore<T>,
+{
     // resolve owner span before moving owner id into severity lookup
-    let owner_span = ctx.tree.get_span(owner_id);
+    let owner_span = ctx.dir.get_span(owner_id);
 
     // resolve effective severity
     let severity = ctx.get_effective_severity(meta, owner_id);
@@ -154,7 +156,7 @@ mod tests {
     fn test_detects_too_many_union_members() {
         let test = TestProgram::for_rule_without_prelude(MaxTypeVariants)
             .with_options(|options| options.complexity.max_type_variants = 5);
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_type_variants/test_detects_too_many_union_members.ds",
             r#"
 type BigUnion = A | B | C | D | E | F;
@@ -166,7 +168,7 @@ type BigUnion = A | B | C | D | E | F;
     #[test]
     fn test_allows_few_union_members() {
         let test = TestProgram::for_rule_without_prelude(MaxTypeVariants);
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_type_variants/test_allows_few_union_members.ds",
             r#"
 type SmallUnion = A | B | C;
@@ -179,7 +181,7 @@ type SmallUnion = A | B | C;
     fn test_counts_unions_in_parameter_types() {
         let test = TestProgram::for_rule_without_prelude(MaxTypeVariants)
             .with_options(|options| options.complexity.max_type_variants = 3);
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_type_variants/test_counts_unions_in_parameter_types.ds",
             r#"
 function test(x: A | B | C | D): void {}
@@ -192,7 +194,7 @@ function test(x: A | B | C | D): void {}
     fn test_ignores_runtime_bitwise_or_expressions() {
         let test = TestProgram::for_rule_without_prelude(MaxTypeVariants)
             .with_options(|options| options.complexity.max_type_variants = 1);
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_type_variants/test_ignores_runtime_bitwise_or_expressions.ds",
             r#"
 let x = a | b | c | d;
@@ -205,7 +207,7 @@ let x = a | b | c | d;
     fn test_detects_too_many_enum_variants() {
         let test = TestProgram::for_rule_without_prelude(MaxTypeVariants)
             .with_options(|options| options.complexity.max_type_variants = 3);
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_type_variants/test_detects_too_many_enum_variants.ds",
             r#"
 enum TooMany {

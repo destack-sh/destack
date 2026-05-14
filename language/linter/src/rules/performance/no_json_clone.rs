@@ -6,7 +6,7 @@ use crate::LintRequirement::RequireLibSymbol;
 use crate::rules::common::{
     expression_is_symbol, expression_unwrap_parenthesized, expression_unwrap_transparent,
 };
-use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow JSON parse stringify clones.
@@ -34,7 +34,7 @@ impl LintRule for NoJsonClone {
     }
 
     /// Check module DIR nodes for JSON clone patterns.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         // resolve lint metadata
         let meta = self.meta();
 
@@ -47,7 +47,7 @@ impl LintRule for NoJsonClone {
 /// Node visitor that flags JSON clone patterns.
 struct NoJsonCloneVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The JSON symbol for this module.
@@ -62,7 +62,7 @@ struct NoJsonCloneVisitor<'a, 'b> {
 
 impl<'a, 'b> NoJsonCloneVisitor<'a, 'b> {
     /// Build a visitor for no-json-clone checks.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         let json_name = ctx.string_id("JSON");
         let parse_name = ctx.string_id("parse");
         let stringify_name = ctx.string_id("stringify");
@@ -81,7 +81,7 @@ impl<'a, 'b> NoJsonCloneVisitor<'a, 'b> {
     /// Walk the DIR tree roots.
     fn run(&mut self) {
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         for root_id in roots {
             let expression = tree.get(root_id);
@@ -105,8 +105,11 @@ impl<'a, 'b> NoJsonCloneVisitor<'a, 'b> {
         let Some(first_argument) = arguments.first() else {
             return;
         };
-        let argument = self.ctx.tree.get(*first_argument);
-        let argument_id = expression_unwrap_parenthesized(self.ctx.tree, argument.value());
+        let argument = self.ctx.dir.get(*first_argument);
+        let Some(argument_id) = argument.value() else {
+            return;
+        };
+        let argument_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), argument_id);
         if !self.is_json_stringify_call(argument_id) {
             return;
         }
@@ -130,7 +133,7 @@ impl<'a, 'b> NoJsonCloneVisitor<'a, 'b> {
         .label("use a structured clone or manual copy");
 
         // compute fixes only when requested by the runner
-        if self.ctx.include_fixes
+        if self.ctx.compute_fixes
             && let Some(stringify_argument_id) = self.json_stringify_argument(argument_id)
             && let Some(fix) =
                 self.no_json_clone_fix(expression_id, arguments, stringify_argument_id)
@@ -148,10 +151,10 @@ impl<'a, 'b> NoJsonCloneVisitor<'a, 'b> {
         name: StringId,
     ) -> bool {
         // normalize transparent wrappers on the member expression
-        let expression_id = expression_unwrap_transparent(self.ctx.tree, expression_id);
+        let expression_id = expression_unwrap_transparent(self.ctx.dir.tree(), expression_id);
 
         // match member access
-        let expression = self.ctx.tree.get(expression_id);
+        let expression = self.ctx.dir.get(expression_id);
         let dir::Expression::Member {
             left, name: member, ..
         } = expression
@@ -169,10 +172,10 @@ impl<'a, 'b> NoJsonCloneVisitor<'a, 'b> {
     /// Return true when the expression is a JSON.stringify call.
     fn is_json_stringify_call(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
         // normalize transparent wrappers on the call expression
-        let expression_id = expression_unwrap_transparent(self.ctx.tree, expression_id);
+        let expression_id = expression_unwrap_transparent(self.ctx.dir.tree(), expression_id);
 
         // match call expressions
-        let expression = self.ctx.tree.get(expression_id);
+        let expression = self.ctx.dir.get(expression_id);
         let dir::Expression::Call { left, .. } = expression else {
             return false;
         };
@@ -186,10 +189,10 @@ impl<'a, 'b> NoJsonCloneVisitor<'a, 'b> {
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<dir::LocalNodeId<dir::Expression>> {
         // normalize transparent wrappers on the call expression
-        let expression_id = expression_unwrap_transparent(self.ctx.tree, expression_id);
+        let expression_id = expression_unwrap_transparent(self.ctx.dir.tree(), expression_id);
 
         // match call expressions
-        let expression = self.ctx.tree.get(expression_id);
+        let expression = self.ctx.dir.get(expression_id);
         let dir::Expression::Call {
             left, arguments, ..
         } = expression
@@ -204,10 +207,11 @@ impl<'a, 'b> NoJsonCloneVisitor<'a, 'b> {
             return None;
         }
 
-        let argument = self.ctx.tree.get(arguments[0]);
+        let argument = self.ctx.dir.get(arguments[0]);
+        let argument = argument.value()?;
         Some(expression_unwrap_parenthesized(
-            self.ctx.tree,
-            argument.value(),
+            self.ctx.dir.tree(),
+            argument,
         ))
     }
 

@@ -3,7 +3,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLibSymbol;
 use crate::rules::common::{expression_is_any_symbol, expression_is_standalone_statement};
-use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow alert dialog browser calls.
@@ -35,7 +35,7 @@ impl LintRule for NoAlert {
     }
 
     /// Check module DIR nodes for alert dialog calls.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         // resolve lint metadata
         let meta = self.meta();
 
@@ -48,7 +48,7 @@ impl LintRule for NoAlert {
 /// Node visitor that flags alert dialog usage.
 struct NoAlertVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The alert symbol for this module.
@@ -63,7 +63,7 @@ struct NoAlertVisitor<'a, 'b> {
 
 impl<'a, 'b> NoAlertVisitor<'a, 'b> {
     /// Build a visitor for no-alert checks.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         let alert_name = ctx.string_id("alert");
         let confirm_name = ctx.string_id("confirm");
         let prompt_name = ctx.string_id("prompt");
@@ -93,7 +93,7 @@ impl<'a, 'b> NoAlertVisitor<'a, 'b> {
 
         // capture roots and tree references
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         // walk the module expression tree
         for root_id in roots {
@@ -132,7 +132,7 @@ impl<'a, 'b> NoAlertVisitor<'a, 'b> {
         .label("avoid alert, confirm, and prompt calls");
 
         // compute fixes only when requested by the runner
-        if self.ctx.include_fixes
+        if self.ctx.compute_fixes
             && let Some(fix) = no_alert_fix(self.ctx, expression_id)
         {
             diagnostic = diagnostic.fix(fix);
@@ -154,10 +154,10 @@ impl<'a, 'b> NoAlertVisitor<'a, 'b> {
 
 /// Build an unsafe fix by removing one standalone alert call statement.
 fn no_alert_fix(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     call_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<LintFix> {
-    if !expression_is_standalone_statement(ctx.tree, call_id) {
+    if !expression_is_standalone_statement(ctx.dir.tree(), call_id) {
         return None;
     }
 

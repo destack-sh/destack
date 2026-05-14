@@ -7,7 +7,7 @@ use crate::rules::common::{
     const_i64, expression_regex_literal, expression_unwrap_parenthesized, flip_binary_operator,
     is_string_type, regex_prefix_literal, single_quoted_string_literal, strip_dot_member_suffix,
 };
-use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer `startsWith()` over `indexOf() === 0`.
@@ -36,7 +36,7 @@ impl LintRule for PreferStringStartsWith {
     }
 
     /// Check module DIR nodes for indexOf equality checks that should use startsWith().
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let mut visitor = PreferStringStartsWithVisitor::new(ctx, meta);
         visitor.run();
@@ -46,7 +46,7 @@ impl LintRule for PreferStringStartsWith {
 /// Node visitor that flags prefer-string-startswith patterns.
 struct PreferStringStartsWithVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The language item String symbol for this module.
@@ -63,7 +63,7 @@ struct PreferStringStartsWithVisitor<'a, 'b> {
 
 impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
     /// Build a visitor for prefer-string-startswith checks.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         let string_symbol = ctx.language_item(LanguageItem::String);
         let index_of_name = ctx.string_id("indexOf");
         let starts_with_name = ctx.string_id("startsWith");
@@ -83,7 +83,7 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
     /// Walk the DIR tree roots.
     fn run(&mut self) {
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         for root_id in roots {
             let expression = tree.get(root_id);
@@ -119,8 +119,8 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
         constant_id: dir::LocalNodeId<dir::Expression>,
         flipped: bool,
     ) -> Option<StartsWithMatch> {
-        let candidate_id = expression_unwrap_parenthesized(self.ctx.tree, candidate_id);
-        let constant_id = expression_unwrap_parenthesized(self.ctx.tree, constant_id);
+        let candidate_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), candidate_id);
+        let constant_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), constant_id);
 
         // resolve constant comparisons
         let constant_value = self.ctx.const_value(constant_id)?;
@@ -183,7 +183,7 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
         .label("use startsWith() to check the prefix");
 
         let mut diagnostic = diagnostic;
-        if self.ctx.include_fixes
+        if self.ctx.compute_fixes
             && let Some(fix) = self.starts_with_fix(expression_id, starts_with_match)
         {
             diagnostic = diagnostic.fix(fix);
@@ -200,6 +200,7 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
     ) {
         // match call expression
         let dir::Expression::Call {
+            position: _,
             left,
             generic_arguments,
             arguments,
@@ -215,7 +216,7 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
         }
 
         // match `.test(...)` call
-        let member_expression = self.ctx.tree.get(*left);
+        let member_expression = self.ctx.dir.get(*left);
         let dir::Expression::Member {
             left: regex_expression_id,
             name,
@@ -233,7 +234,7 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
         };
 
         // require one positional string argument
-        let first_argument = self.ctx.tree.get(arguments[0]);
+        let first_argument = self.ctx.dir.get(arguments[0]);
         let dir::Argument::Positional {
             value: argument_id, ..
         } = first_argument
@@ -261,7 +262,7 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
             span,
         )
         .label("use startsWith() for anchored prefix checks");
-        if self.ctx.include_fixes
+        if self.ctx.compute_fixes
             && let Some(fix) = self.regex_starts_with_fix(expression_id, *argument_id, &prefix_text)
         {
             diagnostic = diagnostic.fix(fix);
@@ -276,8 +277,9 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<StartsWithCandidate> {
         // match call expression
-        let expression = self.ctx.tree.get(expression_id);
+        let expression = self.ctx.dir.get(expression_id);
         let dir::Expression::Call {
+            position: _,
             left,
             generic_arguments,
             arguments,
@@ -294,7 +296,7 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
 
         // match member access for indexOf
         let call_member_id = *left;
-        let member_expression = self.ctx.tree.get(call_member_id);
+        let member_expression = self.ctx.dir.get(call_member_id);
         let dir::Expression::Member {
             left: receiver_id,
             name,
@@ -307,7 +309,7 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
         }
 
         // require one positional search argument
-        let first_argument = self.ctx.tree.get(arguments[0]);
+        let first_argument = self.ctx.dir.get(arguments[0]);
         let dir::Argument::Positional {
             value: prefix_id, ..
         } = first_argument
@@ -317,7 +319,7 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
 
         // optionally accept one positional fromIndex argument
         let from_index_id = if arguments.len() == 2 {
-            let second_argument = self.ctx.tree.get(arguments[1]);
+            let second_argument = self.ctx.dir.get(arguments[1]);
             let dir::Argument::Positional { value, .. } = second_argument else {
                 return None;
             };
@@ -351,7 +353,7 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
         let prefix_span = self.ctx.get_span(starts_with_match.prefix_id);
         let prefix_text = self.ctx.get_span_text(prefix_span);
         let method_name = self.ctx.strings.get(self.starts_with_name);
-        let replacement = format!("{receiver_text}.{}({prefix_text})", method_name);
+        let replacement = format!("{receiver_text}.{method_name}({prefix_text})");
 
         // replace the full comparison expression
         let expression_span = self.ctx.get_span(expression_id);
@@ -387,13 +389,13 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<String> {
-        let (pattern_id, flags_id) = expression_regex_literal(self.ctx.tree, expression_id)?;
+        let (pattern_id, flags_id) = expression_regex_literal(self.ctx.dir.tree(), expression_id)?;
 
         let pattern = self.ctx.strings.get(pattern_id);
         let flags = flags_id
             .map(|flags_id| self.ctx.strings.get(flags_id).to_string())
             .unwrap_or_default();
-        regex_prefix_literal(pattern.as_ref(), &flags)
+        regex_prefix_literal(pattern, &flags)
     }
 
     /// Build a safe fix from one regex test prefix check to startsWith.
@@ -411,7 +413,7 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
 
         let quoted_prefix = single_quoted_string_literal(prefix_text);
         let method_name = self.ctx.strings.get(self.starts_with_name);
-        let replacement = format!("({argument_text}).{}({quoted_prefix})", method_name);
+        let replacement = format!("({argument_text}).{method_name}({quoted_prefix})");
 
         let expression_span = self.ctx.get_span(expression_id);
         let edits = self

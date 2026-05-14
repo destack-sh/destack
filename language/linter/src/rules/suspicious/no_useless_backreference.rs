@@ -1,6 +1,6 @@
 use crate::rules::common::{regex_pattern_info, regexp_global_qualifier_names};
-use crate::{LintAstContext, LintMeta, LintReport, LintRule, declare_lint};
-use destack_ast as ast;
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
+use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 declare_lint! {
@@ -12,7 +12,7 @@ declare_lint! {
         id = "no-useless-backreference",
         code = "LU034",
         category = Suspicious,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = No,
@@ -28,15 +28,15 @@ impl LintRule for NoUselessBackreference {
         NoUselessBackreference::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let regexp_name = ctx.string_id("RegExp");
         let global_qualifier_names = regexp_global_qualifier_names(ctx.strings);
 
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
             let Some(pattern_info) = regex_pattern_info(
                 ctx.strings,
-                ctx.tree,
+                ctx.dir.tree(),
                 node_id,
                 regexp_name,
                 &global_qualifier_names,
@@ -61,7 +61,7 @@ impl LintRule for NoUselessBackreference {
                     NO_USELESS_BACKREFERENCE.category,
                     severity,
                     problem,
-                    ctx.tree.get_span(node_id),
+                    ctx.dir.get_span(node_id),
                 )
                 .label("this backreference will never match"),
             );
@@ -77,7 +77,7 @@ mod tests {
     #[test]
     fn test_detects_nested_backreference() {
         let test = TestProgram::for_rule_without_prelude(NoUselessBackreference);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_backreference/test_detects_nested_backreference.ds",
             r#"
 const re = /(b)(\2a)/
@@ -89,7 +89,7 @@ const re = /(b)(\2a)/
     #[test]
     fn test_detects_forward_reference() {
         let test = TestProgram::for_rule_without_prelude(NoUselessBackreference);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_backreference/test_detects_forward_reference.ds",
             r#"
 const re = /\1(a)/
@@ -101,7 +101,7 @@ const re = /\1(a)/
     #[test]
     fn test_detects_named_forward_reference() {
         let test = TestProgram::for_rule_without_prelude(NoUselessBackreference);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_backreference/test_detects_named_forward_reference.ds",
             r#"
 const re = /\k<foo>(?<foo>a)/
@@ -113,7 +113,7 @@ const re = /\k<foo>(?<foo>a)/
     #[test]
     fn test_detects_backward_reference_in_lookbehind() {
         let test = TestProgram::for_rule_without_prelude(NoUselessBackreference);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_backreference/test_detects_backward_reference_in_lookbehind.ds",
             r#"
 const re = /(?<=(a)\1)b/
@@ -125,7 +125,7 @@ const re = /(?<=(a)\1)b/
     #[test]
     fn test_detects_disjunctive_reference() {
         let test = TestProgram::for_rule_without_prelude(NoUselessBackreference);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_backreference/test_detects_disjunctive_reference.ds",
             r#"
 const re = /(a)|\1b/
@@ -137,7 +137,7 @@ const re = /(a)|\1b/
     #[test]
     fn test_detects_reference_into_negative_lookaround() {
         let test = TestProgram::for_rule_without_prelude(NoUselessBackreference);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_backreference/test_detects_reference_into_negative_lookaround.ds",
             r#"
 const re = /a(?!(b)).\1/
@@ -149,7 +149,7 @@ const re = /a(?!(b)).\1/
     #[test]
     fn test_allows_forward_style_reference_inside_lookbehind() {
         let test = TestProgram::for_rule_without_prelude(NoUselessBackreference);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_backreference/test_allows_forward_style_reference_inside_lookbehind.ds",
             r#"
 const re = /(?<=\1(a))b/
@@ -162,7 +162,7 @@ const re = /(?<=\1(a))b/
     #[test]
     fn test_allows_valid_backreference() {
         let test = TestProgram::for_rule_without_prelude(NoUselessBackreference);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_backreference/test_allows_valid_backreference.ds",
             r#"
 const re = /(a)\1/
@@ -175,7 +175,7 @@ const re = /(a)\1/
     #[test]
     fn test_allows_valid_named_backreference() {
         let test = TestProgram::for_rule_without_prelude(NoUselessBackreference);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_backreference/test_allows_valid_named_backreference.ds",
             r#"
 const re = /(?<foo>a)\k<foo>/
@@ -188,7 +188,7 @@ const re = /(?<foo>a)\k<foo>/
     #[test]
     fn test_allows_multiple_valid_backreferences() {
         let test = TestProgram::for_rule_without_prelude(NoUselessBackreference);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_backreference/test_allows_multiple_valid_backreferences.ds",
             r#"
 const re = /(a)(b)\1\2/
@@ -201,7 +201,7 @@ const re = /(a)(b)\1\2/
     #[test]
     fn test_allows_disjunctive_backreference_in_same_alternative() {
         let test = TestProgram::for_rule_without_prelude(NoUselessBackreference);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_backreference/test_allows_disjunctive_backreference_in_same_alternative.ds",
             r#"
 const re = /^(a)|(b)\2$/
@@ -214,7 +214,7 @@ const re = /^(a)|(b)\2$/
     #[test]
     fn test_allows_named_backreference_with_one_valid_alternative() {
         let test = TestProgram::for_rule_without_prelude(NoUselessBackreference);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_backreference/test_allows_named_backreference_with_one_valid_alternative.ds",
             r#"
 const re = /((?<foo>bar)\k<foo>|(?<foo>baz))/;
@@ -227,7 +227,7 @@ const re = /((?<foo>bar)\k<foo>|(?<foo>baz))/;
     #[test]
     fn test_detects_named_forward_reference_across_alternatives() {
         let test = TestProgram::for_rule_without_prelude(NoUselessBackreference);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_backreference/test_detects_named_forward_reference_across_alternatives.ds",
             r#"
 const re = /\k<foo>((?<foo>bar)|(?<foo>baz))/;
@@ -239,7 +239,7 @@ const re = /\k<foo>((?<foo>bar)|(?<foo>baz))/;
     #[test]
     fn test_allows_regex_without_backreference() {
         let test = TestProgram::for_rule_without_prelude(NoUselessBackreference);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_backreference/test_allows_regex_without_backreference.ds",
             r#"
 const re = /hello/
@@ -252,7 +252,7 @@ const re = /hello/
     #[test]
     fn test_allows_escaped_digit_in_char_class() {
         let test = TestProgram::for_rule_without_prelude(NoUselessBackreference);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_backreference/test_allows_escaped_digit_in_char_class.ds",
             r#"
 const re = /[\1]/
@@ -266,7 +266,7 @@ const re = /[\1]/
     #[test]
     fn test_allows_octal_escape_when_group_does_not_exist() {
         let test = TestProgram::for_rule_without_prelude(NoUselessBackreference);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_backreference/test_allows_octal_escape_when_group_does_not_exist.ds",
             r#"
 const re = /(a)\2/
@@ -279,7 +279,7 @@ const re = /(a)\2/
     #[test]
     fn test_ignores_backreference_when_pattern_has_other_parse_error() {
         let test = TestProgram::for_rule_without_prelude(NoUselessBackreference);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_backreference/test_ignores_backreference_when_pattern_has_other_parse_error.ds",
             r#"
 const re = RegExp("\\1(a)[", "u");
@@ -292,7 +292,7 @@ const re = RegExp("\\1(a)[", "u");
     #[test]
     fn test_ignores_backreference_when_pattern_has_unclosed_quantifier_error() {
         let test = TestProgram::for_rule_without_prelude(NoUselessBackreference);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_backreference/test_ignores_backreference_when_pattern_has_unclosed_quantifier_error.ds",
             r#"
 const re = RegExp("\\1(a){", "u");
@@ -305,7 +305,7 @@ const re = RegExp("\\1(a){", "u");
     #[test]
     fn test_detects_forward_backreference_in_regexp_constructor() {
         let test = TestProgram::for_rule_without_prelude(NoUselessBackreference);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_backreference/test_detects_forward_backreference_in_regexp_constructor.ds",
             r#"
 const re = RegExp("\\1(a)");
@@ -317,7 +317,7 @@ const re = RegExp("\\1(a)");
     #[test]
     fn test_allows_valid_backreference_in_regexp_constructor() {
         let test = TestProgram::for_rule_without_prelude(NoUselessBackreference);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_backreference/test_allows_valid_backreference_in_regexp_constructor.ds",
             r#"
 const re = RegExp("(a)\\1");

@@ -1,10 +1,10 @@
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_source::Span;
 use destack_workspace::LintSeverity;
 use std::collections::HashSet;
 
 use crate::rules::common::{regex_pattern_info, regexp_global_qualifier_names};
-use crate::{LintAstContext, LintFix, LintMeta, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow unnecessary escape characters in strings and regex literals.
@@ -15,7 +15,7 @@ declare_lint! {
         id = "no-useless-escape",
         code = "LU039",
         category = Suspicious,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -32,8 +32,8 @@ impl LintRule for NoUselessEscape {
         NoUselessEscape::meta()
     }
 
-    /// Check module AST nodes for useless escapes.
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    /// Check module source nodes for useless escapes.
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         // resolve metadata and source text once
         let meta = self.meta();
         let source = ctx.file.text().to_string();
@@ -47,15 +47,15 @@ impl LintRule for NoUselessEscape {
         );
 
         // inspect candidate expression literals
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expression = ctx.tree.get(node_id);
-            let span = ctx.tree.get_span(node_id);
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let expression = ctx.dir.get(node_id);
+            let span = ctx.dir.get_span(node_id);
 
             // report string and template literal escapes
             if matches!(
                 expression,
-                ast::Expression::ScalarLiteral(ast::ScalarLiteral::String(_))
-                    | ast::Expression::TemplateExpression { .. }
+                dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(_))
+                    | dir::Expression::TemplateExpression { .. }
             ) {
                 report_string_literal_escapes(ctx, meta, node_id, span, source);
                 continue;
@@ -64,7 +64,7 @@ impl LintRule for NoUselessEscape {
             // report regex literal and constructor escapes
             let Some(pattern_info) = regex_pattern_info(
                 ctx.strings,
-                ctx.tree,
+                ctx.dir.tree(),
                 node_id,
                 regexp_name,
                 &global_qualifier_names,
@@ -118,9 +118,9 @@ const REGEX_CLASS_SET_RESERVED_DOUBLE_PUNCTUATOR: &[char] = &[
 
 /// Report useless escapes in one string or template literal node.
 fn report_string_literal_escapes(
-    ctx: &mut LintAstContext<'_>,
+    ctx: &mut LintModuleContext<'_>,
     meta: &LintMeta,
-    node_id: ast::LocalNodeId<ast::Expression>,
+    node_id: dir::LocalNodeId<dir::Expression>,
     literal_span: Span,
     source: &str,
 ) {
@@ -176,20 +176,19 @@ fn report_string_literal_escapes(
 
 /// Report useless escapes in one regex literal node.
 fn report_regex_escapes(
-    ctx: &mut LintAstContext<'_>,
+    ctx: &mut LintModuleContext<'_>,
     meta: &LintMeta,
-    node_id: ast::LocalNodeId<ast::Expression>,
+    node_id: dir::LocalNodeId<dir::Expression>,
     literal_span: Span,
     source: &str,
-    pattern_id: ast::StringId,
-    flags_id: Option<ast::StringId>,
+    pattern_id: dir::StringId,
+    flags_id: Option<dir::StringId>,
     has_unknown_flags: bool,
     allowed_regex_escape_characters: &HashSet<char>,
 ) {
     // resolve regex pattern and flags
     let pattern = ctx.strings.get(pattern_id);
     let flags = flags_id.map(|id| ctx.strings.get(id));
-    let flags = flags.as_deref();
     let flags = if has_unknown_flags {
         // treat unknown runtime flags as no flags
         None
@@ -198,11 +197,8 @@ fn report_regex_escapes(
     };
 
     // collect useless regex escapes from the pattern text
-    let escape_positions = find_useless_regex_escape_positions(
-        pattern.as_ref(),
-        flags,
-        allowed_regex_escape_characters,
-    );
+    let escape_positions =
+        find_useless_regex_escape_positions(pattern, flags, allowed_regex_escape_characters);
     if escape_positions.is_empty() {
         return;
     }
@@ -537,7 +533,7 @@ mod tests {
     #[test]
     fn test_detects_useless_escape() {
         let test = TestProgram::for_rule_without_prelude(NoUselessEscape);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_escape/test_detects_useless_escape.ds",
             r#"
 const x = "hel\lo"
@@ -551,7 +547,7 @@ const x = "hel\lo"
     #[test]
     fn test_allows_valid_escapes() {
         let test = TestProgram::for_rule_without_prelude(NoUselessEscape);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_escape/test_allows_valid_escapes.ds",
             r#"
 const x = "hello\nworld"
@@ -563,7 +559,7 @@ const x = "hello\nworld"
     #[test]
     fn test_allows_quote_escape() {
         let test = TestProgram::for_rule_without_prelude(NoUselessEscape);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_escape/test_allows_quote_escape.ds",
             r#"
 const x = "say \"hello\""
@@ -575,7 +571,7 @@ const x = "say \"hello\""
     #[test]
     fn test_allows_backslash_escape() {
         let test = TestProgram::for_rule_without_prelude(NoUselessEscape);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_escape/test_allows_backslash_escape.ds",
             r#"
 const x = "path\\to\\file"
@@ -587,7 +583,7 @@ const x = "path\\to\\file"
     #[test]
     fn test_fix_removes_useless_escape() {
         let test = TestProgram::for_rule_without_prelude(NoUselessEscape);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_escape/test_fix_removes_useless_escape.ds",
             r#"
 const x = "hel\lo"
@@ -605,7 +601,7 @@ const x = "hello";
     #[test]
     fn test_fix_preserves_valid_escapes_and_removes_only_useless_escape() {
         let test = TestProgram::for_rule_without_prelude(NoUselessEscape);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_escape/test_fix_preserves_valid_escapes_and_removes_only_useless_escape.ds",
             r#"
 const x = "hel\lo\n"
@@ -623,7 +619,7 @@ const x = "hello\n";
     #[test]
     fn test_mutation_detects_useless_escape_in_single_quote() {
         let test = TestProgram::for_rule_without_prelude(NoUselessEscape);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_escape/test_mutation_detects_useless_escape_in_single_quote.ds",
             r#"
 const x = 'ab\cd'
@@ -635,7 +631,7 @@ const x = 'ab\cd'
     #[test]
     fn test_mutation_detects_useless_escape_in_double_quote() {
         let test = TestProgram::for_rule_without_prelude(NoUselessEscape);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_escape/test_mutation_detects_useless_escape_in_double_quote.ds",
             r#"
 const x = "ab\cd"
@@ -647,7 +643,7 @@ const x = "ab\cd"
     #[test]
     fn test_detects_useless_escape_in_template_literal() {
         let test = TestProgram::for_rule_without_prelude(NoUselessEscape);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_escape/test_detects_useless_escape_in_template_literal.ds",
             r#"
 const x = `ab\cd`
@@ -659,7 +655,7 @@ const x = `ab\cd`
     #[test]
     fn test_allows_template_interpolation_escape() {
         let test = TestProgram::for_rule_without_prelude(NoUselessEscape);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_escape/test_allows_template_interpolation_escape.ds",
             r#"
 const x = `\${name}`
@@ -671,7 +667,7 @@ const x = `\${name}`
     #[test]
     fn test_allows_valid_regex_escape() {
         let test = TestProgram::for_rule_without_prelude(NoUselessEscape);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_escape/test_allows_valid_regex_escape.ds",
             r#"
 const re = /\./;
@@ -683,7 +679,7 @@ const re = /\./;
     #[test]
     fn test_detects_useless_regex_escape() {
         let test = TestProgram::for_rule_without_prelude(NoUselessEscape);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_escape/test_detects_useless_regex_escape.ds",
             r#"
 const re = /\a/;
@@ -701,7 +697,7 @@ const re = /a/;
     #[test]
     fn test_detects_useless_regex_escape_in_character_class() {
         let test = TestProgram::for_rule_without_prelude(NoUselessEscape);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_escape/test_detects_useless_regex_escape_in_character_class.ds",
             r#"
 const re = /[a\?]/;
@@ -713,7 +709,7 @@ const re = /[a\?]/;
     #[test]
     fn test_allows_valid_unicode_set_class_double_punctuator_escape() {
         let test = TestProgram::for_rule_without_prelude(NoUselessEscape);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_escape/test_allows_valid_unicode_set_class_double_punctuator_escape.ds",
             r#"
 const re = /[\&&]/v;
@@ -725,7 +721,7 @@ const re = /[\&&]/v;
     #[test]
     fn test_detects_useless_unicode_set_class_single_punctuator_escape() {
         let test = TestProgram::for_rule_without_prelude(NoUselessEscape);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_escape/test_detects_useless_unicode_set_class_single_punctuator_escape.ds",
             r#"
 const re = /[\&a]/v;
@@ -737,7 +733,7 @@ const re = /[\&a]/v;
     #[test]
     fn test_allows_valid_unicode_set_class_escape() {
         let test = TestProgram::for_rule_without_prelude(NoUselessEscape);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_escape/test_allows_valid_unicode_set_class_escape.ds",
             r#"
 const re = /[\(]/v;
@@ -749,7 +745,7 @@ const re = /[\(]/v;
     #[test]
     fn test_allows_nested_unicode_set_class_dash_escape() {
         let test = TestProgram::for_rule_without_prelude(NoUselessEscape);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_escape/test_allows_nested_unicode_set_class_dash_escape.ds",
             r#"
 const re = /[[\-]\-]/v;
@@ -761,7 +757,7 @@ const re = /[[\-]\-]/v;
     #[test]
     fn test_allows_unicode_set_negated_double_caret_escape() {
         let test = TestProgram::for_rule_without_prelude(NoUselessEscape);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_escape/test_allows_unicode_set_negated_double_caret_escape.ds",
             r#"
 const re = /[^\^^]/v;
@@ -773,7 +769,7 @@ const re = /[^\^^]/v;
     #[test]
     fn test_allows_unicode_set_caret_with_previous_caret_escape() {
         let test = TestProgram::for_rule_without_prelude(NoUselessEscape);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_escape/test_allows_unicode_set_caret_with_previous_caret_escape.ds",
             r#"
 const re = /[_\^^]/v;
@@ -785,7 +781,7 @@ const re = /[_\^^]/v;
     #[test]
     fn test_detects_useless_unicode_set_single_caret_escape() {
         let test = TestProgram::for_rule_without_prelude(NoUselessEscape);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_escape/test_detects_useless_unicode_set_single_caret_escape.ds",
             r#"
 const re = /[^\^]/v;
@@ -797,7 +793,7 @@ const re = /[^\^]/v;
     #[test]
     fn test_allows_unicode_set_reserved_double_punctuator_chain_escape() {
         let test = TestProgram::for_rule_without_prelude(NoUselessEscape);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_escape/test_allows_unicode_set_reserved_double_punctuator_chain_escape.ds",
             r#"
 const re = /[\&&&\&]/v;
@@ -809,7 +805,7 @@ const re = /[\&&&\&]/v;
     #[test]
     fn test_detects_useless_regex_escape_in_regexp_constructor() {
         let test = TestProgram::for_rule_without_prelude(NoUselessEscape);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_escape/test_detects_useless_regex_escape_in_regexp_constructor.ds",
             r#"
 const re = RegExp("\a");
@@ -821,7 +817,7 @@ const re = RegExp("\a");
     #[test]
     fn test_detects_useless_regex_escape_with_unknown_regexp_flags() {
         let test = TestProgram::for_rule_without_prelude(NoUselessEscape);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_escape/test_detects_useless_regex_escape_with_unknown_regexp_flags.ds",
             r#"
 const flags = "u";
@@ -834,7 +830,7 @@ const re = RegExp("\a", flags);
     #[test]
     fn test_allows_valid_regex_escape_in_regexp_constructor() {
         let test = TestProgram::for_rule_without_prelude(NoUselessEscape);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_escape/test_allows_valid_regex_escape_in_regexp_constructor.ds",
             r#"
 const re = RegExp("\\.");
@@ -848,7 +844,7 @@ const re = RegExp("\\.");
         let test = TestProgram::for_rule_without_prelude(NoUselessEscape).with_options(|options| {
             options.correctness.no_useless_escape_allow_regex_characters = vec!["-".to_string()];
         });
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_useless_escape/test_allows_configured_regex_escape_character.ds",
             r#"
 const pattern = /[\-]/

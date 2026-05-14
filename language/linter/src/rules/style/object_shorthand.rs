@@ -1,10 +1,10 @@
 use crate::LintMeta;
-use destack_ast::{self as ast, Declaration, FunctionForm, FunctionRole, Key, Name};
+use destack_dir::{self as dir, Declaration, FunctionForm, FunctionRole, Key, Name};
 use destack_workspace::{LintSeverity, ObjectShorthandMode};
 use regex::Regex;
 
 use crate::rules::common::{expression_path_segments, span_has_comment};
-use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer object shorthand form.
@@ -14,7 +14,7 @@ declare_lint! {
         id = "object-shorthand",
         code = "LY027",
         category = Style,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -32,7 +32,7 @@ impl LintRule for ObjectShorthand {
     }
 
     /// Check object literal properties for shorthand style.
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let methods_ignore_pattern = ctx
             .options
@@ -42,18 +42,19 @@ impl LintRule for ObjectShorthand {
             .and_then(|pattern| Regex::new(pattern).ok());
 
         let object_expression_ids: Vec<_> = ctx
-            .tree
-            .iter_nodes::<ast::Expression>()
+            .dir
+            .tree()
+            .iter_nodes::<dir::Expression>()
             .filter(|expression_id| {
                 matches!(
-                    ctx.tree.get(*expression_id),
-                    ast::Expression::ObjectExpression { .. }
+                    ctx.dir.get(*expression_id),
+                    dir::Expression::ObjectExpression { .. }
                 )
             })
             .collect();
 
         for expression_id in object_expression_ids {
-            let ast::Expression::ObjectExpression { properties, .. } = ctx.tree.get(expression_id)
+            let dir::Expression::ObjectExpression { properties, .. } = ctx.dir.get(expression_id)
             else {
                 continue;
             };
@@ -82,10 +83,10 @@ enum PropertyClassification {
 
 /// Check one object expression against the configured shorthand mode.
 fn check_object_expression(
-    ctx: &mut LintAstContext<'_>,
+    ctx: &mut LintModuleContext<'_>,
     meta: &LintMeta,
-    expression_id: ast::LocalNodeId<ast::Expression>,
-    properties: &[ast::LocalNodeId<ast::Property>],
+    expression_id: dir::LocalNodeId<dir::Expression>,
+    properties: &[dir::LocalNodeId<dir::Property>],
     methods_ignore_pattern: Option<&Regex>,
 ) {
     match ctx.options.style.object_shorthand_mode {
@@ -152,9 +153,9 @@ fn check_object_expression(
 
 /// Report one longform property or method that should be shorthand.
 fn report_longform_property_if_needed(
-    ctx: &mut LintAstContext<'_>,
+    ctx: &mut LintModuleContext<'_>,
     meta: &LintMeta,
-    property_id: ast::LocalNodeId<ast::Property>,
+    property_id: dir::LocalNodeId<dir::Property>,
     include_methods: bool,
     include_properties: bool,
     methods_ignore_pattern: Option<&Regex>,
@@ -165,7 +166,7 @@ fn report_longform_property_if_needed(
             return;
         }
 
-        let property_span = ctx.tree.get_span(property_id);
+        let property_span = ctx.dir.get_span(property_id);
         let mut diagnostic = LintReport::new(
             OBJECT_SHORTHAND.id,
             OBJECT_SHORTHAND.code,
@@ -176,7 +177,7 @@ fn report_longform_property_if_needed(
         )
         .label("use shorthand `{ x }` instead of `{ x: x }`");
 
-        if ctx.compute_fixes && !span_has_comment(ctx.tree, property_span) {
+        if ctx.compute_fixes && !span_has_comment(ctx.dir.tree(), property_span) {
             let edits = ctx
                 .edit_builder()
                 .replace(property_span, property_name.clone())
@@ -197,7 +198,7 @@ fn report_longform_property_if_needed(
             return;
         }
 
-        let property_span = ctx.tree.get_span(property_id);
+        let property_span = ctx.dir.get_span(property_id);
         ctx.report(
             LintReport::new(
                 OBJECT_SHORTHAND.id,
@@ -214,9 +215,9 @@ fn report_longform_property_if_needed(
 
 /// Report one shorthand property or method that should be longform.
 fn report_shorthand_property_if_needed(
-    ctx: &mut LintAstContext<'_>,
+    ctx: &mut LintModuleContext<'_>,
     meta: &LintMeta,
-    property_id: ast::LocalNodeId<ast::Property>,
+    property_id: dir::LocalNodeId<dir::Property>,
 ) {
     let Some(property_name) = shorthand_name(ctx, property_id) else {
         return;
@@ -227,7 +228,7 @@ fn report_shorthand_property_if_needed(
         return;
     }
 
-    let property_span = ctx.tree.get_span(property_id);
+    let property_span = ctx.dir.get_span(property_id);
     let mut diagnostic = LintReport::new(
         OBJECT_SHORTHAND.id,
         OBJECT_SHORTHAND.code,
@@ -238,9 +239,9 @@ fn report_shorthand_property_if_needed(
     )
     .label("use longform property form");
 
-    if matches!(ctx.tree.get(property_id), ast::Property::Field { .. })
+    if matches!(ctx.dir.get(property_id), dir::Property::Field { .. })
         && ctx.compute_fixes
-        && !span_has_comment(ctx.tree, property_span)
+        && !span_has_comment(ctx.dir.tree(), property_span)
     {
         let replacement = format!("{property_name}: {property_name}");
         let edits = ctx
@@ -256,16 +257,16 @@ fn report_shorthand_property_if_needed(
 
 /// Report one mixed shorthand object literal.
 fn report_object_mix(
-    ctx: &mut LintAstContext<'_>,
+    ctx: &mut LintModuleContext<'_>,
     meta: &LintMeta,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) {
     let severity = ctx.get_effective_severity(meta, expression_id);
     if !severity.is_enabled() {
         return;
     }
 
-    let span = ctx.tree.get_span(expression_id);
+    let span = ctx.dir.get_span(expression_id);
     ctx.report(
         LintReport::new(
             OBJECT_SHORTHAND.id,
@@ -281,16 +282,16 @@ fn report_object_mix(
 
 /// Report one object literal where every eligible property should be shorthand.
 fn report_object_all_shorthand(
-    ctx: &mut LintAstContext<'_>,
+    ctx: &mut LintModuleContext<'_>,
     meta: &LintMeta,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) {
     let severity = ctx.get_effective_severity(meta, expression_id);
     if !severity.is_enabled() {
         return;
     }
 
-    let span = ctx.tree.get_span(expression_id);
+    let span = ctx.dir.get_span(expression_id);
     ctx.report(
         LintReport::new(
             OBJECT_SHORTHAND.id,
@@ -306,8 +307,8 @@ fn report_object_all_shorthand(
 
 /// Return true when the object mixes shorthand and longform members.
 fn object_expression_has_mixed_shorthand(
-    ctx: &LintAstContext<'_>,
-    properties: &[ast::LocalNodeId<ast::Property>],
+    ctx: &LintModuleContext<'_>,
+    properties: &[dir::LocalNodeId<dir::Property>],
     methods_ignore_pattern: Option<&Regex>,
     require_all_redundant: bool,
 ) -> bool {
@@ -331,8 +332,8 @@ fn object_expression_has_mixed_shorthand(
 
 /// Return true when every shorthand-capable property is longform and reducible.
 fn object_expression_needs_all_shorthand(
-    ctx: &LintAstContext<'_>,
-    properties: &[ast::LocalNodeId<ast::Property>],
+    ctx: &LintModuleContext<'_>,
+    properties: &[dir::LocalNodeId<dir::Property>],
     methods_ignore_pattern: Option<&Regex>,
 ) -> bool {
     let mut saw_candidate = false;
@@ -350,8 +351,8 @@ fn object_expression_needs_all_shorthand(
 
 /// Classify one property for object-level shorthand policy checks.
 fn classify_property(
-    ctx: &LintAstContext<'_>,
-    property_id: ast::LocalNodeId<ast::Property>,
+    ctx: &LintModuleContext<'_>,
+    property_id: dir::LocalNodeId<dir::Property>,
     methods_ignore_pattern: Option<&Regex>,
 ) -> PropertyClassification {
     if shorthand_name(ctx, property_id).is_some() {
@@ -369,26 +370,26 @@ fn classify_property(
 
 /// Return one shorthand property or method name.
 fn shorthand_name(
-    ctx: &LintAstContext<'_>,
-    property_id: ast::LocalNodeId<ast::Property>,
+    ctx: &LintModuleContext<'_>,
+    property_id: dir::LocalNodeId<dir::Property>,
 ) -> Option<String> {
-    let property = ctx.tree.get(property_id);
+    let property = ctx.dir.get(property_id);
 
     match property {
-        ast::Property::Field {
+        dir::Property::Field {
             key,
             value,
             is_shorthand,
         } => {
             let property_name = property_key_shorthand_name(ctx, key)?;
-            let path_segments = expression_path_segments(ctx.tree, *value)?;
-            if path_segments.len() != 1 || ctx.strings.get(path_segments[0]) != &property_name {
+            let path_segments = expression_path_segments(ctx.dir.tree(), *value)?;
+            if path_segments.len() != 1 || ctx.strings.get(path_segments[0]) != property_name {
                 return None;
             }
 
             is_shorthand.then_some(property_name)
         }
-        ast::Property::Method {
+        dir::Property::Method {
             key: Some(key),
             signature,
             ..
@@ -405,11 +406,11 @@ fn shorthand_name(
 
 /// Return one longform property name when it can be reduced to shorthand.
 fn redundant_property_name(
-    ctx: &LintAstContext<'_>,
-    property_id: ast::LocalNodeId<ast::Property>,
+    ctx: &LintModuleContext<'_>,
+    property_id: dir::LocalNodeId<dir::Property>,
 ) -> Option<String> {
-    let property = ctx.tree.get(property_id);
-    let ast::Property::Field {
+    let property = ctx.dir.get(property_id);
+    let dir::Property::Field {
         key,
         value,
         is_shorthand,
@@ -419,7 +420,7 @@ fn redundant_property_name(
     };
 
     let property_name = property_key_redundant_name(ctx, key)?;
-    let path_segments = expression_path_segments(ctx.tree, *value)?;
+    let path_segments = expression_path_segments(ctx.dir.tree(), *value)?;
     if path_segments.len() != 1 {
         return None;
     }
@@ -427,17 +428,17 @@ fn redundant_property_name(
         return None;
     }
 
-    (ctx.strings.get(path_segments[0]) == &property_name).then_some(property_name)
+    (ctx.strings.get(path_segments[0]) == property_name).then_some(property_name)
 }
 
 /// Return one longform method name when it can be reduced to shorthand.
 fn redundant_method_name(
-    ctx: &LintAstContext<'_>,
-    property_id: ast::LocalNodeId<ast::Property>,
+    ctx: &LintModuleContext<'_>,
+    property_id: dir::LocalNodeId<dir::Property>,
     methods_ignore_pattern: Option<&Regex>,
 ) -> Option<String> {
-    let property = ctx.tree.get(property_id);
-    let ast::Property::Field {
+    let property = ctx.dir.get(property_id);
+    let dir::Property::Field {
         key,
         value,
         is_shorthand,
@@ -457,10 +458,10 @@ fn redundant_method_name(
         return None;
     }
 
-    let ast::Expression::Declaration(declaration) = ctx.tree.get(*value) else {
+    let dir::Expression::Declaration(declaration) = ctx.dir.get(*value) else {
         return None;
     };
-    let Declaration::Function(declaration) = ctx.tree.get(*declaration) else {
+    let Declaration::Function(declaration) = ctx.dir.get(*declaration) else {
         return None;
     };
     if declaration.name.is_some() {
@@ -479,7 +480,7 @@ fn redundant_method_name(
         && declaration.signature.form == FunctionForm::Lambda
         && declaration
             .body
-            .is_some_and(|body_id| !matches!(ctx.tree.get(body_id), ast::Expression::Block(..)))
+            .is_some_and(|body_id| !matches!(ctx.dir.get(body_id), dir::Expression::Block(..)))
     {
         return None;
     }
@@ -488,7 +489,7 @@ fn redundant_method_name(
 }
 
 /// Return one key name string for shorthand-compatible keys.
-fn property_key_shorthand_name(ctx: &LintAstContext<'_>, key: &Key) -> Option<String> {
+fn property_key_shorthand_name(ctx: &LintModuleContext<'_>, key: &Key) -> Option<String> {
     match key {
         Key::Name(Name::Identifier(name)) => Some(ctx.strings.get(*name).to_string()),
         _ => None,
@@ -496,7 +497,7 @@ fn property_key_shorthand_name(ctx: &LintAstContext<'_>, key: &Key) -> Option<St
 }
 
 /// Return one key name string for reducible longform keys.
-fn property_key_redundant_name(ctx: &LintAstContext<'_>, key: &Key) -> Option<String> {
+fn property_key_redundant_name(ctx: &LintModuleContext<'_>, key: &Key) -> Option<String> {
     match key {
         Key::Name(Name::Identifier(name)) => Some(ctx.strings.get(*name).to_string()),
         Key::Name(Name::String(name)) if !ctx.options.style.object_shorthand_avoid_quotes => {
@@ -544,7 +545,7 @@ mod tests {
     #[test]
     fn test_detects_redundant_property() {
         let test = TestProgram::for_rule_without_prelude(ObjectShorthand);
-        let result = test.lint_ast(
+        let result = test.lint(
             "object_shorthand/test_detects_redundant_property.ds",
             r#"
 const x = 1
@@ -558,7 +559,7 @@ const obj = { x: x }
     #[test]
     fn test_allows_shorthand() {
         let test = TestProgram::for_rule_without_prelude(ObjectShorthand);
-        let result = test.lint_ast(
+        let result = test.lint(
             "object_shorthand/test_allows_shorthand.ds",
             r#"
 const x = 1
@@ -572,7 +573,7 @@ const obj = { x }
     #[test]
     fn test_allows_different_names() {
         let test = TestProgram::for_rule_without_prelude(ObjectShorthand);
-        let result = test.lint_ast(
+        let result = test.lint(
             "object_shorthand/test_allows_different_names.ds",
             r#"
 const x = 1
@@ -586,7 +587,7 @@ const obj = { y: x }
     #[test]
     fn test_fix_shorthand() {
         let test = TestProgram::for_rule_without_prelude(ObjectShorthand);
-        let result = test.lint_ast(
+        let result = test.lint(
             "object_shorthand/test_fix_shorthand.ds",
             r#"
 const x = 1
@@ -607,7 +608,7 @@ const obj = { x };
     #[test]
     fn test_no_fix_when_property_contains_comment_trivia() {
         let test = TestProgram::for_rule_without_prelude(ObjectShorthand);
-        let result = test.lint_ast(
+        let result = test.lint(
             "object_shorthand/test_no_fix_when_property_contains_comment_trivia.ds",
             r#"
 const x = 1
@@ -627,7 +628,7 @@ const obj = {
         let test = TestProgram::for_rule_without_prelude(ObjectShorthand).with_options(|options| {
             options.style.object_shorthand_avoid_quotes = true;
         });
-        let result = test.lint_ast(
+        let result = test.lint(
             "object_shorthand/test_allows_quoted_key_when_avoid_quotes_is_enabled.ds",
             r#"
 const x = 1
@@ -641,7 +642,7 @@ const obj = { "x": x }
     #[test]
     fn test_flags_longform_method() {
         let test = TestProgram::for_rule_without_prelude(ObjectShorthand);
-        let result = test.lint_ast(
+        let result = test.lint(
             "object_shorthand/test_flags_longform_method.ds",
             r#"
 const obj = {
@@ -660,7 +661,7 @@ const obj = {
         let test = TestProgram::for_rule_without_prelude(ObjectShorthand).with_options(|options| {
             options.style.object_shorthand_ignore_constructors = true;
         });
-        let result = test.lint_ast(
+        let result = test.lint(
             "object_shorthand/test_allows_constructor_method_when_ignored.ds",
             r#"
 const obj = {
@@ -679,7 +680,7 @@ const obj = {
         let test = TestProgram::for_rule_without_prelude(ObjectShorthand).with_options(|options| {
             options.style.object_shorthand_mode = ObjectShorthandMode::Never;
         });
-        let result = test.lint_ast(
+        let result = test.lint(
             "object_shorthand/test_flags_shorthand_in_never_mode.ds",
             r#"
 const x = 1
@@ -702,7 +703,7 @@ const obj = { x: x };
         let test = TestProgram::for_rule_without_prelude(ObjectShorthand).with_options(|options| {
             options.style.object_shorthand_mode = ObjectShorthandMode::Consistent;
         });
-        let result = test.lint_ast(
+        let result = test.lint(
             "object_shorthand/test_flags_mixed_object_in_consistent_mode.ds",
             r#"
 const x = 1
@@ -719,7 +720,7 @@ const obj = { x, y: y }
         let test = TestProgram::for_rule_without_prelude(ObjectShorthand).with_options(|options| {
             options.style.object_shorthand_mode = ObjectShorthandMode::ConsistentAsNeeded;
         });
-        let result = test.lint_ast(
+        let result = test.lint(
             "object_shorthand/test_flags_all_longform_object_in_consistent_as_needed_mode.ds",
             r#"
 const x = 1

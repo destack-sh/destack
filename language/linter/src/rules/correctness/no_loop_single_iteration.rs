@@ -1,7 +1,7 @@
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintFix, LintMeta, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow loops that execute at most once.
@@ -29,7 +29,7 @@ declare_lint! {
         id = "no-loop-single-iteration",
         code = "LC022",
         category = Correctness,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -46,20 +46,20 @@ impl LintRule for NoLoopSingleIteration {
         NoLoopSingleIteration::meta()
     }
 
-    /// Check module AST nodes for loops that always exit after one iteration.
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    /// Check module source nodes for loops that always exit after one iteration.
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // inspect candidate expressions
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expression = ctx.tree.get(node_id);
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let expression = ctx.dir.get(node_id);
 
             // check various loop types
             let body_id = match expression {
-                ast::Expression::For { body, .. } => *body,
-                ast::Expression::ForEach { body, .. } => *body,
-                ast::Expression::While { body, .. } => *body,
-                ast::Expression::Loop { body, .. } => *body,
+                dir::Expression::For { body, .. } => *body,
+                dir::Expression::ForEach { body, .. } => *body,
+                dir::Expression::While { body, .. } => *body,
+                dir::Expression::Loop { body, .. } => *body,
                 _ => continue,
             };
 
@@ -70,10 +70,10 @@ impl LintRule for NoLoopSingleIteration {
                     continue;
                 }
                 let loop_type = match expression {
-                    ast::Expression::For { .. } => "for",
-                    ast::Expression::ForEach { .. } => "for-each",
-                    ast::Expression::While { .. } => "while",
-                    ast::Expression::Loop { .. } => "loop",
+                    dir::Expression::For { .. } => "for",
+                    dir::Expression::ForEach { .. } => "for-each",
+                    dir::Expression::While { .. } => "while",
+                    dir::Expression::Loop { .. } => "loop",
                     _ => "loop",
                 };
 
@@ -84,7 +84,7 @@ impl LintRule for NoLoopSingleIteration {
                     NO_LOOP_SINGLE_ITERATION.category,
                     severity,
                     format!("{loop_type} loop executes at most once"),
-                    ctx.tree.get_span(node_id),
+                    ctx.dir.get_span(node_id),
                 )
                 .label("body unconditionally exits on first iteration");
 
@@ -103,17 +103,17 @@ impl LintRule for NoLoopSingleIteration {
 
 /// Build one unsafe fix for trivial `loop` forms that immediately return or throw.
 fn no_loop_single_iteration_fix(
-    ctx: &LintAstContext<'_>,
-    loop_expression_id: ast::LocalNodeId<ast::Expression>,
-    loop_expression: &ast::Expression,
+    ctx: &LintModuleContext<'_>,
+    loop_expression_id: dir::LocalNodeId<dir::Expression>,
+    loop_expression: &dir::Expression,
 ) -> Option<LintFix> {
     // keep bare loop forms only: other loop kinds may carry setup side effects
-    let ast::Expression::Loop { body, .. } = loop_expression else {
+    let dir::Expression::Loop { body, .. } = loop_expression else {
         return None;
     };
 
     // resolve block
-    let block = ctx.tree.get(*body);
+    let block = ctx.dir.get(*body);
     if block.len() != 1 {
         return None;
     }
@@ -123,14 +123,14 @@ fn no_loop_single_iteration_fix(
     let single_expression = unwrap_statement_expression(ctx, single_expression_id);
     if !matches!(
         single_expression,
-        ast::Expression::Return { .. } | ast::Expression::Throw { .. }
+        dir::Expression::Return { .. } | dir::Expression::Throw { .. }
     ) {
         return None;
     }
 
     // build replacement text
     let replacement_text = ctx
-        .get_span_text(ctx.tree.get_span(single_expression_id))
+        .get_span_text(ctx.dir.get_span(single_expression_id))
         .to_string();
     if replacement_text.trim().is_empty() {
         return None;
@@ -139,15 +139,15 @@ fn no_loop_single_iteration_fix(
     // replace the loop with the single control flow statement
     let edits = ctx
         .edit_builder()
-        .replace(ctx.tree.get_span(loop_expression_id), replacement_text)
+        .replace(ctx.dir.get_span(loop_expression_id), replacement_text)
         .into_edits();
     Some(LintFix::r#unsafe("Replace one-shot loop with direct control flow").with_edits(edits))
 }
 
 /// Check if a block unconditionally exits (return, break, throw, continue).
 fn body_unconditionally_exits(
-    ctx: &LintAstContext<'_>,
-    body_id: ast::LocalNodeId<ast::Block>,
+    ctx: &LintModuleContext<'_>,
+    body_id: dir::LocalNodeId<dir::Block>,
 ) -> bool {
     // compute flow outcomes for the loop body
     let flow = block_flow(ctx, body_id);
@@ -190,8 +190,8 @@ const fn flow_continue_iteration() -> LoopFlow {
 }
 
 /// Evaluate block flow outcomes.
-fn block_flow(ctx: &LintAstContext<'_>, body_id: ast::LocalNodeId<ast::Block>) -> LoopFlow {
-    let block = ctx.tree.get(body_id);
+fn block_flow(ctx: &LintModuleContext<'_>, body_id: dir::LocalNodeId<dir::Block>) -> LoopFlow {
+    let block = ctx.dir.get(body_id);
     let mut reaches_next_statement = true;
     let mut reaches_next_iteration = false;
 
@@ -215,26 +215,26 @@ fn block_flow(ctx: &LintAstContext<'_>, body_id: ast::LocalNodeId<ast::Block>) -
 
 /// Evaluate flow outcomes for one expression.
 fn expression_flow(
-    ctx: &LintAstContext<'_>,
-    expr_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    expr_id: dir::LocalNodeId<dir::Expression>,
 ) -> LoopFlow {
-    let expr = ctx.tree.get(expr_id);
+    let expr = ctx.dir.get(expr_id);
 
     // branch by expression kind to model control flow
     match expr {
         // direct exit statements
-        ast::Expression::Return { .. } => flow_exit_iteration(),
-        ast::Expression::Break { .. } => flow_exit_iteration(),
-        ast::Expression::Throw { .. } => flow_exit_iteration(),
+        dir::Expression::Return { .. } => flow_exit_iteration(),
+        dir::Expression::Break { .. } => flow_exit_iteration(),
+        dir::Expression::Throw { .. } => flow_exit_iteration(),
 
         // continue reaches the loop's next iteration
-        ast::Expression::Continue { .. } => flow_continue_iteration(),
+        dir::Expression::Continue { .. } => flow_continue_iteration(),
 
         // block: evaluate statement order and flow
-        ast::Expression::Block(block_id) => block_flow(ctx, *block_id),
+        dir::Expression::Block(block_id) => block_flow(ctx, *block_id),
 
         // if/else: merge both branch outcomes
-        ast::Expression::If {
+        dir::Expression::If {
             then_expression,
             else_expression,
             ..
@@ -253,7 +253,7 @@ fn expression_flow(
         }
 
         // complex control flow: conservatively allow fallthrough
-        ast::Expression::Match { .. } | ast::Expression::Try { .. } => flow_fallthrough(),
+        dir::Expression::Match { .. } | dir::Expression::Try { .. } => flow_fallthrough(),
 
         // other expressions may fall through
         _ => flow_fallthrough(),
@@ -262,10 +262,10 @@ fn expression_flow(
 
 /// Unwrap one statement wrapper and return the underlying expression.
 fn unwrap_statement_expression<'a>(
-    ctx: &'a LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
-) -> &'a ast::Expression {
-    ctx.tree.get(expression_id)
+    ctx: &'a LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> &'a dir::Expression {
+    ctx.dir.get(expression_id)
 }
 
 #[cfg(test)]
@@ -276,7 +276,7 @@ mod tests {
     #[test]
     fn test_detects_for_with_unconditional_return() {
         let test = TestProgram::for_rule_without_prelude(NoLoopSingleIteration);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_loop_single_iteration/test_detects_for_with_unconditional_return.ds",
             r#"
 for (let i = 0; i < 10; i++) {
@@ -290,7 +290,7 @@ for (let i = 0; i < 10; i++) {
     #[test]
     fn test_detects_foreach_with_unconditional_return() {
         let test = TestProgram::for_rule_without_prelude(NoLoopSingleIteration);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_loop_single_iteration/test_detects_foreach_with_unconditional_return.ds",
             r#"
 for (item in items) {
@@ -304,7 +304,7 @@ for (item in items) {
     #[test]
     fn test_detects_while_with_unconditional_break() {
         let test = TestProgram::for_rule_without_prelude(NoLoopSingleIteration);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_loop_single_iteration/test_detects_while_with_unconditional_break.ds",
             r#"
 while (true) {
@@ -318,7 +318,7 @@ while (true) {
     #[test]
     fn test_detects_loop_with_unconditional_throw() {
         let test = TestProgram::for_rule_without_prelude(NoLoopSingleIteration);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_loop_single_iteration/test_detects_loop_with_unconditional_throw.ds",
             r#"
 loop {
@@ -332,7 +332,7 @@ loop {
     #[test]
     fn test_allows_conditional_return() {
         let test = TestProgram::for_rule_without_prelude(NoLoopSingleIteration);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_loop_single_iteration/test_allows_conditional_return.ds",
             r#"
 for (item in items) {
@@ -349,7 +349,7 @@ for (item in items) {
     #[test]
     fn test_allows_conditional_break() {
         let test = TestProgram::for_rule_without_prelude(NoLoopSingleIteration);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_loop_single_iteration/test_allows_conditional_break.ds",
             r#"
 while (true) {
@@ -366,7 +366,7 @@ while (true) {
     #[test]
     fn test_allows_normal_loop() {
         let test = TestProgram::for_rule_without_prelude(NoLoopSingleIteration);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_loop_single_iteration/test_allows_normal_loop.ds",
             r#"
 for (item in items) {
@@ -381,7 +381,7 @@ for (item in items) {
     #[test]
     fn test_allows_empty_loop() {
         let test = TestProgram::for_rule_without_prelude(NoLoopSingleIteration);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_loop_single_iteration/test_allows_empty_loop.ds",
             r#"
 while (getNext()) {
@@ -396,7 +396,7 @@ while (getNext()) {
     #[test]
     fn test_fix_rewrites_trivial_loop_return() {
         let test = TestProgram::for_rule_without_prelude(NoLoopSingleIteration);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_loop_single_iteration/test_fix_rewrites_trivial_loop_return.ds",
             r#"
 loop {
@@ -416,7 +416,7 @@ return value;
     #[test]
     fn test_no_fix_for_for_loop_with_return() {
         let test = TestProgram::for_rule_without_prelude(NoLoopSingleIteration);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_loop_single_iteration/test_no_fix_for_for_loop_with_return.ds",
             r#"
 for (let i = 0; i < 1; i++) {
@@ -432,7 +432,7 @@ for (let i = 0; i < 1; i++) {
     #[test]
     fn test_allows_loop_with_unconditional_continue() {
         let test = TestProgram::for_rule_without_prelude(NoLoopSingleIteration);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_loop_single_iteration/test_allows_loop_with_unconditional_continue.ds",
             r#"
 while (ready) {
@@ -447,7 +447,7 @@ while (ready) {
     #[test]
     fn test_allows_for_loop_with_unconditional_continue() {
         let test = TestProgram::for_rule_without_prelude(NoLoopSingleIteration);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_loop_single_iteration/test_allows_for_loop_with_unconditional_continue.ds",
             r#"
 for (let i = 0; i < 10; i++) {
@@ -462,7 +462,7 @@ for (let i = 0; i < 10; i++) {
     #[test]
     fn test_allows_continue_branch_with_return_fallback() {
         let test = TestProgram::for_rule_without_prelude(NoLoopSingleIteration);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_loop_single_iteration/test_allows_continue_branch_with_return_fallback.ds",
             r#"
 while (true) {
@@ -480,7 +480,7 @@ while (true) {
     #[test]
     fn test_detects_if_else_all_paths_exit() {
         let test = TestProgram::for_rule_without_prelude(NoLoopSingleIteration);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_loop_single_iteration/test_detects_if_else_all_paths_exit.ds",
             r#"
 for (item in items) {

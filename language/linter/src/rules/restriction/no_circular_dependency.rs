@@ -2,7 +2,7 @@ use crate::LintMeta;
 use std::collections::{HashMap, HashSet};
 
 use crate::rules::common::{find_cycle_path, strongly_connected_components};
-use crate::{LintPackageDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintPackageContext, LintReport, LintRule, declare_lint};
 use destack_artifact::{DirExported, DirImported};
 use destack_source::{FileType, ModuleId, Span};
 
@@ -31,7 +31,7 @@ impl LintRule for NoCircularDependency {
         NoCircularDependency::meta()
     }
 
-    fn check_package_dir(&self, ctx: &mut LintPackageDirContext) {
+    fn check_package(&self, ctx: &mut LintPackageContext) {
         // resolve lint metadata
         let meta = self.meta();
         let severity = ctx.get_severity(meta);
@@ -97,7 +97,7 @@ fn build_cycle_diagnostic(
     cycle_path_note: Option<&str>,
     severity: destack_workspace::LintSeverity,
     rule_id: &str,
-    ctx: &LintPackageDirContext,
+    ctx: &LintPackageContext,
 ) -> LintReport {
     let module = ctx
         .repository_module(module_id)
@@ -123,7 +123,7 @@ fn build_cycle_diagnostic(
 }
 
 /// Return eligible module ids for cycle checks.
-fn collect_eligible_modules(ctx: &LintPackageDirContext) -> HashSet<ModuleId> {
+fn collect_eligible_modules(ctx: &LintPackageContext) -> HashSet<ModuleId> {
     let mut modules = HashSet::new();
 
     for module_id in ctx.package_module_ids() {
@@ -145,7 +145,7 @@ fn collect_eligible_modules(ctx: &LintPackageDirContext) -> HashSet<ModuleId> {
 
 /// Collect display names for eligible modules.
 fn collect_module_display_names(
-    ctx: &LintPackageDirContext,
+    ctx: &LintPackageContext,
     module_ids: &HashSet<ModuleId>,
 ) -> HashMap<ModuleId, String> {
     let mut names = HashMap::new();
@@ -192,7 +192,7 @@ fn format_cycle_path_note(
 }
 
 /// Return true when the file should be skipped for declaration filtering.
-fn is_declaration_file(file_type: FileType, ctx: &LintPackageDirContext) -> bool {
+fn is_declaration_file(file_type: FileType, ctx: &LintPackageContext) -> bool {
     if ctx.options().include_declaration_files {
         return false;
     }
@@ -205,7 +205,7 @@ fn is_declaration_file(file_type: FileType, ctx: &LintPackageDirContext) -> bool
 
 /// Build a dependency adjacency filtered to eligible modules.
 fn build_adjacency(
-    ctx: &LintPackageDirContext,
+    ctx: &LintPackageContext,
     eligible_modules: &HashSet<ModuleId>,
 ) -> HashMap<ModuleId, Vec<ModuleId>> {
     let mut adjacency = HashMap::new();

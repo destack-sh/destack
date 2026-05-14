@@ -1,9 +1,9 @@
 use crate::LintMeta;
-use destack_ast::{self as ast, Expression};
+use destack_dir::{self as dir, Expression};
 use destack_source::FileType;
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintReport, LintRule, declare_lint};
+use crate::{LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow barrel files that re-export everything.
@@ -24,7 +24,7 @@ declare_lint! {
         id = "no-barrel-file",
         code = "LP005",
         category = Performance,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = No,
@@ -40,19 +40,19 @@ impl LintRule for NoBarrelFile {
         NoBarrelFile::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         if module_is_declaration_file(ctx) {
             return;
         }
 
         let meta = self.meta();
-        let mut first_value_reexport_id: Option<ast::LocalNodeId<ast::Expression>> = None;
+        let mut first_value_reexport_id: Option<dir::LocalNodeId<dir::Expression>> = None;
         let mut has_non_reexport_code = false;
 
         // classify top-level expressions as value re-exports or regular module code
-        for &node_id in ctx.roots {
+        for node_id in ctx.roots.iter().copied() {
             let expression_id = node_id;
-            let expression = ctx.tree.get(expression_id);
+            let expression = ctx.dir.get(expression_id);
             match expression {
                 Expression::Export {
                     space,
@@ -106,7 +106,7 @@ impl LintRule for NoBarrelFile {
                     NO_BARREL_FILE.category,
                     severity,
                     "barrel file re-exporting other modules hurts tree-shaking",
-                    ctx.tree.get_span(node_id),
+                    ctx.dir.get_span(node_id),
                 )
                 .label("import directly from source modules instead"),
             );
@@ -115,7 +115,7 @@ impl LintRule for NoBarrelFile {
 }
 
 /// Return true when one module path points to a declaration file.
-fn module_is_declaration_file(ctx: &LintAstContext<'_>) -> bool {
+fn module_is_declaration_file(ctx: &LintModuleContext<'_>) -> bool {
     matches!(
         ctx.file.ty,
         FileType::DestackDeclaration | FileType::TypeScriptDeclaration
@@ -124,11 +124,11 @@ fn module_is_declaration_file(ctx: &LintAstContext<'_>) -> bool {
 
 /// Return true when one export-from clause re-exports runtime values.
 fn export_is_value_reexport(
-    ctx: &LintAstContext<'_>,
-    space: ast::DependencySpace,
-    items: &[ast::LocalNodeId<ast::DependencyItem>],
+    ctx: &LintModuleContext<'_>,
+    space: dir::DependencySpace,
+    items: &[dir::LocalNodeId<dir::DependencyItem>],
 ) -> bool {
-    if space == ast::DependencySpace::Type {
+    if space == dir::DependencySpace::Type {
         return false;
     }
 
@@ -137,10 +137,10 @@ fn export_is_value_reexport(
     }
 
     items.iter().any(|item_id| {
-        let item = ctx.tree.get(*item_id);
+        let item = ctx.dir.get(*item_id);
         match item {
-            ast::DependencyItem::Item { space, .. } => *space != Some(ast::DependencySpace::Type),
-            ast::DependencyItem::Error => true,
+            dir::DependencyItem::Item { space, .. } => *space != Some(dir::DependencySpace::Type),
+            dir::DependencyItem::Error => true,
         }
     })
 }
@@ -153,7 +153,7 @@ mod tests {
     #[test]
     fn test_detects_barrel_file_with_star_exports() {
         let test = TestProgram::for_rule_without_prelude(NoBarrelFile);
-        let result = test.lint_ast(
+        let result = test.lint(
             "index.ds",
             r#"
 export * from "./foo"
@@ -166,7 +166,7 @@ export * from "./bar"
     #[test]
     fn test_detects_barrel_file_with_named_exports() {
         let test = TestProgram::for_rule_without_prelude(NoBarrelFile);
-        let result = test.lint_ast(
+        let result = test.lint(
             "index.ds",
             r#"
 export { foo } from "./foo"
@@ -179,7 +179,7 @@ export { bar, baz } from "./bar"
     #[test]
     fn test_detects_mixed_barrel_file() {
         let test = TestProgram::for_rule_without_prelude(NoBarrelFile);
-        let result = test.lint_ast(
+        let result = test.lint(
             "index.ds",
             r#"
 export * from "./foo"
@@ -192,7 +192,7 @@ export { bar } from "./bar"
     #[test]
     fn test_flags_single_reexport() {
         let test = TestProgram::for_rule_without_prelude(NoBarrelFile);
-        let result = test.lint_ast(
+        let result = test.lint(
             "index.ds",
             r#"
 export * from "./foo"
@@ -204,7 +204,7 @@ export * from "./foo"
     #[test]
     fn test_allows_module_with_real_code() {
         let test = TestProgram::for_rule_without_prelude(NoBarrelFile);
-        let result = test.lint_ast(
+        let result = test.lint(
             "module.ds",
             r#"
 export * from "./utils"
@@ -220,7 +220,7 @@ export function main() {
     #[test]
     fn test_allows_local_exports() {
         let test = TestProgram::for_rule_without_prelude(NoBarrelFile);
-        let result = test.lint_ast(
+        let result = test.lint(
             "module.ds",
             r#"
 export function foo() {}
@@ -233,7 +233,7 @@ export const bar = 42
     #[test]
     fn test_allows_mixed_local_and_reexport() {
         let test = TestProgram::for_rule_without_prelude(NoBarrelFile);
-        let result = test.lint_ast(
+        let result = test.lint(
             "module.ds",
             r#"
 export { foo } from "./foo"
@@ -246,7 +246,7 @@ export function bar() {}
     #[test]
     fn test_allows_type_only_reexports() {
         let test = TestProgram::for_rule_without_prelude(NoBarrelFile);
-        let result = test.lint_ast(
+        let result = test.lint(
             "index.ds",
             r#"
 export type * from "./foo";
@@ -259,7 +259,7 @@ export type { Bar } from "./bar";
     #[test]
     fn test_allows_declaration_file_reexports() {
         let test = TestProgram::for_rule_without_prelude(NoBarrelFile);
-        let result = test.lint_ast(
+        let result = test.lint(
             "index.d.ts",
             r#"
 export * from "./foo";
@@ -271,7 +271,7 @@ export * from "./foo";
     #[test]
     fn test_detects_mixed_type_and_value_reexport_items() {
         let test = TestProgram::for_rule_without_prelude(NoBarrelFile);
-        let result = test.lint_ast(
+        let result = test.lint(
             "index.ds",
             r#"
 export { foo, type Bar } from "./foo";

@@ -1,10 +1,10 @@
 use std::collections::HashSet;
 
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{regex_pattern_info, regexp_global_qualifier_names};
-use crate::{LintAstContext, LintMeta, LintReport, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 /// The set of accepted JavaScript regular expression flags.
 const VALID_REGEX_FLAGS: [char; 8] = ['d', 'g', 'i', 'm', 's', 'u', 'v', 'y'];
@@ -18,7 +18,7 @@ declare_lint! {
         id = "no-invalid-regexp",
         code = "LC020",
         category = Correctness,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = No,
@@ -34,17 +34,17 @@ impl LintRule for NoInvalidRegexp {
         NoInvalidRegexp::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let regexp_name = ctx.string_id("RegExp");
         let global_qualifier_names = regexp_global_qualifier_names(ctx.strings);
 
         // inspect candidate expressions
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
             // resolve regex literal or constructor pattern info
             let Some(pattern_info) = regex_pattern_info(
                 ctx.strings,
-                ctx.tree,
+                ctx.dir.tree(),
                 node_id,
                 regexp_name,
                 &global_qualifier_names,
@@ -68,7 +68,7 @@ impl LintRule for NoInvalidRegexp {
                         NO_INVALID_REGEXP.category,
                         severity,
                         format!("invalid regular expression flags: {flags_error}"),
-                        ctx.tree.get_span(node_id),
+                        ctx.dir.get_span(node_id),
                     )
                     .label("this regex flag set is invalid"),
                 );
@@ -101,7 +101,7 @@ impl LintRule for NoInvalidRegexp {
                         NO_INVALID_REGEXP.category,
                         severity,
                         format!("invalid regular expression: {message}"),
-                        ctx.tree.get_span(node_id),
+                        ctx.dir.get_span(node_id),
                     )
                     .label("this regex is invalid for all supported flag modes"),
                 );
@@ -126,7 +126,7 @@ impl LintRule for NoInvalidRegexp {
                     NO_INVALID_REGEXP.category,
                     severity,
                     format!("invalid regular expression: {}", parse_error.message),
-                    ctx.tree.get_span(node_id),
+                    ctx.dir.get_span(node_id),
                 )
                 .label("this regex is invalid"),
             );
@@ -160,8 +160,8 @@ fn invalid_regex_flags(flags: &str) -> Option<String> {
 
 /// Return one parse error message if a pattern is invalid for all unknown constructor flag modes.
 fn unknown_flags_pattern_error_message(
-    ctx: &mut LintAstContext<'_>,
-    pattern_id: ast::StringId,
+    ctx: &mut LintModuleContext<'_>,
+    pattern_id: dir::StringId,
 ) -> Option<String> {
     let pattern_has_set_notation = {
         let pattern_text = ctx.strings.get(pattern_id);
@@ -205,7 +205,7 @@ mod tests {
     #[test]
     fn test_detects_invalid_regex_unmatched_paren() {
         let test = TestProgram::for_rule_without_prelude(NoInvalidRegexp);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_invalid_regexp/test_detects_invalid_regex_unmatched_paren.ds",
             r#"
 let re = /(/
@@ -217,7 +217,7 @@ let re = /(/
     #[test]
     fn test_detects_invalid_regex_invalid_group() {
         let test = TestProgram::for_rule_without_prelude(NoInvalidRegexp);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_invalid_regexp/test_detects_invalid_regex_invalid_group.ds",
             r#"
 let re = /(?/
@@ -229,7 +229,7 @@ let re = /(?/
     #[test]
     fn test_detects_invalid_regex_incomplete_escape() {
         let test = TestProgram::for_rule_without_prelude(NoInvalidRegexp);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_invalid_regexp/test_detects_invalid_regex_incomplete_escape.ds",
             r#"
 let re = /\p/
@@ -242,7 +242,7 @@ let re = /\p/
     #[test]
     fn test_allows_valid_regex() {
         let test = TestProgram::for_rule_without_prelude(NoInvalidRegexp);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_invalid_regexp/test_allows_valid_regex.ds",
             r#"
 let re = /^[a-z]+$/
@@ -254,7 +254,7 @@ let re = /^[a-z]+$/
     #[test]
     fn test_allows_complex_valid_regex() {
         let test = TestProgram::for_rule_without_prelude(NoInvalidRegexp);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_invalid_regexp/test_allows_complex_valid_regex.ds",
             r#"
 let re = /(\d{1,3}\.){3}\d{1,3}/
@@ -266,7 +266,7 @@ let re = /(\d{1,3}\.){3}\d{1,3}/
     #[test]
     fn test_detects_invalid_repetition() {
         let test = TestProgram::for_rule_without_prelude(NoInvalidRegexp);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_invalid_regexp/test_detects_invalid_repetition.ds",
             r#"
 let re = /a{3,1}/
@@ -278,7 +278,7 @@ let re = /a{3,1}/
     #[test]
     fn test_detects_invalid_regexp_constructor_pattern() {
         let test = TestProgram::for_rule_without_prelude(NoInvalidRegexp);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_invalid_regexp/test_detects_invalid_regexp_constructor_pattern.ds",
             r#"
 let re = RegExp("(")
@@ -290,7 +290,7 @@ let re = RegExp("(")
     #[test]
     fn test_detects_invalid_regexp_constructor_flags() {
         let test = TestProgram::for_rule_without_prelude(NoInvalidRegexp);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_invalid_regexp/test_detects_invalid_regexp_constructor_flags.ds",
             r#"
 let re = new RegExp("ok", "gg")
@@ -302,7 +302,7 @@ let re = new RegExp("ok", "gg")
     #[test]
     fn test_allows_regexp_constructor_with_unknown_flags_expression() {
         let test = TestProgram::for_rule_without_prelude(NoInvalidRegexp);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_invalid_regexp/test_allows_regexp_constructor_with_unknown_flags_expression.ds",
             r#"
 let flags = "g";
@@ -315,7 +315,7 @@ let re = RegExp("ok", flags)
     #[test]
     fn test_allows_unknown_flags_for_pattern_that_depends_on_runtime_mode() {
         let test = TestProgram::for_rule_without_prelude(NoInvalidRegexp);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_invalid_regexp/test_allows_unknown_flags_for_pattern_that_depends_on_runtime_mode.ds",
             r#"
 let flags = resolveFlags();
@@ -328,7 +328,7 @@ let re = RegExp("{", flags)
     #[test]
     fn test_detects_unknown_flags_when_pattern_invalid_in_all_modes() {
         let test = TestProgram::for_rule_without_prelude(NoInvalidRegexp);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_invalid_regexp/test_detects_unknown_flags_when_pattern_invalid_in_all_modes.ds",
             r#"
 let flags = resolveFlags();

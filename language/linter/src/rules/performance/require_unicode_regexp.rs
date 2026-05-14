@@ -1,11 +1,11 @@
-use destack_ast::{self as ast, Expression, ScalarLiteral};
+use destack_dir::{self as dir, Expression, ScalarLiteral};
 use destack_workspace::{LintSeverity, UnicodeRegexpRequireFlag};
 
 use crate::rules::common::{
     expression_path_segments, expression_unwrap_parenthesized_source_form,
     path_is_regexp_constructor, regex_pattern_info, regexp_global_qualifier_names,
 };
-use crate::{LintAstContext, LintFix, LintMeta, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Require a configured Unicode flag on regular expressions.
@@ -19,7 +19,7 @@ declare_lint! {
         id = "require-unicode-regexp",
         code = "LP018",
         category = Performance,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -35,7 +35,7 @@ impl LintRule for RequireUnicodeRegexp {
         RequireUnicodeRegexp::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let regexp_name = ctx.string_id("RegExp");
         let global_qualifier_names = regexp_global_qualifier_names(ctx.strings);
@@ -43,11 +43,11 @@ impl LintRule for RequireUnicodeRegexp {
         let required_flag_char = required_flag.as_char();
 
         // inspect candidate expressions
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
             // resolve regex literals and static RegExp constructor patterns
             let Some(regex_info) = regex_pattern_info(
                 ctx.strings,
-                ctx.tree,
+                ctx.dir.tree(),
                 node_id,
                 regexp_name,
                 &global_qualifier_names,
@@ -90,7 +90,7 @@ impl LintRule for RequireUnicodeRegexp {
                     REQUIRE_UNICODE_REGEXP.category,
                     severity,
                     message,
-                    ctx.tree.get_span(node_id),
+                    ctx.dir.get_span(node_id),
                 )
                 .label(label);
 
@@ -115,13 +115,13 @@ impl LintRule for RequireUnicodeRegexp {
 
 /// Return true when this is a RegExp constructor with unknown flags.
 fn has_unknown_constructor_flags_argument(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<Expression>,
-    regexp_name: ast::StringId,
-    global_qualifier_names: &[ast::StringId],
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<Expression>,
+    regexp_name: dir::StringId,
+    global_qualifier_names: &[dir::StringId],
 ) -> bool {
-    let expression_id = expression_unwrap_parenthesized_source_form(ctx.tree, expression_id);
-    let expression = ctx.tree.get(expression_id);
+    let expression_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), expression_id);
+    let expression = ctx.dir.get(expression_id);
     let (callee_id, arguments) = match expression {
         Expression::Call {
             left, arguments, ..
@@ -133,7 +133,7 @@ fn has_unknown_constructor_flags_argument(
     };
 
     // require optional structure
-    let Some(path_segments) = expression_path_segments(ctx.tree, callee_id) else {
+    let Some(path_segments) = expression_path_segments(ctx.dir.tree(), callee_id) else {
         return false;
     };
     if !path_is_regexp_constructor(
@@ -150,11 +150,11 @@ fn has_unknown_constructor_flags_argument(
     }
 
     // resolve second argument
-    let second_argument = ctx.tree.get(arguments[1]);
-    let ast::Argument::Positional { value, .. } = second_argument else {
+    let second_argument = ctx.dir.get(arguments[1]);
+    let dir::Argument::Positional { value, .. } = second_argument else {
         return true;
     };
-    let second_expression = ctx.tree.get(*value);
+    let second_expression = ctx.dir.get(*value);
     !matches!(
         second_expression,
         Expression::ScalarLiteral(ScalarLiteral::String(_))
@@ -163,20 +163,20 @@ fn has_unknown_constructor_flags_argument(
 
 /// Build a safe fix that appends a unicode flag to a regex literal.
 fn unicode_regex_fix(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<Expression>,
-    regexp_name: ast::StringId,
-    global_qualifier_names: &[ast::StringId],
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<Expression>,
+    regexp_name: dir::StringId,
+    global_qualifier_names: &[dir::StringId],
     required_flag: UnicodeRegexpRequireFlag,
 ) -> Option<LintFix> {
     let required_flag_char = required_flag.as_char();
     let alternate_flag_char = alternate_unicode_flag(required_flag_char);
-    let expression_id = expression_unwrap_parenthesized_source_form(ctx.tree, expression_id);
-    let expression = ctx.tree.get(expression_id);
+    let expression_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), expression_id);
+    let expression = ctx.dir.get(expression_id);
 
     // fix regex literals by appending the required flag
     if let Expression::ScalarLiteral(ScalarLiteral::RegexString { flags, .. }) = expression {
-        let expression_span = ctx.tree.get_span(expression_id);
+        let expression_span = ctx.dir.get_span(expression_id);
         let expression_text = ctx.get_span_text(expression_span);
         let expression_text: &str = expression_text;
         if expression_text.is_empty() {
@@ -209,7 +209,7 @@ fn unicode_regex_fix(
         } => (*left, arguments.as_slice()),
         _ => return None,
     };
-    let path_segments = expression_path_segments(ctx.tree, callee_id)?;
+    let path_segments = expression_path_segments(ctx.dir.tree(), callee_id)?;
     if !path_is_regexp_constructor(
         path_segments.as_slice(),
         regexp_name,
@@ -221,15 +221,15 @@ fn unicode_regex_fix(
 
     // update a static flags argument when present
     if arguments.len() >= 2 {
-        let second_argument = ctx.tree.get(arguments[1]);
-        let ast::Argument::Positional {
+        let second_argument = ctx.dir.get(arguments[1]);
+        let dir::Argument::Positional {
             value: flags_expression_id,
             ..
         } = second_argument
         else {
             return None;
         };
-        let flags_expression = ctx.tree.get(*flags_expression_id);
+        let flags_expression = ctx.dir.get(*flags_expression_id);
         if !matches!(
             flags_expression,
             Expression::ScalarLiteral(ScalarLiteral::String(_))
@@ -238,7 +238,7 @@ fn unicode_regex_fix(
         }
 
         // append the required flag when there is no conflicting Unicode mode
-        let flags_span = ctx.tree.get_span(*flags_expression_id);
+        let flags_span = ctx.dir.get_span(*flags_expression_id);
         let flags_text = ctx.get_span_text(flags_span);
         if string_literal_contains_flag(flags_text, alternate_flag_char) {
             return None;
@@ -252,7 +252,7 @@ fn unicode_regex_fix(
     }
 
     // add a missing flags argument
-    let first_argument_span = ctx.tree.get_span(first_argument_id);
+    let first_argument_span = ctx.dir.get_span(first_argument_id);
     let edits = ctx
         .edit_builder()
         .insert(
@@ -309,7 +309,7 @@ mod tests {
     #[test]
     fn test_detects_regex_without_unicode_flag() {
         let test = TestProgram::for_rule_without_prelude(RequireUnicodeRegexp);
-        let result = test.lint_ast(
+        let result = test.lint(
             "require_unicode_regexp/test_detects_regex_without_unicode_flag.ds",
             r#"
 let re = /foo/
@@ -321,7 +321,7 @@ let re = /foo/
     #[test]
     fn test_fix_adds_unicode_flag_without_existing_flags() {
         let test = TestProgram::for_rule_without_prelude(RequireUnicodeRegexp);
-        let result = test.lint_ast(
+        let result = test.lint(
             "require_unicode_regexp/test_fix_adds_unicode_flag_without_existing_flags.ds",
             r#"
 let re = /foo/
@@ -339,7 +339,7 @@ let re = /foo/u;
     #[test]
     fn test_detects_regex_with_other_flags() {
         let test = TestProgram::for_rule_without_prelude(RequireUnicodeRegexp);
-        let result = test.lint_ast(
+        let result = test.lint(
             "require_unicode_regexp/test_detects_regex_with_other_flags.ds",
             r#"
 let re = /foo/gi
@@ -351,7 +351,7 @@ let re = /foo/gi
     #[test]
     fn test_fix_adds_unicode_flag_with_existing_flags() {
         let test = TestProgram::for_rule_without_prelude(RequireUnicodeRegexp);
-        let result = test.lint_ast(
+        let result = test.lint(
             "require_unicode_regexp/test_fix_adds_unicode_flag_with_existing_flags.ds",
             r#"
 let re = /foo/gi
@@ -369,7 +369,7 @@ let re = /foo/giu;
     #[test]
     fn test_mutation_fix_adds_unicode_flag_with_single_existing_flag() {
         let test = TestProgram::for_rule_without_prelude(RequireUnicodeRegexp);
-        let result = test.lint_ast(
+        let result = test.lint(
             "require_unicode_regexp/test_mutation_fix_adds_unicode_flag_with_single_existing_flag.ds",
             r#"
 let re = /foo/g
@@ -387,7 +387,7 @@ let re = /foo/gu;
     #[test]
     fn test_allows_regex_with_u_flag() {
         let test = TestProgram::for_rule_without_prelude(RequireUnicodeRegexp);
-        let result = test.lint_ast(
+        let result = test.lint(
             "require_unicode_regexp/test_allows_regex_with_u_flag.ds",
             r#"
 let re = /foo/u
@@ -399,7 +399,7 @@ let re = /foo/u
     #[test]
     fn test_allows_regex_with_u_and_other_flags() {
         let test = TestProgram::for_rule_without_prelude(RequireUnicodeRegexp);
-        let result = test.lint_ast(
+        let result = test.lint(
             "require_unicode_regexp/test_allows_regex_with_u_and_other_flags.ds",
             r#"
 let re = /foo/giu
@@ -411,7 +411,7 @@ let re = /foo/giu
     #[test]
     fn test_allows_regex_with_v_flag() {
         let test = TestProgram::for_rule_without_prelude(RequireUnicodeRegexp);
-        let result = test.lint_ast(
+        let result = test.lint(
             "require_unicode_regexp/test_allows_regex_with_v_flag.ds",
             r#"
 let re = /foo/v
@@ -425,7 +425,7 @@ let re = /foo/v
     #[test]
     fn test_fix_adds_unicode_flag_to_regexp_constructor_without_flags() {
         let test = TestProgram::for_rule_without_prelude(RequireUnicodeRegexp);
-        let result = test.lint_ast(
+        let result = test.lint(
             "require_unicode_regexp/test_fix_adds_unicode_flag_to_regexp_constructor_without_flags.ds",
             r#"
 let re = RegExp("foo")
@@ -443,7 +443,7 @@ let re = RegExp("foo", "u");
     #[test]
     fn test_fix_adds_unicode_flag_to_new_regexp_constructor() {
         let test = TestProgram::for_rule_without_prelude(RequireUnicodeRegexp);
-        let result = test.lint_ast(
+        let result = test.lint(
             "require_unicode_regexp/test_fix_adds_unicode_flag_to_new_regexp_constructor.ds",
             r#"
 let re = new RegExp("foo", "gi")
@@ -461,7 +461,7 @@ let re = new RegExp("foo", "giu");
     #[test]
     fn test_allows_regexp_constructor_with_dynamic_flags() {
         let test = TestProgram::for_rule_without_prelude(RequireUnicodeRegexp);
-        let result = test.lint_ast(
+        let result = test.lint(
             "require_unicode_regexp/test_allows_regexp_constructor_with_dynamic_flags.ds",
             r#"
 const flags = "gi";
@@ -474,7 +474,7 @@ let re = RegExp("foo", flags);
     #[test]
     fn test_fix_adds_unicode_flag_to_global_this_regexp_constructor() {
         let test = TestProgram::for_rule_without_prelude(RequireUnicodeRegexp);
-        let result = test.lint_ast(
+        let result = test.lint(
             "require_unicode_regexp/test_fix_adds_unicode_flag_to_global_this_regexp_constructor.ds",
             r#"
 let re = globalThis.RegExp("foo");
@@ -496,7 +496,7 @@ let re = globalThis.RegExp("foo", "u");
                 options.performance.require_unicode_regexp_require_flag =
                     UnicodeRegexpRequireFlag::V
             });
-        let result = test.lint_ast(
+        let result = test.lint(
             "require_unicode_regexp/test_allows_regex_with_v_flag_when_configured.ds",
             r#"
 let re = /foo/v
@@ -512,7 +512,7 @@ let re = /foo/v
                 options.performance.require_unicode_regexp_require_flag =
                     UnicodeRegexpRequireFlag::V
             });
-        let result = test.lint_ast(
+        let result = test.lint(
             "require_unicode_regexp/test_detects_regex_with_u_flag_when_v_is_configured.ds",
             r#"
 let re = /foo/u
@@ -530,7 +530,7 @@ let re = /foo/u
                 options.performance.require_unicode_regexp_require_flag =
                     UnicodeRegexpRequireFlag::V
             });
-        let result = test.lint_ast(
+        let result = test.lint(
             "require_unicode_regexp/test_fix_adds_v_flag_when_configured.ds",
             r#"
 let re = RegExp("foo")

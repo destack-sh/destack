@@ -1,10 +1,10 @@
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
     expression_can_start_expression_statement, expression_is_direct_statement,
 };
-use crate::{LintAstContext, LintFix, LintMeta, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow negation in equality checks.
@@ -15,7 +15,7 @@ declare_lint! {
         id = "no-negation-in-equality-check",
         code = "LU024",
         category = Suspicious,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -31,14 +31,14 @@ impl LintRule for NoNegationInEqualityCheck {
         NoNegationInEqualityCheck::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // inspect binary expressions for confusing negated equality
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
             // require a binary expression
-            let expr = ctx.tree.get(node_id);
-            let ast::Expression::Binary {
+            let expr = ctx.dir.get(node_id);
+            let dir::Expression::Binary {
                 left,
                 operator,
                 right,
@@ -53,9 +53,9 @@ impl LintRule for NoNegationInEqualityCheck {
             };
 
             // require a leading unary not on the left side
-            let left_expression = ctx.tree.get(*left);
-            let ast::Expression::Unary {
-                operator: ast::UnaryOperator::Not,
+            let left_expression = ctx.dir.get(*left);
+            let dir::Expression::Unary {
+                operator: dir::UnaryOperator::Not,
                 right: unary_argument_id,
             } = left_expression
             else {
@@ -63,11 +63,11 @@ impl LintRule for NoNegationInEqualityCheck {
             };
 
             // skip double negation because intent is less clear
-            let unary_argument = ctx.tree.get(*unary_argument_id);
+            let unary_argument = ctx.dir.get(*unary_argument_id);
             if matches!(
                 unary_argument,
-                ast::Expression::Unary {
-                    operator: ast::UnaryOperator::Not,
+                dir::Expression::Unary {
+                    operator: dir::UnaryOperator::Not,
                     ..
                 }
             ) {
@@ -81,11 +81,11 @@ impl LintRule for NoNegationInEqualityCheck {
             }
 
             // build the replacement inputs and diagnostic payload
-            let right_span = ctx.tree.get_span(*right);
+            let right_span = ctx.dir.get_span(*right);
             let mut right_text = ctx.get_span_text(right_span).to_string();
-            let unary_argument_span = ctx.tree.get_span(*unary_argument_id);
+            let unary_argument_span = ctx.dir.get_span(*unary_argument_id);
             let unary_argument_text = ctx.get_span_text(unary_argument_span).to_string();
-            let expression_span = ctx.tree.get_span(node_id);
+            let expression_span = ctx.dir.get_span(node_id);
             let mut diagnostic = LintReport::new(
                 NO_NEGATION_IN_EQUALITY_CHECK.id,
                 NO_NEGATION_IN_EQUALITY_CHECK.code,
@@ -101,7 +101,7 @@ impl LintRule for NoNegationInEqualityCheck {
                 // rewrite as direct comparison with the inverted operator
                 let unary_argument_text = unary_argument_text.trim_start();
                 right_text = right_text.trim_start().to_string();
-                let unary_argument = ctx.tree.get(*unary_argument_id);
+                let unary_argument = ctx.dir.get(*unary_argument_id);
                 if !expression_starts_unsafe_statement(ctx, node_id, unary_argument) {
                     let replacement = format!(
                         "{unary_argument_text} {} {right_text}",
@@ -123,23 +123,23 @@ impl LintRule for NoNegationInEqualityCheck {
 }
 
 /// Return one inverted operator for equality checks.
-fn inverted_equality_operator(operator: ast::BinaryOperator) -> Option<ast::BinaryOperator> {
+fn inverted_equality_operator(operator: dir::BinaryOperator) -> Option<dir::BinaryOperator> {
     match operator {
-        ast::BinaryOperator::Equal => Some(ast::BinaryOperator::NotEqual),
-        ast::BinaryOperator::NotEqual => Some(ast::BinaryOperator::Equal),
-        ast::BinaryOperator::EqualStrict => Some(ast::BinaryOperator::NotEqualStrict),
-        ast::BinaryOperator::NotEqualStrict => Some(ast::BinaryOperator::EqualStrict),
+        dir::BinaryOperator::Equal => Some(dir::BinaryOperator::NotEqual),
+        dir::BinaryOperator::NotEqual => Some(dir::BinaryOperator::Equal),
+        dir::BinaryOperator::EqualStrict => Some(dir::BinaryOperator::NotEqualStrict),
+        dir::BinaryOperator::NotEqualStrict => Some(dir::BinaryOperator::EqualStrict),
         _ => None,
     }
 }
 
 /// Return true when one fixed replacement would start an unsafe expression statement.
 fn expression_starts_unsafe_statement(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
-    unary_argument: &ast::Expression,
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+    unary_argument: &dir::Expression,
 ) -> bool {
-    if !expression_is_direct_statement(ctx.tree, ctx.parents, expression_id) {
+    if !expression_is_direct_statement(ctx.dir.tree(), expression_id) {
         return false;
     }
 
@@ -147,12 +147,12 @@ fn expression_starts_unsafe_statement(
 }
 
 /// Return source text for equality operators handled by this lint.
-fn equality_operator_text(operator: ast::BinaryOperator) -> &'static str {
+fn equality_operator_text(operator: dir::BinaryOperator) -> &'static str {
     match operator {
-        ast::BinaryOperator::Equal => "==",
-        ast::BinaryOperator::NotEqual => "!=",
-        ast::BinaryOperator::EqualStrict => "===",
-        ast::BinaryOperator::NotEqualStrict => "!==",
+        dir::BinaryOperator::Equal => "==",
+        dir::BinaryOperator::NotEqual => "!=",
+        dir::BinaryOperator::EqualStrict => "===",
+        dir::BinaryOperator::NotEqualStrict => "!==",
         _ => unreachable!(),
     }
 }
@@ -165,7 +165,7 @@ mod tests {
     #[test]
     fn test_detects_negation_on_left() {
         let test = TestProgram::for_rule_without_prelude(NoNegationInEqualityCheck);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_negation_in_equality_check/test_detects_negation_on_left.ds",
             r#"
 const x = !a == b
@@ -179,7 +179,7 @@ const x = !a == b
     #[test]
     fn test_detects_negation_on_right() {
         let test = TestProgram::for_rule_without_prelude(NoNegationInEqualityCheck);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_negation_in_equality_check/test_detects_negation_on_right.ds",
             r#"
 const x = a == !b
@@ -192,7 +192,7 @@ const x = a == !b
     #[test]
     fn test_detects_with_strict_equality() {
         let test = TestProgram::for_rule_without_prelude(NoNegationInEqualityCheck);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_negation_in_equality_check/test_detects_with_strict_equality.ds",
             r#"
 const x = !a === b
@@ -205,7 +205,7 @@ const x = !a === b
     #[test]
     fn test_allows_not_equal() {
         let test = TestProgram::for_rule_without_prelude(NoNegationInEqualityCheck);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_negation_in_equality_check/test_allows_not_equal.ds",
             r#"
 const x = a != b
@@ -218,7 +218,7 @@ const x = a != b
     #[test]
     fn test_allows_negation_of_whole_expression() {
         let test = TestProgram::for_rule_without_prelude(NoNegationInEqualityCheck);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_negation_in_equality_check/test_allows_negation_of_whole_expression.ds",
             r#"
 const x = !(a == b)
@@ -231,7 +231,7 @@ const x = !(a == b)
     #[test]
     fn test_allows_normal_equality() {
         let test = TestProgram::for_rule_without_prelude(NoNegationInEqualityCheck);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_negation_in_equality_check/test_allows_normal_equality.ds",
             r#"
 const x = a == b
@@ -244,7 +244,7 @@ const x = a == b
     #[test]
     fn test_fix_negation_on_left() {
         let test = TestProgram::for_rule_without_prelude(NoNegationInEqualityCheck);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_negation_in_equality_check/test_fix_negation_on_left.ds",
             r#"
 const x = !a == b
@@ -262,7 +262,7 @@ const x = a != b;
     #[test]
     fn test_no_fix_for_negation_on_right() {
         let test = TestProgram::for_rule_without_prelude(NoNegationInEqualityCheck);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_negation_in_equality_check/test_no_fix_for_negation_on_right.ds",
             r#"
 const x = a == !b
@@ -275,7 +275,7 @@ const x = a == !b
     #[test]
     fn test_fix_negation_on_both_sides() {
         let test = TestProgram::for_rule_without_prelude(NoNegationInEqualityCheck);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_negation_in_equality_check/test_fix_negation_on_both_sides.ds",
             r#"
 const x = !a === !b
@@ -294,7 +294,7 @@ const x = a !== !b;
     #[test]
     fn test_mutation_detects_not_equal_form() {
         let test = TestProgram::for_rule_without_prelude(NoNegationInEqualityCheck);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_negation_in_equality_check/test_mutation_detects_not_equal_form.ds",
             r#"
 const x = !a != b
@@ -307,7 +307,7 @@ const x = !a != b
     #[test]
     fn test_no_fix_for_asi_hazardous_statement_start() {
         let test = TestProgram::for_rule_without_prelude(NoNegationInEqualityCheck);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_negation_in_equality_check/test_no_fix_for_asi_hazardous_statement_start.ds",
             r#"
 foo

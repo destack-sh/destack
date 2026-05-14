@@ -1,7 +1,7 @@
 use crate::LintMeta;
-use destack_ast::{
-    self as ast, BinaryOperator, Expression, LocalNodeId, NodeParentIndex, NodeVisitor,
-    NodeVisitorOptions, Tree, walk_expression, walk_member, walk_property,
+use destack_dir::{
+    self as dir, BinaryOperator, Expression, LocalNodeId, NodeVisitor, NodeVisitorOptions, Tree,
+    walk_expression, walk_member, walk_property,
 };
 use destack_workspace::LintSeverity;
 
@@ -9,7 +9,7 @@ use crate::rules::common::{
     CallableOwnerId, expression_starts_nested_declaration_scope,
     expression_unwrap_statement_source_form, for_each_callable_signature,
 };
-use crate::{LintAstContext, LintReport, LintRule, declare_lint};
+use crate::{LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Limit cognitive complexity of functions.
@@ -20,7 +20,7 @@ declare_lint! {
         id = "cognitive-complexity",
         code = "LX001",
         category = Complexity,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = No,
@@ -36,20 +36,20 @@ impl LintRule for CognitiveComplexity {
         CognitiveComplexity::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         // resolve lint metadata and threshold
         let meta = self.meta();
         let max_complexity = ctx.options.complexity.max_cognitive_complexity;
 
         // check all callable bodies
-        for_each_callable_signature(ctx.tree, |owner_id, _signature, body_id| {
+        for_each_callable_signature(ctx.dir.tree(), |owner_id, _signature, body_id| {
             // skip declaration only signatures
             let Some(body_id) = body_id else {
                 return;
             };
 
             // compute cognitive complexity for this callable body
-            let complexity = compute_callable_cognitive_complexity(ctx.tree, ctx.parents, body_id);
+            let complexity = compute_callable_cognitive_complexity(ctx.dir.tree(), body_id);
             if complexity <= max_complexity {
                 return;
             }
@@ -96,11 +96,11 @@ impl LintRule for CognitiveComplexity {
 }
 
 /// Report one cognitive complexity overflow diagnostic.
-fn report_cognitive_complexity_violation<T: ast::Node>(
-    ctx: &mut LintAstContext<'_>,
+fn report_cognitive_complexity_violation<T: dir::Node>(
+    ctx: &mut LintModuleContext<'_>,
     meta: &'static LintMeta,
-    owner_id: ast::LocalNodeId<T>,
-    body_id: ast::LocalNodeId<ast::Expression>,
+    owner_id: dir::LocalNodeId<T>,
+    body_id: dir::LocalNodeId<dir::Expression>,
     complexity: usize,
     max_complexity: usize,
 ) {
@@ -118,7 +118,7 @@ fn report_cognitive_complexity_violation<T: ast::Node>(
             COGNITIVE_COMPLEXITY.category,
             severity,
             format!("cognitive complexity {complexity} exceeds maximum of {max_complexity}"),
-            ctx.tree.get_span(body_id),
+            ctx.dir.get_span(body_id),
         )
         .label("consider simplifying or extracting logic"),
     );
@@ -127,13 +127,11 @@ fn report_cognitive_complexity_violation<T: ast::Node>(
 /// Compute cognitive complexity for one callable body.
 fn compute_callable_cognitive_complexity(
     tree: &Tree,
-    parents: &NodeParentIndex,
     body_expression_id: LocalNodeId<Expression>,
 ) -> usize {
     // initialize visitor state
     let mut visitor = CognitiveComplexityVisitor {
         options: NodeVisitorOptions::default(),
-        parents,
         root_expression_id: body_expression_id,
         complexity: 0,
         nesting: 0,
@@ -158,11 +156,9 @@ enum LogicalOperatorKind {
 }
 
 /// Visitor that computes cognitive complexity for one callable body.
-struct CognitiveComplexityVisitor<'a> {
+struct CognitiveComplexityVisitor {
     /// Traversal options.
     options: NodeVisitorOptions,
-    /// Parent index for operator sequence checks.
-    parents: &'a NodeParentIndex,
     /// Root callable body expression.
     root_expression_id: LocalNodeId<Expression>,
     /// Accumulated complexity score.
@@ -171,7 +167,7 @@ struct CognitiveComplexityVisitor<'a> {
     nesting: usize,
 }
 
-impl CognitiveComplexityVisitor<'_> {
+impl CognitiveComplexityVisitor {
     /// Add structural complexity with nesting penalty.
     fn add_nesting_complexity(&mut self) {
         self.complexity += 1 + self.nesting;
@@ -199,15 +195,15 @@ impl CognitiveComplexityVisitor<'_> {
         expression_id: LocalNodeId<Expression>,
     ) -> Option<LogicalOperatorKind> {
         // require expression parent node
-        let parent_id = self.parents.get(expression_id)?;
-        if tree.get_node_type(parent_id) != ast::NodeType::Expression {
+        let parent_id = tree.get_parent_id(expression_id.id)?;
+        if tree.get_node_type(parent_id) != dir::NodeType::Expression {
             return None;
         }
 
         // resolve parent expression and logical operator
         let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
         let parent_expression = tree.get(parent_expression_id);
-        let ast::Expression::Binary { operator, .. } = parent_expression else {
+        let dir::Expression::Binary { operator, .. } = parent_expression else {
             return None;
         };
 
@@ -215,7 +211,7 @@ impl CognitiveComplexityVisitor<'_> {
     }
 }
 
-impl NodeVisitor for CognitiveComplexityVisitor<'_> {
+impl NodeVisitor for CognitiveComplexityVisitor {
     fn options(&self) -> &NodeVisitorOptions {
         &self.options
     }
@@ -249,13 +245,13 @@ impl NodeVisitor for CognitiveComplexityVisitor<'_> {
 
             // visit condition expression at current nesting
             match condition {
-                ast::IfCondition::Expression {
+                dir::IfCondition::Expression {
                     condition: condition_expression_id,
                 } => {
                     let condition_expression = tree.get(*condition_expression_id);
                     self.visit_expression(tree, *condition_expression_id, condition_expression);
                 }
-                ast::IfCondition::Let { declarator, .. } => {
+                dir::IfCondition::Let { declarator, .. } => {
                     let declarator_id = *declarator;
                     let declarator = tree.get(declarator_id);
                     self.visit_declarator(tree, declarator_id, declarator);
@@ -275,7 +271,7 @@ impl NodeVisitor for CognitiveComplexityVisitor<'_> {
                 if matches!(
                     else_expression,
                     Expression::If {
-                        form: ast::IfForm::If,
+                        form: dir::IfForm::If,
                         ..
                     }
                 ) {
@@ -366,11 +362,11 @@ impl NodeVisitor for CognitiveComplexityVisitor<'_> {
     fn visit_property(
         &mut self,
         tree: &Tree,
-        property_id: LocalNodeId<ast::Property>,
-        property: &ast::Property,
+        property_id: LocalNodeId<dir::Property>,
+        property: &dir::Property,
     ) {
         // keep nested object methods out of parent callable complexity
-        if matches!(property, ast::Property::Method { .. }) {
+        if matches!(property, dir::Property::Method { .. }) {
             return;
         }
 
@@ -381,15 +377,15 @@ impl NodeVisitor for CognitiveComplexityVisitor<'_> {
     fn visit_member(
         &mut self,
         tree: &Tree,
-        member_id: LocalNodeId<ast::Member>,
-        member: &ast::Member,
+        member_id: LocalNodeId<dir::Member>,
+        member: &dir::Member,
     ) {
         // keep nested member callables out of parent callable complexity
         if matches!(
             member,
-            ast::Member::Method { .. }
-                | ast::Member::StaticBlock { .. }
-                | ast::Member::ComptimeBlock { .. }
+            dir::Member::Method { .. }
+                | dir::Member::StaticBlock { .. }
+                | dir::Member::ComptimeBlock { .. }
         ) {
             return;
         }
@@ -408,7 +404,7 @@ mod tests {
     fn test_detects_high_cognitive_complexity() {
         let test = TestProgram::for_rule_without_prelude(CognitiveComplexity)
             .with_options(|options| options.complexity.max_cognitive_complexity = 5);
-        let result = test.lint_ast(
+        let result = test.lint(
             "cognitive_complexity/test_detects_high_cognitive_complexity.ds",
             r#"
 function complex(a: bool, b: bool, c: bool) {
@@ -432,7 +428,7 @@ function complex(a: bool, b: bool, c: bool) {
     #[test]
     fn test_allows_simple_function() {
         let test = TestProgram::for_rule_without_prelude(CognitiveComplexity);
-        let result = test.lint_ast(
+        let result = test.lint(
             "cognitive_complexity/test_allows_simple_function.ds",
             r#"
 function simple(x: int32): int32 {
@@ -450,7 +446,7 @@ function simple(x: int32): int32 {
     fn test_else_if_chain_does_not_double_nest() {
         let test = TestProgram::for_rule_without_prelude(CognitiveComplexity)
             .with_options(|options| options.complexity.max_cognitive_complexity = 3);
-        let result = test.lint_ast(
+        let result = test.lint(
             "cognitive_complexity/test_else_if_chain_does_not_double_nest.ds",
             r#"
 function check(x: int32) {
@@ -473,7 +469,7 @@ function check(x: int32) {
     fn test_logical_operator_sequences_count_once_per_sequence() {
         let test = TestProgram::for_rule_without_prelude(CognitiveComplexity)
             .with_options(|options| options.complexity.max_cognitive_complexity = 1);
-        let result = test.lint_ast(
+        let result = test.lint(
             "cognitive_complexity/test_logical_operator_sequences_count_once_per_sequence.ds",
             r#"
 function check(a: bool, b: bool, c: bool, d: bool): bool {
@@ -488,7 +484,7 @@ function check(a: bool, b: bool, c: bool, d: bool): bool {
     fn test_ignores_nested_callable_complexity_for_parent_callable() {
         let test = TestProgram::for_rule_without_prelude(CognitiveComplexity)
             .with_options(|options| options.complexity.max_cognitive_complexity = 1);
-        let result = test.lint_ast(
+        let result = test.lint(
             "cognitive_complexity/test_ignores_nested_callable_complexity_for_parent_callable.ds",
             r#"
 function outer() {
@@ -512,7 +508,7 @@ function outer() {
     fn test_detects_object_method_cognitive_complexity() {
         let test = TestProgram::for_rule_without_prelude(CognitiveComplexity)
             .with_options(|options| options.complexity.max_cognitive_complexity = 2);
-        let result = test.lint_ast(
+        let result = test.lint(
             "cognitive_complexity/test_detects_object_method_cognitive_complexity.ds",
             r#"
 const service = {

@@ -1,10 +1,10 @@
 use std::sync::LazyLock;
 
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::all_rules;
-use crate::{LintAstContext, LintMeta, LintReport, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow unknown lint rule IDs in `@allow`/`@warn`/`@deny`/`@forbid` decorators.
@@ -18,7 +18,7 @@ declare_lint! {
         id = "no-unknown-rule-decorator",
         code = "LC029",
         category = Correctness,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = No,
@@ -65,32 +65,20 @@ fn decorator_lint_specifiers(argument_text: &str) -> Vec<&str> {
         .collect()
 }
 
-/// Decorator names that expect a lint rule specifier as their first argument.
-const RULE_DECORATORS: &[&str] = &["allow", "deny", "forbid", "warn"];
-
 impl LintRule for NoUnknownRuleDecorator {
     /// Return lint metadata.
     fn meta(&self) -> &'static LintMeta {
         NoUnknownRuleDecorator::meta()
     }
 
-    /// Check module AST nodes for unknown lint decorators.
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    /// Check module source nodes for unknown lint decorators.
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // inspect decorator side nodes
-        for node_id in ctx.tree.iter_nodes::<ast::Decorator>() {
-            // check decorator name (must be single segment: allow, warn, deny, forbid)
-            let Some(path) = ctx.decorator_path(node_id) else {
-                continue;
-            };
-            let Some(last_segment) = path.last() else {
-                continue;
-            };
-
-            // resolve name
-            let name = ctx.strings.get(*last_segment);
-            if !RULE_DECORATORS.contains(&name) {
+        for node_id in ctx.dir.iter_nodes::<dir::Decorator>() {
+            // skip non directive decorators
+            if ctx.lint_directive_for_decorator(node_id).is_none() {
                 continue;
             }
 
@@ -102,12 +90,12 @@ impl LintRule for NoUnknownRuleDecorator {
 
             // inspect candidate nodes
             for argument_id in argument_ids {
-                let argument = ctx.tree.get(argument_id);
-                let ast::Argument::Positional { value, .. } = argument else {
+                let argument = ctx.dir.get(argument_id);
+                let dir::Argument::Positional { value, .. } = argument else {
                     continue;
                 };
-                let argument_expression = ctx.tree.get(*value);
-                let ast::Expression::ScalarLiteral(ast::ScalarLiteral::String(string_id)) =
+                let argument_expression = ctx.dir.get(*value);
+                let dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(string_id)) =
                     argument_expression
                 else {
                     continue;
@@ -133,7 +121,7 @@ impl LintRule for NoUnknownRuleDecorator {
                             NO_UNKNOWN_RULE_DECORATOR.category,
                             severity,
                             format!("unknown lint rule '{specifier}'"),
-                            ctx.tree.get_span(*value),
+                            ctx.dir.get_span(*value),
                         )
                         .label("this lint rule does not exist"),
                     );
@@ -151,7 +139,7 @@ mod tests {
     #[test]
     fn test_detects_unknown_rule_id() {
         let test = TestProgram::for_rule_without_prelude(NoUnknownRuleDecorator);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unknown_rule_decorator/test_detects_unknown_rule_id.ds",
             r#"
 @allow("not-a-real-rule")
@@ -164,7 +152,7 @@ function foo() {}
     #[test]
     fn test_detects_unknown_rule_code() {
         let test = TestProgram::for_rule_without_prelude(NoUnknownRuleDecorator);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unknown_rule_decorator/test_detects_unknown_rule_code.ds",
             r#"
 @deny("ZZ999")
@@ -177,7 +165,7 @@ function foo() {}
     #[test]
     fn test_allows_valid_rule_id() {
         let test = TestProgram::for_rule_without_prelude(NoUnknownRuleDecorator);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unknown_rule_decorator/test_allows_valid_rule_id.ds",
             r#"
 @allow("no-empty")
@@ -191,7 +179,7 @@ function foo() {}
     #[test]
     fn test_allows_valid_rule_code() {
         let test = TestProgram::for_rule_without_prelude(NoUnknownRuleDecorator);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unknown_rule_decorator/test_allows_valid_rule_code.ds",
             r#"
 @warn("LU014")
@@ -205,7 +193,7 @@ function foo() {}
     #[test]
     fn test_checks_all_decorator_types() {
         let test = TestProgram::for_rule_without_prelude(NoUnknownRuleDecorator);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unknown_rule_decorator/test_checks_all_decorator_types.ds",
             r#"
 @forbid("fake-rule")
@@ -218,7 +206,7 @@ function foo() {}
     #[test]
     fn test_ignores_other_decorators() {
         let test = TestProgram::for_rule_without_prelude(NoUnknownRuleDecorator);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unknown_rule_decorator/test_ignores_other_decorators.ds",
             r#"
 @deprecated("use bar instead")
@@ -232,7 +220,7 @@ function foo() {}
     #[test]
     fn test_checks_all_string_arguments() {
         let test = TestProgram::for_rule_without_prelude(NoUnknownRuleDecorator);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unknown_rule_decorator/test_checks_all_string_arguments.ds",
             r#"
 @allow("no-empty", "made-up-rule", "LC003")
@@ -245,7 +233,7 @@ function foo() {}
     #[test]
     fn test_checks_comma_separated_lint_specifiers() {
         let test = TestProgram::for_rule_without_prelude(NoUnknownRuleDecorator);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unknown_rule_decorator/test_checks_comma_separated_lint_specifiers.ds",
             r#"
 @allow("no-empty, made-up-rule, LC003")

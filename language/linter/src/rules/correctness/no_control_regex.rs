@@ -1,8 +1,8 @@
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{regex_pattern_info, regexp_global_qualifier_names};
-use crate::{LintAstContext, LintMeta, LintReport, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow control characters in regular expressions.
@@ -14,7 +14,7 @@ declare_lint! {
         id = "no-control-regex",
         code = "LC010",
         category = Correctness,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = No,
@@ -31,17 +31,17 @@ impl LintRule for NoControlRegex {
         NoControlRegex::meta()
     }
 
-    /// Check module AST nodes for regex patterns containing control characters.
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    /// Check module source nodes for regex patterns containing control characters.
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let regexp_name = ctx.string_id("RegExp");
         let global_qualifier_names = regexp_global_qualifier_names(ctx.strings);
 
         // walk expression nodes
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
             let Some(pattern_info) = regex_pattern_info(
                 ctx.strings,
-                ctx.tree,
+                ctx.dir.tree(),
                 node_id,
                 regexp_name,
                 &global_qualifier_names,
@@ -73,7 +73,7 @@ impl LintRule for NoControlRegex {
                         "unexpected control character(s) in regular expression: {}",
                         control_characters.join(", ")
                     ),
-                    ctx.tree.get_span(node_id),
+                    ctx.dir.get_span(node_id),
                 )
                 .label("control characters are rarely intended"),
             );
@@ -90,7 +90,7 @@ mod tests {
     fn test_detects_control_char_in_regex() {
         let test = TestProgram::for_rule_without_prelude(NoControlRegex);
         // use a hex escape to embed a control character
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_control_regex/test_detects_control_char_in_regex.ds",
             "/\x01/",
         );
@@ -100,7 +100,7 @@ mod tests {
     #[test]
     fn test_allows_normal_regex() {
         let test = TestProgram::for_rule_without_prelude(NoControlRegex);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_control_regex/test_allows_normal_regex.ds",
             r#"
 let re = /abc/
@@ -112,7 +112,7 @@ let re = /abc/
     #[test]
     fn test_allows_escaped_control_sequences() {
         let test = TestProgram::for_rule_without_prelude(NoControlRegex);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_control_regex/test_allows_escaped_control_sequences.ds",
             r#"
 let re = /\n\t\r/
@@ -124,7 +124,7 @@ let re = /\n\t\r/
     #[test]
     fn test_detects_hex_escapes() {
         let test = TestProgram::for_rule_without_prelude(NoControlRegex);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_control_regex/test_detects_hex_escapes.ds",
             r#"
 let re = /\x00\x1F/
@@ -136,7 +136,7 @@ let re = /\x00\x1F/
     #[test]
     fn test_detects_control_char_in_regexp_call_literal() {
         let test = TestProgram::for_rule_without_prelude(NoControlRegex);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_control_regex/test_detects_control_char_in_regexp_call_literal.ds",
             "RegExp(\"\x01\");",
         );
@@ -146,7 +146,7 @@ let re = /\x00\x1F/
     #[test]
     fn test_detects_control_char_in_new_regexp_literal() {
         let test = TestProgram::for_rule_without_prelude(NoControlRegex);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_control_regex/test_detects_control_char_in_new_regexp_literal.ds",
             "new RegExp(\"\x01\");",
         );
@@ -156,7 +156,7 @@ let re = /\x00\x1F/
     #[test]
     fn test_detects_unicode_escape_in_regex_literal() {
         let test = TestProgram::for_rule_without_prelude(NoControlRegex);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_control_regex/test_detects_unicode_escape_in_regex_literal.ds",
             r#"
 let re = /\u001F/
@@ -168,7 +168,7 @@ let re = /\u001F/
     #[test]
     fn test_allows_unicode_code_point_escape_without_unicode_flag() {
         let test = TestProgram::for_rule_without_prelude(NoControlRegex);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_control_regex/test_allows_unicode_code_point_escape_without_unicode_flag.ds",
             r#"
 let re = /\u{1F}/
@@ -180,7 +180,7 @@ let re = /\u{1F}/
     #[test]
     fn test_detects_unicode_code_point_escape_with_u_flag() {
         let test = TestProgram::for_rule_without_prelude(NoControlRegex);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_control_regex/test_detects_unicode_code_point_escape_with_u_flag.ds",
             r#"
 let re = /\u{1F}/u
@@ -192,7 +192,7 @@ let re = /\u{1F}/u
     #[test]
     fn test_allows_unicode_code_point_escape_with_unknown_constructor_flags() {
         let test = TestProgram::for_rule_without_prelude(NoControlRegex);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_control_regex/test_allows_unicode_code_point_escape_with_unknown_constructor_flags.ds",
             r#"
 let flags = "u";
@@ -205,7 +205,7 @@ RegExp("\\u{1F}", flags);
     #[test]
     fn test_allows_non_regexp_constructor_calls() {
         let test = TestProgram::for_rule_without_prelude(NoControlRegex);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_control_regex/test_allows_non_regexp_constructor_calls.ds",
             "buildRegExp(\"\\x01\");",
         );

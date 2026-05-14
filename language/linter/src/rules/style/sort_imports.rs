@@ -1,9 +1,9 @@
-use destack_ast::{self as ast, DependencyBinding, DependencyItem, Expression};
+use destack_dir::{self as dir, DependencyBinding, DependencyItem, Expression};
 use destack_source::Span;
 use destack_workspace::{LintSeverity, SortImportsMemberSyntax};
 
 use crate::rules::common::source_text_contains_comment_token;
-use crate::{LintAstContext, LintFix, LintMeta, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Enforce sorted import declarations.
@@ -13,7 +13,7 @@ declare_lint! {
         id = "sort-imports",
         code = "LY064",
         category = Style,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -28,13 +28,13 @@ declare_lint! {
 #[derive(Debug, Clone)]
 struct ImportInfo {
     /// The root expression span for declaration ordering diagnostics.
-    root_expression_id: ast::LocalNodeId<Expression>,
+    root_expression_id: dir::LocalNodeId<Expression>,
     /// The import expression id.
-    import_expression_id: ast::LocalNodeId<Expression>,
+    import_expression_id: dir::LocalNodeId<Expression>,
     /// The declaration span.
     span: Span,
     /// The import items.
-    items: Vec<ast::LocalNodeId<DependencyItem>>,
+    items: Vec<dir::LocalNodeId<DependencyItem>>,
 }
 
 impl LintRule for SortImports {
@@ -44,7 +44,7 @@ impl LintRule for SortImports {
     }
 
     /// Check top-level import declarations.
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let imports = collect_imports(ctx);
 
@@ -61,23 +61,23 @@ impl LintRule for SortImports {
 }
 
 /// Collect all top-level import declarations in source order.
-fn collect_imports(ctx: &LintAstContext<'_>) -> Vec<ImportInfo> {
+fn collect_imports(ctx: &LintModuleContext<'_>) -> Vec<ImportInfo> {
     let mut imports = Vec::new();
 
-    for root_expression_id in ctx.roots {
-        let Some(import_expression_id) = top_level_import_expression_id(ctx, *root_expression_id)
+    for root_expression_id in ctx.roots.iter().copied() {
+        let Some(import_expression_id) = top_level_import_expression_id(ctx, root_expression_id)
         else {
             continue;
         };
 
-        let Expression::Import { items, .. } = ctx.tree.get(import_expression_id) else {
+        let Expression::Import { items, .. } = ctx.dir.get(import_expression_id) else {
             continue;
         };
 
         imports.push(ImportInfo {
-            root_expression_id: *root_expression_id,
+            root_expression_id: root_expression_id,
             import_expression_id,
-            span: ctx.tree.get_span(*root_expression_id),
+            span: ctx.dir.get_span(root_expression_id),
             items: items.clone().unwrap_or_default(),
         });
     }
@@ -87,10 +87,10 @@ fn collect_imports(ctx: &LintAstContext<'_>) -> Vec<ImportInfo> {
 
 /// Return one top-level import expression id when the root is an import.
 fn top_level_import_expression_id(
-    ctx: &LintAstContext<'_>,
-    root_expression_id: ast::LocalNodeId<Expression>,
-) -> Option<ast::LocalNodeId<Expression>> {
-    match ctx.tree.get(root_expression_id) {
+    ctx: &LintModuleContext<'_>,
+    root_expression_id: dir::LocalNodeId<Expression>,
+) -> Option<dir::LocalNodeId<Expression>> {
+    match ctx.dir.get(root_expression_id) {
         Expression::Import { .. } => Some(root_expression_id),
         _ => None,
     }
@@ -98,7 +98,7 @@ fn top_level_import_expression_id(
 
 /// Check declaration ordering against the configured declaration-form order.
 fn check_declaration_sorting(
-    ctx: &mut LintAstContext<'_>,
+    ctx: &mut LintModuleContext<'_>,
     meta: &'static LintMeta,
     imports: &[ImportInfo],
 ) {
@@ -177,7 +177,7 @@ fn check_declaration_sorting(
 
 /// Check named import member sorting within one declaration.
 fn check_member_sorting(
-    ctx: &mut LintAstContext<'_>,
+    ctx: &mut LintModuleContext<'_>,
     meta: &'static LintMeta,
     import: &ImportInfo,
 ) {
@@ -216,7 +216,7 @@ fn check_member_sorting(
         SORT_IMPORTS.category,
         severity,
         format!("member `{mismatch_name}` should be sorted alphabetically"),
-        ctx.tree.get_span(mismatch_item_id),
+        ctx.dir.get_span(mismatch_item_id),
     )
     .label("import members should be sorted alphabetically");
 
@@ -231,13 +231,13 @@ fn check_member_sorting(
 
 /// Build one named-member sorting fix when the specifier region is comment free.
 fn build_member_sort_fix(
-    ctx: &LintAstContext<'_>,
-    named_items: &[ast::LocalNodeId<DependencyItem>],
+    ctx: &LintModuleContext<'_>,
+    named_items: &[dir::LocalNodeId<DependencyItem>],
 ) -> Option<LintFix> {
     let first_item_id = *named_items.first()?;
     let last_item_id = *named_items.last()?;
-    let first_span = ctx.tree.get_span(first_item_id);
-    let last_span = ctx.tree.get_span(last_item_id);
+    let first_span = ctx.dir.get_span(first_item_id);
+    let last_span = ctx.dir.get_span(last_item_id);
     let region_span = Span::new(ctx.module.file_id, first_span.start, last_span.end);
     let region_text = ctx.get_span_text(region_span);
     if region_text.contains("//") || region_text.contains("/*") {
@@ -252,13 +252,13 @@ fn build_member_sort_fix(
 
     let mut replacement = String::new();
     for (index, item_id) in sorted_items.iter().enumerate() {
-        replacement.push_str(ctx.get_span_text(ctx.tree.get_span(*item_id)));
+        replacement.push_str(ctx.get_span_text(ctx.dir.get_span(*item_id)));
 
         if let Some(current_original_id) = named_items.get(index)
             && let Some(next_original_id) = named_items.get(index + 1)
         {
-            let current_span = ctx.tree.get_span(*current_original_id);
-            let next_span = ctx.tree.get_span(*next_original_id);
+            let current_span = ctx.dir.get_span(*current_original_id);
+            let next_span = ctx.dir.get_span(*next_original_id);
             replacement.push_str(ctx.get_span_text(Span::new(
                 ctx.module.file_id,
                 current_span.end,
@@ -276,16 +276,16 @@ fn build_member_sort_fix(
 
 /// Return the named import items that participate in member sorting.
 fn named_import_items(
-    ctx: &LintAstContext<'_>,
+    ctx: &LintModuleContext<'_>,
     import: &ImportInfo,
-) -> Vec<ast::LocalNodeId<DependencyItem>> {
+) -> Vec<dir::LocalNodeId<DependencyItem>> {
     import
         .items
         .iter()
         .copied()
         .filter(|item_id| {
             matches!(
-                ctx.tree.get(*item_id),
+                ctx.dir.get(*item_id),
                 DependencyItem::Item {
                     binding: DependencyBinding::Item,
                     ..
@@ -296,7 +296,7 @@ fn named_import_items(
 }
 
 /// Return the member form group for one import declaration.
-fn member_form_group(ctx: &LintAstContext<'_>, import: &ImportInfo) -> SortImportsMemberSyntax {
+fn member_form_group(ctx: &LintModuleContext<'_>, import: &ImportInfo) -> SortImportsMemberSyntax {
     if import.items.is_empty() {
         return SortImportsMemberSyntax::None;
     }
@@ -316,17 +316,17 @@ fn member_form_group(ctx: &LintAstContext<'_>, import: &ImportInfo) -> SortImpor
 
 /// Return the dependency binding for one import item.
 fn item_binding(
-    ctx: &LintAstContext<'_>,
-    item_id: ast::LocalNodeId<DependencyItem>,
+    ctx: &LintModuleContext<'_>,
+    item_id: dir::LocalNodeId<DependencyItem>,
 ) -> Option<DependencyBinding> {
-    match ctx.tree.get(item_id) {
+    match ctx.dir.get(item_id) {
         DependencyItem::Item { binding, .. } => Some(*binding),
         DependencyItem::Error => None,
     }
 }
 
 /// Return the configured form-group index for one import declaration.
-fn member_form_order_index(ctx: &LintAstContext<'_>, group: SortImportsMemberSyntax) -> usize {
+fn member_form_order_index(ctx: &LintModuleContext<'_>, group: SortImportsMemberSyntax) -> usize {
     ctx.options
         .style
         .sort_imports_member_syntax_sort_order
@@ -346,25 +346,25 @@ fn member_form_label(group: SortImportsMemberSyntax) -> &'static str {
 }
 
 /// Return the first local member name for declaration sorting.
-fn first_local_member_name(ctx: &LintAstContext<'_>, import: &ImportInfo) -> Option<String> {
+fn first_local_member_name(ctx: &LintModuleContext<'_>, import: &ImportInfo) -> Option<String> {
     let first_item_id = *import.items.first()?;
     Some(dependency_item_name(ctx, first_item_id))
 }
 
 /// Return one normalized dependency item name for ordering.
 fn normalized_dependency_item_name(
-    ctx: &LintAstContext<'_>,
-    item_id: ast::LocalNodeId<DependencyItem>,
+    ctx: &LintModuleContext<'_>,
+    item_id: dir::LocalNodeId<DependencyItem>,
 ) -> String {
     normalize_import_name(ctx, &dependency_item_name(ctx, item_id))
 }
 
 /// Return one dependency item local name.
 fn dependency_item_name(
-    ctx: &LintAstContext<'_>,
-    item_id: ast::LocalNodeId<DependencyItem>,
+    ctx: &LintModuleContext<'_>,
+    item_id: dir::LocalNodeId<DependencyItem>,
 ) -> String {
-    match ctx.tree.get(item_id) {
+    match ctx.dir.get(item_id) {
         DependencyItem::Item {
             alias: Some(alias), ..
         } => ctx.strings.get(*alias).to_string(),
@@ -377,7 +377,7 @@ fn dependency_item_name(
 }
 
 /// Normalize one import ordering name based on the case policy.
-fn normalize_import_name(ctx: &LintAstContext<'_>, name: &str) -> String {
+fn normalize_import_name(ctx: &LintModuleContext<'_>, name: &str) -> String {
     if ctx.options.style.sort_imports_ignore_case {
         return name.to_ascii_lowercase();
     }
@@ -387,7 +387,7 @@ fn normalize_import_name(ctx: &LintAstContext<'_>, name: &str) -> String {
 
 /// Return true when two imports belong to separated declaration groups.
 fn imports_are_separated_group(
-    ctx: &LintAstContext<'_>,
+    ctx: &LintModuleContext<'_>,
     left_span: Span,
     right_span: Span,
 ) -> bool {
@@ -421,7 +421,7 @@ mod tests {
     #[test]
     fn test_flags_unsorted_import_members() {
         let test = TestProgram::for_rule_without_prelude(SortImports);
-        let result = test.lint_ast(
+        let result = test.lint(
             "sort_imports/test_flags_unsorted_import_members.ds",
             r#"
 import { z, a } from "foo"
@@ -434,7 +434,7 @@ import { z, a } from "foo"
     #[test]
     fn test_fix_unsorted_import_members() {
         let test = TestProgram::for_rule_without_prelude(SortImports);
-        let result = test.lint_ast(
+        let result = test.lint(
             "sort_imports/test_fix_unsorted_import_members.ds",
             r#"
 import { z, a } from "foo"
@@ -453,7 +453,7 @@ import { a, z } from "foo";
     #[test]
     fn test_flags_declaration_form_order() {
         let test = TestProgram::for_rule_without_prelude(SortImports);
-        let result = test.lint_ast(
+        let result = test.lint(
             "sort_imports/test_flags_declaration_form_order.ds",
             r#"
 import item from "foo"
@@ -469,7 +469,7 @@ import "bar"
         let test = TestProgram::for_rule_without_prelude(SortImports).with_options(|options| {
             options.style.sort_imports_allow_separated_groups = true;
         });
-        let result = test.lint_ast(
+        let result = test.lint(
             "sort_imports/test_allows_separated_groups_when_enabled.ds",
             r#"
 import item from "foo"
@@ -486,7 +486,7 @@ import "bar"
         let test = TestProgram::for_rule_without_prelude(SortImports).with_options(|options| {
             options.style.sort_imports_allow_separated_groups = true;
         });
-        let result = test.lint_ast(
+        let result = test.lint(
             "sort_imports/test_allows_comment_separated_groups_when_enabled.ds",
             r#"
 import item from "foo"
@@ -503,7 +503,7 @@ import "bar"
         let test = TestProgram::for_rule_without_prelude(SortImports).with_options(|options| {
             options.style.sort_imports_allow_separated_groups = true;
         });
-        let result = test.lint_ast(
+        let result = test.lint(
             "sort_imports/test_allows_statement_separated_groups_when_enabled.ds",
             r#"
 import item from "foo"
@@ -525,7 +525,7 @@ import "bar"
                 SortImportsMemberSyntax::Multiple,
             ];
         });
-        let result = test.lint_ast(
+        let result = test.lint(
             "sort_imports/test_allows_custom_member_form_order.ds",
             r#"
 import item from "foo"
@@ -541,7 +541,7 @@ import "bar"
         let test = TestProgram::for_rule_without_prelude(SortImports).with_options(|options| {
             options.style.sort_imports_ignore_declaration_sort = true;
         });
-        let result = test.lint_ast(
+        let result = test.lint(
             "sort_imports/test_allows_declaration_order_when_ignored.ds",
             r#"
 import item from "foo"
@@ -557,7 +557,7 @@ import "bar"
         let test = TestProgram::for_rule_without_prelude(SortImports).with_options(|options| {
             options.style.sort_imports_ignore_member_sort = true;
         });
-        let result = test.lint_ast(
+        let result = test.lint(
             "sort_imports/test_allows_member_order_when_ignored.ds",
             r#"
 import { z, a } from "foo"
@@ -572,7 +572,7 @@ import { z, a } from "foo"
         let test = TestProgram::for_rule_without_prelude(SortImports).with_options(|options| {
             options.style.sort_imports_ignore_case = true;
         });
-        let result = test.lint_ast(
+        let result = test.lint(
             "sort_imports/test_allows_case_insensitive_declaration_order.ds",
             r#"
 import a from "foo"

@@ -1,6 +1,6 @@
 use crate::LintMeta;
-use destack_ast::{
-    self as ast, Expression, LocalNodeId, NodeVisitor, NodeVisitorOptions, Tree, walk_expression,
+use destack_dir::{
+    self as dir, Expression, LocalNodeId, NodeVisitor, NodeVisitorOptions, Tree, walk_expression,
     walk_member, walk_property,
 };
 use destack_workspace::LintSeverity;
@@ -9,7 +9,7 @@ use crate::rules::common::{
     CallableOwnerId, expression_starts_nested_declaration_scope,
     expression_unwrap_statement_source_form, for_each_callable_signature,
 };
-use crate::{LintAstContext, LintReport, LintRule, declare_lint};
+use crate::{LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Limit the number of return statements per function.
@@ -20,7 +20,7 @@ declare_lint! {
         id = "max-return-statements",
         code = "LX009",
         category = Complexity,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = No,
@@ -36,20 +36,20 @@ impl LintRule for MaxReturnStatements {
         MaxReturnStatements::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         // resolve lint metadata and threshold
         let meta = self.meta();
         let max_return_statements = ctx.options.complexity.max_return_statements;
 
         // check callable bodies across declarations and methods
-        for_each_callable_signature(ctx.tree, |owner_id, _signature, body_id| {
+        for_each_callable_signature(ctx.dir.tree(), |owner_id, _signature, body_id| {
             // skip declaration only callables
             let Some(body_id) = body_id else {
                 return;
             };
 
             // count explicit returns in this callable body
-            let return_count = count_callable_returns(ctx.tree, body_id);
+            let return_count = count_callable_returns(ctx.dir.tree(), body_id);
             if return_count <= max_return_statements {
                 return;
             }
@@ -112,11 +112,11 @@ fn count_callable_returns(tree: &Tree, body_expression_id: LocalNodeId<Expressio
 }
 
 /// Report one max-return-statements violation.
-fn report_return_limit_violation<T: ast::Node>(
-    ctx: &mut LintAstContext<'_>,
+fn report_return_limit_violation<T: dir::Node>(
+    ctx: &mut LintModuleContext<'_>,
     meta: &'static LintMeta,
-    owner_id: ast::LocalNodeId<T>,
-    body_id: ast::LocalNodeId<ast::Expression>,
+    owner_id: dir::LocalNodeId<T>,
+    body_id: dir::LocalNodeId<dir::Expression>,
     return_count: usize,
     max_return_statements: usize,
 ) {
@@ -134,7 +134,7 @@ fn report_return_limit_violation<T: ast::Node>(
             MAX_RETURN_STATEMENTS.category,
             severity,
             format!("function has {return_count} return statements (max {max_return_statements})"),
-            ctx.tree.get_span(body_id),
+            ctx.dir.get_span(body_id),
         )
         .label("consider reducing return points"),
     );
@@ -183,11 +183,11 @@ impl NodeVisitor for ReturnCountVisitor {
     fn visit_property(
         &mut self,
         tree: &Tree,
-        property_id: LocalNodeId<ast::Property>,
-        property: &ast::Property,
+        property_id: LocalNodeId<dir::Property>,
+        property: &dir::Property,
     ) {
         // keep nested object methods out of parent callable counts
-        if matches!(property, ast::Property::Method { .. }) {
+        if matches!(property, dir::Property::Method { .. }) {
             return;
         }
 
@@ -198,15 +198,15 @@ impl NodeVisitor for ReturnCountVisitor {
     fn visit_member(
         &mut self,
         tree: &Tree,
-        member_id: LocalNodeId<ast::Member>,
-        member: &ast::Member,
+        member_id: LocalNodeId<dir::Member>,
+        member: &dir::Member,
     ) {
         // keep nested callable members out of parent callable counts
         if matches!(
             member,
-            ast::Member::Method { .. }
-                | ast::Member::StaticBlock { .. }
-                | ast::Member::ComptimeBlock { .. }
+            dir::Member::Method { .. }
+                | dir::Member::StaticBlock { .. }
+                | dir::Member::ComptimeBlock { .. }
         ) {
             return;
         }
@@ -224,7 +224,7 @@ mod tests {
     #[test]
     fn test_detects_too_many_returns() {
         let test = TestProgram::for_rule_without_prelude(MaxReturnStatements);
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_return_statements/test_detects_too_many_returns.ds",
             r#"
 function tooManyReturns(x: int32): int32 {
@@ -248,7 +248,7 @@ function tooManyReturns(x: int32): int32 {
     #[test]
     fn test_allows_few_returns() {
         let test = TestProgram::for_rule_without_prelude(MaxReturnStatements);
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_return_statements/test_allows_few_returns.ds",
             r#"
 function fewReturns(x: int32): int32 {
@@ -264,7 +264,7 @@ function fewReturns(x: int32): int32 {
     #[test]
     fn test_counts_returns_in_match() {
         let test = TestProgram::for_rule_without_prelude(MaxReturnStatements);
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_return_statements/test_counts_returns_in_match.ds",
             r#"
 function matchReturns(x: int32): int32 {
@@ -291,7 +291,7 @@ function matchReturns(x: int32): int32 {
     fn test_ignores_nested_function_returns_for_outer_function() {
         let test = TestProgram::for_rule_without_prelude(MaxReturnStatements)
             .with_options(|options| options.complexity.max_return_statements = 1);
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_return_statements/test_ignores_nested_function_returns_for_outer_function.ds",
             r#"
 function outer(x: int32): int32 {
@@ -313,7 +313,7 @@ function outer(x: int32): int32 {
     fn test_detects_object_method_too_many_returns() {
         let test = TestProgram::for_rule_without_prelude(MaxReturnStatements)
             .with_options(|options| options.complexity.max_return_statements = 2);
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_return_statements/test_detects_object_method_too_many_returns.ds",
             r#"
 const service = {

@@ -1,8 +1,8 @@
-use destack_ast::{self as ast, Expression};
+use destack_dir::{self as dir, Expression};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_is_optional_chain_target;
-use crate::{LintAstContext, LintFix, LintMeta, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow extra non-null assertions.
@@ -13,7 +13,7 @@ declare_lint! {
         id = "no-extra-non-null-assertion",
         code = "LU017",
         category = Suspicious,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Always,
@@ -29,12 +29,12 @@ impl LintRule for NoExtraNonNullAssertion {
         NoExtraNonNullAssertion::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // inspect expressions for nested non null assertions
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expression = ctx.tree.get(node_id);
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let expression = ctx.dir.get(node_id);
 
             // require an outer non null assertion
             let Expression::Must { left, .. } = expression else {
@@ -42,10 +42,10 @@ impl LintRule for NoExtraNonNullAssertion {
             };
 
             // require nested assertion or optional chain target
-            let inner = ctx.tree.get(*left);
+            let inner = ctx.dir.get(*left);
             let has_nested_non_null = matches!(inner, Expression::Must { .. });
             let has_optional_chain_target =
-                expression_is_optional_chain_target(ctx.tree, ctx.parents, node_id);
+                expression_is_optional_chain_target(ctx.dir.tree(), node_id);
             if !has_nested_non_null && !has_optional_chain_target {
                 continue;
             }
@@ -57,7 +57,7 @@ impl LintRule for NoExtraNonNullAssertion {
             }
 
             // build the nested assertion diagnostic
-            let outer_span = ctx.tree.get_span(node_id);
+            let outer_span = ctx.dir.get_span(node_id);
             let mut diagnostic = LintReport::new(
                 NO_EXTRA_NON_NULL_ASSERTION.id,
                 NO_EXTRA_NON_NULL_ASSERTION.code,
@@ -70,7 +70,7 @@ impl LintRule for NoExtraNonNullAssertion {
 
             // replace the outer expression with the inner assertion text
             if ctx.compute_fixes {
-                let inner_span = ctx.tree.get_span(*left);
+                let inner_span = ctx.dir.get_span(*left);
                 let inner_text = ctx.get_span_text(inner_span);
                 let edits = ctx
                     .edit_builder()
@@ -93,7 +93,7 @@ mod tests {
     #[test]
     fn test_detects_double_assertion() {
         let test = TestProgram::for_rule_without_prelude(NoExtraNonNullAssertion);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_extra_non_null_assertion/test_detects_double_assertion.ts",
             r#"
 const x = value!!;
@@ -106,7 +106,7 @@ const x = value!!;
     #[test]
     fn test_detects_triple_assertion() {
         let test = TestProgram::for_rule_without_prelude(NoExtraNonNullAssertion);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_extra_non_null_assertion/test_detects_triple_assertion.ts",
             r#"
 const x = value!!!;
@@ -120,7 +120,7 @@ const x = value!!!;
     #[test]
     fn test_allows_single_assertion() {
         let test = TestProgram::for_rule_without_prelude(NoExtraNonNullAssertion);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_extra_non_null_assertion/test_allows_single_assertion.ts",
             r#"
 const x = value!;
@@ -133,7 +133,7 @@ const x = value!;
     #[test]
     fn test_allows_no_assertion() {
         let test = TestProgram::for_rule_without_prelude(NoExtraNonNullAssertion);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_extra_non_null_assertion/test_allows_no_assertion.ts",
             r#"
 const x = value;
@@ -146,7 +146,7 @@ const x = value;
     #[test]
     fn test_allows_assertion_on_different_values() {
         let test = TestProgram::for_rule_without_prelude(NoExtraNonNullAssertion);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_extra_non_null_assertion/test_allows_assertion_on_different_values.ts",
             r#"
 const x = a!.b!;
@@ -159,7 +159,7 @@ const x = a!.b!;
     #[test]
     fn test_fix_removes_extra_assertion() {
         let test = TestProgram::for_rule_without_prelude(NoExtraNonNullAssertion);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_extra_non_null_assertion/test_fix_removes_extra_assertion.ts",
             r#"
 const x = value!!
@@ -177,7 +177,7 @@ const x = value!;
     #[test]
     fn test_detects_non_null_before_optional_chain() {
         let test = TestProgram::for_rule_without_prelude(NoExtraNonNullAssertion);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_extra_non_null_assertion/test_detects_non_null_before_optional_chain.ts",
             r#"
 const x = value!.?name

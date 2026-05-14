@@ -1,7 +1,7 @@
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintFix, LintMeta, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow negation of the left operand of relational operators.
@@ -13,7 +13,7 @@ declare_lint! {
         id = "no-unsafe-negation",
         code = "LC034",
         category = Correctness,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Always,
@@ -30,29 +30,29 @@ impl LintRule for NoUnsafeNegation {
         NoUnsafeNegation::meta()
     }
 
-    /// Check module AST nodes for unsafe negation on relational operators.
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    /// Check module source nodes for unsafe negation on relational operators.
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // inspect candidate expressions
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let (left, right_span, operator_name) = match ctx.tree.get(node_id) {
-                ast::Expression::Binary {
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let (left, right_span, operator_name) = match ctx.dir.get(node_id) {
+                dir::Expression::Binary {
                     left,
                     operator,
                     right,
                 } if is_unsafe_negation_operator(operator) => {
-                    let right_span = ctx.tree.get_span(*right);
+                    let right_span = ctx.dir.get_span(*right);
 
                     (*left, right_span, binary_operator_name(operator))
                 }
-                ast::Expression::Is { value, target_type } => {
-                    let right_span = ctx.tree.get_span(*target_type);
+                dir::Expression::Is { value, target_type } => {
+                    let right_span = ctx.dir.get_span(*target_type);
 
                     (*value, right_span, "is")
                 }
-                ast::Expression::InstanceOf { value, target } => {
-                    let right_span = ctx.tree.get_span(*target);
+                dir::Expression::InstanceOf { value, target } => {
+                    let right_span = ctx.dir.get_span(*target);
 
                     (*value, right_span, "instanceof")
                 }
@@ -67,8 +67,8 @@ impl LintRule for NoUnsafeNegation {
                 }
 
                 // make fix: convert `!a in b` to `!(a in b)`
-                let expression_span = ctx.tree.get_span(node_id);
-                let inner_span = ctx.tree.get_span(inner_id);
+                let expression_span = ctx.dir.get_span(node_id);
+                let inner_span = ctx.dir.get_span(inner_id);
                 let inner_text = ctx.get_span_text(inner_span);
                 let right_text = ctx.get_span_text(right_span);
                 let replacement = format!("!({inner_text} {operator_name} {right_text})");
@@ -97,18 +97,18 @@ impl LintRule for NoUnsafeNegation {
 }
 
 /// Return true when the binary operator should reject negated left operands.
-fn is_unsafe_negation_operator(operator: &ast::BinaryOperator) -> bool {
-    matches!(operator, ast::BinaryOperator::In)
+fn is_unsafe_negation_operator(operator: &dir::BinaryOperator) -> bool {
+    matches!(operator, dir::BinaryOperator::In)
 }
 
 /// Return one display name for a binary operator.
-fn binary_operator_name(operator: &ast::BinaryOperator) -> &'static str {
+fn binary_operator_name(operator: &dir::BinaryOperator) -> &'static str {
     match operator {
-        ast::BinaryOperator::In => "in",
-        ast::BinaryOperator::LessThan => "<",
-        ast::BinaryOperator::LessThanOrEqual => "<=",
-        ast::BinaryOperator::GreaterThan => ">",
-        ast::BinaryOperator::GreaterThanOrEqual => ">=",
+        dir::BinaryOperator::In => "in",
+        dir::BinaryOperator::LessThan => "<",
+        dir::BinaryOperator::LessThanOrEqual => "<=",
+        dir::BinaryOperator::GreaterThan => ">",
+        dir::BinaryOperator::GreaterThanOrEqual => ">=",
         _ => "operator",
     }
 }
@@ -116,17 +116,17 @@ fn binary_operator_name(operator: &ast::BinaryOperator) -> &'static str {
 /// Get the inner expression if this is a logical not operation.
 /// Returns the inner expression ID, or None if not a negation.
 fn get_negated_inner(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
-) -> Option<ast::LocalNodeId<ast::Expression>> {
-    let expression = ctx.tree.get(expression_id);
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> Option<dir::LocalNodeId<dir::Expression>> {
+    let expression = ctx.dir.get(expression_id);
     match expression {
-        ast::Expression::Unary { operator, right } if *operator == ast::UnaryOperator::Not => {
+        dir::Expression::Unary { operator, right } if *operator == dir::UnaryOperator::Not => {
             Some(*right)
         }
         // explicit parenthesized negation: `(!a) in b`
         // this keeps intent explicit and should not be flagged
-        ast::Expression::Parenthesized { .. } => None,
+        dir::Expression::Parenthesized { .. } => None,
         _ => None,
     }
 }
@@ -139,7 +139,7 @@ mod tests {
     #[test]
     fn test_detects_negation_in_in() {
         let test = TestProgram::for_rule_without_prelude(NoUnsafeNegation);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unsafe_negation/test_detects_negation_in_in.ds",
             r#"
 let obj = { a: 1 };
@@ -153,7 +153,7 @@ let key = "a";
     #[test]
     fn test_detects_negation_in_instanceof() {
         let test = TestProgram::for_rule_without_prelude(NoUnsafeNegation);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unsafe_negation/test_detects_negation_in_instanceof.ds",
             r#"
 class Foo {}
@@ -167,7 +167,7 @@ let x = new Foo();
     #[test]
     fn test_detects_negation_in_is() {
         let test = TestProgram::for_rule_without_prelude(NoUnsafeNegation);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unsafe_negation/test_detects_negation_in_is.ds",
             r#"
 !x is Foo;
@@ -179,7 +179,7 @@ let x = new Foo();
     #[test]
     fn test_allows_negation_outside_parens() {
         let test = TestProgram::for_rule_without_prelude(NoUnsafeNegation);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unsafe_negation/test_allows_negation_outside_parens.ds",
             r#"
 let obj = { a: 1 };
@@ -194,7 +194,7 @@ let key = "a";
     #[test]
     fn test_allows_non_negated_in() {
         let test = TestProgram::for_rule_without_prelude(NoUnsafeNegation);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unsafe_negation/test_allows_non_negated_in.ds",
             r#"
 let obj = { a: 1 };
@@ -208,7 +208,7 @@ key in obj;
     #[test]
     fn test_allows_non_negated_instanceof() {
         let test = TestProgram::for_rule_without_prelude(NoUnsafeNegation);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unsafe_negation/test_allows_non_negated_instanceof.ds",
             r#"
 class Foo {}
@@ -222,7 +222,7 @@ x instanceof Foo;
     #[test]
     fn test_allows_parenthesized_negation_left_operand() {
         let test = TestProgram::for_rule_without_prelude(NoUnsafeNegation);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unsafe_negation/test_allows_parenthesized_negation_left_operand.ds",
             r#"
 let obj = { a: 1 };
@@ -236,7 +236,7 @@ let key = "a";
     #[test]
     fn test_fix_in_operator() {
         let test = TestProgram::for_rule_without_prelude(NoUnsafeNegation);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unsafe_negation/test_fix_in_operator.ds",
             r#"
 let obj = { a: 1 }
@@ -256,7 +256,7 @@ let result = !(key in obj);
     #[test]
     fn test_fix_instanceof_operator() {
         let test = TestProgram::for_rule_without_prelude(NoUnsafeNegation);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unsafe_negation/test_fix_instanceof_operator.ds",
             r#"
 class Foo {}
@@ -278,7 +278,7 @@ let result = !(x instanceof Foo);
     #[test]
     fn test_fix_is_operator() {
         let test = TestProgram::for_rule_without_prelude(NoUnsafeNegation);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unsafe_negation/test_fix_is_operator.ds",
             r#"
 let result = !x is Foo
@@ -296,7 +296,7 @@ let result = !(x is Foo);
     #[test]
     fn test_allows_negation_in_less_than_by_default() {
         let test = TestProgram::for_rule_without_prelude(NoUnsafeNegation);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_unsafe_negation/test_allows_negation_in_less_than_by_default.ds",
             r#"
 let threshold = 2;

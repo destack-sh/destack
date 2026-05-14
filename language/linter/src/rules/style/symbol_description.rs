@@ -3,7 +3,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::expression_target_symbol;
-use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Require symbol descriptions.
@@ -30,7 +30,7 @@ impl LintRule for SymbolDescription {
         SymbolDescription::meta()
     }
 
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let mut visitor = SymbolDescriptionVisitor::new(ctx, meta);
         visitor.run();
@@ -40,7 +40,7 @@ impl LintRule for SymbolDescription {
 /// Visitor that flags Symbol() calls without descriptions.
 struct SymbolDescriptionVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The Symbol constructor symbol for this module profile.
@@ -51,7 +51,7 @@ struct SymbolDescriptionVisitor<'a, 'b> {
 
 impl<'a, 'b> SymbolDescriptionVisitor<'a, 'b> {
     /// Build a visitor for symbol description checks.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         let symbol_symbol = ctx.language_item(LanguageItem::Symbol);
         Self {
             ctx,
@@ -64,7 +64,7 @@ impl<'a, 'b> SymbolDescriptionVisitor<'a, 'b> {
     /// Walk the DIR tree roots.
     fn run(&mut self) {
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         for root_id in roots {
             let expression = tree.get(root_id);
@@ -74,7 +74,7 @@ impl<'a, 'b> SymbolDescriptionVisitor<'a, 'b> {
 
     /// Check a Symbol call for missing description.
     fn check_symbol_call(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) {
-        let expression = self.ctx.tree.get(expression_id);
+        let expression = self.ctx.dir.get(expression_id);
 
         // match call expressions only (Symbol() is always called, never new)
         let dir::Expression::Call {
@@ -146,7 +146,7 @@ impl NodeVisitor for SymbolDescriptionVisitor<'_, '_> {
 
 /// Build a fix that inserts a fallback description for Symbol calls.
 fn symbol_description_fix(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     callee_id: dir::LocalNodeId<dir::Expression>,
     call_span: destack_source::Span,
 ) -> Option<LintFix> {

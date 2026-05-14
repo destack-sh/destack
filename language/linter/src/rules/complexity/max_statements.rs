@@ -1,6 +1,6 @@
 use crate::LintMeta;
-use destack_ast::{
-    self as ast, Expression, LocalNodeId, NodeVisitor, NodeVisitorOptions, Tree, walk_expression,
+use destack_dir::{
+    self as dir, Expression, LocalNodeId, NodeVisitor, NodeVisitorOptions, Tree, walk_expression,
     walk_member, walk_property,
 };
 use destack_source::Span;
@@ -10,7 +10,7 @@ use crate::rules::common::{
     CallableOwnerId, callable_owner_span, expression_starts_nested_declaration_scope,
     expression_unwrap_statement_source_form, for_each_callable_signature,
 };
-use crate::{LintAstContext, LintReport, LintRule, declare_lint};
+use crate::{LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Limit the number of statements per function.
@@ -21,7 +21,7 @@ declare_lint! {
         id = "max-statements",
         code = "LX010",
         category = Complexity,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = No,
@@ -37,21 +37,21 @@ impl LintRule for MaxStatements {
         MaxStatements::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         // resolve lint metadata and threshold
         let meta = self.meta();
         let max_statements = ctx.options.complexity.max_statements;
         let mut pending_top_level_violations = Vec::new();
 
         // check all callable owners that have a body expression
-        for_each_callable_signature(ctx.tree, |owner_id, _signature, body_id| {
+        for_each_callable_signature(ctx.dir.tree(), |owner_id, _signature, body_id| {
             // skip declaration only callables
             let Some(body_id) = body_id else {
                 return;
             };
 
             // count statements in this callable body, excluding nested callables
-            let statement_count = count_callable_statements(ctx.tree, body_id);
+            let statement_count = count_callable_statements(ctx.dir.tree(), body_id);
             if statement_count <= max_statements {
                 return;
             }
@@ -61,7 +61,7 @@ impl LintRule for MaxStatements {
                 .options
                 .complexity
                 .max_statements_ignore_top_level_functions
-                && callable_owner_is_top_level_function(ctx.tree, owner_id)
+                && callable_owner_is_top_level_function(ctx.dir.tree(), owner_id)
             {
                 pending_top_level_violations.push((owner_id, body_id, statement_count));
                 return;
@@ -157,9 +157,9 @@ fn callable_owner_is_top_level_function(tree: &Tree, owner_id: CallableOwnerId) 
 /// Return true when one callable span is nested inside another callable-like scope.
 fn callable_is_nested_in_enclosing_scope(tree: &Tree, owner_span: Span) -> bool {
     // nested function declarations
-    for enclosing_declaration_id in tree.iter_nodes::<ast::Declaration>() {
+    for enclosing_declaration_id in tree.iter_nodes::<dir::Declaration>() {
         let enclosing_declaration = tree.get(enclosing_declaration_id);
-        if !matches!(enclosing_declaration, ast::Declaration::Function(_)) {
+        if !matches!(enclosing_declaration, dir::Declaration::Function(_)) {
             continue;
         }
 
@@ -170,13 +170,13 @@ fn callable_is_nested_in_enclosing_scope(tree: &Tree, owner_span: Span) -> bool 
     }
 
     // class methods and static or comptime blocks
-    for member_id in tree.iter_nodes::<ast::Member>() {
+    for member_id in tree.iter_nodes::<dir::Member>() {
         let member = tree.get(member_id);
         if !matches!(
             member,
-            ast::Member::Method { .. }
-                | ast::Member::StaticBlock { .. }
-                | ast::Member::ComptimeBlock { .. }
+            dir::Member::Method { .. }
+                | dir::Member::StaticBlock { .. }
+                | dir::Member::ComptimeBlock { .. }
         ) {
             continue;
         }
@@ -188,9 +188,9 @@ fn callable_is_nested_in_enclosing_scope(tree: &Tree, owner_span: Span) -> bool 
     }
 
     // object methods
-    for property_id in tree.iter_nodes::<ast::Property>() {
+    for property_id in tree.iter_nodes::<dir::Property>() {
         let property = tree.get(property_id);
-        if !matches!(property, ast::Property::Method { .. }) {
+        if !matches!(property, dir::Property::Method { .. }) {
             continue;
         }
 
@@ -228,11 +228,11 @@ fn count_callable_statements(tree: &Tree, body_expression_id: LocalNodeId<Expres
 }
 
 /// Report one max-statements violation for a callable owner.
-fn report_statement_limit_violation<T: ast::Node>(
-    ctx: &mut LintAstContext<'_>,
+fn report_statement_limit_violation<T: dir::Node>(
+    ctx: &mut LintModuleContext<'_>,
     meta: &'static LintMeta,
-    owner_id: ast::LocalNodeId<T>,
-    body_id: ast::LocalNodeId<ast::Expression>,
+    owner_id: dir::LocalNodeId<T>,
+    body_id: dir::LocalNodeId<dir::Expression>,
     statement_count: usize,
     max_statements: usize,
 ) {
@@ -250,7 +250,7 @@ fn report_statement_limit_violation<T: ast::Node>(
             MAX_STATEMENTS.category,
             severity,
             format!("function has {statement_count} statements (max {max_statements})"),
-            ctx.tree.get_span(body_id),
+            ctx.dir.get_span(body_id),
         )
         .label("consider breaking into smaller functions"),
     );
@@ -300,11 +300,11 @@ impl NodeVisitor for StatementCountVisitor {
     fn visit_property(
         &mut self,
         tree: &Tree,
-        property_id: LocalNodeId<ast::Property>,
-        property: &ast::Property,
+        property_id: LocalNodeId<dir::Property>,
+        property: &dir::Property,
     ) {
         // keep nested object methods out of parent callable counts
-        if matches!(property, ast::Property::Method { .. }) {
+        if matches!(property, dir::Property::Method { .. }) {
             return;
         }
 
@@ -315,15 +315,15 @@ impl NodeVisitor for StatementCountVisitor {
     fn visit_member(
         &mut self,
         tree: &Tree,
-        member_id: LocalNodeId<ast::Member>,
-        member: &ast::Member,
+        member_id: LocalNodeId<dir::Member>,
+        member: &dir::Member,
     ) {
         // keep nested member callable scopes out of parent callable counts
         if matches!(
             member,
-            ast::Member::Method { .. }
-                | ast::Member::StaticBlock { .. }
-                | ast::Member::ComptimeBlock { .. }
+            dir::Member::Method { .. }
+                | dir::Member::StaticBlock { .. }
+                | dir::Member::ComptimeBlock { .. }
         ) {
             return;
         }
@@ -350,7 +350,7 @@ mod tests {
         source.push_str("}\n");
 
         // verify lint report for oversized body
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_statements/test_detects_too_many_statements.ds",
             &source,
         );
@@ -362,7 +362,7 @@ mod tests {
         let test = TestProgram::for_rule_without_prelude(MaxStatements);
 
         // keep the statement count within default threshold
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_statements/test_allows_few_statements.ds",
             r#"
 function foo() {
@@ -389,7 +389,7 @@ function foo() {
         source.push_str("}\n");
 
         // verify no lint at exact threshold
-        let result = test.lint_ast("max_statements/test_allows_exactly_at_limit.ds", &source);
+        let result = test.lint("max_statements/test_allows_exactly_at_limit.ds", &source);
         test.result(result).assert_no_lint("max-statements");
     }
 
@@ -399,7 +399,7 @@ function foo() {
             .with_options(|options| options.complexity.max_statements = 2);
 
         // include nested block statements in the same callable
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_statements/test_counts_nested_block_statements.ds",
             r#"
 function foo(flag: boolean) {
@@ -421,7 +421,7 @@ function foo(flag: boolean) {
             .with_options(|options| options.complexity.max_statements = 0);
 
         // expression body lambdas have no block statements
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_statements/test_expression_body_lambda_counts_zero_statements.ds",
             r#"
 const fn = (value: int32) => value + 1;
@@ -438,7 +438,7 @@ const fn = (value: int32) => value + 1;
             .with_options(|options| options.complexity.max_statements = 1);
 
         // ignore statements inside nested callable scopes
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_statements/test_ignores_nested_function_statements.ds",
             r#"
 function outer() {
@@ -459,7 +459,7 @@ function outer() {
             .with_options(|options| options.complexity.max_statements = 2);
 
         // count statements for object method bodies
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_statements/test_detects_object_method_too_many_statements.ds",
             r#"
 const object = {
@@ -483,7 +483,7 @@ const object = {
             options.complexity.max_statements_ignore_top_level_functions = true;
         });
 
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_statements/test_ignores_top_level_function_declarations_when_enabled.ds",
             r#"
 function outer() {
@@ -503,7 +503,7 @@ function outer() {
             options.complexity.max_statements_ignore_top_level_functions = true;
         });
 
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_statements/test_ignores_single_top_level_wrapper_function_when_enabled.ds",
             r#"
 register(() => {
@@ -523,7 +523,7 @@ register(() => {
             options.complexity.max_statements_ignore_top_level_functions = true;
         });
 
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_statements/test_reports_multiple_top_level_functions_when_enabled.ds",
             r#"
 first(() => {
@@ -550,7 +550,7 @@ second(() => {
             options.complexity.max_statements_ignore_top_level_functions = true;
         });
 
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_statements/test_ignores_single_top_level_object_method_when_enabled.ds",
             r#"
 const object = {

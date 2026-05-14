@@ -7,7 +7,7 @@ use crate::rules::common::{
     expression_is_any_symbol, expression_target_symbol, expression_type_or_call_return_type_map,
     expression_unwrap_parenthesized, expression_unwrap_transparent, is_string_type,
 };
-use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow string execution APIs that act like eval.
@@ -39,7 +39,7 @@ impl LintRule for NoImpliedEval {
     }
 
     /// Check module DIR nodes for implied eval usage.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let mut visitor = NoImpliedEvalVisitor::new(ctx, meta);
         visitor.run();
@@ -49,7 +49,7 @@ impl LintRule for NoImpliedEval {
 /// Node visitor that flags implied eval usage.
 struct NoImpliedEvalVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The String language item symbol when available.
@@ -68,7 +68,7 @@ struct NoImpliedEvalVisitor<'a, 'b> {
 
 impl<'a, 'b> NoImpliedEvalVisitor<'a, 'b> {
     /// Build a visitor for no-implied-eval checks.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         let string_symbol = ctx.get_language_item(LanguageItem::String);
         let function_name = ctx.string_id("Function");
         let set_timeout_name = ctx.string_id("setTimeout");
@@ -94,7 +94,7 @@ impl<'a, 'b> NoImpliedEvalVisitor<'a, 'b> {
     /// Walk the DIR tree roots.
     fn run(&mut self) {
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         // inspect dir roots
         for root_id in roots {
@@ -125,8 +125,11 @@ impl<'a, 'b> NoImpliedEvalVisitor<'a, 'b> {
         let Some(first_argument) = arguments.first() else {
             return;
         };
-        let argument = self.ctx.tree.get(*first_argument);
-        let argument_id = expression_unwrap_parenthesized(self.ctx.tree, argument.value());
+        let argument = self.ctx.dir.get(*first_argument);
+        let Some(argument_id) = argument.value() else {
+            return;
+        };
+        let argument_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), argument_id);
         if !self.is_string_like(argument_id) {
             return;
         }
@@ -174,10 +177,10 @@ impl<'a, 'b> NoImpliedEvalVisitor<'a, 'b> {
             return false;
         }
 
-        let expression_id = expression_unwrap_parenthesized(self.ctx.tree, expression_id);
-        let expression_id = expression_unwrap_transparent(self.ctx.tree, expression_id);
-        let expression = self.ctx.tree.get(expression_id);
-        if let dir::Expression::Path { path, .. } = expression {
+        let expression_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), expression_id);
+        let expression_id = expression_unwrap_transparent(self.ctx.dir.tree(), expression_id);
+        let expression = self.ctx.dir.get(expression_id);
+        if let dir::Expression::QualifiedReference { path, .. } = expression {
             return path.segments.len() == 1 && path.segments[0] == self.function_name;
         }
 
@@ -199,12 +202,11 @@ impl<'a, 'b> NoImpliedEvalVisitor<'a, 'b> {
 
     /// Return true when the expression is a string literal or template.
     fn is_string_like(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        let expression = self.ctx.tree.get(expression_id);
+        let expression = self.ctx.dir.get(expression_id);
         if matches!(
             expression,
-            dir::Expression::ScalarLiteral {
-                value: dir::ScalarLiteral::String(_),
-            } | dir::Expression::TemplateExpression { .. }
+            dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(_))
+                | dir::Expression::TemplateExpression { .. }
         ) {
             return true;
         }
@@ -223,7 +225,7 @@ impl<'a, 'b> NoImpliedEvalVisitor<'a, 'b> {
             self.ctx.artifacts.as_ref(),
             self.ctx.profile_id,
             self.ctx.module_id(),
-            self.ctx.tree,
+            self.ctx.dir.tree(),
             self.ctx.types,
             expression_id,
             |types, type_id| is_string_type(types, type_id, self.string_symbol),

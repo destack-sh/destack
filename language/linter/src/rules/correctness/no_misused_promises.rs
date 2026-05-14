@@ -10,7 +10,7 @@ use crate::rules::common::{
     function_parameter_types_at, function_return_type, is_any_type, is_async_function_type,
     is_function_type, is_promise_or_any_type, supports_promise_spread_elements,
 };
-use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow Promise values in contexts that do not handle them.
@@ -39,7 +39,7 @@ impl LintRule for NoMisusedPromises {
     }
 
     /// Check module DIR nodes for Promise misuse in sync-only contexts.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let mut visitor = MisusedPromiseVisitor::new(ctx, meta);
         visitor.run();
@@ -49,7 +49,7 @@ impl LintRule for NoMisusedPromises {
 /// Node visitor that flags misused Promise values.
 struct MisusedPromiseVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The Promise symbol.
@@ -66,7 +66,7 @@ struct MisusedPromiseVisitor<'a, 'b> {
 
 impl<'a, 'b> MisusedPromiseVisitor<'a, 'b> {
     /// Build a visitor for misused Promise checks.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         let promise_symbol = ctx.language_item(LanguageItem::Promise);
         let check_conditionals = ctx
             .options
@@ -89,7 +89,7 @@ impl<'a, 'b> MisusedPromiseVisitor<'a, 'b> {
     /// Walk the DIR tree roots.
     fn run(&mut self) {
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         // inspect dir roots
         for root_id in roots {
@@ -107,7 +107,7 @@ impl<'a, 'b> MisusedPromiseVisitor<'a, 'b> {
     fn is_promise_expression(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
         expression_is_promise_like(
             self.ctx.module_id(),
-            self.ctx.tree,
+            self.ctx.dir.tree(),
             self.ctx.types,
             self.promise_symbol,
             expression_id,
@@ -176,7 +176,7 @@ impl<'a, 'b> MisusedPromiseVisitor<'a, 'b> {
         // resolve callee type once
         let Some(callee_type_id) = expression_declared_or_inferred_type_id(
             self.ctx.module_id(),
-            self.ctx.tree,
+            self.ctx.dir.tree(),
             self.ctx.types,
             callee_id,
         ) else {
@@ -185,14 +185,16 @@ impl<'a, 'b> MisusedPromiseVisitor<'a, 'b> {
 
         // inspect indexed candidates
         for (index, argument_id) in arguments.iter().enumerate() {
-            let argument = self.ctx.tree.get(*argument_id);
+            let argument = self.ctx.dir.get(*argument_id);
             let is_spread = matches!(argument, dir::Argument::Spread { .. });
-            let value_id = argument.value();
+            let Some(value_id) = argument.value() else {
+                continue;
+            };
 
             // require optional structure
             let Some(argument_type_id) = expression_declared_or_inferred_type_id(
                 self.ctx.module_id(),
-                self.ctx.tree,
+                self.ctx.dir.tree(),
                 self.ctx.types,
                 value_id,
             ) else {
@@ -238,7 +240,7 @@ impl<'a, 'b> MisusedPromiseVisitor<'a, 'b> {
             // promise passed where Promise is not accepted
             if expression_is_promise_like(
                 self.ctx.module_id(),
-                self.ctx.tree,
+                self.ctx.dir.tree(),
                 self.ctx.types,
                 self.promise_symbol,
                 value_id,
@@ -310,11 +312,7 @@ impl NodeVisitor for MisusedPromiseVisitor<'_, '_> {
             } => {
                 self.check_conditional_expression(id, *condition);
             }
-            dir::Expression::Loop {
-                condition: Some(condition),
-                ..
-            }
-            | dir::Expression::For {
+            dir::Expression::For {
                 condition: Some(condition),
                 ..
             } => {

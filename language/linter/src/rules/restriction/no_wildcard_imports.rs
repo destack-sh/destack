@@ -1,8 +1,8 @@
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_source::Span;
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintFix, LintMeta, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow wildcard imports.
@@ -13,7 +13,7 @@ declare_lint! {
         id = "no-wildcard-imports",
         code = "LR031",
         category = Restriction,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -30,13 +30,13 @@ impl LintRule for NoWildcardImports {
         NoWildcardImports::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // inspect candidate expressions
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expression = ctx.tree.get(node_id);
-            let ast::Expression::Import { items, .. } = expression else {
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let expression = ctx.dir.get(node_id);
+            let dir::Expression::Import { items, .. } = expression else {
                 continue;
             };
             let Some(items) = items.as_deref() else {
@@ -45,11 +45,11 @@ impl LintRule for NoWildcardImports {
 
             // check for namespace/wildcard imports (like `import * as foo`)
             for item_id in items {
-                let item = ctx.tree.get(*item_id);
+                let item = ctx.dir.get(*item_id);
                 if matches!(
                     item,
-                    ast::DependencyItem::Item {
-                        binding: ast::DependencyBinding::Namespace,
+                    dir::DependencyItem::Item {
+                        binding: dir::DependencyBinding::Namespace,
                         ..
                     }
                 ) {
@@ -63,7 +63,7 @@ impl LintRule for NoWildcardImports {
                         NO_WILDCARD_IMPORTS.category,
                         severity,
                         "wildcard import",
-                        ctx.tree.get_span(*item_id),
+                        ctx.dir.get_span(*item_id),
                     )
                     .label("use named imports instead");
                     if ctx.compute_fixes
@@ -81,10 +81,10 @@ impl LintRule for NoWildcardImports {
 
 /// Build an unsafe fix by removing one wildcard import item.
 fn no_wildcard_imports_fix(
-    ctx: &LintAstContext<'_>,
-    import_expression_id: ast::LocalNodeId<ast::Expression>,
-    items: &[ast::LocalNodeId<ast::DependencyItem>],
-    wildcard_item_id: &ast::LocalNodeId<ast::DependencyItem>,
+    ctx: &LintModuleContext<'_>,
+    import_expression_id: dir::LocalNodeId<dir::Expression>,
+    items: &[dir::LocalNodeId<dir::DependencyItem>],
+    wildcard_item_id: &dir::LocalNodeId<dir::DependencyItem>,
 ) -> Option<LintFix> {
     let wildcard_index = items
         .iter()
@@ -101,9 +101,9 @@ fn no_wildcard_imports_fix(
 
 /// Return a span that safely removes one import item from an import expression.
 fn import_item_removal_span(
-    ctx: &LintAstContext<'_>,
-    import_expression_id: ast::LocalNodeId<ast::Expression>,
-    items: &[ast::LocalNodeId<ast::DependencyItem>],
+    ctx: &LintModuleContext<'_>,
+    import_expression_id: dir::LocalNodeId<dir::Expression>,
+    items: &[dir::LocalNodeId<dir::DependencyItem>],
     item_index: usize,
 ) -> Option<Span> {
     if item_index >= items.len() {
@@ -116,7 +116,7 @@ fn import_item_removal_span(
     }
 
     // single item import: remove full statement
-    Some(ctx.tree.get_span(import_expression_id))
+    Some(ctx.dir.get_span(import_expression_id))
 }
 
 #[cfg(test)]
@@ -127,7 +127,7 @@ mod tests {
     #[test]
     fn test_detects_star_import() {
         let test = TestProgram::for_rule_without_prelude(NoWildcardImports);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_wildcard_imports/test_detects_star_import.ts",
             r#"import * as foo from "foo";"#,
         );
@@ -139,7 +139,7 @@ mod tests {
     #[test]
     fn test_allows_named_import() {
         let test = TestProgram::for_rule_without_prelude(NoWildcardImports);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_wildcard_imports/test_allows_named_import.ts",
             r#"import { foo, bar } from "foo";"#,
         );
@@ -149,7 +149,7 @@ mod tests {
     #[test]
     fn test_allows_default_import() {
         let test = TestProgram::for_rule_without_prelude(NoWildcardImports);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_wildcard_imports/test_allows_default_import.ts",
             r#"import foo from "foo";"#,
         );
@@ -159,7 +159,7 @@ mod tests {
     #[test]
     fn test_allows_side_effect_import() {
         let test = TestProgram::for_rule_without_prelude(NoWildcardImports);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_wildcard_imports/test_allows_side_effect_import.ts",
             r#"import "foo";"#,
         );
@@ -169,7 +169,7 @@ mod tests {
     #[test]
     fn test_fix_removes_wildcard_item_from_mixed_import() {
         let test = TestProgram::for_rule_without_prelude(NoWildcardImports);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_wildcard_imports/test_fix_removes_wildcard_item_from_mixed_import.ts",
             r#"import foo, * as ns from "foo";"#,
         );
@@ -181,7 +181,7 @@ mod tests {
     #[test]
     fn test_skips_declaration_file_by_default() {
         let test = TestProgram::for_rule_without_prelude(NoWildcardImports);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_wildcard_imports/test_skips_declaration_file_by_default.d.ts",
             r#"import * as foo from "foo";"#,
         );
@@ -194,7 +194,7 @@ mod tests {
             TestProgram::for_rule_without_prelude(NoWildcardImports).with_options(|options| {
                 options.include_declaration_files = true;
             });
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_wildcard_imports/test_includes_declaration_file_when_enabled.d.ts",
             r#"import * as foo from "foo";"#,
         );

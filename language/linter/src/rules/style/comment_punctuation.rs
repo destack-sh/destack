@@ -1,5 +1,5 @@
 use crate::LintMeta;
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_source::Span;
 use destack_workspace::LintSeverity;
 
@@ -7,7 +7,7 @@ use crate::rules::common::{
     has_doc_terminal_punctuation, is_directive_comment, is_doc_comment_source,
     is_non_prose_doc_line, is_separator_comment, parse_keyword_comment_with_options,
 };
-use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Enforce comment punctuation conventions.
@@ -18,7 +18,7 @@ declare_lint! {
         id = "comment-punctuation",
         code = "LY004",
         category = Style,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -35,17 +35,17 @@ impl LintRule for CommentPunctuation {
         CommentPunctuation::meta()
     }
 
-    /// Check module AST annotations for punctuation consistency.
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    /// Check module source annotations for punctuation consistency.
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // inline comments should not end with periods
-        for comment in ctx.tree.comments().iter().copied() {
+        for comment in ctx.dir.comments().iter().copied() {
             if is_doc_comment_source(ctx.get_span_text(comment.span)) {
                 continue;
             }
 
-            let text = ast::normalize_comment_payload(ctx.get_span_text(comment.span));
+            let text = dir::normalize_comment_payload(ctx.get_span_text(comment.span));
             let text = text.as_ref().trim();
 
             // skip comments that have explicit exceptions
@@ -91,12 +91,12 @@ impl LintRule for CommentPunctuation {
         }
 
         // doc comments should end each prose line with punctuation
-        for comment in ctx.tree.comments().iter().copied() {
+        for comment in ctx.dir.comments().iter().copied() {
             if !is_doc_comment_source(ctx.get_span_text(comment.span)) {
                 continue;
             }
 
-            let text = ast::normalize_comment_payload(ctx.get_span_text(comment.span));
+            let text = dir::normalize_comment_payload(ctx.get_span_text(comment.span));
             let mut has_missing_punctuation = false;
 
             // inspect each prose line
@@ -138,7 +138,7 @@ impl LintRule for CommentPunctuation {
 
 /// Build a safe fix that removes one trailing period from an inline comment.
 fn inline_comment_trailing_period_fix(
-    ctx: &LintAstContext<'_>,
+    ctx: &LintModuleContext<'_>,
     comment_span: Span,
 ) -> Option<LintFix> {
     let annotation_text = ctx.get_span_text(comment_span);
@@ -173,7 +173,7 @@ mod tests {
     #[test]
     fn test_inline_no_period_allowed() {
         let test = TestProgram::for_rule_without_prelude(CommentPunctuation);
-        let result = test.lint_ast(
+        let result = test.lint(
             "comment_punctuation/test_inline_no_period_allowed.ds",
             r#"
 let x = 1 // increment counter
@@ -186,7 +186,7 @@ let x = 1 // increment counter
     #[test]
     fn test_inline_with_period_detected() {
         let test = TestProgram::for_rule_without_prelude(CommentPunctuation);
-        let result = test.lint_ast(
+        let result = test.lint(
             "comment_punctuation/test_inline_with_period_detected.ds",
             r#"
 let x = 1 // increment counter.
@@ -199,7 +199,7 @@ let x = 1 // increment counter.
     #[test]
     fn test_fix_removes_inline_trailing_period() {
         let test = TestProgram::for_rule_without_prelude(CommentPunctuation);
-        let result = test.lint_ast(
+        let result = test.lint(
             "comment_punctuation/test_fix_removes_inline_trailing_period.ds",
             r#"
 let x = 1 // increment counter.
@@ -218,7 +218,7 @@ let x = 1; // increment counter
     #[test]
     fn test_doc_with_period_allowed() {
         let test = TestProgram::for_rule_without_prelude(CommentPunctuation);
-        let result = test.lint_ast(
+        let result = test.lint(
             "comment_punctuation/test_doc_with_period_allowed.ds",
             r#"
 /// Increments the counter.
@@ -232,7 +232,7 @@ function foo() {}
     #[test]
     fn test_doc_without_punctuation_detected() {
         let test = TestProgram::for_rule_without_prelude(CommentPunctuation);
-        let result = test.lint_ast(
+        let result = test.lint(
             "comment_punctuation/test_doc_without_punctuation_detected.ds",
             r#"
 /// Increments the counter
@@ -246,7 +246,7 @@ function foo() {}
     #[test]
     fn test_no_fix_for_missing_doc_punctuation() {
         let test = TestProgram::for_rule_without_prelude(CommentPunctuation);
-        let result = test.lint_ast(
+        let result = test.lint(
             "comment_punctuation/test_no_fix_for_missing_doc_punctuation.ds",
             r#"
 /// Increments the counter
@@ -262,7 +262,7 @@ function foo() {}
     #[test]
     fn test_doc_with_question_allowed() {
         let test = TestProgram::for_rule_without_prelude(CommentPunctuation);
-        let result = test.lint_ast(
+        let result = test.lint(
             "comment_punctuation/test_doc_with_question_allowed.ds",
             r#"
 /// Is this valid?
@@ -276,7 +276,7 @@ function foo() {}
     #[test]
     fn test_doc_with_exclamation_allowed() {
         let test = TestProgram::for_rule_without_prelude(CommentPunctuation);
-        let result = test.lint_ast(
+        let result = test.lint(
             "comment_punctuation/test_doc_with_exclamation_allowed.ds",
             r#"
 /// Do not call this!
@@ -290,7 +290,7 @@ function foo() {}
     #[test]
     fn test_keyword_comment_skipped() {
         let test = TestProgram::for_rule_without_prelude(CommentPunctuation);
-        let result = test.lint_ast(
+        let result = test.lint(
             "comment_punctuation/test_keyword_comment_skipped.ds",
             r#"
 let x = 1 // NOTE #Cleanup: remove fallback
@@ -303,7 +303,7 @@ let x = 1 // NOTE #Cleanup: remove fallback
     #[test]
     fn test_doc_each_line_requires_punctuation() {
         let test = TestProgram::for_rule_without_prelude(CommentPunctuation);
-        let result = test.lint_ast(
+        let result = test.lint(
             "comment_punctuation/test_doc_each_line_requires_punctuation.ds",
             r#"
 /// Send a message.
@@ -318,7 +318,7 @@ function foo() {}
     #[test]
     fn test_doc_non_prose_lines_ignored() {
         let test = TestProgram::for_rule_without_prelude(CommentPunctuation);
-        let result = test.lint_ast(
+        let result = test.lint(
             "comment_punctuation/test_doc_non_prose_lines_ignored.ds",
             r#"
 /// Send a message.
@@ -335,7 +335,7 @@ function foo(message: string) {}
     #[test]
     fn test_doc_line_with_colon_allowed() {
         let test = TestProgram::for_rule_without_prelude(CommentPunctuation);
-        let result = test.lint_ast(
+        let result = test.lint(
             "comment_punctuation/test_doc_line_with_colon_allowed.ds",
             r#"
 /// Send a message:
@@ -350,7 +350,7 @@ function foo() {}
     #[test]
     fn test_separator_comment_skipped() {
         let test = TestProgram::for_rule_without_prelude(CommentPunctuation);
-        let result = test.lint_ast(
+        let result = test.lint(
             "comment_punctuation/test_separator_comment_skipped.ds",
             r#"
 // ================================================================================

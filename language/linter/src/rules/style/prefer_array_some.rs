@@ -5,9 +5,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::{const_i64, flip_binary_operator, is_array_type, member_receiver_text};
-use crate::{
-    ConstValue, LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint,
-};
+use crate::{ConstValue, LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer `some()` over `filter().length` or `findIndex()` comparisons.
@@ -36,7 +34,7 @@ impl LintRule for PreferArraySome {
     }
 
     /// Check module DIR nodes for array comparisons that should use some().
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let mut visitor = PreferArraySomeVisitor::new(ctx, meta);
         visitor.run();
@@ -77,7 +75,7 @@ struct ArraySomeMatch {
 /// Node visitor that flags prefer-array-some patterns.
 struct PreferArraySomeVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The array symbol for this module profile.
@@ -102,7 +100,7 @@ struct PreferArraySomeVisitor<'a, 'b> {
 
 impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
     /// Build a visitor for prefer-array-some checks.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         let array_symbol = ctx.language_item(LanguageItem::Array);
         let filter_name = ctx.string_id("filter");
         let find_index_name = ctx.string_id("findIndex");
@@ -130,7 +128,7 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
     /// Walk the DIR tree roots.
     fn run(&mut self) {
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         for root_id in roots {
             let expression = tree.get(root_id);
@@ -262,8 +260,9 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         match_info: ArraySomeMatch,
     ) -> Option<LintFix> {
-        let candidate_expression = self.ctx.tree.get(match_info.candidate_expression_id);
+        let candidate_expression = self.ctx.dir.get(match_info.candidate_expression_id);
         let dir::Expression::Call {
+            position: _,
             left,
             generic_arguments,
             arguments,
@@ -280,14 +279,14 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
 
         // require positional callback and optional positional this-arg
         for argument_id in arguments {
-            let argument = self.ctx.tree.get(*argument_id);
+            let argument = self.ctx.dir.get(*argument_id);
             if !matches!(argument, dir::Argument::Positional { .. }) {
                 return None;
             }
         }
 
         // resolve `.findIndex` member expression
-        let member_expression = self.ctx.tree.get(*left);
+        let member_expression = self.ctx.dir.get(*left);
         let dir::Expression::Member {
             left: receiver_expression_id,
             name,
@@ -330,7 +329,7 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
         let arguments_text = self.ctx.get_span_text(arguments_span);
 
         let some_name = self.ctx.strings.get(self.some_name);
-        let some_call = format!("{receiver_text}.{}({arguments_text})", some_name);
+        let some_call = format!("{receiver_text}.{some_name}({arguments_text})");
         let replacement = match match_info.check {
             ArraySomeCheck::AnyMatch => some_call,
             ArraySomeCheck::NoMatch => format!("!{some_call}"),
@@ -349,7 +348,7 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
 
     /// Return true when the expression is a filter().length chain on an array.
     fn is_filter_length(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        let expression = self.ctx.tree.get(expression_id);
+        let expression = self.ctx.dir.get(expression_id);
 
         // match `.length` member access
         let dir::Expression::Member { left, name, .. } = expression else {
@@ -361,7 +360,7 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
 
         // match call expression on the left
         let call_id = *left;
-        let call_expression = self.ctx.tree.get(call_id);
+        let call_expression = self.ctx.dir.get(call_id);
         let dir::Expression::Call {
             left, arguments, ..
         } = call_expression
@@ -373,7 +372,7 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
         }
 
         // match `.filter(...)` call
-        let member_expression = self.ctx.tree.get(*left);
+        let member_expression = self.ctx.dir.get(*left);
         let dir::Expression::Member { left, name, .. } = member_expression else {
             return false;
         };
@@ -389,7 +388,7 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> bool {
-        let expression = self.ctx.tree.get(expression_id);
+        let expression = self.ctx.dir.get(expression_id);
 
         // match call expression
         let dir::Expression::Call {
@@ -403,7 +402,7 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
         }
 
         // match `.findIndex(...)` call
-        let member_expression = self.ctx.tree.get(*left);
+        let member_expression = self.ctx.dir.get(*left);
         let dir::Expression::Member { left, name, .. } = member_expression else {
             return false;
         };
@@ -416,7 +415,7 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
 
     /// Return true when the expression is an array find or findLast call.
     fn is_find_like_call(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        let expression = self.ctx.tree.get(expression_id);
+        let expression = self.ctx.dir.get(expression_id);
 
         // match call expression
         let dir::Expression::Call {
@@ -430,7 +429,7 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
         }
 
         // match `.find(...)` call
-        let member_expression = self.ctx.tree.get(*left);
+        let member_expression = self.ctx.dir.get(*left);
         let dir::Expression::Member { left, name, .. } = member_expression else {
             return false;
         };

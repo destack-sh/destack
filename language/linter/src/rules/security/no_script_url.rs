@@ -1,8 +1,8 @@
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_static_string_literal_source_form;
-use crate::{LintAstContext, LintMeta, LintReport, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow `javascript:` URLs.
@@ -13,7 +13,7 @@ declare_lint! {
         id = "no-script-url",
         code = "LS008",
         category = Security,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = No,
@@ -29,13 +29,14 @@ impl LintRule for NoScriptUrl {
         NoScriptUrl::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // inspect candidate expressions
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
             // check static string-like expressions
-            let Some(string_id) = expression_static_string_literal_source_form(ctx.tree, node_id)
+            let Some(string_id) =
+                expression_static_string_literal_source_form(ctx.dir.tree(), node_id)
             else {
                 continue;
             };
@@ -57,7 +58,7 @@ impl LintRule for NoScriptUrl {
                         NO_SCRIPT_URL.category,
                         severity,
                         "javascript: URLs are a security risk",
-                        ctx.tree.get_span(node_id),
+                        ctx.dir.get_span(node_id),
                     )
                     .label("avoid using javascript: URLs"),
                 );
@@ -86,7 +87,7 @@ mod tests {
     #[test]
     fn test_detects_javascript_url() {
         let test = TestProgram::for_rule_without_prelude(NoScriptUrl);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_script_url/test_detects_javascript_url.ds",
             r#"
 let url = "javascript:alert('XSS')"
@@ -98,7 +99,7 @@ let url = "javascript:alert('XSS')"
     #[test]
     fn test_detects_javascript_url_case_insensitive() {
         let test = TestProgram::for_rule_without_prelude(NoScriptUrl);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_script_url/test_detects_javascript_url_case_insensitive.ds",
             r#"
 let url = "JavaScript:alert('XSS')"
@@ -110,7 +111,7 @@ let url = "JavaScript:alert('XSS')"
     #[test]
     fn test_detects_javascript_url_with_whitespace() {
         let test = TestProgram::for_rule_without_prelude(NoScriptUrl);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_script_url/test_detects_javascript_url_with_whitespace.ds",
             r#"
 let url = "  javascript:void(0)"
@@ -122,7 +123,7 @@ let url = "  javascript:void(0)"
     #[test]
     fn test_allows_normal_url() {
         let test = TestProgram::for_rule_without_prelude(NoScriptUrl);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_script_url/test_allows_normal_url.ds",
             r#"
 let url = "https://example.com"
@@ -134,7 +135,7 @@ let url = "https://example.com"
     #[test]
     fn test_allows_string_containing_javascript_word() {
         let test = TestProgram::for_rule_without_prelude(NoScriptUrl);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_script_url/test_allows_string_containing_javascript_word.ds",
             r#"
 let msg = "I love javascript programming"
@@ -146,7 +147,7 @@ let msg = "I love javascript programming"
     #[test]
     fn test_allows_data_url() {
         let test = TestProgram::for_rule_without_prelude(NoScriptUrl);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_script_url/test_allows_data_url.ds",
             r#"
 let url = "data:text/html,<h1>Hello</h1>"
@@ -158,7 +159,7 @@ let url = "data:text/html,<h1>Hello</h1>"
     #[test]
     fn test_detects_template_script_url() {
         let test = TestProgram::for_rule_without_prelude(NoScriptUrl);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_script_url/test_detects_template_script_url.ds",
             r#"
 let url = `javascript:alert('XSS')`
@@ -170,7 +171,7 @@ let url = `javascript:alert('XSS')`
     #[test]
     fn test_allows_tagged_template_script_url() {
         let test = TestProgram::for_rule_without_prelude(NoScriptUrl);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_script_url/test_allows_tagged_template_script_url.ds",
             r#"
 let url = safe`javascript:alert('XSS')`

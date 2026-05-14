@@ -1,8 +1,8 @@
 use crate::LintMeta;
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Warn on single-element tuples that may be accidental.
@@ -13,7 +13,7 @@ declare_lint! {
         id = "no-single-element-tuple",
         code = "LU030",
         category = Suspicious,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -29,12 +29,12 @@ impl LintRule for NoSingleElementTuple {
         NoSingleElementTuple::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expression = ctx.tree.get(node_id);
-            let ast::Expression::TupleExpression { elements } = expression else {
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let expression = ctx.dir.get(node_id);
+            let dir::Expression::TupleExpression { elements } = expression else {
                 continue;
             };
 
@@ -50,7 +50,7 @@ impl LintRule for NoSingleElementTuple {
                     NO_SINGLE_ELEMENT_TUPLE.category,
                     severity,
                     "single-element tuple",
-                    ctx.tree.get_span(node_id),
+                    ctx.dir.get_span(node_id),
                 )
                 .label("consider using an array or newtype instead");
 
@@ -69,17 +69,17 @@ impl LintRule for NoSingleElementTuple {
 
 /// Build one safe fix by replacing a one-element tuple with its element.
 fn no_single_element_tuple_fix(
-    ctx: &LintAstContext<'_>,
-    tuple_id: ast::LocalNodeId<ast::Expression>,
-    element_id: ast::LocalNodeId<ast::Argument>,
+    ctx: &LintModuleContext<'_>,
+    tuple_id: dir::LocalNodeId<dir::Expression>,
+    element_id: dir::LocalNodeId<dir::Argument>,
 ) -> Option<LintFix> {
-    let argument = ctx.tree.get(element_id);
+    let argument = ctx.dir.get(element_id);
     let element_id = match argument {
-        ast::Argument::Positional { value, .. } => *value,
+        dir::Argument::Positional { value, .. } => *value,
         _ => return None,
     };
 
-    let element_span = ctx.tree.get_span(element_id);
+    let element_span = ctx.dir.get_span(element_id);
     let element_text = ctx.get_span_text(element_span);
     if element_text.trim().is_empty() {
         return None;
@@ -87,7 +87,7 @@ fn no_single_element_tuple_fix(
 
     // preserve grouping semantics by keeping one explicit parenthesized expression
     let replacement = format!("({element_text})");
-    let tuple_span = ctx.tree.get_span(tuple_id);
+    let tuple_span = ctx.dir.get_span(tuple_id);
     let edits = ctx
         .edit_builder()
         .replace(tuple_span, replacement)
@@ -106,7 +106,7 @@ mod tests {
     #[test]
     fn test_detects_single_element_tuple() {
         let test = TestProgram::for_rule_without_prelude(NoSingleElementTuple);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_single_element_tuple/test_detects_single_element_tuple.ds",
             "const x = (1,);",
         );
@@ -118,7 +118,7 @@ mod tests {
     #[test]
     fn test_allows_multi_element_tuple() {
         let test = TestProgram::for_rule_without_prelude(NoSingleElementTuple);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_single_element_tuple/test_allows_multi_element_tuple.ds",
             "const x = (1, 2);",
         );
@@ -129,7 +129,7 @@ mod tests {
     #[test]
     fn test_allows_empty_tuple() {
         let test = TestProgram::for_rule_without_prelude(NoSingleElementTuple);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_single_element_tuple/test_allows_empty_tuple.ds",
             "const x = ();",
         );
@@ -140,7 +140,7 @@ mod tests {
     #[test]
     fn test_fix_rewrites_single_element_tuple_literal() {
         let test = TestProgram::for_rule_without_prelude(NoSingleElementTuple);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_single_element_tuple/test_fix_rewrites_single_element_tuple_literal.ds",
             r#"
 const x = (1,)
@@ -158,7 +158,7 @@ const x = (1);
     #[test]
     fn test_fix_rewrites_single_element_tuple_object_expression() {
         let test = TestProgram::for_rule_without_prelude(NoSingleElementTuple);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_single_element_tuple/test_fix_rewrites_single_element_tuple_object_expression.ds",
             r#"
 const x = ({ value: 1 },)
@@ -176,7 +176,7 @@ const x = ({ value: 1 });
     #[test]
     fn test_mutation_detects_parenthesized_single_element_tuple() {
         let test = TestProgram::for_rule_without_prelude(NoSingleElementTuple);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_single_element_tuple/test_mutation_detects_parenthesized_single_element_tuple.ds",
             r#"
 const value = ((input + 1),)
@@ -194,7 +194,7 @@ const value = ((input + 1));
     #[test]
     fn test_spread_single_element_tuple_has_no_fix() {
         let test = TestProgram::for_rule_without_prelude(NoSingleElementTuple);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_single_element_tuple/test_spread_single_element_tuple_has_no_fix.ds",
             r#"
 const value = (...items,)

@@ -5,7 +5,7 @@ use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{collect_module_read_symbol_usage, collect_module_symbol_usage};
-use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow private class members that are never used.
@@ -34,23 +34,24 @@ impl LintRule for NoUnusedPrivateClassMembers {
     }
 
     /// Check module DIR nodes for unused private class members.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
-        let usage = collect_module_symbol_usage(ctx.module_id(), ctx.tree, ctx.types);
-        let read_symbols = collect_module_read_symbol_usage(ctx.module_id(), ctx.tree, ctx.types);
+        let usage = collect_module_symbol_usage(ctx.module_id(), ctx.dir.tree(), ctx.types);
+        let read_symbols =
+            collect_module_read_symbol_usage(ctx.module_id(), ctx.dir.tree(), ctx.types);
         let mut used_private_accessor_keys = HashSet::new();
         let mut reported_private_accessor_keys = HashSet::new();
 
         // collect used private accessor keys before reporting
-        for declaration_id in ctx.tree.iter_node_ids_of_type::<dir::Declaration>() {
-            let declaration = ctx.tree.get(declaration_id);
+        for declaration_id in ctx.dir.iter_node_ids_of_type::<dir::Declaration>() {
+            let declaration = ctx.dir.get(declaration_id);
             let dir::Declaration::Class(declaration) = declaration else {
                 continue;
             };
 
             // inspect candidate nodes
             for member_id in &declaration.members {
-                let member = ctx.tree.get(*member_id);
+                let member = ctx.dir.get(*member_id);
                 if !member_is_private(member) || !member_is_accessor(member) {
                     continue;
                 }
@@ -59,7 +60,7 @@ impl LintRule for NoUnusedPrivateClassMembers {
                 let Some(accessor_key) = member_private_accessor_key(member) else {
                     continue;
                 };
-                let Some(symbol_id) = candidate_member_symbol(member) else {
+                let Some(symbol_id) = candidate_member_symbol(ctx, *member_id, member) else {
                     continue;
                 };
 
@@ -72,18 +73,18 @@ impl LintRule for NoUnusedPrivateClassMembers {
         }
 
         // walk class declarations and report unused private members
-        for declaration_id in ctx.tree.iter_node_ids_of_type::<dir::Declaration>() {
-            let declaration = ctx.tree.get(declaration_id);
+        for declaration_id in ctx.dir.iter_node_ids_of_type::<dir::Declaration>() {
+            let declaration = ctx.dir.get(declaration_id);
             let dir::Declaration::Class(declaration) = declaration else {
                 continue;
             };
 
             // inspect each class member candidate
             for member_id in &declaration.members {
-                let member = ctx.tree.get(*member_id);
+                let member = ctx.dir.get(*member_id);
 
                 // resolve member symbol candidates
-                let Some(symbol_id) = candidate_member_symbol(member) else {
+                let Some(symbol_id) = candidate_member_symbol(ctx, *member_id, member) else {
                     continue;
                 };
 
@@ -135,7 +136,7 @@ impl LintRule for NoUnusedPrivateClassMembers {
                 .label("this private class member is never used");
 
                 // compute fixes only when requested by the runner
-                if ctx.include_fixes
+                if ctx.compute_fixes
                     && let Some(fix) = unused_private_member_fix(ctx, *member_id, member)
                 {
                     diagnostic = diagnostic.fix(fix);
@@ -149,7 +150,7 @@ impl LintRule for NoUnusedPrivateClassMembers {
 
 /// Build an unsafe fix for removable unused private members.
 fn unused_private_member_fix(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     member_id: dir::LocalNodeId<dir::Member>,
     member: &dir::Member,
 ) -> Option<LintFix> {
@@ -170,19 +171,21 @@ fn unused_private_member_fix(
 }
 
 /// Return the symbol id for members this rule should inspect.
-fn candidate_member_symbol(member: &dir::Member) -> Option<dir::LocalSymbolId> {
+fn candidate_member_symbol(
+    ctx: &LintModuleContext<'_>,
+    member_id: dir::LocalNodeId<dir::Member>,
+    member: &dir::Member,
+) -> Option<dir::LocalSymbolId> {
     match member {
         // inspect only value space member forms
-        dir::Member::Field { symbol, .. } => Some(*symbol),
-        dir::Member::Method {
-            signature, symbol, ..
-        } => {
+        dir::Member::Field { .. } => ctx.local_symbol_for_node(member_id),
+        dir::Member::Method { signature, .. } => {
             // constructors are invoked by allocation and should not be linted here
             if signature.role == Some(dir::FunctionRole::Constructor) {
                 return None;
             }
 
-            Some(*symbol)
+            ctx.local_symbol_for_node(member_id)
         }
         _ => None,
     }

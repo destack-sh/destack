@@ -6,7 +6,7 @@ use crate::rules::common::{
     local_symbol_has_direct_references, parameter_binding_name_and_symbol,
     promise_rejection_callback, rename_local_symbol_fix, symbol_declaration_for,
 };
-use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Enforce a specific name for caught errors.
@@ -35,15 +35,15 @@ impl LintRule for CatchErrorName {
     }
 
     /// Check module DIR expressions for catch binding names.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let expected_name = &ctx.options.style.catch_error_name;
         let catch_name = ctx.string_id("catch");
         let then_name = ctx.string_id("then");
 
         // inspect expressions for catch bindings and promise rejection callbacks
-        for expression_id in ctx.tree.iter_node_ids_of_type::<dir::Expression>() {
-            let expression = ctx.tree.get(expression_id);
+        for expression_id in ctx.dir.iter_node_ids_of_type::<dir::Expression>() {
+            let expression = ctx.dir.get(expression_id);
 
             // check try catch binding names
             if let dir::Expression::Try {
@@ -52,8 +52,6 @@ impl LintRule for CatchErrorName {
                 catch_ty: _,
                 catch_expression: _,
                 finally_expression: _,
-                scope: _,
-                symbol: _,
             } = expression
             {
                 report_try_catch_binding(ctx, meta, expression, expected_name);
@@ -62,6 +60,7 @@ impl LintRule for CatchErrorName {
 
             // check promise callback parameter names
             if let dir::Expression::Call {
+                position: _,
                 left: _,
                 generic_arguments: _,
                 arguments: _,
@@ -83,7 +82,7 @@ impl LintRule for CatchErrorName {
 
 /// Report one lint when one try catch binding name does not match the configured name.
 fn report_try_catch_binding(
-    ctx: &mut LintModuleDirContext<'_>,
+    ctx: &mut LintModuleContext<'_>,
     meta: &LintMeta,
     expression: &dir::Expression,
     expected_name: &str,
@@ -95,26 +94,26 @@ fn report_try_catch_binding(
         catch_ty: _,
         catch_expression: _,
         finally_expression: _,
-        scope: _,
-        symbol: _,
     } = expression
     else {
         return;
     };
 
     // keep simple catch binding patterns
-    let pattern = ctx.tree.get(*pattern_id);
+    let pattern = ctx.dir.get(*pattern_id);
     let dir::Pattern::Binding {
         name: actual_name_id,
-        symbol,
         pattern: _,
     } = pattern
     else {
         return;
     };
     let actual_name = ctx.strings.get(*actual_name_id).to_string();
+    let Some(symbol) = ctx.local_symbol_for_node(*pattern_id) else {
+        return;
+    };
     if name_matches_expected(&actual_name, expected_name)
-        || name_is_unused_placeholder(ctx, *symbol, &actual_name)
+        || name_is_unused_placeholder(ctx, symbol, &actual_name)
     {
         return;
     }
@@ -135,12 +134,12 @@ fn report_try_catch_binding(
         ctx.get_span(*pattern_id),
     )
     .label("rename this catch binding to the configured name");
-    if ctx.include_fixes
+    if ctx.compute_fixes
         && let Some(replacement_name) =
-            fresh_name_in_symbol_scope_for_rename(ctx, *symbol, expected_name)
+            fresh_name_in_symbol_scope_for_rename(ctx, symbol, expected_name)
         && let Some(fix) = rename_local_symbol_fix(
             ctx,
-            *symbol,
+            symbol,
             &replacement_name,
             &format!("Rename catch binding `{actual_name}` to `{replacement_name}`"),
         )
@@ -153,7 +152,7 @@ fn report_try_catch_binding(
 
 /// Report one lint when one promise rejection callback parameter name does not match.
 fn report_promise_rejection_callback(
-    ctx: &mut LintModuleDirContext<'_>,
+    ctx: &mut LintModuleContext<'_>,
     meta: &LintMeta,
     expression: &dir::Expression,
     expected_name: &str,
@@ -162,6 +161,7 @@ fn report_promise_rejection_callback(
 ) {
     // keep call expressions only
     let dir::Expression::Call {
+        position: _,
         left,
         generic_arguments: _,
         arguments,
@@ -172,7 +172,7 @@ fn report_promise_rejection_callback(
 
     // keep strict promise catch and then callback arities
     let Some(callback) = promise_rejection_callback(
-        ctx.tree,
+        ctx.dir.tree(),
         *left,
         arguments.len(),
         catch_name,
@@ -214,7 +214,7 @@ fn report_promise_rejection_callback(
         ctx.get_span(parameter_id),
     )
     .label("rename this callback parameter to the configured name");
-    if ctx.include_fixes
+    if ctx.compute_fixes
         && let Some(replacement_name) =
             fresh_name_in_symbol_scope_for_rename(ctx, symbol_id, expected_name)
         && let Some(fix) = rename_local_symbol_fix(
@@ -232,7 +232,7 @@ fn report_promise_rejection_callback(
 
 /// Resolve one callback parameter binding from one call argument.
 fn callback_parameter_binding_from_argument(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     argument_id: dir::LocalNodeId<dir::Argument>,
 ) -> Option<(
     dir::LocalNodeId<dir::Parameter>,
@@ -240,15 +240,15 @@ fn callback_parameter_binding_from_argument(
     dir::LocalSymbolId,
 )> {
     // resolve the callback argument expression
-    let argument = ctx.tree.get(argument_id);
-    let callback_expression_id = argument.value();
+    let argument = ctx.dir.get(argument_id);
+    let callback_expression_id = argument.value()?;
 
     callback_parameter_binding(ctx, callback_expression_id)
 }
 
 /// Resolve one callback first parameter binding from one callback expression.
 fn callback_parameter_binding(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     callback_expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<(
     dir::LocalNodeId<dir::Parameter>,
@@ -262,20 +262,23 @@ fn callback_parameter_binding(
     }
 
     // keep callbacks with one first parameter binding
-    let parameter_id = first_callback_parameter_in_declaration(ctx.tree, declaration_id.local_id)?;
-    let (name_id, symbol_id) = parameter_binding_name_and_symbol(ctx.tree, parameter_id)?;
+    let parameter_id =
+        first_callback_parameter_in_declaration(ctx.dir.tree(), declaration_id.local_id)?;
+    let (name_id, symbol_id) =
+        parameter_binding_name_and_symbol(ctx.dir.tree(), ctx.symbols, parameter_id)?;
 
     Some((parameter_id, name_id, symbol_id))
 }
 
 /// Resolve one callback declaration from one callback expression.
 fn callback_declaration(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     callback_expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<dir::GlobalNodeIdAny> {
     // keep inline callback declarations first
-    let callback_expression_id = expression_unwrap_transparent(ctx.tree, callback_expression_id);
-    let callback_expression = ctx.tree.get(callback_expression_id);
+    let callback_expression_id =
+        expression_unwrap_transparent(ctx.dir.tree(), callback_expression_id);
+    let callback_expression = ctx.dir.get(callback_expression_id);
     if let dir::Expression::Declaration(declaration) = callback_expression {
         return Some((*declaration).into_global_any(ctx.module_id()));
     }
@@ -319,7 +322,7 @@ fn first_callback_parameter_in_declaration(
 
 /// Return true when one underscore-prefixed name is unused in the current module.
 fn name_is_unused_placeholder(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     symbol_id: dir::LocalSymbolId,
     actual_name: &str,
 ) -> bool {
@@ -327,7 +330,7 @@ fn name_is_unused_placeholder(
         return false;
     }
 
-    !local_symbol_has_direct_references(ctx.module_id(), ctx.tree, ctx.types, symbol_id)
+    !local_symbol_has_direct_references(ctx.module_id(), ctx.dir.tree(), ctx.types, symbol_id)
 }
 
 /// Return true when one actual name matches configured catch naming conventions.

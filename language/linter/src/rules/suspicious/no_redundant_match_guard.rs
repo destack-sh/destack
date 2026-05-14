@@ -1,10 +1,10 @@
 use crate::LintMeta;
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::span_has_comment;
-use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow match guards that are always true or false.
@@ -16,7 +16,7 @@ declare_lint! {
         id = "no-redundant-match-guard",
         code = "LU025",
         category = Suspicious,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -32,11 +32,11 @@ impl LintRule for NoRedundantMatchGuard {
         NoRedundantMatchGuard::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
-        for node_id in ctx.tree.iter_nodes::<ast::MatchCase>() {
-            let match_case = ctx.tree.get(node_id);
+        for node_id in ctx.dir.iter_nodes::<dir::MatchCase>() {
+            let match_case = ctx.dir.get(node_id);
             let selector = match_case.selector();
             let Some(pattern_id) = selector.pattern_id() else {
                 continue;
@@ -66,7 +66,7 @@ impl LintRule for NoRedundantMatchGuard {
                 NO_REDUNDANT_MATCH_GUARD.category,
                 severity,
                 message,
-                ctx.tree.get_span(guard_id),
+                ctx.dir.get_span(guard_id),
             )
             .label(label);
 
@@ -85,12 +85,12 @@ impl LintRule for NoRedundantMatchGuard {
 
 /// Build a safe fix for one always true match guard.
 fn redundant_true_guard_fix(
-    ctx: &LintAstContext<'_>,
-    pattern_id: ast::LocalNodeId<ast::Pattern>,
-    guard_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    pattern_id: dir::LocalNodeId<dir::Pattern>,
+    guard_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<LintFix> {
-    let pattern_span = ctx.tree.get_span(pattern_id);
-    let guard_span = ctx.tree.get_span(guard_id);
+    let pattern_span = ctx.dir.get_span(pattern_id);
+    let guard_span = ctx.dir.get_span(guard_id);
     if pattern_span.file != guard_span.file || pattern_span.end > guard_span.end {
         return None;
     }
@@ -99,7 +99,7 @@ fn redundant_true_guard_fix(
     if remove_span.is_empty() {
         return None;
     }
-    if span_has_comment(ctx.tree, remove_span) {
+    if span_has_comment(ctx.dir.tree(), remove_span) {
         return None;
     }
 
@@ -115,7 +115,7 @@ mod tests {
     #[test]
     fn test_detects_guard_true() {
         let test = TestProgram::for_rule_without_prelude(NoRedundantMatchGuard);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_redundant_match_guard/test_detects_guard_true.ds",
             r#"
 match (x) {
@@ -130,7 +130,7 @@ match (x) {
     #[test]
     fn test_fix_removes_always_true_guard() {
         let test = TestProgram::for_rule_without_prelude(NoRedundantMatchGuard);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_redundant_match_guard/test_fix_removes_always_true_guard.ds",
             r#"
 match (x) {
@@ -155,7 +155,7 @@ match (x) {
     #[test]
     fn test_detects_guard_false() {
         let test = TestProgram::for_rule_without_prelude(NoRedundantMatchGuard);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_redundant_match_guard/test_detects_guard_false.ds",
             r#"
 match (x) {
@@ -172,7 +172,7 @@ match (x) {
     #[test]
     fn test_detects_guard_not_false() {
         let test = TestProgram::for_rule_without_prelude(NoRedundantMatchGuard);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_redundant_match_guard/test_detects_guard_not_false.ds",
             r#"
 match (x) {
@@ -197,7 +197,7 @@ match (x) {
     #[test]
     fn test_detects_guard_zero() {
         let test = TestProgram::for_rule_without_prelude(NoRedundantMatchGuard);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_redundant_match_guard/test_detects_guard_zero.ds",
             r#"
 match (x) {
@@ -212,7 +212,7 @@ match (x) {
     #[test]
     fn test_detects_guard_one() {
         let test = TestProgram::for_rule_without_prelude(NoRedundantMatchGuard);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_redundant_match_guard/test_detects_guard_one.ds",
             r#"
 match (x) {
@@ -227,7 +227,7 @@ match (x) {
     #[test]
     fn test_allows_variable_guard() {
         let test = TestProgram::for_rule_without_prelude(NoRedundantMatchGuard);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_redundant_match_guard/test_allows_variable_guard.ds",
             r#"
 match (x) {
@@ -243,7 +243,7 @@ match (x) {
     #[test]
     fn test_allows_no_guard() {
         let test = TestProgram::for_rule_without_prelude(NoRedundantMatchGuard);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_redundant_match_guard/test_allows_no_guard.ds",
             r#"
 match (x) {
@@ -259,7 +259,7 @@ match (x) {
     #[test]
     fn test_true_guard_with_comment_has_no_fix() {
         let test = TestProgram::for_rule_without_prelude(NoRedundantMatchGuard);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_redundant_match_guard/test_true_guard_with_comment_has_no_fix.ds",
             r#"
 match (x) {

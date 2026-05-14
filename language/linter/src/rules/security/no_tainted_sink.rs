@@ -5,7 +5,7 @@ use crate::rules::common::{
     TaintAnalysis, TaintCache, TaintLabels, assign_pattern_target_expression,
     expression_sink_taint_labels,
 };
-use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow flows of tainted values into security-sensitive sinks.
@@ -37,7 +37,7 @@ impl LintRule for NoTaintedSink {
         NoTaintedSink::meta()
     }
 
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let mut visitor = NoTaintedSinkVisitor::new(ctx, meta);
         visitor.run();
@@ -47,7 +47,7 @@ impl LintRule for NoTaintedSink {
 /// Visitor for tainted sink flows.
 struct NoTaintedSinkVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// Cached taint analysis state.
@@ -58,7 +58,7 @@ struct NoTaintedSinkVisitor<'a, 'b> {
 
 impl<'a, 'b> NoTaintedSinkVisitor<'a, 'b> {
     /// Build a visitor for tainted sink flows.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         Self {
             ctx,
             meta,
@@ -70,7 +70,7 @@ impl<'a, 'b> NoTaintedSinkVisitor<'a, 'b> {
     /// Walk the module roots.
     fn run(&mut self) {
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         for root_id in roots {
             let expression = tree.get(root_id);
@@ -88,7 +88,7 @@ impl<'a, 'b> NoTaintedSinkVisitor<'a, 'b> {
             self.ctx.artifacts.as_ref(),
             self.ctx.profile_id,
             self.ctx.module_id(),
-            self.ctx.tree,
+            self.ctx.dir.tree(),
             self.ctx.strings,
             self.ctx.symbols,
             self.ctx.types,
@@ -99,8 +99,10 @@ impl<'a, 'b> NoTaintedSinkVisitor<'a, 'b> {
         }
 
         for argument_id in arguments.iter().copied() {
-            let argument = self.ctx.tree.get(argument_id);
-            let source_id = argument.value();
+            let argument = self.ctx.dir.get(argument_id);
+            let Some(source_id) = argument.value() else {
+                continue;
+            };
             let source_labels = self.expression_taint_labels(source_id);
             if !source_labels.matches_sink(&sink_labels) {
                 continue;
@@ -120,7 +122,7 @@ impl<'a, 'b> NoTaintedSinkVisitor<'a, 'b> {
             self.ctx.artifacts.as_ref(),
             self.ctx.profile_id,
             self.ctx.module_id(),
-            self.ctx.tree,
+            self.ctx.dir.tree(),
             self.ctx.strings,
             self.ctx.symbols,
             self.ctx.types,
@@ -147,7 +149,7 @@ impl<'a, 'b> NoTaintedSinkVisitor<'a, 'b> {
             self.ctx.artifacts.as_ref(),
             self.ctx.profile_id,
             self.ctx.module_id(),
-            self.ctx.tree,
+            self.ctx.dir.tree(),
             self.ctx.strings,
             self.ctx.symbols,
             self.ctx.types,
@@ -190,8 +192,9 @@ impl NodeVisitor for NoTaintedSinkVisitor<'_, '_> {
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
-        if let dir::Expression::Assign { left, right } = expression {
-            let Some(left_expression_id) = assign_pattern_target_expression(self.ctx.tree, *left)
+        if let dir::Expression::Assign { left, right, .. } = expression {
+            let Some(left_expression_id) =
+                assign_pattern_target_expression(self.ctx.dir.tree(), *left)
             else {
                 return;
             };

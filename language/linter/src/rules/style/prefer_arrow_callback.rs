@@ -6,7 +6,7 @@ use crate::rules::common::{
     expression_enters_nested_declaration_scope, expression_is_new_target,
     expression_unwrap_parenthesized, signature_declares_value_name,
 };
-use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer arrow functions for callbacks.
@@ -35,13 +35,13 @@ impl LintRule for PreferArrowCallback {
     }
 
     /// Check module DIR nodes for callback functions that can be arrows.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let options = prefer_arrow_callback_options(ctx);
 
         // inspect callback arguments in call like expressions
-        for expression_id in ctx.tree.iter_node_ids_of_type::<dir::Expression>() {
-            let expression = ctx.tree.get(expression_id);
+        for expression_id in ctx.dir.iter_node_ids_of_type::<dir::Expression>() {
+            let expression = ctx.dir.get(expression_id);
             let arguments = match expression {
                 dir::Expression::Call { arguments, .. }
                 | dir::Expression::New { arguments, .. } => arguments,
@@ -65,7 +65,7 @@ struct PreferArrowCallbackOptions {
 }
 
 /// Resolve the rule options from linter configuration.
-fn prefer_arrow_callback_options(ctx: &LintModuleDirContext<'_>) -> PreferArrowCallbackOptions {
+fn prefer_arrow_callback_options(ctx: &LintModuleContext<'_>) -> PreferArrowCallbackOptions {
     PreferArrowCallbackOptions {
         allow_named_functions: ctx
             .options
@@ -77,20 +77,23 @@ fn prefer_arrow_callback_options(ctx: &LintModuleDirContext<'_>) -> PreferArrowC
 
 /// Check whether one argument is a callback that should use an arrow function.
 fn check_callback_argument(
-    ctx: &mut LintModuleDirContext<'_>,
+    ctx: &mut LintModuleContext<'_>,
     meta: &'static LintMeta,
     options: PreferArrowCallbackOptions,
     argument_id: dir::LocalNodeId<dir::Argument>,
 ) {
-    let argument = ctx.tree.get(argument_id);
+    let argument = ctx.dir.get(argument_id);
     if matches!(argument, dir::Argument::Spread { .. }) {
         return;
     }
 
     // resolve callback candidates from the argument value
-    let candidates = callback_candidates(ctx, argument.value());
+    let Some(value_expression_id) = argument.value() else {
+        return;
+    };
+    let candidates = callback_candidates(ctx, value_expression_id);
     for candidate in candidates {
-        let declaration = ctx.tree.get(candidate.declaration_id);
+        let declaration = ctx.dir.get(candidate.declaration_id);
         let dir::Declaration::Function(declaration) = declaration else {
             continue;
         };
@@ -108,7 +111,9 @@ fn check_callback_argument(
         }
 
         // inspect callback body semantics with DIR level symbol information
-        let function_symbol = declaration.symbol.into_global(ctx.module_id());
+        let Some(function_symbol) = ctx.symbol_for_node(candidate.declaration_id) else {
+            continue;
+        };
         let function_name = declaration.name.map(|name| name.string());
         let body_usage = callback_body_usage(
             ctx,
@@ -184,7 +189,7 @@ enum CallbackFixMode {
 
 /// Resolve callback candidates from one argument value expression.
 fn callback_candidates(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     value_expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Vec<CallbackCandidate> {
     let mut candidates = Vec::new();
@@ -204,19 +209,19 @@ fn callback_candidates(
 
 /// Collect callback candidates through wrapper expressions.
 fn collect_callback_candidates(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
     is_lexical_this: bool,
     wrap_arrow: bool,
     fix_mode: CallbackFixMode,
     candidates: &mut Vec<CallbackCandidate>,
 ) {
-    let expression_id = expression_unwrap_parenthesized(ctx.tree, expression_id);
-    let expression = ctx.tree.get(expression_id);
+    let expression_id = expression_unwrap_parenthesized(ctx.dir.tree(), expression_id);
+    let expression = ctx.dir.get(expression_id);
 
     // match direct function expression callbacks
     if let dir::Expression::Declaration(declaration) = expression {
-        let declaration_node = ctx.tree.get(*declaration);
+        let declaration_node = ctx.dir.get(*declaration);
         if matches!(declaration_node, dir::Declaration::Function(_)) {
             push_callback_candidate(
                 candidates,
@@ -272,7 +277,7 @@ fn collect_callback_candidates(
     }
 
     // recurse through optional and non-null wrappers
-    if let dir::Expression::Maybe { left } | dir::Expression::Must { left } = expression {
+    if let dir::Expression::Maybe { left, .. } | dir::Expression::Must { left, .. } = expression {
         collect_callback_candidates(
             ctx,
             *left,
@@ -297,14 +302,14 @@ fn collect_callback_candidates(
         return;
     };
 
-    let bind_target_id = expression_unwrap_parenthesized(ctx.tree, bind_shape.target_id);
-    let bind_target_expression = ctx.tree.get(bind_target_id);
+    let bind_target_id = expression_unwrap_parenthesized(ctx.dir.tree(), bind_shape.target_id);
+    let bind_target_expression = ctx.dir.get(bind_target_id);
 
     // remove direct `.bind(this)` wrappers around function literals
     if bind_shape.is_lexical_this
         && let dir::Expression::Declaration(declaration) = bind_target_expression
     {
-        let declaration_node = ctx.tree.get(*declaration);
+        let declaration_node = ctx.dir.get(*declaration);
         if matches!(declaration_node, dir::Declaration::Function(_)) {
             push_callback_candidate(
                 candidates,
@@ -361,13 +366,13 @@ struct BindCallShape {
 
 /// Parse one `.bind(...)` call wrapper.
 fn bind_call_shape(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     call_left_id: dir::LocalNodeId<dir::Expression>,
     arguments: &[dir::LocalNodeId<dir::Argument>],
 ) -> Option<BindCallShape> {
     let bind_name = ctx.string_id("bind");
-    let call_left_id = expression_unwrap_parenthesized(ctx.tree, call_left_id);
-    let call_left = ctx.tree.get(call_left_id);
+    let call_left_id = expression_unwrap_parenthesized(ctx.dir.tree(), call_left_id);
+    let call_left = ctx.dir.get(call_left_id);
 
     // require one plain member access named `bind`
     let dir::Expression::Member { left, name } = call_left else {
@@ -391,13 +396,16 @@ fn bind_call_shape(
 
 /// Return true when one argument is exactly `this`.
 fn argument_is_this_expression(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     argument_id: dir::LocalNodeId<dir::Argument>,
 ) -> bool {
-    let argument = ctx.tree.get(argument_id);
-    let expression_id = expression_unwrap_parenthesized(ctx.tree, argument.value());
+    let argument = ctx.dir.get(argument_id);
+    let Some(expression_id) = argument.value() else {
+        return false;
+    };
+    let expression_id = expression_unwrap_parenthesized(ctx.dir.tree(), expression_id);
 
-    matches!(ctx.tree.get(expression_id), dir::Expression::This)
+    matches!(ctx.dir.get(expression_id), dir::Expression::This)
 }
 
 /// One summary of callback body references relevant to arrow conversion.
@@ -417,7 +425,7 @@ struct CallbackBodyUsage {
 
 /// Analyze callback body references that affect arrow conversion.
 fn callback_body_usage(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     body_expression_id: Option<dir::LocalNodeId<dir::Expression>>,
     signature: &dir::FunctionSignature,
     function_symbol: dir::GlobalSymbolId,
@@ -431,7 +439,7 @@ fn callback_body_usage(
     let new_name = ctx.string_id("new");
     let target_name = ctx.string_id("target");
     let ignore_arguments_reference =
-        signature_declares_value_name(ctx.tree, ctx.symbols, signature, arguments_name);
+        signature_declares_value_name(ctx.dir.tree(), ctx.symbols, signature, arguments_name);
 
     // walk only the current callback body
     let mut visitor = CallbackBodyUsageVisitor {
@@ -447,8 +455,8 @@ fn callback_body_usage(
         usage: CallbackBodyUsage::default(),
         options: NodeVisitorOptions::default(),
     };
-    let body_expression = ctx.tree.get(body_expression_id);
-    visitor.visit_expression(ctx.tree, body_expression_id, body_expression);
+    let body_expression = ctx.dir.get(body_expression_id);
+    visitor.visit_expression(ctx.dir.tree(), body_expression_id, body_expression);
 
     visitor.usage
 }
@@ -547,7 +555,7 @@ fn expression_is_single_name_reference(
     let expression = tree.get(expression_id);
 
     match expression {
-        dir::Expression::Path {
+        dir::Expression::QualifiedReference {
             path,
             generic_arguments,
         } => generic_arguments.is_empty() && path.segments.len() == 1 && path.segments[0] == name,
@@ -556,7 +564,7 @@ fn expression_is_single_name_reference(
 }
 
 /// Build a safe fix for one callback candidate.
-fn callback_fix(ctx: &LintModuleDirContext<'_>, candidate: &CallbackCandidate) -> Option<LintFix> {
+fn callback_fix(ctx: &LintModuleContext<'_>, candidate: &CallbackCandidate) -> Option<LintFix> {
     let declaration_span = ctx.get_span(candidate.declaration_id);
 
     // keep comment carrying wrapper suffixes out of autofix
@@ -574,7 +582,7 @@ fn callback_fix(ctx: &LintModuleDirContext<'_>, candidate: &CallbackCandidate) -
 
     // slice the declaration text around the actual body span
     let declaration_text = ctx.get_span_text(declaration_span);
-    let declaration = ctx.tree.get(candidate.declaration_id);
+    let declaration = ctx.dir.get(candidate.declaration_id);
     let dir::Declaration::Function(declaration) = declaration else {
         return None;
     };

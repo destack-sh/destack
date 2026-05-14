@@ -1,9 +1,9 @@
 use crate::LintMeta;
-use destack_ast::{self as ast, Expression};
+use destack_dir::{self as dir, Expression};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_path_segments;
-use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 // #Correctness: prefer-fragment-shorthand works but would be better with canonical DIR symbols?
 
@@ -32,7 +32,7 @@ declare_lint! {
         id = "prefer-fragment-shorthand",
         code = "LY039",
         category = Style,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Always,
@@ -48,11 +48,11 @@ impl LintRule for PreferFragmentShorthand {
         PreferFragmentShorthand::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expression = ctx.tree.get(node_id);
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let expression = ctx.dir.get(node_id);
             let Expression::TreeExpression {
                 left,
                 arguments,
@@ -82,7 +82,7 @@ impl LintRule for PreferFragmentShorthand {
             }
 
             // make fix: <Fragment>...</Fragment> -> <>...</>
-            let expression_span = ctx.tree.get_span(node_id);
+            let expression_span = ctx.dir.get_span(node_id);
             let expr_text = ctx.get_span_text(expression_span);
             let replacement = convert_fragment_to_shorthand(expr_text);
             let edits = ctx
@@ -139,12 +139,15 @@ fn convert_fragment_to_shorthand(text: &str) -> String {
 }
 
 /// Check if the left expression is `Fragment`.
-fn is_fragment_tag(ctx: &LintAstContext<'_>, left: Option<ast::LocalNodeId<Expression>>) -> bool {
+fn is_fragment_tag(
+    ctx: &LintModuleContext<'_>,
+    left: Option<dir::LocalNodeId<Expression>>,
+) -> bool {
     let Some(left_id) = left else {
         return false;
     };
 
-    let Some(path_segments) = expression_path_segments(ctx.tree, left_id) else {
+    let Some(path_segments) = expression_path_segments(ctx.dir.tree(), left_id) else {
         return false;
     };
 
@@ -171,7 +174,7 @@ mod tests {
     #[test]
     fn test_fragment_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferFragmentShorthand);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_fragment_shorthand/test_fragment_detected.ds",
             r#"
 let elem = <Fragment><Child /></Fragment>
@@ -183,7 +186,7 @@ let elem = <Fragment><Child /></Fragment>
     #[test]
     fn test_shorthand_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferFragmentShorthand);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_fragment_shorthand/test_shorthand_allowed.ds",
             r#"
 let elem = <><Child /></>
@@ -196,7 +199,7 @@ let elem = <><Child /></>
     #[test]
     fn test_empty_fragment_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferFragmentShorthand);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_fragment_shorthand/test_empty_fragment_detected.ds",
             r#"
 let elem = <Fragment></Fragment>
@@ -208,7 +211,7 @@ let elem = <Fragment></Fragment>
     #[test]
     fn test_empty_shorthand_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferFragmentShorthand);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_fragment_shorthand/test_empty_shorthand_allowed.ds",
             r#"
 let elem = <></>
@@ -221,7 +224,7 @@ let elem = <></>
     #[test]
     fn test_fragment_with_key_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferFragmentShorthand);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_fragment_shorthand/test_fragment_with_key_allowed.ds",
             r#"
 let elem = <Fragment key={id}><Child /></Fragment>
@@ -235,7 +238,7 @@ let elem = <Fragment key={id}><Child /></Fragment>
     #[test]
     fn test_other_element_allowed() {
         let test = TestProgram::for_rule_without_prelude(PreferFragmentShorthand);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_fragment_shorthand/test_other_element_allowed.ds",
             r#"
 let elem = <div><Child /></div>
@@ -248,7 +251,7 @@ let elem = <div><Child /></div>
     #[test]
     fn test_multiple_children_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferFragmentShorthand);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_fragment_shorthand/test_multiple_children_detected.ds",
             r#"
 let elem = <Fragment>
@@ -263,7 +266,7 @@ let elem = <Fragment>
     #[test]
     fn test_qualified_fragment_detected() {
         let test = TestProgram::for_rule_without_prelude(PreferFragmentShorthand);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_fragment_shorthand/test_qualified_fragment_detected.ds",
             r#"
 let elem = <React.Fragment><Child /></React.Fragment>
@@ -275,7 +278,7 @@ let elem = <React.Fragment><Child /></React.Fragment>
     #[test]
     fn test_fix_fragment_to_shorthand() {
         let test = TestProgram::for_rule_without_prelude(PreferFragmentShorthand);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_fragment_shorthand/test_fix_fragment_to_shorthand.ds",
             r#"
 let elem = <Fragment><Child /></Fragment>;
@@ -297,7 +300,7 @@ let elem = (
     #[test]
     fn test_fix_empty_fragment() {
         let test = TestProgram::for_rule_without_prelude(PreferFragmentShorthand);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_fragment_shorthand/test_fix_empty_fragment.ds",
             r#"
 let elem = <Fragment></Fragment>;

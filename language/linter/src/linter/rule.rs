@@ -2,19 +2,14 @@ use destack_dir::LanguageItem;
 use destack_source::{DiagnosticSeverity, FileType};
 use destack_workspace::{LintCategory, LintSeverity};
 
-use super::{
-    LintAstContext, LintModuleDirContext, LintPackageAstContext, LintPackageDirContext,
-    LintWorkspaceAstContext, LintWorkspaceDirContext,
-};
+use super::{LintModuleContext, LintPackageContext, LintWorkspaceContext};
 
 /// The IR level at which a lint operates.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum LintLevel {
-    /// Operates on AST (untyped, pre-binding).
-    Ast,
-    /// Operates on DIR (typed IR with symbols and types).
+    /// Operates on DIR.
     Dir,
-    /// Operates on MIR (low-level IR).
+    /// Operates on MIR.
     Mir,
 }
 
@@ -162,23 +157,14 @@ pub trait LintRule: Send + Sync {
     /// Get the static metadata for this lint rule.
     fn meta(&self) -> &'static LintMeta;
 
-    /// Check a module at AST level (source patterns, no type info).
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, _ctx: &mut LintAstContext<'a>) {}
+    /// Check one module.
+    fn check_module<'a>(&self, _severity: LintSeverity, _ctx: &mut LintModuleContext<'a>) {}
 
-    /// Check a module at DIR level (typed IR with symbols and types).
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, _ctx: &mut LintModuleDirContext<'a>) {}
+    /// Check one package.
+    fn check_package(&self, _ctx: &mut LintPackageContext) {}
 
-    /// Check one package at AST level (cross-module source analysis).
-    fn check_package_ast(&self, _ctx: &mut LintPackageAstContext) {}
-
-    /// Check one package at DIR level (cross-module typed analysis).
-    fn check_package_dir(&self, _ctx: &mut LintPackageDirContext) {}
-
-    /// Check one workspace at AST level (cross-package source analysis).
-    fn check_workspace_ast(&self, _ctx: &mut LintWorkspaceAstContext) {}
-
-    /// Check one workspace at DIR level (cross-package typed analysis).
-    fn check_workspace_dir(&self, _ctx: &mut LintWorkspaceDirContext) {}
+    /// Check one workspace.
+    fn check_workspace(&self, _ctx: &mut LintWorkspaceContext) {}
 }
 
 /// A boxed lint rule for dynamic dispatch.

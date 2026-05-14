@@ -6,7 +6,7 @@ use destack_source::{FileId, FileType, ModuleId, Span};
 use destack_workspace::{DiagnosticPolicy, LintModuleBoundariesOptions, LintSeverity};
 
 use crate::rules::common::glob_matches;
-use crate::{LintReport, LintRule, LintWorkspaceDirContext, declare_lint};
+use crate::{LintReport, LintRule, LintWorkspaceContext, declare_lint};
 
 declare_lint! {
     /// Disallow imports that violate configured module boundary constraints.
@@ -35,7 +35,7 @@ impl LintRule for NoLayerViolation {
         NoLayerViolation::meta()
     }
 
-    fn check_workspace_dir(&self, ctx: &mut LintWorkspaceDirContext) {
+    fn check_workspace(&self, ctx: &mut LintWorkspaceContext) {
         // resolve lint metadata and base severity
         let meta = self.meta();
         let rule_severity = ctx.get_severity(meta);
@@ -92,7 +92,7 @@ struct ModuleDescriptor {
 
 /// Collect eligible module descriptors with component assignments.
 fn collect_module_descriptors(
-    ctx: &LintWorkspaceDirContext,
+    ctx: &LintWorkspaceContext,
     module_boundaries: &LintModuleBoundariesOptions,
 ) -> Vec<ModuleDescriptor> {
     let mut descriptors = Vec::new();
@@ -149,7 +149,7 @@ fn collect_forbidden_dependency_diagnostics(
     rule_severity: LintSeverity,
     descriptors: &[ModuleDescriptor],
     descriptor_index: &HashMap<ModuleId, usize>,
-    ctx: &LintWorkspaceDirContext,
+    ctx: &LintWorkspaceContext,
 ) -> Vec<LintReport> {
     let mut diagnostics = Vec::new();
 
@@ -217,7 +217,7 @@ fn collect_forbidden_dependency_diagnostics(
 }
 
 /// Return direct module dependencies for one module.
-fn module_dependencies(ctx: &LintWorkspaceDirContext, module_id: ModuleId) -> Vec<ModuleId> {
+fn module_dependencies(ctx: &LintWorkspaceContext, module_id: ModuleId) -> Vec<ModuleId> {
     let mut dependencies = Vec::new();
 
     if let Some(imported) = ctx.imported_dir(module_id) {
@@ -253,7 +253,7 @@ fn collect_exported_module_dependencies(exported: &DirExported, dependencies: &m
 
 /// Report modules that do not match any configured component.
 fn report_unknown_component_modules(
-    ctx: &mut LintWorkspaceDirContext,
+    ctx: &mut LintWorkspaceContext,
     module_boundaries: &LintModuleBoundariesOptions,
     descriptors: &[ModuleDescriptor],
 ) {
@@ -403,7 +403,7 @@ fn lint_severity_for_policy(policy: DiagnosticPolicy) -> Option<LintSeverity> {
 }
 
 /// Return true when one file should be excluded by declaration filtering.
-fn is_declaration_file(file_type: FileType, ctx: &LintWorkspaceDirContext) -> bool {
+fn is_declaration_file(file_type: FileType, ctx: &LintWorkspaceContext) -> bool {
     if ctx.options().include_declaration_files {
         return false;
     }

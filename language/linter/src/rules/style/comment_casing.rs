@@ -1,5 +1,5 @@
 use crate::LintMeta;
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_source::Span;
 use destack_workspace::LintSeverity;
 
@@ -7,7 +7,7 @@ use crate::rules::common::{
     first_alphabetic_character, is_directive_comment, is_doc_comment_source, is_non_prose_doc_line,
     is_separator_comment, is_separator_heading_line, parse_keyword_comment_with_options,
 };
-use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Enforce comment casing conventions.
@@ -18,7 +18,7 @@ declare_lint! {
         id = "comment-casing",
         code = "LY002",
         category = Style,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -35,13 +35,14 @@ impl LintRule for CommentCasing {
         CommentCasing::meta()
     }
 
-    /// Check module AST annotations for comment casing.
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    /// Check module source annotations for comment casing.
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // non doc comments should start with lowercase
         let inline_comments: Vec<_> = ctx
-            .tree
+            .dir
+            .tree()
             .comments()
             .iter()
             .copied()
@@ -49,15 +50,15 @@ impl LintRule for CommentCasing {
             .collect();
 
         for (index, comment) in inline_comments.iter().copied().enumerate() {
-            let comment_text = ast::normalize_comment_payload(ctx.get_span_text(comment.span));
+            let comment_text = dir::normalize_comment_payload(ctx.get_span_text(comment.span));
             let comment_text = comment_text.as_ref().trim();
             let previous_comment_text = index.checked_sub(1).map(|previous_index| {
-                ast::normalize_comment_payload(
+                dir::normalize_comment_payload(
                     ctx.get_span_text(inline_comments[previous_index].span),
                 )
             });
             let next_comment_text = inline_comments.get(index + 1).map(|next_comment| {
-                ast::normalize_comment_payload(ctx.get_span_text(next_comment.span))
+                dir::normalize_comment_payload(ctx.get_span_text(next_comment.span))
             });
             let is_separator_heading_triplet = is_separator_heading_line(
                 previous_comment_text.as_deref(),
@@ -117,13 +118,13 @@ impl LintRule for CommentCasing {
         }
 
         // doc comments should start with uppercase
-        for comment in ctx.tree.comments().iter().copied() {
+        for comment in ctx.dir.comments().iter().copied() {
             if !is_doc_comment_source(ctx.get_span_text(comment.span)) {
                 continue;
             }
 
             // find the first prose line
-            let doc_text = ast::normalize_comment_payload(ctx.get_span_text(comment.span));
+            let doc_text = dir::normalize_comment_payload(ctx.get_span_text(comment.span));
             let first_line = doc_text
                 .as_ref()
                 .lines()
@@ -198,7 +199,7 @@ enum CasingFixKind {
 
 /// Build a safe fix for one comment casing violation.
 fn comment_casing_fix(
-    ctx: &LintAstContext<'_>,
+    ctx: &LintModuleContext<'_>,
     annotation_span: Span,
     fix_kind: CasingFixKind,
 ) -> Option<LintFix> {
@@ -270,7 +271,7 @@ mod tests {
     #[test]
     fn test_inline_comment_lowercase_allowed() {
         let test = TestProgram::for_rule_without_prelude(CommentCasing);
-        let result = test.lint_ast(
+        let result = test.lint(
             "comment_casing/test_inline_comment_lowercase_allowed.ds",
             r#"
 let x = 1 // this is fine
@@ -282,7 +283,7 @@ let x = 1 // this is fine
     #[test]
     fn test_inline_comment_uppercase_detected() {
         let test = TestProgram::for_rule_without_prelude(CommentCasing);
-        let result = test.lint_ast(
+        let result = test.lint(
             "comment_casing/test_inline_comment_uppercase_detected.ds",
             r#"
 let x = 1 // This should be lowercase
@@ -294,7 +295,7 @@ let x = 1 // This should be lowercase
     #[test]
     fn test_fix_lowercases_inline_comment_start() {
         let test = TestProgram::for_rule_without_prelude(CommentCasing);
-        let result = test.lint_ast(
+        let result = test.lint(
             "comment_casing/test_fix_lowercases_inline_comment_start.ds",
             r#"
 let x = 1 // This should be lowercase
@@ -312,7 +313,7 @@ let x = 1; // this should be lowercase
     #[test]
     fn test_doc_comment_uppercase_allowed() {
         let test = TestProgram::for_rule_without_prelude(CommentCasing);
-        let result = test.lint_ast(
+        let result = test.lint(
             "comment_casing/test_doc_comment_uppercase_allowed.ds",
             r#"
 /// This is proper documentation.
@@ -325,7 +326,7 @@ function foo() {}
     #[test]
     fn test_doc_comment_lowercase_detected() {
         let test = TestProgram::for_rule_without_prelude(CommentCasing);
-        let result = test.lint_ast(
+        let result = test.lint(
             "comment_casing/test_doc_comment_lowercase_detected.ds",
             r#"
 /// this should be uppercase
@@ -338,7 +339,7 @@ function foo() {}
     #[test]
     fn test_fix_uppercases_doc_comment_start() {
         let test = TestProgram::for_rule_without_prelude(CommentCasing);
-        let result = test.lint_ast(
+        let result = test.lint(
             "comment_casing/test_fix_uppercases_doc_comment_start.ds",
             r#"
 /// this should be uppercase
@@ -358,7 +359,7 @@ function foo() {}
     #[test]
     fn test_special_markers_skipped() {
         let test = TestProgram::for_rule_without_prelude(CommentCasing);
-        let result = test.lint_ast(
+        let result = test.lint(
             "comment_casing/test_special_markers_skipped.ds",
             r#"
 let x = 1 // @ts-ignore
@@ -372,7 +373,7 @@ let y = 2 // #region
     #[test]
     fn test_keyword_comment_skipped() {
         let test = TestProgram::for_rule_without_prelude(CommentCasing);
-        let result = test.lint_ast(
+        let result = test.lint(
             "comment_casing/test_keyword_comment_skipped.ds",
             r#"
 let x = 1 // NOTE #Suspicious: this path is odd
@@ -385,7 +386,7 @@ let x = 1 // NOTE #Suspicious: this path is odd
     #[test]
     fn test_separator_heading_skipped() {
         let test = TestProgram::for_rule_without_prelude(CommentCasing);
-        let result = test.lint_ast(
+        let result = test.lint(
             "comment_casing/test_separator_heading_skipped.ds",
             r#"
 // ================================================================================
@@ -403,7 +404,7 @@ const value = 1;
         let test = TestProgram::for_rule_without_prelude(CommentCasing).with_options(|options| {
             options.style.comment_separator_heading_min_lines = 4;
         });
-        let result = test.lint_ast(
+        let result = test.lint(
             "comment_casing/test_separator_heading_respects_min_lines_option.ds",
             r#"
 // ================================================================================
@@ -419,7 +420,7 @@ const value = 1;
     #[test]
     fn test_block_comment_uppercase_detected() {
         let test = TestProgram::for_rule_without_prelude(CommentCasing);
-        let result = test.lint_ast(
+        let result = test.lint(
             "comment_casing/test_block_comment_uppercase_detected.ds",
             r#"
 // Build the value map
@@ -433,7 +434,7 @@ const value = 1;
     #[test]
     fn test_doc_non_prose_line_skipped() {
         let test = TestProgram::for_rule_without_prelude(CommentCasing);
-        let result = test.lint_ast(
+        let result = test.lint(
             "comment_casing/test_doc_non_prose_line_skipped.ds",
             r#"
 /// @returns {number}

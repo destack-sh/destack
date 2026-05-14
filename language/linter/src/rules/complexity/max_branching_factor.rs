@@ -1,9 +1,9 @@
 use crate::LintMeta;
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_is_else_if_branch;
-use crate::{LintAstContext, LintReport, LintRule, declare_lint};
+use crate::{LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Limit the number of branches in one conditional.
@@ -14,7 +14,7 @@ declare_lint! {
         id = "max-branching-factor",
         code = "LX003",
         category = Complexity,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = No,
@@ -30,16 +30,16 @@ impl LintRule for MaxBranchingFactor {
         MaxBranchingFactor::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         // resolve lint metadata and threshold
         let meta = self.meta();
         let max_branches = ctx.options.complexity.max_branching_factor;
 
         // scan conditionals and branch based expressions
-        for expression_id in ctx.tree.iter_nodes::<ast::Expression>() {
+        for expression_id in ctx.dir.iter_nodes::<dir::Expression>() {
             // check top level if chain branch count
-            if let ast::Expression::If { .. } = ctx.tree.get(expression_id) {
-                if expression_is_else_if_branch(ctx.tree, ctx.parents, expression_id) {
+            if let dir::Expression::If { .. } = ctx.dir.get(expression_id) {
+                if expression_is_else_if_branch(ctx.dir.tree(), expression_id) {
                     continue;
                 }
 
@@ -59,7 +59,7 @@ impl LintRule for MaxBranchingFactor {
             }
 
             // check switch case branch count
-            let ast::Expression::Match { cases, .. } = ctx.tree.get(expression_id) else {
+            let dir::Expression::Match { cases, .. } = ctx.dir.get(expression_id) else {
                 continue;
             };
             let branch_count = cases.len();
@@ -79,13 +79,13 @@ impl LintRule for MaxBranchingFactor {
 
 /// Count branches in one if else chain.
 fn count_if_chain_branches(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> usize {
     // resolve one if expression entry point
-    let ast::Expression::If {
+    let dir::Expression::If {
         else_expression, ..
-    } = ctx.tree.get(expression_id)
+    } = ctx.dir.get(expression_id)
     else {
         return 0;
     };
@@ -97,10 +97,7 @@ fn count_if_chain_branches(
     let Some(else_expression_id) = else_expression else {
         return branch_count;
     };
-    if matches!(
-        ctx.tree.get(*else_expression_id),
-        ast::Expression::If { .. }
-    ) {
+    if matches!(ctx.dir.get(*else_expression_id), dir::Expression::If { .. }) {
         branch_count += count_if_chain_branches(ctx, *else_expression_id);
         return branch_count;
     }
@@ -110,9 +107,9 @@ fn count_if_chain_branches(
 
 /// Report one branching factor violation.
 fn report_branching_violation(
-    ctx: &mut LintAstContext<'_>,
+    ctx: &mut LintModuleContext<'_>,
     meta: &'static LintMeta,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
     expression_kind: &str,
     branch_count: usize,
     max_branches: usize,
@@ -131,7 +128,7 @@ fn report_branching_violation(
             MAX_BRANCHING_FACTOR.category,
             severity,
             format!("{expression_kind} has {branch_count} branches (max {max_branches})"),
-            ctx.tree.get_span(expression_id),
+            ctx.dir.get_span(expression_id),
         )
         .label("consider simplifying this conditional"),
     );
@@ -145,7 +142,7 @@ mod tests {
     #[test]
     fn test_flags_many_if_branches() {
         let test = TestProgram::for_rule_without_prelude(MaxBranchingFactor);
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_branching_factor/test_flags_many_if_branches.ds",
             r#"
 function check(x: int32) {
@@ -181,7 +178,7 @@ function check(x: int32) {
     #[test]
     fn test_flags_many_match_arms() {
         let test = TestProgram::for_rule_without_prelude(MaxBranchingFactor);
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_branching_factor/test_flags_many_match_arms.ds",
             r#"
 function check(x: int32) {
@@ -207,7 +204,7 @@ function check(x: int32) {
     #[test]
     fn test_allows_few_if_branches() {
         let test = TestProgram::for_rule_without_prelude(MaxBranchingFactor);
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_branching_factor/test_allows_few_if_branches.ds",
             r#"
 function check(x: int32) {
@@ -227,7 +224,7 @@ function check(x: int32) {
     #[test]
     fn test_allows_few_match_arms() {
         let test = TestProgram::for_rule_without_prelude(MaxBranchingFactor);
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_branching_factor/test_allows_few_match_arms.ds",
             r#"
 function check(x: int32) {
@@ -246,7 +243,7 @@ function check(x: int32) {
     fn test_reports_else_if_chain_once() {
         let test = TestProgram::for_rule_without_prelude(MaxBranchingFactor)
             .with_options(|options| options.complexity.max_branching_factor = 2);
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_branching_factor/test_reports_else_if_chain_once.ds",
             r#"
 function check(x: int32) {

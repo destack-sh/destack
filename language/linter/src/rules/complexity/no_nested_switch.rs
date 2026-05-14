@@ -1,9 +1,9 @@
 use crate::LintMeta;
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_starts_nested_declaration_scope;
-use crate::{LintAstContext, LintReport, LintRule, declare_lint};
+use crate::{LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow nested switch statements.
@@ -14,7 +14,7 @@ declare_lint! {
         id = "no-nested-switch",
         code = "LX021",
         category = Complexity,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = No,
@@ -30,15 +30,15 @@ impl LintRule for NoNestedSwitch {
         NoNestedSwitch::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
             // only check switch statements, not match expressions
-            let ast::Expression::Match { form, .. } = ctx.tree.get(node_id) else {
+            let dir::Expression::Match { form, .. } = ctx.dir.get(node_id) else {
                 continue;
             };
-            if *form != ast::MatchForm::Switch {
+            if *form != dir::MatchForm::Switch {
                 continue;
             }
             // check if this switch is nested inside another switch
@@ -55,7 +55,7 @@ impl LintRule for NoNestedSwitch {
                         NO_NESTED_SWITCH.category,
                         severity,
                         "nested switch statement",
-                        ctx.tree.get_span(node_id),
+                        ctx.dir.get_span(node_id),
                     )
                     .label("consider extracting to a separate function"),
                 );
@@ -66,28 +66,28 @@ impl LintRule for NoNestedSwitch {
 
 /// Check if a switch statement is nested inside another switch.
 fn is_nested_in_switch(
-    ctx: &LintAstContext<'_>,
-    expr_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    expr_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     // walk up parent chain and report once any enclosing switch is found
     let mut current = expr_id.id;
 
-    while let Some(parent_raw_id) = ctx.parents.get_by_id(current) {
-        let parent_type = ctx.tree.get_node_type(parent_raw_id);
+    while let Some(parent_raw_id) = ctx.dir.get_parent_id(current) {
+        let parent_type = ctx.dir.get_node_type(parent_raw_id);
 
         // stop at method and static-block owners
-        if matches!(parent_type, ast::NodeType::Member | ast::NodeType::Property) {
+        if matches!(parent_type, dir::NodeType::Member | dir::NodeType::Property) {
             return false;
         }
 
         // skip non-expression nodes
-        if parent_type != ast::NodeType::Expression {
+        if parent_type != dir::NodeType::Expression {
             current = parent_raw_id;
             continue;
         }
 
-        let parent_id = ast::LocalNodeId::<ast::Expression>::new(parent_raw_id);
-        let parent = ctx.tree.get(parent_id);
+        let parent_id = dir::LocalNodeId::<dir::Expression>::new(parent_raw_id);
+        let parent = ctx.dir.get(parent_id);
 
         // stop once a nested declaration introduces a new callable scope
         if expression_starts_nested_declaration_scope(parent) {
@@ -95,8 +95,8 @@ fn is_nested_in_switch(
         }
 
         // check if parent is a switch statement
-        if let ast::Expression::Match { form, .. } = parent
-            && *form == ast::MatchForm::Switch
+        if let dir::Expression::Match { form, .. } = parent
+            && *form == dir::MatchForm::Switch
         {
             return true;
         }
@@ -115,7 +115,7 @@ mod tests {
     #[test]
     fn test_detects_nested_switch() {
         let test = TestProgram::for_rule_without_prelude(NoNestedSwitch);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_nested_switch/test_detects_nested_switch.ds",
             r#"
 let x = 1;
@@ -138,7 +138,7 @@ switch (x) {
     #[test]
     fn test_allows_single_switch() {
         let test = TestProgram::for_rule_without_prelude(NoNestedSwitch);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_nested_switch/test_allows_single_switch.ds",
             r#"
 let x = 1;
@@ -155,7 +155,7 @@ switch (x) {
     #[test]
     fn test_allows_switch_in_separate_function() {
         let test = TestProgram::for_rule_without_prelude(NoNestedSwitch);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_nested_switch/test_allows_switch_in_separate_function.ds",
             r#"
 let x = 1;
@@ -180,7 +180,7 @@ switch (x) {
     #[test]
     fn test_allows_sequential_switches() {
         let test = TestProgram::for_rule_without_prelude(NoNestedSwitch);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_nested_switch/test_allows_sequential_switches.ds",
             r#"
 let x = 1;
@@ -201,7 +201,7 @@ switch (y) {
     #[test]
     fn test_allows_switch_in_nested_lambda_inside_switch() {
         let test = TestProgram::for_rule_without_prelude(NoNestedSwitch);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_nested_switch/test_allows_switch_in_nested_lambda_inside_switch.ds",
             r#"
 let x = 1;

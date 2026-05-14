@@ -1,8 +1,8 @@
 use crate::LintMeta;
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintReport, LintRule, declare_lint};
+use crate::{LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow continue statements.
@@ -13,7 +13,7 @@ declare_lint! {
         id = "no-continue",
         code = "LR008",
         category = Restriction,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = No,
@@ -29,12 +29,12 @@ impl LintRule for NoContinue {
         NoContinue::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expression = ctx.tree.get(node_id);
-            if !matches!(expression, ast::Expression::Continue { .. }) {
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let expression = ctx.dir.get(node_id);
+            if !matches!(expression, dir::Expression::Continue { .. }) {
                 continue;
             }
 
@@ -42,7 +42,7 @@ impl LintRule for NoContinue {
             if !severity.is_enabled() {
                 continue;
             }
-            let span = ctx.tree.get_span(node_id);
+            let span = ctx.dir.get_span(node_id);
             ctx.report(
                 LintReport::new(
                     NO_CONTINUE.id,
@@ -66,7 +66,7 @@ mod tests {
     #[test]
     fn test_detects_continue() {
         let test = TestProgram::for_rule_without_prelude(NoContinue);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_continue/test_detects_continue.ts",
             r#"
 for (let i = 0; i < 10; i++) {
@@ -81,7 +81,7 @@ for (let i = 0; i < 10; i++) {
     #[test]
     fn test_detects_labeled_continue() {
         let test = TestProgram::for_rule_without_prelude(NoContinue);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_continue/test_detects_labeled_continue.ts",
             r#"
 outer: for (let i = 0; i < 10; i++) {
@@ -97,7 +97,7 @@ outer: for (let i = 0; i < 10; i++) {
     #[test]
     fn test_allows_break() {
         let test = TestProgram::for_rule_without_prelude(NoContinue);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_continue/test_allows_break.ts",
             r#"
 for (let i = 0; i < 10; i++) {
@@ -111,7 +111,7 @@ for (let i = 0; i < 10; i++) {
     #[test]
     fn test_detects_continue_in_do_while() {
         let test = TestProgram::for_rule_without_prelude(NoContinue);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_continue/test_detects_continue_in_do_while.ts",
             r#"
 let i = 0;
@@ -127,7 +127,7 @@ do {
     #[test]
     fn test_detects_continue_in_while() {
         let test = TestProgram::for_rule_without_prelude(NoContinue);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_continue/test_detects_continue_in_while.ts",
             r#"
 let i = 0;

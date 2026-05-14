@@ -6,7 +6,7 @@ use crate::rules::common::{
     const_i64, expression_static_property_access, expression_static_string_literal,
     expression_target_symbol, expression_unwrap_transparent, span_has_comment,
 };
-use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer numeric literals over `parseInt()`.
@@ -33,7 +33,7 @@ impl LintRule for PreferNumericLiterals {
         PreferNumericLiterals::meta()
     }
 
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let mut visitor = PreferNumericLiteralsVisitor::new(ctx, meta);
         visitor.run();
@@ -43,7 +43,7 @@ impl LintRule for PreferNumericLiterals {
 /// Visitor that flags parseInt with binary/octal/hex radix.
 struct PreferNumericLiteralsVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The string id for the parseInt method name.
@@ -56,7 +56,7 @@ struct PreferNumericLiteralsVisitor<'a, 'b> {
 
 impl<'a, 'b> PreferNumericLiteralsVisitor<'a, 'b> {
     /// Build a visitor for prefer-numeric-literals checks.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         let parse_int_name = ctx.string_id("parseInt");
         let number_name = ctx.string_id("Number");
         Self {
@@ -71,7 +71,7 @@ impl<'a, 'b> PreferNumericLiteralsVisitor<'a, 'b> {
     /// Walk the DIR tree roots.
     fn run(&mut self) {
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         for root_id in roots {
             let expression = tree.get(root_id);
@@ -82,7 +82,7 @@ impl<'a, 'b> PreferNumericLiteralsVisitor<'a, 'b> {
     /// Check a call expression for parseInt usage.
     fn check_call(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) {
         // match call expressions
-        let expression = self.ctx.tree.get(expression_id);
+        let expression = self.ctx.dir.get(expression_id);
         let dir::Expression::Call {
             left,
             generic_arguments,
@@ -104,16 +104,21 @@ impl<'a, 'b> PreferNumericLiteralsVisitor<'a, 'b> {
         }
 
         // check if first argument is a static string
-        let string_arg = self.ctx.tree.get(arguments[0]);
-        let string_expr_id = string_arg.value();
-        let Some(string_value) = expression_static_string_literal(self.ctx.tree, string_expr_id)
+        let string_arg = self.ctx.dir.get(arguments[0]);
+        let Some(string_expr_id) = string_arg.value() else {
+            return;
+        };
+        let Some(string_value) =
+            expression_static_string_literal(self.ctx.dir.tree(), string_expr_id)
         else {
             return;
         };
 
         // check if radix is a constant 2, 8, or 16
-        let radix_arg = self.ctx.tree.get(arguments[1]);
-        let radix_expr_id = radix_arg.value();
+        let radix_arg = self.ctx.dir.get(arguments[1]);
+        let Some(radix_expr_id) = radix_arg.value() else {
+            return;
+        };
         let Some(const_value) = self.ctx.const_value(radix_expr_id) else {
             return;
         };
@@ -180,7 +185,7 @@ impl<'a, 'b> PreferNumericLiteralsVisitor<'a, 'b> {
             return None;
         }
         for argument_id in arguments {
-            let argument = self.ctx.tree.get(*argument_id);
+            let argument = self.ctx.dir.get(*argument_id);
             if !matches!(argument, dir::Argument::Positional { .. }) {
                 return None;
             }
@@ -188,11 +193,11 @@ impl<'a, 'b> PreferNumericLiteralsVisitor<'a, 'b> {
 
         // only fix when the full string maps to one literal value with no partial parse behavior
         let value = self.ctx.strings.get(string_value);
-        let replacement = preferred_numeric_literal(value.as_ref(), radix, prefix)?;
+        let replacement = preferred_numeric_literal(value, radix, prefix)?;
 
         // replace the full parseInt expression
         let expression_span = self.ctx.get_span(expression_id);
-        if span_has_comment(self.ctx.ast, expression_span) {
+        if span_has_comment(self.ctx.dir.tree(), expression_span) {
             return None;
         }
 
@@ -209,7 +214,7 @@ impl<'a, 'b> PreferNumericLiteralsVisitor<'a, 'b> {
     fn is_parse_int_callee(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
         // match Number.parseInt and globalThis.Number.parseInt
         if let Some((base_id, property_name)) =
-            expression_static_property_access(self.ctx.tree, expression_id)
+            expression_static_property_access(self.ctx.dir.tree(), expression_id)
             && property_name == self.parse_int_name
             && self.is_global_number(base_id)
         {
@@ -217,10 +222,10 @@ impl<'a, 'b> PreferNumericLiteralsVisitor<'a, 'b> {
         }
 
         // match bare global parseInt but skip local shadowed symbols
-        let expression_id = expression_unwrap_transparent(self.ctx.tree, expression_id);
-        let expression = self.ctx.tree.get(expression_id);
+        let expression_id = expression_unwrap_transparent(self.ctx.dir.tree(), expression_id);
+        let expression = self.ctx.dir.get(expression_id);
         match expression {
-            dir::Expression::Path { path, .. } => {
+            dir::Expression::QualifiedReference { path, .. } => {
                 path.segments.len() == 1 && path.segments[0] == self.parse_int_name
             }
             _ => false,
@@ -233,9 +238,9 @@ impl<'a, 'b> PreferNumericLiteralsVisitor<'a, 'b> {
             return false;
         }
 
-        let expression_id = expression_unwrap_transparent(self.ctx.tree, expression_id);
-        let expression = self.ctx.tree.get(expression_id);
-        if let dir::Expression::Path { path, .. } = expression {
+        let expression_id = expression_unwrap_transparent(self.ctx.dir.tree(), expression_id);
+        let expression = self.ctx.dir.get(expression_id);
+        if let dir::Expression::QualifiedReference { path, .. } = expression {
             return path.segments.len() == 1 && path.segments[0] == self.number_name;
         }
 

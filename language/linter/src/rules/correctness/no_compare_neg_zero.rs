@@ -1,8 +1,8 @@
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{expression_unwrap_parenthesized_source_form, is_comparison_operator};
-use crate::{LintAstContext, LintFix, LintMeta, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow comparing to negative zero.
@@ -14,7 +14,7 @@ declare_lint! {
         id = "no-compare-neg-zero",
         code = "LC007",
         category = Correctness,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -31,17 +31,17 @@ impl LintRule for NoCompareNegZero {
         NoCompareNegZero::meta()
     }
 
-    /// Check module AST nodes for comparisons against negative zero.
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    /// Check module source nodes for comparisons against negative zero.
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // walk binary expressions
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let ast::Expression::Binary {
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let dir::Expression::Binary {
                 left,
                 operator,
                 right,
-            } = ctx.tree.get(node_id)
+            } = ctx.dir.get(node_id)
             else {
                 continue;
             };
@@ -67,7 +67,7 @@ impl LintRule for NoCompareNegZero {
             }
 
             // resolve diagnostic span
-            let expression_span = ctx.tree.get_span(node_id);
+            let expression_span = ctx.dir.get_span(node_id);
             let mut diagnostic = LintReport::new(
                 NO_COMPARE_NEG_ZERO.id,
                 NO_COMPARE_NEG_ZERO.code,
@@ -99,22 +99,22 @@ impl LintRule for NoCompareNegZero {
 
 /// Create a fix for -0 comparison (equality operators only).
 fn make_neg_zero_fix(
-    ctx: &LintAstContext<'_>,
-    left: ast::LocalNodeId<ast::Expression>,
-    right: ast::LocalNodeId<ast::Expression>,
-    operator: ast::BinaryOperator,
+    ctx: &LintModuleContext<'_>,
+    left: dir::LocalNodeId<dir::Expression>,
+    right: dir::LocalNodeId<dir::Expression>,
+    operator: dir::BinaryOperator,
     left_is_neg_zero: bool,
     expression_span: destack_source::Span,
 ) -> Option<LintFix> {
     // get the non negative zero operand
     let other_id = if left_is_neg_zero { right } else { left };
-    let other_span = ctx.tree.get_span(other_id);
+    let other_span = ctx.dir.get_span(other_id);
     let other_text = ctx.get_span_text(other_span);
 
     // only strict equality operators are semantics preserving here
     let replacement = match operator {
-        ast::BinaryOperator::EqualStrict => format!("Object.is({other_text}, -0)"),
-        ast::BinaryOperator::NotEqualStrict => format!("!Object.is({other_text}, -0)"),
+        dir::BinaryOperator::EqualStrict => format!("Object.is({other_text}, -0)"),
+        dir::BinaryOperator::NotEqualStrict => format!("!Object.is({other_text}, -0)"),
 
         // loose equality and relational operators: no fix
         _ => return None,
@@ -130,17 +130,17 @@ fn make_neg_zero_fix(
 
 /// Check if an expression is negative zero (-0).
 fn is_negative_zero(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     // normalize expression shape
-    let expression_id = expression_unwrap_parenthesized_source_form(ctx.tree, expression_id);
-    let expression = ctx.tree.get(expression_id);
+    let expression_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), expression_id);
+    let expression = ctx.dir.get(expression_id);
 
     // require unary negation of zero
     match expression {
-        ast::Expression::Unary { operator, right } => {
-            if *operator != ast::UnaryOperator::Negate {
+        dir::Expression::Unary { operator, right } => {
+            if *operator != dir::UnaryOperator::Negate {
                 return false;
             }
             is_zero_literal(ctx, *right)
@@ -151,18 +151,18 @@ fn is_negative_zero(
 
 /// Check if an expression is a zero literal (0 or 0.0).
 fn is_zero_literal(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     // normalize expression shape
-    let expression_id = expression_unwrap_parenthesized_source_form(ctx.tree, expression_id);
-    let expression = ctx.tree.get(expression_id);
+    let expression_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), expression_id);
+    let expression = ctx.dir.get(expression_id);
 
     // require numeric zero literals
     match expression {
-        ast::Expression::ScalarLiteral(literal) => match literal {
-            ast::ScalarLiteral::Integer(0) => true,
-            ast::ScalarLiteral::Float(f) => *f == 0.0,
+        dir::Expression::ScalarLiteral(literal) => match literal {
+            dir::ScalarLiteral::Integer(0) => true,
+            dir::ScalarLiteral::Float(f) => *f == 0.0,
             _ => false,
         },
         _ => false,
@@ -177,7 +177,7 @@ mod tests {
     #[test]
     fn test_detects_compare_neg_zero_equality() {
         let test = TestProgram::for_rule_without_prelude(NoCompareNegZero);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_compare_neg_zero/test_detects_compare_neg_zero_equality.ds",
             r#"
 let x = 0;
@@ -190,7 +190,7 @@ x == -0;
     #[test]
     fn test_detects_compare_neg_zero_strict_equality() {
         let test = TestProgram::for_rule_without_prelude(NoCompareNegZero);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_compare_neg_zero/test_detects_compare_neg_zero_strict_equality.ds",
             r#"
 let x = 0;
@@ -203,7 +203,7 @@ x === -0;
     #[test]
     fn test_detects_compare_neg_zero_inequality() {
         let test = TestProgram::for_rule_without_prelude(NoCompareNegZero);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_compare_neg_zero/test_detects_compare_neg_zero_inequality.ds",
             r#"
 let x = 0;
@@ -216,7 +216,7 @@ x != -0;
     #[test]
     fn test_does_not_fix_loose_equal() {
         let test = TestProgram::for_rule_without_prelude(NoCompareNegZero);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_compare_neg_zero/test_does_not_fix_loose_equal.ds",
             r#"
 let x = 0;
@@ -232,7 +232,7 @@ if (x == -0) {
     #[test]
     fn test_does_not_fix_loose_not_equal() {
         let test = TestProgram::for_rule_without_prelude(NoCompareNegZero);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_compare_neg_zero/test_does_not_fix_loose_not_equal.ds",
             r#"
 let x = 0;
@@ -248,7 +248,7 @@ if (x != -0) {
     #[test]
     fn test_detects_neg_zero_on_left() {
         let test = TestProgram::for_rule_without_prelude(NoCompareNegZero);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_compare_neg_zero/test_detects_neg_zero_on_left.ds",
             r#"
 let x = 0;
@@ -261,7 +261,7 @@ let x = 0;
     #[test]
     fn test_detects_compare_neg_zero_float() {
         let test = TestProgram::for_rule_without_prelude(NoCompareNegZero);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_compare_neg_zero/test_detects_compare_neg_zero_float.ds",
             r#"
 let x = 0.0;
@@ -274,7 +274,7 @@ x === -0.0;
     #[test]
     fn test_allows_compare_regular_zero() {
         let test = TestProgram::for_rule_without_prelude(NoCompareNegZero);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_compare_neg_zero/test_allows_compare_regular_zero.ds",
             r#"
 let x = 0;
@@ -287,7 +287,7 @@ x === 0;
     #[test]
     fn test_allows_compare_positive_numbers() {
         let test = TestProgram::for_rule_without_prelude(NoCompareNegZero);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_compare_neg_zero/test_allows_compare_positive_numbers.ds",
             r#"
 let x = 1;
@@ -300,7 +300,7 @@ x === 1;
     #[test]
     fn test_allows_negation_of_variable() {
         let test = TestProgram::for_rule_without_prelude(NoCompareNegZero);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_compare_neg_zero/test_allows_negation_of_variable.ds",
             r#"
 let x = 1;
@@ -314,7 +314,7 @@ x === -y;
     #[test]
     fn test_fix_strict_equal() {
         let test = TestProgram::for_rule_without_prelude(NoCompareNegZero);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_compare_neg_zero/test_fix_strict_equal.ds",
             r#"
 let x = 0
@@ -335,7 +335,7 @@ if (Object.is(x, -0)) {
     #[test]
     fn test_fix_not_equal() {
         let test = TestProgram::for_rule_without_prelude(NoCompareNegZero);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_compare_neg_zero/test_fix_not_equal.ds",
             r#"
 let x = 0
@@ -356,7 +356,7 @@ if (!Object.is(x, -0)) {
     #[test]
     fn test_fix_neg_zero_on_left() {
         let test = TestProgram::for_rule_without_prelude(NoCompareNegZero);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_compare_neg_zero/test_fix_neg_zero_on_left.ds",
             r#"
 let x = 0
@@ -377,7 +377,7 @@ if (Object.is(x, -0)) {
     #[test]
     fn test_fix_complex_expression() {
         let test = TestProgram::for_rule_without_prelude(NoCompareNegZero);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_compare_neg_zero/test_fix_complex_expression.ds",
             r#"
 let y = 0
@@ -397,7 +397,7 @@ let x = Object.is((y + 1), -0);
     #[test]
     fn test_no_fix_for_relational() {
         let test = TestProgram::for_rule_without_prelude(NoCompareNegZero);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_compare_neg_zero/test_no_fix_for_relational.ds",
             r#"
 let x = 0
@@ -412,7 +412,7 @@ if (x < -0) {}
     #[test]
     fn test_detects_parenthesized_negative_zero() {
         let test = TestProgram::for_rule_without_prelude(NoCompareNegZero);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_compare_neg_zero/test_detects_parenthesized_negative_zero.ds",
             r#"
 let x = 0;
@@ -426,7 +426,7 @@ if (x === (-0)) {
     #[test]
     fn test_detects_nested_parenthesized_negative_zero_on_right() {
         let test = TestProgram::for_rule_without_prelude(NoCompareNegZero);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_compare_neg_zero/test_detects_nested_parenthesized_negative_zero_on_right.ds",
             r#"
 let x = 0;
@@ -440,7 +440,7 @@ if ((x) !== (((-0)))) {
     #[test]
     fn test_detects_nested_parenthesized_negative_zero_on_left() {
         let test = TestProgram::for_rule_without_prelude(NoCompareNegZero);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_compare_neg_zero/test_detects_nested_parenthesized_negative_zero_on_left.ds",
             r#"
 let x = 0;

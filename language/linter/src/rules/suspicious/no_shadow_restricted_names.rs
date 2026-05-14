@@ -1,7 +1,7 @@
 use crate::LintMeta;
 use std::sync::LazyLock;
 
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_dir::LanguageItem;
 use destack_source::Span;
 use destack_workspace::LintSeverity;
@@ -10,7 +10,7 @@ use crate::rules::common::{
     assign_pattern_is_unqualified_path_name, expression_is_unqualified_path_name,
     is_simple_identifier, subtree_mentions_identifier_name,
 };
-use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow shadowing of restricted or builtin names.
@@ -22,7 +22,7 @@ declare_lint! {
         id = "no-shadow-restricted-names",
         code = "LU029",
         category = Suspicious,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -70,7 +70,7 @@ fn is_restricted_name(name: &str) -> bool {
 }
 
 /// Return true when one string id is `undefined`.
-fn name_is_undefined(ctx: &LintAstContext<'_>, name: ast::StringId) -> bool {
+fn name_is_undefined(ctx: &LintModuleContext<'_>, name: dir::StringId) -> bool {
     ctx.strings.get(name) == "undefined"
 }
 
@@ -79,15 +79,15 @@ impl LintRule for NoShadowRestrictedNames {
         NoShadowRestrictedNames::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // check patterns (let/const bindings, function params, etc.)
-        for node_id in ctx.tree.iter_nodes::<ast::Pattern>() {
-            let pattern = ctx.tree.get(node_id);
+        for node_id in ctx.dir.iter_nodes::<dir::Pattern>() {
+            let pattern = ctx.dir.get(node_id);
 
             let name = match pattern {
-                ast::Pattern::Binding { name, .. } => *name,
+                dir::Pattern::Binding { name, .. } => *name,
                 _ => continue,
             };
 
@@ -113,7 +113,7 @@ impl LintRule for NoShadowRestrictedNames {
                 NO_SHADOW_RESTRICTED_NAMES.category,
                 severity,
                 format!("shadowing of restricted name '{name_str}'"),
-                ctx.tree.get_span(node_id),
+                ctx.dir.get_span(node_id),
             )
             .label(format!("'{name_str}' is a restricted name"));
             if ctx.compute_fixes
@@ -126,8 +126,8 @@ impl LintRule for NoShadowRestrictedNames {
         }
 
         // check function/class/struct declarations
-        for node_id in ctx.tree.iter_nodes::<ast::Declaration>() {
-            let declaration = ctx.tree.get(node_id);
+        for node_id in ctx.dir.iter_nodes::<dir::Declaration>() {
+            let declaration = ctx.dir.get(node_id);
             let name = declaration.name();
             let Some(name) = name else {
                 continue;
@@ -150,19 +150,19 @@ impl LintRule for NoShadowRestrictedNames {
                     NO_SHADOW_RESTRICTED_NAMES.category,
                     severity,
                     format!("shadowing of restricted name '{name_str}'"),
-                    ctx.tree.get_span(node_id),
+                    ctx.dir.get_span(node_id),
                 )
                 .label(format!("'{name_str}' is a restricted name")),
             );
         }
 
         // check function parameters
-        for node_id in ctx.tree.iter_nodes::<ast::Parameter>() {
-            let param = ctx.tree.get(node_id);
+        for node_id in ctx.dir.iter_nodes::<dir::Parameter>() {
+            let param = ctx.dir.get(node_id);
 
             let name = match param {
-                ast::Parameter::Named { name, .. } => *name,
-                ast::Parameter::VariadicNamed { name, .. } => *name,
+                dir::Parameter::Named { name, .. } => *name,
+                dir::Parameter::VariadicNamed { name, .. } => *name,
                 _ => continue,
             };
 
@@ -182,7 +182,7 @@ impl LintRule for NoShadowRestrictedNames {
                 NO_SHADOW_RESTRICTED_NAMES.category,
                 severity,
                 format!("shadowing of restricted name '{name_str}'"),
-                ctx.tree.get_span(node_id),
+                ctx.dir.get_span(node_id),
             )
             .label(format!("'{name_str}' is a restricted name"));
             if ctx.compute_fixes
@@ -198,28 +198,28 @@ impl LintRule for NoShadowRestrictedNames {
 
 /// Build one suggestion rename fix for one pattern binding.
 fn no_shadow_restricted_names_fix_for_pattern(
-    ctx: &LintAstContext<'_>,
-    pattern_id: ast::LocalNodeId<ast::Pattern>,
-    name: ast::StringId,
+    ctx: &LintModuleContext<'_>,
+    pattern_id: dir::LocalNodeId<dir::Pattern>,
+    name: dir::StringId,
 ) -> Option<LintFix> {
-    no_shadow_restricted_names_fix(ctx, pattern_id.id, ctx.tree.get_span(pattern_id), name)
+    no_shadow_restricted_names_fix(ctx, pattern_id.id, ctx.dir.get_span(pattern_id), name)
 }
 
 /// Build one suggestion rename fix for one parameter binding.
 fn no_shadow_restricted_names_fix_for_parameter(
-    ctx: &LintAstContext<'_>,
-    parameter_id: ast::LocalNodeId<ast::Parameter>,
-    name: ast::StringId,
+    ctx: &LintModuleContext<'_>,
+    parameter_id: dir::LocalNodeId<dir::Parameter>,
+    name: dir::StringId,
 ) -> Option<LintFix> {
-    no_shadow_restricted_names_fix(ctx, parameter_id.id, ctx.tree.get_span(parameter_id), name)
+    no_shadow_restricted_names_fix(ctx, parameter_id.id, ctx.dir.get_span(parameter_id), name)
 }
 
 /// Build one suggestion rename fix when declaration is scope-local and unreferenced.
 fn no_shadow_restricted_names_fix(
-    ctx: &LintAstContext<'_>,
+    ctx: &LintModuleContext<'_>,
     node_id: u32,
     declaration_span: Span,
-    name: ast::StringId,
+    name: dir::StringId,
 ) -> Option<LintFix> {
     let name_text = ctx.strings.get(name).to_string();
     if !is_simple_identifier(&name_text) {
@@ -248,7 +248,7 @@ fn no_shadow_restricted_names_fix(
 
 /// Build one replacement name for restricted identifiers in the local declaration scope.
 fn restricted_name_replacement(
-    ctx: &LintAstContext<'_>,
+    ctx: &LintModuleContext<'_>,
     scope_root: IdentifierScopeRoot,
     name: &str,
 ) -> Option<String> {
@@ -277,47 +277,50 @@ fn restricted_name_replacement(
 enum IdentifierScopeRoot {
     /// The whole module scope.
     Module,
-    /// One AST subtree root that establishes a declaration scope.
-    Node(ast::NodeType, u32),
+    /// One source subtree root that establishes a declaration scope.
+    Node(dir::NodeType, u32),
 }
 
 /// Return the nearest declaration-scope subtree root for one identifier node.
-fn identifier_scope_root(ctx: &LintAstContext<'_>, node_id: u32) -> IdentifierScopeRoot {
+fn identifier_scope_root(ctx: &LintModuleContext<'_>, node_id: u32) -> IdentifierScopeRoot {
     let mut current_id = node_id;
 
     loop {
-        let Some(parent_id) = ctx.parents.get_by_id(current_id) else {
+        let Some(parent_id) = ctx.dir.get_parent_id(current_id) else {
             return IdentifierScopeRoot::Module;
         };
-        let parent_type = ctx.tree.get_node_type(parent_id);
+        let parent_type = ctx.dir.get_node_type(parent_id);
 
         // block bodies establish the local declaration scope
-        if parent_type == ast::NodeType::Block {
+        if parent_type == dir::NodeType::Block {
             return IdentifierScopeRoot::Node(parent_type, parent_id);
         }
 
         // callable owners establish parameter and method scopes
-        if parent_type == ast::NodeType::Declaration {
+        if parent_type == dir::NodeType::Declaration {
             let declaration = ctx
-                .tree
-                .get(ast::LocalNodeId::<ast::Declaration>::new(parent_id));
-            if matches!(declaration, ast::Declaration::Function(_)) {
+                .dir
+                .tree()
+                .get(dir::LocalNodeId::<dir::Declaration>::new(parent_id));
+            if matches!(declaration, dir::Declaration::Function(_)) {
                 return IdentifierScopeRoot::Node(parent_type, parent_id);
             }
         }
-        if parent_type == ast::NodeType::Member {
+        if parent_type == dir::NodeType::Member {
             let member = ctx
-                .tree
-                .get(ast::LocalNodeId::<ast::Member>::new(parent_id));
-            if matches!(member, ast::Member::Method { .. }) {
+                .dir
+                .tree()
+                .get(dir::LocalNodeId::<dir::Member>::new(parent_id));
+            if matches!(member, dir::Member::Method { .. }) {
                 return IdentifierScopeRoot::Node(parent_type, parent_id);
             }
         }
-        if parent_type == ast::NodeType::Property {
+        if parent_type == dir::NodeType::Property {
             let property = ctx
-                .tree
-                .get(ast::LocalNodeId::<ast::Property>::new(parent_id));
-            if matches!(property, ast::Property::Method { .. }) {
+                .dir
+                .tree()
+                .get(dir::LocalNodeId::<dir::Property>::new(parent_id));
+            if matches!(property, dir::Property::Method { .. }) {
                 return IdentifierScopeRoot::Node(parent_type, parent_id);
             }
         }
@@ -328,28 +331,33 @@ fn identifier_scope_root(ctx: &LintAstContext<'_>, node_id: u32) -> IdentifierSc
 
 /// Return true when one scope subtree mentions one identifier name.
 fn scope_mentions_identifier_name(
-    ctx: &LintAstContext<'_>,
+    ctx: &LintModuleContext<'_>,
     scope_root: IdentifierScopeRoot,
-    name: ast::StringId,
+    name: dir::StringId,
 ) -> bool {
     match scope_root {
         IdentifierScopeRoot::Module => ctx.roots.iter().copied().any(|root_id| {
-            subtree_mentions_identifier_name(ctx.tree, ast::NodeType::Expression, root_id.id, name)
+            subtree_mentions_identifier_name(
+                ctx.dir.tree(),
+                dir::NodeType::Expression,
+                root_id.id,
+                name,
+            )
         }),
         IdentifierScopeRoot::Node(node_type, node_id) => {
-            subtree_mentions_identifier_name(ctx.tree, node_type, node_id, name)
+            subtree_mentions_identifier_name(ctx.dir.tree(), node_type, node_id, name)
         }
     }
 }
 
 /// Return true when one scope subtree contains one unqualified path reference.
 fn scope_has_unqualified_path_reference(
-    ctx: &LintAstContext<'_>,
+    ctx: &LintModuleContext<'_>,
     scope_root: IdentifierScopeRoot,
-    name: ast::StringId,
+    name: dir::StringId,
 ) -> bool {
     let mut visitor = ScopeReferenceSearchVisitor {
-        options: ast::NodeVisitorOptions::default(),
+        options: dir::NodeVisitorOptions::default(),
         name,
         found_reference: false,
     };
@@ -361,16 +369,16 @@ fn scope_has_unqualified_path_reference(
                     break;
                 }
 
-                ast::walk_any(
+                dir::walk_any(
                     &mut visitor,
-                    ctx.tree,
-                    ast::NodeType::Expression,
+                    ctx.dir.tree(),
+                    dir::NodeType::Expression,
                     root_id.id,
                 );
             }
         }
         IdentifierScopeRoot::Node(node_type, node_id) => {
-            ast::walk_any(&mut visitor, ctx.tree, node_type, node_id);
+            dir::walk_any(&mut visitor, ctx.dir.tree(), node_type, node_id);
         }
     }
 
@@ -380,23 +388,23 @@ fn scope_has_unqualified_path_reference(
 /// Visitor that finds one unqualified path reference in a scope subtree.
 struct ScopeReferenceSearchVisitor {
     /// Visitor options.
-    options: ast::NodeVisitorOptions,
+    options: dir::NodeVisitorOptions,
     /// The target identifier name.
-    name: ast::StringId,
+    name: dir::StringId,
     /// Whether a matching reference has been found.
     found_reference: bool,
 }
 
-impl ast::NodeVisitor for ScopeReferenceSearchVisitor {
-    fn options(&self) -> &ast::NodeVisitorOptions {
+impl dir::NodeVisitor for ScopeReferenceSearchVisitor {
+    fn options(&self) -> &dir::NodeVisitorOptions {
         &self.options
     }
 
     fn visit_expression(
         &mut self,
-        tree: &ast::Tree,
-        expression_id: ast::LocalNodeId<ast::Expression>,
-        expression: &ast::Expression,
+        tree: &dir::Tree,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        expression: &dir::Expression,
     ) {
         // stop once one reference has been found
         if self.found_reference {
@@ -409,26 +417,26 @@ impl ast::NodeVisitor for ScopeReferenceSearchVisitor {
             return;
         }
 
-        ast::walk_expression(self, tree, expression_id, expression);
+        dir::walk_expression(self, tree, expression_id, expression);
     }
 }
 
 /// Return true when one `undefined` binding is safe to shadow.
 fn binding_safely_shadows_undefined(
-    ctx: &LintAstContext<'_>,
-    pattern_id: ast::LocalNodeId<ast::Pattern>,
-    name: ast::StringId,
+    ctx: &LintModuleContext<'_>,
+    pattern_id: dir::LocalNodeId<dir::Pattern>,
+    name: dir::StringId,
 ) -> bool {
     // keep only simple declarator bindings
-    let Some(parent_id) = ctx.parents.get(pattern_id) else {
+    let Some(parent_id) = ctx.dir.get_parent_id(pattern_id.id) else {
         return false;
     };
-    if ctx.tree.get_node_type(parent_id) != ast::NodeType::Declarator {
+    if ctx.dir.get_node_type(parent_id) != dir::NodeType::Declarator {
         return false;
     }
 
-    let declarator_id = ast::LocalNodeId::<ast::Declarator>::new(parent_id);
-    let declarator = ctx.tree.get(declarator_id);
+    let declarator_id = dir::LocalNodeId::<dir::Declarator>::new(parent_id);
+    let declarator = ctx.dir.get(declarator_id);
     if declarator.pattern != pattern_id {
         return false;
     }
@@ -441,27 +449,27 @@ fn binding_safely_shadows_undefined(
 }
 
 /// Return true when one unqualified identifier has assignment-like writes.
-fn identifier_has_write_usage(ctx: &LintAstContext<'_>, name: ast::StringId) -> bool {
-    for expression_id in ctx.tree.iter_nodes::<ast::Expression>() {
-        let expression = ctx.tree.get(expression_id);
+fn identifier_has_write_usage(ctx: &LintModuleContext<'_>, name: dir::StringId) -> bool {
+    for expression_id in ctx.dir.iter_nodes::<dir::Expression>() {
+        let expression = ctx.dir.get(expression_id);
 
         // capture direct assignment writes
-        if let ast::Expression::Assign { left, .. } = expression
-            && assign_pattern_is_unqualified_path_name(ctx.tree, *left, name)
+        if let dir::Expression::Assign { left, .. } = expression
+            && assign_pattern_is_unqualified_path_name(ctx.dir.tree(), *left, name)
         {
             return true;
         }
 
         // capture unary increment and decrement writes
-        if let ast::Expression::Unary { operator, right } = expression
+        if let dir::Expression::Unary { operator, right } = expression
             && matches!(
                 operator,
-                ast::UnaryOperator::PreIncrement
-                    | ast::UnaryOperator::PostIncrement
-                    | ast::UnaryOperator::PreDecrement
-                    | ast::UnaryOperator::PostDecrement
+                dir::UnaryOperator::PreIncrement
+                    | dir::UnaryOperator::PostIncrement
+                    | dir::UnaryOperator::PreDecrement
+                    | dir::UnaryOperator::PostDecrement
             )
-            && expression_is_unqualified_path_name(ctx.tree, *right, name)
+            && expression_is_unqualified_path_name(ctx.dir.tree(), *right, name)
         {
             return true;
         }
@@ -472,7 +480,7 @@ fn identifier_has_write_usage(ctx: &LintAstContext<'_>, name: ast::StringId) -> 
 
 /// Return the declaration span when it is exactly the identifier token.
 fn exact_identifier_span(
-    ctx: &LintAstContext<'_>,
+    ctx: &LintModuleContext<'_>,
     search_span: Span,
     identifier: &str,
 ) -> Option<Span> {
@@ -492,7 +500,7 @@ mod tests {
     #[test]
     fn test_detects_nan_variable() {
         let test = TestProgram::for_rule_without_prelude(NoShadowRestrictedNames);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_shadow_restricted_names/test_detects_nan_variable.ds",
             r#"
 let NaN = 0
@@ -505,7 +513,7 @@ let NaN = 0
     #[test]
     fn test_detects_infinity_variable() {
         let test = TestProgram::for_rule_without_prelude(NoShadowRestrictedNames);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_shadow_restricted_names/test_detects_infinity_variable.ds",
             r#"
 let Infinity = 100
@@ -518,7 +526,7 @@ let Infinity = 100
     #[test]
     fn test_detects_arguments_param() {
         let test = TestProgram::for_rule_without_prelude(NoShadowRestrictedNames);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_shadow_restricted_names/test_detects_arguments_param.ds",
             r#"
 function foo(arguments: int) {}
@@ -531,7 +539,7 @@ function foo(arguments: int) {}
     #[test]
     fn test_detects_object_class() {
         let test = TestProgram::for_rule_without_prelude(NoShadowRestrictedNames);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_shadow_restricted_names/test_detects_object_class.ds",
             r#"
 class Object {}
@@ -544,7 +552,7 @@ class Object {}
     #[test]
     fn test_detects_array_function() {
         let test = TestProgram::for_rule_without_prelude(NoShadowRestrictedNames);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_shadow_restricted_names/test_detects_array_function.ds",
             r#"
 function Array() {}
@@ -557,7 +565,7 @@ function Array() {}
     #[test]
     fn test_allows_safe_undefined_shadow_without_initializer() {
         let test = TestProgram::for_rule_without_prelude(NoShadowRestrictedNames);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_shadow_restricted_names/test_allows_safe_undefined_shadow_without_initializer.ds",
             r#"
 let undefined
@@ -571,7 +579,7 @@ doSomething(undefined)
     #[test]
     fn test_detects_undefined_shadow_with_initializer() {
         let test = TestProgram::for_rule_without_prelude(NoShadowRestrictedNames);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_shadow_restricted_names/test_detects_undefined_shadow_with_initializer.ds",
             r#"
 let undefined = 1
@@ -584,7 +592,7 @@ let undefined = 1
     #[test]
     fn test_allows_normal_names() {
         let test = TestProgram::for_rule_without_prelude(NoShadowRestrictedNames);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_shadow_restricted_names/test_allows_normal_names.ds",
             r#"
 const x = 42
@@ -599,7 +607,7 @@ function foo() {}
     #[test]
     fn test_allows_similar_names() {
         let test = TestProgram::for_rule_without_prelude(NoShadowRestrictedNames);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_shadow_restricted_names/test_allows_similar_names.ds",
             r#"
 const undefinedValue = 42
@@ -613,7 +621,7 @@ let isNaN = true
     #[test]
     fn test_detects_language_item_type() {
         let test = TestProgram::for_rule_without_prelude(NoShadowRestrictedNames);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_shadow_restricted_names/test_detects_language_item_type.ds",
             r#"
 let Type = 42
@@ -626,7 +634,7 @@ let Type = 42
     #[test]
     fn test_detects_language_item_add() {
         let test = TestProgram::for_rule_without_prelude(NoShadowRestrictedNames);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_shadow_restricted_names/test_detects_language_item_add.ds",
             r#"
 struct Add {}
@@ -639,7 +647,7 @@ struct Add {}
     #[test]
     fn test_allows_removed_language_item_range() {
         let test = TestProgram::for_rule_without_prelude(NoShadowRestrictedNames);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_shadow_restricted_names/test_allows_removed_language_item_range.ds",
             r#"
 function Range() {}
@@ -652,7 +660,7 @@ function Range() {}
     #[test]
     fn test_fix_renames_unreferenced_restricted_binding() {
         let test = TestProgram::for_rule_without_prelude(NoShadowRestrictedNames);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_shadow_restricted_names/test_fix_renames_unreferenced_restricted_binding.ds",
             r#"
 let NaN = 0
@@ -675,7 +683,7 @@ let NaNLocal = 0;
     #[test]
     fn test_no_fix_for_referenced_restricted_binding() {
         let test = TestProgram::for_rule_without_prelude(NoShadowRestrictedNames);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_shadow_restricted_names/test_no_fix_for_referenced_restricted_binding.ds",
             r#"
 let NaN = 0
@@ -690,7 +698,7 @@ console.log(NaN)
     #[test]
     fn test_fix_uses_unique_suffix_when_local_name_already_exists() {
         let test = TestProgram::for_rule_without_prelude(NoShadowRestrictedNames);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_shadow_restricted_names/test_fix_uses_unique_suffix_when_local_name_already_exists.ds",
             r#"
 let NaNLocal = 1
@@ -715,7 +723,7 @@ let NaNLocal2 = 0;
     #[test]
     fn test_fix_ignores_comment_occurrences_of_restricted_name() {
         let test = TestProgram::for_rule_without_prelude(NoShadowRestrictedNames);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_shadow_restricted_names/test_fix_ignores_comment_occurrences_of_restricted_name.ds",
             r#"
 // nan appears in a comment but should not block the rename fix

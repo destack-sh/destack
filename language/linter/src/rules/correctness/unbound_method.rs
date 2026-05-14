@@ -1,5 +1,4 @@
-use destack_ast::StringId;
-use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression};
+use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, StringId, walk_expression};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
@@ -7,7 +6,7 @@ use crate::rules::common::{
     has_non_void_this_parameter_type, member_receiver_text, parent_is_receiver_helper,
     resolution_target_symbols, symbol_declaration_for, symbol_value_type_id_for,
 };
-use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow unbound instance methods.
@@ -37,7 +36,7 @@ impl LintRule for UnboundMethod {
     }
 
     /// Check module DIR nodes for unbound method references.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let bind_name = ctx.string_id("bind");
         let call_name = ctx.string_id("call");
@@ -52,7 +51,7 @@ impl LintRule for UnboundMethod {
 /// Node visitor for unbound method checks.
 struct UnboundMethodVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The interned "bind" name.
@@ -68,7 +67,7 @@ struct UnboundMethodVisitor<'a, 'b> {
 impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
     /// Build a visitor for unbound method checks.
     fn new(
-        ctx: &'a mut LintModuleDirContext<'b>,
+        ctx: &'a mut LintModuleContext<'b>,
         meta: &'a LintMeta,
         bind_name: StringId,
         call_name: StringId,
@@ -87,7 +86,7 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
     /// Walk the module roots.
     fn run(&mut self) {
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         // inspect dir roots
         for root_id in roots {
@@ -133,7 +132,7 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
             span,
         )
         .label("bind this method or wrap it in a lambda");
-        if self.ctx.include_fixes
+        if self.ctx.compute_fixes
             && let Some(fix) = self.unbound_method_fix(expression_id)
         {
             diagnostic = diagnostic.fix(fix);
@@ -147,7 +146,7 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<LintFix> {
-        let expression = self.ctx.tree.get(expression_id);
+        let expression = self.ctx.dir.get(expression_id);
         let (left_expression_id, method_name, is_private, method_text_span) = match expression {
             dir::Expression::Member { left, name, .. } => {
                 // skip helper names: this expression is itself not a method reference target
@@ -176,7 +175,7 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
 
         // skip helper chains like `method.call()` and `method.bind()`
         if parent_is_receiver_helper(
-            self.ctx.tree,
+            self.ctx.dir.tree(),
             expression_id,
             self.bind_name,
             self.call_name,
@@ -216,7 +215,7 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
         let mut current_id = expression_id;
 
         loop {
-            let Some(parent) = self.ctx.tree.get_parent(current_id.id) else {
+            let Some(parent) = self.ctx.dir.get_parent(current_id.id) else {
                 return false;
             };
             if parent.ty != dir::NodeType::Expression {
@@ -225,19 +224,17 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
 
             // inspect the next parent expression usage
             let parent_id = parent.into_typed::<dir::Expression>();
-            let parent_expression = self.ctx.tree.get(parent_id);
+            let parent_expression = self.ctx.dir.get(parent_id);
             match parent_expression {
                 dir::Expression::Parenthesized { expression } if *expression == current_id => {
                     current_id = parent_id;
                 }
-                dir::Expression::Maybe { left } | dir::Expression::Must { left }
+                dir::Expression::Maybe { left, .. } | dir::Expression::Must { left, .. }
                     if *left == current_id =>
                 {
                     current_id = parent_id;
                 }
                 dir::Expression::As {
-                    operator: _,
-                    source: _,
                     expression: value,
                     target_type: _,
                 }
@@ -258,7 +255,7 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
                 dir::Expression::Call { left, .. } | dir::Expression::New { left, .. }
                     if *left == current_id
                         && call_like_invocation_is_receiver_bound(
-                            self.ctx.tree,
+                            self.ctx.dir.tree(),
                             parent_id,
                             self.bind_name,
                             self.call_name,
@@ -273,12 +270,6 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
                 dir::Expression::If { condition, .. }
                     if if_condition_expression_id(condition) == Some(current_id) =>
                 {
-                    return true;
-                }
-                dir::Expression::Loop {
-                    condition: Some(condition_id),
-                    ..
-                } if *condition_id == current_id => {
                     return true;
                 }
                 dir::Expression::For {
@@ -325,7 +316,11 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
                     return false;
                 }
                 dir::Expression::Assign { left, .. }
-                    if assign_pattern_contains_expression(self.ctx.tree, *left, current_id) =>
+                    if assign_pattern_contains_expression(
+                        self.ctx.dir.tree(),
+                        *left,
+                        current_id,
+                    ) =>
                 {
                     return true;
                 }
@@ -371,7 +366,7 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
 
         // inspect member declarations and reject static methods
         if declaration.local_id.ty == dir::NodeType::Member {
-            let Some(module_dir) = self.ctx.declared_dir(declaration.module_id) else {
+            let Some(module_dir) = self.ctx.bound_dir(declaration.module_id) else {
                 return self.symbol_has_this_parameter(symbol_id);
             };
             let member = module_dir
@@ -386,7 +381,7 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
 
         // inspect property declarations for method values
         if declaration.local_id.ty == dir::NodeType::Property {
-            let Some(module_dir) = self.ctx.declared_dir(declaration.module_id) else {
+            let Some(module_dir) = self.ctx.bound_dir(declaration.module_id) else {
                 return self.symbol_has_this_parameter(symbol_id);
             };
             let property = module_dir

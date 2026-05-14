@@ -7,7 +7,7 @@ use crate::rules::common::{
     expression_target_symbol, expression_type_map, is_definitely_non_error_value_type,
     parameter_binding_name_and_symbol,
 };
-use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer Error objects in Promise rejections.
@@ -36,7 +36,7 @@ impl LintRule for PreferPromiseRejectErrors {
     }
 
     /// Check module DIR nodes for Promise.reject calls with non-Error payloads.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let mut visitor = PromiseRejectVisitor::new(ctx, meta);
         visitor.run();
@@ -46,7 +46,7 @@ impl LintRule for PreferPromiseRejectErrors {
 /// Node visitor that flags non-Error Promise rejection payloads.
 struct PromiseRejectVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The interned `reject` name.
@@ -65,7 +65,7 @@ struct PromiseRejectVisitor<'a, 'b> {
 
 impl<'a, 'b> PromiseRejectVisitor<'a, 'b> {
     /// Build a visitor for Promise rejection checks.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         Self {
             reject_name: ctx.string_id("reject"),
             ok_name: ctx.string_id("ok"),
@@ -80,7 +80,7 @@ impl<'a, 'b> PromiseRejectVisitor<'a, 'b> {
 
     /// Walk the module expressions.
     fn run(&mut self) {
-        let expression_ids = self.ctx.tree.iter_node_ids_of_type::<dir::Expression>();
+        let expression_ids = self.ctx.dir.iter_node_ids_of_type::<dir::Expression>();
 
         for expression_id in expression_ids {
             self.check_expression(expression_id);
@@ -89,11 +89,11 @@ impl<'a, 'b> PromiseRejectVisitor<'a, 'b> {
 
     /// Check one expression for Promise rejection patterns.
     fn check_expression(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) {
-        let expression = self.ctx.tree.get(expression_id);
+        let expression = self.ctx.dir.get(expression_id);
 
         // direct Promise.reject(...)
         if let dir::Expression::Call { arguments, .. } = expression
-            && let Some(method_call) = expression_method_call(self.ctx.tree, expression_id)
+            && let Some(method_call) = expression_method_call(self.ctx.dir.tree(), expression_id)
             && method_call.method_name == self.reject_name
             && is_promise_receiver(self.ctx, method_call.receiver_id, self.promise_symbol)
         {
@@ -118,7 +118,7 @@ impl<'a, 'b> PromiseRejectVisitor<'a, 'b> {
     ) {
         if !reject_payload_is_obviously_non_error(
             self.ctx,
-            value_id_from_arguments(self.ctx.tree, arguments),
+            value_id_from_arguments(self.ctx.dir.tree(), arguments),
             self.ok_name,
             self.err_name,
             arguments,
@@ -149,7 +149,7 @@ impl<'a, 'b> PromiseRejectVisitor<'a, 'b> {
 
     /// Check reject(...) calls inside one Promise executor.
     fn check_executor_reject_calls(&mut self, arguments: &[dir::LocalNodeId<dir::Argument>]) {
-        let Some(executor_id) = value_id_from_arguments(self.ctx.tree, arguments) else {
+        let Some(executor_id) = value_id_from_arguments(self.ctx.dir.tree(), arguments) else {
             return;
         };
         let Some(executor_declaration_id) = executor_declaration(self.ctx, executor_id) else {
@@ -161,12 +161,12 @@ impl<'a, 'b> PromiseRejectVisitor<'a, 'b> {
 
         let reject_references = collect_local_symbol_direct_reference_expression_ids(
             self.ctx.module.id,
-            self.ctx.tree,
+            self.ctx.dir.tree(),
             self.ctx.types,
             reject_symbol,
         );
         for reference_id in reject_references {
-            let Some(parent) = self.ctx.tree.get_parent(reference_id.id) else {
+            let Some(parent) = self.ctx.dir.get_parent(reference_id.id) else {
                 continue;
             };
             if parent.ty != dir::NodeType::Expression {
@@ -174,7 +174,7 @@ impl<'a, 'b> PromiseRejectVisitor<'a, 'b> {
             }
 
             let parent_id = parent.into_typed::<dir::Expression>();
-            let parent_expression = self.ctx.tree.get(parent_id);
+            let parent_expression = self.ctx.dir.get(parent_id);
             let dir::Expression::Call {
                 left, arguments, ..
             } = parent_expression
@@ -192,7 +192,7 @@ impl<'a, 'b> PromiseRejectVisitor<'a, 'b> {
 
 /// Return true when the call receiver is Promise.
 fn is_promise_receiver(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     receiver_id: dir::LocalNodeId<dir::Expression>,
     promise_symbol: dir::GlobalSymbolId,
 ) -> bool {
@@ -205,7 +205,7 @@ fn is_promise_receiver(
 
 /// Return true when the reject payload is clearly non-Error.
 fn reject_payload_is_obviously_non_error(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     value_id: Option<dir::LocalNodeId<dir::Expression>>,
     ok_name: destack_core::StringId,
     err_name: destack_core::StringId,
@@ -225,7 +225,7 @@ fn reject_payload_is_obviously_non_error(
     };
 
     // direct literal cases
-    if expression_is_non_error_literal(ctx.tree, value_id) {
+    if expression_is_non_error_literal(ctx.dir.tree(), value_id) {
         return true;
     }
 
@@ -239,7 +239,7 @@ fn reject_payload_is_obviously_non_error(
         ctx.artifacts.as_ref(),
         ctx.profile_id,
         ctx.module_id(),
-        ctx.tree,
+        ctx.dir.tree(),
         ctx.types,
         value_id,
         |types, type_id| {
@@ -264,10 +264,10 @@ fn value_id_from_arguments(
 
 /// Resolve one Promise executor declaration from an inline or local callable reference.
 fn executor_declaration(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<dir::LocalNodeId<dir::Declaration>> {
-    let expression = ctx.tree.get(expression_id);
+    let expression = ctx.dir.get(expression_id);
 
     // inline callables
     if let dir::Expression::Declaration(declaration) = expression {
@@ -294,23 +294,24 @@ fn executor_declaration(
 
 /// Resolve the reject parameter symbol from one Promise executor declaration.
 fn executor_reject_symbol(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     declaration_id: dir::LocalNodeId<dir::Declaration>,
 ) -> Option<dir::LocalSymbolId> {
-    let declaration = ctx.tree.get(declaration_id);
+    let declaration = ctx.dir.get(declaration_id);
     let dir::Declaration::Function(declaration) = declaration else {
         return None;
     };
     declaration.body?;
 
     let reject_parameter_id = *declaration.signature.parameters.get(1)?;
-    let (_, reject_symbol) = parameter_binding_name_and_symbol(ctx.tree, reject_parameter_id)?;
+    let (_, reject_symbol) =
+        parameter_binding_name_and_symbol(ctx.dir.tree(), ctx.symbols, reject_parameter_id)?;
     Some(reject_symbol)
 }
 
 /// Return true when the expression is `Result.ok(...)` or `Result.err(...)`.
 fn expression_is_result_constructor_call(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
     result_symbol: Option<dir::GlobalSymbolId>,
     ok_name: destack_core::StringId,
@@ -320,7 +321,7 @@ fn expression_is_result_constructor_call(
         return false;
     };
 
-    let Some(method_call) = expression_method_call(ctx.tree, expression_id) else {
+    let Some(method_call) = expression_method_call(ctx.dir.tree(), expression_id) else {
         return false;
     };
     if method_call.method_name != ok_name && method_call.method_name != err_name {
@@ -340,13 +341,22 @@ fn expression_is_non_error_literal(
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     let expression = tree.get(expression_id);
-    matches!(
+    if matches!(
         expression,
-        dir::Expression::ScalarLiteral { .. }
-            | dir::Expression::TemplateExpression { .. }
-            | dir::Expression::TypeLiteral {
-                value: dir::TypeLiteral::Null | dir::TypeLiteral::Undefined
-            }
+        dir::Expression::ScalarLiteral(_) | dir::Expression::TemplateExpression { .. }
+    ) {
+        return true;
+    }
+
+    let dir::Expression::Type { value } = expression else {
+        return false;
+    };
+
+    matches!(
+        tree.get(*value),
+        dir::TypeExpression::Literal {
+            value: dir::TypeLiteral::Null | dir::TypeLiteral::Undefined,
+        }
     )
 }
 

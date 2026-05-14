@@ -2,7 +2,7 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression}
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_symbol_decorator_map;
-use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow usage of APIs marked as `@deprecated`.
@@ -31,7 +31,7 @@ impl LintRule for NoDeprecated {
     }
 
     /// Check module DIR nodes for deprecated API usage.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let mut visitor = DeprecatedUsageVisitor::new(ctx, meta);
         visitor.run();
@@ -41,7 +41,7 @@ impl LintRule for NoDeprecated {
 /// Node visitor for deprecated usage checks.
 struct DeprecatedUsageVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The visitor options.
@@ -50,7 +50,7 @@ struct DeprecatedUsageVisitor<'a, 'b> {
 
 impl<'a, 'b> DeprecatedUsageVisitor<'a, 'b> {
     /// Build a visitor for deprecated usage checks.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         Self {
             ctx,
             meta,
@@ -61,7 +61,7 @@ impl<'a, 'b> DeprecatedUsageVisitor<'a, 'b> {
     /// Walk the module roots.
     fn run(&mut self) {
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         // inspect dir roots
         for root_id in roots {
@@ -79,7 +79,7 @@ impl<'a, 'b> DeprecatedUsageVisitor<'a, 'b> {
         if !is_usage_expression(expression) {
             return;
         }
-        if should_skip_expression(self.ctx.tree, expression_id) {
+        if should_skip_expression(self.ctx.dir.tree(), expression_id) {
             return;
         }
 
@@ -126,7 +126,7 @@ impl<'a, 'b> DeprecatedUsageVisitor<'a, 'b> {
             self.ctx.artifacts.as_ref(),
             self.ctx.profile_id,
             self.ctx.module_id(),
-            self.ctx.tree,
+            self.ctx.dir.tree(),
             self.ctx.strings,
             self.ctx.symbols,
             self.ctx.types,
@@ -157,7 +157,7 @@ impl NodeVisitor for DeprecatedUsageVisitor<'_, '_> {
 fn is_usage_expression(expression: &dir::Expression) -> bool {
     matches!(
         expression,
-        dir::Expression::Path { .. }
+        dir::Expression::QualifiedReference { .. }
             | dir::Expression::Member { .. }
             | dir::Expression::Call { .. }
             | dir::Expression::New { .. }

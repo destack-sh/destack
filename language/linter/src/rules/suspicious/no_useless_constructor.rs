@@ -5,7 +5,7 @@ use crate::rules::common::{
     declaration_has_extends_heritage, expression_target_symbol, expression_unwrap_statement,
     source_text_contains_comment_token,
 };
-use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow unnecessary constructors.
@@ -33,12 +33,12 @@ impl LintRule for NoUselessConstructor {
     }
 
     /// Check module DIR members for redundant constructors.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // inspect class constructors with bodies
-        for member_id in ctx.tree.iter_node_ids_of_type::<dir::Member>() {
-            let member = ctx.tree.get(member_id);
+        for member_id in ctx.dir.iter_node_ids_of_type::<dir::Member>() {
+            let member = ctx.dir.get(member_id);
             let dir::Member::Method {
                 visibility,
                 signature,
@@ -108,7 +108,7 @@ impl LintRule for NoUselessConstructor {
 
 /// Return true when one constructor accessibility makes the constructor useful.
 fn constructor_has_useful_accessibility(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     member_id: dir::LocalNodeId<dir::Member>,
     visibility: Option<dir::Visibility>,
 ) -> bool {
@@ -130,10 +130,10 @@ fn constructor_has_useful_accessibility(
 
 /// Return true when the enclosing class extends something.
 fn member_parent_class_has_super_class(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     member_id: dir::LocalNodeId<dir::Member>,
 ) -> bool {
-    let Some(parent_id) = ctx.tree.get_parent(member_id.id) else {
+    let Some(parent_id) = ctx.dir.get_parent(member_id.id) else {
         return false;
     };
     if parent_id.ty != dir::NodeType::Declaration {
@@ -141,7 +141,7 @@ fn member_parent_class_has_super_class(
     }
 
     let declaration_id = parent_id.into_typed::<dir::Declaration>();
-    let declaration = ctx.tree.get(declaration_id);
+    let declaration = ctx.dir.get(declaration_id);
     if !matches!(declaration, dir::Declaration::Class(_)) {
         return false;
     }
@@ -151,25 +151,25 @@ fn member_parent_class_has_super_class(
 
 /// Return true when one constructor body is empty.
 fn constructor_body_is_empty(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     body_expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    let body_expression = ctx.tree.get(body_expression_id);
+    let body_expression = ctx.dir.get(body_expression_id);
     let dir::Expression::Block(block) = body_expression else {
         return false;
     };
-    let block = ctx.tree.get(*block);
+    let block = ctx.dir.get(*block);
 
     block.is_empty()
 }
 
 /// Return true when one constructor uses parameter modifiers.
 fn constructor_parameters_have_modifiers(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     parameter_ids: &[dir::LocalNodeId<dir::Parameter>],
 ) -> bool {
     parameter_ids.iter().copied().any(|parameter_id| {
-        let parameter = ctx.tree.get(parameter_id);
+        let parameter = ctx.dir.get(parameter_id);
         matches!(
             parameter,
             dir::Parameter::Named {
@@ -191,24 +191,26 @@ fn constructor_parameters_have_modifiers(
 
 /// Return true when a constructor only forwards parameters to one `super(...)` call.
 fn is_redundant_super_passthrough_constructor(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     parameter_ids: &[dir::LocalNodeId<dir::Parameter>],
     body_expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     // require one block body with exactly one expression
-    let body_expression = ctx.tree.get(body_expression_id);
+    let body_expression = ctx.dir.get(body_expression_id);
     let dir::Expression::Block(block) = body_expression else {
         return false;
     };
-    let block = ctx.tree.get(*block);
+    let block = ctx.dir.get(*block);
     if block.len() != 1 {
         return false;
     }
 
     // unwrap statement form to the effective expression
-    let expression_id = expression_unwrap_statement(ctx.tree, block.first_expression().unwrap());
-    let expression = ctx.tree.get(expression_id);
+    let expression_id =
+        expression_unwrap_statement(ctx.dir.tree(), block.first_expression().unwrap());
+    let expression = ctx.dir.get(expression_id);
     let dir::Expression::Call {
+        position: _,
         left,
         generic_arguments,
         arguments,
@@ -221,7 +223,7 @@ fn is_redundant_super_passthrough_constructor(
     }
 
     // require a direct `super(...)` call
-    if !matches!(ctx.tree.get(*left), dir::Expression::Super) {
+    if !matches!(ctx.dir.get(*left), dir::Expression::Super) {
         return false;
     }
 
@@ -252,31 +254,33 @@ fn is_redundant_super_passthrough_constructor(
 
 /// Return the simple parameter symbol and variadic flag for one constructor parameter.
 fn constructor_parameter_binding(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     parameter_id: dir::LocalNodeId<dir::Parameter>,
 ) -> Option<(dir::LocalSymbolId, bool)> {
-    let parameter = ctx.tree.get(parameter_id);
+    let parameter = ctx.dir.get(parameter_id);
     match parameter {
-        dir::Parameter::Named {
-            default, symbol, ..
-        } if default.is_none() => Some((*symbol, false)),
-        dir::Parameter::VariadicNamed { symbol, .. } => Some((*symbol, true)),
+        dir::Parameter::Named { default, .. } if default.is_none() => ctx
+            .local_symbol_for_node(parameter_id)
+            .map(|symbol| (symbol, false)),
+        dir::Parameter::VariadicNamed { .. } => ctx
+            .local_symbol_for_node(parameter_id)
+            .map(|symbol| (symbol, true)),
         _ => None,
     }
 }
 
 /// Return the simple argument symbol and spread flag for one constructor argument.
 fn constructor_argument_binding(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     argument_id: dir::LocalNodeId<dir::Argument>,
 ) -> Option<(dir::GlobalSymbolId, bool)> {
-    let argument = ctx.tree.get(argument_id);
+    let argument = ctx.dir.get(argument_id);
     let (value_expression_id, is_spread) = match argument {
         dir::Argument::Positional { value } => (*value, false),
         dir::Argument::Spread { value, .. } => (*value, true),
-        dir::Argument::Named { .. }
-        | dir::Argument::Labeled { .. }
-        | dir::Argument::Error { .. } => return None,
+        dir::Argument::Named { .. } | dir::Argument::Labeled { .. } | dir::Argument::Error => {
+            return None;
+        }
     };
 
     let value_symbol = expression_target_symbol(ctx, value_expression_id)?;

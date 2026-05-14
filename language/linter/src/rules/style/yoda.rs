@@ -1,5 +1,5 @@
 use crate::LintMeta;
-use destack_ast::{self as ast, BinaryOperator, Expression, UnaryOperator};
+use destack_dir::{self as dir, BinaryOperator, Expression, UnaryOperator};
 use destack_workspace::{LintSeverity, YodaMode};
 
 use crate::rules::common::{
@@ -7,7 +7,7 @@ use crate::rules::common::{
     expression_static_string_literal_source_form, expression_unwrap_parenthesized_source_form,
     is_comparison_operator, source_text_contains_comment_token,
 };
-use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow "Yoda" conditions.
@@ -19,7 +19,7 @@ declare_lint! {
         id = "yoda",
         code = "LY066",
         category = Style,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -35,12 +35,12 @@ impl LintRule for Yoda {
         Yoda::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let mode = ctx.options.style.yoda_mode;
 
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expression = ctx.tree.get(node_id);
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let expression = ctx.dir.get(node_id);
             let Expression::Binary {
                 left,
                 operator,
@@ -67,8 +67,8 @@ impl LintRule for Yoda {
             }
 
             // check literal placement against the configured mode
-            let left_expression = ctx.tree.get(*left);
-            let right_expression = ctx.tree.get(*right);
+            let left_expression = ctx.dir.get(*left);
+            let right_expression = ctx.dir.get(*right);
             let left_is_literal = expression_looks_like_literal(ctx, *left, left_expression);
             let right_is_literal = expression_looks_like_literal(ctx, *right, right_expression);
             let expected_literal_on_left = mode == YodaMode::Always;
@@ -87,9 +87,9 @@ impl LintRule for Yoda {
             }
 
             // make fix: flip comparison
-            let expression_span = ctx.tree.get_span(node_id);
-            let left_span = ctx.tree.get_span(*left);
-            let right_span = ctx.tree.get_span(*right);
+            let expression_span = ctx.dir.get_span(node_id);
+            let left_span = ctx.dir.get_span(*left);
+            let right_span = ctx.dir.get_span(*right);
             let left_text = ctx.get_span_text(left_span);
             let right_text = ctx.get_span_text(right_span);
             let expected_side = if expected_literal_on_left {
@@ -152,15 +152,15 @@ fn flip_operator(operator: &BinaryOperator) -> &'static str {
 
 /// Return true when one expression should be treated like a literal for yoda checks.
 fn expression_looks_like_literal(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
     expression: &Expression,
 ) -> bool {
     if expression_is_literal(expression) {
         return true;
     }
 
-    if expression_static_string_literal_source_form(ctx.tree, expression_id).is_some() {
+    if expression_static_string_literal_source_form(ctx.dir.tree(), expression_id).is_some() {
         return true;
     }
 
@@ -170,30 +170,29 @@ fn expression_looks_like_literal(
             operator: UnaryOperator::Negate,
             right,
         } if matches!(
-            ctx.tree.get(*right),
-            Expression::ScalarLiteral(ast::ScalarLiteral::Integer(_))
-                | Expression::ScalarLiteral(ast::ScalarLiteral::Float(_))
-                | Expression::ScalarLiteral(ast::ScalarLiteral::Bigint(_))
+            ctx.dir.get(*right),
+            Expression::ScalarLiteral(dir::ScalarLiteral::Integer(_))
+                | Expression::ScalarLiteral(dir::ScalarLiteral::Float(_))
+                | Expression::ScalarLiteral(dir::ScalarLiteral::Bigint(_))
         )
     )
 }
 
 /// Return true when a comparison participates in a range-test logical expression.
 fn expression_is_part_of_range_test(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    let expression_id =
-        expression_outer_parenthesized_source_form(ctx.tree, ctx.parents, expression_id);
-    let Some(parent_id) = ctx.parents.get(expression_id) else {
+    let expression_id = expression_outer_parenthesized_source_form(ctx.dir.tree(), expression_id);
+    let Some(parent_id) = ctx.dir.get_parent_id(expression_id.id) else {
         return false;
     };
-    if ctx.tree.get_node_type(parent_id) != ast::NodeType::Expression {
+    if ctx.dir.get_node_type(parent_id) != dir::NodeType::Expression {
         return false;
     }
 
-    let parent_expression_id = ast::LocalNodeId::<ast::Expression>::new(parent_id);
-    let parent_expression = ctx.tree.get(parent_expression_id);
+    let parent_expression_id = dir::LocalNodeId::<dir::Expression>::new(parent_id);
+    let parent_expression = ctx.dir.get(parent_expression_id);
     let Expression::Binary {
         left,
         operator,
@@ -206,10 +205,10 @@ fn expression_is_part_of_range_test(
         return false;
     }
 
-    let left_id = expression_unwrap_parenthesized_source_form(ctx.tree, *left);
-    let right_id = expression_unwrap_parenthesized_source_form(ctx.tree, *right);
-    let left_expression = ctx.tree.get(left_id);
-    let right_expression = ctx.tree.get(right_id);
+    let left_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), *left);
+    let right_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), *right);
+    let left_expression = ctx.dir.get(left_id);
+    let right_expression = ctx.dir.get(right_id);
     let (
         Expression::Binary {
             left: left_left,
@@ -229,17 +228,17 @@ fn expression_is_part_of_range_test(
         return false;
     }
 
-    let left_left = expression_unwrap_parenthesized_source_form(ctx.tree, *left_left);
-    let left_right = expression_unwrap_parenthesized_source_form(ctx.tree, *left_right);
-    let right_left = expression_unwrap_parenthesized_source_form(ctx.tree, *right_left);
-    let right_right = expression_unwrap_parenthesized_source_form(ctx.tree, *right_right);
+    let left_left = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), *left_left);
+    let left_right = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), *left_right);
+    let right_left = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), *right_left);
+    let right_right = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), *right_right);
 
     let is_between_range = expression_is_equal(ctx, left_right, right_left)
-        && expression_looks_like_literal(ctx, left_left, ctx.tree.get(left_left))
-        && expression_looks_like_literal(ctx, right_right, ctx.tree.get(right_right));
+        && expression_looks_like_literal(ctx, left_left, ctx.dir.get(left_left))
+        && expression_looks_like_literal(ctx, right_right, ctx.dir.get(right_right));
     let is_outside_range = expression_is_equal(ctx, left_left, right_right)
-        && expression_looks_like_literal(ctx, left_right, ctx.tree.get(left_right))
-        && expression_looks_like_literal(ctx, right_left, ctx.tree.get(right_left));
+        && expression_looks_like_literal(ctx, left_right, ctx.dir.get(left_right))
+        && expression_looks_like_literal(ctx, right_left, ctx.dir.get(right_left));
 
     is_between_range || is_outside_range
 }
@@ -260,7 +259,7 @@ mod tests {
     #[test]
     fn test_detects_yoda_equality() {
         let test = TestProgram::for_rule_without_prelude(Yoda);
-        let result = test.lint_ast(
+        let result = test.lint(
             "yoda/test_detects_yoda_equality.ds",
             r#"
 if ("red" === color) {
@@ -274,7 +273,7 @@ if ("red" === color) {
     #[test]
     fn test_detects_yoda_strict_equality() {
         let test = TestProgram::for_rule_without_prelude(Yoda);
-        let result = test.lint_ast(
+        let result = test.lint(
             "yoda/test_detects_yoda_strict_equality.ds",
             r#"
 if (5 === x) {
@@ -288,7 +287,7 @@ if (5 === x) {
     #[test]
     fn test_detects_yoda_less_than() {
         let test = TestProgram::for_rule_without_prelude(Yoda);
-        let result = test.lint_ast(
+        let result = test.lint(
             "yoda/test_detects_yoda_less_than.ds",
             r#"
 if (10 < x) {
@@ -302,7 +301,7 @@ if (10 < x) {
     #[test]
     fn test_detects_yoda_null_check() {
         let test = TestProgram::for_rule_without_prelude(Yoda);
-        let result = test.lint_ast(
+        let result = test.lint(
             "yoda/test_detects_yoda_null_check.ds",
             r#"
 if (null === value) {
@@ -316,7 +315,7 @@ if (null === value) {
     #[test]
     fn test_allows_normal_comparison() {
         let test = TestProgram::for_rule_without_prelude(Yoda);
-        let result = test.lint_ast(
+        let result = test.lint(
             "yoda/test_allows_normal_comparison.ds",
             r#"
 if (color === "red") {
@@ -330,7 +329,7 @@ if (color === "red") {
     #[test]
     fn test_allows_variable_comparison() {
         let test = TestProgram::for_rule_without_prelude(Yoda);
-        let result = test.lint_ast(
+        let result = test.lint(
             "yoda/test_allows_variable_comparison.ds",
             r#"
 if (a === b) {
@@ -344,7 +343,7 @@ if (a === b) {
     #[test]
     fn test_allows_literal_to_literal() {
         let test = TestProgram::for_rule_without_prelude(Yoda);
-        let result = test.lint_ast(
+        let result = test.lint(
             "yoda/test_allows_literal_to_literal.ds",
             r#"
 if (5 === 5) {
@@ -358,7 +357,7 @@ if (5 === 5) {
     #[test]
     fn test_allows_non_comparison_operators() {
         let test = TestProgram::for_rule_without_prelude(Yoda);
-        let result = test.lint_ast(
+        let result = test.lint(
             "yoda/test_allows_non_comparison_operators.ds",
             r#"
 let x = 5 + a;
@@ -370,7 +369,7 @@ let x = 5 + a;
     #[test]
     fn test_fix_yoda_equality() {
         let test = TestProgram::for_rule_without_prelude(Yoda);
-        let result = test.lint_ast(
+        let result = test.lint(
             "yoda/test_fix_yoda_equality.ds",
             r#"
 if (5 === x) { y() }
@@ -386,7 +385,7 @@ if (x === 5) { y() }
     #[test]
     fn test_has_no_fix_when_comparison_contains_comment() {
         let test = TestProgram::for_rule_without_prelude(Yoda);
-        let result = test.lint_ast(
+        let result = test.lint(
             "yoda/test_has_no_fix_when_comparison_contains_comment.ds",
             r#"
 if (1 /* keep */ === value) {
@@ -402,7 +401,7 @@ if (1 /* keep */ === value) {
     #[test]
     fn test_fix_yoda_less_than() {
         let test = TestProgram::for_rule_without_prelude(Yoda);
-        let result = test.lint_ast(
+        let result = test.lint(
             "yoda/test_fix_yoda_less_than.ds",
             r#"
 if (10 < x) { y() }
@@ -418,7 +417,7 @@ if (x > 10) { y() }
     #[test]
     fn test_fix_yoda_greater_than_or_equal() {
         let test = TestProgram::for_rule_without_prelude(Yoda);
-        let result = test.lint_ast(
+        let result = test.lint(
             "yoda/test_fix_yoda_greater_than_or_equal.ds",
             r#"
 if (10 >= x) { y() }
@@ -435,7 +434,7 @@ if (x <= 10) { y() }
     fn test_allows_non_yoda_in_always_mode() {
         let test = TestProgram::for_rule_without_prelude(Yoda)
             .with_options(|options| options.style.yoda_mode = YodaMode::Always);
-        let result = test.lint_ast(
+        let result = test.lint(
             "yoda/test_allows_non_yoda_in_always_mode.ds",
             r#"
 if (value === 5) { y() }
@@ -449,7 +448,7 @@ if (value === 5) { y() }
         let test = TestProgram::for_rule_without_prelude(Yoda).with_options(|options| {
             options.style.yoda_except_range = true;
         });
-        let result = test.lint_ast(
+        let result = test.lint(
             "yoda/test_allows_range_test_when_except_range_enabled.ds",
             r#"
 if ((0 <= x) && (x < 10)) { y() }
@@ -463,7 +462,7 @@ if ((0 <= x) && (x < 10)) { y() }
         let test = TestProgram::for_rule_without_prelude(Yoda).with_options(|options| {
             options.style.yoda_only_equality = true;
         });
-        let result = test.lint_ast(
+        let result = test.lint(
             "yoda/test_allows_non_equality_when_only_equality_enabled.ds",
             r#"
 if (10 < x) { y() }

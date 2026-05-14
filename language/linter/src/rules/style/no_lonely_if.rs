@@ -1,9 +1,9 @@
 use crate::LintMeta;
-use destack_ast::{self as ast, Block};
+use destack_dir::{self as dir, Block};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::span_has_comment;
-use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow `if` as the only statement in an `else` block.
@@ -14,7 +14,7 @@ declare_lint! {
         id = "no-lonely-if",
         code = "LY019",
         category = Style,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -30,13 +30,13 @@ impl LintRule for NoLonelyIf {
         NoLonelyIf::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expr = ctx.tree.get(node_id);
-            let ast::Expression::If {
-                form: ast::IfForm::If,
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let expr = ctx.dir.get(node_id);
+            let dir::Expression::If {
+                form: dir::IfForm::If,
                 else_expression: Some(else_id),
                 ..
             } = expr
@@ -45,17 +45,17 @@ impl LintRule for NoLonelyIf {
             };
 
             // check if else is a block containing only an if statement
-            let else_expr = ctx.tree.get(*else_id);
+            let else_expr = ctx.dir.get(*else_id);
             let lonely_if_id = match else_expr {
-                ast::Expression::Block(block_id) => {
-                    let block: &Block = ctx.tree.get(*block_id);
+                dir::Expression::Block(block_id) => {
+                    let block: &Block = ctx.dir.get(*block_id);
                     if block.len() == 1 {
                         let single_expression_id = block.first_expression().unwrap();
-                        let single_expr = ctx.tree.get(single_expression_id);
+                        let single_expr = ctx.dir.get(single_expression_id);
                         if matches!(
                             single_expr,
-                            ast::Expression::If {
-                                form: ast::IfForm::If,
+                            dir::Expression::If {
+                                form: dir::IfForm::If,
                                 ..
                             }
                         ) {
@@ -67,8 +67,8 @@ impl LintRule for NoLonelyIf {
                         None
                     }
                 }
-                ast::Expression::If {
-                    form: ast::IfForm::If,
+                dir::Expression::If {
+                    form: dir::IfForm::If,
                     ..
                 } => {
                     // else expression is already an if (else if), this is fine
@@ -83,8 +83,8 @@ impl LintRule for NoLonelyIf {
                     continue;
                 }
 
-                let else_span = ctx.tree.get_span(*else_id);
-                let lonely_span = ctx.tree.get_span(lonely_id);
+                let else_span = ctx.dir.get_span(*else_id);
+                let lonely_span = ctx.dir.get_span(lonely_id);
                 let lonely_text = ctx.get_span_text(lonely_span);
                 let mut diagnostic = LintReport::new(
                     NO_LONELY_IF.id,
@@ -97,7 +97,7 @@ impl LintRule for NoLonelyIf {
                 .label("use `else if` instead");
 
                 // avoid rewrites when else block contains trivia
-                if ctx.compute_fixes && !span_has_comment(ctx.tree, else_span) {
+                if ctx.compute_fixes && !span_has_comment(ctx.dir.tree(), else_span) {
                     let edits = ctx
                         .edit_builder()
                         .replace(else_span, lonely_text)
@@ -120,7 +120,7 @@ mod tests {
     #[test]
     fn test_detects_lonely_if() {
         let test = TestProgram::for_rule_without_prelude(NoLonelyIf);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_lonely_if/test_detects_lonely_if.ds",
             r#"
 if (a) {
@@ -138,7 +138,7 @@ if (a) {
     #[test]
     fn test_allows_else_if() {
         let test = TestProgram::for_rule_without_prelude(NoLonelyIf);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_lonely_if/test_allows_else_if.ds",
             r#"
 if (a) {
@@ -154,7 +154,7 @@ if (a) {
     #[test]
     fn test_allows_else_with_multiple_statements() {
         let test = TestProgram::for_rule_without_prelude(NoLonelyIf);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_lonely_if/test_allows_else_with_multiple_statements.ds",
             r#"
 if (a) {
@@ -173,7 +173,7 @@ if (a) {
     #[test]
     fn test_fix_lonely_if() {
         let test = TestProgram::for_rule_without_prelude(NoLonelyIf);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_lonely_if/test_fix_lonely_if.ds",
             r#"
 if (a) {
@@ -201,7 +201,7 @@ if (a) {
     #[test]
     fn test_no_fix_when_else_contains_comment_trivia() {
         let test = TestProgram::for_rule_without_prelude(NoLonelyIf);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_lonely_if/test_no_fix_when_else_contains_comment_trivia.ds",
             r#"
 if (a) {

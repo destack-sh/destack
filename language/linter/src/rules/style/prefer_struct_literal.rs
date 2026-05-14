@@ -2,7 +2,7 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, SymbolForm, walk
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{expression_target_symbol, symbol_declaration_for, symbol_for};
-use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer struct literal form over constructor calls.
@@ -31,7 +31,7 @@ impl LintRule for PreferStructLiteral {
     }
 
     /// Check module DIR nodes for struct constructor expressions.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let mut visitor = PreferStructLiteralVisitor::new(ctx, meta);
         visitor.run();
@@ -41,7 +41,7 @@ impl LintRule for PreferStructLiteral {
 /// Node visitor that flags struct `new` constructor usage.
 struct PreferStructLiteralVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The visitor options.
@@ -50,7 +50,7 @@ struct PreferStructLiteralVisitor<'a, 'b> {
 
 impl<'a, 'b> PreferStructLiteralVisitor<'a, 'b> {
     /// Build a visitor for struct literal style checks.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         Self {
             ctx,
             meta,
@@ -61,7 +61,7 @@ impl<'a, 'b> PreferStructLiteralVisitor<'a, 'b> {
     /// Walk the DIR roots.
     fn run(&mut self) {
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         for root_id in roots {
             let expression = tree.get(root_id);
@@ -116,7 +116,7 @@ impl<'a, 'b> PreferStructLiteralVisitor<'a, 'b> {
         }
 
         // load the declaration module tree for cross module struct constructors
-        let module_dir = self.ctx.declared_dir(declaration_id.module_id)?;
+        let module_dir = self.ctx.bound_dir(declaration_id.module_id)?;
         let declaration = module_dir
             .tree
             .get(declaration_id.into_local_typed::<dir::Declaration>());
@@ -164,7 +164,7 @@ impl<'a, 'b> PreferStructLiteralVisitor<'a, 'b> {
         // build field initializers from positional constructor arguments
         let mut field_initializers = Vec::new();
         for (field_name, argument_id) in field_names.into_iter().zip(arguments.iter()) {
-            let argument = self.ctx.tree.get(*argument_id);
+            let argument = self.ctx.dir.get(*argument_id);
             let dir::Argument::Positional { value, .. } = argument else {
                 return None;
             };
@@ -172,7 +172,7 @@ impl<'a, 'b> PreferStructLiteralVisitor<'a, 'b> {
             let field_name_text = self.ctx.strings.get(field_name);
             let value_span = self.ctx.get_span(*value);
             let value_text = self.ctx.get_span_text(value_span);
-            field_initializers.push(format!("{}: {value_text}", field_name_text));
+            field_initializers.push(format!("{field_name_text}: {value_text}"));
         }
 
         // build the tagged struct literal replacement

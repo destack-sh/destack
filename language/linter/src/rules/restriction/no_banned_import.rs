@@ -2,7 +2,7 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression}
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{expression_import_target_specifier, glob_matches};
-use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow imports from configured banned module specifiers.
@@ -30,7 +30,7 @@ impl LintRule for NoBannedImport {
         NoBannedImport::meta()
     }
 
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // walk the module expression tree
@@ -42,7 +42,7 @@ impl LintRule for NoBannedImport {
 /// Node visitor that reports banned import targets.
 struct NoBannedImportVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The restricted import patterns for this run.
@@ -53,7 +53,7 @@ struct NoBannedImportVisitor<'a, 'b> {
 
 impl<'a, 'b> NoBannedImportVisitor<'a, 'b> {
     /// Build a visitor for no-banned-import checks.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         let restricted_patterns = ctx
             .options
             .restriction
@@ -81,7 +81,7 @@ impl<'a, 'b> NoBannedImportVisitor<'a, 'b> {
 
         // capture roots and tree references
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         // walk the module expression tree
         for root_id in roots {
@@ -97,7 +97,7 @@ impl<'a, 'b> NoBannedImportVisitor<'a, 'b> {
         expression: &dir::Expression,
     ) {
         // resolve the static module specifier
-        let specifier_id = expression_import_target_specifier(self.ctx.tree, expression);
+        let specifier_id = expression_import_target_specifier(self.ctx.dir.tree(), expression);
         let Some(specifier_id) = specifier_id else {
             return;
         };
@@ -200,13 +200,17 @@ impl TargetSurface {
 
 /// Return the resolved module target for an import like expression.
 fn expression_target_module(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
     expression: &dir::Expression,
 ) -> Option<dir::DependencyTarget> {
     if !matches!(
         expression,
-        dir::Expression::Import { .. } | dir::Expression::ReExport { .. }
+        dir::Expression::Import { .. }
+            | dir::Expression::Export {
+                target: Some(_),
+                ..
+            }
     ) {
         return None;
     }
@@ -230,7 +234,7 @@ fn matching_pattern(target: &str, patterns: &[String]) -> Option<String> {
 
 /// Return the first restricted target match for one import expression.
 fn matching_target(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
     expression: &dir::Expression,
     specifier_text: &str,
@@ -274,9 +278,9 @@ fn matching_target(
                 });
             }
         }
-        dir::DependencyTarget::Declared(declared_specifier) => {
+        dir::DependencyTarget::StringModule(declared_specifier) => {
             let declared_text = ctx.strings.get(declared_specifier);
-            if let Some(pattern) = matching_pattern(declared_text.as_ref(), patterns) {
+            if let Some(pattern) = matching_pattern(declared_text, patterns) {
                 return Some(MatchedTarget {
                     pattern,
                     target: declared_text.to_string(),
@@ -286,7 +290,7 @@ fn matching_target(
         }
         dir::DependencyTarget::External(specifier) => {
             let specifier_text = ctx.strings.get(specifier);
-            if let Some(pattern) = matching_pattern(specifier_text.as_ref(), patterns) {
+            if let Some(pattern) = matching_pattern(specifier_text, patterns) {
                 return Some(MatchedTarget {
                     pattern,
                     target: specifier_text.to_string(),

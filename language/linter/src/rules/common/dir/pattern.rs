@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use crate::LintModuleDirContext;
+use crate::LintModuleContext;
 
 use super::{expression_target_symbol, expression_unwrap_parenthesized};
 
@@ -10,11 +10,7 @@ pub fn pattern_is_total(tree: &dir::Tree, pattern_id: dir::LocalNodeId<dir::Patt
 
     match pattern {
         dir::Pattern::Wildcard => true,
-        dir::Pattern::Binding {
-            name: _,
-            pattern,
-            symbol: _,
-        } => pattern
+        dir::Pattern::Binding { name: _, pattern } => pattern
             .map(|inner_pattern_id| pattern_is_total(tree, inner_pattern_id))
             .unwrap_or(true),
         dir::Pattern::Union { patterns } => patterns
@@ -26,22 +22,22 @@ pub fn pattern_is_total(tree: &dir::Tree, pattern_id: dir::LocalNodeId<dir::Patt
 
 /// Return true when one DIR pattern subsumes another pattern.
 pub fn pattern_subsumes_semantically(
-    ctx: &mut LintModuleDirContext<'_>,
+    ctx: &mut LintModuleContext<'_>,
     left_pattern_id: dir::LocalNodeId<dir::Pattern>,
     right_pattern_id: dir::LocalNodeId<dir::Pattern>,
 ) -> bool {
     // total patterns subsume every later pattern
-    if pattern_is_total(ctx.tree, left_pattern_id) {
+    if pattern_is_total(ctx.dir.tree(), left_pattern_id) {
         return true;
     }
 
     // non total patterns cannot subsume total patterns
-    if pattern_is_total(ctx.tree, right_pattern_id) {
+    if pattern_is_total(ctx.dir.tree(), right_pattern_id) {
         return false;
     }
 
-    let left_pattern = ctx.tree.get(left_pattern_id).clone();
-    let right_pattern = ctx.tree.get(right_pattern_id).clone();
+    let left_pattern = ctx.dir.get(left_pattern_id).clone();
+    let right_pattern = ctx.dir.get(right_pattern_id).clone();
 
     // unroll right union branches first
     if let dir::Pattern::Union { patterns } = &right_pattern {
@@ -61,7 +57,6 @@ pub fn pattern_subsumes_semantically(
     if let dir::Pattern::Binding {
         pattern: Some(inner_pattern_id),
         name: _,
-        symbol: _,
     } = &left_pattern
     {
         return pattern_subsumes_semantically(ctx, *inner_pattern_id, right_pattern_id);
@@ -71,7 +66,6 @@ pub fn pattern_subsumes_semantically(
     if let dir::Pattern::Binding {
         pattern: Some(inner_pattern_id),
         name: _,
-        symbol: _,
     } = &right_pattern
     {
         return pattern_subsumes_semantically(ctx, left_pattern_id, *inner_pattern_id);
@@ -143,7 +137,7 @@ pub fn pattern_subsumes_semantically(
 
 /// Return true when two optional DIR pattern expressions are equal.
 fn optional_pattern_expression_is_equal(
-    ctx: &mut LintModuleDirContext<'_>,
+    ctx: &mut LintModuleContext<'_>,
     left: Option<dir::LocalNodeId<dir::Expression>>,
     right: Option<dir::LocalNodeId<dir::Expression>>,
 ) -> bool {
@@ -156,12 +150,12 @@ fn optional_pattern_expression_is_equal(
 
 /// Return true when two pattern expressions are semantically equal.
 fn pattern_expression_is_equal(
-    ctx: &mut LintModuleDirContext<'_>,
+    ctx: &mut LintModuleContext<'_>,
     left_expression_id: dir::LocalNodeId<dir::Expression>,
     right_expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    let left_expression_id = expression_unwrap_parenthesized(ctx.tree, left_expression_id);
-    let right_expression_id = expression_unwrap_parenthesized(ctx.tree, right_expression_id);
+    let left_expression_id = expression_unwrap_parenthesized(ctx.dir.tree(), left_expression_id);
+    let right_expression_id = expression_unwrap_parenthesized(ctx.dir.tree(), right_expression_id);
 
     // prefer constant evaluation when both expressions fold
     let left_const_value = ctx.const_value(left_expression_id);
@@ -179,17 +173,17 @@ fn pattern_expression_is_equal(
         return true;
     }
 
-    let left_expression = ctx.tree.get(left_expression_id);
-    let right_expression = ctx.tree.get(right_expression_id);
+    let left_expression = ctx.dir.get(left_expression_id);
+    let right_expression = ctx.dir.get(right_expression_id);
 
     match (left_expression, right_expression) {
         (
-            dir::Expression::ScalarLiteral { value: left_value },
-            dir::Expression::ScalarLiteral { value: right_value },
+            dir::Expression::ScalarLiteral(left_value),
+            dir::Expression::ScalarLiteral(right_value),
         ) => left_value == right_value,
         (
-            dir::Expression::TypeLiteral { value: left_value },
-            dir::Expression::TypeLiteral { value: right_value },
+            dir::Expression::Type { value: left_value },
+            dir::Expression::Type { value: right_value },
         ) => left_value == right_value,
         _ => false,
     }

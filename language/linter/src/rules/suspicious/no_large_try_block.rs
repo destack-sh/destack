@@ -1,8 +1,8 @@
 use crate::LintMeta;
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintReport, LintRule, declare_lint};
+use crate::{LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow large try blocks.
@@ -15,7 +15,7 @@ declare_lint! {
         id = "no-large-try-block",
         code = "LU021",
         category = Suspicious,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = No,
@@ -31,12 +31,12 @@ impl LintRule for NoLargeTryBlock {
         NoLargeTryBlock::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let max_statements = ctx.options.complexity.max_try_block_statements;
 
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let ast::Expression::Try { try_expression, .. } = ctx.tree.get(node_id) else {
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let dir::Expression::Try { try_expression, .. } = ctx.dir.get(node_id) else {
                 continue;
             };
 
@@ -57,7 +57,7 @@ impl LintRule for NoLargeTryBlock {
                         format!(
                             "try block has {statement_count} statements (max {max_statements})"
                         ),
-                        ctx.tree.get_span(*try_expression),
+                        ctx.dir.get_span(*try_expression),
                     )
                     .label("consider narrowing the try block to the specific failing code"),
                 );
@@ -68,13 +68,13 @@ impl LintRule for NoLargeTryBlock {
 
 /// Count statements in an expression.
 fn count_statements(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> usize {
-    let expression = ctx.tree.get(expression_id);
+    let expression = ctx.dir.get(expression_id);
     match expression {
-        ast::Expression::Block(block_id) => {
-            let block = ctx.tree.get(*block_id);
+        dir::Expression::Block(block_id) => {
+            let block = ctx.dir.get(*block_id);
             block.len()
         }
         _ => 1,
@@ -90,7 +90,7 @@ mod tests {
     fn test_detects_large_try_block() {
         let test = TestProgram::for_rule_without_prelude(NoLargeTryBlock)
             .with_options(|options| options.complexity.max_try_block_statements = 3);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_large_try_block/test_detects_large_try_block.ds",
             r#"
 try {
@@ -110,7 +110,7 @@ try {
     fn test_allows_small_try_block() {
         let test = TestProgram::for_rule_without_prelude(NoLargeTryBlock)
             .with_options(|options| options.complexity.max_try_block_statements = 5);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_large_try_block/test_allows_small_try_block.ds",
             r#"
 try {
@@ -128,7 +128,7 @@ try {
     fn test_allows_exactly_at_limit() {
         let test = TestProgram::for_rule_without_prelude(NoLargeTryBlock)
             .with_options(|options| options.complexity.max_try_block_statements = 3);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_large_try_block/test_allows_exactly_at_limit.ds",
             r#"
 try {

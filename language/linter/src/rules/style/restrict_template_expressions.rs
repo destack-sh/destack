@@ -5,7 +5,7 @@ use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::{
     expression_type_or_call_return_type_map, is_template_interpolation_type,
 };
-use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Restrict template interpolations to string or numeric values.
@@ -34,11 +34,11 @@ impl LintRule for RestrictTemplateExpressions {
     }
 
     /// Check module DIR nodes for disallowed template interpolation types.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let string_symbol = ctx.language_item(LanguageItem::String);
 
-        for (_expression_id, expression) in ctx.tree.iter_nodes_of_type::<dir::Expression>() {
+        for (_expression_id, expression) in ctx.dir.iter_nodes_of_type::<dir::Expression>() {
             let dir::Expression::TemplateExpression { value } = expression else {
                 continue;
             };
@@ -47,8 +47,10 @@ impl LintRule for RestrictTemplateExpressions {
             };
 
             for argument_id in arguments {
-                let argument = ctx.tree.get(*argument_id);
-                let value_expression_id = argument.value();
+                let argument = ctx.dir.get(*argument_id);
+                let Some(value_expression_id) = argument.value() else {
+                    continue;
+                };
                 if expression_allows_template_interpolation(ctx, value_expression_id, string_symbol)
                 {
                     continue;
@@ -78,19 +80,19 @@ impl LintRule for RestrictTemplateExpressions {
 
 /// Return true when one template interpolation expression is allowed.
 fn expression_allows_template_interpolation(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
     string_symbol: dir::GlobalSymbolId,
 ) -> bool {
-    let expression = ctx.tree.get(expression_id);
+    let expression = ctx.dir.get(expression_id);
     if matches!(
         expression,
-        dir::Expression::ScalarLiteral {
-            value: dir::ScalarLiteral::Integer(_)
+        dir::Expression::ScalarLiteral(
+            dir::ScalarLiteral::Integer(_)
                 | dir::ScalarLiteral::Bigint(_)
                 | dir::ScalarLiteral::Float(_)
-                | dir::ScalarLiteral::String(_),
-        }
+                | dir::ScalarLiteral::String(_)
+        )
     ) {
         return true;
     }
@@ -100,7 +102,7 @@ fn expression_allows_template_interpolation(
         ctx.artifacts.as_ref(),
         ctx.profile_id,
         ctx.module_id(),
-        ctx.tree,
+        ctx.dir.tree(),
         ctx.types,
         expression_id,
         |types, type_id| is_template_interpolation_type(types, type_id, Some(string_symbol)),

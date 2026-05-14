@@ -1,9 +1,9 @@
 use crate::LintMeta;
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{assign_pattern_expression, assign_pattern_is_equal};
-use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow assignments where both sides are the same.
@@ -13,7 +13,7 @@ declare_lint! {
         id = "no-self-assign",
         code = "LU028",
         category = Suspicious,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -29,14 +29,14 @@ impl LintRule for NoSelfAssign {
         NoSelfAssign::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // inspect direct assignments
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expr = ctx.tree.get(node_id);
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let expr = ctx.dir.get(node_id);
 
-            let ast::Expression::Assign {
+            let dir::Expression::Assign {
                 left,
                 operator,
                 right,
@@ -46,25 +46,27 @@ impl LintRule for NoSelfAssign {
             };
             if !matches!(
                 operator,
-                ast::AssignOperator::Assign
-                    | ast::AssignOperator::AndAssign
-                    | ast::AssignOperator::OrAssign
-                    | ast::AssignOperator::CoalesceAssign
+                dir::AssignOperator::Assign
+                    | dir::AssignOperator::AndAssign
+                    | dir::AssignOperator::OrAssign
+                    | dir::AssignOperator::CoalesceAssign
             ) {
                 continue;
             }
 
             // keep property assignments behind the upstream option
             let checks_properties = ctx.options.correctness.no_self_assign_check_properties;
-            if !checks_properties && assign_pattern_is_property_assignment_target(ctx.tree, *left) {
+            if !checks_properties
+                && assign_pattern_is_property_assignment_target(ctx.dir.tree(), *left)
+            {
                 continue;
             }
 
             // compare assignment operands structurally
-            let Some(left_expression_id) = assign_pattern_expression(ctx.tree, *left) else {
+            let Some(left_expression_id) = assign_pattern_expression(ctx.dir.tree(), *left) else {
                 continue;
             };
-            let left_span = ctx.tree.get_span(left_expression_id);
+            let left_span = ctx.dir.get_span(left_expression_id);
             if !assign_pattern_is_equal(ctx, *left, *right) {
                 continue;
             }
@@ -74,7 +76,7 @@ impl LintRule for NoSelfAssign {
                 continue;
             }
 
-            let expression_span = ctx.tree.get_span(node_id);
+            let expression_span = ctx.dir.get_span(node_id);
 
             let mut diagnostic = LintReport::new(
                 NO_SELF_ASSIGN.id,
@@ -87,7 +89,7 @@ impl LintRule for NoSelfAssign {
             .label("this assignment has no effect");
 
             // add fix for direct assignment only when source extraction is valid
-            if *operator == ast::AssignOperator::Assign && !left_span.is_empty() {
+            if *operator == dir::AssignOperator::Assign && !left_span.is_empty() {
                 let left_text = ctx.get_span_text(left_span);
                 if !left_text.is_empty() {
                     let replacement = left_text.to_string();
@@ -107,8 +109,8 @@ impl LintRule for NoSelfAssign {
 
 /// Return true when one assignment target is property-like.
 fn assign_pattern_is_property_assignment_target(
-    tree: &ast::Tree,
-    assign_pattern_id: ast::LocalNodeId<ast::AssignPattern>,
+    tree: &dir::Tree,
+    assign_pattern_id: dir::LocalNodeId<dir::AssignPattern>,
 ) -> bool {
     let Some(expression_id) = assign_pattern_expression(tree, assign_pattern_id) else {
         return false;
@@ -118,12 +120,12 @@ fn assign_pattern_is_property_assignment_target(
 
     matches!(
         expression,
-        ast::Expression::QualifiedReference { path, .. } if path.segments.len() > 1
+        dir::Expression::QualifiedReference { path, .. } if path.segments.len() > 1
     ) || matches!(
         expression,
-        ast::Expression::Member { .. }
-            | ast::Expression::PrivateMember { .. }
-            | ast::Expression::Index { .. }
+        dir::Expression::Member { .. }
+            | dir::Expression::PrivateMember { .. }
+            | dir::Expression::Index { .. }
     )
 }
 
@@ -135,7 +137,7 @@ mod tests {
     #[test]
     fn test_detects_simple_self_assign() {
         let test = TestProgram::for_rule_without_prelude(NoSelfAssign);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_self_assign/test_detects_simple_self_assign.ds",
             r#"
 x = x
@@ -147,7 +149,7 @@ x = x
     #[test]
     fn test_detects_member_self_assign() {
         let test = TestProgram::for_rule_without_prelude(NoSelfAssign);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_self_assign/test_detects_member_self_assign.ds",
             r#"
 obj.x = obj.x
@@ -159,7 +161,7 @@ obj.x = obj.x
     #[test]
     fn test_detects_index_self_assign() {
         let test = TestProgram::for_rule_without_prelude(NoSelfAssign);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_self_assign/test_detects_index_self_assign.ds",
             r#"
 arr[0] = arr[0]
@@ -171,7 +173,7 @@ arr[0] = arr[0]
     #[test]
     fn test_allows_different_assignment() {
         let test = TestProgram::for_rule_without_prelude(NoSelfAssign);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_self_assign/test_allows_different_assignment.ds",
             r#"
 x = y
@@ -183,7 +185,7 @@ x = y
     #[test]
     fn test_allows_different_member_assignment() {
         let test = TestProgram::for_rule_without_prelude(NoSelfAssign);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_self_assign/test_allows_different_member_assignment.ds",
             r#"
 obj.x = obj.y
@@ -195,7 +197,7 @@ obj.x = obj.y
     #[test]
     fn test_allows_compound_assignment() {
         let test = TestProgram::for_rule_without_prelude(NoSelfAssign);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_self_assign/test_allows_compound_assignment.ds",
             r#"
 x += x
@@ -207,7 +209,7 @@ x += x
     #[test]
     fn test_detects_logical_and_self_assign() {
         let test = TestProgram::for_rule_without_prelude(NoSelfAssign);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_self_assign/test_detects_logical_and_self_assign.ds",
             r#"
 x &&= x
@@ -221,7 +223,7 @@ x &&= x
     #[test]
     fn test_fix_self_assign() {
         let test = TestProgram::for_rule_without_prelude(NoSelfAssign);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_self_assign/test_fix_self_assign.ds",
             r#"
 x = x
@@ -241,7 +243,7 @@ x;
         let test = TestProgram::for_rule_without_prelude(NoSelfAssign).with_options(|options| {
             options.correctness.no_self_assign_check_properties = false;
         });
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_self_assign/test_allows_property_self_assign_when_props_disabled.ds",
             r#"
 obj.x = obj.x

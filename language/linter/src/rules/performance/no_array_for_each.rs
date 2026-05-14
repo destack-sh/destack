@@ -7,7 +7,7 @@ use crate::rules::common::{
     collect_local_symbol_direct_reference_expression_ids, expression_method_call, is_array_type,
     is_simple_identifier, statement_expression_ancestor, strip_dot_member_suffix,
 };
-use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer `for-of` over `Array.forEach()`.
@@ -35,7 +35,7 @@ impl LintRule for NoArrayForEach {
         NoArrayForEach::meta()
     }
 
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let mut visitor = NoArrayForEachVisitor::new(ctx, meta);
         visitor.run();
@@ -45,7 +45,7 @@ impl LintRule for NoArrayForEach {
 /// Visitor that flags Array.forEach() calls.
 struct NoArrayForEachVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The language item Array symbol for this module.
@@ -58,7 +58,7 @@ struct NoArrayForEachVisitor<'a, 'b> {
 
 impl<'a, 'b> NoArrayForEachVisitor<'a, 'b> {
     /// Build a visitor for no-array-for-each checks.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         let array_symbol = ctx.language_item(LanguageItem::Array);
         let for_each_name = ctx.string_id("forEach");
 
@@ -74,7 +74,7 @@ impl<'a, 'b> NoArrayForEachVisitor<'a, 'b> {
     /// Walk the DIR tree roots.
     fn run(&mut self) {
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         for root_id in roots {
             let expression = tree.get(root_id);
@@ -85,7 +85,7 @@ impl<'a, 'b> NoArrayForEachVisitor<'a, 'b> {
     /// Check a call expression for forEach usage.
     fn check_call(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) {
         // match method call pattern
-        let Some(method_call) = expression_method_call(self.ctx.tree, expression_id) else {
+        let Some(method_call) = expression_method_call(self.ctx.dir.tree(), expression_id) else {
             return;
         };
 
@@ -119,7 +119,7 @@ impl<'a, 'b> NoArrayForEachVisitor<'a, 'b> {
             span,
         )
         .label("use a for-of loop instead");
-        if self.ctx.include_fixes
+        if self.ctx.compute_fixes
             && let Some(fix) = self.no_array_for_each_fix(expression_id)
         {
             diagnostic = diagnostic.fix(fix);
@@ -133,7 +133,7 @@ impl<'a, 'b> NoArrayForEachVisitor<'a, 'b> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<LintFix> {
-        let method_call = expression_method_call(self.ctx.tree, expression_id)?;
+        let method_call = expression_method_call(self.ctx.dir.tree(), expression_id)?;
 
         // require no static args and exactly one dynamic callback arg
         if !method_call.generic_arguments.is_empty() || method_call.arguments.len() != 1 {
@@ -141,7 +141,7 @@ impl<'a, 'b> NoArrayForEachVisitor<'a, 'b> {
         }
 
         // keep statement-level calls only
-        let statement_id = statement_expression_ancestor(self.ctx.tree, expression_id)?;
+        let statement_id = statement_expression_ancestor(self.ctx.dir.tree(), expression_id)?;
 
         // require a direct `.forEach` member access
         if method_call.method_name != self.for_each_name {
@@ -149,18 +149,18 @@ impl<'a, 'b> NoArrayForEachVisitor<'a, 'b> {
         }
 
         // require an inline non-async function callback
-        let callback_argument = self.ctx.tree.get(method_call.arguments[0]);
+        let callback_argument = self.ctx.dir.get(method_call.arguments[0]);
         let dir::Argument::Positional {
             value: callback_id, ..
         } = callback_argument
         else {
             return None;
         };
-        let callback_expression = self.ctx.tree.get(*callback_id);
+        let callback_expression = self.ctx.dir.get(*callback_id);
         let dir::Expression::Declaration(declaration) = callback_expression else {
             return None;
         };
-        let callback_declaration = self.ctx.tree.get(*declaration);
+        let callback_declaration = self.ctx.dir.get(*declaration);
         let dir::Declaration::Function(declaration) = callback_declaration else {
             return None;
         };
@@ -173,7 +173,7 @@ impl<'a, 'b> NoArrayForEachVisitor<'a, 'b> {
 
         // require a single named parameter without modifiers/default
         let parameter_id = declaration.signature.parameters[0];
-        let parameter = self.ctx.tree.get(parameter_id);
+        let parameter = self.ctx.dir.get(parameter_id);
         let dir::Parameter::Named {
             visibility: None,
             is_readonly: false,
@@ -185,10 +185,10 @@ impl<'a, 'b> NoArrayForEachVisitor<'a, 'b> {
         else {
             return None;
         };
-        let parameter_symbol = parameter.symbol();
+        let parameter_symbol = self.ctx.local_symbol_for_node(parameter_id)?;
 
         // require a block body so we can preserve statements exactly
-        let body_expression = self.ctx.tree.get(body_id);
+        let body_expression = self.ctx.dir.get(body_id);
         if !matches!(body_expression, dir::Expression::Block(..)) {
             return None;
         }
@@ -224,13 +224,14 @@ impl<'a, 'b> NoArrayForEachVisitor<'a, 'b> {
         }
 
         // resolve the lexical scope where the new for-of binding will land
-        let (_, scope, mark) = self.ctx.symbols.get_scope(statement_id, self.ctx.tree);
+        let scope_cursor = self.ctx.scope_for_node(statement_id)?;
+        let scope = self.ctx.symbols.get_scope(scope_cursor);
         let is_name_taken = |candidate: &str| {
             let candidate_id = self.ctx.string_id(candidate);
             let candidate_key = dir::StaticKey::Name(candidate_id);
             self.ctx
                 .symbols
-                .find_symbol_up_to(scope, candidate_key, mark)
+                .find_symbol_up_to(scope, candidate_key, scope_cursor.mark)
                 .is_some()
         };
 
@@ -264,7 +265,7 @@ impl<'a, 'b> NoArrayForEachVisitor<'a, 'b> {
         let mut body_text = self.ctx.get_span_text(body_span).to_string();
         let mut spans = collect_local_symbol_direct_reference_expression_ids(
             self.ctx.module_id(),
-            self.ctx.tree,
+            self.ctx.dir.tree(),
             self.ctx.types,
             parameter_symbol,
         )

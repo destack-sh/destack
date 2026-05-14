@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use destack_source::Span;
 
-use crate::LintModuleDirContext;
+use crate::LintModuleContext;
 
 use super::expression_unwrap_statement;
 
@@ -258,7 +258,6 @@ fn callable_boundary_asynchrony(
                 is_override: _,
                 is_static: _,
                 is_accessor: _,
-                symbol: _,
             } = member
             else {
                 return None;
@@ -271,7 +270,6 @@ fn callable_boundary_asynchrony(
                 key: _,
                 signature,
                 body: _,
-                symbol: _,
             } = property
             else {
                 return None;
@@ -354,10 +352,10 @@ fn expression_is_transparent_parent_of(
         dir::Expression::Parenthesized { expression } if *expression == child_expression_id
     ) || matches!(
         parent_expression,
-        dir::Expression::Maybe { left } if *left == child_expression_id
+        dir::Expression::Maybe { left, .. } if *left == child_expression_id
     ) || matches!(
         parent_expression,
-        dir::Expression::Must { left } if *left == child_expression_id
+        dir::Expression::Must { left, .. } if *left == child_expression_id
     ) || matches!(
         parent_expression,
         dir::Expression::Instantiation { left, .. } if *left == child_expression_id
@@ -396,7 +394,7 @@ pub fn statement_expression_ancestor(
             let parent_expression_id = parent_node_id.into_typed::<dir::Expression>();
             let parent_expression = tree.get(parent_expression_id);
 
-            if let dir::Expression::Labelled { body, .. } = parent_expression
+            if let dir::Expression::Label { body, .. } = parent_expression
                 && *body == outer_expression_id
             {
                 outer_expression_id = parent_expression_id;
@@ -426,11 +424,11 @@ pub fn statement_expression_ancestor(
 
 /// Return the enclosing statement span for a standalone expression.
 pub fn statement_expression_span(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<Span> {
     // resolve the enclosing statement wrapper
-    let statement_expression_id = statement_expression_ancestor(ctx.tree, expression_id)?;
+    let statement_expression_id = statement_expression_ancestor(ctx.dir.tree(), expression_id)?;
 
     // return the statement span
     Some(ctx.get_span(statement_expression_id))

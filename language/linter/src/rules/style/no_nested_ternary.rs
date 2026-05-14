@@ -1,8 +1,8 @@
 use crate::LintMeta;
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
-use crate::{LintAstContext, LintReport, LintRule, declare_lint};
+use crate::{LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow nested ternary expressions.
@@ -14,7 +14,7 @@ declare_lint! {
         id = "no-nested-ternary",
         code = "LY022",
         category = Style,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = No,
@@ -30,25 +30,25 @@ impl LintRule for NoNestedTernary {
         NoNestedTernary::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
             // look for ternary expressions
-            let ast::Expression::If {
-                form: ast::IfForm::Ternary,
+            let dir::Expression::If {
+                form: dir::IfForm::Ternary,
                 condition,
                 then_expression,
                 else_expression,
-            } = ctx.tree.get(node_id)
+            } = ctx.dir.get(node_id)
             else {
                 continue;
             };
 
             // check if any child is also a ternary
             let condition_id = match condition {
-                ast::IfCondition::Expression { condition } => *condition,
-                ast::IfCondition::Let { .. } => continue,
+                dir::IfCondition::Expression { condition } => *condition,
+                dir::IfCondition::Let { .. } => continue,
             };
             let has_nested_ternary = is_ternary(ctx, condition_id)
                 || is_ternary(ctx, *then_expression)
@@ -65,7 +65,7 @@ impl LintRule for NoNestedTernary {
                     NO_NESTED_TERNARY.category,
                     severity,
                     "nested ternary expression",
-                    ctx.tree.get_span(node_id),
+                    ctx.dir.get_span(node_id),
                 )
                 .label("consider using if-else instead");
 
@@ -76,14 +76,14 @@ impl LintRule for NoNestedTernary {
 }
 
 /// Check if an expression is a ternary (possibly wrapped in parentheses).
-fn is_ternary(ctx: &LintAstContext<'_>, expr_id: ast::LocalNodeId<ast::Expression>) -> bool {
-    let expr = ctx.tree.get(expr_id);
+fn is_ternary(ctx: &LintModuleContext<'_>, expr_id: dir::LocalNodeId<dir::Expression>) -> bool {
+    let expr = ctx.dir.get(expr_id);
     match expr {
-        ast::Expression::If {
-            form: ast::IfForm::Ternary,
+        dir::Expression::If {
+            form: dir::IfForm::Ternary,
             ..
         } => true,
-        ast::Expression::Parenthesized { expression } => is_ternary(ctx, *expression),
+        dir::Expression::Parenthesized { expression } => is_ternary(ctx, *expression),
         _ => false,
     }
 }
@@ -96,7 +96,7 @@ mod tests {
     #[test]
     fn test_detects_nested_ternary_in_then() {
         let test = TestProgram::for_rule_without_prelude(NoNestedTernary);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_nested_ternary/test_detects_nested_ternary_in_then.ds",
             r#"
 const x = a ? b ? 1 : 2 : 3;
@@ -110,7 +110,7 @@ const x = a ? b ? 1 : 2 : 3;
     #[test]
     fn test_detects_nested_ternary_in_else() {
         let test = TestProgram::for_rule_without_prelude(NoNestedTernary);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_nested_ternary/test_detects_nested_ternary_in_else.ds",
             r#"
 const x = a ? 1 : b ? 2 : 3;
@@ -124,7 +124,7 @@ const x = a ? 1 : b ? 2 : 3;
     #[test]
     fn test_detects_nested_ternary_in_condition() {
         let test = TestProgram::for_rule_without_prelude(NoNestedTernary);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_nested_ternary/test_detects_nested_ternary_in_condition.ds",
             r#"
 const x = (a ? true : false) ? 1 : 2;
@@ -138,7 +138,7 @@ const x = (a ? true : false) ? 1 : 2;
     #[test]
     fn test_allows_simple_ternary() {
         let test = TestProgram::for_rule_without_prelude(NoNestedTernary);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_nested_ternary/test_allows_simple_ternary.ds",
             r#"
 const x = condition ? 1 : 2;
@@ -150,7 +150,7 @@ const x = condition ? 1 : 2;
     #[test]
     fn test_allows_if_else() {
         let test = TestProgram::for_rule_without_prelude(NoNestedTernary);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_nested_ternary/test_allows_if_else.ds",
             r#"
 const x = if (a) {
@@ -166,7 +166,7 @@ const x = if (a) {
     #[test]
     fn test_allows_separate_ternaries() {
         let test = TestProgram::for_rule_without_prelude(NoNestedTernary);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_nested_ternary/test_allows_separate_ternaries.ds",
             r#"
 const x = a ? 1 : 2;

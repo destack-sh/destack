@@ -9,9 +9,10 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::{
-    assign_pattern_contains_expression, expand_span_to_statement_terminator, expression_method_call,
+    assign_pattern_contains_expression, assign_pattern_target_expression,
+    expand_span_to_statement_terminator, expression_method_call,
 };
-use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer array literal over empty array followed by push.
@@ -38,7 +39,7 @@ impl LintRule for PreferArrayLiteral {
         PreferArrayLiteral::meta()
     }
 
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let mut visitor = PreferArrayLiteralVisitor::new(ctx, meta);
         visitor.run();
@@ -63,7 +64,7 @@ struct EmptyArrayDecl {
 /// Visitor that flags empty array + push patterns.
 struct PreferArrayLiteralVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The string id for the push method name.
@@ -76,7 +77,7 @@ struct PreferArrayLiteralVisitor<'a, 'b> {
 
 impl<'a, 'b> PreferArrayLiteralVisitor<'a, 'b> {
     /// Build a visitor for prefer-array-literal checks.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         let push_name = ctx.string_id("push");
 
         Self {
@@ -91,7 +92,7 @@ impl<'a, 'b> PreferArrayLiteralVisitor<'a, 'b> {
     /// Walk the DIR tree roots.
     fn run(&mut self) {
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         for root_id in roots {
             let expression = tree.get(root_id);
@@ -115,7 +116,7 @@ impl<'a, 'b> PreferArrayLiteralVisitor<'a, 'b> {
 
         // check each declarator
         for declarator_id in declarators {
-            let declarator = self.ctx.tree.get(*declarator_id);
+            let declarator = self.ctx.dir.get(*declarator_id);
 
             // require an initializer
             let Some(init_id) = declarator.value else {
@@ -123,7 +124,7 @@ impl<'a, 'b> PreferArrayLiteralVisitor<'a, 'b> {
             };
 
             // check if the initializer is an empty array
-            let init = self.ctx.tree.get(init_id);
+            let init = self.ctx.dir.get(init_id);
             let is_empty_array = matches!(
                 init,
                 dir::Expression::ArrayExpression { elements } if elements.is_empty()
@@ -133,8 +134,7 @@ impl<'a, 'b> PreferArrayLiteralVisitor<'a, 'b> {
             }
 
             // get the declared symbol
-            let pattern = self.ctx.tree.get(declarator.pattern);
-            let Some(local_symbol) = pattern.symbol() else {
+            let Some(local_symbol) = self.ctx.local_symbol_for_node(declarator.pattern) else {
                 continue;
             };
 
@@ -156,7 +156,7 @@ impl<'a, 'b> PreferArrayLiteralVisitor<'a, 'b> {
     /// Check for push calls on tracked arrays.
     fn check_call(&mut self, expression_id: LocalNodeId<dir::Expression>) {
         // match method call pattern
-        let Some(method_call) = expression_method_call(self.ctx.tree, expression_id) else {
+        let Some(method_call) = expression_method_call(self.ctx.dir.tree(), expression_id) else {
             return;
         };
 
@@ -194,15 +194,15 @@ impl<'a, 'b> PreferArrayLiteralVisitor<'a, 'b> {
 
     /// Return true when this expression is only the receiver of a `.push(...)` call.
     fn is_push_receiver_use(&self, expression_id: LocalNodeId<dir::Expression>) -> bool {
-        let Some(parent_id) = self.ctx.tree.get_parent_id(expression_id.id) else {
+        let Some(parent_id) = self.ctx.dir.get_parent_id(expression_id.id) else {
             return false;
         };
-        if self.ctx.tree.get_node_type(parent_id) != dir::NodeType::Expression {
+        if self.ctx.dir.get_node_type(parent_id) != dir::NodeType::Expression {
             return false;
         }
 
         let parent_expression_id = LocalNodeId::<dir::Expression>::new(parent_id);
-        let parent_expression = self.ctx.tree.get(parent_expression_id);
+        let parent_expression = self.ctx.dir.get(parent_expression_id);
         let dir::Expression::Member { left, name, .. } = parent_expression else {
             return false;
         };
@@ -210,16 +210,17 @@ impl<'a, 'b> PreferArrayLiteralVisitor<'a, 'b> {
             return false;
         }
 
-        let Some(grandparent_id) = self.ctx.tree.get_parent_id(parent_id) else {
+        let Some(grandparent_id) = self.ctx.dir.get_parent_id(parent_id) else {
             return false;
         };
-        if self.ctx.tree.get_node_type(grandparent_id) != dir::NodeType::Expression {
+        if self.ctx.dir.get_node_type(grandparent_id) != dir::NodeType::Expression {
             return false;
         }
 
         let grandparent_expression = self
             .ctx
-            .tree
+            .dir
+            .tree()
             .get(LocalNodeId::<dir::Expression>::new(grandparent_id));
         matches!(
             grandparent_expression,
@@ -257,7 +258,7 @@ impl<'a, 'b> PreferArrayLiteralVisitor<'a, 'b> {
                 span,
             )
             .label("initialize with values directly");
-            if self.ctx.include_fixes
+            if self.ctx.compute_fixes
                 && let Some(fix) = self.prefer_array_literal_fix(&decl)
             {
                 diagnostic = diagnostic.fix(fix);
@@ -286,7 +287,7 @@ impl<'a, 'b> PreferArrayLiteralVisitor<'a, 'b> {
                 return None;
             }
 
-            let push_call = self.ctx.tree.get(*push_call_id);
+            let push_call = self.ctx.dir.get(*push_call_id);
             let dir::Expression::Call {
                 generic_arguments,
                 arguments,
@@ -298,7 +299,7 @@ impl<'a, 'b> PreferArrayLiteralVisitor<'a, 'b> {
             if !generic_arguments.is_empty() || arguments.len() != 1 {
                 return None;
             }
-            let argument = self.ctx.tree.get(arguments[0]);
+            let argument = self.ctx.dir.get(arguments[0]);
             let dir::Argument::Positional { value, .. } = argument else {
                 return None;
             };
@@ -332,7 +333,7 @@ impl<'a, 'b> PreferArrayLiteralVisitor<'a, 'b> {
         &self,
         expression_id: LocalNodeId<dir::Expression>,
     ) -> Option<(Option<u32>, LocalNodeId<dir::Expression>)> {
-        let parent_id = self.ctx.tree.get_parent_id(expression_id.id);
+        let parent_id = self.ctx.dir.get_parent_id(expression_id.id);
         Some((parent_id, expression_id))
     }
 }
@@ -373,8 +374,8 @@ impl NodeVisitor for PreferArrayLiteralVisitor<'_, '_> {
 
         // check assignment-like writes to tracked arrays as other use
         if let dir::Expression::Assign { left, .. } = expression {
-            for (expression_id, _) in self.ctx.tree.iter_nodes_of_type::<dir::Expression>() {
-                if assign_pattern_contains_expression(self.ctx.tree, *left, expression_id) {
+            for (expression_id, _) in self.ctx.dir.iter_nodes_of_type::<dir::Expression>() {
+                if assign_pattern_contains_expression(self.ctx.dir.tree(), *left, expression_id) {
                     self.mark_other_use(expression_id);
                 }
             }
@@ -382,8 +383,10 @@ impl NodeVisitor for PreferArrayLiteralVisitor<'_, '_> {
             return;
         }
 
-        if let dir::Expression::AssignBinary { left, .. } = expression {
-            self.mark_other_use(*left);
+        if let dir::Expression::Assign { left, .. } = expression
+            && let Some(left) = assign_pattern_target_expression(self.ctx.dir.tree(), *left)
+        {
+            self.mark_other_use(left);
         }
 
         // check update writes to tracked arrays as other use

@@ -2,7 +2,7 @@ use crate::LintMeta;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::count_file_lines;
-use crate::{LintAstContext, LintReport, LintRule, declare_lint};
+use crate::{LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Limit the number of lines per file.
@@ -14,7 +14,7 @@ declare_lint! {
         id = "max-lines",
         code = "LX005",
         category = Complexity,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = No,
@@ -30,7 +30,7 @@ impl LintRule for MaxLines {
         MaxLines::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         // resolve lint metadata, threshold, and active options
         let meta = self.meta();
         let max_lines = ctx.options.complexity.max_lines;
@@ -86,7 +86,7 @@ mod tests {
         }
 
         // verify lint report for oversized file
-        let result = test.lint_ast("max_lines/test_detects_too_many_lines.ds", &source);
+        let result = test.lint("max_lines/test_detects_too_many_lines.ds", &source);
         test.result(result).assert_lint("max-lines");
     }
 
@@ -95,7 +95,7 @@ mod tests {
         let test = TestProgram::for_rule_without_prelude(MaxLines);
 
         // keep line count under default threshold
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_lines/test_allows_small_file.ds",
             r#"
 let x = 1;
@@ -120,7 +120,7 @@ let z = 3;
         source.push_str("let x499 = 499;");
 
         // verify no lint at exact threshold
-        let result = test.lint_ast("max_lines/test_allows_exactly_at_limit.ds", &source);
+        let result = test.lint("max_lines/test_allows_exactly_at_limit.ds", &source);
         test.result(result).assert_no_lint("max-lines");
     }
 
@@ -132,7 +132,7 @@ let z = 3;
         });
 
         // ignore blank lines while counting
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_lines/test_skips_blank_lines_when_enabled.ds",
             r#"
 let first = 1;
@@ -154,7 +154,7 @@ let second = 2;
         });
 
         // ignore full-line comments while counting
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_lines/test_skips_comment_lines_when_enabled.ds",
             r#"
 // comment one
@@ -178,7 +178,7 @@ let second = 2;
         });
 
         // still count lines that contain code before trailing comments
-        let result = test.lint_ast(
+        let result = test.lint(
             "max_lines/test_counts_code_with_trailing_comment_when_skipping_comments.ds",
             r#"
 let first = 1; // trailing comment

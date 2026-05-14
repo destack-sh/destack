@@ -1,5 +1,5 @@
 use crate::LintMeta;
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_source::Span;
 use destack_workspace::LintSeverity;
 
@@ -8,7 +8,7 @@ use crate::rules::common::{
     is_doc_comment_source, is_non_prose_doc_line, is_separator_comment,
     parse_keyword_comment_with_options,
 };
-use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Enforce comment layout conventions.
@@ -21,7 +21,7 @@ declare_lint! {
         id = "comment-layout",
         code = "LY003",
         category = Style,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Sometimes,
@@ -37,16 +37,16 @@ impl LintRule for CommentLayout {
         CommentLayout::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
         // check doc comments
-        for comment in ctx.tree.comments().iter().copied() {
+        for comment in ctx.dir.comments().iter().copied() {
             if !is_doc_comment_source(ctx.get_span_text(comment.span)) {
                 continue;
             }
 
-            let text = ast::normalize_comment_payload(ctx.get_span_text(comment.span)).into_owned();
+            let text = dir::normalize_comment_payload(ctx.get_span_text(comment.span)).into_owned();
             let mut has_multiple_sentence_line = false;
 
             // check each prose line for multiple sentence starts
@@ -107,12 +107,12 @@ impl LintRule for CommentLayout {
         }
 
         // check inline comments
-        for comment in ctx.tree.comments().iter().copied() {
+        for comment in ctx.dir.comments().iter().copied() {
             if is_doc_comment_source(ctx.get_span_text(comment.span)) {
                 continue;
             }
 
-            let text = ast::normalize_comment_payload(ctx.get_span_text(comment.span)).into_owned();
+            let text = dir::normalize_comment_payload(ctx.get_span_text(comment.span)).into_owned();
             let text = text.trim();
 
             // skip empty, directive, and separator comments
@@ -241,7 +241,7 @@ fn known_comment_tag_label(tags: &[String]) -> String {
 
 /// Build a safe fix for lowercase keyword comments.
 fn uppercase_keyword_comment_fix(
-    ctx: &LintAstContext<'_>,
+    ctx: &LintModuleContext<'_>,
     annotation_span: Span,
     uppercase_keyword: &str,
 ) -> Option<LintFix> {
@@ -287,7 +287,7 @@ mod tests {
     #[test]
     fn test_single_sentence_allowed() {
         let test = TestProgram::for_rule_without_prelude(CommentLayout);
-        let result = test.lint_ast(
+        let result = test.lint(
             "comment_layout/test_single_sentence_allowed.ds",
             r#"
 /// This is a single sentence.
@@ -300,7 +300,7 @@ function foo() {}
     #[test]
     fn test_multiple_sentences_on_one_line_detected() {
         let test = TestProgram::for_rule_without_prelude(CommentLayout);
-        let result = test.lint_ast(
+        let result = test.lint(
             "comment_layout/test_multiple_sentences_on_one_line_detected.ds",
             r#"
 /// This is one sentence. This is another sentence.
@@ -313,7 +313,7 @@ function foo() {}
     #[test]
     fn test_multiple_sentences_on_separate_lines_allowed() {
         let test = TestProgram::for_rule_without_prelude(CommentLayout);
-        let result = test.lint_ast(
+        let result = test.lint(
             "comment_layout/test_multiple_sentences_on_separate_lines_allowed.ds",
             r#"
 /// This is one sentence.
@@ -327,7 +327,7 @@ function foo() {}
     #[test]
     fn test_hyphen_separator_detected() {
         let test = TestProgram::for_rule_without_prelude(CommentLayout);
-        let result = test.lint_ast(
+        let result = test.lint(
             "comment_layout/test_hyphen_separator_detected.ds",
             r#"
 /// This is a comment - with a hyphen separator.
@@ -340,7 +340,7 @@ function foo() {}
     #[test]
     fn test_colon_separator_allowed() {
         let test = TestProgram::for_rule_without_prelude(CommentLayout);
-        let result = test.lint_ast(
+        let result = test.lint(
             "comment_layout/test_colon_separator_allowed.ds",
             r#"
 /// This is a comment: with a colon separator.
@@ -353,7 +353,7 @@ function foo() {}
     #[test]
     fn test_compound_word_hyphen_allowed() {
         let test = TestProgram::for_rule_without_prelude(CommentLayout);
-        let result = test.lint_ast(
+        let result = test.lint(
             "comment_layout/test_compound_word_hyphen_allowed.ds",
             r#"
 /// This is a well-known pattern.
@@ -366,7 +366,7 @@ function foo() {}
     #[test]
     fn test_url_hyphen_allowed() {
         let test = TestProgram::for_rule_without_prelude(CommentLayout);
-        let result = test.lint_ast(
+        let result = test.lint(
             "comment_layout/test_url_hyphen_allowed.ds",
             r#"
 /// See https://example-site.com/foo-bar.
@@ -380,7 +380,7 @@ function foo() {}
     #[test]
     fn test_keyword_comment_requires_tag() {
         let test = TestProgram::for_rule_without_prelude(CommentLayout);
-        let result = test.lint_ast(
+        let result = test.lint(
             "comment_layout/test_keyword_comment_requires_tag.ds",
             r#"
 // NOTE this should include a tag
@@ -394,7 +394,7 @@ const value = 1;
     #[test]
     fn test_keyword_comment_requires_uppercase_keyword() {
         let test = TestProgram::for_rule_without_prelude(CommentLayout);
-        let result = test.lint_ast(
+        let result = test.lint(
             "comment_layout/test_keyword_comment_requires_uppercase_keyword.ds",
             r#"
 // todo #Cleanup: normalize this branch
@@ -408,7 +408,7 @@ const value = 1;
     #[test]
     fn test_fix_uppercases_keyword_comment() {
         let test = TestProgram::for_rule_without_prelude(CommentLayout);
-        let result = test.lint_ast(
+        let result = test.lint(
             "comment_layout/test_fix_uppercases_keyword_comment.ds",
             r#"
 // todo #Cleanup: normalize this branch
@@ -429,7 +429,7 @@ const value = 1;
     #[test]
     fn test_keyword_comment_rejects_unknown_tag() {
         let test = TestProgram::for_rule_without_prelude(CommentLayout);
-        let result = test.lint_ast(
+        let result = test.lint(
             "comment_layout/test_keyword_comment_rejects_unknown_tag.ds",
             r#"
 // TODO #Whatever: normalize this branch
@@ -443,7 +443,7 @@ const value = 1;
     #[test]
     fn test_no_fix_for_unknown_keyword_tag() {
         let test = TestProgram::for_rule_without_prelude(CommentLayout);
-        let result = test.lint_ast(
+        let result = test.lint(
             "comment_layout/test_no_fix_for_unknown_keyword_tag.ds",
             r#"
 // TODO #Whatever: normalize this branch
@@ -459,7 +459,7 @@ const value = 1;
     #[test]
     fn test_keyword_comment_accepts_known_tags() {
         let test = TestProgram::for_rule_without_prelude(CommentLayout);
-        let result = test.lint_ast(
+        let result = test.lint(
             "comment_layout/test_keyword_comment_accepts_known_tags.ds",
             r#"
 // TODO #Cleanup #Performance: normalize this branch
@@ -473,7 +473,7 @@ const value = 1;
     #[test]
     fn test_inline_multiple_sentences_detected() {
         let test = TestProgram::for_rule_without_prelude(CommentLayout);
-        let result = test.lint_ast(
+        let result = test.lint(
             "comment_layout/test_inline_multiple_sentences_detected.ds",
             r#"
 const value = 1; // one sentence. second sentence
@@ -486,7 +486,7 @@ const value = 1; // one sentence. second sentence
     #[test]
     fn test_non_prose_doc_lines_skipped() {
         let test = TestProgram::for_rule_without_prelude(CommentLayout);
-        let result = test.lint_ast(
+        let result = test.lint(
             "comment_layout/test_non_prose_doc_lines_skipped.ds",
             r#"
 /// Returns a value.

@@ -7,7 +7,7 @@ use crate::rules::common::{
     expression_is_standalone_statement, is_array_type, is_async_function_type,
     strip_dot_member_suffix,
 };
-use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow `forEach` with async callback.
@@ -37,7 +37,7 @@ impl LintRule for NoAsyncForeach {
     }
 
     /// Check module DIR nodes for async forEach callbacks.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let mut visitor = AsyncForeachVisitor::new(ctx, meta);
         visitor.run();
@@ -47,7 +47,7 @@ impl LintRule for NoAsyncForeach {
 /// Node visitor that flags async forEach callbacks.
 struct AsyncForeachVisitor<'a, 'b> {
     /// The lint context.
-    ctx: &'a mut LintModuleDirContext<'b>,
+    ctx: &'a mut LintModuleContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The language item Array symbol for this module.
@@ -60,7 +60,7 @@ struct AsyncForeachVisitor<'a, 'b> {
 
 impl<'a, 'b> AsyncForeachVisitor<'a, 'b> {
     /// Build a visitor for async forEach checks.
-    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+    fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         let array_symbol = ctx.language_item(LanguageItem::Array);
         let foreach_name = ctx.string_id("forEach");
 
@@ -76,7 +76,7 @@ impl<'a, 'b> AsyncForeachVisitor<'a, 'b> {
     /// Walk the DIR tree roots.
     fn run(&mut self) {
         let roots = self.ctx.roots.clone();
-        let tree = self.ctx.tree;
+        let tree = self.ctx.dir.tree();
 
         for root_id in roots {
             let expression = tree.get(root_id);
@@ -92,7 +92,7 @@ impl<'a, 'b> AsyncForeachVisitor<'a, 'b> {
         arguments: &[dir::LocalNodeId<dir::Argument>],
     ) {
         // match member access for forEach method
-        let left_expression = self.ctx.tree.get(left);
+        let left_expression = self.ctx.dir.get(left);
         let dir::Expression::Member {
             left: receiver,
             name,
@@ -124,7 +124,7 @@ impl<'a, 'b> AsyncForeachVisitor<'a, 'b> {
 
         // get the callback argument
         let callback_arg_id = arguments[0];
-        let callback_arg = self.ctx.tree.get(callback_arg_id);
+        let callback_arg = self.ctx.dir.get(callback_arg_id);
         let dir::Argument::Positional { value, .. } = callback_arg else {
             return;
         };
@@ -155,7 +155,7 @@ impl<'a, 'b> AsyncForeachVisitor<'a, 'b> {
             span,
         )
         .label("use for...of with await, or Promise.all() with map()");
-        if self.ctx.include_fixes
+        if self.ctx.compute_fixes
             && let Some(fix) = self.no_async_foreach_fix(expression_id)
         {
             diagnostic = diagnostic.fix(fix);
@@ -169,8 +169,9 @@ impl<'a, 'b> AsyncForeachVisitor<'a, 'b> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<LintFix> {
-        let expression = self.ctx.tree.get(expression_id);
+        let expression = self.ctx.dir.get(expression_id);
         let dir::Expression::Call {
+            position: _,
             left,
             generic_arguments,
             arguments,
@@ -185,12 +186,12 @@ impl<'a, 'b> AsyncForeachVisitor<'a, 'b> {
         }
 
         // keep statement-level calls only
-        if !expression_is_standalone_statement(self.ctx.tree, expression_id) {
+        if !expression_is_standalone_statement(self.ctx.dir.tree(), expression_id) {
             return None;
         }
 
         // require a direct `.forEach` member access
-        let member_expression = self.ctx.tree.get(*left);
+        let member_expression = self.ctx.dir.get(*left);
         let dir::Expression::Member {
             left: _receiver_id,
             name,
@@ -204,18 +205,18 @@ impl<'a, 'b> AsyncForeachVisitor<'a, 'b> {
         }
 
         // require an inline async function callback
-        let callback_argument = self.ctx.tree.get(arguments[0]);
+        let callback_argument = self.ctx.dir.get(arguments[0]);
         let dir::Argument::Positional {
             value: callback_id, ..
         } = callback_argument
         else {
             return None;
         };
-        let callback_expression = self.ctx.tree.get(*callback_id);
+        let callback_expression = self.ctx.dir.get(*callback_id);
         let dir::Expression::Declaration(declaration) = callback_expression else {
             return None;
         };
-        let callback_declaration = self.ctx.tree.get(*declaration);
+        let callback_declaration = self.ctx.dir.get(*declaration);
         let dir::Declaration::Function(declaration) = callback_declaration else {
             return None;
         };
@@ -228,7 +229,7 @@ impl<'a, 'b> AsyncForeachVisitor<'a, 'b> {
 
         // require a single named parameter without modifiers/default
         let parameter_id = declaration.signature.parameters[0];
-        let parameter = self.ctx.tree.get(parameter_id);
+        let parameter = self.ctx.dir.get(parameter_id);
         let dir::Parameter::Named {
             visibility: None,
             is_readonly: false,
@@ -242,7 +243,7 @@ impl<'a, 'b> AsyncForeachVisitor<'a, 'b> {
         };
 
         // require block body for direct statement preservation
-        let body_expression = self.ctx.tree.get(body_id);
+        let body_expression = self.ctx.dir.get(body_id);
         if !matches!(body_expression, dir::Expression::Block(..)) {
             return None;
         }

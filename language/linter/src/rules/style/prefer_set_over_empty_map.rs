@@ -7,7 +7,7 @@ use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::{
     contains_map_with_empty_value_type, expression_type_map, is_void_or_never_type,
 };
-use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
+use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer `Set<K>` over `Map<K, void | never>`.
@@ -36,7 +36,7 @@ impl LintRule for PreferSetOverEmptyMap {
     }
 
     /// Check module DIR nodes for `Map<K, void | never>` usage.
-    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let Some(map_symbol) = ctx.get_language_item(LanguageItem::Map) else {
             return;
@@ -44,19 +44,21 @@ impl LintRule for PreferSetOverEmptyMap {
         let mut reported_source_ids = HashSet::new();
 
         // type aliases: query alias target types directly from the type table
-        for (declaration_id, declaration) in ctx.tree.iter_nodes_of_type::<dir::Declaration>() {
+        for (declaration_id, declaration) in ctx.dir.iter_nodes_of_type::<dir::Declaration>() {
             let dir::Declaration::Type(declaration) = declaration else {
                 continue;
             };
 
-            let type_symbol = declaration.symbol.into_global(ctx.module_id());
+            let Some(type_symbol) = ctx.symbol_for_node(declaration_id) else {
+                continue;
+            };
             let Some(alias_target_type_id) = ctx.types.get_alias_target_type_id(type_symbol) else {
                 continue;
             };
             if !contains_map_with_empty_value_type(ctx.types, alias_target_type_id, map_symbol) {
                 continue;
             }
-            let source_id = ctx.tree.get_source(declaration.value.id);
+            let source_id = ctx.dir.get_source(declaration.value);
             if !reported_source_ids.insert(source_id) {
                 continue;
             }
@@ -69,7 +71,7 @@ impl LintRule for PreferSetOverEmptyMap {
             );
         }
 
-        for (expression_id, expression) in ctx.tree.iter_nodes_of_type::<dir::Expression>() {
+        for (expression_id, expression) in ctx.dir.iter_nodes_of_type::<dir::Expression>() {
             let should_report = match expression {
                 // type annotations are lowered as type and value declarations
                 dir::Expression::Type { value } => ctx
@@ -79,7 +81,7 @@ impl LintRule for PreferSetOverEmptyMap {
                         contains_map_with_empty_value_type(ctx.types, type_id, map_symbol)
                     }),
                 // type references can carry map generic arguments directly
-                dir::Expression::Path {
+                dir::Expression::QualifiedReference {
                     generic_arguments, ..
                 } => ctx
                     .expression_target_symbol(expression_id)
@@ -102,7 +104,7 @@ impl LintRule for PreferSetOverEmptyMap {
             if !should_report {
                 continue;
             }
-            let source_id = ctx.tree.get_source(expression_id.id);
+            let source_id = ctx.dir.get_source(expression_id);
             if !reported_source_ids.insert(source_id) {
                 continue;
             }
@@ -114,7 +116,7 @@ impl LintRule for PreferSetOverEmptyMap {
 
 /// Report one prefer-set-over-empty-map diagnostic.
 fn report_prefer_set_over_empty_map<T: dir::Node>(
-    ctx: &mut LintModuleDirContext<'_>,
+    ctx: &mut LintModuleContext<'_>,
     meta: &LintMeta,
     node_id: dir::LocalNodeId<T>,
     span: destack_source::Span,
@@ -139,7 +141,7 @@ fn report_prefer_set_over_empty_map<T: dir::Node>(
 
 /// Return true when one `new` expression constructs `Map<_, void|never>`.
 fn new_map_has_empty_value_argument(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     callee_expression_id: dir::LocalNodeId<dir::Expression>,
     generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
     map_symbol: dir::GlobalSymbolId,
@@ -156,7 +158,7 @@ fn new_map_has_empty_value_argument(
     }
 
     let Some(value_expression_id) =
-        generic_argument_value_expression(ctx.tree, generic_arguments[1])
+        generic_argument_value_expression(ctx.dir.tree(), generic_arguments[1])
     else {
         return false;
     };
@@ -165,7 +167,7 @@ fn new_map_has_empty_value_argument(
 
 /// Return true when one map reference has an empty value type argument.
 fn reference_has_empty_value_argument(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     target_symbol: dir::GlobalSymbolId,
     generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
     map_symbol: dir::GlobalSymbolId,
@@ -179,7 +181,7 @@ fn reference_has_empty_value_argument(
     }
 
     let Some(value_expression_id) =
-        generic_argument_value_expression(ctx.tree, generic_arguments[1])
+        generic_argument_value_expression(ctx.dir.tree(), generic_arguments[1])
     else {
         return false;
     };
@@ -201,16 +203,18 @@ fn generic_argument_value_expression(
 
 /// Return true when the expression resolves to `void` or `never`.
 fn expression_is_void_or_never_type(
-    ctx: &LintModuleDirContext<'_>,
+    ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    let expression = ctx.tree.get(expression_id);
-    if matches!(
-        expression,
-        dir::Expression::TypeLiteral {
-            value: dir::TypeLiteral::Void | dir::TypeLiteral::Never
-        }
-    ) {
+    let expression = ctx.dir.get(expression_id);
+    if let dir::Expression::Type { value } = expression
+        && matches!(
+            ctx.dir.get(*value),
+            dir::TypeExpression::Literal {
+                value: dir::TypeLiteral::Void | dir::TypeLiteral::Never,
+            }
+        )
+    {
         return true;
     }
 
@@ -218,7 +222,7 @@ fn expression_is_void_or_never_type(
         ctx.artifacts.as_ref(),
         ctx.profile_id,
         ctx.module_id(),
-        ctx.tree,
+        ctx.dir.tree(),
         ctx.types,
         expression_id,
         is_void_or_never_type,

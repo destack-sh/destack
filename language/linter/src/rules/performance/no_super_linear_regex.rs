@@ -1,9 +1,9 @@
 use crate::LintMeta;
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_workspace::LintSeverity;
 use regex_syntax::hir::{Hir, HirKind};
 
-use crate::{LintAstContext, LintReport, LintRule, declare_lint};
+use crate::{LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow regular expressions with super-linear worst-case complexity.
@@ -30,7 +30,7 @@ declare_lint! {
         id = "no-super-linear-regex",
         code = "LP011",
         category = Performance,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = No,
@@ -46,11 +46,11 @@ impl LintRule for NoSuperLinearRegex {
         NoSuperLinearRegex::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expression = ctx.tree.get(node_id);
-            let ast::Expression::ScalarLiteral(ast::ScalarLiteral::RegexString { content, .. }) =
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let expression = ctx.dir.get(node_id);
+            let dir::Expression::ScalarLiteral(dir::ScalarLiteral::RegexString { content, .. }) =
                 expression
             else {
                 continue;
@@ -75,7 +75,7 @@ impl LintRule for NoSuperLinearRegex {
                     NO_SUPER_LINEAR_REGEX.category,
                     severity,
                     problem,
-                    ctx.tree.get_span(node_id),
+                    ctx.dir.get_span(node_id),
                 )
                 .label("this pattern may cause catastrophic backtracking"),
             );
@@ -231,7 +231,7 @@ mod tests {
     #[test]
     fn test_detects_nested_plus() {
         let test = TestProgram::for_rule_without_prelude(NoSuperLinearRegex);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_super_linear_regex/test_detects_nested_plus.ds",
             r#"
 let re = /(a+)+/
@@ -243,7 +243,7 @@ let re = /(a+)+/
     #[test]
     fn test_detects_nested_star() {
         let test = TestProgram::for_rule_without_prelude(NoSuperLinearRegex);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_super_linear_regex/test_detects_nested_star.ds",
             r#"
 let re = /(a*)*b/
@@ -255,7 +255,7 @@ let re = /(a*)*b/
     #[test]
     fn test_detects_star_plus() {
         let test = TestProgram::for_rule_without_prelude(NoSuperLinearRegex);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_super_linear_regex/test_detects_star_plus.ds",
             r#"
 let re = /(a+)*/
@@ -267,7 +267,7 @@ let re = /(a+)*/
     #[test]
     fn test_detects_unbounded_inside_bounded_repetition() {
         let test = TestProgram::for_rule_without_prelude(NoSuperLinearRegex);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_super_linear_regex/test_detects_unbounded_inside_bounded_repetition.ds",
             r#"
 let re = /(a+){10}/
@@ -279,7 +279,7 @@ let re = /(a+){10}/
     #[test]
     fn test_detects_deeply_nested() {
         let test = TestProgram::for_rule_without_prelude(NoSuperLinearRegex);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_super_linear_regex/test_detects_deeply_nested.ds",
             r#"
 let re = /((a+)+)+/
@@ -291,7 +291,7 @@ let re = /((a+)+)+/
     #[test]
     fn test_detects_empty_alternative_in_unbounded_quantifier() {
         let test = TestProgram::for_rule_without_prelude(NoSuperLinearRegex);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_super_linear_regex/test_detects_empty_alternative_in_unbounded_quantifier.ds",
             r#"
 let re = /(a|)*/
@@ -303,7 +303,7 @@ let re = /(a|)*/
     #[test]
     fn test_allows_simple_quantifier() {
         let test = TestProgram::for_rule_without_prelude(NoSuperLinearRegex);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_super_linear_regex/test_allows_simple_quantifier.ds",
             r#"
 let re = /a+/
@@ -315,7 +315,7 @@ let re = /a+/
     #[test]
     fn test_allows_group_with_quantifier() {
         let test = TestProgram::for_rule_without_prelude(NoSuperLinearRegex);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_super_linear_regex/test_allows_group_with_quantifier.ds",
             r#"
 let re = /(ab)+/
@@ -327,7 +327,7 @@ let re = /(ab)+/
     #[test]
     fn test_allows_bounded_repetition() {
         let test = TestProgram::for_rule_without_prelude(NoSuperLinearRegex);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_super_linear_regex/test_allows_bounded_repetition.ds",
             r#"
 let re = /(a{1,3}){1,3}/
@@ -340,7 +340,7 @@ let re = /(a{1,3}){1,3}/
     #[test]
     fn test_allows_optional_in_quantifier() {
         let test = TestProgram::for_rule_without_prelude(NoSuperLinearRegex);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_super_linear_regex/test_allows_optional_in_quantifier.ds",
             r#"
 let re = /(ab?)+/
@@ -353,7 +353,7 @@ let re = /(ab?)+/
     #[test]
     fn test_allows_simple_regex() {
         let test = TestProgram::for_rule_without_prelude(NoSuperLinearRegex);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_super_linear_regex/test_allows_simple_regex.ds",
             r#"
 let re = /^[a-z]+@[a-z]+\.[a-z]+$/
@@ -365,7 +365,7 @@ let re = /^[a-z]+@[a-z]+\.[a-z]+$/
     #[test]
     fn test_allows_single_bounded_repetition_of_unbounded_inner() {
         let test = TestProgram::for_rule_without_prelude(NoSuperLinearRegex);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_super_linear_regex/test_allows_single_bounded_repetition_of_unbounded_inner.ds",
             r#"
 let re = /(a+){1}/
@@ -377,7 +377,7 @@ let re = /(a+){1}/
     #[test]
     fn test_allows_non_nested_alternation() {
         let test = TestProgram::for_rule_without_prelude(NoSuperLinearRegex);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_super_linear_regex/test_allows_non_nested_alternation.ds",
             r#"
 let re = /(foo|bar)+/
@@ -390,7 +390,7 @@ let re = /(foo|bar)+/
     #[test]
     fn test_allows_disjoint_alternation_in_quantifier() {
         let test = TestProgram::for_rule_without_prelude(NoSuperLinearRegex);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_super_linear_regex/test_allows_disjoint_alternation_in_quantifier.ds",
             r#"
 let re = /(ab|cd)*/

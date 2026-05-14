@@ -1,11 +1,11 @@
 use crate::LintMeta;
-use destack_ast as ast;
+use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
     ConditionAssignmentStyle, condition_assignment_style, control_flow_condition_expression,
 };
-use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Warn on assignments that look like comparisons.
@@ -17,7 +17,7 @@ declare_lint! {
         id = "no-confusing-assignment",
         code = "LU004",
         category = Suspicious,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Always,
@@ -33,11 +33,11 @@ impl LintRule for NoConfusingAssignment {
         NoConfusingAssignment::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expression = ctx.tree.get(node_id);
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let expression = ctx.dir.get(node_id);
 
             // check conditions in if/while/for that contain assignments
             let Some(condition_id) = control_flow_condition_expression(expression) else {
@@ -45,7 +45,7 @@ impl LintRule for NoConfusingAssignment {
             };
 
             // check if condition is an assignment (not wrapped in extra parens)
-            let assignment_style = condition_assignment_style(ctx.tree, condition_id);
+            let assignment_style = condition_assignment_style(ctx.dir.tree(), condition_id);
             if assignment_style != ConditionAssignmentStyle::None {
                 let severity = ctx.get_effective_severity(meta, node_id);
                 if !severity.is_enabled() {
@@ -53,7 +53,7 @@ impl LintRule for NoConfusingAssignment {
                 }
 
                 // add explicit grouping fix to silence confusing assignment intent
-                let condition_span = ctx.tree.get_span(condition_id);
+                let condition_span = ctx.dir.get_span(condition_id);
                 let condition_text = ctx.get_span_text(condition_span);
                 let replacement = match assignment_style {
                     ConditionAssignmentStyle::Bare => format!("(({condition_text}))"),
@@ -92,7 +92,7 @@ mod tests {
     #[test]
     fn test_detects_assignment_in_if() {
         let test = TestProgram::for_rule_without_prelude(NoConfusingAssignment);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_confusing_assignment/test_detects_assignment_in_if.ts",
             "if (x = 1) {}",
         );
@@ -104,7 +104,7 @@ mod tests {
     #[test]
     fn test_detects_assignment_in_while() {
         let test = TestProgram::for_rule_without_prelude(NoConfusingAssignment);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_confusing_assignment/test_detects_assignment_in_while.ts",
             "while (x = next()) {}",
         );
@@ -116,7 +116,7 @@ mod tests {
     #[test]
     fn test_detects_single_paren_assignment() {
         let test = TestProgram::for_rule_without_prelude(NoConfusingAssignment);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_confusing_assignment/test_detects_single_paren_assignment.ts",
             "if ((x = 1)) {}",
         );
@@ -128,7 +128,7 @@ mod tests {
     #[test]
     fn test_allows_double_paren_assignment() {
         let test = TestProgram::for_rule_without_prelude(NoConfusingAssignment);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_confusing_assignment/test_allows_double_paren_assignment.ts",
             "if (((x = 1))) {}",
         );
@@ -139,7 +139,7 @@ mod tests {
     #[test]
     fn test_allows_comparison() {
         let test = TestProgram::for_rule_without_prelude(NoConfusingAssignment);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_confusing_assignment/test_allows_comparison.ts",
             "if (x === 1) {}",
         );
@@ -150,7 +150,7 @@ mod tests {
     #[test]
     fn test_allows_boolean_condition() {
         let test = TestProgram::for_rule_without_prelude(NoConfusingAssignment);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_confusing_assignment/test_allows_boolean_condition.ts",
             "if (x) {}",
         );
@@ -161,7 +161,7 @@ mod tests {
     #[test]
     fn test_fix_bare_assignment_in_if() {
         let test = TestProgram::for_rule_without_prelude(NoConfusingAssignment);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_confusing_assignment/test_fix_bare_assignment_in_if.ts",
             "if (x = 1) {}",
         );
@@ -178,7 +178,7 @@ if (((x = 1))) {
     #[test]
     fn test_fix_single_parenthesized_assignment_in_if() {
         let test = TestProgram::for_rule_without_prelude(NoConfusingAssignment);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_confusing_assignment/test_fix_single_parenthesized_assignment_in_if.ts",
             "if ((x = 1)) {}",
         );
@@ -195,7 +195,7 @@ if (((x = 1))) {
     #[test]
     fn test_fix_assignment_in_for_condition() {
         let test = TestProgram::for_rule_without_prelude(NoConfusingAssignment);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_confusing_assignment/test_fix_assignment_in_for_condition.ts",
             "for (; x = next(); ) {}",
         );
@@ -211,7 +211,7 @@ for (; ((x = next())); ) {}
     #[test]
     fn test_mutation_detects_different_assignment_values() {
         let test = TestProgram::for_rule_without_prelude(NoConfusingAssignment);
-        let result = test.lint_ast(
+        let result = test.lint(
             "no_confusing_assignment/test_mutation_detects_different_assignment_values.ts",
             r#"
 if (flag = compute()) {}

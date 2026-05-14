@@ -1,9 +1,9 @@
 use crate::LintMeta;
-use destack_ast::{self as ast, BinaryOperator, Expression, ScalarLiteral};
+use destack_dir::{self as dir, BinaryOperator, Expression, ScalarLiteral};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::span_has_comment;
-use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
+use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer template literals over string concatenation.
@@ -14,7 +14,7 @@ declare_lint! {
         id = "prefer-template",
         code = "LY057",
         category = Style,
-        level = Ast,
+        level = Dir,
         requires_all = [],
         requires_any = [],
         fixable = Always,
@@ -30,11 +30,11 @@ impl LintRule for PreferTemplate {
         PreferTemplate::meta()
     }
 
-    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
+    fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
 
-        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expression = ctx.tree.get(node_id);
+        for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
+            let expression = ctx.dir.get(node_id);
 
             // match add expressions only
             let Expression::Binary {
@@ -63,7 +63,7 @@ impl LintRule for PreferTemplate {
                 continue;
             }
 
-            let expression_span = ctx.tree.get_span(node_id);
+            let expression_span = ctx.dir.get_span(node_id);
             let mut diagnostic = LintReport::new(
                 PREFER_TEMPLATE.id,
                 PREFER_TEMPLATE.code,
@@ -75,7 +75,7 @@ impl LintRule for PreferTemplate {
             .label("use template literal: `` `...${x}...` ``");
 
             // keep fix generation conservative for comments and unsupported numeric escapes
-            if !span_has_comment(ctx.tree, expression_span)
+            if !span_has_comment(ctx.dir.tree(), expression_span)
                 && !concat_has_unsupported_numeric_escape(ctx, node_id)
             {
                 let template_body = concat_to_template_body(ctx, node_id);
@@ -103,18 +103,18 @@ fn is_string_expression(expression: &Expression) -> bool {
 
 /// Return true when this add expression is nested under another add expression.
 fn is_nested_add_expression(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    let Some(parent_id) = ctx.parents.get(expression_id) else {
+    let Some(parent_id) = ctx.dir.get_parent_id(expression_id.id) else {
         return false;
     };
-    if ctx.tree.get_node_type(parent_id) != ast::NodeType::Expression {
+    if ctx.dir.get_node_type(parent_id) != dir::NodeType::Expression {
         return false;
     }
 
-    let parent_expression_id = ast::LocalNodeId::<ast::Expression>::new(parent_id);
-    let parent_expression = ctx.tree.get(parent_expression_id);
+    let parent_expression_id = dir::LocalNodeId::<dir::Expression>::new(parent_id);
+    let parent_expression = ctx.dir.get(parent_expression_id);
     matches!(
         parent_expression,
         Expression::Binary {
@@ -127,10 +127,10 @@ fn is_nested_add_expression(
 
 /// Return true when one concat chain contains any string-like part.
 fn concat_has_string_part(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    let expression = ctx.tree.get(expression_id);
+    let expression = ctx.dir.get(expression_id);
     match expression {
         Expression::Binary {
             left,
@@ -143,10 +143,10 @@ fn concat_has_string_part(
 
 /// Return true when one concat chain contains any non-string part.
 fn concat_has_non_string_part(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    let expression = ctx.tree.get(expression_id);
+    let expression = ctx.dir.get(expression_id);
     match expression {
         Expression::Binary {
             left,
@@ -159,10 +159,10 @@ fn concat_has_non_string_part(
 
 /// Return true when a concat chain contains unsupported numeric string escapes.
 fn concat_has_unsupported_numeric_escape(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    let expression = ctx.tree.get(expression_id);
+    let expression = ctx.dir.get(expression_id);
     match expression {
         Expression::Binary {
             left,
@@ -173,7 +173,7 @@ fn concat_has_unsupported_numeric_escape(
                 || concat_has_unsupported_numeric_escape(ctx, *right)
         }
         Expression::ScalarLiteral(ScalarLiteral::String(_)) => {
-            let span = ctx.tree.get_span(expression_id);
+            let span = ctx.dir.get_span(expression_id);
             let text = ctx.get_span_text(span);
             string_literal_has_unsupported_numeric_escape(text)
         }
@@ -212,10 +212,10 @@ fn string_literal_has_unsupported_numeric_escape(literal_text: &str) -> bool {
 
 /// Build one template body string from a concat chain expression.
 fn concat_to_template_body(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> String {
-    let expression = ctx.tree.get(expression_id);
+    let expression = ctx.dir.get(expression_id);
     match expression {
         Expression::Binary {
             left,
@@ -229,7 +229,7 @@ fn concat_to_template_body(
 
         // keep scalar string values as plain template content
         Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
-            let span = ctx.tree.get_span(expression_id);
+            let span = ctx.dir.get_span(expression_id);
             let literal_text = ctx.get_span_text(span);
             if let Some(template_text) = template_text_from_string_literal_source(literal_text) {
                 return template_text;
@@ -244,7 +244,7 @@ fn concat_to_template_body(
 
         // wrap non-string operands in `${...}`
         _ => {
-            let expression_span = ctx.tree.get_span(expression_id);
+            let expression_span = ctx.dir.get_span(expression_id);
             let expression_text = ctx.get_span_text(expression_span);
             format!("${{{expression_text}}}")
         }
@@ -332,10 +332,10 @@ fn count_backslashes_before(text: &[u8], mut index: usize) -> usize {
 
 /// Return the inner content of one template literal expression.
 fn template_expression_body(
-    ctx: &LintAstContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
+    ctx: &LintModuleContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> String {
-    let span = ctx.tree.get_span(expression_id);
+    let span = ctx.dir.get_span(expression_id);
     let text = ctx.get_span_text(span);
     if text.starts_with('`') && text.ends_with('`') && text.len() >= 2 {
         return text[1..text.len() - 1].to_string();
@@ -352,7 +352,7 @@ mod tests {
     #[test]
     fn test_detects_string_concat() {
         let test = TestProgram::for_rule_without_prelude(PreferTemplate);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_template/test_detects_string_concat.ds",
             r#"
 const greeting = "Hello " + name
@@ -364,7 +364,7 @@ const greeting = "Hello " + name
     #[test]
     fn test_detects_concat_with_string_on_right() {
         let test = TestProgram::for_rule_without_prelude(PreferTemplate);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_template/test_detects_concat_with_string_on_right.ds",
             r#"
 const greeting = name + " says hi"
@@ -376,7 +376,7 @@ const greeting = name + " says hi"
     #[test]
     fn test_allows_template_literal() {
         let test = TestProgram::for_rule_without_prelude(PreferTemplate);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_template/test_allows_template_literal.ds",
             r#"
 const greeting = `Hello ${name}`
@@ -388,7 +388,7 @@ const greeting = `Hello ${name}`
     #[test]
     fn test_allows_number_addition() {
         let test = TestProgram::for_rule_without_prelude(PreferTemplate);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_template/test_allows_number_addition.ds",
             r#"
 const sum = a + b
@@ -400,7 +400,7 @@ const sum = a + b
     #[test]
     fn test_allows_two_strings() {
         let test = TestProgram::for_rule_without_prelude(PreferTemplate);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_template/test_allows_two_strings.ds",
             r#"
 const x = "hello" + "world"
@@ -412,7 +412,7 @@ const x = "hello" + "world"
     #[test]
     fn test_fix_string_on_left() {
         let test = TestProgram::for_rule_without_prelude(PreferTemplate);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_template/test_fix_string_on_left.ds",
             r#"
 const greeting = "Hello " + name
@@ -430,7 +430,7 @@ const greeting = `Hello ${name}`;
     #[test]
     fn test_fix_string_on_right() {
         let test = TestProgram::for_rule_without_prelude(PreferTemplate);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_template/test_fix_string_on_right.ds",
             r#"
 const greeting = name + " says hi"
@@ -448,7 +448,7 @@ const greeting = `${name} says hi`;
     #[test]
     fn test_fix_concat_chain_with_string_ends() {
         let test = TestProgram::for_rule_without_prelude(PreferTemplate);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_template/test_fix_concat_chain_with_string_ends.ds",
             r#"
 const greeting = "Hello " + name + "!"
@@ -466,7 +466,7 @@ const greeting = `Hello ${name}!`;
     #[test]
     fn test_fix_concat_chain_with_expression_ends() {
         let test = TestProgram::for_rule_without_prelude(PreferTemplate);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_template/test_fix_concat_chain_with_expression_ends.ds",
             r#"
 const summary = left + ":" + right
@@ -484,7 +484,7 @@ const summary = `${left}:${right}`;
     #[test]
     fn test_fix_preserves_template_placeholders() {
         let test = TestProgram::for_rule_without_prelude(PreferTemplate);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_template/test_fix_preserves_template_placeholders.ds",
             r#"
 const summary = prefix + `${value} units`
@@ -502,7 +502,7 @@ const summary = `${prefix}${value} units`;
     #[test]
     fn test_fix_preserves_template_placeholders_on_left() {
         let test = TestProgram::for_rule_without_prelude(PreferTemplate);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_template/test_fix_preserves_template_placeholders_on_left.ds",
             r#"
 const summary = `${value} units` + suffix
@@ -527,7 +527,7 @@ const summary = `${value} units${suffix}`;
     #[test]
     fn test_fix_escapes_unescaped_template_placeholder_text() {
         let test = TestProgram::for_rule_without_prelude(PreferTemplate);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_template/test_fix_escapes_unescaped_template_placeholder_text.ds",
             r#"
 const summary = '0 backslashes: ${bar}' + suffix
@@ -545,7 +545,7 @@ const summary = `0 backslashes: \${bar}${suffix}`;
     #[test]
     fn test_fix_preserves_escaped_template_placeholder_text() {
         let test = TestProgram::for_rule_without_prelude(PreferTemplate);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_template/test_fix_preserves_escaped_template_placeholder_text.ds",
             r#"
 const summary = '1 backslash: \${bar}' + suffix
@@ -563,7 +563,7 @@ const summary = `1 backslash: \${bar}${suffix}`;
     #[test]
     fn test_no_fix_when_concat_contains_comments() {
         let test = TestProgram::for_rule_without_prelude(PreferTemplate);
-        let result = test.lint_ast(
+        let result = test.lint(
             "prefer_template/test_no_fix_when_concat_contains_comments.ds",
             r#"
 const summary = "left" /* side */ + value
