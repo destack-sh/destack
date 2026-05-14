@@ -43,26 +43,25 @@ pub fn resolve_target_for_module(
 
     // resolve target truth
     let target = repository
-        .target(revision, target_id)
+        .effective_target(revision, target_id)
         .map_err(|error| CliError::message(format!("failed to read target snapshot: {error}")))?;
-    let is_explicit_target = target.is_some();
-
-    // reject overrides for named targets
-    if is_explicit_target && target_args.has_adhoc_options() {
-        return Err(CliError::message(
-            "ad-hoc target options are not supported for named targets",
-        ));
-    }
 
     // synthesize one implicit target when missing
-    let target = if let Some(target) = target {
+    let mut target = if let Some(target) = target {
         target
     } else {
-        let mut target = Target::implicit_for_name(target_name)
-            .ok_or_else(|| CliError::message(format!("unknown target '{target_name}'")))?;
-        target_args.apply_to_target(&mut target);
-        target
+        Target::implicit_for_name(target_name)
+            .ok_or_else(|| CliError::message(format!("unknown target '{target_name}'")))?
     };
+
+    // apply command output redirection
+    if let Some(out_dir) = target_args.out_dir.as_ref() {
+        target.out_dir = out_dir.clone();
+    }
+
+    if let Some(out_file) = target_args.out_file.as_ref() {
+        target.out_file = Some(out_file.clone());
+    }
 
     // return the resolved target info
     Ok(ResolvedTarget {

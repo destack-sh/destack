@@ -19,7 +19,7 @@ use destack_daemon::{
 };
 use destack_session::SessionEventHandler;
 use destack_source::{DiagnosticCollection, File, FileId, FileType, FileWatchStatus};
-use destack_workspace::config::{OptimizeLevel, RuntimeOptionsJson};
+use destack_workspace::config::RuntimeOptionsJson;
 use destack_workspace::{Repository, Revision};
 use serde::de::DeserializeOwned;
 use serde_json::{Map, Value, json};
@@ -244,7 +244,7 @@ impl CommandOptionsBuilder {
         self
     }
 
-    /// Set the target overrides.
+    /// Set target overrides.
     pub fn target_overrides(mut self, overrides: Option<CommandTargetOverrides>) -> Self {
         self.options.target_overrides = overrides;
         self
@@ -900,30 +900,13 @@ pub fn command_inputs_from_sources(
 /// Convert CLI target arguments into daemon target overrides.
 pub fn target_overrides_from_args(args: &TargetArgs) -> Option<CommandTargetOverrides> {
     // return early when no overrides are provided
-    if !args.has_adhoc_options() {
+    if !args.has_output_options() {
         return None;
     }
 
     Some(CommandTargetOverrides {
-        emit: args.emit.map(Into::into),
-        runtime: args.runtime.map(Into::into),
-        platform: args.platform.map(Into::into),
-        cpu: args.cpu.clone(),
-        cpu_features: args.cpu_features.clone(),
-        lto: args.lto.map(Into::into),
-        linker: args.linker.clone(),
-        link_args: args.link_args.clone(),
-        sysroot: args.sysroot.clone(),
         out_dir: args.out_dir.clone(),
         out_file: args.out_file.clone(),
-        declaration: args.declaration,
-        source_map: args.source_map,
-        optimize: args.optimize,
-        opt_level: args.opt_level.map(OptimizeLevel::from),
-        debug: args.debug,
-        release: args.release,
-        debug_info: args.debug_info.map(Into::into),
-        strip: args.strip.map(Into::into),
     })
 }
 
