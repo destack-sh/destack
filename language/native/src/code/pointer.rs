@@ -30,4 +30,4 @@ pub struct CodeOffset(pub u32);
 /// Byte length inside code.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[repr(transparent)]
-pub struct CodeLen(pub u32);
+pub struct CodeLength(pub u32);

@@ -185,6 +185,26 @@ pub enum RuntimeError {
         /// Requested engine kind.
         engine: String,
     } = 148,
+    /// Engine returned a yield status without a materialized continuation.
+    EngineYieldMissing {
+        /// Engine kind that yielded.
+        engine: String,
+    } = 150,
+    /// Engine reported a low-level trap.
+    EngineTrap {
+        /// Engine kind that trapped.
+        engine: String,
+    } = 151,
+    /// Engine requested deoptimization without a materialization payload.
+    EngineDeoptMissing {
+        /// Engine kind that requested deoptimization.
+        engine: String,
+    } = 152,
+    /// Engine reported a language panic.
+    EnginePanic {
+        /// Engine kind that panicked.
+        engine: String,
+    } = 153,
     /// Runtime image contains duplicate worker records.
     DuplicateWorkerImage {
         /// Runtime identifier owning the duplicate worker image.
@@ -370,6 +390,18 @@ impl RuntimeError {
             }
             RuntimeError::EngineUnsupported { engine } => {
                 format!("{engine} engine is not implemented")
+            }
+            RuntimeError::EngineYieldMissing { engine } => {
+                format!("{engine} engine yielded without a continuation")
+            }
+            RuntimeError::EngineTrap { engine } => {
+                format!("{engine} engine trapped")
+            }
+            RuntimeError::EngineDeoptMissing { engine } => {
+                format!("{engine} engine deoptimized without materialization")
+            }
+            RuntimeError::EnginePanic { engine } => {
+                format!("{engine} engine panicked")
             }
             RuntimeError::DuplicateWorkerImage {
                 runtime_id,

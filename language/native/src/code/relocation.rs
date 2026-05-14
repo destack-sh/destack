@@ -1,12 +1,12 @@
 use destack_engine::StaticId;
 use serde::{Deserialize, Serialize};
 
-use crate::{CodeOffset, Import};
+use crate::{CodeOffset, NativeImport};
 
 /// One native function id.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[repr(transparent)]
-pub struct FunctionId(pub u32);
+pub struct NativeFunctionId(pub u32);
 
 /// Machine relocation encoding.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -20,10 +20,10 @@ pub enum RelocationKind {
 /// Relocation target referenced by generated code.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RelocationTarget {
-    /// One runtime helper call.
-    Runtime(Import),
+    /// One native import.
+    Import(NativeImport),
     /// One function inside the same program.
-    Function(FunctionId),
+    Function(NativeFunctionId),
     /// One static region address.
     Static(StaticId),
 }
