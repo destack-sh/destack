@@ -421,7 +421,7 @@ fn update_debug_for_removed_parameters(
 
         // collect removed parameter locations
         let is_removed = ranges.iter().any(|range| {
-            matches!(&range.location, mir::DebugValueLocation::Value(value) if removed_values.contains(value))
+            matches!(&range.value, mir::DebugValue::Value(value) if removed_values.contains(value))
         });
 
         if is_removed {
@@ -433,7 +433,7 @@ fn update_debug_for_removed_parameters(
     for binding_id in to_update {
         if let Some(ranges) = tree.metadata.debug.binding_ranges.get_mut(&binding_id) {
             for range in ranges {
-                range.location = mir::DebugValueLocation::Undefined;
+                range.value = mir::DebugValue::Unavailable;
             }
         }
     }
@@ -820,6 +820,11 @@ b0(v0: int32):
 
         let mut test = TestProgram::new(input);
         let callee_id = test.function_id_by_name("callee");
+        let callee_block = test.entry_block_id(callee_id);
+        let range = mir::DebugRange::new(
+            mir::DebugPoint::new(callee_id, callee_block, 0),
+            mir::DebugPoint::new(callee_id, callee_block, 1),
+        );
         let callee = test.tree.get(callee_id);
         let param_value = callee.parameters[1]
             .value
@@ -846,9 +851,8 @@ b0(v0: int32):
         test.tree.metadata.debug.binding_ranges.insert(
             binding_id,
             vec![mir::DebugBindingRange {
-                location: mir::DebugValueLocation::Value(param_value),
-                start: None,
-                end: None,
+                value: mir::DebugValue::Value(param_value),
+                range,
             }],
         );
 
@@ -865,9 +869,8 @@ b0(v0: int32):
         assert_eq!(
             location,
             &vec![mir::DebugBindingRange {
-                location: mir::DebugValueLocation::Undefined,
-                start: None,
-                end: None,
+                value: mir::DebugValue::Unavailable,
+                range,
             }]
         );
     }

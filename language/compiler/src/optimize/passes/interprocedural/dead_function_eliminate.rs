@@ -298,13 +298,6 @@ fn call_constraint_from_signature(
 fn strip_function_body(function_id: mir::LocalNodeId<mir::Function>, tree: &mut mir::Tree) {
     // collect blocks and instructions before stripping the body
     let block_ids = tree.get(function_id).blocks.clone();
-    let mut instruction_ids = Vec::new();
-
-    for block_id in &block_ids {
-        let block = tree.get(*block_id);
-        instruction_ids.extend(block.instructions.iter().copied());
-    }
-
     // read the function scope before clearing debug metadata
     let function_scope = tree
         .metadata
@@ -320,37 +313,41 @@ fn strip_function_body(function_id: mir::LocalNodeId<mir::Function>, tree: &mut 
     function.blocks.clear();
     function.entry = None;
 
+    // remove instruction metadata tied to stripped blocks
+    for block_id in &block_ids {
+        let instruction_ids = tree.get(*block_id).instructions.clone();
+        for instruction_id in instruction_ids {
+            tree.metadata
+                .memory
+                .memory_accesses_by_instruction_id
+                .remove(&instruction_id);
+        }
+    }
+
+    tree.metadata
+        .debug
+        .locations
+        .retain(|point, _location| point.function != function_id);
+
     // remove per block debug scopes
     for block_id in block_ids {
         tree.metadata.debug.block_scopes.remove(&block_id);
     }
 
-    // remove instruction metadata tied to stripped blocks
-    for instruction_id in instruction_ids {
-        tree.metadata
-            .memory
-            .memory_accesses_by_instruction_id
-            .remove(&instruction_id);
-        tree.metadata
-            .debug
-            .instruction_locations
-            .remove(&instruction_id);
-    }
-
-    // clear debug variable locations tied to the stripped function
+    // clear debug variable values tied to the stripped function
     if let Some(function_scope) = function_scope {
-        // rewrite debug locations for variables in the function scope
+        // rewrite debug values for variables in the function scope
         for (index, binding) in tree.metadata.debug.bindings.iter().enumerate() {
             // skip bindings outside the function scope
             if !scope_in_function(binding.scope, function_scope, &tree.metadata.debug) {
                 continue;
             }
 
-            // update binding locations to undefined
+            // update binding values to unavailable
             let binding_id = mir::DebugBindingId::new(index as u32);
             if let Some(ranges) = tree.metadata.debug.binding_ranges.get_mut(&binding_id) {
                 for range in ranges {
-                    range.location = mir::DebugValueLocation::Undefined;
+                    range.value = mir::DebugValue::Unavailable;
                 }
             }
         }
@@ -592,11 +589,8 @@ extern function dead(int32): int32"#;
         let mut test = TestProgram::new(input);
         let dead_id = test.function_id_by_name("dead");
         let dead_block = test.entry_block_id(dead_id);
-        let dead_instruction = test
-            .instructions_in_block(dead_block)
-            .first()
-            .copied()
-            .expect("missing instruction");
+        let dead_point = mir::DebugPoint::new(dead_id, dead_block, 0);
+        let dead_end = mir::DebugPoint::new(dead_id, dead_block, 1);
         let function_scope = test.tree.metadata.debug.create_scope(None, None, None);
         test.tree
             .metadata
@@ -617,22 +611,21 @@ extern function dead(int32): int32"#;
         test.tree.metadata.debug.binding_ranges.insert(
             binding_id,
             vec![mir::DebugBindingRange {
-                location: mir::DebugValueLocation::Value(
+                value: mir::DebugValue::Value(
                     parameter
                         .value
                         .value()
                         .expect("parameter value should be concrete"),
                 ),
-                start: Some(dead_instruction),
-                end: None,
+                range: mir::DebugRange::new(dead_point, dead_end),
             }],
         );
-        test.tree.metadata.debug.instruction_locations.insert(
-            dead_instruction,
+        test.tree.metadata.debug.locations.insert(
+            dead_point,
             mir::DebugLocation {
                 scope: function_scope,
                 provenance: None,
-                inline_call: None,
+                inline_frame: None,
             },
         );
 
@@ -650,18 +643,10 @@ extern function dead(int32): int32"#;
         assert_eq!(
             test.tree.metadata.debug.binding_ranges.get(&binding_id),
             Some(&vec![mir::DebugBindingRange {
-                location: mir::DebugValueLocation::Undefined,
-                start: Some(dead_instruction),
-                end: None,
+                value: mir::DebugValue::Unavailable,
+                range: mir::DebugRange::new(dead_point, dead_end),
             }])
         );
-        assert!(
-            !test
-                .tree
-                .metadata
-                .debug
-                .instruction_locations
-                .contains_key(&dead_instruction)
-        );
+        assert!(!test.tree.metadata.debug.locations.contains_key(&dead_point));
     }
 }

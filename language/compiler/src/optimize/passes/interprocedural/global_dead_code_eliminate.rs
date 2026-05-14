@@ -119,28 +119,28 @@ fn collect_used_globals(tree: &mir::Tree) -> HashSet<mir::LocalNodeId<mir::Globa
     // record globals referenced by debug locations
     for ranges in tree.metadata.debug.binding_ranges.values() {
         for range in ranges {
-            collect_debug_location_globals(&range.location, &mut used);
+            collect_debug_value_globals(&range.value, &mut used);
         }
     }
 
     used
 }
 
-/// Collect globals referenced by one debug value location.
-fn collect_debug_location_globals(
-    location: &mir::DebugValueLocation,
+/// Collect globals referenced by one debug value.
+fn collect_debug_value_globals(
+    value: &mir::DebugValue,
     used: &mut HashSet<mir::LocalNodeId<mir::Global>>,
 ) {
     // direct global locations
-    if let mir::DebugValueLocation::Global(global_id) = location {
+    if let mir::DebugValue::Global(global_id) = value {
         used.insert(*global_id);
         return;
     }
 
     // composite fragments
-    if let mir::DebugValueLocation::Composite(fragments) = location {
+    if let mir::DebugValue::Composite(fragments) = value {
         for fragment in fragments {
-            collect_debug_location_globals(&fragment.location, used);
+            collect_debug_value_globals(&fragment.value, used);
         }
     }
 }
@@ -219,6 +219,11 @@ b0:
 
         let mut test = TestProgram::new(input);
         let root_id = test.function_id_by_name("root");
+        let root_block = test.entry_block_id(root_id);
+        let range = mir::DebugRange::new(
+            mir::DebugPoint::new(root_id, root_block, 0),
+            mir::DebugPoint::new(root_id, root_block, 1),
+        );
         let live_global = test
             .entry_instructions(root_id)
             .into_iter()
@@ -248,9 +253,8 @@ b0:
         test.tree.metadata.debug.binding_ranges.insert(
             binding_id,
             vec![mir::DebugBindingRange {
-                location: mir::DebugValueLocation::Global(global_id),
-                start: None,
-                end: None,
+                value: mir::DebugValue::Global(global_id),
+                range,
             }],
         );
 
