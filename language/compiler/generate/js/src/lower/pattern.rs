@@ -127,6 +127,7 @@ impl ModuleLowerer<'_> {
         &mut self,
         pattern_id: dir::LocalNodeId<dir::Pattern>,
     ) -> CodegenJsResult<js::LocalNodeId<js::Pattern>> {
+        let source_pattern_id = pattern_id;
         let pattern = self.dir_tree.get(pattern_id);
         let pattern_id = match pattern {
             dir::Pattern::Wildcard => {
@@ -138,11 +139,7 @@ impl ModuleLowerer<'_> {
                 self.tree
                     .insert_from_source(pattern, self.module.id, pattern_id)
             }
-            dir::Pattern::Binding {
-                name,
-                pattern: _,
-                symbol,
-            } => {
+            dir::Pattern::Binding { name, pattern: _ } => {
                 let name = *name;
                 let pattern = js::Pattern::Binding {
                     mutability: None,
@@ -151,7 +148,7 @@ impl ModuleLowerer<'_> {
                 let pattern_id = self
                     .tree
                     .insert_from_source(pattern, self.module.id, pattern_id);
-                self.set_source_node_symbol(pattern_id, *symbol);
+                self.copy_source_node_symbol(pattern_id, source_pattern_id);
                 pattern_id
             }
             dir::Pattern::Sequence { fields } => {
@@ -202,14 +199,13 @@ impl ModuleLowerer<'_> {
         match pattern_field {
             dir::PatternField::Named {
                 name,
-                symbol,
                 is_shorthand: _,
                 pattern,
             } => {
                 let pattern = match pattern {
                     Some(pattern_id) => self.lower_pattern(*pattern_id)?,
                     None => {
-                        let name = *name;
+                        let name = name.string();
                         let pattern = js::Pattern::Binding {
                             mutability: None,
                             name,
@@ -218,9 +214,7 @@ impl ModuleLowerer<'_> {
                             self.tree
                                 .insert_from_source(pattern, self.module.id, pattern_field_id);
 
-                        if let Some(symbol) = symbol {
-                            self.set_source_node_symbol(pattern_id, *symbol);
-                        }
+                        self.copy_source_node_symbol(pattern_id, pattern_field_id);
 
                         pattern_id
                     }
@@ -246,15 +240,15 @@ impl ModuleLowerer<'_> {
         &mut self,
         pattern_field_id: dir::LocalNodeId<dir::PatternField>,
     ) -> CodegenJsResult<js::LocalNodeId<js::PatternField>> {
+        let source_pattern_field_id = pattern_field_id;
         let pattern_field = self.dir_tree.get(pattern_field_id);
         let pattern_field_id = match pattern_field {
             dir::PatternField::Named {
                 name,
-                symbol,
                 is_shorthand,
                 pattern,
             } => {
-                let name = *name;
+                let name = name.string();
                 let pattern = pattern
                     .map(|pattern| self.lower_pattern(pattern))
                     .transpose()?;
@@ -268,9 +262,7 @@ impl ModuleLowerer<'_> {
                     self.tree
                         .insert_from_source(pattern_field, self.module.id, pattern_field_id);
 
-                if let Some(symbol) = symbol {
-                    self.set_source_node_symbol(pattern_field_id, *symbol);
-                }
+                self.copy_source_node_symbol(pattern_field_id, source_pattern_field_id);
 
                 pattern_field_id
             }

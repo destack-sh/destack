@@ -163,8 +163,7 @@ impl ModuleLowerer<'_> {
         Ok(self.lower_primitive_type_value(primitive))
     }
 
-    /// Lower a type literal value from DIR into JS AST.
-    /// Returns None for unsupported type literals (like Infer, Composite).
+    /// Lower one parsed type literal value from DIR into JS AST.
     pub fn lower_type_literal_value(
         &mut self,
         literal: &dir::TypeLiteral,
@@ -172,46 +171,89 @@ impl ModuleLowerer<'_> {
         let literal = match literal {
             dir::TypeLiteral::Never => js::TypeLiteral::Never,
             dir::TypeLiteral::Any => js::TypeLiteral::Any,
+            dir::TypeLiteral::Infer => return None,
             dir::TypeLiteral::Undefined => js::TypeLiteral::Undefined,
             dir::TypeLiteral::Unknown => js::TypeLiteral::Unknown,
             dir::TypeLiteral::Object => js::TypeLiteral::Object,
             dir::TypeLiteral::Void => js::TypeLiteral::Void,
             dir::TypeLiteral::Null => js::TypeLiteral::Null,
-            dir::TypeLiteral::Primitive(primitive) => {
-                let primitive = self.lower_primitive_type_value(*primitive);
-                js::TypeLiteral::Primitive(primitive)
+            dir::TypeLiteral::Boolean => js::TypeLiteral::Primitive(js::PrimitiveType::Boolean),
+            dir::TypeLiteral::Character | dir::TypeLiteral::String => {
+                js::TypeLiteral::Primitive(js::PrimitiveType::String)
             }
-            dir::TypeLiteral::ScalarLiteral(scalar_literal) => {
-                let scalar_literal = self.lower_scalar_literal(scalar_literal);
-                js::TypeLiteral::ScalarLiteral(scalar_literal)
+            dir::TypeLiteral::Bigint => js::TypeLiteral::Primitive(js::PrimitiveType::Bigint),
+            dir::TypeLiteral::Number
+            | dir::TypeLiteral::Integer(_)
+            | dir::TypeLiteral::Float(_) => js::TypeLiteral::Primitive(js::PrimitiveType::Number),
+            dir::TypeLiteral::Symbol => js::TypeLiteral::Primitive(js::PrimitiveType::Symbol),
+            dir::TypeLiteral::UniqueSymbol => {
+                js::TypeLiteral::Primitive(js::PrimitiveType::UniqueSymbol)
             }
-            _ => return None,
+            dir::TypeLiteral::Intrinsic(_) => return None,
         };
         Some(literal)
     }
 
-    /// Lower a type literal from DIR into JS AST.
+    /// Lower one canonical type literal value from DIR into JS AST.
+    pub fn lower_literal_type_value(
+        &mut self,
+        literal: &dir::LiteralType,
+    ) -> Option<js::TypeLiteral> {
+        let literal = match literal {
+            dir::LiteralType::Never => js::TypeLiteral::Never,
+            dir::LiteralType::Any => js::TypeLiteral::Any,
+            dir::LiteralType::Infer => return None,
+            dir::LiteralType::Undefined => js::TypeLiteral::Undefined,
+            dir::LiteralType::Unknown => js::TypeLiteral::Unknown,
+            dir::LiteralType::Object => js::TypeLiteral::Object,
+            dir::LiteralType::Void => js::TypeLiteral::Void,
+            dir::LiteralType::Null => js::TypeLiteral::Null,
+            dir::LiteralType::Primitive(primitive) => {
+                let primitive = self.lower_primitive_type_value(*primitive);
+                js::TypeLiteral::Primitive(primitive)
+            }
+            dir::LiteralType::ScalarLiteral(scalar_literal) => {
+                let scalar_literal = self.lower_scalar_literal(scalar_literal);
+                js::TypeLiteral::ScalarLiteral(scalar_literal)
+            }
+            dir::LiteralType::Intrinsic(_) => return None,
+        };
+        Some(literal)
+    }
+
+    /// Lower a parsed type literal from DIR into JS AST.
     pub fn lower_type_literal(
         &mut self,
-        ty_id: dir::LocalTypeId,
+        source_id: dir::LocalNodeIdAny,
         literal: &dir::TypeLiteral,
     ) -> CodegenJsResult<js::TypeLiteral> {
-        self.lower_type_literal_value(literal).ok_or_else(|| {
-            let source_id = self.types.get_type_source(ty_id);
-            CodegenJsError::UnsupportedConstruct {
+        self.lower_type_literal_value(literal)
+            .ok_or_else(|| CodegenJsError::UnsupportedConstruct {
                 node: source_id.into_global(self.module.id),
                 message: None,
-            }
-        })
+            })
+    }
+
+    /// Lower one canonical type literal from DIR into JS AST.
+    pub fn lower_literal_type(
+        &mut self,
+        literal: &dir::LiteralType,
+        source_id: dir::LocalNodeIdAny,
+    ) -> CodegenJsResult<js::TypeLiteral> {
+        self.lower_literal_type_value(literal)
+            .ok_or_else(|| CodegenJsError::UnsupportedConstruct {
+                node: source_id.into_global(self.module.id),
+                message: None,
+            })
     }
 
     /// Lower one mapped type modifier from DIR into JS AST.
-    fn lower_type_modifier(&self, modifier: dir::MappedTypeModifier) -> js::MappedTypeModifier {
+    fn lower_type_modifier(&self, modifier: dir::TypeMappedModifier) -> js::MappedTypeModifier {
         match modifier {
-            dir::MappedTypeModifier::Present => js::MappedTypeModifier::Present,
-            dir::MappedTypeModifier::Add => js::MappedTypeModifier::Add,
-            dir::MappedTypeModifier::Remove => js::MappedTypeModifier::Remove,
-            dir::MappedTypeModifier::None => js::MappedTypeModifier::None,
+            dir::TypeMappedModifier::Present => js::MappedTypeModifier::Present,
+            dir::TypeMappedModifier::Add => js::MappedTypeModifier::Add,
+            dir::TypeMappedModifier::Remove => js::MappedTypeModifier::Remove,
+            dir::TypeMappedModifier::None => js::MappedTypeModifier::None,
         }
     }
 
@@ -376,8 +418,15 @@ impl ModuleLowerer<'_> {
                 declaration,
                 generic_arguments,
             } => {
-                let declaration = self.dir_tree.get(*declaration);
-                let symbol = declaration.symbol().into_global(self.module.id);
+                let Some(symbol) = self.source_symbol_for_node(*declaration) else {
+                    return Err(CodegenJsError::UnsupportedConstruct {
+                        node: declaration.into_global_any(self.module.id),
+                        message: Some(
+                            "static declaration references need a bound source symbol".to_string(),
+                        ),
+                    });
+                };
+                let symbol = symbol.into_global(self.module.id);
 
                 self.lower_reference_type_from_symbol(
                     source_id,
@@ -501,7 +550,7 @@ impl ModuleLowerer<'_> {
         };
         let expression = self.dir_tree.get(expression_id);
         let (path, generic_arguments) = match expression {
-            dir::Expression::Path {
+            dir::Expression::QualifiedReference {
                 path,
                 generic_arguments,
                 ..
@@ -722,11 +771,11 @@ impl ModuleLowerer<'_> {
         let ty = self.types.get_type(ty_id);
 
         let ty_id = match ty {
-            dir::Type::Literal(dir::LiteralType {
-                value: dir::TypeLiteral::Intrinsic(intrinsic),
-            }) => self.lower_intrinsic_type(source_id, *intrinsic)?,
-            dir::Type::Literal(scalar) => {
-                let literal = self.lower_type_literal(ty_id, &scalar.value)?;
+            dir::Type::Literal(dir::LiteralType::Intrinsic(intrinsic)) => {
+                self.lower_intrinsic_type(source_id, *intrinsic)?
+            }
+            dir::Type::Literal(literal) => {
+                let literal = self.lower_literal_type(literal, source_id)?;
                 let ty = js::TypeExpression::Scalar(literal);
                 self.tree
                     .insert_from_source_any(ty, self.module.id, source_id)

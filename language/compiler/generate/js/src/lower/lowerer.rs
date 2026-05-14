@@ -1,11 +1,5 @@
-//! Module lowering from DIR to JS AST.
-//!
-//! The `ModuleLowerer` converts elaborated DIR (Destack IR) into a JavaScript AST.
-//! This is the emission stage for JS and TS targets.
-
-use destack_artifact::{Ast, DirChecked, DirDeclared};
+use destack_artifact::{DirBound, DirChecked, DirParsed};
 use destack_core::StringPool;
-use destack_dir::{BindingTable, GlobalSymbolId, TypeTable};
 use destack_workspace::{Module, Target};
 use {destack_dir as dir, destack_js as js};
 
@@ -17,8 +11,8 @@ use crate::{CodegenJsError, CodegenJsResult, CodegenJsWarning, ScriptSymbolId};
 pub struct ModuleLowerer<'a> {
     /// The source module.
     pub(crate) module: &'a Module,
-    /// The source module AST.
-    pub(crate) ast: &'a Ast,
+    /// The parsed DIR artifact.
+    pub(crate) parsed: &'a DirParsed,
     /// The source string pool for bound DIR nodes.
     pub(crate) source_strings: &'a StringPool,
 
@@ -27,9 +21,9 @@ pub struct ModuleLowerer<'a> {
     /// The DIR tree.
     pub(crate) dir_tree: &'a dir::Tree,
     /// The symbol table.
-    pub(crate) symbols: &'a BindingTable,
+    pub(crate) symbols: &'a dir::BindingTable,
     /// The type table.
-    pub(crate) types: &'a TypeTable,
+    pub(crate) types: &'a dir::TypeTable,
     /// The target configuration.
     pub(crate) target: &'a Target,
 
@@ -49,6 +43,19 @@ impl<'a> ModuleLowerer<'a> {
     /// Build one lowered script symbol id from one local DIR symbol.
     pub(crate) fn source_symbol_id(&self, symbol_id: dir::LocalSymbolId) -> ScriptSymbolId {
         ScriptSymbolId::Source(symbol_id.into_global(self.module.id))
+    }
+
+    /// Return the source symbol declared by one DIR node.
+    pub(crate) fn source_symbol_for_node<T>(
+        &self,
+        node_id: dir::LocalNodeId<T>,
+    ) -> Option<dir::LocalSymbolId>
+    where
+        T: dir::Node,
+    {
+        let node_id = node_id.into_global_any(self.module.id);
+
+        self.symbols.symbol_for_declaration(node_id)
     }
 
     /// Store one lowered script symbol id on one JS AST node.
@@ -75,11 +82,26 @@ impl<'a> ModuleLowerer<'a> {
         self.set_node_symbol(node_id, self.source_symbol_id(symbol_id));
     }
 
+    /// Copy the source symbol declared by one DIR node when one exists.
+    pub(crate) fn copy_source_node_symbol<T, U>(
+        &mut self,
+        node_id: js::LocalNodeId<T>,
+        source_id: dir::LocalNodeId<U>,
+    ) where
+        T: js::Node,
+        U: dir::Node,
+        js::Tree: js::TreeImpl<T>,
+    {
+        if let Some(symbol_id) = self.source_symbol_for_node(source_id) {
+            self.set_source_node_symbol(node_id, symbol_id);
+        }
+    }
+
     /// Store one global source-backed symbol id on one JS AST node.
     pub(crate) fn set_global_node_symbol<T>(
         &mut self,
         node_id: js::LocalNodeId<T>,
-        symbol_id: GlobalSymbolId,
+        symbol_id: dir::GlobalSymbolId,
     ) where
         T: js::Node,
         js::Tree: js::TreeImpl<T>,
@@ -90,9 +112,9 @@ impl<'a> ModuleLowerer<'a> {
     /// Create a new module lowerer.
     pub fn new(
         module: &'a Module,
-        ast: &'a Ast,
+        parsed: &'a DirParsed,
         source_strings: &'a StringPool,
-        declared: &'a DirDeclared,
+        bound: &'a DirBound,
         checked: &'a DirChecked,
         target: &'a Target,
     ) -> Self {
@@ -101,11 +123,11 @@ impl<'a> ModuleLowerer<'a> {
 
         Self {
             module,
-            ast,
+            parsed,
             source_strings,
-            dir_tree: &declared.tree,
-            dir_roots: declared.roots.as_ref(),
-            symbols: &declared.bindings,
+            dir_tree: &bound.tree,
+            dir_roots: bound.roots.as_ref(),
+            symbols: &bound.bindings,
             types: &checked.types,
             target,
             tree: js::Tree::new(),

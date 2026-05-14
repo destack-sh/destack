@@ -133,6 +133,12 @@ impl ModuleLowerer<'_> {
         };
 
         let expression_id = match operator {
+            dir::AssignOperator::Assign => {
+                return Err(CodegenJsError::UnsupportedConstruct {
+                    node: expression_id.into_global_any(self.module.id),
+                    message: Some("plain assignment is not a compound assignment".to_string()),
+                });
+            }
             dir::AssignOperator::MultiplyAssign => {
                 assign_binary(js::AssignOperator::MultiplyAssign)
             }

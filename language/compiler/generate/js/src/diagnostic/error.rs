@@ -128,8 +128,8 @@ impl CodegenJsResultExt for CodegenJsResult<js::LocalNodeIdAny> {
                     let source_kind = if source_id.local_id.ty == dir::NodeType::Expression {
                         let expression_id =
                             dir::LocalNodeId::<dir::Expression>::new(source_id.local_id.id);
-                        let expression = lowerer.dir_tree.get(expression_id);
-                        format!(" for {}", expression.kind_name())
+                        let _expression = lowerer.dir_tree.get(expression_id);
+                        " for expression".to_string()
                     } else {
                         String::new()
                     };

@@ -44,8 +44,8 @@ impl ModuleLowerer<'_> {
         &mut self,
         declaration_id: dir::LocalNodeId<dir::Declaration>,
     ) -> CodegenJsResult<js::LocalNodeId<js::Declaration>> {
+        let source_declaration_id = declaration_id;
         let declaration = self.dir_tree.get(declaration_id);
-        let declaration_symbol = Some(declaration.symbol());
         let declaration = match declaration {
             dir::Declaration::Global(declaration) => {
                 // body
@@ -289,9 +289,7 @@ impl ModuleLowerer<'_> {
             self.tree
                 .insert_from_source(declaration, self.module.id, declaration_id);
 
-        if let Some(declaration_symbol) = declaration_symbol {
-            self.set_source_node_symbol(declaration_id, declaration_symbol);
-        }
+        self.copy_source_node_symbol(declaration_id, source_declaration_id);
 
         Ok(declaration_id)
     }

@@ -54,7 +54,7 @@ impl ModuleLowerer<'_> {
         let mut lowered_item_ids: Vec<LocalNodeId<DependencyItem>> = Vec::new();
         for item_id in item_ids {
             let item = self.dir_tree.get(*item_id);
-            let lowered_item = match item {
+            match item {
                 dir::DependencyItem::Error => {
                     return Err(CodegenJsError::UnsupportedConstruct {
                         node: item_id.into_global_any(self.module.id),
@@ -66,22 +66,31 @@ impl ModuleLowerer<'_> {
                     space: item_kind,
                     name,
                     alias,
-                    symbol,
+                    value,
                 } => {
                     let source_id = *item_id;
                     let binding = self.lower_dependency_binding(*binding);
                     let name = name.map(|name| self.lower_name(name));
                     let alias = *alias;
+                    let value = value
+                        .map(|value| {
+                            self.lower_expression(value).expect_node::<Expression>(
+                                value.into_global_any(self.module.id),
+                                self,
+                            )
+                        })
+                        .transpose()?;
+                    let item_space = item_kind.unwrap_or(space);
                     let item = DependencyItem {
                         binding,
-                        space: if *item_kind != space {
-                            Some(self.lower_dependency_space(*item_kind))
+                        space: if item_space != space {
+                            Some(self.lower_dependency_space(item_space))
                         } else {
                             None
                         },
                         name,
                         alias,
-                        value: None,
+                        value,
                     };
                     let item_id = self
                         .tree
@@ -95,31 +104,13 @@ impl ModuleLowerer<'_> {
                         self.set_global_node_symbol(item_id, *target_symbol);
                     }
                     // local declaration items keep their source symbol
-                    else if let Some(symbol) = symbol {
-                        self.set_source_node_symbol(item_id, *symbol);
+                    else {
+                        self.copy_source_node_symbol(item_id, source_id);
                     }
 
                     lowered_item_ids.push(item_id);
-                    continue;
                 }
-                dir::DependencyItem::Value { binding, value } => {
-                    let binding = self.lower_dependency_binding(*binding);
-                    let value_id = self
-                        .lower_expression(*value)
-                        .expect_node::<Expression>(value.into_global_any(self.module.id), self)?;
-                    DependencyItem {
-                        binding,
-                        space: None,
-                        name: None,
-                        alias: None,
-                        value: Some(value_id),
-                    }
-                }
-            };
-            let item_id = self
-                .tree
-                .insert_from_source(lowered_item, self.module.id, *item_id);
-            lowered_item_ids.push(item_id);
+            }
         }
         Ok(lowered_item_ids)
     }
