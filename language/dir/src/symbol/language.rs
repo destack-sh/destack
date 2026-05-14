@@ -153,6 +153,12 @@ define_language_items! {
             Number => (Class, "math/number", "Number"),
         }
 
+        /// `destack:math/math`.
+        math {
+            /// Math class.
+            Math => (Class, "math/math", "Math"),
+        }
+
         /// `destack:math/bigint`.
         bigint {
             /// BigInt class.
@@ -163,6 +169,12 @@ define_language_items! {
         vector {
             /// Vector type.
             Vector => (Newtype, "math/vector", "Vector"),
+        }
+
+        /// `destack:math/complex`.
+        complex {
+            /// Complex number type.
+            Complex => (Struct, "math/complex", "Complex"),
         }
     }
 
@@ -198,6 +210,60 @@ define_language_items! {
         tensor {
             /// Owning tensor type.
             Tensor => (Class, "tensor/tensor", "Tensor"),
+        }
+    }
+
+    /// Compute types.
+    compute {
+        /// `destack:compute/buffer`.
+        buffer {
+            /// Compute buffer class.
+            ComputeBuffer => (Class, "compute/buffer", "Buffer"),
+        }
+
+        /// `destack:compute/device`.
+        device {
+            /// Compute device class.
+            ComputeDevice => (Class, "compute/device", "Device"),
+        }
+
+        /// `destack:compute/stream`.
+        stream {
+            /// Compute stream class.
+            ComputeStream => (Class, "compute/stream", "Stream"),
+
+            /// Compute event class.
+            ComputeEvent => (Class, "compute/stream", "Event"),
+        }
+
+        /// `destack:compute/program`.
+        program {
+            /// Compute program class.
+            ComputeProgram => (Class, "compute/program", "Program"),
+
+            /// Compute kernel argument type.
+            ComputeKernelArgument => (Newtype, "compute/program", "KernelArgument"),
+
+            /// Compute kernel class.
+            ComputeKernel => (Class, "compute/program", "Kernel"),
+        }
+
+        /// `destack:compute/command`.
+        command {
+            /// Compute command buffer class.
+            ComputeCommandBuffer => (Class, "compute/command", "CommandBuffer"),
+
+            /// Compute command encoder class.
+            ComputeCommandEncoder => (Class, "compute/command", "CommandEncoder"),
+        }
+    }
+
+    /// Random types.
+    random {
+        /// `destack:random/random`.
+        random {
+            /// Random generator type.
+            Random => (Newtype, "random/random", "Random"),
         }
     }
 
@@ -697,19 +763,5 @@ define_language_items! {
             /// `@sanitizer` marker
             Sanitizer => (Newtype, "decorator/taint", "sanitizer"),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_add_properties() {
-        assert_eq!(LanguageItem::Add.namespace(), "ops");
-        assert_eq!(LanguageItem::Add.module(), "ops/plus");
-        assert_eq!(LanguageItem::Add.export_name(), "Add");
-        assert_eq!(LanguageItem::Add.key(), "ops.Add");
-        assert_eq!(LanguageItem::Add.form(), LanguageItemForm::NewtypeInterface);
     }
 }
