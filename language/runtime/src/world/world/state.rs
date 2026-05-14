@@ -1,13 +1,12 @@
 use std::collections::BTreeMap;
 
-use destack_workspace::{RandomMode, TimeMode};
-
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::random::Random;
 use crate::runtime::time::{Clock, Instant, Nanos};
 use crate::runtime::{RuntimeId, WorkerId};
 use crate::simulation::Simulation;
-use crate::world::policy::{HookEvent, PolicyDecision, PolicyState, RuleSubject};
+use crate::world::policy::PolicyState;
+use crate::world::scenario::{FaultRule, FaultRuleId, Scenario, ScenarioId};
 use crate::world::trace::{Observation, ObservationSequence, Observations, Trace};
 
 use crate::host::ResourceId;
@@ -19,14 +18,14 @@ use super::{BranchId, Resource, Topology};
 pub(crate) struct WorldState {
     /// Active branch identifier for this live world.
     pub(crate) branch_id: BranchId,
-    /// Effective world time mode after execution-mode resolution.
-    pub(crate) time_mode: TimeMode,
-    /// Effective world random mode after execution-mode resolution.
-    pub(crate) random_mode: RandomMode,
     /// Shared simulation state for all runtimes in this world.
     pub(crate) simulation: Simulation,
     /// Active policy state.
     pub(crate) policy: PolicyState,
+    /// Active scenario scripts.
+    pub(crate) scenarios: Vec<Scenario>,
+    /// The next scenario id to allocate.
+    pub(crate) next_scenario_id: u64,
     /// The next runtime id to allocate.
     pub(crate) next_runtime_id: u64,
     /// The next worker id to allocate.
@@ -56,16 +55,6 @@ impl WorldState {
     #[inline]
     pub(crate) fn policy(&self) -> &PolicyState {
         &self.policy
-    }
-
-    /// Apply one policy event against the live policy state.
-    pub(crate) fn apply_policy_event(
-        &mut self,
-        event: &HookEvent,
-        subject: RuleSubject<'_>,
-    ) -> Vec<PolicyDecision> {
-        self.policy
-            .on_event_for_subject(event, subject, &self.random)
     }
 
     /// Borrow the live topology.
@@ -186,12 +175,146 @@ impl WorldState {
         WorkerId(worker_id)
     }
 
+    /// Return the next scenario identifier without consuming it.
+    pub(crate) fn next_scenario_id(&self) -> ScenarioId {
+        ScenarioId(self.next_scenario_id)
+    }
+
+    /// Add one scenario script.
+    pub(crate) fn add_scenario(&mut self, scenario: Scenario) -> RuntimeResult<()> {
+        if self
+            .scenarios
+            .iter()
+            .any(|existing| existing.id == scenario.id)
+        {
+            return Err(Self::scenario_error(format!(
+                "runtime scenario requires unique scenario ids: {}",
+                scenario.id.0
+            )));
+        }
+
+        scenario.validate_with_kind_catalog(&self.topology)?;
+        self.next_scenario_id = self.next_scenario_id.max(scenario.id.0 + 1);
+        self.scenarios.push(scenario);
+
+        Ok(())
+    }
+
+    /// Remove one scenario script.
+    pub(crate) fn remove_scenario(&mut self, scenario_id: ScenarioId) -> RuntimeResult<()> {
+        let before_len = self.scenarios.len();
+        self.scenarios.retain(|scenario| scenario.id != scenario_id);
+        if self.scenarios.len() < before_len {
+            return Ok(());
+        }
+
+        Err(Self::unknown_scenario_error(scenario_id))
+    }
+
+    /// Enable one scenario script.
+    pub(crate) fn enable_scenario(&mut self, scenario_id: ScenarioId) -> RuntimeResult<()> {
+        self.set_scenario_enabled(scenario_id, true)
+    }
+
+    /// Disable one scenario script.
+    pub(crate) fn disable_scenario(&mut self, scenario_id: ScenarioId) -> RuntimeResult<()> {
+        self.set_scenario_enabled(scenario_id, false)
+    }
+
+    /// Add one rule into one scenario.
+    pub(crate) fn add_scenario_rule(
+        &mut self,
+        scenario_id: ScenarioId,
+        rule: FaultRule,
+    ) -> RuntimeResult<()> {
+        let topology = &self.topology;
+        let scenario = Self::scenario_mut(&mut self.scenarios, scenario_id)?;
+
+        scenario.add_rule(rule, topology)
+    }
+
+    /// Remove one rule from one scenario.
+    pub(crate) fn remove_scenario_rule(
+        &mut self,
+        scenario_id: ScenarioId,
+        rule_id: &FaultRuleId,
+    ) -> RuntimeResult<()> {
+        Self::scenario_mut(&mut self.scenarios, scenario_id)?.remove_rule(rule_id)
+    }
+
+    /// Enable one rule in one scenario.
+    pub(crate) fn enable_scenario_rule(
+        &mut self,
+        scenario_id: ScenarioId,
+        rule_id: &FaultRuleId,
+    ) -> RuntimeResult<()> {
+        Self::scenario_mut(&mut self.scenarios, scenario_id)?.enable_rule(rule_id)
+    }
+
+    /// Disable one rule in one scenario.
+    pub(crate) fn disable_scenario_rule(
+        &mut self,
+        scenario_id: ScenarioId,
+        rule_id: &FaultRuleId,
+    ) -> RuntimeResult<()> {
+        Self::scenario_mut(&mut self.scenarios, scenario_id)?.disable_rule(rule_id)
+    }
+
+    /// Replace one rule in one scenario.
+    pub(crate) fn replace_scenario_rule(
+        &mut self,
+        scenario_id: ScenarioId,
+        rule_id: &FaultRuleId,
+        rule: FaultRule,
+    ) -> RuntimeResult<()> {
+        let topology = &self.topology;
+        let scenario = Self::scenario_mut(&mut self.scenarios, scenario_id)?;
+
+        scenario.replace_rule(rule_id, rule, topology)
+    }
+
+    /// Set one scenario enabled state.
+    fn set_scenario_enabled(
+        &mut self,
+        scenario_id: ScenarioId,
+        is_enabled: bool,
+    ) -> RuntimeResult<()> {
+        let scenario = Self::scenario_mut(&mut self.scenarios, scenario_id)?;
+        scenario.enabled = is_enabled;
+
+        Ok(())
+    }
+
+    /// Borrow one scenario by id.
+    fn scenario_mut(
+        scenarios: &mut [Scenario],
+        scenario_id: ScenarioId,
+    ) -> RuntimeResult<&mut Scenario> {
+        scenarios
+            .iter_mut()
+            .find(|scenario| scenario.id == scenario_id)
+            .ok_or_else(|| Self::unknown_scenario_error(scenario_id))
+    }
+
+    /// Return one unknown-scenario error.
+    fn unknown_scenario_error(scenario_id: ScenarioId) -> Box<RuntimeError> {
+        Self::scenario_error(format!(
+            "runtime scenario mutation requires one known scenario id: {}",
+            scenario_id.0
+        ))
+    }
+
+    /// Return one invalid-scenario error.
+    fn scenario_error(message: impl Into<String>) -> Box<RuntimeError> {
+        RuntimeError::Internal {
+            message: message.into(),
+        }
+        .boxed()
+    }
+
     /// Return the current world wall time.
     pub(crate) fn wall(&self) -> Nanos {
-        match self.time_mode {
-            TimeMode::Host => self.clock().host_wall(),
-            TimeMode::Virtual => self.clock().virtual_wall(),
-        }
+        self.clock().wall()
     }
 
     /// Return the current world wall time in nanoseconds.
@@ -201,20 +324,12 @@ impl WorldState {
 
     /// Return the current world monotonic time.
     pub(crate) fn mono(&self) -> Nanos {
-        match self.time_mode {
-            TimeMode::Host => self.clock().host_mono(),
-            TimeMode::Virtual => self.clock().virtual_mono(),
-        }
+        self.clock().mono()
     }
 
     /// Return the current world monotonic time in nanoseconds.
     pub(crate) fn mono_nanos(&self) -> u64 {
         self.mono().get()
-    }
-
-    /// Return the effective world time mode.
-    pub(crate) const fn time_mode(&self) -> TimeMode {
-        self.time_mode
     }
 
     /// Return the earliest deadline across worker-local and world-local timed work.

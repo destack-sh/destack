@@ -10,25 +10,22 @@ use crate::host::time::HostClockSource;
 use crate::host::{Host, HostError, ResourceId, default_compile_target_host};
 use crate::runtime::random::{Random, RandomStreamId};
 use crate::runtime::time::{Clock, Instant, Nanos};
-use crate::runtime::{Collector, CollectorMode, Runtime, WorkerId};
+use crate::runtime::{Runtime, SharedCollector, SharedCollectorMode, WorkerId};
 use crate::simulation::Simulation;
 use crate::world::policy::{Policy, PolicyState};
+use crate::world::scenario::Scenario;
 use crate::world::trace::{
     EnvironmentConfig, Observation, ObservationSequence, Observations, Outcome, Trace, TraceHeader,
     TraceSequence,
 };
-use destack_workspace::{RandomMode, ReplayPayloadMode, RuntimeOptions, TimeMode};
+use destack_workspace::{RandomSource, ReplayPayloadMode, RuntimeOptions};
 
-use super::lineage::{Lineage, ROOT_BRANCH};
 use super::topology::Topology;
 pub(crate) use super::topology::{
     Edge, EdgeDefinition, EdgeId, EdgeKind, Entity, EntityDefinition, EntityId, EntityKind,
     RuntimeId,
 };
-use super::{BranchId, Command, Resource, WorldImage, WorldState};
-
-/// Number of bytes in one configured trace chunk mebibyte.
-const TRACE_CHUNK_MEBIBYTE_BYTES: u64 = 1024 * 1024;
+use super::{BranchId, History, Mutation, ROOT_BRANCH, Resource, WorldImage, WorldState};
 
 /// One interconnected runtime world.
 #[derive(Debug)]
@@ -39,8 +36,8 @@ pub struct World {
     pub(crate) runtimes: BTreeMap<RuntimeId, Box<Runtime>>,
     /// Shared state used by runtimes and workers.
     pub(crate) state: WorldState,
-    /// Lineage-root metadata for this live world.
-    pub(crate) lineage: Arc<RwLock<Lineage>>,
+    /// History-root metadata for this live world.
+    pub(crate) history: Arc<RwLock<History>>,
 }
 
 impl World {
@@ -68,19 +65,19 @@ impl World {
         options: &RuntimeOptions,
         host_clock_source: Option<Arc<dyn HostClockSource>>,
     ) -> RuntimeResult<Self> {
-        Self::new_at_branch(ROOT_BRANCH, options, host_clock_source)
+        Self::empty(ROOT_BRANCH, options, host_clock_source)
     }
 
-    /// Create one world for one explicit active branch.
-    pub(crate) fn new_at_branch(
+    /// Create one empty world shell for restore or replay.
+    pub(crate) fn empty(
         branch_id: BranchId,
         options: &RuntimeOptions,
         host_clock_source: Option<Arc<dyn HostClockSource>>,
     ) -> RuntimeResult<Self> {
-        // effective modes
+        // execution configuration
         let execution_mode = options.execution_mode();
-        let time_mode = options.time_mode();
-        let random_mode = options.random_mode();
+        let clock_source = options.clock_source();
+        let random_source = options.random_source();
         let replay_payload = match options.replay_payload_mode() {
             ReplayPayloadMode::ResultsOnly => BindingReplayPayload::Results,
             ReplayPayloadMode::ArgumentsAndResults => BindingReplayPayload::ArgumentsAndResults,
@@ -89,14 +86,14 @@ impl World {
         // replay header
         let mut trace_header = TraceHeader {
             execution_mode,
-            time_mode,
-            random_mode,
+            clock_source,
+            random_source,
             branch_id,
             replay_payload,
             ..TraceHeader::new(EnvironmentConfig::default())
         };
         if let Some(chunk_size_mb) = options.trace_chunk_size_mb() {
-            let chunk_bytes = chunk_size_mb.saturating_mul(TRACE_CHUNK_MEBIBYTE_BYTES);
+            let chunk_bytes = chunk_size_mb.saturating_mul(1024 * 1024);
             if chunk_bytes > 0 {
                 trace_header.max_chunk_bytes = chunk_bytes;
             }
@@ -111,19 +108,23 @@ impl World {
         };
         let random = Random::from_options(&options.random_options());
         let policy = Policy::default();
+        let scenarios: Vec<Scenario> = Vec::new();
         let trace = Trace::new(execution_mode, trace_header);
         let topology = Topology::new();
-        policy.validate_with_kind_catalog(&topology)?;
+        policy.validate()?;
+        for scenario in &scenarios {
+            scenario.validate_with_kind_catalog(&topology)?;
+        }
 
         // live world state
         let state = WorldState {
             branch_id,
-            time_mode,
-            random_mode,
             simulation: Simulation::default(),
             policy: PolicyState::new(policy),
+            scenarios,
             next_runtime_id: 1,
             next_worker_id: 1,
+            next_scenario_id: 1,
             topology,
             resources: BTreeMap::new(),
             clock,
@@ -132,7 +133,7 @@ impl World {
             observations: Observations::default(),
         };
 
-        // lineage backing
+        // history backing
         let allocator = Arc::new(
             heap::Allocator::try_new(
                 options.heap.layout.page_bytes,
@@ -145,7 +146,9 @@ impl World {
         let root_image = Arc::new(WorldImage {
             next_runtime_id: state.next_runtime_id,
             next_worker_id: state.next_worker_id,
+            next_scenario_id: state.next_scenario_id,
             policy: state.policy.clone(),
+            scenarios: state.scenarios.clone(),
             topology: state.topology.clone(),
             resources: state.resources.clone(),
             simulation: state.simulation.clone(),
@@ -155,9 +158,10 @@ impl World {
             workers: BTreeMap::new(),
         });
         let root_trace_image = Arc::new(state.trace.capture_image());
-        let collector_mode = CollectorMode::from_scheduler_mode(options.scheduler.mode);
-        let collector = Collector::new(collector_mode, format!("destack.collector.{branch_id:?}"))?;
-        let lineage = Arc::new(RwLock::new(Lineage::new_root(
+        let collector_mode = SharedCollectorMode::from_scheduler_mode(options.scheduler.mode);
+        let collector =
+            SharedCollector::new(collector_mode, format!("destack.collector.{branch_id:?}"))?;
+        let history = Arc::new(RwLock::new(History::new_root(
             allocator,
             collector,
             root_image.clock.virtual_wall,
@@ -170,7 +174,7 @@ impl World {
             host: default_compile_target_host(),
             runtimes: BTreeMap::new(),
             state,
-            lineage,
+            history,
         };
 
         Ok(world)
@@ -245,19 +249,24 @@ impl World {
         self.state.resources.clone()
     }
 
+    /// Snapshot active scenario scripts.
+    pub fn scenarios(&self) -> Vec<Scenario> {
+        self.state.scenarios.clone()
+    }
+
     /// Borrow the shared world clock.
     pub fn clock(&self) -> &Clock {
         &self.state.clock
     }
 
-    /// Return the effective world time mode.
-    pub fn time_mode(&self) -> TimeMode {
-        self.state.time_mode
+    /// Return the effective world clock source.
+    pub fn clock_source(&self) -> destack_workspace::ClockSource {
+        self.state.clock.source()
     }
 
-    /// Return the effective world random mode.
-    pub fn random_mode(&self) -> RandomMode {
-        self.state.random_mode
+    /// Return the effective world random source.
+    pub fn random_source(&self) -> RandomSource {
+        self.state.random.source()
     }
 
     /// Return the emitted observation log for this world.
@@ -274,10 +283,7 @@ impl World {
 
     /// Return the current world wall time.
     pub fn wall(&self) -> Nanos {
-        match self.state.time_mode {
-            TimeMode::Host => self.state.clock.host_wall(),
-            TimeMode::Virtual => self.state.clock.virtual_wall(),
-        }
+        self.state.clock.wall()
     }
 
     /// Return the current world wall time in nanoseconds.
@@ -287,10 +293,7 @@ impl World {
 
     /// Return the current world monotonic time.
     pub fn mono(&self) -> Nanos {
-        match self.state.time_mode {
-            TimeMode::Host => self.state.clock.host_mono(),
-            TimeMode::Virtual => self.state.clock.virtual_mono(),
-        }
+        self.state.clock.mono()
     }
 
     /// Return the current world monotonic time in nanoseconds.
@@ -306,7 +309,7 @@ impl World {
     /// Fill one buffer with secure world-routed random bytes.
     pub fn fill_secure_bytes(&self, buffer: &mut [u8]) -> RuntimeResult<()> {
         // deterministic worlds reject secure host entropy by default
-        if self.state.random_mode == RandomMode::Deterministic {
+        if self.state.random.source() == RandomSource::Deterministic {
             return Err(RuntimeError::from(HostError::not_supported(
                 "destack.random.secure.bytes",
             ))
@@ -319,7 +322,7 @@ impl World {
     /// Try to fill one buffer with secure world-routed random bytes without blocking.
     pub fn try_fill_secure_bytes(&self, buffer: &mut [u8]) -> RuntimeResult<()> {
         // deterministic worlds reject secure host entropy by default
-        if self.state.random_mode == RandomMode::Deterministic {
+        if self.state.random.source() == RandomSource::Deterministic {
             return Err(RuntimeError::from(HostError::not_supported(
                 "destack.random.secure.bytesTry",
             ))
@@ -331,9 +334,9 @@ impl World {
 
     /// Return one world-routed random u64 from one stream.
     pub fn next_stream_u64(&self, stream_id: RandomStreamId) -> RuntimeResult<u64> {
-        match self.state.random_mode {
-            RandomMode::Host => self.state.random.next_secure_u64(),
-            RandomMode::Deterministic => Ok(self.state.random.next_stream_u64(stream_id)),
+        match self.state.random.source() {
+            RandomSource::Host => self.state.random.next_secure_u64(),
+            RandomSource::Deterministic => Ok(self.state.random.next_stream_u64(stream_id)),
         }
     }
 
@@ -343,9 +346,9 @@ impl World {
         stream_id: RandomStreamId,
         buffer: &mut [u8],
     ) -> RuntimeResult<()> {
-        match self.state.random_mode {
-            RandomMode::Host => self.state.random.fill_secure_bytes(buffer),
-            RandomMode::Deterministic => {
+        match self.state.random.source() {
+            RandomSource::Host => self.state.random.fill_secure_bytes(buffer),
+            RandomSource::Deterministic => {
                 self.state.random.fill_stream_bytes(stream_id, buffer);
                 Ok(())
             }
@@ -357,9 +360,17 @@ impl World {
         &self.state.trace
     }
 
-    /// Record one authoritative command at the world boundary.
-    pub fn record_command(&self, command: Command) -> RuntimeResult<()> {
-        self.state.trace.record_command(command)
+    /// Record one authoritative mutation at the world boundary.
+    pub fn record_mutation(&self, mutation: Mutation) -> RuntimeResult<()> {
+        self.state.trace.record_mutation(mutation)
+    }
+
+    /// Record one runtime entrypoint invocation.
+    pub fn record_entrypoint(
+        &self,
+        invocation: crate::world::trace::EntrypointInvocation,
+    ) -> RuntimeResult<()> {
+        self.state.trace.record_entrypoint(invocation)
     }
 
     /// Record one authoritative external outcome at the world boundary.
@@ -372,8 +383,16 @@ impl World {
         self.state.trace.record_anchor(label.into())
     }
 
-    /// Resolve one command against the replay boundary.
-    pub(crate) fn resolve_command(&self, command: Command) -> RuntimeResult<Command> {
-        self.state.trace.resolve_command(command)
+    /// Resolve one mutation against the replay boundary.
+    pub(crate) fn resolve_mutation(&self, mutation: Mutation) -> RuntimeResult<Mutation> {
+        self.state.trace.resolve_mutation(mutation)
+    }
+
+    /// Resolve one runtime entrypoint invocation.
+    pub(crate) fn resolve_entrypoint(
+        &self,
+        invocation: crate::world::trace::EntrypointInvocation,
+    ) -> RuntimeResult<crate::world::trace::EntrypointInvocation> {
+        self.state.trace.resolve_entrypoint(invocation)
     }
 }

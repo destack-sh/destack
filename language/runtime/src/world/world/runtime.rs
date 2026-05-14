@@ -9,9 +9,9 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::resource::ResourceRebinders;
 use crate::runtime::engine::{Engine, Entry};
 use crate::runtime::{Runtime, RuntimeImage, Worker, WorkerId, WorkerImage, WorkerOptions};
-use crate::world::trace::{Outcome, SpawnedWorkerImage};
+use crate::world::trace::{EntrypointInvocation, Outcome, SpawnedWorkerImage};
 
-use super::{Command, RuntimeId, World};
+use super::{Mutation, RuntimeId, World};
 
 impl World {
     /// Spawn one live runtime owned by this world and return its identifier.
@@ -22,10 +22,10 @@ impl World {
         engine: impl Into<Engine>,
     ) -> RuntimeResult<RuntimeId> {
         let mode = self.state.trace.mode();
-        let lineage = self.lineage.read();
-        let allocator = lineage.allocator();
-        let collector = lineage.collector();
-        drop(lineage);
+        let history = self.history.read();
+        let allocator = history.allocator();
+        let collector = history.collector();
+        drop(history);
         let world = &mut self.state;
         let mut runtime = Runtime::from_options_in_world(
             process_args,
@@ -110,19 +110,19 @@ impl World {
 
     /// Remove one stored runtime and all of its workers.
     pub fn remove_runtime(&mut self, runtime_id: RuntimeId) -> RuntimeResult<Box<Runtime>> {
-        let command = Command::RemoveRuntime { runtime_id };
-        let command = self.resolve_command(command)?;
-        let Command::RemoveRuntime { runtime_id } = command.clone() else {
+        let mutation = Mutation::RemoveRuntime { runtime_id };
+        let mutation = self.resolve_mutation(mutation)?;
+        let Mutation::RemoveRuntime { runtime_id } = mutation.clone() else {
             return Err(RuntimeError::Internal {
-                message: "runtime remove replay resolved to a non-remove command".to_string(),
+                message: "runtime remove replay resolved to a non-remove mutation".to_string(),
             }
             .boxed());
         };
 
-        let runtime = self.remove_runtime_unrecorded(runtime_id)?;
+        let runtime = self.do_remove_runtime(runtime_id)?;
 
         if self.state.trace.mode() == ExecutionMode::Record {
-            self.record_command(command)?;
+            self.record_mutation(mutation)?;
         }
 
         Ok(runtime)
@@ -185,29 +185,18 @@ impl World {
         entry: &Entry,
         args: &[engine::Value],
     ) -> RuntimeResult<engine::Value> {
-        let command = Command::RunEntrypoint {
+        let invocation = EntrypointInvocation {
             runtime_id,
             entry: entry.clone(),
             args: args.to_vec(),
         };
-        let command = self.resolve_command(command)?;
-        let Command::RunEntrypoint {
-            runtime_id,
-            entry,
-            args,
-        } = command.clone()
-        else {
-            return Err(RuntimeError::Internal {
-                message: "runtime entrypoint replay resolved to a non-entrypoint command"
-                    .to_string(),
-            }
-            .boxed());
-        };
+        let invocation = self.resolve_entrypoint(invocation)?;
 
-        let result = self.run_entrypoint_unrecorded(runtime_id, &entry, &args)?;
+        let result =
+            self.do_run_entrypoint(invocation.runtime_id, &invocation.entry, &invocation.args)?;
 
         if self.state.trace.mode() == ExecutionMode::Record {
-            self.record_command(command)?;
+            self.record_entrypoint(invocation)?;
         }
 
         Ok(result)
@@ -245,7 +234,7 @@ impl World {
     }
 
     /// Remove one stored runtime without tracing the outer invocation.
-    pub(crate) fn remove_runtime_unrecorded(
+    pub(crate) fn do_remove_runtime(
         &mut self,
         runtime_id: RuntimeId,
     ) -> RuntimeResult<Box<Runtime>> {
@@ -274,7 +263,7 @@ impl World {
     }
 
     /// Run one entrypoint without tracing the outer invocation.
-    pub(crate) fn run_entrypoint_unrecorded(
+    pub(crate) fn do_run_entrypoint(
         &mut self,
         runtime_id: RuntimeId,
         entry: &Entry,
@@ -291,8 +280,8 @@ impl World {
         runtime.run_entrypoint(world, entry, args)
     }
 
-    /// Install one restored runtime image without tracing the outer invocation.
-    pub(crate) fn install_runtime_image(
+    /// Restore one runtime image without tracing the outer invocation.
+    pub(crate) fn restore_runtime_image(
         &mut self,
         runtime_id: RuntimeId,
         runtime_name: String,
@@ -331,10 +320,10 @@ impl World {
             .iter()
             .map(|(worker_id, worker)| (*worker_id, worker.image.clone()))
             .collect();
-        let lineage = self.lineage.read();
-        let allocator = lineage.allocator();
-        let collector = lineage.collector();
-        drop(lineage);
+        let history = self.history.read();
+        let allocator = history.allocator();
+        let collector = history.collector();
+        drop(history);
 
         let runtime = Runtime::from_image(
             world,
@@ -363,8 +352,8 @@ impl World {
         Ok(())
     }
 
-    /// Install one restored worker image without tracing the outer invocation.
-    pub(crate) fn install_worker_image(
+    /// Restore one worker image without tracing the outer invocation.
+    pub(crate) fn restore_worker_image(
         &mut self,
         runtime_id: RuntimeId,
         worker_id: WorkerId,

@@ -2,13 +2,15 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::world::World;
 use crate::world::trace::{Trace, TraceRecord, TraceSequence};
 
-use super::{BranchId, LineageView, Moment};
+use super::{BranchId, HistoryView, Moment};
 
 /// One transition class derived from one authoritative replay record.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TransitionKind {
     /// One input step.
-    Command,
+    Mutation,
+    /// One entrypoint invocation step.
+    Entrypoint,
     /// One outcome step.
     Outcome,
     /// One anchor step.
@@ -31,7 +33,10 @@ pub struct Transition {
 impl Transition {
     /// Report whether this transition was caused by one input.
     pub const fn is_input(&self) -> bool {
-        matches!(self.kind, TransitionKind::Command)
+        matches!(
+            self.kind,
+            TransitionKind::Mutation | TransitionKind::Entrypoint
+        )
     }
 
     /// Report whether this transition was caused by one outcome.
@@ -108,7 +113,7 @@ impl TransitionSet {
 
     /// Keep only transitions caused by projected inputs.
     pub fn inputs(self) -> Self {
-        self.kind(TransitionKind::Command)
+        self.kind(TransitionKind::Mutation)
     }
 
     /// Keep only transitions caused by projected outcomes.
@@ -134,37 +139,37 @@ impl TransitionSet {
     }
 }
 
-/// One lineage-rooted committed transition query.
+/// One history-rooted committed transition query.
 #[derive(Debug, Clone, Copy)]
 pub struct TransitionQuery<'a> {
-    /// The lineage view that owns the query.
-    lineage: LineageView<'a>,
+    /// The history view that owns the query.
+    history: HistoryView<'a>,
 }
 
 impl<'a> TransitionQuery<'a> {
-    /// Create one committed transition query on one lineage view.
-    pub(super) const fn new(lineage: LineageView<'a>) -> Self {
-        Self { lineage }
+    /// Create one committed transition query on one history view.
+    pub(super) const fn new(history: HistoryView<'a>) -> Self {
+        Self { history }
     }
 
     /// Return every committed transition visible on one branch.
     pub fn branch(self, branch_id: BranchId) -> RuntimeResult<TransitionSet> {
-        self.lineage.transitions_on(branch_id)
+        self.history.transitions_on(branch_id)
     }
 
     /// Return every committed transition visible on one branch and its descendants.
     pub fn descendants_of(self, branch_id: BranchId) -> RuntimeResult<TransitionSet> {
-        self.lineage.transitions_descendants_of(branch_id)
+        self.history.transitions_descendants_of(branch_id)
     }
 
     /// Return every committed transition up to one target moment.
     pub fn up_to(self, moment: Moment) -> RuntimeResult<TransitionSet> {
-        self.lineage.transitions_up_to(moment)
+        self.history.transitions_up_to(moment)
     }
 
     /// Return every committed transition in one exact branch-local range.
     pub fn between(self, start: Moment, end: Moment) -> RuntimeResult<TransitionSet> {
-        self.lineage.transitions_between(start, end)
+        self.history.transitions_between(start, end)
     }
 }
 
@@ -213,7 +218,8 @@ impl Trace {
             })?;
             let after = Moment::new(branch_id, self.sequence()?);
             let kind = match cause {
-                TraceRecord::Command(_) => TransitionKind::Command,
+                TraceRecord::Mutation(_) => TransitionKind::Mutation,
+                TraceRecord::Entrypoint(_) => TransitionKind::Entrypoint,
                 TraceRecord::Outcome(_) => TransitionKind::Outcome,
                 TraceRecord::Anchor(_) => TransitionKind::Anchor,
             };
