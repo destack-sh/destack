@@ -532,7 +532,7 @@ fn resolve_interface_member_target(
     let member_name = member_key_name(ctx.dir().strings(), member_key)?;
 
     // resolve the parent declaration and ensure it is an interface
-    let parent = dir_tree.get_parent(member_id)?;
+    let parent = dir_tree.get_parent_for(member_id)?;
     if parent.ty != dir::NodeType::Declaration {
         return None;
     }
@@ -595,7 +595,7 @@ fn collect_interface_member_implementations(
 
         let dir_tree = ctx.dir().view();
         for (member_id, member) in dir_tree.iter_nodes_of_type::<dir::Member>() {
-            let Some(parent) = dir_tree.get_parent(member_id) else {
+            let Some(parent) = dir_tree.get_parent_for(member_id) else {
                 continue;
             };
             if parent.ty != dir::NodeType::Declaration {

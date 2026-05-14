@@ -100,8 +100,8 @@ pub struct SpecifierEntry {
     pub module_id: ModuleId,
     /// The source file.
     pub file_id: FileId,
-    /// The AST node that owns the specifier.
-    pub ast_node_id: u32,
+    /// The source node that owns the specifier.
+    pub source_node_id: u32,
     /// The specifier text.
     pub specifier: String,
     /// The semantic target module when resolved.
@@ -115,7 +115,7 @@ fn specifier_entry_key(entry: &SpecifierEntry) -> (ModuleId, FileId, u32, &str) 
     (
         entry.module_id,
         entry.file_id,
-        entry.ast_node_id,
+        entry.source_node_id,
         entry.specifier.as_str(),
     )
 }
@@ -128,7 +128,7 @@ fn resolved_specifier_key(
         &entry.0,
         entry.1.module_id,
         entry.1.file_id,
-        entry.1.ast_node_id,
+        entry.1.source_node_id,
         entry.1.specifier.as_str(),
     )
 }

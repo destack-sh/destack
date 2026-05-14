@@ -707,7 +707,7 @@ fn reference_span_for_expression(
     let span = main_span_for_dir_node(ctx.source(), dir_tree, expr_id.into())
         .unwrap_or_else(|| span_for_dir_node(ctx.source(), dir_tree, expr_id.into()));
 
-    let Some(parent) = dir_tree.get_parent(expr_id) else {
+    let Some(parent) = dir_tree.get_parent_for(expr_id) else {
         return span;
     };
     if parent.ty != dir::NodeType::Expression {

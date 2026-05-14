@@ -158,6 +158,7 @@ pub fn code_lenses(repository: &Repository, revision: Revision, file: FileId) ->
 
         dir_tree
             .iter_nodes_of_type::<dir::Declaration>()
+            .into_iter()
             .filter_map(
                 |(decl_id, decl): (dir::LocalNodeId<dir::Declaration>, &dir::Declaration)| {
                     let symbol_id = ctx.dir().symbol_for_node(decl_id.into())?;

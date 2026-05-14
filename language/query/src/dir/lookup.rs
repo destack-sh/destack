@@ -223,7 +223,7 @@ fn member_access_target_symbol_at_offset(
     }
 
     // otherwise lift the current expression into its enclosing member receiver slot
-    let parent = dir_tree.get_parent(expression_id)?;
+    let parent = dir_tree.get_parent_for(expression_id)?;
     if parent.ty != dir::NodeType::Expression {
         return None;
     }
