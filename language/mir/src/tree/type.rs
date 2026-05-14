@@ -132,33 +132,68 @@ impl Copy {
     }
 }
 
-/// Layout for a tensor or tensor reference.
+/// Dimension order for dense tensor storage.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum TensorDimensionOrder {
+    /// Last dimension is contiguous.
+    RowMajor,
+    /// First dimension is contiguous.
+    ColumnMajor,
+}
+
+/// Layout for a tensor or tensor view.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TensorLayout {
-    /// Contiguous row-major layout.
-    RowMajor,
-    /// Contiguous column-major layout.
-    ColumnMajor,
+    /// Dense contiguous layout.
+    Dense {
+        /// The dimension order.
+        order: TensorDimensionOrder,
+    },
     /// Explicit strided layout.
     Strided {
         /// Strides for each dimension in element units.
-        strides: Vec<TensorDimension>,
+        strides: Vec<TensorStride>,
+    },
+    /// Backend-specific tensor layout.
+    Backend {
+        /// The backend layout name.
+        name: String,
     },
 }
 
 /// Dimension size for tensor shapes and layouts.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TensorDimension {
     /// Compile time static dimension size.
     Static(u64),
+    /// Symbolic runtime dimension shared across tensors.
+    Symbol(String),
     /// Runtime dynamic dimension size.
     Dynamic,
 }
 
 impl TensorDimension {
     /// Check whether this dimension is dynamic.
-    pub fn is_dynamic(self) -> bool {
+    pub fn is_dynamic(&self) -> bool {
         matches!(self, TensorDimension::Dynamic)
+    }
+}
+
+/// Element stride for tensor layouts.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum TensorStride {
+    /// Compile time static element stride.
+    Static(i64),
+    /// Symbolic runtime stride shared across tensors.
+    Symbol(String),
+    /// Runtime dynamic stride.
+    Dynamic,
+}
+
+impl TensorStride {
+    /// Check whether this stride is dynamic.
+    pub fn is_dynamic(&self) -> bool {
+        matches!(self, TensorStride::Dynamic)
     }
 }
 
@@ -261,7 +296,7 @@ pub enum Type {
         copy: Copy,
     },
 
-    /// Fixed-width SIMD vector.
+    /// Fixed-width vector value.
     Vector {
         /// The element type.
         element: TypeReference,

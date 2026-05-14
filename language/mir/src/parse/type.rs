@@ -2,7 +2,8 @@ use destack_source::Span;
 
 use crate::{
     Access, AddressSpace, Attribute, Copy, Field, FieldSpan, Lifetime, LifetimeOrigin, LocalNodeId,
-    ReferenceKind, TensorDimension, TensorLayout, Type, TypeDeclarationSpans, UnionVariant, Value,
+    ReferenceKind, TensorDimension, TensorDimensionOrder, TensorLayout, TensorStride, Type,
+    TypeDeclarationSpans, UnionVariant, Value,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -676,7 +677,9 @@ impl Parser {
         if self.eat_token_maybe(TokenType::Comma) {
             self.parse_tensor_layout_group()
         } else {
-            Ok(TensorLayout::RowMajor)
+            Ok(TensorLayout::Dense {
+                order: TensorDimensionOrder::RowMajor,
+            })
         }
     }
 
@@ -697,10 +700,12 @@ impl Parser {
                 }
                 TokenType::Identifier => {
                     let ident = self.eat_token(TokenType::Identifier)?;
-                    if self.tree.source_text(ident.span) != "dynamic" {
-                        return Err(ParseError::invalid("tensor shape dimension", ident.start));
+                    let text = self.tree.source_text(ident.span);
+                    if text == "dynamic" {
+                        shape.push(TensorDimension::Dynamic);
+                    } else {
+                        shape.push(TensorDimension::Symbol(text.to_string()));
                     }
-                    shape.push(TensorDimension::Dynamic);
                 }
                 _ => {
                     return Err(ParseError::unexpected(
@@ -734,16 +739,79 @@ impl Parser {
     fn parse_tensor_layout(&mut self) -> ParseResult<TensorLayout> {
         let token = self.eat_token(TokenType::Identifier)?;
         match self.tree.source_text(token.span) {
-            "rowMajor" => Ok(TensorLayout::RowMajor),
-            "columnMajor" => Ok(TensorLayout::ColumnMajor),
+            "dense" => {
+                self.eat_token(TokenType::OpenParen)?;
+                let order = self.parse_tensor_dimension_order()?;
+                self.eat_token(TokenType::CloseParen)?;
+                Ok(TensorLayout::Dense { order })
+            }
             "strided" => {
                 self.eat_token(TokenType::OpenParen)?;
-                let strides = self.parse_tensor_shape()?;
+                let strides = self.parse_tensor_strides()?;
                 self.eat_token(TokenType::CloseParen)?;
                 Ok(TensorLayout::Strided { strides })
             }
+            "backend" => {
+                self.eat_token(TokenType::OpenParen)?;
+                let name = self.eat_token(TokenType::Identifier)?;
+                let name = self.tree.source_text(name.span).to_string();
+                self.eat_token(TokenType::CloseParen)?;
+                Ok(TensorLayout::Backend { name })
+            }
             _ => Err(ParseError::invalid("tensor layout", token.start)),
         }
+    }
+
+    /// Parse one dense tensor dimension order.
+    fn parse_tensor_dimension_order(&mut self) -> ParseResult<TensorDimensionOrder> {
+        let token = self.eat_token(TokenType::Identifier)?;
+        let order = match self.tree.source_text(token.span) {
+            "rowMajor" => TensorDimensionOrder::RowMajor,
+            "columnMajor" => TensorDimensionOrder::ColumnMajor,
+            _ => return Err(ParseError::invalid("tensor dimension order", token.start)),
+        };
+
+        Ok(order)
+    }
+
+    /// Parse a tensor stride list.
+    fn parse_tensor_strides(&mut self) -> ParseResult<Vec<TensorStride>> {
+        self.eat_token(TokenType::OpenParen)?;
+        let mut strides = Vec::new();
+        while !self.peek_token(TokenType::CloseParen) {
+            let token = self
+                .peek()
+                .ok_or_else(|| ParseError::unexpected_end("tensor strides", self.pos()))?;
+            match token.ty {
+                TokenType::IntLiteral => {
+                    let stride = self.parse_int_literal()?;
+                    let stride = i64::try_from(stride)
+                        .map_err(|_| ParseError::invalid("tensor stride", self.pos()))?;
+                    strides.push(TensorStride::Static(stride));
+                }
+                TokenType::Identifier => {
+                    let ident = self.eat_token(TokenType::Identifier)?;
+                    let text = self.tree.source_text(ident.span);
+                    if text == "dynamic" {
+                        strides.push(TensorStride::Dynamic);
+                    } else {
+                        strides.push(TensorStride::Symbol(text.to_string()));
+                    }
+                }
+                _ => {
+                    return Err(ParseError::unexpected(
+                        "tensor stride",
+                        token.ty,
+                        token.start,
+                    ));
+                }
+            }
+            if !self.eat_token_maybe(TokenType::Comma) {
+                break;
+            }
+        }
+        self.eat_token(TokenType::CloseParen)?;
+        Ok(strides)
     }
 
     /// Return a canonical field id for the provided field shape.
