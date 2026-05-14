@@ -58,6 +58,7 @@ impl SessionState {
             LanguageType::try_from(file.ty).map_err(|_| SessionError::Internal {
                 detail: format!("file type has no parser language: {:?}", file.ty),
             })?;
+
         // parse and forward parser diagnostics
         let mut parser = Parser::lex_module_with_options(
             module_id,

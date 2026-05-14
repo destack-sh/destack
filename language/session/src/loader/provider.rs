@@ -13,7 +13,7 @@ impl SessionState {
         attempt: &ProviderAttempt,
     ) -> Result<ArtifactPayload, SessionError> {
         match attempt.key() {
-            ArtifactKey::Ast { module } => self.provide_ast(module, attempt),
+            ArtifactKey::DirParsed { module } => self.provide_dir_parsed(module, attempt),
             ArtifactKey::Data { module } => self.provide_data(module, attempt),
             artifact_key => Err(SessionError::Internal {
                 detail: format!("non loader artifact reached loader provider: {artifact_key:?}"),

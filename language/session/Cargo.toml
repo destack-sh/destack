@@ -14,7 +14,6 @@ doctest = false
 [dependencies]
 # language
 destack_artifact = { workspace = true }
-destack_ast = { workspace = true }
 destack_core = { workspace = true }
 destack_compiler = { path = "../compiler", default-features = false }
 destack_css = { workspace = true }
