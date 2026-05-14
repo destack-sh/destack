@@ -3,9 +3,9 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use destack_artifact::{DirDeclared, EmitFormat, MemoryCacheStore};
+use destack_artifact::{DirBound, EmitFormat, MemoryCacheStore};
 use destack_core::StringPool;
-use destack_dir::{Expression, GlobalSymbolId, LocalNodeId};
+use destack_dir as dir;
 use destack_source::{MemoryFileSystem, ModuleId, PackageId};
 use destack_workspace::{HostEnvironment, Repository};
 
@@ -133,13 +133,16 @@ impl TestProgram {
     /// Assert one module executes with the expected output.
     pub(crate) fn assert_executed(&self, _module: ModuleId, _function: &str, _expected: &str) {}
 
-    /// Return the declared DIR for one module.
-    pub(crate) fn dir_declared(&self, _module: ModuleId) -> DirDeclared {
+    /// Return the bound DIR for one module.
+    pub(crate) fn dir_bound(&self, _module: ModuleId) -> DirBound {
         todo!("compiler test DIR harness is provided by session scenarios")
     }
 
     /// Return the first root expression for one module.
-    pub(crate) fn expect_root_expression(&self, _module: ModuleId) -> LocalNodeId<Expression> {
+    pub(crate) fn expect_root_expression(
+        &self,
+        _module: ModuleId,
+    ) -> dir::LocalNodeId<dir::Expression> {
         todo!("compiler test DIR harness is provided by session scenarios")
     }
 
@@ -148,7 +151,7 @@ impl TestProgram {
         &self,
         _path: &str,
         _name: &str,
-    ) -> Option<GlobalSymbolId> {
+    ) -> Option<dir::GlobalSymbolId> {
         todo!("compiler test DIR harness is provided by session scenarios")
     }
 }

@@ -36,7 +36,7 @@ impl ModuleLowerer<'_> {
         if symbol_id.module_id == self.module_id {
             Some(self.symbols.get_symbol(symbol_id.local_id).clone())
         } else {
-            let bound = self.bound_dir_if_present(symbol_id.module_id)?;
+            let bound = self.dir_bound_if_present(symbol_id.module_id)?;
 
             Some(bound.bindings.get_symbol(symbol_id.local_id).clone())
         }

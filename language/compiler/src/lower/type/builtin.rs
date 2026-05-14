@@ -1,4 +1,6 @@
-use destack_artifact::{ArtifactKey, DiagnosticAnchor, DirBound, DirChecked, GlobalEnvironment};
+use destack_artifact::{
+    ArtifactKey, DiagnosticAnchor, DirBound, DirChecked, DirParsed, GlobalEnvironment,
+};
 use destack_core::StringPool;
 use destack_source::ModuleId;
 use destack_workspace::{ProfileId, ProviderContext};
@@ -64,6 +66,16 @@ impl<'a, 'b> BuiltinTypeLayouts<'a, 'b> {
         let snapshot = self
             .compiler
             .dir_bound(self.context, module_id, self.profile);
+
+        match snapshot {
+            Ok(snapshot) => Ok(snapshot),
+            Err(error) => Err(error.into()),
+        }
+    }
+
+    /// Read one committed parsed DIR snapshot for a module.
+    fn require_parsed_dir(&self, module_id: ModuleId) -> CompilerResult<Arc<DirParsed>> {
+        let snapshot = self.compiler.dir_parsed(self.context, module_id);
 
         match snapshot {
             Ok(snapshot) => Ok(snapshot),
@@ -259,9 +271,10 @@ impl<'a, 'b> BuiltinTypeLayouts<'a, 'b> {
         self.require_checked_module(symbol.module_id)?;
 
         // load the bound structure and checked type store
+        let parsed = self.require_parsed_dir(symbol.module_id)?;
         let bound = self.require_bound_dir(symbol.module_id)?;
         let checked = self.require_checked_dir_data(symbol.module_id)?;
-        let tree = &bound.tree;
+        let tree = &parsed.tree;
         let symbols = &bound.bindings;
 
         // resolve struct members for the symbol

@@ -1,33 +1,24 @@
-use destack_artifact::{ArtifactKey, ArtifactPayload, DirChecked};
-use destack_dir::{CaptureTable, LayoutTable, TypeTable};
+use destack_artifact::ArtifactPayload;
 use destack_source::ModuleId;
 use destack_workspace::{ProfileId, ProviderContext};
 
-use crate::check::CheckState;
-use crate::{Compiler, CompilerError, CompilerResult};
+use crate::{Compiler, CompilerResult};
 
 impl Compiler {
-    /// Build checked DIR side tables for one declared module.
+    /// Build checked DIR side tables for one module.
     pub(crate) fn provide_dir_checked(
         &self,
         module: ModuleId,
         profile: ProfileId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
-        let state = CheckState::new(module, profile, context);
-        state
-            .context
-            .require(ArtifactKey::dir_exported(state.module, state.profile))
-            .map_err(CompilerError::from)?;
-        let expanded = self
-            .dir_expanded(state.context, state.module, state.profile)
-            .map_err(CompilerError::from)?;
-        let payload = DirChecked {
-            types: TypeTable::from_base(&expanded.types),
-            layouts: LayoutTable::new(state.module),
-            captures: CaptureTable::new(),
-        };
+        let _ = self;
 
-        Ok(ArtifactPayload::DirChecked(payload))
+        todo!(
+            "DIR check provider is unavailable for {:?} module {:?} profile {:?}",
+            context.artifact_key(),
+            module,
+            profile,
+        )
     }
 }

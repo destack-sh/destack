@@ -32,12 +32,12 @@ impl Compiler {
         let checked = self
             .dir_checked(context, module_id, profile)
             .map_err(CompilerError::from)?;
-        let state = GenerateState::new(module_id, &bound.tree);
 
         // generate one script output through the current backend
+        let state = GenerateState::new(module_id, &parsed.tree);
         let (artifact, warnings, errors) = destack_codegen_js::ScriptOutputGenerator::new(
             module.clone(),
-            parsed,
+            parsed.clone(),
             bound.clone(),
             checked,
             self.repository.string_pool().clone(),

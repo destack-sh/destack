@@ -1,6 +1,6 @@
 use crate::DiagnosticAnchor;
 use destack_artifact_macros::Diagnostic;
-use destack_dir::{GlobalScopeId, GlobalSymbolId, LanguageItem};
+use destack_dir as dir;
 use destack_source::{ModuleId, PackageId, TargetId};
 
 /// Errors during the import phase.
@@ -14,7 +14,7 @@ pub enum ImportError {
     #[diagnostic(code = "EI100", message = "missing symbol {key}")]
     UndeclaredSymbol {
         anchor: DiagnosticAnchor,
-        scope: GlobalScopeId,
+        scope: dir::GlobalScopeId,
         key: String,
     },
 
@@ -22,7 +22,7 @@ pub enum ImportError {
     #[diagnostic(code = "EI101", message = "missing symbol {key}")]
     MissingSymbol {
         anchor: DiagnosticAnchor,
-        scope: GlobalScopeId,
+        scope: dir::GlobalScopeId,
         via_module: Option<ModuleId>,
         key: String,
     },
@@ -31,8 +31,8 @@ pub enum ImportError {
     #[diagnostic(code = "EI102", message = "ambiguous symbol {key}")]
     AmbiguousSymbol {
         anchor: DiagnosticAnchor,
-        scope: GlobalScopeId,
-        symbol: GlobalSymbolId,
+        scope: dir::GlobalScopeId,
+        symbol: dir::GlobalSymbolId,
         key: String,
     },
 
@@ -40,7 +40,7 @@ pub enum ImportError {
     #[diagnostic(code = "EI103", message = "cyclic reference")]
     CyclicSymbol {
         anchor: DiagnosticAnchor,
-        symbol: GlobalSymbolId,
+        symbol: dir::GlobalSymbolId,
     },
 
     /// Export clause references a local binding that is not declared.
@@ -137,7 +137,7 @@ pub enum ImportError {
     #[diagnostic(code = "EI400", message = "missing language item '{item}'")]
     MissingLanguageItem {
         anchor: DiagnosticAnchor,
-        item: LanguageItem,
+        item: dir::LanguageItem,
     },
 
     /// Missing library package.

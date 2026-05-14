@@ -172,8 +172,9 @@ impl FunctionLowerer<'_> {
         symbol: dir::GlobalSymbolId,
     ) -> Option<StaticMemberKind> {
         // load checked dir data for this symbol
-        let dir = self.bound_dir_if_present(symbol.module_id)?;
-        let tree = &dir.tree;
+        let dir = self.dir_bound_if_present(symbol.module_id)?;
+        let parsed = self.dir_parsed_if_present(symbol.module_id)?;
+        let tree = &parsed.tree;
         let symbols = &dir.bindings;
 
         // resolve the declaration node
@@ -226,8 +227,9 @@ impl FunctionLowerer<'_> {
         symbol: dir::GlobalSymbolId,
     ) -> Option<dir::FunctionRole> {
         // load checked dir data for this symbol
-        let dir = self.bound_dir_if_present(symbol.module_id)?;
-        let tree = &dir.tree;
+        let dir = self.dir_bound_if_present(symbol.module_id)?;
+        let parsed = self.dir_parsed_if_present(symbol.module_id)?;
+        let tree = &parsed.tree;
         let symbols = &dir.bindings;
 
         // resolve the declaration node

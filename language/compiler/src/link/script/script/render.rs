@@ -58,14 +58,7 @@ impl<'a> ScriptLinker<'a> {
         for (module_id, module) in modules {
             let printed = self
                 .compiler
-                .print_script_module(
-                    module_id,
-                    self.target_id,
-                    self.target,
-                    file_type,
-                    &module,
-                    self.context,
-                )
+                .print_script_module(module_id, self.target, file_type, &module, self.context)
                 .map_err(|message| LinkError::Internal {
                     anchor: (self.package_id).into(),
                     package: self.package_id,
@@ -111,7 +104,6 @@ impl<'a> ScriptLinker<'a> {
                 .link_script_output_files(
                     module.as_ref(),
                     &script,
-                    self.target_id,
                     self.target,
                     self.package_dir,
                     self.root_dir,

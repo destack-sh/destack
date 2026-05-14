@@ -10,9 +10,9 @@ The compiler is organized around artifact-producing phases.
 | Path | Artifact |
 | --- | --- |
 | `compile/` | coordinator, artifact access, diagnostics |
-| `declare/` | `Ast` / `Data` -> `DirDeclared` |
-| `import/` | `DirDeclared` -> `DirImported` |
-| `expand/` | `DirDeclared` + `DirImported` -> `DirExpanded` |
+| `bind/` | `DirParsed` / `Data` -> `DirBound` |
+| `import/` | `DirBound` -> `DirImported` |
+| `expand/` | `DirBound` + `DirImported` -> `DirExpanded` |
 | `export/` | `DirExpanded` -> `DirExported` |
 | `check/` | `DirExpanded` + `DirExported` -> `DirChecked` |
 | `materialize/` | `DirChecked` + macro state -> `DirMaterialized` |

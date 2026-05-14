@@ -4,10 +4,10 @@
 #![feature(thread_id_value)]
 #![allow(clippy::result_large_err)]
 
+mod bind;
 mod check;
 mod common;
 mod compile;
-mod declare;
 mod elaborate;
 mod expand;
 mod export;
@@ -20,9 +20,9 @@ mod materialize;
 mod optimize;
 mod verify;
 
+pub use bind::*;
 pub use check::*;
 pub use compile::*;
-pub use declare::*;
 pub use elaborate::*;
 pub use expand::*;
 pub use export::*;
@@ -34,6 +34,8 @@ pub use lower::*;
 pub use materialize::*;
 pub use optimize::*;
 pub use verify::*;
+
+pub(crate) use link::ScriptLinker;
 
 #[cfg(test)]
 mod tests;

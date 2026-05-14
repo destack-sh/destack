@@ -83,19 +83,31 @@ macro_rules! assert_path {
     }};
 }
 
-/// Assert an "Expression::Path(path)" directly against an expected string.
+/// Assert a reference-like DIR expression directly against an expected string.
 #[macro_export]
 macro_rules! assert_expression_path {
     ($program:expr, $expr:expr, $expected:expr) => {{
-        match $expr {
-            ::destack_dir::Expression::Path {
-                path,
-                generic_arguments: _,
-            } => {
-                assert_path!($program, *path, $expected);
+        use destack_dir as dir;
+
+        let got = match $expr {
+            dir::Expression::Identifier { name } => $program.strings.get(*name).to_string(),
+            dir::Expression::QualifiedReference { path, .. } => path
+                .segments
+                .iter()
+                .map(|segment| $program.strings.get(*segment).to_string())
+                .collect::<Vec<_>>()
+                .join("."),
+            dir::Expression::PrivateIdentifier { name } => {
+                format!("#{}", $program.strings.get(*name))
             }
-            other => panic!("expected Expression::Path, got {other:?}"),
-        }
+            dir::Expression::This => "this".to_string(),
+            dir::Expression::Super => "super".to_string(),
+            dir::Expression::ImportMeta => "import.meta".to_string(),
+            dir::Expression::NewTarget => "new.target".to_string(),
+            other => panic!("expected reference-like expression, got {other:?}"),
+        };
+
+        assert_eq!(got, $expected, "expected reference-like expression");
     }};
 }
 

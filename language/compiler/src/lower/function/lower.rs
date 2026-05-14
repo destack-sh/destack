@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use {destack_dir as dir, destack_mir as mir};
 
-use destack_artifact::{DiagnosticAnchor, DirBound, DirChecked, LanguageIntrinsics};
+use destack_artifact::{DiagnosticAnchor, DirBound, DirChecked, DirParsed, LanguageIntrinsics};
 use destack_core::{StringId, StringPool};
 use destack_source::ModuleId;
 use destack_workspace::{ProfileId, ProviderContext};
@@ -267,10 +267,18 @@ impl<'a> FunctionLowerer<'a> {
     }
 
     /// Read one committed bound DIR snapshot for a module when available.
-    pub(crate) fn bound_dir_if_present(&self, module_id: ModuleId) -> Option<Arc<DirBound>> {
+    pub(crate) fn dir_bound_if_present(&self, module_id: ModuleId) -> Option<Arc<DirBound>> {
         self.context
             .compiler
             .dir_bound(self.context.provider, module_id, self.context.profile)
+            .ok()
+    }
+
+    /// Read one committed parsed DIR snapshot for a module when available.
+    pub(crate) fn dir_parsed_if_present(&self, module_id: ModuleId) -> Option<Arc<DirParsed>> {
+        self.context
+            .compiler
+            .dir_parsed(self.context.provider, module_id)
             .ok()
     }
 

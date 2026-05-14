@@ -58,6 +58,9 @@ impl Compiler {
         }
 
         // load DIR artifacts
+        let parsed = self
+            .dir_parsed(context, module_id)
+            .map_err(CompilerError::from)?;
         let bound = self
             .dir_bound(context, module_id, profile)
             .map_err(CompilerError::from)?;
@@ -78,7 +81,7 @@ impl Compiler {
                 context,
                 module.as_ref(),
                 profile,
-                &bound.tree,
+                &parsed.tree,
                 &bound.roots,
                 self.repository.string_pool().as_ref(),
                 bound.module_node,

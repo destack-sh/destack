@@ -1,20 +1,13 @@
-use std::hash::Hash;
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactDependency, TargetKey};
-use destack_core::StableHasher;
+use destack_artifact::ArtifactDependency;
 use destack_source::{File, FileId, ModuleId, PackageId, ProfileId, TargetId};
 use destack_workspace::{
-    CompilerOptions, DestackConfig, Module, Package, ProviderContext, Revision, Target,
-    TargetDiscoveryError,
+    DestackConfig, Module, Package, ProviderContext, Revision, Target, TargetDiscoveryError,
 };
 
 use crate::Compiler;
 
-#[allow(dead_code)]
-const TARGET_CONFIGURATION_DOMAIN: &[u8] = b"destack.compiler.target-configuration.v1";
-
-#[allow(dead_code)]
 impl Compiler {
     /// Return one module from one repository revision.
     pub(crate) fn module(&self, revision: Revision, module_id: ModuleId) -> Arc<Module> {
@@ -90,9 +83,9 @@ impl Compiler {
             .effective_target(context.revision(), target_id)
             .unwrap_or_else(|error| panic!("failed to load target: {error}"))?;
 
-        let target_key = target_key(&target);
         context.track(ArtifactDependency::target_configuration(
-            target_id, target_key,
+            target_id,
+            target.configuration_key(),
         ));
 
         Some(target)
@@ -116,16 +109,6 @@ impl Compiler {
         ));
 
         Ok(module_ids)
-    }
-
-    /// Load workspace compiler configuration for one module and record its Destack config dependency.
-    pub(crate) fn workspace_compiler_options(
-        &self,
-        context: &dyn ProviderContext,
-        module: &Module,
-    ) -> Option<CompilerOptions> {
-        self.destack_config_for_package(context, module.package_id)
-            .map(|config| config.compiler.clone())
     }
 
     /// Resolve the default profile id for one module in one revision.
@@ -159,14 +142,4 @@ impl Compiler {
         self.target_profile_id(revision, module_id, target_id)
             .unwrap_or_else(|| self.default_profile_id(revision, module_id))
     }
-}
-
-/// Build one effective target key for artifact dependency identity.
-#[allow(dead_code)]
-fn target_key(target: &Target) -> TargetKey {
-    let mut hasher = StableHasher::new();
-    hasher.update_len_prefixed(TARGET_CONFIGURATION_DOMAIN);
-    target.hash(&mut hasher);
-
-    TargetKey::new(hasher.finish_u128())
 }

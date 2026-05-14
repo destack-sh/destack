@@ -1,9 +1,7 @@
-use destack_artifact::{ArtifactKey, ArtifactPayload, DirExpanded};
-use destack_dir::{BindingTable, DependencyTable, MacroTable, Patch, TypeTable};
+use destack_artifact::ArtifactPayload;
 use destack_source::ModuleId;
 use destack_workspace::{ProfileId, ProviderContext};
 
-use crate::expand::ExpandState;
 use crate::{Compiler, CompilerResult};
 
 impl Compiler {
@@ -14,19 +12,13 @@ impl Compiler {
         profile: ProfileId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
-        let state = ExpandState::new(module, profile, context);
-        state
-            .context
-            .require(ArtifactKey::dir_imported(state.module, state.profile))?;
-        let declared = self.dir_declared(state.context, state.module, state.profile)?;
+        let _ = self;
 
-        Ok(ArtifactPayload::DirExpanded(DirExpanded {
-            patch: Patch::new(&declared.tree, "expand"),
-            bindings: BindingTable::from_base(&declared.bindings),
-            dependencies: DependencyTable::new(state.module),
-            types: TypeTable::from_base(&declared.types),
-            macros: MacroTable::new(state.module),
-            roots: declared.roots.clone(),
-        }))
+        todo!(
+            "DIR expansion provider is unavailable for {:?} module {:?} profile {:?}",
+            context.artifact_key(),
+            module,
+            profile,
+        )
     }
 }
