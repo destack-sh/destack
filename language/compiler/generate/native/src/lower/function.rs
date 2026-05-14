@@ -1179,7 +1179,7 @@ impl<'a> FunctionLowerer<'a> {
             mir::Instruction::VectorCompare { .. } => return unsupported("vector.compare"),
             mir::Instruction::VectorConvert { .. } => return unsupported("vector.convert"),
 
-            // tensor ops: lower only after explicit lowering (#Incomplete?)
+            // tensor ops need explicit lowering
             mir::Instruction::TensorLoad { .. } => return unsupported("tensor.load"),
             mir::Instruction::TensorSplat { .. } => return unsupported("tensor.splat"),
             mir::Instruction::TensorExtract { .. } => return unsupported("tensor.extract"),
@@ -1195,6 +1195,9 @@ impl<'a> FunctionLowerer<'a> {
             mir::Instruction::TensorPad { .. } => return unsupported("tensor.pad"),
             mir::Instruction::TensorConcat { .. } => return unsupported("tensor.concat"),
             mir::Instruction::TensorReduce { .. } => return unsupported("tensor.reduce"),
+            mir::Instruction::TensorIndexReduce { .. } => {
+                return unsupported("tensor.indexReduce");
+            }
             mir::Instruction::TensorDot { .. } => return unsupported("tensor.dot"),
             mir::Instruction::TensorConvolution { .. } => return unsupported("tensor.convolution"),
             mir::Instruction::TensorGather { .. } => return unsupported("tensor.gather"),

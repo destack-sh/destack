@@ -886,6 +886,7 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Instruction::TensorPad { .. }
             | mir::Instruction::TensorConcat { .. }
             | mir::Instruction::TensorReduce { .. }
+            | mir::Instruction::TensorIndexReduce { .. }
             | mir::Instruction::TensorDot { .. }
             | mir::Instruction::TensorConvolution { .. }
             | mir::Instruction::TensorGather { .. }
@@ -1614,7 +1615,7 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Intrinsic::RotateLeft
             | mir::Intrinsic::RotateRight => SmallVec::new(),
 
-            // checked arithmetic
+            // overflowing arithmetic
             mir::Intrinsic::AddOverflow
             | mir::Intrinsic::SubOverflow
             | mir::Intrinsic::MulOverflow => SmallVec::new(),

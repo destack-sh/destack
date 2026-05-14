@@ -71,6 +71,7 @@ pub(super) fn instruction_consumes(
         | mir::Instruction::TensorCast { tensor, .. }
         | mir::Instruction::TensorSlice { tensor, .. }
         | mir::Instruction::TensorReduce { tensor, .. }
+        | mir::Instruction::TensorIndexReduce { tensor, .. }
         | mir::Instruction::TensorConvert { tensor, .. } => values.push(*tensor),
         mir::Instruction::TensorDot { left, right, .. }
         | mir::Instruction::TensorCompare { left, right, .. } => {

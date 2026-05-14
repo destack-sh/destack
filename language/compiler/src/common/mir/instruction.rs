@@ -94,6 +94,7 @@ pub fn instruction_is_pure(instruction: &Instruction) -> bool {
         | Instruction::TensorPad { .. }
         | Instruction::TensorConcat { .. }
         | Instruction::TensorReduce { .. }
+        | Instruction::TensorIndexReduce { .. }
         | Instruction::TensorDot { .. }
         | Instruction::TensorConvolution { .. }
         | Instruction::TensorGather { .. }
@@ -265,6 +266,7 @@ pub fn instruction_has_side_effects(instruction: &Instruction) -> bool {
         | Instruction::TensorPad { .. }
         | Instruction::TensorConcat { .. }
         | Instruction::TensorReduce { .. }
+        | Instruction::TensorIndexReduce { .. }
         | Instruction::TensorDot { .. }
         | Instruction::TensorConvolution { .. }
         | Instruction::TensorGather { .. }
@@ -959,6 +961,19 @@ pub fn instruction_substitute_uses(
             initial: substitute(initial),
             axes: axes.clone(),
         },
+        mir::Instruction::TensorIndexReduce {
+            destination,
+            operator,
+            tensor,
+            axis,
+            tie_break,
+        } => mir::Instruction::TensorIndexReduce {
+            destination: *destination,
+            operator: *operator,
+            tensor: substitute(tensor),
+            axis: *axis,
+            tie_break: *tie_break,
+        },
         mir::Instruction::TensorDot {
             destination,
             left,
@@ -1415,6 +1430,19 @@ pub fn instruction_substitute_uses_in_tree(
             tensor: substitute(*tensor),
             initial: substitute(*initial),
             axes: axes.clone(),
+        },
+        mir::Instruction::TensorIndexReduce {
+            destination,
+            operator,
+            tensor,
+            axis,
+            tie_break,
+        } => mir::Instruction::TensorIndexReduce {
+            destination: *destination,
+            operator: *operator,
+            tensor: substitute(*tensor),
+            axis: *axis,
+            tie_break: *tie_break,
         },
         mir::Instruction::TensorDot {
             destination,
@@ -2500,6 +2528,19 @@ pub fn instruction_map(
             initial: remap(*initial),
             axes: axes.clone(),
         },
+        mir::Instruction::TensorIndexReduce {
+            destination,
+            operator,
+            tensor,
+            axis,
+            tie_break,
+        } => mir::Instruction::TensorIndexReduce {
+            destination: remap(*destination),
+            operator: *operator,
+            tensor: remap(*tensor),
+            axis: *axis,
+            tie_break: *tie_break,
+        },
         mir::Instruction::TensorDot {
             destination,
             left,
@@ -3149,6 +3190,19 @@ pub fn instruction_map_with_locals(
             tensor: remap(*tensor),
             initial: remap(*initial),
             axes: axes.clone(),
+        },
+        mir::Instruction::TensorIndexReduce {
+            destination,
+            operator,
+            tensor,
+            axis,
+            tie_break,
+        } => mir::Instruction::TensorIndexReduce {
+            destination: remap(*destination),
+            operator: *operator,
+            tensor: remap(*tensor),
+            axis: *axis,
+            tie_break: *tie_break,
         },
         mir::Instruction::TensorDot {
             destination,

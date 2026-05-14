@@ -1418,6 +1418,7 @@ fn instruction_cost(instruction: &mir::Instruction, tree: &mir::Tree) -> u64 {
         | mir::Instruction::TensorPad { .. }
         | mir::Instruction::TensorConcat { .. }
         | mir::Instruction::TensorReduce { .. }
+        | mir::Instruction::TensorIndexReduce { .. }
         | mir::Instruction::TensorDot { .. }
         | mir::Instruction::TensorConvolution { .. }
         | mir::Instruction::TensorGather { .. }
