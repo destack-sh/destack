@@ -235,7 +235,12 @@ impl TestIsolate {
     ) -> GcStats {
         let mut roots = RootSet::default();
         self.isolate
-            .visit_state_roots(&self.statics, continuations, &mut roots)
+            .visit_root_slots(&mut self.statics, continuations, &mut |slot| {
+                let root = slot.load()?;
+                destack_heap::RootSink::push(&mut roots, root);
+
+                Ok(())
+            })
             .expect("failed to collect root set");
         let mut heap_roots =
             |visit: &mut dyn FnMut(destack_heap::RootSlot<'_>) -> destack_heap::HeapResult<()>| {

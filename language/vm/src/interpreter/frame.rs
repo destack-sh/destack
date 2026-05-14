@@ -4,10 +4,9 @@ use std::ptr::NonNull;
 use serde::{Deserialize, Serialize};
 use {destack_engine as engine, destack_mir as mir};
 
+use crate::Word;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
-use crate::program::{Function, Program};
-use crate::{RootSink, Word};
-use destack_heap::{HeapResult, RootSlot};
+use crate::program::{Function, Program, ProgramPoint};
 
 /// Call frame in the interpreter.
 ///
@@ -20,8 +19,8 @@ pub struct Frame {
     pub(crate) block: u32,
     /// Program counter within the current block.
     pub(crate) pc: usize,
-    /// The pending call terminator continuation while one callee runs.
-    pub(crate) pending_call: Option<PendingCall>,
+    /// The caller frame state after one callee returns.
+    pub(crate) return_state: Option<engine::FrameStateId>,
     /// The byte offset in the interpreter stack arena.
     pub(crate) stack_offset: usize,
     /// The frame byte width.
@@ -33,16 +32,14 @@ pub struct Frame {
 /// Immutable frame image.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FrameImage {
-    /// The function being executed.
-    pub function: mir::LocalNodeId<mir::Function>,
-    /// The captured MIR block.
-    pub block: mir::LocalNodeId<mir::Block>,
-    /// The program counter within the current block.
-    pub pc: usize,
-    /// The pending call terminator continuation while one callee runs.
-    pub pending_call: Option<PendingCall>,
-    /// The captured frame bytes.
-    pub bytes: Vec<u8>,
+    /// The captured logical frame state.
+    pub frame_state: engine::FrameStateId,
+    /// The caller frame state after one callee returns.
+    pub return_state: Option<engine::FrameStateId>,
+    /// The byte offset inside the captured stack image.
+    pub stack_offset: usize,
+    /// The captured frame byte width.
+    pub byte_len: usize,
 }
 
 // frame should fit in 64 bytes
@@ -65,7 +62,7 @@ impl Frame {
             function_ptr,
             block,
             pc: 0,
-            pending_call: None,
+            return_state: None,
             stack_offset,
             byte_len: layout.byte_len as usize,
             base,
@@ -264,137 +261,13 @@ impl Frame {
         start <= address && end <= stack_end
     }
 
-    /// Visit all heap references from this frame for GC roots.
-    pub(crate) fn visit_roots(
-        &self,
-        program: &Program,
-        roots: &mut impl RootSink,
-    ) -> Result<(), Error> {
-        let function = self.function();
-        let layout = program
-            .frame_layout(function)
-            .ok_or_else(|| Error::InvariantViolation {
-                context: format!("missing frame layout for frame: {function:?}"),
-            })?;
-
-        // ssa values
-        for slot in layout.values() {
-            self.visit_slot_roots(program, slot, roots)?;
-        }
-
-        // locals
-        for slot in layout.locals() {
-            self.visit_slot_roots(program, slot, roots)?;
-        }
-
-        // callable environment
-        if let Some(slot) = layout.environment() {
-            self.visit_slot_roots(program, slot, roots)?;
-        }
-
-        Ok(())
-    }
-
-    /// Visit mutable local root slots in this frame.
-    pub(crate) fn visit_root_slots(
-        &mut self,
-        program: &Program,
-        visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
-    ) -> Result<(), Error> {
-        let function = self.function();
-        let layout = program
-            .frame_layout(function)
-            .ok_or_else(|| Error::InvariantViolation {
-                context: format!("missing frame layout for frame: {function:?}"),
-            })?;
-
-        // ssa values
-        for slot in layout.values() {
-            self.visit_slot_root_slots(program, slot, visit)?;
-        }
-
-        // locals
-        for slot in layout.locals() {
-            self.visit_slot_root_slots(program, slot, visit)?;
-        }
-
-        // callable environment
-        if let Some(slot) = layout.environment() {
-            self.visit_slot_root_slots(program, slot, visit)?;
-        }
-
-        Ok(())
-    }
-
-    /// Visit heap roots materialized at one safepoint.
-    pub(crate) fn visit_materialized_roots(
-        &self,
-        program: &Program,
-        materialization: &engine::FrameMaterialization,
-        roots: &mut impl RootSink,
-    ) -> Result<(), Error> {
-        let layout = program
-            .frame_layout_by_id(materialization.frame_layout)
-            .ok_or_else(|| Error::InvariantViolation {
-                context: format!(
-                    "missing materialized frame layout for root scan: {:?}",
-                    materialization.frame_layout
-                ),
-            })?;
-
-        visit_materialized_slots(layout, materialization, |slot| {
-            self.visit_slot_roots(program, slot, roots)
-        })
-    }
-
-    /// Visit mutable local root slots materialized at one safepoint.
-    pub(crate) fn visit_materialized_root_slots(
-        &mut self,
-        program: &Program,
-        materialization: &engine::FrameMaterialization,
-        visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
-    ) -> Result<(), Error> {
-        let layout = program
-            .frame_layout_by_id(materialization.frame_layout)
-            .ok_or_else(|| Error::InvariantViolation {
-                context: format!(
-                    "missing materialized frame layout for heap roots: {:?}",
-                    materialization.frame_layout
-                ),
-            })?;
-
-        visit_materialized_slots(layout, materialization, |slot| {
-            self.visit_slot_root_slots(program, slot, visit)
-        })
-    }
-
-    /// Visit heap roots stored in one frame slot.
-    fn visit_slot_roots(
-        &self,
-        program: &Program,
-        slot: &engine::FrameSlot,
-        roots: &mut impl RootSink,
-    ) -> Result<(), Error> {
-        visit_frame_slot_roots(program, slot, self.slot_bytes(slot), roots)
-    }
-
-    /// Visit local root slots stored in one frame slot.
-    fn visit_slot_root_slots(
-        &mut self,
-        program: &Program,
-        slot: &engine::FrameSlot,
-        visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
-    ) -> Result<(), Error> {
-        visit_frame_slot_root_slots(program, slot, self.slot_bytes_mut(slot), visit)
-    }
-
     /// Clone this frame over one already forked stack address.
     pub(crate) fn clone_for_fork(&self, base: *mut u8) -> Self {
         Self {
             function_ptr: self.function_ptr,
             block: self.block,
             pc: self.pc,
-            pending_call: self.pending_call.clone(),
+            return_state: self.return_state,
             stack_offset: self.stack_offset,
             byte_len: self.byte_len,
             base,
@@ -402,14 +275,20 @@ impl Frame {
     }
 
     /// Capture one immutable frame image.
-    pub(crate) fn image(&self) -> FrameImage {
-        FrameImage {
-            function: self.function(),
-            block: self.block_id(),
-            pc: self.pc,
-            pending_call: self.pending_call.clone(),
-            bytes: self.bytes().to_vec(),
-        }
+    pub(crate) fn image(&self, program: &Program) -> RuntimeResult<FrameImage> {
+        let point = ProgramPoint::new(self.function(), self.block_id(), self.pc as u32);
+        let frame_state = program.frame_state_at(point).ok_or_else(|| {
+            RuntimeError::new(Error::InvariantViolation {
+                context: format!("missing frame state for image point: {point:?}"),
+            })
+        })?;
+
+        Ok(FrameImage {
+            frame_state,
+            return_state: self.return_state,
+            stack_offset: self.stack_offset,
+            byte_len: self.byte_len,
+        })
     }
 
     /// Create one frame from an immutable image.
@@ -419,13 +298,17 @@ impl Frame {
         stack_offset: usize,
         base: *mut u8,
     ) -> RuntimeResult<Self> {
+        let point = program
+            .point_for_frame_state(image.frame_state)
+            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+
         // resolve the lowered function for this frame
         let function_index = program
             .functions
-            .local_index(image.function)
+            .local_index(point.function)
             .ok_or_else(|| {
                 RuntimeError::new(Error::UndefinedFunction {
-                    function: image.function,
+                    function: point.function,
                 })
             })?;
 
@@ -434,7 +317,7 @@ impl Frame {
             .pointer_by_index(function_index)
             .ok_or_else(|| {
                 RuntimeError::new(Error::UndefinedFunction {
-                    function: image.function,
+                    function: point.function,
                 })
             })?;
 
@@ -443,112 +326,24 @@ impl Frame {
         let block = function_ref
             .blocks
             .iter()
-            .position(|block| block.mir_block == image.block)
-            .ok_or_else(|| RuntimeError::new(Error::UndefinedBlock { block: image.block }))?;
+            .position(|block| block.mir_block == point.block)
+            .ok_or_else(|| RuntimeError::new(Error::UndefinedBlock { block: point.block }))?;
         let layout_id = unsafe { function_ptr.as_ref().frame_layout };
         let layout = program
             .frame_layout_by_id(layout_id)
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+        if image.byte_len < layout.byte_len as usize {
+            return Err(RuntimeError::new(Error::InvalidInstruction));
+        }
 
         Ok(Self {
             function_ptr,
             block: block as u32,
-            pc: image.pc,
-            pending_call: image.pending_call.clone(),
+            pc: point.instruction_index as usize,
+            return_state: image.return_state,
             stack_offset,
-            byte_len: layout.byte_len as usize,
+            byte_len: image.byte_len,
             base,
         })
     }
-}
-
-/// Pending call terminator continuation parked on a caller frame.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct PendingCall {
-    /// The frame state to enter when the callee returns.
-    pub(crate) target_state: engine::FrameStateId,
-}
-
-/// Visit each materialized frame slot once.
-pub(crate) fn visit_materialized_slots(
-    layout: &engine::FrameLayout,
-    materialization: &engine::FrameMaterialization,
-    mut visit: impl FnMut(&engine::FrameSlot) -> Result<(), Error>,
-) -> Result<(), Error> {
-    // resolve copied source ids into VM frame slots
-    for slot in materialization.copied_slots() {
-        let slot = layout.slot(slot).ok_or(Error::InvalidContinuation)?;
-        visit(slot)?;
-    }
-
-    Ok(())
-}
-
-/// Visit heap roots stored in one frame slot byte range.
-pub(crate) fn visit_frame_slot_roots(
-    program: &Program,
-    slot: &engine::FrameSlot,
-    bytes: &[u8],
-    roots: &mut impl RootSink,
-) -> Result<(), Error> {
-    let ty = program.type_for_layout(slot.layout);
-    let layout = program
-        .layout_for_id(slot.layout)
-        .ok_or_else(|| Error::InvariantViolation {
-            context: format!(
-                "missing frame slot layout for root scan: layout={:?}",
-                slot.layout
-            ),
-        })?;
-
-    // aggregate slots are scanned precisely from their byte payload
-    if !layout.is_word() {
-        return program.visit_byte_roots(ty, bytes, roots);
-    }
-
-    let word = read_frame_slot_word(bytes)?;
-
-    program.visit_value_root(ty, word, roots)
-}
-
-/// Visit mutable local roots stored in one frame slot byte range.
-pub(crate) fn visit_frame_slot_root_slots(
-    program: &Program,
-    slot: &engine::FrameSlot,
-    bytes: &mut [u8],
-    visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
-) -> Result<(), Error> {
-    let ty = program.type_for_layout(slot.layout);
-    let layout = program
-        .layout_for_id(slot.layout)
-        .ok_or_else(|| Error::InvariantViolation {
-            context: format!(
-                "missing frame slot layout for heap roots: layout={:?}",
-                slot.layout
-            ),
-        })?;
-
-    // aggregate slots may contain several local roots
-    if !layout.is_word() {
-        return program.visit_byte_root_slots(ty, bytes, visit);
-    }
-
-    // scalar slots are mutable roots only for local heap references
-    if program.is_local_root_type(ty)? {
-        visit(RootSlot::Bytes(bytes)).map_err(Error::from)?;
-    }
-
-    Ok(())
-}
-
-/// Read one word from a frame slot byte range.
-fn read_frame_slot_word(bytes: &[u8]) -> Result<Word, Error> {
-    if bytes.len() < Word::BYTE_LEN {
-        return Err(Error::InvalidInstruction);
-    }
-
-    let mut raw = [0u8; Word::BYTE_LEN];
-    raw.copy_from_slice(&bytes[..Word::BYTE_LEN]);
-
-    Ok(Word::from_bits(u64::from_le_bytes(raw)))
 }

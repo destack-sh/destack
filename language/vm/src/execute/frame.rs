@@ -325,7 +325,7 @@ pub(crate) fn frame_value_type(
         .value(value.0)
         .ok_or(Error::InvalidInstruction)?;
 
-    Ok(program.type_for_layout(slot.layout))
+    Ok(program.type_for_value_layout(slot.layout))
 }
 
 /// Return the addressable word for one frame value.
@@ -336,11 +336,12 @@ fn frame_value_word(program: &Program, frame: &Frame, value: mir::Value) -> Resu
     let slot = frame_layout
         .value(value.0)
         .ok_or(Error::InvalidInstruction)?;
-    let layout = program
-        .layout_for_id(slot.layout)
-        .ok_or_else(|| Error::InvariantViolation {
-            context: format!("missing frame value layout: layout={:?}", slot.layout),
-        })?;
+    let layout =
+        program
+            .layout_for_value_id(slot.layout)
+            .ok_or_else(|| Error::InvariantViolation {
+                context: format!("missing frame value layout: layout={:?}", slot.layout),
+            })?;
 
     if layout.is_word() {
         return Ok(frame.read_word(slot));
@@ -426,7 +427,7 @@ fn load_frame_value(
 
 /// Load one lowered frame slot into an owned value.
 fn load_frame_slot_value(program: &Program, frame: &Frame, slot: MoveSlot) -> FrameValue {
-    let ty = program.type_for_layout(slot.layout);
+    let ty = program.type_for_value_layout(slot.layout);
     if slot.is_word {
         return FrameValue::word(ty, frame.read_word_at(slot.offset));
     }
@@ -449,11 +450,12 @@ pub(crate) fn store_frame_value(
     let slot = frame_layout
         .value(destination.0)
         .ok_or(Error::InvalidInstruction)?;
-    let layout = program
-        .layout_for_id(slot.layout)
-        .ok_or_else(|| Error::InvariantViolation {
-            context: format!("missing destination value layout: layout={:?}", slot.layout),
-        })?;
+    let layout =
+        program
+            .layout_for_value_id(slot.layout)
+            .ok_or_else(|| Error::InvariantViolation {
+                context: format!("missing destination value layout: layout={:?}", slot.layout),
+            })?;
 
     match (layout.is_word(), value.body) {
         (true, FrameValueBody::Word(value)) => dest_frame.write_word(slot, value),
@@ -1081,7 +1083,7 @@ pub(crate) fn load_moved_arguments(
         let value = match pair.source {
             MoveSource::Slot(source) => load_frame_slot_value(program, frame, source),
             MoveSource::Void => {
-                let destination_type = program.type_for_layout(pair.dest.layout);
+                let destination_type = program.type_for_value_layout(pair.dest.layout);
 
                 FrameValue::word(destination_type, Word::VOID)
             }

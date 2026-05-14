@@ -1,11 +1,11 @@
-use engine::LayoutId;
+use engine::ValueLayoutId;
 use {destack_engine as engine, destack_mir as mir};
 
 /// One lowered frame move slot.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct MoveSlot {
     /// The value layout id.
-    pub layout: LayoutId,
+    pub layout: ValueLayoutId,
     /// Byte offset from the frame base.
     pub offset: u32,
     /// Slot byte length.

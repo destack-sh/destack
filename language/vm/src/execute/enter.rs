@@ -10,7 +10,7 @@ use super::frame::{
 };
 use crate::SharedHeap;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
-use crate::interpreter::{Frame, Interpreter, Outcome, PendingCall};
+use crate::interpreter::{Frame, Interpreter, Outcome};
 use crate::isolate::{BindingContext, BindingFn};
 use crate::options::IsolateOptions;
 use crate::program::{ArgumentRange, CallTarget, Function, MoveRange, Program};
@@ -97,7 +97,7 @@ impl Interpreter {
         env: Option<Word>,
         moves: Option<MoveRange>,
         resume_pc: usize,
-        pending_call: Option<PendingCall>,
+        return_state: Option<engine::FrameStateId>,
     ) -> RuntimeResult<()> {
         // reject stack overflow before allocating anything
         if self.frames.len() >= options.limits.max_stack_depth {
@@ -121,7 +121,7 @@ impl Interpreter {
             .last_mut()
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
         caller_frame.pc = resume_pc;
-        caller_frame.pending_call = pending_call;
+        caller_frame.return_state = return_state;
 
         let mut new_frame = Frame::new(callee, entry_block, frame_layout, stack_offset, frame_base);
         new_frame
@@ -196,7 +196,7 @@ impl Interpreter {
         frame.function_ptr = callee;
         frame.block = entry_block;
         frame.pc = 0;
-        frame.pending_call = None;
+        frame.return_state = None;
         frame.replace_bytes(stack_offset, frame_layout.byte_len as usize, frame_base);
         frame
             .store_environment(frame_layout, env)
@@ -363,8 +363,6 @@ impl Interpreter {
         let resume_pc = function
             .block_len(caller.block)
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-        let pending_call = PendingCall { target_state };
-
         self.push_call_frame(
             program,
             options,
@@ -374,7 +372,7 @@ impl Interpreter {
             env,
             None,
             resume_pc,
-            Some(pending_call),
+            Some(target_state),
         )
     }
 

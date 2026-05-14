@@ -1,30 +1,14 @@
 use destack_heap::{
-    HeapEdge, HeapReference, HeapResult, RootSlot, SharedHeapReference, visit_heap_edges_in_bytes,
+    HeapEdge, HeapReference, HeapResult, RootSlot, SharedHeapReference,
     visit_heap_root_slots_in_bytes,
 };
 use destack_mir as mir;
 
 use super::{Program, repr_type};
-use crate::{Error, RootSink, Word};
+use crate::{Error, Word};
 
 impl Program {
-    /// Visit one heap root stored in one word.
-    pub(crate) fn visit_value_root(
-        &self,
-        ty: mir::LocalNodeId<mir::Type>,
-        value: Word,
-        roots: &mut impl RootSink,
-    ) -> Result<(), Error> {
-        let Some(edge) = self.scalar_heap_edge(ty, value)? else {
-            return Ok(());
-        };
-
-        push_heap_edge(edge, roots);
-
-        Ok(())
-    }
-
-    /// Return whether one scalar type carries a worker-local heap root.
+    /// Return whether one scalar type carries a worker heap root.
     pub(crate) fn is_local_root_type(
         &self,
         ty: mir::LocalNodeId<mir::Type>,
@@ -35,38 +19,18 @@ impl Program {
         ))
     }
 
-    /// Visit heap roots from one byte range.
-    pub(crate) fn visit_byte_roots(
+    /// Return whether one scalar type carries a shared heap root.
+    pub(crate) fn is_shared_root_type(
         &self,
         ty: mir::LocalNodeId<mir::Type>,
-        bytes: &[u8],
-        roots: &mut impl RootSink,
-    ) -> Result<(), Error> {
-        let layout = self.layout(ty).ok_or_else(|| Error::InvariantViolation {
-            context: format!("missing layout for byte root scan: type={ty:?}"),
-        })?;
-
-        if bytes.len() != layout.byte_len {
-            return Err(Error::InvariantViolation {
-                context: format!(
-                    "byte root length mismatch: type={ty:?}, bytes={}, layout_bytes={}",
-                    bytes.len(),
-                    layout.byte_len,
-                ),
-            });
-        }
-
-        visit_heap_edges_in_bytes(&layout.reference_map, bytes, &mut |edge| {
-            push_heap_edge(edge, roots);
-
-            Ok(())
-        })
-        .map_err(Error::from)?;
-
-        Ok(())
+    ) -> Result<bool, Error> {
+        Ok(matches!(
+            self.scalar_heap_edge(ty, Word::VOID)?,
+            Some(HeapEdge::Shared(_))
+        ))
     }
 
-    /// Visit mutable local root slots from one byte range.
+    /// Visit mutable heap root slots from one byte range.
     pub(crate) fn visit_byte_root_slots(
         &self,
         ty: mir::LocalNodeId<mir::Type>,
@@ -128,22 +92,6 @@ impl Program {
                 ..
             } => Ok(Some(HeapEdge::Shared(SharedHeapReference::from_bits(bits)))),
             _ => Ok(None),
-        }
-    }
-}
-
-/// Push one non-null heap edge into the given root sink.
-fn push_heap_edge(edge: HeapEdge, roots: &mut impl RootSink) {
-    match edge {
-        HeapEdge::Local(reference) => {
-            if !reference.is_null() {
-                roots.push_heap(reference);
-            }
-        }
-        HeapEdge::Shared(reference) => {
-            if !reference.is_null() {
-                roots.push_shared_heap(reference);
-            }
         }
     }
 }

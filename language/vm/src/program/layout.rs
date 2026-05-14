@@ -208,19 +208,21 @@ impl LayoutIndex {
         self.type_layout.get(&ty)
     }
 
-    /// Return one compiled layout by engine layout id.
-    pub(crate) fn layout_for_id(&self, layout: engine::LayoutId) -> Option<&Layout> {
-        self.layout(Self::type_for_layout(layout))
+    /// Return one compiled layout by engine value layout id.
+    pub(crate) fn layout_for_value_id(&self, layout: engine::ValueLayoutId) -> Option<&Layout> {
+        self.layout(Self::type_for_value_layout(layout))
     }
 
-    /// Return the MIR type id encoded by one engine layout id.
-    pub(crate) fn type_for_layout(layout: engine::LayoutId) -> mir::LocalNodeId<mir::Type> {
+    /// Return the MIR type id encoded by one engine value layout id.
+    pub(crate) fn type_for_value_layout(
+        layout: engine::ValueLayoutId,
+    ) -> mir::LocalNodeId<mir::Type> {
         mir::LocalNodeId::new(layout.0)
     }
 
-    /// Return the engine layout id for one MIR type id.
-    pub(crate) fn engine_layout_id(ty: mir::LocalNodeId<mir::Type>) -> engine::LayoutId {
-        engine::LayoutId(ty.id)
+    /// Return the engine value layout id for one MIR type id.
+    pub(crate) fn value_layout_id(ty: mir::LocalNodeId<mir::Type>) -> engine::ValueLayoutId {
+        engine::ValueLayoutId(ty.id)
     }
 
     /// Return the MIR layout id for one MIR type.
