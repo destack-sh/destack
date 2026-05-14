@@ -43,8 +43,6 @@ impl DirParsed {
 /// Bound DIR base for one source module.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DirBound {
-    /// The source tree.
-    pub tree: dir::Tree,
     /// Source bindings.
     pub bindings: dir::BindingTable,
     /// Source types.
@@ -54,18 +52,8 @@ pub struct DirBound {
     /// Stable module node for module-level state.
     pub module_node: dir::LocalNodeIdAny,
 
-    /// The module namespace symbol.
-    pub namespace_symbol: dir::LocalSymbolId,
     /// The module namespace scope.
     pub namespace_scope: dir::LocalScopeId,
-    /// The module default symbol.
-    pub default_symbol: dir::LocalSymbolId,
-    /// The module export assignment symbol.
-    pub export_assignment_symbol: dir::LocalSymbolId,
-    /// The export assignment dependency item when present.
-    pub export_assignment: Option<dir::LocalNodeId<dir::DependencyItem>>,
-    /// String-named modules introduced by this module.
-    pub string_modules: Vec<dir::StringModule>,
 }
 
 /// Source import resolution for one profile-scoped module.

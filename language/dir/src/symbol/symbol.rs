@@ -214,6 +214,6 @@ impl Symbol {
         self.space == SymbolSpace::Type
             && self
                 .declaration
-                .is_some_and(|declaration| declaration.local_id.ty == NodeType::Parameter)
+                .is_some_and(|declaration| declaration.local_id.ty == NodeType::GenericParameter)
     }
 }
