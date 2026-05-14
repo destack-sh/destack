@@ -474,40 +474,21 @@ impl TypeLowerer<'_> {
         shape: &[mir::TensorDimension],
         layout: &mir::TensorLayout,
     ) -> u32 {
-        // map dynamic dimensions to zero size
+        // map runtime dimensions to zero size
         let shape: Vec<u64> = shape
             .iter()
             .map(|dim| match dim {
                 mir::TensorDimension::Static(value) => *value,
+                mir::TensorDimension::Symbol(_) => 0,
                 mir::TensorDimension::Dynamic => 0,
             })
             .collect();
         match layout {
-            mir::TensorLayout::RowMajor | mir::TensorLayout::ColumnMajor => shape
+            mir::TensorLayout::Dense { .. } => shape
                 .iter()
                 .copied()
                 .product::<u64>()
-                .min(u64::from(u32::MAX))
-                as u32,
-            mir::TensorLayout::Strided { strides } => {
-                let strides: Vec<u64> = strides
-                    .iter()
-                    .map(|dim| match dim {
-                        mir::TensorDimension::Static(value) => *value,
-                        mir::TensorDimension::Dynamic => 0,
-                    })
-                    .collect();
-                let mut max_index = 0u64;
-                for (dim, stride) in shape.iter().copied().zip(strides.iter().copied()) {
-                    if dim == 0 {
-                        continue;
-                    }
-                    let last_index = dim - 1;
-                    let offset = last_index.saturating_mul(stride);
-                    max_index = max_index.max(offset);
-                }
-                max_index.saturating_add(1).min(u64::from(u32::MAX)) as u32
-            }
+                .min(u64::from(u32::MAX)) as u32,
         }
     }
 }

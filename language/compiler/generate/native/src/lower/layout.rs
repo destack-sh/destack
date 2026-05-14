@@ -291,38 +291,18 @@ fn compute_tensor_element_count(
     shape: &[mir::TensorDimension],
     layout: &mir::TensorLayout,
 ) -> Option<u64> {
-    if shape.iter().any(|dim| dim.is_dynamic()) {
+    if shape.iter().any(|dim| static_dim(dim).is_none()) {
         return None;
     }
     match layout {
-        mir::TensorLayout::RowMajor | mir::TensorLayout::ColumnMajor => {
-            Some(shape.iter().filter_map(static_dim).product())
-        }
-        mir::TensorLayout::Strided { strides } => {
-            if strides.iter().any(|stride| stride.is_dynamic()) {
-                return None;
-            }
-            let mut max_index = 0u64;
-            for (dim, stride) in shape
-                .iter()
-                .filter_map(static_dim)
-                .zip(strides.iter().filter_map(static_dim))
-            {
-                if dim == 0 {
-                    continue;
-                }
-                let last_index = dim - 1;
-                let offset = last_index.saturating_mul(stride);
-                max_index = max_index.max(offset);
-            }
-            Some(max_index.saturating_add(1))
-        }
+        mir::TensorLayout::Dense { .. } => Some(shape.iter().filter_map(static_dim).product()),
     }
 }
 
 fn static_dim(dim: &mir::TensorDimension) -> Option<u64> {
     match dim {
         mir::TensorDimension::Static(value) => Some(*value),
+        mir::TensorDimension::Symbol(_) => None,
         mir::TensorDimension::Dynamic => None,
     }
 }
