@@ -1,6 +1,21 @@
 // reflection
 export * from "destack:reflect";
 
+// types
+export {
+    PropertyKey,
+    Record,
+    Partial,
+    Required,
+    ReadonlyFields,
+    MutableFields,
+    Pick,
+    Omit,
+    Extract,
+    Exclude,
+    NonNullable,
+} from "destack:types";
+
 // memory
 export {
     StaticLifetime,
@@ -48,12 +63,15 @@ export {
     WithSpace,
     WithLifetime,
     WithAccess,
-    AsManaged,
-    AsOwned,
-    AsBorrowed,
-    AsReadonlyBorrowed,
-    AsExclusiveBorrowed,
-    AsRaw,
+    ManagedFields,
+    OwnedFields,
+    BorrowedFields,
+    ReadonlyBorrowedFields,
+    ExclusiveBorrowedFields,
+    RawFields,
+    SharedFields,
+    LocalFields,
+    AmbientFields,
     AllocationLayout,
     AllocationErrorKind,
     AllocationError,
@@ -211,7 +229,6 @@ export {
     PackedMapEntryHandle,
     PackedSet,
     ReadonlyArray,
-    Record,
     Set,
     Slice,
     Slab,

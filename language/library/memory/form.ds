@@ -194,20 +194,47 @@ export type WithLifetime<Q, L: Lifetime> =
 export type WithAccess<Q, A: Access> =
     Form<BaseOf<Q>, OwnershipOr<Q, "managed">, PlaceOr<Q, "ambient">, LifetimeOf<Q>, A>;
 
-/// Convert `T` to the managed value form while preserving place.
-export type AsManaged<T> = Managed<T>;
+/// Rebase each field of `T` into managed form.
+export type ManagedFields<T> = {
+    [K in keyof T]: Managed<T[K]>;
+};
 
-/// Convert `T` to the owned value form while preserving place.
-export type AsOwned<T> = Owned<T>;
+/// Rebase each field of `T` into owned form.
+export type OwnedFields<T> = {
+    [K in keyof T]: Owned<T[K]>;
+};
 
-/// Convert `T` to the borrowed form within lifetime `L` while preserving place.
-export type AsBorrowed<T, L: Lifetime> = Borrowed<T, L>;
+/// Rebase each field of `T` into borrowed form.
+export type BorrowedFields<T, L: Lifetime> = {
+    [K in keyof T]: Borrowed<T[K], L>;
+};
 
-/// Convert `T` to the readonly borrowed form within lifetime `L` while preserving place.
-export type AsReadonlyBorrowed<T, L: Lifetime> = ReadonlyBorrowed<T, L>;
+/// Rebase each field of `T` into readonly borrowed form.
+export type ReadonlyBorrowedFields<T, L: Lifetime> = {
+    [K in keyof T]: ReadonlyBorrowed<T[K], L>;
+};
 
-/// Convert `T` to the exclusive borrowed form within lifetime `L` while preserving place.
-export type AsExclusiveBorrowed<T, L: Lifetime> = ExclusiveBorrowed<T, L>;
+/// Rebase each field of `T` into exclusive borrowed form.
+export type ExclusiveBorrowedFields<T, L: Lifetime> = {
+    [K in keyof T]: ExclusiveBorrowed<T[K], L>;
+};
 
-/// Convert `T` to the raw pointer form while preserving place.
-export type AsRaw<T> = Raw<T>;
+/// Rebase each field of `T` into raw pointer form.
+export type RawFields<T> = {
+    [K in keyof T]: Raw<T[K]>;
+};
+
+/// Rebase each field of `T` into shared space.
+export type SharedFields<T> = {
+    [K in keyof T]: Shared<T[K]>;
+};
+
+/// Rebase each field of `T` into local space.
+export type LocalFields<T> = {
+    [K in keyof T]: Local<T[K]>;
+};
+
+/// Rebase each field of `T` into ambient placement.
+export type AmbientFields<T> = {
+    [K in keyof T]: Ambient<T[K]>;
+};

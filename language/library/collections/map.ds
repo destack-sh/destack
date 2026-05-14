@@ -58,12 +58,6 @@ export class Map<K, V> {
     entryCount: usize = 0;
 }
 
-/// Object type with keys `K` and values `V`.
-@languageItem("collections.Record")
-export type Record<K extends string | number | symbol, V> = {
-    [P in K]: V;
-};
-
 extension<K: Hash, V> of MapEntryHandle<K, V>
 where K implements Equal<K> {
     /// Borrow the queried key.

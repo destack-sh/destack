@@ -39,12 +39,15 @@ export {
     WithSpace,
     WithLifetime,
     WithAccess,
-    AsManaged,
-    AsOwned,
-    AsBorrowed,
-    AsReadonlyBorrowed,
-    AsExclusiveBorrowed,
-    AsRaw,
+    ManagedFields,
+    OwnedFields,
+    BorrowedFields,
+    ReadonlyBorrowedFields,
+    ExclusiveBorrowedFields,
+    RawFields,
+    SharedFields,
+    LocalFields,
+    AmbientFields,
 } from "./form.ds";
 export { Box } from "./box.ds";
 export {

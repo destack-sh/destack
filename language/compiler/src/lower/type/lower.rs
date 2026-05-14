@@ -893,7 +893,7 @@ impl<'a> TypeLowerer<'a> {
         };
         let name = self.strings.get(name).to_string();
 
-        if matches!(name.as_str(), "Managed" | "AsManaged") {
+        if name == "Managed" {
             let base_type_id =
                 self.first_type_static_argument(static_arguments, type_id, module_id, node)?;
 
@@ -902,7 +902,7 @@ impl<'a> TypeLowerer<'a> {
                 .map(Some);
         }
 
-        if matches!(name.as_str(), "Owned" | "AsOwned") {
+        if name == "Owned" {
             let base_type_id =
                 self.first_type_static_argument(static_arguments, type_id, module_id, node)?;
 
@@ -923,9 +923,9 @@ impl<'a> TypeLowerer<'a> {
         }
 
         let kind = match name.as_str() {
-            "Unique" | "AsUnique" => Some(mir::ReferenceKind::Unique),
-            "Borrowed" | "AsBorrowed" => Some(mir::ReferenceKind::Borrowed),
-            "Raw" | "AsRaw" => Some(mir::ReferenceKind::Raw),
+            "Unique" => Some(mir::ReferenceKind::Unique),
+            "Borrowed" => Some(mir::ReferenceKind::Borrowed),
+            "Raw" => Some(mir::ReferenceKind::Raw),
             "Shared" => {
                 let inner_type_id =
                     self.first_type_static_argument(static_arguments, type_id, module_id, node)?;
