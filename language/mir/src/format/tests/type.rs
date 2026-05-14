@@ -88,8 +88,8 @@ entry0(value0: slice<int32, borrowed, lifetime(0)>, value1: tensorView<int32, bo
 fn test_format_tensor_shapes_and_layouts() {
     assert_format(
         r#"
-function tensors(value0: tensor<float32, (batch, dynamic, 64), layout(dense(columnMajor))>, value1: tensorView<float32, borrowed, (batch, dynamic, 64), layout(strided((-4096, stride, dynamic)))>, value2: tensor<float32, (batch, 64), layout(backend(cudaTensorCore))>): void {
-entry0(value0: tensor<float32, (batch, dynamic, 64), layout(dense(columnMajor))>, value1: tensorView<float32, borrowed, (batch, dynamic, 64), layout(strided((-4096, stride, dynamic)))>, value2: tensor<float32, (batch, 64), layout(backend(cudaTensorCore))>):
+function tensors(value0: tensor<float32, (batch, dynamic, 64), layout(dense(columnMajor))>, value1: tensorView<float32, borrowed, (batch, dynamic, 64), layout(strided)>): void {
+entry0(value0: tensor<float32, (batch, dynamic, 64), layout(dense(columnMajor))>, value1: tensorView<float32, borrowed, (batch, dynamic, 64), layout(strided)>):
     return
 }
 "#,

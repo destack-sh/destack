@@ -141,7 +141,7 @@ pub enum TensorDimensionOrder {
     ColumnMajor,
 }
 
-/// Layout for a tensor or tensor view.
+/// Layout for an owning tensor value.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TensorLayout {
     /// Dense contiguous layout.
@@ -149,16 +149,36 @@ pub enum TensorLayout {
         /// The dimension order.
         order: TensorDimensionOrder,
     },
-    /// Explicit strided layout.
-    Strided {
-        /// Strides for each dimension in element units.
-        strides: Vec<TensorStride>,
+}
+
+impl TensorLayout {
+    /// Return the default dense row-major tensor layout.
+    pub fn dense_row_major() -> Self {
+        TensorLayout::Dense {
+            order: TensorDimensionOrder::RowMajor,
+        }
+    }
+}
+
+/// Layout descriptor for a tensor view.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum TensorViewLayout {
+    /// Dense contiguous view.
+    Dense {
+        /// The dimension order.
+        order: TensorDimensionOrder,
     },
-    /// Backend-specific tensor layout.
-    Backend {
-        /// The backend layout name.
-        name: String,
-    },
+    /// Explicit strided view.
+    Strided,
+}
+
+impl TensorViewLayout {
+    /// Return the default dense row-major tensor view layout.
+    pub fn dense_row_major() -> Self {
+        TensorViewLayout::Dense {
+            order: TensorDimensionOrder::RowMajor,
+        }
+    }
 }
 
 /// Dimension size for tensor shapes and layouts.
@@ -176,24 +196,6 @@ impl TensorDimension {
     /// Check whether this dimension is dynamic.
     pub fn is_dynamic(&self) -> bool {
         matches!(self, TensorDimension::Dynamic)
-    }
-}
-
-/// Element stride for tensor layouts.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum TensorStride {
-    /// Compile time static element stride.
-    Static(i64),
-    /// Symbolic runtime stride shared across tensors.
-    Symbol(String),
-    /// Runtime dynamic stride.
-    Dynamic,
-}
-
-impl TensorStride {
-    /// Check whether this stride is dynamic.
-    pub fn is_dynamic(&self) -> bool {
-        matches!(self, TensorStride::Dynamic)
     }
 }
 
@@ -330,8 +332,8 @@ pub enum Type {
         element: TypeReference,
         /// The static shape.
         shape: Vec<TensorDimension>,
-        /// The tensor layout.
-        layout: TensorLayout,
+        /// The tensor view layout.
+        layout: TensorViewLayout,
         /// Whether the view can be null.
         is_nullable: bool,
     },

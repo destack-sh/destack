@@ -2,7 +2,7 @@ use destack_core::StringId;
 
 use crate::{
     Access, AddressSpace, Attribute, Copy, Field, FloatType, Lifetime, LocalNodeId, ReferenceKind,
-    TensorDimension, TensorLayout, Type, TypeReference, UnionVariant,
+    TensorDimension, TensorLayout, TensorViewLayout, Type, TypeReference, UnionVariant,
 };
 
 /// Interning key for struct fields.
@@ -114,7 +114,7 @@ pub(super) enum TypeKey {
         access: Access,
         element: TypeReference,
         shape: Vec<TensorDimension>,
-        layout: TensorLayout,
+        layout: TensorViewLayout,
         is_nullable: bool,
     },
     /// Bare function signature.

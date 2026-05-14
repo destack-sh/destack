@@ -11,7 +11,7 @@ use crate::parse::TokenType;
 use crate::{
     Access, Block, Function, Global, Instruction, Lifetime, LifetimeOrigin, Local, LocalNodeId,
     Node, NodeType, ReferenceKind, TensorDimension, TensorDimensionOrder, TensorLayout,
-    TensorStride, Terminator, Tree, TreeImpl, Type, TypeAlias, TypeReference, Value,
+    TensorViewLayout, Terminator, Tree, TreeImpl, Type, TypeAlias, TypeReference, Value,
     function_signature_parts,
 };
 
@@ -796,7 +796,7 @@ fn type_key_for_alias_inner(
             result.push_str(", ");
             result.push_str(&format_shape_key(shape));
             result.push_str(", ");
-            result.push_str(&format_tensor_layout_key(layout));
+            result.push_str(&format_tensor_view_layout_key(layout));
             result.push('>');
             result
         }
@@ -895,34 +895,21 @@ fn format_tensor_layout_key(layout: &TensorLayout) -> String {
         TensorLayout::Dense {
             order: TensorDimensionOrder::ColumnMajor,
         } => "layout(dense(columnMajor))".to_string(),
-        TensorLayout::Strided { strides } => {
-            let stride_key = format_stride_key(strides);
-            format!("layout(strided({stride_key}))")
-        }
-        TensorLayout::Backend { name } => format!("layout(backend({name}))"),
     }
 }
 
-/// Format a tensor stride key.
-fn format_stride_key(strides: &[TensorStride]) -> String {
-    // build a stable stride string
-    let mut result = String::new();
-    result.push('(');
-    for (index, stride) in strides.iter().enumerate() {
-        if index > 0 {
-            result.push(',');
-        }
-        match stride {
-            TensorStride::Static(value) => {
-                result.push_str(&value.to_string());
-            }
-            TensorStride::Symbol(name) => result.push_str(name),
-            TensorStride::Dynamic => result.push_str("dynamic"),
-        }
+/// Format a tensor view layout key.
+fn format_tensor_view_layout_key(layout: &TensorViewLayout) -> String {
+    // encode layout in the structural key
+    match layout {
+        TensorViewLayout::Dense {
+            order: TensorDimensionOrder::RowMajor,
+        } => "layout(dense(rowMajor))".to_string(),
+        TensorViewLayout::Dense {
+            order: TensorDimensionOrder::ColumnMajor,
+        } => "layout(dense(columnMajor))".to_string(),
+        TensorViewLayout::Strided => "layout(strided)".to_string(),
     }
-    result.push(')');
-
-    result
 }
 
 /// Collect type usage counts for formatting.

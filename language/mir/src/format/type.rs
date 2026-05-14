@@ -7,7 +7,7 @@ use super::attribute::{write_attributes, write_attributes_before_anchor, write_i
 use crate::{
     Access, AddressSpace, Attribute, AttributeIdentifier, Copy, Field, FieldSpan, FormatMirNode,
     Lifetime, LifetimeOrigin, LocalNodeId, MirFormatContext, MirFormatter, ReferenceKind,
-    TensorDimension, TensorDimensionOrder, TensorLayout, TensorStride, Type, TypeAlias,
+    TensorDimension, TensorDimensionOrder, TensorLayout, TensorViewLayout, Type, TypeAlias,
     TypeDeclarationSpans, TypeReference, write_comments_before,
 };
 
@@ -415,11 +415,7 @@ fn format_type_inner<'a>(
                 [token("tensor"), token("<"), element, token(","), space()]
             )?;
             format_shape(shape, f)?;
-            if *layout
-                != (TensorLayout::Dense {
-                    order: TensorDimensionOrder::RowMajor,
-                })
-            {
+            if *layout != TensorLayout::dense_row_major() {
                 write!(f, [token(","), space(), token("layout"), token("(")])?;
                 format_tensor_layout(layout, f)?;
                 write!(f, [token(")")])?;
@@ -445,13 +441,9 @@ fn format_type_inner<'a>(
             format_view_header(*kind, lifetime, address_space.clone(), *access, *element, f)?;
             write!(f, [token(","), space()])?;
             format_shape(shape, f)?;
-            if *layout
-                != (TensorLayout::Dense {
-                    order: TensorDimensionOrder::RowMajor,
-                })
-            {
+            if *layout != TensorViewLayout::dense_row_major() {
                 write!(f, [token(","), space(), token("layout"), token("(")])?;
-                format_tensor_layout(layout, f)?;
+                format_tensor_view_layout(layout, f)?;
                 write!(f, [token(")")])?;
             }
             write!(f, [token(">")])
@@ -542,32 +534,28 @@ fn format_tensor_layout<'a>(
             f,
             [token("dense"), token("("), token("columnMajor"), token(")")]
         ),
-        TensorLayout::Strided { strides } => {
-            write!(f, [token("strided"), token("(")])?;
-            format_strides(strides, f)?;
-            write!(f, [token(")")])
-        }
-        TensorLayout::Backend { name } => {
-            write!(f, [token("backend"), token("("), text(name), token(")")])
-        }
     }
 }
 
-fn format_strides<'a>(strides: &[TensorStride], f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
-    write!(f, [token("("),])?;
-    for (index, stride) in strides.iter().enumerate() {
-        if index > 0 {
-            write!(f, [token(","), space()])?;
-        }
-        match stride {
-            TensorStride::Static(value) => {
-                write!(f, [text(&value.to_string())])?;
-            }
-            TensorStride::Symbol(name) => write!(f, [text(name)])?,
-            TensorStride::Dynamic => write!(f, [token("dynamic")])?,
-        }
+fn format_tensor_view_layout<'a>(
+    layout: &TensorViewLayout,
+    f: &mut MirFormatter<'a, '_>,
+) -> FormatResult<()> {
+    match layout {
+        TensorViewLayout::Dense {
+            order: TensorDimensionOrder::RowMajor,
+        } => write!(
+            f,
+            [token("dense"), token("("), token("rowMajor"), token(")")]
+        ),
+        TensorViewLayout::Dense {
+            order: TensorDimensionOrder::ColumnMajor,
+        } => write!(
+            f,
+            [token("dense"), token("("), token("columnMajor"), token(")")]
+        ),
+        TensorViewLayout::Strided => write!(f, [token("strided")]),
     }
-    write!(f, [token(")")])
 }
 
 fn format_view_header<'a>(
