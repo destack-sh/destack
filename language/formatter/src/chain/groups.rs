@@ -6,7 +6,7 @@ use super::{
     expression_trivia_anchor_end, is_numeric_index, transparent_inner_expression,
 };
 use crate::DestackFormatContext;
-use destack_ast::{DecoratorPosition, Expression, PostfixPosition};
+use destack_dir::{DecoratorPosition, Expression, PostfixPosition};
 use smallvec::SmallVec;
 
 /// One member-chain group.

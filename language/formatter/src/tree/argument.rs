@@ -12,7 +12,7 @@ use crate::annotation::{
 use crate::chain::transparent_inner_expression;
 use crate::expression::argument_value;
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_ast::{
+use destack_dir::{
     Argument, Comment, Expression, IfCondition, IfForm, LocalNodeId, NodeType, ScalarLiteral,
     TokenType,
 };

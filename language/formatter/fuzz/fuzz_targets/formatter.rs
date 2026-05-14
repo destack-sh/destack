@@ -3,7 +3,7 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use destack_ast::NodeParentIndex;
+use destack_dir::NodeParentIndex;
 use destack_core::StringPool;
 use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};

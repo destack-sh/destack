@@ -1,6 +1,6 @@
 use super::context::DestackFormatContext;
-use destack_ast::{
-    Comment, Expression, Keyword, LocalNodeId, Node, TokenSpan, TokenType, Tree, TreeImpl,
+use destack_dir::{
+    Comment, Expression, Keyword, LocalNodeId, Node, TokenSpan, TokenType, Tree, TreeStore,
 };
 use destack_source::Span;
 
@@ -119,7 +119,7 @@ impl<'a> DestackFormatContext<'a> {
     pub fn node_token_start<T>(&self, node_id: LocalNodeId<T>) -> u32
     where
         T: Node + Clone,
-        Tree: TreeImpl<T>,
+        Tree: TreeStore<T>,
     {
         let node_span = self.span(node_id);
 
@@ -435,7 +435,7 @@ impl<'a> DestackFormatContext<'a> {
     ) -> Vec<Comment>
     where
         T: Node + Clone,
-        Tree: TreeImpl<T>,
+        Tree: TreeStore<T>,
     {
         let node_span = self.span(node_id);
         let Some(previous_token) = self.previous_non_trivia_token_before_span(node_span) else {

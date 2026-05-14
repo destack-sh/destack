@@ -19,7 +19,7 @@ use crate::operator::r#type::{
 };
 use crate::operator::write_postfix_base_expression;
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_ast::{
+use destack_dir::{
     Expression, LocalNodeId, Mutability, NodeType, PostfixPosition, RangeEnd, UnaryOperator,
 };
 use destack_fir::format::{Buffer, FormatError, FormatResult};

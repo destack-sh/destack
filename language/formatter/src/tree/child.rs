@@ -5,10 +5,10 @@ use crate::chain::{
     transparent_inner_expression,
 };
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_ast::{
+use destack_dir::{
     Argument, Block, BlockForm, Comment, Declaration, Expression, FunctionDeclaration,
     FunctionForm, IfCondition, IfForm, LocalNodeId, MatchCase, Node, NodeType, ScalarLiteral,
-    TokenType, Tree, TreeImpl,
+    TokenType, Tree, TreeStore,
 };
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{hard_line_break, space};
@@ -22,7 +22,7 @@ pub(crate) fn node_has_line_comment<T>(
 ) -> bool
 where
     T: Node,
-    Tree: TreeImpl<T>,
+    Tree: TreeStore<T>,
 {
     let span = context.span(node_id);
 

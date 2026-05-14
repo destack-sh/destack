@@ -10,12 +10,12 @@ use crate::operator::{
     write_type_expression_with_inline_prefix_annotations,
 };
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
-use destack_ast::{
+use destack_core::StringId;
+use destack_dir::{
     Asynchrony, Expression, FunctionForm, FunctionRole, FunctionSignature, GenericParameter,
-    Keyword, LocalNodeId, Node, Parameter, Pattern, TokenType, Tree, TreeImpl, TypeExpression,
+    Keyword, LocalNodeId, Node, Parameter, Pattern, TokenType, Tree, TreeStore, TypeExpression,
     VarianceModifier, Visibility, WhereClause,
 };
-use destack_core::StringId;
 use destack_fir::format::{FormatNodes, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
@@ -205,7 +205,7 @@ fn write_parameter_type<'ast, T>(
 ) -> FormatResult<()>
 where
     T: Node + Clone + 'ast,
-    Tree: TreeImpl<T>,
+    Tree: TreeStore<T>,
 {
     // declared type
     if let Some(declared_type) = declared_type {
@@ -245,7 +245,7 @@ pub(crate) fn write_signature_return_type<'ast, T>(
 ) -> FormatResult<()>
 where
     T: Node + Clone + 'ast,
-    Tree: TreeImpl<T>,
+    Tree: TreeStore<T>,
 {
     if let Some(type_span) = f
         .context()
@@ -955,7 +955,7 @@ pub(crate) fn write_empty_parameter_list_with_interior_comments<'ast, T>(
 ) -> FormatResult<()>
 where
     T: Node + Clone + 'ast,
-    Tree: TreeImpl<T>,
+    Tree: TreeStore<T>,
 {
     // empty list
     if !f.context().has_infix_annotation(node_id) {

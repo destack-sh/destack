@@ -21,11 +21,11 @@ use crate::expression::{
 };
 use crate::operator::{is_chain_expression, write_postfix_base_expression};
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_ast::{
+use destack_core::StringId;
+use destack_dir::{
     Comment, CommentPosition, Declaration, DecoratorPosition, Expression, FunctionForm, IfForm,
     LocalNodeId, Member, NodeType, PostfixPosition,
 };
-use destack_core::StringId;
 use destack_fir::format::{Buffer, Format, FormatResult};
 use destack_fir::prelude::{
     empty_line, expand_parent, format_with, group, hard_line_break, indent, line_suffix_boundary,

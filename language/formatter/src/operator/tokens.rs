@@ -1,5 +1,5 @@
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_ast::{AssignOperator, BinaryOperator, UnaryOperator};
+use destack_dir::{AssignOperator, BinaryOperator, UnaryOperator};
 use destack_fir::format::{Buffer, Format, FormatResult};
 use destack_fir::prelude::token;
 use destack_fir::write;

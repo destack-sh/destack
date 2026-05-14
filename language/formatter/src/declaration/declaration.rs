@@ -25,7 +25,7 @@ use crate::operator::{
     write_type_expression_with_inline_prefix_annotations,
 };
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
-use destack_ast::{
+use destack_dir::{
     Asynchrony, Comment, Declaration, Declarator, ExportKind, Expression, ExtensionDeclaration,
     FunctionDeclaration, FunctionForm, GenericParameter, GlobalDeclaration, Keyword, LetKind,
     LocalNodeId, Member, Mutability, Name, NamespaceDeclaration, NamespaceForm, NodeType,

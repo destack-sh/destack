@@ -3,7 +3,7 @@ use crate::annotation::{DanglingIndentMode, FormatDanglingComments, block_infix_
 use crate::collection::{TrailingSeparator, separated_entries};
 use crate::file::any_ignore_range_for_nodes;
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_ast::{Argument, Comment, DecoratorPosition, Expression, LocalNodeId, TokenType};
+use destack_dir::{Argument, Comment, DecoratorPosition, Expression, LocalNodeId, TokenType};
 use destack_fir::format::{Buffer, FormatNodes, FormatResult, GroupId};
 use destack_fir::prelude::{
     block_indent, empty_line, format_with, group, if_group_breaks, soft_block_indent,
@@ -101,9 +101,7 @@ pub(crate) fn format_all_args_broken_out<'ast>(
                         .get(index + 1)
                         .map(|argument_id| f.context().span(*argument_id).start)
                         .unwrap_or(0);
-                    let separator = if index + 1 != arguments.len() {
-                        CallArgumentSeparator::Always
-                    } else if write_trailing_separator {
+                    let separator = if index + 1 != arguments.len() || write_trailing_separator {
                         CallArgumentSeparator::Always
                     } else {
                         CallArgumentSeparator::None
@@ -142,9 +140,7 @@ pub(crate) fn format_long_curried_call_arguments<'ast>(
                         .get(index + 1)
                         .map(|argument_id| f.context().span(*argument_id).start)
                         .unwrap_or(0);
-                    let separator = if index + 1 != arguments.len() {
-                        CallArgumentSeparator::Always
-                    } else if write_trailing_separator {
+                    let separator = if index + 1 != arguments.len() || write_trailing_separator {
                         CallArgumentSeparator::Always
                     } else {
                         CallArgumentSeparator::None

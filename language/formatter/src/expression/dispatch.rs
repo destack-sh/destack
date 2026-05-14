@@ -8,7 +8,7 @@ use crate::file::{node_has_ignore_directive, write_ignored_node};
 use crate::operator::{format_operator_expression, write_operator_expression_trailing_annotations};
 use crate::tree::tree_literal_uses_conditional_trailing_comments;
 use crate::{DestackFormatter, FormatNode};
-use destack_ast::{Expression, LocalNodeId};
+use destack_dir::{Expression, LocalNodeId};
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{format_with, token};
 use destack_fir::write;
@@ -33,7 +33,7 @@ fn write_expression_trailing_annotations<'ast>(
     match expression {
         Expression::Declaration(_)
         | Expression::Block(_)
-        | Expression::Labelled { .. }
+        | Expression::Label { .. }
         | Expression::Import { .. }
         | Expression::Export { .. }
         | Expression::Let { .. }
@@ -198,7 +198,7 @@ fn format_expression_body<'ast>(
     match expression {
         Expression::Declaration(_)
         | Expression::Block(_)
-        | Expression::Labelled { .. }
+        | Expression::Label { .. }
         | Expression::Import { .. }
         | Expression::Export { .. }
         | Expression::Let { .. }

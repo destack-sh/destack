@@ -4,14 +4,14 @@ use crate::file::comment_text_has_ignore_directive_marker;
 use rustc_hash::FxHashMap;
 use std::cell::OnceCell;
 
-pub use destack_ast::Decorator;
-use destack_ast::{
+use destack_core::StringPool;
+pub use destack_dir::Decorator;
+use destack_dir::{
     Argument, AssignPattern, AssignPatternField, Block, Declaration, Declarator, DependencyItem,
     EnumField, Expression, GenericArgument, GenericParameter, LocalNodeId, LocalNodeIdAny,
     MatchCase, Member, Node, NodeParentIndex, NodeType, Parameter, Pattern, PatternField, Property,
-    TokenSpan, TokenType, Tree, TreeImpl, TupleElement, TypeExpression, TypeMember, WhereClause,
+    TokenSpan, TokenType, Tree, TreeStore, TupleElement, TypeExpression, TypeMember, WhereClause,
 };
-use destack_core::StringPool;
 use destack_fir::format::{
     Buffer, Format, FormatContext, FormatNode as FirNode, FormatNodes, FormatResult, Formatter,
 };
@@ -258,12 +258,12 @@ impl<'ast> DestackFormatterSpeculationExt<'ast> for DestackFormatter<'ast, '_> {
     }
 }
 
-/// Format one typed AST node with full context.
+/// Format one typed source node with full context.
 pub(crate) trait FormatNode<'a, T: Node>
 where
     DestackFormatContext<'a>: FormatContext,
 {
-    /// Format one AST node id.
+    /// Format one source node id.
     fn format_node(
         &self,
         node_id: LocalNodeId<T>,
@@ -278,7 +278,7 @@ pub(crate) struct FormatNodeWithoutTrailingComments<T: Node>(pub LocalNodeId<T>)
 impl<'a, T: Node> Format<DestackFormatContext<'a>> for LocalNodeId<T>
 where
     T: Node + Clone,
-    Tree: TreeImpl<T>,
+    Tree: TreeStore<T>,
     T: FormatNode<'a, T>,
 {
     #[inline]
@@ -293,7 +293,7 @@ where
 impl<'a, T: Node> Format<DestackFormatContext<'a>> for FormatNodeWithoutTrailingComments<T>
 where
     T: Node + Clone,
-    Tree: TreeImpl<T>,
+    Tree: TreeStore<T>,
     T: FormatNode<'a, T>,
 {
     #[inline]

@@ -8,11 +8,11 @@ use crate::template::{
     TemplateInterpolationIndentation, write_template_interpolation_with_indentation,
 };
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_ast::{
+use destack_core::StringId;
+use destack_dir::{
     Comment, Expression, GenericArgument, LocalNodeId, NodeType, PostfixPosition, ScalarLiteral,
     TypeExpression,
 };
-use destack_core::StringId;
 use destack_fir::format::{Buffer, FormatError, FormatNodes, FormatResult, RemoveSoftLinesBuffer};
 use destack_fir::prelude::{
     dedent_to_root, format_with, group, indent, line_suffix_boundary, soft_block_indent,
@@ -49,7 +49,7 @@ fn format_type_template_interpolation_body<'ast>(
     write!(f, [expression_id])?;
 
     if !trailing_comments.is_empty() {
-        write!(f, [FormatTrailingComments::Comments(&trailing_comments)])?;
+        write!(f, [FormatTrailingComments::Comments(trailing_comments)])?;
     }
 
     Ok(())

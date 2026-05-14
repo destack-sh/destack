@@ -14,7 +14,7 @@ use crate::context::DestackFormatterSpeculationExt;
 use crate::declaration::{FormatLambdaDeclarationOptions, format_lambda_declaration_with_options};
 use crate::expression::{ExpressionLeftSide, write_expression_without_prefix_annotations};
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_ast::{
+use destack_dir::{
     Argument, AssignOperator, AssignPattern, AssignPatternField, BinaryOperator, Comment,
     Declaration, Declarator, DecoratorPosition, Expression, FunctionDeclaration, FunctionForm,
     GenericArgument, IfCondition, IfForm, LocalNodeId, NodeType, Pattern, PatternField,
@@ -1372,9 +1372,7 @@ impl AssignmentLike {
 
         let right = transparent_inner_expression(context, right);
         let right_is_tail = !matches!(context.tree.get(right), Expression::Assign { .. });
-        let Some((parent_type, parent_id)) = assignment_like_parent(context, node_id) else {
-            return None;
-        };
+        let (parent_type, parent_id) = assignment_like_parent(context, node_id)?;
 
         // eligible chain layouts
         let is_eligible = match parent_type {

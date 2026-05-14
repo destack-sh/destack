@@ -1,7 +1,8 @@
 use super::transparent_inner_expression;
 use crate::DestackFormatContext;
-use destack_ast::{
-    Argument, Expression, GenericArgument, Key, LocalNodeId, Property, ScalarLiteral, UnaryOperator,
+use destack_dir::{
+    Argument, Expression, GenericArgument, Key, LocalNodeId, Property, ScalarLiteral,
+    TemplateLiteral, UnaryOperator,
 };
 
 const MAX_SIMPLE_ARGUMENT_DEPTH: u8 = 2;
@@ -193,17 +194,15 @@ fn call_like_is_simple(
 /// Return whether one template literal is simple at one recursion depth.
 pub(crate) fn template_literal_is_simple(
     context: &DestackFormatContext<'_>,
-    template: &destack_ast::TemplateLiteral,
+    template: &TemplateLiteral,
     depth: u8,
 ) -> bool {
     match template {
         // plain template contents
-        destack_ast::TemplateLiteral::String { string } => {
-            !context.strings.get(*string).contains('\n')
-        }
+        TemplateLiteral::String { string } => !context.strings.get(*string).contains('\n'),
 
         // interpolated template contents
-        destack_ast::TemplateLiteral::InterpolatedString { strings, arguments } => {
+        TemplateLiteral::InterpolatedString { strings, arguments } => {
             strings
                 .iter()
                 .all(|string| !context.strings.get(*string).contains('\n'))

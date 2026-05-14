@@ -23,11 +23,11 @@ use crate::operator::{
     write_type_annotation_prefix, write_type_expression_with_inline_prefix_annotations,
 };
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
-use destack_ast::{
+use destack_dir::{
     Comment, ConstructorTypeDeclaration, Declaration, Expression, FunctionForm, FunctionSignature,
     FunctionTypeDeclaration, GenericArgument, GenericParameter, Key, Keyword, LocalNodeId,
     MappedTypeModifier, Member, Mutability, Node, NodeType, Parameter, Property, RangeEnd,
-    TokenType, Tree, TreeImpl, TupleElement, TypeExpression, TypeLiteral, TypeMember,
+    TokenType, Tree, TreeStore, TupleElement, TypeExpression, TypeLiteral, TypeMember,
     TypePredicateSubject, VarianceBound, WhereClause,
 };
 use destack_fir::format::{Buffer, FormatError, FormatResult};
@@ -1281,9 +1281,9 @@ pub(crate) fn write_union_type<'ast>(
                     )
             ) && leading_comment_info.has_trailing_own_line_block_comment;
 
-        if has_own_line_comment && !only_type {
-            write!(f, [soft_line_break()])?;
-        } else if leading_comment_info.has_end_of_line_comment && only_type {
+        if (has_own_line_comment && !only_type)
+            || (leading_comment_info.has_end_of_line_comment && only_type)
+        {
             write!(f, [soft_line_break()])?;
         }
 
@@ -1310,10 +1310,7 @@ pub(crate) fn write_union_type<'ast>(
 
 /// Return whether one type body formats its own leading comments.
 fn type_expression_body_owns_leading_comments(expression: &TypeExpression) -> bool {
-    match expression {
-        TypeExpression::Union { .. } => true,
-        _ => false,
-    }
+    matches!(expression, TypeExpression::Union { .. })
 }
 
 /// Write prefix annotations for one type expression.
@@ -1926,7 +1923,7 @@ fn function_like_parameters_span<T>(
 ) -> Option<Span>
 where
     T: Node,
-    Tree: TreeImpl<T>,
+    Tree: TreeStore<T>,
 {
     context
         .tree
@@ -1940,7 +1937,7 @@ fn write_constructor_type_parameter_boundary<'ast, T>(
 ) -> FormatResult<()>
 where
     T: Node,
-    Tree: TreeImpl<T>,
+    Tree: TreeStore<T>,
 {
     let Some(parameters_span) = function_like_parameters_span(f.context(), node_id) else {
         write!(f, [space()])?;

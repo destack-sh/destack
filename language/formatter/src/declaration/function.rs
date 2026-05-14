@@ -15,7 +15,7 @@ use crate::declaration::signature::{
 use crate::declaration::statement::format_block;
 use crate::operator::write_type_expression_with_inline_prefix_annotations;
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_ast::{
+use destack_dir::{
     Argument, Declaration, ExportKind, Expression, FunctionForm, FunctionSignature,
     GenericParameter, Keyword, LocalNodeId, Name, NodeType, Parameter,
 };

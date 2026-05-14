@@ -6,7 +6,7 @@ use crate::expression::{
 };
 use crate::file::node_has_ignore_directive;
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_ast::{Argument, Expression, GenericArgument, LocalNodeId, NodeType, PostfixPosition};
+use destack_dir::{Argument, Expression, GenericArgument, LocalNodeId, NodeType, PostfixPosition};
 use destack_fir::format::{Buffer, FormatError, FormatResult};
 use destack_fir::prelude::{format_with, group, space, token};
 use destack_fir::write;

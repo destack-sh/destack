@@ -1,7 +1,7 @@
 use crate::chain::transparent_inner_expression;
 use crate::tree::child::tree_expression_contains_callback_break;
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_ast::{Argument, Expression, LocalNodeId, Tree};
+use destack_dir::{Argument, Expression, LocalNodeId, Tree};
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::token;
 use destack_fir::write;

@@ -1,7 +1,7 @@
 use crate::DestackFormatContext;
 use crate::declaration::expression_is_in_statement_context;
 use crate::operator::{binary_operator_format_precedence, should_flatten_binary};
-use destack_ast::{
+use destack_dir::{
     Argument, AssignPattern, BinaryOperator, Declaration, Expression, FunctionForm, IfCondition,
     IfForm, LocalNodeId, MatchCase, MatchForm, NodeType, OperatorPrecedence, Property,
     TypeExpression,
@@ -297,11 +297,10 @@ fn expression_is_class_or_function_declaration(
         return false;
     };
 
-    match context.tree.get(*declaration_id) {
-        Declaration::Class(_) => true,
-        Declaration::Function(_) => true,
-        _ => false,
-    }
+    matches!(
+        context.tree.get(*declaration_id),
+        Declaration::Class(_) | Declaration::Function(_)
+    )
 }
 
 /// Return whether one expression is a lambda declaration.
@@ -1130,17 +1129,17 @@ pub(crate) fn expression_needs_parentheses_in_parent(
 
     // binary-like expressions need parentheses in tighter expression positions
     let expression = context.tree.get(node_id);
-    if expression_is_binary_like(expression) {
-        if expression_binary_like_needs_parentheses_in_parent(
+    if expression_is_binary_like(expression)
+        && expression_binary_like_needs_parentheses_in_parent(
             context,
             node_id,
             parent_id,
             parent_type,
             parent_expression,
             parent_child_id,
-        ) {
-            return true;
-        }
+        )
+    {
+        return true;
     }
 
     false

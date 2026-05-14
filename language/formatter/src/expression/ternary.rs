@@ -3,7 +3,7 @@ use super::dispatch::write_expression_without_trailing_comments;
 use crate::annotation::FormatTrailingComments;
 use crate::chain::{expression_trivia_anchor_end, transparent_inner_expression};
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_ast::{
+use destack_dir::{
     Argument, Comment, Expression, IfCondition, IfForm, LocalNodeId, NodeType, ScalarLiteral, Tree,
 };
 use destack_fir::format::{Buffer, FormatResult};

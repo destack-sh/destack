@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 
-use destack_ast::{LocalNodeId, Node, TokenSpan, TokenType, Tree, TreeImpl};
+use destack_dir::{LocalNodeId, Node, TokenSpan, TokenType, Tree, TreeStore};
 use destack_fir::format::{FormatResult, text};
 use destack_fir::prelude::*;
 use destack_fir::write;
@@ -122,7 +122,7 @@ fn ignore_target_span<T: Node + Clone>(
     node_id: LocalNodeId<T>,
 ) -> Span
 where
-    Tree: TreeImpl<T>,
+    Tree: TreeStore<T>,
 {
     let node_span = ctx.span(node_id);
 
@@ -207,7 +207,7 @@ pub fn node_has_trailing_ignore_directive<T: Node + Clone>(
     node_id: LocalNodeId<T>,
 ) -> bool
 where
-    Tree: TreeImpl<T>,
+    Tree: TreeStore<T>,
 {
     let node_span = ignore_target_span(ctx, node_id);
     let comment_tokens = ctx.comment_tokens();
@@ -221,7 +221,7 @@ pub fn node_has_trailing_line_ignore_directive<T: Node + Clone>(
     node_id: LocalNodeId<T>,
 ) -> bool
 where
-    Tree: TreeImpl<T>,
+    Tree: TreeStore<T>,
 {
     let node_span = ignore_target_span(ctx, node_id);
     let comment_tokens = ctx.comment_tokens();
@@ -236,7 +236,7 @@ pub fn node_has_ignore_directive<T: Node + Clone>(
     node_id: LocalNodeId<T>,
 ) -> bool
 where
-    Tree: TreeImpl<T>,
+    Tree: TreeStore<T>,
 {
     if !ctx.has_ignore_directive_markers() {
         return false;
@@ -279,7 +279,7 @@ pub fn ignore_range_for_node<T: Node + Clone>(
     comment_tokens: &[TokenSpan],
 ) -> Option<Span>
 where
-    Tree: TreeImpl<T>,
+    Tree: TreeStore<T>,
 {
     if !ctx.has_ignore_directive_markers() {
         return None;
@@ -308,12 +308,11 @@ where
             let mut end_span = ctx.extend_span_with_trailing_line_tokens(end_token.span);
 
             // line end markers should preserve their trailing newline
-            if ctx.comment_is_line(end_token) {
-                if let Some((line_index, _)) = ctx.file.get_position(end_token.span.start) {
-                    if let Some(next_line_span) = ctx.file.get_line_span(line_index + 1) {
-                        end_span = Span::new(end_span.file, end_span.start, next_line_span.start);
-                    }
-                }
+            if ctx.comment_is_line(end_token)
+                && let Some((line_index, _)) = ctx.file.get_position(end_token.span.start)
+                && let Some(next_line_span) = ctx.file.get_line_span(line_index + 1)
+            {
+                end_span = Span::new(end_span.file, end_span.start, next_line_span.start);
             }
 
             Some(Span::new(token.span.file, token.span.start, end_span.end))
@@ -328,7 +327,7 @@ fn ignored_node_span<T: Node + Clone>(
     node_id: LocalNodeId<T>,
 ) -> Span
 where
-    Tree: TreeImpl<T>,
+    Tree: TreeStore<T>,
 {
     let node_span = ignore_target_span(ctx, node_id);
     let comment_tokens = ctx.comment_tokens();
@@ -346,7 +345,7 @@ pub fn ignore_ranges_for_nodes<T: Node + Clone>(
     comment_tokens: &[TokenSpan],
 ) -> HashMap<u32, Span>
 where
-    Tree: TreeImpl<T>,
+    Tree: TreeStore<T>,
 {
     let mut ignore_ranges = HashMap::new();
     for node_id in node_ids.iter().copied() {
@@ -364,7 +363,7 @@ pub fn any_ignore_range_for_nodes<T: Node + Clone>(
     comment_tokens: &[TokenSpan],
 ) -> bool
 where
-    Tree: TreeImpl<T>,
+    Tree: TreeStore<T>,
 {
     node_ids
         .iter()
@@ -486,7 +485,7 @@ pub fn write_ignored_node<'ast, T: Node + Clone>(
     node_id: LocalNodeId<T>,
 ) -> FormatResult<()>
 where
-    Tree: TreeImpl<T>,
+    Tree: TreeStore<T>,
 {
     let span = ignored_node_span(f.context(), node_id);
     write_ignored_span(f, span)

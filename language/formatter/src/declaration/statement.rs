@@ -1,5 +1,5 @@
-use destack_ast::{
-    Block, BlockForm, Comment, Expression, LocalNodeId, Node, NodeType, Tree, TreeImpl,
+use destack_dir::{
+    Block, BlockForm, Comment, Expression, LocalNodeId, Node, NodeType, Tree, TreeStore,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
@@ -149,7 +149,7 @@ pub(crate) fn empty_block_with_infix_annotations<'ast, T>(
 ) -> impl Format<DestackFormatContext<'ast>>
 where
     T: Node + Clone + 'ast,
-    Tree: TreeImpl<T>,
+    Tree: TreeStore<T>,
 {
     format_with(move |f: &mut DestackFormatter<'ast, '_>| {
         // keep empty blocks compact unless they carry infix annotations

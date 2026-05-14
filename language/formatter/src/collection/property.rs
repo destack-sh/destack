@@ -20,12 +20,12 @@ use crate::operator::{
     write_type_annotation_prefix, write_type_expression_with_inline_prefix_annotations,
 };
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
-use destack_ast::{
+use destack_core::StringId;
+use destack_dir::{
     BinaryOperator, Comment, Expression, FunctionSignature, Key, Keyword, LocalNodeId,
     MethodAbstraction, Mutability, Name, Node, NodeType, Parameter, Property, ScalarLiteral, Tree,
-    TreeImpl, TypeExpression, Visibility, is_identifier_compat,
+    TreeStore, TypeExpression, Visibility, is_identifier_compat,
 };
-use destack_core::StringId;
 use destack_fir::format::{FormatNodes, FormatResult, Formatter as FirFormatter, VecBuffer, text};
 use destack_fir::prelude::*;
 use destack_fir::write;
@@ -180,7 +180,7 @@ fn write_field_type_annotation<'ast, T>(
 ) -> FormatResult<()>
 where
     T: Node + Clone + 'ast,
-    Tree: TreeImpl<T>,
+    Tree: TreeStore<T>,
 {
     if let Some(type_span) = f
         .context()
@@ -330,7 +330,11 @@ fn write_mutability_prefix<'ast>(
 ) -> FormatResult<()> {
     // mutability
     if let Some(mutability) = mutability {
-        write!(f, [mutability.to_keyword(), space()])?;
+        match mutability {
+            Mutability::Immutable => write!(f, [token("readonly"), space()])?,
+            Mutability::Exclusive => write!(f, [token("exclusive"), space()])?,
+            Mutability::Mutable => {}
+        }
     }
 
     Ok(())
@@ -497,7 +501,7 @@ fn write_field_like_left<'ast, T>(
 ) -> FormatResult<()>
 where
     T: Node + Clone + 'ast,
-    Tree: TreeImpl<T>,
+    Tree: TreeStore<T>,
 {
     let force_quote_keys =
         force_quote_keys || should_preserve_class_field_quote(f.context(), node_id, key);
@@ -544,7 +548,7 @@ fn should_preserve_class_field_quote<T>(
 ) -> bool
 where
     T: Node + Clone,
-    Tree: TreeImpl<T>,
+    Tree: TreeStore<T>,
 {
     if !matches!(key, Key::Name(Name::String(_))) {
         return false;
@@ -582,7 +586,7 @@ pub(crate) fn format_field_like<'ast, T>(
 ) -> FormatResult<()>
 where
     T: Node + Clone + 'ast,
-    Tree: TreeImpl<T>,
+    Tree: TreeStore<T>,
 {
     // no initializer
     let Some(default) = default else {
@@ -692,7 +696,7 @@ pub(crate) fn format_method_like<'ast, N>(
 ) -> FormatResult<()>
 where
     N: Node + Clone + 'ast,
-    Tree: TreeImpl<N>,
+    Tree: TreeStore<N>,
 {
     let parameters = method_parameters(signature);
 
@@ -763,7 +767,7 @@ fn write_method_parameters_and_return_type<'ast, N>(
 ) -> FormatResult<()>
 where
     N: Node + Clone + 'ast,
-    Tree: TreeImpl<N>,
+    Tree: TreeStore<N>,
 {
     let format_parameters_and_return_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         let format_parameters = format_with(|f: &mut DestackFormatter<'ast, '_>| {
@@ -825,7 +829,7 @@ fn write_method_signature_and_body<'ast, N>(
 ) -> FormatResult<()>
 where
     N: Node + Clone + 'ast,
-    Tree: TreeImpl<N>,
+    Tree: TreeStore<N>,
 {
     write_method_body(f, body, false, signature.return_type)
 }
@@ -927,7 +931,7 @@ pub(crate) fn format_node_with_directive<'ast, T, F>(
 ) -> FormatResult<()>
 where
     T: Node + Clone + 'ast,
-    Tree: TreeImpl<T>,
+    Tree: TreeStore<T>,
     F: FnMut(&mut DestackFormatter<'ast, '_>) -> FormatResult<()>,
 {
     let is_ignored = node_has_ignore_directive(f.context(), node_id);

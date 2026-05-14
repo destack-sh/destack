@@ -3,7 +3,7 @@ use crate::collection::{FormatSeparatedIter, TrailingSeparator, separated_entrie
 use crate::file::any_ignore_range_for_nodes;
 use crate::operator::{assign_pattern_contains_expression, expression_generic_arguments};
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_ast::{
+use destack_dir::{
     Argument, Expression, GenericArgument, LocalNodeId, NodeType, Pattern, PatternField, Property,
     TypeExpression,
 };

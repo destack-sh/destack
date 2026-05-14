@@ -22,12 +22,12 @@ use crate::expression::ExpressionLeftSide;
 use crate::file::{node_has_ignore_directive, node_has_trailing_line_ignore_directive};
 use crate::tree::tree_literal_should_break;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
-use destack_ast::{
+use destack_core::StringId;
+use destack_dir::{
     Asynchrony, BindingKeyword, Block, BlockForm, DecoratorPosition, Expression, ForEachBinding,
     ForEachOperator, IfCondition, IfForm, Keyword, LetKind, LocalNodeId, MatchCase, MatchForm,
     MatchSelector, NodeType, Pattern, TypeExpression, WhileForm, YieldCardinality,
 };
-use destack_core::StringId;
 use destack_fir::format::{Buffer, Format, FormatError, FormatResult};
 use destack_fir::prelude::{
     block_indent, empty_line, expand_parent, format_with, group, hard_line_break,

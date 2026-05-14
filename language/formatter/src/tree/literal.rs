@@ -9,7 +9,7 @@ use crate::tree::{
     write_tree_expression_argument,
 };
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_ast::{
+use destack_dir::{
     Argument, Declaration, Expression, FunctionForm, GenericArgument, IfForm, LocalNodeId,
     NodeType, ScalarLiteral, Tree,
 };
@@ -80,10 +80,10 @@ fn tree_children_layout(
         }
 
         let whitespace_info = tree_text_is_whitespace_only(context, *element_id);
-        if let Some((is_whitespace_only, _)) = whitespace_info {
-            if !is_whitespace_only {
-                has_non_whitespace_text_child = true;
-            }
+        if let Some((is_whitespace_only, _)) = whitespace_info
+            && !is_whitespace_only
+        {
+            has_non_whitespace_text_child = true;
         }
 
         // tree per line layout ignores pure whitespace text separators
@@ -865,10 +865,10 @@ fn tree_literal_should_expand_in_parent(
             let Declaration::Function(function) = context.tree.get(declaration_id) else {
                 return false;
             };
-            if function.signature.form != FunctionForm::Lambda
-                || !function
+            if !(function.signature.form == FunctionForm::Lambda
+                && function
                     .body
-                    .is_some_and(|body_id| body_id.id == current_id)
+                    .is_some_and(|body_id| body_id.id == current_id))
             {
                 return false;
             }

@@ -18,11 +18,11 @@ use crate::declaration::signature::{
 use crate::expression::{expression_needs_parentheses_in_parent, format_type_member_block_list};
 use crate::operator::format_generic_argument_list;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
-use destack_ast::{
+use destack_dir::{
     ClassDeclaration, Declaration, Decorator, EnumDeclaration, EnumField, EnumKind, Expression,
     GenericArgument, GenericParameter, InterfaceDeclaration, InterfaceHeritage, Keyword,
     LocalNodeId, LocalNodeIdAny, Member, Node, NodeType, StructDeclaration, TokenSpan, TokenType,
-    Tree, TreeImpl, TypeExpression, TypeMember, WhereClause,
+    Tree, TreeStore, TypeExpression, TypeMember, WhereClause,
 };
 use destack_fir::format::{FormatError, FormatResult};
 use destack_fir::prelude::*;
@@ -66,7 +66,7 @@ fn combined_node_span<T>(
 ) -> Option<Span>
 where
     T: Node + Clone,
-    Tree: TreeImpl<T>,
+    Tree: TreeStore<T>,
 {
     let first_id = node_ids.first().copied()?;
     let last_id = node_ids.last().copied()?;
@@ -120,7 +120,7 @@ fn write_heritage_type_list<'ast>(
                 .context()
                 .next_non_trivia_token_after_span(type_span)
                 .filter(|token| token.token.ty == TokenType::Comma)
-                .ok_or_else(|| FormatError::SyntaxError {
+                .ok_or(FormatError::SyntaxError {
                     message: "expected comma between heritage types",
                 })?;
 
@@ -186,7 +186,7 @@ fn write_interface_heritage_list<'ast>(
                 .context()
                 .next_non_trivia_token_after_span(heritage_span)
                 .filter(|token| token.token.ty == TokenType::Comma)
-                .ok_or_else(|| FormatError::SyntaxError {
+                .ok_or(FormatError::SyntaxError {
                     message: "expected comma between interface heritage items",
                 })?;
 

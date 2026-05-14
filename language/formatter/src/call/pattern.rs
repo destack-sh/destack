@@ -2,7 +2,7 @@ use crate::DestackFormatContext;
 use crate::chain::{
     argument_value_id_if_present, chain_has_call_like_expression, transparent_inner_expression,
 };
-use destack_ast::{
+use destack_dir::{
     Argument, Declaration, Expression, FunctionForm, LocalNodeId, NodeType, ScalarLiteral,
     TemplateLiteral,
 };

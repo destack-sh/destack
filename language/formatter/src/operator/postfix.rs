@@ -2,7 +2,7 @@ use crate::expression::{
     transparent_wrapper_needs_parentheses_in_parent, write_expression_without_derived_parentheses,
 };
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_ast::{Expression, LocalNodeId, NodeType, OperatorPrecedence, ScalarLiteral, Tree};
+use destack_dir::{Expression, LocalNodeId, NodeType, OperatorPrecedence, ScalarLiteral, Tree};
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{format_with, group, soft_block_indent, token};
 use destack_fir::{format_args, write};
