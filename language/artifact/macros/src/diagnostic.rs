@@ -94,7 +94,7 @@ impl DiagnosticEnum {
 /// Map a compiler phase name to its single-letter code.
 fn phase_letter(phase: &Ident) -> Result<char> {
     let letter = match phase.to_string().as_str() {
-        "Declare" => 'D',
+        "Bind" => 'B',
         "Import" => 'I',
         "Expand" => 'X',
         "Export" => 'T',

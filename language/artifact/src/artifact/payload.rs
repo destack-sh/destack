@@ -1,21 +1,21 @@
 use crate::{
-    Ast, Data, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirExported, DirImported,
-    DirMaterialized, GlobalEnvironment, MirLowered, MirOptimized, MirVerified, ModuleLinted,
-    ModuleOutput, ModuleQueryIndex, PackageLinted, PackageOutput, WorkspaceLinted,
+    Data, DirBound, DirChecked, DirElaborated, DirExpanded, DirExported, DirImported,
+    DirMaterialized, DirParsed, GlobalEnvironment, MirLowered, MirOptimized, MirVerified,
+    ModuleLinted, ModuleOutput, ModuleQueryIndex, PackageLinted, PackageOutput, WorkspaceLinted,
     WorkspaceQueryIndex,
 };
 
 /// One typed artifact payload.
 #[derive(Debug, Clone)]
 pub enum ArtifactPayload {
-    /// Parsed module syntax tree.
-    Ast(Ast),
+    /// Parsed module DIR.
+    DirParsed(DirParsed),
     /// Parsed non-code module data.
     Data(Data),
     /// Explicit global environment for one profile.
     GlobalEnvironment(GlobalEnvironment),
-    /// Declared DIR.
-    DirDeclared(DirDeclared),
+    /// Bound DIR.
+    DirBound(DirBound),
     /// Imported DIR.
     DirImported(DirImported),
     /// Expanded DIR.
@@ -50,10 +50,10 @@ pub enum ArtifactPayload {
     WorkspaceLinted(WorkspaceLinted),
 }
 
-impl From<Ast> for ArtifactPayload {
+impl From<DirParsed> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
-    fn from(payload: Ast) -> Self {
-        Self::Ast(payload)
+    fn from(payload: DirParsed) -> Self {
+        Self::DirParsed(payload)
     }
 }
 
@@ -71,10 +71,10 @@ impl From<GlobalEnvironment> for ArtifactPayload {
     }
 }
 
-impl From<DirDeclared> for ArtifactPayload {
+impl From<DirBound> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
-    fn from(payload: DirDeclared) -> Self {
-        Self::DirDeclared(payload)
+    fn from(payload: DirBound) -> Self {
+        Self::DirBound(payload)
     }
 }
 

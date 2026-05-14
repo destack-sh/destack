@@ -18,16 +18,16 @@ pub enum ArtifactProvider {
 /// Semantic artifact identity.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum ArtifactKey {
-    /// Parsed module syntax tree.
-    Ast { module: ModuleId },
+    /// Parsed module DIR.
+    DirParsed { module: ModuleId },
     /// Parsed non-code module data.
     Data { module: ModuleId },
 
     /// Explicit global environment for one profile.
     GlobalEnvironment { profile: ProfileId },
 
-    /// Declared DIR.
-    DirDeclared {
+    /// Bound DIR.
+    DirBound {
         module: ModuleId,
         profile: ProfileId,
     },
@@ -112,9 +112,9 @@ impl ArtifactKey {
     /// Return the provider family responsible for this artifact.
     pub fn provider(self) -> ArtifactProvider {
         match self {
-            Self::Ast { .. } | Self::Data { .. } => ArtifactProvider::Loader,
+            Self::DirParsed { .. } | Self::Data { .. } => ArtifactProvider::Loader,
             Self::GlobalEnvironment { .. }
-            | Self::DirDeclared { .. }
+            | Self::DirBound { .. }
             | Self::DirImported { .. }
             | Self::DirExpanded { .. }
             | Self::DirExported { .. }
@@ -148,9 +148,9 @@ impl ArtifactKey {
         Self::GlobalEnvironment { profile }
     }
 
-    /// Build one AST artifact key.
-    pub fn ast(module: ModuleId) -> Self {
-        Self::Ast { module }
+    /// Build one DIR artifact key.
+    pub fn dir_parsed(module: ModuleId) -> Self {
+        Self::DirParsed { module }
     }
 
     /// Build one data artifact key.
@@ -158,9 +158,9 @@ impl ArtifactKey {
         Self::Data { module }
     }
 
-    /// Build one declared DIR artifact key.
-    pub fn dir_declared(module: ModuleId, profile: ProfileId) -> Self {
-        Self::DirDeclared { module, profile }
+    /// Build one bound DIR artifact key.
+    pub fn dir_bound(module: ModuleId, profile: ProfileId) -> Self {
+        Self::DirBound { module, profile }
     }
 
     /// Build one imported DIR artifact key.
@@ -259,9 +259,9 @@ impl ArtifactKey {
     pub fn name(&self) -> &'static str {
         match self {
             Self::GlobalEnvironment { .. } => "global_environment",
-            Self::Ast { .. } => "ast",
+            Self::DirParsed { .. } => "dir_parsed",
             Self::Data { .. } => "data",
-            Self::DirDeclared { .. } => "dir_declared",
+            Self::DirBound { .. } => "dir_bound",
             Self::DirImported { .. } => "dir_imported",
             Self::DirExpanded { .. } => "dir_expanded",
             Self::DirExported { .. } => "dir_exported",
@@ -284,9 +284,9 @@ impl ArtifactKey {
     /// Return the module id encoded in this key when one exists.
     pub fn module_id(&self) -> Option<ModuleId> {
         match self {
-            Self::Ast { module }
+            Self::DirParsed { module }
             | Self::Data { module }
-            | Self::DirDeclared { module, .. }
+            | Self::DirBound { module, .. }
             | Self::DirImported { module, .. }
             | Self::DirExpanded { module, .. }
             | Self::DirExported { module, .. }
@@ -313,7 +313,7 @@ impl ArtifactKey {
     pub fn profile_id(&self) -> Option<ProfileId> {
         match self {
             Self::GlobalEnvironment { profile }
-            | Self::DirDeclared { profile, .. }
+            | Self::DirBound { profile, .. }
             | Self::DirImported { profile, .. }
             | Self::DirExpanded { profile, .. }
             | Self::DirExported { profile, .. }
@@ -326,7 +326,7 @@ impl ArtifactKey {
             | Self::ModuleQueryIndex { profile, .. }
             | Self::WorkspaceQueryIndex { profile }
             | Self::ModuleLinted { profile, .. } => Some(*profile),
-            Self::Ast { .. }
+            Self::DirParsed { .. }
             | Self::Data { .. }
             | Self::ModuleOutput { .. }
             | Self::PackageOutput { .. }
