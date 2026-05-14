@@ -199,6 +199,16 @@ extension<T> of Array<T> implements
         todo("Array.retain")
     }
 
+    /// Remove all elements and return them.
+    drain(this: &exclusive Array<T>): Iterator<T> {
+        todo("Array.drain")
+    }
+
+    /// Remove elements accepted by `predicate` and return them.
+    extractIf(this: &exclusive Array<T>, predicate: (value: &T, index: usize) => boolean): Iterator<T> {
+        todo("Array.extractIf")
+    }
+
     /// Reserve room for at least `additional` more elements.
     reserve(this: &Array<T>, additional: usize): void {
         todo("Array.reserve")

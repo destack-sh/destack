@@ -31,9 +31,7 @@ extension<T> of PackedSet<T> implements Default {
 
 extension<T: Hash> of PackedSet<T> implements
     Iterable<T>,
-    Iterable<&T>,
     Iterable<&readonly T>,
-    Iterable<&exclusive T>,
     From<Iterable<T>>,
     FromIterator<T>,
     Extend<T, "exclusive">,
@@ -75,20 +73,8 @@ where T implements Equal<T> {
         todo("PackedSet.has")
     }
 
-    /// Borrow the stored value equal to `value`.
-    get<Q: Hash>(this: &PackedSet<T>, value: &readonly Q): &T | undefined
-    where T implements Borrow<Q>, Q implements Equal<Q> {
-        todo("PackedSet.get")
-    }
-
     /// Borrow the stored value equal to `value` with readonly access.
     get<Q: Hash>(this: &readonly PackedSet<T>, value: &readonly Q): &readonly T | undefined
-    where T implements Borrow<Q>, Q implements Equal<Q> {
-        todo("PackedSet.get")
-    }
-
-    /// Borrow the stored value equal to `value` with exclusive access.
-    get<Q: Hash>(this: &exclusive PackedSet<T>, value: &readonly Q): &exclusive T | undefined
     where T implements Borrow<Q>, Q implements Equal<Q> {
         todo("PackedSet.get")
     }
@@ -114,6 +100,21 @@ where T implements Equal<T> {
         todo("PackedSet.clear")
     }
 
+    /// Retain only values accepted by `predicate`.
+    retain(this: &exclusive PackedSet<T>, predicate: (value: &readonly T) => boolean): void {
+        todo("PackedSet.retain")
+    }
+
+    /// Remove all values and return them.
+    drain(this: &exclusive PackedSet<T>): Iterator<T> {
+        todo("PackedSet.drain")
+    }
+
+    /// Remove values accepted by `predicate` and return them.
+    extractIf(this: &exclusive PackedSet<T>, predicate: (value: &readonly T) => boolean): Iterator<T> {
+        todo("PackedSet.extractIf")
+    }
+
     /// Reserve room for at least `additional` more elements.
     reserve(this: &exclusive PackedSet<T>, additional: usize): void {
         todo("PackedSet.reserve")
@@ -129,18 +130,8 @@ where T implements Equal<T> {
         todo("PackedSet.iterator")
     }
 
-    /// Return an iterator over borrowed values.
-    iterator(this: &PackedSet<T>): Iterator<&T> {
-        todo("PackedSet.iterator")
-    }
-
     /// Return an iterator over readonly borrowed values.
     iterator(this: &readonly PackedSet<T>): Iterator<&readonly T> {
-        todo("PackedSet.iterator")
-    }
-
-    /// Return an iterator over exclusive borrowed values.
-    iterator(this: &exclusive PackedSet<T>): Iterator<&exclusive T> {
         todo("PackedSet.iterator")
     }
 

@@ -14,6 +14,15 @@ export struct PackedMapEntry<K, V> {
     value: V;
 }
 
+/// Mutating access to one packed map entry.
+export struct PackedMapEntryHandle<K, V> {
+    /// The borrowed map.
+    private map: &exclusive PackedMap<K, V>;
+
+    /// The queried key.
+    private entryKey: K;
+}
+
 /// One packed hash table slot.
 struct PackedMapSlot<K, V> {
     /// The cached key hash.
@@ -36,6 +45,44 @@ export struct PackedMap<K, V> {
 
     /// The allocated entry count.
     entryCapacity: usize = 0;
+}
+
+extension<K: Hash, V> of PackedMapEntryHandle<K, V>
+where K implements Equal<K> {
+    /// Borrow the queried key.
+    get key(): &readonly K {
+        todo("PackedMapEntryHandle.key")
+    }
+
+    /// Return whether this handle points at an occupied entry.
+    get isOccupied(): boolean {
+        todo("PackedMapEntryHandle.isOccupied")
+    }
+
+    /// Borrow the current value.
+    get(this: &PackedMapEntryHandle<K, V>): &V | undefined {
+        todo("PackedMapEntryHandle.get")
+    }
+
+    /// Insert `value` when this handle is vacant.
+    orInsert(this: &exclusive PackedMapEntryHandle<K, V>, value: V): &V {
+        todo("PackedMapEntryHandle.orInsert")
+    }
+
+    /// Insert a value produced by `makeValue` when this handle is vacant.
+    orInsertWith(this: &exclusive PackedMapEntryHandle<K, V>, makeValue: () => V): &V {
+        todo("PackedMapEntryHandle.orInsertWith")
+    }
+
+    /// Insert or replace the value.
+    set(this: &exclusive PackedMapEntryHandle<K, V>, value: V): &V {
+        todo("PackedMapEntryHandle.set")
+    }
+
+    /// Remove the entry.
+    remove(this: &exclusive PackedMapEntryHandle<K, V>): V | undefined {
+        todo("PackedMapEntryHandle.remove")
+    }
 }
 
 extension<K, V> of PackedMap<K, V> implements Default {
@@ -140,6 +187,11 @@ where K implements Equal<K> {
         todo("PackedMap.has")
     }
 
+    /// Return mutating access to the entry for `key`.
+    entry(this: &exclusive PackedMap<K, V>, key: K): PackedMapEntryHandle<K, V> {
+        todo("PackedMap.entry")
+    }
+
     /// Insert a key-value pair.
     insert(this: &exclusive PackedMap<K, V>, key: K, value: V): boolean {
         todo("PackedMap.insert")
@@ -164,6 +216,27 @@ where K implements Equal<K> {
     /// Remove all entries.
     clear(this: &exclusive PackedMap<K, V>): void {
         todo("PackedMap.clear")
+    }
+
+    /// Retain only entries accepted by `predicate`.
+    retain(
+        this: &exclusive PackedMap<K, V>,
+        predicate: (key: &readonly K, value: &exclusive V) => boolean,
+    ): void {
+        todo("PackedMap.retain")
+    }
+
+    /// Remove all entries and return them.
+    drain(this: &exclusive PackedMap<K, V>): Iterator<(K, V)> {
+        todo("PackedMap.drain")
+    }
+
+    /// Remove entries accepted by `predicate` and return them.
+    extractIf(
+        this: &exclusive PackedMap<K, V>,
+        predicate: (key: &readonly K, value: &exclusive V) => boolean,
+    ): Iterator<(K, V)> {
+        todo("PackedMap.extractIf")
     }
 
     /// Reserve room for at least `additional` more entries.

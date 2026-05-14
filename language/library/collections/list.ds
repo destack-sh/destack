@@ -153,6 +153,21 @@ extension<T> of LinkedList<T> implements
         todo("LinkedList.clear")
     }
 
+    /// Retain only elements accepted by `predicate`.
+    retain(this: &exclusive LinkedList<T>, predicate: (value: &T, index: usize) => boolean): void {
+        todo("LinkedList.retain")
+    }
+
+    /// Remove all elements and return them.
+    drain(this: &exclusive LinkedList<T>): Iterator<T> {
+        todo("LinkedList.drain")
+    }
+
+    /// Remove elements accepted by `predicate` and return them.
+    extractIf(this: &exclusive LinkedList<T>, predicate: (value: &T, index: usize) => boolean): Iterator<T> {
+        todo("LinkedList.extractIf")
+    }
+
     /// Reserve room for at least `additional` more nodes.
     reserve(this: &LinkedList<T>, additional: usize): void {
         todo("LinkedList.reserve")

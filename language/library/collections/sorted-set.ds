@@ -31,9 +31,7 @@ extension<T> of SortedSet<T> implements Default {
 
 extension<T: Compare<T>> of SortedSet<T> implements
     Iterable<T>,
-    Iterable<&T>,
     Iterable<&readonly T>,
-    Iterable<&exclusive T>,
     From<Iterable<T>>,
     FromIterator<T>,
     Extend<T>
@@ -64,20 +62,8 @@ extension<T: Compare<T>> of SortedSet<T> implements
         todo("SortedSet.has")
     }
 
-    /// Borrow the stored value equal to `value`.
-    get<Q: Compare<Q>>(this: &SortedSet<T>, value: &readonly Q): &T | undefined
-    where T implements Borrow<Q> {
-        todo("SortedSet.get")
-    }
-
     /// Borrow the stored value equal to `value` with readonly access.
     get<Q: Compare<Q>>(this: &readonly SortedSet<T>, value: &readonly Q): &readonly T | undefined
-    where T implements Borrow<Q> {
-        todo("SortedSet.get")
-    }
-
-    /// Borrow the stored value equal to `value` with exclusive access.
-    get<Q: Compare<Q>>(this: &exclusive SortedSet<T>, value: &readonly Q): &exclusive T | undefined
     where T implements Borrow<Q> {
         todo("SortedSet.get")
     }
@@ -101,6 +87,21 @@ extension<T: Compare<T>> of SortedSet<T> implements
     /// Remove all values.
     clear(this: &exclusive SortedSet<T>): void {
         todo("SortedSet.clear")
+    }
+
+    /// Retain only values accepted by `predicate`.
+    retain(this: &exclusive SortedSet<T>, predicate: (value: &readonly T) => boolean): void {
+        todo("SortedSet.retain")
+    }
+
+    /// Remove all values and return them.
+    drain(this: &exclusive SortedSet<T>): Iterator<T> {
+        todo("SortedSet.drain")
+    }
+
+    /// Remove values accepted by `predicate` and return them.
+    extractIf(this: &exclusive SortedSet<T>, predicate: (value: &readonly T) => boolean): Iterator<T> {
+        todo("SortedSet.extractIf")
     }
 
     /// Reserve room for at least `additional` more values.
@@ -153,35 +154,13 @@ extension<T: Compare<T>> of SortedSet<T> implements
         todo("SortedSet.first")
     }
 
-    /// Return the first value with exclusive access.
-    first(this: &exclusive SortedSet<T>): &exclusive T | undefined {
-        todo("SortedSet.first")
-    }
-
     /// Return the last value.
     last(this: &readonly SortedSet<T>): &readonly T | undefined {
         todo("SortedSet.last")
     }
 
-    /// Return the last value with exclusive access.
-    last(this: &exclusive SortedSet<T>): &exclusive T | undefined {
-        todo("SortedSet.last")
-    }
-
-    /// Return values in `range`.
-    range<Q: Compare<Q>, R: RangeBounds<Q>>(this: &SortedSet<T>, range: R): Iterator<&T>
-    where T implements Borrow<Q> {
-        todo("SortedSet.range")
-    }
-
     /// Return values in `range` with readonly access.
     range<Q: Compare<Q>, R: RangeBounds<Q>>(this: &readonly SortedSet<T>, range: R): Iterator<&readonly T>
-    where T implements Borrow<Q> {
-        todo("SortedSet.range")
-    }
-
-    /// Return values in `range` with exclusive access.
-    range<Q: Compare<Q>, R: RangeBounds<Q>>(this: &exclusive SortedSet<T>, range: R): Iterator<&exclusive T>
     where T implements Borrow<Q> {
         todo("SortedSet.range")
     }
@@ -191,18 +170,8 @@ extension<T: Compare<T>> of SortedSet<T> implements
         todo("SortedSet.iterator")
     }
 
-    /// Return an iterator over borrowed values.
-    iterator(this: &SortedSet<T>): Iterator<&T> {
-        todo("SortedSet.iterator")
-    }
-
     /// Return an iterator over readonly borrowed values.
     iterator(this: &readonly SortedSet<T>): Iterator<&readonly T> {
-        todo("SortedSet.iterator")
-    }
-
-    /// Return an iterator over exclusive borrowed values.
-    iterator(this: &exclusive SortedSet<T>): Iterator<&exclusive T> {
         todo("SortedSet.iterator")
     }
 

@@ -219,6 +219,19 @@ extension<T, comptime N: number> of SmallArray<T, N> implements
         todo("SmallArray.retain")
     }
 
+    /// Remove all elements and return them.
+    drain(this: &exclusive SmallArray<T, N>): Iterator<T> {
+        todo("SmallArray.drain")
+    }
+
+    /// Remove elements accepted by `predicate` and return them.
+    extractIf(
+        this: &exclusive SmallArray<T, N>,
+        predicate: (value: &T, index: usize) => boolean,
+    ): Iterator<T> {
+        todo("SmallArray.extractIf")
+    }
+
     /// Reserve room for at least `additional` more elements.
     reserve(this: &exclusive SmallArray<T, N>, additional: usize): void {
         todo("SmallArray.reserve")

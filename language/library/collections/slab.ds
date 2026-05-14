@@ -161,6 +161,24 @@ extension<T> of Slab<T> implements
         todo("Slab.clear")
     }
 
+    /// Retain only entries accepted by `predicate`.
+    retain(this: &exclusive Slab<T>, predicate: (key: SlabKey, value: &exclusive T) => boolean): void {
+        todo("Slab.retain")
+    }
+
+    /// Remove all entries and return them.
+    drain(this: &exclusive Slab<T>): Iterator<(SlabKey, T)> {
+        todo("Slab.drain")
+    }
+
+    /// Remove entries accepted by `predicate` and return them.
+    extractIf(
+        this: &exclusive Slab<T>,
+        predicate: (key: SlabKey, value: &exclusive T) => boolean,
+    ): Iterator<(SlabKey, T)> {
+        todo("Slab.extractIf")
+    }
+
     /// Shrink storage to fit live and reusable slots.
     shrinkToFit(this: &exclusive Slab<T>): void {
         todo("Slab.shrinkToFit")

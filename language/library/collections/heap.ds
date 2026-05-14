@@ -30,9 +30,7 @@ extension<T> of BinaryHeap<T> implements Default {
 
 extension<T: Compare<T>> of BinaryHeap<T> implements
     Iterable<T>,
-    Iterable<&T>,
     Iterable<&readonly T>,
-    Iterable<&exclusive T>,
     From<Iterable<T>>,
     FromIterator<T>,
     Extend<T, "exclusive">
@@ -62,18 +60,8 @@ extension<T: Compare<T>> of BinaryHeap<T> implements
         this.storage.isEmpty
     }
 
-    /// Borrow the greatest element.
-    peek(this: &BinaryHeap<T>): &T | undefined {
-        todo("BinaryHeap.peek")
-    }
-
     /// Borrow the greatest element with readonly access.
     peek(this: &readonly BinaryHeap<T>): &readonly T | undefined {
-        todo("BinaryHeap.peek")
-    }
-
-    /// Borrow the greatest element with exclusive access.
-    peek(this: &exclusive BinaryHeap<T>): &exclusive T | undefined {
         todo("BinaryHeap.peek")
     }
 
@@ -97,6 +85,21 @@ extension<T: Compare<T>> of BinaryHeap<T> implements
         todo("BinaryHeap.clear")
     }
 
+    /// Retain only values accepted by `predicate`.
+    retain(this: &exclusive BinaryHeap<T>, predicate: (value: &readonly T) => boolean): void {
+        todo("BinaryHeap.retain")
+    }
+
+    /// Remove all values and return them.
+    drain(this: &exclusive BinaryHeap<T>): Iterator<T> {
+        todo("BinaryHeap.drain")
+    }
+
+    /// Remove values accepted by `predicate` and return them.
+    extractIf(this: &exclusive BinaryHeap<T>, predicate: (value: &readonly T) => boolean): Iterator<T> {
+        todo("BinaryHeap.extractIf")
+    }
+
     /// Reserve room for at least `additional` more elements.
     reserve(this: &exclusive BinaryHeap<T>, additional: usize): void {
         todo("BinaryHeap.reserve")
@@ -117,18 +120,8 @@ extension<T: Compare<T>> of BinaryHeap<T> implements
         todo("BinaryHeap.iterator")
     }
 
-    /// Return an iterator over borrowed values.
-    iterator(this: &BinaryHeap<T>): Iterator<&T> {
-        todo("BinaryHeap.iterator")
-    }
-
     /// Return an iterator over readonly borrowed values.
     iterator(this: &readonly BinaryHeap<T>): Iterator<&readonly T> {
-        todo("BinaryHeap.iterator")
-    }
-
-    /// Return an iterator over exclusive borrowed values.
-    iterator(this: &exclusive BinaryHeap<T>): Iterator<&exclusive T> {
         todo("BinaryHeap.iterator")
     }
 
