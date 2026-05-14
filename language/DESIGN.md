@@ -1830,21 +1830,20 @@ extension of memoize implements Macro<FunctionDeclaration, MemoizeState>
 
 ## Memory
 
-TypeScript, like most managed high level languages, does not encode memory "ownership" in its type system: all reference types are implicitly GC-managed on some local heap, and all value types are copied by default.
+TypeScript, like most managed high level languages, does not encode memory "ownership" in its type system: all reference types are implicitly GC-managed on some (local) heap, and all value types are copied by default.
 That is convenient, but sometimes we need to take direct control of memory, whether for better performance, or just to express invariants in the code.
 
-Destack supports explicit, optional modifiers for controlling memory ownership and placement, inspired by Rust and Mojo with `^T` as the "owned" signifier.
-Specifically, memory can be controlled along two axes:
+Destack supports explicit, optional modifiers for controlling memory ownership and placement:
 - **Ownership** - who "owns" the value: managed (`T`), owned (`^T`), borrowed (`&T`, `&readonly T`, `&exclusive T`), or raw (`*T`).
 - **Placement** - where the value is located: ambient by default, `shared` across Workers, explicit `"local"` in the type algebra, or some other target-defined space.
 
-Plain `T` still behaves as the type's default representation, of course: value types are values, object types are managed references.
-The two axes compose and commute freely, e.g. `shared ^T` and `^shared T` both mean an owned handle to a value in shared space, and `shared &T` is a borrow of a shared value.
+Plain `T` still behaves as the type's default representation, exactly like we're used to from TypeScript: value types are values, object types are managed references.
+The two axes of ownership and placement compose and commute freely, e.g. `shared ^T` and `^shared T` both mean an owned handle to a value in shared space, and `shared &T` is a borrow of a shared value.
 
 ### Ownership
 
 Ownership determines who keeps a value alive, who is allowed to mutate it, and when and how it is eventually freed.
-The usual explanation of "ownership" sounds more complex than it is, especially to developers used to "managed" languages, and _especially_ because Rust tradition conflates "exclusivity" and "mutability".
+The usual explanation of "ownership" sounds more complex than it is, especially to developers used to "managed" languages, and _especially_ because Rust tradition (deliberately) unifies "liveness", "exclusivity" and "mutability".
 Unlike in Rust, in Destack we support _both_ multiple mutable borrows (`&T`) and exclusive mutable borrows (`&exclusive T`):
 
 | Form | Meaning | Mutable? | Exclusive? |
@@ -1888,18 +1887,23 @@ let sharedRequest: shared Request<Body>;  // explicit, shared -> Request is shar
 ```
 
 Memory placement is contextual and all types are "ambient" by default, i.e., they come with no inherent placement.
-Aggregate types are placed wherever their container is placed until some root either specifies placement explicitly (e.g., `WithPlace<T, ..>`, `shared T`) or we reach the top, which - as established - is `local` to the Worker's own local heap by default.
+Aggregate types - types containing other types - are placed wherever their parent is placed until some root either specifies placement explicitly (e.g., `WithPlace<T, ..>`, `shared T`) or we reach the top, which - as established - is `local` to the Worker's own local heap by default.
 This "ambient placement" rule is also why we distinguish `Place` from `Space`: `Space` is concrete, while `Place` may also be `"ambient"`.
 
 #### Shared Space
 
-The shared space contains memory that is visible to all `Worker`s in the same `Runtime`.
-Conceptually, `shared` is the typed, generalized version of the `SharedArrayBuffer` idea with the full type system and object graphs at our disposal:
+In JavaScript tradition, each "worker" (in the spec also "Agent") has its own isolated local heap that cannot be touched by other works.
+For sharing memory across workers, JavaScript has the `SharedArrayBuffer` concept and plain old message passing with `postMessage`.
+That works, but is architecturally limited and makes it complex to implement more sophisticated parallelism patterns.
+
+Destack supports an explicit, fully featured _shared_ memory space that is visible to all `Worker`s in the same `Runtime` via regular references and objects.
+Basically, `shared T` is the typed, generalized version of the `SharedArrayBuffer` idea with the full type system and object graphs at our disposal:
 - Local values may point to shared values.
 - Shared values must not point directly into a local heap.
 
-Shared placement, or any space placement, is **not** a synchronization primitive and does **not** imply atomic access, locking, actor isolation, `Sync`, or anything like it.
-Libraries and strict profiles may require capabilities like `Send` and `Sync` for APIs that transfer or publish values for correctness, but `shared` itself is really only about placement.
+That's it. 
+It's important to note that _by itself_ shared placement, like any space placement, is **not** a synchronization primitive of any kind and does **not** imply atomic access, locking, `Sync`, or anything like it.
+That is by design; it's up to the standard libraries to require capabilities like `Send` and `Sync` for APIs that transfer or publish values for correctness, but `shared` itself is really only about placement.
 
 ### Static Space
 
@@ -1987,11 +1991,12 @@ function interruptHandler(input: &[Sample]): Frame {
 
 ### Borrowing
 
-There are different ways of ensuring memory safety, and Destack mostly follows the Rust tradition of using lifetimes to describe how borrowed `&T` values relate to their owners.
-When borrowing a value with `&T`, the compiler needs to ensure that the borrow remains valid - that is, `T` must remain alive (must not be deallocated) while `&T` is active.
-
+There are different ways of ensuring memory safety, and - besides supporting GC-managed memory - Destack follows the Rust idea of using lifetimes to describe how borrowed `&T` values relate to their owners.
+When borrowing a value with `&T`, the compiler ensures that the borrow remains valid - that is, `T` must remain alive (must not be deallocated) while _any_ `&T` is active.
 Like in Rust, even when working with borrowed values, most of the time all lifetimes are inferred correctly and we don't need to think too much.
-Unlike in Rust, mutability is decoupled from borrowing: we can have multiple mutable borrows `&T` and readonly borrows `&readonly T` of the same `T` _at the same time_, as long as there is no concurrent `&exclusive T` borrow (which mirrors Rust's `&mut T`). 
+
+Unlike in Rust, in Destack, mutability is decoupled from borrowing: we can have multiple mutable borrows `&T` and readonly borrows `&readonly T` of the same `T` _at the same time_, as long as there is no concurrent `&exclusive T` borrow (which mirrors Rust's `&mut T`).
+Importantly, this is still memory safe because all operations that may invalidate a borrow require `&exclusive T` access.
 
 | Form | Access |
 |------|--------|
@@ -2003,8 +2008,7 @@ The entirety of borrow checking behavior - ensuring that a borrow to some refere
 1. a place cannot move or drop while an overlapping borrow is live;
 2. a borrow cannot outlive the owner or access path it came from.
 
-The rules are applied to access paths, so disjoint fields can be borrowed independently when the compiler can prove they do not overlap.
-Borrow lifetimes are also based on use, not block scope: once the last use of a borrow has passed, the original place can be borrowed differently, moved, or dropped again.
+Ownership is applied individually to each "access path", so disjoint fields can be borrowed independently when the compiler can prove they do not overlap.
 
 ```ds
 struct Point {
@@ -2045,8 +2049,10 @@ let exclusiveX = &exclusive point.x;
 *exclusiveX = 4;
 ```
 
-Sometimes we need to spell out explicit lifetimes to clarify the relationship between owners and borrowed access, and for that purpose we have explicit `<L: Lifetime>` and `Borrowed<T, L>` generics.
-Instead of reifying lifetimes as special `'a`-style lifetime parameters, Destack's `<L: Lifetime>`s are standard static parameters that are also available to regular TypeScript-style type algebra:
+### Lifetimes
+
+The relationship between whoever owns the memory (managed or explicitly owned) and those who want to borrow (reference) it are not always unambiguous to the compiler, and so we need to help the compiler verify this relationship by explicitly spelling out "lifetimes" with `<L: Lifetime>` and `Borrowed<T, L>` generics.
+Destack's lifetimes are conceptually very similar to Rust's `'a`-style lifetime parameters, but as the spelling implies, `<L: Lifetime>`s are full generics that are also available to regular TypeScript-style type algebra:
 
 ```ds
 function read(user: &User): string {
