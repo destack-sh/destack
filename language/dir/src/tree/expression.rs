@@ -803,6 +803,32 @@ impl Node for Expression {
 }
 
 impl Expression {
+    /// Return explicit generic arguments carried by this expression.
+    #[inline]
+    pub fn generic_arguments(&self) -> Option<&[LocalNodeId<GenericArgument>]> {
+        match self {
+            Expression::QualifiedReference {
+                generic_arguments, ..
+            }
+            | Expression::TaggedTemplateExpression {
+                generic_arguments, ..
+            }
+            | Expression::TreeExpression {
+                generic_arguments, ..
+            }
+            | Expression::Instantiation {
+                generic_arguments, ..
+            }
+            | Expression::Call {
+                generic_arguments, ..
+            }
+            | Expression::New {
+                generic_arguments, ..
+            } => Some(generic_arguments),
+            _ => None,
+        }
+    }
+
     /// Whether the expression is like a statement at the top level of a block.
     #[inline]
     pub fn is_top_level_statement(&self) -> bool {

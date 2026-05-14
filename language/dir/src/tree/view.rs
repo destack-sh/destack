@@ -1,7 +1,11 @@
+use std::collections::BTreeMap;
+
+use destack_source::Span;
 use indexmap::IndexSet;
 
 use crate::{
-    Decorator, Documentation, LocalNodeId, LocalNodeIdAny, Node, NodeType, Patch, Tree, TreeStore,
+    Comment, Decorator, Documentation, LocalNodeId, LocalNodeIdAny, Node, NodeType, Patch, Tree,
+    TreeStore,
 };
 
 /// A borrowed DIR tree with ordered structural patches.
@@ -80,8 +84,37 @@ impl<'a> View<'a> {
         tree.get(LocalNodeId::new(node_id.id))
     }
 
+    /// Get the visible source span by typed id.
+    pub fn get_span<T>(&self, node_id: LocalNodeId<T>) -> Span
+    where
+        T: Node,
+        Tree: TreeStore<T>,
+    {
+        let node_id = LocalNodeIdAny::new(node_id.id, T::TYPE);
+        let (tree, node_id) = self
+            .visible_node(node_id)
+            .unwrap_or_else(|| panic!("DIR node {node_id:?} is not visible"));
+
+        tree.get_span(LocalNodeId::<T>::new(node_id.id))
+    }
+
+    /// Get the visible source span by local node id.
+    pub fn get_span_by_id(&self, node_id: u32) -> Option<Span> {
+        let node_id = self.node_id_any(node_id);
+        let (tree, node_id) = self.visible_node(node_id)?;
+
+        tree.get_span_by_id(node_id.id)
+    }
+
+    /// Get the visible parent for one local node id.
+    pub fn get_parent(&self, node_id: u32) -> Option<LocalNodeIdAny> {
+        let node_id = self.node_id_any(node_id);
+
+        self.get_parent_any(node_id)
+    }
+
     /// Get the visible parent for one typed node id.
-    pub fn get_parent<T: Node>(&self, node_id: LocalNodeId<T>) -> Option<LocalNodeIdAny> {
+    pub fn get_parent_for<T: Node>(&self, node_id: LocalNodeId<T>) -> Option<LocalNodeIdAny> {
         self.get_parent_any(node_id.into_any())
     }
 
@@ -101,9 +134,11 @@ impl<'a> View<'a> {
         self.visible_node(parent).map(|(_, parent)| parent)
     }
 
-    /// Get the visible parent id for one typed node id.
-    pub fn get_parent_id<T: Node>(&self, node_id: LocalNodeId<T>) -> Option<u32> {
-        self.get_parent(node_id).map(|parent| parent.id)
+    /// Get the visible parent id for one local node id.
+    pub fn get_parent_id(&self, node_id: u32) -> Option<u32> {
+        let node_id = self.node_id_any(node_id);
+
+        self.get_parent_any(node_id).map(|parent| parent.id)
     }
 
     /// Get the visible parent id for one erased node id.
@@ -170,6 +205,27 @@ impl<'a> View<'a> {
             .collect()
     }
 
+    /// Return visible decorators grouped by visible node id.
+    pub fn get_all_decorators(&self) -> BTreeMap<u32, Vec<LocalNodeId<Decorator>>> {
+        let mut decorators_by_node_id = BTreeMap::new();
+
+        for node_id in self.iter_node_ids() {
+            let decorators = self.get_decorators_any(node_id);
+            if decorators.is_empty() {
+                continue;
+            }
+
+            decorators_by_node_id.insert(node_id.id, decorators);
+        }
+
+        decorators_by_node_id
+    }
+
+    /// Return source comments from the base tree.
+    pub fn comments(&self) -> &'a [Comment] {
+        self.tree.comments()
+    }
+
     /// Iterate over visible node ids.
     pub fn iter_node_ids(&self) -> Vec<LocalNodeIdAny> {
         let mut nodes = Vec::new();
@@ -219,7 +275,7 @@ impl<'a> View<'a> {
     }
 
     /// Iterate over visible nodes of a given type together with their ids.
-    pub fn iter_nodes_of_type<T>(&self) -> impl Iterator<Item = (LocalNodeId<T>, &'a T)> + '_
+    pub fn iter_nodes_of_type<T>(&self) -> Vec<(LocalNodeId<T>, &'a T)>
     where
         T: Node + 'a,
         Tree: TreeStore<T>,
@@ -231,6 +287,16 @@ impl<'a> View<'a> {
 
                 (node_id, node)
             })
+            .collect()
+    }
+
+    /// Iterate over visible node ids of a given type.
+    pub fn iter_nodes<T>(&self) -> Vec<LocalNodeId<T>>
+    where
+        T: Node + 'a,
+        Tree: TreeStore<T>,
+    {
+        self.iter_node_ids_of_type::<T>()
     }
 
     /// Resolve one node id to its visible storage tree and node id.

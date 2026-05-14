@@ -229,6 +229,12 @@ impl BindingTable {
         self.get_scope_by_id(symbol.scope.id)
     }
 
+    /// Get the scope for a scope cursor.
+    #[inline]
+    pub fn get_scope(&self, scope: LocalScope) -> &Scope {
+        self.get_scope_by_id(scope.id)
+    }
+
     /// Get a scope by its id.
     #[inline]
     pub fn get_scope_by_id(&self, scope_id: LocalScopeId) -> &Scope {
