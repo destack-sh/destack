@@ -5,6 +5,8 @@ export type RuntimeAction =
     | "runtime.checkpoint.create"
     | "runtime.checkpoint.read"
     | "runtime.control"
+    | "runtime.debug.control"
+    | "runtime.debug.read"
     | "runtime.entity.read"
     | "runtime.entity.write"
     | "runtime.executor.control"
