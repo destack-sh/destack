@@ -1022,7 +1022,6 @@ version = "0.55.4"
 dependencies = [
  "blake3",
  "dashmap 6.1.0",
- "destack_ast",
  "destack_core",
  "destack_css",
  "destack_dir",
@@ -1051,21 +1050,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "destack_ast"
-version = "0.55.4"
-dependencies = [
- "criterion",
- "destack_core",
- "destack_fir",
- "destack_source",
- "destack_unicode",
- "pprof",
- "rustc-hash 2.1.2",
- "serde",
- "smallvec",
-]
-
-[[package]]
 name = "destack_bridge_core"
 version = "0.55.4"
 
@@ -1084,7 +1068,6 @@ dependencies = [
  "clap_complete",
  "console",
  "destack_artifact",
- "destack_ast",
  "destack_codegen_js",
  "destack_compiler",
  "destack_daemon",
@@ -1120,7 +1103,6 @@ dependencies = [
  "base64",
  "dashmap 6.1.0",
  "destack_artifact",
- "destack_ast",
  "destack_codegen_lib",
  "destack_core",
  "destack_dir",
@@ -1141,7 +1123,6 @@ version = "0.55.4"
 dependencies = [
  "dashmap 6.1.0",
  "destack_artifact",
- "destack_ast",
  "destack_dir",
  "destack_fir",
  "destack_mir",
@@ -1163,7 +1144,6 @@ dependencies = [
  "cranelift-object",
  "dashmap 6.1.0",
  "destack_artifact",
- "destack_ast",
  "destack_codegen_lib",
  "destack_core",
  "destack_dir",
@@ -1188,7 +1168,6 @@ dependencies = [
  "dashmap 6.1.0",
  "destack_artifact",
  "destack_artifact_macros",
- "destack_ast",
  "destack_codegen_js",
  "destack_codegen_native",
  "destack_core",
@@ -1256,7 +1235,6 @@ dependencies = [
  "crossbeam-deque",
  "dashmap 6.1.0",
  "destack_artifact",
- "destack_ast",
  "destack_compiler",
  "destack_core",
  "destack_dir",
@@ -1328,13 +1306,12 @@ version = "0.55.4"
 dependencies = [
  "clap",
  "destack_artifact",
- "destack_ast",
  "destack_core",
  "destack_css",
+ "destack_dir",
  "destack_fir",
  "destack_html",
  "destack_parser",
- "destack_query",
  "destack_source",
  "destack_workspace",
  "markdown",
@@ -1400,7 +1377,6 @@ dependencies = [
  "aho-corasick",
  "clap",
  "destack_artifact",
- "destack_ast",
  "destack_compiler",
  "destack_core",
  "destack_dir",
@@ -1435,7 +1411,6 @@ version = "0.55.4"
 dependencies = [
  "dashmap 6.1.0",
  "destack_artifact",
- "destack_ast",
  "destack_compiler",
  "destack_core",
  "destack_dir",
@@ -1536,8 +1511,8 @@ name = "destack_parser"
 version = "0.55.4"
 dependencies = [
  "criterion",
- "destack_ast",
  "destack_core",
+ "destack_dir",
  "destack_source",
  "destack_unicode",
  "memchr",
@@ -1570,7 +1545,6 @@ name = "destack_query"
 version = "0.55.4"
 dependencies = [
  "destack_artifact",
- "destack_ast",
  "destack_core",
  "destack_dir",
  "destack_qir",
@@ -1588,7 +1562,6 @@ version = "0.55.4"
 dependencies = [
  "cfg-if",
  "destack_artifact",
- "destack_ast",
  "destack_dir",
  "destack_parser",
  "destack_source",
@@ -1607,7 +1580,6 @@ name = "destack_runtime"
 version = "0.55.4"
 dependencies = [
  "destack_artifact",
- "destack_ast",
  "destack_compiler",
  "destack_core",
  "destack_dir",
@@ -1652,7 +1624,6 @@ name = "destack_session"
 version = "0.55.4"
 dependencies = [
  "destack_artifact",
- "destack_ast",
  "destack_compiler",
  "destack_core",
  "destack_css",
@@ -1699,7 +1670,6 @@ version = "0.55.4"
 dependencies = [
  "clap",
  "destack_artifact",
- "destack_ast",
  "destack_codegen_js",
  "destack_codegen_lib",
  "destack_compiler",
@@ -1768,7 +1738,6 @@ version = "0.55.4"
 dependencies = [
  "dashmap 6.1.0",
  "destack_artifact",
- "destack_ast",
  "destack_core",
  "destack_dir",
  "destack_heap",
