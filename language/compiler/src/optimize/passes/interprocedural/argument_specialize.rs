@@ -480,20 +480,6 @@ fn clone_function(
             // preserve memory access metadata for the cloned instruction
             clone_instruction_metadata(tree, instruction_id, new_id, &value_map);
 
-            // preserve debug locations for the cloned instruction
-            if let Some(location) = tree
-                .metadata
-                .debug
-                .instruction_locations
-                .get(&instruction_id)
-                .cloned()
-            {
-                tree.metadata
-                    .debug
-                    .instruction_locations
-                    .insert(new_id, location);
-            }
-
             new_instructions.push(new_id);
         }
 
@@ -527,11 +513,45 @@ fn clone_function(
 
     // insert the specialized function
     let new_function_id = tree.insert(new_function);
+    clone_function_debug_locations(function_id, new_function_id, &block_map, tree);
+
     // recompute value id state for the clone
     let mut cloned_function = tree.get(new_function_id).clone();
     cloned_function.recompute_next_value_id(tree);
     *tree.get_mut(new_function_id) = cloned_function;
     new_function_id
+}
+
+/// Clone debug locations from one function into its specialized clone.
+fn clone_function_debug_locations(
+    function_id: mir::LocalNodeId<mir::Function>,
+    new_function_id: mir::LocalNodeId<mir::Function>,
+    block_map: &HashMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
+    tree: &mut mir::Tree,
+) {
+    // collect locations before mutating the table
+    let locations = tree
+        .metadata
+        .debug
+        .locations
+        .iter()
+        .filter_map(|(point, location)| {
+            if point.function != function_id {
+                return None;
+            }
+
+            let new_block = block_map.get(&point.block).copied()?;
+            Some((
+                mir::DebugPoint::new(new_function_id, new_block, point.point),
+                location.clone(),
+            ))
+        })
+        .collect::<Vec<_>>();
+
+    // append cloned locations to the debug table
+    for (point, location) in locations {
+        tree.metadata.debug.locations.insert(point, location);
+    }
 }
 
 /// Identify constant parameters that can be removed.

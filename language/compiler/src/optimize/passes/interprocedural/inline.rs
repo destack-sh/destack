@@ -233,7 +233,7 @@ fn run_inline(tree: &mut mir::Tree, ctx: &PipelineContext<'_>) -> bool {
             };
 
             // attempt to inline the selected callsite
-            let did_inline = inline_callsite(&mut function, tree, &site.site);
+            let did_inline = inline_callsite(function_id, &mut function, tree, &site.site);
             if !did_inline {
                 break;
             }
@@ -649,7 +649,12 @@ fn should_inline(
 }
 
 /// Inline a direct callsite into the caller.
-fn inline_callsite(caller: &mut mir::Function, tree: &mut mir::Tree, site: &InlineSite) -> bool {
+fn inline_callsite(
+    caller_id: mir::LocalNodeId<mir::Function>,
+    caller: &mut mir::Function,
+    tree: &mut mir::Tree,
+    site: &InlineSite,
+) -> bool {
     // load the callee and entry block
     let callee = tree.get(site.callee_id).clone();
     let Some(entry_block) = callee.entry else {
@@ -727,6 +732,7 @@ fn inline_callsite(caller: &mut mir::Function, tree: &mut mir::Tree, site: &Inli
     let call_provenance = tree.get_provenance(site.call_instruction_id.id);
     remap_inline_blocks(
         tree,
+        caller_id,
         &callee,
         &block_map,
         &value_map,
@@ -744,10 +750,11 @@ fn inline_callsite(caller: &mut mir::Function, tree: &mut mir::Tree, site: &Inli
     tree.metadata
         .memory
         .remove_memory_accesses(site.call_instruction_id);
-    tree.metadata
-        .debug
-        .instruction_locations
-        .remove(&site.call_instruction_id);
+    tree.metadata.debug.locations.remove(&mir::DebugPoint::new(
+        caller_id,
+        site.block_id,
+        site.call_index as u32,
+    ));
 
     true
 }
@@ -960,6 +967,7 @@ fn substitute_value_in_function(
 /// Remap values and locals in inlined blocks.
 fn remap_inline_blocks(
     tree: &mut mir::Tree,
+    caller_id: mir::LocalNodeId<mir::Function>,
     callee: &mir::Function,
     block_map: &HashMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
     value_map: &HashMap<mir::Value, mir::Value>,
@@ -1002,19 +1010,6 @@ fn remap_inline_blocks(
                 tree.set_provenance(new_id.id, provenance_id);
             }
 
-            // clone debug locations onto the new instruction
-            if let Some(location) = tree
-                .metadata
-                .debug
-                .instruction_locations
-                .get(&instruction_id)
-                .cloned()
-            {
-                tree.metadata
-                    .debug
-                    .instruction_locations
-                    .insert(new_id, location);
-            }
             new_instructions.push(new_id);
         }
 
@@ -1027,6 +1022,40 @@ fn remap_inline_blocks(
         tree.replace(new_block.terminator, remapped_terminator);
 
         tree.replace(new_block_id, new_block);
+    }
+
+    clone_inlined_debug_locations(caller_id, callee, block_map, tree);
+}
+
+/// Clone callee debug locations onto the caller's inlined blocks.
+fn clone_inlined_debug_locations(
+    caller_id: mir::LocalNodeId<mir::Function>,
+    callee: &mir::Function,
+    block_map: &HashMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
+    tree: &mut mir::Tree,
+) {
+    // collect locations before mutating the table
+    let locations = tree
+        .metadata
+        .debug
+        .locations
+        .iter()
+        .filter_map(|(point, location)| {
+            if !callee.blocks.contains(&point.block) {
+                return None;
+            }
+
+            let new_block = block_map.get(&point.block).copied()?;
+            Some((
+                mir::DebugPoint::new(caller_id, new_block, point.point),
+                location.clone(),
+            ))
+        })
+        .collect::<Vec<_>>();
+
+    // append cloned locations to the debug table
+    for (point, location) in locations {
+        tree.metadata.debug.locations.insert(point, location);
     }
 }
 
