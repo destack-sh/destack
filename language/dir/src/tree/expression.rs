@@ -2,69 +2,131 @@ use destack_core::StringId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Argument, AssignOperator, AssignPattern, Asynchrony, BinaryOperator, Block, CastOperator,
-    CastOrigin, Declaration, Declarator, DependencyItem, DependencySpace, ExportKind,
-    GenericArgument, ImportAttributeClause, LocalNodeId, LocalScopeId, LocalSymbolId, LocalTypeId,
-    MatchCase, MatchForm, MatchOrigin, Mutability, Node, NodeType, Path, Pattern, Property,
-    RangeEnd, ScalarLiteral, StaticArgument, StaticProperty, TemplateLiteral, Tree, TypeExpression,
-    TypeLiteral, UnaryOperator, VarianceBound,
+    Argument, AssignOperator, AssignPattern, Asynchrony, BinaryOperator, Block, Declaration,
+    Declarator, DependencyItem, DependencySpace, ExportKind, GenericArgument,
+    ImportAttributeClause, Keyword, LocalNodeId, MatchCase, MatchForm, Mutability, Node, NodeType,
+    Path, Pattern, Property, RangeEnd, ScalarLiteral, TemplateLiteral, TypeExpression,
+    UnaryOperator,
 };
-use destack_source::{NodeSpanList, NodeSpanType};
+
+// NOTE #Performance: reduce Expression size to <=64B
 
 /// An Expression is a generic container for all constructs.
+/// Unlike most languages, we don't differentiate "statements" and "expressions" up-front.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Expression {
-    /// Declaration as a value (with a name or anonymous).
+    /// Declaration (with a name or anonymous).
     Declaration(LocalNodeId<Declaration>),
 
-    /// Block of "statements" (inside `{}` usually).
+    /// Block of Expressions.
     Block(LocalNodeId<Block>),
 
-    /// Labelled statement (like `label: stmt` in JavaScript).
-    Labelled {
+    /// Label statement (like `label: stmt` in JavaScript).
+    ///
+    /// Examples:
+    /// ```
+    /// outer: while (true) { break outer }
+    /// label: { break label }
+    /// ```
+    Label {
         label: StringId,
         body: LocalNodeId<Expression>,
-        symbol: LocalSymbolId,
     },
 
-    /// Import dependency declaration.
+    /// An Import is an import declaration for dependency management.
+    ///
+    /// Examples:
+    /// ```
+    /// import "foo"
+    /// import "foo.bar"
+    /// import * as foo from "foo"
+    /// import { bar, baz } from "foo"
+    /// import Default, { type Item } from "foo"
+    /// import foo as baz with { bar: true }
+    /// ```
+    ///
     Import {
         space: DependencySpace,
         target: StringId,
         items: Option<Vec<LocalNodeId<DependencyItem>>>,
         attributes: Option<ImportAttributeClause>,
     },
-    /// Re-export dependency declaration.
-    ReExport {
-        target: StringId,
-        space: DependencySpace,
-        items: Vec<LocalNodeId<DependencyItem>>,
-        attributes: Option<ImportAttributeClause>,
-    },
-    /// Export dependency.
+
+    /// An Export is an explicit export declaration for dependency management.
+    /// Implicit exports may also be specified on lets and any declarations.
+    ///
+    /// Examples:
+    /// ```
+    /// export "foo"
+    /// export * from "foo"
+    /// export * as foo from "foo"
+    /// export { bar, baz } from "foo"
+    /// export { bar as bar, baz }
+    /// export { default, foo } from 'foo'
+    /// export { default as bar, default as baz } from 'foo'
+    /// export default foo
+    /// ```
     Export {
         space: DependencySpace,
+        target: Option<StringId>,
         items: Vec<LocalNodeId<DependencyItem>>,
         attributes: Option<ImportAttributeClause>,
     },
 
     /// Let binding for mutable and immutable variables.
+    /// Both let and const may destructure and pattern match.
+    /// Supports multiple declarators like TypeScript: `let a: T1 = v1, b: T2 = v2`
+    ///
+    /// Examples:
+    /// ```
+    /// const x = 1
+    /// const x: int32 = 1
+    /// const (x, y) = foo()
+    /// let x = 1
+    /// let x: int32 = 1
+    /// let x: int32 // implicitly uninitialized, must be set before use
+    /// let a: T1 = v1, b: T2  // multiple declarators
+    /// const t = foo() ?? return;
+    ///
+    /// if (const Some(x) = someFunction()) {
+    ///     ...
+    /// }
     Let {
+        kind: LetKind,
         export: Option<ExportKind>,
         mutability: Mutability,
         declarators: Vec<LocalNodeId<Declarator>>,
         is_ambient: bool,
         is_shared: bool,
     },
+
     /// Let-else binding with an early-exit branch.
     /// The else branch is currently an explicit block.
+    ///
+    /// Examples:
+    /// ```
+    /// let Some(x) = maybe else {
+    ///     return;
+    /// }
+    ///
+    /// const [head, ...tail] = values else {
+    ///     throw Error("expected values");
+    /// }
+    /// ```
     LetElse {
         kind: LetKind,
         mutability: Mutability,
         declarator: LocalNodeId<Declarator>,
         else_branch: LocalNodeId<Expression>,
     },
-    /// Using binding for explicit resource management.
+
+    /// Using binding for resources with deterministic disposal.
+    ///
+    /// Examples:
+    /// ```
+    /// using file = openFile(path)
+    /// await using conn = openConnection()
+    /// ```
     Using {
         asynchrony: Asynchrony,
         export: Option<ExportKind>,
@@ -72,285 +134,658 @@ pub enum Expression {
         is_ambient: bool,
     },
 
-    /// TypeScript-style `as` assertion.
-    As {
-        /// The resolved cast operator after elaborate.
-        operator: Option<CastOperator>,
-        /// Whether the cast was written in source or inserted during reify.
-        source: CastOrigin,
-        /// The source expression.
-        expression: LocalNodeId<Expression>,
-        /// The target type.
-        target_type: LocalNodeId<TypeExpression>,
-    },
-
-    /// Check a value expression against a target type without changing its type.
-    Satisfies {
-        /// The source expression.
-        expression: LocalNodeId<Expression>,
-        /// The target type.
-        target_type: LocalNodeId<TypeExpression>,
-    },
-
-    /// Runtime type guard.
-    Is {
-        value: LocalNodeId<Expression>,
-        target_type: LocalNodeId<TypeExpression>,
-    },
-
-    /// Runtime constructor guard.
-    InstanceOf {
-        value: LocalNodeId<Expression>,
-        target: LocalNodeId<Expression>,
-    },
-
-    /// Unary operation (e.g., `-x`, `!x`, `*x`).
-    Unary {
-        operator: UnaryOperator,
-        right: LocalNodeId<Expression>,
-    },
-    /// Move operation (e.g., `^x`).
-    MoveOf {
-        mutability: Option<Mutability>,
-        variance: Option<VarianceBound>,
-        right: LocalNodeId<Expression>,
-    },
-    /// Borrow operation (e.g., `&x`).
-    BorrowOf {
-        mutability: Option<Mutability>,
-        variance: Option<VarianceBound>,
-        right: LocalNodeId<Expression>,
-    },
-    /// Binary operation.
-    Binary {
-        left: LocalNodeId<Expression>,
-        operator: BinaryOperator,
-        right: LocalNodeId<Expression>,
-    },
-    /// Assignment (e.g., `x = y`).
-    Assign {
-        left: LocalNodeId<AssignPattern>,
-        right: LocalNodeId<Expression>,
-    },
-    /// Assignment with operator (except direct assignment, e.g., `x += y`).
-    AssignBinary {
-        left: LocalNodeId<Expression>,
-        operator: AssignOperator,
-        right: LocalNodeId<Expression>,
-    },
-
-    /// Member access (like `a.foo`).
-    Member {
-        left: LocalNodeId<Expression>,
-        name: Option<StringId>,
-    },
-    /// Private member access (like `a.#foo`).
-    PrivateMember {
-        left: LocalNodeId<Expression>,
-        name: Option<StringId>,
-    },
-    /// Call to a function.
-    Call {
-        left: LocalNodeId<Expression>,
-        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
-        arguments: Vec<LocalNodeId<Argument>>,
-    },
-    /// Index into an array or slice.
-    Index {
-        left: LocalNodeId<Expression>,
-        right: Option<LocalNodeId<Expression>>,
-    },
-    /// Instantiation expression (TypeScript).
-    Instantiation {
-        left: LocalNodeId<Expression>,
-        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
-    },
-    /// Maybe unwrap an expression with `?` and propagate.
-    Maybe { left: LocalNodeId<Expression> },
-    /// Force unwrap an expression with `!` and propagate.
-    Must { left: LocalNodeId<Expression> },
-    /// New constructor call.
-    New {
-        left: LocalNodeId<Expression>,
-        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
-        arguments: Vec<LocalNodeId<Argument>>,
-    },
-    /// --------------------------------
-    /// Values.
-    /// --------------------------------
-
-    /// Qualified value reference with optional generic arguments.
-    Path {
-        path: Path,
-        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
-    },
-    /// Private identifier.
-    PrivateIdentifier { name: StringId },
-
-    /// Import meta intrinsic value.
-    ImportMeta,
-    /// New target intrinsic value.
-    NewTarget,
-    /// This intrinsic value.
-    This,
-    /// Super intrinsic value.
-    Super,
-
-    /// Scalar literal value.
-    ScalarLiteral { value: ScalarLiteral },
-    /// Type literal value.
-    TypeLiteral { value: TypeLiteral },
-
-    /// Type as a value.
-    Type { value: LocalNodeId<TypeExpression> },
-    /// Range expression.
-    RangeExpression {
-        start: Option<LocalNodeId<Expression>>,
-        end: Option<LocalNodeId<Expression>>,
-        end_kind: RangeEnd,
-    },
-    /// Template expression.
-    TemplateExpression { value: TemplateLiteral },
-    /// Tagged template expression.
-    TaggedTemplateExpression {
-        tag: LocalNodeId<Expression>,
-        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
-        value: TemplateLiteral,
-    },
-    /// Array expression (anonymous).
-    ArrayExpression {
-        elements: Vec<LocalNodeId<Argument>>,
-    },
-    /// Fixed array repeat expression.
-    FixedArrayExpression {
-        value: LocalNodeId<Expression>,
-        length: LocalNodeId<Expression>,
-    },
-    /// Tuple expression (anonymous).
-    TupleExpression {
-        elements: Vec<LocalNodeId<Argument>>,
-    },
-    /// Sequence expression (JS/TS comma operator).
-    SequenceExpression {
-        expressions: Vec<LocalNodeId<Expression>>,
-    },
-    /// Object expression (anonymous).
-    ObjectExpression {
-        ty: Option<LocalNodeId<TypeExpression>>,
-        properties: Vec<LocalNodeId<Property>>,
-    },
-    /// Tree expression.
-    TreeExpression {
-        left: Option<LocalNodeId<Expression>>,
-        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
-        arguments: Option<Vec<LocalNodeId<Argument>>>,
-        elements: Option<Vec<LocalNodeId<Argument>>>,
-    },
-    /// Tagged scalar expression for newtype construction (e.g., `UserId(20)`).
-    TaggedScalarExpression {
-        ty: LocalNodeId<TypeExpression>,
-        value: LocalNodeId<Expression>,
-    },
-    /// Tagged tuple expression for newtype construction (e.g., `Point(1, 2)`).
-    TaggedTupleExpression {
-        ty: LocalNodeId<TypeExpression>,
-        elements: Vec<LocalNodeId<Argument>>,
-    },
-    /// Tagged object expression for nominal struct construction (e.g., `Vector3 { x: 1, y: 2 }`).
-    TaggedObjectExpression {
-        ty: LocalNodeId<TypeExpression>,
-        properties: Vec<LocalNodeId<Property>>,
-    },
-    /// Parenthesized expression.
-    Parenthesized { expression: LocalNodeId<Expression> },
-
-    /// --------------------------------
-    /// Control analyze.
-    /// --------------------------------
-
-    /// If expression.
+    /// If/then/else expression.
+    /// Then and else must be blocks.
+    ///
+    /// Examples:
+    /// ```
+    /// // ternary
+    /// cond ? a : b
+    ///
+    /// // if
+    /// if (x > 0) {
+    ///     print("positive")
+    /// }
+    ///
+    /// // if else
+    /// if (x > 0) {
+    ///     print("positive")
+    /// } else {
+    ///     print("not positive")
+    /// }
+    ///
+    /// // if else if
+    /// if (x > 0) {
+    ///     print("positive")
+    /// } else if (x == 0) {
+    ///     print("zero")
+    /// } else {
+    ///     print("negative")
+    /// }
+    /// ```
     If {
         form: IfForm,
         condition: IfCondition,
         then_expression: LocalNodeId<Expression>,
         else_expression: Option<LocalNodeId<Expression>>,
     },
-    /// Loop expression.
-    Loop {
-        kind: LoopKind,
-        condition: Option<LocalNodeId<Expression>>,
+
+    /// A While is while or do-while loop.
+    ///
+    /// Examples:
+    /// ```
+    /// while (x > 1) {
+    ///     y = 2
+    /// }
+    /// ```
+    While {
+        form: WhileForm,
+        condition: LocalNodeId<Expression>,
         body: LocalNodeId<Block>,
-        scope: LocalScopeId,
-        symbol: LocalSymbolId,
     },
-    /// For each loop.
+
+    /// A ForEach is a for loop over an iterator with a binding.
+    ///
+    /// Examples:
+    /// ```
+    /// for (const x of items) {
+    ///     y = 2
+    /// }
+    ///
+    /// for (using x of items) {
+    ///     y = 2
+    /// }
+    ///
+    /// for (const x in items) {
+    ///     if (y > 5) {
+    ///         continue
+    ///     }
+    ///     y = 2
+    /// }
+    /// ```
     ForEach {
         asynchrony: Asynchrony,
         operator: ForEachOperator,
         binding: ForEachBinding,
         iterator: LocalNodeId<Expression>,
         body: LocalNodeId<Block>,
-        scope: LocalScopeId,
-        symbol: LocalSymbolId,
     },
-    /// For three-part loop.
+
+    /// A For is a for loop with the traditional three-part (initialization, condition, increment).
+    ///
+    /// Examples:
+    /// ```
+    /// for (;;) {}
+    /// for (let x = 0; x < 10; x++) {
+    ///     y = 2
+    /// }
+    /// ```
     For {
         initialization: Option<LocalNodeId<Expression>>,
         condition: Option<LocalNodeId<Expression>>,
         increment: Option<LocalNodeId<Expression>>,
         body: LocalNodeId<Block>,
-        scope: LocalScopeId,
-        symbol: LocalSymbolId,
     },
-    /// Try expression.
+
+    /// A Loop is an unconditional loop.
+    ///
+    /// Examples:
+    /// ```
+    /// loop {
+    ///     y = getNext()
+    ///     if (y < 0) {
+    ///         break
+    ///     }
+    /// }
+    /// ```
+    Loop { body: LocalNodeId<Block> },
+
+    /// A Try is a try/catch/finally expression.
+    ///
+    /// Examples:
+    /// ```
+    /// try {
+    ///     fileOperation()?;
+    /// } catch e {
+    ///     handle(e)
+    /// }
+    ///
+    /// try {
+    ///     let a = riskyOperationA()?; // a is the success value from the Try
+    ///     riskyOperationB(a)?;
+    /// } catch e {
+    ///     log("failed", e)
+    /// }
+    ///
+    /// try {
+    ///     riskyOperationA()?;
+    /// } catch match (e) {
+    ///     NumericError(x) => Error(`bad number: ${x}`)
+    ///     FormatError => Error(`bad format ${e}`)
+    ///     _ => Error(`unknown error: ${e}`))
+    /// }
+    /// ```
     Try {
         try_expression: LocalNodeId<Expression>,
         catch_pattern: Option<LocalNodeId<Pattern>>,
         catch_ty: Option<LocalNodeId<TypeExpression>>,
         catch_expression: Option<LocalNodeId<Expression>>,
         finally_expression: Option<LocalNodeId<Expression>>,
-        scope: LocalScopeId,
-        symbol: LocalSymbolId,
     },
-    /// Match expression.
+
+    /// A Match is a match expression with case patterns.
+    /// The clauses must be exhaustive and return the same type.
+    /// Match statements are Expressions and also used in catch patterns.
+    /// Like other statements, match cases do not need to be terminated with a colon/semicolon.
+    ///
+    /// Examples:
+    /// ```
+    /// match (expr) {
+    ///     (x, y) => {
+    ///         ...
+    ///     }
+    ///     (x, y, z) => {
+    ///         ...
+    ///     }
+    /// }
+    /// ```
     Match {
         form: MatchForm,
         value: LocalNodeId<Expression>,
         cases: Vec<LocalNodeId<MatchCase>>,
-        source: MatchOrigin,
-        scope: LocalScopeId,
-        symbol: LocalSymbolId,
     },
-    /// Break expression.
+
+    /// A Break is break statement.
+    /// If a value is provided, a label must also be provided (to avoid ambiguity).
+    ///
+    /// Examples:
+    /// ```
+    /// break
+    /// break label
+    /// break label 17
+    /// ```
     Break {
-        target: Option<StringId>,
+        label: Option<StringId>,
         value: Option<LocalNodeId<Expression>>,
     },
-    /// Continue expression.
-    Continue { target: Option<StringId> },
-    /// Throw expression.
-    Throw { value: LocalNodeId<Expression> },
-    /// Await expression.
+
+    /// A Continue is continue statement.
+    ///
+    /// Examples:
+    /// ```
+    /// continue
+    /// continue label
+    /// ```
+    Continue { label: Option<StringId> },
+
+    /// Await an expression.
+    ///
+    /// Examples:
+    /// ```
+    /// await someLongFunction()
+    /// ```
     Await { expression: LocalNodeId<Expression> },
-    /// Await with immediate error propagation (`await? expr`).
-    /// Normalized to `Maybe { left: Await { expression } }` after binding.
+
+    /// Await an expression with immediate error propagation (`await? expr`).
+    ///
+    /// Examples:
+    /// ```
+    /// await? someLongAsyncFunction()
+    /// ```
     AwaitMaybe { expression: LocalNodeId<Expression> },
-    /// Await with immediate trapping error propagation (`await! expr`).
-    /// Normalized to `Must { left: Await { expression } }` after binding.
+
+    /// Await an expression with immediate trapping error propagation (`await! expr`).
+    ///
+    /// Examples:
+    /// ```
+    /// await! someFallibleAsyncFunction()
+    /// ```
     AwaitMust { expression: LocalNodeId<Expression> },
-    /// Compile-time evaluated expression.
-    Comptime { body: LocalNodeId<Expression> },
-    /// Yield expression.
+
+    /// Yield an expression.
+    ///
+    /// Examples:
+    /// ```
+    /// yield
+    /// yield someValue
+    /// yield* someIterator
+    /// ```
     Yield {
         cardinality: YieldCardinality,
         value: Option<LocalNodeId<Expression>>,
     },
-    /// Return expression.
+
+    /// Throw an expression.
+    ///
+    /// Examples:
+    /// ```
+    /// throw someError
+    /// throw anyOldExpression()
+    /// ```
+    Throw { value: LocalNodeId<Expression> },
+
+    /// Return an expression.
+    ///
+    /// Examples:
+    /// ```
+    /// return
+    /// return 17
+    /// ```
     Return {
         value: Option<LocalNodeId<Expression>>,
     },
 
+    /// Bare identifier reference.
+    Identifier { name: StringId },
+
+    /// Static qualified reference, optionally parameterized.
+    QualifiedReference {
+        path: Path,
+        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
+    },
+
+    /// Private identifier (JavaScript/TypeScript).
+    ///
+    /// Examples:
+    /// ```
+    /// #field
+    /// #method
+    /// ```
+    PrivateIdentifier { name: StringId },
+
+    /// This reference (value or type context).
+    This,
+
+    /// Super reference (value context).
+    Super,
+
+    /// Import meta intrinsic value.
+    ImportMeta,
+
+    /// New target intrinsic value.
+    NewTarget,
+
+    /// Literal scalar value.
+    ///
+    /// Examples:
+    /// ```
+    /// true
+    /// false
+    /// 1
+    /// 0x21
+    /// 1.0
+    /// "Hello, world!"
+    /// 'a'
+    /// b'a'
+    /// b"abc"
+    /// 0x1234
+    /// ```
+    ScalarLiteral(ScalarLiteral),
+
+    /// Range expression.
+    ///
+    /// Examples:
+    /// ```
+    /// start..end
+    /// start..=end
+    /// start..
+    /// ..end
+    /// ..=end
+    /// ..
+    /// ```
+    RangeExpression {
+        start: Option<LocalNodeId<Expression>>,
+        end: Option<LocalNodeId<Expression>>,
+        end_kind: RangeEnd,
+    },
+
+    /// Template expression. May include interpolation arguments.
+    ///
+    /// Examples:
+    /// ```
+    /// `hello`
+    /// `hello ${name}`
+    /// ```
+    TemplateExpression { value: TemplateLiteral },
+
+    /// Tagged template expression. May include interpolation arguments.
+    ///
+    /// Examples:
+    /// ```
+    /// sql`SELECT * FROM users`
+    /// sql<User>`SELECT * FROM users`
+    /// sql`${stmt}`
+    /// (sql.expr)`SELECT * FROM users WHERE name = ${name}` AND age > ${group.age()} LIMIT 10`
+    /// ```
+    TaggedTemplateExpression {
+        tag: LocalNodeId<Expression>,
+        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
+        value: TemplateLiteral,
+    },
+
+    /// An ArrayExpression constructs an array of homogeneous elements.
+    ///
+    /// Examples:
+    /// ```
+    /// [] // empty array
+    /// [1, 2, ] // trailing comma is allowed
+    /// // multi-line array with implicit comma
+    /// [
+    ///   1 // comma is optional here
+    ///   2 // comma is optional here too
+    /// ]
+    /// [10, false, "Hi"] // hetereogenous array is valid in some contexts
+    /// ```
+    ArrayExpression {
+        elements: Vec<LocalNodeId<Argument>>,
+    },
+
+    /// A FixedArrayExpression constructs a fixed-length array by repeating one value.
+    ///
+    /// Examples:
+    /// ```
+    /// [0; 32]
+    /// [fill(); N]
+    /// ```
+    FixedArrayExpression {
+        /// The repeated value expression.
+        value: LocalNodeId<Expression>,
+        /// The fixed array length expression.
+        length: LocalNodeId<Expression>,
+    },
+
+    /// A TupleExpression constructs an anonymous tuple of heterogeneous elements.
+    /// For typed tuple expressions (newtype construction), see Call.
+    ///
+    /// Examples:
+    /// ```
+    /// (1, 2, 3)
+    /// (1.0, 2.0, 3.0)
+    /// (x: int32, y: boolean)
+    /// ```
+    TupleExpression {
+        elements: Vec<LocalNodeId<Argument>>,
+    },
+
+    /// A SequenceExpression is the JavaScript/TypeScript comma operator.
+    /// It evaluates all expressions left-to-right and returns the last value.
+    /// Only parsed in JS/TS files for compatibility with EcmaScript.
+    ///
+    /// Examples:
+    /// ```
+    /// (a, b, c) // evaluates a, b, c and returns c
+    /// ```
+    SequenceExpression {
+        expressions: Vec<LocalNodeId<Expression>>,
+    },
+
+    /// An ObjectExpression constructs an object with heterogeneous fields.
+    /// May have an optional type prefix for nominal struct construction.
+    ///
+    /// Examples:
+    /// ```
+    /// { a: 2 }
+    /// Vector2 { x: 1, y: 2 }
+    /// some_module.MyUnion.OptionB { a: true }
+    /// ```
+    ObjectExpression {
+        ty: Option<LocalNodeId<TypeExpression>>,
+        properties: Vec<LocalNodeId<Property>>,
+    },
+
+    /// A TreeExpression constructs a tree fragment with arguments (similar to JSX).
+    /// The contents of the tree are normal expressions (no implicit text, but full language features).
+    /// Like other language constructs, trees are customizable via traits and context.
+    ///
+    /// Examples:
+    /// ```
+    /// <Entity>1</Entity>
+    /// <Level level=1>
+    ///     player: <Entity name="Alfred" />
+    ///     <Entity>2</Entity>
+    ///     "some text"
+    ///     ..someChildren.map(child => <Entity name={child.name} />)
+    /// </Level>
+    /// ```
+    TreeExpression {
+        left: Option<LocalNodeId<Expression>>,
+        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
+        arguments: Option<Vec<LocalNodeId<Argument>>>,
+        elements: Option<Vec<LocalNodeId<Argument>>>,
+    },
+
+    /// Parenthesized expression.
+    ///
+    /// Examples:
+    /// ```
+    /// (x)
+    /// (x + y)
+    /// ```
+    Parenthesized { expression: LocalNodeId<Expression> },
+
+    /// Type expression used as a runtime type value.
+    Type { value: LocalNodeId<TypeExpression> },
+
+    /// Compile time evaluated expression.
+    /// The body is evaluated at compile time and the result is embedded in the output.
+    ///
+    /// Examples:
+    /// ```
+    /// comptime 1 + 2
+    /// comptime factorial(10)
+    /// comptime { let x = compute(); x * 2 }
+    /// const TABLE = comptime { generateLookupTable() }
+    /// ```
+    Comptime { body: LocalNodeId<Expression> },
+
+    /// TypeScript-style `as` assertion.
+    ///
+    /// Examples:
+    /// ```
+    /// value as Foo
+    /// ```
+    As {
+        expression: LocalNodeId<Expression>,
+        target_type: LocalNodeId<TypeExpression>,
+    },
+
+    /// TypeScript-style `satisfies` expression.
+    ///
+    /// Examples:
+    /// ```
+    /// value satisfies Foo
+    /// ```
+    Satisfies {
+        expression: LocalNodeId<Expression>,
+        target_type: LocalNodeId<TypeExpression>,
+    },
+
+    /// Runtime type guard.
+    ///
+    /// Examples:
+    /// ```
+    /// value is User
+    /// item is Some
+    /// unknownValue is string
+    /// ```
+    Is {
+        value: LocalNodeId<Expression>,
+        target_type: LocalNodeId<TypeExpression>,
+    },
+
+    /// Runtime constructor guard.
+    ///
+    /// Examples:
+    /// ```
+    /// value instanceof User
+    /// error instanceof Error
+    /// node instanceof HTMLElement
+    /// ```
+    InstanceOf {
+        value: LocalNodeId<Expression>,
+        target: LocalNodeId<Expression>,
+    },
+
+    /// Unary operation (prefix or postfix).
+    ///
+    /// Examples:
+    /// ```
+    /// !x
+    /// -x
+    /// +x
+    /// ```
+    Unary {
+        operator: UnaryOperator,
+        right: LocalNodeId<Expression>,
+    },
+
+    /// Move operation (e.g., `^x`).
+    ///
+    /// Examples:
+    /// ```
+    /// ^x
+    /// ^readonly x
+    /// ^readonly super T
+    /// ```
+    MoveOf {
+        mutability: Option<Mutability>,
+        variance: Option<VarianceBound>,
+        right: LocalNodeId<Expression>,
+    },
+
+    /// Borrow operation (e.g., `&x`).
+    ///
+    /// Examples:
+    /// ```
+    /// &x
+    /// &readonly x
+    /// &readonly extends T
+    /// ```
+    BorrowOf {
+        mutability: Option<Mutability>,
+        variance: Option<VarianceBound>,
+        right: LocalNodeId<Expression>,
+    },
+
+    /// Member access.
+    ///
+    /// Examples:
+    /// ```
+    /// foo.bar
+    /// ```
+    Member {
+        left: LocalNodeId<Expression>,
+        name: Option<StringId>,
+    },
+
+    /// Private member access.
+    ///
+    /// Examples:
+    /// ```
+    /// foo.#bar
+    /// ```
+    PrivateMember {
+        left: LocalNodeId<Expression>,
+        name: Option<StringId>,
+    },
+
+    /// Index into a receiver expression.
+    ///
+    /// Examples:
+    /// ```
+    /// T[] // declarative form
+    /// foo[1]
+    /// foo["bar"]
+    /// foo().result[0][variable+1]
+    /// ```
+    Index {
+        position: PostfixPosition,
+        left: LocalNodeId<Expression>,
+        index: Option<LocalNodeId<Expression>>,
+    },
+
+    /// Instantiation expression (TypeScript).
+    ///
+    /// Examples:
+    /// ```
+    /// f<number>
+    /// f['g']<number>
+    /// (f<number>)<number>
+    /// ```
+    Instantiation {
+        left: LocalNodeId<Expression>,
+        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
+    },
+
+    /// A Call is call to a function OR an instantiation of a tuple type.
+    ///
+    /// The function may or may not be declared as comptime (with a `@ prefix),
+    ///  but the call must be prefixed with a `@` to qualify as a static call.
+    ///
+    /// Examples:
+    /// ```
+    /// foo()
+    /// foo(1, 2, 3)
+    /// foo(Vector2 {x: 1, y: 2}, (true, 3))
+    /// Bar(1, 2, 3)
+    /// MyUnion.Baz(2, 3)
+    /// ```
+    Call {
+        position: PostfixPosition,
+        left: LocalNodeId<Expression>,
+        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
+        arguments: Vec<LocalNodeId<Argument>>,
+    },
+
+    /// New constructor call.
+    ///
+    /// Examples:
+    /// ```
+    /// new Foo()
+    /// new Foo(1, 2, 3)
+    /// new Foo(Vector2 {x: 1, y: 2}, (true, 3))
+    /// new Foo.Baz(2, 3)
+    /// ```
+    New {
+        left: LocalNodeId<Expression>,
+        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
+        arguments: Vec<LocalNodeId<Argument>>,
+    },
+
+    /// Maybe unwrap an expression with `?` and propagate.
+    /// Supports chaining with `?.`.
+    Maybe {
+        position: PostfixPosition,
+        left: LocalNodeId<Expression>,
+    },
+
+    /// Force unwrap an expression with `!` and propagate.
+    Must {
+        position: PostfixPosition,
+        left: LocalNodeId<Expression>,
+    },
+
+    /// Binary operation.
+    Binary {
+        left: LocalNodeId<Expression>,
+        operator: BinaryOperator,
+        right: LocalNodeId<Expression>,
+    },
+
+    /// Assignment operation.
+    Assign {
+        left: LocalNodeId<AssignPattern>,
+        operator: AssignOperator,
+        right: LocalNodeId<Expression>,
+    },
+
     /// Debugger statement.
+    ///
+    /// Examples:
+    /// ```
+    /// debugger
+    /// debugger;
+    /// ```
     Debugger,
 
     /// Missing expression child.
@@ -359,7 +794,7 @@ pub enum Expression {
     /// Stub placeholder.
     Stub,
 
-    /// Error expression.
+    /// Error placeholder.
     Error,
 }
 
@@ -368,248 +803,173 @@ impl Node for Expression {
 }
 
 impl Expression {
-    /// Get the name of this kind of expression.
-    pub fn kind_name(&self) -> &'static str {
+    /// Whether the expression is like a statement at the top level of a block.
+    #[inline]
+    pub fn is_top_level_statement(&self) -> bool {
         match self {
-            Expression::Declaration(..) => "declaration",
-            Expression::Import { .. } => "import",
-            Expression::ReExport { .. } => "re-export",
-            Expression::Export { .. } => "export",
-
-            Expression::Block(..) => "block",
-            Expression::Labelled { .. } => "labelled",
-
-            Expression::Let { .. } => "let",
-            Expression::LetElse { .. } => "let else",
-            Expression::Using { .. } => "using",
-
-            Expression::As { .. } => "as",
-            Expression::Satisfies { .. } => "satisfies",
-            Expression::Is { .. } => "is",
-            Expression::InstanceOf { .. } => "instanceof",
-            Expression::Unary { .. } => "unary",
-            Expression::MoveOf { .. } => "move of",
-            Expression::BorrowOf { .. } => "borrow of",
-            Expression::Binary { .. } => "binary",
-            Expression::Assign { .. } => "assign",
-            Expression::AssignBinary { .. } => "assign binary",
-            Expression::Member { .. } => "member",
-            Expression::PrivateMember { .. } => "private member",
-            Expression::Call { .. } => "call",
-            Expression::Index { .. } => "index",
-            Expression::Instantiation { .. } => "instantiation",
-            Expression::Maybe { .. } => "maybe",
-            Expression::Must { .. } => "must",
-            Expression::New { .. } => "new",
-
-            Expression::Path { .. } => "path",
-            Expression::PrivateIdentifier { .. } => "private identifier",
-            Expression::ImportMeta => "import meta",
-            Expression::NewTarget => "new target",
-            Expression::This => "this",
-            Expression::Super => "super",
-
-            Expression::Type { .. } => "type",
-            Expression::ScalarLiteral { .. } => "scalar literal",
-            Expression::RangeExpression { .. } => "range expression",
-            Expression::TemplateExpression { .. } => "template expression",
-            Expression::TaggedTemplateExpression { .. } => "tagged template expression",
-            Expression::TypeLiteral { .. } => "type literal",
-            Expression::ArrayExpression { .. } => "array expression",
-            Expression::FixedArrayExpression { .. } => "fixed array expression",
-            Expression::TupleExpression { .. } => "tuple expression",
-            Expression::SequenceExpression { .. } => "sequence expression",
-            Expression::ObjectExpression { .. } => "object expression",
-            Expression::TreeExpression { .. } => "tree expression",
-            Expression::TaggedScalarExpression { .. } => "tagged scalar expression",
-            Expression::TaggedTupleExpression { .. } => "tagged tuple expression",
-            Expression::TaggedObjectExpression { .. } => "tagged object expression",
-            Expression::Parenthesized { .. } => "parenthesized",
-
-            Expression::If { .. } => "if",
-            Expression::Loop { .. } => "loop",
-            Expression::ForEach { .. } => "for each",
-            Expression::For { .. } => "for",
-            Expression::Try { .. } => "try",
-            Expression::Match { .. } => "match",
-            Expression::Break { .. } => "break",
-            Expression::Continue { .. } => "continue",
-            Expression::Throw { .. } => "throw",
-            Expression::Await { .. } => "await",
-            Expression::AwaitMaybe { .. } => "await?",
-            Expression::AwaitMust { .. } => "await!",
-            Expression::Comptime { .. } => "comptime",
-            Expression::Yield { .. } => "yield",
-            Expression::Return { .. } => "return",
-
-            Expression::Debugger => "debugger",
-
-            Expression::Missing => "missing",
-            Expression::Stub => "stub",
-            Expression::Error => "error",
+            Expression::Block(_) => true,
+            Expression::Declaration(_) => true,
+            Expression::Label { .. } => true,
+            Expression::If { form, .. } => *form == IfForm::If,
+            Expression::While { .. } => true,
+            Expression::ForEach { .. } => true,
+            Expression::For { .. } => true,
+            Expression::Loop { .. } => true,
+            Expression::Try {
+                try_expression: _,
+                catch_expression,
+                catch_pattern,
+                catch_ty: _,
+                finally_expression,
+            } => {
+                catch_expression.is_some()
+                    || catch_pattern.is_some()
+                    || finally_expression.is_some()
+            }
+            Expression::Match { .. } => true,
+            _ => false,
         }
     }
 
-    /// Get the scope of the expression.
-    pub fn scope(&self) -> Option<LocalScopeId> {
-        match self {
-            Expression::Loop { scope, .. } => Some(*scope),
-            Expression::ForEach { scope, .. } => Some(*scope),
-            Expression::For { scope, .. } => Some(*scope),
-            Expression::Try { scope, .. } => Some(*scope),
-            Expression::Match { scope, .. } => Some(*scope),
-            _ => None,
-        }
+    /// Return whether this expression behaves like a statement boundary.
+    #[inline]
+    pub fn is_statement_boundary(&self) -> bool {
+        matches!(
+            self,
+            Expression::Let { .. } | Expression::LetElse { .. } | Expression::Using { .. }
+        ) || self.is_top_level_statement()
     }
 
-    /// Get the symbol of the expression.
-    pub fn symbol(&self) -> Option<LocalSymbolId> {
-        match self {
-            Expression::Labelled { symbol, .. }
-            | Expression::Loop { symbol, .. }
-            | Expression::ForEach { symbol, .. }
-            | Expression::For { symbol, .. }
-            | Expression::Try { symbol, .. }
-            | Expression::Match { symbol, .. } => Some(*symbol),
-            _ => None,
-        }
+    /// Return whether this expression may remain a value tail in an expression block.
+    #[inline]
+    pub fn preserves_value_tail_in_expression_block(&self) -> bool {
+        matches!(
+            self,
+            Expression::Block(_)
+                | Expression::If {
+                    form: IfForm::If,
+                    else_expression: Some(_),
+                    ..
+                }
+                | Expression::Try {
+                    catch_expression: Some(_),
+                    ..
+                }
+                | Expression::Try {
+                    finally_expression: Some(_),
+                    ..
+                }
+                | Expression::Match { .. }
+                | Expression::Loop { .. }
+        )
     }
 
-    /// Get the generic arguments attached to the expression, when present.
-    pub fn generic_arguments(&self) -> Option<&[LocalNodeId<GenericArgument>]> {
-        match self {
-            Expression::Path {
-                generic_arguments, ..
-            }
-            | Expression::TaggedTemplateExpression {
-                generic_arguments, ..
-            }
-            | Expression::TreeExpression {
-                generic_arguments, ..
-            }
-            | Expression::Call {
-                generic_arguments, ..
-            }
-            | Expression::New {
-                generic_arguments, ..
-            } => Some(generic_arguments.as_slice()),
-            Expression::Instantiation {
-                generic_arguments, ..
-            } => Some(generic_arguments.as_slice()),
-            _ => None,
-        }
+    /// Determine if this expression should terminate at a newline in statement position.
+    #[inline]
+    pub fn ends_statement_on_newline(&self) -> bool {
+        matches!(
+            self,
+            Expression::Block(_)
+                | Expression::Declaration(_)
+                | Expression::Label { .. }
+                | Expression::Import { .. }
+                | Expression::Export { .. }
+                | Expression::Let { .. }
+                | Expression::LetElse { .. }
+                | Expression::Using { .. }
+                | Expression::If { .. }
+                | Expression::While { .. }
+                | Expression::ForEach { .. }
+                | Expression::For { .. }
+                | Expression::Loop { .. }
+                | Expression::Match { .. }
+                | Expression::Break { .. }
+                | Expression::Continue { .. }
+                | Expression::Yield { .. }
+                | Expression::Return { .. }
+                | Expression::Throw { .. }
+                | Expression::Debugger
+                | Expression::Try {
+                    catch_expression: Some(_),
+                    ..
+                }
+                | Expression::Try {
+                    catch_pattern: Some(_),
+                    ..
+                }
+                | Expression::Try {
+                    finally_expression: Some(_),
+                    ..
+                }
+        )
     }
 
-    /// Resolve the source span kind that identifies this member name token.
-    pub fn member_source_part(tree: &Tree, expression_id: LocalNodeId<Expression>) -> NodeSpanType {
-        let source_id = tree.get_source(expression_id.id);
-        let mut segment_index = 0u16;
-        let mut current_id = expression_id;
+    /// Whether the expression may be inlined into a statement.
+    #[inline]
+    pub fn is_narrow(&self) -> bool {
+        !self.is_wide()
+    }
 
-        // walk left through one lowered member chain
-        loop {
-            let current_expression = tree.get::<Expression>(current_id);
-
-            // count each synthetic member hop that still belongs to the same source node
-            if let Expression::Member { left, .. } = current_expression
-                && tree.get_source(left.id) == source_id
-            {
-                current_id = *left;
-                segment_index = segment_index
-                    .checked_add(1)
-                    .expect("member source part segment index overflow");
-                continue;
-            }
-
-            break;
-        }
-
-        // use indexed path segments for lowered qualified paths
-        match tree.get::<Expression>(current_id) {
-            Expression::Path { path, .. }
-                if tree.get_source(current_id.id) == source_id
-                    && usize::from(segment_index) < path.segments.len() =>
-            {
-                NodeSpanType::ListItem(NodeSpanList::Segment, segment_index)
-            }
-            _ => NodeSpanType::Main,
-        }
+    /// Whether the expression is wide (can / should span a full "statement").
+    #[inline]
+    pub fn is_wide(&self) -> bool {
+        matches!(
+            self,
+            Expression::Declaration { .. }
+                | Expression::Import { .. }
+                | Expression::Let { .. }
+                | Expression::LetElse { .. }
+                | Expression::Using { .. }
+                | Expression::While { .. }
+                | Expression::Loop { .. }
+                | Expression::Match { .. }
+                | Expression::Break { .. }
+                | Expression::Continue { .. }
+                | Expression::Return { .. }
+                | Expression::Assign { .. }
+                | Expression::Debugger
+        )
     }
 }
 
-/// Static value form of an expression in some static context.
-/// Static evaluation supports all constructs, this is for the resulting static value.
-/// This is a plain value type, not a tree node so we can pass it around freely.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum StaticExpression {
-    /// Unevaluated expression (needs compile-time evaluation).
-    Unevaluated { node: LocalNodeId<Expression> },
-
-    /// Scalar literal.
-    ScalarLiteral { value: ScalarLiteral },
-    /// Type literal.
-    TypeLiteral { value: TypeLiteral },
-
-    /// Declaration reference with optional static arguments.
-    Declaration {
-        declaration: LocalNodeId<Declaration>,
-        generic_arguments: Option<Vec<StaticArgument>>,
-    },
-    /// Type.
-    Type { ty: LocalTypeId },
-    /// Array expression.
-    ArrayExpression { elements: Vec<StaticExpression> },
-    /// Tuple expression.
-    TupleExpression { elements: Vec<StaticExpression> },
-    /// Object expression.
-    ObjectExpression { properties: Vec<StaticProperty> },
-}
-
-impl StaticExpression {
-    /// Check if the static expression and all its children have been evaluated.
-    pub fn is_evaluated(&self) -> bool {
-        match self {
-            StaticExpression::Unevaluated { .. } => false,
-            StaticExpression::ScalarLiteral { .. } => true,
-            StaticExpression::TypeLiteral { .. } => true,
-            StaticExpression::Type { .. } => true,
-            StaticExpression::Declaration {
-                generic_arguments, ..
-            } => generic_arguments
-                .as_ref()
-                .map(|args| args.iter().all(StaticArgument::is_evaluated))
-                .unwrap_or(true),
-            StaticExpression::ArrayExpression { elements } => {
-                elements.iter().all(StaticExpression::is_evaluated)
-            }
-            StaticExpression::TupleExpression { elements } => {
-                elements.iter().all(StaticExpression::is_evaluated)
-            }
-            StaticExpression::ObjectExpression { properties } => {
-                properties.iter().all(StaticProperty::is_evaluated)
-            }
-        }
-    }
-}
-
-/// The kind of a loop expression.
+/// The position of a postfix expression.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub enum LoopKind {
-    /// No-test loop (like `loop <body>`)
-    NoTest,
-    /// Pre-test loop (like `while <condition> <body>`)
-    PreTest,
-    /// Post-test loop (like `do <body> while <condition>`)
-    PostTest,
+pub enum PostfixPosition {
+    // Regular postfix (just `x?`)
+    Direct,
+    // Dot postfix (like `x.?`)
+    Indirect,
 }
 
-/// The style of if expression.
+/// A TypeKind determines nominal vs. structural typing.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub enum IfForm {
-    /// If expression.
-    If,
-    /// If ternary expression.
-    Ternary,
+pub enum TypeKind {
+    /// Structural typing (like `type T = { a: int32, b: boolean }`).
+    Structural,
+    /// Nominal typing (like `newtype T = int32`).
+    Nominal,
+}
+
+/// A TypeBound is a type bound for a reference operation.
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+pub enum VarianceBound {
+    /// Implements a type (such that X implements Y, i.e. X implements Y).
+    Implements,
+    /// Extends a type (such that X is a subtype of Y, i.e. X <: Y).
+    Extends,
+    /// Super a type (such that X is a supertype of Y, i.e. X >: Y).
+    Super,
+}
+
+impl VarianceBound {
+    #[inline]
+    pub fn to_keyword(&self) -> Keyword {
+        match self {
+            VarianceBound::Implements => Keyword::Implements,
+            VarianceBound::Extends => Keyword::Extends,
+            VarianceBound::Super => Keyword::Super,
+        }
+    }
 }
 
 /// The kind of a let or const binding.
@@ -619,6 +979,15 @@ pub enum LetKind {
     Let,
     /// `const` binding.
     Const,
+}
+
+/// The style of if expression.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub enum IfForm {
+    /// Regular if expression (like `if <condition> <then_expr> else <else_expr>`)
+    If,
+    /// Ternary if expression (like `<condition> ? <then_expr> : <else_expr>`)
+    Ternary,
 }
 
 /// The condition for an if expression.
@@ -640,19 +1009,19 @@ pub enum IfCondition {
 /// The kind of a while expression.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum WhileForm {
-    /// While expression.
+    /// Regular while expression (like `while <condition> <body>`)
     While,
-    /// Do-while expression.
+    /// Do-while expression (like `do <body> while <condition>`)
     DoWhile,
 }
 
 /// The kind of a for each expression.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum ForEachOperator {
-    /// In expression.
-    In,
     /// Of expression.
     Of,
+    /// In expression.
+    In,
 }
 
 /// The declaration keyword used by a for each pattern binding.
@@ -664,31 +1033,40 @@ pub enum BindingKeyword {
     Const,
 }
 
-/// The binding of a for each expression.
+/// The binding in a for each expression.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ForEachBinding {
-    /// A normal pattern binding.
+    /// Regular pattern binding.
     Pattern {
         pattern: LocalNodeId<Pattern>,
         keyword: Option<BindingKeyword>,
     },
-    /// A using binding.
+    /// Using binding with optional async disposal.
     Using {
         asynchrony: Asynchrony,
         pattern: LocalNodeId<Pattern>,
     },
 }
 
-/// The kind of a yield expression.
+/// The cardinality of a yield expression.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum YieldCardinality {
-    /// Generator yield expression.
-    Generator,
-    /// Scalar yield expression.
+    /// Single value.
     Scalar,
+    /// Generator.
+    Generator,
 }
 
 /// A WhereClause is a single clause in a where type declaration.
+/// It is a type constraint (`T: Y`) only.
+/// Only positive declarations should have aliases (checked later).
+///
+/// Examples:
+/// ```
+/// T: int32
+/// Self: geom.Mesh<T>
+/// T.Item: Copy
+/// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WhereClause {
     /// The target to constrain (like `T` in `T: int32`).
@@ -699,20 +1077,4 @@ pub struct WhereClause {
 
 impl Node for WhereClause {
     const TYPE: NodeType = NodeType::WhereClause;
-}
-
-/// The addressability of an expression.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum Addressability {
-    /// A place expression that refers to storage.
-    Place,
-    /// A value expression that does not refer to storage.
-    Value,
-}
-
-impl Addressability {
-    /// Return true when the expression is a place.
-    pub fn is_place(self) -> bool {
-        matches!(self, Addressability::Place)
-    }
 }

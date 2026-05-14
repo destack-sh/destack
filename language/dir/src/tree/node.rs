@@ -238,7 +238,6 @@ impl<T: Node> LocalNodeId<T> {
 }
 
 /// Global node id across modules.
-/// NOTE #Architecture: should we make GlobalNodeId/GlobalSymbolId/GlobalTypeId/.. carry ProfileId?
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(bound = "")]
 pub struct GlobalNodeId<T: Node> {
@@ -318,7 +317,7 @@ impl GlobalNodeIdAny {
     }
 
     /// Turn into a typed global node id.
-    pub fn into_type<T: Node>(self) -> GlobalNodeId<T> {
+    pub fn into_typed<T: Node>(self) -> GlobalNodeId<T> {
         self.try_into_typed().unwrap()
     }
 
@@ -405,11 +404,8 @@ impl From<GlobalNodeIdAny> for LocalNodeIdAny {
 
 /// Anchored global node id with profile provenance.
 ///
-/// DIR nodes can come from different sources:
-/// - Base DIR (shared, profile_id = None) - from Import phase
-/// - Profile-specific DIR (profile_id = Some) - from Resolve/Analyze/Elaborate phases
-///
-/// This type tracks the provenance so diagnostics can find the correct source location.
+/// Base DIR nodes have no profile.
+/// Profile-scoped patch nodes carry the profile that produced them.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct AnchoredGlobalNodeId {
     /// The global node id.

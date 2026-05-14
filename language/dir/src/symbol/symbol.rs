@@ -1,10 +1,7 @@
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    ExportKind, GlobalNodeIdAny, LocalScopeId, LocalScopeMark, Mutability, NodeType, StaticKey,
-    StringId,
-};
+use crate::{ExportKind, GlobalNodeIdAny, LocalScope, Mutability, NodeType, StaticKey, StringId};
 
 /// The space of a symbol.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
@@ -74,7 +71,7 @@ impl SymbolOrigin {
     }
 }
 
-/// The semantic form of a symbol.
+/// The declaration form of a symbol.
 #[derive(
     Debug, Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize,
 )]
@@ -105,6 +102,20 @@ impl SymbolForm {
     #[inline]
     pub fn is_interface(self) -> bool {
         self == SymbolForm::Interface
+    }
+
+    /// Return the symbol space normally introduced by this symbol form.
+    pub fn symbol_space(self) -> SymbolSpace {
+        match self {
+            Self::Interface | Self::TypeAlias => SymbolSpace::Type,
+            Self::Class
+            | Self::Enum
+            | Self::Extension
+            | Self::Function
+            | Self::Newtype
+            | Self::Struct
+            | Self::Variable => SymbolSpace::Value,
+        }
     }
 }
 
@@ -166,7 +177,7 @@ impl From<GlobalSymbolId> for LocalSymbolId {
 pub struct Symbol {
     /// The scope lookup role of the symbol.
     pub role: SymbolRole,
-    /// The semantic form of the symbol.
+    /// The declaration form of the symbol.
     pub form: SymbolForm,
     /// The lookup space of the symbol.
     pub space: SymbolSpace,
@@ -180,7 +191,7 @@ pub struct Symbol {
     /// The key of the symbol.
     pub key: Option<StaticKey>,
     /// The scope that introduces the symbol.
-    pub scope: (LocalScopeId, LocalScopeMark),
+    pub scope: LocalScope,
 
     /// The export kind of the symbol.
     pub export_kind: Option<ExportKind>,

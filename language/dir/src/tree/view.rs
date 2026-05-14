@@ -1,8 +1,7 @@
 use indexmap::IndexSet;
 
 use crate::{
-    Decorator, Documentation, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Node,
-    NodeType, Patch, Tree, TreeStore,
+    Decorator, Documentation, LocalNodeId, LocalNodeIdAny, Node, NodeType, Patch, Tree, TreeStore,
 };
 
 /// A borrowed DIR tree with ordered structural patches.
@@ -48,7 +47,7 @@ impl<'a> View<'a> {
     }
 
     /// Return whether one node is visible in this view.
-    pub fn is_active(&self, node_id: LocalNodeIdAny) -> bool {
+    pub fn is_visible(&self, node_id: LocalNodeIdAny) -> bool {
         self.visible_node(node_id).is_some()
     }
 
@@ -112,20 +111,6 @@ impl<'a> View<'a> {
         self.get_parent_any(node_id).map(|parent| parent.id)
     }
 
-    /// Get the visible scope for one typed node id.
-    pub fn get_scope<T: Node>(&self, node_id: LocalNodeId<T>) -> (LocalScopeId, LocalScopeMark) {
-        self.get_scope_any(node_id.into_any())
-    }
-
-    /// Get the visible scope for one erased node id.
-    pub fn get_scope_any(&self, node_id: LocalNodeIdAny) -> (LocalScopeId, LocalScopeMark) {
-        let (tree, node_id) = self
-            .visible_node(node_id)
-            .unwrap_or_else(|| panic!("DIR node {node_id:?} is not visible"));
-
-        tree.get_scope_any(node_id)
-    }
-
     /// Get the source id for one visible typed node.
     pub fn get_source<T: Node>(&self, node_id: LocalNodeId<T>) -> u32 {
         self.get_source_any(node_id.into_any())
@@ -181,7 +166,7 @@ impl<'a> View<'a> {
 
         tree.get_decorators(node_id.id)
             .into_iter()
-            .filter(|decorator_id| self.is_active(decorator_id.into_any()))
+            .filter(|decorator_id| self.is_visible(decorator_id.into_any()))
             .collect()
     }
 
@@ -252,7 +237,7 @@ impl<'a> View<'a> {
     fn visible_node(&self, node_id: LocalNodeIdAny) -> Option<(&'a Tree, LocalNodeIdAny)> {
         let node_id = self.resolve_replacement(node_id)?;
 
-        if self.tree.has_node_id(node_id.id) && self.tree.is_inactive(node_id.id) {
+        if self.tree.has_node_id(node_id.id) && self.tree.is_detached(node_id.id) {
             return None;
         }
 
@@ -260,7 +245,7 @@ impl<'a> View<'a> {
             if !patch.has_node(node_id) {
                 continue;
             }
-            if patch.tree.is_inactive(node_id.id) {
+            if patch.tree.is_detached(node_id.id) {
                 return None;
             }
 
@@ -277,7 +262,7 @@ impl<'a> View<'a> {
         loop {
             let mut changed = false;
             for patch in self.patches().rev() {
-                if patch.is_dead(node_id) {
+                if patch.is_deleted(node_id) {
                     return None;
                 }
                 if let Some(replacement) = patch.replacement_for(node_id) {

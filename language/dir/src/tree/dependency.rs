@@ -1,21 +1,24 @@
 use destack_core::StringId;
 use serde::{Deserialize, Serialize};
 
-use crate::{DependencyTarget, Expression, LocalNodeId, LocalSymbolId, Name, Node, NodeType};
+use crate::{
+    DependencyTarget, Expression, LocalNodeId, Name, Node, NodeType, StaticKey, SymbolForm,
+    SymbolSpace,
+};
 
 /// How one dependency item binds into the local module.
-#[derive(Debug, Clone, Copy, PartialEq, Hash, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum DependencyBinding {
-    /// Regular item (`import { foo } from "foo"` or `export { foo } from "foo"`)
+    /// Regular item (`import { foo } from "foo"` or `export { foo } from "foo"`).
     Item,
-    /// Default item (`export default foo`)
+    /// Default item (`export default foo`).
     Default,
     /// Namespace (`export * from "foo"`).
     Namespace,
 }
 
 /// The export kind of a declaration or binding.
-#[derive(Debug, Clone, Copy, PartialEq, Hash, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum ExportKind {
     /// Named export (`export const foo = 1`).
     Named,
@@ -24,7 +27,7 @@ pub enum ExportKind {
 }
 
 /// The symbol space one dependency item imports or exports.
-#[derive(Debug, Clone, Copy, PartialEq, Hash, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum DependencySpace {
     /// Type dependency (`import type { Foo }` or `export type { Foo }`).
     Type,
@@ -32,28 +35,91 @@ pub enum DependencySpace {
     Value,
 }
 
-/// One dependency item imported from or exported to another module.
+impl DependencySpace {
+    /// Return the symbol space introduced by this dependency space.
+    pub fn symbol_space(self) -> SymbolSpace {
+        match self {
+            Self::Type => SymbolSpace::Type,
+            Self::Value => SymbolSpace::Value,
+        }
+    }
+
+    /// Return the symbol form introduced by this dependency space.
+    pub fn symbol_form(self) -> SymbolForm {
+        match self {
+            Self::Type => SymbolForm::TypeAlias,
+            Self::Value => SymbolForm::Variable,
+        }
+    }
+}
+
+/// A dependency item imports or exports one binding from a target.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum DependencyItem {
-    /// Malformed dependency item slot.
-    Error,
-    /// Named imported or exported item.
+    /// One valid dependency item.
+    ///
+    /// Examples:
+    /// ```
+    /// baz
+    /// qux as quux
+    /// default
+    /// default as bar
+    /// ```
     Item {
+        /// How the item binds into the local module.
         binding: DependencyBinding,
-        space: DependencySpace,
+        /// The symbol space of the item, when specified.
+        space: Option<DependencySpace>,
+        /// The name of the item (like `foo` in `foo as bar`, None if default).
         name: Option<Name>,
+        /// The alias to use for the item (like `bar` in `foo as bar`).
         alias: Option<StringId>,
-        symbol: Option<LocalSymbolId>,
+        /// The value of the item (for namespace exports).
+        value: Option<LocalNodeId<Expression>>,
     },
-    /// Value expression dependency (like `export default foo`).
-    Value {
-        binding: DependencyBinding,
-        value: LocalNodeId<Expression>,
-    },
+    /// One malformed dependency item slot.
+    Error,
 }
 
 impl Node for DependencyItem {
     const TYPE: NodeType = NodeType::DependencyItem;
+}
+
+impl DependencyItem {
+    /// Return the symbol key introduced by this dependency item.
+    pub fn symbol_key(&self) -> Option<StaticKey> {
+        let Self::Item { name, alias, .. } = self else {
+            return None;
+        };
+
+        if let Some(alias) = alias {
+            return Some(StaticKey::Name(*alias));
+        }
+
+        match name {
+            None => None,
+            Some(Name::Identifier(name) | Name::String(name)) => Some(StaticKey::Name(*name)),
+            Some(Name::Number(name)) => Some(StaticKey::Number(*name)),
+        }
+    }
+
+    /// Return the symbol space introduced by this dependency item.
+    pub fn symbol_space(&self, default_space: DependencySpace) -> Option<SymbolSpace> {
+        let Self::Item { space, .. } = self else {
+            return None;
+        };
+
+        Some(space.unwrap_or(default_space).symbol_space())
+    }
+
+    /// Return the symbol form introduced by this dependency item.
+    pub fn symbol_form(&self, default_space: DependencySpace) -> Option<SymbolForm> {
+        let Self::Item { space, .. } = self else {
+            return None;
+        };
+
+        Some(space.unwrap_or(default_space).symbol_form())
+    }
 }
 
 /// A namespace export edge from `export * from` declarations.
@@ -65,15 +131,4 @@ pub struct NamespaceExport {
     pub space: DependencySpace,
     /// The dependency item node that declared the export.
     pub item: LocalNodeId<DependencyItem>,
-}
-
-impl DependencyItem {
-    /// Get the symbol of the dependency item.
-    pub fn symbol(&self) -> Option<LocalSymbolId> {
-        match self {
-            DependencyItem::Error => None,
-            DependencyItem::Value { .. } => None,
-            DependencyItem::Item { symbol, .. } => *symbol,
-        }
-    }
 }

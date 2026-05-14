@@ -15,8 +15,8 @@ pub struct Patch {
     pub tree: Tree,
     /// Replacement roots keyed by the base node they replace.
     pub replacement_by_node: IndexMap<LocalNodeIdAny, LocalNodeIdAny>,
-    /// Node ids hidden by this patch.
-    pub dead_nodes: IndexSet<LocalNodeIdAny>,
+    /// Node ids deleted by this patch.
+    pub deleted_nodes: IndexSet<LocalNodeIdAny>,
     /// Parent overrides keyed by the visible child node.
     pub parent_by_node: IndexMap<LocalNodeIdAny, Option<LocalNodeIdAny>>,
 }
@@ -29,7 +29,7 @@ impl Patch {
             module_id: base.module_id,
             tree: Tree::from_base(base, 0),
             replacement_by_node: IndexMap::new(),
-            dead_nodes: IndexSet::new(),
+            deleted_nodes: IndexSet::new(),
             parent_by_node: IndexMap::new(),
         }
     }
@@ -55,13 +55,13 @@ impl Patch {
     /// Delete one visible node from this patch.
     #[inline]
     pub fn delete(&mut self, node_id: LocalNodeIdAny) {
-        self.dead_nodes.insert(node_id);
+        self.deleted_nodes.insert(node_id);
     }
 
-    /// Return whether one node is hidden by this patch.
+    /// Return whether one node is deleted by this patch.
     #[inline]
-    pub fn is_dead(&self, node_id: LocalNodeIdAny) -> bool {
-        self.dead_nodes.contains(&node_id)
+    pub fn is_deleted(&self, node_id: LocalNodeIdAny) -> bool {
+        self.deleted_nodes.contains(&node_id)
     }
 
     /// Return the parent override for one node.

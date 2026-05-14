@@ -2,15 +2,15 @@ use serde::{Deserialize, Serialize};
 
 use crate::{DependencyTarget, GlobalSymbolId, LocalInstantiationId, LocalTypeId, StaticArgument};
 
-/// Semantic target selected for one DIR node.
+/// Resolved target selected for one DIR node.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Resolution {
     /// Lexical symbol binding.
     Symbol(GlobalSymbolId),
     /// Dependency binding.
     Dependency(DependencyResolution),
-    /// Control flow target binding.
-    Control(ControlResolution),
+    /// Label target binding.
+    Label(LabelResolution),
     /// Type directed implementation binding.
     Dispatch(DispatchResolution),
 }
@@ -24,11 +24,11 @@ pub enum DependencyResolution {
     Symbol(GlobalSymbolId),
 }
 
-/// Target selected by a control flow transfer.
+/// Target selected by a labeled transfer.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum ControlResolution {
-    /// A labelled control target.
-    Label(GlobalSymbolId),
+pub enum LabelResolution {
+    /// An explicit label target, such as `break outer`.
+    Symbol(GlobalSymbolId),
     /// The nearest loop target.
     Loop,
     /// The nearest function target.

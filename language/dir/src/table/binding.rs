@@ -5,9 +5,9 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Arena, ExportKind, LocalNodeId, LocalScopeId, LocalScopeMark, LocalSymbolId, Node, Scope,
-    ScopeKind, StaticKey, Symbol, SymbolBinding, SymbolForm, SymbolOrigin, SymbolRole, SymbolSpace,
-    Tree,
+    Arena, ExportKind, GlobalNodeIdAny, LocalNodeId, LocalNodeIdAny, LocalScope, LocalScopeId,
+    LocalScopeMark, LocalSymbolId, Node, Scope, ScopeKind, StaticKey, Symbol, SymbolBinding,
+    SymbolForm, SymbolOrigin, SymbolRole, SymbolSpace,
 };
 
 /// Lexical scopes and symbols for one DIR module.
@@ -24,6 +24,10 @@ pub struct BindingTable {
     pub(crate) symbols: Arena<Symbol>,
     /// The scopes in the table.
     pub(crate) scopes: Arena<Scope>,
+    /// Symbols keyed by their declaration node.
+    pub(crate) symbol_by_declaration: IndexMap<GlobalNodeIdAny, LocalSymbolId>,
+    /// Scopes keyed by their owner or member node.
+    pub(crate) scope_by_node: IndexMap<GlobalNodeIdAny, LocalScope>,
     /// Replacements for visible symbols copied into this segment.
     pub(crate) replaced_symbol_by_id: IndexMap<LocalSymbolId, Symbol>,
     /// Replacements for visible scopes copied into this segment.
@@ -40,6 +44,8 @@ impl BindingTable {
             first_scope_id: 0,
             symbols: Arena::new(),
             scopes: Arena::new(),
+            symbol_by_declaration: IndexMap::new(),
+            scope_by_node: IndexMap::new(),
             replaced_symbol_by_id: IndexMap::new(),
             replaced_scope_by_id: IndexMap::new(),
         }
@@ -53,6 +59,8 @@ impl BindingTable {
             first_scope_id: base.scope_count(),
             symbols: Arena::new(),
             scopes: Arena::new(),
+            symbol_by_declaration: IndexMap::new(),
+            scope_by_node: IndexMap::new(),
             replaced_symbol_by_id: IndexMap::new(),
             replaced_scope_by_id: IndexMap::new(),
         }
@@ -108,7 +116,7 @@ impl BindingTable {
         space: SymbolSpace,
         binding: SymbolBinding,
         key: Option<StaticKey>,
-        scope: (LocalScopeId, LocalScopeMark),
+        scope: LocalScope,
         export: Option<ExportKind>,
     ) -> (LocalSymbolId, LocalScopeMark) {
         let symbol_id = LocalSymbolId::new(self.symbol_count());
@@ -125,7 +133,7 @@ impl BindingTable {
             declaration: None,
         };
         self.symbols.allocate(symbol);
-        let mark = self.get_scope_by_id_mut(scope.0).append(key, symbol_id);
+        let mark = self.get_scope_by_id_mut(scope.id).append(key, symbol_id);
         (symbol_id, mark)
     }
 
@@ -135,13 +143,38 @@ impl BindingTable {
         let declaration = node_id.into_global_any(module_id);
 
         self.get_symbol_mut(symbol_id).declaration = Some(declaration);
+        self.symbol_by_declaration.insert(declaration, symbol_id);
+    }
+
+    /// Find the symbol declared by one node.
+    #[inline]
+    pub fn symbol_for_declaration(&self, declaration: GlobalNodeIdAny) -> Option<LocalSymbolId> {
+        self.symbol_by_declaration.get(&declaration).copied()
+    }
+
+    /// Attach a lexical scope to one typed node.
+    pub fn bind_scope<T: Node>(&mut self, node_id: LocalNodeId<T>, scope: LocalScope) {
+        self.bind_scope_any(node_id.into_any(), scope);
+    }
+
+    /// Attach a lexical scope to one erased node.
+    pub fn bind_scope_any(&mut self, node_id: LocalNodeIdAny, scope: LocalScope) {
+        let node_id = node_id.into_global(self.module_id);
+
+        self.scope_by_node.insert(node_id, scope);
+    }
+
+    /// Return the lexical scope attached to one global node.
+    #[inline]
+    pub fn scope_for_node(&self, node_id: GlobalNodeIdAny) -> Option<LocalScope> {
+        self.scope_by_node.get(&node_id).copied()
     }
 
     /// Insert a new scope.
     pub fn insert_scope(
         &mut self,
         kind: ScopeKind,
-        parent: Option<(LocalScopeId, LocalScopeMark)>,
+        parent: Option<LocalScope>,
         owner: Option<LocalSymbolId>,
     ) -> LocalScopeId {
         let scope_id = LocalScopeId::new(self.scope_count());
@@ -154,7 +187,7 @@ impl BindingTable {
         };
         self.scopes.allocate(scope);
         if let Some(parent) = parent {
-            self.get_scope_by_id_mut(parent.0).append_child(scope_id);
+            self.get_scope_by_id_mut(parent.id).append_child(scope_id);
         }
         scope_id
     }
@@ -189,23 +222,11 @@ impl BindingTable {
         self.get_scope_by_id(scope_id).mark()
     }
 
-    /// Get the scope for a node id.
-    #[inline]
-    pub fn get_scope<'a, T: Node>(
-        &'a self,
-        node_id: LocalNodeId<T>,
-        tree: &Tree,
-    ) -> (LocalScopeId, &'a Scope, LocalScopeMark) {
-        let (scope_id, mark) = tree.get_scope(node_id);
-        let scope = self.get_scope_by_id(scope_id);
-        (scope_id, scope, mark)
-    }
-
     /// Get the scope for a symbol id.
     #[inline]
     pub fn get_scope_by_symbol(&self, symbol_id: LocalSymbolId) -> &Scope {
         let symbol = self.get_symbol(symbol_id);
-        self.get_scope_by_id(symbol.scope.0)
+        self.get_scope_by_id(symbol.scope.id)
     }
 
     /// Get a scope by its id.
@@ -318,6 +339,10 @@ impl BindingTable {
 
     /// Replace one visible symbol in this table segment.
     pub fn replace_symbol(&mut self, symbol_id: LocalSymbolId, symbol: Symbol) {
+        if let Some(declaration) = symbol.declaration {
+            self.symbol_by_declaration.insert(declaration, symbol_id);
+        }
+
         self.replaced_symbol_by_id.insert(symbol_id, symbol);
     }
 

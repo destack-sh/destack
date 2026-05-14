@@ -295,7 +295,7 @@ define_language_items! {
 
         /// `destack:reflect/type`.
         type {
-            /// Reflected semantic type.
+            /// Reflected type.
             Type => (Type, "reflect/type", "Type"),
 
             /// Stable type identifier.

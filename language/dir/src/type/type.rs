@@ -8,9 +8,9 @@ use crate::{
 
 use super::PrimitiveType;
 
-/// A scalar, primitive, intrinsic, or built-in literal type.
+/// A scalar, primitive, intrinsic, or built-in type literal.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum TypeLiteral {
+pub enum LiteralType {
     /// Never type `never`.
     Never,
     /// Any type `any`.
@@ -35,7 +35,7 @@ pub enum TypeLiteral {
     ScalarLiteral(ScalarLiteral),
 }
 
-/// A compiler-provided intrinsic type.
+/// An intrinsic type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum IntrinsicType {
     /// Uppercase string intrinsic.
@@ -52,9 +52,27 @@ pub enum IntrinsicType {
     BuiltinIteratorReturn,
 }
 
+impl TryFrom<&str> for IntrinsicType {
+    /// The error type for intrinsic parsing.
+    type Error = ();
+
+    /// Parse an intrinsic type from a standard intrinsic name.
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "Uppercase" => Ok(IntrinsicType::Uppercase),
+            "Lowercase" => Ok(IntrinsicType::Lowercase),
+            "Capitalize" => Ok(IntrinsicType::Capitalize),
+            "Uncapitalize" => Ok(IntrinsicType::Uncapitalize),
+            "NoInfer" => Ok(IntrinsicType::NoInfer),
+            "BuiltinIteratorReturn" => Ok(IntrinsicType::BuiltinIteratorReturn),
+            _ => Err(()),
+        }
+    }
+}
+
 /// A mapped-type modifier in evaluated type space.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum MappedTypeModifier {
+pub enum TypeMappedModifier {
     /// The plain modifier without an explicit sign.
     Present,
     /// Add a modifier with an explicit `+` sign.
@@ -69,9 +87,9 @@ pub enum MappedTypeModifier {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MappedTypeModifiers {
     /// The readonly modifier.
-    pub readonly: MappedTypeModifier,
+    pub readonly: TypeMappedModifier,
     /// The optional modifier.
-    pub optional: MappedTypeModifier,
+    pub optional: TypeMappedModifier,
 }
 
 /// An evaluated mapped-type parameter.
@@ -89,7 +107,7 @@ pub struct MappedTypeParameter {
 
 /// A type bound for a reference operation.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
-pub enum VarianceBound {
+pub enum TypeVarianceBound {
     /// The left type must implement the right type.
     Implements,
     /// The left type must extend the right type.
@@ -135,13 +153,6 @@ pub struct TypeIndexSignature {
     pub is_optional: bool,
     /// Whether the index signature is readonly.
     pub is_readonly: bool,
-}
-
-/// A scalar or intrinsic literal type.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct LiteralType {
-    /// The literal value.
-    pub value: TypeLiteral,
 }
 
 /// An inference variable type.
@@ -327,7 +338,7 @@ pub struct IntersectionType {
     pub elements: Vec<LocalTypeId>,
 }
 
-/// A semantic type.
+/// A canonical type.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Type {
     /// Scalar type literal.
@@ -416,12 +427,7 @@ impl Type {
 
     /// Whether the type is an unknown literal.
     pub fn is_unknown(&self) -> bool {
-        matches!(
-            self,
-            Type::Literal(LiteralType {
-                value: TypeLiteral::Unknown
-            })
-        )
+        matches!(self, Type::Literal(LiteralType::Unknown))
     }
 
     /// Whether the type is one infer-owned placeholder variant.

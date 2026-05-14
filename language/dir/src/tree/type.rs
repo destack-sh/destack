@@ -1,10 +1,10 @@
-use destack_source::{NodeSpanList, NodeSpanType};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     Declaration, Expression, FunctionSignature, GenericArgument, GenericParameter, Key,
-    LocalNodeId, LocalSymbolId, MappedTypeModifier, Mutability, Node, NodeType, Parameter, Path,
-    RangeEnd, ScalarLiteral, StringId, Tree, TupleElement, TypeLiteral, VarianceBound, WhereClause,
+    LocalNodeId, Mutability, Node, NodeType, Parameter, Path, RangeEnd, ScalarLiteral, ScopeKind,
+    StaticKey, StringId, SymbolForm, SymbolSpace, TupleElement, TypeLiteral, VarianceBound,
+    WhereClause,
 };
 
 /// One type-surface member.
@@ -14,7 +14,6 @@ pub enum TypeMember {
     Field {
         key: Key,
         declared_type: Option<LocalNodeId<TypeExpression>>,
-        symbol: LocalSymbolId,
         is_static: bool,
         is_optional: bool,
         is_readonly: bool,
@@ -24,26 +23,20 @@ pub enum TypeMember {
         key: Key,
         signature: FunctionSignature,
         body: Option<LocalNodeId<Expression>>,
-        symbol: LocalSymbolId,
         is_static: bool,
         is_optional: bool,
     },
     /// Call signature declaration.
-    CallSignature {
-        signature: FunctionTypeDeclaration,
-        symbol: LocalSymbolId,
-    },
+    CallSignature { signature: FunctionTypeDeclaration },
     /// Construct signature declaration.
     ConstructSignature {
         signature: ConstructorTypeDeclaration,
-        symbol: LocalSymbolId,
     },
     /// Index signature.
     IndexSignature {
         name: StringId,
         key_type: LocalNodeId<TypeExpression>,
         value_type: LocalNodeId<TypeExpression>,
-        symbol: LocalSymbolId,
         is_optional: bool,
         is_readonly: bool,
     },
@@ -54,17 +47,15 @@ pub enum TypeMember {
         where_clauses: Vec<LocalNodeId<WhereClause>>,
         constraint: Option<LocalNodeId<TypeExpression>>,
         value: Option<LocalNodeId<TypeExpression>>,
-        symbol: LocalSymbolId,
     },
     /// Associated compile-time constant requirement or definition.
     AssociatedConst {
         name: StringId,
         declared_type: Option<LocalNodeId<TypeExpression>>,
         value: Option<LocalNodeId<Expression>>,
-        symbol: LocalSymbolId,
     },
     /// Malformed type member slot.
-    Error { symbol: LocalSymbolId },
+    Error,
 }
 
 impl Node for TypeMember {
@@ -72,6 +63,48 @@ impl Node for TypeMember {
 }
 
 impl TypeMember {
+    /// Return the symbol key introduced by this type member.
+    pub fn symbol_key(&self) -> Option<StaticKey> {
+        match self {
+            Self::AssociatedType { name, .. } | Self::AssociatedConst { name, .. } => {
+                Some(StaticKey::Name(*name))
+            }
+            Self::Field { key, .. } => key.static_key(),
+            Self::Method { key, .. } => key.static_key(),
+            Self::CallSignature { .. }
+            | Self::ConstructSignature { .. }
+            | Self::IndexSignature { .. }
+            | Self::Error => None,
+        }
+    }
+
+    /// Return the symbol form introduced by this type member.
+    pub fn symbol_form(&self) -> Option<SymbolForm> {
+        match self {
+            Self::AssociatedType { .. } => Some(SymbolForm::TypeAlias),
+            Self::AssociatedConst { .. } | Self::Field { .. } => Some(SymbolForm::Variable),
+            Self::Method { .. } => Some(SymbolForm::Function),
+            Self::CallSignature { .. }
+            | Self::ConstructSignature { .. }
+            | Self::IndexSignature { .. }
+            | Self::Error => None,
+        }
+    }
+
+    /// Return the symbol space introduced by this type member.
+    pub fn symbol_space(&self) -> Option<SymbolSpace> {
+        self.symbol_form().map(SymbolForm::symbol_space)
+    }
+
+    /// Return the owned scope kind for this type member symbol.
+    pub fn symbol_scope_kind(&self) -> Option<ScopeKind> {
+        match self {
+            Self::AssociatedType { .. } => Some(ScopeKind::Type),
+            Self::Method { .. } => Some(ScopeKind::Function),
+            _ => None,
+        }
+    }
+
     /// Get the declared name of the type member when one exists.
     pub fn name(&self) -> Option<StringId> {
         match self {
@@ -98,20 +131,6 @@ impl TypeMember {
             _ => None,
         }
     }
-
-    /// Get the symbol of the type member.
-    pub fn symbol(&self) -> LocalSymbolId {
-        match self {
-            TypeMember::Field { symbol, .. }
-            | TypeMember::Method { symbol, .. }
-            | TypeMember::CallSignature { symbol, .. }
-            | TypeMember::ConstructSignature { symbol, .. }
-            | TypeMember::IndexSignature { symbol, .. }
-            | TypeMember::AssociatedType { symbol, .. }
-            | TypeMember::AssociatedConst { symbol, .. }
-            | TypeMember::Error { symbol } => *symbol,
-        }
-    }
 }
 
 /// A mapped type parameter.
@@ -123,8 +142,19 @@ pub struct TypeMappedParameter {
     pub source_type: LocalNodeId<TypeExpression>,
     /// The optional key remap.
     pub key_remap: Option<LocalNodeId<TypeExpression>>,
-    /// The parameter symbol.
-    pub symbol: LocalSymbolId,
+}
+
+/// A mapped-type modifier sign.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum MappedTypeModifier {
+    /// The plain modifier without an explicit sign.
+    Present,
+    /// Add a modifier with an explicit `+` sign.
+    Add,
+    /// Remove a modifier with an explicit `-` sign.
+    Remove,
+    /// No modifier specified.
+    None,
 }
 
 /// A type predicate subject.
@@ -170,41 +200,95 @@ pub struct ConstructorTypeDeclaration {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum TypeExpression {
     /// Parenthesized type expression.
+    ///
+    /// Examples:
+    /// ```
+    /// (T)
+    /// (string | number)
+    /// ```
     Parenthesized {
         expression: LocalNodeId<TypeExpression>,
     },
 
     /// Scalar literal type.
+    ///
+    /// Examples:
+    /// ```
+    /// "ok"
+    /// 42
+    /// true
+    /// ```
     ScalarLiteral { value: ScalarLiteral },
 
     /// Literal type.
+    ///
+    /// Examples:
+    /// ```
+    /// null
+    /// undefined
+    /// ```
     Literal { value: TypeLiteral },
 
     /// Bare `intrinsic` marker in type space.
+    ///
+    /// Examples:
+    /// ```
+    /// intrinsic
+    /// ```
     Intrinsic,
 
     /// Parenthesized tuple type.
+    ///
+    /// Examples:
+    /// ```
+    /// (A, B)
+    /// (name: string, age: number)
+    /// ```
     Tuple {
         elements: Vec<LocalNodeId<TupleElement>>,
     },
 
     /// Bracket tuple type.
+    ///
+    /// Examples:
+    /// ```
+    /// [A, B]
+    /// [name: string, age: number]
+    /// ```
     ArrayTuple {
         elements: Vec<LocalNodeId<TupleElement>>,
     },
 
     /// Homogeneous array type.
+    ///
+    /// Examples:
+    /// ```
+    /// T[]
+    /// string[]
+    /// ```
     Array {
         element: LocalNodeId<TypeExpression>,
     },
 
     /// Runtime-length homogeneous view type.
+    ///
+    /// Examples:
+    /// ```
+    /// [T]
+    /// [byte]
+    /// ```
     Slice {
         /// The element type.
         element: LocalNodeId<TypeExpression>,
     },
 
     /// Fixed-length array type.
+    ///
+    /// Examples:
+    /// ```
+    /// [T; N]
+    /// [byte; 32]
+    /// ```
     FixedArray {
         /// The element type.
         element: LocalNodeId<TypeExpression>,
@@ -213,28 +297,65 @@ pub enum TypeExpression {
     },
 
     /// Object type.
+    ///
+    /// Examples:
+    /// ```
+    /// { name: string }
+    /// { readonly id: string; age?: number }
+    /// ```
     Object {
         members: Vec<LocalNodeId<TypeMember>>,
     },
 
     /// Embedded declaration type.
+    ///
+    /// Examples:
+    /// ```
+    /// struct User { name: string }
+    /// interface Named { name: string }
+    /// ```
     Declaration {
         declaration: LocalNodeId<Declaration>,
     },
 
     /// Function type declaration.
+    ///
+    /// Examples:
+    /// ```
+    /// (value: T) => U
+    /// <T>(value: T): T
+    /// ```
     FunctionTypeDeclaration(FunctionTypeDeclaration),
 
     /// Constructor type declaration.
+    ///
+    /// Examples:
+    /// ```
+    /// new (value: string) => User
+    /// abstract new <T>(value: T): Box<T>
+    /// ```
     ConstructorTypeDeclaration(ConstructorTypeDeclaration),
 
     /// Qualified type reference with optional generic arguments.
+    ///
+    /// Examples:
+    /// ```
+    /// Foo
+    /// geom.Mesh<Point>
+    /// Result<T, E>
+    /// ```
     Reference {
         path: Path,
         generic_arguments: Vec<LocalNodeId<GenericArgument>>,
     },
 
     /// Type member projection with optional generic arguments.
+    ///
+    /// Examples:
+    /// ```
+    /// T.Item
+    /// Result<T, E>.Ok
+    /// ```
     Member {
         left: LocalNodeId<TypeExpression>,
         name: StringId,
@@ -242,6 +363,16 @@ pub enum TypeExpression {
     },
 
     /// Range type expression.
+    ///
+    /// Examples:
+    /// ```
+    /// 0..10
+    /// 0..=10
+    /// 0..
+    /// ..10
+    /// ..=10
+    /// ..
+    /// ```
     Range {
         start: Option<LocalNodeId<TypeExpression>>,
         end: Option<LocalNodeId<TypeExpression>>,
@@ -249,45 +380,103 @@ pub enum TypeExpression {
     },
 
     /// `const` in type space.
+    ///
+    /// Examples:
+    /// ```
+    /// const
+    /// ```
     Const,
 
     /// `this` in type space.
+    ///
+    /// Examples:
+    /// ```
+    /// this
+    /// ```
     This,
 
     /// `readonly T`.
+    ///
+    /// Examples:
+    /// ```
+    /// readonly string[]
+    /// readonly [T]
+    /// ```
     Readonly {
         target_type: LocalNodeId<TypeExpression>,
     },
 
     /// `shared T`.
+    ///
+    /// Examples:
+    /// ```
+    /// shared User
+    /// shared ^User
+    /// ```
     Shared {
         target_type: LocalNodeId<TypeExpression>,
     },
 
     /// `keyof T`.
+    ///
+    /// Examples:
+    /// ```
+    /// keyof T
+    /// keyof User
+    /// ```
     KeyOf {
         target_type: LocalNodeId<TypeExpression>,
     },
 
     /// `typeof value`.
+    ///
+    /// Examples:
+    /// ```
+    /// typeof value
+    /// typeof namespace.Member
+    /// ```
     TypeOfValue { value: LocalNodeId<Expression> },
 
     /// `T!`.
+    ///
+    /// Examples:
+    /// ```
+    /// T!
+    /// string!
+    /// ```
     Must {
         target_type: LocalNodeId<TypeExpression>,
     },
 
     /// `T as comptime`.
+    ///
+    /// Examples:
+    /// ```
+    /// T as comptime
+    /// typeof value as comptime
+    /// ```
     AsComptime {
         target_type: LocalNodeId<TypeExpression>,
     },
 
     /// `!T`.
+    ///
+    /// Examples:
+    /// ```
+    /// !T
+    /// !false
+    /// ```
     Not {
         target_type: LocalNodeId<TypeExpression>,
     },
 
     /// `^T`.
+    ///
+    /// Examples:
+    /// ```
+    /// ^T
+    /// ^mut T
+    /// ```
     OwnedOf {
         mutability: Option<Mutability>,
         variance: Option<VarianceBound>,
@@ -295,6 +484,12 @@ pub enum TypeExpression {
     },
 
     /// `&T`.
+    ///
+    /// Examples:
+    /// ```
+    /// &T
+    /// &mut T
+    /// ```
     BorrowedOf {
         mutability: Option<Mutability>,
         variance: Option<VarianceBound>,
@@ -302,22 +497,45 @@ pub enum TypeExpression {
     },
 
     /// `*T`.
+    ///
+    /// Examples:
+    /// ```
+    /// *T
+    /// *mut T
+    /// ```
     PointerOf {
         mutability: Option<Mutability>,
         target_type: LocalNodeId<TypeExpression>,
     },
 
     /// Union type.
+    ///
+    /// Examples:
+    /// ```
+    /// string | number
+    /// "ok" | "err"
+    /// ```
     Union {
         elements: Vec<LocalNodeId<TypeExpression>>,
     },
 
     /// Intersection type.
+    ///
+    /// Examples:
+    /// ```
+    /// A & B
+    /// Serializable & Display
+    /// ```
     Intersection {
         elements: Vec<LocalNodeId<TypeExpression>>,
     },
 
     /// Conditional type.
+    ///
+    /// Examples:
+    /// ```
+    /// T extends U ? X : Y
+    /// ```
     Conditional {
         left: LocalNodeId<TypeExpression>,
         extends_type: LocalNodeId<TypeExpression>,
@@ -326,24 +544,45 @@ pub enum TypeExpression {
     },
 
     /// Key membership relation.
+    ///
+    /// Examples:
+    /// ```
+    /// K in T
+    /// ```
     In {
         left: LocalNodeId<TypeExpression>,
         right: LocalNodeId<TypeExpression>,
     },
 
     /// Assignability relation.
+    ///
+    /// Examples:
+    /// ```
+    /// T extends U
+    /// ```
     Extends {
         left: LocalNodeId<TypeExpression>,
         right: LocalNodeId<TypeExpression>,
     },
 
     /// Explicit conformance relation.
+    ///
+    /// Examples:
+    /// ```
+    /// T implements U
+    /// ```
     Implements {
         left: LocalNodeId<TypeExpression>,
         right: LocalNodeId<TypeExpression>,
     },
 
     /// Mapped type.
+    ///
+    /// Examples:
+    /// ```
+    /// { [K in keyof T]: T[K] }
+    /// { readonly [K in keyof T]?: T[K] }
+    /// ```
     Mapped {
         parameter: TypeMappedParameter,
         readonly: MappedTypeModifier,
@@ -352,24 +591,49 @@ pub enum TypeExpression {
     },
 
     /// Indexed access type.
+    ///
+    /// Examples:
+    /// ```
+    /// T[K]
+    /// Foo["bar"]
+    /// ```
     Index {
         left: LocalNodeId<TypeExpression>,
         index: LocalNodeId<TypeExpression>,
     },
 
     /// Template literal type.
+    ///
+    /// Examples:
+    /// ```
+    /// `get${Name}`
+    /// `${Prefix}_${Suffix}`
+    /// ```
     TemplateLiteral {
         strings: Vec<StringId>,
         spans: Vec<LocalNodeId<TypeExpression>>,
     },
 
     /// Infer binding.
+    ///
+    /// Examples:
+    /// ```
+    /// infer T
+    /// infer Item extends string
+    /// ```
     Infer {
         name: StringId,
         constraint: Option<LocalNodeId<TypeExpression>>,
     },
 
     /// Type predicate.
+    ///
+    /// Examples:
+    /// ```
+    /// value is Foo
+    /// asserts value is Foo
+    /// asserts this is Ready
+    /// ```
     Predicate {
         asserts: bool,
         subject: TypePredicateSubject,
@@ -385,58 +649,4 @@ pub enum TypeExpression {
 
 impl Node for TypeExpression {
     const TYPE: NodeType = NodeType::TypeExpression;
-}
-
-impl TypeExpression {
-    /// Return attached generic arguments when present.
-    pub fn generic_arguments(&self) -> Option<&[LocalNodeId<GenericArgument>]> {
-        match self {
-            TypeExpression::Reference {
-                generic_arguments, ..
-            }
-            | TypeExpression::Member {
-                generic_arguments, ..
-            } => Some(generic_arguments),
-            _ => None,
-        }
-    }
-
-    /// Resolve the source span kind that identifies this member name token.
-    pub fn member_source_part(
-        tree: &Tree,
-        expression_id: LocalNodeId<TypeExpression>,
-    ) -> NodeSpanType {
-        let source_id = tree.get_source(expression_id.id);
-        let mut segment_index = 0u16;
-        let mut current_id = expression_id;
-
-        // walk left through one lowered member chain
-        loop {
-            let current_expression = tree.get::<TypeExpression>(current_id);
-
-            // count each synthetic member hop that still belongs to the same source node
-            if let TypeExpression::Member { left, .. } = current_expression
-                && tree.get_source(left.id) == source_id
-            {
-                current_id = *left;
-                segment_index = segment_index
-                    .checked_add(1)
-                    .expect("member source part segment index overflow");
-                continue;
-            }
-
-            break;
-        }
-
-        // use indexed path segments for lowered qualified paths
-        match tree.get::<TypeExpression>(current_id) {
-            TypeExpression::Reference { path, .. }
-                if tree.get_source(current_id.id) == source_id
-                    && usize::from(segment_index) < path.segments.len() =>
-            {
-                NodeSpanType::ListItem(NodeSpanList::Segment, segment_index)
-            }
-            _ => NodeSpanType::Main,
-        }
-    }
 }

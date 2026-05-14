@@ -15,9 +15,11 @@ pub enum DecoratorPosition {
     LinePrefix,
     /// Decorator after the node on the same line.
     LinePostfix,
+    /// Decorators after the node on the same line with nothing after them.
+    LinePostfixBoundary,
 }
 
-/// A decorator attached to a DIR node.
+/// A decorator attached to an owner node.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Decorator {
     /// The decorator expression.

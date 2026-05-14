@@ -15,7 +15,7 @@ use crate::{
 #[derive(Debug, Clone, Default)]
 pub struct NodeVisitorOptions {}
 
-/// A NodeVisitor is a visitor for the DIR.
+/// A NodeVisitor is a visitor for the parsed DIR.
 pub trait NodeVisitor {
     /// Get the options for the visitor.
     fn options(&self) -> &NodeVisitorOptions;
@@ -60,16 +60,6 @@ pub trait NodeVisitor {
         declaration: &Declaration,
     ) {
         walk_declaration(self, tree, id, declaration);
-    }
-
-    /// Visit a Declarator.
-    fn visit_declarator(
-        &mut self,
-        tree: &Tree,
-        id: LocalNodeId<Declarator>,
-        declarator: &Declarator,
-    ) {
-        walk_declarator(self, tree, id, declarator);
     }
 
     /// Visit a Property.
@@ -172,6 +162,16 @@ pub trait NodeVisitor {
         walk_match_case(self, tree, id, match_case);
     }
 
+    /// Visit a Declarator.
+    fn visit_declarator(
+        &mut self,
+        tree: &Tree,
+        id: LocalNodeId<Declarator>,
+        declarator: &Declarator,
+    ) {
+        walk_declarator(self, tree, id, declarator);
+    }
+
     /// Visit a Pattern.
     fn visit_pattern(&mut self, tree: &Tree, id: LocalNodeId<Pattern>, pattern: &Pattern) {
         walk_pattern(self, tree, id, pattern);
@@ -243,15 +243,19 @@ impl NodeVisitor for CapturingNodeVisitor {
         &self.options
     }
 
-    fn visit_any(&mut self, _tree: &Tree, _ty: NodeType, id: u32) {
+    fn visit_any(&mut self, tree: &Tree, ty: NodeType, id: u32) {
         self.visited.push(id);
+    }
+
+    fn visit_block(&mut self, tree: &Tree, id: LocalNodeId<Block>, block: &Block) {
+        self.visit_any(tree, NodeType::Block, id.id);
     }
 
     fn visit_expression(
         &mut self,
         tree: &Tree,
         id: LocalNodeId<Expression>,
-        _expression: &Expression,
+        expression: &Expression,
     ) {
         self.visit_any(tree, NodeType::Expression, id.id);
     }
@@ -265,29 +269,16 @@ impl NodeVisitor for CapturingNodeVisitor {
         self.visit_any(tree, NodeType::TypeExpression, id.id);
     }
 
-    fn visit_block(&mut self, tree: &Tree, id: LocalNodeId<Block>, _block: &Block) {
-        self.visit_any(tree, NodeType::Block, id.id);
-    }
-
     fn visit_declaration(
         &mut self,
         tree: &Tree,
         id: LocalNodeId<Declaration>,
-        _declaration: &Declaration,
+        declaration: &Declaration,
     ) {
         self.visit_any(tree, NodeType::Declaration, id.id);
     }
 
-    fn visit_declarator(
-        &mut self,
-        tree: &Tree,
-        id: LocalNodeId<Declarator>,
-        _declarator: &Declarator,
-    ) {
-        self.visit_any(tree, NodeType::Declarator, id.id);
-    }
-
-    fn visit_property(&mut self, tree: &Tree, id: LocalNodeId<Property>, _property: &Property) {
+    fn visit_property(&mut self, tree: &Tree, id: LocalNodeId<Property>, property: &Property) {
         self.visit_any(tree, NodeType::Property, id.id);
     }
 
@@ -300,7 +291,7 @@ impl NodeVisitor for CapturingNodeVisitor {
         self.visit_any(tree, NodeType::TypeMember, id.id);
     }
 
-    fn visit_member(&mut self, tree: &Tree, id: LocalNodeId<Member>, _member: &Member) {
+    fn visit_member(&mut self, tree: &Tree, id: LocalNodeId<Member>, member: &Member) {
         self.visit_any(tree, NodeType::Member, id.id);
     }
 
@@ -308,25 +299,16 @@ impl NodeVisitor for CapturingNodeVisitor {
         &mut self,
         tree: &Tree,
         id: LocalNodeId<EnumField>,
-        _enum_field: &EnumField,
+        enum_field: &EnumField,
     ) {
         self.visit_any(tree, NodeType::EnumField, id.id);
-    }
-
-    fn visit_where_clause(
-        &mut self,
-        tree: &Tree,
-        id: LocalNodeId<WhereClause>,
-        _where_clause: &WhereClause,
-    ) {
-        self.visit_any(tree, NodeType::WhereClause, id.id);
     }
 
     fn visit_dependency_item(
         &mut self,
         tree: &Tree,
         id: LocalNodeId<DependencyItem>,
-        _dependency_item: &DependencyItem,
+        dependency_item: &DependencyItem,
     ) {
         self.visit_any(tree, NodeType::DependencyItem, id.id);
     }
@@ -340,11 +322,11 @@ impl NodeVisitor for CapturingNodeVisitor {
         self.visit_any(tree, NodeType::GenericParameter, id.id);
     }
 
-    fn visit_parameter(&mut self, tree: &Tree, id: LocalNodeId<Parameter>, _parameter: &Parameter) {
+    fn visit_parameter(&mut self, tree: &Tree, id: LocalNodeId<Parameter>, parameter: &Parameter) {
         self.visit_any(tree, NodeType::Parameter, id.id);
     }
 
-    fn visit_argument(&mut self, tree: &Tree, id: LocalNodeId<Argument>, _argument: &Argument) {
+    fn visit_argument(&mut self, tree: &Tree, id: LocalNodeId<Argument>, argument: &Argument) {
         self.visit_any(tree, NodeType::Argument, id.id);
     }
 
@@ -366,16 +348,7 @@ impl NodeVisitor for CapturingNodeVisitor {
         self.visit_any(tree, NodeType::TupleElement, id.id);
     }
 
-    fn visit_match_case(
-        &mut self,
-        tree: &Tree,
-        id: LocalNodeId<MatchCase>,
-        _match_case: &MatchCase,
-    ) {
-        self.visit_any(tree, NodeType::MatchCase, id.id);
-    }
-
-    fn visit_pattern(&mut self, tree: &Tree, id: LocalNodeId<Pattern>, _pattern: &Pattern) {
+    fn visit_pattern(&mut self, tree: &Tree, id: LocalNodeId<Pattern>, pattern: &Pattern) {
         self.visit_any(tree, NodeType::Pattern, id.id);
     }
 
@@ -383,7 +356,7 @@ impl NodeVisitor for CapturingNodeVisitor {
         &mut self,
         tree: &Tree,
         id: LocalNodeId<PatternField>,
-        _pattern_field: &PatternField,
+        pattern_field: &PatternField,
     ) {
         self.visit_any(tree, NodeType::PatternField, id.id);
     }
@@ -392,7 +365,7 @@ impl NodeVisitor for CapturingNodeVisitor {
         &mut self,
         tree: &Tree,
         id: LocalNodeId<AssignPattern>,
-        _assign_pattern: &AssignPattern,
+        assign_pattern: &AssignPattern,
     ) {
         self.visit_any(tree, NodeType::AssignPattern, id.id);
     }
@@ -401,12 +374,30 @@ impl NodeVisitor for CapturingNodeVisitor {
         &mut self,
         tree: &Tree,
         id: LocalNodeId<AssignPatternField>,
-        _assign_pattern_field: &AssignPatternField,
+        assign_pattern_field: &AssignPatternField,
     ) {
         self.visit_any(tree, NodeType::AssignPatternField, id.id);
     }
 
-    fn visit_decorator(&mut self, tree: &Tree, id: LocalNodeId<Decorator>, _decorator: &Decorator) {
+    fn visit_match_case(
+        &mut self,
+        tree: &Tree,
+        id: LocalNodeId<MatchCase>,
+        match_case: &MatchCase,
+    ) {
+        self.visit_any(tree, NodeType::MatchCase, id.id);
+    }
+
+    fn visit_declarator(
+        &mut self,
+        tree: &Tree,
+        id: LocalNodeId<Declarator>,
+        declarator: &Declarator,
+    ) {
+        self.visit_any(tree, NodeType::Declarator, id.id);
+    }
+
+    fn visit_decorator(&mut self, tree: &Tree, id: LocalNodeId<Decorator>, decorator: &Decorator) {
         self.visit_any(tree, NodeType::Decorator, id.id);
     }
 }

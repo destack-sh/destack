@@ -2,8 +2,17 @@ use serde::{Deserialize, Serialize};
 
 use crate::{Expression, LocalNodeId, Node, NodeType, Pattern, TypeExpression};
 
-/// A Declarator represents a single variable binding in a let or const declaration.
-/// For example, in `let a: T1 = v1, b: T2 = v2`, there are two declarators.
+/// A single variable declarator within a let or const statement.
+/// Each declarator has its own pattern, optional type, and optional initializer.
+///
+/// Examples:
+/// ```
+/// x           // just a binding
+/// x: int32    // binding with type
+/// x = 1       // binding with value
+/// x: int32 = 1  // binding with type and value
+/// (a, b) = tuple  // destructuring pattern
+/// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Declarator {
     /// The pattern to bind (can be a simple identifier or destructuring pattern).

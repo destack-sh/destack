@@ -3,11 +3,11 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Addressability, Arena, BindingTable, ControlResolution, DependencyResolution, EnumBackingType,
-    EnumFieldValue, Extension, GlobalNodeIdAny, GlobalSymbolId, Instantiation, IntersectionType,
+    Addressability, Arena, BindingTable, DependencyResolution, EnumBackingType, EnumFieldValue,
+    Extension, GlobalNodeIdAny, GlobalSymbolId, Instantiation, IntersectionType, LabelResolution,
     Lineage, LiteralType, LocalExtensionId, LocalInstantiationId, LocalLineageId, LocalNodeId,
-    LocalNodeIdAny, LocalTypeId, Node, Resolution, StaticExpression, SymbolForm, Type, TypeLiteral,
-    UnionType, VarianceModifier,
+    LocalNodeIdAny, LocalTypeId, Node, Resolution, StaticExpression, SymbolForm, Type, UnionType,
+    VarianceModifier,
 };
 
 /// Append-only type slots and relations for one DIR artifact.
@@ -28,9 +28,9 @@ pub struct TypeTable {
 
     /// The provenance for each type id.
     pub(crate) provenances: Arena<TypeProvenance>,
-    /// Semantic attachments keyed by DIR node.
+    /// Type attachments keyed by DIR node.
     pub(crate) nodes: IndexMap<GlobalNodeIdAny, NodeEntry>,
-    /// Semantic attachments keyed by DIR symbol.
+    /// Type attachments keyed by DIR symbol.
     pub(crate) symbols: IndexMap<GlobalSymbolId, SymbolEntry>,
 
     /// Interned generic instantiations.
@@ -134,21 +134,18 @@ impl TypeTable {
     pub fn intern_literal_type(
         &mut self,
         source_type_id: LocalTypeId,
-        literal: TypeLiteral,
+        literal: LiteralType,
     ) -> LocalTypeId {
         // reuse an existing literal type when available
         for type_id in self.iter_type_ids() {
             if let Type::Literal(value) = self.get_type(type_id)
-                && value.value == literal
+                && *value == literal
             {
                 return type_id;
             }
         }
 
-        self.insert_type_from_type(
-            Type::Literal(LiteralType { value: literal }),
-            source_type_id,
-        )
+        self.insert_type_from_type(Type::Literal(literal), source_type_id)
     }
 
     /// Intern one union type by deterministic structural scan.
@@ -398,12 +395,12 @@ impl TypeTable {
         })
     }
 
-    /// Set the semantic resolution for a node.
+    /// Set the resolved target for a node.
     pub fn set_resolution(&mut self, node_id: GlobalNodeIdAny, resolution: Resolution) {
         self.node_entry_mut(node_id).resolution = Some(resolution);
     }
 
-    /// Get the semantic resolution for a node.
+    /// Get the resolved target for a node.
     pub fn resolution(&self, node_id: GlobalNodeIdAny) -> Option<&Resolution> {
         self.node_entry(node_id)
             .and_then(|entry| entry.resolution.as_ref())
@@ -439,19 +436,15 @@ impl TypeTable {
         }
     }
 
-    /// Set the control flow resolution for a node.
-    pub fn set_control_resolution(
-        &mut self,
-        node_id: GlobalNodeIdAny,
-        resolution: ControlResolution,
-    ) {
-        self.set_resolution(node_id, Resolution::Control(resolution));
+    /// Set the label resolution for a node.
+    pub fn set_label_resolution(&mut self, node_id: GlobalNodeIdAny, resolution: LabelResolution) {
+        self.set_resolution(node_id, Resolution::Label(resolution));
     }
 
-    /// Get the control flow resolution for a node.
-    pub fn control_resolution(&self, node_id: GlobalNodeIdAny) -> Option<ControlResolution> {
+    /// Get the label resolution for a node.
+    pub fn label_resolution(&self, node_id: GlobalNodeIdAny) -> Option<LabelResolution> {
         match self.resolution(node_id) {
-            Some(Resolution::Control(resolution)) => Some(*resolution),
+            Some(Resolution::Label(resolution)) => Some(*resolution),
             _ => None,
         }
     }
@@ -599,7 +592,7 @@ impl TypeTable {
             .and_then(|entry| entry.enum_field_value)
     }
 
-    /// Get the type id for a symbol through its semantic form.
+    /// Get the type id for a symbol through its declaration form.
     pub fn symbol_type_id(
         &self,
         symbols: &BindingTable,
@@ -826,7 +819,7 @@ pub enum GenericParameterSpace {
     Lifetime,
 }
 
-/// Semantic table entry for one generic parameter symbol.
+/// Type entry for one generic parameter symbol.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct GenericParameterEntry {
     /// The argument space accepted by this parameter.
@@ -837,7 +830,7 @@ pub struct GenericParameterEntry {
     pub variance: Option<VarianceModifier>,
 }
 
-/// Semantic attachments recorded for one DIR node.
+/// Type attachments recorded for one DIR node.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct NodeEntry {
     /// The declared type.
@@ -852,16 +845,16 @@ pub struct NodeEntry {
     pub signature: Option<LocalTypeId>,
     /// The addressability of the node result.
     pub addressability: Option<Addressability>,
-    /// The semantic resolution for this node.
+    /// The resolved target for this node.
     pub resolution: Option<Resolution>,
     /// The generic instantiation attached to this node.
     pub instantiation: Option<LocalInstantiationId>,
 }
 
-/// Semantic attachments recorded for one DIR symbol.
+/// Type attachments recorded for one DIR symbol.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SymbolEntry {
-    /// Semantic metadata when this symbol declares a generic parameter.
+    /// Type metadata when this symbol declares a generic parameter.
     pub generic_parameter: Option<GenericParameterEntry>,
     /// Generic parameter symbols declared by this symbol.
     pub generic_parameter_symbols: Option<Vec<GlobalSymbolId>>,
@@ -911,10 +904,7 @@ mod tests {
     use destack_source::{ModuleId, PackageId};
 
     use super::{TypeOrigin, TypeTable};
-    use crate::{
-        FloatType, LiteralType, LocalNodeIdAny, NodeType, PrimitiveType, SliceType, Type,
-        TypeLiteral,
-    };
+    use crate::{FloatType, LiteralType, LocalNodeIdAny, NodeType, PrimitiveType, SliceType, Type};
 
     fn test_module_id() -> ModuleId {
         let package_id = PackageId::from_path(Path::new("dir-type-table-test"));
@@ -926,12 +916,7 @@ mod tests {
     fn test_insert_type_from_any_tracks_local_type_provenance() {
         let mut types = TypeTable::new(test_module_id());
         let source_id = LocalNodeIdAny::new(7, NodeType::Expression);
-        let type_id = types.insert_type_from_any(
-            Type::Literal(LiteralType {
-                value: TypeLiteral::Any,
-            }),
-            source_id,
-        );
+        let type_id = types.insert_type_from_any(Type::Literal(LiteralType::Any), source_id);
 
         assert_eq!(types.get_type_source(type_id), source_id);
         assert_eq!(types.type_origin(type_id), TypeOrigin::Local);
@@ -943,9 +928,9 @@ mod tests {
         let mut types = TypeTable::new(test_module_id());
         let source_id = LocalNodeIdAny::new(9, NodeType::Expression);
         let type_id = types.insert_imported_type_from_any(
-            Type::Literal(LiteralType {
-                value: TypeLiteral::Primitive(PrimitiveType::Float(FloatType::Float64)),
-            }),
+            Type::Literal(LiteralType::Primitive(PrimitiveType::Float(
+                FloatType::Float64,
+            ))),
             source_id,
         );
 
@@ -959,9 +944,7 @@ mod tests {
         let mut types = TypeTable::new(test_module_id());
         let source_id = LocalNodeIdAny::new(13, NodeType::Expression);
         let source_type_id = types.insert_imported_type_from_any(
-            Type::Literal(LiteralType {
-                value: TypeLiteral::Primitive(PrimitiveType::String),
-            }),
+            Type::Literal(LiteralType::Primitive(PrimitiveType::String)),
             source_id,
         );
 
@@ -982,18 +965,11 @@ mod tests {
         let mut types = TypeTable::new(test_module_id());
         let source_id = LocalNodeIdAny::new(21, NodeType::Expression);
         let type_id = types.insert_type_from_any(
-            Type::Literal(LiteralType {
-                value: TypeLiteral::Primitive(PrimitiveType::Boolean),
-            }),
+            Type::Literal(LiteralType::Primitive(PrimitiveType::Boolean)),
             source_id,
         );
 
-        types.update_type(
-            type_id,
-            Type::Literal(LiteralType {
-                value: TypeLiteral::Unknown,
-            }),
-        );
+        types.update_type(type_id, Type::Literal(LiteralType::Unknown));
 
         assert_eq!(types.get_type_source(type_id), source_id);
         assert_eq!(types.type_origin(type_id), TypeOrigin::Local);

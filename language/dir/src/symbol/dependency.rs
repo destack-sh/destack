@@ -4,9 +4,20 @@ use crate::{
 use destack_source::{Loader, ModuleEdgeRelation, ModuleId};
 use serde::{Deserialize, Serialize};
 
-/// A string-named module declaration surface.
+/// A module declared by string specifier.
+///
+/// Examples:
+/// ```
+/// declare module "legacy:widgets" {
+///     export type Widget = object;
+/// }
+///
+/// module "virtual:theme" {
+///     export let primary = "#fff";
+/// }
+/// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct DeclaredModule {
+pub struct StringModule {
     /// The module specifier string.
     pub specifier: StringId,
     /// The declaration node id.
@@ -24,11 +35,28 @@ pub struct DeclaredModule {
 /// The target of a resolved dependency.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum DependencyTarget {
-    /// A file or library module.
+    /// A concrete repository or library module.
+    ///
+    /// Examples:
+    /// ```
+    /// import { Button } from "./ui/button";
+    /// ```
     Module(ModuleId),
-    /// A string-named module declaration.
-    Declared(StringId),
-    /// An external module specifier preserved for link.
+    /// A module declared by string specifier.
+    ///
+    /// Examples:
+    /// ```
+    /// declare module "legacy:widgets" {
+    ///     export type Widget = object;
+    /// }
+    /// ```
+    StringModule(StringId),
+    /// A host module specifier preserved for linking.
+    ///
+    /// Examples:
+    /// ```
+    /// import "https://cdn.example/app.js";
+    /// ```
     External(StringId),
 }
 
@@ -38,7 +66,7 @@ impl DependencyTarget {
     pub fn module_id(self) -> Option<ModuleId> {
         match self {
             Self::Module(module_id) => Some(module_id),
-            Self::Declared(_) | Self::External(_) => None,
+            Self::StringModule(_) | Self::External(_) => None,
         }
     }
 }
