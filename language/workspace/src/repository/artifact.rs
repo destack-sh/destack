@@ -3,8 +3,8 @@ use std::hash::Hash;
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactPayload, ArtifactVersion, Ast,
-    DirChecked, DirDeclared, DirExpanded, DirExported, DirImported, GlobalEnvironment,
+    ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactPayload, ArtifactVersion, DirBound,
+    DirChecked, DirExpanded, DirExported, DirImported, DirParsed, GlobalEnvironment,
 };
 use destack_source::{DiagnosticCollection, ModuleId, ProfileId};
 use parking_lot::Mutex;
@@ -18,10 +18,10 @@ pub struct ArtifactCache {
     repository: Arc<Repository>,
     /// The revision that owns artifact bindings.
     revision: Revision,
-    /// AST artifacts by module.
-    ast: Mutex<HashMap<ModuleId, Arc<Ast>>>,
-    /// Declared DIR artifacts by module and profile.
-    dir_declared: Mutex<HashMap<(ModuleId, ProfileId), Arc<DirDeclared>>>,
+    /// Parsed DIR artifacts by module.
+    dir_parsed: Mutex<HashMap<ModuleId, Arc<DirParsed>>>,
+    /// Bound DIR artifacts by module and profile.
+    dir_bound: Mutex<HashMap<(ModuleId, ProfileId), Arc<DirBound>>>,
     /// Imported DIR artifacts by module and profile.
     dir_imported: Mutex<HashMap<(ModuleId, ProfileId), Arc<DirImported>>>,
     /// Expanded DIR artifacts by module and profile.
@@ -40,8 +40,8 @@ impl ArtifactCache {
         Self {
             repository,
             revision,
-            ast: Mutex::new(HashMap::new()),
-            dir_declared: Mutex::new(HashMap::new()),
+            dir_parsed: Mutex::new(HashMap::new()),
+            dir_bound: Mutex::new(HashMap::new()),
             dir_imported: Mutex::new(HashMap::new()),
             dir_expanded: Mutex::new(HashMap::new()),
             dir_exported: Mutex::new(HashMap::new()),
@@ -58,27 +58,23 @@ impl ArtifactCache {
             .flatten()
     }
 
-    /// Read one AST artifact.
-    pub fn ast(&self, module_id: ModuleId) -> Option<Arc<Ast>> {
+    /// Read one parsed DIR artifact.
+    pub fn dir_parsed(&self, module_id: ModuleId) -> Option<Arc<DirParsed>> {
         self.read_cached(
-            &self.ast,
+            &self.dir_parsed,
             module_id,
-            ArtifactKey::ast(module_id),
-            |version| self.repository.artifact_store().ast(version),
+            ArtifactKey::dir_parsed(module_id),
+            |version| self.repository.artifact_store().dir_parsed(version),
         )
     }
 
-    /// Read one declared DIR artifact.
-    pub fn dir_declared(
-        &self,
-        module_id: ModuleId,
-        profile_id: ProfileId,
-    ) -> Option<Arc<DirDeclared>> {
+    /// Read one bound DIR artifact.
+    pub fn dir_bound(&self, module_id: ModuleId, profile_id: ProfileId) -> Option<Arc<DirBound>> {
         let key = (module_id, profile_id);
-        let artifact_key = ArtifactKey::dir_declared(module_id, profile_id);
+        let artifact_key = ArtifactKey::dir_bound(module_id, profile_id);
 
-        self.read_cached(&self.dir_declared, key, artifact_key, |version| {
-            self.repository.artifact_store().dir_declared(version)
+        self.read_cached(&self.dir_bound, key, artifact_key, |version| {
+            self.repository.artifact_store().dir_bound(version)
         })
     }
 
