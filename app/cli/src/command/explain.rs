@@ -4,10 +4,11 @@ use serde_json::Value;
 use std::collections::BTreeMap;
 
 use destack_compiler::{
-    AnalyzeError, AnalyzeWarning, DiagnosticDefinition, ElaborateError, ElaborateWarning,
-    EmitError, EmitWarning, ExecuteError, ExecuteWarning, GenerateError, GenerateWarning,
-    ImportError, ImportWarning, LinkError, LinkWarning, LowerError, LowerWarning, OptimizeError,
-    OptimizeWarning, ResolveError, ResolveWarning,
+    CheckError, CheckWarning, DeclareError, DeclareWarning, DiagnosticDefinition, ElaborateError,
+    ElaborateWarning, ExpandError, ExpandWarning, ExportError, ExportWarning, GenerateError,
+    GenerateWarning, ImportError, ImportWarning, LinkError, LinkWarning, LowerError, LowerWarning,
+    MaterializeError, MaterializeWarning, OptimizeError, OptimizeWarning, VerifyError,
+    VerifyWarning,
 };
 
 use crate::common::{
@@ -109,26 +110,30 @@ struct CompilerDiagnosticGroup {
 /// Compiler diagnostic phase.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum CompilerPhase {
+    /// Declare module symbols.
+    Declare,
     /// Import, parse, and bind source into DIR.
     Import,
-    /// Resolve symbol references and semantic environments.
-    Resolve,
-    /// Declare, interface, analyze, and validate.
-    Analyze,
+    /// Expand compile-time structural declarations.
+    Expand,
+    /// Export module surface declarations.
+    Export,
+    /// Check declared and exported DIR.
+    Check,
     /// Elaborate analyzed DIR.
     Elaborate,
-    /// Execute comptime and patch DIR.
-    Execute,
+    /// Materialize checked DIR.
+    Materialize,
     /// Lower DIR into MIR.
     Lower,
+    /// Verify MIR invariants.
+    Verify,
     /// Optimize MIR.
     Optimize,
     /// Generate build products.
     Generate,
     /// Link build products.
     Link,
-    /// Emit user-visible files.
-    Emit,
 }
 
 /// Lint rule metadata returned by the explain command.
@@ -251,19 +256,29 @@ enum ExplainPayload {
 /// Compiler diagnostics grouped by phase and severity.
 const COMPILER_DIAGNOSTIC_GROUPS: &[CompilerDiagnosticGroup] = &[
     CompilerDiagnosticGroup {
+        phase: CompilerPhase::Declare,
+        severity: CompilerSeverity::Error,
+        definitions: DeclareError::ALL,
+    },
+    CompilerDiagnosticGroup {
         phase: CompilerPhase::Import,
         severity: CompilerSeverity::Error,
         definitions: ImportError::ALL,
     },
     CompilerDiagnosticGroup {
-        phase: CompilerPhase::Resolve,
+        phase: CompilerPhase::Expand,
         severity: CompilerSeverity::Error,
-        definitions: ResolveError::ALL,
+        definitions: ExpandError::ALL,
     },
     CompilerDiagnosticGroup {
-        phase: CompilerPhase::Analyze,
+        phase: CompilerPhase::Export,
         severity: CompilerSeverity::Error,
-        definitions: AnalyzeError::ALL,
+        definitions: ExportError::ALL,
+    },
+    CompilerDiagnosticGroup {
+        phase: CompilerPhase::Check,
+        severity: CompilerSeverity::Error,
+        definitions: CheckError::ALL,
     },
     CompilerDiagnosticGroup {
         phase: CompilerPhase::Elaborate,
@@ -271,14 +286,19 @@ const COMPILER_DIAGNOSTIC_GROUPS: &[CompilerDiagnosticGroup] = &[
         definitions: ElaborateError::ALL,
     },
     CompilerDiagnosticGroup {
-        phase: CompilerPhase::Execute,
+        phase: CompilerPhase::Materialize,
         severity: CompilerSeverity::Error,
-        definitions: ExecuteError::ALL,
+        definitions: MaterializeError::ALL,
     },
     CompilerDiagnosticGroup {
         phase: CompilerPhase::Lower,
         severity: CompilerSeverity::Error,
         definitions: LowerError::ALL,
+    },
+    CompilerDiagnosticGroup {
+        phase: CompilerPhase::Verify,
+        severity: CompilerSeverity::Error,
+        definitions: VerifyError::ALL,
     },
     CompilerDiagnosticGroup {
         phase: CompilerPhase::Optimize,
@@ -296,9 +316,9 @@ const COMPILER_DIAGNOSTIC_GROUPS: &[CompilerDiagnosticGroup] = &[
         definitions: LinkError::ALL,
     },
     CompilerDiagnosticGroup {
-        phase: CompilerPhase::Emit,
-        severity: CompilerSeverity::Error,
-        definitions: EmitError::ALL,
+        phase: CompilerPhase::Declare,
+        severity: CompilerSeverity::Warning,
+        definitions: DeclareWarning::ALL,
     },
     CompilerDiagnosticGroup {
         phase: CompilerPhase::Import,
@@ -306,14 +326,19 @@ const COMPILER_DIAGNOSTIC_GROUPS: &[CompilerDiagnosticGroup] = &[
         definitions: ImportWarning::ALL,
     },
     CompilerDiagnosticGroup {
-        phase: CompilerPhase::Resolve,
+        phase: CompilerPhase::Expand,
         severity: CompilerSeverity::Warning,
-        definitions: ResolveWarning::ALL,
+        definitions: ExpandWarning::ALL,
     },
     CompilerDiagnosticGroup {
-        phase: CompilerPhase::Analyze,
+        phase: CompilerPhase::Export,
         severity: CompilerSeverity::Warning,
-        definitions: AnalyzeWarning::ALL,
+        definitions: ExportWarning::ALL,
+    },
+    CompilerDiagnosticGroup {
+        phase: CompilerPhase::Check,
+        severity: CompilerSeverity::Warning,
+        definitions: CheckWarning::ALL,
     },
     CompilerDiagnosticGroup {
         phase: CompilerPhase::Elaborate,
@@ -321,14 +346,19 @@ const COMPILER_DIAGNOSTIC_GROUPS: &[CompilerDiagnosticGroup] = &[
         definitions: ElaborateWarning::ALL,
     },
     CompilerDiagnosticGroup {
-        phase: CompilerPhase::Execute,
+        phase: CompilerPhase::Materialize,
         severity: CompilerSeverity::Warning,
-        definitions: ExecuteWarning::ALL,
+        definitions: MaterializeWarning::ALL,
     },
     CompilerDiagnosticGroup {
         phase: CompilerPhase::Lower,
         severity: CompilerSeverity::Warning,
         definitions: LowerWarning::ALL,
+    },
+    CompilerDiagnosticGroup {
+        phase: CompilerPhase::Verify,
+        severity: CompilerSeverity::Warning,
+        definitions: VerifyWarning::ALL,
     },
     CompilerDiagnosticGroup {
         phase: CompilerPhase::Optimize,
@@ -344,11 +374,6 @@ const COMPILER_DIAGNOSTIC_GROUPS: &[CompilerDiagnosticGroup] = &[
         phase: CompilerPhase::Link,
         severity: CompilerSeverity::Warning,
         definitions: LinkWarning::ALL,
-    },
-    CompilerDiagnosticGroup {
-        phase: CompilerPhase::Emit,
-        severity: CompilerSeverity::Warning,
-        definitions: EmitWarning::ALL,
     },
 ];
 
@@ -746,16 +771,18 @@ fn output_compiler_entry(args: &ExplainArgs, entry: CompilerExplainEntry) -> i32
 fn phase_label(phase: CompilerPhase) -> &'static str {
     // map phase enum to its label
     match phase {
+        CompilerPhase::Declare => "declare",
         CompilerPhase::Import => "import",
-        CompilerPhase::Resolve => "resolve",
-        CompilerPhase::Analyze => "analyze",
+        CompilerPhase::Expand => "expand",
+        CompilerPhase::Export => "export",
+        CompilerPhase::Check => "check",
         CompilerPhase::Elaborate => "elaborate",
-        CompilerPhase::Execute => "execute",
+        CompilerPhase::Materialize => "materialize",
         CompilerPhase::Lower => "lower",
+        CompilerPhase::Verify => "verify",
         CompilerPhase::Optimize => "optimize",
         CompilerPhase::Generate => "generate",
         CompilerPhase::Link => "link",
-        CompilerPhase::Emit => "emit",
     }
 }
 
