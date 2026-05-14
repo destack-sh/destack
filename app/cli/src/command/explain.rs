@@ -4,7 +4,7 @@ use serde_json::Value;
 use std::collections::BTreeMap;
 
 use destack_compiler::{
-    CheckError, CheckWarning, DeclareError, DeclareWarning, DiagnosticDefinition, ElaborateError,
+    BindError, BindWarning, CheckError, CheckWarning, DiagnosticDefinition, ElaborateError,
     ElaborateWarning, ExpandError, ExpandWarning, ExportError, ExportWarning, GenerateError,
     GenerateWarning, ImportError, ImportWarning, LinkError, LinkWarning, LowerError, LowerWarning,
     MaterializeError, MaterializeWarning, OptimizeError, OptimizeWarning, VerifyError,
@@ -110,8 +110,8 @@ struct CompilerDiagnosticGroup {
 /// Compiler diagnostic phase.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum CompilerPhase {
-    /// Declare module symbols.
-    Declare,
+    /// Bind module symbols.
+    Bind,
     /// Import, parse, and bind source into DIR.
     Import,
     /// Expand compile-time structural declarations.
@@ -256,9 +256,9 @@ enum ExplainPayload {
 /// Compiler diagnostics grouped by phase and severity.
 const COMPILER_DIAGNOSTIC_GROUPS: &[CompilerDiagnosticGroup] = &[
     CompilerDiagnosticGroup {
-        phase: CompilerPhase::Declare,
+        phase: CompilerPhase::Bind,
         severity: CompilerSeverity::Error,
-        definitions: DeclareError::ALL,
+        definitions: BindError::ALL,
     },
     CompilerDiagnosticGroup {
         phase: CompilerPhase::Import,
@@ -316,9 +316,9 @@ const COMPILER_DIAGNOSTIC_GROUPS: &[CompilerDiagnosticGroup] = &[
         definitions: LinkError::ALL,
     },
     CompilerDiagnosticGroup {
-        phase: CompilerPhase::Declare,
+        phase: CompilerPhase::Bind,
         severity: CompilerSeverity::Warning,
-        definitions: DeclareWarning::ALL,
+        definitions: BindWarning::ALL,
     },
     CompilerDiagnosticGroup {
         phase: CompilerPhase::Import,
@@ -771,7 +771,7 @@ fn output_compiler_entry(args: &ExplainArgs, entry: CompilerExplainEntry) -> i32
 fn phase_label(phase: CompilerPhase) -> &'static str {
     // map phase enum to its label
     match phase {
-        CompilerPhase::Declare => "declare",
+        CompilerPhase::Bind => "bind",
         CompilerPhase::Import => "import",
         CompilerPhase::Expand => "expand",
         CompilerPhase::Export => "export",

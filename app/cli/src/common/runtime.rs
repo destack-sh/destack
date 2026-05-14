@@ -1,8 +1,8 @@
 use clap::{Args, ValueEnum};
 use destack_workspace::{
-    HeapOptionsJson, HeapSpaceOptionsJson, RandomModeJson, RandomOptionsJson, RuntimeOptionsJson,
-    SchedulerModeJson, SchedulerOptionsJson, SchedulerPolicyJson, TimeModeJson, TimeOptionsJson,
-    TraceModeJson, TraceOptionsJson,
+    ClockSourceJson, HeapOptionsJson, HeapSpaceOptionsJson, RandomOptionsJson, RandomSourceJson,
+    RuntimeOptionsJson, SchedulerModeJson, SchedulerOptionsJson, SchedulerPolicyJson,
+    TimeOptionsJson, TraceModeJson, TraceOptionsJson,
 };
 use std::path::PathBuf;
 
@@ -60,10 +60,6 @@ pub struct RuntimeArgs {
     /// Runtime microtask budget per tick.
     #[arg(long = "runtime-scheduler-microtask-budget")]
     pub scheduler_microtask_budget: Option<u64>,
-
-    /// Runtime host semantic event budget before forcing one poller event.
-    #[arg(long = "runtime-scheduler-host-event-budget")]
-    pub scheduler_host_event_budget: Option<u64>,
 
     /// Runtime microtask nesting depth cap.
     #[arg(long = "runtime-scheduler-max-microtask-depth")]
@@ -126,7 +122,6 @@ impl RuntimeArgs {
             && self.scheduler_policy.is_none()
             && self.scheduler_tick_budget_ns.is_none()
             && self.scheduler_microtask_budget.is_none()
-            && self.scheduler_host_event_budget.is_none()
             && self.scheduler_max_microtask_depth.is_none()
             && self.scheduler_timer_resolution_ns.is_none()
             && self.scheduler_max_timer_coalesce_ns.is_none()
@@ -170,7 +165,7 @@ impl RuntimeArgs {
             if self.time_mode.is_some() || self.time_epoch_ns.is_some() || self.time_zone.is_some()
             {
                 Some(TimeOptionsJson {
-                    mode: self.time_mode.map(Into::into),
+                    source: self.time_mode.map(Into::into),
                     epoch_ns: self.time_epoch_ns,
                     time_zone: self.time_zone.clone(),
                 })
@@ -182,7 +177,7 @@ impl RuntimeArgs {
             if self.random_mode.is_some() || self.random_seed.is_some() || self.random_per_runnable
             {
                 Some(RandomOptionsJson {
-                    mode: self.random_mode.map(Into::into),
+                    source: self.random_mode.map(Into::into),
                     seed: self.random_seed,
                     per_runnable: self.random_per_runnable.then_some(true),
                 })
@@ -193,7 +188,6 @@ impl RuntimeArgs {
         let scheduler = if self.scheduler_policy.is_some()
             || self.scheduler_tick_budget_ns.is_some()
             || self.scheduler_microtask_budget.is_some()
-            || self.scheduler_host_event_budget.is_some()
             || self.scheduler_max_microtask_depth.is_some()
             || self.scheduler_timer_resolution_ns.is_some()
             || self.scheduler_max_timer_coalesce_ns.is_some()
@@ -205,7 +199,6 @@ impl RuntimeArgs {
                 mode: self.execution_mode.map(SchedulerModeJson::from),
                 tick_budget_ns: self.scheduler_tick_budget_ns,
                 microtask_budget: self.scheduler_microtask_budget,
-                host_event_budget: self.scheduler_host_event_budget,
                 max_microtask_depth: self.scheduler_max_microtask_depth,
                 timer_resolution_ns: self.scheduler_timer_resolution_ns,
                 max_timer_coalesce_ns: self.scheduler_max_timer_coalesce_ns,
@@ -319,7 +312,7 @@ pub enum TimeModeArg {
     Virtual,
 }
 
-impl From<TimeModeArg> for TimeModeJson {
+impl From<TimeModeArg> for ClockSourceJson {
     fn from(value: TimeModeArg) -> Self {
         match value {
             TimeModeArg::Host => Self::Host,
@@ -337,7 +330,7 @@ pub enum RandomModeArg {
     Deterministic,
 }
 
-impl From<RandomModeArg> for RandomModeJson {
+impl From<RandomModeArg> for RandomSourceJson {
     fn from(value: RandomModeArg) -> Self {
         match value {
             RandomModeArg::Host => Self::Host,
