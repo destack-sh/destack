@@ -1,0 +1,66 @@
+import { Slice } from "destack:collections";
+import { todo } from "destack:error";
+import { Buffer, BufferCopyRegion } from "./buffer.ds";
+import { Device } from "./device.ds";
+import { Event, Stream } from "./stream.ds";
+import { Kernel, KernelArgument } from "./program.ds";
+import { WorkgroupCount, WorkgroupSize } from "./workgroup.ds";
+
+/// Kernel dispatch descriptor.
+export struct KernelDispatch {
+    /// The kernel to dispatch.
+    kernel: Kernel;
+
+    /// Kernel arguments.
+    arguments: Slice<KernelArgument>;
+
+    /// Number of workgroups to launch.
+    workgroups: WorkgroupCount;
+
+    /// Workgroup size when explicitly selected.
+    workgroupSize?: WorkgroupSize;
+}
+
+/// Encoded compute command buffer.
+@languageItem("compute.CommandBuffer")
+export class CommandBuffer {
+    /// The device that owns this command buffer.
+    readonly device: Device;
+
+    /// Submit this command buffer to `stream`.
+    submit(stream?: Stream): Event {
+        todo("CommandBuffer.submit")
+    }
+}
+
+/// Encoder for portable compute commands.
+@languageItem("compute.CommandEncoder")
+export class CommandEncoder {
+    /// The device that owns this encoder.
+    readonly device: Device;
+
+    /// Begin encoding commands for `device`.
+    static begin(device: Device): CommandEncoder {
+        todo("CommandEncoder.begin")
+    }
+
+    /// Encode one kernel dispatch.
+    dispatch(launch: KernelDispatch): void {
+        todo("CommandEncoder.dispatch")
+    }
+
+    /// Encode a buffer copy.
+    copy<T>(source: Buffer<T>, destination: Buffer<T>, region: BufferCopyRegion): void {
+        todo("CommandEncoder.copy")
+    }
+
+    /// Encode a buffer fill.
+    fill<T>(buffer: Buffer<T>, value: T): void {
+        todo("CommandEncoder.fill")
+    }
+
+    /// Finish command encoding.
+    finish(): CommandBuffer {
+        todo("CommandEncoder.finish")
+    }
+}

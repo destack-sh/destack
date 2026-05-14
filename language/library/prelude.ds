@@ -265,6 +265,47 @@ export {
     reduceXor,
 } from "destack:math";
 
+// compute
+export {
+    ComputeErrorKind,
+    ComputeError,
+    DeviceFeature,
+    DeviceLimits,
+    DeviceCapabilities,
+    HostAccess,
+    BufferOptions,
+    BufferCopyRegion,
+    Buffer,
+    DeviceKind,
+    DeviceId,
+    DeviceMemory,
+    DeviceProperties,
+    DeviceQuery,
+    Device,
+    Stream,
+    Event,
+    ProgramFormat,
+    ProgramText,
+    ProgramBinary,
+    ProgramSource,
+    ProgramOptions,
+    ProgramDiagnosticSeverity,
+    ProgramLocation,
+    ProgramDiagnostic,
+    ProgramReport,
+    Program,
+    KernelArgument,
+    KernelParameterKind,
+    KernelParameter,
+    KernelSignature,
+    Kernel,
+    WorkgroupCount,
+    WorkgroupSize,
+    KernelDispatch,
+    CommandBuffer,
+    CommandEncoder,
+} from "destack:compute";
+
 // decorator markers
 export {
     deprecated,

@@ -1,6 +1,7 @@
 export * from "./async";
 export * from "./bytes";
 export * from "./channel";
+export * from "./compute";
 export * from "./convert";
 export * from "./decorator";
 export * from "./error";
@@ -22,6 +23,7 @@ export * as audio from "./audio";
 export * as bytes from "./bytes";
 export * as channel from "./channel";
 export * as console from "./console";
+export * as compute from "./compute";
 export * as convert from "./convert";
 export * as crypto from "./crypto";
 export * as device from "./device";

@@ -1,0 +1,79 @@
+import { Array } from "destack:collections";
+import { todo } from "destack:error";
+
+/// Optional compute feature exposed by a device.
+export enum DeviceFeature {
+    /// Native float16 arithmetic.
+    Float16 = 1,
+    /// Native float64 arithmetic.
+    Float64 = 2,
+    /// Native int64 arithmetic.
+    Int64 = 3,
+    /// Native bfloat16 arithmetic.
+    BFloat16 = 4,
+    /// TensorFloat-32 matrix arithmetic.
+    TensorFloat32 = 5,
+    /// Float32 atomic operations.
+    AtomicFloat32 = 6,
+    /// Float64 atomic operations.
+    AtomicFloat64 = 7,
+    /// Workgroup shared memory.
+    WorkgroupMemory = 8,
+    /// Memory physically shared with the host.
+    UnifiedMemory = 9,
+    /// Subgroup or warp-level operations.
+    Subgroups = 10,
+    /// Native matrix multiply instructions.
+    MatrixMultiply = 11,
+    /// Captured command graphs.
+    CommandGraph = 12,
+    /// Host-visible buffer mapping.
+    HostMapping = 13,
+}
+
+/// Portable compute limits for one device.
+export struct DeviceLimits {
+    /// Maximum bytes in one buffer.
+    maxBufferBytes?: usize;
+
+    /// Minimum byte alignment for buffer offsets.
+    minBufferAlignment: usize;
+
+    /// Maximum workgroups in x.
+    maxWorkgroupsX: uint32;
+
+    /// Maximum workgroups in y.
+    maxWorkgroupsY: uint32;
+
+    /// Maximum workgroups in z.
+    maxWorkgroupsZ: uint32;
+
+    /// Maximum workgroup size in x.
+    maxWorkgroupSizeX: uint32;
+
+    /// Maximum workgroup size in y.
+    maxWorkgroupSizeY: uint32;
+
+    /// Maximum workgroup size in z.
+    maxWorkgroupSizeZ: uint32;
+
+    /// Maximum invocations in one workgroup.
+    maxWorkgroupInvocations: uint32;
+
+    /// Maximum bytes of workgroup memory.
+    maxWorkgroupMemoryBytes: usize;
+}
+
+/// Compute capabilities exposed by one device.
+export struct DeviceCapabilities {
+    /// Optional features.
+    features: Array<DeviceFeature>;
+
+    /// Portable resource and dispatch limits.
+    limits: DeviceLimits;
+
+    /// Return whether `feature` is supported.
+    has(feature: DeviceFeature): boolean {
+        todo("DeviceCapabilities.has")
+    }
+}

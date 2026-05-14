@@ -1,0 +1,61 @@
+import { todo } from "destack:error";
+import { Device } from "./device.ds";
+
+/// Ordered command stream for one compute device.
+@languageItem("compute.Stream")
+export class Stream {
+    /// The device that owns this stream.
+    readonly device: Device;
+
+    /// Return the default stream for `device`.
+    static default(device: Device = Device.default()): Stream {
+        todo("Stream.default")
+    }
+
+    /// Create a new stream on `device`.
+    static create(device: Device): Stream {
+        todo("Stream.create")
+    }
+
+    /// Return whether all queued work has completed.
+    isComplete(): boolean {
+        todo("Stream.isComplete")
+    }
+
+    /// Make future work on this stream wait for `event`.
+    wait(event: Event): void {
+        todo("Stream.wait")
+    }
+
+    /// Wait until all preceding work completes.
+    synchronize(): void {
+        todo("Stream.synchronize")
+    }
+}
+
+/// Completion marker recorded on a compute stream.
+@languageItem("compute.Event")
+export class Event {
+    /// The stream that recorded this event.
+    readonly stream: Stream;
+
+    /// Record an event on `stream`.
+    static record(stream: Stream): Event {
+        todo("Event.record")
+    }
+
+    /// Return whether this event has completed.
+    isComplete(): boolean {
+        todo("Event.isComplete")
+    }
+
+    /// Wait until this event completes.
+    synchronize(): void {
+        todo("Event.synchronize")
+    }
+
+    /// Return milliseconds elapsed since `start`.
+    elapsedSince(start: Event): float64 {
+        todo("Event.elapsedSince")
+    }
+}

@@ -1,0 +1,23 @@
+/// Number of workgroups to dispatch.
+export struct WorkgroupCount {
+    /// X axis.
+    x: uint32;
+
+    /// Y axis.
+    y: uint32 = 1;
+
+    /// Z axis.
+    z: uint32 = 1;
+}
+
+/// Workgroup size for one kernel dispatch.
+export struct WorkgroupSize {
+    /// X axis.
+    x: uint32;
+
+    /// Y axis.
+    y: uint32 = 1;
+
+    /// Z axis.
+    z: uint32 = 1;
+}
