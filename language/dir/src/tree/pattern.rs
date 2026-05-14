@@ -1,11 +1,25 @@
+use destack_core::StringId;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    Expression, LocalNodeId, LocalSymbolId, Mutability, Name, Node, NodeType, RangeEnd, StringId,
-    TypeExpression,
-};
+use crate::{Expression, LocalNodeId, Mutability, Name, Node, NodeType, RangeEnd, TypeExpression};
 
 /// A Pattern is a pattern to match something and unwrap it.
+/// Guards are handled only for match cases (see MatchCase).
+///
+/// Examples:
+/// ```
+/// _
+/// ...
+/// x
+/// 1
+/// &MyEnum.A
+/// 2 | 3
+/// (x, 0, ...)
+/// Success(_)
+/// Vector2 { x: 0, y, z: zed }
+/// geom.Mesh<2, float32> { vertices: [2, ...] }
+/// { a: 2 }
+/// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Pattern {
     /// Wildcard scalar pattern (`_`).
@@ -27,13 +41,12 @@ pub enum Pattern {
         mutability: Option<Mutability>,
         right: LocalNodeId<Pattern>,
     },
-    /// Binding pattern (like `x`).
+    /// Binding pattern (basically a PatternField, like `x`, `x: 4`, or `x: int32`).
     Binding {
         name: StringId,
         pattern: Option<LocalNodeId<Pattern>>,
-        symbol: LocalSymbolId,
     },
-    /// Literal value, type or path pattern (like `4`, `int32`, `Vector2`, `MyEnum.A`).
+    /// Literal value or value-space path pattern.
     Expression { value: LocalNodeId<Expression> },
     /// Ordered scalar interval pattern like `0..10` or `..=255`.
     Range {
@@ -43,11 +56,11 @@ pub enum Pattern {
     },
     /// Type-space literal or reference pattern.
     TypeExpression { value: LocalNodeId<TypeExpression> },
-    /// Anonymous tuple pattern (like `(x, 0)`).
+    /// Tuple pattern (like `(x, 0)`).
     Tuple {
         fields: Vec<LocalNodeId<PatternField>>,
     },
-    /// Tagged tuple pattern (like `Result.Success(_)`).
+    /// Tagged tuple pattern (like `Result.Success(_)` or `Point(x, y)`).
     TaggedTuple {
         ty: LocalNodeId<TypeExpression>,
         fields: Vec<LocalNodeId<PatternField>>,
@@ -56,11 +69,11 @@ pub enum Pattern {
     Sequence {
         fields: Vec<LocalNodeId<PatternField>>,
     },
-    /// Anonymous object pattern (like `{ x, y }`).
+    /// Object pattern (like `{ x, y }`).
     Object {
         fields: Vec<LocalNodeId<PatternField>>,
     },
-    /// Tagged object pattern (like `Vector2 { x: 0, y }`).
+    /// Tagged object pattern (like `Vector2 { x: 0, y, z: zed }`).
     TaggedObject {
         ty: LocalNodeId<TypeExpression>,
         fields: Vec<LocalNodeId<PatternField>>,
@@ -73,25 +86,26 @@ impl Node for Pattern {
     const TYPE: NodeType = NodeType::Pattern;
 }
 
-impl Pattern {
-    /// Get the symbol of the pattern.
-    pub fn symbol(&self) -> Option<LocalSymbolId> {
-        match self {
-            Pattern::Binding { symbol, .. } => Some(*symbol),
-            _ => None,
-        }
-    }
-}
-
-/// A PatternField is a field in a pattern (tuple, struct, union, etc.).
-/// Field resolution is stored in the checked type table.
+/// A PatternField is a field of a variant pattern.
+///
+/// Examples:
+/// ```
+/// x // named
+/// x: 4  // named
+/// x: int32 // named
+/// x: y  // named alias
+/// 4     // positional
+/// x = 4 // named with default
+/// x: y = 4 // named with default and alias
+/// ... // spread
+/// ...rest // spread with name
+/// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum PatternField {
     /// Named field, maybe shorthand and maybe with a nested pattern.
     Named {
-        name: StringId,
+        name: Name,
         pattern: Option<LocalNodeId<Pattern>>,
-        symbol: Option<LocalSymbolId>,
         is_shorthand: bool,
     },
     /// Computed field (like `[key]: value`).
@@ -111,19 +125,6 @@ pub enum PatternField {
 
 impl Node for PatternField {
     const TYPE: NodeType = NodeType::PatternField;
-}
-
-impl PatternField {
-    /// Get the symbol of the pattern field (the local binding it creates).
-    pub fn symbol(&self) -> Option<LocalSymbolId> {
-        match self {
-            PatternField::Named { symbol, .. } => *symbol,
-            PatternField::Computed { .. } => None,
-            PatternField::Positional { .. } => None,
-            PatternField::Spread { .. } => None,
-            PatternField::Elision => None,
-        }
-    }
 }
 
 /// An AssignPattern is one assignment left hand side.

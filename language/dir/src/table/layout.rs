@@ -1,7 +1,7 @@
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
-/// Checked layout facts for one DIR module.
+/// Checked layouts for one DIR module.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LayoutTable {
     /// The module id of the layout table.

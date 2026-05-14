@@ -2,23 +2,23 @@ use destack_core::StringId;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Debug, Formatter};
 
-use destack_source::{ModuleId, Span};
+use destack_source::{ModuleId, NodeSourceMap, NodeSpanType, Span};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Arena, Argument, AssignPattern, AssignPatternField, Block, Declaration, Declarator, Decorator,
-    DependencyItem, EnumField, Expression, FunctionRole, GenericArgument, GenericParameter,
-    IfCondition, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, MatchCase, Member,
-    Node, NodeType, NodeVisitor, NodeVisitorOptions, Parameter, Pattern, PatternField, Property,
-    ProvenanceId, ProvenanceMetadata, ProvenanceReason, TupleElement, TypeExpression, TypeMember,
-    WhereClause, walk_argument, walk_block, walk_declaration, walk_declarator, walk_decorator,
+    Arena, Argument, AssignPattern, AssignPatternField, Block, Comment, Declaration, Declarator,
+    Decorator, DependencyItem, EnumField, Expression, GenericArgument, GenericParameter,
+    IfCondition, LocalNodeId, LocalNodeIdAny, MatchCase, Member, Node, NodeType, NodeVisitor,
+    NodeVisitorOptions, Parameter, Pattern, PatternField, Property, ProvenanceId,
+    ProvenanceMetadata, ProvenanceReason, TupleElement, TypeExpression, TypeMember, WhereClause,
+    walk_argument, walk_block, walk_declaration, walk_declarator, walk_decorator,
     walk_dependency_item, walk_enum_field, walk_expression, walk_generic_argument,
     walk_generic_parameter, walk_match_case, walk_member, walk_parameter, walk_pattern,
     walk_pattern_field, walk_property, walk_tuple_element, walk_type_expression, walk_type_member,
     walk_where_clause,
 };
 
-/// Normalized semantic documentation attached to one DIR node.
+/// Normalized documentation attached to one DIR node.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Documentation {
     /// The normalized documentation text.
@@ -94,6 +94,67 @@ impl NodeIndexEntry {
     }
 }
 
+/// Snapshot of tree allocation lengths for speculative parser restores.
+#[derive(Debug, Copy, Clone)]
+pub struct TreeMark {
+    /// The global node id cursor.
+    next_global_id: u32,
+    /// The expression arena length.
+    expressions_len: usize,
+    /// The type expression arena length.
+    type_expressions_len: usize,
+    /// The block arena length.
+    blocks_len: usize,
+    /// The declaration arena length.
+    declarations_len: usize,
+    /// The declarator arena length.
+    declarators_len: usize,
+    /// The property arena length.
+    properties_len: usize,
+    /// The type field arena length.
+    type_members_len: usize,
+    /// The member arena length.
+    members_len: usize,
+    /// The enum field arena length.
+    enum_fields_len: usize,
+    /// The where clause arena length.
+    where_clauses_len: usize,
+    /// The dependency item arena length.
+    dependency_items_len: usize,
+    /// The generic parameter arena length.
+    generic_parameters_len: usize,
+    /// The parameter arena length.
+    parameters_len: usize,
+    /// The argument arena length.
+    arguments_len: usize,
+    /// The generic argument arena length.
+    generic_arguments_len: usize,
+    /// The tuple element arena length.
+    tuple_elements_len: usize,
+    /// The match case arena length.
+    match_cases_len: usize,
+    /// The pattern arena length.
+    patterns_len: usize,
+    /// The pattern field arena length.
+    pattern_fields_len: usize,
+    /// The assign pattern arena length.
+    assign_patterns_len: usize,
+    /// The assign pattern field arena length.
+    assign_pattern_fields_len: usize,
+    /// The comment list length.
+    comments_len: usize,
+    /// The decorator arena length.
+    decorators_len: usize,
+}
+
+impl TreeMark {
+    /// Return the next global node id captured by this mark.
+    #[inline]
+    pub fn next_global_id(self) -> u32 {
+        self.next_global_id
+    }
+}
+
 /// Mutable DIR tree across a set of related source units.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Tree {
@@ -107,6 +168,8 @@ pub struct Tree {
     pub(crate) next_global_id: u32,
     /// Dense local id and node type metadata by global node id.
     pub(crate) node_index_by_node_id: Vec<NodeIndexEntry>,
+    /// Source spans keyed by parsed node id.
+    pub source_map: NodeSourceMap,
 
     // node arenas
     pub(crate) expressions: Arena<Expression>,
@@ -130,18 +193,16 @@ pub struct Tree {
     pub(crate) pattern_fields: Arena<PatternField>,
     pub(crate) assign_patterns: Arena<AssignPattern>,
     pub(crate) assign_pattern_fields: Arena<AssignPatternField>,
+    pub(crate) comments: Vec<Comment>,
     pub(crate) decorators: Arena<Decorator>,
 
     // node side data
     /// The parent node id by node id. Index is the global node id.
-    /// (Unlike in AST, we can index parents here directly since we have the shape up front.)
+    /// Parents are indexed directly because the parsed tree already has the source shape.
     parent_id_by_node_id: Vec<Option<u32>>,
-    /// The scopes by node id. Index is the global node id.
-    /// (Main data is in BindingTable, but indexed here for efficiency since *every* node needs a scope.)
-    scopes_by_node_id: Vec<(LocalScopeId, LocalScopeMark)>,
     /// Provenance metadata for all nodes.
     provenance: ProvenanceMetadata,
-    /// The alias node id by AST node id.
+    /// The alias node id by source node id.
     alias_node_id_by_source_id: BTreeMap<u32, u32>,
     /// The alias node id by DIR node id.
     alias_node_id_by_node_id: BTreeMap<u32, u32>,
@@ -151,8 +212,8 @@ pub struct Tree {
     documentation_by_node_id: BTreeMap<u32, Documentation>,
     /// The final source span by node id when known.
     source_span_by_node_id: Vec<Option<Span>>,
-    /// The node ids explicitly marked inactive.
-    inactive_node_ids: BTreeSet<u32>,
+    /// The detached node ids.
+    detached_node_ids: BTreeSet<u32>,
 }
 
 impl Debug for Tree {
@@ -177,6 +238,7 @@ impl Tree {
             first_global_id: 0,
             next_global_id: 0,
             node_index_by_node_id: Vec::with_capacity(capacity),
+            source_map: NodeSourceMap::with_capacity(capacity),
 
             expressions: Arena::new(),
             type_expressions: Arena::new(),
@@ -199,10 +261,10 @@ impl Tree {
             pattern_fields: Arena::new(),
             assign_patterns: Arena::new(),
             assign_pattern_fields: Arena::new(),
+            comments: Vec::with_capacity(capacity / 16),
             decorators: Arena::new(),
 
             parent_id_by_node_id: Vec::with_capacity(capacity),
-            scopes_by_node_id: Vec::with_capacity(capacity),
             provenance: ProvenanceMetadata {
                 provenance_by_node_id: Vec::with_capacity(capacity),
                 ..ProvenanceMetadata::default()
@@ -212,7 +274,7 @@ impl Tree {
             decorators_by_node_id: BTreeMap::new(),
             documentation_by_node_id: BTreeMap::new(),
             source_span_by_node_id: Vec::with_capacity(capacity),
-            inactive_node_ids: BTreeSet::new(),
+            detached_node_ids: BTreeSet::new(),
         }
     }
 
@@ -243,6 +305,121 @@ impl Tree {
         self.node_index_by_node_id.len()
     }
 
+    /// Return the next id.
+    #[inline]
+    pub fn next_id(&self) -> u32 {
+        self.next_global_id
+    }
+
+    /// Return whether the tree has no nodes.
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.node_index_by_node_id.is_empty()
+    }
+
+    /// Allocate a parsed node with source metadata.
+    pub fn insert_during_parse<T>(&mut self, node: T, span: Span) -> LocalNodeId<T>
+    where
+        T: Node,
+        Self: TreeStore<T>,
+    {
+        let global_id = self.next_global_id;
+        self.next_global_id = global_id + 1;
+
+        let local_id = <Self as TreeStore<T>>::allocate(self, node);
+        self.node_index_by_node_id
+            .push(NodeIndexEntry::new(local_id, T::TYPE));
+        self.parent_id_by_node_id.push(None);
+        let provenance_id = self.provenance.create_source(global_id);
+        self.provenance.provenance_by_node_id.push(provenance_id);
+        self.source_span_by_node_id.push(Some(span));
+        self.source_map.append_during_parse(span);
+
+        LocalNodeId::new(global_id)
+    }
+
+    /// Snapshot tree allocation lengths for speculative parser restores.
+    #[inline]
+    pub fn mark(&self) -> TreeMark {
+        TreeMark {
+            next_global_id: self.next_global_id,
+            expressions_len: self.expressions.len(),
+            type_expressions_len: self.type_expressions.len(),
+            blocks_len: self.blocks.len(),
+            declarations_len: self.declarations.len(),
+            declarators_len: self.declarators.len(),
+            properties_len: self.properties.len(),
+            type_members_len: self.type_members.len(),
+            members_len: self.members.len(),
+            enum_fields_len: self.enum_fields.len(),
+            where_clauses_len: self.where_clauses.len(),
+            dependency_items_len: self.dependency_items.len(),
+            generic_parameters_len: self.generic_parameters.len(),
+            parameters_len: self.parameters.len(),
+            arguments_len: self.arguments.len(),
+            generic_arguments_len: self.generic_arguments.len(),
+            tuple_elements_len: self.tuple_elements.len(),
+            match_cases_len: self.match_cases.len(),
+            patterns_len: self.patterns.len(),
+            pattern_fields_len: self.pattern_fields.len(),
+            assign_patterns_len: self.assign_patterns.len(),
+            assign_pattern_fields_len: self.assign_pattern_fields.len(),
+            comments_len: self.comments.len(),
+            decorators_len: self.decorators.len(),
+        }
+    }
+
+    /// Restore tree allocation lengths from a speculative mark.
+    #[inline]
+    pub fn restore_to_mark(&mut self, mark: TreeMark) {
+        self.node_index_by_node_id
+            .truncate(mark.next_global_id as usize);
+        self.parent_id_by_node_id
+            .truncate(mark.next_global_id as usize);
+        self.provenance
+            .provenance_by_node_id
+            .truncate(mark.next_global_id as usize);
+        self.source_span_by_node_id
+            .truncate(mark.next_global_id as usize);
+        self.source_map.prune_from(mark.next_global_id);
+        self.next_global_id = mark.next_global_id;
+
+        self.expressions.truncate(mark.expressions_len);
+        self.type_expressions.truncate(mark.type_expressions_len);
+        self.blocks.truncate(mark.blocks_len);
+        self.declarations.truncate(mark.declarations_len);
+        self.declarators.truncate(mark.declarators_len);
+        self.properties.truncate(mark.properties_len);
+        self.type_members.truncate(mark.type_members_len);
+        self.members.truncate(mark.members_len);
+        self.enum_fields.truncate(mark.enum_fields_len);
+        self.where_clauses.truncate(mark.where_clauses_len);
+        self.dependency_items.truncate(mark.dependency_items_len);
+        self.generic_parameters
+            .truncate(mark.generic_parameters_len);
+        self.parameters.truncate(mark.parameters_len);
+        self.arguments.truncate(mark.arguments_len);
+        self.generic_arguments.truncate(mark.generic_arguments_len);
+        self.tuple_elements.truncate(mark.tuple_elements_len);
+        self.match_cases.truncate(mark.match_cases_len);
+        self.patterns.truncate(mark.patterns_len);
+        self.pattern_fields.truncate(mark.pattern_fields_len);
+        self.assign_patterns.truncate(mark.assign_patterns_len);
+        self.assign_pattern_fields
+            .truncate(mark.assign_pattern_fields_len);
+        self.comments.truncate(mark.comments_len);
+        self.decorators.truncate(mark.decorators_len);
+
+        self.decorators_by_node_id
+            .retain(|target_id, decorator_ids| {
+                if *target_id >= mark.next_global_id {
+                    return false;
+                }
+                decorator_ids.retain(|decorator_id| decorator_id.id < mark.next_global_id);
+                !decorator_ids.is_empty()
+            });
+    }
+
     /// Return the local metadata index for one global node id.
     #[inline]
     pub(crate) fn node_index(&self, node_id: u32) -> usize {
@@ -258,33 +435,27 @@ impl Tree {
         index
     }
 
-    /// Return the local arena id for one global node id.
+    /// Detach a node id from structural traversal.
+    pub fn detach(&mut self, node_id: LocalNodeIdAny) {
+        self.detached_node_ids.insert(node_id.id);
+    }
+
+    /// Check whether a node id is detached.
+    pub fn is_detached(&self, node_id: u32) -> bool {
+        self.detached_node_ids.contains(&node_id)
+    }
+
+    /// Iterate detached node ids.
     #[inline]
-    pub(crate) fn local_id_for_node_id(&self, node_id: u32) -> u32 {
-        self.node_index_by_node_id[self.node_index(node_id)].local_id()
-    }
-    /// Mark a node id as inactive.
-    pub fn mark_inactive(&mut self, node_id: LocalNodeIdAny) {
-        self.inactive_node_ids.insert(node_id.id);
+    pub fn detached_node_ids(&self) -> impl Iterator<Item = u32> + '_ {
+        self.detached_node_ids.iter().copied()
     }
 
-    /// Check whether a node id is inactive.
-    pub fn is_inactive(&self, node_id: u32) -> bool {
-        self.inactive_node_ids.contains(&node_id)
-    }
-
-    /// Iterate inactive node ids.
-    #[inline]
-    pub fn inactive_node_ids(&self) -> impl Iterator<Item = u32> + '_ {
-        self.inactive_node_ids.iter().copied()
-    }
-
-    /// Reserve a new node slot in the tree for a node lowered from an AST node.
+    /// Reserve a new node slot in the tree for a node lowered from a source node.
     pub fn reserve_from_source(
         &mut self,
         node_type: NodeType,
-        ast_node_id: u32,
-        scope: (LocalScopeId, LocalScopeMark),
+        source_node_id: u32,
         parent_id: Option<LocalNodeIdAny>,
     ) -> LocalNodeIdAny {
         let global_id = self.next_global_id;
@@ -292,14 +463,13 @@ impl Tree {
 
         self.node_index_by_node_id
             .push(NodeIndexEntry::placeholder(node_type));
-        self.scopes_by_node_id.push(scope);
         self.parent_id_by_node_id
             .push(parent_id.map(|parent_id| parent_id.id));
-        let provenance_id = self.provenance.create_source(ast_node_id);
+        let provenance_id = self.provenance.create_source(source_node_id);
         self.provenance.provenance_by_node_id.push(provenance_id);
         self.source_span_by_node_id.push(None);
         self.alias_node_id_by_source_id
-            .insert(ast_node_id, global_id);
+            .insert(source_node_id, global_id);
 
         LocalNodeIdAny::new(global_id, node_type)
     }
@@ -309,7 +479,6 @@ impl Tree {
         &mut self,
         node_type: NodeType,
         dir_node_id: LocalNodeIdAny,
-        scope: (LocalScopeId, LocalScopeMark),
         parent_id: Option<LocalNodeIdAny>,
         reason: Option<ProvenanceReason>,
     ) -> LocalNodeIdAny {
@@ -318,7 +487,6 @@ impl Tree {
 
         self.node_index_by_node_id
             .push(NodeIndexEntry::placeholder(node_type));
-        self.scopes_by_node_id.push(scope);
         self.parent_id_by_node_id
             .push(parent_id.map(|parent_id| parent_id.id));
         let parent_index = self.node_index(dir_node_id.id);
@@ -336,8 +504,17 @@ impl Tree {
         LocalNodeIdAny::new(global_id, node_type)
     }
 
+    /// Allocate one parsed node with source metadata.
+    pub fn insert<T>(&mut self, node: T, span: Span) -> LocalNodeId<T>
+    where
+        T: Node,
+        Self: TreeStore<T>,
+    {
+        self.insert_during_parse(node, span)
+    }
+
     /// Fill in the node data for a previously reserved slot.
-    pub fn insert<T>(&mut self, node_id: LocalNodeIdAny, node: T) -> LocalNodeId<T>
+    pub fn insert_reserved<T>(&mut self, node_id: LocalNodeIdAny, node: T) -> LocalNodeId<T>
     where
         T: Node,
         Self: TreeStore<T>,
@@ -355,19 +532,20 @@ impl Tree {
         T: Node,
         Self: TreeStore<T>,
     {
-        let node_id = self.insert(node_id, node);
+        let node_id = self.insert_reserved(node_id, node);
         self.adopt_direct_children(LocalNodeIdAny::new(node_id.id, T::TYPE));
 
         node_id
     }
 
-    /// Add an alias node for a lowered AST id.
-    pub fn alias_from_source<T>(&mut self, ast_id: u32, alias: LocalNodeId<T>)
+    /// Add an alias node for a lowered source id.
+    pub fn alias_from_source<T>(&mut self, source_node_id: u32, alias: LocalNodeId<T>)
     where
         T: Node,
         Self: TreeStore<T>,
     {
-        self.alias_node_id_by_source_id.insert(ast_id, alias.id);
+        self.alias_node_id_by_source_id
+            .insert(source_node_id, alias.id);
     }
 
     /// Add an alias node for a derived DIR id.
@@ -436,34 +614,28 @@ impl Tree {
         <Self as TreeStore<T>>::get_mut(self, local_id)
     }
 
-    /// Replace a node in-place, preserving the original at a new ID:
-    /// - The original node is preserved at a new ID (for diagnostics/codegen)
-    /// - The node at `id` is replaced with `replacement`
-    /// - An alias is set up from `id` to the preserved original
-    ///
-    /// Returns the ID of the preserved original node (which is new! - since the original is replaced).
+    /// Replace one node in place and preserve its original payload at a detached id.
     pub fn replace<T>(&mut self, id: LocalNodeId<T>, replacement: T) -> LocalNodeId<T>
     where
         T: Node + Clone,
         Self: TreeStore<T>,
     {
-        let scope = self.get_scope(id);
         let original = self.get(id).clone();
 
-        // preserve original at new ID
-        let preserved_id = self.reserve_from(T::TYPE, id.into_any(), scope, None, None);
-        let preserved_id: LocalNodeId<T> = self.insert(preserved_id, original);
+        // preserve original at a detached id
+        let preserved_id = self.reserve_from(T::TYPE, id.into_any(), None, None);
+        let preserved_id: LocalNodeId<T> = self.insert_reserved(preserved_id, original);
 
-        // preserved originals exist for alias lookup, not active tree traversal
-        self.mark_inactive(preserved_id.into_any());
+        // hide preserved originals from structural traversal
+        self.detach(preserved_id.into_any());
 
-        // replace in-place
+        // replace node payload
         *self.get_mut(id) = replacement;
 
         // keep reused child ids attached to the replacement
         self.adopt_direct_children(id.into_any());
 
-        // alias for reverse lookup (id -> preserved)
+        // record original payload for reverse lookup
         self.alias_from(id.id, preserved_id);
 
         preserved_id
@@ -482,8 +654,8 @@ impl Tree {
         let replacement = self.get(source_id).clone();
         let preserved_id = self.replace(id, replacement);
 
-        // the source root is no longer structurally active after its payload moves
-        self.mark_inactive(source_id.into_any());
+        // detach the moved root
+        self.detach(source_id.into_any());
 
         preserved_id
     }
@@ -506,6 +678,16 @@ impl Tree {
                     None
                 }
             })
+    }
+
+    /// Iterate all node ids of one type.
+    #[inline]
+    pub fn iter_nodes<'a, T>(&'a self) -> impl Iterator<Item = LocalNodeId<T>> + 'a
+    where
+        T: Node + 'a,
+        Self: TreeStore<T>,
+    {
+        self.iter_node_ids_of_type::<T>().into_iter()
     }
 
     /// Iterate over all nodes ids.
@@ -1074,7 +1256,7 @@ impl Tree {
         };
 
         for node_id in self.iter_node_ids() {
-            if self.is_inactive(node_id.id) || preserved_alias_targets.contains(&node_id.id) {
+            if self.is_detached(node_id.id) || preserved_alias_targets.contains(&node_id.id) {
                 continue;
             }
 
@@ -1167,7 +1349,7 @@ impl Tree {
                         .as_ref()
                         .is_some_and(|finally_expression| finally_expression.id == expression_id.id)
             }
-            Expression::Labelled { body, .. } => body.id == expression_id.id,
+            Expression::Label { body, .. } => body.id == expression_id.id,
 
             // everything else is operand position
             _ => false,
@@ -1198,12 +1380,10 @@ impl Tree {
 
         match parent_declaration {
             // module style declaration bodies host statement sequences
-            Declaration::Function(declaration) => {
-                declaration.body.as_ref().is_some_and(|body_expression_id| {
-                    body_expression_id.id == expression_id.id
-                        && self.function_body_is_statement_position(declaration.signature.role)
-                })
-            }
+            Declaration::Function(declaration) => declaration
+                .body
+                .as_ref()
+                .is_some_and(|body_expression_id| body_expression_id.id == expression_id.id),
             Declaration::Global(declaration) => declaration.expressions.contains(&expression_id),
             Declaration::Module(declaration) => declaration.expressions.contains(&expression_id),
             Declaration::Namespace(declaration) => declaration.expressions.contains(&expression_id),
@@ -1258,25 +1438,36 @@ impl Tree {
         }
     }
 
-    /// Return whether one function body should behave as statement-position.
-    fn function_body_is_statement_position(&self, role: Option<FunctionRole>) -> bool {
-        if matches!(role, Some(FunctionRole::Constructor | FunctionRole::Setter)) {
-            return true;
-        }
-
-        true
-    }
-
-    /// Get the AST id of a node by its DIR node id.
+    /// Get the source id of a node by its DIR node id.
     #[inline]
     pub fn get_source(&self, node_id: u32) -> u32 {
         let provenance_id = self.provenance.provenance_by_node_id[self.node_index(node_id)];
         self.provenance.source_id(provenance_id)
     }
 
+    /// Return the enclosing source span for one parsed node.
+    #[inline]
+    pub fn get_span<T>(&self, node_id: LocalNodeId<T>) -> Span
+    where
+        T: Node,
+    {
+        self.source_map.get(node_id.id)
+    }
+
+    /// Set the enclosing source span for one parsed node.
+    #[inline]
+    pub fn set_span<T>(&mut self, node_id: LocalNodeId<T>, span: Span)
+    where
+        T: Node,
+    {
+        self.source_map.set(node_id.id, span);
+        let index = self.node_index(node_id.id);
+        self.source_span_by_node_id[index] = Some(span);
+    }
+
     /// Set the final source span for one DIR node.
     #[inline]
-    pub fn set_span(&mut self, node_id: u32, span: Span) {
+    pub fn set_source_span(&mut self, node_id: u32, span: Span) {
         let index = self.node_index(node_id);
         self.source_span_by_node_id[index] = Some(span);
     }
@@ -1286,6 +1477,128 @@ impl Tree {
     pub fn get_span_by_id(&self, node_id: u32) -> Option<Span> {
         let index = self.node_index(node_id);
         self.source_span_by_node_id[index]
+    }
+
+    /// Return the main source span for one parsed node.
+    #[inline]
+    pub fn get_main_span<T>(&self, node_id: LocalNodeId<T>) -> Option<Span>
+    where
+        T: Node,
+    {
+        self.source_map.get_main(node_id.id)
+    }
+
+    /// Return the main source span for one parsed node id.
+    #[inline]
+    pub fn get_main_span_by_id(&self, node_id: u32) -> Option<Span> {
+        self.source_map.get_main(node_id)
+    }
+
+    /// Set the main source span for one parsed node.
+    #[inline]
+    pub fn set_main_span<T>(&mut self, node_id: LocalNodeId<T>, span: Span)
+    where
+        T: Node,
+    {
+        self.source_map.set_main(node_id.id, span);
+    }
+
+    /// Return the head source span for one parsed node.
+    #[inline]
+    pub fn get_head_span<T>(&self, node_id: LocalNodeId<T>) -> Option<Span>
+    where
+        T: Node,
+    {
+        self.source_map.get_side(node_id.id, NodeSpanType::Head)
+    }
+
+    /// Return the head source span for one parsed node id.
+    #[inline]
+    pub fn get_head_span_by_id(&self, node_id: u32) -> Option<Span> {
+        self.source_map.get_side(node_id, NodeSpanType::Head)
+    }
+
+    /// Set the head source span for one parsed node.
+    #[inline]
+    pub fn set_head_span<T>(&mut self, node_id: LocalNodeId<T>, span: Span)
+    where
+        T: Node,
+    {
+        self.source_map
+            .set_side(node_id.id, NodeSpanType::Head, span);
+    }
+
+    /// Set one side source span for one parsed node.
+    #[inline]
+    pub fn set_side_span<T>(&mut self, node_id: LocalNodeId<T>, span_type: NodeSpanType, span: Span)
+    where
+        T: Node,
+    {
+        self.source_map.set_side(node_id.id, span_type, span);
+    }
+
+    /// Return one side source span for one parsed node.
+    #[inline]
+    pub fn get_side_span<T>(&self, node_id: LocalNodeId<T>, span_type: NodeSpanType) -> Option<Span>
+    where
+        T: Node,
+    {
+        self.source_map.get_side(node_id.id, span_type)
+    }
+
+    /// Return one side source span for one parsed node id.
+    #[inline]
+    pub fn get_side_span_by_id(&self, node_id: u32, span_type: NodeSpanType) -> Option<Span> {
+        self.source_map.get_side(node_id, span_type)
+    }
+
+    /// Return the spans for all nodes of a given type.
+    #[inline]
+    pub fn get_spans_for(&self, node_type: NodeType) -> Vec<Span> {
+        let mut spans = Vec::new();
+        for (node_id, entry) in self.node_index_by_node_id.iter().enumerate() {
+            if entry.node_type() == node_type {
+                spans.push(self.source_map.get(node_id as u32));
+            }
+        }
+
+        spans
+    }
+
+    /// Return the spans for decorator side nodes.
+    #[inline]
+    pub fn get_side_decorator_spans(&self) -> Vec<Span> {
+        self.get_spans_for(NodeType::Decorator)
+    }
+
+    /// Return all raw comments in source order.
+    #[inline]
+    pub fn comments(&self) -> &[Comment] {
+        &self.comments
+    }
+
+    /// Return all raw comments in source order, mutably.
+    #[inline]
+    pub fn comments_mut(&mut self) -> &mut Vec<Comment> {
+        &mut self.comments
+    }
+
+    /// Append one raw comment.
+    #[inline]
+    pub fn push_comment(&mut self, comment: Comment) {
+        self.comments.push(comment);
+    }
+
+    /// Return all decorator attachments.
+    #[inline]
+    pub fn get_all_decorators(&self) -> &BTreeMap<u32, Vec<LocalNodeId<Decorator>>> {
+        &self.decorators_by_node_id
+    }
+
+    /// Build the source position index for fast enclosing span lookups.
+    #[inline]
+    pub fn build_position_index(&mut self) {
+        self.source_map.build_position_index();
     }
 
     /// Get the provenance id of one node by its DIR node id.
@@ -1301,11 +1614,11 @@ impl Tree {
             && ((node_id - self.first_global_id) as usize) < self.node_index_by_node_id.len()
     }
 
-    /// Get the DIR node id by its AST id.
+    /// Get the DIR node id by its source id.
     #[inline]
-    pub fn get_node_id_by_source_id(&self, ast_id: u32) -> Option<LocalNodeIdAny> {
+    pub fn get_node_id_by_source_id(&self, source_node_id: u32) -> Option<LocalNodeIdAny> {
         self.alias_node_id_by_source_id
-            .get(&ast_id)
+            .get(&source_node_id)
             .copied()
             .map(|node_id| {
                 LocalNodeIdAny::new(
@@ -1315,36 +1628,22 @@ impl Tree {
             })
     }
 
-    /// Get the scope for a node id.
-    #[inline]
-    pub fn get_scope<T: Node>(&self, node_id: LocalNodeId<T>) -> (LocalScopeId, LocalScopeMark) {
-        self.scopes_by_node_id[self.node_index(node_id.id)]
-    }
-
-    /// Get the scope for an erased node id.
-    #[inline]
-    pub fn get_scope_any(&self, node_id: LocalNodeIdAny) -> (LocalScopeId, LocalScopeMark) {
-        self.scopes_by_node_id[self.node_index(node_id.id)]
-    }
-
     /// Append a decorator to a node by its global id.
     #[inline]
-    pub fn append_decorator(
-        &mut self,
-        target_id: LocalNodeIdAny,
-        decorator: LocalNodeId<Decorator>,
-    ) {
+    pub fn append_decorator(&mut self, target_id: u32, decorator: LocalNodeId<Decorator>) {
+        debug_assert!(target_id < self.next_global_id);
+
         // track decorators for the target node
         self.decorators_by_node_id
-            .entry(target_id.id)
+            .entry(target_id)
             .or_default()
             .push(decorator);
 
         // attach the decorator to its target for parent lookups
-        if decorator.id != target_id.id {
+        if decorator.id != target_id {
             let index = self.node_index(decorator.id);
             if let Some(parent_slot) = self.parent_id_by_node_id.get_mut(index) {
-                *parent_slot = Some(target_id.id);
+                *parent_slot = Some(target_id);
             }
         }
     }
@@ -1362,6 +1661,15 @@ impl Tree {
             .get(&node_id)
             .cloned()
             .unwrap_or_else(Vec::new)
+    }
+
+    /// Get decorators attached to a node as a borrowed slice.
+    #[inline]
+    pub fn get_decorators_ref(&self, node_id: u32) -> &[LocalNodeId<Decorator>] {
+        self.decorators_by_node_id
+            .get(&node_id)
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
     }
 
     /// Set normalized documentation for a node.

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{Expression, LocalNodeId, StringId};
+use crate::{Expression, LocalNodeId, StaticKey, StringId};
 
 /// A name is a regular, string, or numeric identifier.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -21,6 +21,15 @@ impl Name {
             Name::Identifier(id) | Name::String(id) | Name::Number(id) => *id,
         }
     }
+
+    /// Return this name as a static lookup key.
+    #[inline]
+    pub fn static_key(self) -> StaticKey {
+        match self {
+            Self::Identifier(name) | Self::String(name) => StaticKey::Name(name),
+            Self::Number(name) => StaticKey::Number(name),
+        }
+    }
 }
 
 /// A key in value or type property position.
@@ -32,4 +41,16 @@ pub enum Key {
     Private(StringId),
     /// A dynamic value-space key.
     Expression(LocalNodeId<Expression>),
+}
+
+impl Key {
+    /// Return this key as a static lookup key when possible.
+    #[inline]
+    pub fn static_key(&self) -> Option<StaticKey> {
+        match self {
+            Self::Name(name) => Some(name.static_key()),
+            Self::Private(name) => Some(StaticKey::Name(*name)),
+            Self::Expression(_) => None,
+        }
+    }
 }

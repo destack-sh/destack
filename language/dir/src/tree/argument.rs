@@ -1,11 +1,11 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Expression, GlobalNodeIdAny, LocalNodeId, LocalSymbolId, Name, Node, NodeType, Pattern,
-    StaticExpression, StringId, TypeExpression, VarianceModifier, Visibility,
+    Expression, LocalNodeId, Name, Node, NodeType, Pattern, StaticKey, StringId, SymbolForm,
+    SymbolSpace, TypeExpression, VarianceModifier, Visibility,
 };
 
-/// A generic parameter.
+/// A generic parameter in static parameter position.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum GenericParameter {
     /// Type parameter.
@@ -14,7 +14,6 @@ pub enum GenericParameter {
         variance: Option<VarianceModifier>,
         constraint: Option<LocalNodeId<TypeExpression>>,
         default: Option<LocalNodeId<TypeExpression>>,
-        symbol: LocalSymbolId,
         is_const: bool,
     },
     /// Value parameter.
@@ -22,11 +21,10 @@ pub enum GenericParameter {
         name: StringId,
         declared_type: Option<LocalNodeId<TypeExpression>>,
         default: Option<LocalNodeId<Expression>>,
-        symbol: LocalSymbolId,
         is_comptime: bool,
     },
     /// Malformed generic parameter slot.
-    Error { symbol: LocalSymbolId },
+    Error,
 }
 
 impl Node for GenericParameter {
@@ -34,12 +32,29 @@ impl Node for GenericParameter {
 }
 
 impl GenericParameter {
-    /// Get the symbol of the generic parameter.
-    pub fn symbol(&self) -> LocalSymbolId {
+    /// Return the symbol key introduced by this generic parameter.
+    pub fn symbol_key(&self) -> Option<StaticKey> {
         match self {
-            GenericParameter::Type { symbol, .. }
-            | GenericParameter::Value { symbol, .. }
-            | GenericParameter::Error { symbol } => *symbol,
+            Self::Type { name, .. } | Self::Value { name, .. } => Some(StaticKey::Name(*name)),
+            Self::Error => None,
+        }
+    }
+
+    /// Return the symbol space introduced by this generic parameter.
+    pub fn symbol_space(&self) -> Option<SymbolSpace> {
+        match self {
+            Self::Type { .. } => Some(SymbolSpace::Type),
+            Self::Value { .. } => Some(SymbolSpace::Value),
+            Self::Error => None,
+        }
+    }
+
+    /// Return the symbol form introduced by this generic parameter.
+    pub fn symbol_form(&self) -> Option<SymbolForm> {
+        match self {
+            Self::Type { .. } => Some(SymbolForm::TypeAlias),
+            Self::Value { .. } => Some(SymbolForm::Variable),
+            Self::Error => None,
         }
     }
 }
@@ -53,7 +68,6 @@ pub enum Parameter {
         declared_type: Option<LocalNodeId<TypeExpression>>,
         default: Option<LocalNodeId<Expression>>,
         visibility: Option<Visibility>,
-        symbol: LocalSymbolId,
         is_readonly: bool,
         is_optional: bool,
     },
@@ -62,7 +76,6 @@ pub enum Parameter {
         pattern: LocalNodeId<Pattern>,
         declared_type: Option<LocalNodeId<TypeExpression>>,
         default: Option<LocalNodeId<Expression>>,
-        symbol: LocalSymbolId,
         is_optional: bool,
     },
     /// Variadic named parameter.
@@ -70,17 +83,15 @@ pub enum Parameter {
         name: StringId,
         declared_type: Option<LocalNodeId<TypeExpression>>,
         visibility: Option<Visibility>,
-        symbol: LocalSymbolId,
         is_readonly: bool,
     },
     /// Variadic pattern parameter.
     VariadicPattern {
         pattern: LocalNodeId<Pattern>,
         declared_type: Option<LocalNodeId<TypeExpression>>,
-        symbol: LocalSymbolId,
     },
     /// Malformed parameter slot.
-    Error { symbol: LocalSymbolId },
+    Error,
 }
 
 impl Node for Parameter {
@@ -88,19 +99,29 @@ impl Node for Parameter {
 }
 
 impl Parameter {
-    /// Get the symbol of the parameter.
-    pub fn symbol(&self) -> LocalSymbolId {
+    /// Return the symbol key introduced by this parameter.
+    pub fn symbol_key(&self) -> Option<StaticKey> {
         match self {
-            Parameter::Named { symbol, .. }
-            | Parameter::Pattern { symbol, .. }
-            | Parameter::VariadicNamed { symbol, .. }
-            | Parameter::VariadicPattern { symbol, .. }
-            | Parameter::Error { symbol } => *symbol,
+            Self::Named { name, .. } | Self::VariadicNamed { name, .. } => {
+                Some(StaticKey::Name(*name))
+            }
+            Self::Pattern { .. } | Self::VariadicPattern { .. } | Self::Error => None,
+        }
+    }
+
+    /// Return the declared type attached to this parameter when present.
+    pub fn declared_type(&self) -> Option<LocalNodeId<TypeExpression>> {
+        match self {
+            Self::Named { declared_type, .. }
+            | Self::Pattern { declared_type, .. }
+            | Self::VariadicNamed { declared_type, .. }
+            | Self::VariadicPattern { declared_type, .. } => *declared_type,
+            Self::Error => None,
         }
     }
 }
 
-/// A generic argument.
+/// A generic argument in static argument position.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum GenericArgument {
     /// Type generic argument.
@@ -138,18 +159,6 @@ impl Node for TupleElement {
     const TYPE: NodeType = NodeType::TupleElement;
 }
 
-impl TupleElement {
-    /// Get the value type expression when one exists.
-    pub fn value(&self) -> Option<LocalNodeId<TypeExpression>> {
-        match self {
-            TupleElement::Element { value, .. } | TupleElement::Spread { value, .. } => {
-                Some(*value)
-            }
-            TupleElement::Error => None,
-        }
-    }
-}
-
 /// An argument to a runtime call or tree construct.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Argument {
@@ -171,52 +180,23 @@ pub enum Argument {
         value: LocalNodeId<Expression>,
     },
     /// Malformed argument slot.
-    Error { value: LocalNodeId<Expression> },
-}
-
-impl Argument {
-    /// Get the value of the argument.
-    pub fn value(&self) -> LocalNodeId<Expression> {
-        match self {
-            Argument::Named { value, .. }
-            | Argument::Labeled { value, .. }
-            | Argument::Positional { value }
-            | Argument::Spread { value, .. }
-            | Argument::Error { value } => *value,
-        }
-    }
+    Error,
 }
 
 impl Node for Argument {
     const TYPE: NodeType = NodeType::Argument;
 }
 
-/// Static argument in some static context.
-/// Static evaluation supports all constructs, this is for the resulting static value.
-/// This is a plain value type, not a tree node so we can pass it around directly.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum StaticArgument {
-    /// Unevaluated argument.
-    Unevaluated { node: GlobalNodeIdAny },
-
-    /// Evaluated static argument.
-    Evaluated {
-        name: Option<StringId>,
-        value: StaticExpression,
-    },
-}
-
-impl StaticArgument {
-    /// Check if the static argument and its value have been evaluated.
-    pub fn is_evaluated(&self) -> bool {
+impl Argument {
+    /// Return the argument value expression.
+    #[inline]
+    pub fn value(&self) -> Option<LocalNodeId<Expression>> {
         match self {
-            StaticArgument::Unevaluated { .. } => false,
-            StaticArgument::Evaluated { value, .. } => value.is_evaluated(),
+            Argument::Named { value, .. }
+            | Argument::Labeled { value, .. }
+            | Argument::Positional { value }
+            | Argument::Spread { value, .. } => Some(*value),
+            Argument::Error => None,
         }
-    }
-
-    /// Build an evaluated static argument from a static expression.
-    pub fn value(value: StaticExpression) -> Self {
-        Self::Evaluated { name: None, value }
     }
 }

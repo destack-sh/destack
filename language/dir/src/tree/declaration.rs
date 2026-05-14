@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     ExportKind, Expression, FunctionSignature, GenericArgument, GenericParameter, LocalNodeId,
-    LocalScopeId, LocalSymbolId, Member, Mutability, Name, Node, NodeType, TypeExpression,
+    Member, Mutability, Name, Node, NodeType, ScopeKind, SymbolForm, SymbolRole, TypeExpression,
     TypeMember, WhereClause,
 };
 
@@ -21,10 +21,6 @@ pub enum NamespaceForm {
 pub struct GlobalDeclaration {
     /// The expressions inside the global body.
     pub expressions: Vec<LocalNodeId<Expression>>,
-    /// The declaration symbol.
-    pub symbol: LocalSymbolId,
-    /// The declaration scope.
-    pub scope: LocalScopeId,
     /// Whether the declaration is ambient.
     pub is_ambient: bool,
 }
@@ -34,10 +30,6 @@ pub struct GlobalDeclaration {
 pub struct ModuleDeclaration {
     /// The expressions inside the module body.
     pub expressions: Vec<LocalNodeId<Expression>>,
-    /// The declaration symbol.
-    pub symbol: LocalSymbolId,
-    /// The declaration scope.
-    pub scope: LocalScopeId,
 }
 
 /// A namespace declaration.
@@ -55,10 +47,6 @@ pub struct NamespaceDeclaration {
     pub where_clauses: Vec<LocalNodeId<WhereClause>>,
     /// The expressions inside the namespace body.
     pub expressions: Vec<LocalNodeId<Expression>>,
-    /// The declaration symbol.
-    pub symbol: LocalSymbolId,
-    /// The declaration scope.
-    pub scope: LocalScopeId,
     /// Whether the declaration is ambient.
     pub is_ambient: bool,
 }
@@ -78,10 +66,6 @@ pub struct TypeDeclaration {
     pub where_clauses: Vec<LocalNodeId<WhereClause>>,
     /// The declared type expression.
     pub value: LocalNodeId<TypeExpression>,
-    /// The declaration symbol.
-    pub symbol: LocalSymbolId,
-    /// The declaration scope.
-    pub scope: LocalScopeId,
     /// Whether the declaration is ambient.
     pub is_ambient: bool,
     /// Whether the declaration is nominal.
@@ -103,10 +87,6 @@ pub struct StructDeclaration {
     pub implements_types: Vec<LocalNodeId<TypeExpression>>,
     /// The struct members.
     pub members: Vec<LocalNodeId<Member>>,
-    /// The declaration symbol.
-    pub symbol: LocalSymbolId,
-    /// The declaration scope.
-    pub scope: LocalScopeId,
     /// Whether the declaration is ambient.
     pub is_ambient: bool,
 }
@@ -130,12 +110,6 @@ pub struct ClassDeclaration {
     pub implements_types: Vec<LocalNodeId<TypeExpression>>,
     /// The class members.
     pub members: Vec<LocalNodeId<Member>>,
-    /// The declaration symbol.
-    pub symbol: LocalSymbolId,
-    /// The optional symbol for `self`.
-    pub self_symbol: Option<LocalSymbolId>,
-    /// The declaration scope.
-    pub scope: LocalScopeId,
     /// Whether the declaration is ambient.
     pub is_ambient: bool,
     /// Whether the declaration is abstract.
@@ -173,10 +147,6 @@ pub struct EnumDeclaration {
     pub fields: Vec<LocalNodeId<EnumField>>,
     /// The enum members.
     pub members: Vec<LocalNodeId<Member>>,
-    /// The declaration symbol.
-    pub symbol: LocalSymbolId,
-    /// The declaration scope.
-    pub scope: LocalScopeId,
     /// Whether the declaration is ambient.
     pub is_ambient: bool,
 }
@@ -205,10 +175,6 @@ pub struct InterfaceDeclaration {
     pub extends: Vec<InterfaceHeritage>,
     /// The interface members.
     pub members: Vec<LocalNodeId<TypeMember>>,
-    /// The declaration symbol.
-    pub symbol: LocalSymbolId,
-    /// The declaration scope.
-    pub scope: LocalScopeId,
     /// Whether the declaration is ambient.
     pub is_ambient: bool,
     /// Whether the interface is nominal.
@@ -232,10 +198,6 @@ pub struct ExtensionDeclaration {
     pub implements_types: Vec<LocalNodeId<TypeExpression>>,
     /// The extension members.
     pub members: Vec<LocalNodeId<Member>>,
-    /// The declaration symbol.
-    pub symbol: LocalSymbolId,
-    /// The declaration scope.
-    pub scope: LocalScopeId,
     /// Whether the declaration is ambient.
     pub is_ambient: bool,
 }
@@ -251,17 +213,11 @@ pub struct FunctionDeclaration {
     pub signature: FunctionSignature,
     /// The optional function body.
     pub body: Option<LocalNodeId<Expression>>,
-    /// The declaration symbol.
-    pub symbol: LocalSymbolId,
-    /// The optional symbol for `self`.
-    pub self_symbol: Option<LocalSymbolId>,
-    /// The declaration scope.
-    pub scope: LocalScopeId,
     /// Whether the declaration is ambient.
     pub is_ambient: bool,
 }
 
-/// Declaration introduces a type or function into its scope.
+/// Declaration introduces a type or such into a scope.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Declaration {
     /// Global declaration block.
@@ -291,7 +247,79 @@ impl Node for Declaration {
 }
 
 impl Declaration {
+    /// Return the export kind on this declaration.
+    pub fn export(&self) -> Option<ExportKind> {
+        match self {
+            Declaration::Namespace(declaration) => declaration.export,
+            Declaration::Type(declaration) => declaration.export,
+            Declaration::Struct(declaration) => declaration.export,
+            Declaration::Class(declaration) => declaration.export,
+            Declaration::Enum(declaration) => declaration.export,
+            Declaration::Interface(declaration) => declaration.export,
+            Declaration::Extension(declaration) => declaration.export,
+            Declaration::Function(declaration) => declaration.export,
+            Declaration::Global(_) | Declaration::Module(_) => None,
+        }
+    }
+
+    /// Return whether this declaration is ambient.
+    pub fn is_ambient(&self) -> bool {
+        match self {
+            Declaration::Global(declaration) => declaration.is_ambient,
+            Declaration::Namespace(declaration) => declaration.is_ambient,
+            Declaration::Type(declaration) => declaration.is_ambient,
+            Declaration::Struct(declaration) => declaration.is_ambient,
+            Declaration::Class(declaration) => declaration.is_ambient,
+            Declaration::Enum(declaration) => declaration.is_ambient,
+            Declaration::Interface(declaration) => declaration.is_ambient,
+            Declaration::Extension(declaration) => declaration.is_ambient,
+            Declaration::Function(declaration) => declaration.is_ambient,
+            Declaration::Module(_) => false,
+        }
+    }
+
+    /// Return the symbol form introduced by this declaration.
+    pub fn symbol_form(&self) -> Option<SymbolForm> {
+        match self {
+            Declaration::Global(_) | Declaration::Module(_) => None,
+            Declaration::Namespace(_) => Some(SymbolForm::Variable),
+            Declaration::Type(declaration) => {
+                if declaration.is_nominal {
+                    Some(SymbolForm::Newtype)
+                } else {
+                    Some(SymbolForm::TypeAlias)
+                }
+            }
+            Declaration::Struct(_) => Some(SymbolForm::Struct),
+            Declaration::Class(_) => Some(SymbolForm::Class),
+            Declaration::Enum(_) => Some(SymbolForm::Enum),
+            Declaration::Interface(_) => Some(SymbolForm::Interface),
+            Declaration::Extension(_) => Some(SymbolForm::Extension),
+            Declaration::Function(_) => Some(SymbolForm::Function),
+        }
+    }
+
+    /// Return the symbol role introduced by this declaration.
+    pub fn symbol_role(&self) -> Option<SymbolRole> {
+        match self {
+            Declaration::Global(_) | Declaration::Module(_) => None,
+            Declaration::Function(_) | Declaration::Type(_) => Some(SymbolRole::Item),
+            _ => Some(SymbolRole::Namespace),
+        }
+    }
+
+    /// Return the owned scope kind for this declaration symbol.
+    pub fn symbol_scope_kind(&self) -> Option<ScopeKind> {
+        match self {
+            Declaration::Global(_) | Declaration::Module(_) => None,
+            Declaration::Function(_) => Some(ScopeKind::Function),
+            Declaration::Type(_) => Some(ScopeKind::Type),
+            _ => Some(ScopeKind::Namespace),
+        }
+    }
+
     /// Get the name of the declaration.
+    #[inline]
     pub fn name(&self) -> Option<Name> {
         match self {
             Declaration::Global(_) => None,
@@ -307,15 +335,13 @@ impl Declaration {
         }
     }
 
-    /// Get the name of this kind of declaration.
+    /// Return the declaration kind name for display.
+    #[inline]
     pub fn kind_name(&self) -> &'static str {
         match self {
             Declaration::Global(_) => "global",
             Declaration::Module(_) => "module",
-            Declaration::Namespace(declaration) => match declaration.form {
-                NamespaceForm::Namespace => "namespace",
-                NamespaceForm::Module => "module",
-            },
+            Declaration::Namespace(_) => "namespace",
             Declaration::Type(_) => "type",
             Declaration::Struct(_) => "struct",
             Declaration::Class(_) => "class",
@@ -326,54 +352,8 @@ impl Declaration {
         }
     }
 
-    /// Get the declaration symbol.
-    pub fn symbol(&self) -> LocalSymbolId {
-        match self {
-            Declaration::Global(declaration) => declaration.symbol,
-            Declaration::Module(declaration) => declaration.symbol,
-            Declaration::Namespace(declaration) => declaration.symbol,
-            Declaration::Type(declaration) => declaration.symbol,
-            Declaration::Struct(declaration) => declaration.symbol,
-            Declaration::Class(declaration) => declaration.symbol,
-            Declaration::Enum(declaration) => declaration.symbol,
-            Declaration::Interface(declaration) => declaration.symbol,
-            Declaration::Extension(declaration) => declaration.symbol,
-            Declaration::Function(declaration) => declaration.symbol,
-        }
-    }
-
-    /// Get the symbol that owns the declaration name when one exists.
-    pub fn name_symbol(&self) -> LocalSymbolId {
-        match self {
-            Declaration::Class(ClassDeclaration {
-                self_symbol: Some(self_symbol),
-                ..
-            })
-            | Declaration::Function(FunctionDeclaration {
-                self_symbol: Some(self_symbol),
-                ..
-            }) => *self_symbol,
-            _ => self.symbol(),
-        }
-    }
-
-    /// Get the declaration scope when one exists.
-    pub fn scope(&self) -> Option<LocalScopeId> {
-        match self {
-            Declaration::Global(declaration) => Some(declaration.scope),
-            Declaration::Module(declaration) => Some(declaration.scope),
-            Declaration::Namespace(declaration) => Some(declaration.scope),
-            Declaration::Type(declaration) => Some(declaration.scope),
-            Declaration::Struct(declaration) => Some(declaration.scope),
-            Declaration::Class(declaration) => Some(declaration.scope),
-            Declaration::Enum(declaration) => Some(declaration.scope),
-            Declaration::Interface(declaration) => Some(declaration.scope),
-            Declaration::Extension(declaration) => Some(declaration.scope),
-            Declaration::Function(declaration) => Some(declaration.scope),
-        }
-    }
-
     /// Get the declaration-body member ids for structured declarations.
+    #[inline]
     pub fn member_ids(&self) -> Option<&[LocalNodeId<Member>]> {
         match self {
             Declaration::Struct(declaration) => Some(&declaration.members),
@@ -386,6 +366,7 @@ impl Declaration {
     }
 
     /// Get the type-surface member ids for interface declarations.
+    #[inline]
     pub fn type_member_ids(&self) -> Option<&[LocalNodeId<TypeMember>]> {
         match self {
             Declaration::Interface(declaration) => Some(&declaration.members),
@@ -394,6 +375,7 @@ impl Declaration {
     }
 
     /// Get the generic parameters of the declaration.
+    #[inline]
     pub fn generic_parameters(&self) -> Option<&[LocalNodeId<GenericParameter>]> {
         match self {
             Declaration::Namespace(declaration) => Some(&declaration.generic_parameters),

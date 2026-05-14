@@ -1,12 +1,14 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{Expression, LocalNodeId, LocalScopeId, Node, NodeType};
+use crate::{Expression, LocalNodeId, Node, NodeType};
 
 /// The structural form of a block.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum BlockForm {
     /// Explicit blocks with { ... }
     Explicit,
+    /// Explicit `do { ... }` expression blocks.
+    Do,
     /// Implicit blocks like in file modules.
     Implicit,
 }
@@ -20,7 +22,15 @@ pub enum BlockContext {
     Statement,
 }
 
-/// A block of expressions.
+/// A Block is a block of statements.
+///
+/// Examples:
+/// ```
+/// {
+///     x = 1
+///     y = 2
+/// }
+/// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Block {
     /// The block context.
@@ -31,8 +41,6 @@ pub struct Block {
     pub leading_expressions: Vec<LocalNodeId<Expression>>,
     /// The optional tail expression whose value becomes the block value.
     pub tail_expression: Option<LocalNodeId<Expression>>,
-    /// The scope of the block.
-    pub scope: LocalScopeId,
 }
 
 impl Node for Block {
@@ -40,6 +48,11 @@ impl Node for Block {
 }
 
 impl Block {
+    /// Return whether the block has explicit brace delimiters.
+    pub const fn is_explicit(&self) -> bool {
+        self.form.is_explicit()
+    }
+
     /// Return whether the block has no expressions at all.
     pub fn is_empty(&self) -> bool {
         self.leading_expressions.is_empty() && self.tail_expression.is_none()
@@ -64,17 +77,18 @@ impl Block {
             .or_else(|| self.leading_expressions.last().copied())
     }
 
-    /// Return whether one expression belongs to this block.
-    pub fn contains_expression(&self, expression_id: LocalNodeId<Expression>) -> bool {
-        self.leading_expressions.contains(&expression_id)
-            || self.tail_expression == Some(expression_id)
-    }
-
     /// Iterate the block expressions in source order.
     pub fn iter_expressions(&self) -> impl Iterator<Item = LocalNodeId<Expression>> + '_ {
         self.leading_expressions
             .iter()
             .copied()
             .chain(self.tail_expression)
+    }
+}
+
+impl BlockForm {
+    /// Return whether this form has explicit brace delimiters.
+    pub const fn is_explicit(self) -> bool {
+        matches!(self, Self::Explicit | Self::Do)
     }
 }

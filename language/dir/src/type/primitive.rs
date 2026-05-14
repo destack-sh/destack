@@ -41,9 +41,11 @@ pub enum EnumFieldValue {
     String(StringId),
 }
 
-/// An integer primitive type.
+/// An integer type.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum IntegerType {
+    /// The signed or unsigned integer family.
+    Integer { is_signed: bool },
     /// A fixed-width signed or unsigned integer.
     Fixed { width: u16, is_signed: bool },
     /// A pointer-sized signed or unsigned integer.
@@ -54,6 +56,7 @@ impl IntegerType {
     /// Return the fixed bit width, if known without target layout.
     pub fn width(&self) -> Option<u16> {
         match self {
+            IntegerType::Integer { .. } => None,
             IntegerType::Fixed { width, .. } => Some(*width),
             IntegerType::Pointer { .. } => None,
         }
@@ -62,7 +65,8 @@ impl IntegerType {
     /// Whether the integer type is signed.
     pub fn is_signed(&self) -> bool {
         match self {
-            IntegerType::Fixed {
+            IntegerType::Integer { is_signed }
+            | IntegerType::Fixed {
                 width: _,
                 is_signed,
             }
@@ -74,6 +78,13 @@ impl IntegerType {
     #[inline]
     pub fn as_str(self) -> String {
         match self {
+            IntegerType::Integer { is_signed } => {
+                if is_signed {
+                    "int".to_string()
+                } else {
+                    "uint".to_string()
+                }
+            }
             IntegerType::Fixed { width, is_signed } => {
                 if is_signed {
                     format!("int{width}")
@@ -92,9 +103,11 @@ impl IntegerType {
     }
 }
 
-/// A floating-point primitive type.
+/// A floating-point type.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum FloatType {
+    /// The floating-point family.
+    Float,
     /// 32-bit IEEE-754 float.
     Float32,
     /// 64-bit IEEE-754 float.
@@ -102,9 +115,10 @@ pub enum FloatType {
 }
 
 impl FloatType {
-    /// Return the concrete bit width.
+    /// Return the concrete bit width, if known without target layout.
     pub fn width(&self) -> Option<u16> {
         match self {
+            FloatType::Float => None,
             FloatType::Float32 => Some(32),
             FloatType::Float64 => Some(64),
         }
@@ -114,6 +128,7 @@ impl FloatType {
     #[inline]
     pub fn as_str(self) -> &'static str {
         match self {
+            FloatType::Float => "float",
             FloatType::Float32 => "float32",
             FloatType::Float64 => "float64",
         }

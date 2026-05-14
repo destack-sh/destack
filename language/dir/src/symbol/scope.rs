@@ -95,7 +95,21 @@ impl From<GlobalScopeId> for LocalScopeId {
 pub struct LocalScopeMark(pub u32);
 
 /// Local scope id and mark pair used for node and symbol insertion.
-pub type LocalScope = (LocalScopeId, LocalScopeMark);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct LocalScope {
+    /// The scope id.
+    pub id: LocalScopeId,
+    /// The visible binding mark.
+    pub mark: LocalScopeMark,
+}
+
+impl LocalScope {
+    /// Create a local scope cursor.
+    #[inline]
+    pub fn new(id: LocalScopeId, mark: LocalScopeMark) -> Self {
+        Self { id, mark }
+    }
+}
 
 impl LocalScopeMark {
     /// Get the full scope view.
@@ -119,7 +133,7 @@ pub struct Scope {
     /// The kind of the scope.
     pub kind: ScopeKind,
     /// The parent scope.
-    pub parent: Option<(LocalScopeId, LocalScopeMark)>,
+    pub parent: Option<LocalScope>,
     /// The owner of the scope.
     pub owner: Option<LocalSymbolId>,
 

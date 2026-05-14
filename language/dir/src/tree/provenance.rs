@@ -36,7 +36,7 @@ pub enum ProvenanceReason {
 /// One DIR provenance record.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProvenanceRecord {
-    /// The primary AST source id for this DIR node.
+    /// The primary source id for this DIR node.
     pub source_id: u32,
     /// The parent DIR provenance record when this node was derived from another DIR node.
     pub parent: Option<ProvenanceId>,
@@ -51,7 +51,7 @@ pub struct ProvenanceMetadata {
     pub provenance_by_node_id: Vec<ProvenanceId>,
     /// Canonical provenance records.
     pub record_by_id: Vec<ProvenanceRecord>,
-    /// Reverse index from AST source id to provenance records.
+    /// Reverse index from source id to provenance records.
     pub record_by_source_id: BTreeMap<u32, Vec<ProvenanceId>>,
 }
 
@@ -76,7 +76,7 @@ impl ProvenanceMetadata {
         self.record_by_id[provenance_id.index()]
     }
 
-    /// Return the primary AST source id for one provenance record.
+    /// Return the primary source id for one provenance record.
     pub fn source_id(&self, provenance_id: ProvenanceId) -> u32 {
         self.record(provenance_id).source_id
     }

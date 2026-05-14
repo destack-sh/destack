@@ -1,49 +1,10 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Expression, FunctionSignature, GenericParameter, Key, LocalNodeId, LocalSymbolId, Mutability,
-    Node, NodeType, StaticExpression, StringId, TypeExpression, Visibility, WhereClause,
+    Expression, FunctionSignature, GenericParameter, Key, Keyword, LocalNodeId, Mutability, Node,
+    NodeType, ScopeKind, StaticKey, StringId, SymbolForm, SymbolSpace, TypeExpression, Visibility,
+    WhereClause,
 };
-
-/// Static property in some static context.
-/// Static evaluation supports all constructs, this is for the resulting static value.
-/// This is a plain value type, not a tree node, so that we can pass it around directly.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum StaticProperty {
-    /// Unevaluated property.
-    Unevaluated { node: LocalNodeId<Property> },
-
-    /// Evaluated static field.
-    Field {
-        key: Key,
-        value: StaticExpression,
-        symbol: LocalSymbolId,
-    },
-    /// Evaluated static member function.
-    Method {
-        key: Option<Key>,
-        signature: FunctionSignature,
-        body: StaticExpression,
-        symbol: LocalSymbolId,
-    },
-    /// Evaluated static spread.
-    Spread {
-        value: StaticExpression,
-        symbol: LocalSymbolId,
-    },
-}
-
-impl StaticProperty {
-    /// Check if the static property and its values have been evaluated.
-    pub fn is_evaluated(&self) -> bool {
-        match self {
-            StaticProperty::Unevaluated { .. } => false,
-            StaticProperty::Field { value, .. } => value.is_evaluated(),
-            StaticProperty::Method { body, .. } => body.is_evaluated(),
-            StaticProperty::Spread { value, .. } => value.is_evaluated(),
-        }
-    }
-}
 
 /// Variance annotation for generic parameters.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
@@ -56,8 +17,19 @@ pub enum VarianceModifier {
     InOut,
 }
 
+impl VarianceModifier {
+    /// Return the keyword string for the variance modifier.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            VarianceModifier::In => "in",
+            VarianceModifier::Out => "out",
+            VarianceModifier::InOut => "in out",
+        }
+    }
+}
+
 /// The special role of a function.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum FunctionRole {
     /// Getter function.
     Getter,
@@ -69,6 +41,20 @@ pub enum FunctionRole {
     New,
     /// Implicit call function.
     Call,
+}
+
+impl FunctionRole {
+    /// Get the keyword for the function accessor.
+    #[inline]
+    pub fn to_keyword(&self) -> Option<Keyword> {
+        match self {
+            FunctionRole::Getter => Some(Keyword::Get),
+            FunctionRole::Setter => Some(Keyword::Set),
+            FunctionRole::Constructor => Some(Keyword::Constructor),
+            FunctionRole::New => Some(Keyword::New),
+            FunctionRole::Call => None,
+        }
+    }
 }
 
 /// The abstraction mode of a class method.
@@ -98,23 +84,18 @@ pub enum Property {
     Field {
         key: Key,
         value: LocalNodeId<Expression>,
-        symbol: LocalSymbolId,
         is_shorthand: bool,
     },
-    /// Named member function.
+    /// Object-like member function.
     Method {
         key: Option<Key>,
         signature: FunctionSignature,
         body: Option<LocalNodeId<Expression>>,
-        symbol: LocalSymbolId,
     },
     /// Spread property.
-    Spread {
-        value: LocalNodeId<Expression>,
-        symbol: LocalSymbolId,
-    },
+    Spread { value: LocalNodeId<Expression> },
     /// Malformed property slot.
-    Error { symbol: LocalSymbolId },
+    Error,
 }
 
 impl Node for Property {
@@ -127,7 +108,7 @@ impl Property {
         match self {
             Property::Field { key, .. } => Some(key),
             Property::Method { key, .. } => key.as_ref(),
-            Property::Spread { .. } | Property::Error { .. } => None,
+            Property::Spread { .. } | Property::Error => None,
         }
     }
 
@@ -135,17 +116,7 @@ impl Property {
     pub fn signature(&self) -> Option<&FunctionSignature> {
         match self {
             Property::Method { signature, .. } => Some(signature),
-            Property::Field { .. } | Property::Spread { .. } | Property::Error { .. } => None,
-        }
-    }
-
-    /// Get the symbol of the property.
-    pub fn symbol(&self) -> LocalSymbolId {
-        match self {
-            Property::Field { symbol, .. }
-            | Property::Method { symbol, .. }
-            | Property::Spread { symbol, .. }
-            | Property::Error { symbol } => *symbol,
+            Property::Field { .. } | Property::Spread { .. } | Property::Error => None,
         }
     }
 }
@@ -161,7 +132,6 @@ pub enum Member {
         constraint: Option<LocalNodeId<TypeExpression>>,
         value: Option<LocalNodeId<TypeExpression>>,
         visibility: Option<Visibility>,
-        symbol: LocalSymbolId,
         is_ambient: bool,
         is_abstract: bool,
         is_override: bool,
@@ -173,7 +143,6 @@ pub enum Member {
         declared_type: Option<LocalNodeId<TypeExpression>>,
         value: Option<LocalNodeId<Expression>>,
         visibility: Option<Visibility>,
-        symbol: LocalSymbolId,
         is_ambient: bool,
         is_static: bool,
     },
@@ -184,7 +153,6 @@ pub enum Member {
         default: Option<LocalNodeId<Expression>>,
         mutability: Option<Mutability>,
         visibility: Option<Visibility>,
-        symbol: LocalSymbolId,
         is_optional: bool,
         is_readonly: bool,
         is_ambient: bool,
@@ -200,7 +168,6 @@ pub enum Member {
         abstraction: MethodAbstraction,
         body: Option<LocalNodeId<Expression>>,
         visibility: Option<Visibility>,
-        symbol: LocalSymbolId,
         is_optional: bool,
         is_ambient: bool,
         is_override: bool,
@@ -208,20 +175,60 @@ pub enum Member {
         is_accessor: bool,
     },
     /// Static initialization block.
-    StaticBlock {
-        body: LocalNodeId<Expression>,
-        symbol: LocalSymbolId,
-    },
+    StaticBlock { body: LocalNodeId<Expression> },
     /// Comptime block.
-    ComptimeBlock {
-        body: LocalNodeId<Expression>,
-        symbol: LocalSymbolId,
-    },
+    ComptimeBlock { body: LocalNodeId<Expression> },
     /// Malformed member slot.
-    Error { symbol: LocalSymbolId },
+    Error,
+}
+
+impl Node for Member {
+    const TYPE: NodeType = NodeType::Member;
 }
 
 impl Member {
+    /// Return the symbol key introduced by this member.
+    pub fn symbol_key(&self) -> Option<StaticKey> {
+        match self {
+            Self::AssociatedType { name, .. } | Self::AssociatedConst { name, .. } => {
+                Some(StaticKey::Name(*name))
+            }
+            Self::Field { key, .. } => key.static_key(),
+            Self::Method { key: Some(key), .. } => key.static_key(),
+            Self::Method { key: None, .. }
+            | Self::StaticBlock { .. }
+            | Self::ComptimeBlock { .. }
+            | Self::Error => None,
+        }
+    }
+
+    /// Return the symbol form introduced by this member.
+    pub fn symbol_form(&self) -> Option<SymbolForm> {
+        match self {
+            Self::AssociatedType { .. } => Some(SymbolForm::TypeAlias),
+            Self::AssociatedConst { .. } | Self::Field { .. } => Some(SymbolForm::Variable),
+            Self::Method { key: Some(_), .. } => Some(SymbolForm::Function),
+            Self::Method { key: None, .. }
+            | Self::StaticBlock { .. }
+            | Self::ComptimeBlock { .. }
+            | Self::Error => None,
+        }
+    }
+
+    /// Return the symbol space introduced by this member.
+    pub fn symbol_space(&self) -> Option<SymbolSpace> {
+        self.symbol_form().map(SymbolForm::symbol_space)
+    }
+
+    /// Return the scope kind owned by this member symbol.
+    pub fn symbol_scope_kind(&self) -> Option<ScopeKind> {
+        match self {
+            Self::AssociatedType { .. } => Some(ScopeKind::Type),
+            Self::Method { key: Some(_), .. } => Some(ScopeKind::Function),
+            _ => None,
+        }
+    }
+
     /// Get the declared name of the member when one exists.
     pub fn name(&self) -> Option<StringId> {
         match self {
@@ -229,19 +236,6 @@ impl Member {
                 Some(*name)
             }
             _ => None,
-        }
-    }
-
-    /// Get the symbol of the member.
-    pub fn symbol(&self) -> LocalSymbolId {
-        match self {
-            Member::AssociatedType { symbol, .. }
-            | Member::AssociatedConst { symbol, .. }
-            | Member::Field { symbol, .. }
-            | Member::Method { symbol, .. }
-            | Member::StaticBlock { symbol, .. }
-            | Member::ComptimeBlock { symbol, .. }
-            | Member::Error { symbol } => *symbol,
         }
     }
 
@@ -270,11 +264,7 @@ impl Member {
             | Member::Field { is_static, .. }
             | Member::Method { is_static, .. } => *is_static,
             Member::StaticBlock { .. } => true,
-            Member::ComptimeBlock { .. } | Member::Error { .. } => false,
+            Member::ComptimeBlock { .. } | Member::Error => false,
         }
     }
-}
-
-impl Node for Member {
-    const TYPE: NodeType = NodeType::Member;
 }

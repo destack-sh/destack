@@ -1,27 +1,14 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{Block, Expression, LocalNodeId, LocalScopeId, Node, NodeType, Pattern};
+use crate::{Block, Expression, LocalNodeId, Node, NodeType, Pattern};
 
 /// The style of a match expression.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum MatchForm {
     /// Regular match expression (like `match <expr> { ... }`).
     Match,
     /// Switch expression with cases (like `switch <expr> { ... }`).
     Switch,
-}
-
-/// How one match expression entered the DIR.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
-pub enum MatchOrigin {
-    /// Match expression (regular match with cases).
-    Match,
-    /// Explicit try expression or block (`try { ... }` with optional catch).
-    Try,
-    /// Maybe unary expression (postfix `?`).
-    Maybe,
-    /// Must unary expression (postfix `!`).
-    Must,
 }
 
 /// A MatchSelector determines which case is selected in a match/switch expression.
@@ -75,19 +62,26 @@ impl MatchSelector {
 }
 
 /// A MatchCase is a match case inside a Match expression.
+///
+/// Examples:
+/// ```
+/// 2 => parse_int(2)
+/// (x, y) if x > y => {
+///     ...
+/// }
+/// default: { ... }
+/// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum MatchCase {
     /// A match case with an expression body.
     Expression {
         selector: MatchSelector,
         body: LocalNodeId<Expression>,
-        scope: LocalScopeId,
     },
     /// A match case with a block body.
     Block {
         selector: MatchSelector,
         body: LocalNodeId<Block>,
-        scope: LocalScopeId,
     },
 }
 
@@ -95,16 +89,7 @@ impl MatchCase {
     /// Return the selector for this match case.
     pub fn selector(&self) -> &MatchSelector {
         match self {
-            Self::Expression {
-                selector,
-                body: _,
-                scope: _,
-            }
-            | Self::Block {
-                selector,
-                body: _,
-                scope: _,
-            } => selector,
+            Self::Expression { selector, body: _ } | Self::Block { selector, body: _ } => selector,
         }
     }
 }
