@@ -1039,7 +1039,7 @@ b2:
 function test(): uint32 {
 b0:
     v0: uint32 = 8uint32
-    v1: uint32 = intrinsic.leadingZeroCount(v0)
+    v1: uint32 = intrinsic.math.bits.leadingZeroCount(v0)
     return v1
 }"#;
         let expected = r#"

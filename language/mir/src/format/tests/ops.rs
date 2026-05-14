@@ -117,7 +117,7 @@ entry0(value0: int32, value1: int32, value2: boolean, value3: float64):
     value10: float64 = intrinsic.math.float.sqrt(value3)
     value11: float64 = intrinsic.math.float.min(value8, value3)
     value12: float64 = intrinsic.math.float.fma(value8, value3, value11)
-    value13: (int32, boolean) = intrinsic.math.arithmetic.add.overflow(value0, value1)
+    value13: (int32, boolean) = intrinsic.math.arithmetic.overflowing.add(value0, value1)
     return value9
 }
 "#,
