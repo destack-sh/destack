@@ -13,7 +13,7 @@ fn test_intrinsic_clz() {
     let mir = r#"
 function test(v0: uint32): uint32 {
 b0(v0: uint32):
-    v1: uint32 = intrinsic.leadingZeroCount(v0)
+    v1: uint32 = intrinsic.math.bits.leadingZeroCount(v0)
     return v1
 }"#;
     run_mir_expect(mir, "test", &[Value::uint32(0x00800000)], Value::uint32(8));
@@ -24,7 +24,7 @@ fn test_intrinsic_ctz() {
     let mir = r#"
 function test(v0: uint32): uint32 {
 b0(v0: uint32):
-    v1: uint32 = intrinsic.trailingZeroCount(v0)
+    v1: uint32 = intrinsic.math.bits.trailingZeroCount(v0)
     return v1
 }"#;
     run_mir_expect(mir, "test", &[Value::uint32(0x80)], Value::uint32(7));
@@ -35,7 +35,7 @@ fn test_intrinsic_popcnt() {
     let mir = r#"
 function test(v0: uint32): uint32 {
 b0(v0: uint32):
-    v1: uint32 = intrinsic.populationCount(v0)
+    v1: uint32 = intrinsic.math.bits.populationCount(v0)
     return v1
 }"#;
     run_mir_expect(mir, "test", &[Value::uint32(0xFF)], Value::uint32(8));
@@ -46,7 +46,7 @@ fn test_intrinsic_byte_swap() {
     let mir = r#"
 function test(v0: uint32): uint32 {
 b0(v0: uint32):
-    v1: uint32 = intrinsic.byteSwap(v0)
+    v1: uint32 = intrinsic.math.bits.byteSwap(v0)
     return v1
 }"#;
     run_mir_expect(
@@ -62,7 +62,7 @@ fn test_intrinsic_rotate_left() {
     let mir = r#"
 function test(v0: uint32, v1: uint32): uint32 {
 b0(v0: uint32, v1: uint32):
-    v2: uint32 = intrinsic.rotateLeft(v0, v1)
+    v2: uint32 = intrinsic.math.bits.rotateLeft(v0, v1)
     return v2
 }"#;
     run_mir_expect(
@@ -78,7 +78,7 @@ fn test_intrinsic_rotate_right() {
     let mir = r#"
 function test(v0: uint32, v1: uint32): uint32 {
 b0(v0: uint32, v1: uint32):
-    v2: uint32 = intrinsic.rotateRight(v0, v1)
+    v2: uint32 = intrinsic.math.bits.rotateRight(v0, v1)
     return v2
 }"#;
     run_mir_expect(
@@ -94,7 +94,7 @@ fn test_intrinsic_add_overflow_no_overflow() {
     let mir = r#"
 function testResult(v0: int32, v1: int32): int32 {
 b0(v0: int32, v1: int32):
-    v2: (int32, boolean) = intrinsic.math.arithmetic.add.overflow(v0, v1)
+    v2: (int32, boolean) = intrinsic.math.arithmetic.overflowing.add(v0, v1)
     v3: int32 = field.get v2, 0
     return v3
 }"#;
@@ -103,7 +103,7 @@ b0(v0: int32, v1: int32):
     let mir = r#"
 function testFlag(v0: int32, v1: int32): boolean {
 b0(v0: int32, v1: int32):
-    v2: (int32, boolean) = intrinsic.math.arithmetic.add.overflow(v0, v1)
+    v2: (int32, boolean) = intrinsic.math.arithmetic.overflowing.add(v0, v1)
     v3: boolean = field.get v2, 1
     return v3
 }"#;
@@ -116,7 +116,7 @@ fn test_intrinsic_add_overflow_with_overflow() {
     let mir = r#"
 function test(v0: int32, v1: int32): boolean {
 b0(v0: int32, v1: int32):
-    v2: (int32, boolean) = intrinsic.math.arithmetic.add.overflow(v0, v1)
+    v2: (int32, boolean) = intrinsic.math.arithmetic.overflowing.add(v0, v1)
     v3: boolean = field.get v2, 1
     return v3
 }"#;
@@ -129,7 +129,7 @@ fn test_intrinsic_sub_overflow() {
     let mir = r#"
 function test(v0: uint32, v1: uint32): boolean {
 b0(v0: uint32, v1: uint32):
-    v2: (uint32, boolean) = intrinsic.math.arithmetic.sub.overflow(v0, v1)
+    v2: (uint32, boolean) = intrinsic.math.arithmetic.overflowing.subtract(v0, v1)
     v3: boolean = field.get v2, 1
     return v3
 }"#;
@@ -142,7 +142,7 @@ fn test_intrinsic_sat_add() {
     let mir = r#"
 function test(v0: int32, v1: int32): int32 {
 b0(v0: int32, v1: int32):
-    v2: int32 = intrinsic.add.sat(v0, v1)
+    v2: int32 = intrinsic.math.arithmetic.saturating.add(v0, v1)
     return v2
 }"#;
     run_mir_expect(
@@ -158,7 +158,7 @@ fn test_intrinsic_sat_sub() {
     let mir = r#"
 function test(v0: uint32, v1: uint32): uint32 {
 b0(v0: uint32, v1: uint32):
-    v2: uint32 = intrinsic.sub.sat(v0, v1)
+    v2: uint32 = intrinsic.math.arithmetic.saturating.subtract(v0, v1)
     return v2
 }"#;
     run_mir_expect(
@@ -400,7 +400,7 @@ fn test_intrinsic_add_unchecked() {
     let mir = r#"
 function test(v0: int32, v1: int32): int32 {
 b0(v0: int32, v1: int32):
-    v2: int32 = intrinsic.add.unchecked(v0, v1)
+    v2: int32 = intrinsic.math.arithmetic.unchecked.add(v0, v1)
     return v2
 }"#;
     run_mir_expect(
@@ -416,7 +416,7 @@ fn test_intrinsic_div_unchecked() {
     let mir = r#"
 function test(v0: int32, v1: int32): int32 {
 b0(v0: int32, v1: int32):
-    v2: int32 = intrinsic.div.unchecked(v0, v1)
+    v2: int32 = intrinsic.math.arithmetic.unchecked.divide(v0, v1)
     return v2
 }"#;
     run_mir_expect(
@@ -432,7 +432,7 @@ fn test_intrinsic_div_by_zero_unchecked() {
     let mir = r#"
 function test(v0: int32, v1: int32): int32 {
 b0(v0: int32, v1: int32):
-    v2: int32 = intrinsic.div.unchecked(v0, v1)
+    v2: int32 = intrinsic.math.arithmetic.unchecked.divide(v0, v1)
     return v2
 }"#;
     let result = run_mir(mir, "test", &[Value::int32(100), Value::int32(0)]);
@@ -466,7 +466,7 @@ fn test_intrinsic_floor() {
     let mir = r#"
 function test(v0: float64): float64 {
 b0(v0: float64):
-    v1: float64 = intrinsic.floor(v0)
+    v1: float64 = intrinsic.math.float.floor(v0)
     return v1
 }"#;
     run_mir_expect(mir, "test", &[Value::float64(3.7)], Value::float64(3.0));
@@ -477,7 +477,7 @@ fn test_intrinsic_ceil() {
     let mir = r#"
 function test(v0: float64): float64 {
 b0(v0: float64):
-    v1: float64 = intrinsic.ceil(v0)
+    v1: float64 = intrinsic.math.float.ceil(v0)
     return v1
 }"#;
     run_mir_expect(mir, "test", &[Value::float64(3.2)], Value::float64(4.0));
@@ -488,7 +488,7 @@ fn test_intrinsic_round() {
     let mir = r#"
 function test(v0: float64): float64 {
 b0(v0: float64):
-    v1: float64 = intrinsic.round(v0)
+    v1: float64 = intrinsic.math.float.round(v0)
     return v1
 }"#;
     run_mir_expect(mir, "test", &[Value::float64(3.5)], Value::float64(4.0));
@@ -531,7 +531,7 @@ fn test_intrinsic_pow() {
     let mir = r#"
 function test(v0: float64, v1: float64): float64 {
 b0(v0: float64, v1: float64):
-    v2: float64 = intrinsic.pow(v0, v1)
+    v2: float64 = intrinsic.math.float.pow(v0, v1)
     return v2
 }"#;
     run_mir_expect(
@@ -567,8 +567,8 @@ fn test_intrinsic_sin_cos() {
     let mir = r#"
 function test(v0: float64): float64 {
 b0(v0: float64):
-    v1: float64 = intrinsic.sin(v0)
-    v2: float64 = intrinsic.cos(v0)
+    v1: float64 = intrinsic.math.float.sin(v0)
+    v2: float64 = intrinsic.math.float.cos(v0)
     v3: float64 = float.add v1, v2
     return v3
 }"#;

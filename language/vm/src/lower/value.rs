@@ -259,24 +259,6 @@ pub(super) fn heap_pointee_type_for_value(
         {
             pointee.ty()
         }
-        mir::Type::TensorView {
-            kind:
-                kind @ (mir::ReferenceKind::Managed
-                | mir::ReferenceKind::Unique
-                | mir::ReferenceKind::Borrowed),
-            address_space,
-            element,
-            ..
-        } if matches!(
-            pointer_class_from_reference(address_space.clone(), *kind),
-            PointerClass::Heap
-                | PointerClass::SharedHeap
-                | PointerClass::HeapAddress
-                | PointerClass::SharedHeapAddress
-        ) =>
-        {
-            element.ty()
-        }
         _ => None,
     }
 }
@@ -301,18 +283,6 @@ pub(super) fn raw_pointee_type_for_value(
         ) =>
         {
             pointee.ty()
-        }
-        mir::Type::TensorView {
-            kind,
-            address_space,
-            element,
-            ..
-        } if matches!(
-            pointer_class_from_reference(address_space.clone(), *kind),
-            PointerClass::Raw | PointerClass::Stack | PointerClass::Frame
-        ) =>
-        {
-            element.ty()
         }
         _ => None,
     }
@@ -684,6 +654,7 @@ fn infer_instruction_layout(
         | mir::Instruction::TensorPad { .. }
         | mir::Instruction::TensorConcat { .. }
         | mir::Instruction::TensorReduce { .. }
+        | mir::Instruction::TensorIndexReduce { .. }
         | mir::Instruction::TensorDot { .. }
         | mir::Instruction::TensorConvolution { .. }
         | mir::Instruction::TensorGather { .. }
@@ -756,7 +727,7 @@ fn infer_intrinsic_layout(
             let pointer_layout = value_layout_map.get(argument.value()?)?;
             layout_from_pointer(tree, pointer_layout)
         }
-        mir::IntrinsicResultType::CheckedArithmetic
+        mir::IntrinsicResultType::OverflowingArithmetic
         | mir::IntrinsicResultType::PointeeAndBool(_)
         | mir::IntrinsicResultType::TypeDescriptor
         | mir::IntrinsicResultType::Explicit => Some(ValueLayout::Unknown),

@@ -3,10 +3,10 @@ use destack_mir as mir;
 use crate::program::{
     Instruction, Op, PointerClass, Projection, ScalarLayout, TensorAddress, TensorBinary,
     TensorBroadcast, TensorConcat, TensorContiguousBinary, TensorConvert, TensorConvolution,
-    TensorCopy, TensorDot, TensorExtract, TensorFill, TensorGather, TensorLayout, TensorLayoutId,
-    TensorLoad, TensorPad, TensorReduce, TensorReshape, TensorScatter, TensorSelect, TensorSlice,
-    TensorStore, TensorTranspose, TensorView, U32RangeId, scalar_layout_from_type,
-    value_layout_from_type,
+    TensorCopy, TensorDot, TensorExtract, TensorFill, TensorGather, TensorIndexReduce,
+    TensorLayout, TensorLayoutId, TensorLoad, TensorPad, TensorReduce, TensorReshape,
+    TensorScatter, TensorSelect, TensorSlice, TensorStore, TensorTranspose, TensorView, U32RangeId,
+    scalar_layout_from_type, value_layout_from_type,
 };
 use crate::{Error, Result};
 
@@ -65,7 +65,7 @@ impl<'a> BlockLowerer<'a> {
                     Op::TensorLoad,
                     TensorLoad {
                         dest_offset: word_offset(self, destination)?,
-                        view_offset: word_offset(self, view)?,
+                        view_offset: value_offset(self, view)?,
                         indices,
                         view_layout,
                         element,
@@ -121,7 +121,7 @@ impl<'a> BlockLowerer<'a> {
                 pool.instruction_with_side(
                     Op::TensorStore,
                     TensorStore {
-                        view_offset: word_offset(self, view)?,
+                        view_offset: value_offset(self, view)?,
                         indices,
                         value_offset: word_offset(self, value)?,
                         view_layout,
@@ -143,7 +143,7 @@ impl<'a> BlockLowerer<'a> {
                 pool.instruction_with_side(
                     Op::TensorFill,
                     TensorFill {
-                        view_offset: word_offset(self, view)?,
+                        view_offset: value_offset(self, view)?,
                         value_offset: word_offset(self, value)?,
                         view_layout,
                         element,
@@ -169,8 +169,8 @@ impl<'a> BlockLowerer<'a> {
                 pool.instruction_with_side(
                     Op::TensorCopy,
                     TensorCopy {
-                        target_offset: word_offset(self, target)?,
-                        source_offset: word_offset(self, source)?,
+                        target_offset: value_offset(self, target)?,
+                        source_offset: value_offset(self, source)?,
                         target_layout,
                         source_layout,
                         target_element,
@@ -390,6 +390,34 @@ impl<'a> BlockLowerer<'a> {
                         source_layout,
                         dest_layout,
                         kernel: *operator,
+                    },
+                )
+            }
+            // tensor.indexReduce
+            mir::Instruction::TensorIndexReduce {
+                destination,
+                operator,
+                tensor,
+                axis,
+                tie_break,
+            } => {
+                let destination = tensor_value(*destination, "tensor index reduce destination")?;
+                let tensor = tensor_value(*tensor, "tensor index reduce source")?;
+                let dest_type = self.value_type_for_value(destination)?;
+                let source_type = self.value_type_for_value(tensor)?;
+                let source_layout = self.tensor_layout(pool, source_type)?;
+                let dest_layout = self.tensor_layout(pool, dest_type)?;
+
+                pool.instruction_with_side(
+                    Op::TensorIndexReduce,
+                    TensorIndexReduce {
+                        dest_offset: value_offset(self, destination)?,
+                        tensor_offset: value_offset(self, tensor)?,
+                        axis: *axis,
+                        source_layout,
+                        dest_layout,
+                        kernel: *operator,
+                        tie_break: *tie_break,
                     },
                 )
             }
@@ -734,8 +762,8 @@ impl<'a> BlockLowerer<'a> {
                 pool.instruction_with_side(
                     Op::TensorView,
                     TensorView {
-                        dest_offset: word_offset(self, destination)?,
-                        view_offset: word_offset(self, view)?,
+                        dest_offset: value_offset(self, destination)?,
+                        view_offset: value_offset(self, view)?,
                         arguments,
                         offsets_count: *offsets_count,
                         sizes_count: *sizes_count,
@@ -767,7 +795,7 @@ impl<'a> BlockLowerer<'a> {
     }
 
     /// Return the compiled tensor layout for one tensor type.
-    fn tensor_layout(
+    pub(super) fn tensor_layout(
         &self,
         pool: &mut Pool<'_, '_>,
         tensor_type: mir::LocalNodeId<mir::Type>,

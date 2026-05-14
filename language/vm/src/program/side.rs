@@ -628,6 +628,17 @@ pub(crate) struct TensorCopy {
     pub(crate) source_address: TensorAddress,
 }
 
+/// Cast a dense pointer into a tensor view descriptor.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct TensorViewCast {
+    /// The destination tensor view.
+    pub(crate) dest_offset: u32,
+    /// The source pointer word.
+    pub(crate) pointer_offset: u32,
+    /// The tensor view layout.
+    pub(crate) view_layout: TensorLayoutId,
+}
+
 /// Reshape a tensor into a new shape.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct TensorReshape {
@@ -749,6 +760,25 @@ pub(crate) struct TensorReduce {
     pub(crate) dest_layout: TensorLayoutId,
     /// The reduction kernel.
     pub(crate) kernel: mir::TensorReduceOperator,
+}
+
+/// Reduce a tensor along one axis and return selected source indices.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct TensorIndexReduce {
+    /// The destination tensor frame offset.
+    pub(crate) dest_offset: u32,
+    /// The source tensor frame offset.
+    pub(crate) tensor_offset: u32,
+    /// The reduced axis.
+    pub(crate) axis: u32,
+    /// The source tensor layout.
+    pub(crate) source_layout: TensorLayoutId,
+    /// The destination tensor layout.
+    pub(crate) dest_layout: TensorLayoutId,
+    /// The index reduction kernel.
+    pub(crate) kernel: mir::TensorIndexReduceOperator,
+    /// The behavior for equal selected values.
+    pub(crate) tie_break: mir::TensorIndexTieBreak,
 }
 
 /// Dot product of two tensors.
