@@ -1,0 +1,320 @@
+import { PackedArray } from "destack:collections";
+import { HostError } from "destack:error/host";
+import { SourceLocation } from "destack:error/stack";
+import { FrameId, FrameSlotId, FrameStateId } from "destack:runtime/frame";
+import { BranchId, Moment } from "destack:runtime/lineage";
+import { WorldHandle, WorldViewHandle, WorkerId } from "destack:runtime/world";
+
+/// Runtime debug scope identifier.
+export newtype DebugScopeId = uint32;
+
+/// Runtime debug binding identifier.
+export newtype DebugBindingId = uint32;
+
+/// Runtime inline frame identifier.
+export newtype InlineFrameId = uint32;
+
+/// Runtime execution point inside one frame.
+export struct ExecutionPoint {
+    /// Worker stopped at this point.
+    worker: WorkerId;
+    /// Frame stopped at this point.
+    frame: FrameId;
+    /// Frame state stopped at this point.
+    frameState: FrameStateId;
+}
+
+/// Source-level debug projection for one execution point.
+export struct DebugPoint {
+    /// Execution coordinate.
+    execution: ExecutionPoint;
+    /// Source location when debug metadata is available.
+    location?: SourceLocation;
+    /// Active scope when debug metadata is available.
+    scope?: DebugScopeId;
+    /// Active inline frame when this point is inlined.
+    inlineFrame?: InlineFrameId;
+}
+
+/// Debugger stop reason.
+export enum StopReason {
+    /// Execution is paused explicitly.
+    Pause = 1,
+    /// Execution stopped after one debugger step.
+    Step = 2,
+    /// Execution reached a breakpoint.
+    Breakpoint = 3,
+    /// Execution trapped.
+    Trap = 4,
+    /// Execution panicked.
+    Panic = 5,
+    /// Execution yielded to the runtime.
+    Yield = 6,
+    /// Execution stopped on a scenario hook.
+    Scenario = 7,
+}
+
+/// Debugger stop state.
+export struct Stop {
+    /// World history coordinate.
+    moment: Moment;
+    /// Stop reason.
+    reason: StopReason;
+    /// Stopped worker.
+    worker: WorkerId;
+    /// Source-level debug point when available.
+    point?: DebugPoint;
+}
+
+/// Debugger step mode.
+export enum StepMode {
+    /// Step by one lowered program point.
+    Instruction = 1,
+    /// Step to the next source statement boundary.
+    Statement = 2,
+    /// Step to the next source line boundary.
+    Line = 3,
+    /// Step into calls.
+    Into = 4,
+    /// Step over calls.
+    Over = 5,
+    /// Step out of the current frame.
+    Out = 6,
+}
+
+/// Debugger step options.
+export struct StepOptions {
+    /// Step mode.
+    mode: StepMode;
+    /// Optional number of steps.
+    count?: uint32;
+}
+
+/// Source-level debug scope.
+export struct DebugScope {
+    /// Scope identifier.
+    id: DebugScopeId;
+    /// Optional display name.
+    name?: string;
+    /// Parent scope when present.
+    parent?: DebugScopeId;
+}
+
+/// Debug binding kind.
+export enum DebugBindingKind {
+    /// Function parameter binding.
+    Parameter = 1,
+    /// Local binding.
+    Local = 2,
+    /// Captured binding.
+    Capture = 3,
+    /// Compiler-synthesized binding.
+    Synthetic = 4,
+}
+
+/// Source-level debug binding.
+export struct DebugBinding {
+    /// Binding identifier.
+    id: DebugBindingId;
+    /// Binding name.
+    name: string;
+    /// Binding kind.
+    kind: DebugBindingKind;
+    /// Scope containing this binding.
+    scope: DebugScopeId;
+}
+
+/// Debug slot binding value.
+export struct DebugValueSlot {
+    /// Value discriminator.
+    kind: "slot";
+    /// Frame slot containing this value when available.
+    slot: FrameSlotId;
+}
+
+/// Debug byte binding value.
+export struct DebugValueBytes {
+    /// Value discriminator.
+    kind: "bytes";
+    /// Encoded value bytes when available.
+    bytes: [uint8];
+}
+
+/// Optimized-out debug binding value.
+export struct DebugValueOptimizedOut {
+    /// Value discriminator.
+    kind: "optimizedOut";
+}
+
+/// Unavailable debug binding value.
+export struct DebugValueUnavailable {
+    /// Value discriminator.
+    kind: "unavailable";
+}
+
+/// Debug binding value.
+@derive(Tagged)
+export newtype DebugValue =
+    | DebugValueSlot
+    | DebugValueBytes
+    | DebugValueOptimizedOut
+    | DebugValueUnavailable;
+
+/// Debug scope list page.
+export struct DebugScopePage {
+    /// Scope records in this page.
+    scopes: PackedArray<DebugScope>;
+    /// Next scope cursor when more records exist.
+    next?: DebugScopeId;
+}
+
+/// Debug binding list page.
+export struct DebugBindingPage {
+    /// Binding records in this page.
+    bindings: PackedArray<DebugBinding>;
+    /// Next binding cursor when more records exist.
+    next?: DebugBindingId;
+}
+
+/// Return the current debugger stop state.
+@binding("destack.debug.currentStop", {
+    effect: "deterministic",
+    requires: ["runtime.debug.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function currentStop(world: WorldHandle): Result<Stop, HostError>;
+
+/// Return the debug point for one frame.
+@binding("destack.debug.point", {
+    effect: "deterministic",
+    requires: ["runtime.debug.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function debugPoint(
+    view: WorldViewHandle,
+    worker: WorkerId,
+    frame: FrameId,
+): Result<DebugPoint, HostError>;
+
+/// List source scopes visible from one frame.
+@binding("destack.debug.scopes", {
+    effect: "deterministic",
+    requires: ["runtime.debug.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function listScopes(
+    view: WorldViewHandle,
+    frame: FrameId,
+    limit: uint32,
+    after?: DebugScopeId,
+): Result<DebugScopePage, HostError>;
+
+/// List source bindings visible from one scope.
+@binding("destack.debug.bindings", {
+    effect: "deterministic",
+    requires: ["runtime.debug.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function listBindings(
+    view: WorldViewHandle,
+    scope: DebugScopeId,
+    limit: uint32,
+    after?: DebugBindingId,
+): Result<DebugBindingPage, HostError>;
+
+/// Read one source binding value.
+@binding("destack.debug.binding", {
+    effect: "deterministic",
+    requires: ["runtime.debug.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function readBinding(
+    view: WorldViewHandle,
+    frame: FrameId,
+    binding: DebugBindingId,
+): Result<DebugValue, HostError>;
+
+/// Pause debugger execution.
+@binding("destack.debug.pause", {
+    effect: "deterministic",
+    requires: ["runtime.debug.control"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function pause(world: WorldHandle): Result<Stop, HostError>;
+
+/// Resume debugger execution.
+@binding("destack.debug.resume", {
+    effect: "deterministic",
+    requires: ["runtime.debug.control"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function resume(world: WorldHandle): Result<Stop, HostError>;
+
+/// Step debugger execution.
+@binding("destack.debug.step", {
+    effect: "deterministic",
+    requires: ["runtime.debug.control"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function step(
+    world: WorldHandle,
+    worker: WorkerId,
+    options: StepOptions,
+): Result<Stop, HostError>;
+
+/// Rewind debugger execution to one moment.
+@binding("destack.debug.rewind", {
+    effect: "deterministic",
+    requires: ["runtime.debug.control"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function rewind(world: WorldHandle, moment: Moment): Result<Stop, HostError>;
+
+/// Run debugger execution to one moment.
+@binding("destack.debug.runTo", {
+    effect: "deterministic",
+    requires: ["runtime.debug.control"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function runTo(world: WorldHandle, moment: Moment): Result<Stop, HostError>;
+
+/// Fork debugger execution at one moment.
+@binding("destack.debug.forkAt", {
+    effect: "deterministic",
+    requires: ["runtime.debug.control"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function forkAt(world: WorldHandle, moment: Moment): Result<BranchId, HostError>;

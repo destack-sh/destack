@@ -18,6 +18,16 @@ export newtype ImageId = uint64;
 /// Monotonic trace sequence number.
 export newtype TraceSequence = uint64;
 
+/// Precise history coordinate in one world.
+///
+/// This is not a clock timestamp.
+export struct Moment {
+    /// Branch containing this history coordinate.
+    branch: BranchId;
+    /// Trace sequence reached at this history coordinate.
+    sequence: TraceSequence;
+}
+
 /// Branch state.
 export struct Branch {
     /// Branch identifier.

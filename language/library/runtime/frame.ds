@@ -5,6 +5,9 @@ import { WorldViewHandle, WorkerId } from "./world.ds";
 /// Runtime frame identifier.
 export newtype FrameId = uint64;
 
+/// Runtime frame state identifier.
+export newtype FrameStateId = uint32;
+
 /// Runtime frame kind.
 export enum FrameKind {
     /// VM frame.
