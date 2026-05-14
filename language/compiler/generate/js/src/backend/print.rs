@@ -1,5 +1,5 @@
 use crate::{CodegenJsError, CodegenJsResult};
-use destack_artifact::{DirBound, DirParsed};
+use destack_artifact::DirParsed;
 use destack_source::{File, NodeSpanType, Span};
 use {destack_fir as fir, destack_js as js};
 
@@ -16,26 +16,24 @@ pub struct PrintedScriptModule {
 pub fn print_script_module(
     options: js::JsFormatOptions,
     parsed: &DirParsed,
-    bound: &DirBound,
     source_file: &File,
     module: &js::Module,
 ) -> CodegenJsResult<PrintedScriptModule> {
     if options.mode == js::FormatMode::Minimal {
-        return print_script_module_minified(options, parsed, bound, source_file, module);
+        return print_script_module_minified(options, parsed, source_file, module);
     }
 
-    print_script_module_pretty(options, parsed, bound, source_file, module)
+    print_script_module_pretty(options, parsed, source_file, module)
 }
 
 /// Print one generated script module through the direct minified printer.
 pub fn print_script_module_minified(
     options: js::JsFormatOptions,
     parsed: &DirParsed,
-    bound: &DirBound,
     source_file: &File,
     module: &js::Module,
 ) -> CodegenJsResult<PrintedScriptModule> {
-    let source_map = CodegenJsSourceMap { parsed, bound };
+    let source_map = CodegenJsSourceMap { parsed };
     let printed = js::print_roots_minified_with_source_map(
         options.file_type,
         &module.tree,
@@ -55,8 +53,6 @@ pub fn print_script_module_minified(
 struct CodegenJsSourceMap<'a> {
     /// The original parsed DIR artifact.
     parsed: &'a DirParsed,
-    /// The bound DIR artifact.
-    bound: &'a DirBound,
 }
 
 impl CodegenJsSourceMap<'_> {
@@ -65,16 +61,16 @@ impl CodegenJsSourceMap<'_> {
         let origin = tree.get_origin(node_id)?;
 
         // skip nodes lowered from another source module
-        if origin.module_id != self.bound.tree.module_id {
+        if origin.module_id != self.parsed.tree.module_id {
             return None;
         }
 
         // JS nodes carry DIR ids, so resolve them back to source ids first
-        if !self.bound.tree.has_node_id(origin.node_id) {
+        if !self.parsed.tree.has_node_id(origin.node_id) {
             return None;
         }
 
-        Some(self.bound.tree.get_source(origin.node_id))
+        Some(self.parsed.tree.get_source(origin.node_id))
     }
 }
 
@@ -115,11 +111,10 @@ impl PrintedScriptModule {
 fn print_script_module_pretty(
     options: js::JsFormatOptions,
     parsed: &DirParsed,
-    bound: &DirBound,
     source_file: &File,
     module: &js::Module,
 ) -> CodegenJsResult<PrintedScriptModule> {
-    let source_map = CodegenJsSourceMap { parsed, bound };
+    let source_map = CodegenJsSourceMap { parsed };
     let roots = module.roots.as_slice();
     let context = js::JsFormatContext {
         options,

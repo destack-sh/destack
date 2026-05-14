@@ -2,7 +2,9 @@ use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 use {destack_dir as dir, destack_mir as mir};
 
-use destack_artifact::{DiagnosticAnchor, DirBound, GlobalEnvironment, LanguageIntrinsics};
+use destack_artifact::{
+    DiagnosticAnchor, DirBound, DirParsed, GlobalEnvironment, LanguageIntrinsics,
+};
 use destack_core::StringPool;
 use destack_source::{ModuleId, TargetId};
 use destack_workspace::{CheckFailurePolicy, Module, ProfileId, ProviderContext, Target};
@@ -252,11 +254,15 @@ impl<'a> ModuleLowerer<'a> {
 
         let mut intrinsics = LanguageIntrinsics::new();
         for module_id in &environment.modules {
+            let parsed = compiler
+                .dir_parsed(context, *module_id)
+                .map_err(CompilerError::from)?;
             let bound = compiler
                 .dir_bound(context, *module_id, profile)
                 .map_err(CompilerError::from)?;
             Self::collect_intrinsic_bindings(
                 *module_id,
+                &parsed.tree,
                 bound.as_ref(),
                 compiler.repository.string_pool().as_ref(),
                 &mut intrinsics,
@@ -310,6 +316,7 @@ impl<'a> ModuleLowerer<'a> {
     /// Collect intrinsic bindings from one bound DIR module.
     fn collect_intrinsic_bindings(
         module_id: ModuleId,
+        tree: &dir::Tree,
         bound: &DirBound,
         strings: &StringPool,
         intrinsics: &mut LanguageIntrinsics,
@@ -324,7 +331,7 @@ impl<'a> ModuleLowerer<'a> {
             }
 
             let Some(name) =
-                Self::intrinsic_name_for_declaration(bound, strings, declaration.local_id)
+                Self::intrinsic_name_for_declaration(tree, bound, strings, declaration.local_id)
             else {
                 continue;
             };
@@ -337,13 +344,15 @@ impl<'a> ModuleLowerer<'a> {
 
     /// Resolve the intrinsic binding name attached to one declaration.
     fn intrinsic_name_for_declaration(
+        tree: &dir::Tree,
         bound: &DirBound,
         strings: &StringPool,
         declaration: dir::LocalNodeIdAny,
     ) -> Option<String> {
-        for decorator_id in bound.tree.get_decorators(declaration.id) {
-            let decorator = bound.tree.get(decorator_id);
+        for decorator_id in tree.get_decorators(declaration.id) {
+            let decorator = tree.get(decorator_id);
             let Some(name) = Self::intrinsic_name_for_expression(
+                tree,
                 bound,
                 strings,
                 decorator.expression,
@@ -360,20 +369,21 @@ impl<'a> ModuleLowerer<'a> {
 
     /// Resolve an intrinsic decorator expression to its binding name.
     fn intrinsic_name_for_expression(
+        tree: &dir::Tree,
         bound: &DirBound,
         strings: &StringPool,
         expression_id: dir::LocalNodeId<dir::Expression>,
         declaration_id: u32,
     ) -> Option<String> {
-        let expression = bound.tree.get(expression_id);
+        let expression = tree.get(expression_id);
 
         match expression {
             dir::Expression::Call {
                 left, arguments, ..
-            } if Self::is_intrinsic_decorator_name(bound, *left) => {
-                Self::intrinsic_name_for_arguments(bound, strings, arguments)
+            } if Self::is_intrinsic_decorator_name(tree, *left) => {
+                Self::intrinsic_name_for_arguments(tree, strings, arguments)
             }
-            _ if Self::is_intrinsic_decorator_name(bound, expression_id) => {
+            _ if Self::is_intrinsic_decorator_name(tree, expression_id) => {
                 Self::default_intrinsic_name(bound, strings, declaration_id)
             }
             _ => None,
@@ -382,10 +392,10 @@ impl<'a> ModuleLowerer<'a> {
 
     /// Check whether an expression names the intrinsic decorator.
     fn is_intrinsic_decorator_name(
-        bound: &DirBound,
+        tree: &dir::Tree,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> bool {
-        let expression = bound.tree.get(expression_id);
+        let expression = tree.get(expression_id);
         let name = match expression {
             dir::Expression::Identifier { name } => Some(*name),
             dir::Expression::QualifiedReference { path, .. } => path.last_segment(),
@@ -397,16 +407,16 @@ impl<'a> ModuleLowerer<'a> {
 
     /// Resolve the explicit intrinsic binding name from decorator arguments.
     fn intrinsic_name_for_arguments(
-        bound: &DirBound,
+        tree: &dir::Tree,
         strings: &StringPool,
         arguments: &[dir::LocalNodeId<dir::Argument>],
     ) -> Option<String> {
         let [argument_id] = arguments else {
             return None;
         };
-        let argument = bound.tree.get(*argument_id);
+        let argument = tree.get(*argument_id);
         let value = argument.value()?;
-        let expression = bound.tree.get(value);
+        let expression = tree.get(value);
 
         match expression {
             dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(name)) => {
@@ -440,10 +450,15 @@ impl<'a> ModuleLowerer<'a> {
     }
 
     /// Read one committed bound DIR snapshot for a module when available.
-    pub(crate) fn bound_dir_if_present(&self, module_id: ModuleId) -> Option<Arc<DirBound>> {
+    pub(crate) fn dir_bound_if_present(&self, module_id: ModuleId) -> Option<Arc<DirBound>> {
         self.compiler
             .dir_bound(self.context, module_id, self.profile)
             .ok()
+    }
+
+    /// Read one committed parsed DIR snapshot for a module when available.
+    pub(crate) fn dir_parsed_if_present(&self, module_id: ModuleId) -> Option<Arc<DirParsed>> {
+        self.compiler.dir_parsed(self.context, module_id).ok()
     }
 
     /// Resolve the target configuration for a module.

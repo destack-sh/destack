@@ -749,6 +749,13 @@ impl<'a> TypeLowerer<'a> {
                 return Ok(None);
             }
         };
+        let parsed = match self.compiler.dir_parsed(self.context, symbol.module_id) {
+            Ok(parsed) => parsed,
+            Err(_) => {
+                self.remote_nominal_layouts_in_progress.remove(&symbol);
+                return Ok(None);
+            }
+        };
         let checked = match self
             .compiler
             .dir_checked(self.context, symbol.module_id, self.profile)
@@ -759,7 +766,7 @@ impl<'a> TypeLowerer<'a> {
                 return Ok(None);
             }
         };
-        let Some(members) = self.struct_members_for_symbol(symbol, &bound.bindings, &bound.tree)
+        let Some(members) = self.struct_members_for_symbol(symbol, &bound.bindings, &parsed.tree)
         else {
             self.remote_nominal_layouts_in_progress.remove(&symbol);
             return Ok(None);
@@ -772,7 +779,7 @@ impl<'a> TypeLowerer<'a> {
             self.context,
             self.compiler.repository.string_pool().as_ref(),
             self.profile,
-            &bound.tree,
+            &parsed.tree,
             &bound.bindings,
             self.vector_symbol,
         );
@@ -781,7 +788,7 @@ impl<'a> TypeLowerer<'a> {
         for (source_index, member_id) in members.iter().enumerate() {
             let dir::Member::Field {
                 key, declared_type, ..
-            } = bound.tree.get(*member_id)
+            } = parsed.tree.get(*member_id)
             else {
                 continue;
             };

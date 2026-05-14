@@ -271,7 +271,7 @@ impl ModuleLowerer<'_> {
         let name = self
             .qualified_symbol_name(symbol)
             .or_else(|| {
-                let dir = self.bound_dir_if_present(symbol.module_id)?;
+                let dir = self.dir_bound_if_present(symbol.module_id)?;
                 self.symbol_path_from_symbols(symbol, &dir.bindings)
             })
             .ok_or_else(|| LowerError::UnsupportedConstruct {
@@ -489,7 +489,7 @@ impl ModuleLowerer<'_> {
         };
 
         let name = self.qualified_symbol_name(reference.symbol).or_else(|| {
-            let dir = self.bound_dir_if_present(reference.symbol.module_id)?;
+            let dir = self.dir_bound_if_present(reference.symbol.module_id)?;
             self.symbol_path_from_symbols(reference.symbol, &dir.bindings)
         })?;
 
@@ -524,7 +524,7 @@ impl ModuleLowerer<'_> {
         // use nominal names without suffix adjustments
         if let dir::Type::Reference(reference) = dir_type {
             return self.qualified_symbol_name(reference.symbol).or_else(|| {
-                let dir = self.bound_dir_if_present(reference.symbol.module_id)?;
+                let dir = self.dir_bound_if_present(reference.symbol.module_id)?;
                 self.symbol_path_from_symbols(reference.symbol, &dir.bindings)
             });
         }
@@ -1046,7 +1046,7 @@ impl ModuleLowerer<'_> {
         let module = self
             .compiler
             .module(self.context.revision(), symbol_id.module_id);
-        let dir = self.bound_dir_if_present(symbol_id.module_id)?;
+        let dir = self.dir_bound_if_present(symbol_id.module_id)?;
         self.qualified_symbol_name_for_module(symbol_id, module.as_ref(), &dir.bindings)
     }
 

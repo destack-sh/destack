@@ -1,10 +1,7 @@
 use crate::{Compiler, CompilerResult};
-use destack_artifact::{ArtifactKey, ArtifactPayload, DirImported};
-use destack_dir::DependencyTable;
+use destack_artifact::ArtifactPayload;
 use destack_source::ModuleId;
 use destack_workspace::{ProfileId, ProviderContext};
-
-use crate::import::ImportState;
 
 impl Compiler {
     /// Build the global environment for one profile.
@@ -27,13 +24,13 @@ impl Compiler {
         profile: ProfileId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
-        let state = ImportState::new(module, profile, context);
-        state
-            .context
-            .require(ArtifactKey::dir_declared(state.module, state.profile))?;
+        let _ = self;
 
-        Ok(ArtifactPayload::DirImported(DirImported {
-            dependencies: DependencyTable::new(state.module),
-        }))
+        todo!(
+            "DIR import provider is unavailable for {:?} module {:?} profile {:?}",
+            context.artifact_key(),
+            module,
+            profile,
+        )
     }
 }

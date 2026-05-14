@@ -1,17 +1,14 @@
 use std::path::{Component, Path, PathBuf};
-use std::sync::Arc;
 
 use crate::Compiler;
 use crate::link::{OutputLayout, SourceMapBuilder, SourceMapMarker};
 use base64::Engine as _;
-use destack_artifact::{
-    DirBound, EmitFormat, OutputContent, OutputFile, ScriptOutput, SourceMapArtifact,
-};
+use destack_artifact::{EmitFormat, OutputContent, OutputFile, ScriptOutput, SourceMapArtifact};
 use destack_codegen_js::{
     JsFormatOptions, Module as ScriptModule, PrintedScriptModule,
     print_script_module as print_codegen_script_module,
 };
-use destack_source::{FileType, ModuleId, TargetId, Uri};
+use destack_source::{FileType, ModuleId, Uri};
 use destack_workspace::{Module, ProviderContext, SourceMapMode, Target};
 
 /// One final script text output policy derived from one target.
@@ -174,7 +171,6 @@ impl Compiler {
     pub(crate) fn print_script_module(
         &self,
         module_id: ModuleId,
-        target_id: &TargetId,
         target: &Target,
         file_type: FileType,
         module: &ScriptModule,
@@ -184,7 +180,6 @@ impl Compiler {
         let parsed = self.dir_parsed(context, module_id).map_err(|error| {
             format!("missing committed parsed DIR artifact for module {module_id:?}: {error:?}")
         })?;
-        let bound = self.script_dir_bound(module_id, target_id, context)?;
         let source_module = self.module(context.revision(), module_id);
         let source_file = self.file(context, source_module.file_id);
         let options = if target.should_minify_bundle_output() {
@@ -194,44 +189,8 @@ impl Compiler {
         }
         .with_file_type(file_type);
 
-        print_codegen_script_module(
-            options,
-            &parsed,
-            bound.as_ref(),
-            source_file.as_ref(),
-            module,
-        )
-        .map_err(|error| format!("failed to print script module: {error:?}"))
-    }
-
-    /// Return the bound DIR artifact for one script module target.
-    fn script_dir_bound(
-        &self,
-        module_id: ModuleId,
-        target_id: &TargetId,
-        context: &dyn ProviderContext,
-    ) -> Result<Arc<DirBound>, String> {
-        // target profile
-        let profile_id = self
-            .target_profile_id(context.revision(), module_id, target_id)
-            .ok_or_else(|| {
-                format!(
-                    "profile not found for target '{}'",
-                    self.target_name(context.revision(), target_id)
-                )
-            })?;
-
-        // bound dir
-        let dir = self
-            .dir_bound(context, module_id, profile_id)
-            .map_err(|error| {
-                format!(
-                    "missing bound DIR artifact for module {module_id:?} target '{}': {error:?}",
-                    self.target_name(context.revision(), target_id)
-                )
-            })?;
-
-        Ok(dir)
+        print_codegen_script_module(options, &parsed, source_file.as_ref(), module)
+            .map_err(|error| format!("failed to print script module: {error:?}"))
     }
 
     /// Build one source map builder for one linked script module.
@@ -284,7 +243,6 @@ impl Compiler {
         &self,
         module: &Module,
         artifact: &ScriptOutput,
-        target_id: &TargetId,
         target: &Target,
         package_dir: &Path,
         file_type: FileType,
@@ -293,14 +251,8 @@ impl Compiler {
         context: &dyn ProviderContext,
     ) -> Result<Vec<OutputFile>, String> {
         // print once
-        let printed = self.print_script_module(
-            module.id,
-            target_id,
-            target,
-            file_type,
-            &artifact.module,
-            context,
-        )?;
+        let printed =
+            self.print_script_module(module.id, target, file_type, &artifact.module, context)?;
 
         // script text
         if matches!(file_type, FileType::JavaScript | FileType::TypeScript) {
@@ -352,7 +304,6 @@ impl Compiler {
         &self,
         module: &Module,
         artifact: &ScriptOutput,
-        target_id: &TargetId,
         target: &Target,
         package_dir: &Path,
         root_dir: Option<&Path>,
@@ -393,7 +344,6 @@ impl Compiler {
             let files = self.link_printed_script_files(
                 module,
                 artifact,
-                target_id,
                 target,
                 package_dir,
                 *file_type,

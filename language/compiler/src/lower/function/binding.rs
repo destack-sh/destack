@@ -157,7 +157,7 @@ impl FunctionLowerer<'_> {
             return false;
         };
 
-        let Some(dir) = self.bound_dir_if_present(symbol.module_id) else {
+        let Some(dir) = self.dir_bound_if_present(symbol.module_id) else {
             return false;
         };
 

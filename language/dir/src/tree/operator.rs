@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{Keyword, TokenType};
+use crate::{Keyword, LanguageItem, TokenType};
 
 /// The operator group (for precedence).
 ///
@@ -126,6 +126,24 @@ impl UnaryOperator {
     pub fn precedence(self) -> u16 {
         // just transmute the enum value to an u16
         self as u16
+    }
+
+    /// Return the overload language item for this operator.
+    pub fn language_item(self) -> Option<LanguageItem> {
+        match self {
+            UnaryOperator::Negate => Some(LanguageItem::Negate),
+            UnaryOperator::Plus => Some(LanguageItem::Plus),
+            UnaryOperator::ElementwiseNot => Some(LanguageItem::Not),
+            UnaryOperator::Dereference => Some(LanguageItem::Dereference),
+            UnaryOperator::PostIncrement
+            | UnaryOperator::PostDecrement
+            | UnaryOperator::PreIncrement
+            | UnaryOperator::PreDecrement
+            | UnaryOperator::Not
+            | UnaryOperator::Spread
+            | UnaryOperator::Typeof
+            | UnaryOperator::Void => None,
+        }
     }
 
     /// Whether the unary operator is a prefix operator.
@@ -310,6 +328,35 @@ impl BinaryOperator {
         self as u16
     }
 
+    /// Return the overload language item for this operator.
+    pub fn language_item(self) -> Option<LanguageItem> {
+        match self {
+            BinaryOperator::Add => Some(LanguageItem::Add),
+            BinaryOperator::Subtract => Some(LanguageItem::Subtract),
+            BinaryOperator::Multiply => Some(LanguageItem::Multiply),
+            BinaryOperator::Divide => Some(LanguageItem::Divide),
+            BinaryOperator::Remainder => Some(LanguageItem::Remainder),
+            BinaryOperator::Exponent => Some(LanguageItem::Power),
+            BinaryOperator::ShiftLeft => Some(LanguageItem::ShiftLeft),
+            BinaryOperator::ShiftRight => Some(LanguageItem::ShiftRight),
+            BinaryOperator::UnsignedShiftRight => Some(LanguageItem::ShiftRightUnsigned),
+            BinaryOperator::ElementwiseAnd => Some(LanguageItem::And),
+            BinaryOperator::ElementwiseXor => Some(LanguageItem::Xor),
+            BinaryOperator::ElementwiseOr => Some(LanguageItem::Or),
+            BinaryOperator::Equal | BinaryOperator::NotEqual => Some(LanguageItem::Equal),
+            BinaryOperator::LessThan
+            | BinaryOperator::LessThanOrEqual
+            | BinaryOperator::GreaterThan
+            | BinaryOperator::GreaterThanOrEqual => Some(LanguageItem::Compare),
+            BinaryOperator::EqualStrict
+            | BinaryOperator::NotEqualStrict
+            | BinaryOperator::And
+            | BinaryOperator::Or
+            | BinaryOperator::Coalesce
+            | BinaryOperator::In => None,
+        }
+    }
+
     /// Convert a TokenType to a BinaryOperator (if a direct mapping exists).
     #[inline]
     pub fn from_token(token_str: &str, token_type: TokenType) -> Option<BinaryOperator> {
@@ -425,6 +472,28 @@ impl AssignOperator {
     #[inline]
     pub fn precedence(self) -> u16 {
         self.precedence_group() as u16
+    }
+
+    /// Return the overload language item for this operator.
+    pub fn language_item(self) -> Option<LanguageItem> {
+        match self {
+            AssignOperator::AddAssign => Some(LanguageItem::Add),
+            AssignOperator::SubtractAssign => Some(LanguageItem::Subtract),
+            AssignOperator::MultiplyAssign => Some(LanguageItem::Multiply),
+            AssignOperator::DivideAssign => Some(LanguageItem::Divide),
+            AssignOperator::RemainderAssign => Some(LanguageItem::Remainder),
+            AssignOperator::ExponentAssign => Some(LanguageItem::Power),
+            AssignOperator::ShiftLeftAssign => Some(LanguageItem::ShiftLeft),
+            AssignOperator::ShiftRightAssign => Some(LanguageItem::ShiftRight),
+            AssignOperator::UnsignedShiftRightAssign => Some(LanguageItem::ShiftRightUnsigned),
+            AssignOperator::ElementwiseAndAssign => Some(LanguageItem::And),
+            AssignOperator::ElementwiseXorAssign => Some(LanguageItem::Xor),
+            AssignOperator::ElementwiseOrAssign => Some(LanguageItem::Or),
+            AssignOperator::Assign
+            | AssignOperator::AndAssign
+            | AssignOperator::OrAssign
+            | AssignOperator::CoalesceAssign => None,
+        }
     }
 
     /// Convert a TokenType to an AssignOperator (if a direct mapping exists).

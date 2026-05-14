@@ -125,7 +125,7 @@ impl<'a> ModuleLowerer<'a> {
             module,
             parsed,
             source_strings,
-            dir_tree: &bound.tree,
+            dir_tree: &parsed.tree,
             dir_roots: bound.roots.as_ref(),
             symbols: &bound.bindings,
             types: &checked.types,

@@ -1,10 +1,8 @@
-use destack_artifact::{ArtifactKey, ArtifactPayload, DirMaterialized};
-use destack_dir::{BindingTable, CaptureTable, LayoutTable, Patch, TypeTable};
+use destack_artifact::ArtifactPayload;
 use destack_source::ModuleId;
 use destack_workspace::{ProfileId, ProviderContext};
 
-use crate::materialize::MaterializeState;
-use crate::{Compiler, CompilerError, CompilerResult};
+use crate::{Compiler, CompilerResult};
 
 impl Compiler {
     /// Build materialized DIR for one module.
@@ -14,28 +12,13 @@ impl Compiler {
         profile: ProfileId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
-        let state = MaterializeState::new(module, profile, context);
-        state
-            .context
-            .require(ArtifactKey::dir_checked(state.module, state.profile))
-            .map_err(CompilerError::from)?;
-        let checked = self
-            .dir_checked(state.context, state.module, state.profile)
-            .map_err(CompilerError::from)?;
-        let expanded = self
-            .dir_expanded(state.context, state.module, state.profile)
-            .map_err(CompilerError::from)?;
-        let declared = self
-            .dir_declared(state.context, state.module, state.profile)
-            .map_err(CompilerError::from)?;
+        let _ = self;
 
-        Ok(ArtifactPayload::DirMaterialized(DirMaterialized {
-            patch: Patch::new(&declared.tree, "materialize"),
-            bindings: BindingTable::from_base(&expanded.bindings),
-            types: TypeTable::from_base(&checked.types),
-            captures: CaptureTable::new(),
-            layouts: LayoutTable::new(state.module),
-            roots: expanded.roots.clone(),
-        }))
+        todo!(
+            "DIR materialization provider is unavailable for {:?} module {:?} profile {:?}",
+            context.artifact_key(),
+            module,
+            profile,
+        )
     }
 }
