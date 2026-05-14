@@ -129,7 +129,7 @@ entry0(value0: vector<float32, 4>):
     );
 }
 
-/// Lower SIMD splat intrinsic to MIR vector.splat.
+/// Lower vector splat intrinsic to MIR vector.splat.
 #[test]
 fn test_lower_vector_splat_intrinsic() {
     let test = TestProgram::memory_sequential_with_prelude();
@@ -161,7 +161,7 @@ entry0(value0: float32):
     );
 }
 
-/// Lower SIMD select intrinsic to MIR vector.select.
+/// Lower vector select intrinsic to MIR vector.select.
 #[test]
 fn test_lower_vector_select_intrinsic() {
     let test = TestProgram::memory_sequential_with_prelude();
@@ -197,7 +197,7 @@ entry0(value0: vector<boolean, 4>, value1: vector<float32, 4>, value2: vector<fl
     );
 }
 
-/// Lower SIMD reduce intrinsics to MIR vector.reduce.
+/// Lower vector reduce intrinsics to MIR vector.reduce.
 #[test]
 fn test_lower_vector_reduce_intrinsic() {
     let test = TestProgram::memory_sequential_with_prelude();

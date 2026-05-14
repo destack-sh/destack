@@ -159,7 +159,7 @@ impl<'a> ModuleLowerer<'a> {
         // seed mir strings with the shared module pool
         builder.strings().ensure_all_from(strings);
 
-        // resolve vector builtin symbols for SIMD lowering
+        // resolve vector builtin symbols for vector lowering
         let vector_symbol =
             Self::language_item_for(compiler, context, profile, dir::LanguageItem::Vector)?;
 
