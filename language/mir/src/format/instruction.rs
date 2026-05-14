@@ -1119,6 +1119,44 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 format_named_u32_group("axes", axes, f)
             }
 
+            Instruction::TensorIndexReduce {
+                destination,
+                operator,
+                tensor,
+                axis,
+                tie_break,
+            } => {
+                format_typed_destination(*destination, f)?;
+                write!(
+                    f,
+                    [
+                        space(),
+                        token("="),
+                        space(),
+                        token("tensor.indexReduce"),
+                        space(),
+                        token(operator.to_str()),
+                        token(","),
+                        space(),
+                        tensor,
+                        token(","),
+                        space()
+                    ]
+                )?;
+                format_named_u32_group("axis", &[*axis], f)?;
+                write!(
+                    f,
+                    [
+                        token(","),
+                        space(),
+                        token("tieBreak"),
+                        token("("),
+                        token(tie_break.to_str()),
+                        token(")")
+                    ]
+                )
+            }
+
             Instruction::TensorDot {
                 destination,
                 left,

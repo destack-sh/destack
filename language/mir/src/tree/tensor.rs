@@ -59,6 +59,84 @@ impl std::str::FromStr for TensorReduceOperator {
     }
 }
 
+/// Index reduction operators for tensor reductions that return indices.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum TensorIndexReduceOperator {
+    /// Return the index of the minimum element.
+    Min,
+    /// Return the index of the maximum element.
+    Max,
+}
+
+impl TensorIndexReduceOperator {
+    /// Return the opcode name for this index reduction.
+    pub fn to_str(self) -> &'static str {
+        match self {
+            TensorIndexReduceOperator::Min => "min",
+            TensorIndexReduceOperator::Max => "max",
+        }
+    }
+
+    /// Parse an index reduction operator from an opcode name.
+    pub fn parse(text: &str) -> Option<Self> {
+        <Self as std::str::FromStr>::from_str(text).ok()
+    }
+}
+
+impl std::str::FromStr for TensorIndexReduceOperator {
+    type Err = ();
+
+    /// Parse an index reduction operator from an opcode name.
+    fn from_str(text: &str) -> Result<Self, Self::Err> {
+        let value = match text {
+            "min" => TensorIndexReduceOperator::Min,
+            "max" => TensorIndexReduceOperator::Max,
+            _ => return Err(()),
+        };
+
+        Ok(value)
+    }
+}
+
+/// Tie-breaking behavior for tensor index reductions.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum TensorIndexTieBreak {
+    /// Return the first matching index.
+    First,
+    /// Return the last matching index.
+    Last,
+}
+
+impl TensorIndexTieBreak {
+    /// Return the opcode name for this tie break.
+    pub fn to_str(self) -> &'static str {
+        match self {
+            TensorIndexTieBreak::First => "first",
+            TensorIndexTieBreak::Last => "last",
+        }
+    }
+
+    /// Parse a tie break from an opcode name.
+    pub fn parse(text: &str) -> Option<Self> {
+        <Self as std::str::FromStr>::from_str(text).ok()
+    }
+}
+
+impl std::str::FromStr for TensorIndexTieBreak {
+    type Err = ();
+
+    /// Parse a tie break from an opcode name.
+    fn from_str(text: &str) -> Result<Self, Self::Err> {
+        let value = match text {
+            "first" => TensorIndexTieBreak::First,
+            "last" => TensorIndexTieBreak::Last,
+            _ => return Err(()),
+        };
+
+        Ok(value)
+    }
+}
+
 /// Update modes for tensor scatter operations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TensorScatterMode {

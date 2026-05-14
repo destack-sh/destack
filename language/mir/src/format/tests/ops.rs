@@ -30,12 +30,13 @@ entry0(value0: vector<int32, 4>, value1: int32, value2: tensor<int32, (2, 2)>, v
     value21: tensor<int32, (2, 2)> = tensor.concat tensors(value2, value2), axis(0)
     value22: tensor<boolean, (2, 2)> = tensor.compare int.eq, value2, value2
     value23: tensor<int32, (2, 2)> = tensor.reduce add, value2, value11, axes(0)
-    value24: tensor<int32, (2, 2)> = tensor.dot value2, value2, dims(lhsBatch(), rhsBatch(), lhsContract(1), rhsContract(0))
-    value25: tensor<int32, (2, 2)> = tensor.convolution value2, value2, dims(inputBatch(0), inputFeature(1), inputSpatial(2, 3), kernelInputFeature(0), kernelOutputFeature(1), kernelSpatial(2, 3), outputBatch(0), outputFeature(1), outputSpatial(2, 3)), window(strides(1, 1), paddingLow(0, 0), paddingHigh(0, 0), lhsDilation(1, 1), rhsDilation(1, 1), windowReversal(false, false)), groups(feature(1), batch(1))
-    value26: tensor<int32, (2, 2)> = tensor.gather value2, value2, dims(offsetDims(0), collapsedSliceDims(1), startIndexMap(0), indexVectorDim(1)), sliceSizes(1, 1)
-    value27: tensor<int32, (2, 2)> = tensor.scatter value2, value2, value2, dims(updateWindowDims(0), insertedWindowDims(1), scatterDimsToOperandDims(0), indexVectorDim(1)), mode(replace)
-    value28: tensor<float32, (2, 2)> = tensor.convert exact, value2
-    value29: tensor<int32, (2, 2)> = tensor.splat value1
+    value24: tensor<uint64, (2, 2)> = tensor.indexReduce min, value2, axis(0), tieBreak(first)
+    value25: tensor<int32, (2, 2)> = tensor.dot value2, value2, dims(lhsBatch(), rhsBatch(), lhsContract(1), rhsContract(0))
+    value26: tensor<int32, (2, 2)> = tensor.convolution value2, value2, dims(inputBatch(0), inputFeature(1), inputSpatial(2, 3), kernelInputFeature(0), kernelOutputFeature(1), kernelSpatial(2, 3), outputBatch(0), outputFeature(1), outputSpatial(2, 3)), window(strides(1, 1), paddingLow(0, 0), paddingHigh(0, 0), lhsDilation(1, 1), rhsDilation(1, 1), windowReversal(false, false)), groups(feature(1), batch(1))
+    value27: tensor<int32, (2, 2)> = tensor.gather value2, value2, dims(offsetDims(0), collapsedSliceDims(1), startIndexMap(0), indexVectorDim(1)), sliceSizes(1, 1)
+    value28: tensor<int32, (2, 2)> = tensor.scatter value2, value2, value2, dims(updateWindowDims(0), insertedWindowDims(1), scatterDimsToOperandDims(0), indexVectorDim(1)), mode(replace)
+    value29: tensor<float32, (2, 2)> = tensor.convert exact, value2
+    value30: tensor<int32, (2, 2)> = tensor.splat value1
     return value14
 }
 "#,

@@ -7,9 +7,9 @@ use crate::{
     CompareExchangeAccess, DispatchSlot, FenceAccess, FunctionReference, Instruction, LocalNodeId,
     MemoryFlags, MemoryOrdering, MemoryScope, MemorySpaceSet, Place, PlaceOrigin, PlaceProjection,
     SyncScope, TensorConvertMode, TensorConvolutionDimensionNumbers, TensorConvolutionWindow,
-    TensorDotDimensionNumbers, TensorGatherDimensionNumbers, TensorReduceOperator,
-    TensorScatterDimensionNumbers, TensorScatterMode, Type, TypeReference, UnaryOperator,
-    ValueReference, VectorConvertMode, VectorReduceOperator,
+    TensorDotDimensionNumbers, TensorGatherDimensionNumbers, TensorIndexReduceOperator,
+    TensorIndexTieBreak, TensorReduceOperator, TensorScatterDimensionNumbers, TensorScatterMode,
+    Type, TypeReference, UnaryOperator, ValueReference, VectorConvertMode, VectorReduceOperator,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -820,6 +820,23 @@ impl Parser {
                             axes,
                         }
                     }
+                    "tensor.indexReduce" => {
+                        let operator = self.parse_tensor_index_reduce_operator()?;
+                        self.eat_token(TokenType::Comma)?;
+                        let tensor = self.parse_value()?;
+                        self.eat_token(TokenType::Comma)?;
+                        let axis = self.parse_named_single_u32_group("axis")?;
+                        let tie_break = self
+                            .parse_optional_tensor_index_tie_break()?
+                            .unwrap_or(TensorIndexTieBreak::First);
+                        Instruction::TensorIndexReduce {
+                            destination,
+                            operator,
+                            tensor,
+                            axis,
+                            tie_break,
+                        }
+                    }
                     "tensor.dot" => {
                         let left = self.parse_value()?;
                         self.eat_token(TokenType::Comma)?;
@@ -1346,6 +1363,15 @@ impl Parser {
         Ok(operator)
     }
 
+    /// Parse a tensor index reduction operator.
+    fn parse_tensor_index_reduce_operator(&mut self) -> ParseResult<TensorIndexReduceOperator> {
+        // parse the operator token
+        let token = self.eat_token(TokenType::Identifier)?;
+        let operator = TensorIndexReduceOperator::parse(self.tree.source_text(token.span))
+            .ok_or_else(|| ParseError::invalid("tensor index reduce operator", token.start))?;
+        Ok(operator)
+    }
+
     /// Parse a comparison operator for vector or tensor operations.
     fn parse_compare_operator(&mut self) -> ParseResult<BinaryOperator> {
         // parse the operator token
@@ -1374,6 +1400,31 @@ impl Parser {
         let mode = TensorScatterMode::parse(&mode_text)
             .ok_or_else(|| ParseError::invalid("scatter mode", mode_start))?;
         Ok(Some(mode))
+    }
+
+    /// Parse an optional tensor index reduction tie break.
+    fn parse_optional_tensor_index_tie_break(
+        &mut self,
+    ) -> ParseResult<Option<TensorIndexTieBreak>> {
+        // check for a comma followed by the tie break
+        if !self.peek_token(TokenType::Comma) {
+            return Ok(None);
+        }
+        self.eat_token(TokenType::Comma)?;
+        let token = self.eat_token(TokenType::Identifier)?;
+        if self.tree.source_text(token.span) != "tieBreak" {
+            return Err(ParseError::invalid("tieBreak", token.start));
+        }
+
+        // parse the named value
+        self.eat_token(TokenType::OpenParen)?;
+        let token = self.eat_token(TokenType::Identifier)?;
+        let tie_break_text = self.tree.source_text(token.span).to_string();
+        let tie_break_start = token.start;
+        self.eat_token(TokenType::CloseParen)?;
+        let tie_break = TensorIndexTieBreak::parse(&tie_break_text)
+            .ok_or_else(|| ParseError::invalid("tensor index reduce tie break", tie_break_start))?;
+        Ok(Some(tie_break))
     }
 
     /// Parse tensor dot dimension numbers.

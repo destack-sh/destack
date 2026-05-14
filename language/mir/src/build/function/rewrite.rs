@@ -202,6 +202,9 @@ impl<'a> FunctionBuilder<'a> {
                     Self::replace_value_in_slot(tensor, from, to);
                     Self::replace_value_in_slot(initial, from, to);
                 }
+                Instruction::TensorIndexReduce { tensor, .. } => {
+                    Self::replace_value_in_slot(tensor, from, to);
+                }
                 Instruction::TensorDot { left, right, .. } => {
                     Self::replace_value_in_slot(left, from, to);
                     Self::replace_value_in_slot(right, from, to);

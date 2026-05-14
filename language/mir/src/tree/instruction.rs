@@ -10,8 +10,9 @@ use crate::{
     GlobalReference, Intrinsic, LocalReference, MemoryEffect, Node, NodeType, Place,
     PointerAttribute, TensorConvertMode, TensorConvolutionDimensionNumbers,
     TensorConvolutionWindow, TensorDotDimensionNumbers, TensorGatherDimensionNumbers,
-    TensorReduceOperator, TensorScatterDimensionNumbers, TensorScatterMode, TypeReference,
-    UnaryOperator, ValueReference, VectorConvertMode, VectorReduceOperator,
+    TensorIndexReduceOperator, TensorIndexTieBreak, TensorReduceOperator,
+    TensorScatterDimensionNumbers, TensorScatterMode, TypeReference, UnaryOperator, ValueReference,
+    VectorConvertMode, VectorReduceOperator,
 };
 
 /// Compact representation of an argument slice stored in an external buffer.
@@ -323,7 +324,7 @@ pub enum Instruction {
         result_type: TypeReference,
     },
 
-    // vector operations (vector.splat, vector.extract, vector.insert, vector.shuffle, vector.reduce)
+    // vector operations
     /// Broadcast a scalar to all vector lanes.
     VectorSplat {
         /// The SSA value to define with the vector result.
@@ -582,6 +583,19 @@ pub enum Instruction {
         initial: ValueReference,
         /// The axes to reduce.
         axes: Vec<u32>,
+    },
+    /// Reduce a tensor along one axis and return selected source indices.
+    TensorIndexReduce {
+        /// The SSA value to define with the index tensor.
+        destination: ValueReference,
+        /// The index reduction operator to apply.
+        operator: TensorIndexReduceOperator,
+        /// The tensor value to reduce.
+        tensor: ValueReference,
+        /// The axis to reduce.
+        axis: u32,
+        /// The behavior for equal selected values.
+        tie_break: TensorIndexTieBreak,
     },
     /// Dot product of two tensors.
     TensorDot {
@@ -939,6 +953,7 @@ impl Instruction {
             Instruction::TensorCompare { destination, .. } => Some(*destination),
             Instruction::TensorSelect { destination, .. } => Some(*destination),
             Instruction::TensorReduce { destination, .. } => Some(*destination),
+            Instruction::TensorIndexReduce { destination, .. } => Some(*destination),
             Instruction::TensorDot { destination, .. } => Some(*destination),
             Instruction::TensorConvolution { destination, .. } => Some(*destination),
             Instruction::TensorGather { destination, .. } => Some(*destination),
@@ -1054,6 +1069,7 @@ impl Instruction {
             Instruction::TensorReduce {
                 tensor, initial, ..
             } => smallvec![*tensor, *initial],
+            Instruction::TensorIndexReduce { tensor, .. } => smallvec![*tensor],
             Instruction::TensorDot { left, right, .. } => smallvec![*left, *right],
             Instruction::TensorConvolution { input, kernel, .. } => {
                 smallvec![*input, *kernel]
