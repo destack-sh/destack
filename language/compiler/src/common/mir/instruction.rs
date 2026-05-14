@@ -3,7 +3,6 @@ use std::collections::{HashMap, HashSet};
 use crate::common::mir::analysis::{MemoryAccess, MemorySSA};
 use crate::common::mir::terminator_substitute_uses;
 use destack_mir as mir;
-use mir::Instruction;
 
 /// Clone one call payload with remapped arguments.
 fn clone_call_with_arguments<A: Clone>(call: &mir::Call<A>, arguments: A) -> mir::Call<A> {
@@ -55,124 +54,126 @@ fn place_map_values_and_locals(
 /// They still read mutable state, so they cannot be hoisted out of a loop.
 ///
 /// Use this for LICM, code motion, and speculation optimizations.
-pub fn instruction_is_pure(instruction: &Instruction) -> bool {
+pub fn instruction_is_pure(instruction: &mir::Instruction) -> bool {
     // classify instructions by purity
     match instruction {
-        Instruction::Error => {
+        mir::Instruction::Error => {
             panic!("recovered MIR instruction reached optimizer");
         }
 
         // pure computations
-        Instruction::Const { .. }
-        | Instruction::Binary { .. }
-        | Instruction::Unary { .. }
-        | Instruction::Cast { .. }
-        | Instruction::Select { .. }
-        | Instruction::Assume { .. } => true,
+        mir::Instruction::Const { .. }
+        | mir::Instruction::Binary { .. }
+        | mir::Instruction::Unary { .. }
+        | mir::Instruction::Cast { .. }
+        | mir::Instruction::Select { .. }
+        | mir::Instruction::Assume { .. } => true,
 
         // pure aggregate operations
-        Instruction::Struct { .. }
-        | Instruction::Tuple { .. }
-        | Instruction::Array { .. }
-        | Instruction::Slice { .. }
-        | Instruction::VectorSplat { .. }
-        | Instruction::VectorExtract { .. }
-        | Instruction::VectorInsert { .. }
-        | Instruction::VectorShuffle { .. }
-        | Instruction::VectorSelect { .. }
-        | Instruction::VectorReduce { .. }
-        | Instruction::VectorCompare { .. }
-        | Instruction::VectorConvert { .. }
-        | Instruction::TensorSplat { .. }
-        | Instruction::TensorExtract { .. }
-        | Instruction::TensorReshape { .. }
-        | Instruction::TensorBroadcast { .. }
-        | Instruction::TensorTranspose { .. }
-        | Instruction::TensorCast { .. }
-        | Instruction::TensorView { .. }
-        | Instruction::TensorSlice { .. }
-        | Instruction::TensorPad { .. }
-        | Instruction::TensorConcat { .. }
-        | Instruction::TensorReduce { .. }
-        | Instruction::TensorIndexReduce { .. }
-        | Instruction::TensorDot { .. }
-        | Instruction::TensorConvolution { .. }
-        | Instruction::TensorGather { .. }
-        | Instruction::TensorScatter { .. }
-        | Instruction::TensorCompare { .. }
-        | Instruction::TensorSelect { .. }
-        | Instruction::TensorConvert { .. }
-        | Instruction::FieldGet { .. }
-        | Instruction::FieldSet { .. }
-        | Instruction::ElementGet { .. }
-        | Instruction::ElementSet { .. } => true,
+        mir::Instruction::Struct { .. }
+        | mir::Instruction::Tuple { .. }
+        | mir::Instruction::Array { .. }
+        | mir::Instruction::Slice { .. }
+        | mir::Instruction::VectorSplat { .. }
+        | mir::Instruction::VectorExtract { .. }
+        | mir::Instruction::VectorInsert { .. }
+        | mir::Instruction::VectorShuffle { .. }
+        | mir::Instruction::VectorSelect { .. }
+        | mir::Instruction::VectorReduce { .. }
+        | mir::Instruction::VectorCompare { .. }
+        | mir::Instruction::VectorConvert { .. }
+        | mir::Instruction::TensorSplat { .. }
+        | mir::Instruction::TensorExtract { .. }
+        | mir::Instruction::TensorReshape { .. }
+        | mir::Instruction::TensorBroadcast { .. }
+        | mir::Instruction::TensorTranspose { .. }
+        | mir::Instruction::TensorCast { .. }
+        | mir::Instruction::TensorView { .. }
+        | mir::Instruction::TensorSlice { .. }
+        | mir::Instruction::TensorPad { .. }
+        | mir::Instruction::TensorConcat { .. }
+        | mir::Instruction::TensorReduce { .. }
+        | mir::Instruction::TensorIndexReduce { .. }
+        | mir::Instruction::TensorDot { .. }
+        | mir::Instruction::TensorConvolution { .. }
+        | mir::Instruction::TensorGather { .. }
+        | mir::Instruction::TensorScatter { .. }
+        | mir::Instruction::TensorCompare { .. }
+        | mir::Instruction::TensorSelect { .. }
+        | mir::Instruction::TensorConvert { .. }
+        | mir::Instruction::FieldGet { .. }
+        | mir::Instruction::FieldSet { .. }
+        | mir::Instruction::ElementGet { .. }
+        | mir::Instruction::ElementSet { .. } => true,
 
         // immutable global references
-        Instruction::GlobalAddr { .. }
-        | Instruction::FunctionAddr { .. }
-        | Instruction::CallableBind { .. }
-        | Instruction::CallableEnvironment { .. } => true,
+        mir::Instruction::GlobalAddr { .. }
+        | mir::Instruction::FunctionAddr { .. }
+        | mir::Instruction::CallableBind { .. }
+        | mir::Instruction::CallableEnvironment { .. } => true,
 
         // borrow producing address computations are not speculatable
-        Instruction::FieldAddr { .. }
-        | Instruction::ElementAddr { .. }
-        | Instruction::LocalAddr { .. } => false,
+        mir::Instruction::FieldAddr { .. }
+        | mir::Instruction::ElementAddr { .. }
+        | mir::Instruction::LocalAddr { .. } => false,
 
         // tensor loads read memory
-        Instruction::TensorLoad { .. } => false,
+        mir::Instruction::TensorLoad { .. } => false,
 
         // tensor stores mutate memory
-        Instruction::TensorStore { .. }
-        | Instruction::TensorFill { .. }
-        | Instruction::TensorCopy { .. } => false,
+        mir::Instruction::TensorStore { .. }
+        | mir::Instruction::TensorFill { .. }
+        | mir::Instruction::TensorCopy { .. } => false,
 
         // reads mutable state, not speculatable
-        Instruction::LocalGet { .. }
-        | Instruction::Load { .. }
-        | Instruction::AtomicLoad { .. }
-        | Instruction::AtomicCompareExchange { .. }
-        | Instruction::AtomicRmw { .. } => false,
+        mir::Instruction::LocalGet { .. }
+        | mir::Instruction::Load { .. }
+        | mir::Instruction::AtomicLoad { .. }
+        | mir::Instruction::AtomicCompareExchange { .. }
+        | mir::Instruction::AtomicRmw { .. } => false,
 
         // writes have side effects
-        Instruction::LocalSet { .. }
-        | Instruction::Store { .. }
-        | Instruction::AtomicStore { .. }
-        | Instruction::AtomicFence { .. }
-        | Instruction::BarrierWrite { .. } => false,
+        mir::Instruction::LocalSet { .. }
+        | mir::Instruction::Store { .. }
+        | mir::Instruction::AtomicStore { .. }
+        | mir::Instruction::AtomicFence { .. }
+        | mir::Instruction::BarrierWrite { .. } => false,
 
         // pinning and drops have side effects
-        Instruction::Pin { .. } | Instruction::Unpin { .. } | Instruction::Drop { .. } => false,
+        mir::Instruction::Pin { .. }
+        | mir::Instruction::Unpin { .. }
+        | mir::Instruction::Drop { .. } => false,
 
         // calls may have side effects
-        Instruction::Call { .. }
-        | Instruction::CallClass { .. }
-        | Instruction::CallInterface { .. }
-        | Instruction::CallIndirect { .. } => false,
+        mir::Instruction::Call { .. }
+        | mir::Instruction::CallClass { .. }
+        | mir::Instruction::CallInterface { .. }
+        | mir::Instruction::CallIndirect { .. } => false,
 
         // allocations have side effects
-        Instruction::New { .. }
-        | Instruction::NewSlice { .. }
-        | Instruction::RawAlloc { .. }
-        | Instruction::StackAlloc { .. } => false,
+        mir::Instruction::New { .. }
+        | mir::Instruction::NewSlice { .. }
+        | mir::Instruction::RawAlloc { .. }
+        | mir::Instruction::StackAlloc { .. } => false,
 
         // deallocation has side effects
-        Instruction::RawFree { .. } | Instruction::Free { .. } => false,
+        mir::Instruction::RawFree { .. } | mir::Instruction::Free { .. } => false,
 
         // intrinsics may have side effects
-        Instruction::Intrinsic { .. } => false,
+        mir::Instruction::Intrinsic { .. } => false,
     }
 }
 
 /// Check if an instruction can be speculated without trapping.
 ///
 /// This is a stricter predicate than purity: some pure operations may trap.
-pub fn instruction_is_speculatable(instruction: &Instruction, tree: &mir::Tree) -> bool {
+pub fn instruction_is_speculatable(instruction: &mir::Instruction, tree: &mir::Tree) -> bool {
     // classify instructions by speculative safety
     match instruction {
         // borrow producing address computations are not speculatable
-        Instruction::FieldAddr { result_type, .. }
-        | Instruction::ElementAddr { result_type, .. }
-        | Instruction::LocalAddr { result_type, .. } => {
+        mir::Instruction::FieldAddr { result_type, .. }
+        | mir::Instruction::ElementAddr { result_type, .. }
+        | mir::Instruction::LocalAddr { result_type, .. } => {
             let Some(result_type) = result_type.ty() else {
                 return false;
             };
@@ -191,16 +192,16 @@ pub fn instruction_is_speculatable(instruction: &Instruction, tree: &mir::Tree) 
         }
 
         // assumptions must not be speculated across control flow
-        Instruction::Assume { .. } => false,
+        mir::Instruction::Assume { .. } => false,
 
         // non-saturating float to integer casts can trap on NaN or out of range inputs
-        Instruction::Cast {
+        mir::Instruction::Cast {
             operator: mir::CastOperator::FloatToSignedInt | mir::CastOperator::FloatToUnsignedInt,
             ..
         } => false,
 
         // integer division and remainder may trap
-        Instruction::Binary {
+        mir::Instruction::Binary {
             operator:
                 mir::BinaryOperator::SignedDivide
                 | mir::BinaryOperator::UnsignedDivide
@@ -216,12 +217,12 @@ pub fn instruction_is_speculatable(instruction: &Instruction, tree: &mir::Tree) 
 /// Check if an instruction computes an address value.
 ///
 /// The result may be borrowed or raw depending on its reference type.
-pub fn instruction_is_borrow_address(instruction: &Instruction) -> bool {
+pub fn instruction_is_borrow_address(instruction: &mir::Instruction) -> bool {
     matches!(
         instruction,
-        Instruction::FieldAddr { .. }
-            | Instruction::ElementAddr { .. }
-            | Instruction::LocalAddr { .. }
+        mir::Instruction::FieldAddr { .. }
+            | mir::Instruction::ElementAddr { .. }
+            | mir::Instruction::LocalAddr { .. }
     )
 }
 
@@ -229,102 +230,104 @@ pub fn instruction_is_borrow_address(instruction: &Instruction) -> bool {
 ///
 /// Instructions with side effects must be preserved regardless of whether their
 /// result is used. This includes stores, calls, allocations, and drops.
-pub fn instruction_has_side_effects(instruction: &Instruction) -> bool {
+pub fn instruction_has_side_effects(instruction: &mir::Instruction) -> bool {
     // classify instructions by side effects
     match instruction {
-        Instruction::Error => {
+        mir::Instruction::Error => {
             panic!("recovered MIR instruction reached optimizer");
         }
 
         // pure computations, no side effects
-        Instruction::Const { .. }
-        | Instruction::Binary { .. }
-        | Instruction::Unary { .. }
-        | Instruction::Cast { .. }
-        | Instruction::Select { .. }
-        | Instruction::Struct { .. }
-        | Instruction::Tuple { .. }
-        | Instruction::Array { .. }
-        | Instruction::Slice { .. }
-        | Instruction::VectorSplat { .. }
-        | Instruction::VectorExtract { .. }
-        | Instruction::VectorInsert { .. }
-        | Instruction::VectorShuffle { .. }
-        | Instruction::VectorSelect { .. }
-        | Instruction::VectorReduce { .. }
-        | Instruction::VectorCompare { .. }
-        | Instruction::VectorConvert { .. }
-        | Instruction::TensorSplat { .. }
-        | Instruction::TensorExtract { .. }
-        | Instruction::TensorLoad { .. }
-        | Instruction::TensorReshape { .. }
-        | Instruction::TensorBroadcast { .. }
-        | Instruction::TensorTranspose { .. }
-        | Instruction::TensorCast { .. }
-        | Instruction::TensorView { .. }
-        | Instruction::TensorSlice { .. }
-        | Instruction::TensorPad { .. }
-        | Instruction::TensorConcat { .. }
-        | Instruction::TensorReduce { .. }
-        | Instruction::TensorIndexReduce { .. }
-        | Instruction::TensorDot { .. }
-        | Instruction::TensorConvolution { .. }
-        | Instruction::TensorGather { .. }
-        | Instruction::TensorScatter { .. }
-        | Instruction::TensorCompare { .. }
-        | Instruction::TensorSelect { .. }
-        | Instruction::TensorConvert { .. }
-        | Instruction::FieldGet { .. }
-        | Instruction::FieldAddr { .. }
-        | Instruction::ElementGet { .. }
-        | Instruction::ElementAddr { .. }
-        | Instruction::GlobalAddr { .. }
-        | Instruction::FunctionAddr { .. }
-        | Instruction::CallableBind { .. }
-        | Instruction::CallableEnvironment { .. }
-        | Instruction::LocalAddr { .. }
-        | Instruction::Assume { .. } => false,
+        mir::Instruction::Const { .. }
+        | mir::Instruction::Binary { .. }
+        | mir::Instruction::Unary { .. }
+        | mir::Instruction::Cast { .. }
+        | mir::Instruction::Select { .. }
+        | mir::Instruction::Struct { .. }
+        | mir::Instruction::Tuple { .. }
+        | mir::Instruction::Array { .. }
+        | mir::Instruction::Slice { .. }
+        | mir::Instruction::VectorSplat { .. }
+        | mir::Instruction::VectorExtract { .. }
+        | mir::Instruction::VectorInsert { .. }
+        | mir::Instruction::VectorShuffle { .. }
+        | mir::Instruction::VectorSelect { .. }
+        | mir::Instruction::VectorReduce { .. }
+        | mir::Instruction::VectorCompare { .. }
+        | mir::Instruction::VectorConvert { .. }
+        | mir::Instruction::TensorSplat { .. }
+        | mir::Instruction::TensorExtract { .. }
+        | mir::Instruction::TensorLoad { .. }
+        | mir::Instruction::TensorReshape { .. }
+        | mir::Instruction::TensorBroadcast { .. }
+        | mir::Instruction::TensorTranspose { .. }
+        | mir::Instruction::TensorCast { .. }
+        | mir::Instruction::TensorView { .. }
+        | mir::Instruction::TensorSlice { .. }
+        | mir::Instruction::TensorPad { .. }
+        | mir::Instruction::TensorConcat { .. }
+        | mir::Instruction::TensorReduce { .. }
+        | mir::Instruction::TensorIndexReduce { .. }
+        | mir::Instruction::TensorDot { .. }
+        | mir::Instruction::TensorConvolution { .. }
+        | mir::Instruction::TensorGather { .. }
+        | mir::Instruction::TensorScatter { .. }
+        | mir::Instruction::TensorCompare { .. }
+        | mir::Instruction::TensorSelect { .. }
+        | mir::Instruction::TensorConvert { .. }
+        | mir::Instruction::FieldGet { .. }
+        | mir::Instruction::FieldAddr { .. }
+        | mir::Instruction::ElementGet { .. }
+        | mir::Instruction::ElementAddr { .. }
+        | mir::Instruction::GlobalAddr { .. }
+        | mir::Instruction::FunctionAddr { .. }
+        | mir::Instruction::CallableBind { .. }
+        | mir::Instruction::CallableEnvironment { .. }
+        | mir::Instruction::LocalAddr { .. }
+        | mir::Instruction::Assume { .. } => false,
 
         // memory reads are pure (assuming no volatile)
-        Instruction::LocalGet { .. } | Instruction::Load { .. } => false,
+        mir::Instruction::LocalGet { .. } | mir::Instruction::Load { .. } => false,
 
         // memory writes have side effects
-        Instruction::LocalSet { .. }
-        | Instruction::Store { .. }
-        | Instruction::TensorStore { .. }
-        | Instruction::TensorFill { .. }
-        | Instruction::TensorCopy { .. }
-        | Instruction::AtomicLoad { .. }
-        | Instruction::AtomicStore { .. }
-        | Instruction::AtomicCompareExchange { .. }
-        | Instruction::AtomicRmw { .. }
-        | Instruction::AtomicFence { .. }
-        | Instruction::BarrierWrite { .. } => true,
+        mir::Instruction::LocalSet { .. }
+        | mir::Instruction::Store { .. }
+        | mir::Instruction::TensorStore { .. }
+        | mir::Instruction::TensorFill { .. }
+        | mir::Instruction::TensorCopy { .. }
+        | mir::Instruction::AtomicLoad { .. }
+        | mir::Instruction::AtomicStore { .. }
+        | mir::Instruction::AtomicCompareExchange { .. }
+        | mir::Instruction::AtomicRmw { .. }
+        | mir::Instruction::AtomicFence { .. }
+        | mir::Instruction::BarrierWrite { .. } => true,
 
         // aggregate updates create new values, but FieldSet/ElementSet don't have
         // side effects if the result is unused (they produce new values, not mutate)
-        Instruction::FieldSet { .. } | Instruction::ElementSet { .. } => false,
+        mir::Instruction::FieldSet { .. } | mir::Instruction::ElementSet { .. } => false,
 
         // pinning and drops have side effects
-        Instruction::Pin { .. } | Instruction::Unpin { .. } | Instruction::Drop { .. } => true,
+        mir::Instruction::Pin { .. }
+        | mir::Instruction::Unpin { .. }
+        | mir::Instruction::Drop { .. } => true,
 
         // calls may have side effects
-        Instruction::Call { .. }
-        | Instruction::CallClass { .. }
-        | Instruction::CallInterface { .. }
-        | Instruction::CallIndirect { .. } => true,
+        mir::Instruction::Call { .. }
+        | mir::Instruction::CallClass { .. }
+        | mir::Instruction::CallInterface { .. }
+        | mir::Instruction::CallIndirect { .. } => true,
 
         // allocations have side effects (memory allocation)
-        Instruction::New { .. }
-        | Instruction::NewSlice { .. }
-        | Instruction::RawAlloc { .. }
-        | Instruction::StackAlloc { .. } => true,
+        mir::Instruction::New { .. }
+        | mir::Instruction::NewSlice { .. }
+        | mir::Instruction::RawAlloc { .. }
+        | mir::Instruction::StackAlloc { .. } => true,
 
         // deallocation has side effects
-        Instruction::RawFree { .. } | Instruction::Free { .. } => true,
+        mir::Instruction::RawFree { .. } | mir::Instruction::Free { .. } => true,
 
         // intrinsics may have side effects (check purity for safe removal)
-        Instruction::Intrinsic { intrinsic, .. } => {
+        mir::Instruction::Intrinsic { intrinsic, .. } => {
             !intrinsic.is_pure() || matches!(intrinsic, mir::Intrinsic::BlackBox)
         }
     }
@@ -335,16 +338,16 @@ pub fn instruction_has_side_effects(instruction: &Instruction) -> bool {
 /// Memory reads include loads from pointers and gets from locals. These
 /// instructions don't have side effects but read mutable state, so they
 /// cannot be freely reordered past memory writes.
-pub fn instruction_is_memory_read(instruction: &Instruction) -> bool {
+pub fn instruction_is_memory_read(instruction: &mir::Instruction) -> bool {
     // identify instructions that read mutable memory
     matches!(
         instruction,
-        Instruction::Load { .. }
-            | Instruction::LocalGet { .. }
-            | Instruction::TensorLoad { .. }
-            | Instruction::AtomicLoad { .. }
-            | Instruction::AtomicCompareExchange { .. }
-            | Instruction::AtomicRmw { .. }
+        mir::Instruction::Load { .. }
+            | mir::Instruction::LocalGet { .. }
+            | mir::Instruction::TensorLoad { .. }
+            | mir::Instruction::AtomicLoad { .. }
+            | mir::Instruction::AtomicCompareExchange { .. }
+            | mir::Instruction::AtomicRmw { .. }
     )
 }
 
@@ -353,35 +356,35 @@ pub fn instruction_is_memory_read(instruction: &Instruction) -> bool {
 /// This is used to determine if it's safe to sink loads past an instruction.
 /// Any instruction that writes memory, calls functions (which might write memory),
 /// or performs allocations/deallocations is considered to affect memory.
-pub fn instruction_may_affect_memory(instruction: &Instruction) -> bool {
+pub fn instruction_may_affect_memory(instruction: &mir::Instruction) -> bool {
     // identify instructions that can modify memory state
     matches!(
         instruction,
-        Instruction::Store { .. }
-            | Instruction::LocalSet { .. }
-            | Instruction::TensorStore { .. }
-            | Instruction::TensorFill { .. }
-            | Instruction::TensorCopy { .. }
-            | Instruction::Call { .. }
-            | Instruction::CallClass { .. }
-            | Instruction::CallInterface { .. }
-            | Instruction::CallIndirect { .. }
-            | Instruction::Intrinsic { .. }
-            | Instruction::AtomicLoad { .. }
-            | Instruction::AtomicStore { .. }
-            | Instruction::AtomicCompareExchange { .. }
-            | Instruction::AtomicRmw { .. }
-            | Instruction::AtomicFence { .. }
-            | Instruction::BarrierWrite { .. }
-            | Instruction::New { .. }
-            | Instruction::NewSlice { .. }
-            | Instruction::RawAlloc { .. }
-            | Instruction::RawFree { .. }
-            | Instruction::Free { .. }
-            | Instruction::Pin { .. }
-            | Instruction::Unpin { .. }
-            | Instruction::Drop { .. }
-            | Instruction::StackAlloc { .. }
+        mir::Instruction::Store { .. }
+            | mir::Instruction::LocalSet { .. }
+            | mir::Instruction::TensorStore { .. }
+            | mir::Instruction::TensorFill { .. }
+            | mir::Instruction::TensorCopy { .. }
+            | mir::Instruction::Call { .. }
+            | mir::Instruction::CallClass { .. }
+            | mir::Instruction::CallInterface { .. }
+            | mir::Instruction::CallIndirect { .. }
+            | mir::Instruction::Intrinsic { .. }
+            | mir::Instruction::AtomicLoad { .. }
+            | mir::Instruction::AtomicStore { .. }
+            | mir::Instruction::AtomicCompareExchange { .. }
+            | mir::Instruction::AtomicRmw { .. }
+            | mir::Instruction::AtomicFence { .. }
+            | mir::Instruction::BarrierWrite { .. }
+            | mir::Instruction::New { .. }
+            | mir::Instruction::NewSlice { .. }
+            | mir::Instruction::RawAlloc { .. }
+            | mir::Instruction::RawFree { .. }
+            | mir::Instruction::Free { .. }
+            | mir::Instruction::Pin { .. }
+            | mir::Instruction::Unpin { .. }
+            | mir::Instruction::Drop { .. }
+            | mir::Instruction::StackAlloc { .. }
     )
 }
 
@@ -420,16 +423,16 @@ pub fn instruction_is_read_only_access(
 /// Check if a read only instruction can be moved before other memory operations.
 pub fn instruction_allows_read_only_motion(
     _instruction_id: mir::LocalNodeId<mir::Instruction>,
-    instruction: &Instruction,
+    instruction: &mir::Instruction,
     _tree: &mir::Tree,
 ) -> bool {
     // accept non call instructions
     let is_call = matches!(
         instruction,
-        Instruction::Call { .. }
-            | Instruction::CallClass { .. }
-            | Instruction::CallInterface { .. }
-            | Instruction::CallIndirect { .. }
+        mir::Instruction::Call { .. }
+            | mir::Instruction::CallClass { .. }
+            | mir::Instruction::CallInterface { .. }
+            | mir::Instruction::CallIndirect { .. }
     );
     if !is_call {
         return true;

@@ -1,4 +1,5 @@
 use destack_core::StringId;
+use destack_mir as mir;
 
 use crate::common::mir::{MemoryLocation, TypeKey};
 
@@ -27,7 +28,7 @@ impl TypeBasedAA {
         // raw pointers can alias anything
         if matches!(
             (loc_a.pointer_kind, loc_b.pointer_kind),
-            (Some(destack_mir::ReferenceKind::Raw), _) | (_, Some(destack_mir::ReferenceKind::Raw))
+            (Some(mir::ReferenceKind::Raw), _) | (_, Some(mir::ReferenceKind::Raw))
         ) {
             if let (Some(space_a), Some(space_b)) = (
                 loc_a.pointer_address_space.clone(),
@@ -181,7 +182,7 @@ impl TypeBasedAA {
     }
 
     /// Return the address space for reference-like types.
-    fn address_space_of(ty: &TypeKey) -> Option<destack_mir::AddressSpace> {
+    fn address_space_of(ty: &TypeKey) -> Option<mir::AddressSpace> {
         match ty {
             TypeKey::Reference { address_space, .. } => Some(address_space.clone()),
             TypeKey::TensorView { address_space, .. } => Some(address_space.clone()),
@@ -194,10 +195,10 @@ impl TypeBasedAA {
         matches!(
             ty,
             TypeKey::Reference {
-                kind: destack_mir::ReferenceKind::Raw,
+                kind: mir::ReferenceKind::Raw,
                 ..
             } | TypeKey::TensorView {
-                kind: destack_mir::ReferenceKind::Raw,
+                kind: mir::ReferenceKind::Raw,
                 ..
             }
         )
@@ -257,12 +258,11 @@ impl Default for TypeBasedAA {
 
 #[cfg(test)]
 mod tests {
-    use destack_mir::Copy;
 
     use super::*;
 
     fn make_loc_with_type(ptr_id: u32, ty: TypeKey) -> MemoryLocation {
-        MemoryLocation::with_type(destack_mir::Value::new(ptr_id), ty)
+        MemoryLocation::with_type(mir::Value::new(ptr_id), ty)
     }
 
     #[test]
@@ -333,7 +333,7 @@ mod tests {
                     },
                 ),
             ],
-            copy: Copy::Yes,
+            copy: mir::Copy::Yes,
         };
         let tuple_ty = TypeKey::Tuple {
             elements: vec![
@@ -346,7 +346,7 @@ mod tests {
                     signed: true,
                 },
             ],
-            copy: Copy::Yes,
+            copy: mir::Copy::Yes,
         };
 
         let loc_struct = make_loc_with_type(0, struct_ty);
@@ -376,7 +376,7 @@ mod tests {
                     },
                 ),
             ],
-            copy: Copy::Yes,
+            copy: mir::Copy::Yes,
         };
         let struct_3field = TypeKey::Struct {
             fields: vec![
@@ -402,7 +402,7 @@ mod tests {
                     },
                 ),
             ],
-            copy: Copy::Yes,
+            copy: mir::Copy::Yes,
         };
 
         let loc1 = make_loc_with_type(0, struct_2field);
@@ -421,7 +421,7 @@ mod tests {
                 signed: true,
             }),
             length: 10,
-            copy: Copy::Yes,
+            copy: mir::Copy::Yes,
         };
         let struct_ty = TypeKey::Struct {
             fields: vec![(
@@ -431,7 +431,7 @@ mod tests {
                     signed: true,
                 },
             )],
-            copy: Copy::Yes,
+            copy: mir::Copy::Yes,
         };
 
         let loc_array = make_loc_with_type(0, array_ty);
@@ -444,8 +444,8 @@ mod tests {
     fn test_no_type_info_may_alias() {
         let tbaa = TypeBasedAA::new();
 
-        let loc1 = MemoryLocation::from_ptr(destack_mir::Value::new(0));
-        let loc2 = MemoryLocation::from_ptr(destack_mir::Value::new(1));
+        let loc1 = MemoryLocation::from_ptr(mir::Value::new(0));
+        let loc2 = MemoryLocation::from_ptr(mir::Value::new(1));
 
         // without type info, we can't prove no-alias
         assert_eq!(tbaa.alias(&loc1, &loc2), AliasResult::MayAlias);
@@ -457,10 +457,10 @@ mod tests {
         let tbaa = TypeBasedAA::new();
 
         let ref_i32 = TypeKey::Reference {
-            kind: destack_mir::ReferenceKind::Raw,
-            lifetime: destack_mir::Lifetime::empty(),
-            address_space: destack_mir::AddressSpace::Local,
-            access: destack_mir::Access::Mutable,
+            kind: mir::ReferenceKind::Raw,
+            lifetime: mir::Lifetime::empty(),
+            address_space: mir::AddressSpace::Local,
+            access: mir::Access::Mutable,
             pointee: Box::new(TypeKey::Int {
                 width: 32,
                 signed: true,
@@ -468,10 +468,10 @@ mod tests {
             is_nullable: false,
         };
         let ref_f64 = TypeKey::Reference {
-            kind: destack_mir::ReferenceKind::Raw,
-            lifetime: destack_mir::Lifetime::empty(),
-            address_space: destack_mir::AddressSpace::Local,
-            access: destack_mir::Access::Mutable,
+            kind: mir::ReferenceKind::Raw,
+            lifetime: mir::Lifetime::empty(),
+            address_space: mir::AddressSpace::Local,
+            access: mir::Access::Mutable,
             pointee: Box::new(TypeKey::Float { width: 64 }),
             is_nullable: false,
         };
@@ -495,12 +495,12 @@ mod tests {
                 signed: true,
             }),
             length: 10,
-            copy: Copy::Yes,
+            copy: mir::Copy::Yes,
         };
         let array_f64 = TypeKey::Array {
             element: Box::new(TypeKey::Float { width: 64 }),
             length: 10,
-            copy: Copy::Yes,
+            copy: mir::Copy::Yes,
         };
 
         let loc1 = make_loc_with_type(0, array_i32);
@@ -515,10 +515,10 @@ mod tests {
         let tbaa = TypeBasedAA::new();
 
         let ref_ty = TypeKey::Reference {
-            kind: destack_mir::ReferenceKind::Raw,
-            lifetime: destack_mir::Lifetime::empty(),
-            address_space: destack_mir::AddressSpace::Local,
-            access: destack_mir::Access::Mutable,
+            kind: mir::ReferenceKind::Raw,
+            lifetime: mir::Lifetime::empty(),
+            address_space: mir::AddressSpace::Local,
+            access: mir::Access::Mutable,
             pointee: Box::new(TypeKey::Int {
                 width: 32,
                 signed: true,
@@ -542,10 +542,10 @@ mod tests {
         let tbaa = TypeBasedAA::new();
 
         let ref_ty = TypeKey::Reference {
-            kind: destack_mir::ReferenceKind::Raw,
-            lifetime: destack_mir::Lifetime::empty(),
-            address_space: destack_mir::AddressSpace::Local,
-            access: destack_mir::Access::Mutable,
+            kind: mir::ReferenceKind::Raw,
+            lifetime: mir::Lifetime::empty(),
+            address_space: mir::AddressSpace::Local,
+            access: mir::Access::Mutable,
             pointee: Box::new(TypeKey::Int {
                 width: 32,
                 signed: true,
@@ -566,10 +566,10 @@ mod tests {
         let tbaa = TypeBasedAA::new();
 
         let ref_generic = TypeKey::Reference {
-            kind: destack_mir::ReferenceKind::Raw,
-            lifetime: destack_mir::Lifetime::empty(),
-            address_space: destack_mir::AddressSpace::Local,
-            access: destack_mir::Access::Mutable,
+            kind: mir::ReferenceKind::Raw,
+            lifetime: mir::Lifetime::empty(),
+            address_space: mir::AddressSpace::Local,
+            access: mir::Access::Mutable,
             pointee: Box::new(TypeKey::Int {
                 width: 32,
                 signed: true,
@@ -577,10 +577,10 @@ mod tests {
             is_nullable: false,
         };
         let ref_shared = TypeKey::Reference {
-            kind: destack_mir::ReferenceKind::Raw,
-            lifetime: destack_mir::Lifetime::empty(),
-            address_space: destack_mir::AddressSpace::Shared,
-            access: destack_mir::Access::Mutable,
+            kind: mir::ReferenceKind::Raw,
+            lifetime: mir::Lifetime::empty(),
+            address_space: mir::AddressSpace::Shared,
+            access: mir::Access::Mutable,
             pointee: Box::new(TypeKey::Int {
                 width: 32,
                 signed: true,

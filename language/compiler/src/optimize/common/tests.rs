@@ -3,7 +3,6 @@ use std::sync::Arc;
 use destack_core::StringPool;
 use destack_mir as mir;
 use destack_source::{DiffOptions, FileId, ModuleId, PackageId, ProfileId, TargetId, print_diff};
-use mir::parse::ParseOptions;
 
 use crate::common::mir::{FunctionAnalyses, ModuleAnalyses};
 use crate::optimize::{FunctionPass, ModulePass, PipelineContext, PipelineOptions};
@@ -51,7 +50,7 @@ impl TestProgram {
     /// Create a new test program from MIR source text.
     pub(crate) fn new(source: &str) -> Self {
         let (tree, strings) =
-            mir::parse::Parser::parse(FileId::new(0), source, ParseOptions::default())
+            mir::parse::Parser::parse(FileId::new(0), source, mir::parse::ParseOptions::default())
                 .finish()
                 .expect("failed to parse MIR");
         let strings_pool = StringPool::new();
@@ -825,10 +824,13 @@ impl TestProgram {
     /// Assert that the MIR is unchanged from the original source.
     #[track_caller]
     pub(crate) fn assert_unchanged(&self, original: &str) {
-        let (tree, strings) =
-            mir::parse::Parser::parse(FileId::new(0), original, ParseOptions::default())
-                .finish()
-                .expect("failed to parse expected MIR");
+        let (tree, strings) = mir::parse::Parser::parse(
+            FileId::new(0),
+            original,
+            mir::parse::ParseOptions::default(),
+        )
+        .finish()
+        .expect("failed to parse expected MIR");
         let expected = mir::format_mir(&tree, &strings, mir::MirFormatOptions::default());
 
         self.assert_output(&expected);

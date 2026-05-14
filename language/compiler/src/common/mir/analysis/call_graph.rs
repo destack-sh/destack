@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use destack_mir::{self as mir, CallDispatchKind, Linkage};
+use destack_mir as mir;
 use destack_source::ModuleId;
 
 use crate::common::mir::{
@@ -20,13 +20,13 @@ pub struct CallEdge {
     /// The callsite that performs the call.
     pub callsite: CallSiteRef,
     /// The dispatch kind for this callsite.
-    pub dispatch: CallDispatchKind,
+    pub dispatch: mir::CallDispatchKind,
 }
 
 impl CallEdge {
     /// Return true when this edge is a direct call.
     pub fn is_direct(&self) -> bool {
-        matches!(self.dispatch, CallDispatchKind::Direct)
+        matches!(self.dispatch, mir::CallDispatchKind::Direct)
     }
 }
 
@@ -38,7 +38,7 @@ pub struct UnknownCallSite {
     /// The callsite that performs the call.
     pub callsite: CallSiteRef,
     /// The dispatch kind for this callsite.
-    pub dispatch: CallDispatchKind,
+    pub dispatch: mir::CallDispatchKind,
     /// The declared callee when known.
     pub callee: Option<mir::LocalNodeId<mir::Function>>,
 }
@@ -489,7 +489,7 @@ pub struct SymbolCallEdge {
     /// The callsite identifier.
     pub callsite: CallSiteId,
     /// The dispatch kind for this callsite.
-    pub dispatch: CallDispatchKind,
+    pub dispatch: mir::CallDispatchKind,
 }
 
 /// Callsite that does not have a resolved target symbol.
@@ -500,7 +500,7 @@ pub struct SymbolUnknownCallSite {
     /// The callsite identifier.
     pub callsite: CallSiteId,
     /// The dispatch kind for this callsite.
-    pub dispatch: CallDispatchKind,
+    pub dispatch: mir::CallDispatchKind,
     /// The unresolved symbol name, when known.
     pub callee: Option<SymbolName>,
 }
@@ -525,8 +525,8 @@ pub struct SymbolCallGraph {
 /// Definition information for a symbol.
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct SymbolDefinition {
-    /// Linkage for this definition.
-    linkage: Linkage,
+    /// mir::Linkage for this definition.
+    linkage: mir::Linkage,
     /// Signature for this definition.
     signature: SignatureKey,
 }
@@ -989,7 +989,7 @@ struct CallSite {
     /// The callsite reference.
     callsite: CallSiteRef,
     /// Dispatch kind for the callsite.
-    dispatch: CallDispatchKind,
+    dispatch: mir::CallDispatchKind,
     /// Resolved callee when known.
     callee: Option<mir::LocalNodeId<mir::Function>>,
     /// True when the dispatch is fully resolved.
@@ -1152,11 +1152,11 @@ struct SymbolCallSite {
     /// The callsite id.
     callsite: CallSiteId,
     /// The dispatch kind.
-    dispatch: CallDispatchKind,
+    dispatch: mir::CallDispatchKind,
     /// The callee symbol name, when known.
     callee: Option<SymbolName>,
     /// The callee linkage, when known.
-    callee_linkage: Option<Linkage>,
+    callee_linkage: Option<mir::Linkage>,
     /// The callsite signature, when known.
     signature: Option<SignatureKey>,
     /// True when the dispatch is fully resolved.
@@ -1203,7 +1203,7 @@ impl SymbolCallSite {
                 })
             });
 
-        let is_precise = matches!(dispatch, CallDispatchKind::Direct);
+        let is_precise = matches!(dispatch, mir::CallDispatchKind::Direct);
 
         Some(Self {
             callsite,
@@ -1243,7 +1243,7 @@ impl SymbolCallSite {
 
                 Some(Self {
                     callsite,
-                    dispatch: CallDispatchKind::Direct,
+                    dispatch: mir::CallDispatchKind::Direct,
                     callee,
                     callee_linkage,
                     signature,
@@ -1252,7 +1252,7 @@ impl SymbolCallSite {
             }
             mir::Terminator::CallIndirect { call, .. } => Some(Self {
                 callsite,
-                dispatch: CallDispatchKind::Indirect,
+                dispatch: mir::CallDispatchKind::Indirect,
                 callee: None,
                 callee_linkage: None,
                 signature: SignatureKey::from_function_type(tree, call.signature),
@@ -1275,7 +1275,7 @@ impl SymbolCallSite {
 
                 Some(Self {
                     callsite,
-                    dispatch: CallDispatchKind::Class { slot: *slot },
+                    dispatch: mir::CallDispatchKind::Class { slot: *slot },
                     callee,
                     callee_linkage,
                     signature,
@@ -1299,7 +1299,7 @@ impl SymbolCallSite {
 
                 Some(Self {
                     callsite,
-                    dispatch: CallDispatchKind::Interface { slot: *slot },
+                    dispatch: mir::CallDispatchKind::Interface { slot: *slot },
                     callee,
                     callee_linkage,
                     signature,
@@ -1319,7 +1319,7 @@ impl SymbolCallSite {
 
                 Some(Self {
                     callsite,
-                    dispatch: CallDispatchKind::Direct,
+                    dispatch: mir::CallDispatchKind::Direct,
                     callee,
                     callee_linkage,
                     signature,
@@ -1328,7 +1328,7 @@ impl SymbolCallSite {
             }
             mir::Terminator::TailCallIndirect { call, .. } => Some(Self {
                 callsite,
-                dispatch: CallDispatchKind::Indirect,
+                dispatch: mir::CallDispatchKind::Indirect,
                 callee: None,
                 callee_linkage: None,
                 signature: SignatureKey::from_function_type(tree, call.signature),
@@ -1351,7 +1351,7 @@ impl SymbolCallSite {
 
                 Some(Self {
                     callsite,
-                    dispatch: CallDispatchKind::Class { slot: *slot },
+                    dispatch: mir::CallDispatchKind::Class { slot: *slot },
                     callee,
                     callee_linkage,
                     signature,
@@ -1375,7 +1375,7 @@ impl SymbolCallSite {
 
                 Some(Self {
                     callsite,
-                    dispatch: CallDispatchKind::Interface { slot: *slot },
+                    dispatch: mir::CallDispatchKind::Interface { slot: *slot },
                     callee,
                     callee_linkage,
                     signature,
@@ -1402,7 +1402,7 @@ fn insert_symbol_callsite(
     // direct calls to local or exported definitions are always resolved
     if matches!(
         callsite.callee_linkage,
-        Some(Linkage::Local | Linkage::Export)
+        Some(mir::Linkage::Local | mir::Linkage::Export)
     ) {
         insert_symbol_edge(graph, caller_symbol, &callee, &callsite);
 
@@ -1414,7 +1414,7 @@ fn insert_symbol_callsite(
     }
 
     // resolve imported symbols against exported definitions
-    if matches!(callsite.callee_linkage, Some(Linkage::Import)) {
+    if matches!(callsite.callee_linkage, Some(mir::Linkage::Import)) {
         let resolution = resolve_exported_target(graph, &callee, callsite.signature.as_ref());
 
         if resolution {
@@ -1550,7 +1550,7 @@ impl CallSite {
         let callee = instruction
             .call_declared_target()
             .and_then(|callee| callee.function());
-        let is_precise = matches!(dispatch, CallDispatchKind::Direct);
+        let is_precise = matches!(dispatch, mir::CallDispatchKind::Direct);
 
         Some(Self {
             caller,
@@ -1574,21 +1574,21 @@ impl CallSite {
             mir::Terminator::Call { function, .. } => Some(Self {
                 caller,
                 callsite,
-                dispatch: CallDispatchKind::Direct,
+                dispatch: mir::CallDispatchKind::Direct,
                 callee: function.function(),
                 is_precise: true,
             }),
             mir::Terminator::CallIndirect { .. } => Some(Self {
                 caller,
                 callsite,
-                dispatch: CallDispatchKind::Indirect,
+                dispatch: mir::CallDispatchKind::Indirect,
                 callee: None,
                 is_precise: false,
             }),
             mir::Terminator::CallClass { slot, .. } => Some(Self {
                 caller,
                 callsite,
-                dispatch: CallDispatchKind::Class { slot: *slot },
+                dispatch: mir::CallDispatchKind::Class { slot: *slot },
                 callee: terminator
                     .call_declared_target()
                     .and_then(|callee| callee.function()),
@@ -1597,7 +1597,7 @@ impl CallSite {
             mir::Terminator::CallInterface { slot, .. } => Some(Self {
                 caller,
                 callsite,
-                dispatch: CallDispatchKind::Interface { slot: *slot },
+                dispatch: mir::CallDispatchKind::Interface { slot: *slot },
                 callee: terminator
                     .call_declared_target()
                     .and_then(|callee| callee.function()),
@@ -1606,21 +1606,21 @@ impl CallSite {
             mir::Terminator::TailCall { function, .. } => Some(Self {
                 caller,
                 callsite,
-                dispatch: CallDispatchKind::Direct,
+                dispatch: mir::CallDispatchKind::Direct,
                 callee: function.function(),
                 is_precise: true,
             }),
             mir::Terminator::TailCallIndirect { .. } => Some(Self {
                 caller,
                 callsite,
-                dispatch: CallDispatchKind::Indirect,
+                dispatch: mir::CallDispatchKind::Indirect,
                 callee: None,
                 is_precise: false,
             }),
             mir::Terminator::TailCallClass { slot, .. } => Some(Self {
                 caller,
                 callsite,
-                dispatch: CallDispatchKind::Class { slot: *slot },
+                dispatch: mir::CallDispatchKind::Class { slot: *slot },
                 callee: terminator
                     .call_declared_target()
                     .and_then(|callee| callee.function()),
@@ -1629,7 +1629,7 @@ impl CallSite {
             mir::Terminator::TailCallInterface { slot, .. } => Some(Self {
                 caller,
                 callsite,
-                dispatch: CallDispatchKind::Interface { slot: *slot },
+                dispatch: mir::CallDispatchKind::Interface { slot: *slot },
                 callee: terminator
                     .call_declared_target()
                     .and_then(|callee| callee.function()),
@@ -1643,7 +1643,6 @@ impl CallSite {
 #[cfg(test)]
 mod tests {
     use destack_artifact::MirLowered;
-    use destack_mir::parse::ParseOptions;
     use destack_source::{FileId, ModuleId, PackageId, ProfileId, TargetId};
 
     use crate::common::mir::{ModuleAnalyses, PackageAnalyses, ProgramAnalyses};
@@ -1669,7 +1668,7 @@ mod tests {
         let module_id = ModuleId::new(package_id, u128::from(module_index));
         let target_id = test_target_id(package_id, "test");
         let (tree, strings) =
-            mir::parse::Parser::parse(FileId::new(0), source, ParseOptions::default())
+            mir::parse::Parser::parse(FileId::new(0), source, mir::parse::ParseOptions::default())
                 .finish()
                 .expect("failed to parse MIR");
         let pool = Arc::new(destack_core::StringPool::new());
@@ -1783,7 +1782,7 @@ b0(v0: fn(int32) -> int32, v1: int32):
         assert_eq!(callgraph.unknown_calls(test_id).len(), 1);
         assert_eq!(
             callgraph.unknown_calls(test_id)[0].dispatch,
-            CallDispatchKind::Indirect
+            mir::CallDispatchKind::Indirect
         );
     }
 
@@ -1832,7 +1831,7 @@ b0(v0: fn(int32) -> int32, v1: int32):
 
         let unknown = callgraph.unknown_calls(test_id);
         assert_eq!(unknown.len(), 1);
-        assert_eq!(unknown[0].dispatch, CallDispatchKind::Indirect);
+        assert_eq!(unknown[0].dispatch, mir::CallDispatchKind::Indirect);
         assert!(matches!(unknown[0].callsite, CallSiteRef::Terminator(_)));
     }
 
@@ -1860,7 +1859,7 @@ b0(v0: fn(int32) -> int32, v1: int32):
 
         let unknown = callgraph.unknown_calls(test_id);
         assert_eq!(unknown.len(), 1);
-        assert_eq!(unknown[0].dispatch, CallDispatchKind::Indirect);
+        assert_eq!(unknown[0].dispatch, mir::CallDispatchKind::Indirect);
     }
 
     /// Direct call terminators produce precise call edges.
@@ -1891,7 +1890,7 @@ b2(v2: ref<int32, managed, readonly>):
         let outgoing = callgraph.outgoing(test_id);
         assert_eq!(outgoing.len(), 1);
         assert_eq!(outgoing[0].callee, callee_id);
-        assert_eq!(outgoing[0].dispatch, CallDispatchKind::Direct);
+        assert_eq!(outgoing[0].dispatch, mir::CallDispatchKind::Direct);
         assert!(matches!(outgoing[0].callsite, CallSiteRef::Terminator(_)));
         assert!(callgraph.unknown_calls(test_id).is_empty());
     }
@@ -1950,7 +1949,7 @@ b0(v0: int32):
         assert_eq!(callgraph.outgoing(test_id)[0].callee, callee_id);
         assert_eq!(
             callgraph.outgoing(test_id)[0].dispatch,
-            CallDispatchKind::Class {
+            mir::CallDispatchKind::Class {
                 slot: mir::DispatchSlot::new(1),
             }
         );
@@ -2000,7 +1999,7 @@ b2(v2: ref<int32, managed, readonly>):
         assert_eq!(outgoing[0].callee, callee_id);
         assert_eq!(
             outgoing[0].dispatch,
-            CallDispatchKind::Class {
+            mir::CallDispatchKind::Class {
                 slot: mir::DispatchSlot::new(1),
             }
         );
@@ -2187,7 +2186,6 @@ b0(v0: int64):
     fn test_program_call_graph_resolves_cross_package() {
         let caller_pkg = PackageId::new(2);
         let callee_pkg = PackageId::new(3);
-
         let caller_target = test_target_id(caller_pkg, "test");
         let callee_target = test_target_id(callee_pkg, "test");
 
@@ -2244,7 +2242,6 @@ b0:
         let caller_pkg = PackageId::new(4);
         let callee_pkg_a = PackageId::new(5);
         let callee_pkg_b = PackageId::new(6);
-
         let caller_target = test_target_id(caller_pkg, "test");
         let target_a = test_target_id(callee_pkg_a, "test");
         let target_b = test_target_id(callee_pkg_b, "test");

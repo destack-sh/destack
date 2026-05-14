@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use crate::declare_mir_pass;
 use destack_mir as mir;
-use mir::{BinaryOperator, Constant, UnaryOperator};
 
 use destack_workspace::FloatMathPolicy;
 
@@ -58,7 +57,7 @@ declare_mir_pass! {
 /// Result of simplifying an instruction.
 enum Simplification {
     /// Replace with a constant value.
-    Constant(Constant),
+    Constant(mir::Constant),
     /// Replace all uses of destination with this value (identity).
     Substitute(mir::Value),
 }
@@ -501,7 +500,7 @@ fn run_instruction_combine(
 /// Try to simplify a binary operation using algebraic identities.
 fn simplify_binary_operator(
     destination: mir::Value,
-    operator: BinaryOperator,
+    operator: mir::BinaryOperator,
     left: mir::Value,
     right: mir::Value,
     constants: &ConstantLookup<'_>,
@@ -519,7 +518,7 @@ fn simplify_binary_operator(
         && let Some(right_range) = ranges.get(right)
         && let Some(result) = evaluate_integer_range_comparison(operator, left_range, right_range)
     {
-        return Some(Simplification::Constant(Constant::Boolean {
+        return Some(Simplification::Constant(mir::Constant::Boolean {
             value: result,
         }));
     }
@@ -532,7 +531,7 @@ fn simplify_binary_operator(
     // identity and annihilator rules with constants
     match operator {
         // x + 0 = x, 0 + x = x
-        BinaryOperator::Add => {
+        mir::BinaryOperator::Add => {
             if constant_is_zero(right_const_ref) {
                 return Some(Simplification::Substitute(left));
             }
@@ -542,14 +541,14 @@ fn simplify_binary_operator(
         }
 
         // x - 0 = x
-        BinaryOperator::Subtract => {
+        mir::BinaryOperator::Subtract => {
             if constant_is_zero(right_const_ref) {
                 return Some(Simplification::Substitute(left));
             }
         }
 
         // x * 0 = 0, 0 * x = 0, x * 1 = x, 1 * x = x
-        BinaryOperator::Multiply => {
+        mir::BinaryOperator::Multiply => {
             if constant_is_zero(right_const_ref) {
                 return Some(Simplification::Constant(constant_zero_like(
                     right_const_ref.unwrap(),
@@ -569,14 +568,14 @@ fn simplify_binary_operator(
         }
 
         // x / 1 = x (signed)
-        BinaryOperator::SignedDivide | BinaryOperator::UnsignedDivide => {
+        mir::BinaryOperator::SignedDivide | mir::BinaryOperator::UnsignedDivide => {
             if constant_is_one(right_const_ref) {
                 return Some(Simplification::Substitute(left));
             }
         }
 
         // x % 1 = 0 (signed and unsigned)
-        BinaryOperator::SignedRemainder | BinaryOperator::UnsignedRemainder => {
+        mir::BinaryOperator::SignedRemainder | mir::BinaryOperator::UnsignedRemainder => {
             if constant_is_one(right_const_ref) {
                 return Some(Simplification::Constant(constant_zero_like(
                     right_const_ref.unwrap(),
@@ -585,7 +584,7 @@ fn simplify_binary_operator(
         }
 
         // x & 0 = 0, 0 & x = 0
-        BinaryOperator::And => {
+        mir::BinaryOperator::And => {
             if constant_is_zero(right_const_ref) {
                 return Some(Simplification::Constant(constant_zero_like(
                     right_const_ref.unwrap(),
@@ -606,7 +605,7 @@ fn simplify_binary_operator(
         }
 
         // x | 0 = x, 0 | x = x
-        BinaryOperator::Or => {
+        mir::BinaryOperator::Or => {
             if constant_is_zero(right_const_ref) {
                 return Some(Simplification::Substitute(left));
             }
@@ -627,7 +626,7 @@ fn simplify_binary_operator(
         }
 
         // x ^ 0 = x, 0 ^ x = x
-        BinaryOperator::Xor => {
+        mir::BinaryOperator::Xor => {
             if constant_is_zero(right_const_ref) {
                 return Some(Simplification::Substitute(left));
             }
@@ -637,9 +636,9 @@ fn simplify_binary_operator(
         }
 
         // x << 0 = x, x >> 0 = x
-        BinaryOperator::ShiftLeft
-        | BinaryOperator::ArithmeticShiftRight
-        | BinaryOperator::LogicalShiftRight => {
+        mir::BinaryOperator::ShiftLeft
+        | mir::BinaryOperator::ArithmeticShiftRight
+        | mir::BinaryOperator::LogicalShiftRight => {
             if constant_is_zero(right_const_ref) {
                 return Some(Simplification::Substitute(left));
             }
@@ -652,7 +651,7 @@ fn simplify_binary_operator(
         }
 
         // float: x + 0.0 = x (not for -0.0, but we simplify for 0.0)
-        BinaryOperator::FloatAdd => {
+        mir::BinaryOperator::FloatAdd => {
             if allow_float_identities(float_math) && constant_is_float_zero(right_const_ref) {
                 return Some(Simplification::Substitute(left));
             }
@@ -662,14 +661,14 @@ fn simplify_binary_operator(
         }
 
         // float: x - 0.0 = x
-        BinaryOperator::FloatSubtract => {
+        mir::BinaryOperator::FloatSubtract => {
             if allow_float_identities(float_math) && constant_is_float_zero(right_const_ref) {
                 return Some(Simplification::Substitute(left));
             }
         }
 
         // float: x * 1.0 = x
-        BinaryOperator::FloatMultiply => {
+        mir::BinaryOperator::FloatMultiply => {
             if allow_float_identities(float_math) && constant_is_float_one(right_const_ref) {
                 return Some(Simplification::Substitute(left));
             }
@@ -679,7 +678,7 @@ fn simplify_binary_operator(
         }
 
         // float: x / 1.0 = x
-        BinaryOperator::FloatDivide => {
+        mir::BinaryOperator::FloatDivide => {
             if allow_float_identities(float_math) && constant_is_float_one(right_const_ref) {
                 return Some(Simplification::Substitute(left));
             }
@@ -694,9 +693,9 @@ fn simplify_binary_operator(
 /// Simplify operations where both operands are the same value.
 fn simplify_same_binary_operand(
     _destination: mir::Value,
-    operator: BinaryOperator,
+    operator: mir::BinaryOperator,
     operand: mir::Value,
-    constant: Option<&Constant>,
+    constant: Option<&mir::Constant>,
 ) -> Option<Simplification> {
     // get type entry from constant if available for proper zero type
     let operand_const = constant;
@@ -704,38 +703,44 @@ fn simplify_same_binary_operand(
     // simplify based on the operator
     match operator {
         // x - x = 0
-        BinaryOperator::Subtract => {
+        mir::BinaryOperator::Subtract => {
             // need type entry to create proper zero constant
             let c = operand_const?;
             Some(Simplification::Constant(constant_zero_like(c)))
         }
 
         // x ^ x = 0
-        BinaryOperator::Xor => {
+        mir::BinaryOperator::Xor => {
             // need type entry to create proper zero constant
             let c = operand_const?;
             Some(Simplification::Constant(constant_zero_like(c)))
         }
 
         // x & x = x, x | x = x
-        BinaryOperator::And | BinaryOperator::Or => Some(Simplification::Substitute(operand)),
+        mir::BinaryOperator::And | mir::BinaryOperator::Or => {
+            Some(Simplification::Substitute(operand))
+        }
 
         // x == x = true
-        BinaryOperator::Equal
-        | BinaryOperator::SignedLessEqual
-        | BinaryOperator::SignedGreaterEqual
-        | BinaryOperator::UnsignedLessEqual
-        | BinaryOperator::UnsignedGreaterEqual => {
-            Some(Simplification::Constant(Constant::Boolean { value: true }))
+        mir::BinaryOperator::Equal
+        | mir::BinaryOperator::SignedLessEqual
+        | mir::BinaryOperator::SignedGreaterEqual
+        | mir::BinaryOperator::UnsignedLessEqual
+        | mir::BinaryOperator::UnsignedGreaterEqual => {
+            Some(Simplification::Constant(mir::Constant::Boolean {
+                value: true,
+            }))
         }
 
         // x != x = false, x < x = false, x > x = false
-        BinaryOperator::NotEqual
-        | BinaryOperator::SignedLessThan
-        | BinaryOperator::SignedGreaterThan
-        | BinaryOperator::UnsignedLessThan
-        | BinaryOperator::UnsignedGreaterThan => {
-            Some(Simplification::Constant(Constant::Boolean { value: false }))
+        mir::BinaryOperator::NotEqual
+        | mir::BinaryOperator::SignedLessThan
+        | mir::BinaryOperator::SignedGreaterThan
+        | mir::BinaryOperator::UnsignedLessThan
+        | mir::BinaryOperator::UnsignedGreaterThan => {
+            Some(Simplification::Constant(mir::Constant::Boolean {
+                value: false,
+            }))
         }
 
         _ => None,
@@ -763,7 +768,7 @@ impl<'a> ConstantLookup<'a> {
     }
 
     /// Get a constant value for a SSA value.
-    fn get(&self, value: mir::Value) -> Option<Constant> {
+    fn get(&self, value: mir::Value) -> Option<mir::Constant> {
         // check propagation constants first
         if let Some(constant) = self.block_constants.get(value) {
             return Some(constant.clone());
@@ -792,7 +797,7 @@ fn update_constant_map(
     };
 
     // capture a local constant lookup
-    let constant_for = |value: mir::Value| -> Option<Constant> {
+    let constant_for = |value: mir::Value| -> Option<mir::Constant> {
         if let Some(constant) = block_constants.get(value) {
             return Some(constant.clone());
         }
@@ -867,7 +872,7 @@ fn update_constant_map(
         } => {
             // fold selects with constant conditions
             let condition = condition.value().and_then(constant_for);
-            if let Some(Constant::Boolean { value }) = condition {
+            if let Some(mir::Constant::Boolean { value }) = condition {
                 let selected = if value {
                     then_value.value()
                 } else {
@@ -903,14 +908,14 @@ fn allow_float_identities(policy: FloatMathPolicy) -> bool {
 /// Try to simplify a unary operation.
 fn simplify_unary_operator(
     _destination: mir::Value,
-    operator: UnaryOperator,
+    operator: mir::UnaryOperator,
     argument: mir::Value,
     value_to_instruction: &HashMap<mir::Value, mir::Instruction>,
 ) -> Option<Simplification> {
     // look for double negation: !!x = x
-    if operator == UnaryOperator::Not
+    if operator == mir::UnaryOperator::Not
         && let Some(mir::Instruction::Unary {
-            operator: UnaryOperator::Not,
+            operator: mir::UnaryOperator::Not,
             argument: inner,
             ..
         }) = value_to_instruction.get(&argument)

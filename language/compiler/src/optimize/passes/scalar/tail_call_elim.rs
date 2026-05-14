@@ -2,7 +2,6 @@ use std::collections::{HashMap, HashSet};
 
 use crate::declare_mir_pass;
 use destack_mir as mir;
-use mir::{BinaryOperator, Constant, Instruction};
 
 use destack_core::StringPool;
 
@@ -101,7 +100,7 @@ struct AccumulatorPattern {
     /// The block containing the pattern.
     block_id: mir::LocalNodeId<mir::Block>,
     /// The binary operator used.
-    operator: BinaryOperator,
+    operator: mir::BinaryOperator,
     /// The "other" operand (not the call result).
     other_operand: mir::ValueReference,
     /// Index of the call instruction in the block.
@@ -234,8 +233,8 @@ fn try_accumulator_transform_exported(
     current_function_id: mir::LocalNodeId<mir::Function>,
     entry_block: mir::LocalNodeId<mir::Block>,
     patterns: &[AccumulatorPattern],
-    operator: BinaryOperator,
-    identity: &Constant,
+    operator: mir::BinaryOperator,
+    identity: &mir::Constant,
     strings: &StringPool,
 ) -> bool {
     let Some(return_type) = function.return_type.ty() else {
@@ -625,7 +624,7 @@ fn update_recursive_calls_to_impl(
 
     for &instr_id in &block.instructions {
         let instr = tree.get(instr_id).clone();
-        if let Instruction::Call {
+        if let mir::Instruction::Call {
             destination,
             function,
             call,
@@ -635,7 +634,7 @@ fn update_recursive_calls_to_impl(
         {
             let mut call = call;
             call.signature = signature.into();
-            let new_instr = Instruction::Call {
+            let new_instr = mir::Instruction::Call {
                 destination,
                 function: impl_function_id.into(),
                 call,
@@ -651,7 +650,7 @@ fn rewrite_as_wrapper(
     tree: &mut mir::Tree,
     entry_block: mir::LocalNodeId<mir::Block>,
     impl_function_id: mir::LocalNodeId<mir::Function>,
-    identity: &Constant,
+    identity: &mir::Constant,
 ) {
     // ensure new values get typed ids
     function.recompute_next_value_id(tree);
@@ -663,7 +662,7 @@ fn rewrite_as_wrapper(
 
     // create identity constant
     let identity_value = function.next_typed_value(return_type);
-    let const_instr = Instruction::Const {
+    let const_instr = mir::Instruction::Const {
         destination: identity_value.into(),
         value: identity.clone(),
     };
@@ -681,7 +680,7 @@ fn rewrite_as_wrapper(
     // create call to impl
     let result_value = function.next_typed_value(return_type);
     let signature = build_signature_type(impl_function_id, tree);
-    let call_instr = Instruction::Call {
+    let call_instr = mir::Instruction::Call {
         destination: Some(result_value.into()),
         function: impl_function_id.into(),
         call: mir::Call::new(call_arguments, signature.into()),
@@ -747,7 +746,7 @@ fn find_external_call_sites(
             // check all instructions for calls to target
             for (idx, &instr_id) in block.instructions.iter().enumerate() {
                 let instr = tree.get(instr_id);
-                if let Instruction::Call { function, .. } = instr
+                if let mir::Instruction::Call { function, .. } = instr
                     && function.function() == Some(target_function_id)
                 {
                     call_sites.push(CallSite {
@@ -768,12 +767,12 @@ fn find_external_call_sites(
 fn update_call_site(
     call_site: &CallSite,
     identity_value: mir::Value,
-    identity: &Constant,
+    identity: &mir::Constant,
     tree: &mut mir::Tree,
 ) {
     // get the existing call instruction
     let call_instr = tree.get(call_site.instruction_id).clone();
-    let Instruction::Call {
+    let mir::Instruction::Call {
         destination,
         function,
         call,
@@ -785,7 +784,7 @@ fn update_call_site(
 
     // create a value for the identity constant
     // create the const instruction
-    let const_instr = Instruction::Const {
+    let const_instr = mir::Instruction::Const {
         destination: identity_value.into(),
         value: identity.clone(),
     };
@@ -805,7 +804,7 @@ fn update_call_site(
     call.arguments = new_arguments;
     call.signature = build_signature_type(function, tree).into();
 
-    let new_call = Instruction::Call {
+    let new_call = mir::Instruction::Call {
         destination,
         function: function.into(),
         call,
@@ -833,23 +832,23 @@ fn update_call_site(
 }
 
 /// Check if an operator is associative (and commutative for safety).
-fn is_associative_operator(op: BinaryOperator) -> bool {
+fn is_associative_operator(op: mir::BinaryOperator) -> bool {
     matches!(
         op,
-        BinaryOperator::Add
-            | BinaryOperator::Multiply
-            | BinaryOperator::And
-            | BinaryOperator::Or
-            | BinaryOperator::Xor
+        mir::BinaryOperator::Add
+            | mir::BinaryOperator::Multiply
+            | mir::BinaryOperator::And
+            | mir::BinaryOperator::Or
+            | mir::BinaryOperator::Xor
     )
 }
 
 /// Get the identity constant for an operator and type.
 fn identity_constant_for_operator(
-    op: BinaryOperator,
+    op: mir::BinaryOperator,
     type_id: mir::LocalNodeId<mir::Type>,
     tree: &mir::Tree,
-) -> Option<Constant> {
+) -> Option<mir::Constant> {
     let ty = tree.get(type_id);
 
     // only handle integer types for now
@@ -862,9 +861,9 @@ fn identity_constant_for_operator(
     };
 
     let identity_value: i64 = match op {
-        BinaryOperator::Add | BinaryOperator::Or | BinaryOperator::Xor => 0,
-        BinaryOperator::Multiply => 1,
-        BinaryOperator::And => {
+        mir::BinaryOperator::Add | mir::BinaryOperator::Or | mir::BinaryOperator::Xor => 0,
+        mir::BinaryOperator::Multiply => 1,
+        mir::BinaryOperator::And => {
             // all ones: -1 for signed, max value for unsigned
             if *signed {
                 -1
@@ -881,7 +880,7 @@ fn identity_constant_for_operator(
         _ => return None,
     };
 
-    Some(Constant::Int {
+    Some(mir::Constant::Int {
         value: i128::from(identity_value),
         width: *width,
         is_signed: *signed,
@@ -935,7 +934,7 @@ fn detect_accumulator_pattern(
 
     for (idx, &instr_id) in block.instructions.iter().enumerate() {
         let instr = tree.get(instr_id);
-        if let Instruction::Binary {
+        if let mir::Instruction::Binary {
             destination,
             operator,
             left,
@@ -959,7 +958,7 @@ fn detect_accumulator_pattern(
         if let Some(destination) = instr.destination() {
             definition_indices.insert(destination, idx);
         }
-        if let Instruction::Call {
+        if let mir::Instruction::Call {
             destination: Some(destination),
             function: called_func,
             ..
@@ -973,7 +972,7 @@ fn detect_accumulator_pattern(
     // find the call instruction that produces one of the binary operands
     for (idx, &instr_id) in block.instructions.iter().enumerate() {
         let instr = tree.get(instr_id);
-        if let Instruction::Call {
+        if let mir::Instruction::Call {
             destination: Some(call_dest),
             function: called_func,
             call,
@@ -1047,7 +1046,7 @@ fn find_base_case_blocks(
     function: &mir::Function,
     tree: &mir::Tree,
     current_function_id: mir::LocalNodeId<mir::Function>,
-    identity: &Constant,
+    identity: &mir::Constant,
 ) -> Vec<(mir::LocalNodeId<mir::Block>, bool)> {
     let mut base_cases = Vec::new();
 
@@ -1063,7 +1062,7 @@ fn find_base_case_blocks(
         // check if block contains a recursive call
         let has_recursive_call = block.instructions.iter().any(|&instr_id| {
             let instr = tree.get(instr_id);
-            matches!(instr, Instruction::Call { function, .. } if function.function() == Some(current_function_id))
+            matches!(instr, mir::Instruction::Call { function, .. } if function.function() == Some(current_function_id))
         });
         if has_recursive_call {
             continue;
@@ -1089,7 +1088,7 @@ fn find_base_case_blocks(
 /// Searches all blocks in the function to find where the value is defined.
 fn is_value_identity(
     value: mir::Value,
-    identity: &Constant,
+    identity: &mir::Constant,
     function: &mir::Function,
     tree: &mir::Tree,
 ) -> bool {
@@ -1098,7 +1097,7 @@ fn is_value_identity(
         let block = tree.get(block_id);
         for &instr_id in &block.instructions {
             let instr = tree.get(instr_id);
-            if let Instruction::Const {
+            if let mir::Instruction::Const {
                 destination,
                 value: const_val,
             } = instr
@@ -1137,7 +1136,7 @@ fn transform_accumulator_block(
     let new_acc = function.next_typed_value(acc_type);
 
     // create new binary instruction: new_acc = OP acc, other
-    let new_binary = Instruction::Binary {
+    let new_binary = mir::Instruction::Binary {
         destination: new_acc.into(),
         operator: pattern.operator,
         left: acc_value.into(),
@@ -1188,7 +1187,7 @@ fn transform_accumulator_block(
 fn transform_base_case_block(
     block_id: mir::LocalNodeId<mir::Block>,
     acc_value: mir::Value,
-    operator: BinaryOperator,
+    operator: mir::BinaryOperator,
     is_identity: bool,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
@@ -1221,7 +1220,7 @@ fn transform_base_case_block(
         };
         let result_val = function.next_typed_value(acc_type);
 
-        let combine_instr = Instruction::Binary {
+        let combine_instr = mir::Instruction::Binary {
             destination: result_val.into(),
             operator,
             left: acc_value.into(),

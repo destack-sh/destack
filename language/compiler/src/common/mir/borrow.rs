@@ -1,5 +1,4 @@
 use destack_mir as mir;
-use destack_mir::function_signature_parts;
 
 /// Check whether a type contains any borrowed references.
 pub fn type_contains_borrowed_refs(ty: &mir::Type, tree: &mir::Tree) -> bool {
@@ -54,7 +53,7 @@ pub fn signature_return_contains_borrowed_refs(
 
     // default to borrowed for unknown signatures
     let signature_type = tree.get(signature_type);
-    let Some((_, result)) = function_signature_parts(signature_type) else {
+    let Some((_, result)) = mir::function_signature_parts(signature_type) else {
         return true;
     };
 
@@ -73,7 +72,7 @@ pub fn borrowed_parameter_indices_for_signature(
     let signature_type = signature_type.into().ty()?;
     let signature_type = tree.get(signature_type);
 
-    let Some((parameters, _)) = function_signature_parts(signature_type) else {
+    let Some((parameters, _)) = mir::function_signature_parts(signature_type) else {
         return None;
     };
 

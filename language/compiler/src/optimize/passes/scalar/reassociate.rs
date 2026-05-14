@@ -565,15 +565,23 @@ fn binary_operator_is_associative(
     operator: mir::BinaryOperator,
     float_math: FloatMathPolicy,
 ) -> bool {
-    use mir::BinaryOperator::*;
-
     // restrict to integer associative and commutative operators
-    if matches!(operator, Add | Multiply | And | Or | Xor) {
+    if matches!(
+        operator,
+        mir::BinaryOperator::Add
+            | mir::BinaryOperator::Multiply
+            | mir::BinaryOperator::And
+            | mir::BinaryOperator::Or
+            | mir::BinaryOperator::Xor
+    ) {
         return true;
     }
 
     // enable float reassociation with explicit policy
-    if matches!(operator, FloatAdd | FloatMultiply) {
+    if matches!(
+        operator,
+        mir::BinaryOperator::FloatAdd | mir::BinaryOperator::FloatMultiply
+    ) {
         return matches!(
             float_math,
             FloatMathPolicy::Reassociate | FloatMathPolicy::Fast

@@ -2,7 +2,6 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate::declare_mir_pass;
 use destack_mir as mir;
-use mir::{Instruction, Terminator};
 
 use crate::common::mir::analysis::{ControlFlowGraph, DominatorTree};
 use crate::common::mir::{
@@ -176,7 +175,7 @@ fn find_promotable_locals(
     for &block_id in &function.blocks {
         let block = tree.get(block_id);
         for &instruction_id in &block.instructions {
-            if let Instruction::LocalAddr { local, .. } = tree.get(instruction_id) {
+            if let mir::Instruction::LocalAddr { local, .. } = tree.get(instruction_id) {
                 let Some(local) = local.local() else {
                     continue;
                 };
@@ -214,7 +213,7 @@ fn find_definition_blocks(
         let block = tree.get(block_id);
         for &instruction_id in &block.instructions {
             let instruction = tree.get(instruction_id);
-            if let Instruction::LocalSet { local, .. } = instruction
+            if let mir::Instruction::LocalSet { local, .. } = instruction
                 && let Some(local) = local.local()
                 && promotable.contains_key(&local)
             {
@@ -307,7 +306,7 @@ fn compute_local_liveness(
         for &instruction_id in &block.instructions {
             let instruction = tree.get(instruction_id);
             match instruction {
-                Instruction::LocalGet { local, .. }
+                mir::Instruction::LocalGet { local, .. }
                     if local
                         .local()
                         .is_some_and(|local| promotable.contains_key(&local)) =>
@@ -318,7 +317,7 @@ fn compute_local_liveness(
                         uses.insert(local);
                     }
                 }
-                Instruction::LocalSet { local, .. }
+                mir::Instruction::LocalSet { local, .. }
                     if local
                         .local()
                         .is_some_and(|local| promotable.contains_key(&local)) =>
@@ -481,7 +480,7 @@ fn rename_variables(
         for instruction_id in instruction_ids {
             let instruction = tree.get(instruction_id);
             match instruction {
-                Instruction::LocalGet { destination, local } => {
+                mir::Instruction::LocalGet { destination, local } => {
                     let Some(destination) = destination.value() else {
                         continue;
                     };
@@ -502,7 +501,7 @@ fn rename_variables(
                         instructions_to_remove.insert(instruction_id);
                     }
                 }
-                Instruction::LocalSet { local, value } => {
+                mir::Instruction::LocalSet { local, value } => {
                     let Some(local) = local.local() else {
                         continue;
                     };
@@ -625,7 +624,7 @@ fn remap_value_reference(
 
 /// Update terminator to add block arguments for successors.
 fn update_terminator_arguments(
-    terminator: &Terminator,
+    terminator: &mir::Terminator,
     _block_id: mir::LocalNodeId<mir::Block>,
     block_params: &HashMap<
         (mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Local>),
@@ -633,12 +632,12 @@ fn update_terminator_arguments(
     >,
     value_stacks: &HashMap<mir::LocalNodeId<mir::Local>, Vec<mir::Value>>,
     substitutions: &HashMap<mir::Value, mir::Value>,
-) -> Terminator {
+) -> mir::Terminator {
     match terminator {
-        Terminator::Error => {
+        mir::Terminator::Error => {
             panic!("recovered MIR terminator reached optimizer");
         }
-        Terminator::Jump { target } => {
+        mir::Terminator::Jump { target } => {
             let new_args = extend_arguments(
                 target.block,
                 &target.arguments,
@@ -646,14 +645,14 @@ fn update_terminator_arguments(
                 value_stacks,
                 substitutions,
             );
-            Terminator::Jump {
+            mir::Terminator::Jump {
                 target: mir::BlockTarget {
                     block: target.block,
                     arguments: new_args,
                 },
             }
         }
-        Terminator::Branch {
+        mir::Terminator::Branch {
             condition,
             then_target,
             else_target,
@@ -672,7 +671,7 @@ fn update_terminator_arguments(
                 value_stacks,
                 substitutions,
             );
-            Terminator::Branch {
+            mir::Terminator::Branch {
                 condition: remap_value_reference(*condition, substitutions),
                 then_target: mir::BlockTarget {
                     block: then_target.block,
@@ -684,7 +683,7 @@ fn update_terminator_arguments(
                 },
             }
         }
-        Terminator::Check {
+        mir::Terminator::Check {
             constraint,
             success,
             failure,
@@ -771,7 +770,7 @@ fn update_terminator_arguments(
                     }
                 }
             };
-            Terminator::Check {
+            mir::Terminator::Check {
                 constraint,
                 success: mir::BlockTarget {
                     block: success.block,
@@ -783,7 +782,7 @@ fn update_terminator_arguments(
                 },
             }
         }
-        Terminator::Switch {
+        mir::Terminator::Switch {
             value,
             default,
             cases,
@@ -811,7 +810,7 @@ fn update_terminator_arguments(
                     },
                 })
                 .collect();
-            Terminator::Switch {
+            mir::Terminator::Switch {
                 value: remap_value_reference(*value, substitutions),
                 default: mir::BlockTarget {
                     block: default.block,
@@ -820,7 +819,7 @@ fn update_terminator_arguments(
                 cases: new_cases,
             }
         }
-        Terminator::Yield { value, resume } => {
+        mir::Terminator::Yield { value, resume } => {
             let new_resume_args = extend_arguments(
                 resume.block,
                 &resume.arguments,
@@ -828,7 +827,7 @@ fn update_terminator_arguments(
                 value_stacks,
                 substitutions,
             );
-            Terminator::Yield {
+            mir::Terminator::Yield {
                 value: remap_value_reference(*value, substitutions),
                 resume: mir::BlockTarget {
                     block: resume.block,
@@ -836,11 +835,11 @@ fn update_terminator_arguments(
                 },
             }
         }
-        Terminator::Call {
+        mir::Terminator::Call {
             function,
             call,
             target,
-        } => Terminator::Call {
+        } => mir::Terminator::Call {
             function: *function,
             call: mir::Call {
                 arguments: call
@@ -861,11 +860,11 @@ fn update_terminator_arguments(
                 ),
             },
         },
-        Terminator::CallIndirect {
+        mir::Terminator::CallIndirect {
             callee,
             call,
             target,
-        } => Terminator::CallIndirect {
+        } => mir::Terminator::CallIndirect {
             callee: remap_value_reference(*callee, substitutions),
             call: mir::Call {
                 arguments: call
@@ -886,14 +885,14 @@ fn update_terminator_arguments(
                 ),
             },
         },
-        Terminator::CallClass {
+        mir::Terminator::CallClass {
             receiver,
             call,
             declaring_type,
             slot,
             declared_target,
             target,
-        } => Terminator::CallClass {
+        } => mir::Terminator::CallClass {
             receiver: remap_value_reference(*receiver, substitutions),
             call: mir::Call {
                 arguments: call
@@ -917,13 +916,13 @@ fn update_terminator_arguments(
                 ),
             },
         },
-        Terminator::CallInterface {
+        mir::Terminator::CallInterface {
             receiver,
             call,
             declaring_type,
             slot,
             target,
-        } => Terminator::CallInterface {
+        } => mir::Terminator::CallInterface {
             receiver: remap_value_reference(*receiver, substitutions),
             call: mir::Call {
                 arguments: call
@@ -946,15 +945,15 @@ fn update_terminator_arguments(
                 ),
             },
         },
-        Terminator::Return { value } => Terminator::Return {
+        mir::Terminator::Return { value } => mir::Terminator::Return {
             value: value.map(|value| remap_value_reference(value, substitutions)),
         },
-        Terminator::Trap { kind, payload } => Terminator::Trap {
+        mir::Terminator::Trap { kind, payload } => mir::Terminator::Trap {
             kind: *kind,
             payload: payload.map(|value| remap_value_reference(value, substitutions)),
         },
-        Terminator::Unreachable => Terminator::Unreachable,
-        Terminator::TailCall { function, call } => Terminator::TailCall {
+        mir::Terminator::Unreachable => mir::Terminator::Unreachable,
+        mir::Terminator::TailCall { function, call } => mir::Terminator::TailCall {
             function: *function,
             call: mir::Call {
                 arguments: call
@@ -965,13 +964,13 @@ fn update_terminator_arguments(
                 ..call.clone()
             },
         },
-        Terminator::TailCallClass {
+        mir::Terminator::TailCallClass {
             receiver,
             call,
             declaring_type,
             slot,
             declared_target,
-        } => Terminator::TailCallClass {
+        } => mir::Terminator::TailCallClass {
             receiver: remap_value_reference(*receiver, substitutions),
             call: mir::Call {
                 arguments: call
@@ -985,12 +984,12 @@ fn update_terminator_arguments(
             slot: *slot,
             declared_target: *declared_target,
         },
-        Terminator::TailCallInterface {
+        mir::Terminator::TailCallInterface {
             receiver,
             call,
             declaring_type,
             slot,
-        } => Terminator::TailCallInterface {
+        } => mir::Terminator::TailCallInterface {
             receiver: remap_value_reference(*receiver, substitutions),
             call: mir::Call {
                 arguments: call
@@ -1003,7 +1002,7 @@ fn update_terminator_arguments(
             declaring_type: *declaring_type,
             slot: *slot,
         },
-        Terminator::TailCallIndirect { callee, call } => Terminator::TailCallIndirect {
+        mir::Terminator::TailCallIndirect { callee, call } => mir::Terminator::TailCallIndirect {
             callee: remap_value_reference(*callee, substitutions),
             call: mir::Call {
                 arguments: call
