@@ -641,6 +641,7 @@ pub fn expression_key_from_instruction(
         | mir::Instruction::TensorPad { .. }
         | mir::Instruction::TensorConcat { .. }
         | mir::Instruction::TensorReduce { .. }
+        | mir::Instruction::TensorIndexReduce { .. }
         | mir::Instruction::TensorDot { .. }
         | mir::Instruction::TensorConvolution { .. }
         | mir::Instruction::TensorGather { .. }
