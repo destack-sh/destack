@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{CodeOffset, EntryFn};
+use crate::{CodeOffset, NativeEntry};
 
 /// One native entry id.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -24,12 +24,12 @@ pub struct Entry {
     /// The entry id.
     pub id: EntryId,
     /// The loaded entry function pointer.
-    pub function: EntryFn,
+    pub function: NativeEntry,
 }
 
 impl Entry {
-    /// Load one entry symbol.
-    pub fn load(symbol: EntrySymbol, function: EntryFn) -> Self {
+    /// Create one loaded entry.
+    pub fn new(symbol: EntrySymbol, function: NativeEntry) -> Self {
         Self {
             id: symbol.id,
             function,

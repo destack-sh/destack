@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_engine::{Metadata, StaticSpace};
+use destack_engine::{ProgramLayout, StaticSpace};
 
 use crate::{CodeMapping, Entry, EntryId, EntrySymbol, Object};
 
@@ -40,9 +40,9 @@ impl Program {
         &self.object.static_space
     }
 
-    /// Borrow the program metadata.
-    pub fn metadata(&self) -> &Metadata {
-        &self.object.metadata
+    /// Borrow the program layout.
+    pub fn layout(&self) -> &ProgramLayout {
+        &self.object.layout
     }
 
     /// Return one entry by id.
@@ -57,9 +57,9 @@ impl Program {
 
     /// Return one entry by runtime name.
     pub fn entry_by_name(&self, name: &str) -> Option<&Entry> {
-        let image = self.object.entry_by_name(name)?;
+        let entry = self.object.entry_by_name(name)?;
 
-        self.entry(image.id)
+        self.entry(entry.id)
     }
 
     /// Return all entries in entry id order.

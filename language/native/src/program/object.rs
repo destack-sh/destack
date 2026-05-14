@@ -1,6 +1,9 @@
 use std::collections::HashMap;
+use std::collections::hash_map::Entry as HashEntry;
+use std::error::Error;
+use std::fmt;
 
-use destack_engine::{Metadata, StaticSpace};
+use destack_engine::{ProgramLayout, StaticSpace};
 use serde::{Deserialize, Serialize};
 
 use crate::{EntryId, EntrySymbol, Text};
@@ -12,8 +15,8 @@ pub struct Object {
     pub text: Text,
     /// The program static memory.
     pub static_space: StaticSpace,
-    /// The program execution metadata.
-    pub metadata: Metadata,
+    /// Runtime layout tables for this program.
+    pub layout: ProgramLayout,
     /// The entries by id.
     entries: Vec<EntrySymbol>,
     /// Entry id by runtime entry name.
@@ -25,21 +28,40 @@ impl Object {
     pub fn new(
         text: Text,
         static_space: StaticSpace,
-        metadata: Metadata,
+        layout: ProgramLayout,
         entries: Vec<EntrySymbol>,
-    ) -> Self {
-        let entry_by_name = entries
-            .iter()
-            .map(|entry| (entry.name.clone(), entry.id))
-            .collect();
+    ) -> Result<Self, ObjectError> {
+        let mut entry_by_name = HashMap::new();
+        for (index, entry) in entries.iter().enumerate() {
+            // entries are indexed directly by id
+            let expected = EntryId(index as u32);
+            if entry.id != expected {
+                return Err(ObjectError::EntryIdMismatch {
+                    expected,
+                    actual: entry.id,
+                });
+            }
 
-        Self {
+            // runtime names must resolve to one entry
+            match entry_by_name.entry(entry.name.clone()) {
+                HashEntry::Occupied(_) => {
+                    return Err(ObjectError::DuplicateEntryName {
+                        name: entry.name.clone(),
+                    });
+                }
+                HashEntry::Vacant(slot) => {
+                    slot.insert(entry.id);
+                }
+            }
+        }
+
+        Ok(Self {
             text,
             static_space,
-            metadata,
+            layout,
             entries,
             entry_by_name,
-        }
+        })
     }
 
     /// Return one entry by id.
@@ -59,3 +81,36 @@ impl Object {
         &self.entries
     }
 }
+
+/// Native object construction error.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ObjectError {
+    /// An entry id does not match its dense index.
+    EntryIdMismatch {
+        /// The expected entry id.
+        expected: EntryId,
+        /// The actual entry id.
+        actual: EntryId,
+    },
+    /// Two entries use the same runtime name.
+    DuplicateEntryName {
+        /// The duplicated entry name.
+        name: String,
+    },
+}
+
+impl fmt::Display for ObjectError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::EntryIdMismatch { expected, actual } => write!(
+                formatter,
+                "native entry id {actual:?} does not match dense index {expected:?}"
+            ),
+            Self::DuplicateEntryName { name } => {
+                write!(formatter, "duplicate native entry name {name}")
+            }
+        }
+    }
+}
+
+impl Error for ObjectError {}

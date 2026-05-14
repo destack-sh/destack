@@ -1,8 +1,8 @@
 use {destack_engine as engine, destack_heap as heap, destack_native as native, destack_vm as vm};
 
-use super::{Context, Continuation, ContinuationImage, Entry, Image, Outcome};
+use super::{CallContext, Continuation, ContinuationImage, Entry, Image, MemoryContext, Outcome};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::runtime::heap::RootSink;
+use crate::host::binding::BindingEngine;
 
 /// Execution backend owned by one worker.
 pub enum Engine {
@@ -14,7 +14,7 @@ pub enum Engine {
 
 impl Engine {
     /// Initialize worker-owned static bytes.
-    pub fn initialize(&mut self, context: Context<'_>) -> RuntimeResult<()> {
+    pub fn initialize(&mut self, context: MemoryContext<'_>) -> RuntimeResult<()> {
         match self {
             Self::Vm(engine) => {
                 engine::Engine::initialize(engine, context).map_err(Box::<RuntimeError>::from)
@@ -25,10 +25,18 @@ impl Engine {
         }
     }
 
+    /// Return the binding engine represented by this backend.
+    pub const fn binding_engine(&self) -> BindingEngine {
+        match self {
+            Self::Vm(_) => BindingEngine::Vm,
+            Self::Native(_) => BindingEngine::Native,
+        }
+    }
+
     /// Run one entrypoint.
     pub fn run(
         &mut self,
-        context: Context<'_>,
+        context: CallContext<'_>,
         entry: &Entry,
         args: &[engine::Value],
     ) -> RuntimeResult<Outcome<Continuation>> {
@@ -57,7 +65,7 @@ impl Engine {
     /// Resume one continuation.
     pub fn resume(
         &mut self,
-        context: Context<'_>,
+        context: CallContext<'_>,
         continuation: Continuation,
         value: engine::Value,
     ) -> RuntimeResult<Outcome<Continuation>> {
@@ -83,63 +91,21 @@ impl Engine {
         }
     }
 
-    /// Visit roots from active backend state.
-    pub fn visit_roots(
-        &mut self,
-        worker_static: &engine::StaticSpace,
-        roots: &mut RootSink<'_>,
-    ) -> RuntimeResult<()> {
-        match self {
-            Self::Vm(engine) => {
-                let mut roots = VmRootSink { roots };
-
-                engine
-                    .visit_state_roots(worker_static, &[], &mut roots)
-                    .map_err(Box::<RuntimeError>::from)
-            }
-            Self::Native(_) => Ok(()),
-        }
-    }
-
-    /// Visit mutable local root slots from active backend state.
+    /// Visit mutable heap root slots from active backend state.
     pub fn visit_root_slots(
         &mut self,
         worker_static: &mut engine::StaticSpace,
         visit: &mut dyn FnMut(heap::RootSlot<'_>) -> heap::HeapResult<()>,
     ) -> RuntimeResult<()> {
         match self {
-            Self::Vm(engine) => {
-                vm::Isolate::visit_root_slots(engine, worker_static, &mut [], visit)
-                    .map_err(Box::<RuntimeError>::from)
-            }
-            Self::Native(_) => Ok(()),
+            Self::Vm(engine) => engine::Engine::visit_root_slots(engine, worker_static, visit)
+                .map_err(Box::<RuntimeError>::from),
+            Self::Native(engine) => engine::Engine::visit_root_slots(engine, worker_static, visit)
+                .map_err(native_runtime_error),
         }
     }
 
-    /// Visit roots from one live continuation.
-    pub fn visit_continuation_roots(
-        &mut self,
-        continuation: &Continuation,
-        roots: &mut RootSink<'_>,
-    ) -> RuntimeResult<()> {
-        match (self, continuation) {
-            (Self::Vm(engine), Continuation::Vm(continuation)) => {
-                let mut roots = VmRootSink { roots };
-
-                vm::Isolate::visit_continuation_roots(engine, continuation, &mut roots)
-                    .map_err(Box::<RuntimeError>::from)
-            }
-            (Self::Native(_), Continuation::Native(_)) => Ok(()),
-            (Self::Vm(_), Continuation::Native(_)) => {
-                Err(engine_continuation_mismatch("vm", "native"))
-            }
-            (Self::Native(_), Continuation::Vm(_)) => {
-                Err(engine_continuation_mismatch("native", "vm"))
-            }
-        }
-    }
-
-    /// Visit mutable local root slots from one live continuation.
+    /// Visit mutable heap root slots from one live continuation.
     pub fn visit_continuation_root_slots(
         &mut self,
         continuation: &mut Continuation,
@@ -147,41 +113,20 @@ impl Engine {
     ) -> RuntimeResult<()> {
         match (self, continuation) {
             (Self::Vm(engine), Continuation::Vm(continuation)) => {
-                vm::Isolate::visit_continuation_root_slots(engine, continuation, visit)
+                engine::Engine::visit_continuation_root_slots(engine, continuation, visit)
                     .map_err(Box::<RuntimeError>::from)
             }
-            (Self::Native(_), Continuation::Native(_)) => Ok(()),
+            (Self::Native(engine), Continuation::Native(continuation)) => {
+                engine::Engine::visit_continuation_root_slots(engine, continuation, visit)
+                    .map_err(native_runtime_error)
+            }
             (Self::Vm(_), Continuation::Native(_)) | (Self::Native(_), Continuation::Vm(_)) => {
                 Ok(())
             }
         }
     }
 
-    /// Visit roots from one captured continuation image.
-    pub fn visit_continuation_image_roots(
-        &mut self,
-        continuation: &ContinuationImage,
-        roots: &mut RootSink<'_>,
-    ) -> RuntimeResult<()> {
-        match (self, continuation) {
-            (Self::Vm(engine), ContinuationImage::Vm(continuation)) => {
-                let mut roots = VmRootSink { roots };
-
-                engine
-                    .visit_image_roots(continuation, &mut roots)
-                    .map_err(Box::<RuntimeError>::from)
-            }
-            (Self::Native(_), ContinuationImage::Native(_)) => Ok(()),
-            (Self::Vm(_), ContinuationImage::Native(_)) => {
-                Err(engine_continuation_mismatch("vm", "native"))
-            }
-            (Self::Native(_), ContinuationImage::Vm(_)) => {
-                Err(engine_continuation_mismatch("native", "vm"))
-            }
-        }
-    }
-
-    /// Visit mutable local root slots from one captured continuation image.
+    /// Visit mutable heap root slots from one captured continuation image.
     pub fn visit_continuation_image_root_slots(
         &mut self,
         continuation: &mut ContinuationImage,
@@ -199,7 +144,7 @@ impl Engine {
     }
 
     /// Fork this engine over already-forked memory.
-    pub fn fork(&self, context: Context<'_>) -> RuntimeResult<Self> {
+    pub fn fork(&self, context: MemoryContext<'_>) -> RuntimeResult<Self> {
         match self {
             Self::Vm(engine) => {
                 let engine =
@@ -216,7 +161,7 @@ impl Engine {
     }
 
     /// Capture one immutable engine image.
-    pub fn image(&self, context: Context<'_>) -> RuntimeResult<Image> {
+    pub fn image(&self, context: MemoryContext<'_>) -> RuntimeResult<Image> {
         match self {
             Self::Vm(engine) => {
                 let image =
@@ -233,7 +178,7 @@ impl Engine {
     }
 
     /// Restore one immutable engine image.
-    pub fn restore(&mut self, context: Context<'_>, image: &Image) -> RuntimeResult<()> {
+    pub fn restore(&mut self, context: MemoryContext<'_>, image: &Image) -> RuntimeResult<()> {
         match (self, image) {
             (Self::Vm(engine), Image::Vm(image)) => {
                 engine::Engine::restore(engine, context, image).map_err(Box::<RuntimeError>::from)
@@ -331,22 +276,6 @@ impl From<native::Engine> for Engine {
     }
 }
 
-/// VM root visitor bridged into runtime root collection.
-struct VmRootSink<'a, 'b> {
-    /// The runtime root visitor.
-    roots: &'a mut RootSink<'b>,
-}
-
-impl vm::RootSink for VmRootSink<'_, '_> {
-    fn push_heap(&mut self, reference: heap::HeapReference) {
-        self.roots.push_heap(reference);
-    }
-
-    fn push_shared_heap(&mut self, reference: heap::SharedHeapReference) {
-        self.roots.push_shared_heap(reference);
-    }
-}
-
 /// Convert one VM execution outcome into one runtime outcome.
 fn outcome_from_vm(outcome: vm::Outcome) -> Outcome<Continuation> {
     match outcome {
@@ -398,8 +327,50 @@ fn engine_image_mismatch(engine: &str, image: &str) -> Box<RuntimeError> {
 /// Convert one native backend error into one runtime error.
 fn native_runtime_error(error: native::Error) -> Box<RuntimeError> {
     match error {
-        native::Error::Unsupported { operation } => RuntimeError::EngineUnsupported {
-            engine: format!("native {operation}"),
+        native::Error::YieldedWithoutContinuation { .. } => RuntimeError::EngineYieldMissing {
+            engine: "native".to_string(),
+        }
+        .boxed(),
+        native::Error::Trapped { .. } => RuntimeError::EngineTrap {
+            engine: "native".to_string(),
+        }
+        .boxed(),
+        native::Error::DeoptimizedWithoutMaterialization { .. } => {
+            RuntimeError::EngineDeoptMissing {
+                engine: "native".to_string(),
+            }
+            .boxed()
+        }
+        native::Error::Panicked { .. } => RuntimeError::EnginePanic {
+            engine: "native".to_string(),
+        }
+        .boxed(),
+        native::Error::InvalidStatus(error) => RuntimeError::EngineUnsupported {
+            engine: format!("native status {error}"),
+        }
+        .boxed(),
+        native::Error::InvalidTrap(error) => RuntimeError::EngineUnsupported {
+            engine: format!("native trap {error}"),
+        }
+        .boxed(),
+        native::Error::Value(error) => RuntimeError::EngineUnsupported {
+            engine: format!("native value {error}"),
+        }
+        .boxed(),
+        native::Error::ContinuationUnavailable => RuntimeError::EngineUnsupported {
+            engine: "native continuation".to_string(),
+        }
+        .boxed(),
+        native::Error::ImageEngineMismatch {
+            engine_id,
+            image_engine_id,
+        } => RuntimeError::EngineImageMismatch {
+            engine: format!("native {}", engine_id.get()),
+            image: format!("native {}", image_engine_id.get()),
+        }
+        .boxed(),
+        native::Error::RootMapUnavailable => RuntimeError::EngineUnsupported {
+            engine: "native root map".to_string(),
         }
         .boxed(),
         native::Error::EntryNotFound { name } => RuntimeError::EngineEntryMismatch {

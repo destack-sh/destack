@@ -1,29 +1,60 @@
+use std::error::Error;
+use std::fmt;
+
 use serde::{Deserialize, Serialize};
 
-/// Status returned by native entry functions.
+/// Native entry exit status code.
+pub type NativeStatusCode = u32;
+
+/// Native entry exit status.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[repr(u32)]
-pub enum Status {
+pub enum NativeStatus {
     /// Execution completed normally.
     Completed = 0,
     /// Execution yielded a continuation.
     Yielded = 1,
     /// Execution trapped.
     Trapped = 2,
+    /// Execution deoptimized into VM materialization.
+    Deoptimized = 3,
+    /// Execution stopped with a language panic.
+    Panicked = 4,
 }
 
-/// Runtime trap code reported by generated native code.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[repr(u32)]
-pub enum Trap {
-    /// Integer arithmetic overflowed.
-    IntegerOverflow = 1,
-    /// A checked cast failed.
-    InvalidCast = 2,
-    /// A bounds check failed.
-    Bounds = 3,
-    /// A null reference was used.
-    NullReference = 4,
-    /// An unreachable block executed.
-    Unreachable = 5,
+impl NativeStatus {
+    /// Return the native ABI status code.
+    pub const fn code(self) -> NativeStatusCode {
+        self as NativeStatusCode
+    }
+}
+
+/// Native status code conversion error.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NativeStatusError {
+    /// The invalid status code.
+    pub code: NativeStatusCode,
+}
+
+impl fmt::Display for NativeStatusError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "invalid native status code {}", self.code)
+    }
+}
+
+impl Error for NativeStatusError {}
+
+impl TryFrom<NativeStatusCode> for NativeStatus {
+    type Error = NativeStatusError;
+
+    fn try_from(code: NativeStatusCode) -> Result<Self, Self::Error> {
+        match code {
+            0 => Ok(Self::Completed),
+            1 => Ok(Self::Yielded),
+            2 => Ok(Self::Trapped),
+            3 => Ok(Self::Deoptimized),
+            4 => Ok(Self::Panicked),
+            code => Err(NativeStatusError { code }),
+        }
+    }
 }
