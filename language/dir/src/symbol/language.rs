@@ -118,9 +118,6 @@ define_language_items! {
         map {
             /// Map class.
             Map => (Class, "collections/map", "Map"),
-
-            /// Record alias.
-            Record => (Type, "collections/map", "Record"),
         }
 
         /// `destack:collections/set`.
@@ -133,6 +130,15 @@ define_language_items! {
         slice {
             /// Slice type.
             Slice => (Newtype, "collections/slice", "Slice"),
+        }
+    }
+
+    /// Type helpers.
+    types {
+        /// `destack:types/object`.
+        object {
+            /// Record alias.
+            Record => (Type, "types/object", "Record"),
         }
     }
 
