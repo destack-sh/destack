@@ -5,7 +5,7 @@ import { Index, IndexSet } from "destack:ops";
 import { Bound, RangeBounds } from "destack:range";
 
 /// Well-known library type for the builtin slice form `[T]`.
-@languageItem("Slice")
+@languageItem("collections.Slice")
 export newtype Slice<T> = [T];
 
 extension<T> of Slice<T> implements

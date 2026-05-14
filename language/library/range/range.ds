@@ -5,7 +5,7 @@ import { Bound, RangeBounds } from "./bound.ds";
 import { Step } from "./step.ds";
 
 /// Half-open range `start..end`.
-@languageItem("Range")
+@languageItem("range.Range")
 export struct Range<T> {
     /// The included start value.
     start: T;
@@ -34,7 +34,7 @@ extension<T> of Range<T> implements RangeBounds<T> {
 }
 
 /// Inclusive range `start..=end`.
-@languageItem("RangeInclusive")
+@languageItem("range.RangeInclusive")
 export struct RangeInclusive<T> {
     /// The included start value.
     start: T;
@@ -63,7 +63,7 @@ extension<T> of RangeInclusive<T> implements RangeBounds<T> {
 }
 
 /// Range from `start..`.
-@languageItem("RangeFrom")
+@languageItem("range.RangeFrom")
 export struct RangeFrom<T> {
     /// The included start value.
     start: T;
@@ -89,7 +89,7 @@ extension<T> of RangeFrom<T> implements RangeBounds<T> {
 }
 
 /// Range to `..end`.
-@languageItem("RangeTo")
+@languageItem("range.RangeTo")
 export struct RangeTo<T> {
     /// The excluded end value.
     end: T;
@@ -108,7 +108,7 @@ extension<T> of RangeTo<T> implements RangeBounds<T> {
 }
 
 /// Inclusive range to `..=end`.
-@languageItem("RangeToInclusive")
+@languageItem("range.RangeToInclusive")
 export struct RangeToInclusive<T> {
     /// The included end value.
     end: T;
@@ -127,7 +127,7 @@ extension<T> of RangeToInclusive<T> implements RangeBounds<T> {
 }
 
 /// Full range `..`.
-@languageItem("RangeFull")
+@languageItem("range.RangeFull")
 export struct RangeFull {}
 
 extension<T> of RangeFull implements RangeBounds<T> {

@@ -1,5 +1,5 @@
 /// Stop execution with a panic diagnostic.
-@languageItem("Panic")
+@languageItem("error.panic")
 @intrinsic("error.panic")
 export declare function panic(message: string): never;
 
@@ -8,16 +8,16 @@ export declare function panic(message: string): never;
 export declare function trap(message?: string): never;
 
 /// Stop execution immediately without cleanup.
-@languageItem("Abort")
+@languageItem("error.abort")
 @intrinsic("error.abort")
 export declare function abort(message?: string): never;
 
 /// Stop execution because code is intentionally unfinished.
-@languageItem("Todo")
+@languageItem("error.todo")
 @intrinsic("error.todo")
 export declare function todo(message?: string): never;
 
 /// Mark code as unreachable.
-@languageItem("Unreachable")
+@languageItem("error.unreachable")
 @intrinsic("error.unreachable")
 export declare function unreachable(): never;

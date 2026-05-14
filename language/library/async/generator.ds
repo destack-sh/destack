@@ -49,7 +49,7 @@ export class Generator<
 }
 
 /// Protocol for asynchronously producing values.
-@languageItem("AsyncIterator")
+@languageItem("async.AsyncIterator")
 export interface AsyncIterator<T, TReturn = unknown, TNext = unknown> {
     /// Advance the iterator and return the next result.
     next(...value: [] | [TNext]): Promise<IteratorResult<T, TReturn>>;
@@ -62,7 +62,7 @@ export interface AsyncIterator<T, TReturn = unknown, TNext = unknown> {
 }
 
 /// Value that can produce an async iterator.
-@languageItem("AsyncIterable")
+@languageItem("async.AsyncIterable")
 export interface AsyncIterable<T, TReturn = unknown, TNext = unknown> {
     /// Return an async iterator for this value.
     asyncIterator(): AsyncIterator<T, TReturn, TNext>;

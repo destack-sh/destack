@@ -1,7 +1,7 @@
 import { Any } from "destack:memory";
 
 /// Recoverable failure protocol.
-@languageItem("Error")
+@languageItem("error.Error")
 export newtype interface Error {
     /// Format this error for users.
     display(): string;

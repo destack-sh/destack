@@ -4,7 +4,7 @@
 /// @allow(E001)
 /// function oldAPI() { }
 /// ```
-@languageItem("Allow")
+@languageItem("decorator.allow")
 export newtype allow = (string,) | ();
 
 /// Warn on some diagnostic.
@@ -13,7 +13,7 @@ export newtype allow = (string,) | ();
 /// @warn(E001)
 /// function oldAPI() { }
 /// ```
-@languageItem("Warn")
+@languageItem("decorator.warn")
 export newtype warn = (string,) | ();
 
 /// Deny some diagnostic with an error.
@@ -22,7 +22,7 @@ export newtype warn = (string,) | ();
 /// @deny(E001)
 /// function oldAPI() { }
 /// ```
-@languageItem("Deny")
+@languageItem("decorator.deny")
 export newtype deny = (string,) | ();
 
 /// Forbid some diagnostic.
@@ -31,7 +31,7 @@ export newtype deny = (string,) | ();
 /// @forbid(E001)
 /// function oldAPI() { }
 /// ```
-@languageItem("Forbid")
+@languageItem("decorator.forbid")
 export newtype forbid = (string,) | ();
 
 /// Expect some diagnostic.
@@ -40,5 +40,5 @@ export newtype forbid = (string,) | ();
 /// @expect(E001)
 /// function oldAPI() { }
 /// ```
-@languageItem("Expect")
+@languageItem("decorator.expect")
 export newtype expect = (string,) | ();

@@ -1,5 +1,5 @@
 /// One endpoint of a range.
-@languageItem("Bound")
+@languageItem("range.Bound")
 @derive(Tagged)
 export newtype Bound<T> =
     | { kind: "included"; value: T }
@@ -7,7 +7,7 @@ export newtype Bound<T> =
     | { kind: "unbounded" };
 
 /// Common protocol for range bounds.
-@languageItem("RangeBounds")
+@languageItem("range.RangeBounds")
 export newtype interface RangeBounds<T> {
     /// Return the start bound.
     startBound(): Bound<T>;

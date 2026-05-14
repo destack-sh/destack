@@ -3,7 +3,7 @@ import { Dereference } from "destack:ops";
 import { Unpin } from "./capability.ds";
 
 /// Address-stable storage wrapper.
-@languageItem("Pin")
+@languageItem("memory.Pin")
 export newtype Pin<T> = intrinsic;
 
 export extension<T> of Pin<T> implements Dereference<"readonly"> {

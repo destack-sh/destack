@@ -1,7 +1,7 @@
 import { Zeroable } from "./capability.ds";
 
 /// Storage for `T` whose lifetime may not have started.
-@languageItem("MaybeUninit")
+@languageItem("memory.MaybeUninit")
 export newtype MaybeUninit<T> = intrinsic;
 
 export extension<T> of MaybeUninit<T> {

@@ -4,21 +4,21 @@ import { FromFailure, Try, TryBranch, TryContinue, TryFailure } from "destack:op
 import { panic } from "./panic.ds";
 
 /// Successful result variant.
-@languageItem("Ok")
+@languageItem("error.Ok")
 export struct Ok<T> {
     kind: "Ok" = "Ok";
     value: T;
 }
 
 /// Failed result variant.
-@languageItem("Err")
+@languageItem("error.Err")
 export struct Err<E> {
     kind: "Err" = "Err";
     error: E;
 }
 
 /// Recoverable success or failure.
-@languageItem("Result")
+@languageItem("error.Result")
 export newtype Result<T, E> = Ok<T> | Err<E>;
 
 extension<T, E> of Result<T, E> {
@@ -186,7 +186,7 @@ extension<T: Equal<T>, E: Equal<E>> of Result<T, E> implements Equal<Result<T, E
 }
 
 /// Async recoverable success or failure.
-@languageItem("AsyncResult")
+@languageItem("error.AsyncResult")
 export newtype AsyncResult<T, E> = Promise<Result<T, E>>;
 
 extension<T, E> of AsyncResult<T, E> {

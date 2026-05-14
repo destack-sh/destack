@@ -2,7 +2,7 @@ import { Add, Divide, Equal, Multiply, Negate, Subtract } from "destack:ops";
 import { atan2, cos, sin, sqrt } from "./float.ds";
 
 /// Complex number with floating-point components.
-@languageItem("Complex")
+@languageItem("math.Complex")
 export struct Complex<T: float> {
     /// The real component.
     real: T;

@@ -26,7 +26,7 @@ export type TaggedNames = {
 ///     | { kind: "rectangle"; width: int32; height: int32 }
 ///     | { kind: "circle"; radius: int32 };
 /// ```
-@languageItem("Tagged")
+@languageItem("decorator.Tagged")
 export newtype Tagged = () | {
     case?: TaggedCase;
     names?: TaggedNames;
@@ -47,7 +47,7 @@ export extension<Target> of Tagged implements Macro<Target> {
 }
 
 /// Derive `Clone` implementations.
-@languageItem("CloneDerive")
+@languageItem("decorator.Clone")
 export newtype Clone = ();
 
 /// Implement `Clone` as a macro provider.
@@ -65,7 +65,7 @@ export extension<Target> of Clone implements Macro<Target> {
 }
 
 /// Derive `Debug` implementations.
-@languageItem("DebugDerive")
+@languageItem("decorator.Debug")
 export newtype Debug = ();
 
 /// Implement `Debug` as a macro provider.
