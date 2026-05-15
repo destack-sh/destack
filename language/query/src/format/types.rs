@@ -741,7 +741,6 @@ fn format_source_type_literal(lit: &dir::TypeLiteral, _strings: &StringPool) -> 
     match lit {
         dir::TypeLiteral::Never => "never".to_string(),
         dir::TypeLiteral::Any => "any".to_string(),
-        dir::TypeLiteral::Infer => "_".to_string(),
         dir::TypeLiteral::Undefined => "undefined".to_string(),
         dir::TypeLiteral::Unknown => "unknown".to_string(),
         dir::TypeLiteral::Object => "object".to_string(),
