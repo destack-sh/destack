@@ -249,7 +249,6 @@ impl Parser {
                 | Keyword::Interface
                 | Keyword::Let
                 | Keyword::Match
-                | Keyword::Namespace
                 | Keyword::Return
                 | Keyword::Switch
                 | Keyword::Throw

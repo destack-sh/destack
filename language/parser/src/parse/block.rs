@@ -152,7 +152,9 @@ impl Parser {
             return true;
         }
 
-        is_label_expression || (is_in_statement_position && is_label_block)
+        is_label_expression
+            || self.flags.is_in_module_directive()
+            || (is_in_statement_position && is_label_block)
     }
 
     /// Eat one labeled expression shell after the caller accepted `identifier:`.
@@ -242,7 +244,6 @@ impl Parser {
                 Keyword::Struct
                     | Keyword::Enum
                     | Keyword::Interface
-                    | Keyword::Namespace
                     | Keyword::Extension
                     | Keyword::Type
                     | Keyword::Using
