@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::runtime::{RuntimeIdentitySelector, RuntimeIdentitySelectorJson};
+use super::{ConditionSelector, ConditionSelectorJson};
 
 /// Policy domain where one action is exercised.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
@@ -60,12 +61,32 @@ pub struct PolicySubject {
     pub runtime: Option<RuntimeIdentitySelector>,
     /// Worker identity selector.
     pub worker: Option<RuntimeIdentitySelector>,
+    /// Active mode selector.
+    pub mode: Option<ConditionSelector>,
+    /// Active role selector.
+    pub role: Option<ConditionSelector>,
+    /// Active feature selector.
+    pub feature: Option<ConditionSelector>,
+    /// Active tag selector.
+    pub tag: Option<ConditionSelector>,
+    /// Active target selector.
+    pub target: Option<ConditionSelector>,
+    /// Active product selector.
+    pub product: Option<ConditionSelector>,
 }
 
 impl PolicySubject {
     /// Return whether this selector matches no subject dimension.
     pub fn is_empty(&self) -> bool {
-        package_selector_is_empty(&self.package) && self.runtime.is_none() && self.worker.is_none()
+        package_selector_is_empty(&self.package)
+            && self.runtime.is_none()
+            && self.worker.is_none()
+            && condition_selector_is_empty(&self.mode)
+            && condition_selector_is_empty(&self.role)
+            && condition_selector_is_empty(&self.feature)
+            && condition_selector_is_empty(&self.tag)
+            && condition_selector_is_empty(&self.target)
+            && condition_selector_is_empty(&self.product)
     }
 }
 
@@ -197,6 +218,18 @@ pub struct PolicySubjectJson {
     pub runtime: Option<RuntimeIdentitySelectorJson>,
     /// Worker identity selector.
     pub worker: Option<RuntimeIdentitySelectorJson>,
+    /// Active mode selector.
+    pub mode: Option<ConditionSelectorJson>,
+    /// Active role selector.
+    pub role: Option<ConditionSelectorJson>,
+    /// Active feature selector.
+    pub feature: Option<ConditionSelectorJson>,
+    /// Active tag selector.
+    pub tag: Option<ConditionSelectorJson>,
+    /// Active target selector.
+    pub target: Option<ConditionSelectorJson>,
+    /// Active product selector.
+    pub product: Option<ConditionSelectorJson>,
 }
 
 impl PolicySubjectJson {
@@ -212,6 +245,12 @@ impl From<&PolicySubjectJson> for PolicySubject {
             package: value.package.as_ref().map(PackageSelector::from),
             runtime: value.runtime.as_ref().map(RuntimeIdentitySelector::from),
             worker: value.worker.as_ref().map(RuntimeIdentitySelector::from),
+            mode: value.mode.as_ref().map(ConditionSelector::from),
+            role: value.role.as_ref().map(ConditionSelector::from),
+            feature: value.feature.as_ref().map(ConditionSelector::from),
+            tag: value.tag.as_ref().map(ConditionSelector::from),
+            target: value.target.as_ref().map(ConditionSelector::from),
+            product: value.product.as_ref().map(ConditionSelector::from),
         }
     }
 }
@@ -354,6 +393,13 @@ fn validate_policy_text(
 }
 
 fn package_selector_is_empty(selector: &Option<PackageSelector>) -> bool {
+    match selector {
+        Some(selector) => selector.is_empty(),
+        None => true,
+    }
+}
+
+fn condition_selector_is_empty(selector: &Option<ConditionSelector>) -> bool {
     match selector {
         Some(selector) => selector.is_empty(),
         None => true,

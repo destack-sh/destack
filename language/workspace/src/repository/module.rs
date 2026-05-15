@@ -7,7 +7,7 @@ use im::OrdMap;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::repository::{FileEntry, Repository, RepositoryError, Revision};
-use crate::{Module, ModuleFile, ModuleIndex, PackageIndex, builtin_mode_names};
+use crate::{Mode, Module, ModuleFile, ModuleIndex, PackageIndex};
 
 /// One file before it is assigned to its canonical module.
 #[derive(Debug)]
@@ -166,9 +166,9 @@ impl Repository {
             if let Some(config) = self.destack_config_for_package_id(revision, package_id)? {
                 config.modes.keys().cloned().collect()
             } else {
-                builtin_mode_names()
+                Mode::BUILTINS
                     .iter()
-                    .map(|mode_name| (*mode_name).to_string())
+                    .map(|mode| mode.name.to_string())
                     .collect()
             };
 

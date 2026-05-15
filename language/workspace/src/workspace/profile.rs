@@ -2,9 +2,7 @@ use destack_artifact::{HostEnvironmentKey, ProfileFlags};
 use serde::{Deserialize, Serialize};
 
 use crate::HostEnvironment;
-use crate::config::{
-    CompilerOptions, MODE_BENCH, MODE_DEBUG, MODE_DEV, MODE_LINT, MODE_PROD, MODE_TEST,
-};
+use crate::config::{CompilerOptions, Mode};
 
 /// The stable profile id.
 pub use destack_source::ProfileId;
@@ -44,11 +42,11 @@ impl ProfileEnvironment {
             return Some(node_env.to_string());
         }
 
-        if has_mode(modes, MODE_TEST) {
+        if has_mode(modes, Mode::TEST) {
             Some("test".to_string())
-        } else if has_mode(modes, MODE_PROD) {
+        } else if has_mode(modes, Mode::PROD) {
             Some("production".to_string())
-        } else if has_mode(modes, MODE_DEV) {
+        } else if has_mode(modes, Mode::DEV) {
             Some("development".to_string())
         } else {
             None
@@ -58,12 +56,12 @@ impl ProfileEnvironment {
     /// Build one profile environment from one host environment key.
     pub fn from_key(key: &HostEnvironmentKey, host: &HostEnvironment, modes: &[String]) -> Self {
         let node_env = Self::node_env_from_key(key, host, modes);
-        let debug = has_mode(modes, MODE_DEBUG);
-        let dev = has_mode(modes, MODE_DEV);
-        let prod = has_mode(modes, MODE_PROD);
-        let test = has_mode(modes, MODE_TEST);
-        let bench = has_mode(modes, MODE_BENCH);
-        let lint = has_mode(modes, MODE_LINT);
+        let debug = has_mode(modes, Mode::DEBUG);
+        let dev = has_mode(modes, Mode::DEV);
+        let prod = has_mode(modes, Mode::PROD);
+        let test = has_mode(modes, Mode::TEST);
+        let bench = has_mode(modes, Mode::BENCH);
+        let lint = has_mode(modes, Mode::LINT);
         let modes = modes.to_vec();
         let mut values = key
             .keys()
@@ -97,8 +95,8 @@ impl ProfileEnvironment {
 }
 
 /// Return whether one active mode is present.
-fn has_mode(modes: &[String], mode: &str) -> bool {
-    modes.iter().any(|active| active == mode)
+fn has_mode(modes: &[String], mode: Mode) -> bool {
+    modes.iter().any(|active| active == mode.name)
 }
 
 /// Derive profile identity flags from compiler options.

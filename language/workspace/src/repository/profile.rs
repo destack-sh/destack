@@ -57,6 +57,13 @@ impl Repository {
             .package_default_target(revision, module.package_id)?
             .map(|(_, target)| target)
             .unwrap_or_default();
+        let product = self.package_default_product(revision, module.package_id)?;
+        let product_role = self.product_role_for_target(
+            revision,
+            module.package_id,
+            product.as_deref(),
+            &target.name,
+        )?;
 
         // profile identity
         let profile = self.profile_from_target(
@@ -64,6 +71,8 @@ impl Repository {
             &compiler_options,
             config.as_deref(),
             &revision_state.host,
+            product.as_deref(),
+            product_role.as_deref(),
         );
 
         Ok(profile)
@@ -84,6 +93,9 @@ impl Repository {
             .package_default_target(revision, package_id)?
             .map(|(_, target)| target)
             .unwrap_or_default();
+        let product = self.package_default_product(revision, package_id)?;
+        let product_role =
+            self.product_role_for_target(revision, package_id, product.as_deref(), &target.name)?;
 
         // profile identity
         let profile = self.profile_from_target(
@@ -91,6 +103,8 @@ impl Repository {
             &compiler_options,
             config.as_deref(),
             &revision_state.host,
+            product.as_deref(),
+            product_role.as_deref(),
         );
 
         Ok(profile)
@@ -121,6 +135,13 @@ impl Repository {
         // target profile inputs
         let (config, compiler_options) =
             self.package_config_and_compiler_options(revision, module.package_id)?;
+        let product = self.package_default_product(revision, module.package_id)?;
+        let product_role = self.product_role_for_target(
+            revision,
+            module.package_id,
+            product.as_deref(),
+            &target.name,
+        )?;
 
         // profile identity
         let profile = self.profile_from_target(
@@ -128,6 +149,8 @@ impl Repository {
             &compiler_options,
             config.as_deref(),
             &revision_state.host,
+            product.as_deref(),
+            product_role.as_deref(),
         );
 
         Ok(Some(profile))
@@ -271,6 +294,8 @@ impl Repository {
         compiler_options: &CompilerOptions,
         config: Option<&DestackConfig>,
         environment: &HostEnvironment,
+        product: Option<&str>,
+        product_role: Option<&str>,
     ) -> Arc<Profile> {
         let profile_config = Self::profile_options_for_target(target, compiler_options, config);
         let key = profile_key_for_target(
@@ -279,9 +304,26 @@ impl Repository {
             profile_config,
             config,
             environment,
+            product,
+            product_role,
         );
 
         Arc::new(Profile::from_key(key, environment))
+    }
+
+    /// Return the active product role when the target belongs to the selected product.
+    fn product_role_for_target(
+        &self,
+        revision: Revision,
+        package_id: PackageId,
+        product: Option<&str>,
+        target: &str,
+    ) -> Result<Option<String>, RepositoryError> {
+        let Some(product) = product else {
+            return Ok(None);
+        };
+
+        self.package_product_role_for_target(revision, package_id, product, target)
     }
 
     /// Return profile options selected by one target and compiler option set.

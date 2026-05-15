@@ -11,7 +11,7 @@ use destack_linter::Linter;
 use destack_query::Query;
 use destack_session::Session;
 use destack_source::{FileSystem, MemoryFileSystem, ModuleId};
-use destack_workspace::{HostEnvironment, MODE_DEBUG, Profile, Ref, Repository, Revision};
+use destack_workspace::{HostEnvironment, Mode, Profile, Ref, Repository, Revision};
 
 use crate::core::{CaseResult, discover_file_cases, load_expected_failures};
 
@@ -148,7 +148,7 @@ pub fn select_profile_for_mdtest(
         key.platform = platform;
     }
     if let Some(debug) = overrides.debug {
-        set_mode(&mut key.modes, MODE_DEBUG, debug);
+        set_mode(&mut key.modes, Mode::DEBUG.name, debug);
     }
 
     // validate runtime version usage

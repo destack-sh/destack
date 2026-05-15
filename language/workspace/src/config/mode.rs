@@ -5,27 +5,92 @@ use super::{
     DependencyJsonMap, DependencyMap, dependency_options_from_json, validate_dependency_json_map,
 };
 
-/// Development mode name.
-pub const MODE_DEV: &str = "dev";
+/// Built-in source graph mode declaration.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Mode {
+    /// Stable mode name.
+    pub name: &'static str,
+    /// Human-readable mode description.
+    pub description: &'static str,
+}
 
-/// Debug mode name.
-pub const MODE_DEBUG: &str = "debug";
+impl Mode {
+    /// Development source graph mode.
+    pub const DEV: Self = Self {
+        name: "dev",
+        description: "Development mode.",
+    };
 
-/// Production mode name.
-pub const MODE_PROD: &str = "prod";
+    /// Debug source graph mode.
+    pub const DEBUG: Self = Self {
+        name: "debug",
+        description: "Debug mode.",
+    };
 
-/// Test mode name.
-pub const MODE_TEST: &str = "test";
+    /// Production source graph mode.
+    pub const PROD: Self = Self {
+        name: "prod",
+        description: "Production mode.",
+    };
 
-/// Benchmark mode name.
-pub const MODE_BENCH: &str = "bench";
+    /// Test source graph mode.
+    pub const TEST: Self = Self {
+        name: "test",
+        description: "Test mode.",
+    };
 
-/// Lint mode name.
-pub const MODE_LINT: &str = "lint";
+    /// Benchmark source graph mode.
+    pub const BENCH: Self = Self {
+        name: "bench",
+        description: "Benchmark mode.",
+    };
+
+    /// Fuzzing source graph mode.
+    pub const FUZZ: Self = Self {
+        name: "fuzz",
+        description: "Fuzzing mode.",
+    };
+
+    /// Simulation source graph mode.
+    pub const SIM: Self = Self {
+        name: "sim",
+        description: "Simulation mode.",
+    };
+
+    /// Lint source graph mode.
+    pub const LINT: Self = Self {
+        name: "lint",
+        description: "Lint mode.",
+    };
+
+    /// Built-in source graph modes.
+    pub const BUILTINS: &'static [Self] = &[
+        Self::DEV,
+        Self::DEBUG,
+        Self::PROD,
+        Self::TEST,
+        Self::BENCH,
+        Self::FUZZ,
+        Self::SIM,
+        Self::LINT,
+    ];
+
+    /// Return normalized options for this built-in mode.
+    pub fn options(self) -> ModeOptions {
+        ModeOptions {
+            description: Some(self.description.to_string()),
+            ..ModeOptions::default()
+        }
+    }
+}
 
 /// Named source graph mode options.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ModeOptions {
+    /// Human-readable mode description.
+    pub description: Option<String>,
+    /// Mode labels.
+    pub labels: IndexMap<String, String>,
     /// Mode names included before this mode.
     pub extends: Vec<String>,
     /// Dependencies enabled by this mode.
@@ -36,6 +101,8 @@ impl ModeOptions {
     /// Convert from one JSON mode.
     pub fn from_json(json: &ModeJson) -> Self {
         Self {
+            description: json.description.clone(),
+            labels: json.labels.clone().unwrap_or_default(),
             extends: json
                 .extends
                 .as_ref()
@@ -48,17 +115,10 @@ impl ModeOptions {
 
 /// Return the built-in source graph modes.
 pub fn builtin_modes() -> IndexMap<String, ModeOptions> {
-    builtin_mode_names()
-        .into_iter()
-        .map(|mode| (mode.to_string(), ModeOptions::default()))
+    Mode::BUILTINS
+        .iter()
+        .map(|mode| (mode.name.to_string(), mode.options()))
         .collect()
-}
-
-/// Return the built-in source graph mode names.
-pub fn builtin_mode_names() -> &'static [&'static str] {
-    &[
-        MODE_DEV, MODE_DEBUG, MODE_PROD, MODE_TEST, MODE_BENCH, MODE_LINT,
-    ]
 }
 
 /// Source graph mode JSON from `destack.json`.
@@ -66,6 +126,10 @@ pub fn builtin_mode_names() -> &'static [&'static str] {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct ModeJson {
+    /// Human-readable mode description.
+    pub description: Option<String>,
+    /// Mode labels.
+    pub labels: Option<IndexMap<String, String>>,
     /// Mode names included before this mode.
     pub extends: Option<ModeExtends>,
     /// Dependencies enabled by this mode.

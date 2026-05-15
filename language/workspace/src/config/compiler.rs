@@ -21,6 +21,12 @@ pub struct CompilerOptions {
     pub profile: Option<String>,
     /// Default active source graph modes for IDEs and CLI usage.
     pub modes: Vec<String>,
+    /// Default active source graph roles for IDEs and CLI usage.
+    pub roles: Vec<String>,
+    /// Default active source graph features for IDEs and CLI usage.
+    pub features: Vec<String>,
+    /// Default active source graph tags for IDEs and CLI usage.
+    pub tags: Vec<String>,
     /// Comptime environment whitelist (if omitted, all env keys are visible).
     pub comptime_env: Option<Vec<String>>,
     /// Default tree tag builder provider.
@@ -65,6 +71,9 @@ impl Default for CompilerOptions {
             environment: None,
             profile: None,
             modes: Vec::new(),
+            roles: Vec::new(),
+            features: Vec::new(),
+            tags: Vec::new(),
             comptime_env: None,
             tree: None,
             globals: Vec::new(),
@@ -220,6 +229,12 @@ pub struct CompilerOptionsJson {
     pub profile: Option<String>,
     /// Default active source graph modes for IDEs and CLI usage.
     pub modes: Option<Vec<String>>,
+    /// Default active source graph roles for IDEs and CLI usage.
+    pub roles: Option<Vec<String>>,
+    /// Default active source graph features for IDEs and CLI usage.
+    pub features: Option<Vec<String>>,
+    /// Default active source graph tags for IDEs and CLI usage.
+    pub tags: Option<Vec<String>>,
     /// Comptime environment whitelist (if omitted, all env keys are visible).
     pub comptime_env: Option<Vec<String>>,
     /// Default tree tag builder provider.
@@ -272,6 +287,9 @@ impl From<&CompilerOptionsJson> for CompilerOptions {
             environment: json.environment.clone(),
             profile: json.profile.clone(),
             modes: json.modes.clone().unwrap_or_default(),
+            roles: json.roles.clone().unwrap_or_default(),
+            features: json.features.clone().unwrap_or_default(),
+            tags: json.tags.clone().unwrap_or_default(),
             comptime_env: json.comptime_env.clone(),
             tree: json.tree.clone(),
             globals: json

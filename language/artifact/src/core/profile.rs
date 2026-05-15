@@ -52,6 +52,14 @@ pub struct ProfileKey {
     pub derive: Vec<String>,
     /// Active source graph modes for the profile.
     pub modes: Vec<String>,
+    /// Active source graph roles for the profile.
+    pub roles: Vec<String>,
+    /// Active source graph features for the profile.
+    pub features: Vec<String>,
+    /// Active source graph tags for the profile.
+    pub tags: Vec<String>,
+    /// Active product for the profile.
+    pub product: Option<String>,
     /// Compile-time environment identity for `import.meta.env`.
     pub env: HostEnvironmentKey,
     /// Flags that affect semantic behavior.
@@ -73,12 +81,19 @@ impl ProfileKey {
         tree: Option<String>,
         derive: Vec<String>,
         modes: Vec<String>,
+        roles: Vec<String>,
+        features: Vec<String>,
+        tags: Vec<String>,
+        product: Option<String>,
         env: HostEnvironmentKey,
         flags: ProfileFlags,
     ) -> Self {
         let globals = normalize_profile_keys(globals);
         let derive = normalize_profile_keys(derive);
-        let modes = normalize_mode_keys(modes);
+        let modes = normalize_unique_keys(modes);
+        let roles = normalize_unique_keys(roles);
+        let features = normalize_unique_keys(features);
+        let tags = normalize_unique_keys(tags);
 
         Self {
             emit,
@@ -92,6 +107,10 @@ impl ProfileKey {
             tree,
             derive,
             modes,
+            roles,
+            features,
+            tags,
+            product,
             env,
             flags,
         }
@@ -107,13 +126,13 @@ impl ProfileKey {
     }
 }
 
-/// Normalize mode keys without changing active mode order.
-fn normalize_mode_keys(modes: Vec<String>) -> Vec<String> {
-    let mut normalized = Vec::with_capacity(modes.len());
+/// Normalize condition keys without changing active order.
+fn normalize_unique_keys(keys: Vec<String>) -> Vec<String> {
+    let mut normalized = Vec::with_capacity(keys.len());
 
-    for mode in modes {
-        if !normalized.iter().any(|known| known == &mode) {
-            normalized.push(mode);
+    for key in keys {
+        if !normalized.iter().any(|known| known == &key) {
+            normalized.push(key);
         }
     }
 
