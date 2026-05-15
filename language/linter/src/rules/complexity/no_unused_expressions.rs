@@ -49,7 +49,7 @@ enum StatementListOwner {
     Module,
     /// Block body expressions.
     Block(dir::LocalNodeId<dir::Block>),
-    /// Namespace or global declaration expressions.
+    /// Global declaration expressions.
     Declaration(dir::LocalNodeId<dir::Declaration>),
 }
 
@@ -72,21 +72,11 @@ fn collect_statement_expression_ids(
         }
     }
 
-    // namespace and global statement lists
+    // global statement lists
     for declaration_id in ctx.dir.iter_nodes::<dir::Declaration>() {
         let declaration = ctx.dir.get(declaration_id);
         match declaration {
             dir::Declaration::Global(declaration) => {
-                for statement_expression_id in &declaration.expressions {
-                    statement_expression_ids.push(*statement_expression_id);
-                }
-            }
-            dir::Declaration::Module(declaration) => {
-                for statement_expression_id in &declaration.expressions {
-                    statement_expression_ids.push(*statement_expression_id);
-                }
-            }
-            dir::Declaration::Namespace(declaration) => {
                 for statement_expression_id in &declaration.expressions {
                     statement_expression_ids.push(*statement_expression_id);
                 }
@@ -231,7 +221,7 @@ fn statement_list_owner_and_index(
         return Some((StatementListOwner::Block(block_id), statement_index));
     }
 
-    // namespace and global bodies
+    // global bodies
     if let Some((declaration_id, statement_index)) =
         declaration_statement_list_index(ctx, statement_expression_id)
     {
@@ -261,8 +251,6 @@ fn statement_list_owner_expressions(
             let declaration = ctx.dir.get(declaration_id);
             match declaration {
                 dir::Declaration::Global(declaration) => declaration.expressions.clone(),
-                dir::Declaration::Module(declaration) => declaration.expressions.clone(),
-                dir::Declaration::Namespace(declaration) => declaration.expressions.clone(),
                 _ => Vec::new(),
             }
         }
@@ -306,7 +294,7 @@ fn declaration_statement_list_index(
     ctx: &LintModuleContext<'_>,
     statement_expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<(dir::LocalNodeId<dir::Declaration>, usize)> {
-    // require a declaration parent for namespace and global bodies
+    // require a declaration parent for global bodies
     let declaration_id = ctx.dir.get_parent_id(statement_expression_id.id)?;
     if ctx.dir.get_node_type(declaration_id) != dir::NodeType::Declaration {
         return None;
@@ -316,8 +304,6 @@ fn declaration_statement_list_index(
     let declaration = ctx.dir.get(declaration_id);
     let expressions = match declaration {
         dir::Declaration::Global(declaration) => declaration.expressions.as_slice(),
-        dir::Declaration::Module(declaration) => declaration.expressions.as_slice(),
-        dir::Declaration::Namespace(declaration) => declaration.expressions.as_slice(),
         _ => return None,
     };
     let statement_index = expression_index_in_slice(expressions, statement_expression_id)?;
@@ -749,39 +735,6 @@ sql`SELECT * FROM users`;
             "no_unused_expressions/test_reports_tree_expression_when_enforced.ds",
             r#"
 <View />;
-"#,
-        );
-        test.result(result).assert_lint("no-unused-expressions");
-    }
-
-    #[test]
-    fn test_allows_namespace_directive_prologue_strings() {
-        let test =
-            TestProgram::for_rule_without_prelude(NoUnusedExpressions).with_options(|options| {
-                options.complexity.no_unused_expressions_ignore_directives = true
-            });
-        let result = test.lint(
-            "no_unused_expressions/test_allows_namespace_directive_prologue_strings.ts",
-            r#"
-namespace Demo {
-    "use strict";
-    run();
-}
-"#,
-        );
-        test.result(result).assert_no_lint("no-unused-expressions");
-    }
-
-    #[test]
-    fn test_reports_namespace_string_after_non_directive_statement() {
-        let test = TestProgram::for_rule_without_prelude(NoUnusedExpressions);
-        let result = test.lint(
-            "no_unused_expressions/test_reports_namespace_string_after_non_directive_statement.ts",
-            r#"
-namespace Demo {
-    run();
-    "use strict";
-}
 "#,
         );
         test.result(result).assert_lint("no-unused-expressions");

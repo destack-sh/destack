@@ -10,7 +10,6 @@ pub fn declaration_has_nested_executable_scope(declaration: &dir::Declaration) -
     matches!(
         declaration,
         dir::Declaration::Global(_)
-            | dir::Declaration::Namespace(_)
             | dir::Declaration::Struct(_)
             | dir::Declaration::Class(_)
             | dir::Declaration::Enum(_)

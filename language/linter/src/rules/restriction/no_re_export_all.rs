@@ -38,7 +38,7 @@ impl LintRule for NoReExportAll {
 
             // check export expressions
             let Expression::Export {
-                space,
+                form,
                 target: Some(_target),
                 items,
                 ..
@@ -47,10 +47,10 @@ impl LintRule for NoReExportAll {
                 continue;
             };
 
-            // check if any item is a namespace re-export (export *)
+            // check for star re-exports
             for item_id in items {
                 let item = ctx.dir.get(*item_id);
-                if dependency_item_is_value_namespace_re_export(*space, item) {
+                if dependency_item_is_value_star_re_export(*form, item) {
                     let severity = ctx.get_effective_severity(meta, node_id);
                     if !severity.is_enabled() {
                         break;
@@ -75,14 +75,14 @@ impl LintRule for NoReExportAll {
     }
 }
 
-/// Return true when one dependency item re-exports the full value namespace.
-fn dependency_item_is_value_namespace_re_export(
-    export_kind: dir::DependencySpace,
+/// Return true when one dependency item re-exports the full value surface.
+fn dependency_item_is_value_star_re_export(
+    export_form: dir::DependencyForm,
     item: &dir::DependencyItem,
 ) -> bool {
-    let dir::DependencyItem::Item {
+    let dir::DependencyItem::Binding {
         binding,
-        space,
+        form,
         alias: _,
         ..
     } = item
@@ -93,7 +93,7 @@ fn dependency_item_is_value_namespace_re_export(
         return false;
     }
 
-    (*space).unwrap_or(export_kind) != dir::DependencySpace::Type
+    (*form).unwrap_or(export_form) != dir::DependencyForm::Type
 }
 
 #[cfg(test)]

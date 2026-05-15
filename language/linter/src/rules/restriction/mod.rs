@@ -15,7 +15,6 @@ mod no_implicit_return;
 mod no_labels;
 mod no_layer_violation;
 mod no_magic_numbers;
-mod no_namespace;
 mod no_parameter_reassignment;
 mod no_placeholder_implementation;
 mod no_plusplus;
@@ -45,7 +44,6 @@ pub use no_implicit_return::*;
 pub use no_labels::*;
 pub use no_layer_violation::*;
 pub use no_magic_numbers::*;
-pub use no_namespace::*;
 pub use no_parameter_reassignment::*;
 pub use no_placeholder_implementation::*;
 pub use no_plusplus::*;
@@ -78,7 +76,6 @@ pub fn rules() -> Vec<BoxedLintRule> {
         Box::new(NoLabels),
         Box::new(NoLayerViolation),
         Box::new(NoMagicNumbers),
-        Box::new(NoNamespace),
         Box::new(NoParameterReassignment),
         Box::new(NoPlaceholderImplementation),
         Box::new(NoPlusplus),

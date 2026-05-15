@@ -90,7 +90,7 @@ struct ImportClause {
     /// The import expression node.
     expression_id: dir::LocalNodeId<dir::Expression>,
     /// The top level import space.
-    import_space: dir::DependencySpace,
+    import_form: dir::DependencyForm,
     /// Whether the import carries attributes.
     has_attributes: bool,
     /// Import items in source order.
@@ -119,7 +119,7 @@ fn collect_import_clauses(ctx: &LintModuleContext<'_>) -> Vec<ImportClause> {
     for expression_id in ctx.dir.iter_node_ids_of_type::<dir::Expression>() {
         let expression = ctx.dir.get(expression_id);
         let dir::Expression::Import {
-            space,
+            form,
             items,
             attributes,
             ..
@@ -130,7 +130,7 @@ fn collect_import_clauses(ctx: &LintModuleContext<'_>) -> Vec<ImportClause> {
 
         clauses.push(ImportClause {
             expression_id,
-            import_space: *space,
+            import_form: *form,
             has_attributes: attributes.is_some(),
             items: items.clone().unwrap_or_default(),
         });
@@ -279,7 +279,7 @@ fn report_import_style(
     }
 
     // canonicalize all inline `type` imports into one top level `import type`
-    if clause.import_space != dir::DependencySpace::Type
+    if clause.import_form != dir::DependencyForm::Type
         && clause_all_items_are_inline_type(ctx, clause)
     {
         let severity = ctx.get_effective_severity(meta, clause.expression_id);
@@ -308,7 +308,7 @@ fn report_import_style(
     }
 
     // convert whole declarations when every binding is type only
-    if clause.import_space != dir::DependencySpace::Type
+    if clause.import_form != dir::DependencyForm::Type
         && semantic_type_only_item_ids.len() == clause.items.len()
         && !semantic_type_only_item_ids.is_empty()
     {
@@ -339,7 +339,7 @@ fn report_import_style(
     }
 
     // accept declarations that already use top level `import type`
-    if clause.import_space == dir::DependencySpace::Type {
+    if clause.import_form == dir::DependencyForm::Type {
         return;
     }
 
@@ -434,12 +434,12 @@ fn clause_missing_inline_type_only_item_ids(
         .iter()
         .copied()
         .filter(|item_id| {
-            if clause.import_space == dir::DependencySpace::Type {
+            if clause.import_form == dir::DependencyForm::Type {
                 return true;
             }
 
             let item = ctx.dir.get(*item_id);
-            item_space(item) != Some(dir::DependencySpace::Type)
+            item_space(item) != Some(dir::DependencyForm::Type)
         })
         .collect()
 }
@@ -449,7 +449,7 @@ fn clause_all_items_are_inline_type(ctx: &LintModuleContext<'_>, clause: &Import
     !clause.items.is_empty()
         && clause.items.iter().all(|item_id| {
             let item = ctx.dir.get(*item_id);
-            item_space(item) == Some(dir::DependencySpace::Type)
+            item_space(item) == Some(dir::DependencyForm::Type)
         })
 }
 
@@ -466,7 +466,7 @@ fn item_ids_support_inline_style(
     !item_ids.is_empty()
         && item_ids.iter().all(|item_id| {
             let item = ctx.dir.get(*item_id);
-            item_binding(item) == Some(dir::DependencyBinding::Item)
+            item_binding(item) == Some(dir::DependencyBinding::Named)
         })
 }
 
@@ -489,9 +489,9 @@ fn import_item_is_semantic_type_only(
 }
 
 /// Return the dependency item kind when present.
-fn item_space(item: &dir::DependencyItem) -> Option<dir::DependencySpace> {
+fn item_space(item: &dir::DependencyItem) -> Option<dir::DependencyForm> {
     match item {
-        dir::DependencyItem::Item { space, .. } => *space,
+        dir::DependencyItem::Binding { form, .. } => *form,
         dir::DependencyItem::Error => None,
     }
 }
@@ -499,7 +499,7 @@ fn item_space(item: &dir::DependencyItem) -> Option<dir::DependencySpace> {
 /// Return the dependency item binding.
 fn item_binding(item: &dir::DependencyItem) -> Option<dir::DependencyBinding> {
     match item {
-        dir::DependencyItem::Item { binding, .. } => Some(*binding),
+        dir::DependencyItem::Binding { binding, .. } => Some(*binding),
         dir::DependencyItem::Error => None,
     }
 }
@@ -553,7 +553,7 @@ fn consistent_type_import_top_level_fix(
     // strip inline `type` prefixes from each import item
     for item_id in items {
         let item = ctx.dir.get(*item_id);
-        if item_space(item) != Some(dir::DependencySpace::Type) {
+        if item_space(item) != Some(dir::DependencyForm::Type) {
             continue;
         }
 
@@ -585,7 +585,7 @@ fn consistent_type_import_inline_fix(
     // add inline `type` to each selected item
     for item_id in item_ids {
         let item = ctx.dir.get(*item_id);
-        if item_binding(item) != Some(dir::DependencyBinding::Item) {
+        if item_binding(item) != Some(dir::DependencyBinding::Named) {
             return None;
         }
 

@@ -102,7 +102,7 @@ impl LintRule for NoAnonymousDefaultExport {
                 let item = ctx.dir.get(*item_id);
 
                 // keep only default export items with values
-                let dir::DependencyItem::Item {
+                let dir::DependencyItem::Binding {
                     binding: DependencyBinding::Default,
                     value: Some(item_value),
                     ..
@@ -294,7 +294,7 @@ fn collect_occupied_names(ctx: &LintModuleContext<'_>) -> HashSet<String> {
     }
 
     for item_id in ctx.dir.iter_nodes::<dir::DependencyItem>() {
-        let dir::DependencyItem::Item { name, alias, .. } = ctx.dir.get(item_id) else {
+        let dir::DependencyItem::Binding { name, alias, .. } = ctx.dir.get(item_id) else {
             continue;
         };
         if let Some(name) = name {

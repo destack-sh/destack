@@ -286,8 +286,8 @@ fn named_import_items(
         .filter(|item_id| {
             matches!(
                 ctx.dir.get(*item_id),
-                DependencyItem::Item {
-                    binding: DependencyBinding::Item,
+                DependencyItem::Binding {
+                    binding: DependencyBinding::Named,
                     ..
                 }
             )
@@ -320,7 +320,7 @@ fn item_binding(
     item_id: dir::LocalNodeId<DependencyItem>,
 ) -> Option<DependencyBinding> {
     match ctx.dir.get(item_id) {
-        DependencyItem::Item { binding, .. } => Some(*binding),
+        DependencyItem::Binding { binding, .. } => Some(*binding),
         DependencyItem::Error => None,
     }
 }
@@ -365,13 +365,13 @@ fn dependency_item_name(
     item_id: dir::LocalNodeId<DependencyItem>,
 ) -> String {
     match ctx.dir.get(item_id) {
-        DependencyItem::Item {
+        DependencyItem::Binding {
             alias: Some(alias), ..
         } => ctx.strings.get(*alias).to_string(),
-        DependencyItem::Item {
+        DependencyItem::Binding {
             name: Some(name), ..
         } => ctx.strings.get(name.string()).to_string(),
-        DependencyItem::Item { .. } => "default".to_string(),
+        DependencyItem::Binding { .. } => "default".to_string(),
         DependencyItem::Error => String::new(),
     }
 }

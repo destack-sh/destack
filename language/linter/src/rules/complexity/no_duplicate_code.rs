@@ -1300,12 +1300,12 @@ impl dir::NodeVisitor for DuplicateSignatureCollector<'_> {
             dir::Expression::Label { label, .. } => {
                 self.push_identifier_id("expr_label", *label);
             }
-            dir::Expression::Import { space, target, .. } => {
-                self.push_debug("expr_import_space", *space);
+            dir::Expression::Import { form, target, .. } => {
+                self.push_debug("expr_import_form", *form);
                 self.push_literal_id("expr_import_target", *target, "$str");
             }
-            dir::Expression::Export { space, target, .. } => {
-                self.push_debug("expr_export_space", *space);
+            dir::Expression::Export { form, target, .. } => {
+                self.push_debug("expr_export_form", *form);
                 if let Some(target) = target {
                     self.push_literal_id("expr_export_target", *target, "$str");
                 } else {
@@ -1560,15 +1560,15 @@ impl dir::NodeVisitor for DuplicateSignatureCollector<'_> {
         dependency_item: &dir::DependencyItem,
     ) {
         match dependency_item {
-            dir::DependencyItem::Item {
+            dir::DependencyItem::Binding {
                 binding,
-                space,
+                form,
                 name,
                 alias,
                 ..
             } => {
                 self.push_debug("dependency_binding", *binding);
-                self.push_debug_optional("dependency_space", *space);
+                self.push_debug_optional("dependency_form", *form);
                 if let Some(name) = *name {
                     self.push_name("dependency_name", name);
                 } else {

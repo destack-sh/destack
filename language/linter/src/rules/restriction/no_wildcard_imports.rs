@@ -48,7 +48,7 @@ impl LintRule for NoWildcardImports {
                 let item = ctx.dir.get(*item_id);
                 if matches!(
                     item,
-                    dir::DependencyItem::Item {
+                    dir::DependencyItem::Binding {
                         binding: dir::DependencyBinding::Namespace,
                         ..
                     }

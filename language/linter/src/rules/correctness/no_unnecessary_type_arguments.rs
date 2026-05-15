@@ -202,9 +202,6 @@ fn generic_parameters_for_declaration(
     if declaration_id.ty == dir::NodeType::Declaration {
         let declaration = tree.get(declaration_id.into_typed::<dir::Declaration>());
         return match declaration {
-            dir::Declaration::Namespace(declaration) => {
-                Some(declaration.generic_parameters.clone())
-            }
             dir::Declaration::Type(declaration) => Some(declaration.generic_parameters.clone()),
             dir::Declaration::Struct(declaration) => Some(declaration.generic_parameters.clone()),
             dir::Declaration::Class(declaration) => Some(declaration.generic_parameters.clone()),

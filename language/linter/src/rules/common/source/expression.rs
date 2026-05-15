@@ -2438,12 +2438,12 @@ impl dir::NodeVisitor for ExpressionSignatureCollector<'_> {
             dir::Expression::Label { label, .. } => {
                 self.push_string_id("expression_label", *label);
             }
-            dir::Expression::Import { space, target, .. } => {
-                self.push_debug("expression_import_space", *space);
+            dir::Expression::Import { form, target, .. } => {
+                self.push_debug("expression_import_form", *form);
                 self.push_string_id("expression_import_target", *target);
             }
-            dir::Expression::Export { space, target, .. } => {
-                self.push_debug("expression_export_space", *space);
+            dir::Expression::Export { form, target, .. } => {
+                self.push_debug("expression_export_form", *form);
                 if let Some(target) = target {
                     self.push_string_id("expression_export_target", *target);
                 }

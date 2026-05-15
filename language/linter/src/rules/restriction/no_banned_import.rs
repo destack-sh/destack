@@ -179,8 +179,6 @@ enum TargetSurface {
     ResolvedModulePath,
     /// The resolved module file name.
     ResolvedModuleName,
-    /// The resolved `declare module` specifier.
-    ResolvedDeclaredModule,
     /// The resolved external import specifier.
     ResolvedExternalSpecifier,
 }
@@ -192,7 +190,6 @@ impl TargetSurface {
             Self::Specifier => "import specifier",
             Self::ResolvedModulePath => "resolved module path",
             Self::ResolvedModuleName => "resolved module file name",
-            Self::ResolvedDeclaredModule => "resolved declared module",
             Self::ResolvedExternalSpecifier => "resolved external specifier",
         }
     }
@@ -275,16 +272,6 @@ fn matching_target(
                     pattern,
                     target: file.name.clone(),
                     surface: TargetSurface::ResolvedModuleName,
-                });
-            }
-        }
-        dir::DependencyTarget::StringModule(declared_specifier) => {
-            let declared_text = ctx.strings.get(declared_specifier);
-            if let Some(pattern) = matching_pattern(declared_text, patterns) {
-                return Some(MatchedTarget {
-                    pattern,
-                    target: declared_text.to_string(),
-                    surface: TargetSurface::ResolvedDeclaredModule,
                 });
             }
         }
