@@ -10,7 +10,7 @@ use super::compile_mir_to_normalized_clif;
 fn test_integer_arithmetic_chain() {
     let mir = r#"
 function arithmetic(v0: int32, v1: int32): int32 {
-bb0(v0: int32, v1: int32):
+b0(v0: int32, v1: int32):
     v2: int32 = int.add v0, v1
     v3: int32 = int.sub v2, v0
     v4: int32 = int.mul v3, v1
@@ -20,7 +20,7 @@ bb0(v0: int32, v1: int32):
 
     let expected = r#"
 function u0:0(int32, int32): int32 native {
-bb0(v0: int32, v1: int32):
+b0(v0: int32, v1: int32):
     v2 = int.add v0, v1
     v3 = int.sub v2, v0
     v4 = int.mul v3, v1
@@ -37,7 +37,7 @@ bb0(v0: int32, v1: int32):
 fn test_signed_division() {
     let mir = r#"
 function divide(v0: int32, v1: int32): int32 {
-bb0(v0: int32, v1: int32):
+b0(v0: int32, v1: int32):
     v2: int32 = int.div.s v0, v1
     v3: int32 = int.rem.s v0, v1
     v4: int32 = int.add v2, v3
@@ -47,7 +47,7 @@ bb0(v0: int32, v1: int32):
 
     let expected = r#"
 function u0:0(int32, int32): int32 native {
-bb0(v0: int32, v1: int32):
+b0(v0: int32, v1: int32):
     v2 = int.div.s v0, v1
     v3 = int.rem.s v0, v1
     v4 = int.add v2, v3
@@ -64,7 +64,7 @@ bb0(v0: int32, v1: int32):
 fn test_bitwise_operations() {
     let mir = r#"
 function bitwise(v0: int32, v1: int32): int32 {
-bb0(v0: int32, v1: int32):
+b0(v0: int32, v1: int32):
     v2: int32 = int.and v0, v1
     v3: int32 = int.or v2, v0
     v4: int32 = int.xor v3, v1
@@ -74,7 +74,7 @@ bb0(v0: int32, v1: int32):
 
     let expected = r#"
 function u0:0(int32, int32): int32 native {
-bb0(v0: int32, v1: int32):
+b0(v0: int32, v1: int32):
     v2 = int.and v0, v1
     v3 = int.or v2, v0
     v4 = int.xor v3, v1
@@ -91,7 +91,7 @@ bb0(v0: int32, v1: int32):
 fn test_signed_comparison() {
     let mir = r#"
 function compare(v0: int32, v1: int32): boolean {
-bb0(v0: int32, v1: int32):
+b0(v0: int32, v1: int32):
     v2: boolean = int.lt.s v0, v1
     return v2
 }"#;
@@ -99,7 +99,7 @@ bb0(v0: int32, v1: int32):
 
     let expected = r#"
 function u0:0(int32, int32): int8 native {
-bb0(v0: int32, v1: int32):
+b0(v0: int32, v1: int32):
     v2 = icmp slt v0, v1
     return v2
 }
@@ -114,7 +114,7 @@ bb0(v0: int32, v1: int32):
 fn test_unary_negation() {
     let mir = r#"
 function negate(v0: int32): int32 {
-bb0(v0: int32):
+b0(v0: int32):
     v1: int32 = int.negate v0
     return v1
 }"#;
@@ -122,7 +122,7 @@ bb0(v0: int32):
 
     let expected = r#"
 function u0:0(int32): int32 native {
-bb0(v0: int32):
+b0(v0: int32):
     v1 = int.negate v0
     return v1
 }
@@ -137,9 +137,9 @@ bb0(v0: int32):
 fn test_integer_constants() {
     let mir = r#"
 function constants(): int32 {
-bb0:
-    v0: int32 = const 42int32
-    v1: int32 = const 100int32
+b0:
+    v0: int32 = 42int32
+    v1: int32 = 100int32
     v2: int32 = int.add v0, v1
     return v2
 }"#;
@@ -147,7 +147,7 @@ bb0:
 
     let expected = r#"
 function u0:0(): int32 native {
-bb0:
+b0:
     v0 = const.int32 42
     v1 = const.int32 100
     v2 = int.add v0, v1
@@ -163,8 +163,8 @@ bb0:
 fn test_char_constant() {
     let mir = r#"
 function char_const(): int32 {
-bb0:
-    v0: uint32 = const 'A'
+b0:
+    v0: uint32 = 'A'
     return v0
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
@@ -172,7 +172,7 @@ bb0:
     // 'A' = 65 in unicode
     let expected = r#"
 function u0:0(): int32 native {
-bb0:
+b0:
     v0 = const.int32 65
     return v0
 }
@@ -186,8 +186,8 @@ bb0:
 fn test_char_constant_unicode() {
     let mir = r#"
 function emoji(): int32 {
-bb0:
-    v0: uint32 = const '😀'
+b0:
+    v0: uint32 = '😀'
     return v0
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
@@ -195,7 +195,7 @@ bb0:
     // '😀' = U+1F600 = 128512
     let expected = r#"
 function u0:0(): int32 native {
-bb0:
+b0:
     v0 = const.int32 0x0001_f600
     return v0
 }

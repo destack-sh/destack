@@ -5,7 +5,7 @@ use super::compile_mir_to_normalized_clif;
 fn test_stack_allocate_i32() {
     let mir = r#"
 function alloc_i32(): ref<int32, raw> {
-bb0:
+b0:
     v0: ref<int32, raw, space(stack)> = stack.alloc int32
     return v0
 }"#;
@@ -16,7 +16,7 @@ bb0:
 function u0:0(): int64 native {
     ss0 = explicit_slot 4
 
-bb0:
+b0:
     v0 = stack_addr.int64 ss0
     return v0
 }"#
@@ -29,7 +29,7 @@ bb0:
 fn test_stack_allocate_i64() {
     let mir = r#"
 function alloc_i64(): ref<int64, raw> {
-bb0:
+b0:
     v0: ref<int64, raw, space(stack)> = stack.alloc int64
     return v0
 }"#;
@@ -39,7 +39,7 @@ bb0:
 function u0:0(): int64 native {
     ss0 = explicit_slot 8
 
-bb0:
+b0:
     v0 = stack_addr.int64 ss0
     return v0
 }"#
@@ -52,9 +52,9 @@ bb0:
 fn test_stack_allocate_and_use() {
     let mir = r#"
 function alloc_store_load(): int32 {
-bb0:
+b0:
     v0: ref<int32, raw, space(stack)> = stack.alloc int32
-    v1: int32 = const 42int32
+    v1: int32 = 42int32
     store v0, v1
     v2: int32 = load v0
     return v2
@@ -65,7 +65,7 @@ bb0:
 function u0:0(): int32 native {
     ss0 = explicit_slot 4
 
-bb0:
+b0:
     v0 = stack_addr.int64 ss0
     v1 = const.int32 42
     store v1, v0
