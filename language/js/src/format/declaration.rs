@@ -129,40 +129,6 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                     ]
                 )?;
             }
-            Declaration::Namespace(namespace) => {
-                let statements = &namespace.statements;
-
-                // export
-                if let Some(export) = namespace.export {
-                    write!(f, [export, space()])?;
-                }
-
-                // ambient
-                if namespace.is_ambient {
-                    write!(f, [Keyword::Declare, space()])?;
-                }
-
-                // keyword
-                write!(f, [Keyword::Namespace])?;
-
-                // name / key
-                if let Some(name) = namespace.name {
-                    write!(f, [space(), name])?;
-                }
-
-                // body
-                write!(f, [space()])?;
-                write!(
-                    f,
-                    [
-                        token("{"),
-                        hard_line_break(),
-                        block_indent(&format_with(|f| format_block_of_statements(f, statements))),
-                        hard_line_break(),
-                        token("}"),
-                    ]
-                )?;
-            }
             Declaration::Type(ty) => {
                 let generic_parameters = &ty.generic_parameters;
                 let value = ty.value;

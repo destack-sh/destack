@@ -2,9 +2,9 @@ use crate::{
     Annotation, Argument, ArrayElement, AssignPattern, AssignPatternField, Block, CatchClause,
     ClassDeclaration, Declaration, Declarator, DependencyItem, EnumDeclaration, EnumField,
     Expression, FunctionDeclaration, FunctionSignature, GenericParameter, GlobalDeclaration,
-    InterfaceDeclaration, Key, LocalNodeId, LocalNodeIdAny, Member, NamespaceDeclaration, NodeType,
-    NodeVisitor, Parameter, Pattern, PatternField, Property, Statement, SwitchCase,
-    TemplateLiteral, Tree, TupleElement, TypeDeclaration, TypeExpression, TypeMember,
+    InterfaceDeclaration, Key, LocalNodeId, LocalNodeIdAny, Member, NodeType, NodeVisitor,
+    Parameter, Pattern, PatternField, Property, Statement, SwitchCase, TemplateLiteral, Tree,
+    TupleElement, TypeDeclaration, TypeExpression, TypeMember,
 };
 
 /// Walk any node.
@@ -809,17 +809,6 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
 
     match declaration {
         Declaration::Global(GlobalDeclaration {
-            is_ambient: _,
-            statements,
-        }) => {
-            for statement_id in statements {
-                let statement = tree.get(*statement_id);
-                visitor.visit_statement(tree, *statement_id, statement);
-            }
-        }
-        Declaration::Namespace(NamespaceDeclaration {
-            name: _,
-            export: _,
             is_ambient: _,
             statements,
         }) => {
