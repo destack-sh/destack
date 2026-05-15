@@ -3,7 +3,7 @@ use crate::{ParseResult, Parser, ParserSpanStart};
 
 use destack_dir::{
     BlockContext, BlockForm, Declaration, Expression, GlobalDeclaration, Keyword, LocalNodeId,
-    Name, NamespaceDeclaration, NamespaceForm, NodeType, TokenType,
+    ModuleDeclaration, Name, NamespaceDeclaration, NamespaceForm, NodeType, TokenType,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType};
 
@@ -39,6 +39,25 @@ impl Parser {
         }
 
         Ok(global_id)
+    }
+
+    /// Eat a module directive declaration.
+    pub(crate) fn eat_module_directive(
+        &mut self,
+        start: &ParserSpanStart,
+    ) -> ParseResult<LocalNodeId<Declaration>> {
+        self.eat_identifier_str("module")?;
+
+        self.eat_token(TokenType::OpenBrace)?;
+        let expressions = self
+            .eat_block_body_in_context(BlockForm::Explicit, BlockContext::Statement)
+            .for_node_type(NodeType::Block)?;
+        self.eat_close_token_or_recover_missing(TokenType::CloseBrace, NodeType::Declaration)?;
+
+        let declaration = Declaration::Module(ModuleDeclaration { expressions });
+        let declaration_id = self.insert_node(declaration, self.get_span_from(start));
+
+        Ok(declaration_id)
     }
 
     /// Eat a namespace declaration (incl. `namespace` or `module` keyword).
@@ -163,8 +182,8 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_dir::{
-        Declaration, ExportKind, Expression, GlobalDeclaration, Name, NamespaceDeclaration,
-        NamespaceForm, TypeExpression, WhereClause,
+        Declaration, ExportKind, Expression, GlobalDeclaration, ModuleDeclaration, Name,
+        NamespaceDeclaration, NamespaceForm, TypeExpression, WhereClause,
     };
     use destack_source::LanguageType;
 
@@ -209,6 +228,28 @@ global {
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
             assert_node!(parser.tree, *decl_id, Declaration::Global(GlobalDeclaration { is_ambient, expressions, .. }) => {
                 assert_eq!(*is_ambient, true);
+                assert_eq!(expressions.len(), 1);
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_global_declaration() {
+        let mut test = TestParser::new(
+            r###"
+global {
+    let process: Process
+}
+"###,
+        );
+        let mut parser = test.prepare();
+
+        let expressions = parser.parse();
+        assert_eq!(expressions.len(), 1);
+        let expr_id = expressions[0];
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Global(GlobalDeclaration { is_ambient, expressions, .. }) => {
+                assert_eq!(*is_ambient, false);
                 assert_eq!(expressions.len(), 1);
             });
         });
@@ -424,14 +465,35 @@ module "foo" {
     }
 
     #[test]
-    fn test_parse_module_block() {
+    fn test_parse_module_declaration() {
+        let mut test = TestParser::new(
+            r###"
+module {
+    tree: HtmlTree
+}
+"###,
+        );
+        let mut parser = test.prepare();
+
+        let expressions = parser.parse();
+        assert_eq!(expressions.len(), 1);
+        let expression_id = expressions[0];
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Module(ModuleDeclaration { expressions }) => {
+                assert_eq!(expressions.len(), 1);
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_typescript_module_declaration() {
         let mut test = TestParser::new_with_language(
             r###"
 module "foo" {
     interface Bar { }
 }
 "###,
-            LanguageType::Destack,
+            LanguageType::TypeScript,
         );
         let mut parser = test.prepare();
 
@@ -448,11 +510,22 @@ module "foo" {
     }
 
     #[test]
-    fn test_reject_identifier_module_without_body() {
-        let mut test = TestParser::new_with_language("module Foo;", LanguageType::Destack);
+    fn test_parse_named_module_as_identifier_in_destack() {
+        let mut test = TestParser::new_with_language(
+            r###"
+module "foo" {
+    interface Bar { }
+}
+"###,
+            LanguageType::Destack,
+        );
         let mut parser = test.prepare();
-        let result = parser.eat_expression(parser.flags);
-        assert!(result.is_err());
+        let expressions = parser.parse();
+
+        assert_eq!(expressions.len(), 3);
+        assert_expression_path!(parser, parser.tree.get(expressions[0]), "module");
+        assert_node!(parser.tree, expressions[1], Expression::ScalarLiteral(_));
+        assert_node!(parser.tree, expressions[2], Expression::Block(_) => {});
     }
 
     #[test]
