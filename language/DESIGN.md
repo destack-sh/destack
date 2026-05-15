@@ -27,7 +27,7 @@ Some JS/TS syntax and legacy behavior is either ambiguous, obsolete, or just not
 
 - **Sloppy mode**: Destack targets modern strict-mode JavaScript/TypeScript.
   All non-strict ("sloppy mode") behaviors like duplicate function declarations, `arguments` magic, `caller` / `callee`, or `yield` as an identifier are not supported.
-- **Type-only imports and exports**: `.ds` accepts `import type` and `export type` for TypeScript familiarity, but they behave the same.
+- **Type-only imports / exports**: `.ds` accepts `import type` and `export type` for TypeScript compatibility, but they mean the same thing as `import` and `export`, and the type-less form is preferred.
 - **CommonJS**: Destack source does not support `require`, `module.exports`, mutable `exports`, require-cache monkeypatching, `export =`, or `import x = require("x")`.
 - **Ambiguous generic arrow**: `<T>() => ...` is ambiguous in `.tsx` because it might be a TSX tree, and `.ds` inherits this since we support TSX syntax natively.
   To disambiguate, use `<T,>() => ...`.
