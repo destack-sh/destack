@@ -4,17 +4,17 @@ use crate::world::policy::Subject;
 use crate::world::{RuntimeId, WorldState};
 use destack_workspace::{ConditionSet, ExecutionMode};
 
-use super::{HookEvent, TriggeredFault};
+use super::{RuntimeEvent, TriggeredFault};
 
 impl WorldState {
-    /// Decide scenario faults for one hook event.
+    /// Decide scenario faults for one runtime event.
     pub(crate) fn decide_scenario(
         &mut self,
         mode: ExecutionMode,
         conditions: &ConditionSet,
         runtime_id: RuntimeId,
         worker_id: WorkerId,
-        event: &HookEvent,
+        event: &RuntimeEvent,
     ) -> RuntimeResult<Vec<TriggeredFault>> {
         let (runtime_name, runtime_labels, worker_name, worker_labels) = {
             let subject =

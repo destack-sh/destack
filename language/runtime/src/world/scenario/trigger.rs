@@ -1,12 +1,12 @@
 use serde::{Deserialize, Serialize};
 
-use super::Hook;
+use super::RuntimeEventKind;
 
 /// Runtime trigger controls.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Trigger {
-    /// Hook for this trigger.
-    pub on: Hook,
+    /// Event kind for this trigger.
+    pub on: RuntimeEventKind,
     /// Activation window for this trigger.
     pub activation: Option<ActivationWindow>,
     /// Lifetime window for this trigger.
@@ -28,10 +28,10 @@ pub struct Trigger {
 }
 
 impl Trigger {
-    /// Create one trigger for one hook with default gates.
-    pub fn on(hook: Hook) -> Self {
+    /// Create one trigger for one event with default gates.
+    pub fn on(event: RuntimeEventKind) -> Self {
         Self {
-            on: hook,
+            on: event,
             activation: None,
             lifetime: None,
             activation_ppm: None,
@@ -44,24 +44,24 @@ impl Trigger {
         }
     }
 
-    /// Create one trigger that fires on every matching hook event.
-    pub fn always(hook: Hook) -> Self {
-        Self::on(hook)
+    /// Create one trigger that fires on every matching event.
+    pub fn always(event: RuntimeEventKind) -> Self {
+        Self::on(event)
     }
 
-    /// Create one trigger that fires once on the first matching hook event.
-    pub fn once(hook: Hook) -> Self {
-        Self::on(hook).max_occurrences(1)
+    /// Create one trigger that fires once on the first matching event.
+    pub fn once(event: RuntimeEventKind) -> Self {
+        Self::on(event).max_occurrences(1)
     }
 
-    /// Create one trigger that fires once per N matching hook hits.
-    pub fn every_hits(hook: Hook, interval_hits: u64) -> Self {
-        Self::on(hook).interval_hits(interval_hits)
+    /// Create one trigger that fires once per N matching event hits.
+    pub fn every_hits(event: RuntimeEventKind, interval_hits: u64) -> Self {
+        Self::on(event).interval_hits(interval_hits)
     }
 
     /// Create one trigger with one fire probability in parts-per-million.
-    pub fn with_probability(hook: Hook, probability_ppm: u32) -> Self {
-        Self::on(hook).probability_ppm(ProbabilityPpm::new(probability_ppm))
+    pub fn with_probability(event: RuntimeEventKind, probability_ppm: u32) -> Self {
+        Self::on(event).probability_ppm(ProbabilityPpm::new(probability_ppm))
     }
 
     /// Set activation window.

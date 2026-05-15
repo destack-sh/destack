@@ -445,7 +445,7 @@ impl Worker {
         if let Some(wake) = self.event_loop.next_wake(wall_now, mono_now)? {
             progressed = true;
             if matches!(&wake, Wake::Timer(_)) {
-                self.hooks.on_scheduler_timer_fire(world);
+                self.scenario.on_timer_fire(world)?;
             }
             if let Some(task) = self.event_loop.task_for_wake(wake, &mut self.engine) {
                 self.enqueue_prepared_task(world, task)?;
@@ -499,7 +499,7 @@ impl Worker {
         };
 
         if matches!(&wake, Wake::Timer(_)) {
-            self.hooks.on_scheduler_timer_fire(world);
+            self.scenario.on_timer_fire(world)?;
         }
         if let Some(task) = self.event_loop.task_for_wake(wake, &mut self.engine) {
             self.enqueue_prepared_task(world, task)?;
@@ -536,7 +536,7 @@ impl Worker {
         host: &HostSession,
         task: Task,
     ) -> RuntimeResult<()> {
-        self.hooks.on_scheduler_dequeue(world);
+        self.scenario.on_task_start(world)?;
         self.execute_task(world, shared, runtime_static, host, task)
     }
 
@@ -550,7 +550,7 @@ impl Worker {
         task: Task,
         target_task: Option<TaskId>,
     ) -> RuntimeResult<Option<engine::Value>> {
-        self.hooks.on_scheduler_dequeue(world);
+        self.scenario.on_task_start(world)?;
         self.execute_task_for_target(world, shared, runtime_static, host, task, target_task)
     }
 
@@ -630,11 +630,11 @@ impl Worker {
         Ok(None)
     }
 
-    /// Enqueue one prepared task and record enqueue hooks.
+    /// Enqueue one prepared task and record scenario events.
     fn enqueue_prepared_task(&mut self, world: &mut WorldState, task: Task) -> RuntimeResult<()> {
         // enqueue the task into the event loop
         self.event_loop.enqueue_task(task);
-        self.hooks.on_scheduler_enqueue(world);
+        self.scenario.on_task_ready(world)?;
 
         Ok(())
     }
@@ -717,7 +717,7 @@ impl Worker {
             let Some(microtask) = self.event_loop.pop_microtask() else {
                 break;
             };
-            self.hooks.on_scheduler_dequeue(world);
+            self.scenario.on_task_start(world)?;
             self.execute_microtask(
                 world,
                 shared,
@@ -794,7 +794,7 @@ impl Worker {
         let host_event_count = self.drain_host_wakes(host, Some(0))?;
         if host_event_count > 0 {
             for _ in 0..host_event_count {
-                self.hooks.on_ingress_enqueue(world);
+                self.scenario.on_ingress_ready(world)?;
             }
 
             return Ok(true);
@@ -806,7 +806,7 @@ impl Worker {
             .poll_poller(poller, timeout_nanos.map(|timeout| timeout.get()))?;
         if event_count > 0 {
             for _ in 0..event_count {
-                self.hooks.on_ingress_enqueue(world);
+                self.scenario.on_ingress_ready(world)?;
             }
 
             return Ok(true);
