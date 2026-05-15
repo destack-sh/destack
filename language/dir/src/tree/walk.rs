@@ -1387,20 +1387,6 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
                 visitor.visit_expression(tree, *expression_id, expression);
             }
         }
-        Declaration::Namespace(declaration) => {
-            for parameter_id in &declaration.generic_parameters {
-                let parameter = tree.get(*parameter_id);
-                visitor.visit_generic_parameter(tree, *parameter_id, parameter);
-            }
-            for where_clause_id in &declaration.where_clauses {
-                let where_clause = tree.get(*where_clause_id);
-                visitor.visit_where_clause(tree, *where_clause_id, where_clause);
-            }
-            for statement_id in &declaration.expressions {
-                let statement = tree.get(*statement_id);
-                visitor.visit_expression(tree, *statement_id, statement);
-            }
-        }
         Declaration::Type(declaration) => {
             for parameter_id in &declaration.generic_parameters {
                 let parameter = tree.get(*parameter_id);

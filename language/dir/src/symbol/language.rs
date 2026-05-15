@@ -151,6 +151,15 @@ define_language_items! {
         }
     }
 
+    /// Regular expression types.
+    regexp {
+        /// `destack:regexp/regexp`.
+        regexp {
+            /// Regular expression class.
+            RegExp => (Class, "regexp/regexp", "RegExp"),
+        }
+    }
+
     /// Math types.
     math {
         /// `destack:math/number`.

@@ -6,16 +6,6 @@ use crate::{
     TypeMember, WhereClause,
 };
 
-/// The source keyword used for a namespace declaration.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
-pub enum NamespaceForm {
-    /// `namespace Foo {}`.
-    #[default]
-    Namespace,
-    /// `module Foo {}`.
-    Module,
-}
-
 /// A global declaration block.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GlobalDeclaration {
@@ -30,25 +20,6 @@ pub struct GlobalDeclaration {
 pub struct ModuleDeclaration {
     /// The expressions inside the module body.
     pub expressions: Vec<LocalNodeId<Expression>>,
-}
-
-/// A namespace declaration.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct NamespaceDeclaration {
-    /// The namespace name.
-    pub name: Name,
-    /// The export kind of the declaration.
-    pub export: Option<ExportKind>,
-    /// The source namespace keyword.
-    pub form: NamespaceForm,
-    /// The generic parameters of the namespace.
-    pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
-    /// The where clauses of the namespace.
-    pub where_clauses: Vec<LocalNodeId<WhereClause>>,
-    /// The expressions inside the namespace body.
-    pub expressions: Vec<LocalNodeId<Expression>>,
-    /// Whether the declaration is ambient.
-    pub is_ambient: bool,
 }
 
 /// A type declaration.
@@ -224,8 +195,6 @@ pub enum Declaration {
     Global(GlobalDeclaration),
     /// Module directive block.
     Module(ModuleDeclaration),
-    /// Namespace declaration.
-    Namespace(NamespaceDeclaration),
     /// Type declaration.
     Type(TypeDeclaration),
     /// Struct declaration.
@@ -250,7 +219,6 @@ impl Declaration {
     /// Return the export kind on this declaration.
     pub fn export(&self) -> Option<ExportKind> {
         match self {
-            Declaration::Namespace(declaration) => declaration.export,
             Declaration::Type(declaration) => declaration.export,
             Declaration::Struct(declaration) => declaration.export,
             Declaration::Class(declaration) => declaration.export,
@@ -266,7 +234,6 @@ impl Declaration {
     pub fn is_ambient(&self) -> bool {
         match self {
             Declaration::Global(declaration) => declaration.is_ambient,
-            Declaration::Namespace(declaration) => declaration.is_ambient,
             Declaration::Type(declaration) => declaration.is_ambient,
             Declaration::Struct(declaration) => declaration.is_ambient,
             Declaration::Class(declaration) => declaration.is_ambient,
@@ -282,7 +249,6 @@ impl Declaration {
     pub fn symbol_form(&self) -> Option<SymbolForm> {
         match self {
             Declaration::Global(_) | Declaration::Module(_) => None,
-            Declaration::Namespace(_) => Some(SymbolForm::Variable),
             Declaration::Type(declaration) => {
                 if declaration.is_nominal {
                     Some(SymbolForm::Newtype)
@@ -324,7 +290,6 @@ impl Declaration {
         match self {
             Declaration::Global(_) => None,
             Declaration::Module(_) => None,
-            Declaration::Namespace(declaration) => Some(declaration.name),
             Declaration::Type(declaration) => Some(declaration.name),
             Declaration::Struct(declaration) => Some(declaration.name),
             Declaration::Class(declaration) => declaration.name,
@@ -341,7 +306,6 @@ impl Declaration {
         match self {
             Declaration::Global(_) => "global",
             Declaration::Module(_) => "module",
-            Declaration::Namespace(_) => "namespace",
             Declaration::Type(_) => "type",
             Declaration::Struct(_) => "struct",
             Declaration::Class(_) => "class",
@@ -378,7 +342,6 @@ impl Declaration {
     #[inline]
     pub fn generic_parameters(&self) -> Option<&[LocalNodeId<GenericParameter>]> {
         match self {
-            Declaration::Namespace(declaration) => Some(&declaration.generic_parameters),
             Declaration::Type(declaration) => Some(&declaration.generic_parameters),
             Declaration::Struct(declaration) => Some(&declaration.generic_parameters),
             Declaration::Class(declaration) => Some(&declaration.generic_parameters),

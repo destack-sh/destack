@@ -5,7 +5,7 @@ use smallvec::SmallVec;
 
 use crate::StringId;
 
-/// A Path is static path to a named declaration in a namespace.
+/// A static path to a named declaration.
 /// In the case of a Use declaration, the Path excludes the items.
 ///
 /// Examples:
