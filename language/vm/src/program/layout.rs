@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use destack_mir::{LayoutId, LayoutTable, ReferenceMap};
-use {destack_engine as engine, destack_heap as heap, destack_mir as mir};
+use destack_mir::{LayoutId, ReferenceMap};
+use {destack_engine as engine, destack_mir as mir};
 
 use crate::program::{pointer_class_from_reference, word_layout_from_pointer_class};
 use crate::{Error, Result, Word};
@@ -21,14 +21,19 @@ pub(crate) struct Layout {
     alignment: usize,
 }
 
-/// Layout metadata for one lowered program.
-pub(crate) struct LayoutIndex {
-    /// MIR layouts keyed by layout id.
-    table: LayoutTable,
-    /// Compiled type layouts keyed by MIR type id.
-    type_layout: HashMap<mir::LocalNodeId<mir::Type>, Layout>,
-    /// Layout ids keyed by MIR type id.
-    layout_id_by_type: HashMap<mir::LocalNodeId<mir::Type>, LayoutId>,
+/// VM type table for one lowered program.
+pub(crate) struct TypeTable {
+    /// Compiled types keyed by MIR type id.
+    types: HashMap<mir::LocalNodeId<mir::Type>, CompiledType>,
+}
+
+/// Compiled VM representation for one MIR type.
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct CompiledType {
+    /// The MIR heap layout id.
+    layout_id: LayoutId,
+    /// The compiled VM value layout.
+    layout: Layout,
 }
 
 /// The compiled shape for one MIR type.
@@ -174,38 +179,32 @@ impl Layout {
     }
 }
 
-impl LayoutIndex {
-    /// Create one layout index.
+impl TypeTable {
+    /// Create one type table.
     pub(crate) fn new(
-        table: LayoutTable,
-        type_layout: HashMap<mir::LocalNodeId<mir::Type>, Layout>,
+        layouts: HashMap<mir::LocalNodeId<mir::Type>, Layout>,
         layout_id_by_type: HashMap<mir::LocalNodeId<mir::Type>, LayoutId>,
-    ) -> Self {
-        Self {
-            table,
-            type_layout,
-            layout_id_by_type,
+    ) -> Result<Self> {
+        let mut types = HashMap::with_capacity(layouts.len());
+
+        // join per type layout facts
+        for (ty, layout) in layouts {
+            let layout_id =
+                layout_id_by_type
+                    .get(&ty)
+                    .copied()
+                    .ok_or_else(|| Error::InvariantViolation {
+                        context: format!("missing heap layout id for type {ty:?}"),
+                    })?;
+            types.insert(ty, CompiledType { layout_id, layout });
         }
-    }
 
-    /// Return the MIR layout table.
-    pub(crate) fn table(&self) -> &LayoutTable {
-        &self.table
-    }
-
-    /// Return all compiled type layouts.
-    pub(crate) fn type_layouts(&self) -> &HashMap<mir::LocalNodeId<mir::Type>, Layout> {
-        &self.type_layout
-    }
-
-    /// Return the MIR layout ids keyed by MIR type.
-    pub(crate) fn layout_ids(&self) -> &HashMap<mir::LocalNodeId<mir::Type>, LayoutId> {
-        &self.layout_id_by_type
+        Ok(Self { types })
     }
 
     /// Return one compiled type layout.
     pub(crate) fn layout(&self, ty: mir::LocalNodeId<mir::Type>) -> Option<&Layout> {
-        self.type_layout.get(&ty)
+        self.types.get(&ty).map(|ty| &ty.layout)
     }
 
     /// Return one compiled layout by engine value layout id.
@@ -227,25 +226,7 @@ impl LayoutIndex {
 
     /// Return the MIR layout id for one MIR type.
     pub(crate) fn layout_id_for_type(&self, ty: mir::LocalNodeId<mir::Type>) -> Option<LayoutId> {
-        self.layout_id_by_type.get(&ty).copied()
-    }
-
-    /// Return one heap allocation shape.
-    pub(crate) fn allocation_shape(
-        &self,
-        layout_id: LayoutId,
-    ) -> Result<heap::AllocationShape<'_>> {
-        let Some(layout) = self.table.layouts.get(layout_id.index()) else {
-            return Err(Error::InvariantViolation {
-                context: format!("missing allocation layout {layout_id:?}"),
-            });
-        };
-
-        Ok(heap::AllocationShape::new(
-            layout.size as usize,
-            layout.alignment as usize,
-            &layout.reference_map,
-        ))
+        self.types.get(&ty).map(|ty| ty.layout_id)
     }
 }
 

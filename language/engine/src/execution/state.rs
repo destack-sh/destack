@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::FrameMaterialization;
+
 /// Logical frame state id.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct FrameStateId(pub u32);
@@ -28,10 +30,12 @@ pub struct InstructionPoint {
 }
 
 /// Logical frame state at one resumable or reconstructable program point.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FrameState {
     /// The frame state id.
     pub id: FrameStateId,
     /// The logical instruction point.
     pub point: InstructionPoint,
+    /// The single frame reconstruction recipe.
+    pub materialization: FrameMaterialization,
 }

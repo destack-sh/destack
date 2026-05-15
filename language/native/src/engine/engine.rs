@@ -128,7 +128,7 @@ impl EngineTrait for Engine {
         let mut context = NativeContext::new(context.runtime.as_ptr(), &mut exit);
         let mut out = NativeValue::VOID;
 
-        let status = unsafe { (entry.function)(&mut context, args.as_ptr(), args.len(), &mut out) };
+        let status = entry.call(&mut context, &args, &mut out);
         let status = NativeStatus::try_from(status).map_err(Error::InvalidStatus)?;
         match status {
             NativeStatus::Completed => {

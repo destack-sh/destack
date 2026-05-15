@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{CodeOffset, NativeEntry};
+use crate::{CodeOffset, NativeContext, NativeEntry, NativeStatusCode, NativeValue};
 
 /// One native entry id.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -34,6 +34,17 @@ impl Entry {
             id: symbol.id,
             function,
         }
+    }
+
+    /// Call this loaded native entry.
+    pub fn call(
+        &self,
+        context: &mut NativeContext,
+        args: &[NativeValue],
+        out: &mut NativeValue,
+    ) -> NativeStatusCode {
+        // loaded entries are produced by the native loader with this ABI
+        unsafe { (self.function)(context, args.as_ptr(), args.len(), out) }
     }
 }
 

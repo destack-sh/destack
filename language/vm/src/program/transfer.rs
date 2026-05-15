@@ -23,8 +23,6 @@ pub(crate) enum Transfer {
         function: u32,
         /// Lowered or imported call target.
         target: CallTarget,
-        /// Destination for return value.
-        destination: Option<mir::Value>,
         /// Arguments to pass.
         arguments: ArgumentRange,
         /// Optional callable environment to pass.
