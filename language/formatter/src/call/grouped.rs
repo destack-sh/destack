@@ -89,6 +89,7 @@ fn can_group_lambda_argument(
     match context.tree.get(body_expression_id) {
         Expression::Block(_)
         | Expression::ObjectExpression { .. }
+        | Expression::StructExpression { .. }
         | Expression::ArrayExpression { .. }
         | Expression::TreeExpression { .. } => true,
         Expression::Declaration(next_declaration_id) => {
@@ -204,7 +205,8 @@ fn can_group_expression_argument(
     let expression_id = transparent_inner_expression(ctx, expression_id);
 
     match ctx.tree.get(expression_id) {
-        Expression::ObjectExpression { properties, .. } => {
+        Expression::ObjectExpression { properties, .. }
+        | Expression::StructExpression { properties, .. } => {
             !properties.is_empty() || ctx.comments().has_comment_in_span(ctx.span(expression_id))
         }
         Expression::ArrayExpression { elements, .. } => {
@@ -328,6 +330,9 @@ fn should_group_last_argument_impl(
             (
                 Expression::ObjectExpression { .. },
                 Expression::ObjectExpression { .. }
+            ) | (
+                Expression::StructExpression { .. },
+                Expression::StructExpression { .. }
             ) | (
                 Expression::ArrayExpression { .. },
                 Expression::ArrayExpression { .. }

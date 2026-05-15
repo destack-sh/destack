@@ -205,7 +205,8 @@ enum FieldLikeLayout {
 /// Return whether one logical rhs can stay inline in the assignment-like layout.
 fn field_like_can_inline_logical_rhs(expression: &Expression) -> bool {
     match expression {
-        Expression::ObjectExpression { properties, .. } => !properties.is_empty(),
+        Expression::ObjectExpression { properties, .. }
+        | Expression::StructExpression { properties, .. } => !properties.is_empty(),
         Expression::ArrayExpression { elements } => !elements.is_empty(),
         Expression::TreeExpression { .. } => true,
         _ => false,
@@ -383,7 +384,9 @@ fn property_should_force_quote_keys<'ast>(
     }
 
     let parent_id = LocalNodeId::<Expression>::new(parent_id);
-    let Expression::ObjectExpression { properties, .. } = f.context().tree.get(parent_id) else {
+    let (Expression::ObjectExpression { properties, .. }
+    | Expression::StructExpression { properties, .. }) = f.context().tree.get(parent_id)
+    else {
         return false;
     };
 

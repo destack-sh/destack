@@ -41,6 +41,24 @@ fn test_format_type_conditional_trailing_branch_comments() {
     );
 }
 
+/// Anonymous infer holes should format as `_`.
+#[test]
+fn test_format_type_infer_hole() {
+    assert_format_program!(
+        r#"type Result = Box<_>
+let value: _ = load()
+type Match = T extends infer _ ? true : false
+type Bound = T extends infer _ extends string ? true : false
+"#,
+        r#"type Result = Box<_>;
+let value: _ = load();
+type Match = T extends infer _ ? true : false;
+type Bound = T extends infer _ extends string ? true : false;
+"#,
+        FileType::Destack
+    );
+}
+
 /// Conditional type alternate comments should stay on the `:` branch.
 #[test]
 fn test_format_type_conditional_alternate_line_comment() {

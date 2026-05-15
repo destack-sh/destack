@@ -25,9 +25,9 @@ use crate::operator::{
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_dir::{
     Comment, ConstructorTypeDeclaration, Declaration, Expression, FunctionForm, FunctionSignature,
-    FunctionTypeDeclaration, GenericArgument, GenericParameter, Key, Keyword, LocalNodeId,
-    MappedTypeModifier, Member, Mutability, Node, NodeType, Parameter, Property, RangeEnd,
-    TokenType, Tree, TreeStore, TupleElement, TypeExpression, TypeLiteral, TypeMember,
+    FunctionTypeDeclaration, GenericArgument, GenericParameter, InferForm, Key, Keyword,
+    LocalNodeId, MappedTypeModifier, Member, Mutability, Node, NodeType, Parameter, Property,
+    RangeEnd, TokenType, Tree, TreeStore, TupleElement, TypeExpression, TypeLiteral, TypeMember,
     TypePredicateSubject, VarianceBound, WhereClause,
 };
 use destack_fir::format::{Buffer, FormatError, FormatResult};
@@ -2825,13 +2825,27 @@ pub(crate) fn write_type_expression_body<'ast>(
         TypeExpression::TemplateLiteral { strings, spans } => {
             format_type_template_literal(node_id, strings, spans, f)?;
         }
-        TypeExpression::Infer { name, constraint } => {
-            write!(f, [Keyword::Infer, space(), *name])?;
-
-            if let Some(constraint) = constraint {
-                write!(f, [space(), Keyword::Extends, space(), constraint])?;
+        TypeExpression::Infer {
+            form,
+            name,
+            constraint,
+        } => match form {
+            InferForm::Hole => {
+                write!(f, [token("_")])?;
             }
-        }
+            InferForm::Infer => {
+                write!(f, [Keyword::Infer, space()])?;
+                if let Some(name) = name {
+                    write!(f, [*name])?;
+                } else {
+                    write!(f, [token("_")])?;
+                }
+
+                if let Some(constraint) = constraint {
+                    write!(f, [space(), Keyword::Extends, space(), constraint])?;
+                }
+            }
+        },
         TypeExpression::Predicate {
             asserts,
             subject,

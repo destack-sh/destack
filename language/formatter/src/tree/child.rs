@@ -153,6 +153,7 @@ pub(crate) fn tree_child_should_inline_braced_expression(
         | Expression::ScalarLiteral(ScalarLiteral::Character(_)) => true,
         Expression::ArrayExpression { .. }
         | Expression::ObjectExpression { .. }
+        | Expression::StructExpression { .. }
         | Expression::Call { .. }
         | Expression::TemplateExpression { .. }
         | Expression::TaggedTemplateExpression { .. }

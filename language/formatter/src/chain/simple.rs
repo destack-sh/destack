@@ -115,8 +115,9 @@ fn expression_is_simple(
         Expression::TemplateExpression { value } => {
             template_literal_is_simple(context, value, depth + 1)
         }
-        Expression::ObjectExpression { ty, properties } => {
-            ty.is_none() && object_expression_is_simple(context, properties, depth)
+        Expression::ObjectExpression { properties }
+        | Expression::StructExpression { properties, .. } => {
+            object_expression_is_simple(context, properties, depth)
         }
         Expression::ArrayExpression { elements } => {
             array_expression_is_simple(context, elements, depth)

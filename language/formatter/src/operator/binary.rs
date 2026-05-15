@@ -348,7 +348,8 @@ impl BinaryLikeExpression {
         }
 
         match context.tree.get(self.right(context)) {
-            Expression::ObjectExpression { properties, .. } => !properties.is_empty(),
+            Expression::ObjectExpression { properties, .. }
+            | Expression::StructExpression { properties, .. } => !properties.is_empty(),
             Expression::ArrayExpression { elements } => !elements.is_empty(),
             Expression::TreeExpression { .. } => true,
             _ => false,

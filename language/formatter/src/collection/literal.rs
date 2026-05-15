@@ -451,7 +451,6 @@ impl<'ast> Format<DestackFormatContext<'ast>> for TypeLiteral {
         match self {
             TypeLiteral::Never => write!(f, [token("never")]),
             TypeLiteral::Any => write!(f, [token("any")]),
-            TypeLiteral::Infer => write!(f, [token("_")]),
             TypeLiteral::Undefined => write!(f, [token("undefined")]),
             TypeLiteral::Unknown => write!(f, [token("unknown")]),
             TypeLiteral::Object => write!(f, [token("object")]),
