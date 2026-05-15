@@ -277,13 +277,13 @@ pub(crate) fn value_layout_from_type(
             address_space,
             access,
             pointee,
-            is_nullable,
+            nullability,
             ..
         } => match pointee.ty() {
             Some(pointee) => ValueLayout::Pointer {
                 pointee,
                 pointer_class: pointer_class_from_reference(address_space.clone(), *kind),
-                reference: ReferenceMeta::new(*kind, address_space.clone(), *access, *is_nullable),
+                reference: ReferenceMeta::new(*kind, address_space.clone(), *access, *nullability),
             },
             None => ValueLayout::Unknown,
         },
@@ -325,7 +325,7 @@ pub(crate) fn value_layout_from_type(
         mir::Type::Callable { .. } => ValueLayout::Callable { ty },
         mir::Type::Tuple { .. }
         | mir::Type::Struct { .. }
-        | mir::Type::Union { .. }
+        | mir::Type::Variant { .. }
         | mir::Type::Vector { .. }
         | mir::Type::Tensor { .. } => ValueLayout::FrameBytes { ty },
         mir::Type::TensorView { .. } => ValueLayout::FrameBytes { ty },

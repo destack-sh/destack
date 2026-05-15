@@ -46,7 +46,7 @@ b1(v2: int32, v3: int32):
 #[test]
 fn test_imported_call_requires_runtime_boundary() {
     let mir = r#"
-extern function touch(): void
+external function touch(): void
 
 function caller(): int32 {
 b0:

@@ -430,8 +430,8 @@ b0:
 #[test]
 fn test_element_get_reads_array_element() {
     let mir = r#"
-function getElem(v0: int32[3]): int32 {
-b0(v0: int32[3]):
+function getElem(v0: [int32; 3]): int32 {
+b0(v0: [int32; 3]):
     v1: int32 = element.get v0, 1
     return v1
 }"#;
@@ -457,7 +457,7 @@ b0:
     v0: int32 = 10int32
     v1: int32 = 20int32
     v2: int32 = 30int32
-    v3: int32[3] = array int32[3] (v0, v1, v2)
+    v3: [int32; 3] = array [int32; 3] (v0, v1, v2)
     v4: int32 = element.get v3, 2
     return v4
 }"#;
@@ -469,9 +469,9 @@ b0:
 #[test]
 fn test_element_set_preserves_source_array() {
     let mir = r#"
-function setWithoutAlias(v0: int32[3], v1: int32): int32 {
-b0(v0: int32[3], v1: int32):
-    v2: int32[3] = element.set v0, 1, v1
+function setWithoutAlias(v0: [int32; 3], v1: int32): int32 {
+b0(v0: [int32; 3], v1: int32):
+    v2: [int32; 3] = element.set v0, 1, v1
     v3: int32 = element.get v0, 1
     v4: int32 = element.get v2, 1
     v5: int32 = int.add v3, v4
@@ -494,9 +494,9 @@ b0(v0: int32[3], v1: int32):
 #[test]
 fn test_element_set_replaces_array_element() {
     let mir = r#"
-function setAndGet(v0: int32[3], v1: int32): int32 {
-b0(v0: int32[3], v1: int32):
-    v2: int32[3] = element.set v0, 1, v1
+function setAndGet(v0: [int32; 3], v1: int32): int32 {
+b0(v0: [int32; 3], v1: int32):
+    v2: [int32; 3] = element.set v0, 1, v1
     v3: int32 = element.get v2, 1
     return v3
 }"#;
@@ -520,8 +520,8 @@ b0(v0: int32):
     v1: int32 = 10int32
     v2: int32 = 20int32
     v3: int32 = 30int32
-    v4: int32[3] = array int32[3] (v1, v2, v3)
-    v5: int32[3] = element.set v4, 1, v0
+    v4: [int32; 3] = array [int32; 3] (v1, v2, v3)
+    v5: [int32; 3] = element.set v4, 1, v0
     v6: int32 = element.get v4, 1
     v7: int32 = element.get v5, 1
     v8: int32 = int.add v6, v7
@@ -548,7 +548,7 @@ b0:
     v3: int32 = 30int32
     v4: int32 = 40int32
     v5: (int32, int32) = tuple (int32, int32) (v3, v4)
-    v6: (int32, int32)[2] = array (int32, int32)[2] (v2, v5)
+    v6: [(int32, int32); 2] = array [(int32, int32); 2] (v2, v5)
     v7: (int32, int32) = element.get v6, 1
     v8: int32 = field.get v7, 0
     return v8
@@ -568,11 +568,11 @@ b0:
     v3: int32 = 30int32
     v4: int32 = 40int32
     v5: (int32, int32) = tuple (int32, int32) (v3, v4)
-    v6: (int32, int32)[2] = array (int32, int32)[2] (v2, v5)
+    v6: [(int32, int32); 2] = array [(int32, int32); 2] (v2, v5)
     v7: int32 = 50int32
     v8: int32 = 60int32
     v9: (int32, int32) = tuple (int32, int32) (v7, v8)
-    v10: (int32, int32)[2] = element.set v6, 1, v9
+    v10: [(int32, int32); 2] = element.set v6, 1, v9
     v11: (int32, int32) = element.get v10, 1
     v12: int32 = field.get v11, 1
     return v12
