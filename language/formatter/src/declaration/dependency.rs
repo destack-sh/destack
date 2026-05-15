@@ -8,7 +8,7 @@ use crate::collection::property::{format_name_with_quotes, is_identifier_for_quo
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_core::{StringId, StringPool};
 use destack_dir::{
-    DecoratorPosition, DependencyBinding, DependencyItem, DependencySpace, Expression,
+    DecoratorPosition, DependencyBinding, DependencyForm, DependencyItem, Expression,
     ImportAttribute, ImportAttributeClause, ImportAttributeClauseKind, ImportAttributeValue,
     Keyword, LocalNodeId, Name, ScalarLiteral, TokenSpan, TokenType, Tree,
 };
@@ -90,9 +90,9 @@ impl<'ast> FormatNode<'ast, DependencyItem> for DependencyItem {
         node_id: LocalNodeId<DependencyItem>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        let DependencyItem::Item {
+        let DependencyItem::Binding {
             binding,
-            space: dependency_space,
+            form: dependency_form,
             name,
             alias,
             value: _,
@@ -104,12 +104,12 @@ impl<'ast> FormatNode<'ast, DependencyItem> for DependencyItem {
         write!(f, [prefix_annotations(f.context(), node_id)])?;
 
         // type
-        if *dependency_space == Some(DependencySpace::Type) {
+        if *dependency_form == Some(DependencyForm::Type) {
             write!(f, [Keyword::Type, space()])?;
         }
 
         let is_default_binding = *binding == DependencyBinding::Default
-            || (*binding == DependencyBinding::Item && name.is_none());
+            || (*binding == DependencyBinding::Named && name.is_none());
 
         // default
         if is_default_binding {
@@ -171,7 +171,7 @@ pub(crate) fn format_dependency_statement_expression<'ast>(
 ) -> FormatResult<bool> {
     match expression {
         Expression::Import {
-            space,
+            form,
             target,
             items,
             attributes,
@@ -179,7 +179,7 @@ pub(crate) fn format_dependency_statement_expression<'ast>(
             format_import_expression(
                 f,
                 node_id,
-                *space,
+                *form,
                 *target,
                 items.as_deref(),
                 attributes.as_ref(),
@@ -187,12 +187,12 @@ pub(crate) fn format_dependency_statement_expression<'ast>(
             Ok(true)
         }
         Expression::Export {
-            space,
+            form,
             target,
             items,
             attributes,
         } => {
-            format_export_expression(f, node_id, *space, *target, items, attributes.as_ref())?;
+            format_export_expression(f, node_id, *form, *target, items, attributes.as_ref())?;
             Ok(true)
         }
         _ => Ok(false),
@@ -286,8 +286,8 @@ pub(crate) fn sort_dependency_items(
         let right_item = tree.get(*right_id);
 
         // type imports come before value imports
-        let left_is_type = dependency_item_space(left_item) == Some(DependencySpace::Type);
-        let right_is_type = dependency_item_space(right_item) == Some(DependencySpace::Type);
+        let left_is_type = dependency_item_space(left_item) == Some(DependencyForm::Type);
+        let right_is_type = dependency_item_space(right_item) == Some(DependencyForm::Type);
         match (left_is_type, right_is_type) {
             (true, false) => return Ordering::Less,
             (false, true) => return Ordering::Greater,
@@ -357,9 +357,9 @@ fn is_alias_specifier(specifier: &str) -> bool {
 }
 
 /// Return one dependency item's dependency space when it is valid.
-fn dependency_item_space(item: &DependencyItem) -> Option<DependencySpace> {
+fn dependency_item_space(item: &DependencyItem) -> Option<DependencyForm> {
     match item {
-        DependencyItem::Item { space, .. } => *space,
+        DependencyItem::Binding { form: space, .. } => *space,
         DependencyItem::Error => None,
     }
 }
@@ -367,7 +367,7 @@ fn dependency_item_space(item: &DependencyItem) -> Option<DependencySpace> {
 /// Return one dependency item's sort key when present.
 fn dependency_item_sort_key(item: &DependencyItem) -> Option<StringId> {
     match item {
-        DependencyItem::Item { alias, name, .. } => {
+        DependencyItem::Binding { alias, name, .. } => {
             alias.or_else(|| name.map(|name| name.string()))
         }
         DependencyItem::Error => None,
@@ -434,7 +434,7 @@ fn natural_cmp(left: &str, right: &str) -> Ordering {
 /// Return one dependency item's binding when it is valid.
 fn dependency_item_mode(item: &DependencyItem) -> Option<DependencyBinding> {
     match item {
-        DependencyItem::Item { binding, .. } => Some(*binding),
+        DependencyItem::Binding { binding, .. } => Some(*binding),
         DependencyItem::Error => None,
     }
 }
@@ -442,7 +442,7 @@ fn dependency_item_mode(item: &DependencyItem) -> Option<DependencyBinding> {
 /// Return one dependency item's alias when it is valid.
 fn dependency_item_alias(item: &DependencyItem) -> Option<StringId> {
     match item {
-        DependencyItem::Item { alias, .. } => *alias,
+        DependencyItem::Binding { alias, .. } => *alias,
         DependencyItem::Error => None,
     }
 }
@@ -450,7 +450,7 @@ fn dependency_item_alias(item: &DependencyItem) -> Option<StringId> {
 /// Return one dependency item's value when it is valid.
 fn dependency_item_value(item: &DependencyItem) -> Option<LocalNodeId<Expression>> {
     match item {
-        DependencyItem::Item { value, .. } => *value,
+        DependencyItem::Binding { value, .. } => *value,
         DependencyItem::Error => None,
     }
 }
@@ -1510,7 +1510,7 @@ fn write_export_clause<'ast>(
 fn write_import_declaration_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
-    dependency_space: DependencySpace,
+    dependency_form: DependencyForm,
     target: StringId,
     items: &[LocalNodeId<DependencyItem>],
     has_item_clause: bool,
@@ -1522,7 +1522,7 @@ fn write_import_declaration_expression<'ast>(
 
     write!(f, [Keyword::Import])?;
 
-    if dependency_space == DependencySpace::Type {
+    if dependency_form == DependencyForm::Type {
         write!(f, [space(), Keyword::Type])?;
     }
 
@@ -1551,7 +1551,7 @@ fn write_import_declaration_expression<'ast>(
 pub(crate) fn format_import_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
-    dependency_space: DependencySpace,
+    dependency_form: DependencyForm,
     target: StringId,
     items: Option<&[LocalNodeId<DependencyItem>]>,
     attributes: Option<&ImportAttributeClause>,
@@ -1562,7 +1562,7 @@ pub(crate) fn format_import_expression<'ast>(
     write_import_declaration_expression(
         f,
         node_id,
-        dependency_space,
+        dependency_form,
         target,
         items,
         has_item_clause,
@@ -1574,7 +1574,7 @@ pub(crate) fn format_import_expression<'ast>(
 fn write_export_declaration_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
-    dependency_space: DependencySpace,
+    dependency_form: DependencyForm,
     target: Option<StringId>,
     items: &[LocalNodeId<DependencyItem>],
     attributes: Option<&ImportAttributeClause>,
@@ -1585,7 +1585,7 @@ fn write_export_declaration_expression<'ast>(
 
     write!(f, [Keyword::Export])?;
 
-    if dependency_space == DependencySpace::Type {
+    if dependency_form == DependencyForm::Type {
         write!(f, [space(), Keyword::Type])?;
     }
 
@@ -1616,10 +1616,10 @@ fn write_export_declaration_expression<'ast>(
 pub(crate) fn format_export_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
-    dependency_space: DependencySpace,
+    dependency_form: DependencyForm,
     target: Option<StringId>,
     items: &[LocalNodeId<DependencyItem>],
     attributes: Option<&ImportAttributeClause>,
 ) -> FormatResult<()> {
-    write_export_declaration_expression(f, node_id, dependency_space, target, items, attributes)
+    write_export_declaration_expression(f, node_id, dependency_form, target, items, attributes)
 }

@@ -2,7 +2,6 @@ use crate::annotation::{
     DanglingIndentMode, FormatDanglingComments, FormatLeadingComments, format_comment,
     infix_or_postfix_annotations, postfix_annotations, prefix_annotations,
 };
-use crate::collection::literal::format_scalar_literal;
 use crate::collection::member::format_block_of_members;
 use crate::context::FormatNodeWithoutTrailingComments;
 use crate::declaration::function::format_function_declaration;
@@ -28,8 +27,8 @@ use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_dir::{
     Asynchrony, Comment, Declaration, Declarator, ExportKind, Expression, ExtensionDeclaration,
     FunctionDeclaration, FunctionForm, GenericParameter, GlobalDeclaration, Keyword, LetKind,
-    LocalNodeId, Member, Mutability, Name, NamespaceDeclaration, NamespaceForm, NodeType,
-    ScalarLiteral, TokenSpan, TokenType, TypeDeclaration, TypeExpression, WhereClause,
+    LocalNodeId, Member, ModuleDeclaration, Mutability, NodeType, TokenSpan, TokenType,
+    TypeDeclaration, TypeExpression, WhereClause,
 };
 use destack_fir::format::{
     FormatError, FormatNode as FirNode, FormatNodes, FormatResult, Formatter as FirFormatter,
@@ -37,28 +36,9 @@ use destack_fir::format::{
 };
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
-use destack_source::{NodeSpanRegion, NodeSpanType, Span};
+use destack_source::{NodeSpanRegion, NodeSpanType};
 
 const MIN_OVERLAP_FOR_BREAK: u32 = 3;
-
-/// Write one declaration name.
-fn write_declaration_name<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    name: Name,
-) -> FormatResult<()> {
-    match name {
-        Name::Identifier(name) | Name::Number(name) => {
-            write!(f, [name])?;
-        }
-        Name::String(name) => {
-            let literal = ScalarLiteral::String(name);
-            let span = Span::empty(f.context().file.id);
-            format_scalar_literal(&literal, span, f)?;
-        }
-    }
-
-    Ok(())
-}
 
 /// Return the `export` token for one declaration, if present.
 pub(crate) fn declaration_export_token(
@@ -790,31 +770,14 @@ fn format_global_declaration<'ast>(
     write!(f, [postfix_annotations(f.context(), node_id)])
 }
 
-/// Format one namespace declaration.
-fn format_namespace_declaration<'ast>(
+/// Format one module declaration.
+fn format_module_declaration<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
-    declaration: &NamespaceDeclaration,
+    declaration: &ModuleDeclaration,
 ) -> FormatResult<()> {
-    // prefixes
-    format_declaration_export_modifier(f, node_id, declaration.export)?;
-    write_ambient_prefix(f, declaration.is_ambient)?;
-
-    // keyword
-    match declaration.form {
-        NamespaceForm::Namespace => write!(f, [Keyword::Namespace])?,
-        NamespaceForm::Module => write!(f, [token("module")])?,
-    }
-
-    // name
-    write!(f, [space()])?;
-    write_declaration_name(f, declaration.name)?;
-
-    // generic parameters
-    write_declaration_generic_parameters(f, &declaration.generic_parameters)?;
-
-    // where clauses
-    write_declaration_where_clauses(f, &declaration.where_clauses)?;
+    // head
+    write!(f, [token("module")])?;
 
     // body
     write_expression_declaration_body(f, node_id, &declaration.expressions)?;
@@ -932,10 +895,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 format_global_declaration(f, node_id, declaration)?;
             }
             Declaration::Module(declaration) => {
-                write_expression_declaration_body(f, node_id, &declaration.expressions)?;
-            }
-            Declaration::Namespace(declaration) => {
-                format_namespace_declaration(f, node_id, declaration)?;
+                format_module_declaration(f, node_id, declaration)?;
             }
             Declaration::Type(declaration) => {
                 format_type_declaration(f, node_id, declaration)?;

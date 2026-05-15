@@ -400,8 +400,7 @@ fn array_expression_should_break(tree: &Tree, elements: &[LocalNodeId<Argument>]
 
                 saw_array = true;
             }
-            Expression::ObjectExpression { properties }
-            | Expression::StructExpression { properties, .. } => {
+            Expression::ObjectExpression { properties } => {
                 if properties.len() < 2 || saw_array {
                     return false;
                 }

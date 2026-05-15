@@ -343,25 +343,9 @@ declare const second: string;
     );
 }
 
-/// Nested global blocks should preserve the explicit `declare` spelling.
+/// Global blocks should preserve the explicit `declare` spelling.
 #[test]
-fn test_format_nested_global_preserves_declare_spelling() {
-    assert_format_program!(
-        r#"declare module "buffer" {
-    global {
-        let Buffer: BufferConstructor;
-    }
-}
-"#,
-        r#"declare module "buffer" {
-    global {
-        let Buffer: BufferConstructor;
-    }
-}
-"#,
-        FileType::TypeScriptDeclaration,
-    );
-
+fn test_format_global_preserves_declare_spelling() {
     assert_format_program!(
         r#"declare global {
     let Buffer: BufferConstructor;

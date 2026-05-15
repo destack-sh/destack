@@ -1316,7 +1316,7 @@ fn expression_is_in_statement_context_inside_parent_declaration(
             function_body_is_statement_context(context, &function.signature)
         }),
         Declaration::Global(global) => global.expressions.contains(&expression_id),
-        Declaration::Namespace(namespace) => namespace.expressions.contains(&expression_id),
+        Declaration::Module(module) => module.expressions.contains(&expression_id),
         _ => false,
     }
 }
