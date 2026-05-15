@@ -2,8 +2,8 @@ use std::time::Duration;
 
 use crate::diagnostic::{DiagnosticStore, RuntimeError, RuntimeResult};
 use crate::host::binding::{
-    BindingAccess, BindingAffinity, BindingDescriptor, BindingEngine, BindingReplayPayload,
-    BindingRoute, RuntimeAccess,
+    BindingAccess, BindingAffinity, BindingDescriptor, BindingReplayPayload, BindingRoute,
+    RuntimeAccess,
 };
 use crate::host::{HostError, HostSession, core as host_core};
 use crate::runtime::random::RandomStreamId;
@@ -28,8 +28,6 @@ pub struct BindingCallContext {
     pub(crate) host: *const HostSession,
     /// Shared world for replay, time, random, and policy.
     pub(crate) world: *mut WorldState,
-    /// Engine kind for this binding call.
-    pub(crate) engine: BindingEngine,
     /// Currently running task or microtask.
     pub(crate) scope: RunnableScope,
     /// Execution-affinity context for the current call.
@@ -128,7 +126,6 @@ impl BindingCallContext {
             runtime_id: self.worker().runtime_id,
             worker_id: self.worker().id,
             binding_id: spec.id,
-            engine: Some(self.engine()),
             task_id: self.task_id(),
             microtask_id: self.microtask_id(),
         }
@@ -265,43 +262,13 @@ impl BindingCallContext {
     /// Notify policy hooks about one clock-read operation.
     #[inline]
     pub fn on_time_read(&self) {
-        self.hooks().on_time_read(self.world(), Some(self.engine()));
+        self.hooks().on_time_read(self.world());
     }
 
     /// Notify policy hooks about one random-read operation.
     #[inline]
     pub fn on_random_read(&self) {
-        self.hooks()
-            .on_random_read(self.world(), Some(self.engine()));
-    }
-
-    /// Sleep one runtime-backed duration.
-    #[inline]
-    pub fn sleep_nanos(&self, duration: u64) {
-        self.world().clock().host_sleep_nanos(duration);
-    }
-
-    /// Sleep until one runtime-backed wall deadline.
-    #[inline]
-    pub fn sleep_until_wall_nanos(&self, deadline: u64) {
-        self.world().clock().host_sleep_until_nanos(deadline);
-    }
-
-    /// Sleep until one runtime-backed monotonic deadline.
-    #[inline]
-    pub fn sleep_until_mono_nanos(&self, deadline: u64) {
-        let now = self.mono_nanos();
-        if deadline <= now {
-            return;
-        }
-
-        let delta = deadline.saturating_sub(now);
-        self.sleep_nanos(delta);
-    }
-
-    /// Return the engine kind for this call context.
-    pub const fn engine(&self) -> BindingEngine {
-        self.engine
+        self.hooks().on_random_read(self.world());
     }
 
     /// Return one policy-violation error for one binding descriptor.
@@ -368,9 +335,7 @@ impl BindingCallContext {
         spec: BindingDescriptor,
     ) -> RuntimeResult<BindingHookGuard<'_>> {
         self.preflight_binding_call(spec)?;
-        let call_id = self
-            .hooks()
-            .on_before_binding(self.world(), spec, Some(self.engine))?;
+        let call_id = self.hooks().on_before_binding(self.world(), spec)?;
 
         Ok(BindingHookGuard {
             context: self,
@@ -393,9 +358,7 @@ impl BindingCallContext {
             return Err(RuntimeError::from(HostError::not_supported(spec.name)).boxed());
         }
 
-        let call_id = self
-            .hooks()
-            .on_before_binding(self.world(), spec, Some(self.engine))?;
+        let call_id = self.hooks().on_before_binding(self.world(), spec)?;
 
         let hook_guard = BindingHookGuard {
             context: self,
@@ -408,8 +371,7 @@ impl BindingCallContext {
     /// Run post-call hooks for one binding descriptor.
     #[inline]
     fn on_after_binding(&self, spec: BindingDescriptor, call_id: ScenarioCallId) {
-        self.hooks()
-            .on_after_binding(self.world(), spec, Some(self.engine), call_id);
+        self.hooks().on_after_binding(self.world(), spec, call_id);
     }
 
     /// Resolve the binding route for this call context.
@@ -439,7 +401,6 @@ impl BindingCallContext {
             self.worker().runtime_id,
             self.worker().id,
             spec,
-            Some(self.engine),
         )
     }
 }

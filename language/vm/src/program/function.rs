@@ -79,6 +79,11 @@ impl FunctionTable {
         self.functions.get(index as usize).map(NonNull::from)
     }
 
+    /// Return a lowered function by dense index.
+    pub(crate) fn function_by_index(&self, index: u32) -> Option<&Function> {
+        self.functions.get(index as usize)
+    }
+
     /// Return one lowered function pointer by function id.
     pub(crate) fn pointer_for_function(
         &self,

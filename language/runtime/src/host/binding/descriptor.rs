@@ -159,15 +159,6 @@ impl BindingDescriptor {
     }
 }
 
-/// Execution engine that is invoking one binding.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum BindingEngine {
-    /// Binding call is executed by the VM.
-    Vm,
-    /// Binding call is executed by native code.
-    Native,
-}
-
 /// Provider that implements one binding.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum BindingProvider {

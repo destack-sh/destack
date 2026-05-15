@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::fmt;
 use std::sync::Arc;
 
@@ -7,7 +6,6 @@ use engine::StaticSpace;
 use serde::{Deserialize, Serialize};
 use {destack_engine as engine, destack_mir as mir};
 
-use super::{BindingContext, BindingFn};
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::interpreter::{Continuation, ContinuationImage, Interpreter, InterpreterImage, Outcome};
 use crate::options::IsolateOptions;
@@ -15,7 +13,6 @@ use crate::program::Program;
 use crate::{Result as VmResult, SharedHeap, Word};
 use destack_heap::{
     AllocationShape, Heap, HeapReference, HeapResult, RootSlot, SharedAllocator, SharedGcWorker,
-    SharedRawLimits,
 };
 
 /// VM isolate with static data and execution state.
@@ -26,8 +23,6 @@ pub struct Isolate {
     program: Arc<Program>,
     /// Configuration options for this isolate.
     options: IsolateOptions,
-    /// Binding handlers registered for VM calls.
-    bindings: HashMap<String, BindingFn>,
     /// Interpreter engine backing this isolate.
     interpreter: Interpreter,
 }
@@ -51,7 +46,6 @@ impl fmt::Debug for Isolate {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Isolate")
             .field("program", &self.program)
-            .field("bindings", &format!("<{} handlers>", self.bindings.len()))
             .field("options", &self.options)
             .finish_non_exhaustive()
     }
@@ -68,7 +62,6 @@ impl Isolate {
             id: image.isolate_id,
             program,
             options: image.options.clone(),
-            bindings: HashMap::new(),
             interpreter,
         })
     }
@@ -98,7 +91,6 @@ impl Isolate {
             id: isolate_id,
             program,
             options,
-            bindings: HashMap::new(),
             interpreter,
         })
     }
@@ -126,52 +118,6 @@ impl Isolate {
     /// Return the isolate options.
     pub fn options(&self) -> &IsolateOptions {
         &self.options
-    }
-
-    /// Register a binding handler.
-    pub fn register_binding<F>(&mut self, name: &str, handler: F)
-    where
-        F: for<'ctx> Fn(&mut BindingContext<'ctx>, &[Word]) -> Result<Word, Error>
-            + Send
-            + Sync
-            + 'static,
-    {
-        self.bindings.insert(name.to_string(), Arc::new(handler));
-    }
-
-    // FUGU #Architecture: remove once generated ABI stops registering runtime payload schemas
-    /// Accept generated runtime payload registrations.
-    pub fn register_named_aggregate_type(
-        &mut self,
-        _name: &str,
-        _field_count: usize,
-    ) -> Result<(), Error> {
-        Ok(())
-    }
-
-    /// Run a callback with a binding context for this isolate.
-    pub fn with_binding_context<F, R>(
-        &mut self,
-        heap: &mut Heap,
-        shared: &SharedHeap,
-        shared_raw_limits: SharedRawLimits,
-        run: F,
-    ) -> Result<R, Error>
-    where
-        F: for<'ctx> FnOnce(&mut BindingContext<'ctx>) -> Result<R, Error>,
-    {
-        // borrow the isolate state needed by the binding context
-        let program = self.program.as_ref();
-        let mut context = BindingContext::new(program, heap, shared, shared_raw_limits);
-        let result = run(&mut context);
-
-        // release pins before returning to managed code
-        let release_result = context.release_pins();
-        match (result, release_result) {
-            (Err(error), _) => Err(error),
-            (Ok(_), Err(error)) => Err(error),
-            (Ok(value), Ok(())) => Ok(value),
-        }
     }
 
     /// Resolve a function id by name.
@@ -292,7 +238,6 @@ impl Isolate {
             id: isolate_id,
             program,
             options,
-            bindings,
             interpreter,
             ..
         } = self;
@@ -302,7 +247,6 @@ impl Isolate {
             program.as_ref(),
             options,
             statics,
-            bindings,
             heap,
             shared,
             shared_allocator,
@@ -351,7 +295,6 @@ impl Isolate {
             id: isolate_id,
             program,
             options,
-            bindings,
             interpreter,
             ..
         } = self;
@@ -361,7 +304,6 @@ impl Isolate {
             program.as_ref(),
             options,
             statics,
-            bindings,
             heap,
             shared,
             shared_allocator,
@@ -386,7 +328,6 @@ impl Isolate {
             id: isolate_id,
             program,
             options,
-            bindings,
             interpreter,
             ..
         } = self;
@@ -396,7 +337,6 @@ impl Isolate {
             program.as_ref(),
             options,
             statics,
-            bindings,
             heap,
             shared,
             shared_allocator,
@@ -477,7 +417,6 @@ impl Isolate {
             id: self.id,
             program: self.program.clone(),
             options: self.options.clone(),
-            bindings: self.bindings.clone(),
             interpreter: self.interpreter.fork()?,
         })
     }
@@ -528,6 +467,15 @@ impl Isolate {
     /// Return the canonical layout id for one MIR type.
     pub fn layout_id_for_type(&self, ty: mir::LocalNodeId<mir::Type>) -> Option<mir::LayoutId> {
         self.program.layout_id_for_type(ty)
+    }
+
+    /// Return the compiled VM layout for one MIR type.
+    #[cfg(test)]
+    pub(crate) fn layout(
+        &self,
+        ty: mir::LocalNodeId<mir::Type>,
+    ) -> Option<&crate::program::Layout> {
+        self.program.layout(ty)
     }
 
     /// Return the heap allocation shape for one layout id.

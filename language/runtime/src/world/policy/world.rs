@@ -1,5 +1,5 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::binding::{BindingDescriptor, BindingEngine};
+use crate::host::binding::BindingDescriptor;
 use crate::runtime::WorkerId;
 use crate::world::topology::Topology;
 use crate::world::{RuntimeId, WorldState};
@@ -15,11 +15,10 @@ impl WorldState {
         runtime_id: RuntimeId,
         worker_id: WorkerId,
         descriptor: BindingDescriptor,
-        engine: Option<BindingEngine>,
     ) -> RuntimeResult<BindingDecision> {
         let subject = Self::policy_subject(self.topology(), runtime_id, worker_id, mode)?;
 
-        let decision = self.policy().decide_binding(subject, descriptor, engine);
+        let decision = self.policy().decide_binding(subject, descriptor);
 
         Ok(decision)
     }

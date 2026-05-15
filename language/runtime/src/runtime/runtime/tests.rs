@@ -7,7 +7,6 @@ use destack_workspace::{RuntimeOptions, SchedulerOptions};
 use {destack_engine as engine, destack_vm as vm};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::binding::BindingEngine;
 use crate::host::poller::{
     HostHandle, HostPoller, HostPollerFlags, PollInterest, PollerEvent, PollerEventFlags,
     PollerEventMask, PollerEventPayload, PollerEventSource, PollerToken, PollerWakeHandle,
@@ -92,7 +91,6 @@ pub(crate) fn binding_call_context(
         event_loop: worker.event_loop.as_ref() as *const _,
         host: host as *const HostSession,
         world: world as *mut WorldState,
-        engine: BindingEngine::Native,
         scope: current_runnable_scope(),
         execution_context,
     }

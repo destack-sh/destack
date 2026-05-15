@@ -27,7 +27,6 @@ fn test_entropy_subject(binding_name: &'static str) -> EntropySubject {
         runtime_id: RuntimeId(1),
         worker_id: WorkerId(1),
         binding_id: BindingId::from_name(binding_name),
-        engine: None,
         task_id: None,
         microtask_id: None,
     }

@@ -557,7 +557,6 @@ mod tests {
             worker_id: WorkerId(worker_id),
             call_id: ScenarioCallId(1),
             descriptor: binding_descriptor(),
-            engine: None,
             time_ns,
         }
     }

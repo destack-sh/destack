@@ -1,16 +1,14 @@
 use engine::StaticSpace;
-use std::collections::HashMap;
 use {destack_engine as engine, destack_mir as mir};
 
-use super::frame::{dematerialize_value, frame_value_type, function_return_type, materialize_word};
+use super::frame::{dematerialize_value, frame_value_type};
 use super::{dispatch_block, dispatch_block_counted};
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::interpreter::{Continuation, Frame, Interpreter, Machine, Outcome};
-use crate::isolate::{BindingContext, BindingFn};
 use crate::options::IsolateOptions;
-use crate::program::{CallTarget, Function, Program};
+use crate::program::{CallTarget, Program};
 use crate::{SharedHeap, Word};
-use destack_heap::{Heap, SharedAllocator, SharedGcWorker, SharedRawLimits};
+use destack_heap::{Heap, SharedAllocator, SharedGcWorker};
 
 impl Interpreter {
     /// Execute a function by id.
@@ -23,7 +21,6 @@ impl Interpreter {
         program: &Program,
         options: &IsolateOptions,
         statics: &mut StaticSpace,
-        bindings: &HashMap<String, BindingFn>,
         heap: &mut Heap,
         shared: &SharedHeap,
         shared_allocator: &mut SharedAllocator,
@@ -36,7 +33,6 @@ impl Interpreter {
             program,
             options,
             statics,
-            bindings,
             heap,
             shared,
             shared_allocator,
@@ -60,7 +56,6 @@ impl Interpreter {
         program: &Program,
         options: &IsolateOptions,
         statics: &mut StaticSpace,
-        bindings: &HashMap<String, BindingFn>,
         heap: &mut Heap,
         shared: &SharedHeap,
         shared_allocator: &mut SharedAllocator,
@@ -73,29 +68,10 @@ impl Interpreter {
         // resolve the function target before entering the main loop
         match program.functions.call_target(function_id) {
             Some(CallTarget::Import) => {
-                // call imports directly without entering the lowered machine
                 let function = program.tree.get(function_id);
                 let name = program.strings.get(function.name).to_string();
-                let handler = bindings.get(&name).cloned().ok_or_else(|| {
-                    self.runtime_error(program, Error::BindingFunctionNotFound { name })
-                })?;
-                let value = {
-                    let mut context =
-                        BindingContext::new(program, heap, shared, SharedRawLimits::default());
-                    let value = handler(&mut context, arguments);
-                    context
-                        .release_pins()
-                        .map_err(|error| self.runtime_error(program, error))?;
-                    value
-                }
-                .map_err(|error| self.runtime_error(program, error))?;
 
-                let return_type =
-                    function_return_type(program, function_id).map_err(RuntimeError::new)?;
-                let value =
-                    materialize_word(program, return_type, value).map_err(RuntimeError::new)?;
-
-                return Ok(self.complete_execution(value));
+                return Err(self.runtime_error(program, Error::BindingCallForbidden { name }));
             }
             Some(CallTarget::Local(_)) => {}
 
@@ -115,7 +91,6 @@ impl Interpreter {
             program,
             options,
             statics,
-            bindings,
             heap,
             shared,
             shared_allocator,
@@ -134,7 +109,6 @@ impl Interpreter {
         program: &Program,
         options: &IsolateOptions,
         statics: &mut StaticSpace,
-        bindings: &HashMap<String, BindingFn>,
         heap: &mut Heap,
         shared: &SharedHeap,
         shared_allocator: &mut SharedAllocator,
@@ -158,7 +132,6 @@ impl Interpreter {
             program,
             options,
             statics,
-            bindings,
             heap,
             shared,
             shared_allocator,
@@ -176,7 +149,6 @@ impl Interpreter {
         program: &Program,
         options: &IsolateOptions,
         statics: &mut StaticSpace,
-        bindings: &HashMap<String, BindingFn>,
         heap: &mut Heap,
         shared: &SharedHeap,
         shared_allocator: &mut SharedAllocator,
@@ -222,7 +194,6 @@ impl Interpreter {
             program,
             options,
             statics,
-            bindings,
             heap,
             shared,
             shared_allocator,
@@ -242,7 +213,6 @@ impl Interpreter {
         program: &Program,
         options: &IsolateOptions,
         statics: &mut StaticSpace,
-        bindings: &HashMap<String, BindingFn>,
         heap: &mut Heap,
         shared: &SharedHeap,
         shared_allocator: &mut SharedAllocator,
@@ -259,11 +229,16 @@ impl Interpreter {
                     function: function_id,
                 })
             })?;
-        let (entry_block, frame_layout) = unsafe {
-            let function = function_ptr.as_ref();
-
-            (function.entry, function.frame_layout)
-        };
+        let function = program
+            .functions
+            .function_by_id(function_id)
+            .ok_or_else(|| {
+                RuntimeError::new(Error::UndefinedFunction {
+                    function: function_id,
+                })
+            })?;
+        let entry_block = function.entry;
+        let frame_layout = function.frame_layout;
         let frame_layout_ref = program
             .frame_layout_by_id(frame_layout)
             .ok_or_else(|| self.runtime_error(program, Error::InvalidInstruction))?;
@@ -279,10 +254,7 @@ impl Interpreter {
         );
 
         // collect entry parameters before moving the frame onto the stack
-        let parameter_slice = unsafe {
-            let function = function_ptr.as_ref();
-            function.parameters.slice(function.argument_pool.as_slice())
-        };
+        let parameter_slice = function.parameters.slice(function.argument_pool.as_slice());
 
         // push the entry frame
         self.frames.push(frame);
@@ -298,7 +270,6 @@ impl Interpreter {
         // bind explicit entry arguments through the same frame move path as MIR values
         {
             let frame_index = self.frames.len() - 1;
-            let function = unsafe { function_ptr.as_ref() };
             let mut machine = Machine::new(
                 program,
                 options,
@@ -336,7 +307,6 @@ impl Interpreter {
             program,
             options,
             statics,
-            bindings,
             heap,
             shared,
             shared_allocator,
@@ -351,7 +321,6 @@ impl Interpreter {
         program: &Program,
         options: &IsolateOptions,
         statics: &mut StaticSpace,
-        bindings: &HashMap<String, BindingFn>,
         heap: &mut Heap,
         shared: &SharedHeap,
         shared_allocator: &mut SharedAllocator,
@@ -373,17 +342,24 @@ impl Interpreter {
             }
 
             // load the current frame position and clear any pending pc
-            let (function_ptr, block_index, start_pc) = {
+            let (function_id, block_index, start_pc) = {
                 let frame = self
                     .frames
                     .last_mut()
                     .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
                 let pc = frame.pc;
                 frame.pc = 0;
-                (frame.function_ptr, frame.block, pc)
+                (frame.function(), frame.block, pc)
             };
 
-            let current_func: &Function = unsafe { function_ptr.as_ref() };
+            let current_func = program
+                .functions
+                .function_by_id(function_id)
+                .ok_or_else(|| {
+                    RuntimeError::new(Error::UndefinedFunction {
+                        function: function_id,
+                    })
+                })?;
 
             // run the current lowered block from the chosen instruction offset
             let block_run = {
@@ -428,7 +404,16 @@ impl Interpreter {
                     .frames
                     .last()
                     .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-                unsafe { frame.function_ptr.as_ref() }
+                let function_id = frame.function();
+
+                program
+                    .functions
+                    .function_by_id(function_id)
+                    .ok_or_else(|| {
+                        RuntimeError::new(Error::UndefinedFunction {
+                            function: function_id,
+                        })
+                    })?
             };
 
             // apply the transfer and stop once it produces an outcome
@@ -436,7 +421,6 @@ impl Interpreter {
                 isolate_id,
                 program,
                 options,
-                bindings,
                 heap,
                 shared,
                 shared_allocator,

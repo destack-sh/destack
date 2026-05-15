@@ -1,8 +1,7 @@
 use std::collections::BTreeMap;
 
 use crate::host::binding::{
-    BindingAffinity, BindingDescriptor, BindingDeterminism, BindingEngine, BindingProvider,
-    current_platform_name,
+    BindingAffinity, BindingDescriptor, BindingDeterminism, BindingProvider, current_platform_name,
 };
 use crate::world::{EdgeId, EntityId};
 use destack_source::matches as glob_matches;
@@ -53,8 +52,6 @@ pub struct ActionSelector {
     pub component: Option<String>,
     /// Glob selector for binding module names.
     pub module: Option<String>,
-    /// Binding engine selector.
-    pub engine: Option<BindingEngine>,
     /// Target-platform selector.
     pub platforms: Option<Vec<String>>,
     /// Binding provider selector.
@@ -70,8 +67,6 @@ pub struct ActionSelector {
 pub(crate) struct Attempt {
     /// Binding metadata when the event is a binding call.
     pub(crate) binding: Option<BindingDescriptor>,
-    /// Engine for binding-call selector matching.
-    pub(crate) engine: Option<BindingEngine>,
 }
 
 /// Selector for one policy target.
@@ -339,12 +334,6 @@ impl ActionSelector {
         self
     }
 
-    /// Set the execution-engine selector.
-    pub fn engine(mut self, engine: BindingEngine) -> Self {
-        self.engine = Some(engine);
-        self
-    }
-
     /// Add one target-platform selector.
     pub fn platform(mut self, platform: impl Into<String>) -> Self {
         let mut platforms = self.platforms.take().unwrap_or_default();
@@ -377,7 +366,6 @@ impl ActionSelector {
             && self.action.is_none()
             && self.component.is_none()
             && self.module.is_none()
-            && self.engine.is_none()
             && self.platforms.is_none()
             && self.provider.is_none()
             && self.affinity.is_none()
@@ -402,11 +390,6 @@ impl ActionSelector {
             return false;
         }
 
-        // execution
-        if !self.matches_execution(attempt) {
-            return false;
-        }
-
         // target
         if !self.matches_target() {
             return false;
@@ -415,17 +398,6 @@ impl ActionSelector {
         // binding
         if let Some(binding) = attempt.binding {
             return self.matches_binding(binding);
-        }
-
-        true
-    }
-
-    /// Return true when execution mode and engine clauses match.
-    fn matches_execution(&self, attempt: Attempt) -> bool {
-        if let Some(engine) = self.engine
-            && attempt.engine != Some(engine)
-        {
-            return false;
         }
 
         true
