@@ -200,7 +200,7 @@ fn collect_symbol_when_value_space(
     bindings: &mut HashSet<dir::LocalSymbolId>,
 ) {
     let symbol = symbols.get_symbol(symbol_id);
-    if symbol.space == dir::SymbolSpace::Value {
+    if symbol.form.is_visible_in(dir::SymbolSpace::Value) {
         bindings.insert(symbol_id);
     }
 }

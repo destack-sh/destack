@@ -565,22 +565,16 @@ impl<'a> TaintAnalysis<'a> {
                     labels.merge(&else_labels);
                 }
             }
-            dir::Expression::Try {
-                try_expression,
-                catch_expression,
-                ..
-            } => {
+            dir::Expression::Try { body, catch, .. } => {
                 // try expressions taint from try and catch branches
-                let try_labels = self.expression_taint_labels_inner(
-                    *try_expression,
-                    expression_stack,
-                    symbol_stack,
-                );
+                let try_labels =
+                    self.expression_taint_labels_inner(*body, expression_stack, symbol_stack);
                 labels.merge(&try_labels);
 
-                if let Some(catch_expression) = catch_expression {
+                if let Some(catch) = catch {
+                    let catch = self.tree.get(*catch);
                     let catch_labels = self.expression_taint_labels_inner(
-                        *catch_expression,
+                        catch.body,
                         expression_stack,
                         symbol_stack,
                     );

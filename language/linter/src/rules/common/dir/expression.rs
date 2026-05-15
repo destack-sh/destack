@@ -281,6 +281,7 @@ pub fn type_expression_contains_reference_segment(
             optional: _,
             value,
         } => {
+            let parameter = tree.get(*parameter);
             type_expression_contains_reference_segment(tree, parameter.source_type, target_segment)
                 || parameter.key_remap.is_some_and(|key_remap| {
                     type_expression_contains_reference_segment(tree, key_remap, target_segment)

@@ -961,13 +961,15 @@ fn classify_block_expression_owner(
                     "branch block"
                 }
                 dir::Expression::Try {
-                    try_expression,
-                    catch_expression,
-                    finally_expression,
+                    body,
+                    catch,
+                    finally,
                     ..
-                } if *try_expression == block_expression_id
-                    || catch_expression == &Some(block_expression_id)
-                    || finally_expression == &Some(block_expression_id) =>
+                } if *body == block_expression_id
+                    || catch
+                        .map(|catch| view.get(catch).body == block_expression_id)
+                        .unwrap_or(false)
+                    || finally == &Some(block_expression_id) =>
                 {
                     "try block"
                 }

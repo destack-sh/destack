@@ -46,14 +46,7 @@ impl LintRule for CatchErrorName {
             let expression = ctx.dir.get(expression_id);
 
             // check try catch binding names
-            if let dir::Expression::Try {
-                try_expression: _,
-                catch_pattern: _,
-                catch_ty: _,
-                catch_expression: _,
-                finally_expression: _,
-            } = expression
-            {
+            if let dir::Expression::Try { catch: Some(_), .. } = expression {
                 report_try_catch_binding(ctx, meta, expression, expected_name);
                 continue;
             }
@@ -89,18 +82,19 @@ fn report_try_catch_binding(
 ) {
     // keep try expressions with one catch binding
     let dir::Expression::Try {
-        try_expression: _,
-        catch_pattern: Some(pattern_id),
-        catch_ty: _,
-        catch_expression: _,
-        finally_expression: _,
+        catch: Some(catch_id),
+        ..
     } = expression
     else {
         return;
     };
+    let catch = ctx.dir.get(*catch_id);
+    let Some(pattern_id) = catch.pattern else {
+        return;
+    };
 
     // keep simple catch binding patterns
-    let pattern = ctx.dir.get(*pattern_id);
+    let pattern = ctx.dir.get(pattern_id);
     let dir::Pattern::Binding {
         name: actual_name_id,
         pattern: _,
@@ -109,7 +103,7 @@ fn report_try_catch_binding(
         return;
     };
     let actual_name = ctx.strings.get(*actual_name_id).to_string();
-    let Some(symbol) = ctx.local_symbol_for_node(*pattern_id) else {
+    let Some(symbol) = ctx.local_symbol_for_node(pattern_id) else {
         return;
     };
     if name_matches_expected(&actual_name, expected_name)
@@ -119,7 +113,7 @@ fn report_try_catch_binding(
     }
 
     // resolve effective severity and skip disabled diagnostics
-    let severity = ctx.get_effective_severity(meta, *pattern_id);
+    let severity = ctx.get_effective_severity(meta, pattern_id);
     if !severity.is_enabled() {
         return;
     }
@@ -131,7 +125,7 @@ fn report_try_catch_binding(
         CATCH_ERROR_NAME.category,
         severity,
         format!("catch error should be named `{expected_name}`, not `{actual_name}`"),
-        ctx.get_span(*pattern_id),
+        ctx.get_span(pattern_id),
     )
     .label("rename this catch binding to the configured name");
     if ctx.compute_fixes

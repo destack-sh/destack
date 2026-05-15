@@ -2205,6 +2205,7 @@ pub fn type_expression_has_side_effects(
         dir::TypeExpression::Mapped {
             parameter, value, ..
         } => {
+            let parameter = ctx.dir.get(*parameter);
             type_expression_has_side_effects(ctx, parameter.source_type)
                 || parameter
                     .key_remap
@@ -2589,6 +2590,7 @@ impl dir::NodeVisitor for ExpressionSignatureCollector<'_> {
                 optional,
                 ..
             } => {
+                let parameter = tree.get(*parameter);
                 self.push_string_id("type_expression_mapped_name", parameter.name);
                 self.push_debug("type_expression_mapped_readonly", *readonly);
                 self.push_debug("type_expression_mapped_optional", *optional);

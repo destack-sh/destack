@@ -131,24 +131,20 @@ pub fn expression_affects_error_handling_context(
             let parent_expression_id = parent_id.into_typed::<dir::Expression>();
             let parent_expression = tree.get(parent_expression_id);
             if let dir::Expression::Try {
-                try_expression,
-                catch_expression,
-                finally_expression,
+                body,
+                catch,
+                finally,
                 ..
             } = parent_expression
             {
-                let try_context = try_context_from_direct_child(
-                    *try_expression,
-                    *catch_expression,
-                    *finally_expression,
-                    current_child_id,
-                );
+                let try_context =
+                    try_context_from_direct_child(tree, *body, *catch, *finally, current_child_id);
                 match try_context {
                     Some(TryContext::Try) => {
                         return true;
                     }
                     Some(TryContext::Catch) => {
-                        if finally_expression.is_some() {
+                        if finally.is_some() {
                             return true;
                         }
 
@@ -282,19 +278,23 @@ fn callable_boundary_asynchrony(
 
 /// Return one direct try branch for a child node.
 fn try_context_from_direct_child(
-    try_expression_id: dir::LocalNodeId<dir::Expression>,
-    catch_expression_id: Option<dir::LocalNodeId<dir::Expression>>,
-    finally_expression_id: Option<dir::LocalNodeId<dir::Expression>>,
+    tree: &dir::Tree,
+    body_id: dir::LocalNodeId<dir::Expression>,
+    catch_id: Option<dir::LocalNodeId<dir::Catch>>,
+    finally_id: Option<dir::LocalNodeId<dir::Expression>>,
     child_id: dir::LocalNodeIdAny,
 ) -> Option<TryContext> {
     // classify the direct try branch from expression ids
-    if child_id == try_expression_id.into_any() {
+    if child_id == body_id.into_any() {
         return Some(TryContext::Try);
     }
-    if catch_expression_id.is_some_and(|id| child_id == id.into_any()) {
-        return Some(TryContext::Catch);
+    if let Some(catch_id) = catch_id {
+        let catch = tree.get(catch_id);
+        if child_id == catch_id.into_any() || child_id == catch.body.into_any() {
+            return Some(TryContext::Catch);
+        }
     }
-    if finally_expression_id.is_some_and(|id| child_id == id.into_any()) {
+    if finally_id.is_some_and(|id| child_id == id.into_any()) {
         return Some(TryContext::Finally);
     }
 

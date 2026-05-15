@@ -36,12 +36,12 @@ impl LintRule for NoLargeTryBlock {
         let max_statements = ctx.options.complexity.max_try_block_statements;
 
         for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
-            let dir::Expression::Try { try_expression, .. } = ctx.dir.get(node_id) else {
+            let dir::Expression::Try { body, .. } = ctx.dir.get(node_id) else {
                 continue;
             };
 
             // count statements in the try block
-            let statement_count = count_statements(ctx, *try_expression);
+            let statement_count = count_statements(ctx, *body);
             if statement_count > max_statements {
                 let severity = ctx.get_effective_severity(meta, node_id);
                 if !severity.is_enabled() {
@@ -57,7 +57,7 @@ impl LintRule for NoLargeTryBlock {
                         format!(
                             "try block has {statement_count} statements (max {max_statements})"
                         ),
-                        ctx.dir.get_span(*try_expression),
+                        ctx.dir.get_span(*body),
                     )
                     .label("consider narrowing the try block to the specific failing code"),
                 );

@@ -219,10 +219,8 @@ impl NodeVisitor for ComplexityVisitor {
             Expression::Match { form, cases, .. } => {
                 self.complexity += match_case_complexity(tree, *form, cases, self.variant);
             }
-            Expression::Try {
-                catch_expression, ..
-            } => {
-                if catch_expression.is_some() {
+            Expression::Try { catch, .. } => {
+                if catch.is_some() {
                     self.complexity += 1;
                 }
             }

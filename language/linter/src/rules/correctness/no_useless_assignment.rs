@@ -209,8 +209,8 @@ fn block_is_try_body(tree: &dir::Tree, block_id: dir::LocalNodeId<dir::Block>) -
         // walk up expression parents and check for an enclosing try block
         let parent_expression_id = parent.into_typed::<dir::Expression>();
         let parent_expression = tree.get(parent_expression_id);
-        if let dir::Expression::Try { try_expression, .. } = parent_expression
-            && *try_expression == current_expression_id
+        if let dir::Expression::Try { body, .. } = parent_expression
+            && *body == current_expression_id
         {
             return true;
         }

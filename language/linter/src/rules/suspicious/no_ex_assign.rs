@@ -39,33 +39,32 @@ impl LintRule for NoExAssign {
         let meta = self.meta();
 
         for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
-            let dir::Expression::Try {
-                catch_pattern,
-                catch_expression,
-                ..
-            } = ctx.dir.get(node_id)
-            else {
+            let dir::Expression::Try { catch, .. } = ctx.dir.get(node_id) else {
                 continue;
             };
 
             // need both pattern and expression
-            let (Some(pattern_id), Some(catch_expr_id)) = (catch_pattern, catch_expression) else {
+            let Some(catch_id) = catch else {
+                continue;
+            };
+            let catch = ctx.dir.get(*catch_id);
+            let (Some(pattern_id), catch_expr_id) = (catch.pattern, catch.body) else {
                 continue;
             };
 
             // extract the bound name
-            let Some(catch_name) = get_pattern_binding_name(ctx, *pattern_id) else {
+            let Some(catch_name) = get_pattern_binding_name(ctx, pattern_id) else {
                 continue;
             };
 
             // check for assignments in the catch body
             let assignment_expression_ids =
-                collect_assignment_references_in_expression(ctx, *catch_expr_id, catch_name);
+                collect_assignment_references_in_expression(ctx, catch_expr_id, catch_name);
             for assignment_expression_id in assignment_expression_ids {
                 report_ex_assign(
                     ctx,
                     meta,
-                    *catch_expr_id,
+                    catch_expr_id,
                     assignment_expression_id,
                     catch_name,
                 );
