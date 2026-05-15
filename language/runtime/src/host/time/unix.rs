@@ -57,20 +57,39 @@ fn timespec_to_nanos(spec: libc::timespec, field: &str) -> RuntimeResult<u64> {
 
 /// Sample one host clock value via clock_gettime.
 fn clock_gettime_nanos(clock_id: libc::clockid_t, operation: &str) -> RuntimeResult<u64> {
-    // query one host timespec value
+    let spec = read_clock_timespec(clock_id, operation)?;
+
+    timespec_to_nanos(spec, operation)
+}
+
+/// Sample one host clock resolution via clock_getres.
+fn clock_getres_nanos(clock_id: libc::clockid_t, operation: &str) -> RuntimeResult<u64> {
+    let spec = read_clock_resolution_timespec(clock_id, operation)?;
+    let nanos = timespec_to_nanos(spec, operation)?;
+
+    Ok(nanos.max(1))
+}
+
+/// Read one host clock timespec.
+fn read_clock_timespec(
+    clock_id: libc::clockid_t,
+    operation: &str,
+) -> RuntimeResult<libc::timespec> {
     let mut spec = MaybeUninit::<libc::timespec>::uninit();
     let rc = unsafe { libc::clock_gettime(clock_id, spec.as_mut_ptr()) };
     if rc != 0 {
         return Err(core_platform::io_error(operation, None));
     }
 
-    // convert one host timespec into nanoseconds
-    let spec = unsafe { spec.assume_init() };
-    timespec_to_nanos(spec, operation)
+    // clock_gettime initialized the output timespec on success
+    Ok(unsafe { spec.assume_init() })
 }
 
-/// Sample one host clock resolution via clock_getres.
-fn clock_getres_nanos(clock_id: libc::clockid_t, operation: &str) -> RuntimeResult<u64> {
+/// Read one host clock resolution timespec.
+fn read_clock_resolution_timespec(
+    clock_id: libc::clockid_t,
+    operation: &str,
+) -> RuntimeResult<libc::timespec> {
     // query one host resolution timespec
     let mut spec = MaybeUninit::<libc::timespec>::uninit();
     let rc = unsafe { libc::clock_getres(clock_id, spec.as_mut_ptr()) };
@@ -78,10 +97,8 @@ fn clock_getres_nanos(clock_id: libc::clockid_t, operation: &str) -> RuntimeResu
         return Err(core_platform::io_error(operation, None));
     }
 
-    // convert one host resolution into nanoseconds
-    let spec = unsafe { spec.assume_init() };
-    let nanos = timespec_to_nanos(spec, operation)?;
-    Ok(nanos.max(1))
+    // clock_getres initialized the output timespec on success
+    Ok(unsafe { spec.assume_init() })
 }
 
 /// Sample one host process CPU time in nanoseconds.

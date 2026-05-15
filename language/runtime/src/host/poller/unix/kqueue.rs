@@ -61,28 +61,13 @@ impl PollerWakeHandle for KqueueWakeHandle {
 impl KqueuePoller {
     /// Create a new kqueue poller instance.
     pub(crate) fn new() -> RuntimeResult<Self> {
-        // open the kqueue descriptor
-        let kqueue_fd = unsafe { libc::kqueue() };
-        if kqueue_fd < 0 {
-            return Err(io_error("poller.kqueue", None));
-        }
+        let kqueue_fd = create_kqueue_fd()?;
 
         // register the wake user event
         let event = make_user_event(WAKE_IDENT, libc::EV_ADD | libc::EV_CLEAR, libc::NOTE_FFNOP);
-        let result = unsafe {
-            kevent_sys(
-                kqueue_fd,
-                &event,
-                1,
-                std::ptr::null_mut(),
-                0,
-                std::ptr::null(),
-            )
-        };
+        let result = kevent_apply(kqueue_fd, std::slice::from_ref(&event));
         if result < 0 {
-            unsafe {
-                libc::close(kqueue_fd);
-            }
+            close_fd(kqueue_fd);
             return Err(io_error("poller.kevent", None));
         }
 
@@ -99,9 +84,7 @@ impl KqueuePoller {
 impl Drop for KqueuePoller {
     fn drop(&mut self) {
         // close kqueue descriptors
-        unsafe {
-            libc::close(self.kqueue_fd);
-        }
+        close_fd(self.kqueue_fd);
     }
 }
 
@@ -139,16 +122,7 @@ impl HostPoller for KqueuePoller {
         // add the kqueue registration
         let fd = handle.as_raw_fd();
         let changes = build_filter_changes(fd, interests, flags, token, false)?;
-        let result = unsafe {
-            kevent_sys(
-                self.kqueue_fd,
-                changes.as_ptr(),
-                changes.len() as c_int,
-                std::ptr::null_mut(),
-                0,
-                std::ptr::null(),
-            )
-        };
+        let result = kevent_apply(self.kqueue_fd, &changes);
         if result < 0 {
             return Err(io_error("poller.kevent", Some(fd)));
         }
@@ -196,16 +170,7 @@ impl HostPoller for KqueuePoller {
         // apply filter changes in kqueue
         let changes = build_update_changes(entry, interests, flags, token)?;
         if !changes.is_empty() {
-            let result = unsafe {
-                kevent_sys(
-                    self.kqueue_fd,
-                    changes.as_ptr(),
-                    changes.len() as c_int,
-                    std::ptr::null_mut(),
-                    0,
-                    std::ptr::null(),
-                )
-            };
+            let result = kevent_apply(self.kqueue_fd, &changes);
             if result < 0 {
                 return Err(io_error("poller.kevent", Some(entry.fd)));
             }
@@ -240,16 +205,7 @@ impl HostPoller for KqueuePoller {
         // remove all registered filters
         let changes =
             build_filter_changes(entry.fd, entry.interests, entry.flags, entry.token, true)?;
-        let result = unsafe {
-            kevent_sys(
-                self.kqueue_fd,
-                changes.as_ptr(),
-                changes.len() as c_int,
-                std::ptr::null_mut(),
-                0,
-                std::ptr::null(),
-            )
-        };
+        let result = kevent_apply(self.kqueue_fd, &changes);
         if result < 0 {
             return Err(io_error("poller.kevent", Some(entry.fd)));
         }
@@ -269,8 +225,7 @@ impl HostPoller for KqueuePoller {
         // ensure the event buffer can hold all registrations
         let max_events = self.registrations.len() + 1;
         if self.events.len() < max_events {
-            self.events
-                .resize_with(max_events, || unsafe { std::mem::zeroed() });
+            self.events.resize_with(max_events, empty_kevent);
         }
 
         // resolve the poll deadline once so EINTR does not reset the timeout budget
@@ -283,16 +238,12 @@ impl HostPoller for KqueuePoller {
                 .as_ref()
                 .map(|time| time as *const timespec)
                 .unwrap_or(std::ptr::null());
-            let result = unsafe {
-                kevent_sys(
-                    self.kqueue_fd,
-                    std::ptr::null(),
-                    0,
-                    self.events.as_mut_ptr(),
-                    max_events as c_int,
-                    timeout_ptr,
-                )
-            };
+            let result = kevent_wait(
+                self.kqueue_fd,
+                self.events.as_mut_ptr(),
+                max_events as c_int,
+                timeout_ptr,
+            );
             if result >= 0 {
                 break result;
             }
@@ -355,6 +306,62 @@ impl HostPoller for KqueuePoller {
     }
 }
 
+/// Create one kqueue descriptor.
+fn create_kqueue_fd() -> RuntimeResult<RawFd> {
+    let fd = unsafe { libc::kqueue() };
+    if fd < 0 {
+        return Err(io_error("poller.kqueue", None));
+    }
+
+    Ok(fd)
+}
+
+/// Close one file descriptor.
+fn close_fd(fd: RawFd) {
+    let _ = unsafe { libc::close(fd) };
+}
+
+/// Return one empty kqueue event.
+fn empty_kevent() -> libc::kevent {
+    unsafe { std::mem::zeroed() }
+}
+
+/// Apply kqueue registration changes.
+fn kevent_apply(kqueue_fd: RawFd, changes: &[libc::kevent]) -> c_int {
+    unsafe {
+        kevent_sys(
+            kqueue_fd,
+            changes.as_ptr(),
+            changes.len() as c_int,
+            std::ptr::null_mut(),
+            0,
+            std::ptr::null(),
+        )
+    }
+}
+
+/// Wait for kqueue events.
+fn kevent_wait(
+    kqueue_fd: RawFd,
+    events: *mut libc::kevent,
+    max_events: c_int,
+    timeout: *const timespec,
+) -> c_int {
+    unsafe { kevent_sys(kqueue_fd, std::ptr::null(), 0, events, max_events, timeout) }
+}
+
+/// Create one pipe.
+#[cfg(test)]
+fn pipe_fds(fds: &mut [RawFd; 2]) -> c_int {
+    unsafe { libc::pipe(fds.as_mut_ptr()) }
+}
+
+/// Write bytes to one descriptor.
+#[cfg(test)]
+fn write_fd(fd: RawFd, bytes: &[u8]) -> isize {
+    unsafe { libc::write(fd, bytes.as_ptr() as *const _, bytes.len()) }
+}
+
 /// Trigger one user wake event on one kqueue descriptor.
 fn wake_kqueue(kqueue_fd: RawFd) -> RuntimeResult<()> {
     let event = make_user_event(
@@ -362,16 +369,7 @@ fn wake_kqueue(kqueue_fd: RawFd) -> RuntimeResult<()> {
         libc::EV_ADD | libc::EV_CLEAR,
         libc::NOTE_TRIGGER,
     );
-    let result = unsafe {
-        kevent_sys(
-            kqueue_fd,
-            &event,
-            1,
-            std::ptr::null_mut(),
-            0,
-            std::ptr::null(),
-        )
-    };
+    let result = kevent_apply(kqueue_fd, std::slice::from_ref(&event));
     if result < 0 {
         return Err(io_error("poller.wake", Some(kqueue_fd)));
     }
@@ -637,7 +635,7 @@ fn io_error(context: &str, fd: Option<RawFd>) -> Box<RuntimeError> {
 mod tests {
     use super::{
         HostHandle, HostPoller, HostPollerFlags, KqueuePoller, PollInterest, PollerToken,
-        ResourceId,
+        ResourceId, close_fd, pipe_fds, write_fd,
     };
     use crate::runtime::WorkerId;
 
@@ -649,11 +647,11 @@ mod tests {
         let mut poller = KqueuePoller::new().expect("poller should initialize");
 
         let mut fds = [0; 2];
-        let result = unsafe { libc::pipe(fds.as_mut_ptr()) };
+        let result = pipe_fds(&mut fds);
         assert!(result == 0);
 
         let read_fd = fds[0];
-        let write_fd = fds[1];
+        let write_descriptor = fds[1];
 
         let handle = HostHandle::from_raw_fd(read_fd);
         poller
@@ -667,15 +665,13 @@ mod tests {
             .expect("register should succeed");
 
         let payload = [1u8];
-        let wrote = unsafe { libc::write(write_fd, payload.as_ptr() as *const _, payload.len()) };
+        let wrote = write_fd(write_descriptor, &payload);
         assert!(wrote >= 0);
 
         let events = poller.poll(Some(0)).expect("poll should return events");
         assert!(!events.is_empty());
 
-        unsafe {
-            libc::close(read_fd);
-            libc::close(write_fd);
-        }
+        close_fd(read_fd);
+        close_fd(write_descriptor);
     }
 }

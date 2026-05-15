@@ -60,11 +60,7 @@ struct PollRegistration {
 impl EpollPoller {
     /// Create a new epoll poller instance.
     pub(crate) fn new() -> RuntimeResult<Self> {
-        // open the epoll descriptor
-        let epoll_fd = unsafe { epoll_create1(libc::EPOLL_CLOEXEC) };
-        if epoll_fd < 0 {
-            return Err(io_error("poller.epoll_create1", None));
-        }
+        let epoll_fd = create_epoll_fd()?;
 
         // allocate the wake eventfd used to interrupt polls
         let wake_fd = create_wake_eventfd()?;
@@ -74,11 +70,9 @@ impl EpollPoller {
             events: libc::EPOLLIN as u32,
             u64: PollerToken::WAKE.0,
         };
-        let result = unsafe { epoll_ctl(epoll_fd, libc::EPOLL_CTL_ADD, wake_fd, &mut event) };
+        let result = epoll_control(epoll_fd, libc::EPOLL_CTL_ADD, wake_fd, &mut event);
         if result < 0 {
-            unsafe {
-                libc::close(epoll_fd);
-            }
+            close_fd(epoll_fd);
             return Err(io_error("poller.epoll_ctl", Some(wake_fd)));
         }
 
@@ -96,10 +90,8 @@ impl EpollPoller {
 impl Drop for EpollPoller {
     fn drop(&mut self) {
         // close wake and epoll descriptors
-        unsafe {
-            libc::close(self.wake_fd);
-            libc::close(self.epoll_fd);
-        }
+        close_fd(self.wake_fd);
+        close_fd(self.epoll_fd);
     }
 }
 
@@ -141,7 +133,7 @@ impl HostPoller for EpollPoller {
             events: epoll_events_for_interest(interests, flags),
             u64: token.0,
         };
-        let result = unsafe { epoll_ctl(self.epoll_fd, libc::EPOLL_CTL_ADD, fd, &mut event) };
+        let result = epoll_control(self.epoll_fd, libc::EPOLL_CTL_ADD, fd, &mut event);
         if result < 0 {
             return Err(io_error("poller.epoll_ctl", Some(fd)));
         }
@@ -191,7 +183,7 @@ impl HostPoller for EpollPoller {
             events: epoll_events_for_interest(interests, flags),
             u64: token.0,
         };
-        let result = unsafe { epoll_ctl(self.epoll_fd, libc::EPOLL_CTL_MOD, entry.fd, &mut event) };
+        let result = epoll_control(self.epoll_fd, libc::EPOLL_CTL_MOD, entry.fd, &mut event);
         if result < 0 {
             return Err(io_error("poller.epoll_ctl", Some(entry.fd)));
         }
@@ -223,14 +215,12 @@ impl HostPoller for EpollPoller {
         self.tokens.remove(&entry.token);
 
         // remove the epoll registration
-        let result = unsafe {
-            epoll_ctl(
-                self.epoll_fd,
-                libc::EPOLL_CTL_DEL,
-                entry.fd,
-                std::ptr::null_mut(),
-            )
-        };
+        let result = epoll_control(
+            self.epoll_fd,
+            libc::EPOLL_CTL_DEL,
+            entry.fd,
+            std::ptr::null_mut(),
+        );
         if result < 0 {
             return Err(io_error("poller.epoll_ctl", Some(entry.fd)));
         }
@@ -260,14 +250,12 @@ impl HostPoller for EpollPoller {
         // call into epoll
         let result = loop {
             let timeout_ms = timeout_ms_from_deadline(deadline);
-            let result = unsafe {
-                epoll_wait(
-                    self.epoll_fd,
-                    self.events.as_mut_ptr(),
-                    max_events as c_int,
-                    timeout_ms,
-                )
-            };
+            let result = epoll_wait_ready(
+                self.epoll_fd,
+                self.events.as_mut_ptr(),
+                max_events as c_int,
+                timeout_ms,
+            );
             if result >= 0 {
                 break result;
             }
@@ -322,14 +310,12 @@ impl HostPoller for EpollPoller {
             for resource_id in oneshot {
                 if let Some(entry) = self.registrations.remove(&resource_id) {
                     self.tokens.remove(&entry.token);
-                    let result = unsafe {
-                        epoll_ctl(
-                            self.epoll_fd,
-                            libc::EPOLL_CTL_DEL,
-                            entry.fd,
-                            std::ptr::null_mut(),
-                        )
-                    };
+                    let result = epoll_control(
+                        self.epoll_fd,
+                        libc::EPOLL_CTL_DEL,
+                        entry.fd,
+                        std::ptr::null_mut(),
+                    );
                     if result < 0 {
                         return Err(io_error("poller.epoll_ctl", Some(entry.fd)));
                     }
@@ -341,16 +327,61 @@ impl HostPoller for EpollPoller {
     }
 }
 
+/// Create one epoll descriptor.
+fn create_epoll_fd() -> RuntimeResult<RawFd> {
+    let fd = unsafe { epoll_create1(libc::EPOLL_CLOEXEC) };
+    if fd < 0 {
+        return Err(io_error("poller.epoll_create1", None));
+    }
+
+    Ok(fd)
+}
+
+/// Create one nonblocking event descriptor.
+fn create_event_fd() -> RawFd {
+    unsafe { libc::eventfd(0, libc::EFD_NONBLOCK | libc::EFD_CLOEXEC) }
+}
+
+/// Close one file descriptor.
+fn close_fd(fd: RawFd) {
+    let _ = unsafe { libc::close(fd) };
+}
+
+/// Control one epoll registration.
+fn epoll_control(epoll_fd: RawFd, operation: c_int, fd: RawFd, event: *mut epoll_event) -> c_int {
+    unsafe { epoll_ctl(epoll_fd, operation, fd, event) }
+}
+
+/// Wait for epoll readiness.
+fn epoll_wait_ready(
+    epoll_fd: RawFd,
+    events: *mut epoll_event,
+    max_events: c_int,
+    timeout_ms: c_int,
+) -> c_int {
+    unsafe { epoll_wait(epoll_fd, events, max_events, timeout_ms) }
+}
+
+/// Read one u64 from a descriptor.
+fn read_u64(fd: RawFd, value: &mut u64) -> isize {
+    unsafe { libc::read(fd, value as *mut u64 as *mut _, std::mem::size_of::<u64>()) }
+}
+
+/// Write one u64 to a descriptor.
+fn write_u64(fd: RawFd, value: &u64) -> isize {
+    unsafe {
+        libc::write(
+            fd,
+            value as *const u64 as *const _,
+            std::mem::size_of::<u64>(),
+        )
+    }
+}
+
 /// Write one wake value into one eventfd.
 fn wake_eventfd(fd: RawFd) -> RuntimeResult<()> {
     let value: u64 = 1;
-    let result = unsafe {
-        libc::write(
-            fd,
-            &value as *const u64 as *const _,
-            std::mem::size_of::<u64>(),
-        )
-    };
+    let result = write_u64(fd, &value);
     if result < 0 {
         let errno = host_core::get_errno();
         if errno != libc::EWOULDBLOCK && errno != libc::EAGAIN {
@@ -424,8 +455,7 @@ fn event_mask_from_epoll(events: u32) -> PollerEventMask {
 
 /// Create the wake eventfd used to interrupt polls.
 fn create_wake_eventfd() -> RuntimeResult<RawFd> {
-    // allocate an eventfd for wakeup signaling
-    let fd = unsafe { libc::eventfd(0, libc::EFD_NONBLOCK | libc::EFD_CLOEXEC) };
+    let fd = create_event_fd();
     if fd < 0 {
         return Err(io_error("poller.eventfd", None));
     }
@@ -438,13 +468,7 @@ fn drain_wake(fd: RawFd) {
     // read until the eventfd is drained
     let mut buffer = 0u64;
     loop {
-        let read_bytes = unsafe {
-            libc::read(
-                fd,
-                &mut buffer as *mut u64 as *mut _,
-                std::mem::size_of::<u64>(),
-            )
-        };
+        let read_bytes = read_u64(fd, &mut buffer);
         if read_bytes > 0 {
             continue;
         }
