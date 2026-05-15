@@ -5,7 +5,7 @@ use crate::runtime::random::Random;
 use crate::world::policy::{ActionSelector, Subject, SubjectSelector, TargetSelector};
 
 use super::{
-    Fault, FaultKindCatalog, FaultTarget, HookEvent, Lifetime, ProbabilityPpm, Trigger,
+    Fault, FaultCatalog, FaultTarget, HookEvent, Lifetime, ProbabilityPpm, Trigger,
     validate_fault_rule_compatibility,
 };
 
@@ -80,7 +80,7 @@ impl FaultRule {
     /// Validate this rule against shape and catalog constraints.
     pub(crate) fn validate_with_kind_catalog(
         &self,
-        kind_catalog: &impl FaultKindCatalog,
+        kind_catalog: &impl FaultCatalog,
     ) -> RuntimeResult<()> {
         if matches!(self.fault.target, FaultTarget::Call {}) && self.action.is_empty() {
             return Err(Self::invalid_rule_error(format!(
