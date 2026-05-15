@@ -11,3 +11,7 @@ export {
     Exclude,
     NonNullable,
 } from "./object.ds";
+export {
+    Symbol,
+    SymbolDescription,
+} from "./symbol.ds";

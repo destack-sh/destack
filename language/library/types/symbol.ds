@@ -1,0 +1,20 @@
+/// Symbol creation description.
+export type SymbolDescription = string | number;
+
+/// Global symbol operations.
+@languageItem("types.Symbol")
+export class Symbol {
+    /// Create a new unique symbol.
+    @intrinsic("types.symbol.create")
+    static create(description?: SymbolDescription): symbol;
+
+    /// Return a symbol from the shared registry.
+    static for(key: string): symbol {
+        todo("Symbol.for")
+    }
+
+    /// Return the registry key for `value`.
+    static keyFor(value: symbol): string | undefined {
+        todo("Symbol.keyFor")
+    }
+}

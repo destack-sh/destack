@@ -140,6 +140,12 @@ define_language_items! {
             /// Record alias.
             Record => (Type, "types/object", "Record"),
         }
+
+        /// `destack:types/symbol`.
+        symbol {
+            /// Symbol value.
+            Symbol => (Variable, "types/symbol", "Symbol"),
+        }
     }
 
     /// String types.
@@ -368,11 +374,6 @@ define_language_items! {
             Iterator => (Interface, "iter/iterator", "Iterator"),
         }
 
-        /// `destack:iter/symbol`.
-        symbol {
-            /// Symbol value.
-            Symbol => (Variable, "iter/symbol", "Symbol"),
-        }
     }
 
     /// Range types.
