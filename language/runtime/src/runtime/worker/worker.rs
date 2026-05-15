@@ -266,7 +266,12 @@ impl Worker {
         let mut engine = engine.into();
 
         // hooks and resources
-        let hooks = Arc::new(Hooks::new(runtime_id, worker_id, world.trace().mode()));
+        let hooks = Arc::new(Hooks::new(
+            runtime_id,
+            worker_id,
+            world.trace().mode(),
+            options.conditions.clone(),
+        ));
         let resources = ResourceTable::new(worker_id);
 
         // bindings
@@ -767,7 +772,12 @@ impl Worker {
         let options = image.options.resolve(shared_options)?;
 
         // hooks and resources
-        let hooks = Arc::new(Hooks::new(runtime_id, worker_id, world.trace().mode()));
+        let hooks = Arc::new(Hooks::new(
+            runtime_id,
+            worker_id,
+            world.trace().mode(),
+            options.conditions.clone(),
+        ));
         let resources = ResourceTable::new(worker_id);
 
         // bindings

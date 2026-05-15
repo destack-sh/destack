@@ -398,6 +398,7 @@ impl BindingCallContext {
     fn decide_binding(&self, spec: BindingDescriptor) -> RuntimeResult<BindingDecision> {
         self.world().decide_binding(
             self.hooks().execution_mode(),
+            &self.worker().options.conditions,
             self.worker().runtime_id,
             self.worker().id,
             spec,

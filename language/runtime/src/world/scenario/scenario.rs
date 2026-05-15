@@ -308,8 +308,9 @@ impl Default for Scenario {
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeMap;
+    use std::sync::LazyLock;
 
-    use destack_workspace::ExecutionMode;
+    use destack_workspace::{ConditionSet, ExecutionMode};
 
     use crate::host::binding::{
         BindingAffinity, BindingDescriptor, BindingDeterminism, BindingProvider, BindingReplayKind,
@@ -325,6 +326,7 @@ mod tests {
 
     const TEST_RUNTIME_NAME: &str = "test-runtime";
     const TEST_WORKER_NAME: &str = "test-worker";
+    static TEST_CONDITIONS: LazyLock<ConditionSet> = LazyLock::new(ConditionSet::default);
 
     /// Ensures call-count activation gates initial fault injection.
     #[test]
@@ -536,6 +538,7 @@ mod tests {
             TEST_WORKER_NAME,
             worker_labels,
             ExecutionMode::Fast,
+            &TEST_CONDITIONS,
         )
     }
 
