@@ -479,7 +479,8 @@ impl<'a> TaintAnalysis<'a> {
                     labels.merge(&last_labels);
                 }
             }
-            dir::Expression::ObjectExpression { ty: _, properties } => {
+            dir::Expression::ObjectExpression { properties }
+            | dir::Expression::StructExpression { properties, .. } => {
                 // object literals taint from field values and spreads
                 for property_id in properties.iter().copied() {
                     let property = self.tree.get(property_id);

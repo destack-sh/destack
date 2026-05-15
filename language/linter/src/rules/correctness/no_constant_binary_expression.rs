@@ -144,11 +144,15 @@ fn check_constant_result(
     ) {
         let left_is_object = matches!(
             left,
-            dir::Expression::ObjectExpression { .. } | dir::Expression::ArrayExpression { .. }
+            dir::Expression::ObjectExpression { .. }
+                | dir::Expression::StructExpression { .. }
+                | dir::Expression::ArrayExpression { .. }
         );
         let right_is_object = matches!(
             right,
-            dir::Expression::ObjectExpression { .. } | dir::Expression::ArrayExpression { .. }
+            dir::Expression::ObjectExpression { .. }
+                | dir::Expression::StructExpression { .. }
+                | dir::Expression::ArrayExpression { .. }
         );
         if left_is_object && right_is_object {
             return Some("comparing two object literals always produces the same result");
@@ -198,6 +202,7 @@ fn expression_constant_truthiness(
     match expression {
         dir::Expression::ArrayExpression { .. }
         | dir::Expression::ObjectExpression { .. }
+        | dir::Expression::StructExpression { .. }
         | dir::Expression::New { .. }
         | dir::Expression::Declaration(_)
         | dir::Expression::ImportMeta
@@ -251,6 +256,7 @@ fn expression_has_constant_nullishness(
         | dir::Expression::Type { .. }
         | dir::Expression::ArrayExpression { .. }
         | dir::Expression::ObjectExpression { .. }
+        | dir::Expression::StructExpression { .. }
         | dir::Expression::TemplateExpression { .. }
         | dir::Expression::New { .. }
         | dir::Expression::Declaration(_) => true,
