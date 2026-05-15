@@ -51,17 +51,6 @@ impl Compiler {
                     state.visit_expression(tree, *expression_id, expression);
                 }
             }
-            dir::Declaration::Namespace(declaration) => {
-                // bind namespace header
-                self.bind_generic_parameters(state, tree, &declaration.generic_parameters);
-                self.bind_where_clauses(state, tree, &declaration.where_clauses);
-
-                // visit namespace body
-                for expression_id in &declaration.expressions {
-                    let expression = tree.get(*expression_id);
-                    state.visit_expression(tree, *expression_id, expression);
-                }
-            }
             dir::Declaration::Type(declaration) => {
                 // bind type header
                 self.bind_generic_parameters(state, tree, &declaration.generic_parameters);
