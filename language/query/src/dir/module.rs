@@ -119,12 +119,15 @@ pub(crate) fn get_module_exports_maybe(
 
     let mut exports = Vec::new();
 
-    for ((space, key), export) in ctx.dir().exported().exports.export_by_key.iter() {
-        let StaticKey::Name(string_id) = *key else {
+    for (key, export) in ctx.dir().exported().exports.exports() {
+        let dir::ExportName::Named(StaticKey::Name(string_id)) = *key else {
+            continue;
+        };
+        let dir::ExportEntry::Local(export) = export else {
             continue;
         };
 
-        let target_symbol = export.target;
+        let target_symbol = export.source.into_global(module_id);
 
         let Some(kind) = export_symbol_shape(repository, revision, target_symbol, profile_id)
         else {
@@ -135,7 +138,7 @@ pub(crate) fn get_module_exports_maybe(
         exports.push(ExportedSymbol {
             name,
             kind,
-            space: *space,
+            space: kind.symbol_space(),
             module_id,
             local_id: target_symbol.local_id,
             module_path: module_path.clone(),
@@ -182,7 +185,7 @@ pub(crate) fn build_specifier_candidates_for_module(
         }
 
         let mut entries = Vec::new();
-        for expression_id in parsed.tree().iter_nodes::<destack_dir::Expression>() {
+        for expression_id in parsed.tree().iter_nodes::<dir::Expression>() {
             let expression = parsed.tree().get(expression_id);
             let Some((target, _kind)) = module_specifier_in_expression(expression) else {
                 continue;

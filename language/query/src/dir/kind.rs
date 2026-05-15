@@ -68,7 +68,6 @@ pub(crate) fn declaration_symbol_kind(declaration: &Declaration) -> SymbolKind {
         Declaration::Class(_) => SymbolKind::Class,
         Declaration::Interface(_) => SymbolKind::Interface,
         Declaration::Enum(_) => SymbolKind::Enum,
-        Declaration::Namespace(_) => SymbolKind::Namespace,
         Declaration::Type(_) => SymbolKind::TypeParameter,
         Declaration::Extension(_) => SymbolKind::Class,
     }

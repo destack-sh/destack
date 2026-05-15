@@ -2,7 +2,7 @@ use std::path::Path;
 
 use destack_core::StringId;
 use destack_dir::{
-    DependencyBinding, DependencyItem, DependencyItem as DirDependencyItem, DependencySpace,
+    DependencyBinding, DependencyForm, DependencyItem, DependencyItem as DirDependencyItem,
     Expression, LocalNodeId, LocalSymbolId, NodeType, SymbolForm, SymbolSpace, TokenType,
 };
 use destack_source::{Edit, FileId, PathExt, Span};
@@ -48,7 +48,7 @@ pub(crate) struct ImportClauseBounds {
 /// Return one dependency item's binding when the item is valid.
 fn dependency_item_binding(item: &DependencyItem) -> Option<DependencyBinding> {
     match item {
-        DependencyItem::Item { binding, .. } => Some(*binding),
+        DependencyItem::Binding { binding, .. } => Some(*binding),
         DependencyItem::Error => None,
     }
 }
@@ -106,7 +106,7 @@ pub(crate) fn matches_import_clause_space_filter(
 /// Return one dependency item's string key when present.
 fn dependency_item_key(item: &DependencyItem) -> Option<StringId> {
     match item {
-        DependencyItem::Item { alias, name, .. } => alias.or(name.map(|name| name.string())),
+        DependencyItem::Binding { alias, name, .. } => alias.or(name.map(|name| name.string())),
         DependencyItem::Error => None,
     }
 }
@@ -211,7 +211,7 @@ pub(crate) fn is_dependency_alias_for_target(
     let dir_tree = dir.view();
     let item = dir_tree.get::<DirDependencyItem>(item_id);
     let (alias, binding) = match item {
-        DirDependencyItem::Item { alias, binding, .. } => (alias, binding),
+        DirDependencyItem::Binding { alias, binding, .. } => (alias, binding),
         _ => return false,
     };
 
@@ -262,7 +262,7 @@ fn dependency_item_local_import_alias_name(
 ) -> Option<destack_core::StringId> {
     match item {
         // default imports: use the local binding name
-        DirDependencyItem::Item {
+        DirDependencyItem::Binding {
             binding,
             name,
             alias,
@@ -286,7 +286,7 @@ fn dependency_item_default_import_alias_name(
     item: &DirDependencyItem,
 ) -> Option<destack_core::StringId> {
     match item {
-        DirDependencyItem::Item { binding, name, .. } => {
+        DirDependencyItem::Binding { binding, name, .. } => {
             if *binding != DependencyBinding::Default {
                 return None;
             }
@@ -392,13 +392,13 @@ impl ImportEditSpace {
     }
 }
 
-/// Resolve a module specifier and dependency space for a source expression.
+/// Resolve a module specifier and dependency form for a source expression.
 pub(crate) fn module_specifier_in_expression(
     expression: &Expression,
-) -> Option<(StringId, DependencySpace)> {
+) -> Option<(StringId, DependencyForm)> {
     match expression {
-        Expression::Import { target, space, .. } => Some((*target, *space)),
-        Expression::Export { target, space, .. } => target.map(|target| (target, *space)),
+        Expression::Import { target, form, .. } => Some((*target, *form)),
+        Expression::Export { target, form, .. } => target.map(|target| (target, *form)),
         _ => None,
     }
 }
@@ -427,14 +427,14 @@ pub(crate) fn collect_existing_imports(
         if let Expression::Import {
             target,
             items,
-            space,
+            form,
             ..
         } = expr
         {
-            // resolve import path, span, and space
+            // resolve import path, span, and form
             let path = ctx.source().strings().get(*target).to_string();
             let span = ctx.source().tree().source_map.get(node_id.id);
-            let is_type_only = *space == DependencySpace::Type;
+            let is_type_only = *form == DependencyForm::Type;
             let items = items.as_deref().unwrap_or(&[]);
 
             // check if it's a namespace import
@@ -494,7 +494,7 @@ pub(crate) fn build_import_edits(
     file_id: FileId,
     symbol_name: &str,
     import_path: &str,
-    import_space: ImportEditSpace,
+    import_form: ImportEditSpace,
 ) -> Vec<Edit> {
     // collect existing imports for the file
     let existing_imports = collect_existing_imports(repository, revision, file_id);
@@ -513,12 +513,12 @@ pub(crate) fn build_import_edits(
                 symbol_name,
                 import_path,
                 &existing_imports,
-                import_space,
+                import_form,
             );
         }
 
         // decide whether to merge into the existing import
-        let can_merge = match import_space {
+        let can_merge = match import_form {
             ImportEditSpace::Value => !existing.is_type_only,
             ImportEditSpace::Type => true,
         };
@@ -544,7 +544,7 @@ pub(crate) fn build_import_edits(
         symbol_name,
         import_path,
         &existing_imports,
-        import_space,
+        import_form,
     )
 }
 
@@ -700,13 +700,13 @@ fn build_new_import_edit(
     symbol_name: &str,
     import_path: &str,
     existing_imports: &[ExistingImport],
-    import_space: ImportEditSpace,
+    import_form: ImportEditSpace,
 ) -> Vec<Edit> {
     // resolve the import group
     let new_group = ImportGroup::from_path(import_path);
 
     // choose the import text for the space
-    let import_text = match import_space {
+    let import_text = match import_form {
         ImportEditSpace::Value => format!("import {{ {symbol_name} }} from \"{import_path}\";\n"),
         ImportEditSpace::Type => {
             format!("import type {{ {symbol_name} }} from \"{import_path}\";\n")

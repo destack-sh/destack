@@ -114,9 +114,6 @@ pub fn format_declaration_signature(
         dir::Declaration::Type(_) => {
             format!("{declaration_prefix}type {name}")
         }
-        dir::Declaration::Namespace(_) => {
-            format!("{declaration_prefix}namespace {name}")
-        }
         dir::Declaration::Extension(_) => {
             format!("{declaration_prefix}extension {name}")
         }
@@ -545,7 +542,6 @@ pub fn format_symbol_signature(
         }
         dir::Declaration::Enum(_) => format!("{declaration_prefix}enum {name}"),
         dir::Declaration::Type(_) => format!("{declaration_prefix}type {name}"),
-        dir::Declaration::Namespace(_) => format!("{declaration_prefix}namespace {name}"),
         dir::Declaration::Extension(_) => format!("{declaration_prefix}extension {name}"),
     };
 
