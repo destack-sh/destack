@@ -9,7 +9,7 @@ pub struct DependencyTable {
     /// The module id of the dependency table.
     pub module_id: ModuleId,
     /// Locally resolved dependency edges.
-    pub dependencies: Vec<DependencyEdge>,
+    pub edges: Vec<DependencyEdge>,
 }
 
 impl DependencyTable {
@@ -17,40 +17,37 @@ impl DependencyTable {
     pub fn new(module_id: ModuleId) -> Self {
         Self {
             module_id,
-            dependencies: Vec::new(),
+            edges: Vec::new(),
         }
     }
 
     /// Create a dependency table from resolved edges.
-    pub fn from_dependencies(module_id: ModuleId, dependencies: Vec<DependencyEdge>) -> Self {
-        Self {
-            module_id,
-            dependencies,
-        }
+    pub fn from_edges(module_id: ModuleId, edges: Vec<DependencyEdge>) -> Self {
+        Self { module_id, edges }
     }
 
     /// Return locally resolved dependency edges.
     #[inline]
     pub fn as_slice(&self) -> &[DependencyEdge] {
-        &self.dependencies
+        &self.edges
     }
 
     /// Iterate resolved dependency edges.
     #[inline]
     pub fn iter(&self) -> impl Iterator<Item = &DependencyEdge> + '_ {
-        self.dependencies.iter()
+        self.edges.iter()
     }
 
     /// Add a resolved dependency edge.
     #[inline]
-    pub fn push(&mut self, dependency: DependencyEdge) {
-        self.dependencies.push(dependency);
+    pub fn push(&mut self, edge: DependencyEdge) {
+        self.edges.push(edge);
     }
 
     /// Return whether this table has no resolved dependency edges.
     #[inline]
     pub fn is_empty(&self) -> bool {
-        self.dependencies.is_empty()
+        self.edges.is_empty()
     }
 }
 
@@ -59,6 +56,6 @@ impl<'a> IntoIterator for &'a DependencyTable {
     type IntoIter = std::slice::Iter<'a, DependencyEdge>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.dependencies.iter()
+        self.edges.iter()
     }
 }

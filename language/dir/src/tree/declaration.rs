@@ -12,7 +12,7 @@ pub enum NamespaceForm {
     /// `namespace Foo {}`.
     #[default]
     Namespace,
-    /// `module Foo {}` or `module "foo" {}`.
+    /// `module Foo {}`.
     Module,
 }
 

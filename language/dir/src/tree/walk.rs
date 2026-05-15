@@ -731,7 +731,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         }
 
         Expression::Import {
-            space: _,
+            form: _,
             target: _,
             items,
             attributes: _,
@@ -745,7 +745,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         }
 
         Expression::Export {
-            space: _,
+            form: _,
             target: _,
             items,
             attributes: _,
@@ -1733,7 +1733,7 @@ pub fn walk_dependency_item<V: NodeVisitor + ?Sized>(
     dependency_item: &DependencyItem,
 ) {
     visitor.visit_any(tree, NodeType::DependencyItem, id.id);
-    if let DependencyItem::Item {
+    if let DependencyItem::Binding {
         value: Some(value), ..
     } = dependency_item
     {

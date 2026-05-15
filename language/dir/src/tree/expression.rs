@@ -3,10 +3,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Argument, AssignOperator, AssignPattern, Asynchrony, BinaryOperator, Block, Declaration,
-    Declarator, DependencyItem, DependencySpace, ExportKind, GenericArgument,
-    ImportAttributeClause, Keyword, LocalNodeId, MatchCase, MatchForm, Mutability, Node, NodeType,
-    Path, Pattern, Property, RangeEnd, ScalarLiteral, StaticKey, TemplateLiteral, TypeExpression,
-    UnaryOperator,
+    Declarator, DependencyForm, DependencyItem, ExportKind, GenericArgument, ImportAttributeClause,
+    Keyword, LocalNodeId, MatchCase, MatchForm, Mutability, Node, NodeType, Path, Pattern,
+    Property, RangeEnd, ScalarLiteral, StaticKey, TemplateLiteral, TypeExpression, UnaryOperator,
 };
 
 // NOTE #Performance: reduce Expression size to <=64B
@@ -61,7 +60,7 @@ pub enum Expression {
     /// ```
     ///
     Import {
-        space: DependencySpace,
+        form: DependencyForm,
         target: StringId,
         items: Option<Vec<LocalNodeId<DependencyItem>>>,
         attributes: Option<ImportAttributeClause>,
@@ -82,7 +81,7 @@ pub enum Expression {
     /// export default foo
     /// ```
     Export {
-        space: DependencySpace,
+        form: DependencyForm,
         target: Option<StringId>,
         items: Vec<LocalNodeId<DependencyItem>>,
         attributes: Option<ImportAttributeClause>,
