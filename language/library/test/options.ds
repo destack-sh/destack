@@ -1,11 +1,64 @@
+import { Label } from "destack:runtime";
+import { Duration } from "destack:time";
+
+/// Test case or suite execution kind.
+export enum CaseKind {
+    /// Ordinary example-based check.
+    Example = 1,
+    /// Benchmark case.
+    Bench = 2,
+    /// Fuzz case.
+    Fuzz = 3,
+    /// Simulation case.
+    Simulation = 4,
+}
+
+/// Test scheduler concurrency mode.
+export enum Concurrency {
+    /// Let the runner decide.
+    Auto = 1,
+    /// Run cases one at a time.
+    Serial = 2,
+    /// Run independent cases concurrently.
+    Concurrent = 3,
+}
+
+/// Test runtime isolation mode.
+export enum Isolation {
+    /// Run in the current runtime.
+    None = 1,
+    /// Run in a fresh runtime.
+    Runtime = 2,
+    /// Run in a fresh world.
+    World = 3,
+}
+
+/// Test scheduling policy.
+export struct Schedule {
+    /// Concurrency mode.
+    concurrency?: Concurrency;
+
+    /// Isolation mode.
+    isolation?: Isolation;
+
+    /// Retry count after failures.
+    retries?: uint32;
+}
+
 /// Test registration options.
-export interface TestOptions {
+export struct Options {
     /// Run only matching tests.
     only?: boolean;
 
     /// Skip this test.
     skip?: boolean;
 
-    /// Expected maximum duration in milliseconds.
-    timeout?: number;
+    /// Expected maximum duration.
+    timeout?: Duration;
+
+    /// Labels attached to this registration.
+    labels?: [Label];
+
+    /// Scheduling policy for this registration.
+    schedule?: Schedule;
 }

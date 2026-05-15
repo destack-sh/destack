@@ -1,45 +1,133 @@
-import { todo } from "destack:error";
+import * as assert from "destack:assert";
+import { Iterable } from "destack:iter";
+import { Equal } from "destack:ops";
 
 /// A value assertion chain.
-export interface Expect<T> {
+export class Expect<T> {
+    /// The value under assertion.
+    private value: T;
+
+    /// Whether this chain negates the next assertion.
+    private isNegated: boolean = false;
+
+    /// Create an assertion chain.
+    constructor(value: T, isNegated?: boolean) {
+        this.value = value
+        this.isNegated = isNegated ?? false
+    }
+
     /// Negated assertions.
-    not: Expect<T>;
+    get not(): Expect<T> {
+        new Expect(this.value, !this.isNegated)
+    }
+
+    /// Check one assertion result.
+    check(
+        this: &readonly Expect<T>,
+        condition: boolean,
+        message: string,
+        negatedMessage?: string,
+    ): void {
+        assert.assert(
+            this.isNegated ? !condition : condition,
+            this.isNegated ? negatedMessage ?? message : message,
+        )
+    }
 
     /// Assert that the value equals `expected`.
-    toEqual(expected: T): void;
+    toEqual(this: &readonly Expect<T>, expected: T): void {
+        if (this.isNegated) {
+            assert.notDeepEqual(this.value, expected)
+        }
+        else {
+            assert.deepEqual(this.value, expected)
+        }
+    }
 
     /// Assert that the value strictly equals `expected`.
-    toBe(expected: T): void;
+    toBe(this: &readonly Expect<T>, expected: T): void {
+        if (this.isNegated) {
+            assert.notSame(this.value, expected)
+        }
+        else {
+            assert.same(this.value, expected)
+        }
+    }
 
     /// Assert that the value deeply equals `expected`.
-    toStrictEqual(expected: T): void;
+    toStrictEqual(this: &readonly Expect<T>, expected: T): void {
+        if (this.isNegated) {
+            assert.notDeepEqual(this.value, expected)
+        }
+        else {
+            assert.deepEqual(this.value, expected)
+        }
+    }
 
     /// Assert that the value contains `expected`.
-    toContain(expected: unknown): void;
+    toContain<U>(this: &readonly Expect<Iterable<U>>, expected: U): void
+    where U implements Equal<U> {
+        if (this.isNegated) {
+            assert.notContains(this.value, expected)
+        }
+        else {
+            assert.contains(this.value, expected)
+        }
+    }
 
     /// Assert that the value is true.
-    toBeTruthy(): void;
+    toBeTruthy(this: &readonly Expect<T>): void {
+        this.check(!!this.value, "expected value to be truthy", "expected value to be falsy")
+    }
 
     /// Assert that the value is false.
-    toBeFalsy(): void;
+    toBeFalsy(this: &readonly Expect<T>): void {
+        this.check(!this.value, "expected value to be falsy", "expected value to be truthy")
+    }
 
     /// Assert that the value is null.
-    toBeNull(): void;
+    toBeNull(this: &readonly Expect<T>): void {
+        this.check(this.value === null, "expected value to be null", "expected value not to be null")
+    }
 
     /// Assert that the value is undefined.
-    toBeUndefined(): void;
+    toBeUndefined(this: &readonly Expect<T>): void {
+        this.check(
+            this.value === undefined,
+            "expected value to be undefined",
+            "expected value to be defined",
+        )
+    }
 
     /// Assert that the value is defined.
-    toBeDefined(): void;
+    toBeDefined(this: &readonly Expect<T>): void {
+        this.check(
+            this.value !== undefined,
+            "expected value to be defined",
+            "expected value to be undefined",
+        )
+    }
 
     /// Assert that the value is greater than `expected`.
-    toBeGreaterThan(expected: number): void;
+    toBeGreaterThan(this: &readonly Expect<T>, expected: number): void {
+        this.check(
+            (this.value as number) > expected,
+            "expected value to be greater",
+            "expected value not to be greater",
+        )
+    }
 
     /// Assert that the value is less than `expected`.
-    toBeLessThan(expected: number): void;
+    toBeLessThan(this: &readonly Expect<T>, expected: number): void {
+        this.check(
+            (this.value as number) < expected,
+            "expected value to be less",
+            "expected value not to be less",
+        )
+    }
 }
 
 /// Create an assertion chain for `value`.
 export function expect<T>(value: T): Expect<T> {
-    todo("expect")
+    new Expect(value)
 }

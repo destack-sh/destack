@@ -1,0 +1,19 @@
+import { RandomSeed } from "destack:runtime";
+
+/// Fuzz seed.
+export type Seed = RandomSeed;
+
+/// Generated sample metadata.
+export struct Sample {
+    /// Seed that produced this sample.
+    seed: Seed;
+
+    /// Sample index in this run.
+    index: uint64;
+
+    /// Shrink depth from the original failing sample.
+    shrinkDepth: uint32;
+
+    /// Generation size parameter.
+    size: uint32;
+}

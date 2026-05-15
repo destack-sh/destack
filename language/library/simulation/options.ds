@@ -1,0 +1,11 @@
+import { RandomSeed } from "destack:runtime";
+import * as test from "destack:test";
+
+/// Simulation seed.
+export type Seed = RandomSeed;
+
+/// Simulation registration options.
+export type Options = test.Options & {
+    /// Deterministic simulation seed.
+    seed?: Seed;
+};

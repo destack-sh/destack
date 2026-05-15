@@ -1,0 +1,43 @@
+import { SourceLocation } from "destack:error";
+import { Details } from "destack:assert";
+import { ArtifactId } from "./artifact.ds";
+
+/// Test issue kind.
+export enum IssueKind {
+    /// Assertion failed.
+    Assertion = 1,
+    /// Snapshot comparison failed.
+    Snapshot = 2,
+    /// Fuzzing found a counterexample.
+    Counterexample = 3,
+    /// Benchmark exceeded a budget.
+    Budget = 4,
+    /// Simulation invariant failed.
+    Invariant = 5,
+    /// Execution trapped or panicked.
+    Panic = 6,
+    /// Execution exceeded its deadline.
+    Timeout = 7,
+    /// Test definition was invalid.
+    InvalidCase = 8,
+    /// External operation failed.
+    Error = 9,
+}
+
+/// Structured issue found during a test run.
+export struct Issue {
+    /// Issue kind.
+    kind: IssueKind;
+
+    /// Human-readable issue message.
+    message: string;
+
+    /// Source location when available.
+    location?: SourceLocation;
+
+    /// Structured issue details.
+    details?: Details;
+
+    /// Related artifact identifiers.
+    artifacts?: [ArtifactId];
+}

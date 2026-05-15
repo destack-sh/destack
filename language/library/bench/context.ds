@@ -1,0 +1,33 @@
+import { Promise } from "destack:async";
+import * as test from "destack:test";
+import { Measure, Measurement } from "./measurement.ds";
+
+/// Benchmark callback context.
+export newtype interface Context extends test.CaseContext {
+    /// Create one named measurement helper.
+    measure(name: string): Measure;
+
+    /// Measure repeated synchronous execution.
+    iter(body: () => void): Measurement;
+
+    /// Measure repeated asynchronous execution.
+    iterAsync(body: () => Promise<void>): Promise<Measurement>;
+
+    /// Preserve a value from optimization.
+    blackBox<T>(value: T): T;
+
+    /// Record processed bytes.
+    bytes(value: uint64): void;
+
+    /// Record processed items.
+    items(value: uint64): void;
+}
+
+/// Benchmark callback result.
+export type BodyResult = test.BodyResult;
+
+/// Benchmark callback.
+export type Body = (ctx: Context) => BodyResult;
+
+/// Benchmark suite callback.
+export type SuiteBody = () => void;

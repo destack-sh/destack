@@ -1,0 +1,41 @@
+import * as test from "destack:test";
+import { Sample } from "./sample.ds";
+
+/// Stable fuzz corpus identifier.
+export newtype CorpusId = string;
+
+/// Saved fuzz corpus entry.
+export struct CorpusEntry<T> {
+    /// Entry value.
+    value: T;
+
+    /// Sample metadata that produced this value.
+    sample: Sample;
+
+    /// Replay input when available.
+    replay?: test.Replay;
+}
+
+/// Minimal failing fuzz example.
+export struct Counterexample<T> {
+    /// Failing value.
+    value: T;
+
+    /// Sample metadata that produced this value.
+    sample: Sample;
+
+    /// Shrink count from the original failing sample.
+    shrinks: uint32;
+
+    /// Replay input when available.
+    replay?: test.Replay;
+}
+
+/// Persisted fuzz corpus.
+export struct Corpus<T> {
+    /// Corpus identifier when persisted.
+    id?: CorpusId;
+
+    /// Corpus entries.
+    entries: [CorpusEntry<T>];
+}

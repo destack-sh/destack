@@ -1,8 +1,60 @@
-import { type Promise } from "destack:async";
-import { type AsyncResult, type Result } from "destack:error";
+import { Promise } from "destack:async";
+import { AsyncResult, Result } from "destack:error";
+import { Artifact } from "./artifact.ds";
+import { CaseId, ResourceKey, RunId, SuiteId } from "./id.ds";
+import { SnapshotOptions } from "./snapshot.ds";
+
+/// Test output sink.
+export newtype interface Output {
+    /// Write one output line.
+    line(value: string): void;
+
+    /// Attach one durable artifact.
+    attach(artifact: Artifact): void;
+}
+
+/// Test callback context.
+export newtype interface Context {
+    /// Test output sink.
+    readonly output: Output;
+
+    /// Create or return one resource.
+    resource<T>(key: ResourceKey, create: () => T): T;
+
+    /// Clean up one resource after this run.
+    cleanup(body: () => void | Promise<void>): void;
+
+    /// Compare a value against a named snapshot.
+    snapshot<T>(name: string, value: T, options?: SnapshotOptions): void;
+}
+
+/// Test case callback context.
+export newtype interface CaseContext extends Context {
+    /// Test case identifier.
+    readonly caseId: CaseId;
+
+    /// Test run identifier.
+    readonly runId: RunId;
+}
+
+/// Test suite callback context.
+export newtype interface SuiteContext extends Context {
+    /// Test suite identifier.
+    readonly suiteId: SuiteId;
+
+    /// Test run identifier.
+    readonly runId: RunId;
+}
 
 /// Test callback result.
-export type TestResult = void | Promise<void> | Result<void, unknown> | AsyncResult<void, unknown>;
+export type BodyResult =
+    | void
+    | Promise<void>
+    | Result<void, unknown>
+    | AsyncResult<void, unknown>;
 
 /// Test callback.
-export type TestBody = () => TestResult;
+export type Body = (ctx: CaseContext) => BodyResult;
+
+/// Test hook callback.
+export type HookBody = (ctx: Context) => BodyResult;

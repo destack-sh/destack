@@ -1,0 +1,55 @@
+import { Promise } from "destack:async";
+import { Measure } from "destack:bench";
+import { Result } from "destack:error";
+import { HostError } from "destack:error/host";
+import * as test from "destack:test";
+import * as runtime from "destack:runtime";
+import { Trace } from "./trace.ds";
+
+/// Simulation callback context.
+export newtype interface Context extends test.CaseContext {
+    /// Simulation world.
+    readonly world: runtime.World;
+
+    /// Active simulation scenario.
+    readonly scenario: runtime.Scenario;
+
+    /// Recorded simulation trace.
+    readonly trace: Trace;
+
+    /// Create one runtime in this simulation world.
+    runtime(options?: runtime.RuntimeCreateOptions): Result<runtime.Runtime, HostError>;
+
+    /// Create one worker in `owner`.
+    worker(
+        owner: runtime.Runtime,
+        options?: runtime.WorkerCreateOptions,
+    ): Result<runtime.Worker, HostError>;
+
+    /// Install one rule in the active simulation scenario.
+    rule(rule: runtime.ScenarioRule): Result<void, HostError>;
+
+    /// Install one fault in the active simulation scenario.
+    fault(fault: runtime.Fault, trigger?: runtime.ScenarioTrigger): Result<void, HostError>;
+
+    /// Install one simulated binding implementation.
+    bind<T>(name: string, implementation: T): T;
+
+    /// Advance the simulation world by one tick.
+    tick(): Result<runtime.TickResult, HostError>;
+
+    /// Run the simulation until no work is ready.
+    runUntilIdle(): Promise<void>;
+
+    /// Create one benchmark measurement inside this simulation.
+    measure(name: string): Measure;
+}
+
+/// Simulation callback result.
+export type BodyResult = test.BodyResult;
+
+/// Simulation callback.
+export type Body = (ctx: Context) => BodyResult;
+
+/// Simulation suite callback.
+export type SuiteBody = () => void;

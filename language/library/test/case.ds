@@ -1,26 +1,70 @@
 import { todo } from "destack:error";
-import { type TestOptions } from "./options.ds";
-import { type TestBody } from "./result.ds";
+import { Duration } from "destack:time";
+import { CaseId } from "./id.ds";
+import { CaseKind, Options } from "./options.ds";
+import { Body } from "./result.ds";
 
 /// Test registration argument after the test name.
-export type TestArgument = TestBody | TestOptions | number;
+export type CaseArgument = Body | Options | Duration;
 
-/// Register one test.
-export function test(name: string, argument?: TestArgument, body?: TestBody): void {
-    todo("test")
+/// Registered test case.
+export struct Case {
+    /// Stable case identifier.
+    id: CaseId;
+
+    /// Case name.
+    name: string;
+
+    /// Case kind.
+    kind: CaseKind;
+
+    /// Case options.
+    options?: Options;
+}
+
+/// Register one test case.
+export function registerCase(name: string, argument?: CaseArgument, body?: Body): void {
+    todo("test.registerCase")
 }
 
 /// Register one test.
-export function it(name: string, argument?: TestArgument, body?: TestBody): void {
-    test(name, argument, body)
+export function test(name: string, argument?: CaseArgument, body?: Body): void {
+    registerCase(name, argument, body)
+}
+
+/// Register one test.
+export function it(name: string, argument?: CaseArgument, body?: Body): void {
+    registerCase(name, argument, body)
 }
 
 /// Register one skipped test.
-export function testSkip(name: string, body?: TestBody): void {
-    test(name, { skip: true }, body)
+export function caseSkip(name: string, body?: Body): void {
+    registerCase(name, { skip: true }, body)
 }
 
 /// Register one focused test.
-export function testOnly(name: string, body?: TestBody): void {
-    test(name, { only: true }, body)
+export function caseOnly(name: string, body?: Body): void {
+    registerCase(name, { only: true }, body)
 }
+
+/// Register one skipped test.
+export function testSkip(name: string, body?: Body): void {
+    caseSkip(name, body)
+}
+
+/// Register one focused test.
+export function testOnly(name: string, body?: Body): void {
+    caseOnly(name, body)
+}
+
+/// Register one skipped test.
+export function itSkip(name: string, body?: Body): void {
+    caseSkip(name, body)
+}
+
+/// Register one focused test.
+export function itOnly(name: string, body?: Body): void {
+    caseOnly(name, body)
+}
+
+export { registerCase as case };

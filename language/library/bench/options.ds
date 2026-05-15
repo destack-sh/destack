@@ -1,0 +1,24 @@
+import { Duration } from "destack:time";
+import * as test from "destack:test";
+import { Baseline, Budget } from "./budget.ds";
+
+/// Benchmark registration options.
+export type Options = test.Options & {
+    /// Warmup duration before samples are recorded.
+    warmup?: Duration;
+
+    /// Minimum recorded measurement duration.
+    minDuration?: Duration;
+
+    /// Minimum recorded sample count.
+    samples?: uint32;
+
+    /// Maximum relative standard error in parts per million.
+    maxRelativeErrorPpm?: uint32;
+
+    /// Regression budget.
+    budget?: Budget;
+
+    /// Baseline to compare against.
+    baseline?: Baseline;
+};

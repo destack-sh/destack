@@ -1,0 +1,96 @@
+import { Promise } from "destack:async";
+import { todo } from "destack:error";
+import { Duration } from "destack:time";
+
+/// Benchmark unit label.
+export newtype Unit = string;
+
+/// Recorded benchmark measurement.
+export struct Measurement {
+    /// Measurement name.
+    name: string;
+
+    /// Completed iteration count.
+    iterations: uint64;
+
+    /// Elapsed duration.
+    duration: Duration;
+
+    /// Processed byte count when available.
+    bytes?: uint64;
+
+    /// Processed item count when available.
+    items?: uint64;
+
+    /// Measurement unit when available.
+    unit?: Unit;
+}
+
+/// Benchmark sample series.
+export struct Samples {
+    /// Recorded measurements.
+    measurements: [Measurement];
+
+    /// Sample count.
+    count: uint32;
+
+    /// Fastest recorded duration.
+    min: Duration;
+
+    /// Slowest recorded duration.
+    max: Duration;
+
+    /// Mean recorded duration.
+    mean: Duration;
+
+    /// Median recorded duration.
+    median: Duration;
+
+    /// 95th percentile recorded duration.
+    p95: Duration;
+
+    /// Relative standard error in parts per million.
+    relativeErrorPpm?: uint32;
+}
+
+/// Benchmark measurement helper.
+export class Measure {
+    /// Measurement name.
+    readonly name: string;
+
+    /// Processed byte count when available.
+    private processedBytes?: uint64;
+
+    /// Processed item count when available.
+    private processedItems?: uint64;
+
+    /// Create a measurement helper.
+    constructor(name: string) {
+        this.name = name
+    }
+
+    /// Measure repeated synchronous execution.
+    iter(body: () => void): Measurement {
+        todo("bench.Measure.iter")
+    }
+
+    /// Measure repeated asynchronous execution.
+    iterAsync(body: () => Promise<void>): Promise<Measurement> {
+        todo("bench.Measure.iterAsync")
+    }
+
+    /// Preserve a value from optimization.
+    blackBox<T>(value: T): T {
+        value
+    }
+
+    /// Record processed bytes.
+    bytes(this: &exclusive Measure, value: uint64): void {
+        this.processedBytes = value
+    }
+
+    /// Record processed items.
+    items(this: &exclusive Measure, value: uint64): void {
+        this.processedItems = value
+    }
+}
