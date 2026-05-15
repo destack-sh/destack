@@ -1,27 +1,28 @@
 use crate::{Expression, LocalNodeId, Name, Node, NodeType, StringId};
 
 use serde::{Deserialize, Serialize};
+
 /// How one dependency item binds into the local module or export surface.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum DependencyBinding {
-    /// Export as regular item (like `export foo`).
-    Item,
-    /// Export as default item (like `export default foo`).
+    /// Named binding (`import { foo } from "foo"` or `export { foo } from "foo"`).
+    Named,
+    /// Default binding (`export default foo`).
     Default,
-    /// Export as entire namespace (like `export = foo`).
+    /// Namespace binding (`import * as foo from "foo"` or `export * from "foo"`).
     Namespace,
 }
 
-/// The space of a dependency item.
+/// The source form of one dependency item.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub enum DependencySpace {
-    /// Type dependency (`import type foo` or `export type foo`).
+pub enum DependencyForm {
+    /// Type-marked dependency (`import type foo` or `export type foo`).
     Type,
-    /// Value dependency (`import foo` or `export foo`).
-    Value,
+    /// Plain dependency (`import foo` or `export foo`).
+    Plain,
 }
 
-/// A DependencyItem is an item to import from a target in an import or export clause.
+/// One dependency binding in an import or export clause.
 ///
 /// Examples:
 /// ```
@@ -32,8 +33,8 @@ pub enum DependencySpace {
 pub struct DependencyItem {
     /// How the item binds.
     pub binding: DependencyBinding,
-    /// The symbol space of the item, when specified.
-    pub space: Option<DependencySpace>,
+    /// The source form of the item, when specified.
+    pub form: Option<DependencyForm>,
     /// The name of the item (like `foo` in `foo as bar`).
     /// None for default/namespace items where only alias matters.
     pub name: Option<Name>,

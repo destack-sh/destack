@@ -3,7 +3,7 @@ use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use super::printer::Printer;
 use crate::{
-    Annotation, DependencyBinding, DependencyItem, DependencySpace, JsPrintResult, Keyword,
+    Annotation, DependencyBinding, DependencyForm, DependencyItem, JsPrintResult, Keyword,
     LocalNodeId, Path,
 };
 
@@ -131,7 +131,7 @@ impl<'a> Printer<'a> {
             self.source_part_span(item_id.id, NodeSpanType::Region(NodeSpanRegion::Type));
         let alias_span = self.source_part_span(item_id.id, NodeSpanType::Main);
 
-        if item.space == Some(DependencySpace::Type) {
+        if item.form == Some(DependencyForm::Type) {
             self.write_keyword(Keyword::Type);
         }
 
