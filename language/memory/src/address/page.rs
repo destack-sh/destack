@@ -92,17 +92,13 @@ impl PageMap {
     /// Zero one byte range inside this page map.
     pub(super) fn zero(&self, offset: usize, byte_len: usize) -> MemoryResult<()> {
         self.make_writable(offset, byte_len)?;
-        let target = unsafe { self.space.base().add(offset) };
 
         // empty ranges only validate the address
         if byte_len == 0 {
             return Ok(());
         }
 
-        // zero after page protections have been prepared
-        unsafe {
-            write_bytes(target, 0, byte_len);
-        }
+        self.zero_mapped_bytes(offset, byte_len);
 
         Ok(())
     }
@@ -129,11 +125,7 @@ impl PageMap {
 
             // mapped pages read from virtual memory
             if self.pages.is_mapped(page_index) {
-                let source = unsafe { self.space.base().add(copy_start) };
-
-                unsafe {
-                    copy_nonoverlapping(source, target[target_start..].as_mut_ptr(), copy_len);
-                }
+                self.copy_mapped_bytes_to(copy_start, &mut target[target_start..][..copy_len]);
 
                 written += copy_len;
                 continue;
@@ -163,7 +155,7 @@ impl PageMap {
     pub(super) fn address(&self, offset: usize, byte_len: usize) -> MemoryResult<*mut u8> {
         self.materialize(offset, byte_len)?;
 
-        Ok(unsafe { self.space.base().add(offset) })
+        Ok(self.mapped_address(offset))
     }
 
     /// Materialize one byte range inside this page map.
@@ -240,12 +232,8 @@ impl PageMap {
     /// Write caller-provided bytes directly into this page map.
     pub(super) fn write_bytes(&self, offset: usize, bytes: &[u8]) -> MemoryResult<()> {
         self.make_writable(offset, bytes.len())?;
-        let target = unsafe { self.space.base().add(offset) };
 
-        // copy after page protections have been prepared
-        unsafe {
-            copy_nonoverlapping(bytes.as_ptr(), target, bytes.len());
-        }
+        self.copy_bytes_to_mapped(offset, bytes);
 
         Ok(())
     }
@@ -288,16 +276,9 @@ impl PageMap {
 
             // force private pages before later stores
             for page_offset in 0..run_len {
-                let page_address = unsafe {
-                    self.space
-                        .base()
-                        .add((run_start + page_offset) * self.frame_bytes)
-                };
-                let byte = unsafe { read_volatile(page_address) };
+                let offset = (run_start + page_offset) * self.frame_bytes;
 
-                unsafe {
-                    write_volatile(page_address, byte);
-                }
+                self.force_private_page(offset);
             }
 
             // publish the modified state after the protection change succeeds
@@ -452,7 +433,7 @@ impl PageMap {
         page_count: usize,
     ) -> MemoryResult<()> {
         let byte_len = page_count * self.frame_bytes;
-        let source = unsafe { self.space.base().add(first_page * self.frame_bytes) };
+        let source = self.mapped_address(first_page * self.frame_bytes);
 
         // child receives a fresh writable frame with current parent bytes
         let frame = platform::copy_frame_range(&self.frames, source, byte_len, self.frame_bytes)?;
@@ -483,6 +464,59 @@ impl PageMap {
         }
     }
 
+    /// Return one mapped address without validating the range.
+    #[inline(always)]
+    fn mapped_address(&self, offset: usize) -> *mut u8 {
+        // callers validate and materialize the range first
+        unsafe { self.space.base().add(offset) }
+    }
+
+    /// Copy mapped bytes into one caller buffer.
+    #[inline(always)]
+    fn copy_mapped_bytes_to(&self, offset: usize, target: &mut [u8]) {
+        let source = self.mapped_address(offset);
+
+        // callers only copy from mapped page ranges
+        unsafe {
+            copy_nonoverlapping(source, target.as_mut_ptr(), target.len());
+        }
+    }
+
+    /// Copy caller bytes into one mapped page range.
+    #[inline(always)]
+    fn copy_bytes_to_mapped(&self, offset: usize, bytes: &[u8]) {
+        let target = self.mapped_address(offset);
+
+        // callers prepare page protections first
+        unsafe {
+            copy_nonoverlapping(bytes.as_ptr(), target, bytes.len());
+        }
+    }
+
+    /// Zero one mapped page range.
+    #[inline(always)]
+    fn zero_mapped_bytes(&self, offset: usize, byte_len: usize) {
+        let target = self.mapped_address(offset);
+
+        // callers prepare page protections first
+        unsafe {
+            write_bytes(target, 0, byte_len);
+        }
+    }
+
+    /// Force one shared page to become privately writable.
+    #[inline(always)]
+    fn force_private_page(&self, offset: usize) {
+        let page_address = self.mapped_address(offset);
+
+        // write one byte after protection changes to trigger private backing
+        unsafe {
+            let byte = read_volatile(page_address);
+
+            write_volatile(page_address, byte);
+        }
+    }
+
     /// Fork this page map by copying materialized pages.
     fn fork_copied_frames(&self, fork: &Self) -> MemoryResult<()> {
         let _lock = self.lock.lock();
@@ -490,7 +524,7 @@ impl PageMap {
 
         // wasm has no native mappings, so materialized pages are copied
         for page_index in self.pages.mapped_pages() {
-            let source = unsafe { self.space.base().add(page_index * self.frame_bytes) };
+            let source = self.mapped_address(page_index * self.frame_bytes);
             let frame = platform::copy_page(&self.frames, source, self.frame_bytes)?;
 
             // copy the frame into the child linear memory

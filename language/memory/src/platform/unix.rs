@@ -47,7 +47,7 @@ impl VirtualSpace {
         }
 
         // cleanup cannot report errors from Drop
-        let _ = unsafe { libc::munmap(self.base.cast(), self.byte_len) };
+        let _ = unmap_virtual(self.base, self.byte_len);
         self.base = null_mut();
         self.byte_len = 0;
     }
@@ -72,7 +72,7 @@ pub(crate) struct PageFrameAllocator {
 impl Drop for PageFrameAllocator {
     fn drop(&mut self) {
         // cleanup cannot report errors from Drop
-        let _ = unsafe { libc::close(self.fd) };
+        let _ = close_fd(self.fd);
     }
 }
 
@@ -217,7 +217,7 @@ pub(crate) fn copy_frame_range(
 
 /// Return the platform frame byte width for fixed-address mappings.
 pub(crate) fn system_frame_bytes() -> MemoryResult<usize> {
-    let page_bytes = unsafe { libc::sysconf(libc::_SC_PAGESIZE) };
+    let page_bytes = system_page_bytes();
     if page_bytes <= 0 {
         return Err(MemoryError::InvariantViolation {
             context: "system frame size",
@@ -237,16 +237,7 @@ pub(crate) fn reserve_virtual_space(byte_len: usize) -> MemoryResult<VirtualSpac
     }
 
     // reserve address space without committing mapped pages
-    let address = unsafe {
-        libc::mmap(
-            null_mut(),
-            byte_len,
-            libc::PROT_NONE,
-            MAP_PRIVATE_ANONYMOUS,
-            -1,
-            0,
-        )
-    };
+    let address = map_anonymous(byte_len, libc::PROT_NONE);
     if address == libc::MAP_FAILED {
         return Err(MemoryError::AddressSpaceFailed { byte_len });
     }
@@ -317,9 +308,8 @@ pub(crate) fn make_shared_pages_writable(
     page_bytes: usize,
     byte_len: usize,
 ) -> MemoryResult<()> {
-    let address = unsafe { base.add(first_page * page_bytes) };
-    let result =
-        unsafe { libc::mprotect(address.cast(), byte_len, libc::PROT_READ | libc::PROT_WRITE) };
+    let address = page_address(base, first_page, page_bytes);
+    let result = protect_pages(address, byte_len, libc::PROT_READ | libc::PROT_WRITE);
     if result == 0 {
         return Ok(());
     }
@@ -445,6 +435,102 @@ fn merge_free_frame_ranges(ranges: &mut Vec<PageFrameRange>) {
     }
 }
 
+/// Return one byte address inside a raw byte range.
+fn byte_address(base: *mut u8, byte_offset: usize) -> *mut u8 {
+    unsafe { base.add(byte_offset) }
+}
+
+/// Return one page address inside a reserved range.
+fn page_address(base: *mut u8, page_index: usize, page_bytes: usize) -> *mut u8 {
+    byte_address(base, page_index * page_bytes)
+}
+
+/// Return the platform page byte width.
+fn system_page_bytes() -> libc::c_long {
+    unsafe { libc::sysconf(libc::_SC_PAGESIZE) }
+}
+
+/// Close one file descriptor.
+fn close_fd(fd: RawFd) -> libc::c_int {
+    unsafe { libc::close(fd) }
+}
+
+/// Reserve one anonymous virtual address range.
+fn map_anonymous(byte_len: usize, protection: libc::c_int) -> *mut libc::c_void {
+    unsafe {
+        libc::mmap(
+            null_mut(),
+            byte_len,
+            protection,
+            MAP_PRIVATE_ANONYMOUS,
+            -1,
+            0,
+        )
+    }
+}
+
+/// Map one frame range into one fixed address.
+fn map_frame_fixed(
+    address: *mut u8,
+    byte_len: usize,
+    protection: libc::c_int,
+    flags: libc::c_int,
+    fd: RawFd,
+    offset: u64,
+) -> *mut libc::c_void {
+    unsafe {
+        libc::mmap(
+            address.cast(),
+            byte_len,
+            protection,
+            flags | libc::MAP_FIXED,
+            fd,
+            offset as libc::off_t,
+        )
+    }
+}
+
+/// Map one frame range at any available address.
+fn map_frame_anywhere(fd: RawFd, offset: u64, byte_len: usize) -> *mut libc::c_void {
+    unsafe {
+        libc::mmap(
+            null_mut(),
+            byte_len,
+            libc::PROT_READ | libc::PROT_WRITE,
+            libc::MAP_SHARED,
+            fd,
+            offset as libc::off_t,
+        )
+    }
+}
+
+/// Update page protection for one range.
+fn protect_pages(address: *mut u8, byte_len: usize, protection: libc::c_int) -> libc::c_int {
+    unsafe { libc::mprotect(address.cast(), byte_len, protection) }
+}
+
+/// Unmap one virtual range.
+fn unmap_virtual(address: *mut u8, byte_len: usize) -> libc::c_int {
+    unsafe { libc::munmap(address.cast(), byte_len) }
+}
+
+/// Fill one byte range with zero.
+fn write_zero_bytes(address: *mut u8, byte_len: usize) {
+    unsafe {
+        write_bytes(address, 0, byte_len);
+    }
+}
+
+/// Write bytes at one file offset.
+fn write_at(fd: RawFd, source: *mut u8, byte_len: usize, offset: u64) -> isize {
+    unsafe { libc::pwrite(fd, source.cast(), byte_len, offset as libc::off_t) }
+}
+
+/// Truncate one file to the given byte length.
+fn truncate_file(fd: RawFd, byte_len: u64) -> libc::c_int {
+    unsafe { libc::ftruncate(fd, byte_len as libc::off_t) }
+}
+
 /// Map one page-frame range into reserved virtual pages.
 fn map_frame_range(
     base: *mut u8,
@@ -457,17 +543,15 @@ fn map_frame_range(
     flags: libc::c_int,
 ) -> MemoryResult<()> {
     // replace the reserved range with a file-backed view
-    let address = unsafe { base.add(first_page * page_bytes) };
-    let mapped = unsafe {
-        libc::mmap(
-            address.cast(),
-            byte_len,
-            protection,
-            flags | libc::MAP_FIXED,
-            allocator.fd,
-            frame.offset as libc::off_t,
-        )
-    };
+    let address = page_address(base, first_page, page_bytes);
+    let mapped = map_frame_fixed(
+        address,
+        byte_len,
+        protection,
+        flags,
+        allocator.fd,
+        frame.offset,
+    );
     if mapped == libc::MAP_FAILED {
         return Err(MemoryError::AddressSpaceFailed { byte_len });
     }
@@ -481,16 +565,7 @@ fn map_frame_range_anywhere(
     frame: PageFrame,
     byte_len: usize,
 ) -> MemoryResult<*mut u8> {
-    let address = unsafe {
-        libc::mmap(
-            null_mut(),
-            byte_len,
-            libc::PROT_READ | libc::PROT_WRITE,
-            libc::MAP_SHARED,
-            allocator.fd,
-            frame.offset as libc::off_t,
-        )
-    };
+    let address = map_frame_anywhere(allocator.fd, frame.offset, byte_len);
     if address == libc::MAP_FAILED {
         return Err(MemoryError::AddressSpaceFailed { byte_len });
     }
@@ -506,12 +581,10 @@ fn zero_frame_range(
 ) -> MemoryResult<()> {
     let target = map_frame_range_anywhere(allocator, frame, byte_len)?;
 
-    unsafe {
-        write_bytes(target, 0, byte_len);
-    }
+    write_zero_bytes(target, byte_len);
 
     // cleanup cannot report errors after the frame is zeroed
-    let _ = unsafe { libc::munmap(target.cast(), byte_len) };
+    let _ = unmap_virtual(target, byte_len);
 
     Ok(())
 }
@@ -527,10 +600,10 @@ fn write_frame_range(
 
     // pwrite copies directly into the frame file without scratch mapping
     while written < byte_len {
-        let source = unsafe { source.add(written) };
+        let source = byte_address(source, written);
         let offset = frame.offset + written as u64;
         let remaining = byte_len - written;
-        let result = unsafe { libc::pwrite(fd, source.cast(), remaining, offset as libc::off_t) };
+        let result = write_at(fd, source, remaining, offset);
 
         if result <= 0 {
             return Err(MemoryError::AddressSpaceFailed { byte_len });
@@ -550,7 +623,7 @@ fn extend_frame_file(fd: RawFd, byte_len: u64, page_bytes: usize) -> MemoryResul
         });
     }
 
-    let result = unsafe { libc::ftruncate(fd, byte_len as libc::off_t) };
+    let result = truncate_file(fd, byte_len);
     if result == 0 {
         return Ok(());
     }
