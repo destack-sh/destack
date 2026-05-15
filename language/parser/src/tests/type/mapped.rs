@@ -495,8 +495,8 @@ fn test_parse_type_mapped_expression_with_conditional_infer_constraint() {
             assert_node!(parser.tree, *value, TypeExpression::Mapped { parameter, value, .. } => {
                 assert_string!(parser, parameter.name, "P");
                 assert_node!(parser.tree, parameter.source_type, TypeExpression::Conditional { left, extends_type, then_type, else_type } => {
-                    assert_node!(parser.tree, *left, TypeExpression::Infer { name, constraint } => {
-                        assert_string!(parser, *name, "U");
+                    assert_node!(parser.tree, *left, TypeExpression::Infer { name, constraint, .. } => {
+                        assert_string!(parser, name.expect("expected infer name"), "U");
                         assert!(constraint.is_none());
                     });
                     assert_node!(parser.tree, *extends_type, TypeExpression::KeyOf { target_type } => {

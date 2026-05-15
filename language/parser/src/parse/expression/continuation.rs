@@ -400,10 +400,7 @@ impl Parser {
 
         // object and sequence destructuring own recursive assign pattern lowering
         let assign_pattern = match inner_expression {
-            Expression::ObjectExpression {
-                ty: None,
-                properties,
-            } => {
+            Expression::ObjectExpression { properties } => {
                 let fields =
                     self.object_properties_to_assign_pattern_fields(properties.as_slice())?;
                 AssignPattern::Object { fields }
@@ -1104,10 +1101,7 @@ impl Parser {
         }
 
         let expression_id = self.insert_node(
-            Expression::ObjectExpression {
-                ty: Some(ty),
-                properties,
-            },
+            Expression::StructExpression { ty, properties },
             self.get_span_from(start),
         );
 

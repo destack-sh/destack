@@ -1,6 +1,6 @@
 use crate::{ParseResult, Parser};
 
-use destack_dir::{Keyword, LocalNodeId, NodeType, TokenType, TypeExpression};
+use destack_dir::{InferForm, Keyword, LocalNodeId, NodeType, TokenType, TypeExpression};
 
 impl Parser {
     /// Eat one `infer` type expression.
@@ -16,6 +16,8 @@ impl Parser {
         let start = self.span_start();
         self.eat_keyword(Keyword::Infer)?;
         let (name, name_span) = self.eat_identifier_with_span()?;
+        let is_anonymous = self.language.is_destack() && self.get_span_str(name_span) == "_";
+        let name = if is_anonymous { None } else { Some(name) };
 
         // constraint: `infer T extends U`
         let constraint = if self.is_keyword(Keyword::Extends) {
@@ -53,7 +55,11 @@ impl Parser {
 
         // infer node
         let type_expression_id = self.insert_node(
-            TypeExpression::Infer { name, constraint },
+            TypeExpression::Infer {
+                form: InferForm::Infer,
+                name,
+                constraint,
+            },
             self.get_span_from(&start),
         );
         self.tree.set_main_span(type_expression_id, name_span);

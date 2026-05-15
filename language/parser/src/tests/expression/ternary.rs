@@ -231,10 +231,10 @@ fn test_parse_if_ternary_with_braces() {
         assert_node!(parser.tree, condition_id, Expression::Identifier { name } => {
             assert_string!(parser, *name, "x");
         });
-        assert_node!(parser.tree, *then_expression, Expression::ObjectExpression { ty: None, properties, .. } => {
+        assert_node!(parser.tree, *then_expression, Expression::ObjectExpression { properties, .. } => {
             assert_eq!(properties.len(), 0);
         });
-        assert_node!(parser.tree, else_expression.unwrap(), Expression::ObjectExpression { ty: None, properties, .. } => {
+        assert_node!(parser.tree, else_expression.unwrap(), Expression::ObjectExpression { properties, .. } => {
             assert_eq!(properties.len(), 0);
         });
     });

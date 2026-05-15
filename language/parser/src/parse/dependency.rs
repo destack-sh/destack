@@ -314,11 +314,7 @@ impl Parser {
 
                 ImportAttributeValue::Array(values)
             }
-            Expression::ObjectExpression { ty, properties } => {
-                if ty.is_some() {
-                    return Err(ParseError::unexpected(self.tree.get_span(expression_id)));
-                }
-
+            Expression::ObjectExpression { properties } => {
                 let mut attributes = Vec::with_capacity(properties.len());
 
                 for property_id in properties {

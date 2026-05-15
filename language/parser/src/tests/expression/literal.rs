@@ -114,7 +114,7 @@ fn test_parse_statement_position_object_literal_with_comment() {
     let mut parser = test.prepare();
     parser.flags.set_in_statement_position(true);
     let expr_id = parser.eat_expression(parser.flags).unwrap();
-    assert_node!(parser.tree, expr_id, Expression::ObjectExpression { ty: None, properties, .. } => {
+    assert_node!(parser.tree, expr_id, Expression::ObjectExpression { properties, .. } => {
         assert_eq!(properties.len(), 1);
         assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
             assert_string!(parser, *name, "a");
@@ -130,7 +130,7 @@ fn test_parse_statement_position_object_literal_computed_key() {
     let mut parser = test.prepare();
     parser.flags.set_in_statement_position(true);
     let expr_id = parser.eat_expression(parser.flags.in_type()).unwrap();
-    assert_node!(parser.tree, expr_id, Expression::ObjectExpression { ty: None, properties, .. } => {
+    assert_node!(parser.tree, expr_id, Expression::ObjectExpression { properties, .. } => {
         assert_eq!(properties.len(), 1);
         assert_node!(parser.tree, properties[0], Property::Field { key: Key::Expression(key_id), value, .. } => {
             assert_expression_path!(parser, parser.tree.get(*key_id), "key");
@@ -146,7 +146,7 @@ fn test_parse_parenthesized_object_literal_shorthand_field() {
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Parenthesized { expression } => {
-        assert_node!(parser.tree, *expression, Expression::ObjectExpression { ty: None, properties, .. } => {
+        assert_node!(parser.tree, *expression, Expression::ObjectExpression { properties, .. } => {
             assert_eq!(properties.len(), 1);
             assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value, is_shorthand } => {
                 assert_string!(parser, *name, "value");
@@ -164,7 +164,7 @@ fn test_parse_parenthesized_object_literal_explicit_field_is_not_shorthand() {
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Parenthesized { expression } => {
-        assert_node!(parser.tree, *expression, Expression::ObjectExpression { ty: None, properties, .. } => {
+        assert_node!(parser.tree, *expression, Expression::ObjectExpression { properties, .. } => {
             assert_eq!(properties.len(), 1);
             assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value, is_shorthand } => {
                 assert_string!(parser, *name, "value");
@@ -184,7 +184,7 @@ fn test_parse_parenthesized_object_literal_computed_field_without_value() {
 
     assert_eq!(parser.errors.len(), 1);
     assert_node!(parser.tree, expr_id, Expression::Parenthesized { expression } => {
-        assert_node!(parser.tree, *expression, Expression::ObjectExpression { ty: None, properties, .. } => {
+        assert_node!(parser.tree, *expression, Expression::ObjectExpression { properties, .. } => {
             assert_eq!(properties.len(), 1);
             assert_node!(parser.tree, properties[0], Property::Error);
         });
@@ -317,7 +317,7 @@ fn test_parse_object_literal_in_parenthesis() {
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Parenthesized { expression } => {
-        assert_node!(parser.tree, *expression, Expression::ObjectExpression { ty: None, properties, .. } => {
+        assert_node!(parser.tree, *expression, Expression::ObjectExpression { properties, .. } => {
             assert_eq!(properties.len(), 2);
             assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
                 assert_string!(parser, *name, "x");
@@ -419,7 +419,7 @@ fn test_parse_struct_literal_path() {
     assert_node!(
         parser.tree,
         expr_id,
-        Expression::ObjectExpression { ty: Some(ty), properties, .. } => {
+        Expression::StructExpression { ty, properties, .. } => {
             assert_node!(parser.tree, *ty, TypeExpression::Reference { path, generic_arguments: _ } => {
                 assert_path!(parser, *path, "geom.Vector2");
             });
@@ -456,7 +456,7 @@ geom.Mesh<2, 4> {
     assert_node!(
         parser.tree,
         expr_id,
-        Expression::ObjectExpression { ty: Some(ty), properties, .. } => {
+        Expression::StructExpression { ty, properties, .. } => {
             assert_node!(parser.tree, *ty, TypeExpression::Reference { path, generic_arguments } => {
                 assert_path!(parser, *path, "geom.Mesh");
                 assert_eq!(generic_arguments.len(), 2);

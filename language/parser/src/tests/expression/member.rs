@@ -361,7 +361,7 @@ fn test_parse_object_property_private_member_cast_with_newline_before_dot() {
 
     test.assert_no_errors(&parser);
     assert_node!(parser.tree, expression_id, Expression::Parenthesized { expression } => {
-        assert_node!(parser.tree, *expression, Expression::ObjectExpression { ty: None, properties, .. } => {
+        assert_node!(parser.tree, *expression, Expression::ObjectExpression { properties, .. } => {
             assert_eq!(properties.len(), 1);
             assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
                 assert_string!(parser, *name, "value");
