@@ -355,7 +355,11 @@ fn test_type_template_remap_comment_stays_outside_generic_argument_ownership() {
     let TypeExpression::Mapped { parameter, .. } = context.tree.get(declaration.value) else {
         panic!("expected mapped type");
     };
-    let key_remap = parameter.key_remap.expect("expected key remap");
+    let key_remap = context
+        .tree
+        .get(*parameter)
+        .key_remap
+        .expect("expected key remap");
     let TypeExpression::TemplateLiteral { spans, .. } = context.tree.get(key_remap) else {
         panic!("expected template literal remap");
     };

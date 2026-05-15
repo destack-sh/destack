@@ -27,8 +27,8 @@ use destack_dir::{
     Comment, ConstructorTypeDeclaration, Declaration, Expression, FunctionForm, FunctionSignature,
     FunctionTypeDeclaration, GenericArgument, GenericParameter, InferForm, Key, Keyword,
     LocalNodeId, MappedTypeModifier, Member, Mutability, Node, NodeType, Parameter, Property,
-    RangeEnd, TokenType, Tree, TreeStore, TupleElement, TypeExpression, TypeLiteral, TypeMember,
-    TypePredicateSubject, VarianceBound, WhereClause,
+    RangeEnd, TokenType, Tree, TreeStore, TupleElement, TypeExpression, TypeLiteral,
+    TypeMappedParameter, TypeMember, TypePredicateSubject, VarianceBound, WhereClause,
 };
 use destack_fir::format::{Buffer, FormatError, FormatResult};
 use destack_fir::prelude::{space, token, *};
@@ -2287,6 +2287,32 @@ fn write_mapped_modifier_suffix<'ast>(
     }
 }
 
+impl<'ast> FormatNode<'ast, TypeMappedParameter> for TypeMappedParameter {
+    fn format_node(
+        &self,
+        _node_id: LocalNodeId<TypeMappedParameter>,
+        f: &mut DestackFormatter<'ast, '_>,
+    ) -> FormatResult<()> {
+        write!(
+            f,
+            [
+                token("["),
+                self.name,
+                space(),
+                Keyword::In,
+                space(),
+                self.source_type
+            ]
+        )?;
+
+        if let Some(key_remap) = self.key_remap {
+            write!(f, [space(), Keyword::As, space(), key_remap])?;
+        }
+
+        write!(f, [token("]")])
+    }
+}
+
 /// Write the value annotation for one mapped type.
 fn write_mapped_value_type_annotation<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -2738,6 +2764,7 @@ pub(crate) fn write_type_expression_body<'ast>(
             optional,
             value,
         } => {
+            let parameter = f.context().tree.get(*parameter);
             let span = f.context().span(node_id);
             let should_expand = f
                 .context()

@@ -436,18 +436,17 @@ fn tree_control_child_has_tree_branch(
                 })
         }
         Expression::Try {
-            try_expression,
-            catch_expression,
-            finally_expression,
+            body,
+            catch,
+            finally,
             ..
         } => {
-            expression_branch_has_tree_value(context, *try_expression)
-                || catch_expression.is_some_and(|catch_expression| {
-                    expression_branch_has_tree_value(context, catch_expression)
+            expression_branch_has_tree_value(context, *body)
+                || catch.is_some_and(|catch| {
+                    let catch = context.tree.get(catch);
+                    expression_branch_has_tree_value(context, catch.body)
                 })
-                || finally_expression.is_some_and(|finally_expression| {
-                    expression_branch_has_tree_value(context, finally_expression)
-                })
+                || finally.is_some_and(|finally| expression_branch_has_tree_value(context, finally))
         }
         _ => false,
     }
