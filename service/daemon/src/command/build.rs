@@ -5,7 +5,7 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use super::CommandResult;
-use super::context::{CommandContext, ResolvedTarget};
+use super::context::{CommandContext, SelectedTarget};
 use super::dispatch::CommandOutcome;
 
 /// Options for the build command.
@@ -65,6 +65,6 @@ impl CommandContext<'_> {
 }
 
 /// Build the requested build root for one target.
-fn build_root_for_target(module_id: ModuleId, target: &ResolvedTarget) -> ArtifactKey {
+fn build_root_for_target(module_id: ModuleId, target: &SelectedTarget) -> ArtifactKey {
     ArtifactKey::module_output(module_id, target.id)
 }

@@ -37,12 +37,12 @@ pub(super) struct CommandContext<'a> {
     pub(super) output: &'a mut CommandOutputBuffer,
 }
 
-/// One resolved command target.
+/// One selected command target.
 #[derive(Debug, Clone)]
-pub(super) struct ResolvedTarget {
-    /// The resolved target id.
+pub(super) struct SelectedTarget {
+    /// The selected target id.
     pub id: TargetId,
-    /// The resolved target configuration.
+    /// The selected target configuration.
     pub target: Target,
 }
 
@@ -365,7 +365,7 @@ impl<'a> CommandContext<'a> {
         module_id: ModuleId,
         target_name: &str,
         overrides: Option<&CommandTargetOverrides>,
-    ) -> CommandResult<ResolvedTarget> {
+    ) -> CommandResult<SelectedTarget> {
         // load the owning package for the module
         let module = self
             .repository
@@ -375,16 +375,16 @@ impl<'a> CommandContext<'a> {
         let package_id = module.package_id;
         let target_id = TargetId::new(package_id, target_name);
 
-        let effective_target = self
+        let target_or_builtin = self
             .repository
-            .effective_target(revision, target_id)
+            .target_or_builtin(revision, target_id)
             .map_err(|error| format!("failed to read target snapshot: {error}"))?;
 
-        // resolve repository target or build a known built in target
-        let mut target = if let Some(target) = effective_target {
+        // resolve repository target or build a known built-in target
+        let mut target = if let Some(target) = target_or_builtin {
             target
         } else {
-            Target::implicit_for_name(target_name)
+            Target::builtin_for_name(target_name)
                 .ok_or_else(|| format!("unknown target '{target_name}'"))?
         };
 
@@ -393,7 +393,7 @@ impl<'a> CommandContext<'a> {
             overrides.apply_to_target(&mut target);
         }
 
-        Ok(ResolvedTarget {
+        Ok(SelectedTarget {
             id: target_id,
             target,
         })
@@ -405,7 +405,7 @@ impl<'a> CommandContext<'a> {
         revision: Revision,
         module_id: ModuleId,
         overrides: Option<&CommandTargetOverrides>,
-    ) -> CommandResult<ResolvedTarget> {
+    ) -> CommandResult<SelectedTarget> {
         // honor explicit target override first
         if let Some(target_name) = self.common.target.as_deref() {
             return self.resolve_named_target_for_module(
@@ -432,7 +432,7 @@ impl<'a> CommandContext<'a> {
                 overrides.apply_to_target(&mut target);
             }
 
-            return Ok(ResolvedTarget {
+            return Ok(SelectedTarget {
                 id: target_id,
                 target,
             });
