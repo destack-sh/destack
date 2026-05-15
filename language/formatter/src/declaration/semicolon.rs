@@ -293,7 +293,7 @@ fn export_expression_needs_statement_terminator(
 
     let writes_own_terminator = items.len() == 1
         && first_item.is_some_and(|item| match item {
-            DependencyItem::Item { binding, value, .. } => {
+            DependencyItem::Binding { binding, value, .. } => {
                 (*binding == DependencyBinding::Default && value.is_some())
                     || (*binding == DependencyBinding::Namespace
                         && value.is_some()

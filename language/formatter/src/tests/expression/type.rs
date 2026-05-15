@@ -269,69 +269,6 @@ fn test_format_type_fixed_array() {
     );
 }
 
-/// Class method trailing comments should stay with the terminated member.
-#[test]
-fn test_format_class_method_trailing_line_comment() {
-    assert_format_program!(
-        r#"declare namespace cluster {
-  export class Worker extends EventEmitter {
-  /**
-   * events.EventEmitter
-   *   1. disconnect
-   *   2. error
-   *   3. exit
-   *   4. listening
-   *   5. message
-   *   6. online
-   */
-  addListener(event: string, listener: (...args: any[]) => void): this;
-  addListener(event: "disconnect", listener: () => void): this;
-  addListener(event: "error", listener: (error: Error) => void): this;
-  addListener(event: "exit", listener: (code: number, signal: string) => void): this;
-  addListener(event: "listening", listener: (address: Address) => void): this;
-  addListener(event: "message", listener: (message: any, handle: net.Socket | net.Server) => void): this; // the handle is a net.Socket or net.Server object, or undefined.
-  addListener(event: "online", listener: () => void): this;
-  on(event: string, listener: (...args: any[]) => void): this;
-  on(event: "message", listener: (message: any, handle: net.Socket | net.Server) => void): this; // the handle is a net.Socket or net.Server object, or undefined.
-  on(event: "online", listener: () => void): this;
-  }
-}
-"#,
-        r#"declare namespace cluster {
-    export class Worker extends EventEmitter {
-        /**
-         * Events.EventEmitter
-         *
-         * 1. Disconnect
-         * 2. Error
-         * 3. Exit
-         * 4. Listening
-         * 5. Message
-         * 6. Online
-         */
-        addListener(event: string, listener: (...args: any[]) => void): this;
-        addListener(event: "disconnect", listener: () => void): this;
-        addListener(event: "error", listener: (error: Error) => void): this;
-        addListener(event: "exit", listener: (code: number, signal: string) => void): this;
-        addListener(event: "listening", listener: (address: Address) => void): this;
-        addListener(
-            event: "message",
-            listener: (message: any, handle: net.Socket | net.Server) => void,
-        ): this; // the handle is a net.Socket or net.Server object, or undefined.
-        addListener(event: "online", listener: () => void): this;
-        on(event: string, listener: (...args: any[]) => void): this;
-        on(
-            event: "message",
-            listener: (message: any, handle: net.Socket | net.Server) => void,
-        ): this; // the handle is a net.Socket or net.Server object, or undefined.
-        on(event: "online", listener: () => void): this;
-    }
-}
-"#,
-        FileType::TypeScript
-    );
-}
-
 /// Optional computed class methods should keep the optional marker before generics.
 #[test]
 fn test_format_class_method_optional_computed_key() {

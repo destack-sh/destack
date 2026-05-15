@@ -334,7 +334,7 @@ fn expression_is_standalone_statement(
 
         return match context.tree.get(declaration_id) {
             Declaration::Global(global) => global.expressions.contains(&expression_id),
-            Declaration::Namespace(namespace) => namespace.expressions.contains(&expression_id),
+            Declaration::Module(module) => module.expressions.contains(&expression_id),
 
             // lambda bodies are not standalone statements
             Declaration::Function(function) => {
