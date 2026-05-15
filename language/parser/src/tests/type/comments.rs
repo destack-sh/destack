@@ -1095,8 +1095,8 @@ fn test_parse_type_mapped_expression_records_separator_and_template_head_spans()
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Mapped { parameter, value: mapped_value, .. } => {
-                let key_remap = parameter.key_remap.expect("missing key remap");
-                let source_type_span = parser.tree.get_span(parameter.source_type);
+                let key_remap = parser.tree.get(*parameter).key_remap.expect("missing key remap");
+                let source_type_span = parser.tree.get_span(parser.tree.get(*parameter).source_type);
                 let key_remap_span = parser.tree.get_span(key_remap);
                 let key_remap_head_span = parser
                     .tree
@@ -1152,7 +1152,7 @@ fn test_parse_type_mapped_expression_records_remap_block_comment_boundary() {
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Mapped { parameter, .. } => {
-                let key_remap = parameter.key_remap.expect("missing key remap");
+                let key_remap = parser.tree.get(*parameter).key_remap.expect("missing key remap");
                 let key_remap_span = parser.tree.get_span(key_remap);
                 let key_remap_token_start = parser
                     .tree
@@ -1277,7 +1277,7 @@ fn test_parse_type_template_interpolation_records_trailing_line_comment_boundary
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Mapped { parameter, .. } => {
-                let key_remap = parameter.key_remap.expect("missing key remap");
+                let key_remap = parser.tree.get(*parameter).key_remap.expect("missing key remap");
 
                 assert_node!(parser.tree, key_remap, TypeExpression::TemplateLiteral { spans, .. } => {
                     let interpolation_type = spans[0];

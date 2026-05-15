@@ -130,12 +130,19 @@ impl Parser {
 
         self.eat_type_token_or_recover_missing(TokenType::CloseBrace, NodeType::TypeExpression)?;
 
+        // mapped parameter node
+        let parameter = self.insert_node(
+            TypeMappedParameter {
+                name,
+                source_type,
+                key_remap,
+            },
+            mapped_head_span,
+        );
+
+        self.tree.set_main_span(parameter, name_span);
+
         // mapped type node
-        let parameter = TypeMappedParameter {
-            name,
-            source_type,
-            key_remap,
-        };
         let mapped_id = self.insert_node(
             TypeExpression::Mapped {
                 parameter,
