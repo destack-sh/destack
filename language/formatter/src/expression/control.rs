@@ -24,9 +24,9 @@ use crate::tree::tree_literal_should_break;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_core::StringId;
 use destack_dir::{
-    Asynchrony, BindingKeyword, Block, BlockForm, DecoratorPosition, Expression, ForEachBinding,
-    ForEachOperator, IfCondition, IfForm, Keyword, LetKind, LocalNodeId, MatchCase, MatchForm,
-    MatchSelector, NodeType, Pattern, TypeExpression, WhileForm, YieldCardinality,
+    Asynchrony, BindingKeyword, Block, BlockForm, Catch, DecoratorPosition, Expression,
+    ForEachBinding, ForEachOperator, IfCondition, IfForm, Keyword, LetKind, LocalNodeId, MatchCase,
+    MatchForm, MatchSelector, NodeType, Pattern, TypeExpression, WhileForm, YieldCardinality,
 };
 use destack_fir::format::{Buffer, Format, FormatError, FormatResult};
 use destack_fir::prelude::{
@@ -1459,34 +1459,49 @@ fn write_catch_parameter<'ast>(
 /// Format a `try` expression.
 pub(crate) fn format_try_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    try_expression: LocalNodeId<Expression>,
-    catch_pattern: Option<LocalNodeId<Pattern>>,
-    catch_ty: Option<LocalNodeId<TypeExpression>>,
-    catch_expression: Option<LocalNodeId<Expression>>,
-    finally_expression: Option<LocalNodeId<Expression>>,
+    body: LocalNodeId<Expression>,
+    catch: Option<LocalNodeId<Catch>>,
+    finally: Option<LocalNodeId<Expression>>,
     force_expanded_branches: bool,
 ) -> FormatResult<()> {
     // try block
     write!(f, [Keyword::Try])?;
-    write_try_branch_after_keyword(f, try_expression, force_expanded_branches)?;
+    write_try_branch_after_keyword(f, body, force_expanded_branches)?;
 
     // catch block
-    if let Some(catch_expression) = catch_expression {
+    if let Some(catch) = catch {
+        let catch = f.context().tree.get(catch);
         write!(f, [space(), Keyword::Catch])?;
-        if let Some(catch_pattern) = catch_pattern {
+        if let Some(catch_pattern) = catch.pattern {
             write!(f, [space()])?;
-            write_catch_parameter(f, catch_pattern, catch_ty)?;
+            write_catch_parameter(f, catch_pattern, catch.ty)?;
         }
-        write_try_branch_after_keyword(f, catch_expression, force_expanded_branches)?;
+        write_try_branch_after_keyword(f, catch.body, force_expanded_branches)?;
     }
 
     // finally block
-    if let Some(finally_expression) = finally_expression {
+    if let Some(finally) = finally {
         write!(f, [space(), Keyword::Finally])?;
-        write_try_branch_after_keyword(f, finally_expression, force_expanded_branches)?;
+        write_try_branch_after_keyword(f, finally, force_expanded_branches)?;
     }
 
     Ok(())
+}
+
+impl<'ast> FormatNode<'ast, Catch> for Catch {
+    fn format_node(
+        &self,
+        _node_id: LocalNodeId<Catch>,
+        f: &mut DestackFormatter<'ast, '_>,
+    ) -> FormatResult<()> {
+        write!(f, [Keyword::Catch])?;
+        if let Some(pattern) = self.pattern {
+            write!(f, [space()])?;
+            write_catch_parameter(f, pattern, self.ty)?;
+        }
+
+        write_try_branch_after_keyword(f, self.body, true)
+    }
 }
 
 /// Write one try, catch, or finally branch after its keyword.

@@ -376,13 +376,8 @@ pub(crate) fn statement_wrapper_needs_semicolon(
         return false;
     }
 
-    if let Expression::Try {
-        catch_expression,
-        catch_pattern,
-        finally_expression,
-        ..
-    } = expression
-        && (catch_expression.is_some() || catch_pattern.is_some() || finally_expression.is_some())
+    if let Expression::Try { catch, finally, .. } = expression
+        && (catch.is_some() || finally.is_some())
     {
         return false;
     }

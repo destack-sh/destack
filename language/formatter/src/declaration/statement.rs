@@ -293,15 +293,16 @@ fn empty_block_expands_in_expression_container(
                 || else_expression.is_some_and(|id| id.id == parent_expression_id.id)
         }
         Expression::Try {
-            try_expression,
-            catch_expression,
-            finally_expression,
+            body,
+            catch,
+            finally,
             ..
         } => {
-            try_expression.id == parent_expression_id.id
-                || finally_expression.is_some_and(|id| id.id == parent_expression_id.id)
-                || catch_expression.is_some_and(|id| {
-                    id.id == parent_expression_id.id && finally_expression.is_some()
+            body.id == parent_expression_id.id
+                || finally.is_some_and(|id| id.id == parent_expression_id.id)
+                || catch.is_some_and(|id| {
+                    let catch = context.tree.get(id);
+                    catch.body.id == parent_expression_id.id && finally.is_some()
                 })
         }
         _ => false,

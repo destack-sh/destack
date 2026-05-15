@@ -7,10 +7,11 @@ use std::cell::OnceCell;
 use destack_core::StringPool;
 pub use destack_dir::Decorator;
 use destack_dir::{
-    Argument, AssignPattern, AssignPatternField, Block, Declaration, Declarator, DependencyItem,
-    EnumField, Expression, GenericArgument, GenericParameter, LocalNodeId, LocalNodeIdAny,
-    MatchCase, Member, Node, NodeParentIndex, NodeType, Parameter, Pattern, PatternField, Property,
-    TokenSpan, TokenType, Tree, TreeStore, TupleElement, TypeExpression, TypeMember, WhereClause,
+    Argument, AssignPattern, AssignPatternField, Block, Catch, Declaration, Declarator,
+    DependencyItem, EnumField, Expression, GenericArgument, GenericParameter, LocalNodeId,
+    LocalNodeIdAny, MatchCase, Member, Node, NodeParentIndex, NodeType, Parameter, Pattern,
+    PatternField, Property, TokenSpan, TokenType, Tree, TreeStore, TupleElement, TypeExpression,
+    TypeMappedParameter, TypeMember, WhereClause,
 };
 use destack_fir::format::{
     Buffer, Format, FormatContext, FormatNode as FirNode, FormatNodes, FormatResult, Formatter,
@@ -332,6 +333,11 @@ impl<'a> Format<DestackFormatContext<'a>> for LocalNodeIdAny {
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }
+            NodeType::Catch => {
+                let node_id = LocalNodeId::<Catch>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
             NodeType::Declaration => {
                 let node_id = LocalNodeId::<Declaration>::new(self.id);
                 let node = context.tree.get(node_id);
@@ -344,6 +350,11 @@ impl<'a> Format<DestackFormatContext<'a>> for LocalNodeIdAny {
             }
             NodeType::TypeMember => {
                 let node_id = LocalNodeId::<TypeMember>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
+            NodeType::TypeMappedParameter => {
+                let node_id = LocalNodeId::<TypeMappedParameter>::new(self.id);
                 let node = context.tree.get(node_id);
                 node.format_node(node_id, f)
             }

@@ -20,7 +20,7 @@ use crate::declaration::{
     write_statement_terminator,
 };
 use crate::tree::tree_control_child_should_expand;
-use destack_dir::{Comment, Expression, IfForm, LocalNodeId, TokenType};
+use destack_dir::{Catch, Comment, Expression, IfForm, LocalNodeId, TokenType};
 use destack_fir::format::{Buffer, Format, FormatResult};
 use destack_fir::prelude::{format_with, group, space, token};
 use destack_fir::write;
@@ -74,10 +74,10 @@ fn value_branch_expression_should_expand<'ast>(
 fn try_expression_should_expand<'ast>(
     f: &DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
-    catch_expression: Option<LocalNodeId<Expression>>,
-    finally_expression: Option<LocalNodeId<Expression>>,
+    catch: Option<LocalNodeId<Catch>>,
+    finally: Option<LocalNodeId<Expression>>,
 ) -> bool {
-    if catch_expression.is_some() || finally_expression.is_some() {
+    if catch.is_some() || finally.is_some() {
         return true;
     }
 
@@ -260,23 +260,12 @@ pub(crate) fn format_statement_expression<'ast>(
 
         // try
         Expression::Try {
-            try_expression,
-            catch_pattern,
-            catch_ty,
-            catch_expression,
-            finally_expression,
+            body,
+            catch,
+            finally,
         } => {
-            let expand_try_branches =
-                try_expression_should_expand(f, node_id, *catch_expression, *finally_expression);
-            format_try_expression(
-                f,
-                *try_expression,
-                *catch_pattern,
-                *catch_ty,
-                *catch_expression,
-                *finally_expression,
-                expand_try_branches,
-            )?;
+            let expand_try_branches = try_expression_should_expand(f, node_id, *catch, *finally);
+            format_try_expression(f, *body, *catch, *finally, expand_try_branches)?;
         }
 
         // match

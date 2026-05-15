@@ -1224,24 +1224,22 @@ pub(crate) fn expression_is_in_statement_context(
                 | Expression::For { body, .. }
                 | Expression::Loop { body } => body.id == expression_id.id,
                 Expression::Try {
-                    try_expression,
-                    catch_expression,
-                    finally_expression,
+                    body,
+                    catch,
+                    finally,
                     ..
                 } => {
                     if !control_branch_inherits_statement_context(context) {
                         return false;
                     }
 
-                    try_expression.id == expression_id.id
-                        || catch_expression
+                    body.id == expression_id.id
+                        || catch.as_ref().is_some_and(|catch| {
+                            context.tree.get(*catch).body.id == expression_id.id
+                        })
+                        || finally
                             .as_ref()
-                            .is_some_and(|catch_expression| catch_expression.id == expression_id.id)
-                        || finally_expression
-                            .as_ref()
-                            .is_some_and(|finally_expression| {
-                                finally_expression.id == expression_id.id
-                            })
+                            .is_some_and(|finally| finally.id == expression_id.id)
                 }
                 Expression::Label { body, .. } => body.id == expression_id.id,
                 _ => false,
