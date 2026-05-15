@@ -1,6 +1,6 @@
 use crate::{
-    CodegenJsError, CodegenJsResult, CodegenJsResultExt, DependencyBinding, DependencyItem,
-    DependencySpace, Expression, LocalNodeId, ModuleLowerer,
+    CodegenJsError, CodegenJsResult, CodegenJsResultExt, DependencyBinding, DependencyForm,
+    DependencyItem, Expression, LocalNodeId, ModuleLowerer,
 };
 use destack_dir as dir;
 use destack_source::ModuleId;
@@ -28,18 +28,18 @@ impl ModuleLowerer<'_> {
         Some(*module_id)
     }
 
-    /// Lower a dependency space from DIR into JS AST.
-    pub fn lower_dependency_space(&self, space: dir::DependencySpace) -> DependencySpace {
-        match space {
-            dir::DependencySpace::Type => DependencySpace::Type,
-            dir::DependencySpace::Value => DependencySpace::Value,
+    /// Lower a dependency form from DIR into JS AST.
+    pub fn lower_dependency_form(&self, form: dir::DependencyForm) -> DependencyForm {
+        match form {
+            dir::DependencyForm::Type => DependencyForm::Type,
+            dir::DependencyForm::Plain => DependencyForm::Plain,
         }
     }
 
     /// Lower a dependency binding from DIR into JS AST.
     pub fn lower_dependency_binding(&self, binding: dir::DependencyBinding) -> DependencyBinding {
         match binding {
-            dir::DependencyBinding::Item => DependencyBinding::Item,
+            dir::DependencyBinding::Named => DependencyBinding::Named,
             dir::DependencyBinding::Default => DependencyBinding::Default,
             dir::DependencyBinding::Namespace => DependencyBinding::Namespace,
         }
@@ -48,7 +48,7 @@ impl ModuleLowerer<'_> {
     /// Lower dependency items from DIR into JS AST.
     pub fn lower_dependency_items(
         &mut self,
-        space: dir::DependencySpace,
+        form: dir::DependencyForm,
         item_ids: &[dir::LocalNodeId<dir::DependencyItem>],
     ) -> CodegenJsResult<Vec<LocalNodeId<DependencyItem>>> {
         let mut lowered_item_ids: Vec<LocalNodeId<DependencyItem>> = Vec::new();
@@ -61,9 +61,9 @@ impl ModuleLowerer<'_> {
                         message: Some("dependency error slots are not lowered to JS".to_string()),
                     });
                 }
-                dir::DependencyItem::Item {
+                dir::DependencyItem::Binding {
                     binding,
-                    space: item_kind,
+                    form: item_form,
                     name,
                     alias,
                     value,
@@ -80,11 +80,11 @@ impl ModuleLowerer<'_> {
                             )
                         })
                         .transpose()?;
-                    let item_space = item_kind.unwrap_or(space);
+                    let item_form = item_form.unwrap_or(form);
                     let item = DependencyItem {
                         binding,
-                        space: if item_space != space {
-                            Some(self.lower_dependency_space(item_space))
+                        form: if item_form != form {
+                            Some(self.lower_dependency_form(item_form))
                         } else {
                             None
                         },

@@ -15,7 +15,7 @@ impl ModuleLowerer<'_> {
     /// Lower an export kind from DIR into JS AST.
     pub fn lower_export_kind(&self, export: dir::ExportKind) -> js::DependencyBinding {
         match export {
-            dir::ExportKind::Named => js::DependencyBinding::Item,
+            dir::ExportKind::Named => js::DependencyBinding::Named,
             dir::ExportKind::Default => js::DependencyBinding::Default,
         }
     }
@@ -67,31 +67,6 @@ impl ModuleLowerer<'_> {
                 };
 
                 js::Declaration::Global(declaration)
-            }
-            dir::Declaration::Namespace(declaration) => {
-                // body
-                let statements = declaration
-                    .expressions
-                    .iter()
-                    .map(|expression| {
-                        self.lower_expression(*expression)
-                            .expect_node::<js::Statement>(
-                                expression.into_global_any(self.module.id),
-                                self,
-                            )
-                    })
-                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
-
-                let declaration = js::NamespaceDeclaration {
-                    name: Some(self.lower_name(declaration.name)),
-                    export: declaration
-                        .export
-                        .map(|export| self.lower_export_kind(export)),
-                    is_ambient: declaration.is_ambient,
-                    statements,
-                };
-
-                js::Declaration::Namespace(declaration)
             }
             dir::Declaration::Type(declaration) => {
                 // generic parameters
