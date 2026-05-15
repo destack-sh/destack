@@ -1,0 +1,12 @@
+/// Telemetry field value.
+export type FieldValue =
+    | null
+    | boolean
+    | number
+    | string
+    | bigint
+    | [FieldValue]
+    | Fields;
+
+/// Telemetry field bag.
+export type Fields = { readonly [key: string]: FieldValue };

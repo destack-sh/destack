@@ -1,0 +1,248 @@
+import { Duration } from "destack:time";
+import { Fields } from "./field.ds";
+
+/// Metric instrument kind.
+export enum InstrumentKind {
+    /// Monotonic counter.
+    Counter = 1,
+    /// Non-monotonic counter.
+    UpDownCounter = 2,
+    /// Instantaneous gauge.
+    Gauge = 3,
+    /// Distribution histogram.
+    Histogram = 4,
+}
+
+/// Metric sample.
+export struct MetricRecord {
+    /// Instrument kind.
+    kind: InstrumentKind;
+
+    /// Instrument name.
+    name: string;
+
+    /// Recorded value.
+    value: number;
+
+    /// Unit name when available.
+    unit?: string;
+
+    /// Structured fields attached to this sample.
+    fields?: Fields;
+}
+
+/// Metric sample sink.
+export newtype interface MetricSink {
+    /// Record one metric sample.
+    record(record: MetricRecord): void;
+}
+
+/// Monotonic metric counter.
+export class Counter {
+    /// Counter name.
+    readonly name: string;
+
+    /// Counter unit.
+    readonly unit?: string;
+
+    /// Optional sink for this counter.
+    private sink?: MetricSink;
+
+    /// Create a counter.
+    constructor(name: string, unit?: string, sink?: MetricSink) {
+        this.name = name
+        this.unit = unit
+        this.sink = sink
+    }
+
+    /// Add to this counter.
+    add(this: &readonly Counter, value: number, fields?: Fields): void {
+        recordMetric(this.sink, MetricRecord {
+            kind: InstrumentKind.Counter,
+            name: this.name,
+            value,
+            unit: this.unit,
+            fields,
+        })
+    }
+}
+
+/// Non-monotonic metric counter.
+export class UpDownCounter {
+    /// Counter name.
+    readonly name: string;
+
+    /// Counter unit.
+    readonly unit?: string;
+
+    /// Optional sink for this counter.
+    private sink?: MetricSink;
+
+    /// Create an up-down counter.
+    constructor(name: string, unit?: string, sink?: MetricSink) {
+        this.name = name
+        this.unit = unit
+        this.sink = sink
+    }
+
+    /// Add to this counter.
+    add(this: &readonly UpDownCounter, value: number, fields?: Fields): void {
+        recordMetric(this.sink, MetricRecord {
+            kind: InstrumentKind.UpDownCounter,
+            name: this.name,
+            value,
+            unit: this.unit,
+            fields,
+        })
+    }
+}
+
+/// Instantaneous metric gauge.
+export class Gauge {
+    /// Gauge name.
+    readonly name: string;
+
+    /// Gauge unit.
+    readonly unit?: string;
+
+    /// Optional sink for this gauge.
+    private sink?: MetricSink;
+
+    /// Create a gauge.
+    constructor(name: string, unit?: string, sink?: MetricSink) {
+        this.name = name
+        this.unit = unit
+        this.sink = sink
+    }
+
+    /// Record this gauge value.
+    set(this: &readonly Gauge, value: number, fields?: Fields): void {
+        recordMetric(this.sink, MetricRecord {
+            kind: InstrumentKind.Gauge,
+            name: this.name,
+            value,
+            unit: this.unit,
+            fields,
+        })
+    }
+}
+
+/// Distribution metric histogram.
+export class Histogram {
+    /// Histogram name.
+    readonly name: string;
+
+    /// Histogram unit.
+    readonly unit?: string;
+
+    /// Optional sink for this histogram.
+    private sink?: MetricSink;
+
+    /// Create a histogram.
+    constructor(name: string, unit?: string, sink?: MetricSink) {
+        this.name = name
+        this.unit = unit
+        this.sink = sink
+    }
+
+    /// Record one histogram sample.
+    record(this: &readonly Histogram, value: number, fields?: Fields): void {
+        recordMetric(this.sink, MetricRecord {
+            kind: InstrumentKind.Histogram,
+            name: this.name,
+            value,
+            unit: this.unit,
+            fields,
+        })
+    }
+}
+
+/// Metric meter.
+export class Meter {
+    /// Optional sink for these metric instruments.
+    private sink?: MetricSink;
+
+    /// Create a meter.
+    constructor(sink?: MetricSink) {
+        this.sink = sink
+    }
+
+    /// Create one counter.
+    counter(this: &readonly Meter, name: string, unit?: string): Counter {
+        new Counter(name, unit, this.sink)
+    }
+
+    /// Create one up-down counter.
+    upDownCounter(
+        this: &readonly Meter,
+        name: string,
+        unit?: string,
+    ): UpDownCounter {
+        new UpDownCounter(name, unit, this.sink)
+    }
+
+    /// Create one gauge.
+    gauge(this: &readonly Meter, name: string, unit?: string): Gauge {
+        new Gauge(name, unit, this.sink)
+    }
+
+    /// Create one histogram.
+    histogram(this: &readonly Meter, name: string, unit?: string): Histogram {
+        new Histogram(name, unit, this.sink)
+    }
+
+    /// Record a duration sample.
+    duration(this: &readonly Meter, name: string, value: Duration, fields?: Fields): void {
+        this.histogram(name, "duration").record(value.total("nanosecond"), fields)
+    }
+}
+
+/// Return the default meter.
+export function meter(): Meter {
+    new Meter()
+}
+
+/// Create one counter from the default meter.
+export function counter(name: string, unit?: string): Counter {
+    meter().counter(name, unit)
+}
+
+/// Create one up-down counter from the default meter.
+export function upDownCounter(name: string, unit?: string): UpDownCounter {
+    meter().upDownCounter(name, unit)
+}
+
+/// Create one gauge from the default meter.
+export function gauge(name: string, unit?: string): Gauge {
+    meter().gauge(name, unit)
+}
+
+/// Create one histogram from the default meter.
+export function histogram(name: string, unit?: string): Histogram {
+    meter().histogram(name, unit)
+}
+
+/// Record a duration sample with the default meter.
+export function duration(name: string, value: Duration, fields?: Fields): void {
+    meter().duration(name, value, fields)
+}
+
+/// Record one metric sample.
+function recordMetric(sink: MetricSink | undefined, record: MetricRecord): void {
+    if (sink == undefined) {
+        emitMetric(record)
+    }
+    else {
+        sink.record(record)
+    }
+}
+
+/// Emit one metric record to the runtime telemetry collector.
+@binding("destack.telemetry.metric.emit", {
+    effect: "deterministic",
+    requires: ["runtime.telemetry.write"],
+    families: ["windows", "unix", "wasm"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function emitMetric(record: MetricRecord): void;
