@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Arena, ExportKind, GlobalNodeIdAny, LocalNodeId, LocalNodeIdAny, LocalScope, LocalScopeId,
-    LocalScopeMark, LocalSymbolId, Node, Scope, ScopeKind, StaticKey, Symbol, SymbolBinding,
-    SymbolForm, SymbolOrigin, SymbolRole, SymbolSpace,
+    LocalScopeMark, LocalSymbolId, Node, Scope, ScopeKind, StaticKey, Symbol, SymbolForm,
+    SymbolOrigin, SymbolRole,
 };
 
 /// Lexical scopes and symbols for one DIR module.
@@ -113,8 +113,6 @@ impl BindingTable {
         &mut self,
         role: SymbolRole,
         form: SymbolForm,
-        space: SymbolSpace,
-        binding: SymbolBinding,
         key: Option<StaticKey>,
         scope: LocalScope,
         export: Option<ExportKind>,
@@ -123,8 +121,6 @@ impl BindingTable {
         let symbol = Symbol {
             role,
             form,
-            space,
-            binding,
             binding_mutability: None,
             origin: SymbolOrigin::Module,
             key,

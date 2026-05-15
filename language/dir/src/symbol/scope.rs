@@ -10,6 +10,8 @@ use crate::{LocalSymbolId, StaticKey};
 pub enum ScopeKind {
     /// Module root.
     Module,
+    /// Global declaration contribution.
+    Global,
     /// Namespace declaration or object declaration surface.
     Namespace,
     /// Function body and parameter surface.

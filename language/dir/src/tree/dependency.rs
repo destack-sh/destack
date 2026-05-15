@@ -36,7 +36,7 @@ pub enum DependencySpace {
 }
 
 impl DependencySpace {
-    /// Return the symbol space introduced by this dependency space.
+    /// Return the symbol space preserved by this dependency syntax.
     pub fn symbol_space(self) -> SymbolSpace {
         match self {
             Self::Type => SymbolSpace::Type,
@@ -44,12 +44,9 @@ impl DependencySpace {
         }
     }
 
-    /// Return the symbol form introduced by this dependency space.
+    /// Return the source-fidelity symbol form for this dependency syntax.
     pub fn symbol_form(self) -> SymbolForm {
-        match self {
-            Self::Type => SymbolForm::TypeAlias,
-            Self::Value => SymbolForm::Variable,
-        }
+        SymbolForm::Import
     }
 }
 
@@ -113,12 +110,12 @@ impl DependencyItem {
     }
 
     /// Return the symbol form introduced by this dependency item.
-    pub fn symbol_form(&self, default_space: DependencySpace) -> Option<SymbolForm> {
-        let Self::Item { space, .. } = self else {
+    pub fn symbol_form(&self, _default_space: DependencySpace) -> Option<SymbolForm> {
+        let Self::Item { .. } = self else {
             return None;
         };
 
-        Some(space.unwrap_or(default_space).symbol_form())
+        Some(SymbolForm::Import)
     }
 }
 

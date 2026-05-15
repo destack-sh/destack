@@ -39,18 +39,6 @@ pub enum SymbolRole {
     Local,
 }
 
-/// How a symbol was introduced/bound.
-#[derive(
-    Debug, Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize,
-)]
-pub enum SymbolBinding {
-    /// A runtime definition (let, const, class, function, etc.)
-    #[default]
-    Runtime,
-    /// An ambient declaration (declare const, declare function, .d.ts)
-    Ambient,
-}
-
 /// Where a symbol originated in the source.
 #[derive(
     Debug, Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize,
@@ -79,6 +67,8 @@ pub enum SymbolForm {
     /// Plain variable-like value symbol without a more specific form.
     #[default]
     Variable,
+    /// Imported dependency binding before target resolution.
+    Import,
     /// Class symbol.
     Class,
     /// Struct symbol.
@@ -112,9 +102,38 @@ impl SymbolForm {
             | Self::Enum
             | Self::Extension
             | Self::Function
+            | Self::Import
             | Self::Newtype
             | Self::Struct
             | Self::Variable => SymbolSpace::Value,
+        }
+    }
+
+    /// Check whether this symbol form is visible in one lookup space.
+    pub fn is_visible_in(self, space: SymbolSpace) -> bool {
+        match space {
+            SymbolSpace::Type => matches!(
+                self,
+                Self::Class
+                    | Self::Enum
+                    | Self::Extension
+                    | Self::Import
+                    | Self::Interface
+                    | Self::Newtype
+                    | Self::Struct
+                    | Self::TypeAlias
+            ),
+            SymbolSpace::Value => matches!(
+                self,
+                Self::Class
+                    | Self::Enum
+                    | Self::Function
+                    | Self::Import
+                    | Self::Newtype
+                    | Self::Struct
+                    | Self::Variable
+            ),
+            SymbolSpace::Label => false,
         }
     }
 }
@@ -179,10 +198,6 @@ pub struct Symbol {
     pub role: SymbolRole,
     /// The declaration form of the symbol.
     pub form: SymbolForm,
-    /// The lookup space of the symbol.
-    pub space: SymbolSpace,
-    /// How this symbol was introduced/bound.
-    pub binding: SymbolBinding,
     /// The mutability for value bindings when known.
     pub binding_mutability: Option<Mutability>,
 
@@ -211,9 +226,7 @@ impl Symbol {
 
     /// Check whether this symbol is a generic parameter.
     pub fn is_generic_parameter(&self) -> bool {
-        self.space == SymbolSpace::Type
-            && self
-                .declaration
-                .is_some_and(|declaration| declaration.local_id.ty == NodeType::GenericParameter)
+        self.declaration
+            .is_some_and(|declaration| declaration.local_id.ty == NodeType::GenericParameter)
     }
 }
