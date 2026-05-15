@@ -28,8 +28,6 @@ pub(in crate::bind) struct BindState<'a> {
     pub(in crate::bind) options: dir::NodeVisitorOptions,
     /// The lexical scope stack.
     pub(in crate::bind) scope_stack: Vec<dir::LocalScopeId>,
-    /// The active symbol origin stack.
-    pub(in crate::bind) origin_stack: Vec<dir::SymbolOrigin>,
     /// The active binding context stack.
     pub(in crate::bind) binding_stack: Vec<BindingContext>,
 
@@ -56,7 +54,7 @@ impl<'a> BindState<'a> {
         let mut bindings = dir::BindingTable::new(module.id);
         let namespace_scope = bindings.insert_scope(dir::ScopeKind::Module, None, None);
         let namespace = dir::LocalScope::new(namespace_scope, dir::LocalScopeMark::end());
-        let global_scope = bindings.insert_scope(dir::ScopeKind::Global, Some(namespace), None);
+        let global_scope = bindings.insert_scope(dir::ScopeKind::Global, None, None);
 
         // create namespace owner
         let (namespace_symbol, _) = bindings.insert_symbol(
@@ -74,7 +72,6 @@ impl<'a> BindState<'a> {
             parsed,
             options: dir::NodeVisitorOptions::default(),
             scope_stack: vec![namespace_scope],
-            origin_stack: vec![dir::SymbolOrigin::Module],
             binding_stack: vec![BindingContext {
                 export: None,
                 mutability: None,
@@ -106,10 +103,7 @@ impl<'a> BindState<'a> {
 
     /// Return the current lexical scope.
     pub(in crate::bind) fn scope(&self) -> dir::LocalScope {
-        let scope_id = *self
-            .scope_stack
-            .last()
-            .unwrap_or_else(|| panic!("bind scope stack is empty"));
+        let scope_id = self.current_scope_id();
         let mark = self.bindings.get_scope_mark(scope_id);
 
         dir::LocalScope::new(scope_id, mark)
@@ -139,6 +133,22 @@ impl<'a> BindState<'a> {
         self.bindings.bind_scope_any(node_id, scope);
     }
 
+    /// Attach the global scope at the current module cursor.
+    pub(in crate::bind) fn attach_global_scope(&mut self) {
+        let parent = self.scope();
+        let global = self.bindings.get_scope_by_id(self.global_scope);
+
+        // keep the first global block as the visibility root
+        if global.parent.is_some() {
+            return;
+        }
+
+        self.bindings.get_scope_by_id_mut(self.global_scope).parent = Some(parent);
+        self.bindings
+            .get_scope_by_id_mut(parent.id)
+            .append_child(self.global_scope);
+    }
+
     /// Push one scope while visiting children.
     pub(in crate::bind) fn push_scope(&mut self, scope_id: dir::LocalScopeId) {
         self.scope_stack.push(scope_id);
@@ -146,29 +156,7 @@ impl<'a> BindState<'a> {
 
     /// Pop one child scope after visiting children.
     pub(in crate::bind) fn pop_scope(&mut self) {
-        self.scope_stack
-            .pop()
-            .unwrap_or_else(|| panic!("bind scope stack underflow"));
-    }
-
-    /// Push one symbol origin while visiting children.
-    pub(in crate::bind) fn push_origin(&mut self, origin: dir::SymbolOrigin) {
-        self.origin_stack.push(origin);
-    }
-
-    /// Pop one symbol origin after visiting children.
-    pub(in crate::bind) fn pop_origin(&mut self) {
-        self.origin_stack
-            .pop()
-            .unwrap_or_else(|| panic!("bind origin stack underflow"));
-    }
-
-    /// Return the current symbol origin.
-    pub(in crate::bind) fn origin(&self) -> dir::SymbolOrigin {
-        *self
-            .origin_stack
-            .last()
-            .unwrap_or_else(|| panic!("bind origin stack is empty"))
+        self.scope_stack.pop().expect("bind scope stack underflow");
     }
 
     /// Push one binding context while visiting a pattern subtree.
@@ -180,7 +168,7 @@ impl<'a> BindState<'a> {
     pub(in crate::bind) fn pop_binding(&mut self) {
         self.binding_stack
             .pop()
-            .unwrap_or_else(|| panic!("bind binding stack underflow"));
+            .expect("bind binding stack underflow");
     }
 
     /// Return the current binding context.
@@ -188,7 +176,7 @@ impl<'a> BindState<'a> {
         *self
             .binding_stack
             .last()
-            .unwrap_or_else(|| panic!("bind binding stack is empty"))
+            .expect("bind binding stack is empty")
     }
 
     /// Insert one symbol in the current lexical scope.
@@ -199,11 +187,14 @@ impl<'a> BindState<'a> {
         key: Option<dir::StaticKey>,
         export: Option<dir::ExportKind>,
     ) -> dir::LocalSymbolId {
+        let scope = self.scope();
         let symbol_id = self
             .bindings
-            .insert_symbol(role, form, key, self.scope(), export)
+            .insert_symbol(role, form, key, scope, export)
             .0;
-        self.bindings.get_symbol_mut(symbol_id).origin = self.origin();
+        if scope.id == self.global_scope {
+            self.bindings.get_symbol_mut(symbol_id).origin = dir::SymbolOrigin::Global;
+        }
 
         symbol_id
     }
@@ -269,5 +260,10 @@ impl<'a> BindState<'a> {
         let node_id = node_id.into_global(self.module.id);
 
         self.types.set_declared_type(node_id, ty);
+    }
+
+    /// Return the current scope id.
+    fn current_scope_id(&self) -> dir::LocalScopeId {
+        *self.scope_stack.last().expect("bind scope stack is empty")
     }
 }
