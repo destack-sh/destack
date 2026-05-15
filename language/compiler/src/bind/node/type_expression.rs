@@ -44,7 +44,7 @@ impl Compiler {
                 parameter, value, ..
             } => {
                 // bind mapped type scope
-                self.bind_mapped_type(state, tree, id, parameter, *value)
+                self.bind_mapped_type(state, tree, id, *parameter, *value)
             }
             dir::TypeExpression::Infer {
                 name, constraint, ..
@@ -182,7 +182,7 @@ impl Compiler {
         state: &mut BindState<'_>,
         tree: &dir::Tree,
         id: dir::LocalNodeId<dir::TypeExpression>,
-        parameter: &dir::TypeMappedParameter,
+        parameter: dir::LocalNodeId<dir::TypeMappedParameter>,
         value: Option<dir::LocalNodeId<dir::TypeExpression>>,
     ) {
         // create mapped type scope
@@ -192,27 +192,41 @@ impl Compiler {
 
         // bind mapped source and parameter
         state.push_scope(scope_id);
-        let source_type = tree.get(parameter.source_type);
-        state.visit_type_expression(tree, parameter.source_type, source_type);
-        state.insert_symbol(
-            dir::SymbolRole::Local,
-            dir::SymbolForm::TypeAlias,
-            dir::SymbolSpace::Type,
-            dir::SymbolBinding::Runtime,
-            Some(dir::StaticKey::Name(parameter.name)),
-            None,
-        );
-
-        // bind optional remap and value
-        if let Some(key_remap) = parameter.key_remap {
-            let key_remap_node = tree.get(key_remap);
-            state.visit_type_expression(tree, key_remap, key_remap_node);
-        }
+        self.bind_type_mapped_parameter(state, tree, parameter);
         if let Some(value) = value {
             let value_node = tree.get(value);
             state.visit_type_expression(tree, value, value_node);
         }
         state.pop_scope();
+    }
+
+    /// Bind one mapped type parameter.
+    pub(in crate::bind) fn bind_type_mapped_parameter(
+        &self,
+        state: &mut BindState<'_>,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::TypeMappedParameter>,
+    ) {
+        let parameter = tree.get(id);
+        state.bind_node(id.into_any());
+
+        // bind mapped source before parameter declaration
+        let source_type = tree.get(parameter.source_type);
+        state.visit_type_expression(tree, parameter.source_type, source_type);
+
+        let symbol_id = state.insert_symbol(
+            dir::SymbolRole::Local,
+            dir::SymbolForm::TypeAlias,
+            Some(dir::StaticKey::Name(parameter.name)),
+            None,
+        );
+        state.declare_symbol(symbol_id, id);
+
+        // bind optional key remap after parameter declaration
+        if let Some(key_remap) = parameter.key_remap {
+            let key_remap_node = tree.get(key_remap);
+            state.visit_type_expression(tree, key_remap, key_remap_node);
+        }
     }
 
     /// Bind one infer type.
@@ -232,8 +246,6 @@ impl Compiler {
             let symbol_id = state.insert_symbol(
                 dir::SymbolRole::Local,
                 dir::SymbolForm::TypeAlias,
-                dir::SymbolSpace::Type,
-                dir::SymbolBinding::Runtime,
                 Some(dir::StaticKey::Name(name)),
                 None,
             );

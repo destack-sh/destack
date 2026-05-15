@@ -9,8 +9,6 @@ use crate::Compiler;
 pub(in crate::bind) struct BindingContext {
     /// The export attached to introduced symbols.
     pub(in crate::bind) export: Option<dir::ExportKind>,
-    /// The binding mode for introduced symbols.
-    pub(in crate::bind) binding: dir::SymbolBinding,
     /// The mutability attached to introduced value symbols.
     pub(in crate::bind) mutability: Option<dir::Mutability>,
     /// The declared type attached to introduced value symbols.
@@ -58,14 +56,12 @@ impl<'a> BindState<'a> {
         let mut bindings = dir::BindingTable::new(module.id);
         let namespace_scope = bindings.insert_scope(dir::ScopeKind::Module, None, None);
         let namespace = dir::LocalScope::new(namespace_scope, dir::LocalScopeMark::end());
-        let global_scope = bindings.insert_scope(dir::ScopeKind::Namespace, Some(namespace), None);
+        let global_scope = bindings.insert_scope(dir::ScopeKind::Global, Some(namespace), None);
 
         // create namespace owner
         let (namespace_symbol, _) = bindings.insert_symbol(
             dir::SymbolRole::Namespace,
             dir::SymbolForm::Variable,
-            dir::SymbolSpace::Value,
-            dir::SymbolBinding::Runtime,
             None,
             namespace,
             None,
@@ -81,7 +77,6 @@ impl<'a> BindState<'a> {
             origin_stack: vec![dir::SymbolOrigin::Module],
             binding_stack: vec![BindingContext {
                 export: None,
-                binding: dir::SymbolBinding::Runtime,
                 mutability: None,
                 declared_type: None,
             }],
@@ -201,14 +196,12 @@ impl<'a> BindState<'a> {
         &mut self,
         role: dir::SymbolRole,
         form: dir::SymbolForm,
-        space: dir::SymbolSpace,
-        binding: dir::SymbolBinding,
         key: Option<dir::StaticKey>,
         export: Option<dir::ExportKind>,
     ) -> dir::LocalSymbolId {
         let symbol_id = self
             .bindings
-            .insert_symbol(role, form, space, binding, key, self.scope(), export)
+            .insert_symbol(role, form, key, self.scope(), export)
             .0;
         self.bindings.get_symbol_mut(symbol_id).origin = self.origin();
 
@@ -220,13 +213,11 @@ impl<'a> BindState<'a> {
         &mut self,
         role: dir::SymbolRole,
         form: dir::SymbolForm,
-        space: dir::SymbolSpace,
-        binding: dir::SymbolBinding,
         key: Option<dir::StaticKey>,
         export: Option<dir::ExportKind>,
         scope_kind: dir::ScopeKind,
     ) -> (dir::LocalSymbolId, dir::LocalScopeId) {
-        let symbol_id = self.insert_symbol(role, form, space, binding, key, export);
+        let symbol_id = self.insert_symbol(role, form, key, export);
         let scope_id = self
             .bindings
             .insert_scope(scope_kind, Some(self.scope()), Some(symbol_id));
@@ -278,15 +269,5 @@ impl<'a> BindState<'a> {
         let node_id = node_id.into_global(self.module.id);
 
         self.types.set_declared_type(node_id, ty);
-    }
-
-    /// Return the binding mode for one ambient flag.
-    pub(in crate::bind) fn binding_for_declaration(&self, is_ambient: bool) -> dir::SymbolBinding {
-        // declarations are ambient by module or declaration
-        if self.module.is_declaration() || is_ambient {
-            dir::SymbolBinding::Ambient
-        } else {
-            dir::SymbolBinding::Runtime
-        }
     }
 }

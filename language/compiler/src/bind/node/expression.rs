@@ -29,14 +29,13 @@ impl Compiler {
                 export,
                 mutability,
                 declarators,
-                is_ambient,
+                is_ambient: _,
                 ..
             } => {
                 // bind let declarators
                 state.bind_node(id.into_any());
                 let binding = BindingContext {
                     export: *export,
-                    binding: state.binding_for_declaration(*is_ambient),
                     mutability: Some(*mutability),
                     declared_type: None,
                 };
@@ -52,7 +51,6 @@ impl Compiler {
                 state.bind_node(id.into_any());
                 let binding = BindingContext {
                     export: None,
-                    binding: dir::SymbolBinding::Runtime,
                     mutability: Some(*mutability),
                     declared_type: None,
                 };
@@ -62,14 +60,13 @@ impl Compiler {
             dir::Expression::Using {
                 export,
                 declarators,
-                is_ambient,
+                is_ambient: _,
                 ..
             } => {
                 // bind resource declarators
                 state.bind_node(id.into_any());
                 let binding = BindingContext {
                     export: *export,
-                    binding: state.binding_for_declaration(*is_ambient),
                     mutability: None,
                     declared_type: None,
                 };
@@ -109,21 +106,10 @@ impl Compiler {
                 *body,
             ),
             dir::Expression::Try {
-                try_expression,
-                catch_pattern,
-                catch_ty,
-                catch_expression,
-                finally_expression,
-            } => self.bind_try_expression(
-                state,
-                tree,
-                id,
-                *try_expression,
-                *catch_pattern,
-                *catch_ty,
-                *catch_expression,
-                *finally_expression,
-            ),
+                body,
+                catch,
+                finally,
+            } => self.bind_try_expression(state, tree, id, *body, *catch, *finally),
             _ => dir::walk_expression(state, tree, id, expression),
         }
     }
@@ -215,7 +201,6 @@ impl Compiler {
                 state.push_scope(scope_id);
                 let binding = BindingContext {
                     export: None,
-                    binding: dir::SymbolBinding::Runtime,
                     mutability: None,
                     declared_type: None,
                 };
@@ -253,7 +238,6 @@ impl Compiler {
         state.push_scope(scope_id);
         let binding_context = BindingContext {
             export: None,
-            binding: dir::SymbolBinding::Runtime,
             mutability: None,
             declared_type: None,
         };
@@ -311,38 +295,27 @@ impl Compiler {
         state: &mut BindState<'_>,
         tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,
-        try_expression: dir::LocalNodeId<dir::Expression>,
-        catch_pattern: Option<dir::LocalNodeId<dir::Pattern>>,
-        catch_ty: Option<dir::LocalNodeId<dir::TypeExpression>>,
-        catch_expression: Option<dir::LocalNodeId<dir::Expression>>,
-        finally_expression: Option<dir::LocalNodeId<dir::Expression>>,
+        body: dir::LocalNodeId<dir::Expression>,
+        catch: Option<dir::LocalNodeId<dir::Catch>>,
+        finally: Option<dir::LocalNodeId<dir::Expression>>,
     ) {
         // visit try body
         state.bind_node(id.into_any());
-        self.visit_expression_by_id(state, tree, try_expression);
+        self.visit_expression_by_id(state, tree, body);
 
         // visit catch body in catch scope
-        if catch_pattern.is_some() || catch_ty.is_some() || catch_expression.is_some() {
+        if let Some(catch) = catch {
             let scope_id = state.insert_child_scope(dir::ScopeKind::Block);
+            state.bind_node_to_scope(catch.into_any(), scope_id);
             state.push_scope(scope_id);
-
-            if let Some(catch_pattern) = catch_pattern {
-                let pattern = tree.get(catch_pattern);
-                state.visit_pattern(tree, catch_pattern, pattern);
-            }
-            if let Some(catch_ty) = catch_ty {
-                let ty = tree.get(catch_ty);
-                state.visit_type_expression(tree, catch_ty, ty);
-            }
-            if let Some(catch_expression) = catch_expression {
-                self.visit_expression_by_id(state, tree, catch_expression);
-            }
+            let catch_node = tree.get(catch);
+            dir::walk_catch(state, tree, catch, catch_node);
             state.pop_scope();
         }
 
         // visit finally body
-        if let Some(finally_expression) = finally_expression {
-            self.visit_expression_by_id(state, tree, finally_expression);
+        if let Some(finally) = finally {
+            self.visit_expression_by_id(state, tree, finally);
         }
     }
 

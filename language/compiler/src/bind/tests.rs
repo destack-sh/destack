@@ -202,12 +202,14 @@ type Anonymous<T> = T extends infer _ ? true : false
         .bound
         .bindings
         .get_symbol(symbol_named(&fixture, "local"));
-    assert_eq!(local_symbol.space, dir::SymbolSpace::Value);
+    assert_eq!(local_symbol.form, dir::SymbolForm::Import);
+    assert!(local_symbol.form.is_visible_in(dir::SymbolSpace::Value));
     let type_dep_symbol = fixture
         .bound
         .bindings
         .get_symbol(symbol_named(&fixture, "TypeDep"));
-    assert_eq!(type_dep_symbol.space, dir::SymbolSpace::Type);
+    assert_eq!(type_dep_symbol.form, dir::SymbolForm::Import);
+    assert!(type_dep_symbol.form.is_visible_in(dir::SymbolSpace::Type));
 
     // synthetic exports
     let has_synthetic_default = fixture

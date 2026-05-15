@@ -20,26 +20,11 @@ impl Compiler {
         let Some(key) = parameter.symbol_key() else {
             return;
         };
-        let Some(space) = parameter.symbol_space() else {
-            return;
-        };
         let Some(form) = parameter.symbol_form() else {
             return;
         };
 
-        // declare generic parameter symbol
-        let symbol_id = state.insert_symbol(
-            dir::SymbolRole::Local,
-            form,
-            space,
-            dir::SymbolBinding::Runtime,
-            Some(key),
-            None,
-        );
-
-        state.declare_symbol(symbol_id, node_id);
-
-        // visit generic parameter bounds and defaults
+        // visit generic parameter bounds and defaults before self declaration
         match parameter {
             dir::GenericParameter::Type {
                 constraint,
@@ -78,5 +63,10 @@ impl Compiler {
             }
             dir::GenericParameter::Error => {}
         }
+
+        // declare generic parameter symbol
+        let symbol_id = state.insert_symbol(dir::SymbolRole::Local, form, Some(key), None);
+
+        state.declare_symbol(symbol_id, node_id);
     }
 }

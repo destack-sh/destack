@@ -20,17 +20,12 @@ impl Compiler {
         let Some(form) = member.symbol_form() else {
             return None;
         };
-        let Some(space) = member.symbol_space() else {
-            return None;
-        };
 
         // declare scoped or plain member symbol
         let (symbol_id, scope_id) = if let Some(scope_kind) = member.symbol_scope_kind() {
             let (symbol_id, scope_id) = state.insert_symbol_with_scope(
                 dir::SymbolRole::Item,
                 form,
-                space,
-                dir::SymbolBinding::Runtime,
                 Some(key),
                 None,
                 scope_kind,
@@ -38,14 +33,7 @@ impl Compiler {
 
             (symbol_id, Some(scope_id))
         } else {
-            let symbol_id = state.insert_symbol(
-                dir::SymbolRole::Item,
-                form,
-                space,
-                dir::SymbolBinding::Runtime,
-                Some(key),
-                None,
-            );
+            let symbol_id = state.insert_symbol(dir::SymbolRole::Item, form, Some(key), None);
 
             (symbol_id, None)
         };
