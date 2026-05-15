@@ -119,17 +119,17 @@ export class RegExp {
     }
 
     /// Execute the pattern against `input`.
-    exec(input: string): RegExpMatch | null {
+    exec(this: &exclusive RegExp, input: string): RegExpMatch | null {
         todo("RegExp.exec")
     }
 
     /// Return whether the pattern matches `input`.
-    test(input: string): boolean {
+    test(this: &exclusive RegExp, input: string): boolean {
         todo("RegExp.test")
     }
 
     /// Return the literal regular expression spelling.
-    toString(): string {
+    toString(this: &readonly RegExp): string {
         todo("RegExp.toString")
     }
 }
