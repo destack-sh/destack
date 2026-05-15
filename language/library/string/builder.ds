@@ -1,0 +1,76 @@
+import { todo } from "destack:error";
+import { Default, MaybeUninit, Unique } from "destack:memory";
+
+/// Mutable UTF-8 string builder with growable backing storage.
+export class StringBuilder {
+    /// The owned UTF-8 bytes.
+    bytes: Unique<[MaybeUninit<uint8>]>;
+
+    /// The initialized byte count.
+    initializedLength: usize = 0;
+
+    /// The allocated byte capacity.
+    capacity: usize = 0;
+}
+
+extension of StringBuilder implements Default {
+    /// Create an empty string builder.
+    static new(): StringBuilder {
+        todo("StringBuilder.new")
+    }
+
+    /// Create the default string builder.
+    static default(): StringBuilder {
+        StringBuilder.new()
+    }
+
+    /// Get the initialized byte length.
+    get byteLength(): usize {
+        todo("StringBuilder.byteLength")
+    }
+
+    /// Return whether the builder is empty.
+    get isEmpty(): boolean {
+        todo("StringBuilder.isEmpty")
+    }
+
+    /// Remove all text.
+    clear(this: &exclusive StringBuilder): void {
+        todo("StringBuilder.clear")
+    }
+
+    /// Reserve at least `additional` more bytes.
+    reserve(this: &exclusive StringBuilder, additional: usize): void {
+        todo("StringBuilder.reserve")
+    }
+
+    /// Reserve exactly `additional` more bytes.
+    reserveExact(this: &exclusive StringBuilder, additional: usize): void {
+        todo("StringBuilder.reserveExact")
+    }
+
+    /// Append text.
+    append(this: &exclusive StringBuilder, value: string): void {
+        todo("StringBuilder.append")
+    }
+
+    /// Append one Unicode scalar value.
+    appendChar(this: &exclusive StringBuilder, value: char): void {
+        todo("StringBuilder.appendChar")
+    }
+
+    /// Append one Unicode code point.
+    appendCodePoint(this: &exclusive StringBuilder, value: number): void {
+        todo("StringBuilder.appendCodePoint")
+    }
+
+    /// Return the current text without consuming the builder.
+    toString(this: &readonly StringBuilder): string {
+        todo("StringBuilder.toString")
+    }
+
+    /// Consume the builder and return its string.
+    intoString(this: ^StringBuilder): string {
+        todo("StringBuilder.intoString")
+    }
+}
