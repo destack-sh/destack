@@ -35,7 +35,7 @@ impl Compiler {
             .as_ref()
             .and_then(|config| config.compiler.root_dir.clone());
         let target =
-            self.effective_target(context, *target_id)
+            self.target_or_builtin(context, *target_id)
                 .ok_or(LinkError::MissingTarget {
                     anchor: (package_id).into(),
                     package: package_id,

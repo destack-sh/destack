@@ -140,7 +140,7 @@ impl Compiler {
             .map_err(CompilerError::from)?;
 
         // resolve target configuration
-        self.effective_target(context, target_id)
+        self.target_or_builtin(context, target_id)
             .ok_or_else(|| LowerError::Internal {
                 anchor: (module_id).into(),
                 module: module_id,

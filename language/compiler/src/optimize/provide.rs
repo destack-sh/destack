@@ -236,7 +236,7 @@ impl Compiler {
         target: &TargetId,
         context: &dyn ProviderContext,
     ) -> OptimizeResult<Target> {
-        self.effective_target(context, *target)
+        self.target_or_builtin(context, *target)
             .ok_or_else(|| OptimizeError::InvalidTarget {
                 anchor: target.package_id().into(),
                 package: target.package_id(),

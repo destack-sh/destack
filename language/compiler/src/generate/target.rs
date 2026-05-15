@@ -17,7 +17,7 @@ impl Compiler {
     ) -> CompilerResult<ModuleOutput> {
         // look up target from the module package
         let target =
-            self.effective_target(context, *target_id)
+            self.target_or_builtin(context, *target_id)
                 .ok_or_else(|| GenerateError::Internal {
                     anchor: (module_id).into(),
                     module: module_id,

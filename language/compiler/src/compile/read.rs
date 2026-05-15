@@ -72,15 +72,15 @@ impl Compiler {
             .unwrap_or_else(|error| panic!("failed to load package config: {error}"))
     }
 
-    /// Return one effective target and record its configuration dependency.
-    pub(crate) fn effective_target(
+    /// Return one target or built-in and record its configuration dependency.
+    pub(crate) fn target_or_builtin(
         &self,
         context: &dyn ProviderContext,
         target_id: TargetId,
     ) -> Option<Target> {
         let target = self
             .repository
-            .effective_target(context.revision(), target_id)
+            .target_or_builtin(context.revision(), target_id)
             .unwrap_or_else(|error| panic!("failed to load target: {error}"))?;
 
         context.track(ArtifactDependency::target_configuration(
