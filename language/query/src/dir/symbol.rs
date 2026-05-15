@@ -283,7 +283,7 @@ pub(crate) fn type_definition_span_for_symbol(
             let symbols = ctx.dir().symbols();
             let symbol = symbols.get_symbol(symbol_id.local_id);
             (
-                matches_symbol_space_filter(symbol.form, symbol.space, Some(SymbolSpace::Type)),
+                matches_symbol_space_filter(symbol.form, Some(SymbolSpace::Type)),
                 symbol.declaration,
             )
         };

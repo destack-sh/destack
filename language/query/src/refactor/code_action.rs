@@ -13,7 +13,7 @@ use super::{extract_function, extract_variable, inline_symbol};
 use crate::assist::{CompletionContext, completion_input_at_offset};
 use crate::core::{import_sort_key, query_context, repository_import_relevance};
 use crate::dir::{
-    ImportEditSpace, build_import_display_path, build_import_edits, matches_symbol_space_filter,
+    ImportEditSpace, build_import_display_path, build_import_edits, matches_export_space_filter,
     search_importable_symbols,
 };
 use crate::format::{ImportDeclarationKey, categorize_import, sort_import_declaration_indices};
@@ -439,8 +439,7 @@ fn collect_auto_import_actions_for_symbol(
     let mut candidates =
         search_importable_symbols(repository, revision, symbol_name, exclude_module_id);
     candidates.retain(|export| {
-        export.name == symbol_name
-            && matches_symbol_space_filter(export.kind, export.space, space_filter)
+        export.name == symbol_name && matches_export_space_filter(export.space, space_filter)
     });
 
     // track seen module paths and preferred action index

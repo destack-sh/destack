@@ -17,10 +17,10 @@ use crate::core::{
 };
 use crate::dir::{
     ImportEditSpace, MemberInfo, MemberKind, MemberName, build_import_display_path,
-    build_import_edits, doc_text_for_symbol, get_canonical_symbol,
-    matches_import_clause_space_filter, matches_symbol_space_filter, module_name_from_path,
-    parameter_names_for_symbol, resolve_extension_members_for_symbol, resolve_reference_members,
-    resolve_type_members, search_importable_symbols, visible_symbols,
+    build_import_edits, doc_text_for_symbol, get_canonical_symbol, matches_export_space_filter,
+    matches_import_clause_space_filter, module_name_from_path, parameter_names_for_symbol,
+    resolve_extension_members_for_symbol, resolve_reference_members, resolve_type_members,
+    search_importable_symbols, visible_symbols,
 };
 use crate::format::format_local_type;
 use crate::source::{current_initializer_binding_names, get_module_by_file_id};
@@ -97,6 +97,7 @@ impl From<SymbolForm> for CompletionKind {
             SymbolForm::Interface => CompletionKind::Interface,
             SymbolForm::Enum => CompletionKind::Enum,
             SymbolForm::Function => CompletionKind::Function,
+            SymbolForm::Import => CompletionKind::Reference,
             SymbolForm::Extension => CompletionKind::Class,
             SymbolForm::TypeAlias => CompletionKind::TypeParameter,
             SymbolForm::Newtype => CompletionKind::TypeParameter,
@@ -1040,7 +1041,7 @@ impl<'a> CompletionBuilder<'a> {
             };
 
             let symbol = symbols.get_symbol(symbol_id);
-            if symbol.space != dir::SymbolSpace::Type {
+            if !symbol.form.is_visible_in(dir::SymbolSpace::Type) {
                 continue;
             }
 
@@ -1354,7 +1355,7 @@ impl<'a> CompletionBuilder<'a> {
 
         // turn indexed export matches into importable completions
         for export in exports {
-            if !matches_symbol_space_filter(export.kind, export.space, space_filter) {
+            if !matches_export_space_filter(export.space, space_filter) {
                 continue;
             }
 
@@ -1507,7 +1508,7 @@ impl<'a> CompletionBuilder<'a> {
                 continue;
             };
 
-            if !matches_import_clause_space_filter(symbol.form, symbol.space, space_filter) {
+            if !matches_import_clause_space_filter(symbol.form, space_filter) {
                 continue;
             }
 

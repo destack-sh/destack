@@ -69,37 +69,38 @@ pub(crate) fn is_type_symbol(symbol_form: SymbolForm) -> bool {
 /// Check whether a symbol matches a requested symbol space filter.
 pub(crate) fn matches_symbol_space_filter(
     symbol_form: SymbolForm,
-    symbol_space: SymbolSpace,
     filter: Option<SymbolSpace>,
 ) -> bool {
     let Some(filter) = filter else {
         return true;
     };
 
-    match filter {
-        SymbolSpace::Type => match symbol_space {
-            SymbolSpace::Type => true,
-            _ => is_type_symbol(symbol_form),
-        },
-        SymbolSpace::Value => symbol_space == SymbolSpace::Value,
-        SymbolSpace::Label => symbol_space == SymbolSpace::Label,
-    }
+    symbol_form.is_visible_in(filter)
+        || (filter == SymbolSpace::Type && is_type_symbol(symbol_form))
+}
+
+/// Check whether an exported lookup space matches a requested symbol space filter.
+pub(crate) fn matches_export_space_filter(
+    export_space: SymbolSpace,
+    filter: Option<SymbolSpace>,
+) -> bool {
+    let Some(filter) = filter else {
+        return true;
+    };
+
+    export_space == filter
 }
 
 /// Check whether a symbol matches an explicit import-clause space filter.
 pub(crate) fn matches_import_clause_space_filter(
     symbol_form: SymbolForm,
-    symbol_space: SymbolSpace,
     filter: Option<SymbolSpace>,
 ) -> bool {
     let Some(filter) = filter else {
         return true;
     };
 
-    match filter {
-        SymbolSpace::Type => symbol_space == SymbolSpace::Type || is_type_symbol(symbol_form),
-        _ => matches_symbol_space_filter(symbol_form, symbol_space, Some(filter)),
-    }
+    matches_symbol_space_filter(symbol_form, Some(filter))
 }
 
 /// Return one dependency item's string key when present.
