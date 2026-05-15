@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use destack_dir as dir;
 use destack_dir::{
-    DependencyBinding, DependencyItem, DependencySpace, Expression, GlobalSymbolId, NodeType,
+    DependencyBinding, DependencyForm, DependencyItem, Expression, GlobalSymbolId, NodeType,
     Resolution,
 };
 use destack_source::{FileId, ModuleId, NodeSpanRegion, NodeSpanType, ProfileId, Span};
@@ -820,7 +820,7 @@ fn dependency_item_name_span(
     let dir_tree = dir.view();
     let item = dir_tree.get::<DependencyItem>(item_id);
     let (name_id, alias_id) = match item {
-        DependencyItem::Item { name, alias, .. } => (name.map(|name| name.string()), *alias),
+        DependencyItem::Binding { name, alias, .. } => (name.map(|name| name.string()), *alias),
         DependencyItem::Error => return None,
     };
 
@@ -861,12 +861,12 @@ fn namespace_import_aliases_for_module(
         .iter_nodes_of_type::<DependencyItem>()
         .into_iter()
         .filter_map(|(item_id, item)| {
-            let DependencyItem::Item { binding, space, .. } = item else {
+            let DependencyItem::Binding { binding, form, .. } = item else {
                 return None;
             };
 
             // require namespace value imports with a concrete symbol
-            if *binding != DependencyBinding::Namespace || *space != Some(DependencySpace::Value) {
+            if *binding != DependencyBinding::Namespace || *form != Some(DependencyForm::Plain) {
                 return None;
             }
 

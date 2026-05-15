@@ -165,7 +165,6 @@ pub fn semantic_tokens(
             dir::Declaration::Class(_) => SemanticTokenType::Class,
             dir::Declaration::Interface(_) => SemanticTokenType::Interface,
             dir::Declaration::Enum(_) => SemanticTokenType::Enum,
-            dir::Declaration::Namespace(_) => SemanticTokenType::Namespace,
             dir::Declaration::Type(_) => SemanticTokenType::Type,
             dir::Declaration::Extension(_) => SemanticTokenType::Type,
         };

@@ -336,7 +336,6 @@ fn declaration_symbol_kind_parsed(declaration: &dir::Declaration) -> SymbolKind 
         dir::Declaration::Class(_) => SymbolKind::Class,
         dir::Declaration::Interface(_) => SymbolKind::Interface,
         dir::Declaration::Enum(_) => SymbolKind::Enum,
-        dir::Declaration::Namespace(_) => SymbolKind::Namespace,
         dir::Declaration::Type(_) => SymbolKind::TypeParameter,
         dir::Declaration::Extension(_) => SymbolKind::Class,
     }

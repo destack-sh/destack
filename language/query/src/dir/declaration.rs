@@ -7,7 +7,6 @@ pub(crate) fn declaration_name(declaration: &Declaration) -> Option<Name> {
     match declaration {
         Declaration::Global(_) => None,
         Declaration::Module(_) => None,
-        Declaration::Namespace(declaration) => Some(declaration.name),
         Declaration::Type(declaration) => Some(declaration.name),
         Declaration::Struct(declaration) => Some(declaration.name),
         Declaration::Class(declaration) => declaration.name,
@@ -23,7 +22,6 @@ pub(crate) fn declaration_export(declaration: &Declaration) -> Option<dir::Expor
     match declaration {
         Declaration::Global(_) => None,
         Declaration::Module(_) => None,
-        Declaration::Namespace(declaration) => declaration.export,
         Declaration::Type(declaration) => declaration.export,
         Declaration::Struct(declaration) => declaration.export,
         Declaration::Class(declaration) => declaration.export,
@@ -39,7 +37,6 @@ pub(crate) fn declaration_is_ambient(declaration: &Declaration) -> bool {
     match declaration {
         Declaration::Global(declaration) => declaration.is_ambient,
         Declaration::Module(_) => false,
-        Declaration::Namespace(declaration) => declaration.is_ambient,
         Declaration::Type(declaration) => declaration.is_ambient,
         Declaration::Struct(declaration) => declaration.is_ambient,
         Declaration::Class(declaration) => declaration.is_ambient,

@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use destack_dir as dir;
-use destack_source::{ModuleId, ModuleRelation, Span};
+use destack_source::{ModuleId, Span};
 use destack_workspace::Repository;
 
 use crate::core::{DirQueryContext, SourceQueryContext};
@@ -109,7 +109,7 @@ fn resolved_import_target_module(
     let target_id = dir.strings().intern(specifier);
     let dependency = dir.imported().dependencies.iter().find(|dependency| {
         dependency.specifier == target_id
-            && dependency.relation == ModuleRelation::Import
+            && dependency.relation == dir::DependencyRelation::Import
             && dependency.loader.is_none()
     })?;
 
@@ -134,7 +134,7 @@ fn import_clause_info(
     target_span: Option<Span>,
 ) -> Option<ImportClauseInfo> {
     // require an import expression
-    let dir::Expression::Import { items, space, .. } = expr else {
+    let dir::Expression::Import { items, form, .. } = expr else {
         return None;
     };
     let items = items.as_ref()?;
@@ -156,9 +156,9 @@ fn import_clause_info(
         let span = parsed.tree().source_map.get(item_id.id);
 
         let (item_space, item_name, item_alias) = match item {
-            dir::DependencyItem::Item {
-                space, name, alias, ..
-            } => (*space, *name, *alias),
+            dir::DependencyItem::Binding {
+                form, name, alias, ..
+            } => (*form, *name, *alias),
             dir::DependencyItem::Error => continue,
         };
 
@@ -195,11 +195,11 @@ fn import_clause_info(
         false
     };
 
-    let space_filter = match space {
-        dir::DependencySpace::Type => Some(dir::SymbolSpace::Type),
-        dir::DependencySpace::Value => match in_item_space {
-            Some(dir::DependencySpace::Type) => Some(dir::SymbolSpace::Type),
-            Some(dir::DependencySpace::Value) => Some(dir::SymbolSpace::Value),
+    let space_filter = match form {
+        dir::DependencyForm::Type => Some(dir::SymbolSpace::Type),
+        dir::DependencyForm::Plain => match in_item_space {
+            Some(dir::DependencyForm::Type) => Some(dir::SymbolSpace::Type),
+            Some(dir::DependencyForm::Plain) => Some(dir::SymbolSpace::Value),
             None if cursor_is_type => Some(dir::SymbolSpace::Type),
             None => None,
         },

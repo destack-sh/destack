@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
 
 use destack_core::{StringId, StringPool};
-use destack_dir::{DependencyItem, DependencySpace, LocalNodeId, Tree};
+use destack_dir::{DependencyForm, DependencyItem, LocalNodeId, Tree};
 use destack_workspace::ImportSortOrder;
 
 /// The import group category for declaration ordering.
@@ -106,8 +106,8 @@ pub fn sort_dependency_items(
         let right_item = tree.get(*right_id);
 
         // type imports come before value imports
-        let left_is_type = dependency_item_space(left_item) == Some(DependencySpace::Type);
-        let right_is_type = dependency_item_space(right_item) == Some(DependencySpace::Type);
+        let left_is_type = dependency_item_space(left_item) == Some(DependencyForm::Type);
+        let right_is_type = dependency_item_space(right_item) == Some(DependencyForm::Type);
         match (left_is_type, right_is_type) {
             (true, false) => return Ordering::Less,
             (false, true) => return Ordering::Greater,
@@ -136,10 +136,10 @@ fn is_alias_specifier(specifier: &str) -> bool {
     specifier.starts_with("@/") || specifier.starts_with("~/") || specifier.starts_with('#')
 }
 
-/// Return one dependency item's space when the item is valid.
-fn dependency_item_space(item: &DependencyItem) -> Option<DependencySpace> {
+/// Return one dependency item's form when the item is valid.
+fn dependency_item_space(item: &DependencyItem) -> Option<DependencyForm> {
     match item {
-        DependencyItem::Item { space, .. } => *space,
+        DependencyItem::Binding { form, .. } => *form,
         DependencyItem::Error => None,
     }
 }
@@ -147,7 +147,7 @@ fn dependency_item_space(item: &DependencyItem) -> Option<DependencySpace> {
 /// Return one dependency item's string key when present.
 fn dependency_item_key(item: &DependencyItem) -> Option<StringId> {
     match item {
-        DependencyItem::Item { alias, name, .. } => alias.or(name.map(|name| name.string())),
+        DependencyItem::Binding { alias, name, .. } => alias.or(name.map(|name| name.string())),
         DependencyItem::Error => None,
     }
 }

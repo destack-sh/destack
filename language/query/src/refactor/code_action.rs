@@ -388,7 +388,7 @@ fn collect_auto_import_actions(
         };
 
         let space_filter =
-            auto_import_space_filter_for_offset(repository, revision, file, diagnostic_span.start);
+            auto_import_form_filter_for_offset(repository, revision, file, diagnostic_span.start);
         collect_auto_import_actions_for_symbol(
             repository,
             revision,
@@ -406,7 +406,7 @@ fn collect_auto_import_actions(
         && is_simple_identifier(&symbol_name)
     {
         let space_filter =
-            auto_import_space_filter_for_offset(repository, revision, file, range.start);
+            auto_import_form_filter_for_offset(repository, revision, file, range.start);
         collect_auto_import_actions_for_symbol(
             repository,
             revision,
@@ -489,7 +489,7 @@ fn collect_auto_import_actions_for_symbol(
     });
 
     for (_, export, display_path) in ranked_candidates {
-        let import_space = ImportEditSpace::for_auto_import(space_filter, export.space);
+        let import_form = ImportEditSpace::for_auto_import(space_filter, export.space);
 
         // build import edits and skip already imported symbols
         let import_edits = build_import_edits(
@@ -498,7 +498,7 @@ fn collect_auto_import_actions_for_symbol(
             file,
             symbol_name,
             &display_path,
-            import_space,
+            import_form,
         );
         if import_edits.is_empty() {
             continue;
@@ -536,7 +536,7 @@ fn collect_auto_import_actions_for_symbol(
 }
 
 /// Resolve the auto import space filter for an offset.
-fn auto_import_space_filter_for_offset(
+fn auto_import_form_filter_for_offset(
     repository: &Repository,
     revision: Revision,
     file: FileId,

@@ -327,7 +327,6 @@ fn symbol_index_kind_for_declaration(declaration: &dir::Declaration) -> SymbolEn
         dir::Declaration::Class { .. } => SymbolEntryKind::Class,
         dir::Declaration::Interface { .. } => SymbolEntryKind::Interface,
         dir::Declaration::Enum { .. } => SymbolEntryKind::Enum,
-        dir::Declaration::Namespace { .. } => SymbolEntryKind::Namespace,
         dir::Declaration::Type { .. } => SymbolEntryKind::TypeParameter,
         dir::Declaration::Extension { .. } => SymbolEntryKind::Class,
     }

@@ -121,7 +121,6 @@ fn folding_ranges_with_dir(
                     | Declaration::Interface { .. }
                     | Declaration::Enum { .. }
                     | Declaration::Global { .. }
-                    | Declaration::Namespace { .. }
                     | Declaration::Extension { .. }
             );
             if !should_fold {
@@ -188,7 +187,6 @@ fn folding_ranges_with_parsed(
                     | dir::Declaration::Interface { .. }
                     | dir::Declaration::Enum { .. }
                     | dir::Declaration::Global { .. }
-                    | dir::Declaration::Namespace { .. }
                     | dir::Declaration::Extension { .. }
             );
             if !should_fold {
