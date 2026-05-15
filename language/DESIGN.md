@@ -3,7 +3,7 @@
 The Destack language (`.ds`) and toolchain, colloquially "TypeScript++", are a superset of "strict modern" TypeScript with support for `.ts` and `.tsx` files, native AOT compilation and a fully integrated language toolchain, _and_ it can also compile nicely to standard JS/TS targets.
 We believe that the ideal way to build correct, optimal, integrated software systems is to build a fully integrated stack (Destack), and thus by "language" ("TypeScript++") we mean much more than "just" a syntax form: a language, a runtime, a toolchain, plugins, and ultimately, a way of programming.
 
-## "TypeScript++"
+## Universality
 
 We're very early in software, and we're still figuring out how to build optimal, correct, and integrated software systems.
 Over 50 years, we have grown more and more layers of software sediment and need ever _more_ tools to get any code out the door, and yet confidence and performance have plummeted.
@@ -14,6 +14,10 @@ The TypeScript ecosystem has good - if not perfect - answers to all modern softw
 
 If you remove all the JS baggage and dynamic prototype mess, modern TypeScript is surprisingly close to a fully AOT-compilable language (and most browsers retrofit compilation internally already based on these assumptions).
 Embracing TypeScript and "the web ecosystem" lets us build a new toolchain that truly covers the full stack, is immediately familiar to millions of developers, runs transparently on existing targets, and can be completely free of JS overhead and (some) historic baggage.
+
+## Incrementalism
+
+ <!-- TODO -->
 
 ## Compatibility
 
@@ -26,9 +30,10 @@ Accordingly, Destack excludes legacy syntax and all sorts of dynamic shapes and 
 Some JS/TS syntax and legacy behavior is either ambiguous, obsolete, or just not worth carrying forward:
 
 - **Sloppy mode**: Destack targets modern strict-mode JavaScript/TypeScript.
-  All non-strict ("sloppy mode") behaviors like duplicate function declarations, `arguments` magic, `caller` / `callee`, or `yield` as an identifier are not supported.
+  All non-strict ("sloppy mode") behaviors like duplicate function declarations, `arguments` magic, `caller` / `callee`, or `yield` as an identifier, `with`, etc., are not supported.
 - **Type-only imports / exports**: `.ds` accepts `import type` and `export type` for TypeScript compatibility, but they mean the same thing as `import` and `export`, and the type-less form is preferred.
 - **CommonJS**: Destack source does not support `require`, `module.exports`, mutable `exports`, require-cache monkeypatching, `export =`, or `import x = require("x")`.
+- **String module declarations**: Destack source does not support TypeScript-style `declare module "specifier" { ... }`; provide a real module instead.
 - **Ambiguous generic arrow**: `<T>() => ...` is ambiguous in `.tsx` because it might be a TSX tree, and `.ds` inherits this since we support TSX syntax natively.
   To disambiguate, use `<T,>() => ...`.
 - **Sequence expressions**: `(A, B, C)` is - confusingly - a "sequence expression" in JS, which nobody ever really types out by hand, and `.ds` instead claims `(A, B, C)` for explicit tuples.
@@ -1623,7 +1628,7 @@ module {
     derive: [Debug, Clone];
 
     noHeap: true;
-    noExceptions: true;
+    noRuntime: true;
 }
 ```
 
