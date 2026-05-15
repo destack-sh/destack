@@ -37,7 +37,10 @@ impl Parser {
         }
 
         if self.language.is_destack() && !self.language.is_declaration() {
-            return next_token.token.ty == TokenType::OpenBrace;
+            return matches!(
+                next_token.token.ty,
+                TokenType::OpenBrace | TokenType::Literal
+            );
         }
 
         matches!(
@@ -52,16 +55,16 @@ impl Parser {
             return false;
         }
 
-        if self.language.is_destack() && !self.language.is_declaration() {
-            return false;
-        }
-
         let next_token = self.next_token();
         let next_token_type = next_token.token.ty;
         let next_keyword = self.next_keyword();
 
         if next_token.token.is_on_new_line {
             return false;
+        }
+
+        if self.language.is_destack() && !self.language.is_declaration() {
+            return next_token_type == TokenType::Literal;
         }
 
         if !matches!(next_token_type, TokenType::Identifier | TokenType::Literal) {
