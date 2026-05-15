@@ -1,4 +1,4 @@
-import { AsyncResult } from "destack:error";
+import { AsyncResult, todo } from "destack:error";
 import { HostError } from "destack:error/host";
 import { AddressLookupQuery, AddressLookupResult, SocketAddress, SocketFamily, SocketHandle, SocketMessageFlags, SocketReceiveFromResult } from "destack:net/host";
 
@@ -43,56 +43,80 @@ export struct DatagramOptions {
 }
 
 /// Open one stream connection.
-export declare function connect(options: ConnectOptions): AsyncResult<Connection, HostError>;
+export function connect(options: ConnectOptions): AsyncResult<Connection, HostError> {
+    todo("net.connect")
+}
 
 /// Listen for stream connections.
-export declare function listen(options: ListenOptions): AsyncResult<Listener, HostError>;
+export function listen(options: ListenOptions): AsyncResult<Listener, HostError> {
+    todo("net.listen")
+}
 
 /// Open one datagram socket.
-export declare function openDatagram(
+export function openDatagram(
     options: DatagramOptions,
-): AsyncResult<DatagramSocket, HostError>;
+): AsyncResult<DatagramSocket, HostError> {
+    todo("net.openDatagram")
+}
 
 /// Accept one stream connection.
-export declare function accept(listener: &Listener): AsyncResult<Connection, HostError>;
+export function accept(listener: &Listener): AsyncResult<Connection, HostError> {
+    todo("net.accept")
+}
 
 /// Close one stream connection.
-export declare function close(connection: ^Connection): AsyncResult<void, HostError>;
+export function close(connection: ^Connection): AsyncResult<void, HostError> {
+    todo("net.close")
+}
 
 /// Close one stream listener.
-export declare function closeListener(listener: ^Listener): AsyncResult<void, HostError>;
+export function closeListener(listener: ^Listener): AsyncResult<void, HostError> {
+    todo("net.closeListener")
+}
 
 /// Close one datagram socket.
-export declare function closeDatagram(socket: ^DatagramSocket): AsyncResult<void, HostError>;
+export function closeDatagram(socket: ^DatagramSocket): AsyncResult<void, HostError> {
+    todo("net.closeDatagram")
+}
 
 /// Read from one stream connection.
-export declare function read(
+export function read(
     connection: &Connection,
     buffer: &[uint8],
-): AsyncResult<uint64, HostError>;
+): AsyncResult<uint64, HostError> {
+    todo("net.read")
+}
 
 /// Write to one stream connection.
-export declare function write(
+export function write(
     connection: &Connection,
     buffer: &readonly [uint8],
-): AsyncResult<uint64, HostError>;
+): AsyncResult<uint64, HostError> {
+    todo("net.write")
+}
 
 /// Receive one datagram from a socket.
-export declare function receiveFrom(
+export function receiveFrom(
     socket: &DatagramSocket,
     buffer: &[uint8],
     flags: SocketMessageFlags,
-): AsyncResult<SocketReceiveFromResult, HostError>;
+): AsyncResult<SocketReceiveFromResult, HostError> {
+    todo("net.receiveFrom")
+}
 
 /// Send one datagram to a remote endpoint.
-export declare function sendTo(
+export function sendTo(
     socket: &DatagramSocket,
     address: SocketAddress,
     buffer: &readonly [uint8],
     flags: SocketMessageFlags,
-): AsyncResult<uint64, HostError>;
+): AsyncResult<uint64, HostError> {
+    todo("net.sendTo")
+}
 
 /// Resolve a host and service.
-export declare function lookup(
+export function lookup(
     query: AddressLookupQuery,
-): AsyncResult<^Array<AddressLookupResult>, HostError>;
+): AsyncResult<^Array<AddressLookupResult>, HostError> {
+    todo("net.lookup")
+}

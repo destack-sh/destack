@@ -1,6 +1,6 @@
-import { type Result } from "destack:error";
+import { Result } from "destack:error";
 import { todo } from "destack:error";
-import { type Writer } from "destack:sync";
+import { Writer } from "destack:sync";
 import { HostError } from "destack:error/host";
 
 /// Console output options.
@@ -18,7 +18,9 @@ export interface ConsoleOptions {
 /// Debugging console.
 export class Console {
     /// Create a console from output streams.
-    constructor(options?: ConsoleOptions);
+    constructor(options?: ConsoleOptions) {
+        todo("Console.constructor")
+    }
 
     /// Write a line to stdout.
     log(...values: unknown[]): Result<void, HostError> {

@@ -1,4 +1,4 @@
-import { type Macro } from "destack:macro";
+import { Macro } from "destack:macro";
 
 /// Builder for lowercase tree tags in one module.
 export newtype interface TreeTagBuilder {}
@@ -15,8 +15,6 @@ export interface Module {
     readonly noHeap?: boolean;
     /// Forbid runtime-dependent language features in this module.
     readonly noRuntime?: boolean;
-    /// Forbid exception syntax in this module.
-    readonly noExceptions?: boolean;
     /// Forbid dispatch that cannot be resolved statically in this module.
     readonly noImplicitDynamicDispatch?: boolean;
 }
