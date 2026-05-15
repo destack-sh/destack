@@ -1,0 +1,62 @@
+import { RangeBounds } from "destack:range";
+import { Issue } from "./error.ds";
+
+/// Schema attribute value.
+export type AttributeValue =
+    | null
+    | boolean
+    | number
+    | string
+    | bigint
+    | [AttributeValue]
+    | { readonly [key: string]: AttributeValue };
+
+/// Schema attribute.
+export struct Attribute {
+    /// Attribute name.
+    name: string;
+
+    /// Attribute value when present.
+    value?: AttributeValue;
+}
+
+/// Runtime schema refinement.
+export newtype interface Refinement<T> {
+    /// Return validation issues for `value`.
+    issues(value: T): [Issue];
+}
+
+/// Length constraint for strings and indexed collections.
+export struct LengthConstraint {
+    /// Minimum length.
+    min?: usize;
+
+    /// Maximum length.
+    max?: usize;
+}
+
+/// Range constraint for ordered scalar values.
+export struct RangeConstraint<T> {
+    /// Accepted value range.
+    bounds: RangeBounds<T>;
+}
+
+/// Pattern constraint for strings.
+export struct PatternConstraint {
+    /// Required string pattern.
+    pattern: string;
+}
+
+/// User-defined refinement constraint.
+export struct RefinementConstraint<T> {
+    /// Refinement implementation.
+    refinement: Refinement<T>;
+}
+
+/// Schema constraint.
+@derive(Tagged)
+export newtype Constraint<T> =
+    | LengthConstraint
+    | RangeConstraint<T>
+    | PatternConstraint
+    | RefinementConstraint<T>;

@@ -1,0 +1,243 @@
+import { Result, todo } from "destack:error";
+import * as reflect from "destack:reflect";
+import { Attribute, Constraint } from "./constraint.ds";
+import { Issue, ValidationError } from "./error.ds";
+
+/// Schema graph node kind.
+export enum SchemaKind {
+    /// Type literal.
+    TypeLiteral = 1,
+    /// Inference variable used during analysis.
+    InferVar = 2,
+    /// Scalar primitive.
+    Primitive = 3,
+    /// Scalar literal.
+    Literal = 4,
+    /// Reference to a declared type.
+    Reference = 5,
+    /// Owned value type.
+    Value = 6,
+    /// `this` type.
+    This = 7,
+    /// Unevaluated type expression.
+    Unevaluated = 8,
+    /// Readonly type wrapper.
+    Readonly = 9,
+    /// Owned form type.
+    ValueOf = 10,
+    /// Borrowed form type.
+    ReferenceOf = 11,
+    /// Pointer form type.
+    PointerOf = 12,
+    /// Type membership expression.
+    In = 13,
+    /// Type extension expression.
+    Extends = 14,
+    /// Type implementation expression.
+    Implements = 15,
+    /// Dynamic array or slice type.
+    Array = 16,
+    /// Fixed-size array type.
+    ArraySized = 17,
+    /// Tuple type.
+    Tuple = 18,
+    /// Structural object type.
+    Object = 19,
+    /// Callable type.
+    Function = 20,
+    /// Union type.
+    Union = 21,
+    /// Intersection type.
+    Intersection = 22,
+    /// Conditional type.
+    Conditional = 23,
+    /// Mapped type.
+    Mapped = 24,
+    /// Indexed access type.
+    Index = 25,
+    /// Template literal type.
+    TemplateLiteral = 26,
+    /// Imported type.
+    Import = 27,
+    /// Inference variable or binding.
+    Infer = 28,
+    /// Predicate type.
+    Predicate = 29,
+    /// `keyof T`.
+    KeyOf = 30,
+    /// Non-null assertion type.
+    Must = 31,
+    /// Comptime cast type.
+    AsComptime = 32,
+    /// Type negation.
+    Not = 33,
+    /// Compiler error type.
+    Error = 34,
+}
+
+/// Schema field.
+export struct SchemaField {
+    /// Field key.
+    key: reflect.dir.StaticKey;
+
+    /// Field schema.
+    schema: Schema<unknown>;
+
+    /// Whether the field is optional.
+    isOptional: boolean;
+
+    /// Whether the field is readonly.
+    isReadonly: boolean;
+
+    /// Field attributes.
+    attributes?: [Attribute];
+
+    /// Field constraints.
+    constraints?: [Constraint<unknown>];
+}
+
+/// Schema element.
+export struct SchemaElement {
+    /// Optional element label.
+    label?: string;
+
+    /// Element schema.
+    schema: Schema<unknown>;
+
+    /// Whether the element is optional.
+    isOptional: boolean;
+
+    /// Whether the element is readonly.
+    isReadonly: boolean;
+
+    /// Whether the element captures the rest of the sequence.
+    isRest: boolean;
+
+    /// Element attributes.
+    attributes?: [Attribute];
+
+    /// Element constraints.
+    constraints?: [Constraint<unknown>];
+}
+
+/// Schema definition.
+export struct SchemaDefinition<T> {
+    /// Schema kind.
+    kind: SchemaKind;
+
+    /// Reflected source type when available.
+    type?: reflect.Type<T>;
+
+    /// Stable display name when available.
+    name?: string;
+
+    /// Scalar literal value when this schema describes a literal.
+    literal?: T;
+
+    /// Element schema for array-like types.
+    element?: Schema<unknown>;
+
+    /// Count schema for fixed-size arrays.
+    count?: Schema<unknown>;
+
+    /// Tuple elements.
+    elements?: [SchemaElement];
+
+    /// Function parameter schemas.
+    parameters?: [SchemaElement];
+
+    /// Object fields.
+    fields?: [SchemaField];
+
+    /// Union or intersection variants.
+    variants?: [Schema<unknown>];
+
+    /// Return schema for callable types.
+    returnType?: Schema<unknown>;
+
+    /// Target schema for unary type forms.
+    target?: Schema<unknown>;
+
+    /// Left schema for binary type forms.
+    left?: Schema<unknown>;
+
+    /// Right schema for binary type forms.
+    right?: Schema<unknown>;
+
+    /// True branch schema for conditional types.
+    thenSchema?: Schema<unknown>;
+
+    /// False branch schema for conditional types.
+    elseSchema?: Schema<unknown>;
+
+    /// Schema attributes.
+    attributes?: [Attribute];
+
+    /// Schema constraints.
+    constraints?: [Constraint<T>];
+}
+
+/// Runtime schema graph for `T`.
+export class Schema<T> {
+    /// Schema graph definition.
+    readonly definition: SchemaDefinition<T>;
+
+    /// Create a schema graph node.
+    constructor(definition: SchemaDefinition<T>) {
+        this.definition = definition
+    }
+
+    /// Return this schema node kind.
+    get kind(): SchemaKind {
+        this.definition.kind
+    }
+
+    /// Create a schema graph node from an explicit definition.
+    static define<T>(definition: SchemaDefinition<T>): Schema<T> {
+        new Schema<T>(definition)
+    }
+
+    /// Create a schema from reflected type metadata.
+    static fromType<T>(type?: reflect.Type<T>): Schema<T> {
+        fromType(type)
+    }
+
+    /// Validate `value` against this schema.
+    validate(this: &readonly Schema<T>, value: unknown): Result<T, ValidationError> {
+        validate(this, value)
+    }
+
+    /// Return validation issues for `value`.
+    issues(this: &readonly Schema<T>, value: unknown): [Issue] {
+        issues(this, value)
+    }
+
+    /// Return true when `value` satisfies this schema.
+    is(this: &readonly Schema<T>, value: unknown): value is T {
+        this.issues(value).length == 0
+    }
+}
+
+/// Create a schema from reflected type metadata.
+@intrinsic("schema.fromType")
+export declare function fromType<T>(type?: reflect.Type<T>): Schema<T>;
+
+/// Validate `value` against `schema`.
+export function validate<T>(schema: &readonly Schema<T>, value: unknown): Result<T, ValidationError> {
+    todo("schema.validate")
+}
+
+/// Return validation issues for `value`.
+export function issues<T>(schema: &readonly Schema<T>, value: unknown): [Issue] {
+    todo("schema.issues")
+}
+
+/// Return true when `value` satisfies `schema`.
+export function is<T>(schema: &readonly Schema<T>, value: unknown): value is T {
+    issues(schema, value).length == 0
+}
+
+/// Return the reflected schema for `T`.
+export function schema<T>(): Schema<T> {
+    fromType(reflect.type<T>())
+}

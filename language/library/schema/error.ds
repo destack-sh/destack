@@ -1,0 +1,54 @@
+import { Error } from "destack:error";
+
+/// Path segment inside a validated value.
+export type PathSegment = string | usize;
+
+/// Path inside a validated value.
+export type Path = [PathSegment];
+
+/// Schema issue code.
+export enum IssueCode {
+    /// Value has the wrong type.
+    InvalidType = 1,
+    /// Value is missing.
+    MissingValue = 2,
+    /// Value is outside an accepted range.
+    OutOfRange = 3,
+    /// Value length is outside accepted bounds.
+    InvalidLength = 4,
+    /// Value does not match a required pattern.
+    PatternMismatch = 5,
+    /// Value failed a user-defined refinement.
+    RefinementFailed = 6,
+}
+
+/// Schema validation issue.
+export struct Issue {
+    /// Path to the failing value.
+    path: Path;
+
+    /// Issue code.
+    code: IssueCode;
+
+    /// Validation message.
+    message: string;
+
+    /// Expected shape when available.
+    expected?: string;
+
+    /// Actual shape when available.
+    actual?: string;
+}
+
+/// Schema validation error.
+export struct ValidationError {
+    /// Validation issues.
+    issues: [Issue];
+}
+
+extension of ValidationError implements Error {
+    /// Format this validation error for users.
+    display(): string {
+        "schema validation failed"
+    }
+}
