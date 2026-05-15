@@ -1104,8 +1104,8 @@ b5:
     #[test]
     fn test_unswitch_check_terminator() {
         let input = r#"
-function test(v0: boolean, v1: uint32, v2: uint8[8]): void {
-b0(v0: boolean, v1: uint32, v2: uint8[8]):
+function test(v0: boolean, v1: uint32, v2: [uint8; 8]): void {
+b0(v0: boolean, v1: uint32, v2: [uint8; 8]):
     jump b1(v1)
 b1(v3: uint32):
     check bounds.u v3, v1, v2 -> b2, b3
@@ -1116,8 +1116,8 @@ b3:
 }"#;
 
         let expected = r#"
-function test(v0: boolean, v1: uint32, v2: uint8[8]): void {
-b0(v0: boolean, v1: uint32, v2: uint8[8]):
+function test(v0: boolean, v1: uint32, v2: [uint8; 8]): void {
+b0(v0: boolean, v1: uint32, v2: [uint8; 8]):
     check bounds.u v1, v1, v2 -> b1(v1), b4(v1)
 b1(v3: uint32):
     jump b2

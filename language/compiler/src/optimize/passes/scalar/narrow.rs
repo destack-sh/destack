@@ -486,8 +486,8 @@ b0:
     #[test]
     fn test_narrow_bounds_check_operands() {
         let input = r#"
-function test(v0: uint8[8]): uint8 {
-b0(v0: uint8[8]):
+function test(v0: [uint8; 8]): uint8 {
+b0(v0: [uint8; 8]):
     v1: uint32 = 2uint32
     v2: uint32 = 4uint32
     v3: boolean = int.lt.u v1, v2
@@ -500,8 +500,8 @@ b2:
 }"#;
 
         let expected = r#"
-function test(v0: uint8[8]): uint8 {
-b0(v0: uint8[8]):
+function test(v0: [uint8; 8]): uint8 {
+b0(v0: [uint8; 8]):
     v1: uint32 = 2uint32
     v2: uint32 = 4uint32
     v3: u3 = cast.truncate v1 -> u3
@@ -539,8 +539,8 @@ b0(v0: uint32, v1: uint32):
     #[test]
     fn test_narrow_skips_mismatched_widths() {
         let input = r#"
-function test(v0: uint8[8]): void {
-b0(v0: uint8[8]):
+function test(v0: [uint8; 8]): void {
+b0(v0: [uint8; 8]):
     v1: uint32 = 2uint32
     v2: uint64 = 4uint64
     v3: boolean = int.lt.u v1, v2

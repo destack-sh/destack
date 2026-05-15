@@ -912,8 +912,8 @@ b4(v7: int32, v8: int32):
     #[test]
     fn test_pre_check_inserts_expression() {
         let input = r#"
-function test(v0: uint32, v1: uint32, v2: boolean, v3: uint8[8]): uint32 {
-b0(v0: uint32, v1: uint32, v2: boolean, v3: uint8[8]):
+function test(v0: uint32, v1: uint32, v2: boolean, v3: [uint8; 8]): uint32 {
+b0(v0: uint32, v1: uint32, v2: boolean, v3: [uint8; 8]):
     branch v2, b1, b2
 b1:
     v4: uint32 = int.add v0, v1
@@ -929,8 +929,8 @@ b4:
 }"#;
 
         let expected = r#"
-function test(v0: uint32, v1: uint32, v2: boolean, v3: uint8[8]): uint32 {
-b0(v0: uint32, v1: uint32, v2: boolean, v3: uint8[8]):
+function test(v0: uint32, v1: uint32, v2: boolean, v3: [uint8; 8]): uint32 {
+b0(v0: uint32, v1: uint32, v2: boolean, v3: [uint8; 8]):
     branch v2, b1, b3
 b1:
     v4: uint32 = int.add v0, v1
@@ -956,8 +956,8 @@ b5:
     #[test]
     fn test_pre_check_failure_inserts_expression() {
         let input = r#"
-function test(v0: uint32, v1: uint32, v2: boolean, v3: uint8[8]): uint32 {
-b0(v0: uint32, v1: uint32, v2: boolean, v3: uint8[8]):
+function test(v0: uint32, v1: uint32, v2: boolean, v3: [uint8; 8]): uint32 {
+b0(v0: uint32, v1: uint32, v2: boolean, v3: [uint8; 8]):
     branch v2, b1, b2
 b1:
     v4: uint32 = int.add v0, v1
@@ -973,8 +973,8 @@ b4:
 }"#;
 
         let expected = r#"
-function test(v0: uint32, v1: uint32, v2: boolean, v3: uint8[8]): uint32 {
-b0(v0: uint32, v1: uint32, v2: boolean, v3: uint8[8]):
+function test(v0: uint32, v1: uint32, v2: boolean, v3: [uint8; 8]): uint32 {
+b0(v0: uint32, v1: uint32, v2: boolean, v3: [uint8; 8]):
     branch v2, b1, b3
 b1:
     v4: uint32 = int.add v0, v1

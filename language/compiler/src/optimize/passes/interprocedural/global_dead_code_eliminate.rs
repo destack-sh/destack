@@ -9,8 +9,8 @@ declare_mir_pass! {
     /// Remove unused local globals from the module.
     ///
     /// ```mir
-    /// global live: int32, readonly = 1int32
-    /// global dead: int32, readonly = 2int32
+    /// readonly global live: int32 = 1int32
+    /// readonly global dead: int32 = 2int32
     /// function root(): int32 {
     /// b0:
     ///     v0 = global.address live
@@ -19,8 +19,8 @@ declare_mir_pass! {
     /// ```
     /// becomes:
     /// ```mir
-    /// global live: int32, readonly = 1int32
-    /// extern global dead: int32, readonly
+    /// readonly global live: int32 = 1int32
+    /// external readonly global dead: int32
     /// function root(): int32 {
     /// b0:
     ///     v0 = global.address live
@@ -154,8 +154,8 @@ mod tests {
     #[test]
     fn test_global_dead_code_eliminate_unused_global() {
         let input = r#"
-global live: int32, readonly = 1int32
-global dead: int32, readonly = 2int32
+readonly global live: int32 = 1int32
+readonly global dead: int32 = 2int32
 function root(): int32 {
 b0:
     v0: ref<int32, raw, readonly> = global.address live
@@ -164,8 +164,8 @@ b0:
 }"#;
 
         let expected = r#"
-global live: int32, readonly = 1int32
-extern global dead: int32, readonly
+readonly global live: int32 = 1int32
+external readonly global dead: int32
 function root(): int32 {
 b0:
     v0: ref<int32, raw, readonly> = global.address live
@@ -182,8 +182,8 @@ b0:
     #[test]
     fn test_global_dead_code_eliminate_keeps_global_addr() {
         let input = r#"
-global live: int32, readonly = 1int32
-global dead: int32, readonly = 2int32
+readonly global live: int32 = 1int32
+readonly global dead: int32 = 2int32
 function root(): ref<int32, raw, readonly> {
 b0:
     v0: ref<int32, raw, readonly> = global.address live
@@ -191,8 +191,8 @@ b0:
 }"#;
 
         let expected = r#"
-global live: int32, readonly = 1int32
-extern global dead: int32, readonly
+readonly global live: int32 = 1int32
+external readonly global dead: int32
 function root(): ref<int32, raw, readonly> {
 b0:
     v0: ref<int32, raw, readonly> = global.address live
@@ -208,8 +208,8 @@ b0:
     #[test]
     fn test_global_dead_code_eliminate_keeps_debug_globals() {
         let input = r#"
-global live: int32, readonly = 1int32
-global dead: int32, readonly = 2int32
+readonly global live: int32 = 1int32
+readonly global dead: int32 = 2int32
 function root(): int32 {
 b0:
     v0: ref<int32, raw, readonly> = global.address live

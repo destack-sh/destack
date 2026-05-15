@@ -855,7 +855,7 @@ b0:
     #[test]
     fn test_preserve_escaping_store() {
         let input = r#"
-extern function external(ref<int32, raw>): void
+external function external(ref<int32, raw>): void
 function test(): void {
 b0:
     v0: ref<int32, raw, space(stack)> = stack.alloc int32
@@ -874,7 +874,7 @@ b0:
     #[test]
     fn test_remove_store_before_nocapture_readnone_call() {
         let input = r#"
-extern function external(ref<int32, raw>): void
+external function external(ref<int32, raw>): void
 function test(): int32 {
 b0:
     v0: ref<int32, raw, space(stack)> = stack.alloc int32
@@ -885,7 +885,7 @@ b0:
     return v2
 }"#;
         let expected = r#"
-extern function external(ref<int32, raw>): void
+external function external(ref<int32, raw>): void
 function test(): int32 {
 b0:
     v0: ref<int32, raw, space(stack)> = stack.alloc int32
@@ -1006,7 +1006,7 @@ b0:
     #[test]
     fn test_preserve_store_before_call() {
         let input = r#"
-extern function readValue(ref<int32, raw>): int32
+external function readValue(ref<int32, raw>): int32
 function test(): int32 {
 b0:
     v0: ref<int32, raw, space(stack)> = stack.alloc int32
@@ -1028,7 +1028,7 @@ b0:
     #[test]
     fn test_remove_after_call_overwritten() {
         let input = r#"
-extern function sideEffect(): void
+external function sideEffect(): void
 function test(): int32 {
 b0:
     v0: ref<int32, raw, space(stack)> = stack.alloc int32
@@ -1041,7 +1041,7 @@ b0:
     return v3
 }"#;
         let expected = r#"
-extern function sideEffect(): void
+external function sideEffect(): void
 function test(): int32 {
 b0:
     v0: ref<int32, raw, space(stack)> = stack.alloc int32

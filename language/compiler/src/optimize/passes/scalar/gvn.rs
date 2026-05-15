@@ -1500,7 +1500,7 @@ b0(v0: ref<int32, raw>):
     #[test]
     fn test_forward_loads_across_readnone_call() {
         let input = r#"
-extern function external(ref<int32, raw>): void
+external function external(ref<int32, raw>): void
 function test(): int32 {
 b0:
     v0: ref<int32, raw, space(stack)> = stack.alloc int32
@@ -1511,7 +1511,7 @@ b0:
     return v3
 }"#;
         let expected = r#"
-extern function external(ref<int32, raw>): void
+external function external(ref<int32, raw>): void
 function test(): int32 {
 b0:
     v0: ref<int32, raw, space(stack)> = stack.alloc int32

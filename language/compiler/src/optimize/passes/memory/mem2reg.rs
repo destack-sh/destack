@@ -753,10 +753,12 @@ fn update_terminator_arguments(
                     value: remap_value_reference(*value, substitutions),
                     expected: *expected,
                 },
-                mir::CheckConstraint::Union { value, expected } => mir::CheckConstraint::Union {
-                    value: remap_value_reference(*value, substitutions),
-                    expected: *expected,
-                },
+                mir::CheckConstraint::Variant { value, expected } => {
+                    mir::CheckConstraint::Variant {
+                        value: remap_value_reference(*value, substitutions),
+                        expected: expected.clone(),
+                    }
+                }
                 mir::CheckConstraint::ReceiverType { receiver, expected } => {
                     mir::CheckConstraint::ReceiverType {
                         receiver: remap_value_reference(*receiver, substitutions),
@@ -1366,7 +1368,7 @@ b3(v4: int32):
     #[test]
     fn test_promote_call_arguments() {
         let input = r#"
-extern function sink(int32): void
+external function sink(int32): void
 function test(): void {
     local local0: int32, owned
 b0:
@@ -1377,7 +1379,7 @@ b0:
     return
 }"#;
         let expected = r#"
-extern function sink(int32): void
+external function sink(int32): void
 function test(): void {
 b0:
     v0: int32 = 7int32

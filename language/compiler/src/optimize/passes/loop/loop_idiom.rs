@@ -24,8 +24,8 @@ declare_mir_pass! {
     /// store.
     ///
     /// ```mir
-    /// function before(v0: uint8[8], v1: uint32): void {
-    /// b0(v0: uint8[8], v1: uint32):
+    /// function before(v0: [uint8; 8], v1: uint32): void {
+    /// b0(v0: [uint8; 8], v1: uint32):
     ///     v2 = 0uint32
     ///     v3 = 1uint32
     ///     jump b1(v2)
@@ -44,8 +44,8 @@ declare_mir_pass! {
     /// ```
     /// becomes:
     /// ```mir
-    /// function after(v0: uint8[8], v1: uint32): void {
-    /// b0(v0: uint8[8], v1: uint32):
+    /// function after(v0: [uint8; 8], v1: uint32): void {
+    /// b0(v0: [uint8; 8], v1: uint32):
     ///     v2 = 0uint32
     ///     v3 = 1uint32
     ///     v9 = 0uint8
@@ -1383,8 +1383,8 @@ mod tests {
     #[test]
     fn test_loop_idiom_memset() {
         let input = r#"
-function test(v0: uint8[8], v1: uint32): void {
-b0(v0: uint8[8], v1: uint32):
+function test(v0: [uint8; 8], v1: uint32): void {
+b0(v0: [uint8; 8], v1: uint32):
     v2: uint32 = 0uint32
     v3: uint32 = 1uint32
     jump b1(v2)
@@ -1402,8 +1402,8 @@ b3:
 }"#;
 
         let expected = r#"
-function test(v0: uint8[8], v1: uint32): void {
-b0(v0: uint8[8], v1: uint32):
+function test(v0: [uint8; 8], v1: uint32): void {
+b0(v0: [uint8; 8], v1: uint32):
     v2: uint32 = 0uint32
     v3: uint32 = 1uint32
     v4: uint8 = 0uint8
@@ -1432,8 +1432,8 @@ b3:
     #[test]
     fn test_loop_idiom_memset_multi_block() {
         let input = r#"
-function test(v0: uint8[8], v1: uint32): void {
-b0(v0: uint8[8], v1: uint32):
+function test(v0: [uint8; 8], v1: uint32): void {
+b0(v0: [uint8; 8], v1: uint32):
     v2: uint32 = 0uint32
     v3: uint32 = 1uint32
     jump b1(v2)
@@ -1453,8 +1453,8 @@ b4:
 }"#;
 
         let expected = r#"
-function test(v0: uint8[8], v1: uint32): void {
-b0(v0: uint8[8], v1: uint32):
+function test(v0: [uint8; 8], v1: uint32): void {
+b0(v0: [uint8; 8], v1: uint32):
     v2: uint32 = 0uint32
     v3: uint32 = 1uint32
     v4: uint8 = 0uint8
@@ -1485,8 +1485,8 @@ b4:
     #[test]
     fn test_loop_idiom_skips_volatile_store() {
         let input = r#"
-function test(v0: uint8[8], v1: uint32): void {
-b0(v0: uint8[8], v1: uint32):
+function test(v0: [uint8; 8], v1: uint32): void {
+b0(v0: [uint8; 8], v1: uint32):
     v2: uint32 = 0uint32
     v3: uint32 = 1uint32
     jump b1(v2)
@@ -1548,8 +1548,8 @@ b3:
     #[test]
     fn test_loop_idiom_memcpy() {
         let input = r#"
-function test(v0: uint8[8], v1: uint8[8], v2: uint32): void {
-b0(v0: uint8[8], v1: uint8[8], v2: uint32):
+function test(v0: [uint8; 8], v1: [uint8; 8], v2: uint32): void {
+b0(v0: [uint8; 8], v1: [uint8; 8], v2: uint32):
     v3: uint32 = 0uint32
     v4: uint32 = 1uint32
     jump b1(v3)
@@ -1568,8 +1568,8 @@ b3:
 }"#;
 
         let expected = r#"
-function test(v0: uint8[8], v1: uint8[8], v2: uint32): void {
-b0(v0: uint8[8], v1: uint8[8], v2: uint32):
+function test(v0: [uint8; 8], v1: [uint8; 8], v2: uint32): void {
+b0(v0: [uint8; 8], v1: [uint8; 8], v2: uint32):
     v3: uint32 = 0uint32
     v4: uint32 = 1uint32
     v5: ref<uint8, borrowed> = element.address v0, v3
@@ -1599,8 +1599,8 @@ b3:
     #[test]
     fn test_loop_idiom_memmove_aliasing() {
         let input = r#"
-function test(v0: uint8[8], v1: uint32): void {
-b0(v0: uint8[8], v1: uint32):
+function test(v0: [uint8; 8], v1: uint32): void {
+b0(v0: [uint8; 8], v1: uint32):
     v2: uint32 = 0uint32
     v3: uint32 = 1uint32
     jump b1(v2)
@@ -1618,8 +1618,8 @@ b3:
 }"#;
 
         let expected = r#"
-function test(v0: uint8[8], v1: uint32): void {
-b0(v0: uint8[8], v1: uint32):
+function test(v0: [uint8; 8], v1: uint32): void {
+b0(v0: [uint8; 8], v1: uint32):
     v2: uint32 = 0uint32
     v3: uint32 = 1uint32
     v4: ref<uint8, borrowed> = element.address v0, v2
@@ -1648,8 +1648,8 @@ b3:
     #[test]
     fn test_loop_idiom_memcpy_multiplies_length() {
         let input = r#"
-function test(v0: uint32[8], v1: uint32[8]): void {
-b0(v0: uint32[8], v1: uint32[8]):
+function test(v0: [uint32; 8], v1: [uint32; 8]): void {
+b0(v0: [uint32; 8], v1: [uint32; 8]):
     v2: uint32 = 0uint32
     v3: uint32 = 1uint32
     v4: uint32 = 4uint32
@@ -1669,8 +1669,8 @@ b3:
 }"#;
 
         let expected = r#"
-function test(v0: uint32[8], v1: uint32[8]): void {
-b0(v0: uint32[8], v1: uint32[8]):
+function test(v0: [uint32; 8], v1: [uint32; 8]): void {
+b0(v0: [uint32; 8], v1: [uint32; 8]):
     v2: uint32 = 0uint32
     v3: uint32 = 1uint32
     v4: uint32 = 4uint32
@@ -1703,8 +1703,8 @@ b3:
     #[test]
     fn test_loop_idiom_memcpy_non_zero_start_multiplies_length() {
         let input = r#"
-function test(v0: uint32[8], v1: uint32[8]): void {
-b0(v0: uint32[8], v1: uint32[8]):
+function test(v0: [uint32; 8], v1: [uint32; 8]): void {
+b0(v0: [uint32; 8], v1: [uint32; 8]):
     v2: uint32 = 2uint32
     v3: uint32 = 1uint32
     v4: uint32 = 8uint32
@@ -1724,8 +1724,8 @@ b3:
 }"#;
 
         let expected = r#"
-function test(v0: uint32[8], v1: uint32[8]): void {
-b0(v0: uint32[8], v1: uint32[8]):
+function test(v0: [uint32; 8], v1: [uint32; 8]): void {
+b0(v0: [uint32; 8], v1: [uint32; 8]):
     v2: uint32 = 2uint32
     v3: uint32 = 1uint32
     v4: uint32 = 8uint32
@@ -1759,8 +1759,8 @@ b3:
     #[test]
     fn test_loop_idiom_guards_non_zero_start() {
         let input = r#"
-function test(v0: uint8[8], v1: uint32): void {
-b0(v0: uint8[8], v1: uint32):
+function test(v0: [uint8; 8], v1: uint32): void {
+b0(v0: [uint8; 8], v1: uint32):
     v2: uint32 = 1uint32
     v3: uint32 = 1uint32
     jump b1(v2)
@@ -1778,8 +1778,8 @@ b3:
 }"#;
 
         let expected = r#"
-function test(v0: uint8[8], v1: uint32): void {
-b0(v0: uint8[8], v1: uint32):
+function test(v0: [uint8; 8], v1: uint32): void {
+b0(v0: [uint8; 8], v1: uint32):
     v2: uint32 = 1uint32
     v3: uint32 = 1uint32
     v4: boolean = int.le.u v2, v1
@@ -1812,8 +1812,8 @@ b4:
     #[test]
     fn test_loop_idiom_memcpy_guards_non_zero_start() {
         let input = r#"
-function test(v0: uint8[8], v1: uint8[8], v2: uint32, v3: uint32): void {
-b0(v0: uint8[8], v1: uint8[8], v2: uint32, v3: uint32):
+function test(v0: [uint8; 8], v1: [uint8; 8], v2: uint32, v3: uint32): void {
+b0(v0: [uint8; 8], v1: [uint8; 8], v2: uint32, v3: uint32):
     v4: uint32 = 1uint32
     jump b1(v2)
 b1(v5: uint32):
@@ -1831,8 +1831,8 @@ b3:
 }"#;
 
         let expected = r#"
-function test(v0: uint8[8], v1: uint8[8], v2: uint32, v3: uint32): void {
-b0(v0: uint8[8], v1: uint8[8], v2: uint32, v3: uint32):
+function test(v0: [uint8; 8], v1: [uint8; 8], v2: uint32, v3: uint32): void {
+b0(v0: [uint8; 8], v1: [uint8; 8], v2: uint32, v3: uint32):
     v4: uint32 = 1uint32
     v5: boolean = int.le.u v2, v3
     branch v5, b4, b3
@@ -1865,8 +1865,8 @@ b4:
     #[test]
     fn test_loop_idiom_memmove_guards_non_zero_start() {
         let input = r#"
-function test(v0: uint8[8], v1: uint32, v2: uint32): void {
-b0(v0: uint8[8], v1: uint32, v2: uint32):
+function test(v0: [uint8; 8], v1: uint32, v2: uint32): void {
+b0(v0: [uint8; 8], v1: uint32, v2: uint32):
     v3: uint32 = 1uint32
     jump b1(v2)
 b1(v4: uint32):
@@ -1883,8 +1883,8 @@ b3:
 }"#;
 
         let expected = r#"
-function test(v0: uint8[8], v1: uint32, v2: uint32): void {
-b0(v0: uint8[8], v1: uint32, v2: uint32):
+function test(v0: [uint8; 8], v1: uint32, v2: uint32): void {
+b0(v0: [uint8; 8], v1: uint32, v2: uint32):
     v3: uint32 = 1uint32
     v4: boolean = int.le.u v2, v1
     branch v4, b4, b3
@@ -1916,8 +1916,8 @@ b4:
     #[test]
     fn test_loop_idiom_skips_non_unit_stride() {
         let input = r#"
-function test(v0: uint8[8], v1: uint32): void {
-b0(v0: uint8[8], v1: uint32):
+function test(v0: [uint8; 8], v1: uint32): void {
+b0(v0: [uint8; 8], v1: uint32):
     v2: uint32 = 0uint32
     v3: uint32 = 2uint32
     jump b1(v2)
@@ -1943,8 +1943,8 @@ b3:
     #[test]
     fn test_loop_idiom_skips_conditional_store() {
         let input = r#"
-function test(v0: uint8[8], v1: uint32, v2: boolean): void {
-b0(v0: uint8[8], v1: uint32, v2: boolean):
+function test(v0: [uint8; 8], v1: uint32, v2: boolean): void {
+b0(v0: [uint8; 8], v1: uint32, v2: boolean):
     v3: uint32 = 0uint32
     v4: uint32 = 1uint32
     jump b1(v3)
@@ -1974,8 +1974,8 @@ b5:
     #[test]
     fn test_loop_idiom_skips_nested_store() {
         let input = r#"
-function test(v0: uint8[8], v1: uint32): void {
-b0(v0: uint8[8], v1: uint32):
+function test(v0: [uint8; 8], v1: uint32): void {
+b0(v0: [uint8; 8], v1: uint32):
     v2: uint32 = 0uint32
     v3: uint32 = 1uint32
     v4: uint32 = 2uint32
@@ -2011,19 +2011,19 @@ b6:
     #[test]
     fn test_loop_idiom_skips_variant_array() {
         let input = r#"
-function test(v0: uint8[8], v1: uint32): void {
-b0(v0: uint8[8], v1: uint32):
+function test(v0: [uint8; 8], v1: uint32): void {
+b0(v0: [uint8; 8], v1: uint32):
     v2: uint32 = 0uint32
     v3: uint32 = 1uint32
     jump b1(v2, v0)
-b1(v4: uint32, v5: uint8[8]):
+b1(v4: uint32, v5: [uint8; 8]):
     v6: boolean = int.lt.u v4, v1
     branch v6, b2, b3
 b2:
     v7: ref<uint8, borrowed> = element.address v5, v4
     v8: uint8 = 0uint8
     store v7, v8
-    v9: uint8[8] = element.set v5, v4, v8
+    v9: [uint8; 8] = element.set v5, v4, v8
     v10: uint32 = int.add v4, v3
     jump b1(v10, v9)
 b3:
@@ -2039,8 +2039,8 @@ b3:
     #[test]
     fn test_loop_idiom_skips_non_constant_store() {
         let input = r#"
-function test(v0: uint8[8], v1: uint8, v2: uint32): void {
-b0(v0: uint8[8], v1: uint8, v2: uint32):
+function test(v0: [uint8; 8], v1: uint8, v2: uint32): void {
+b0(v0: [uint8; 8], v1: uint8, v2: uint32):
     v3: uint32 = 0uint32
     v4: uint32 = 1uint32
     jump b1(v3)
@@ -2065,8 +2065,8 @@ b3:
     #[test]
     fn test_loop_idiom_skips_side_effects() {
         let input = r#"
-function test(v0: uint8[8], v1: uint32): void {
-b0(v0: uint8[8], v1: uint32):
+function test(v0: [uint8; 8], v1: uint32): void {
+b0(v0: [uint8; 8], v1: uint32):
     v2: uint32 = 0uint32
     v3: uint32 = 1uint32
     jump b1(v2)
@@ -2097,8 +2097,8 @@ b0(v0: uint32):
     #[test]
     fn test_loop_idiom_skips_multiple_stores() {
         let input = r#"
-function test(v0: uint8[8], v1: uint8[8], v2: uint32): void {
-b0(v0: uint8[8], v1: uint8[8], v2: uint32):
+function test(v0: [uint8; 8], v1: [uint8; 8], v2: uint32): void {
+b0(v0: [uint8; 8], v1: [uint8; 8], v2: uint32):
     v3: uint32 = 0uint32
     v4: uint32 = 1uint32
     jump b1(v3)

@@ -1025,8 +1025,8 @@ b2:
     fn test_cvp_handles_check_terminator() {
         // source test
         let input = r#"
-function test(v0: uint32, v1: uint32, v2: uint32[4]): uint32 {
-b0(v0: uint32, v1: uint32, v2: uint32[4]):
+function test(v0: uint32, v1: uint32, v2: [uint32; 4]): uint32 {
+b0(v0: uint32, v1: uint32, v2: [uint32; 4]):
     v3: boolean = int.eq v0, v1
     check bounds.u v0, v1, v2 -> b1, b2
 b1:
@@ -1038,8 +1038,8 @@ b2:
 
         // expected output
         let expected = r#"
-function test(v0: uint32, v1: uint32, v2: uint32[4]): uint32 {
-b0(v0: uint32, v1: uint32, v2: uint32[4]):
+function test(v0: uint32, v1: uint32, v2: [uint32; 4]): uint32 {
+b0(v0: uint32, v1: uint32, v2: [uint32; 4]):
     v3: boolean = int.eq v0, v1
     check bounds.u v0, v1, v2 -> b1, b2
 b1:

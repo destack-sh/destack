@@ -318,7 +318,7 @@ fn type_requires_layout(ty: &mir::Type) -> bool {
         mir::Type::Struct { .. }
             | mir::Type::Tuple { .. }
             | mir::Type::Array { .. }
-            | mir::Type::Union { .. }
+            | mir::Type::Variant { .. }
     )
 }
 

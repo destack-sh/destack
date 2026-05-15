@@ -902,8 +902,8 @@ b2(v10: int32):
     fn test_simplify_check_terminator() {
         // source test
         let input = r#"
-function test(v0: int32[4]): void {
-b0(v0: int32[4]):
+function test(v0: [int32; 4]): void {
+b0(v0: [int32; 4]):
     v1: uint32 = 0uint32
     v2: uint32 = 1uint32
     v3: uint32 = 4uint32
@@ -918,8 +918,8 @@ b2:
 
         // expected output
         let expected = r#"
-function test(v0: int32[4]): void {
-b0(v0: int32[4]):
+function test(v0: [int32; 4]): void {
+b0(v0: [int32; 4]):
     v1: uint32 = 0uint32
     v2: uint32 = 1uint32
     v3: uint32 = 4uint32

@@ -12,8 +12,8 @@ declare_mir_pass! {
     /// remove checks that are guaranteed to take one edge.
     ///
     /// ```mir
-    /// function before(v0: uint32, v1: uint32, v2: uint32[4]): uint32 {
-    /// b0(v0: uint32, v1: uint32, v2: uint32[4]):
+    /// function before(v0: uint32, v1: uint32, v2: [uint32; 4]): uint32 {
+    /// b0(v0: uint32, v1: uint32, v2: [uint32; 4]):
     ///     v3 = int.eq v0, v1
     ///     branch v3, b1, b2
     /// b1:
@@ -28,8 +28,8 @@ declare_mir_pass! {
     /// ```
     /// becomes:
     /// ```mir
-    /// function after(v0: uint32, v1: uint32, v2: uint32[4]): uint32 {
-    /// b0(v0: uint32, v1: uint32, v2: uint32[4]):
+    /// function after(v0: uint32, v1: uint32, v2: [uint32; 4]): uint32 {
+    /// b0(v0: uint32, v1: uint32, v2: [uint32; 4]):
     ///     v3 = int.eq v0, v1
     ///     branch v3, b1, b2
     /// b1:
@@ -130,8 +130,8 @@ mod tests {
     #[test]
     fn test_guard_eliminate_branch_facts() {
         let input = r#"
-function test(v0: uint32, v1: uint32, v2: uint32[4]): uint32 {
-b0(v0: uint32, v1: uint32, v2: uint32[4]):
+function test(v0: uint32, v1: uint32, v2: [uint32; 4]): uint32 {
+b0(v0: uint32, v1: uint32, v2: [uint32; 4]):
     v3: boolean = int.eq v0, v1
     branch v3, b1, b2
 b1:
@@ -144,8 +144,8 @@ b4:
     unreachable
 }"#;
         let expected = r#"
-function test(v0: uint32, v1: uint32, v2: uint32[4]): uint32 {
-b0(v0: uint32, v1: uint32, v2: uint32[4]):
+function test(v0: uint32, v1: uint32, v2: [uint32; 4]): uint32 {
+b0(v0: uint32, v1: uint32, v2: [uint32; 4]):
     v3: boolean = int.eq v0, v1
     branch v3, b1, b2
 b1:
@@ -167,8 +167,8 @@ b4:
     #[test]
     fn test_guard_eliminate_assume_fact() {
         let input = r#"
-function test(v0: uint32, v1: uint32, v2: uint32[4]): uint32 {
-b0(v0: uint32, v1: uint32, v2: uint32[4]):
+function test(v0: uint32, v1: uint32, v2: [uint32; 4]): uint32 {
+b0(v0: uint32, v1: uint32, v2: [uint32; 4]):
     v3: boolean = int.eq v0, v1
     assume v3
     check bounds.u v0, v1, v2 -> b1, b2
@@ -178,8 +178,8 @@ b2:
     unreachable
 }"#;
         let expected = r#"
-function test(v0: uint32, v1: uint32, v2: uint32[4]): uint32 {
-b0(v0: uint32, v1: uint32, v2: uint32[4]):
+function test(v0: uint32, v1: uint32, v2: [uint32; 4]): uint32 {
+b0(v0: uint32, v1: uint32, v2: [uint32; 4]):
     v3: boolean = int.eq v0, v1
     assume v3
     jump b1
@@ -198,8 +198,8 @@ b2:
     #[test]
     fn test_guard_eliminate_constant_condition() {
         let input = r#"
-function test(v0: uint32, v1: uint32, v2: uint32[4]): uint32 {
-b0(v0: uint32, v1: uint32, v2: uint32[4]):
+function test(v0: uint32, v1: uint32, v2: [uint32; 4]): uint32 {
+b0(v0: uint32, v1: uint32, v2: [uint32; 4]):
     v3: boolean = false
     check bounds.u v0, v1, v2 -> b1, b2
 b1:
@@ -208,8 +208,8 @@ b2:
     return v1
 }"#;
         let expected = r#"
-function test(v0: uint32, v1: uint32, v2: uint32[4]): uint32 {
-b0(v0: uint32, v1: uint32, v2: uint32[4]):
+function test(v0: uint32, v1: uint32, v2: [uint32; 4]): uint32 {
+b0(v0: uint32, v1: uint32, v2: [uint32; 4]):
     v3: boolean = false
     jump b2
 b1:
@@ -227,8 +227,8 @@ b2:
     #[test]
     fn test_guard_eliminate_negated_condition() {
         let input = r#"
-function test(v0: uint32, v1: uint32, v2: uint32[4]): uint32 {
-b0(v0: uint32, v1: uint32, v2: uint32[4]):
+function test(v0: uint32, v1: uint32, v2: [uint32; 4]): uint32 {
+b0(v0: uint32, v1: uint32, v2: [uint32; 4]):
     v3: boolean = int.eq v0, v1
     v4: boolean = int.not v3
     branch v3, b1, b2
@@ -242,8 +242,8 @@ b4:
     unreachable
 }"#;
         let expected = r#"
-function test(v0: uint32, v1: uint32, v2: uint32[4]): uint32 {
-b0(v0: uint32, v1: uint32, v2: uint32[4]):
+function test(v0: uint32, v1: uint32, v2: [uint32; 4]): uint32 {
+b0(v0: uint32, v1: uint32, v2: [uint32; 4]):
     v3: boolean = int.eq v0, v1
     v4: boolean = int.not v3
     branch v3, b1, b2
@@ -266,8 +266,8 @@ b4:
     #[test]
     fn test_guard_eliminate_block_param_condition() {
         let input = r#"
-function test(v0: uint32, v1: uint32, v2: uint32[4]): uint32 {
-b0(v0: uint32, v1: uint32, v2: uint32[4]):
+function test(v0: uint32, v1: uint32, v2: [uint32; 4]): uint32 {
+b0(v0: uint32, v1: uint32, v2: [uint32; 4]):
     v3: boolean = int.eq v0, v1
     branch v3, b1(v3), b2(v3)
 b1(v4: boolean):
@@ -280,8 +280,8 @@ b4:
     unreachable
 }"#;
         let expected = r#"
-function test(v0: uint32, v1: uint32, v2: uint32[4]): uint32 {
-b0(v0: uint32, v1: uint32, v2: uint32[4]):
+function test(v0: uint32, v1: uint32, v2: [uint32; 4]): uint32 {
+b0(v0: uint32, v1: uint32, v2: [uint32; 4]):
     v3: boolean = int.eq v0, v1
     branch v3, b1(v3), b2(v3)
 b1(v4: boolean):
@@ -303,8 +303,8 @@ b4:
     #[test]
     fn test_guard_eliminate_check_edge_fact() {
         let input = r#"
-function test(v0: boolean, v1: uint32, v2: uint32, v3: uint32[4]): uint32 {
-b0(v0: boolean, v1: uint32, v2: uint32, v3: uint32[4]):
+function test(v0: boolean, v1: uint32, v2: uint32, v3: [uint32; 4]): uint32 {
+b0(v0: boolean, v1: uint32, v2: uint32, v3: [uint32; 4]):
     check bounds.u v1, v2, v3 -> b1, b2
 b1:
     check bounds.u v1, v2, v3 -> b3, b4
@@ -316,8 +316,8 @@ b4:
     unreachable
 }"#;
         let expected = r#"
-function test(v0: boolean, v1: uint32, v2: uint32, v3: uint32[4]): uint32 {
-b0(v0: boolean, v1: uint32, v2: uint32, v3: uint32[4]):
+function test(v0: boolean, v1: uint32, v2: uint32, v3: [uint32; 4]): uint32 {
+b0(v0: boolean, v1: uint32, v2: uint32, v3: [uint32; 4]):
     check bounds.u v1, v2, v3 -> b1, b2
 b1:
     jump b3
@@ -338,8 +338,8 @@ b4:
     #[test]
     fn test_guard_eliminate_bounds_constraint_success() {
         let input = r#"
-function test(v0: boolean, v1: uint32[4]): uint32 {
-b0(v0: boolean, v1: uint32[4]):
+function test(v0: boolean, v1: [uint32; 4]): uint32 {
+b0(v0: boolean, v1: [uint32; 4]):
     v2: uint32 = 2uint32
     v3: uint32 = 4uint32
     check bounds.u v2, v3, v1 -> b1, b2
@@ -349,8 +349,8 @@ b2:
     unreachable
 }"#;
         let expected = r#"
-function test(v0: boolean, v1: uint32[4]): uint32 {
-b0(v0: boolean, v1: uint32[4]):
+function test(v0: boolean, v1: [uint32; 4]): uint32 {
+b0(v0: boolean, v1: [uint32; 4]):
     v2: uint32 = 2uint32
     v3: uint32 = 4uint32
     jump b1
@@ -369,8 +369,8 @@ b2:
     #[test]
     fn test_guard_eliminate_bounds_constraint_failure() {
         let input = r#"
-function test(v0: boolean, v1: uint32[0]): uint32 {
-b0(v0: boolean, v1: uint32[0]):
+function test(v0: boolean, v1: [uint32; 0]): uint32 {
+b0(v0: boolean, v1: [uint32; 0]):
     v2: uint32 = 0uint32
     v3: uint32 = 0uint32
     check bounds.u v2, v3, v1 -> b1, b2
@@ -380,8 +380,8 @@ b2:
     return v2
 }"#;
         let expected = r#"
-function test(v0: boolean, v1: uint32[0]): uint32 {
-b0(v0: boolean, v1: uint32[0]):
+function test(v0: boolean, v1: [uint32; 0]): uint32 {
+b0(v0: boolean, v1: [uint32; 0]):
     v2: uint32 = 0uint32
     v3: uint32 = 0uint32
     jump b2

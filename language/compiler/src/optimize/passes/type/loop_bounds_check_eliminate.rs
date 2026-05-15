@@ -17,8 +17,8 @@ declare_mir_pass! {
     /// loop bodies when the guard implies the bounds check is satisfied.
     ///
     /// ```mir
-    /// function before(v0: int32[4]): void {
-    /// b0(v0: int32[4]):
+    /// function before(v0: [int32; 4]): void {
+    /// b0(v0: [int32; 4]):
     ///     v1 = 0uint32
     ///     v2 = 1uint32
     ///     v3 = 4uint32
@@ -40,8 +40,8 @@ declare_mir_pass! {
     /// ```
     /// becomes:
     /// ```mir
-    /// function after(v0: int32[4]): void {
-    /// b0(v0: int32[4]):
+    /// function after(v0: [int32; 4]): void {
+    /// b0(v0: [int32; 4]):
     ///     v1 = 0uint32
     ///     v2 = 1uint32
     ///     v3 = 4uint32
@@ -945,8 +945,8 @@ mod tests {
     fn test_eliminate_loop_bounds_check() {
         // source test
         let input = r#"
-function test(v0: int32[4]): void {
-b0(v0: int32[4]):
+function test(v0: [int32; 4]): void {
+b0(v0: [int32; 4]):
     v1: uint32 = 0uint32
     v2: uint32 = 1uint32
     v3: uint32 = 4uint32
@@ -968,8 +968,8 @@ b5:
 
         // expected output
         let expected = r#"
-function test(v0: int32[4]): void {
-b0(v0: int32[4]):
+function test(v0: [int32; 4]): void {
+b0(v0: [int32; 4]):
     v1: uint32 = 0uint32
     v2: uint32 = 1uint32
     v3: uint32 = 4uint32
@@ -1000,8 +1000,8 @@ b5:
     fn test_preserve_pre_guard_checks() {
         // source test
         let input = r#"
-function test(v0: int32[4]): void {
-b0(v0: int32[4]):
+function test(v0: [int32; 4]): void {
+b0(v0: [int32; 4]):
     v1: uint32 = 0uint32
     v2: uint32 = 1uint32
     v3: uint32 = 4uint32
@@ -1021,8 +1021,8 @@ b4:
 
         // expected output
         let expected = r#"
-function test(v0: int32[4]): void {
-b0(v0: int32[4]):
+function test(v0: [int32; 4]): void {
+b0(v0: [int32; 4]):
     v1: uint32 = 0uint32
     v2: uint32 = 1uint32
     v3: uint32 = 4uint32
@@ -1051,8 +1051,8 @@ b4:
     fn test_eliminate_ge_guard_checks() {
         // source test
         let input = r#"
-function test(v0: int32[4]): void {
-b0(v0: int32[4]):
+function test(v0: [int32; 4]): void {
+b0(v0: [int32; 4]):
     v1: uint32 = 0uint32
     v2: uint32 = 1uint32
     v3: uint32 = 4uint32
@@ -1074,8 +1074,8 @@ b5:
 
         // expected output
         let expected = r#"
-function test(v0: int32[4]): void {
-b0(v0: int32[4]):
+function test(v0: [int32; 4]): void {
+b0(v0: [int32; 4]):
     v1: uint32 = 0uint32
     v2: uint32 = 1uint32
     v3: uint32 = 4uint32
@@ -1106,8 +1106,8 @@ b5:
     fn test_preserve_signed_negative_indices() {
         // source test
         let input = r#"
-function test(v0: int32[4], v1: int32): void {
-b0(v0: int32[4], v1: int32):
+function test(v0: [int32; 4], v1: int32): void {
+b0(v0: [int32; 4], v1: int32):
     v2: int32 = 1int32
     v3: int32 = 4int32
     jump b1(v1)
@@ -1128,8 +1128,8 @@ b5:
 
         // expected output
         let expected = r#"
-function test(v0: int32[4], v1: int32): void {
-b0(v0: int32[4], v1: int32):
+function test(v0: [int32; 4], v1: int32): void {
+b0(v0: [int32; 4], v1: int32):
     v2: int32 = 1int32
     v3: int32 = 4int32
     jump b1(v1)
@@ -1159,8 +1159,8 @@ b5:
     fn test_eliminate_forwarded_param_checks() {
         // source test
         let input = r#"
-function test(v0: int32[4]): void {
-b0(v0: int32[4]):
+function test(v0: [int32; 4]): void {
+b0(v0: [int32; 4]):
     v1: uint32 = 0uint32
     v2: uint32 = 1uint32
     v3: uint32 = 4uint32
@@ -1182,8 +1182,8 @@ b5:
 
         // expected output
         let expected = r#"
-function test(v0: int32[4]): void {
-b0(v0: int32[4]):
+function test(v0: [int32; 4]): void {
+b0(v0: [int32; 4]):
     v1: uint32 = 0uint32
     v2: uint32 = 1uint32
     v3: uint32 = 4uint32
@@ -1214,8 +1214,8 @@ b5:
     fn test_eliminate_signed_bounds_with_non_negative_guard() {
         // source test
         let input = r#"
-function test(v0: int32[8], v1: int32): void {
-b0(v0: int32[8], v1: int32):
+function test(v0: [int32; 8], v1: int32): void {
+b0(v0: [int32; 8], v1: int32):
     v2: int32 = 0int32
     v3: int32 = 8int32
     jump b1(v1)
@@ -1240,8 +1240,8 @@ b6:
 
         // expected output
         let expected = r#"
-function test(v0: int32[8], v1: int32): void {
-b0(v0: int32[8], v1: int32):
+function test(v0: [int32; 8], v1: int32): void {
+b0(v0: [int32; 8], v1: int32):
     v2: int32 = 0int32
     v3: int32 = 8int32
     jump b1(v1)
@@ -1275,8 +1275,8 @@ b6:
     fn test_eliminate_signed_bounds_with_positive_guard() {
         // source test
         let input = r#"
-function test(v0: int32[8], v1: int32): void {
-b0(v0: int32[8], v1: int32):
+function test(v0: [int32; 8], v1: int32): void {
+b0(v0: [int32; 8], v1: int32):
     v2: int32 = 2int32
     v3: int32 = 8int32
     jump b1(v1)
@@ -1301,8 +1301,8 @@ b6:
 
         // expected output
         let expected = r#"
-function test(v0: int32[8], v1: int32): void {
-b0(v0: int32[8], v1: int32):
+function test(v0: [int32; 8], v1: int32): void {
+b0(v0: [int32; 8], v1: int32):
     v2: int32 = 2int32
     v3: int32 = 8int32
     jump b1(v1)
@@ -1336,8 +1336,8 @@ b6:
     fn test_eliminate_signed_bounds_with_flipped_guard() {
         // source test
         let input = r#"
-function test(v0: int32[8], v1: int32): void {
-b0(v0: int32[8], v1: int32):
+function test(v0: [int32; 8], v1: int32): void {
+b0(v0: [int32; 8], v1: int32):
     v2: int32 = 0int32
     v3: int32 = 8int32
     jump b1(v1)
@@ -1362,8 +1362,8 @@ b6:
 
         // expected output
         let expected = r#"
-function test(v0: int32[8], v1: int32): void {
-b0(v0: int32[8], v1: int32):
+function test(v0: [int32; 8], v1: int32): void {
+b0(v0: [int32; 8], v1: int32):
     v2: int32 = 0int32
     v3: int32 = 8int32
     jump b1(v1)
@@ -1397,8 +1397,8 @@ b6:
     fn test_eliminate_bounds_with_negated_guard() {
         // source test
         let input = r#"
-function test(v0: uint32[4]): void {
-b0(v0: uint32[4]):
+function test(v0: [uint32; 4]): void {
+b0(v0: [uint32; 4]):
     v1: uint32 = 0uint32
     v2: uint32 = 1uint32
     v3: uint32 = 4uint32
@@ -1420,8 +1420,8 @@ b5:
 }"#;
         // expected output
         let expected = r#"
-function test(v0: uint32[4]): void {
-b0(v0: uint32[4]):
+function test(v0: [uint32; 4]): void {
+b0(v0: [uint32; 4]):
     v1: uint32 = 0uint32
     v2: uint32 = 1uint32
     v3: uint32 = 4uint32
@@ -1453,8 +1453,8 @@ b5:
     fn test_eliminate_bounds_guard_check() {
         // source test
         let input = r#"
-function test(v0: int32[4]): void {
-b0(v0: int32[4]):
+function test(v0: [int32; 4]): void {
+b0(v0: [int32; 4]):
     v1: uint32 = 0uint32
     v2: uint32 = 1uint32
     v3: uint32 = 4uint32
@@ -1476,8 +1476,8 @@ b5:
 
         // expected output
         let expected = r#"
-function test(v0: int32[4]): void {
-b0(v0: int32[4]):
+function test(v0: [int32; 4]): void {
+b0(v0: [int32; 4]):
     v1: uint32 = 0uint32
     v2: uint32 = 1uint32
     v3: uint32 = 4uint32
@@ -1508,8 +1508,8 @@ b5:
     fn test_preserve_mismatched_signed_guard() {
         // source test
         let input = r#"
-function test(v0: int32[4], v1: int32): void {
-b0(v0: int32[4], v1: int32):
+function test(v0: [int32; 4], v1: int32): void {
+b0(v0: [int32; 4], v1: int32):
     v2: int32 = 0int32
     v3: int32 = 4int32
     jump b1(v1)
@@ -1530,8 +1530,8 @@ b5:
 
         // expected output
         let expected = r#"
-function test(v0: int32[4], v1: int32): void {
-b0(v0: int32[4], v1: int32):
+function test(v0: [int32; 4], v1: int32): void {
+b0(v0: [int32; 4], v1: int32):
     v2: int32 = 0int32
     v3: int32 = 4int32
     jump b1(v1)
@@ -1561,8 +1561,8 @@ b5:
     fn test_eliminate_guard_with_positive_offset() {
         // source test
         let input = r#"
-function test(v0: int32[8]): void {
-b0(v0: int32[8]):
+function test(v0: [int32; 8]): void {
+b0(v0: [int32; 8]):
     v1: uint32 = 0uint32
     v2: uint32 = 1uint32
     v3: uint32 = 8uint32
@@ -1585,8 +1585,8 @@ b5:
 
         // expected output
         let expected = r#"
-function test(v0: int32[8]): void {
-b0(v0: int32[8]):
+function test(v0: [int32; 8]): void {
+b0(v0: [int32; 8]):
     v1: uint32 = 0uint32
     v2: uint32 = 1uint32
     v3: uint32 = 8uint32
@@ -1618,8 +1618,8 @@ b5:
     fn test_preserve_check_with_positive_offset() {
         // source test
         let input = r#"
-function test(v0: int32[8]): void {
-b0(v0: int32[8]):
+function test(v0: [int32; 8]): void {
+b0(v0: [int32; 8]):
     v1: uint32 = 0uint32
     v2: uint32 = 1uint32
     v3: uint32 = 8uint32
@@ -1642,8 +1642,8 @@ b5:
 
         // expected output
         let expected = r#"
-function test(v0: int32[8]): void {
-b0(v0: int32[8]):
+function test(v0: [int32; 8]): void {
+b0(v0: [int32; 8]):
     v1: uint32 = 0uint32
     v2: uint32 = 1uint32
     v3: uint32 = 8uint32
@@ -1675,8 +1675,8 @@ b5:
     fn test_eliminate_guard_with_length_offset() {
         // source test
         let input = r#"
-function test(v0: int32[8]): void {
-b0(v0: int32[8]):
+function test(v0: [int32; 8]): void {
+b0(v0: [int32; 8]):
     v1: uint32 = 0uint32
     v2: uint32 = 1uint32
     v3: uint32 = 8uint32
@@ -1699,8 +1699,8 @@ b5:
 
         // expected output
         let expected = r#"
-function test(v0: int32[8]): void {
-b0(v0: int32[8]):
+function test(v0: [int32; 8]): void {
+b0(v0: [int32; 8]):
     v1: uint32 = 0uint32
     v2: uint32 = 1uint32
     v3: uint32 = 8uint32
@@ -1732,8 +1732,8 @@ b5:
     fn test_preserve_guard_with_larger_length_offset() {
         // source test
         let input = r#"
-function test(v0: int32[8]): void {
-b0(v0: int32[8]):
+function test(v0: [int32; 8]): void {
+b0(v0: [int32; 8]):
     v1: uint32 = 0uint32
     v2: uint32 = 1uint32
     v3: uint32 = 8uint32
@@ -1756,8 +1756,8 @@ b5:
 
         // expected output
         let expected = r#"
-function test(v0: int32[8]): void {
-b0(v0: int32[8]):
+function test(v0: [int32; 8]): void {
+b0(v0: [int32; 8]):
     v1: uint32 = 0uint32
     v2: uint32 = 1uint32
     v3: uint32 = 8uint32

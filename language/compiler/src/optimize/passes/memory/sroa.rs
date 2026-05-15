@@ -157,7 +157,7 @@ struct ReferenceSpec {
     /// The access for the reference.
     access: mir::Access,
     /// The nullability for the reference.
-    is_nullable: bool,
+    nullability: mir::Nullability,
 }
 
 impl ReferenceSpec {
@@ -167,7 +167,7 @@ impl ReferenceSpec {
             kind,
             address_space,
             access,
-            is_nullable,
+            nullability,
             ..
         } = ty
         else {
@@ -178,7 +178,7 @@ impl ReferenceSpec {
             kind: *kind,
             address_space: address_space.clone(),
             access: *access,
-            is_nullable: *is_nullable,
+            nullability: *nullability,
         })
     }
 }
@@ -522,7 +522,7 @@ fn split_allocation(
             address_space: candidate.reference_spec.address_space.clone(),
             access: candidate.reference_spec.access,
             pointee: elem_type.into(),
-            is_nullable: candidate.reference_spec.is_nullable,
+            nullability: candidate.reference_spec.nullability,
         });
         let new_value = function.next_typed_value(result_type);
         new_allocs.push(new_value);
@@ -907,7 +907,7 @@ b0:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32[4], raw, space(stack)> = stack.alloc int32[4]
+    v0: ref<[int32; 4], raw, space(stack)> = stack.alloc [int32; 4]
     v1: int64 = 0int64
     v2: ref<int32, borrowed> = element.address v0, v1
     v3: int32 = 42int32
@@ -942,7 +942,7 @@ b0:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32[100], raw, space(stack)> = stack.alloc int32[100]
+    v0: ref<[int32; 100], raw, space(stack)> = stack.alloc [int32; 100]
     v1: int64 = 0int64
     v2: ref<int32, borrowed> = element.address v0, v1
     v3: int32 = 42int32
@@ -967,7 +967,7 @@ type Point {
     int32;
     int32;
 }
-extern function external(ref<Point, raw>): void
+external function external(ref<Point, raw>): void
 function test(): void {
 b0:
     v0: ref<Point, raw, space(stack)> = stack.alloc Point
@@ -989,7 +989,7 @@ b0:
         let input = r#"
 function test(v0: int64): int32 {
 b0(v0: int64):
-    v1: ref<int32[4], raw, space(stack)> = stack.alloc int32[4]
+    v1: ref<[int32; 4], raw, space(stack)> = stack.alloc [int32; 4]
     v2: ref<int32, borrowed> = element.address v1, v0
     v3: int32 = 42int32
     store v2, v3
@@ -1213,7 +1213,7 @@ b0(v0: boolean):
     v1: int64 = 0int64
     branch v0, b1(v1), b1(v1)
 b1(v2: int64):
-    v3: ref<int32[2], raw, space(stack)> = stack.alloc int32[2]
+    v3: ref<[int32; 2], raw, space(stack)> = stack.alloc [int32; 2]
     v4: ref<int32, borrowed> = element.address v3, v2
     v5: int32 = 42int32
     store v4, v5
@@ -1292,12 +1292,12 @@ b0:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32[2], raw, space(stack)> = stack.alloc int32[2]
+    v0: ref<[int32; 2], raw, space(stack)> = stack.alloc [int32; 2]
     v1: int32 = 10int32
     v2: int32 = 20int32
-    v3: int32[2] = array int32[2] (v1, v2)
+    v3: [int32; 2] = array [int32; 2] (v1, v2)
     store v0, v3
-    v4: int32[2] = load v0
+    v4: [int32; 2] = load v0
     v5: int64 = 1int64
     v6: int32 = element.get v4, v5
     return v6
@@ -1309,7 +1309,7 @@ b0:
     v1: ref<int32, raw, space(stack)> = stack.alloc int32
     v2: int32 = 10int32
     v3: int32 = 20int32
-    v4: int32[2] = array int32[2] (v2, v3)
+    v4: [int32; 2] = array [int32; 2] (v2, v3)
     v5: int64 = 0int64
     v6: int32 = element.get v4, v5
     store v1, v6
@@ -1318,7 +1318,7 @@ b0:
     store v0, v8
     v9: int32 = load v1
     v10: int32 = load v0
-    v11: int32[2] = array int32[2] (v9, v10)
+    v11: [int32; 2] = array [int32; 2] (v9, v10)
     v12: int64 = 1int64
     v13: int32 = element.get v11, v12
     return v13

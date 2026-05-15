@@ -18,8 +18,8 @@ declare_mir_pass! {
     /// to remove checks that are guaranteed to succeed.
     ///
     /// ```mir
-    /// function before(v0: int32[4]): void {
-    /// b0(v0: int32[4]):
+    /// function before(v0: [int32; 4]): void {
+    /// b0(v0: [int32; 4]):
     ///     v1 = 2uint32
     ///     v2 = 4uint32
     ///     v3 = int.lt.u v1, v2
@@ -35,8 +35,8 @@ declare_mir_pass! {
     /// ```
     /// becomes:
     /// ```mir
-    /// function after(v0: int32[4]): void {
-    /// b0(v0: int32[4]):
+    /// function after(v0: [int32; 4]): void {
+    /// b0(v0: [int32; 4]):
     ///     v1 = 2uint32
     ///     v2 = 4uint32
     ///     v3 = int.lt.u v1, v2
@@ -1604,8 +1604,8 @@ mod tests {
     fn test_preserve_constant_bounds_branch() {
         // source test
         let input = r#"
-function test(v0: int32[4]): int32 {
-b0(v0: int32[4]):
+function test(v0: [int32; 4]): int32 {
+b0(v0: [int32; 4]):
     v1: uint32 = 2uint32
     v2: uint32 = 4uint32
     v3: boolean = int.lt.u v1, v2
@@ -1630,8 +1630,8 @@ b2:
     fn test_eliminate_constant_check_bounds() {
         // source test
         let input = r#"
-function test(v0: int32[4]): int32 {
-b0(v0: int32[4]):
+function test(v0: [int32; 4]): int32 {
+b0(v0: [int32; 4]):
     v1: uint32 = 2uint32
     v2: uint32 = 4uint32
     v3: boolean = int.lt.u v1, v2
@@ -1645,8 +1645,8 @@ b2:
 
         // expected output
         let expected = r#"
-function test(v0: int32[4]): int32 {
-b0(v0: int32[4]):
+function test(v0: [int32; 4]): int32 {
+b0(v0: [int32; 4]):
     v1: uint32 = 2uint32
     v2: uint32 = 4uint32
     v3: boolean = int.lt.u v1, v2
@@ -1669,8 +1669,8 @@ b2:
     fn test_preserve_redundant_bounds_branch() {
         // source test
         let input = r#"
-function test(v0: int32[4], v1: uint32): int32 {
-b0(v0: int32[4], v1: uint32):
+function test(v0: [int32; 4], v1: uint32): int32 {
+b0(v0: [int32; 4], v1: uint32):
     v2: uint32 = 4uint32
     v3: boolean = int.lt.u v1, v2
     branch v3, b1, b2
@@ -1697,8 +1697,8 @@ b3:
     fn test_eliminate_redundant_check_bounds() {
         // source test
         let input = r#"
-function test(v0: int32[4], v1: uint32): int32 {
-b0(v0: int32[4], v1: uint32):
+function test(v0: [int32; 4], v1: uint32): int32 {
+b0(v0: [int32; 4], v1: uint32):
     v2: uint32 = 4uint32
     v3: boolean = int.lt.u v1, v2
     check bounds.u v1, v2, v0 -> b1, b2
@@ -1714,8 +1714,8 @@ b3:
 
         // expected output
         let expected = r#"
-function test(v0: int32[4], v1: uint32): int32 {
-b0(v0: int32[4], v1: uint32):
+function test(v0: [int32; 4], v1: uint32): int32 {
+b0(v0: [int32; 4], v1: uint32):
     v2: uint32 = 4uint32
     v3: boolean = int.lt.u v1, v2
     check bounds.u v1, v2, v0 -> b1, b2
@@ -1740,8 +1740,8 @@ b3:
     fn test_preserve_unknown_bounds_check() {
         // source test
         let input = r#"
-function test(v0: int32[4], v1: uint32): int32 {
-b0(v0: int32[4], v1: uint32):
+function test(v0: [int32; 4], v1: uint32): int32 {
+b0(v0: [int32; 4], v1: uint32):
     v2: uint32 = 4uint32
     v3: boolean = int.lt.u v1, v2
     branch v3, b1, b2
@@ -1763,8 +1763,8 @@ b2:
     fn test_preserve_conjoined_bounds_branch() {
         // source test
         let input = r#"
-function test(v0: int32[8]): int32 {
-b0(v0: int32[8]):
+function test(v0: [int32; 8]): int32 {
+b0(v0: [int32; 8]):
     v1: int32 = 3int32
     v2: int32 = 0int32
     v3: int32 = 8int32
@@ -1792,8 +1792,8 @@ b2:
     fn test_assume_implies_bounds_check() {
         // source test
         let input = r#"
-function test(v0: int32[16], v1: uint32): int32 {
-b0(v0: int32[16], v1: uint32):
+function test(v0: [int32; 16], v1: uint32): int32 {
+b0(v0: [int32; 16], v1: uint32):
     v2: uint32 = 16uint32
     v3: boolean = int.lt.u v1, v2
     assume v3
@@ -1808,8 +1808,8 @@ b2:
 
         // expected output
         let expected = r#"
-function test(v0: int32[16], v1: uint32): int32 {
-b0(v0: int32[16], v1: uint32):
+function test(v0: [int32; 16], v1: uint32): int32 {
+b0(v0: [int32; 16], v1: uint32):
     v2: uint32 = 16uint32
     v3: boolean = int.lt.u v1, v2
     assume v3
@@ -1833,8 +1833,8 @@ b2:
     fn test_signed_bounds_constraints() {
         // source test
         let input = r#"
-function test(v0: int32[8], v1: int32): int32 {
-b0(v0: int32[8], v1: int32):
+function test(v0: [int32; 8], v1: int32): int32 {
+b0(v0: [int32; 8], v1: int32):
     v2: int32 = 0int32
     v3: int32 = 8int32
     v4: boolean = int.ge.s v1, v2
@@ -1852,8 +1852,8 @@ b3:
 
         // expected output
         let expected = r#"
-function test(v0: int32[8], v1: int32): int32 {
-b0(v0: int32[8], v1: int32):
+function test(v0: [int32; 8], v1: int32): int32 {
+b0(v0: [int32; 8], v1: int32):
     v2: int32 = 0int32
     v3: int32 = 8int32
     v4: boolean = int.ge.s v1, v2
@@ -1880,8 +1880,8 @@ b3:
     fn test_eliminate_dominated_bounds_check() {
         // source test
         let input = r#"
-function test(v0: int32[4], v1: uint32): int32 {
-b0(v0: int32[4], v1: uint32):
+function test(v0: [int32; 4], v1: uint32): int32 {
+b0(v0: [int32; 4], v1: uint32):
     v2: uint32 = 4uint32
     v3: boolean = int.lt.u v1, v2
     branch v3, b1, b2
@@ -1899,8 +1899,8 @@ b4:
 
         // expected output
         let expected = r#"
-function test(v0: int32[4], v1: uint32): int32 {
-b0(v0: int32[4], v1: uint32):
+function test(v0: [int32; 4], v1: uint32): int32 {
+b0(v0: [int32; 4], v1: uint32):
     v2: uint32 = 4uint32
     v3: boolean = int.lt.u v1, v2
     branch v3, b1, b2
@@ -1927,8 +1927,8 @@ b4:
     fn test_eliminate_bounds_check_with_block_param() {
         // source test
         let input = r#"
-function test(v0: int32[4], v1: uint32): int32 {
-b0(v0: int32[4], v1: uint32):
+function test(v0: [int32; 4], v1: uint32): int32 {
+b0(v0: [int32; 4], v1: uint32):
     v2: uint32 = 4uint32
     v3: boolean = int.lt.u v1, v2
     branch v3, b1(v1), b2
@@ -1944,8 +1944,8 @@ b3:
 
         // expected output
         let expected = r#"
-function test(v0: int32[4], v1: uint32): int32 {
-b0(v0: int32[4], v1: uint32):
+function test(v0: [int32; 4], v1: uint32): int32 {
+b0(v0: [int32; 4], v1: uint32):
     v2: uint32 = 4uint32
     v3: boolean = int.lt.u v1, v2
     branch v3, b1(v1), b2
@@ -1970,8 +1970,8 @@ b3:
     fn test_preserve_bounds_branch_with_trap_then_target() {
         // source test
         let input = r#"
-function test(v0: int32[4], v1: uint32): int32 {
-b0(v0: int32[4], v1: uint32):
+function test(v0: [int32; 4], v1: uint32): int32 {
+b0(v0: [int32; 4], v1: uint32):
     v2: uint32 = 2uint32
     v3: uint32 = 4uint32
     v4: boolean = int.ge.u v2, v3
@@ -1996,8 +1996,8 @@ b2:
     fn test_assume_in_predecessor_implies_bounds_check() {
         // source test
         let input = r#"
-function test(v0: int32[4], v1: uint32): int32 {
-b0(v0: int32[4], v1: uint32):
+function test(v0: [int32; 4], v1: uint32): int32 {
+b0(v0: [int32; 4], v1: uint32):
     v2: uint32 = 4uint32
     v3: boolean = int.lt.u v1, v2
     assume v3
@@ -2014,8 +2014,8 @@ b3:
 
         // expected output
         let expected = r#"
-function test(v0: int32[4], v1: uint32): int32 {
-b0(v0: int32[4], v1: uint32):
+function test(v0: [int32; 4], v1: uint32): int32 {
+b0(v0: [int32; 4], v1: uint32):
     v2: uint32 = 4uint32
     v3: boolean = int.lt.u v1, v2
     assume v3
@@ -2041,8 +2041,8 @@ b3:
     fn test_preserve_bounds_check_when_else_reaches_target() {
         // source test
         let input = r#"
-function test(v0: int32[4], v1: uint32): int32 {
-b0(v0: int32[4], v1: uint32):
+function test(v0: [int32; 4], v1: uint32): int32 {
+b0(v0: [int32; 4], v1: uint32):
     v2: uint32 = 4uint32
     v3: boolean = int.lt.u v1, v2
     branch v3, b1(v1), b2
@@ -2069,8 +2069,8 @@ b4:
     fn test_preserve_bounds_check_with_conflicting_block_param() {
         // source test
         let input = r#"
-function test(v0: int32[4], v1: uint32): int32 {
-b0(v0: int32[4], v1: uint32):
+function test(v0: [int32; 4], v1: uint32): int32 {
+b0(v0: [int32; 4], v1: uint32):
     v2: uint32 = 4uint32
     v3: boolean = int.lt.u v1, v2
     branch v3, b1(v1), b2
@@ -2098,8 +2098,8 @@ b4:
     fn test_preserve_non_trap_branch() {
         // source test
         let input = r#"
-function test(v0: int32[4], v1: uint32): int32 {
-b0(v0: int32[4], v1: uint32):
+function test(v0: [int32; 4], v1: uint32): int32 {
+b0(v0: [int32; 4], v1: uint32):
     v2: uint32 = 4uint32
     v3: boolean = int.lt.u v1, v2
     branch v3, b1, b2
@@ -2122,8 +2122,8 @@ b2:
     fn test_eliminate_upper_inclusive_guard() {
         // source test
         let input = r#"
-function test(v0: int32[4], v1: uint32): int32 {
-b0(v0: int32[4], v1: uint32):
+function test(v0: [int32; 4], v1: uint32): int32 {
+b0(v0: [int32; 4], v1: uint32):
     v2: uint32 = 3uint32
     v3: uint32 = 4uint32
     v4: boolean = int.le.u v1, v2
@@ -2140,8 +2140,8 @@ b3:
 
         // expected output
         let expected = r#"
-function test(v0: int32[4], v1: uint32): int32 {
-b0(v0: int32[4], v1: uint32):
+function test(v0: [int32; 4], v1: uint32): int32 {
+b0(v0: [int32; 4], v1: uint32):
     v2: uint32 = 3uint32
     v3: uint32 = 4uint32
     v4: boolean = int.le.u v1, v2

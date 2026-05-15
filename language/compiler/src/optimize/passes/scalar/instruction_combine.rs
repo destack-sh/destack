@@ -1916,7 +1916,7 @@ b0(v0: int32, v1: int32):
         let input = r#"
 function test(v0: int32, v1: int32, v2: int32): int32 {
 b0(v0: int32, v1: int32, v2: int32):
-    v3: int32[3] = array int32[3] (v0, v1, v2)
+    v3: [int32; 3] = array [int32; 3] (v0, v1, v2)
     v4: int64 = 1int64
     v5: int32 = element.get v3, v4
     return v5
@@ -1925,7 +1925,7 @@ b0(v0: int32, v1: int32, v2: int32):
         let expected = r#"
 function test(v0: int32, v1: int32, v2: int32): int32 {
 b0(v0: int32, v1: int32, v2: int32):
-    v3: int32[3] = array int32[3] (v0, v1, v2)
+    v3: [int32; 3] = array [int32; 3] (v0, v1, v2)
     v4: int64 = 1int64
     return v1
 }"#;
@@ -1941,7 +1941,7 @@ b0(v0: int32, v1: int32, v2: int32):
         let input = r#"
 function test(v0: int32, v1: int32, v2: int64): int32 {
 b0(v0: int32, v1: int32, v2: int64):
-    v3: int32[2] = array int32[2] (v0, v1)
+    v3: [int32; 2] = array [int32; 2] (v0, v1)
     v4: int32 = element.get v3, v2
     return v4
 }"#;
@@ -2070,19 +2070,19 @@ b0(v0: Point, v1: int32, v2: int32):
     #[test]
     fn test_simplify_element_get_element_set_same_index() {
         let input = r#"
-function test(v0: int32[3], v1: int32): int32 {
-b0(v0: int32[3], v1: int32):
+function test(v0: [int32; 3], v1: int32): int32 {
+b0(v0: [int32; 3], v1: int32):
     v2: int64 = 1int64
-    v3: int32[3] = element.set v0, v2, v1
+    v3: [int32; 3] = element.set v0, v2, v1
     v4: int32 = element.get v3, v2
     return v4
 }"#;
         // element.get of the just-set element returns the inserted value
         let expected = r#"
-function test(v0: int32[3], v1: int32): int32 {
-b0(v0: int32[3], v1: int32):
+function test(v0: [int32; 3], v1: int32): int32 {
+b0(v0: [int32; 3], v1: int32):
     v2: int64 = 1int64
-    v3: int32[3] = element.set v0, v2, v1
+    v3: [int32; 3] = element.set v0, v2, v1
     return v1
 }"#;
 
@@ -2097,9 +2097,9 @@ b0(v0: int32[3], v1: int32):
         let input = r#"
 function test(v0: int32, v1: int32, v2: int32): int32 {
 b0(v0: int32, v1: int32, v2: int32):
-    v3: int32[2] = array int32[2] (v0, v1)
+    v3: [int32; 2] = array [int32; 2] (v0, v1)
     v4: int64 = 0int64
-    v5: int32[2] = element.set v3, v4, v2
+    v5: [int32; 2] = element.set v3, v4, v2
     v6: int64 = 1int64
     v7: int32 = element.get v5, v6
     return v7
@@ -2108,9 +2108,9 @@ b0(v0: int32, v1: int32, v2: int32):
         let expected = r#"
 function test(v0: int32, v1: int32, v2: int32): int32 {
 b0(v0: int32, v1: int32, v2: int32):
-    v3: int32[2] = array int32[2] (v0, v1)
+    v3: [int32; 2] = array [int32; 2] (v0, v1)
     v4: int64 = 0int64
-    v5: int32[2] = element.set v3, v4, v2
+    v5: [int32; 2] = element.set v3, v4, v2
     v6: int64 = 1int64
     return v1
 }"#;
@@ -2124,9 +2124,9 @@ b0(v0: int32, v1: int32, v2: int32):
     #[test]
     fn test_preserve_element_get_element_set_dynamic_index() {
         let input = r#"
-function test(v0: int32[3], v1: int32, v2: int64, v3: int64): int32 {
-b0(v0: int32[3], v1: int32, v2: int64, v3: int64):
-    v4: int32[3] = element.set v0, v2, v1
+function test(v0: [int32; 3], v1: int32, v2: int64, v3: int64): int32 {
+b0(v0: [int32; 3], v1: int32, v2: int64, v3: int64):
+    v4: [int32; 3] = element.set v0, v2, v1
     v5: int32 = element.get v4, v3
     return v5
 }"#;
@@ -2142,7 +2142,7 @@ b0(v0: int32[3], v1: int32, v2: int64, v3: int64):
         let input = r#"
 function test(v0: int32, v1: int32): int32 {
 b0(v0: int32, v1: int32):
-    v2: int32[2] = array int32[2] (v0, v1)
+    v2: [int32; 2] = array [int32; 2] (v0, v1)
     v3: int64 = -1int64
     v4: int32 = element.get v2, v3
     return v4
@@ -2212,21 +2212,21 @@ b0(v0: (int32, int64), v1: int32):
     #[test]
     fn test_simplify_element_set_overwrite_same_index() {
         let input = r#"
-function test(v0: int32[2], v1: int32, v2: int32): int32 {
-b0(v0: int32[2], v1: int32, v2: int32):
+function test(v0: [int32; 2], v1: int32, v2: int32): int32 {
+b0(v0: [int32; 2], v1: int32, v2: int32):
     v3: int64 = 0int64
-    v4: int32[2] = element.set v0, v3, v1
-    v5: int32[2] = element.set v4, v3, v2
+    v4: [int32; 2] = element.set v0, v3, v1
+    v5: [int32; 2] = element.set v4, v3, v2
     v6: int32 = element.get v5, v3
     return v6
 }"#;
         // second set at index 0 overwrites first, get returns v2
         let expected = r#"
-function test(v0: int32[2], v1: int32, v2: int32): int32 {
-b0(v0: int32[2], v1: int32, v2: int32):
+function test(v0: [int32; 2], v1: int32, v2: int32): int32 {
+b0(v0: [int32; 2], v1: int32, v2: int32):
     v3: int64 = 0int64
-    v4: int32[2] = element.set v0, v3, v1
-    v5: int32[2] = element.set v4, v3, v2
+    v4: [int32; 2] = element.set v0, v3, v1
+    v5: [int32; 2] = element.set v4, v3, v2
     return v2
 }"#;
 
@@ -2239,10 +2239,10 @@ b0(v0: int32[2], v1: int32, v2: int32):
     #[test]
     fn test_preserve_element_set_negative_index() {
         let input = r#"
-function test(v0: int32[2], v1: int32): int32 {
-b0(v0: int32[2], v1: int32):
+function test(v0: [int32; 2], v1: int32): int32 {
+b0(v0: [int32; 2], v1: int32):
     v2: int64 = -1int64
-    v3: int32[2] = element.set v0, v2, v1
+    v3: [int32; 2] = element.set v0, v2, v1
     v4: int64 = 0int64
     v5: int32 = element.get v3, v4
     return v5
@@ -2278,7 +2278,7 @@ b0(v0: Point):
         let input = r#"
 function test(v0: int32, v1: int32): int32 {
 b0(v0: int32, v1: int32):
-    v2: int32[2] = array int32[2] (v0, v1)
+    v2: [int32; 2] = array [int32; 2] (v0, v1)
     v3: int64 = 10int64
     v4: int32 = element.get v2, v3
     return v4
@@ -2322,16 +2322,16 @@ b0(v0: Point):
     #[test]
     fn test_identity_element_set() {
         let input = r#"
-function test(v0: int32[3]): int32[3] {
-b0(v0: int32[3]):
+function test(v0: [int32; 3]): [int32; 3] {
+b0(v0: [int32; 3]):
     v1: int64 = 1int64
     v2: int32 = element.get v0, v1
-    v3: int32[3] = element.set v0, v1, v2
+    v3: [int32; 3] = element.set v0, v1, v2
     return v3
 }"#;
         let expected = r#"
-function test(v0: int32[3]): int32[3] {
-b0(v0: int32[3]):
+function test(v0: [int32; 3]): [int32; 3] {
+b0(v0: [int32; 3]):
     v1: int64 = 1int64
     v2: int32 = element.get v0, v1
     return v0
@@ -2385,12 +2385,12 @@ b0(v0: Point, v1: Point):
     #[test]
     fn test_non_identity_element_set_different_index() {
         let input = r#"
-function test(v0: int32[3]): int32[3] {
-b0(v0: int32[3]):
+function test(v0: [int32; 3]): [int32; 3] {
+b0(v0: [int32; 3]):
     v1: int64 = 0int64
     v2: int64 = 1int64
     v3: int32 = element.get v0, v1
-    v4: int32[3] = element.set v0, v2, v3
+    v4: [int32; 3] = element.set v0, v2, v3
     return v4
 }"#;
         // get from index 0, set at index 1 - not identity
@@ -2403,11 +2403,11 @@ b0(v0: int32[3]):
     #[test]
     fn test_non_identity_element_set_different_array() {
         let input = r#"
-function test(v0: int32[3], v1: int32[3]): int32[3] {
-b0(v0: int32[3], v1: int32[3]):
+function test(v0: [int32; 3], v1: [int32; 3]): [int32; 3] {
+b0(v0: [int32; 3], v1: [int32; 3]):
     v2: int64 = 0int64
     v3: int32 = element.get v0, v2
-    v4: int32[3] = element.set v1, v2, v3
+    v4: [int32; 3] = element.set v1, v2, v3
     return v4
 }"#;
         // get from v0, set on v1 - not identity
@@ -2420,10 +2420,10 @@ b0(v0: int32[3], v1: int32[3]):
     #[test]
     fn test_non_identity_element_set_dynamic_index() {
         let input = r#"
-function test(v0: int32[3], v1: int64, v2: int64): int32[3] {
-b0(v0: int32[3], v1: int64, v2: int64):
+function test(v0: [int32; 3], v1: int64, v2: int64): [int32; 3] {
+b0(v0: [int32; 3], v1: int64, v2: int64):
     v3: int32 = element.get v0, v1
-    v4: int32[3] = element.set v0, v2, v3
+    v4: [int32; 3] = element.set v0, v2, v3
     return v4
 }"#;
         // dynamic indices v1 and v2 - cannot prove equal

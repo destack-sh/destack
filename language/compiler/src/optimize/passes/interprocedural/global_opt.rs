@@ -22,7 +22,7 @@ declare_mir_pass! {
     /// ```
     /// becomes:
     /// ```mir
-    /// global value: int32, readonly = 42int32
+    /// readonly global value: int32 = 42int32
     /// function root(): int32 {
     /// b0:
     ///     v0 = global.address value -> ref<int32, raw>
@@ -580,7 +580,7 @@ b0:
 }"#;
 
         let expected = r#"
-global value: int32, readonly = 42int32
+readonly global value: int32 = 42int32
 function root(): int32 {
 b0:
     v0: ref<int32, raw> = global.address value

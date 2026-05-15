@@ -1146,7 +1146,7 @@ b1:
     #[test]
     fn test_no_forward_after_call() {
         let input = r#"
-extern function external(ref<int32, raw>): void
+external function external(ref<int32, raw>): void
 function test(): int32 {
 b0:
     v0: ref<int32, raw, space(stack)> = stack.alloc int32
@@ -1167,7 +1167,7 @@ b0:
     #[test]
     fn test_forward_across_readnone_call() {
         let input = r#"
-extern function external(ref<int32, raw>): void
+external function external(ref<int32, raw>): void
 function test(): int32 {
 b0:
     v0: ref<int32, raw, space(stack)> = stack.alloc int32
@@ -1178,7 +1178,7 @@ b0:
     return v2
 }"#;
         let expected = r#"
-extern function external(ref<int32, raw>): void
+external function external(ref<int32, raw>): void
 function test(): int32 {
 b0:
     v0: ref<int32, raw, space(stack)> = stack.alloc int32
@@ -1207,7 +1207,7 @@ b0:
     #[test]
     fn test_call_kills_cross_block() {
         let input = r#"
-extern function external(ref<int32, raw>): void
+external function external(ref<int32, raw>): void
 function test(): int32 {
 b0:
     v0: ref<int32, raw, space(stack)> = stack.alloc int32
@@ -1373,7 +1373,7 @@ b0:
     v0: ref<int32, raw, space(stack)> = stack.alloc int32
     v1: int32 = 42int32
     store v0, v1
-    atomic.fence seq_cst, device, device, any
+    atomic.fence sequentiallyConsistent, device, device, any
     v2: int32 = load v0
     return v2
 }"#;
@@ -1648,7 +1648,7 @@ b0:
     #[test]
     fn test_skip_import_function() {
         let input = r#"
-extern function external(): void"#;
+external function external(): void"#;
         let expected = input;
 
         let mut test = TestProgram::new(input);

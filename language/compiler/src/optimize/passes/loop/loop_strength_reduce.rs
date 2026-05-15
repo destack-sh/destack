@@ -2289,8 +2289,8 @@ b3(v10: int32):
     fn test_strength_reduce_check_latch() {
         // source test
         let input = r#"
-function test(v0: int32[8]): void {
-b0(v0: int32[8]):
+function test(v0: [int32; 8]): void {
+b0(v0: [int32; 8]):
     v1: uint32 = 0uint32
     v2: uint32 = 1uint32
     v3: uint32 = 8uint32
@@ -2312,8 +2312,8 @@ b4:
 
         // expected output
         let expected = r#"
-function test(v0: int32[8]): void {
-b0(v0: int32[8]):
+function test(v0: [int32; 8]): void {
+b0(v0: [int32; 8]):
     v1: uint32 = 0uint32
     v2: uint32 = 1uint32
     v3: uint32 = 8uint32

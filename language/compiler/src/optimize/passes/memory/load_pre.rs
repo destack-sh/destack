@@ -660,7 +660,7 @@ b3:
     v4: int32 = load v1
     return v4
 }
-extern function readOnly(): void"#;
+external function readOnly(): void"#;
 
         let expected = r#"
 function test(v0: boolean): int32 {
@@ -681,7 +681,7 @@ b3(v6: int32):
     call readOnly(): () -> void
     return v6
 }
-extern function readOnly(): void"#;
+external function readOnly(): void"#;
 
         let mut test = TestProgram::new(input);
         let function_id = test.function_id_by_name("test");

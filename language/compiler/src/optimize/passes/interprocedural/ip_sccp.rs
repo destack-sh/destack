@@ -600,7 +600,7 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
 
     // scan each function body for callsites
     for (caller_id, function) in tree.iter_nodes::<mir::Function>() {
-        // skip extern functions
+        // skip external functions
         if function.entry.is_none() {
             continue;
         }
@@ -975,8 +975,9 @@ function callee(v0: int32): int32 {
 b0(v0: int32):
     return v0
 }
-function root(v0: fn(int32) -> int32): int32  {
-b0(v0: fn(int32) -> int32) -> v1: int32 = 7int32
+function root(v0: (int32) -> int32): int32  {
+b0(v0: (int32) -> int32):
+    v1: int32 = 7int32
     v2: int32 = call callee(v1): (int32) -> int32
     v3: int32 = call.indirect v0(v1): (int32) -> int32
     return v2

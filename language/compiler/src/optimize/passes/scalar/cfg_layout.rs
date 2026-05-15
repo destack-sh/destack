@@ -991,8 +991,8 @@ b3:
     #[test]
     fn test_cfg_layout_check_orders_hot_blocks() {
         let input = r#"
-function test(v0: uint32, v1: uint32[8]): int32 {
-b0(v0: uint32, v1: uint32[8]):
+function test(v0: uint32, v1: [uint32; 8]): int32 {
+b0(v0: uint32, v1: [uint32; 8]):
     v2: uint32 = 1uint32
     v3: boolean = int.lt.u v0, v2
     check bounds.u v0, v2, v1 -> b2, b1
@@ -1005,8 +1005,8 @@ b2:
 }"#;
 
         let expected = r#"
-function test(v0: uint32, v1: uint32[8]): int32 {
-b0(v0: uint32, v1: uint32[8]):
+function test(v0: uint32, v1: [uint32; 8]): int32 {
+b0(v0: uint32, v1: [uint32; 8]):
     v2: uint32 = 1uint32
     v3: boolean = int.lt.u v0, v2
     check bounds.u v0, v2, v1 -> b1, b3

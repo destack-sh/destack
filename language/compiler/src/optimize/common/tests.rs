@@ -1391,7 +1391,7 @@ b0(v0: int32, v1: int32):
             address_space: mir::AddressSpace::Stack,
             access: mir::Access::Mutable,
             pointee: pointee.into(),
-            is_nullable: false,
+            nullability: mir::Nullability::None,
         });
 
         let destination = mir::Value::new(0);
@@ -1439,7 +1439,7 @@ b0(v0: int32, v1: int32):
             address_space: mir::AddressSpace::Stack,
             access: mir::Access::Mutable,
             pointee: pointee.into(),
-            is_nullable: false,
+            nullability: mir::Nullability::None,
         });
         let borrowed_ref = tree.insert_type(mir::Type::Reference {
             kind: mir::ReferenceKind::Borrowed,
@@ -1447,7 +1447,7 @@ b0(v0: int32, v1: int32):
             address_space: mir::AddressSpace::Stack,
             access: mir::Access::Mutable,
             pointee: pointee.into(),
-            is_nullable: false,
+            nullability: mir::Nullability::None,
         });
 
         let destination = mir::Value::new(0);

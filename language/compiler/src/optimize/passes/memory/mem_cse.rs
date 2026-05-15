@@ -1254,7 +1254,7 @@ b0:
     #[test]
     fn test_preserve_overlapping_memmove() {
         let input = r#"
-type Bytes int8[12]
+type Bytes = [int8; 12]
 function test(): void {
 b0:
     v0: ref<Bytes, raw, space(stack)> = stack.alloc Bytes
