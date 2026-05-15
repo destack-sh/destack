@@ -1646,7 +1646,8 @@ pub(crate) fn assignment_rhs_prefers_break_after_operator<'ast>(
 
                         let logical_right = transparent_inner_expression(context, *right);
                         let right_stays_inline = match context.tree.get(logical_right) {
-                            Expression::ObjectExpression { properties, .. } => {
+                            Expression::ObjectExpression { properties, .. }
+                            | Expression::StructExpression { properties, .. } => {
                                 !properties.is_empty()
                             }
                             Expression::ArrayExpression { elements } => !elements.is_empty(),

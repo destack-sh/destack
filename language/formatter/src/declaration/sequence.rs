@@ -432,7 +432,7 @@ fn statement_sequence_expression_needs_parentheses(
         return false;
     }
 
-    matches!(expression, Expression::ObjectExpression { ty: None, .. })
+    matches!(expression, Expression::ObjectExpression { .. })
 }
 
 /// Format a block inline with zero or one expression (including label and infix annotations).

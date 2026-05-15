@@ -69,6 +69,7 @@ fn write_expression_trailing_annotations<'ast>(
         | Expression::TupleExpression { .. }
         | Expression::SequenceExpression { .. }
         | Expression::ObjectExpression { .. }
+        | Expression::StructExpression { .. }
         | Expression::TreeExpression { .. }
         | Expression::Parenthesized { .. } => {
             write_primary_expression_trailing_annotations(f, expression_id, expression)
@@ -235,6 +236,7 @@ fn format_expression_body<'ast>(
         | Expression::TupleExpression { .. }
         | Expression::SequenceExpression { .. }
         | Expression::ObjectExpression { .. }
+        | Expression::StructExpression { .. }
         | Expression::TreeExpression { .. }
         | Expression::Parenthesized { .. } => {
             let is_formatted = format_primary_expression(f, node_id, expression)?;

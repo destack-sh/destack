@@ -316,7 +316,8 @@ fn parameter_default_is_huggable(
         | Expression::This
         | Expression::Super => true,
 
-        Expression::ObjectExpression { properties, .. } => properties.is_empty(),
+        Expression::ObjectExpression { properties, .. }
+        | Expression::StructExpression { properties, .. } => properties.is_empty(),
         Expression::ArrayExpression { elements } => elements.is_empty(),
 
         _ => false,

@@ -34,6 +34,7 @@ fn class_extends_expression_needs_parentheses(expression: &Expression) -> bool {
     matches!(
         expression,
         Expression::ObjectExpression { .. }
+            | Expression::StructExpression { .. }
             | Expression::New { .. }
             | Expression::Unary { .. }
             | Expression::Await { .. }
@@ -745,6 +746,7 @@ fn expression_is_update_or_lower_precedence(
         context.tree.get(node_id),
         Expression::Declaration(_)
             | Expression::ObjectExpression { .. }
+            | Expression::StructExpression { .. }
             | Expression::Unary { .. }
             | Expression::Await { .. }
             | Expression::AwaitMaybe { .. }
@@ -966,14 +968,11 @@ pub(crate) fn expression_needs_parentheses_in_parent(
 
                 true
             }
-            Expression::ObjectExpression { ty, .. } => {
-                ty.is_none()
-                    && (is_match_case_body
-                        || expression_is_in_statement_context(context, node_id)
-                        || expression_is_type_relation_left_chain_in_statement_context(
-                            context, node_id,
-                        )
-                        || expression_is_lambda_body_position(context, node_id))
+            Expression::ObjectExpression { .. } => {
+                is_match_case_body
+                    || expression_is_in_statement_context(context, node_id)
+                    || expression_is_type_relation_left_chain_in_statement_context(context, node_id)
+                    || expression_is_lambda_body_position(context, node_id)
             }
             Expression::Declaration(_)
                 if expression_is_class_or_function_declaration(context, node_id) =>
@@ -1155,7 +1154,7 @@ pub(crate) fn parenthesized_expression_needs_preserved_wrapper(
     if expression_is_in_statement_context(context, node_id)
         && matches!(
             context.tree.get(expression_id),
-            Expression::ObjectExpression { ty: None, .. }
+            Expression::ObjectExpression { .. }
         )
     {
         return true;

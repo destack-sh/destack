@@ -396,7 +396,9 @@ fn lambda_body_has_soft_line_break(
     let body_expression = context.tree.get(body_expression_id);
 
     match body_expression {
-        Expression::ArrayExpression { .. } | Expression::ObjectExpression { .. } => {
+        Expression::ArrayExpression { .. }
+        | Expression::ObjectExpression { .. }
+        | Expression::StructExpression { .. } => {
             !lambda_body_has_leading_own_line_comment(context, body_id)
         }
         Expression::TreeExpression { .. } => true,
@@ -441,7 +443,7 @@ fn lambda_body_needs_parentheses(
 
     !matches!(
         context.tree.get(leftmost),
-        Expression::ObjectExpression { .. }
+        Expression::ObjectExpression { .. } | Expression::StructExpression { .. }
     )
 }
 
@@ -462,6 +464,7 @@ fn lambda_chain_tail_body_is_separate_line(
         body_expression,
         Expression::Block(_)
             | Expression::ObjectExpression { .. }
+            | Expression::StructExpression { .. }
             | Expression::ArrayExpression { .. }
             | Expression::SequenceExpression { .. }
             | Expression::TreeExpression { .. }

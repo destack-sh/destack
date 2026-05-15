@@ -617,7 +617,7 @@ fn struct_literal_layout(
 pub(crate) fn format_struct_literal<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
-    ty: &Option<LocalNodeId<TypeExpression>>,
+    ty: Option<LocalNodeId<TypeExpression>>,
     properties_ids: &[LocalNodeId<Property>],
 ) -> FormatResult<()> {
     if let Some(ty) = ty {

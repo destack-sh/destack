@@ -89,9 +89,8 @@ pub fn is_trivial_expression(tree: &Tree, expression: &Expression) -> bool {
         | Expression::Super
         | Expression::PrivateIdentifier { .. } => true,
         Expression::Type { value } => is_trivial_type_expression(tree, *value),
-        Expression::ObjectExpression { ty, properties, .. } => {
-            ty.is_none()
-                && properties.len() <= 5
+        Expression::ObjectExpression { properties } => {
+            properties.len() <= 5
                 && properties
                     .iter()
                     .all(|property| is_trivial_property(tree, tree.get(*property)))
@@ -167,8 +166,9 @@ pub fn is_expression_breakable(tree: &Tree, expression: &Expression) -> bool {
         Expression::ArrayExpression { elements, .. } => !elements.is_empty(),
         Expression::TupleExpression { elements, .. } => !elements.is_empty(),
         Expression::SequenceExpression { expressions, .. } => !expressions.is_empty(),
-        Expression::ObjectExpression { ty, properties, .. } => {
-            ty.is_some_and(|ty| is_type_expression_breakable(tree, ty)) || !properties.is_empty()
+        Expression::ObjectExpression { properties } => !properties.is_empty(),
+        Expression::StructExpression { ty, properties } => {
+            is_type_expression_breakable(tree, *ty) || !properties.is_empty()
         }
         Expression::TreeExpression {
             arguments,

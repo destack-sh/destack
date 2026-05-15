@@ -136,7 +136,8 @@ pub(crate) fn primary_expression_uses_postfix_only_annotations(
     context.has_infix_annotation(expression_id)
         && (matches!(
             expression,
-            Expression::ObjectExpression { properties, .. } if properties.is_empty()
+            Expression::ObjectExpression { properties, .. }
+            | Expression::StructExpression { properties, .. } if properties.is_empty()
         ) || matches!(
             expression,
             Expression::ArrayExpression { elements } if elements.is_empty()
@@ -399,10 +400,8 @@ fn array_expression_should_break(tree: &Tree, elements: &[LocalNodeId<Argument>]
 
                 saw_array = true;
             }
-            Expression::ObjectExpression {
-                ty: None,
-                properties,
-            } => {
+            Expression::ObjectExpression { properties }
+            | Expression::StructExpression { properties, .. } => {
                 if properties.len() < 2 || saw_array {
                     return false;
                 }
@@ -685,9 +684,14 @@ pub(crate) fn format_primary_expression<'ast>(
             }
         }
 
+        // object literal
+        Expression::ObjectExpression { properties } => {
+            format_struct_literal(f, node_id, None, properties)?;
+        }
+
         // struct literal
-        Expression::ObjectExpression { ty, properties } => {
-            format_struct_literal(f, node_id, ty, properties)?;
+        Expression::StructExpression { ty, properties } => {
+            format_struct_literal(f, node_id, Some(*ty), properties)?;
         }
 
         // tree literal
