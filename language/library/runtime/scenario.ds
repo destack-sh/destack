@@ -1,9 +1,17 @@
 import { PackedArray } from "destack:collections";
 import { HostError } from "destack:error/host";
 import { Action } from "./binding.ds";
-import { EntitySelector, Label, LabelSelector } from "./entity.ds";
+import {
+    EdgeKind,
+    EdgeSelector,
+    EntityKind,
+    EntitySelector,
+    Label,
+    LabelSelector,
+} from "./entity.ds";
+import { ActionSelector, SubjectSelector, TargetSelector } from "./policy.ds";
 import { ResourceId } from "./resource.ds";
-import { WorldHandle } from "./world.ds";
+import { World, WorldHandle } from "./world.ds";
 
 /// Runtime scenario control handle.
 export newtype ScenarioHandle = ResourceId;
@@ -20,42 +28,247 @@ export newtype ScenarioCursor = uint64;
 /// Runtime scenario rule cursor.
 export newtype ScenarioRuleCursor = uint64;
 
-/// Scenario hook point.
-export enum ScenarioHook {
+/// Stable error code used by scenario faults.
+export newtype ErrorCode = string;
+
+/// Error payload for operation and randomness faults.
+export struct FaultError {
+    /// Stable error code.
+    code: ErrorCode;
+    /// Optional module-specific error class.
+    class?: string;
+    /// Optional diagnostic message.
+    message?: string;
+}
+
+/// Runtime event that can evaluate scenario rules.
+export enum RuntimeEvent {
     /// Before one binding call enters the backend.
     BindingBefore = 1,
     /// After one binding call leaves the backend.
     BindingAfter = 2,
-    /// Before one runnable is dequeued.
-    SchedulerDequeue = 3,
+    /// When one task becomes ready.
+    TaskReady = 3,
+    /// When one task starts running.
+    TaskStart = 4,
+    /// When one timer fires.
+    TimerFire = 5,
+    /// When one ingress event becomes ready.
+    IngressReady = 6,
+    /// When one clock is read.
+    ClockRead = 7,
+    /// When random data is read.
+    RandomRead = 8,
 }
 
-/// Scenario fault kind.
-export enum FaultKind {
-    /// Drop the matched operation or event.
-    Drop = 1,
-    /// Delay the matched operation or event.
-    Delay = 2,
-    /// Fail the matched operation with an error.
-    Error = 3,
-    /// Close the matched resource.
-    Close = 4,
+/// Scenario activation window.
+export type ScenarioActivation =
+    | {
+        /// Activate immediately.
+        kind: "immediate";
+    }
+    | {
+        /// Activate at a monotonic timestamp.
+        kind: "atTime";
+        /// Monotonic timestamp in nanoseconds.
+        timeNanos: uint64;
+    }
+    | {
+        /// Activate after a number of matching calls.
+        kind: "afterCallCount";
+        /// Matching call count.
+        calls: uint64;
+    };
+
+/// Scenario rule lifetime.
+export type ScenarioLifetime =
+    | {
+        /// Keep active until explicitly disabled.
+        kind: "untilDisabled";
+    }
+    | {
+        /// Keep active for a duration.
+        kind: "duration";
+        /// Active duration in nanoseconds.
+        durationNanos: uint64;
+    }
+    | {
+        /// Keep active for a matching call budget.
+        kind: "callCount";
+        /// Matching call budget.
+        calls: uint64;
+    };
+
+/// Scenario fault direction.
+export enum FaultDirection {
+    /// Affect ingress traffic.
+    Ingress = 1,
+    /// Affect egress traffic.
+    Egress = 2,
+    /// Affect both directions.
+    Both = 3,
 }
 
-/// Scenario fault injected by one rule.
-export struct Fault {
-    /// Fault kind.
-    kind: FaultKind;
-    /// Error code for error faults.
-    code?: string;
-    /// Delay duration in nanoseconds for delay faults.
-    delayNanos?: uint64;
+/// Scenario delay jitter distribution.
+export enum JitterDistribution {
+    /// Uniform random jitter.
+    Uniform = 1,
+    /// Normal random jitter.
+    Normal = 2,
+    /// Exponential random jitter.
+    Exponential = 3,
+}
+
+/// Scenario corruption mode.
+export enum CorruptionMode {
+    /// Flip one random bit.
+    BitFlip = 1,
+    /// Replace bytes with zero.
+    ZeroFill = 2,
+    /// Replace bytes with random data.
+    RandomBytes = 3,
+    /// Return only a prefix of the payload.
+    Truncate = 4,
+}
+
+/// Scenario transport limit.
+export type TransportLimit =
+    | {
+        /// Limit the total transported bytes.
+        kind: "data";
+        /// Total byte budget.
+        bytes: uint64;
+    }
+    | {
+        /// Limit sustained transport throughput.
+        kind: "throughput";
+        /// Maximum bytes per second.
+        bytesPerSecond: uint64;
+    }
+    | {
+        /// Limit transport operation rate.
+        kind: "rate";
+        /// Maximum operations per second.
+        opsPerSecond: uint64;
+    };
+
+/// Scenario storage corruption target.
+export enum StorageCorruptionTarget {
+    /// Stored payload bytes.
+    Data = 1,
+    /// Storage metadata.
+    Metadata = 2,
+    /// Write-ahead journal or log.
+    Journal = 3,
+    /// Secondary index or derived lookup state.
+    Index = 4,
+}
+
+/// Scenario storage ordering fault.
+export enum StorageOrderFault {
+    /// Persist writes in an order different from issue order.
+    ReorderPersist = 1,
+    /// Expose writes in an order different from issue order.
+    ReorderVisibility = 2,
+    /// Expose only part of an ordered write sequence.
+    TornSequence = 3,
+}
+
+/// Scenario storage durability fault.
+export enum StorageDurabilityFault {
+    /// Acknowledge writes before durability barriers complete.
+    AckWithoutSync = 1,
+    /// Lose one acknowledged write.
+    LoseAcknowledgedWrite = 2,
+    /// Report sync success without enforcing durability.
+    SyncNoop = 3,
+    /// Persist file payload without required metadata durability.
+    MetadataNotDurable = 4,
+    /// Acknowledge a distributed write before quorum durability.
+    AckBeforeQuorumPersist = 5,
+}
+
+/// Scenario storage consistency fault.
+export enum StorageConsistencyFault {
+    /// Return an old value from storage.
+    StaleRead = 1,
+    /// Hide one entry that should be visible.
+    MissingEntry = 2,
+    /// Expose one entry that should not be visible.
+    ExtraEntry = 3,
+    /// Return stale metadata for a visible entry.
+    StaleMetadata = 4,
+    /// Expose rename as multiple non-atomic steps.
+    NonAtomicRename = 5,
+    /// Diverge committed state across replicas.
+    ReplicaDivergence = 6,
+}
+
+/// Scenario resource limit.
+export type ResourceLimit =
+    | {
+        /// Limit a countable resource.
+        kind: "count";
+        /// Count limit.
+        count: uint64;
+    }
+    | {
+        /// Limit a byte-sized resource.
+        kind: "bytes";
+        /// Byte limit.
+        bytes: uint64;
+    }
+    | {
+        /// Limit a per-second resource rate.
+        kind: "rate";
+        /// Maximum units per second.
+        perSecond: uint64;
+    }
+    | {
+        /// Limit a proportional resource budget.
+        kind: "percent";
+        /// Budget in parts per million.
+        ppm: uint32;
+    };
+
+/// Scenario resource class.
+export enum FaultResource {
+    /// Memory budget.
+    Memory = 1,
+    /// File descriptor budget.
+    FileDescriptor = 2,
+    /// File handle budget.
+    FileHandle = 3,
+    /// Socket budget.
+    Socket = 4,
+    /// Thread budget.
+    Thread = 5,
+    /// Process budget.
+    Process = 6,
+    /// Disk space budget.
+    DiskSpace = 7,
+    /// Inode budget.
+    Inode = 8,
+    /// Network bandwidth budget.
+    Bandwidth = 9,
+    /// CPU budget.
+    Cpu = 10,
+    /// GPU budget.
+    Gpu = 11,
+    /// Queue depth budget.
+    Queue = 12,
+    /// Timer budget.
+    Timer = 13,
 }
 
 /// Scenario trigger controls.
 export struct ScenarioTrigger {
-    /// Hook point that evaluates this trigger.
-    hook: ScenarioHook;
+    /// Event that evaluates this trigger.
+    on: RuntimeEvent;
+    /// Activation gate for this trigger.
+    activation?: ScenarioActivation;
+    /// Lifetime gate for this trigger.
+    lifetime?: ScenarioLifetime;
     /// Activation probability in parts per million.
     activationPpm?: uint32;
     /// Firing probability in parts per million.
@@ -72,18 +285,278 @@ export struct ScenarioTrigger {
     skipHits?: uint64;
 }
 
+/// Scenario fault target.
+export type FaultTarget =
+    | {
+        /// Target one binding call site.
+        kind: "call";
+    }
+    | {
+        /// Target selected topology entities.
+        kind: "entity";
+        /// Entity kind selector.
+        entityKind: EntityKind;
+        /// Entity selector.
+        selector: EntitySelector;
+    }
+    | {
+        /// Target selected topology edges.
+        kind: "edge";
+        /// Edge kind selector.
+        edgeKind: EdgeKind;
+        /// Edge selector.
+        selector: EdgeSelector;
+        /// Optional direction selector.
+        direction?: FaultDirection;
+    };
+
+/// Scenario fault payload.
+export type FaultType =
+    | {
+        /// Inject an error outcome.
+        kind: "operation.error";
+        /// Error payload.
+        error: FaultError;
+    }
+    | {
+        /// Inject a timeout outcome.
+        kind: "operation.timeout";
+        /// Optional timeout duration in nanoseconds.
+        afterNanos?: uint64;
+        /// Optional timeout error payload.
+        error?: FaultError;
+    }
+    | {
+        /// Delay the matched operation.
+        kind: "operation.delay";
+        /// Base delay in nanoseconds.
+        baseNanos: uint64;
+        /// Optional jitter in nanoseconds.
+        jitterNanos?: uint64;
+        /// Optional jitter distribution.
+        distribution?: JitterDistribution;
+    }
+    | {
+        /// Delay the matched transport.
+        kind: "transport.delay";
+        /// Base delay in nanoseconds.
+        baseNanos: uint64;
+        /// Optional jitter in nanoseconds.
+        jitterNanos?: uint64;
+        /// Optional jitter distribution.
+        distribution?: JitterDistribution;
+    }
+    | {
+        /// Drop the matched operation.
+        kind: "transport.drop";
+    }
+    | {
+        /// Duplicate the matched operation.
+        kind: "transport.duplicate";
+        /// Optional copy count.
+        copies?: uint32;
+    }
+    | {
+        /// Reorder matched operations.
+        kind: "transport.reorder";
+        /// Optional reordering window.
+        window?: uint32;
+    }
+    | {
+        /// Corrupt the matched payload.
+        kind: "transport.corrupt";
+        /// Optional corruption mode.
+        mode?: CorruptionMode;
+    }
+    | {
+        /// Partially complete the matched operation.
+        kind: "transport.partial";
+        /// Maximum completed byte count.
+        maxBytes: uint64;
+    }
+    | {
+        /// Fragment the matched stream or message payload.
+        kind: "transport.fragment";
+        /// Average fragment byte count.
+        averageBytes: uint64;
+        /// Optional fragment size variation in bytes.
+        variationBytes?: uint64;
+        /// Optional delay between fragments in nanoseconds.
+        delayNanos?: uint64;
+    }
+    | {
+        /// Disconnect the matched transport.
+        kind: "transport.disconnect";
+    }
+    | {
+        /// Reset the matched transport.
+        kind: "transport.reset";
+        /// Optional reset delay in nanoseconds.
+        delayNanos?: uint64;
+    }
+    | {
+        /// Partition the matched transport.
+        kind: "transport.partition";
+        /// Optional direction selector.
+        direction?: FaultDirection;
+    }
+    | {
+        /// Blackhole the matched transport.
+        kind: "transport.blackhole";
+        /// Optional direction selector.
+        direction?: FaultDirection;
+    }
+    | {
+        /// Apply one transport limit.
+        kind: "transport.limit";
+        /// Transport limit payload.
+        limit: TransportLimit;
+    }
+    | {
+        /// Apply pressure to one resource class.
+        kind: "resource.pressure";
+        /// Resource class under pressure.
+        resource: FaultResource;
+        /// Optional pressure level in parts per million.
+        levelPpm?: uint32;
+    }
+    | {
+        /// Apply one resource limit.
+        kind: "resource.limit";
+        /// Limited resource class.
+        resource: FaultResource;
+        /// Resource limit.
+        limit: ResourceLimit;
+    }
+    | {
+        /// Crash the matched process.
+        kind: "lifecycle.crash";
+        /// Optional signal number.
+        signal?: int64;
+    }
+    | {
+        /// Pause the matched lifecycle target.
+        kind: "lifecycle.pause";
+        /// Optional pause duration in nanoseconds.
+        durationNanos?: uint64;
+    }
+    | {
+        /// Restart the matched process.
+        kind: "lifecycle.restart";
+        /// Optional restart delay in nanoseconds.
+        delayNanos?: uint64;
+    }
+    | {
+        /// Reboot the matched target.
+        kind: "lifecycle.reboot";
+        /// Optional reboot delay in nanoseconds.
+        delayNanos?: uint64;
+    }
+    | {
+        /// Jump one clock.
+        kind: "clock.jump";
+        /// Signed jump delta in nanoseconds.
+        deltaNanos: int64;
+    }
+    | {
+        /// Drift one clock.
+        kind: "clock.drift";
+        /// Signed rate offset in parts per million.
+        ratePpm: int64;
+    }
+    | {
+        /// Freeze one clock.
+        kind: "clock.freeze";
+        /// Optional freeze duration in nanoseconds.
+        durationNanos?: uint64;
+    }
+    | {
+        /// Adjust clock resolution.
+        kind: "clock.resolution";
+        /// Clock resolution in nanoseconds.
+        resolutionNanos: uint64;
+    }
+    | {
+        /// Inject clock jitter.
+        kind: "clock.jitter";
+        /// Jitter in nanoseconds.
+        jitterNanos: uint64;
+        /// Optional jitter distribution.
+        distribution?: JitterDistribution;
+    }
+    | {
+        /// Inject random-source errors.
+        kind: "random.error";
+        /// Error payload.
+        error: FaultError;
+    }
+    | {
+        /// Repeat bytes from the random stream.
+        kind: "random.repeat";
+        /// Optional repeated byte window.
+        windowBytes?: uint64;
+    }
+    | {
+        /// Replace random bytes with zero.
+        kind: "random.zero";
+    }
+    | {
+        /// Bias random bits.
+        kind: "random.bias";
+        /// Optional bit index to bias.
+        bit?: uint8;
+        /// Bias probability in parts per million.
+        probabilityPpm: uint32;
+    }
+    | {
+        /// Inject storage corruption faults.
+        kind: "storage.corrupt";
+        /// Corruption target.
+        target: StorageCorruptionTarget;
+        /// Optional corruption mode.
+        mode?: CorruptionMode;
+    }
+    | {
+        /// Inject storage ordering faults.
+        kind: "storage.order";
+        /// Storage ordering fault selector.
+        fault: StorageOrderFault;
+    }
+    | {
+        /// Inject storage durability faults.
+        kind: "storage.durability";
+        /// Durability fault selector.
+        fault: StorageDurabilityFault;
+    }
+    | {
+        /// Inject storage consistency faults.
+        kind: "storage.consistency";
+        /// Storage consistency fault selector.
+        fault: StorageConsistencyFault;
+        /// Optional maximum staleness in nanoseconds.
+        maxAgeNanos?: uint64;
+    };
+
+/// Scenario fault injected by one rule.
+export struct Fault {
+    /// Fault target selector.
+    target: FaultTarget;
+    /// Fault type payload.
+    faultType: FaultType;
+}
+
 /// Runtime scenario rule.
 export struct ScenarioRule {
     /// Stable rule identifier.
     id: ScenarioRuleId;
     /// Whether the rule is enabled.
     enabled: boolean;
-    /// Subject selector.
-    subject: EntitySelector;
-    /// Runtime or host action selector.
-    action: Action;
-    /// Target entity selector.
-    target: EntitySelector;
+    /// Subject selector for this rule.
+    subject?: SubjectSelector;
+    /// Runtime or host action selector for this rule.
+    action?: Action | ActionSelector;
+    /// Target selector for this rule.
+    target?: TargetSelector;
     /// Trigger controls.
     trigger: ScenarioTrigger;
     /// Fault injected by this rule.
@@ -92,8 +565,10 @@ export struct ScenarioRule {
     labels?: [Label];
 }
 
-/// Runtime scenario.
-export struct Scenario {
+/// Live runtime scenario.
+export class Scenario {
+    /// Scenario handle.
+    handle: ScenarioHandle;
     /// Scenario identifier.
     id: ScenarioId;
     /// Optional scenario name.
@@ -140,6 +615,73 @@ export struct ScenarioRulePage {
     rules: PackedArray<ScenarioRule>;
     /// Next rule cursor when more records exist.
     next?: ScenarioRuleCursor;
+}
+
+extension of World {
+    /// Create one scenario in this world.
+    scenario(this: &readonly World, options?: ScenarioCreateOptions): Result<Scenario, HostError> {
+        scenarioCreate(this.handle, options).andThen((handle) => scenarioDescribe(handle))
+    }
+}
+
+extension of Scenario {
+    /// Close this scenario control handle.
+    close(this: &readonly Scenario): Result<void, HostError> {
+        scenarioClose(this.handle)
+    }
+
+    /// Return fresh state for this scenario.
+    describe(this: &readonly Scenario): Result<Scenario, HostError> {
+        scenarioDescribe(this.handle)
+    }
+
+    /// Enable this scenario.
+    enable(this: &readonly Scenario): Result<void, HostError> {
+        scenarioEnable(this.handle)
+    }
+
+    /// Disable this scenario.
+    disable(this: &readonly Scenario): Result<void, HostError> {
+        scenarioDisable(this.handle)
+    }
+
+    /// List this scenario's rules.
+    rules(
+        this: &readonly Scenario,
+        limit?: uint32,
+        after?: ScenarioRuleCursor,
+    ): Result<ScenarioRulePage, HostError> {
+        scenarioRuleList(this.handle, limit, after)
+    }
+
+    /// Add one rule to this scenario.
+    addRule(this: &readonly Scenario, rule: &readonly ScenarioRule): Result<void, HostError> {
+        scenarioRuleAdd(this.handle, rule)
+    }
+
+    /// Replace one rule in this scenario.
+    replaceRule(
+        this: &readonly Scenario,
+        ruleId: ScenarioRuleId,
+        rule: &readonly ScenarioRule,
+    ): Result<void, HostError> {
+        scenarioRuleReplace(this.handle, ruleId, rule)
+    }
+
+    /// Remove one rule from this scenario.
+    removeRule(this: &readonly Scenario, ruleId: ScenarioRuleId): Result<void, HostError> {
+        scenarioRuleRemove(this.handle, ruleId)
+    }
+
+    /// Enable one rule in this scenario.
+    enableRule(this: &readonly Scenario, ruleId: ScenarioRuleId): Result<void, HostError> {
+        scenarioRuleEnable(this.handle, ruleId)
+    }
+
+    /// Disable one rule in this scenario.
+    disableRule(this: &readonly Scenario, ruleId: ScenarioRuleId): Result<void, HostError> {
+        scenarioRuleDisable(this.handle, ruleId)
+    }
 }
 
 /// Create one scenario in one world.

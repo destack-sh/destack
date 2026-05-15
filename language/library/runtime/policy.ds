@@ -1,7 +1,7 @@
 import { PackedArray } from "destack:collections";
 import { HostError } from "destack:error/host";
 import { Action } from "./binding.ds";
-import { EntitySelector, Label } from "./entity.ds";
+import { EdgeSelector, EntitySelector, Label, LabelSelector } from "./entity.ds";
 import { WorldHandle } from "./world.ds";
 
 /// Runtime policy rule cursor.
@@ -23,6 +23,90 @@ export enum PolicyDecisionKind {
     Deny = 2,
 }
 
+/// Runtime execution-mode selector.
+export type ExecutionSelector = "fast" | "deterministic" | "record" | "replay";
+
+/// Runtime condition selector.
+export struct ConditionSelector {
+    /// Exact values that must be active.
+    includes?: [string];
+    /// Values that must not be active.
+    excludes?: [string];
+}
+
+/// Runtime identity selector.
+export struct IdentitySelector {
+    /// Optional exact name selector.
+    name?: string;
+    /// Optional label selector clauses.
+    labels?: [LabelSelector];
+}
+
+/// Runtime policy subject selector.
+export struct SubjectSelector {
+    /// Optional package selector.
+    package?: string;
+    /// Optional runtime selector.
+    runtime?: IdentitySelector;
+    /// Optional worker selector.
+    worker?: IdentitySelector;
+    /// Optional execution-mode selector.
+    execution?: [ExecutionSelector];
+    /// Optional active mode selector.
+    mode?: ConditionSelector;
+    /// Optional active role selector.
+    role?: ConditionSelector;
+    /// Optional active feature selector.
+    feature?: ConditionSelector;
+    /// Optional active tag selector.
+    tag?: ConditionSelector;
+    /// Optional active target selector.
+    target?: ConditionSelector;
+    /// Optional active product selector.
+    product?: ConditionSelector;
+}
+
+/// Runtime policy action selector.
+export struct ActionSelector {
+    /// Optional binding-name glob.
+    binding?: string;
+    /// Optional required-action glob.
+    action?: string;
+    /// Optional binding component glob.
+    component?: string;
+    /// Optional binding module glob.
+    module?: string;
+    /// Optional binding engine selector.
+    engine?: "vm" | "native";
+    /// Optional target-platform globs.
+    platforms?: [string];
+    /// Optional binding provider selector.
+    provider?: "host" | "runtime";
+    /// Optional binding affinity selector.
+    affinity?: "worker" | "main";
+    /// Optional binding determinism selector.
+    determinism?: "pure" | "deterministic" | "external";
+}
+
+/// Runtime policy target selector.
+export type TargetSelector =
+    | {
+        /// Match any target.
+        kind: "any";
+    }
+    | {
+        /// Match selected topology entities.
+        kind: "entity";
+        /// Entity selector.
+        selector: EntitySelector;
+    }
+    | {
+        /// Match selected topology edges.
+        kind: "edge";
+        /// Edge selector.
+        selector: EdgeSelector;
+    };
+
 /// Runtime policy decision.
 export struct PolicyDecision {
     /// Access decision.
@@ -33,12 +117,12 @@ export struct PolicyDecision {
 
 /// Runtime policy rule.
 export struct PolicyRule {
-    /// Subject entity selector.
-    subject: EntitySelector;
-    /// Runtime or host action.
-    action: Action;
-    /// Target entity selector.
-    target: EntitySelector;
+    /// Subject selector.
+    subject: SubjectSelector;
+    /// Runtime or host action selector.
+    action: Action | ActionSelector;
+    /// Target selector.
+    target: TargetSelector;
     /// Rule decision.
     decision: PolicyDecision;
     /// Rule labels.
@@ -55,12 +139,12 @@ export struct PolicyRulePage {
 
 /// Runtime policy query.
 export struct PolicyQuery {
-    /// Subject entity selector.
-    subject: EntitySelector;
-    /// Runtime or host action.
-    action: Action;
-    /// Target entity selector.
-    target: EntitySelector;
+    /// Subject selector.
+    subject: SubjectSelector;
+    /// Runtime or host action selector.
+    action: Action | ActionSelector;
+    /// Target selector.
+    target: TargetSelector;
 }
 
 /// Read one world's policy rules.
