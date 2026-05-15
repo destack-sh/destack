@@ -1,4 +1,5 @@
 import { Promise } from "destack:async";
+import { Default } from "destack:memory";
 import { Equal } from "destack:ops";
 import { FromFailure, Try, TryBranch, TryContinue, TryFailure } from "destack:ops";
 import { panic } from "./panic.ds";
@@ -55,6 +56,15 @@ extension<T, E> of Result<T, E> {
         match (this) {
             Ok { value } => value
             Err { error: _ } => default
+        }
+    }
+
+    /// Return the success value or the default value.
+    unwrapOrDefault(): T
+    where T implements Default {
+        match (this) {
+            Ok { value } => value
+            Err { error: _ } => T.default()
         }
     }
 
@@ -280,6 +290,13 @@ extension<T, E> of AsyncResult<T, E> {
     async unwrapOr(default: T): Promise<T> {
         const result = await this;
         result.unwrapOr(default)
+    }
+
+    /// Return a promise for the success value or the default value.
+    async unwrapOrDefault(): Promise<T>
+    where T implements Default {
+        const result = await this;
+        result.unwrapOrDefault()
     }
 
     /// Return a promise for the success value or compute one from the error.
