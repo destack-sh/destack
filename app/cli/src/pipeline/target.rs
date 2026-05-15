@@ -4,9 +4,9 @@ use destack_workspace::{Ref, Repository, Target};
 use crate::common::TargetArgs;
 use crate::error::{CliError, CliResult};
 
-/// Resolved target configuration for a module.
+/// Selected target configuration for a module.
 #[derive(Debug)]
-pub struct ResolvedTarget {
+pub struct SelectedTarget {
     /// Target id.
     pub id: TargetId,
     /// Target configuration.
@@ -27,7 +27,7 @@ pub fn resolve_target_for_module(
     module_id: ModuleId,
     target_name: &str,
     target_args: &TargetArgs,
-) -> CliResult<ResolvedTarget> {
+) -> CliResult<SelectedTarget> {
     let reference = Ref::for_workspace_root(repository.workspace_root());
     let revision = repository.current(&reference).map_err(|error| {
         CliError::message(format!("failed to resolve current revision: {error}"))
@@ -43,14 +43,14 @@ pub fn resolve_target_for_module(
 
     // resolve target truth
     let target = repository
-        .effective_target(revision, target_id)
+        .target_or_builtin(revision, target_id)
         .map_err(|error| CliError::message(format!("failed to read target snapshot: {error}")))?;
 
-    // synthesize one implicit target when missing
+    // synthesize one built-in target when missing
     let mut target = if let Some(target) = target {
         target
     } else {
-        Target::implicit_for_name(target_name)
+        Target::builtin_for_name(target_name)
             .ok_or_else(|| CliError::message(format!("unknown target '{target_name}'")))?
     };
 
@@ -63,8 +63,8 @@ pub fn resolve_target_for_module(
         target.out_file = Some(out_file.clone());
     }
 
-    // return the resolved target info
-    Ok(ResolvedTarget {
+    // return the selected target info
+    Ok(SelectedTarget {
         id: target_id,
         target,
     })
