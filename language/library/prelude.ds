@@ -14,6 +14,7 @@ export {
     Extract,
     Exclude,
     NonNullable,
+    Symbol,
 } from "destack:types";
 
 // memory
@@ -213,7 +214,6 @@ export {
     AsyncGenerator,
 } from "destack:async";
 export {
-    Symbol,
     IteratorYield,
     IteratorReturn,
     IteratorResult,
