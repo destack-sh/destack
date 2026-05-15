@@ -7,19 +7,16 @@ use destack_dir::{
 use super::super::PendingDecorators;
 use super::common::{
     DECLARATION_START_TOKENS, DeclarationHeader, DescriptorHead, is_declaration_keyword,
-    is_type_relation_keyword,
 };
 
 impl Parser {
-    /// Return true when the current identifier can start a global or module declaration.
-    fn can_start_global_or_module_declaration(&mut self) -> bool {
+    /// Return true when the current identifier can start a global declaration.
+    fn can_start_global_declaration(&mut self) -> bool {
         if !self.peek_is(TokenType::Identifier) {
             return false;
         }
 
-        let is_global_identifier = self.is_global_identifier();
-        let is_module_identifier = self.is_module_identifier();
-        if !is_global_identifier && !is_module_identifier {
+        if !self.is_global_identifier() {
             return false;
         }
 
@@ -28,50 +25,29 @@ impl Parser {
             return false;
         }
 
-        if is_global_identifier {
-            let can_parse_global = self.language.is_destack()
-                || self.language.is_declaration()
-                || self.flags.is_in_declare_context();
+        let can_parse_global = self.language.is_destack()
+            || self.language.is_declaration()
+            || self.flags.is_in_declare_context();
 
-            return can_parse_global && next_token.token.ty == TokenType::OpenBrace;
-        }
-
-        if self.language.is_destack() && !self.language.is_declaration() {
-            return matches!(
-                next_token.token.ty,
-                TokenType::OpenBrace | TokenType::Literal
-            );
-        }
-
-        matches!(
-            next_token.token.ty,
-            TokenType::OpenBrace | TokenType::Identifier | TokenType::Literal
-        )
+        can_parse_global && next_token.token.ty == TokenType::OpenBrace
     }
 
-    /// Return true when the current identifier starts a named module declaration.
-    fn can_parse_named_module_declaration(&mut self) -> bool {
-        if !self.is_module_identifier() {
+    /// Return true when the current identifier can start a module declaration.
+    fn can_start_module_declaration(&mut self) -> bool {
+        if !self.peek_is(TokenType::Identifier) {
+            return false;
+        }
+
+        if !self.language.is_destack() || !self.is_module_identifier() {
             return false;
         }
 
         let next_token = self.next_token();
-        let next_token_type = next_token.token.ty;
-        let next_keyword = self.next_keyword();
-
         if next_token.token.is_on_new_line {
             return false;
         }
 
-        if self.language.is_destack() && !self.language.is_declaration() {
-            return next_token_type == TokenType::Literal;
-        }
-
-        if !matches!(next_token_type, TokenType::Identifier | TokenType::Literal) {
-            return false;
-        }
-
-        next_token_type != TokenType::Identifier || !is_type_relation_keyword(next_keyword)
+        next_token.token.ty == TokenType::OpenBrace
     }
 
     /// Return true when declaration modifier parsing is needed in this context.
@@ -103,8 +79,8 @@ impl Parser {
             return true;
         }
 
-        // recognize global and module declaration heads
-        self.can_start_global_or_module_declaration()
+        // recognize contextual declaration heads
+        self.can_start_global_declaration() || self.can_start_module_declaration()
     }
 
     /// Decide whether one `{` in statement position starts an object literal.
@@ -293,8 +269,8 @@ impl Parser {
                     | Keyword::Static,
             )
         );
-        let is_contextual_declaration_identifier =
-            !is_modifier_keyword && self.can_start_global_or_module_declaration();
+        let is_contextual_declaration_identifier = !is_modifier_keyword
+            && (self.can_start_global_declaration() || self.can_start_module_declaration());
         let is_global_identifier =
             is_contextual_declaration_identifier && self.is_global_identifier();
         let is_module_identifier =
@@ -317,24 +293,13 @@ impl Parser {
                 Some(DependencyBinding::Named)
             };
 
-            // export namespace handled by export statement parsing
-            let is_export_namespace =
-                self.is_keyword(Keyword::As) && self.is_next_keyword(Keyword::Namespace);
-            if is_export_namespace {
-                self.rewind(descriptor_start.clone());
-                let export = self.eat_export()?;
-                return Ok(DescriptorHead::Expression(export));
-            }
-
             // export dependencies handled by export statement parsing
             let current_keyword = self.current_keyword();
             let current_token_type = self.peek_token_type();
-            let has_module_identifier_declaration = self.is_module_identifier();
             let has_decorator_declaration_head = current_token_type == TokenType::At
                 && export_mode != Some(DependencyBinding::Default);
             let has_declaration_keyword = current_keyword.is_some_and(is_declaration_keyword)
-                || has_decorator_declaration_head
-                || has_module_identifier_declaration;
+                || has_decorator_declaration_head;
 
             // reject export default enum declarations
             if export_mode == Some(DependencyBinding::Default) && self.is_keyword(Keyword::Enum) {
@@ -392,7 +357,6 @@ impl Parser {
             let next_keyword = self.current_keyword();
             let is_after_export_declaration_head = next_keyword.is_some_and(is_declaration_keyword)
                 || next_token_type == TokenType::At
-                || self.is_module_identifier()
                 || self.is_global_identifier();
             if is_after_export_declaration_head {
                 // parse decorators after export when they follow skipped newlines
@@ -520,16 +484,6 @@ impl Parser {
             return Ok(DescriptorHead::Expression(expression_id));
         }
 
-        // named module declaration
-        if self.can_parse_named_module_declaration() {
-            let module_id = self.eat_namespace(start, header)?;
-            let expression_id = self.insert_node(
-                Expression::Declaration(module_id),
-                self.get_span_from(start),
-            );
-            return Ok(DescriptorHead::Expression(expression_id));
-        }
-
         // global declaration
         let can_parse_destack_global =
             self.language.is_destack() && self.flags.is_in_statement_position();
@@ -592,13 +546,6 @@ impl Parser {
             // enum declarations must stay on the same line as the head keyword
             Keyword::Enum => is_declaration_start && !next_has_line_break,
 
-            // namespace declarations only accept identifier names
-            Keyword::Namespace => {
-                !next_has_line_break
-                    && next_token_type == TokenType::Identifier
-                    && !is_type_relation_keyword(next_keyword)
-            }
-
             // type aliases require a contiguous identifier name
             Keyword::Type => !next_has_line_break && next_token_type == TokenType::Identifier,
 
@@ -612,7 +559,7 @@ impl Parser {
         if !self.peek_is(TokenType::Identifier) {
             return false;
         }
-        self.is_global_identifier() || self.is_module_identifier()
+        self.is_global_identifier()
     }
 
     /// Check whether the current token starts a declare await using target.

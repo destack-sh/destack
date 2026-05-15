@@ -322,17 +322,6 @@ impl Parser {
                     self.insert_declaration_expression(start, interface_id),
                 ))
             }
-            Keyword::Namespace
-                if next_is_declaration_start
-                    && !next_is_on_new_line
-                    && next_token_type == TokenType::Identifier
-                    && !is_type_relation_keyword(next_keyword) =>
-            {
-                let namespace_id = self.eat_namespace(start, header)?;
-                Ok(Some(
-                    self.insert_declaration_expression(start, namespace_id),
-                ))
-            }
             Keyword::Extension if self.language.is_destack() && next_is_declaration_start => {
                 let extension_id = self.eat_extension(start, header)?;
                 Ok(Some(
@@ -500,20 +489,6 @@ impl Parser {
         }
 
         match keyword {
-            // namespace declaration
-            Keyword::Namespace
-                if is_declaration_start
-                    && !next_has_line_break
-                    && next_token_type == TokenType::Identifier
-                    && !is_type_relation_keyword(next_keyword) =>
-            {
-                let namespace_id = self.eat_namespace(start, header)?;
-
-                Ok(Some(
-                    self.insert_declaration_type_expression(start, namespace_id),
-                ))
-            }
-
             // struct declaration
             Keyword::Struct
                 if self.language.is_destack() && (is_declaration_start || next_has_line_break) =>
@@ -814,18 +789,6 @@ impl Parser {
                     || !self.flags.is_in_statement_position();
                 let struct_id = self.eat_struct_or_class(start, header, allow_anonymous_class)?;
                 Ok(Some(self.insert_declaration_expression(start, struct_id)))
-            }
-            // namespace declaration
-            Keyword::Namespace
-                if is_declaration_start
-                    && !next_has_line_break
-                    && next_token_type == TokenType::Identifier
-                    && !is_type_relation_keyword(next_keyword) =>
-            {
-                let namespace_id = self.eat_namespace(start, header)?;
-                Ok(Some(
-                    self.insert_declaration_expression(start, namespace_id),
-                ))
             }
             // struct declaration
             Keyword::Struct

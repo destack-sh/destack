@@ -112,7 +112,6 @@ pub(super) fn is_declaration_keyword(keyword: Keyword) -> bool {
         keyword,
         Keyword::Declare
             | Keyword::Abstract
-            | Keyword::Namespace
             | Keyword::Struct
             | Keyword::Class
             | Keyword::Enum

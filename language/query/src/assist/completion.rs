@@ -1369,7 +1369,7 @@ impl<'a> CompletionBuilder<'a> {
                 continue;
             }
 
-            let import_space = ImportEditSpace::for_auto_import(space_filter, export.space);
+            let import_form = ImportEditSpace::for_auto_import(space_filter, export.space);
 
             self.push_auto_import_completion(
                 current_package_id,
@@ -1381,7 +1381,7 @@ impl<'a> CompletionBuilder<'a> {
                 export.kind,
                 space_filter,
                 export.space,
-                import_space,
+                import_form,
                 &mut results,
             );
         }
@@ -1425,7 +1425,7 @@ impl<'a> CompletionBuilder<'a> {
         symbol_form: SymbolForm,
         expected_space: Option<SymbolSpace>,
         symbol_space: SymbolSpace,
-        import_space: ImportEditSpace,
+        import_form: ImportEditSpace,
         results: &mut Vec<Completion>,
     ) {
         let display_path =
@@ -1436,7 +1436,7 @@ impl<'a> CompletionBuilder<'a> {
             self.file_id,
             export_name,
             &display_path,
-            import_space,
+            import_form,
         );
         if import_edits.is_empty() {
             return;
@@ -1802,7 +1802,6 @@ fn keyword_completions() -> Vec<Completion> {
         Keyword::From,
         Keyword::Const,
         Keyword::Let,
-        Keyword::Namespace,
         Keyword::Type,
         Keyword::Newtype,
         Keyword::Struct,
