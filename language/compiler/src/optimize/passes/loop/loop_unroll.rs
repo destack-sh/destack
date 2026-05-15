@@ -80,8 +80,8 @@ declare_mir_pass! {
     /// each inner iteration executes multiple outer iterations.
     ///
     /// ```mir
-    /// function before(v0: uint32, v1: uint32, v2: uint32[8]): void {
-    /// b0(v0: uint32, v1: uint32, v2: uint32[8]):
+    /// function before(v0: uint32, v1: uint32, v2: [uint32; 8]): void {
+    /// b0(v0: uint32, v1: uint32, v2: [uint32; 8]):
     ///     v3 = 0uint32
     ///     v4 = 1uint32
     ///     jump b1(v3)
@@ -108,8 +108,8 @@ declare_mir_pass! {
     /// ```
     /// becomes (with factor = 2):
     /// ```mir
-    /// function after(v0: uint32, v1: uint32, v2: uint32[8]): void {
-    /// b0(v0: uint32, v1: uint32, v2: uint32[8]):
+    /// function after(v0: uint32, v1: uint32, v2: [uint32; 8]): void {
+    /// b0(v0: uint32, v1: uint32, v2: [uint32; 8]):
     ///     v3 = 0uint32
     ///     v4 = 1uint32
     ///     jump b1(v3)
@@ -3253,8 +3253,8 @@ b3(v7: int32):
     #[test]
     fn test_unroll_and_jam_nested_loop() {
         let input = r#"
-function test(v0: uint32[8]): void {
-b0(v0: uint32[8]):
+function test(v0: [uint32; 8]): void {
+b0(v0: [uint32; 8]):
     v1: uint32 = 0uint32
     v2: uint32 = 2uint32
     v3: uint32 = 2uint32
@@ -3282,8 +3282,8 @@ b6:
 }"#;
 
         let expected = r#"
-function test(v0: uint32[8]): void {
-b0(v0: uint32[8]):
+function test(v0: [uint32; 8]): void {
+b0(v0: [uint32; 8]):
     v1: uint32 = 0uint32
     v2: uint32 = 2uint32
     v3: uint32 = 2uint32
@@ -3326,8 +3326,8 @@ b6:
     #[test]
     fn test_unroll_and_jam_skips_outer_dependency() {
         let input = r#"
-function test(v0: uint32[8]): void {
-b0(v0: uint32[8]):
+function test(v0: [uint32; 8]): void {
+b0(v0: [uint32; 8]):
     v1: uint32 = 0uint32
     v2: uint32 = 4uint32
     v3: uint32 = 2uint32
@@ -3367,8 +3367,8 @@ b6:
     #[test]
     fn test_unroll_and_jam_skips_inner_update_not_last() {
         let input = r#"
-function test(v0: uint32[8]): void {
-b0(v0: uint32[8]):
+function test(v0: [uint32; 8]): void {
+b0(v0: [uint32; 8]):
     v1: uint32 = 0uint32
     v2: uint32 = 4uint32
     v3: uint32 = 2uint32
@@ -3408,8 +3408,8 @@ b6:
     #[test]
     fn test_unroll_and_jam_allows_trailing_invariants() {
         let input = r#"
-function test(v0: uint32[8]): void {
-b0(v0: uint32[8]):
+function test(v0: [uint32; 8]): void {
+b0(v0: [uint32; 8]):
     v1: uint32 = 0uint32
     v2: uint32 = 2uint32
     v3: uint32 = 2uint32
@@ -3438,8 +3438,8 @@ b6:
 }"#;
 
         let expected = r#"
-function test(v0: uint32[8]): void {
-b0(v0: uint32[8]):
+function test(v0: [uint32; 8]): void {
+b0(v0: [uint32; 8]):
     v1: uint32 = 0uint32
     v2: uint32 = 2uint32
     v3: uint32 = 2uint32
@@ -3483,8 +3483,8 @@ b6:
     #[test]
     fn test_unroll_and_jam_peels_remainder_trip_count() {
         let input = r#"
-function test(v0: uint32[8]): void {
-b0(v0: uint32[8]):
+function test(v0: [uint32; 8]): void {
+b0(v0: [uint32; 8]):
     v1: uint32 = 0uint32
     v2: uint32 = 5uint32
     v3: uint32 = 2uint32
@@ -3511,8 +3511,8 @@ b6:
     return
 }"#;
         let expected = r#"
-function test(v0: uint32[8]): void {
-b0(v0: uint32[8]):
+function test(v0: [uint32; 8]): void {
+b0(v0: [uint32; 8]):
     v1: uint32 = 0uint32
     v2: uint32 = 5uint32
     v3: uint32 = 2uint32

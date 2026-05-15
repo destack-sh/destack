@@ -38,7 +38,7 @@ declare_mir_pass! {
     /// b0:
     ///     return
     /// }
-    /// extern function dead(): void
+    /// external function dead(): void
     /// ```
     #[pass(id = "dead-function-eliminate")]
     pub DeadFunctionEliminate,
@@ -412,7 +412,7 @@ function live(): void {
 b0:
     return
 }
-extern function dead(): void"#;
+external function dead(): void"#;
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&DeadFunctionEliminate);
@@ -423,8 +423,9 @@ extern function dead(): void"#;
     #[test]
     fn test_dead_function_eliminate_unknown_indirect() {
         let input = r#"
-export function root(v0: fn() -> void): void  {
-b0(v0: fn() -> void) -> call.indirect v0(): () -> void
+export function root(v0: () -> void): void  {
+b0(v0: () -> void):
+    call.indirect v0(): () -> void
     return
 }
 function live(): void {
@@ -463,8 +464,9 @@ b0:
     #[test]
     fn test_dead_function_eliminate_signature_indirect() {
         let input = r#"
-export function root(v0: fn(int32) -> int32, v1: int32): void  {
-b0(v0: fn(int32) -> int32, v1: int32) -> v2: int32 = call.indirect v0(v1): (int32) -> int32
+export function root(v0: (int32) -> int32, v1: int32): void  {
+b0(v0: (int32) -> int32, v1: int32):
+    v2: int32 = call.indirect v0(v1): (int32) -> int32
     return
 }
 function keep(v0: int32): int32 {
@@ -479,15 +481,16 @@ b0(v0: int64):
         let mut test = TestProgram::new(input);
         test.run_module_pass(&DeadFunctionEliminate);
         let expected = r#"
-export function root(v0: fn(int32) -> int32, v1: int32): void  {
-b0(v0: fn(int32) -> int32, v1: int32) -> v2: int32 = call.indirect v0(v1): (int32) -> int32
+export function root(v0: (int32) -> int32, v1: int32): void  {
+b0(v0: (int32) -> int32, v1: int32):
+    v2: int32 = call.indirect v0(v1): (int32) -> int32
     return
 }
 function keep(v0: int32): int32 {
 b0(v0: int32):
     return v0
 }
-extern function drop(int64): int64"#;
+external function drop(int64): int64"#;
 
         test.assert_output(expected);
     }
@@ -496,8 +499,8 @@ extern function drop(int64): int64"#;
     #[test]
     fn test_dead_function_eliminate_signature_indirect_terminator() {
         let input = r#"
-export function root(v0: fn(int32) -> int32, v1: int32): int32 {
-b0(v0: fn(int32) -> int32, v1: int32):
+export function root(v0: (int32) -> int32, v1: int32): int32 {
+b0(v0: (int32) -> int32, v1: int32):
     call.indirect v0(v1): (int32) -> int32 -> b1
 b1(v2: int32):
     return v2
@@ -516,8 +519,8 @@ b0(v0: int64):
         let mut test = TestProgram::new(input);
         test.run_module_pass(&DeadFunctionEliminate);
         let expected = r#"
-export function root(v0: fn(int32) -> int32, v1: int32): int32 {
-b0(v0: fn(int32) -> int32, v1: int32):
+export function root(v0: (int32) -> int32, v1: int32): int32 {
+b0(v0: (int32) -> int32, v1: int32):
     call.indirect v0(v1): (int32) -> int32 -> b1
 b1(v2: int32):
     return v2
@@ -528,7 +531,7 @@ function keep(v0: int32): int32 {
 b0(v0: int32):
     return v0
 }
-extern function drop(int64): int64"#;
+external function drop(int64): int64"#;
 
         test.assert_output(expected);
     }
@@ -537,8 +540,8 @@ extern function drop(int64): int64"#;
     #[test]
     fn test_dead_function_eliminate_tailcall_indirect() {
         let input = r#"
-export function root(v0: fn() -> void): void {
-b0(v0: fn() -> void):
+export function root(v0: () -> void): void {
+b0(v0: () -> void):
     tailCall.indirect v0(): () -> void
 }
 function live(): void {
@@ -584,7 +587,7 @@ function live(): void {
 b0:
     return
 }
-extern function dead(int32): int32"#;
+external function dead(int32): int32"#;
 
         let mut test = TestProgram::new(input);
         let dead_id = test.function_id_by_name("dead");

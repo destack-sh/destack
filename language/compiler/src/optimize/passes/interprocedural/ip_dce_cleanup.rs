@@ -12,7 +12,7 @@ declare_mir_pass! {
     /// This pass prunes dead functions and globals.
     ///
     /// ```mir
-    /// global dead: int32, readonly = 1int32
+    /// readonly global dead: int32 = 1int32
     /// function dead(): int32 {
     /// b0:
     ///     v0 = 2int32
@@ -27,8 +27,8 @@ declare_mir_pass! {
     /// ```
     /// becomes:
     /// ```mir
-    /// extern global dead: int32, readonly
-    /// extern function dead(): int32
+    /// external readonly global dead: int32
+    /// external function dead(): int32
     /// function root(): int32 {
     /// b0:
     ///     v0 = 1int32
@@ -91,7 +91,7 @@ mod tests {
     #[test]
     fn test_ip_dce_cleanup_removes_dead_items() {
         let input = r#"
-global dead: int32, readonly = 1int32
+readonly global dead: int32 = 1int32
 function dead(): int32 {
 b0:
     v0: int32 = 2int32
@@ -105,8 +105,8 @@ b0:
 }"#;
 
         let expected = r#"
-extern global dead: int32, readonly
-extern function dead(): int32
+external readonly global dead: int32
+external function dead(): int32
 export function root(): int32 {
 b0:
     v0: int32 = 1int32
@@ -123,8 +123,8 @@ b0:
     #[test]
     fn test_ip_dce_cleanup_preserves_live_globals() {
         let input = r#"
-global live: int32, readonly = 1int32
-global dead: int32, readonly = 2int32
+readonly global live: int32 = 1int32
+readonly global dead: int32 = 2int32
 export function root(): int32 {
 b0:
     v0: ref<int32, raw, readonly> = global.address live
@@ -133,8 +133,8 @@ b0:
 }"#;
 
         let expected = r#"
-global live: int32, readonly = 1int32
-extern global dead: int32, readonly
+readonly global live: int32 = 1int32
+external readonly global dead: int32
 export function root(): int32 {
 b0:
     v0: ref<int32, raw, readonly> = global.address live

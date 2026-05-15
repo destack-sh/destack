@@ -20,8 +20,8 @@ declare_mir_pass! {
     /// The fast version removes bounds checks inside the loop.
     ///
     /// ```mir
-    /// function before(v0: uint8[8], v1: uint32, v2: uint32): void {
-    /// b0(v0: uint8[8], v1: uint32, v2: uint32):
+    /// function before(v0: [uint8; 8], v1: uint32, v2: uint32): void {
+    /// b0(v0: [uint8; 8], v1: uint32, v2: uint32):
     ///     v3 = 0uint32
     ///     v4 = 1uint32
     ///     jump b1(v3)
@@ -45,8 +45,8 @@ declare_mir_pass! {
     /// ```
     /// becomes:
     /// ```mir
-    /// function after(v0: uint8[8], v1: uint32, v2: uint32): void {
-    /// b0(v0: uint8[8], v1: uint32, v2: uint32):
+    /// function after(v0: [uint8; 8], v1: uint32, v2: uint32): void {
+    /// b0(v0: [uint8; 8], v1: uint32, v2: uint32):
     ///     v3 = 0uint32
     ///     v4 = 1uint32
     ///     v11 = int.le.u v2, v1
@@ -662,8 +662,8 @@ mod tests {
     #[test]
     fn test_loop_versioning_bounds_guard() {
         let input = r#"
-function test(v0: uint8[8], v1: uint32, v2: uint32): void {
-b0(v0: uint8[8], v1: uint32, v2: uint32):
+function test(v0: [uint8; 8], v1: uint32, v2: uint32): void {
+b0(v0: [uint8; 8], v1: uint32, v2: uint32):
     v3: uint32 = 0uint32
     v4: uint32 = 1uint32
     jump b1(v3)
@@ -686,8 +686,8 @@ b5:
 }"#;
 
         let expected = r#"
-function test(v0: uint8[8], v1: uint32, v2: uint32): void {
-b0(v0: uint8[8], v1: uint32, v2: uint32):
+function test(v0: [uint8; 8], v1: uint32, v2: uint32): void {
+b0(v0: [uint8; 8], v1: uint32, v2: uint32):
     v3: uint32 = 0uint32
     v4: uint32 = 1uint32
     v5: boolean = int.le.u v2, v1
@@ -731,8 +731,8 @@ b8:
     #[test]
     fn test_loop_versioning_non_zero_start() {
         let input = r#"
-function test(v0: uint8[8], v1: uint32, v2: uint32): void {
-b0(v0: uint8[8], v1: uint32, v2: uint32):
+function test(v0: [uint8; 8], v1: uint32, v2: uint32): void {
+b0(v0: [uint8; 8], v1: uint32, v2: uint32):
     v3: uint32 = 2uint32
     v4: uint32 = 1uint32
     jump b1(v3)
@@ -755,8 +755,8 @@ b5:
 }"#;
 
         let expected = r#"
-function test(v0: uint8[8], v1: uint32, v2: uint32): void {
-b0(v0: uint8[8], v1: uint32, v2: uint32):
+function test(v0: [uint8; 8], v1: uint32, v2: uint32): void {
+b0(v0: [uint8; 8], v1: uint32, v2: uint32):
     v3: uint32 = 2uint32
     v4: uint32 = 1uint32
     v5: boolean = int.le.u v2, v1
@@ -800,8 +800,8 @@ b8:
     #[test]
     fn test_loop_versioning_skips_signed_bounds() {
         let input = r#"
-function test(v0: int32[8], v1: int32, v2: int32): void {
-b0(v0: int32[8], v1: int32, v2: int32):
+function test(v0: [int32; 8], v1: int32, v2: int32): void {
+b0(v0: [int32; 8], v1: int32, v2: int32):
     v3: int32 = 0int32
     v4: int32 = 1int32
     jump b1(v3)
@@ -832,8 +832,8 @@ b5:
     #[test]
     fn test_loop_versioning_skips_type_mismatch() {
         let input = r#"
-function test(v0: uint8[8], v1: int32, v2: uint32): void {
-b0(v0: uint8[8], v1: int32, v2: uint32):
+function test(v0: [uint8; 8], v1: int32, v2: uint32): void {
+b0(v0: [uint8; 8], v1: int32, v2: uint32):
     v3: uint32 = 0uint32
     v4: uint32 = 1uint32
     jump b1(v3)
@@ -864,8 +864,8 @@ b5:
     #[test]
     fn test_loop_versioning_handles_non_unit_stride() {
         let input = r#"
-function test(v0: uint8[8], v1: uint32, v2: uint32): void {
-b0(v0: uint8[8], v1: uint32, v2: uint32):
+function test(v0: [uint8; 8], v1: uint32, v2: uint32): void {
+b0(v0: [uint8; 8], v1: uint32, v2: uint32):
     v3: uint32 = 0uint32
     v4: uint32 = 2uint32
     jump b1(v3)
@@ -888,8 +888,8 @@ b5:
 }"#;
 
         let expected = r#"
-function test(v0: uint8[8], v1: uint32, v2: uint32): void {
-b0(v0: uint8[8], v1: uint32, v2: uint32):
+function test(v0: [uint8; 8], v1: uint32, v2: uint32): void {
+b0(v0: [uint8; 8], v1: uint32, v2: uint32):
     v3: uint32 = 0uint32
     v4: uint32 = 2uint32
     v5: boolean = int.le.u v2, v1
@@ -933,8 +933,8 @@ b8:
     #[test]
     fn test_loop_versioning_skips_non_strict_guard() {
         let input = r#"
-function test(v0: uint8[8], v1: uint32, v2: uint32): void {
-b0(v0: uint8[8], v1: uint32, v2: uint32):
+function test(v0: [uint8; 8], v1: uint32, v2: uint32): void {
+b0(v0: [uint8; 8], v1: uint32, v2: uint32):
     v3: uint32 = 0uint32
     v4: uint32 = 1uint32
     jump b1(v3)

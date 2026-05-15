@@ -2084,8 +2084,9 @@ b0(v0: int32):
     v1: int32 = int.add v0, v0
     return v1
 }
-function caller(v0: fn(int32) -> int32, v1: int32): int32  {
-b0(v0: fn(int32) -> int32, v1: int32) -> v2: int32 = call.indirect v0(v1): (int32) -> int32
+function caller(v0: (int32) -> int32, v1: int32): int32  {
+b0(v0: (int32) -> int32, v1: int32):
+    v2: int32 = call.indirect v0(v1): (int32) -> int32
     return v2
 }"#;
 

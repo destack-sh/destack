@@ -86,7 +86,7 @@ fn run_sccp(
     tree: &mut mir::Tree,
     type_context: TypeContext,
 ) -> (bool, bool) {
-    // skip extern functions
+    // skip external functions
     let entry = match function.entry {
         Some(entry) => entry,
         None => return (false, false),
@@ -1437,7 +1437,7 @@ b1:
     #[test]
     fn test_readonly_global_load_not_constant() {
         let input = r#"
-global flag: boolean, readonly = true
+readonly global flag: boolean = true
 function test(): int32 {
 b0:
     v0: ref<boolean, raw, readonly> = global.address flag
@@ -1668,7 +1668,7 @@ b0:
     v0: int32 = 10int32
     v1: int32 = 20int32
     v2: int32 = 30int32
-    v3: int32[3] = array int32[3] (v0, v1, v2)
+    v3: [int32; 3] = array [int32; 3] (v0, v1, v2)
     v4: int64 = 1int64
     v5: int32 = element.get v3, v4
     return v5
@@ -1679,7 +1679,7 @@ b0:
     v0: int32 = 10int32
     v1: int32 = 20int32
     v2: int32 = 30int32
-    v3: int32[3] = array int32[3] (v0, v1, v2)
+    v3: [int32; 3] = array [int32; 3] (v0, v1, v2)
     v4: int64 = 1int64
     v5: int32 = 20int32
     return v5
@@ -1699,10 +1699,10 @@ b0:
     v0: int32 = 1int32
     v1: int32 = 2int32
     v2: int32 = 3int32
-    v3: int32[3] = array int32[3] (v0, v1, v2)
+    v3: [int32; 3] = array [int32; 3] (v0, v1, v2)
     v4: int64 = 1int64
     v5: int32 = 9int32
-    v6: int32[3] = element.set v3, v4, v5
+    v6: [int32; 3] = element.set v3, v4, v5
     v7: int32 = element.get v6, v4
     return v7
 }"#;
@@ -1712,10 +1712,10 @@ b0:
     v0: int32 = 1int32
     v1: int32 = 2int32
     v2: int32 = 3int32
-    v3: int32[3] = array int32[3] (v0, v1, v2)
+    v3: [int32; 3] = array [int32; 3] (v0, v1, v2)
     v4: int64 = 1int64
     v5: int32 = 9int32
-    v6: int32[3] = element.set v3, v4, v5
+    v6: [int32; 3] = element.set v3, v4, v5
     v7: int32 = 9int32
     return v7
 }"#;
@@ -1729,7 +1729,7 @@ b0:
     #[test]
     fn test_readonly_global_struct_field_get_not_constant() {
         let input = r#"
-global pair: { int32, int32 }, readonly = {1int32, 2int32}
+readonly global pair: { int32, int32 } = {1int32, 2int32}
 function test(): int32 {
 b0:
     v0: ref<{ int32, int32 }, raw, readonly> = global.address pair
@@ -1747,7 +1747,7 @@ b0:
     #[test]
     fn test_global_zero_initializer_field_get_not_constant() {
         let input = r#"
-global pair: (int32, int32), readonly = zeroInit
+readonly global pair: (int32, int32) = zeroInit
 function test(): int32 {
 b0:
     v0: ref<(int32, int32), raw, readonly> = global.address pair
@@ -1765,11 +1765,11 @@ b0:
     #[test]
     fn test_global_bytes_element_get_not_constant() {
         let input = r#"
-global data: uint8[4], readonly = b"test"
+readonly global data: [uint8; 4] = b"test"
 function test(): uint8 {
 b0:
-    v0: ref<uint8[4], raw, readonly> = global.address data
-    v1: uint8[4] = load v0
+    v0: ref<[uint8; 4], raw, readonly> = global.address data
+    v1: [uint8; 4] = load v0
     v2: int64 = 2int64
     v3: uint8 = element.get v1, v2
     return v3

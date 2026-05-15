@@ -3009,7 +3009,7 @@ b0(v0: boolean):
     #[test]
     fn test_preserve_readonly_global_load_branch() {
         let input = r#"
-global flag: boolean, readonly = true
+readonly global flag: boolean = true
 function test(): int32 {
 b0:
     v0: ref<boolean, raw, readonly> = global.address flag
@@ -3305,8 +3305,8 @@ b0(v0: boolean):
     #[test]
     fn test_fold_assume_check() {
         let input = r#"
-function test(v0: boolean, v1: uint32, v2: uint32, v3: uint32[4]): uint32 {
-b0(v0: boolean, v1: uint32, v2: uint32, v3: uint32[4]):
+function test(v0: boolean, v1: uint32, v2: uint32, v3: [uint32; 4]): uint32 {
+b0(v0: boolean, v1: uint32, v2: uint32, v3: [uint32; 4]):
     v4: boolean = int.lt.u v1, v2
     assume v4
     check bounds.u v1, v2, v3 -> b1, b2
@@ -3316,8 +3316,8 @@ b2:
     unreachable
 }"#;
         let expected = r#"
-function test(v0: boolean, v1: uint32, v2: uint32, v3: uint32[4]): uint32 {
-b0(v0: boolean, v1: uint32, v2: uint32, v3: uint32[4]):
+function test(v0: boolean, v1: uint32, v2: uint32, v3: [uint32; 4]): uint32 {
+b0(v0: boolean, v1: uint32, v2: uint32, v3: [uint32; 4]):
     v4: boolean = int.lt.u v1, v2
     assume v4
     return v1
@@ -3332,8 +3332,8 @@ b0(v0: boolean, v1: uint32, v2: uint32, v3: uint32[4]):
     #[test]
     fn test_fold_check_constraint_truth() {
         let input = r#"
-function test(v0: boolean, v1: uint32[4]): uint32 {
-b0(v0: boolean, v1: uint32[4]):
+function test(v0: boolean, v1: [uint32; 4]): uint32 {
+b0(v0: boolean, v1: [uint32; 4]):
     v2: uint32 = 0uint32
     v3: uint32 = 4uint32
     check bounds.u v2, v3, v1 -> b1, b2
@@ -3343,8 +3343,8 @@ b2:
     unreachable
 }"#;
         let expected = r#"
-function test(v0: boolean, v1: uint32[4]): uint32 {
-b0(v0: boolean, v1: uint32[4]):
+function test(v0: boolean, v1: [uint32; 4]): uint32 {
+b0(v0: boolean, v1: [uint32; 4]):
     v2: uint32 = 0uint32
     v3: uint32 = 4uint32
     return v2
@@ -3477,8 +3477,8 @@ b0(v0: boolean):
     #[test]
     fn test_thread_check_targets() {
         let input = r#"
-function test(v0: boolean, v1: uint32, v2: uint32, v3: uint32[4]): void {
-b0(v0: boolean, v1: uint32, v2: uint32, v3: uint32[4]):
+function test(v0: boolean, v1: uint32, v2: uint32, v3: [uint32; 4]): void {
+b0(v0: boolean, v1: uint32, v2: uint32, v3: [uint32; 4]):
     check bounds.u v1, v2, v3 -> b1, b2
 b1:
     jump b3
@@ -3490,8 +3490,8 @@ b4:
     return
 }"#;
         let expected = r#"
-function test(v0: boolean, v1: uint32, v2: uint32, v3: uint32[4]): void {
-b0(v0: boolean, v1: uint32, v2: uint32, v3: uint32[4]):
+function test(v0: boolean, v1: uint32, v2: uint32, v3: [uint32; 4]): void {
+b0(v0: boolean, v1: uint32, v2: uint32, v3: [uint32; 4]):
     return
 }"#;
 

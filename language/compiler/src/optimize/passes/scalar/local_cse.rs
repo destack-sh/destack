@@ -608,16 +608,16 @@ b0(v0: (int32, int32)):
     #[test]
     fn test_eliminate_element_get() {
         let input = r#"
-function test(v0: int32[10], v1: int64): int32 {
-b0(v0: int32[10], v1: int64):
+function test(v0: [int32; 10], v1: int64): int32 {
+b0(v0: [int32; 10], v1: int64):
     v2: int32 = element.get v0, v1
     v3: int32 = element.get v0, v1
     v4: int32 = int.add v2, v3
     return v4
 }"#;
         let expected = r#"
-function test(v0: int32[10], v1: int64): int32 {
-b0(v0: int32[10], v1: int64):
+function test(v0: [int32; 10], v1: int64): int32 {
+b0(v0: [int32; 10], v1: int64):
     v2: int32 = element.get v0, v1
     v3: int32 = int.add v2, v2
     return v3

@@ -441,8 +441,9 @@ b0(v0: int32):
     v1: int32 = int.add v0, v0
     return v1
 }
-function root(v0: fn(int32) -> int32, v1: int32): int32  {
-b0(v0: fn(int32) -> int32, v1: int32) -> v2: int32 = call.indirect v0(v1): (int32) -> int32
+function root(v0: (int32) -> int32, v1: int32): int32  {
+b0(v0: (int32) -> int32, v1: int32):
+    v2: int32 = call.indirect v0(v1): (int32) -> int32
     v3: int32 = 4int32
     v4: int32 = call callee(v3): (int32) -> int32
     return v4
@@ -457,7 +458,7 @@ b0(v0: fn(int32) -> int32, v1: int32) -> v2: int32 = call.indirect v0(v1): (int3
     #[test]
     fn test_ip_constant_prop_skips_global_load() {
         let input = r#"
-global value: int32, readonly = 7int32
+readonly global value: int32 = 7int32
 function callee(v0: int32): int32 {
 b0(v0: int32):
     return v0
@@ -471,7 +472,7 @@ b0:
 }"#;
 
         let expected = r#"
-global value: int32, readonly = 7int32
+readonly global value: int32 = 7int32
 function callee(v0: int32): int32 {
 b0(v0: int32):
     return v0

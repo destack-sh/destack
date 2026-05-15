@@ -713,7 +713,7 @@ b2:
     #[test]
     fn test_preserve_readonly_global_load_boolean() {
         let input = r#"
-global flag: boolean, readonly = true
+readonly global flag: boolean = true
 function test(): boolean {
 b0:
     v0: ref<boolean, raw, readonly> = global.address flag

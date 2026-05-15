@@ -178,7 +178,7 @@ fn run_argument_specialize(tree: &mut mir::Tree, ctx: &PipelineContext<'_>) -> b
             continue;
         }
 
-        // skip extern callees
+        // skip external callees
         if tree.get(callsite.callee).entry.is_none() {
             continue;
         }
@@ -252,7 +252,7 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
 
     // scan each function body for callsites
     for (caller_id, function) in tree.iter_nodes::<mir::Function>() {
-        // skip extern functions
+        // skip external functions
         if function.entry.is_none() {
             continue;
         }
@@ -1072,11 +1072,11 @@ b0:
         test.assert_output(input);
     }
 
-    /// Extern callees are not specialized.
+    /// External callees are not specialized.
     #[test]
     fn test_argument_specialize_skips_extern() {
         let input = r#"
-extern function callee(int32): int32
+external function callee(int32): int32
 function root(): int32 {
 b0:
     v0: int32 = 2int32
