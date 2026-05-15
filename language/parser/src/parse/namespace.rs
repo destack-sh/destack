@@ -75,22 +75,23 @@ impl Parser {
             NamespaceForm::Module
         };
 
+        // reject string module declarations
+        if namespace_form == NamespaceForm::Module && self.peek_string_literal_is() {
+            return Err(ParseError::unexpected(self.peek()?.span));
+        }
+
         // name
-        let (names, name_span) =
-            if namespace_form == NamespaceForm::Module && self.peek_string_literal_is() {
-                let (name_id, span) = self.eat_string_literal_with_span()?;
-                (vec![(Name::String(name_id), span)], Some(span))
-            } else if let Some((name, span)) = self.eat_name_maybe_with_span()? {
-                let mut names = vec![(name, span)];
-                while self.peek_is(TokenType::Dot) {
-                    self.bump(); // eat dot
-                    let (segment, segment_span) = self.eat_identifier_with_span()?;
-                    names.push((Name::Identifier(segment), segment_span));
-                }
-                (names, Some(span))
-            } else {
-                (Vec::new(), None)
-            };
+        let (names, name_span) = if let Some((name, span)) = self.eat_name_maybe_with_span()? {
+            let mut names = vec![(name, span)];
+            while self.peek_is(TokenType::Dot) {
+                self.bump(); // eat dot
+                let (segment, segment_span) = self.eat_identifier_with_span()?;
+                names.push((Name::Identifier(segment), segment_span));
+            }
+            (names, Some(span))
+        } else {
+            (Vec::new(), None)
+        };
 
         // namespaces always need a name
         if names.is_empty() {
@@ -121,13 +122,8 @@ impl Parser {
             vec![]
         };
 
-        // reject missing bodies for identifier modules
-        if namespace_form == NamespaceForm::Module
-            && !has_body
-            && names
-                .first()
-                .is_some_and(|(name, _)| !matches!(name, Name::String(_)))
-        {
+        // reject missing module bodies
+        if namespace_form == NamespaceForm::Module && !has_body {
             return Err(ParseError::unexpected(self.peek()?.span));
         }
 
@@ -182,7 +178,7 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_dir::{
-        Declaration, ExportKind, Expression, GlobalDeclaration, ModuleDeclaration, Name,
+        Declaration, ExportKind, Expression, GlobalDeclaration, ModuleDeclaration,
         NamespaceDeclaration, NamespaceForm, TypeExpression, WhereClause,
     };
     use destack_source::LanguageType;
@@ -251,31 +247,6 @@ global {
             assert_node!(parser.tree, *decl_id, Declaration::Global(GlobalDeclaration { is_ambient, expressions, .. }) => {
                 assert_eq!(*is_ambient, false);
                 assert_eq!(expressions.len(), 1);
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_declare_module_block() {
-        let mut test = TestParser::new_with_language(
-            r###"
-declare module "foo" {
-    interface Bar { }
-}
-"###,
-            LanguageType::TypeScriptDeclaration,
-        );
-        let mut parser = test.prepare();
-
-        let expr_id = parser.eat_expression(parser.flags).unwrap();
-        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
-            assert_node!(parser.tree, *decl_id, Declaration::Namespace(NamespaceDeclaration { name, is_ambient, form, expressions, .. }) => {
-                assert_eq!(*is_ambient, true);
-                assert_eq!(*form, NamespaceForm::Module);
-                assert_eq!(expressions.len(), 1);
-                assert_node!(name, Name::String(name_id) => {
-                    assert_string!(parser, *name_id, "foo");
-                });
             });
         });
     }
@@ -370,100 +341,6 @@ declare module A {
         assert_node!(parser.tree, object_id, Expression::Block(_) => {});
     }
 
-    /// Parse a global augmentation inside a module declaration.
-    #[test]
-    fn test_parse_nested_global_block_in_string_module() {
-        let mut test = TestParser::new_with_language(
-            r###"
-declare module "buffer" {
-    global {
-        let Buffer: BufferConstructor;
-    }
-}
-"###,
-            LanguageType::TypeScriptDeclaration,
-        );
-        let mut parser = test.prepare();
-
-        let expr_id = parser.eat_expression(parser.flags).unwrap();
-        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
-            assert_node!(parser.tree, *decl_id, Declaration::Namespace(NamespaceDeclaration { name, is_ambient, expressions, .. }) => {
-                assert_eq!(*is_ambient, true);
-                assert_node!(name, Name::String(name_id) => {
-                    assert_string!(parser, *name_id, "buffer");
-                });
-                assert_eq!(expressions.len(), 1);
-
-                let nested_id = expressions[0];
-                assert_node!(parser.tree, nested_id, Expression::Declaration(global_id) => {
-                    assert_node!(parser.tree, *global_id, Declaration::Global(GlobalDeclaration { is_ambient, expressions, .. }) => {
-                        assert_eq!(*is_ambient, true);
-                        assert_eq!(expressions.len(), 1);
-                    });
-                });
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_nested_global_block_in_module() {
-        let mut test = TestParser::new_with_language(
-            r###"
-declare module "m" {
-    global {
-        let x: number;
-    }
-}
-"###,
-            LanguageType::TypeScript,
-        );
-        let mut parser = test.prepare();
-
-        let expr_id = parser.eat_expression(parser.flags).unwrap();
-        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
-            assert_node!(parser.tree, *decl_id, Declaration::Namespace(NamespaceDeclaration { name, is_ambient, expressions, .. }) => {
-                assert_eq!(*is_ambient, true);
-                assert_node!(name, Name::String(name_id) => {
-                    assert_string!(parser, *name_id, "m");
-                });
-                assert_eq!(expressions.len(), 1);
-
-                let nested_id = expressions[0];
-                assert_node!(parser.tree, nested_id, Expression::Declaration(global_id) => {
-                    assert_node!(parser.tree, *global_id, Declaration::Global(GlobalDeclaration { is_ambient, expressions, .. }) => {
-                        assert_eq!(*is_ambient, true);
-                        assert_eq!(expressions.len(), 1);
-                    });
-                });
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_module_block_declaration() {
-        let mut test = TestParser::new_with_language(
-            r###"
-module "foo" {
-    interface Bar { }
-}
-"###,
-            LanguageType::DestackDeclaration,
-        );
-        let mut parser = test.prepare();
-
-        let expr_id = parser.eat_expression(parser.flags).unwrap();
-        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
-            assert_node!(parser.tree, *decl_id, Declaration::Namespace(NamespaceDeclaration { name, is_ambient, form, expressions, .. }) => {
-                assert_eq!(*is_ambient, false);
-                assert_eq!(*form, NamespaceForm::Module);
-                assert_eq!(expressions.len(), 1);
-                assert_node!(name, Name::String(name_id) => {
-                    assert_string!(parser, *name_id, "foo");
-                });
-            });
-        });
-    }
-
     #[test]
     fn test_parse_module_declaration() {
         let mut test = TestParser::new(
@@ -483,49 +360,6 @@ module {
                 assert_eq!(expressions.len(), 1);
             });
         });
-    }
-
-    #[test]
-    fn test_parse_typescript_module_declaration() {
-        let mut test = TestParser::new_with_language(
-            r###"
-module "foo" {
-    interface Bar { }
-}
-"###,
-            LanguageType::TypeScript,
-        );
-        let mut parser = test.prepare();
-
-        let expr_id = parser.eat_expression(parser.flags).unwrap();
-        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
-            assert_node!(parser.tree, *decl_id, Declaration::Namespace(NamespaceDeclaration { name, is_ambient, expressions, .. }) => {
-                assert_eq!(*is_ambient, false);
-                assert_eq!(expressions.len(), 1);
-                assert_node!(name, Name::String(name_id) => {
-                    assert_string!(parser, *name_id, "foo");
-                });
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_named_module_as_identifier_in_destack() {
-        let mut test = TestParser::new_with_language(
-            r###"
-module "foo" {
-    interface Bar { }
-}
-"###,
-            LanguageType::Destack,
-        );
-        let mut parser = test.prepare();
-        let expressions = parser.parse();
-
-        assert_eq!(expressions.len(), 3);
-        assert_expression_path!(parser, parser.tree.get(expressions[0]), "module");
-        assert_node!(parser.tree, expressions[1], Expression::ScalarLiteral(_));
-        assert_node!(parser.tree, expressions[2], Expression::Block(_) => {});
     }
 
     #[test]
