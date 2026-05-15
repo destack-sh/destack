@@ -1,10 +1,10 @@
+use crate::source::TokenType;
 use destack_source::Span;
 
 use crate::{Constant, Intrinsic, LocalNodeId, MemorySpaceSet, Type};
 
 use super::error::{ParseError, ParseResult};
 use super::parser::Parser;
-use super::token::TokenType;
 
 impl Parser {
     /// Parse a constant.
@@ -13,12 +13,12 @@ impl Parser {
         let token = self
             .peek()
             .ok_or_else(|| ParseError::unexpected_end("constant", self.pos()))?;
-        let token_ty = token.ty;
+        let kind = self.token_type(token);
         let token_text = self.tree.source_text(token.span).to_string();
         let token_start = token.start;
 
         // parse the literal
-        match token_ty {
+        match kind {
             TokenType::Identifier if token_text == "null" => {
                 self.bump();
                 Ok(Constant::Null)
@@ -28,26 +28,38 @@ impl Parser {
                 self.bump();
                 Ok(Constant::Boolean { value })
             }
-            TokenType::IntLiteral => {
+            TokenType::Integer => {
                 self.bump();
-                self.parse_int_constant(&token_text).ok_or_else(|| {
-                    ParseError::invalid(&format!("integer constant '{token_text}'"), token_start)
-                })
+                self.parse_int_constant(&token_text)
+                    .or_else(|| self.parse_float_constant(&token_text))
+                    .ok_or_else(|| {
+                        ParseError::invalid(
+                            &format!("numeric constant '{token_text}'"),
+                            token_start,
+                        )
+                    })
             }
-            TokenType::FloatLiteral => {
+            TokenType::Float => {
                 self.bump();
                 self.parse_float_constant(&token_text).ok_or_else(|| {
                     ParseError::invalid(&format!("float constant '{token_text}'"), token_start)
                 })
             }
-            TokenType::CharacterLiteral => {
+            TokenType::Identifier if self.parse_float_constant(&token_text).is_some() => {
+                let value = self.parse_float_constant(&token_text).ok_or_else(|| {
+                    ParseError::invalid(&format!("float constant '{token_text}'"), token_start)
+                })?;
+                self.bump();
+                Ok(value)
+            }
+            TokenType::Character => {
                 self.bump();
                 let value = self.parse_char_literal(&token_text).ok_or_else(|| {
                     ParseError::invalid(&format!("char literal '{token_text}'"), token_start)
                 })?;
                 Ok(Constant::Char { value })
             }
-            _ => Err(ParseError::unexpected("constant", token_ty, token_start)),
+            _ => Err(ParseError::unexpected("constant", kind, token_start)),
         }
     }
 
@@ -60,18 +72,18 @@ impl Parser {
         let token = self
             .peek()
             .ok_or_else(|| ParseError::unexpected_end("constant", self.pos()))?;
-        let token_ty = token.ty;
+        let kind = self.token_type(token);
         let token_text = self.tree.source_text(token.span).to_string();
         let token_start = token.start;
         let expected = self.tree.get(expected_type).clone();
 
         // validate the literal against the expected type
-        match token_ty {
+        match kind {
             TokenType::Identifier if token_text == "null" => {
-                let Type::Reference { is_nullable, .. } = expected else {
+                let Type::Reference { nullability, .. } = expected else {
                     return Err(ParseError::invalid("null constant type", token_start));
                 };
-                if !is_nullable {
+                if !nullability.allows_null() {
                     return Err(ParseError::invalid("null constant type", token_start));
                 }
                 self.bump();
@@ -85,7 +97,7 @@ impl Parser {
                 self.bump();
                 Ok(Constant::Boolean { value })
             }
-            TokenType::CharacterLiteral => {
+            TokenType::Character => {
                 if !matches!(
                     expected,
                     Type::Int {
@@ -101,7 +113,51 @@ impl Parser {
                 })?;
                 Ok(Constant::Char { value })
             }
-            TokenType::IntLiteral => {
+            TokenType::Integer | TokenType::Float | TokenType::Identifier
+                if matches!(expected, Type::Float(_)) =>
+            {
+                self.bump();
+
+                let has_suffix = token_text.chars().any(|c| c.is_ascii_alphabetic());
+                let Type::Float(float_type) = expected else {
+                    unreachable!("float type was checked by the match guard")
+                };
+                let width = u8::try_from(float_type.width())
+                    .map_err(|_| ParseError::invalid("float width", token_start))?;
+
+                // typed literal
+                if has_suffix {
+                    let constant = self.parse_float_constant(&token_text).ok_or_else(|| {
+                        ParseError::invalid(&format!("float constant '{token_text}'"), token_start)
+                    })?;
+                    match constant {
+                        Constant::Float {
+                            width: const_width, ..
+                        } if const_width == width => Ok(constant),
+                        _ => Err(ParseError::invalid("float constant type", token_start)),
+                    }
+                }
+                // f32 payload
+                else if width == 32 {
+                    let value: f32 = token_text
+                        .parse()
+                        .map_err(|_| ParseError::invalid("float constant", token_start))?;
+                    Ok(Constant::Float {
+                        bits: value.to_bits() as u64,
+                        width,
+                    })
+                } else {
+                    // f64 payload
+                    let value: f64 = token_text
+                        .parse()
+                        .map_err(|_| ParseError::invalid("float constant", token_start))?;
+                    Ok(Constant::Float {
+                        bits: value.to_bits(),
+                        width,
+                    })
+                }
+            }
+            TokenType::Integer => {
                 self.bump();
 
                 // expected integer shape
@@ -155,59 +211,13 @@ impl Parser {
                     Ok(Constant::UInt { value, width })
                 }
             }
-            TokenType::FloatLiteral => {
-                self.bump();
-
-                // expected float shape
-                let has_suffix = token_text.chars().any(|c| c.is_ascii_alphabetic());
-                let width = match expected {
-                    Type::Float(float_type) => float_type.width(),
-                    _ => {
-                        return Err(ParseError::invalid("float constant type", token_start));
-                    }
-                };
-                let width = u8::try_from(width)
-                    .map_err(|_| ParseError::invalid("float width", token_start))?;
-
-                // typed literal
-                if has_suffix {
-                    let constant = self.parse_float_constant(&token_text).ok_or_else(|| {
-                        ParseError::invalid(&format!("float constant '{token_text}'"), token_start)
-                    })?;
-                    match constant {
-                        Constant::Float {
-                            width: const_width, ..
-                        } if const_width == width => Ok(constant),
-                        _ => Err(ParseError::invalid("float constant type", token_start)),
-                    }
-                }
-                // f32 payload
-                else if width == 32 {
-                    let value: f32 = token_text
-                        .parse()
-                        .map_err(|_| ParseError::invalid("float constant", token_start))?;
-                    Ok(Constant::Float {
-                        bits: value.to_bits() as u64,
-                        width,
-                    })
-                } else {
-                    // f64 payload
-                    let value: f64 = token_text
-                        .parse()
-                        .map_err(|_| ParseError::invalid("float constant", token_start))?;
-                    Ok(Constant::Float {
-                        bits: value.to_bits(),
-                        width,
-                    })
-                }
-            }
-            _ => Err(ParseError::unexpected("constant", token_ty, token_start)),
+            _ => Err(ParseError::unexpected("constant", kind, token_start)),
         }
     }
 
     /// Parse an integer literal (just the number, no type suffix).
     pub(super) fn parse_int_literal(&mut self) -> ParseResult<i128> {
-        let token = self.eat_token(TokenType::IntLiteral)?;
+        let token = self.eat_token(TokenType::Integer)?;
         let text = self.tree.source_text(token.span).to_string();
 
         // strip type suffix and parse
@@ -223,7 +233,7 @@ impl Parser {
 
     /// Parse an integer literal and return its span.
     pub(super) fn parse_int_literal_part(&mut self) -> ParseResult<(i128, Span)> {
-        let token = self.eat_token(TokenType::IntLiteral)?;
+        let token = self.eat_token(TokenType::Integer)?;
         let token_start = token.start;
         let token_text = self.tree.source_text(token.span).to_string();
         let token_length = token_text.len();

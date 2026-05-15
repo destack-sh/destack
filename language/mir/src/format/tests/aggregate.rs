@@ -63,9 +63,9 @@ entry0(value0: int32, value1: float64, value2: boolean):
 fn test_format_array_aggregate() {
     assert_format(
         r#"
-function makeArray(value0: int32, value1: int32, value2: int32): int32[3] {
+function makeArray(value0: int32, value1: int32, value2: int32): [int32; 3] {
 entry0(value0: int32, value1: int32, value2: int32):
-    value3: int32[3] = array int32[3] (value0, value1, value2)
+    value3: [int32; 3] = array [int32; 3] (value0, value1, value2)
     return value3
 }
 "#,
@@ -77,8 +77,8 @@ entry0(value0: int32, value1: int32, value2: int32):
 fn test_format_aggregate_access() {
     assert_format(
         r#"
-function aggregateAccess(value0: (int32, float64), value1: int32[10]): int32 {
-entry0(value0: (int32, float64), value1: int32[10]):
+function aggregateAccess(value0: (int32, float64), value1: [int32; 10]): int32 {
+entry0(value0: (int32, float64), value1: [int32; 10]):
     value3: int32 = field.get value0, 0
     value4: int32 = element.get value1, 2
     return value3

@@ -185,19 +185,24 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
                 visitor.visit_type(tree, inner, inner_ty);
             }
         }
-        Type::Union {
+        Type::Variant {
             tag,
-            variants,
+            storage,
+            cases,
             copy: _,
         } => {
             if let TypeReference::Type(tag) = *tag {
                 let tag_ty = tree.get(tag);
                 visitor.visit_type(tree, tag, tag_ty);
             }
-            for variant_id in variants {
-                if let TypeReference::Type(variant_id) = variant_id.ty {
-                    let variant_ty = tree.get(variant_id);
-                    visitor.visit_type(tree, variant_id, variant_ty);
+            if let TypeReference::Type(storage) = *storage {
+                let storage_ty = tree.get(storage);
+                visitor.visit_type(tree, storage, storage_ty);
+            }
+            for case in cases {
+                if let TypeReference::Type(case_id) = case.ty {
+                    let case_ty = tree.get(case_id);
+                    visitor.visit_type(tree, case_id, case_ty);
                 }
             }
         }

@@ -48,8 +48,8 @@ entry0(value0: vector<int32, 4>, value1: int32, value2: tensor<int32, (2, 2)>, v
 fn test_format_check_and_assume() {
     assert_format(
         r#"
-function guard(value0: uint32, value1: uint32, value2: int32[4]): int32 {
-entry0(value0: uint32, value1: uint32, value2: int32[4]):
+function guard(value0: uint32, value1: uint32, value2: [int32; 4]): int32 {
+entry0(value0: uint32, value1: uint32, value2: [int32; 4]):
     value3: boolean = int.lt.u value0, value1
     assume value3
     check bounds.u value0, value1, value2 -> block1(value0), block2
@@ -70,7 +70,7 @@ block2:
 fn test_format_calls() {
     assert_format(
         r#"
-extern function callee(int32, int32): int32
+external function callee(int32, int32): int32
 
 function caller(): int32 {
 entry0:
@@ -90,7 +90,7 @@ entry0:
 fn test_format_void_call_with_callable_argument() {
     assert_format(
         r#"
-extern function consume(() -> int32): void
+external function consume(() -> int32): void
 
 function caller(value0: () -> int32): void {
 entry0(value0: () -> int32):

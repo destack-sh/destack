@@ -25,7 +25,7 @@ entry0:
 fn test_format_global_constant() {
     assert_format(
         r#"
-global MAGIC: int64, readonly = 42int64
+readonly global MAGIC: int64 = 42int64
 
 function getMagic(): int64 {
 entry0:
@@ -42,12 +42,12 @@ entry0:
 fn test_format_string_constant() {
     assert_format(
         r#"
-global stringLiteralHelloWorldNl: uint8[11], readonly = b"hello\nworld"
+readonly global stringLiteralHelloWorldNl: [uint8; 11] = b"hello\nworld"
 
 function escapeTest(): void {
 entry0:
-    value0: ref<uint8[11], raw, readonly> = global.address stringLiteralHelloWorldNl
-    value1: uint8[11] = load value0
+    value0: ref<[uint8; 11], raw, readonly> = global.address stringLiteralHelloWorldNl
+    value1: [uint8; 11] = load value0
     return
 }
 "#,

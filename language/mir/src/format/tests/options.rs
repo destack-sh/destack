@@ -84,9 +84,9 @@ fn test_format_local_names() {
         r#"
 type Status = int32;
 
-global Status.Default: Status, readonly = 1int32
+readonly global Status.Default: Status = 1int32
 
-extern function Status.isActive(Status): boolean
+external function Status.isActive(Status): boolean
 "#
         .trim(),
         output,

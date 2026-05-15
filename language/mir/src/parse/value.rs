@@ -1,13 +1,13 @@
+use crate::source::TokenType;
 use destack_source::Span;
 
 use crate::{
     BlockReference, FunctionReference, GlobalReference, LocalNodeId, LocalReference, Parameter,
-    Type, TypeReference, TypedValueSpan, Value, ValueReference,
+    Type, TypedValueSpan, Value, ValueReference,
 };
 
 use super::error::{ParseError, ParseResult};
 use super::parser::Parser;
-use super::token::TokenType;
 
 impl Parser {
     /// Parse a value reference.
@@ -44,7 +44,7 @@ impl Parser {
             .ok_or_else(|| ParseError::unexpected_end("value definition", self.pos()))?;
         let span = token.span;
 
-        match token.ty {
+        match self.token_type(token) {
             TokenType::Value => {
                 let text = self.tree.source_text(token.span).to_string();
                 self.bump();
@@ -92,7 +92,7 @@ impl Parser {
             }
             _ => Err(ParseError::unexpected(
                 "value definition",
-                token.ty,
+                self.token_type(token),
                 token.start,
             )),
         }
@@ -105,7 +105,7 @@ impl Parser {
             .ok_or_else(|| ParseError::unexpected_end("value reference", self.pos()))?;
         let span = token.span;
 
-        match token.ty {
+        match self.token_type(token) {
             TokenType::Value => {
                 let text = self.tree.source_text(token.span).to_string();
                 self.bump();
@@ -152,8 +152,8 @@ impl Parser {
             .ok_or_else(|| ParseError::unexpected_end("block reference", self.pos()))?;
         let span = token.span;
 
-        match token.ty {
-            TokenType::BlockRefence => {
+        match self.token_type(token) {
+            TokenType::BlockReference => {
                 let text = self.tree.source_text(token.span).to_string();
                 let start = token.start;
                 self.bump();
@@ -268,9 +268,9 @@ impl Parser {
         &mut self,
         segment_spans: &mut Vec<Span>,
     ) -> ParseResult<Vec<ValueReference>> {
-        self.eat_token(TokenType::OpenParen)?;
+        self.eat_token(TokenType::OpenParenthesis)?;
         let args = self.parse_value_list_segments(segment_spans)?;
-        self.eat_token(TokenType::CloseParen)?;
+        self.eat_token(TokenType::CloseParenthesis)?;
 
         Ok(args)
     }
@@ -312,12 +312,12 @@ impl Parser {
         while self.is_value_definition_start() {
             let value_start = self.pos();
             let (value, name_span) = self.parse_value_definition_part()?;
-            self.eat_token(TokenType::Colon)?;
-            let (ty, type_span) = self.parse_type_part()?;
+            let colon_token = self.eat_token(TokenType::Colon)?;
+            let (ty, type_span) = self.parse_type_reference_after(colon_token, "parameter type");
             let value_span = self.span_from_parse_start(value_start);
             values.push(Parameter {
                 value: ValueReference::Value(value),
-                ty: TypeReference::Type(ty),
+                ty,
             });
             spans.push(TypedValueSpan::new(value_span, Some(name_span), type_span));
             if !self.eat_token_maybe(TokenType::Comma) {

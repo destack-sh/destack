@@ -2,7 +2,8 @@ use super::{
     assert_format, assert_format_eq, assert_output_eq, format_tree_with_options, parse_fixture,
 };
 use crate::{
-    Access, AddressSpace, Function, Lifetime, MirFormatOptions, ReferenceKind, Type, TypeReference,
+    Access, AddressSpace, Function, Lifetime, MirFormatOptions, Nullability, ReferenceKind, Type,
+    TypeReference,
 };
 
 /// Preserves declaration comments while normalizing canonical separators and names.
@@ -13,10 +14,10 @@ fn test_format_declaration_comments() {
 // aliases
 type Callable = (int32) => int32;
 // imports
-extern function callee(int32): int32;
+external function callee(int32): int32;
 
 // globals
-global Count: int32, readonly = 1int32;
+readonly global Count: int32 = 1int32;
 
 function use(v0: Callable): int32 {
 b0(v0: Callable):
@@ -31,10 +32,10 @@ b0(v0: Callable):
 type Callable = (int32) => int32;
 
 // imports
-extern function callee(int32): int32
+external function callee(int32): int32
 
 // globals
-global Count: int32, readonly = 1int32
+readonly global Count: int32 = 1int32
 
 function use(value0: Callable): int32 {
 entry0(value0: Callable):
@@ -60,17 +61,17 @@ type Pair {
 
 @section(".rodata")
 // global detail
-global Count: int32, readonly = 1int32
+readonly global Count: int32 = 1int32
 
 @section(".rodata")
 // import global detail
 @align(4)
 // more import global detail
-extern global Imported: int32, readonly
+external readonly global Imported: int32
 
 @cold
 // import detail
-extern function callee(int32): int32
+external function callee(int32): int32
 
 @cold
 // function detail
@@ -124,7 +125,7 @@ entry0:
         address_space: AddressSpace::Local,
         access: Access::Mutable,
         pointee: TypeReference::Type(int32),
-        is_nullable: false,
+        nullability: Nullability::None,
     });
     tree.get_mut(function_id).environment = Some(TypeReference::Type(environment));
 
@@ -171,7 +172,7 @@ type Pair {
 fn test_format_parameter_comments() {
     assert_format(
         r#"
-extern function callee(
+external function callee(
     // left
     int32,
 

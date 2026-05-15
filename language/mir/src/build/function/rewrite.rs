@@ -494,7 +494,7 @@ impl<'a> FunctionBuilder<'a> {
             CheckConstraint::Type { value, .. } => {
                 Self::replace_value_in_slot(value, from, to);
             }
-            CheckConstraint::Union { value, .. } => {
+            CheckConstraint::Variant { value, .. } => {
                 Self::replace_value_in_slot(value, from, to);
             }
             CheckConstraint::ReceiverType { receiver, .. } => {

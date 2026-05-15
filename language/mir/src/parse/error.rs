@@ -1,8 +1,9 @@
+use crate::source::TokenType;
 use std::fmt;
 
 use destack_source::{Diagnostic, DiagnosticLabel, FileContentId, FileId, Span};
 
-use super::token::{Token, TokenType};
+use crate::source::Token;
 
 const MIR_PARSE_DIAGNOSTIC_CODE: &str = "EMIRP001";
 

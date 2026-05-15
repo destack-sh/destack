@@ -7,15 +7,13 @@ use destack_fir::print::PrintOptions;
 use destack_fir::write;
 use destack_source::{File, FileType, IndentStyle, LineEnding};
 
-use crate::parse::TokenType;
+use crate::source::TokenType;
 use crate::{
-    Access, Block, Function, Global, Instruction, Lifetime, LifetimeOrigin, Local, LocalNodeId,
-    Node, NodeType, ReferenceKind, TensorDimension, TensorDimensionOrder, TensorLayout,
-    TensorViewLayout, Terminator, Tree, TreeImpl, Type, TypeAlias, TypeReference, Value,
-    function_signature_parts,
+    Block, Function, Global, Instruction, Local, LocalNodeId, Node, NodeType, Terminator, Tree,
+    TreeImpl, Type, TypeAlias, TypeReference, Value,
 };
 
-use super::r#type::format_type_declaration;
+use super::r#type::{format_type_declaration, format_type_expanded};
 
 pub type MirFormatter<'a, 'buf> = Formatter<'buf, MirFormatContext<'a>>;
 
@@ -112,7 +110,6 @@ pub struct MirFormatContext<'a> {
     /// Dummy file for FIR compatibility.
     file: File,
 
-    // local context (a little bit hacky but fine for now)
     /// Map from local ID to its index in the current function's local list.
     pub local_indices: HashMap<LocalNodeId<Local>, usize>,
     /// Map from function ID to its unique display name.
@@ -442,7 +439,7 @@ fn should_alias_type(ty: &Type) -> bool {
     // allow aliasing for common aggregate shapes
     matches!(
         ty,
-        Type::Struct { .. } | Type::Tuple { .. } | Type::Union { .. } | Type::Callable { .. }
+        Type::Struct { .. } | Type::Tuple { .. } | Type::Variant { .. } | Type::Callable { .. }
     )
 }
 
@@ -513,7 +510,7 @@ fn type_alias_prefix(ty: &Type) -> &'static str {
         Type::Tuple { .. } => "Tuple",
         Type::Array { .. } => "Array",
         Type::Slice { .. } => "Slice",
-        Type::Union { .. } => "Union",
+        Type::Variant { .. } => "Variant",
         Type::Atomic { .. } => "Atomic",
         Type::Reference { .. } => "Ref",
         Type::FunctionPointer { .. } => "Function",
@@ -571,345 +568,22 @@ struct AliasCandidateGroup {
 
 /// Build a structural key used for alias grouping.
 fn type_key_for_alias(tree: &Tree, strings: &StringPool, ty: LocalNodeId<Type>) -> String {
-    let mut active_types = HashSet::new();
-    type_key_for_alias_inner(tree, strings, ty, &mut active_types)
-}
-
-/// Build one structural key from a type reference.
-fn type_key_for_alias_reference(
-    tree: &Tree,
-    strings: &StringPool,
-    ty: TypeReference,
-    active_types: &mut HashSet<LocalNodeId<Type>>,
-) -> String {
-    match ty {
-        TypeReference::Type(ty) => type_key_for_alias_inner(tree, strings, ty, active_types),
-        TypeReference::Missing => "<missing>".to_string(),
-        TypeReference::Error => "<error>".to_string(),
-    }
-}
-
-/// Build a structural key used for alias grouping.
-fn type_key_for_alias_inner(
-    tree: &Tree,
-    strings: &StringPool,
-    ty: LocalNodeId<Type>,
-    active_types: &mut HashSet<LocalNodeId<Type>>,
-) -> String {
-    // stop when the traversal hits a recursive cycle
-    if !active_types.insert(ty) {
-        return format!("recursiveType{}", ty.id);
-    }
-
-    // format a stable structural key
-    let key = match tree.get(ty) {
-        Type::Void => "void".to_string(),
-        Type::Boolean => "boolean".to_string(),
-        Type::Int { width, is_signed } => {
-            // use canonical integer names
-            let prefix = if *is_signed { "int" } else { "uint" };
-            format!("{prefix}{width}")
-        }
-        Type::Isize => "isize".to_string(),
-        Type::Usize => "usize".to_string(),
-        Type::Float(float_type) => format!("float{}", float_type.width()),
-        Type::TypeDescriptor => "typeDescriptor".to_string(),
-        Type::TypeId => "typeId".to_string(),
-        Type::Atomic { value } => {
-            let value_key = type_key_for_alias_reference(tree, strings, *value, active_types);
-            format!("atomic<{value_key}>")
-        }
-        Type::Any { interface } => {
-            let interface_key =
-                type_key_for_alias_reference(tree, strings, *interface, active_types);
-            format!("any<{interface_key}>")
-        }
-        Type::Reference {
-            kind,
-            lifetime,
-            address_space,
-            access,
-            pointee,
-            is_nullable,
-        } => {
-            // start with reference header
-            let mut result = String::new();
-
-            // include the nullable marker when needed
-            if *is_nullable {
-                result.push_str("ref?<");
-            }
-            // include the non nullable marker otherwise
-            else {
-                result.push_str("ref<");
-            }
-            // append the pointee key first
-            let pointee_key = type_key_for_alias_reference(tree, strings, *pointee, active_types);
-            result.push_str(&pointee_key);
-
-            // append the reference kind
-            result.push_str(", ");
-            result.push_str(match kind {
-                ReferenceKind::Managed => "managed",
-                ReferenceKind::Unique => "unique",
-                ReferenceKind::Borrowed => "borrowed",
-                ReferenceKind::Raw => "raw",
-            });
-
-            push_lifetime_key(&mut result, lifetime);
-            push_access_key(&mut result, *access);
-
-            // append address space when explicit
-            if !address_space.is_local() {
-                let addrspace = format!("space({})", address_space.label());
-                result.push_str(", ");
-                result.push_str(&addrspace);
-            }
-            result.push('>');
-            result
-        }
-        Type::Array {
-            element, length, ..
-        } => {
-            // format array keys with element and length
-            let element_key = type_key_for_alias_reference(tree, strings, *element, active_types);
-            format!("{element_key}[{length}]")
-        }
-        Type::Slice {
-            kind,
-            lifetime,
-            element,
-            address_space,
-            access,
-        } => {
-            // format slice keys with element type and qualifiers
-            let element_key = type_key_for_alias_reference(tree, strings, *element, active_types);
-            let mut result = format!("slice<{element_key}");
-            match kind {
-                ReferenceKind::Managed => result.push_str(", managed"),
-                ReferenceKind::Unique => result.push_str(", unique"),
-                ReferenceKind::Borrowed => result.push_str(", borrowed"),
-                ReferenceKind::Raw => result.push_str(", raw"),
-            }
-            push_lifetime_key(&mut result, lifetime);
-            push_access_key(&mut result, *access);
-            if !address_space.is_local() {
-                let address_space = format!("space({})", address_space.label());
-                result.push_str(", ");
-                result.push_str(&address_space);
-            }
-            result.push('>');
-            result
-        }
-        Type::Tuple { elements, .. } => {
-            // join tuple element keys
-            let elements = elements
-                .iter()
-                .map(|element| type_key_for_alias_reference(tree, strings, *element, active_types))
-                .collect::<Vec<_>>()
-                .join(", ");
-            format!("({elements})")
-        }
-        Type::Struct { fields, .. } => {
-            // join struct field keys
-            let fields = fields
-                .iter()
-                .map(|field_id| {
-                    let field = tree.get(*field_id);
-                    let field_type =
-                        type_key_for_alias_reference(tree, strings, field.ty, active_types);
-                    match field.name {
-                        Some(name) => format!("{}: {field_type}", strings.get(name)),
-                        None => field_type,
-                    }
-                })
-                .collect::<Vec<_>>()
-                .join(", ");
-            format!("{{ {fields} }}")
-        }
-        Type::Newtype { inner, .. } => {
-            let inner_key = type_key_for_alias_reference(tree, strings, *inner, active_types);
-            format!("newtype<{inner_key}>")
-        }
-        Type::Union { tag, variants, .. } => {
-            let tag_key = type_key_for_alias_reference(tree, strings, *tag, active_types);
-            let variants = variants
-                .iter()
-                .map(|variant| {
-                    let ty = type_key_for_alias_reference(tree, strings, variant.ty, active_types);
-                    format!("{}: {ty}", variant.tag)
-                })
-                .collect::<Vec<_>>()
-                .join(", ");
-            format!("union<{tag_key}; {variants}>")
-        }
-        Type::Vector { element, lanes, .. } => {
-            // format vector keys with element and lane count
-            let element_key = type_key_for_alias_reference(tree, strings, *element, active_types);
-            format!("vector<{element_key}, {lanes}>")
-        }
-        Type::Tensor {
-            element,
-            shape,
-            layout,
-            ..
-        } => {
-            // format tensor keys with element, shape, and layout
-            let element_key = type_key_for_alias_reference(tree, strings, *element, active_types);
-            let shape_key = format_shape_key(shape);
-            let layout_key = format_tensor_layout_key(layout);
-            format!("tensor<{element_key}, {shape_key}, {layout_key}>")
-        }
-        Type::TensorView {
-            kind,
-            lifetime,
-            address_space,
-            access,
-            element,
-            shape,
-            layout,
-            is_nullable,
-        } => {
-            // format tensor reference keys with reference header, shape, and layout
-            let mut result = String::new();
-            if *is_nullable {
-                result.push_str("tensorView?<");
-            } else {
-                result.push_str("tensorView<");
-            }
-            let element_key = type_key_for_alias_reference(tree, strings, *element, active_types);
-            result.push_str(&element_key);
-            result.push_str(", ");
-            result.push_str(match kind {
-                ReferenceKind::Managed => "managed",
-                ReferenceKind::Unique => "unique",
-                ReferenceKind::Borrowed => "borrowed",
-                ReferenceKind::Raw => "raw",
-            });
-            push_lifetime_key(&mut result, lifetime);
-            push_access_key(&mut result, *access);
-            if !address_space.is_local() {
-                let addrspace = format!("space({})", address_space.label());
-                result.push_str(", ");
-                result.push_str(&addrspace);
-            }
-            result.push_str(", ");
-            result.push_str(&format_shape_key(shape));
-            result.push_str(", ");
-            result.push_str(&format_tensor_view_layout_key(layout));
-            result.push('>');
-            result
-        }
-        Type::FunctionSignature { parameters, result } => {
-            // join parameter and result keys
-            let params = parameters
-                .iter()
-                .map(|param| type_key_for_alias_reference(tree, strings, *param, active_types))
-                .collect::<Vec<_>>()
-                .join(", ");
-            let result = type_key_for_alias_reference(tree, strings, *result, active_types);
-            format!("sig({params}) -> {result}")
-        }
-        Type::FunctionPointer { signature } | Type::Callable { signature } => {
-            let TypeReference::Type(signature) = *signature else {
-                return type_key_for_alias_reference(tree, strings, *signature, active_types);
-            };
-            let Some((parameters, result)) = function_signature_parts(tree.get(signature)) else {
-                panic!("callable type key expects a function signature");
-            };
-            let params = parameters
-                .iter()
-                .map(|param| type_key_for_alias_reference(tree, strings, *param, active_types))
-                .collect::<Vec<_>>()
-                .join(", ");
-            let result = type_key_for_alias_reference(tree, strings, result, active_types);
-            match tree.get(ty) {
-                Type::FunctionPointer { .. } => format!("({params}) -> {result}"),
-                Type::Callable { .. } => format!("({params}) => {result}"),
-                _ => unreachable!(),
-            }
-        }
+    let options = MirFormatOptions {
+        use_type_aliases: false,
+        ..MirFormatOptions::default()
     };
+    let context = MirFormatContext::new(tree, strings, options);
+    let ty_node = tree.get(ty);
+    let document = destack_fir::format!(
+        context,
+        [format_with(|f| format_type_expanded(f, ty, ty_node))]
+    )
+    .unwrap_or_else(|error| panic!("failed to format MIR type alias key: {error:?}"));
+    let printed = document
+        .print()
+        .unwrap_or_else(|error| panic!("failed to print MIR type alias key: {error:?}"));
 
-    active_types.remove(&ty);
-    key
-}
-
-/// Format a tensor shape key.
-fn format_shape_key(shape: &[TensorDimension]) -> String {
-    // build a stable shape string
-    let mut result = String::new();
-    result.push('(');
-    for (i, dim) in shape.iter().enumerate() {
-        if i > 0 {
-            result.push_str(", ");
-        }
-        match dim {
-            TensorDimension::Static(value) => {
-                result.push_str(&value.to_string());
-            }
-            TensorDimension::Symbol(name) => result.push_str(name),
-            TensorDimension::Dynamic => result.push_str("dynamic"),
-        }
-    }
-    result.push(')');
-    result
-}
-
-/// Append an access qualifier to a structural type key.
-fn push_access_key(result: &mut String, access: Access) {
-    match access {
-        Access::Readonly => result.push_str(", readonly"),
-        Access::Mutable => {}
-        Access::Exclusive => result.push_str(", exclusive"),
-    }
-}
-
-/// Append a lifetime qualifier to a structural type key.
-fn push_lifetime_key(result: &mut String, lifetime: &Lifetime) {
-    if lifetime.is_empty() {
-        return;
-    }
-
-    let origins = lifetime
-        .origins
-        .iter()
-        .map(|source| match source {
-            LifetimeOrigin::Static => "static".to_string(),
-            LifetimeOrigin::Parameter(index) => index.to_string(),
-        })
-        .collect::<Vec<_>>()
-        .join(", ");
-    result.push_str(", lifetime(");
-    result.push_str(&origins);
-    result.push(')');
-}
-
-/// Format a tensor layout key.
-fn format_tensor_layout_key(layout: &TensorLayout) -> String {
-    // encode layout in the structural key
-    match layout {
-        TensorLayout::Dense {
-            order: TensorDimensionOrder::RowMajor,
-        } => "layout(dense(rowMajor))".to_string(),
-        TensorLayout::Dense {
-            order: TensorDimensionOrder::ColumnMajor,
-        } => "layout(dense(columnMajor))".to_string(),
-    }
-}
-
-/// Format a tensor view layout key.
-fn format_tensor_view_layout_key(layout: &TensorViewLayout) -> String {
-    // encode layout in the structural key
-    match layout {
-        TensorViewLayout::Dense {
-            order: TensorDimensionOrder::RowMajor,
-        } => "layout(dense(rowMajor))".to_string(),
-        TensorViewLayout::Dense {
-            order: TensorDimensionOrder::ColumnMajor,
-        } => "layout(dense(columnMajor))".to_string(),
-        TensorViewLayout::Strided => "layout(strided)".to_string(),
-    }
+    printed.as_str().to_string()
 }
 
 /// Collect type usage counts for formatting.
@@ -1178,16 +852,24 @@ fn record_type_use_inner(
             };
             record_type_use_inner(tree, inner, counts, visited);
         }
-        Type::Union { tag, variants, .. } => {
+        Type::Variant {
+            tag,
+            storage,
+            cases,
+            ..
+        } => {
             let TypeReference::Type(tag_id) = *tag else {
                 return;
             };
             record_type_use_inner(tree, tag_id, counts, visited);
-            for variant_id in variants {
-                let TypeReference::Type(variant_id) = variant_id.ty else {
+            if let TypeReference::Type(storage_id) = *storage {
+                record_type_use_inner(tree, storage_id, counts, visited);
+            }
+            for case in cases {
+                let TypeReference::Type(case_id) = case.ty else {
                     continue;
                 };
-                record_type_use_inner(tree, variant_id, counts, visited);
+                record_type_use_inner(tree, case_id, counts, visited);
             }
         }
         Type::Vector { element, .. } => {
@@ -1659,10 +1341,16 @@ fn collect_alias_dependencies(
             Type::Newtype { inner, .. } => {
                 record_dependency(*inner, root, alias_types, &mut dependencies, &mut stack);
             }
-            Type::Union { tag, variants, .. } => {
+            Type::Variant {
+                tag,
+                storage,
+                cases,
+                ..
+            } => {
                 record_dependency(*tag, root, alias_types, &mut dependencies, &mut stack);
-                for variant in variants {
-                    record_dependency(variant.ty, root, alias_types, &mut dependencies, &mut stack);
+                record_dependency(*storage, root, alias_types, &mut dependencies, &mut stack);
+                for case in cases {
+                    record_dependency(case.ty, root, alias_types, &mut dependencies, &mut stack);
                 }
             }
             Type::Vector { element, .. } => {

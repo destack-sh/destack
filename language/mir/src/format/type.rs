@@ -6,9 +6,9 @@ use super::attribute::{write_attributes, write_attributes_before_anchor, write_i
 
 use crate::{
     Access, AddressSpace, Attribute, AttributeIdentifier, Copy, Field, FieldSpan, FormatMirNode,
-    Lifetime, LifetimeOrigin, LocalNodeId, MirFormatContext, MirFormatter, ReferenceKind,
-    TensorDimension, TensorDimensionOrder, TensorLayout, TensorViewLayout, Type, TypeAlias,
-    TypeDeclarationSpans, TypeReference, write_comments_before,
+    Lifetime, LifetimeOrigin, LocalNodeId, MirFormatContext, MirFormatter, Nullability,
+    ReferenceKind, TensorDimension, TensorDimensionOrder, TensorLayout, TensorViewLayout, Type,
+    TypeAlias, TypeDeclarationSpans, TypeReference, write_comments_before,
 };
 
 impl<'a> FormatMirNode<'a, Type> for Type {
@@ -90,7 +90,7 @@ fn type_copy(ty: &Type) -> Option<Copy> {
         | Type::Tuple { copy, .. }
         | Type::Struct { copy, .. }
         | Type::Newtype { copy, .. }
-        | Type::Union { copy, .. }
+        | Type::Variant { copy, .. }
         | Type::Vector { copy, .. }
         | Type::Tensor { copy, .. } => Some(*copy),
         _ => None,
@@ -122,7 +122,6 @@ fn format_struct_type_declaration<'a>(
     }
 
     let tree = f.context().tree;
-    let field_ids = fields.to_vec();
     let field_spans = alias_id
         .map(|alias_id| tree.type_field_spans(alias_id).to_vec())
         .unwrap_or_default();
@@ -134,7 +133,7 @@ fn format_struct_type_declaration<'a>(
         f,
         [block_indent(&format_with(
             |f: &mut Formatter<'_, MirFormatContext<'a>>| {
-                format_struct_fields(&field_ids, &field_spans, declaration_spans.as_ref(), f)
+                format_struct_fields(fields, &field_spans, declaration_spans.as_ref(), f)
             }
         ))]
     )?;
@@ -255,40 +254,18 @@ fn format_type_inner<'a>(
             address_space,
             access,
             pointee,
-            is_nullable,
+            nullability,
         } => {
-            // reference header
-            let ref_token = if *is_nullable { "ref?<" } else { "ref<" };
-            let kind_token = match kind {
-                ReferenceKind::Managed => "managed",
-                ReferenceKind::Unique => "unique",
-                ReferenceKind::Borrowed => "borrowed",
-                ReferenceKind::Raw => "raw",
-            };
-
-            // address space clause
-            let address_space_token = if address_space.is_local() {
-                None
-            } else {
-                Some(format!("space({})", address_space.label()))
-            };
-
-            // render reference syntax
-            write!(
+            write!(f, [token("ref"), token("<")])?;
+            format_view_header(
+                *kind,
+                lifetime,
+                address_space.clone(),
+                *access,
+                *nullability,
+                *pointee,
                 f,
-                [
-                    token(ref_token),
-                    pointee,
-                    token(","),
-                    space(),
-                    token(kind_token)
-                ]
             )?;
-            format_lifetime(lifetime, f)?;
-            format_access(*access, f)?;
-            if let Some(addrspace) = address_space_token {
-                write!(f, [token(","), space(), text(&addrspace)])?;
-            }
             write!(f, [token(">")])
         }
         Type::Array {
@@ -298,7 +275,14 @@ fn format_type_inner<'a>(
         } => {
             write!(
                 f,
-                [element, token("["), text(&length.to_string()), token("]")]
+                [
+                    token("["),
+                    element,
+                    token(";"),
+                    space(),
+                    text(&length.to_string()),
+                    token("]")
+                ]
             )
         }
         Type::Slice {
@@ -307,26 +291,17 @@ fn format_type_inner<'a>(
             element,
             address_space,
             access,
+            nullability,
         } => {
-            let kind_token = match kind {
-                ReferenceKind::Managed => "managed",
-                ReferenceKind::Unique => "unique",
-                ReferenceKind::Borrowed => "borrowed",
-                ReferenceKind::Raw => "raw",
-            };
-            let address_space_token = if address_space.is_local() {
-                None
-            } else {
-                Some(format!("space({})", address_space.label()))
-            };
-
             write!(f, [token("slice"), token("<"), element])?;
-            write!(f, [token(","), space(), token(kind_token)])?;
-            format_lifetime(lifetime, f)?;
-            format_access(*access, f)?;
-            if let Some(address_space) = address_space_token {
-                write!(f, [token(","), space(), text(&address_space)])?;
-            }
+            format_reference_qualifiers(
+                *kind,
+                lifetime,
+                address_space.clone(),
+                *access,
+                *nullability,
+                f,
+            )?;
             write!(f, [token(">")])
         }
         Type::Tuple { elements, copy: _ } => {
@@ -363,28 +338,40 @@ fn format_type_inner<'a>(
         Type::Newtype { inner, copy: _ } => {
             write!(f, [token("newtype"), token("<"), inner, token(">")])
         }
-        Type::Union {
+        Type::Variant {
             tag,
-            variants,
+            storage,
+            cases,
             copy: _,
         } => {
-            write!(f, [token("union"), token("<")])?;
-            write!(f, [tag, token(";"), space()])?;
-            for (index, variant) in variants.iter().enumerate() {
+            write!(
+                f,
+                [
+                    token("variant"),
+                    token("<"),
+                    tag,
+                    token(","),
+                    space(),
+                    storage
+                ]
+            )?;
+            write!(f, [token(">"), space(), token("{")])?;
+            if !cases.is_empty() {
+                write!(f, [space()])?;
+            }
+            for (index, case) in cases.iter().enumerate() {
                 if index > 0 {
-                    write!(f, [token(","), space()])?;
+                    write!(f, [space()])?;
                 }
                 write!(
                     f,
-                    [
-                        text(&variant.tag.to_string()),
-                        token(":"),
-                        space(),
-                        variant.ty
-                    ]
+                    [&case.tag, space(), token("="), space(), case.ty, token(";")]
                 )?;
             }
-            write!(f, [token(">")])
+            if !cases.is_empty() {
+                write!(f, [space()])?;
+            }
+            write!(f, [token("}")])
         }
         Type::Vector {
             element,
@@ -430,15 +417,18 @@ fn format_type_inner<'a>(
             element,
             shape,
             layout,
-            is_nullable,
+            nullability,
         } => {
-            let view_token = if *is_nullable {
-                "tensorView?<"
-            } else {
-                "tensorView<"
-            };
-            write!(f, [token(view_token)])?;
-            format_view_header(*kind, lifetime, address_space.clone(), *access, *element, f)?;
+            write!(f, [token("tensorView"), token("<")])?;
+            format_view_header(
+                *kind,
+                lifetime,
+                address_space.clone(),
+                *access,
+                *nullability,
+                *element,
+                f,
+            )?;
             write!(f, [token(","), space()])?;
             format_shape(shape, f)?;
             if *layout != TensorViewLayout::dense_row_major() {
@@ -495,13 +485,8 @@ fn format_type_inner<'a>(
     }
 }
 
-/// Format one nested type reference.
-fn format_type_reference<'a>(ty: TypeReference, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
-    write!(f, [ty])
-}
-
 fn format_shape<'a>(shape: &[TensorDimension], f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
-    write!(f, [token("("),])?;
+    write!(f, [token("(")])?;
     for (i, dim) in shape.iter().enumerate() {
         if i > 0 {
             write!(f, [token(","), space()])?;
@@ -563,7 +548,20 @@ fn format_view_header<'a>(
     lifetime: &Lifetime,
     address_space: AddressSpace,
     access: Access,
+    nullability: Nullability,
     element: TypeReference,
+    f: &mut MirFormatter<'a, '_>,
+) -> FormatResult<()> {
+    write!(f, [element])?;
+    format_reference_qualifiers(kind, lifetime, address_space, access, nullability, f)
+}
+
+fn format_reference_qualifiers<'a>(
+    kind: ReferenceKind,
+    lifetime: &Lifetime,
+    address_space: AddressSpace,
+    access: Access,
+    nullability: Nullability,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
     let kind_token = match kind {
@@ -573,20 +571,36 @@ fn format_view_header<'a>(
         ReferenceKind::Raw => "raw",
     };
 
-    let address_space_token = if address_space.is_local() {
-        None
-    } else {
-        Some(format!("space({})", address_space.label()))
-    };
-
-    format_type_reference(element, f)?;
     write!(f, [token(","), space(), token(kind_token)])?;
     format_lifetime(lifetime, f)?;
     format_access(access, f)?;
-    if let Some(addrspace) = address_space_token {
-        write!(f, [token(","), space(), text(&addrspace)])?;
+    format_nullability(nullability, f)?;
+    if !address_space.is_local() {
+        write!(
+            f,
+            [
+                token(","),
+                space(),
+                token("space"),
+                token("("),
+                text(address_space.label()),
+                token(")")
+            ]
+        )?;
     }
     Ok(())
+}
+
+fn format_nullability<'a>(
+    nullability: Nullability,
+    f: &mut MirFormatter<'a, '_>,
+) -> FormatResult<()> {
+    match nullability {
+        Nullability::None => Ok(()),
+        Nullability::Null => write!(f, [token(","), space(), token("nullable")]),
+        Nullability::Undefined => write!(f, [token(","), space(), token("undefined")]),
+        Nullability::NullOrUndefined => write!(f, [token(","), space(), token("nullish")]),
+    }
 }
 
 fn format_lifetime<'a>(lifetime: &Lifetime, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {

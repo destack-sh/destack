@@ -1,9 +1,9 @@
+use crate::source::TokenType;
 use destack_source::Span;
 
 use crate::{Block, Function, Global, TypeAlias};
 
 use super::Parser;
-use super::token::TokenType;
 
 impl Parser {
     /// Attach parsed comment ownership to renderable MIR anchors.

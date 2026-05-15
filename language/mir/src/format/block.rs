@@ -445,15 +445,15 @@ fn format_check_constraint<'a>(
                 expected
             ]
         ),
-        CheckConstraint::Union { value, expected } => write!(
+        CheckConstraint::Variant { value, expected } => write!(
             f,
             [
-                token("unionTag"),
+                token("variantTag"),
                 space(),
                 value,
                 token(","),
                 space(),
-                text(&expected.to_string())
+                expected
             ]
         ),
         CheckConstraint::ReceiverType { receiver, expected } => write!(

@@ -1,8 +1,9 @@
 use destack_core::StringId;
 
 use crate::{
-    Access, AddressSpace, Attribute, Copy, Field, FloatType, Lifetime, LocalNodeId, ReferenceKind,
-    TensorDimension, TensorLayout, TensorViewLayout, Type, TypeReference, UnionVariant,
+    Access, AddressSpace, Attribute, Copy, Field, FloatType, Lifetime, LocalNodeId, Nullability,
+    ReferenceKind, TensorDimension, TensorLayout, TensorViewLayout, Type, TypeReference,
+    VariantCase,
 };
 
 /// Interning key for struct fields.
@@ -59,7 +60,7 @@ pub(super) enum TypeKey {
         address_space: AddressSpace,
         access: Access,
         pointee: TypeReference,
-        is_nullable: bool,
+        nullability: Nullability,
     },
     /// Fixed-length array.
     Array {
@@ -74,6 +75,7 @@ pub(super) enum TypeKey {
         element: TypeReference,
         address_space: AddressSpace,
         access: Access,
+        nullability: Nullability,
     },
     /// Tuple of heterogeneous elements.
     Tuple {
@@ -87,10 +89,11 @@ pub(super) enum TypeKey {
     },
     /// Nominal newtype wrapper.
     Newtype { inner: TypeReference, copy: Copy },
-    /// Tagged union.
-    Union {
+    /// Physical tagged sum.
+    Variant {
         tag: TypeReference,
-        variants: Vec<UnionVariant>,
+        storage: TypeReference,
+        cases: Vec<VariantCase>,
         copy: Copy,
     },
     /// Fixed-width vector value.
@@ -115,7 +118,7 @@ pub(super) enum TypeKey {
         element: TypeReference,
         shape: Vec<TensorDimension>,
         layout: TensorViewLayout,
-        is_nullable: bool,
+        nullability: Nullability,
     },
     /// Bare function signature.
     FunctionSignature {
@@ -154,14 +157,14 @@ impl TypeKey {
                 address_space,
                 access,
                 pointee,
-                is_nullable,
+                nullability,
             } => TypeKey::Reference {
                 kind: *kind,
                 lifetime: lifetime.clone(),
                 address_space: address_space.clone(),
                 access: *access,
                 pointee: *pointee,
-                is_nullable: *is_nullable,
+                nullability: *nullability,
             },
 
             Type::Array {
@@ -179,12 +182,14 @@ impl TypeKey {
                 element,
                 address_space,
                 access,
+                nullability,
             } => TypeKey::Slice {
                 kind: *kind,
                 lifetime: lifetime.clone(),
                 element: *element,
                 address_space: address_space.clone(),
                 access: *access,
+                nullability: *nullability,
             },
 
             Type::Tuple { elements, copy } => TypeKey::Tuple {
@@ -200,13 +205,15 @@ impl TypeKey {
                 inner: *inner,
                 copy: *copy,
             },
-            Type::Union {
+            Type::Variant {
                 tag,
-                variants,
+                storage,
+                cases,
                 copy,
-            } => TypeKey::Union {
+            } => TypeKey::Variant {
                 tag: *tag,
-                variants: variants.clone(),
+                storage: *storage,
+                cases: cases.clone(),
                 copy: *copy,
             },
             Type::Vector {
@@ -237,7 +244,7 @@ impl TypeKey {
                 element,
                 shape,
                 layout,
-                is_nullable,
+                nullability,
             } => TypeKey::TensorView {
                 kind: *kind,
                 lifetime: lifetime.clone(),
@@ -246,7 +253,7 @@ impl TypeKey {
                 element: *element,
                 shape: shape.clone(),
                 layout: layout.clone(),
-                is_nullable: *is_nullable,
+                nullability: *nullability,
             },
 
             Type::FunctionSignature { parameters, result } => TypeKey::FunctionSignature {

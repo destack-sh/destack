@@ -23,8 +23,8 @@ entry0(value0: isize, value1: usize, value2: typeDescriptor, value3: typeId):
 fn test_format_managed_and_unique_references() {
     assert_format(
         r#"
-function refs(value0: ref?<int32, managed>, value1: ref<int32, unique, readonly>): ref?<int32, managed> {
-entry0(value0: ref?<int32, managed>, value1: ref<int32, unique, readonly>):
+function refs(value0: ref<int32, managed, nullable>, value1: ref<int32, unique, readonly>): ref<int32, managed, nullable> {
+entry0(value0: ref<int32, managed, nullable>, value1: ref<int32, unique, readonly>):
     return value0
 }
 "#,
@@ -75,8 +75,8 @@ entry0(value0: ref<int32, borrowed, lifetime(static)>):
 fn test_format_borrowed_shaped_views() {
     assert_format(
         r#"
-function views(value0: slice<int32, borrowed, lifetime(0)>, value1: tensorView<int32, borrowed, lifetime(0), (4, 4)>): void {
-entry0(value0: slice<int32, borrowed, lifetime(0)>, value1: tensorView<int32, borrowed, lifetime(0), (4, 4)>):
+function views(value0: slice<int32, borrowed, lifetime(0), readonly>, value1: tensorView<int32, borrowed, lifetime(0), (4, 4)>): void {
+entry0(value0: slice<int32, borrowed, lifetime(0), readonly>, value1: tensorView<int32, borrowed, lifetime(0), (4, 4)>):
     return
 }
 "#,
@@ -88,8 +88,8 @@ entry0(value0: slice<int32, borrowed, lifetime(0)>, value1: tensorView<int32, bo
 fn test_format_tensor_shapes_and_layouts() {
     assert_format(
         r#"
-function tensors(value0: tensor<float32, (batch, dynamic, 64), layout(dense(columnMajor))>, value1: tensorView<float32, borrowed, (batch, dynamic, 64), layout(strided)>): void {
-entry0(value0: tensor<float32, (batch, dynamic, 64), layout(dense(columnMajor))>, value1: tensorView<float32, borrowed, (batch, dynamic, 64), layout(strided)>):
+function tensors(value0: tensor<float32, (batch, dynamic, 64), layout(dense(columnMajor))>, value1: tensorView<float32, borrowed, lifetime(0), readonly, (batch, dynamic, 64), layout(strided)>): void {
+entry0(value0: tensor<float32, (batch, dynamic, 64), layout(dense(columnMajor))>, value1: tensorView<float32, borrowed, lifetime(0), readonly, (batch, dynamic, 64), layout(strided)>):
     return
 }
 "#,
@@ -101,8 +101,8 @@ entry0(value0: tensor<float32, (batch, dynamic, 64), layout(dense(columnMajor))>
 fn test_format_tuple_and_array_types() {
     assert_format(
         r#"
-function sequences(value0: (int32, float64, boolean), value1: int32[10]): (int32, float64, boolean) {
-entry0(value0: (int32, float64, boolean), value1: int32[10]):
+function sequences(value0: (int32, float64, boolean), value1: [int32; 10]): (int32, float64, boolean) {
+entry0(value0: (int32, float64, boolean), value1: [int32; 10]):
     return value0
 }
 "#,

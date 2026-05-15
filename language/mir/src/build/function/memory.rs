@@ -1,7 +1,8 @@
 use crate::build::FunctionBuilder;
 use crate::{
-    Access, AddressSpace, Global, Instruction, Lifetime, Local, LocalNodeId, Mutability, Ownership,
-    Place, ReferenceKind, Type, TypeReference, Value, callable_signature, function_signature_parts,
+    Access, AddressSpace, Global, Instruction, Lifetime, Local, LocalNodeId, Mutability,
+    Nullability, Ownership, Place, ReferenceKind, Type, TypeReference, Value, callable_signature,
+    function_signature_parts,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -23,7 +24,7 @@ impl<'a> FunctionBuilder<'a> {
         pointee: LocalNodeId<Type>,
         access: Access,
         address_space: AddressSpace,
-        is_nullable: bool,
+        nullability: Nullability,
     ) -> LocalNodeId<Type> {
         self.tree.insert_type(Type::Reference {
             kind,
@@ -31,7 +32,7 @@ impl<'a> FunctionBuilder<'a> {
             address_space,
             access,
             pointee: pointee.into(),
-            is_nullable,
+            nullability,
         })
     }
 
@@ -96,7 +97,7 @@ impl<'a> FunctionBuilder<'a> {
             global_ty,
             Access::Readonly,
             global_space,
-            false,
+            Nullability::None,
         );
         let pointer = self.global_addr(global, global_pointer);
 
@@ -142,7 +143,7 @@ impl<'a> FunctionBuilder<'a> {
                 .copied()
                 .map(|element| concrete_type_reference(element, "tuple field type"))
                 .unwrap_or_else(|| panic!("field index out of bounds")),
-            Type::Union { .. } => self
+            Type::Variant { .. } => self
                 .tree
                 .type_layout(aggregate_type)
                 .and_then(|layout| layout.fields.get(index as usize))

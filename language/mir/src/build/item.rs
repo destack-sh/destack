@@ -43,7 +43,7 @@ impl ModuleBuilder {
     }
 
     /// Declare an external global (defined elsewhere).
-    pub fn extern_global(
+    pub fn external_global(
         &mut self,
         name: &str,
         ty: LocalNodeId<Type>,
@@ -103,7 +103,7 @@ impl ModuleBuilder {
     }
 
     /// Declare an external function (defined elsewhere).
-    pub fn extern_function(
+    pub fn external_function(
         &mut self,
         name: &str,
         parameter_types: &[LocalNodeId<Type>],

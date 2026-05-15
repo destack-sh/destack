@@ -4,10 +4,10 @@ use destack_fir::write;
 
 use crate::{
     AtomicAccess, CompareExchangeAccess, FenceAccess, FormatMirNode, FunctionReference,
-    GlobalReference, Instruction, LocalNodeId, MemoryFlags, MemoryScope, MemorySpaceSet,
-    MirFormatter, SyncScope, TensorConvolutionDimensionNumbers, TensorConvolutionWindow,
-    TensorDotDimensionNumbers, TensorGatherDimensionNumbers, TensorScatterDimensionNumbers,
-    TypeReference, ValueReference,
+    GlobalReference, Instruction, LocalNodeId, LocalReference, MemoryFlags, MemoryScope,
+    MemorySpaceSet, MirFormatter, SyncScope, TensorConvolutionDimensionNumbers,
+    TensorConvolutionWindow, TensorDotDimensionNumbers, TensorGatherDimensionNumbers,
+    TensorScatterDimensionNumbers, TypeReference, ValueReference,
 };
 
 impl<'a> FormatMirNode<'a, Instruction> for Instruction {
@@ -119,7 +119,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
             }
 
             Instruction::LocalGet { destination, local } => {
-                let crate::LocalReference::Local(local) = *local else {
+                let LocalReference::Local(local) = *local else {
                     return write!(f, [token("<error>")]);
                 };
                 let local_index = f.context().local_index(local);
@@ -140,7 +140,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
             Instruction::LocalAddr {
                 destination, local, ..
             } => {
-                let crate::LocalReference::Local(local) = *local else {
+                let LocalReference::Local(local) = *local else {
                     return write!(f, [token("<error>")]);
                 };
                 let local_index = f.context().local_index(local);
@@ -159,7 +159,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
             }
 
             Instruction::LocalSet { local, value } => {
-                let crate::LocalReference::Local(local) = *local else {
+                let LocalReference::Local(local) = *local else {
                     return write!(f, [token("<error>")]);
                 };
                 let local_index = f.context().local_index(local);
