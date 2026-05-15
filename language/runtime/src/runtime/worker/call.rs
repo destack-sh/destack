@@ -11,7 +11,7 @@ use crate::runtime::scheduler::{EventLoop, MicrotaskId, TaskId};
 use crate::simulation::Simulation;
 use crate::world::WorldState;
 use crate::world::policy::BindingDecision;
-use crate::world::scenario::{Hooks, ScenarioCallId};
+use crate::world::scenario::{ScenarioCallId, ScenarioRunner};
 use crate::world::trace::{EntropySubject, Trace};
 
 use super::{ExecutionContext, RunnableScope, Worker, binding_affinity_name};
@@ -34,19 +34,19 @@ pub struct BindingCallContext {
     pub(crate) execution_context: ExecutionContext,
 }
 
-/// Scope guard that runs after-binding hooks when one binding call completes.
+/// Scope guard that records one after-binding event when one binding call completes.
 #[derive(Debug)]
-pub struct BindingHookGuard<'call> {
-    /// Binding call context for hook routing.
+pub struct BindingCallGuard<'call> {
+    /// Binding call context for event routing.
     context: &'call BindingCallContext,
-    /// Binding descriptor for hook routing.
+    /// Binding descriptor for event routing.
     spec: BindingDescriptor,
     /// Binding call identifier for before and after correlation.
     call_id: ScenarioCallId,
 }
 
-impl Drop for BindingHookGuard<'_> {
-    /// Run post-call hooks for this binding call scope.
+impl Drop for BindingCallGuard<'_> {
+    /// Record the after-binding event for this binding call scope.
     fn drop(&mut self) {
         self.context.on_after_binding(self.spec, self.call_id);
     }
@@ -131,10 +131,10 @@ impl BindingCallContext {
         }
     }
 
-    /// Borrow the runtime hook state.
+    /// Borrow the scenario runner for this worker.
     #[inline]
-    pub fn hooks(&self) -> &Hooks {
-        self.worker().hooks.as_ref()
+    pub fn scenario(&self) -> &ScenarioRunner {
+        self.worker().scenario.as_ref()
     }
 
     /// Borrow the runtime host state.
@@ -259,16 +259,56 @@ impl BindingCallContext {
         self.world().mono_nanos()
     }
 
-    /// Notify policy hooks about one clock-read operation.
+    /// Notify scenario rules about one clock-read operation.
     #[inline]
     pub fn on_clock_read(&self) {
-        self.hooks().on_clock_read(self.world());
+        if let Err(error) = self.scenario().on_clock_read(self.world()) {
+            self.record_diagnostic(
+                RuntimeDiagnosticLevel::Error,
+                "runtime.scenario",
+                "clockRead",
+                error.message(),
+                None,
+            );
+        }
     }
 
-    /// Notify policy hooks about one random-read operation.
+    /// Notify scenario rules about one random-read operation.
     #[inline]
     pub fn on_random_read(&self) {
-        self.hooks().on_random_read(self.world());
+        if let Err(error) = self.scenario().on_random_read(self.world()) {
+            self.record_diagnostic(
+                RuntimeDiagnosticLevel::Error,
+                "runtime.scenario",
+                "randomRead",
+                error.message(),
+                None,
+            );
+        }
+    }
+
+    /// Sleep one runtime-backed duration.
+    #[inline]
+    pub fn sleep_nanos(&self, duration: u64) {
+        self.world().clock().host_sleep_nanos(duration);
+    }
+
+    /// Sleep until one runtime-backed wall deadline.
+    #[inline]
+    pub fn sleep_until_wall_nanos(&self, deadline: u64) {
+        self.world().clock().host_sleep_until_nanos(deadline);
+    }
+
+    /// Sleep until one runtime-backed monotonic deadline.
+    #[inline]
+    pub fn sleep_until_mono_nanos(&self, deadline: u64) {
+        let now = self.mono_nanos();
+        if deadline <= now {
+            return;
+        }
+
+        let delta = deadline.saturating_sub(now);
+        self.sleep_nanos(delta);
     }
 
     /// Return one policy-violation error for one binding descriptor.
@@ -311,7 +351,7 @@ impl BindingCallContext {
     /// Run pre-call policy checks and return one binding decision.
     #[inline]
     fn preflight_binding_call(&self, spec: BindingDescriptor) -> RuntimeResult<BindingDecision> {
-        // reject execution-affinity mismatches before policy and hooks
+        // reject execution-affinity mismatches before policy and scenario events
         self.ensure_binding_affinity_allowed(spec)?;
 
         // access and policy
@@ -328,28 +368,28 @@ impl BindingCallContext {
         Ok(decision)
     }
 
-    /// Run pre-call binding policy and return one post-call hook guard.
+    /// Run pre-call binding policy and return one after-binding event guard.
     #[inline]
     pub fn on_before_binding(
         &self,
         spec: BindingDescriptor,
-    ) -> RuntimeResult<BindingHookGuard<'_>> {
+    ) -> RuntimeResult<BindingCallGuard<'_>> {
         self.preflight_binding_call(spec)?;
-        let call_id = self.hooks().on_before_binding(self.world(), spec)?;
+        let call_id = self.scenario().on_before_binding(self.world(), spec)?;
 
-        Ok(BindingHookGuard {
+        Ok(BindingCallGuard {
             context: self,
             spec,
             call_id,
         })
     }
 
-    /// Run pre-call policy, resolve world, and return one post-call hook guard.
+    /// Run pre-call policy, resolve world, and return one after-binding event guard.
     #[inline]
     pub fn on_before_binding_resolve_route(
         &self,
         spec: BindingDescriptor,
-    ) -> RuntimeResult<(BindingRoute, BindingHookGuard<'_>)> {
+    ) -> RuntimeResult<(BindingRoute, BindingCallGuard<'_>)> {
         let decision = self.preflight_binding_call(spec)?;
         let route = decision.route;
 
@@ -358,20 +398,31 @@ impl BindingCallContext {
             return Err(RuntimeError::from(HostError::not_supported(spec.name)).boxed());
         }
 
-        let call_id = self.hooks().on_before_binding(self.world(), spec)?;
+        let call_id = self.scenario().on_before_binding(self.world(), spec)?;
 
-        let hook_guard = BindingHookGuard {
+        let call_guard = BindingCallGuard {
             context: self,
             spec,
             call_id,
         };
-        Ok((route, hook_guard))
+        Ok((route, call_guard))
     }
 
-    /// Run post-call hooks for one binding descriptor.
+    /// Record one after-binding event.
     #[inline]
     fn on_after_binding(&self, spec: BindingDescriptor, call_id: ScenarioCallId) {
-        self.hooks().on_after_binding(self.world(), spec, call_id);
+        if let Err(error) = self
+            .scenario()
+            .on_after_binding(self.world(), spec, call_id)
+        {
+            self.record_diagnostic(
+                RuntimeDiagnosticLevel::Error,
+                "runtime.scenario",
+                "bindingAfter",
+                error.message(),
+                None,
+            );
+        }
     }
 
     /// Resolve the binding route for this call context.
@@ -397,7 +448,7 @@ impl BindingCallContext {
     #[inline]
     fn decide_binding(&self, spec: BindingDescriptor) -> RuntimeResult<BindingDecision> {
         self.world().decide_binding(
-            self.hooks().execution_mode(),
+            self.scenario().execution_mode(),
             &self.worker().options.conditions,
             self.worker().runtime_id,
             self.worker().id,

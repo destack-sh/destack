@@ -5,7 +5,7 @@ use crate::runtime::random::Random;
 use crate::world::policy::{ActionSelector, Subject, SubjectSelector, TargetSelector};
 
 use super::{
-    Fault, FaultCatalog, FaultTarget, HookEvent, Lifetime, ProbabilityPpm, Trigger,
+    Fault, FaultCatalog, FaultTarget, Lifetime, ProbabilityPpm, RuntimeEvent, Trigger,
     validate_fault_rule_compatibility,
 };
 
@@ -92,9 +92,9 @@ impl FaultRule {
         validate_fault_rule_compatibility(self, kind_catalog)
     }
 
-    /// Return whether this rule accepts one scenario hook event.
-    pub(crate) fn matches_event(&self, event: &HookEvent, subject: Subject<'_>) -> bool {
-        if self.trigger.on != event.hook() {
+    /// Return whether this rule accepts one runtime event.
+    pub(crate) fn matches_event(&self, event: &RuntimeEvent, subject: Subject<'_>) -> bool {
+        if self.trigger.on != event.kind() {
             return false;
         }
 

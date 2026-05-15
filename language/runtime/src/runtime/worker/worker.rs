@@ -12,9 +12,10 @@ use crate::runtime::engine::{Continuation, Engine, Image, MemoryContext};
 use crate::runtime::heap::{HeapHandle, HeapHandleTable, RootSet, resolve_local_heap_options};
 use crate::runtime::scheduler::{EventLoop, EventLoopSnapshot, Readiness, Waiter};
 use crate::runtime::{
-    Hooks, HostState, HostStateImage, RuntimeFinalizers, RuntimeFinalizersImage, SharedHeap,
+    HostState, HostStateImage, RuntimeFinalizers, RuntimeFinalizersImage, ScenarioRunner,
+    SharedHeap,
 };
-use crate::world::scenario::HookSnapshot;
+use crate::world::scenario::ScenarioRunnerSnapshot;
 use crate::world::{RuntimeId, WorldState};
 use destack_workspace::{ExecutionMode, RuntimeOptions};
 
@@ -33,8 +34,8 @@ pub struct Worker {
 
     /// External resource table and finalizers.
     pub(crate) resources: ResourceTable,
-    /// Worker hooks.
-    pub(crate) hooks: Arc<Hooks>,
+    /// Worker scenario runner.
+    pub(crate) scenario: Arc<ScenarioRunner>,
     /// Worker-level finalizer registry for module services.
     pub(crate) finalizers: RuntimeFinalizers,
     /// Worker-owned host state store.
@@ -80,8 +81,8 @@ pub struct WorkerImage {
     pub options: WorkerOptionsImage,
     /// Captured diagnostics store state.
     pub diagnostics: DiagnosticSnapshot,
-    /// Captured hook state.
-    pub hooks: HookSnapshot,
+    /// Captured scenario runner state.
+    pub scenario: ScenarioRunnerSnapshot,
     /// Captured resource table state.
     pub resources: ResourceTableSnapshot,
     /// Captured finalizer lifecycle state.
@@ -121,7 +122,7 @@ impl PartialEq for WorkerImage {
 
         self.options == other.options
             && self.diagnostics == other.diagnostics
-            && self.hooks == other.hooks
+            && self.scenario == other.scenario
             && self.resources == other.resources
             && self.finalizers == other.finalizers
             && self.host_state == other.host_state
@@ -183,7 +184,7 @@ impl std::fmt::Debug for Worker {
             .field("process_args", &self.process_args)
             .field("options", &self.options)
             .field("resources", &self.resources)
-            .field("hooks", &self.hooks)
+            .field("scenario", &self.scenario)
             .field("finalizers", &self.finalizers)
             .field("host_state", &self.host_state)
             .field("diagnostics", &self.diagnostics)
@@ -265,8 +266,8 @@ impl Worker {
     ) -> RuntimeResult<Self> {
         let mut engine = engine.into();
 
-        // hooks and resources
-        let hooks = Arc::new(Hooks::new(
+        // scenario and resources
+        let scenario = Arc::new(ScenarioRunner::new(
             runtime_id,
             worker_id,
             world.trace().mode(),
@@ -312,7 +313,7 @@ impl Worker {
             process_args,
             options: Arc::new(options.clone()),
             resources,
-            hooks,
+            scenario,
             finalizers: RuntimeFinalizers::default(),
             host_state: HostState,
             diagnostics: Arc::new(DiagnosticStore::from_options(&options.diagnostic)),
@@ -640,7 +641,7 @@ impl Worker {
         let event_loop = self.event_loop.capture_image(mode, &mut self.engine)?;
         let resources = self.resources.capture_image(mode, ())?;
         let diagnostics = self.diagnostics.snapshot()?;
-        let hooks = self.hooks.snapshot()?;
+        let scenario = self.scenario.snapshot()?;
 
         // runtime-owned service state
         let host_state = self.host_state.capture_image(mode, ())?;
@@ -650,7 +651,7 @@ impl Worker {
         Ok(WorkerImage {
             options: WorkerOptionsImage::explicit_arc(self.options.clone()),
             diagnostics,
-            hooks,
+            scenario,
             resources,
             finalizers,
             host_state,
@@ -692,9 +693,9 @@ impl Worker {
             return Ok(None);
         }
 
-        // hook and diagnostics state
-        let hooks = match self.hooks.try_fork()? {
-            Some(hooks) => Arc::new(hooks),
+        // scenario and diagnostics state
+        let scenario = match self.scenario.try_fork()? {
+            Some(scenario) => Arc::new(scenario),
             None => return Ok(None),
         };
         let diagnostics = match self.diagnostics.try_fork()? {
@@ -740,7 +741,7 @@ impl Worker {
             process_args: self.process_args.clone(),
             options: self.options.clone(),
             resources,
-            hooks,
+            scenario,
             finalizers,
             host_state,
             diagnostics,
@@ -771,8 +772,8 @@ impl Worker {
         // resolve the captured options first
         let options = image.options.resolve(shared_options)?;
 
-        // hooks and resources
-        let hooks = Arc::new(Hooks::new(
+        // scenario and resources
+        let scenario = Arc::new(ScenarioRunner::new(
             runtime_id,
             worker_id,
             world.trace().mode(),
@@ -830,7 +831,7 @@ impl Worker {
         // restore local state on fresh containers
         event_loop.restore_snapshot(&image.event_loop, &mut engine)?;
         diagnostics.restore_snapshot(&image.diagnostics)?;
-        hooks.restore_snapshot(&image.hooks)?;
+        scenario.restore_snapshot(&image.scenario)?;
         resources.restore_snapshot(&image.resources, rebind_context)?;
 
         Ok(Self {
@@ -840,7 +841,7 @@ impl Worker {
             process_args,
             options,
             resources,
-            hooks,
+            scenario,
             finalizers: {
                 let mut finalizers = RuntimeFinalizers::default();
                 finalizers.restore_image(&image.finalizers, ())?;

@@ -531,7 +531,7 @@ impl Runtime {
             worker
                 .event_loop
                 .enqueue_wake(Wake::Host(HostWake::new(event.clone())));
-            worker.hooks.on_ingress_enqueue(world);
+            worker.scenario.on_ingress_ready(world)?;
 
             // shared mark: event can change direct worker roots without a worker tick
             if is_marking_shared {
@@ -560,7 +560,7 @@ impl Runtime {
             worker
                 .event_loop
                 .enqueue_wake(Wake::Resource(ResourceWake::poller(event)));
-            worker.hooks.on_ingress_enqueue(world);
+            worker.scenario.on_ingress_ready(world)?;
 
             // shared mark: event can change direct worker roots without a worker tick
             if is_marking_shared {
@@ -589,7 +589,7 @@ impl Runtime {
                 .boxed()
             })?;
             worker.event_loop.enqueue_wake(wake.wake);
-            worker.hooks.on_ingress_enqueue(world);
+            worker.scenario.on_ingress_ready(world)?;
         }
 
         Ok(())

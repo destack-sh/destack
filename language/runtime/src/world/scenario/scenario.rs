@@ -7,7 +7,7 @@ use crate::runtime::WorkerId;
 use crate::runtime::random::Random;
 use crate::world::policy::Subject;
 
-use super::{FaultCatalog, FaultRule, FaultRuleId, FaultRuleState, HookEvent, TriggeredFault};
+use super::{FaultCatalog, FaultRule, FaultRuleId, FaultRuleState, RuntimeEvent, TriggeredFault};
 
 /// Stable identifier for one scenario.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -215,10 +215,10 @@ impl Scenario {
         self.enabled_rule_indices = Self::enabled_rule_indices(&self.rules);
     }
 
-    /// Decide faults for one hook event.
+    /// Decide faults for one event.
     pub(crate) fn decide_faults(
         &mut self,
-        event: &HookEvent,
+        event: &RuntimeEvent,
         subject: Subject<'_>,
         random: &Random,
     ) -> Vec<TriggeredFault> {
@@ -246,7 +246,7 @@ impl Scenario {
 
             faults.push(TriggeredFault {
                 rule_id,
-                hook: event.hook(),
+                event: event.kind(),
                 worker_id: event_worker_id,
                 call_id: event.call_id(),
                 fault,
@@ -260,7 +260,7 @@ impl Scenario {
     fn accept_rule_event(
         &mut self,
         rule_index: usize,
-        event: &HookEvent,
+        event: &RuntimeEvent,
         total_calls_seen: u64,
         random: &Random,
     ) -> u64 {
@@ -276,7 +276,7 @@ impl Scenario {
     }
 
     /// Record one call-counting event and return the total call count.
-    fn record_call_event(&mut self, worker_id: WorkerId, event: &HookEvent) -> u64 {
+    fn record_call_event(&mut self, worker_id: WorkerId, event: &RuntimeEvent) -> u64 {
         let calls_seen = self
             .total_calls_seen_by_worker
             .entry(worker_id)
@@ -320,8 +320,8 @@ mod tests {
     use crate::runtime::random::Random;
     use crate::world::policy::Subject;
     use crate::world::scenario::{
-        ActivationWindow, Fault, FaultError, FaultRule, FaultTarget, FaultType, Hook, HookEvent,
-        Lifetime, Scenario, ScenarioCallId, ScenarioId, Trigger,
+        ActivationWindow, Fault, FaultError, FaultRule, FaultTarget, FaultType, Lifetime,
+        RuntimeEvent, RuntimeEventKind, Scenario, ScenarioCallId, ScenarioId, Trigger,
     };
 
     const TEST_RUNTIME_NAME: &str = "test-runtime";
@@ -332,7 +332,7 @@ mod tests {
     #[test]
     fn test_decide_faults_respects_call_count_activation() {
         let trigger = Trigger {
-            on: Hook::BindingBefore,
+            on: RuntimeEventKind::BindingBefore,
             activation: Some(ActivationWindow::AfterCallCount { call_count: 2 }),
             lifetime: None,
             activation_ppm: None,
@@ -368,7 +368,7 @@ mod tests {
     #[test]
     fn test_decide_faults_scopes_call_count_activation_by_worker() {
         let trigger = Trigger {
-            on: Hook::BindingBefore,
+            on: RuntimeEventKind::BindingBefore,
             activation: Some(ActivationWindow::AfterCallCount { call_count: 2 }),
             lifetime: None,
             activation_ppm: None,
@@ -412,7 +412,7 @@ mod tests {
     #[test]
     fn test_decide_faults_respects_cadence_and_cooldown() {
         let trigger = Trigger {
-            on: Hook::SchedulerDequeue,
+            on: RuntimeEventKind::TaskStart,
             activation: None,
             lifetime: None,
             activation_ppm: None,
@@ -429,22 +429,22 @@ mod tests {
         let worker_labels = BTreeMap::new();
 
         let first = scenario.decide_faults(
-            &scheduler_dequeue_event(2, 0),
+            &task_start_event(2, 0),
             test_subject(&runtime_labels, &worker_labels),
             &random,
         );
         let second = scenario.decide_faults(
-            &scheduler_dequeue_event(2, 0),
+            &task_start_event(2, 0),
             test_subject(&runtime_labels, &worker_labels),
             &random,
         );
         let third = scenario.decide_faults(
-            &scheduler_dequeue_event(2, 5),
+            &task_start_event(2, 5),
             test_subject(&runtime_labels, &worker_labels),
             &random,
         );
         let fourth = scenario.decide_faults(
-            &scheduler_dequeue_event(2, 10),
+            &task_start_event(2, 10),
             test_subject(&runtime_labels, &worker_labels),
             &random,
         );
@@ -457,7 +457,7 @@ mod tests {
     #[test]
     fn test_decide_faults_respects_call_count_lifetime() {
         let trigger = Trigger {
-            on: Hook::SchedulerDequeue,
+            on: RuntimeEventKind::TaskStart,
             activation: None,
             lifetime: Some(Lifetime::ForCallCount { call_count: 2 }),
             activation_ppm: None,
@@ -474,17 +474,17 @@ mod tests {
         let worker_labels = BTreeMap::new();
 
         let first = scenario.decide_faults(
-            &scheduler_dequeue_event(3, 0),
+            &task_start_event(3, 0),
             test_subject(&runtime_labels, &worker_labels),
             &random,
         );
         let second = scenario.decide_faults(
-            &scheduler_dequeue_event(3, 0),
+            &task_start_event(3, 0),
             test_subject(&runtime_labels, &worker_labels),
             &random,
         );
         let third = scenario.decide_faults(
-            &scheduler_dequeue_event(3, 0),
+            &task_start_event(3, 0),
             test_subject(&runtime_labels, &worker_labels),
             &random,
         );
@@ -497,7 +497,7 @@ mod tests {
     #[test]
     fn test_decide_faults_emits_fault_context() {
         let trigger = Trigger {
-            on: Hook::BindingBefore,
+            on: RuntimeEventKind::BindingBefore,
             activation: None,
             lifetime: None,
             activation_ppm: None,
@@ -522,7 +522,7 @@ mod tests {
 
         assert_eq!(faults.len(), 1);
         assert_eq!(fault.rule_id.0, "test.context");
-        assert_eq!(fault.hook, Hook::BindingBefore);
+        assert_eq!(fault.event, RuntimeEventKind::BindingBefore);
         assert_eq!(fault.worker_id, WorkerId(99));
         assert!(fault.call_id.is_some());
         assert!(matches!(fault.fault.target, FaultTarget::Call {}));
@@ -555,8 +555,8 @@ mod tests {
         )
     }
 
-    fn binding_before_event(worker_id: u64, time_ns: u64) -> HookEvent {
-        HookEvent::BindingBefore {
+    fn binding_before_event(worker_id: u64, time_ns: u64) -> RuntimeEvent {
+        RuntimeEvent::BindingBefore {
             worker_id: WorkerId(worker_id),
             call_id: ScenarioCallId(1),
             descriptor: binding_descriptor(),
@@ -564,8 +564,8 @@ mod tests {
         }
     }
 
-    fn scheduler_dequeue_event(worker_id: u64, time_ns: u64) -> HookEvent {
-        HookEvent::SchedulerDequeue {
+    fn task_start_event(worker_id: u64, time_ns: u64) -> RuntimeEvent {
+        RuntimeEvent::TaskStart {
             worker_id: WorkerId(worker_id),
             time_ns,
         }
