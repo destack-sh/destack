@@ -34,7 +34,7 @@ impl Compiler {
     }
 
     /// Bind one parsed DIR module.
-    pub(in crate::bind) fn bind_dir_parsed(&self, module: &Module, parsed: &DirParsed) -> DirBound {
+    pub(crate) fn bind_dir_parsed(&self, module: &Module, parsed: &DirParsed) -> DirBound {
         let mut state = BindState::new(self, module, parsed);
 
         // visit code roots

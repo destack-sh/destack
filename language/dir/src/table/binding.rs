@@ -66,6 +66,16 @@ impl BindingTable {
         }
     }
 
+    /// Return the first symbol id owned by this table segment.
+    pub fn first_symbol_id(&self) -> u32 {
+        self.first_symbol_id
+    }
+
+    /// Return the first scope id owned by this table segment.
+    pub fn first_scope_id(&self) -> u32 {
+        self.first_scope_id
+    }
+
     /// Get the symbols.
     #[inline]
     pub fn symbols(&self) -> impl Iterator<Item = &Symbol> {
@@ -148,6 +158,15 @@ impl BindingTable {
         self.symbol_by_declaration.get(&declaration).copied()
     }
 
+    /// Iterate symbols keyed by declaration node.
+    pub fn declaration_symbols(
+        &self,
+    ) -> impl Iterator<Item = (GlobalNodeIdAny, LocalSymbolId)> + '_ {
+        self.symbol_by_declaration
+            .iter()
+            .map(|(node_id, symbol_id)| (*node_id, *symbol_id))
+    }
+
     /// Attach a lexical scope to one typed node.
     pub fn bind_scope<T: Node>(&mut self, node_id: LocalNodeId<T>, scope: LocalScope) {
         self.bind_scope_any(node_id.into_any(), scope);
@@ -164,6 +183,13 @@ impl BindingTable {
     #[inline]
     pub fn scope_for_node(&self, node_id: GlobalNodeIdAny) -> Option<LocalScope> {
         self.scope_by_node.get(&node_id).copied()
+    }
+
+    /// Iterate scopes keyed by owner or member node.
+    pub fn node_scopes(&self) -> impl Iterator<Item = (GlobalNodeIdAny, LocalScope)> + '_ {
+        self.scope_by_node
+            .iter()
+            .map(|(node_id, scope)| (*node_id, *scope))
     }
 
     /// Insert a new scope.
@@ -197,6 +223,12 @@ impl BindingTable {
 
         self.get_local_symbol(symbol_id)
             .unwrap_or_else(|| panic!("DIR symbol {symbol_id:?} is not allocated in this segment"))
+    }
+
+    /// Get a symbol by id when this table owns or replaces it.
+    #[inline]
+    pub fn get_symbol_maybe(&self, symbol_id: LocalSymbolId) -> Option<&Symbol> {
+        self.get_local_symbol(symbol_id)
     }
 
     /// Get the symbol mutable by its id.
@@ -351,6 +383,20 @@ impl BindingTable {
     /// Replace one visible scope in this table segment.
     pub fn replace_scope(&mut self, scope_id: LocalScopeId, scope: Scope) {
         self.replaced_scope_by_id.insert(scope_id, scope);
+    }
+
+    /// Iterate replaced symbols in this segment.
+    pub fn replaced_symbols(&self) -> impl Iterator<Item = (LocalSymbolId, &Symbol)> + '_ {
+        self.replaced_symbol_by_id
+            .iter()
+            .map(|(symbol_id, symbol)| (*symbol_id, symbol))
+    }
+
+    /// Iterate replaced scopes in this segment.
+    pub fn replaced_scopes(&self) -> impl Iterator<Item = (LocalScopeId, &Scope)> + '_ {
+        self.replaced_scope_by_id
+            .iter()
+            .map(|(scope_id, scope)| (*scope_id, scope))
     }
 
     /// Return whether this segment contains the given symbol id.
