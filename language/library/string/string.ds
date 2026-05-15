@@ -1,7 +1,21 @@
 import { todo } from "destack:error";
 import { Borrow, ToOwned } from "destack:convert";
 import { Slice } from "destack:collections";
-import { Default, MaybeUninit, Unique } from "destack:memory";
+import { Iterator } from "destack:iter";
+import { Default, Unique } from "destack:memory";
+import { RegExp, RegExpMatch } from "destack:regexp";
+
+/// Raw template string parts.
+export type StringRawParts = {
+    /// The raw template segments.
+    readonly raw: readonly string[];
+};
+
+/// Match result from `String.match`.
+export type StringMatch = RegExpMatch | readonly string[];
+
+/// Replacement value used by `String.replace` and `String.replaceAll`.
+export type StringReplacement = string | ((match: string, ...captures: (string | undefined)[]) => string);
 
 /// Borrowed UTF-8 string view.
 @languageItem("string.StringView")
@@ -14,27 +28,30 @@ export class String {
     bytes: Unique<[uint8]>;
 }
 
-/// Mutable UTF-8 string builder with growable backing storage.
-export class StringBuilder {
-    /// The owned UTF-8 bytes.
-    bytes: Unique<[MaybeUninit<uint8>]>;
-
-    /// The initialized byte count.
-    initializedLength: usize = 0;
-
-    /// The allocated byte capacity.
-    capacity: usize = 0;
-}
-
 extension of String implements Default {
     /// Create an empty string.
-    static new(): String {
+    static new(): string {
         todo("String.new")
     }
 
     /// Create the default string.
-    static default(): String {
+    static default(): string {
         String.new()
+    }
+
+    /// Create a string from UTF-16 code units.
+    static fromCharCode(...codes: number[]): string {
+        todo("String.fromCharCode")
+    }
+
+    /// Create a string from Unicode code points.
+    static fromCodePoint(...codePoints: number[]): string {
+        todo("String.fromCodePoint")
+    }
+
+    /// Create a string from raw template parts.
+    static raw(parts: StringRawParts, ...substitutions: unknown[]): string {
+        todo("String.raw")
     }
 
     /// The length in UTF-16 code units.
@@ -43,7 +60,7 @@ extension of String implements Default {
     }
 
     /// Get the byte length of the UTF-8 representation.
-    get byteLength(): uint32 {
+    get byteLength(): usize {
         todo("String.byteLength")
     }
 
@@ -54,131 +71,199 @@ extension of String implements Default {
 
     /// Get a character at the given UTF-16 index.
     /// Returns undefined if index is out of bounds.
-    charAt(index: number): String | undefined {
+    charAt(this: &readonly string, index: number): string | undefined {
         todo("String.charAt")
     }
 
+    /// Get the character at `index`, counting from the end when negative.
+    at(this: &readonly string, index: number): string | undefined {
+        todo("String.at")
+    }
+
     /// Get the UTF-16 code unit at the given index.
-    charCodeAt(index: number): number | undefined {
+    charCodeAt(this: &readonly string, index: number): number | undefined {
         todo("String.charCodeAt")
     }
 
+    /// Get the Unicode code point at the given index.
+    codePointAt(this: &readonly string, index: number): number | undefined {
+        todo("String.codePointAt")
+    }
+
     /// Concatenate two strings.
-    concat(other: String): String {
+    concat(this: &readonly string, ...values: string[]): string {
         todo("String.concat")
     }
 
     /// Check if string includes a substring.
-    includes(search: String, position?: number): boolean {
+    includes(this: &readonly string, search: string, position?: number): boolean {
         todo("String.includes")
     }
 
     /// Find the first index of a substring.
-    indexOf(search: String, position?: number): number {
+    indexOf(this: &readonly string, search: string, position?: number): number {
         todo("String.indexOf")
     }
 
     /// Find the last index of a substring.
-    lastIndexOf(search: String, position?: number): number {
+    lastIndexOf(this: &readonly string, search: string, position?: number): number {
         todo("String.lastIndexOf")
     }
 
+    /// Compare with `other` using locale ordering.
+    localeCompare(this: &readonly string, other: string, locales?: string | string[]): number {
+        todo("String.localeCompare")
+    }
+
+    /// Match this string against `pattern`.
+    match(this: &readonly string, pattern: string | RegExp): StringMatch | null {
+        todo("String.match")
+    }
+
+    /// Match every occurrence of `pattern`.
+    matchAll(this: &readonly string, pattern: RegExp): Iterator<RegExpMatch> {
+        todo("String.matchAll")
+    }
+
+    /// Replace the first matching text.
+    replace(this: &readonly string, pattern: string | RegExp, replacement: StringReplacement): string {
+        todo("String.replace")
+    }
+
+    /// Replace every matching text.
+    replaceAll(this: &readonly string, pattern: string | RegExp, replacement: StringReplacement): string {
+        todo("String.replaceAll")
+    }
+
+    /// Find the first match of `pattern`.
+    search(this: &readonly string, pattern: string | RegExp): number {
+        todo("String.search")
+    }
+
+    /// Split this string by `separator`.
+    split(this: &readonly string, separator?: string | RegExp, limit?: number): string[] {
+        todo("String.split")
+    }
+
     /// Check if string starts with a prefix.
-    startsWith(search: String, position?: number): boolean {
+    startsWith(this: &readonly string, search: string, position?: number): boolean {
         todo("String.startsWith")
     }
 
     /// Check if string ends with a suffix.
-    endsWith(search: String, position?: number): boolean {
+    endsWith(this: &readonly string, search: string, position?: number): boolean {
         todo("String.endsWith")
     }
 
     /// Extract a substring.
-    substring(start: number, end?: number): String {
+    substring(this: &readonly string, start: number, end?: number): string {
         todo("String.substring")
     }
 
     /// Extract a slice of the string.
-    slice(start?: number, end?: number): String {
+    slice(this: &readonly string, start?: number, end?: number): string {
         todo("String.slice")
     }
 
     /// Convert to lowercase.
-    toLowerCase(): String {
+    toLowerCase(this: &readonly string): string {
         todo("String.toLowerCase")
     }
 
+    /// Convert to lowercase using locale rules.
+    toLocaleLowerCase(this: &readonly string, locales?: string | string[]): string {
+        todo("String.toLocaleLowerCase")
+    }
+
     /// Convert to uppercase.
-    toUpperCase(): String {
+    toUpperCase(this: &readonly string): string {
         todo("String.toUpperCase")
     }
 
+    /// Convert to uppercase using locale rules.
+    toLocaleUpperCase(this: &readonly string, locales?: string | string[]): string {
+        todo("String.toLocaleUpperCase")
+    }
+
+    /// Normalize this string.
+    normalize(this: &readonly string, form?: "NFC" | "NFD" | "NFKC" | "NFKD"): string {
+        todo("String.normalize")
+    }
+
     /// Remove leading and trailing whitespace.
-    trim(): String {
+    trim(this: &readonly string): string {
         todo("String.trim")
     }
 
     /// Remove leading whitespace.
-    trimStart(): String {
+    trimStart(this: &readonly string): string {
         todo("String.trimStart")
     }
 
     /// Remove trailing whitespace.
-    trimEnd(): String {
+    trimEnd(this: &readonly string): string {
         todo("String.trimEnd")
     }
 
     /// Repeat the string n times.
-    repeat(count: number): String {
+    repeat(this: &readonly string, count: number): string {
         todo("String.repeat")
     }
 
     /// Pad the start of the string.
-    padStart(targetLength: number, padString?: String): String {
+    padStart(this: &readonly string, targetLength: number, padString?: string): string {
         todo("String.padStart")
     }
 
     /// Pad the end of the string.
-    padEnd(targetLength: number, padString?: String): String {
+    padEnd(this: &readonly string, targetLength: number, padString?: string): string {
         todo("String.padEnd")
     }
 
+    /// Return whether this string is well-formed Unicode.
+    isWellFormed(this: &readonly string): boolean {
+        todo("String.isWellFormed")
+    }
+
+    /// Return this string with invalid Unicode replaced.
+    toWellFormed(this: &readonly string): string {
+        todo("String.toWellFormed")
+    }
+
+    /// Return the primitive string value.
+    valueOf(this: &readonly string): string {
+        todo("String.valueOf")
+    }
+
+    /// Return the primitive string value.
+    toString(this: &readonly string): string {
+        todo("String.toString")
+    }
+
     /// Equality comparison.
-    equal(other: String): boolean {
+    equal(this: &readonly string, other: string): boolean {
         todo("String.equal")
     }
 
     /// String concatenation via + operator.
-    add(other: String): String {
+    add(this: &readonly string, other: string): string {
         todo("String.add")
-    }
-}
-
-extension of StringBuilder implements Default {
-    /// Create an empty string builder.
-    static new(): StringBuilder {
-        todo("StringBuilder.new")
-    }
-
-    /// Create the default string builder.
-    static default(): StringBuilder {
-        StringBuilder.new()
     }
 }
 
 extension of String implements Borrow<StringView> {
     /// Borrow this string as UTF-8 text.
-    borrow(this: &readonly String): &readonly StringView {
+    borrow(this: &readonly string): &readonly StringView {
         todo("String.borrow")
     }
 }
 
 extension of StringView implements ToOwned {
     /// The owned value type.
-    type Owned = String;
+    type Owned = string;
 
     /// Copy this view into an owned string.
-    toOwned(this: &readonly StringView): String {
+    toOwned(this: &readonly StringView): string {
         todo("StringView.toOwned")
     }
 }
