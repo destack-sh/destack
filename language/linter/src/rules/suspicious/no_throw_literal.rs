@@ -94,6 +94,7 @@ fn is_literal_expression(expression: &dir::Expression) -> bool {
             | dir::Expression::ArrayExpression { .. }
             | dir::Expression::TupleExpression { .. }
             | dir::Expression::ObjectExpression { .. }
+            | dir::Expression::StructExpression { .. }
     )
 }
 

@@ -542,6 +542,7 @@ fn expression_is_known_pure_statement(expression: &dir::Expression) -> bool {
             | dir::Expression::ArrayExpression { .. }
             | dir::Expression::TupleExpression { .. }
             | dir::Expression::ObjectExpression { .. }
+            | dir::Expression::StructExpression { .. }
             | dir::Expression::SequenceExpression { .. }
             | dir::Expression::TemplateExpression { .. }
             | dir::Expression::PrivateIdentifier { .. }

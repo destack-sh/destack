@@ -2081,6 +2081,7 @@ pub fn expression_has_side_effects(
 
         // object expressions: check properties for side effects
         dir::Expression::ObjectExpression { .. }
+        | dir::Expression::StructExpression { .. }
         | dir::Expression::TreeExpression { .. }
         | dir::Expression::SequenceExpression { .. } => true,
 
@@ -2599,7 +2600,9 @@ impl dir::NodeVisitor for ExpressionSignatureCollector<'_> {
                 }
             }
             dir::TypeExpression::Infer { name, .. } => {
-                self.push_string_id("type_expression_infer", *name);
+                if let Some(name) = name {
+                    self.push_string_id("type_expression_infer", *name);
+                }
             }
             dir::TypeExpression::Predicate {
                 asserts, subject, ..

@@ -302,6 +302,7 @@ pub fn type_expression_contains_reference_segment(
         dir::TypeExpression::Infer {
             name: _,
             constraint,
+            ..
         } => constraint.is_some_and(|constraint| {
             type_expression_contains_reference_segment(tree, constraint, target_segment)
         }),

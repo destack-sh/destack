@@ -143,7 +143,8 @@ fn expression_coarse_key(
         | dir::Expression::TupleExpression { elements } => {
             elements.len().hash(&mut hasher);
         }
-        dir::Expression::ObjectExpression { properties, .. } => {
+        dir::Expression::ObjectExpression { properties, .. }
+        | dir::Expression::StructExpression { properties, .. } => {
             properties.len().hash(&mut hasher);
         }
         dir::Expression::Block(block_id) => {
@@ -243,7 +244,8 @@ fn expression_structural_key(
                 hash_argument_shape(ctx, &mut hasher, *argument_id);
             }
         }
-        dir::Expression::ObjectExpression { properties, .. } => {
+        dir::Expression::ObjectExpression { properties, .. }
+        | dir::Expression::StructExpression { properties, .. } => {
             properties.len().hash(&mut hasher);
         }
         dir::Expression::Block(block_id) => {

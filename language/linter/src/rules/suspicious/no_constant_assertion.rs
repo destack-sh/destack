@@ -206,7 +206,12 @@ fn get_constant_truthiness(
         Expression::ArrayExpression { elements } if elements.is_empty() => Some(true),
 
         // empty object literal is truthy
-        Expression::ObjectExpression { properties, .. } if properties.is_empty() => Some(true),
+        Expression::ObjectExpression { properties, .. }
+        | Expression::StructExpression { properties, .. }
+            if properties.is_empty() =>
+        {
+            Some(true)
+        }
 
         // empty tuple is truthy
         Expression::TupleExpression { elements } if elements.is_empty() => Some(true),
