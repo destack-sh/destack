@@ -239,6 +239,16 @@ impl TypeTable {
             })
     }
 
+    /// Iterate type attachments keyed by DIR node.
+    pub fn node_entries(&self) -> impl Iterator<Item = (GlobalNodeIdAny, &NodeEntry)> + '_ {
+        self.nodes.iter().map(|(node_id, entry)| (*node_id, entry))
+    }
+
+    /// Iterate type attachments keyed by DIR symbol.
+    pub fn symbol_entries(&self) -> impl Iterator<Item = (GlobalSymbolId, &SymbolEntry)> + '_ {
+        self.iter_symbol_entries()
+    }
+
     /// Iterate committed instantiations with their local ids.
     pub fn iter_instantiations(
         &self,
