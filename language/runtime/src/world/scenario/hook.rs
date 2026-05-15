@@ -10,7 +10,7 @@ use crate::runtime::WorkerId;
 use crate::world::policy::Attempt;
 use crate::world::{RuntimeId, WorldState};
 use destack_source::matches as glob_matches;
-use destack_workspace::ExecutionMode;
+use destack_workspace::{ConditionSet, ExecutionMode};
 
 use super::{Fault, FaultRuleId, FaultTarget};
 
@@ -381,6 +381,8 @@ pub struct Hooks {
     worker_id: WorkerId,
     /// Execution mode used for rule matching.
     mode: ExecutionMode,
+    /// Source graph conditions used for rule matching.
+    conditions: ConditionSet,
     /// Callback-style hook registry.
     registry: RwLock<HookRegistry>,
     /// Next scenario call identifier sequence.
@@ -398,6 +400,7 @@ impl std::fmt::Debug for Hooks {
             .field("runtime_id", &self.runtime_id)
             .field("worker_id", &self.worker_id)
             .field("mode", &self.mode)
+            .field("conditions", &self.conditions)
             .field("callback_count", &callback_count)
             .field("deferred_faults", &deferred_faults)
             .finish()
@@ -406,11 +409,17 @@ impl std::fmt::Debug for Hooks {
 
 impl Hooks {
     /// Create runtime hooks for one worker in one world.
-    pub(crate) fn new(runtime_id: RuntimeId, worker_id: WorkerId, mode: ExecutionMode) -> Self {
+    pub(crate) fn new(
+        runtime_id: RuntimeId,
+        worker_id: WorkerId,
+        mode: ExecutionMode,
+        conditions: ConditionSet,
+    ) -> Self {
         Self {
             runtime_id,
             worker_id,
             mode,
+            conditions,
             registry: RwLock::new(HookRegistry::default()),
             next_call_id: AtomicU64::new(1),
             deferred_faults: AtomicU64::new(0),
@@ -466,7 +475,12 @@ impl Hooks {
         };
 
         // rebuild one fresh hook container with the same scalar state
-        let forked = Self::new(self.runtime_id, self.worker_id, self.mode);
+        let forked = Self::new(
+            self.runtime_id,
+            self.worker_id,
+            self.mode,
+            self.conditions.clone(),
+        );
         forked.restore_snapshot(&snapshot)?;
 
         Ok(Some(forked))
@@ -648,8 +662,13 @@ impl Hooks {
         }
 
         // trigger scenario faults after callback interception
-        let faults = match world.decide_scenario(self.mode, self.runtime_id, self.worker_id, &event)
-        {
+        let faults = match world.decide_scenario(
+            self.mode,
+            &self.conditions,
+            self.runtime_id,
+            self.worker_id,
+            &event,
+        ) {
             Ok(faults) => faults,
             Err(error) => {
                 return HookDecision::Deny {

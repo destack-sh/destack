@@ -602,6 +602,7 @@ impl Runtime {
         options.time = self.worker_options.time.clone();
         options.random = self.worker_options.random.clone();
         options.trace = self.worker_options.trace.clone();
+        options.conditions = self.worker_options.conditions.clone();
     }
 
     /// Capture one materialized runtime image and all owned worker images.
@@ -814,7 +815,7 @@ mod tests {
     use crate::host::{
         HostEvent, HostEventKind, HostSession, LifecycleEvent, LifecycleSourceKind, LifecycleState,
     };
-    use crate::runtime::tests::{TestEngine, start_worker_continuation};
+    use crate::runtime::tests::{TestEngine, TestWorldRuntime, start_worker_continuation};
     use crate::runtime::{SharedHeap, TickResult, Worker, WorkerOptions};
     use crate::world::World;
     use destack_engine as engine;
@@ -842,6 +843,25 @@ mod tests {
 
         SharedHeap::new(history.allocator(), history.collector(), options)
             .expect("runtime shared heap should construct")
+    }
+
+    /// Spawned workers inherit runtime source graph conditions.
+    #[test]
+    fn test_spawn_worker_inherits_runtime_conditions() {
+        let mut options = RuntimeOptions::default();
+        options.conditions.modes.insert("test".to_string());
+        options.conditions.roles.insert("server".to_string());
+        options.conditions.features.insert("payments".to_string());
+
+        let mut runtime =
+            TestWorldRuntime::with_options_and_engine(&options, TestEngine::default());
+        let worker_id = runtime.spawn_worker(TestEngine::default());
+
+        runtime.with_worker_mut(worker_id, |worker| {
+            assert!(worker.options.conditions.contains_mode("test"));
+            assert!(worker.options.conditions.contains_role("server"));
+            assert!(worker.options.conditions.contains_feature("payments"));
+        });
     }
 
     /// Queue one shared direct-root rescan when events mutate worker state during marking.
