@@ -1,0 +1,139 @@
+import { Fields } from "./field.ds";
+
+/// Log severity.
+export enum Level {
+    /// Highly detailed diagnostic event.
+    Trace = 1,
+    /// Diagnostic detail.
+    Debug = 2,
+    /// Informational event.
+    Info = 3,
+    /// Recoverable concern.
+    Warn = 4,
+    /// Operation failure.
+    Error = 5,
+    /// Unrecoverable failure.
+    Fatal = 6,
+}
+
+/// Structured log event.
+export struct LogRecord {
+    /// Log severity.
+    level: Level;
+
+    /// Event message.
+    message: string;
+
+    /// Structured fields attached to this event.
+    fields?: Fields;
+}
+
+/// Log event sink.
+export newtype interface LogSink {
+    /// Write one log record.
+    write(record: LogRecord): void;
+}
+
+/// Structured logger.
+export class Logger {
+    /// Optional sink for this logger.
+    private sink?: LogSink;
+
+    /// Create a logger.
+    constructor(sink?: LogSink) {
+        this.sink = sink
+    }
+
+    /// Write one log record.
+    log(this: &readonly Logger, level: Level, message: string, fields?: Fields): void {
+        const record = LogRecord { level, message, fields };
+        const sink = this.sink;
+
+        if (sink == undefined) {
+            emitLog(record)
+        }
+        else {
+            sink.write(record)
+        }
+    }
+
+    /// Write one trace event.
+    trace(this: &readonly Logger, message: string, fields?: Fields): void {
+        this.log(Level.Trace, message, fields)
+    }
+
+    /// Write one debug event.
+    debug(this: &readonly Logger, message: string, fields?: Fields): void {
+        this.log(Level.Debug, message, fields)
+    }
+
+    /// Write one informational event.
+    info(this: &readonly Logger, message: string, fields?: Fields): void {
+        this.log(Level.Info, message, fields)
+    }
+
+    /// Write one warning event.
+    warn(this: &readonly Logger, message: string, fields?: Fields): void {
+        this.log(Level.Warn, message, fields)
+    }
+
+    /// Write one error event.
+    error(this: &readonly Logger, message: string, fields?: Fields): void {
+        this.log(Level.Error, message, fields)
+    }
+
+    /// Write one fatal event.
+    fatal(this: &readonly Logger, message: string, fields?: Fields): void {
+        this.log(Level.Fatal, message, fields)
+    }
+}
+
+/// Return the default logger.
+export function logger(): Logger {
+    new Logger()
+}
+
+/// Write one informational event.
+export function event(name: string, fields?: Fields): void {
+    logger().info(name, fields)
+}
+
+/// Write one trace event with the default logger.
+export function trace(message: string, fields?: Fields): void {
+    logger().trace(message, fields)
+}
+
+/// Write one debug event with the default logger.
+export function debug(message: string, fields?: Fields): void {
+    logger().debug(message, fields)
+}
+
+/// Write one informational event with the default logger.
+export function info(message: string, fields?: Fields): void {
+    logger().info(message, fields)
+}
+
+/// Write one warning event with the default logger.
+export function warn(message: string, fields?: Fields): void {
+    logger().warn(message, fields)
+}
+
+/// Write one error event with the default logger.
+export function error(message: string, fields?: Fields): void {
+    logger().error(message, fields)
+}
+
+/// Write one fatal event with the default logger.
+export function fatal(message: string, fields?: Fields): void {
+    logger().fatal(message, fields)
+}
+
+/// Emit one log record to the runtime telemetry collector.
+@binding("destack.telemetry.log.emit", {
+    effect: "deterministic",
+    requires: ["runtime.telemetry.write"],
+    families: ["windows", "unix", "wasm"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function emitLog(record: LogRecord): void;
