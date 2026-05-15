@@ -1,5 +1,6 @@
-use crate::tests::{create_isolate, run_mir_expect};
-use crate::{Value, Word};
+use crate::Value;
+use crate::diagnostic::Error;
+use crate::tests::{assert_runtime_error_matches, run_mir, run_mir_expect};
 
 /// function.address produces a callable pointer for call.indirect.
 #[test]
@@ -41,9 +42,9 @@ b1(v2: int32, v3: int32):
     run_mir_expect(mir, "caller", &[Value::int32(8)], Value::int32(26));
 }
 
-/// Imported void call terminators continue without a received value.
+/// Imported calls fail at the VM boundary.
 #[test]
-fn test_imported_void_call_terminator_branches_to_target() {
+fn test_imported_call_requires_runtime_boundary() {
     let mir = r#"
 extern function touch(): void
 
@@ -54,14 +55,10 @@ b1:
     v0: int32 = 7int32
     return v0
 }"#;
-    let mut isolate = create_isolate(mir);
-    isolate
-        .isolate
-        .register_binding("touch", |_context, _arguments| Ok(Word::VOID));
+    let result = run_mir(mir, "caller", &[]);
 
-    let output = isolate
-        .run_function_by_name("caller", &[])
-        .expect("execution failed");
-
-    assert_eq!(output, Value::int32(7));
+    assert_runtime_error_matches!(
+        result,
+        Error::BindingCallForbidden { ref name } if name == "touch",
+    );
 }

@@ -1,28 +1,32 @@
-use std::collections::HashMap;
 use std::ptr::NonNull;
 
 use crate::Word;
 use {destack_engine as engine, destack_mir as mir};
 
 use super::frame::{
-    FrameValue, function_return_type, load_arguments, load_moved_arguments, materialize_word,
-    move_arguments_between_frames, move_values, store_parameters,
+    FrameValue, load_arguments, load_moved_arguments, move_arguments_between_frames, move_values,
+    store_parameters,
 };
-use crate::SharedHeap;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::interpreter::{Frame, Interpreter, Outcome};
-use crate::isolate::{BindingContext, BindingFn};
 use crate::options::IsolateOptions;
 use crate::program::{ArgumentRange, CallTarget, Function, MoveRange, Program};
-use destack_heap::{Heap, SharedRawLimits};
+
+/// Local lowered function target.
+struct LocalFunction<'a> {
+    /// The stable function pointer stored in VM frames.
+    pointer: NonNull<Function>,
+    /// The lowered function body.
+    function: &'a Function,
+}
 
 impl Interpreter {
     /// Require one local function from one call target.
-    fn require_local_function(
-        program: &Program,
+    fn require_local_function<'a>(
+        program: &'a Program,
         function_id: mir::LocalNodeId<mir::Function>,
         target: CallTarget,
-    ) -> RuntimeResult<NonNull<Function>> {
+    ) -> RuntimeResult<LocalFunction<'a>> {
         // reject imports before touching program storage
         let function_index = match target {
             CallTarget::Local(index) => index,
@@ -33,8 +37,8 @@ impl Interpreter {
             }
         };
 
-        // load the lowered function pointer
-        let function_ptr = program
+        // load the lowered function pointer and body
+        let pointer = program
             .functions
             .pointer_by_index(function_index)
             .ok_or_else(|| {
@@ -42,48 +46,28 @@ impl Interpreter {
                     function: function_id,
                 })
             })?;
+        let function = program
+            .functions
+            .function_by_index(function_index)
+            .ok_or_else(|| {
+                RuntimeError::new(Error::UndefinedFunction {
+                    function: function_id,
+                })
+            })?;
 
-        Ok(function_ptr)
+        Ok(LocalFunction { pointer, function })
     }
 
-    /// Call one binding function with pre-collected argument values.
-    fn call_binding_function(
-        &mut self,
+    /// Return the runtime boundary error for one imported call.
+    fn imported_call_error(
+        &self,
         program: &Program,
         function_id: mir::LocalNodeId<mir::Function>,
-        bindings: &HashMap<String, BindingFn>,
-        heap: &mut Heap,
-        shared: &SharedHeap,
-        arguments: &[FrameValue],
-    ) -> RuntimeResult<Word> {
-        // load the binding handler first
+    ) -> RuntimeError {
         let function = program.tree.get(function_id);
         let name = program.strings.get(function.name).to_string();
-        let handler = bindings
-            .get(&name)
-            .cloned()
-            .ok_or_else(|| self.runtime_error(program, Error::BindingFunctionNotFound { name }))?;
 
-        // encode argument values before crossing the runtime boundary
-        let arguments = arguments
-            .iter()
-            .cloned()
-            .map(|argument| argument.into_word().map_err(RuntimeError::new))
-            .collect::<RuntimeResult<Vec<_>>>()?;
-
-        // call through the binding context
-        let result = {
-            let mut context =
-                BindingContext::new(program, heap, shared, SharedRawLimits::default());
-            let result = handler(&mut context, &arguments);
-            context
-                .release_pins()
-                .map_err(|error| self.runtime_error(program, error))?;
-            result
-        }
-        .map_err(|error| self.runtime_error(program, error))?;
-
-        Ok(result)
+        self.runtime_error(program, Error::BindingCallForbidden { name })
     }
 
     /// Push one local call frame on the stack.
@@ -92,7 +76,7 @@ impl Interpreter {
         program: &Program,
         options: &IsolateOptions,
         current_func: &Function,
-        callee: NonNull<Function>,
+        callee: LocalFunction<'_>,
         arguments: ArgumentRange,
         env: Option<Word>,
         moves: Option<MoveRange>,
@@ -105,11 +89,8 @@ impl Interpreter {
         }
 
         // load callee entry metadata
-        let (entry_block, frame_layout) = unsafe {
-            let callee = callee.as_ref();
-
-            (callee.entry, callee.frame_layout)
-        };
+        let entry_block = callee.function.entry;
+        let frame_layout = callee.function.frame_layout;
         let frame_layout = program
             .frame_layout_by_id(frame_layout)
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
@@ -123,7 +104,13 @@ impl Interpreter {
         caller_frame.pc = resume_pc;
         caller_frame.return_state = return_state;
 
-        let mut new_frame = Frame::new(callee, entry_block, frame_layout, stack_offset, frame_base);
+        let mut new_frame = Frame::new(
+            callee.pointer,
+            entry_block,
+            frame_layout,
+            stack_offset,
+            frame_base,
+        );
         new_frame
             .store_environment(frame_layout, env)
             .map_err(|error| self.runtime_error(program, error))?;
@@ -142,13 +129,12 @@ impl Interpreter {
             )
             .map_err(RuntimeError::new)?;
         } else {
-            let callee_function = unsafe { callee.as_ref() };
             move_arguments_between_frames(
                 program,
                 caller,
                 &mut new_frame,
-                callee_function.argument_pool.as_slice(),
-                callee_function.parameters,
+                callee.function.argument_pool.as_slice(),
+                callee.function.parameters,
                 current_func.argument_pool.as_slice(),
                 arguments,
             )
@@ -164,16 +150,13 @@ impl Interpreter {
     fn reuse_tail_call_frame(
         &mut self,
         program: &Program,
-        callee: NonNull<Function>,
+        callee: LocalFunction<'_>,
         arguments: &[FrameValue],
         env: Option<Word>,
     ) -> RuntimeResult<()> {
         // load the callee entry metadata first
-        let (entry_block, frame_layout) = unsafe {
-            let callee_function = callee.as_ref();
-
-            (callee_function.entry, callee_function.frame_layout)
-        };
+        let entry_block = callee.function.entry;
+        let frame_layout = callee.function.frame_layout;
         let frame_layout = program
             .frame_layout_by_id(frame_layout)
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
@@ -193,7 +176,7 @@ impl Interpreter {
             .last_mut()
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
 
-        frame.function_ptr = callee;
+        frame.function_ptr = callee.pointer;
         frame.block = entry_block;
         frame.pc = 0;
         frame.return_state = None;
@@ -203,12 +186,11 @@ impl Interpreter {
             .map_err(RuntimeError::new)?;
 
         // bind the new arguments into the reused frame
-        let callee_function = unsafe { callee.as_ref() };
         store_parameters(
             program,
             frame,
-            callee_function.argument_pool.as_slice(),
-            callee_function.parameters,
+            callee.function.argument_pool.as_slice(),
+            callee.function.parameters,
             arguments,
         )
         .map_err(RuntimeError::new)?;
@@ -221,13 +203,9 @@ impl Interpreter {
         &mut self,
         program: &Program,
         options: &IsolateOptions,
-        bindings: &HashMap<String, BindingFn>,
-        heap: &mut Heap,
-        shared: &SharedHeap,
         current_func: &Function,
         function: u32,
         target: CallTarget,
-        destination: Option<mir::Value>,
         arguments: ArgumentRange,
         env: Option<Word>,
         moves: Option<MoveRange>,
@@ -238,54 +216,7 @@ impl Interpreter {
 
         // complete binding calls immediately in the caller frame
         if matches!(target, CallTarget::Import) {
-            let caller = self
-                .frames
-                .last()
-                .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-
-            // collect explicit call arguments in caller order
-            let arguments = if let Some(moves) = moves {
-                load_moved_arguments(program, caller, current_func.move_pool.as_slice(), moves)?
-            } else {
-                load_arguments(
-                    program,
-                    self.frames.as_slice(),
-                    caller,
-                    current_func.argument_pool.as_slice(),
-                    arguments,
-                )?
-            };
-
-            // call the binding callee outside the lowered machine
-            let result = self.call_binding_function(
-                program,
-                function_id,
-                bindings,
-                heap,
-                shared,
-                &arguments,
-            )?;
-
-            // store the return value into the caller result
-            let frame = self
-                .frames
-                .last_mut()
-                .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-            let point = program.point(frame.function(), frame.block_id(), resume_pc as u32);
-            let return_destination = program.return_destination_at(point)?.or(destination);
-
-            if let Some(return_destination) = return_destination {
-                let frame_layout = program
-                    .frame_layout_by_id(frame.frame_layout())
-                    .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-                frame
-                    .write_value_word(frame_layout, return_destination, result)
-                    .map_err(RuntimeError::new)?;
-            }
-
-            // leave the caller positioned after the binding call
-            frame.pc = resume_pc;
-            return Ok(());
+            return Err(self.imported_call_error(program, function_id));
         }
 
         // otherwise enter the local callee on a new frame
@@ -308,9 +239,6 @@ impl Interpreter {
         &mut self,
         program: &Program,
         options: &IsolateOptions,
-        bindings: &HashMap<String, BindingFn>,
-        heap: &mut Heap,
-        shared: &SharedHeap,
         current_func: &Function,
         function: u32,
         target: CallTarget,
@@ -323,32 +251,7 @@ impl Interpreter {
 
         // imported calls resume the continuation immediately
         if matches!(target, CallTarget::Import) {
-            let caller = self
-                .frames
-                .last()
-                .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-
-            // collect continuation arguments first
-            let arguments = load_arguments(
-                program,
-                self.frames.as_slice(),
-                caller,
-                current_func.argument_pool.as_slice(),
-                arguments,
-            )?;
-
-            // call the binding callee and enter the continuation
-            let result = self.call_binding_function(
-                program,
-                function_id,
-                bindings,
-                heap,
-                shared,
-                &arguments,
-            )?;
-
-            self.enter_caller_state_word(program, target_state, result)?;
-            return Ok(());
+            return Err(self.imported_call_error(program, function_id));
         }
 
         // otherwise push the local callee and record the pending continuation
@@ -359,7 +262,7 @@ impl Interpreter {
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
 
         // resume after the terminator once the callee returns
-        let function = unsafe { caller.function_ptr.as_ref() };
+        let function = caller.function_ref();
         let resume_pc = function
             .block_len(caller.block)
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
@@ -380,9 +283,6 @@ impl Interpreter {
     pub(crate) fn complete_tail_call(
         &mut self,
         program: &Program,
-        bindings: &HashMap<String, BindingFn>,
-        heap: &mut Heap,
-        shared: &SharedHeap,
         current_func: &Function,
         function: u32,
         target: CallTarget,
@@ -412,48 +312,7 @@ impl Interpreter {
 
         // complete binding tail calls before returning to the caller
         if matches!(target, CallTarget::Import) {
-            let result = self.call_binding_function(
-                program,
-                function_id,
-                bindings,
-                heap,
-                shared,
-                &argument_values,
-            )?;
-
-            // discard the current frame before delivering the tail-call result
-            let frame = self
-                .frames
-                .pop()
-                .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-            self.truncate_stack(frame.stack_offset);
-
-            // complete execution immediately when there is no caller left
-            if self.frames.is_empty() {
-                let return_type =
-                    function_return_type(program, function_id).map_err(RuntimeError::new)?;
-                let result =
-                    materialize_word(program, return_type, result).map_err(RuntimeError::new)?;
-
-                return Ok(Some(self.complete_execution(result)));
-            }
-
-            // otherwise store the result into the caller return destination
-            let caller = self
-                .frames
-                .last_mut()
-                .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-            let point = program.point(caller.function(), caller.block_id(), caller.pc as u32);
-            if let Some(destination) = program.return_destination_at(point)? {
-                let frame_layout = program
-                    .frame_layout_by_id(caller.frame_layout())
-                    .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-                caller
-                    .write_value_word(frame_layout, destination, result)
-                    .map_err(RuntimeError::new)?;
-            }
-
-            return Ok(None);
+            return Err(self.imported_call_error(program, function_id));
         }
 
         // otherwise reuse the current frame for the local callee

@@ -218,10 +218,9 @@ pub(crate) fn execute_load_callable_environment(
     let dest = instruction.a;
 
     // load current frame environment
-    let frame_layout = machine.frame_layout() as *const engine::FrameLayout;
     let environment = machine
-        .active_frame_mut()
-        .load_environment(unsafe { &*frame_layout })?;
+        .active_frame()
+        .load_environment(machine.frame_layout())?;
     let Some(environment) = environment else {
         return Err(Error::InvalidInstruction);
     };
@@ -234,10 +233,18 @@ pub(crate) fn execute_load_callable_environment(
 
 /// Return one local function for a call target.
 #[inline]
-fn local_function(machine: &Machine<'_, '_>, target: CallTarget) -> Option<NonNull<Function>> {
+fn local_function<'iso>(
+    machine: &Machine<'_, 'iso>,
+    target: CallTarget,
+) -> Option<(NonNull<Function>, &'iso Function)> {
     // only local callees can enter directly
     match target {
-        CallTarget::Local(index) => machine.program.functions.pointer_by_index(index),
+        CallTarget::Local(index) => {
+            let pointer = machine.program.functions.pointer_by_index(index)?;
+            let function = machine.program.functions.function_by_index(index)?;
+
+            Some((pointer, function))
+        }
         CallTarget::Import => None,
     }
 }
@@ -255,8 +262,7 @@ fn enter_local_call(
     let moves = moves?;
 
     // require one local callee before entering
-    let callee_ptr = local_function(machine, target)?;
-    let callee = unsafe { callee_ptr.as_ref() };
+    let (callee_ptr, callee) = local_function(machine, target)?;
 
     // reject stack overflow before mutating any live machine
     if machine.interpreter.frames.len() >= machine.options().limits.max_stack_depth {
@@ -284,18 +290,14 @@ fn enter_local_call(
 
     // bind parameters from the current caller frame
     let caller_index = machine.frame_index;
-    let current_function_ptr = {
-        let frame = machine.active_frame_mut();
-        frame.function_ptr
+    let current_function = {
+        let frame = machine.active_frame();
+        frame.function_ref()
     };
-    let current_function = unsafe { current_function_ptr.as_ref() };
-    let caller_ptr = {
-        let Ok(caller) = machine.frame(caller_index) else {
-            return Some(Transfer::Error(Error::InvalidHeapReference));
-        };
-        caller as *const Frame
+    let caller = match machine.frame(caller_index) {
+        Ok(caller) => caller,
+        Err(error) => return Some(Transfer::Error(error)),
     };
-    let caller = unsafe { &*caller_ptr };
 
     if let Err(error) = move_values(
         caller,
@@ -319,7 +321,6 @@ fn enter_local_call(
 /// Enter one call or return a call transfer.
 fn enter_call(
     machine: &mut Machine<'_, '_>,
-    dest: Option<mir::Value>,
     function_id: mir::LocalNodeId<mir::Function>,
     target: CallTarget,
     arguments: ArgumentRange,
@@ -338,7 +339,6 @@ fn enter_call(
     Transfer::Call {
         function: function_id.id,
         target,
-        destination: dest,
         arguments,
         env,
         moves,
@@ -372,7 +372,6 @@ pub(crate) fn execute_call(
 ) -> Transfer {
     // decode side records
     let Call {
-        dest,
         function,
         target,
         arguments,
@@ -388,7 +387,6 @@ pub(crate) fn execute_call(
 
     enter_call(
         machine,
-        *dest,
         function_id,
         *target,
         *arguments,
@@ -424,7 +422,6 @@ fn execute_call_class<const IS_SHARED: bool>(
 ) -> Transfer {
     // decode side records
     let CallClass {
-        dest,
         receiver_offset,
         table_field,
         slot,
@@ -449,7 +446,6 @@ fn execute_call_class<const IS_SHARED: bool>(
 
     enter_call(
         machine,
-        *dest,
         function_id,
         target,
         *arguments,
@@ -530,7 +526,6 @@ fn execute_call_interface<const IS_SHARED: bool>(
 ) -> Transfer {
     // decode side records
     let CallInterface {
-        dest,
         receiver_offset,
         table_field,
         slot,
@@ -555,7 +550,6 @@ fn execute_call_interface<const IS_SHARED: bool>(
 
     enter_call(
         machine,
-        *dest,
         function_id,
         target,
         *arguments,
@@ -636,7 +630,6 @@ fn execute_indirect_call<const HAS_ENVIRONMENT: bool>(
 ) -> Transfer {
     // decode side records
     let CallIndirect {
-        dest,
         callee_offset,
         signature,
         arguments,
@@ -672,7 +665,6 @@ fn execute_indirect_call<const HAS_ENVIRONMENT: bool>(
     Transfer::Call {
         function,
         target,
-        destination: *dest,
         arguments: *arguments,
         env,
         moves: None,
@@ -782,11 +774,9 @@ fn enter_tail_call(
 
     // bind function parameters
     let program = machine.program;
-    let frame_ptr = machine.active_frame_mut() as *mut Frame;
-    let frame = unsafe { &mut *frame_ptr };
     store_parameters(
         program,
-        frame,
+        machine.active_frame_mut(),
         callee.argument_pool.as_slice(),
         callee.parameters,
         argument_values,
@@ -823,7 +813,7 @@ pub(crate) fn execute_tail_call(
             moves: Some(*moves),
         };
     };
-    let Some(callee_ptr) = machine.program.functions.pointer_by_index(local_index) else {
+    let Some(callee) = machine.program.functions.function_by_index(local_index) else {
         return Transfer::TailCall {
             function: *function,
             target: *target,
@@ -832,12 +822,10 @@ pub(crate) fn execute_tail_call(
             moves: Some(*moves),
         };
     };
-    let callee = unsafe { callee_ptr.as_ref() };
 
     // collect argument values
     let argument_values = {
-        let function_ptr = machine.active_frame_mut().function_ptr;
-        let current_func = unsafe { function_ptr.as_ref() };
+        let current_func = machine.active_frame().function_ref();
         let caller = match machine.frame(machine.frame_index) {
             Ok(frame) => frame,
             Err(error) => return Transfer::Error(error),
@@ -874,11 +862,12 @@ pub(crate) fn execute_tail_call_self(
     };
 
     // load current function entry block
-    let function_ptr = {
-        let frame = machine.active_frame_mut();
-        frame.function_ptr
+    let function_id = machine.active_frame().function();
+    let Some(function) = machine.program.functions.function_by_id(function_id) else {
+        return Transfer::Error(Error::UndefinedFunction {
+            function: function_id,
+        });
     };
-    let function = unsafe { function_ptr.as_ref() };
 
     // collect argument values before clearing the frame
     let args = {
@@ -898,8 +887,9 @@ pub(crate) fn execute_tail_call_self(
             Err(error) => return Transfer::Error(error),
         }
     };
-    let frame_layout = machine.frame_layout() as *const engine::FrameLayout;
-    let frame_layout = unsafe { &*frame_layout };
+    let Some(frame_layout) = machine.program.frame_layout_by_id(function.frame_layout) else {
+        return Transfer::Error(Error::InvalidInstruction);
+    };
 
     // discard stack allocations from the previous self call
     {
@@ -931,11 +921,9 @@ pub(crate) fn execute_tail_call_self(
 
     // bind function parameters
     let program = machine.program;
-    let frame_ptr = machine.active_frame_mut() as *mut Frame;
-    let frame = unsafe { &mut *frame_ptr };
     if let Err(error) = store_parameters(
         program,
-        frame,
+        machine.active_frame_mut(),
         function.argument_pool.as_slice(),
         function.parameters,
         &args,
@@ -1116,7 +1104,7 @@ fn execute_indirect_tail_call<const HAS_ENVIRONMENT: bool>(
             moves: None,
         };
     };
-    let Some(callee_ptr) = machine.program.functions.pointer_by_index(local_index) else {
+    let Some(callee) = machine.program.functions.function_by_index(local_index) else {
         return Transfer::TailCall {
             function,
             target,
@@ -1125,14 +1113,13 @@ fn execute_indirect_tail_call<const HAS_ENVIRONMENT: bool>(
             moves: None,
         };
     };
-    let callee = unsafe { callee_ptr.as_ref() };
 
     // collect argument values
     let caller = match machine.frame(machine.frame_index) {
         Ok(frame) => frame,
         Err(error) => return Transfer::Error(error),
     };
-    let caller_function = unsafe { caller.function_ptr.as_ref() };
+    let caller_function = caller.function_ref();
     let argument_values = match load_arguments(
         machine.program,
         machine.interpreter.frames.as_slice(),

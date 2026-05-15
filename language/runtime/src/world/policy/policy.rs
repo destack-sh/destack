@@ -3,9 +3,7 @@ use std::collections::HashSet;
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::binding::{
-    BindingDescriptor, BindingEngine, BindingProvider, BindingRoute, RuntimeAccess,
-};
+use crate::host::binding::{BindingDescriptor, BindingProvider, BindingRoute, RuntimeAccess};
 
 use super::{Attempt, Decision, Rule, RuleId, Subject};
 
@@ -262,7 +260,6 @@ impl PolicyState {
         &self,
         subject: Subject<'_>,
         descriptor: BindingDescriptor,
-        engine: Option<BindingEngine>,
     ) -> BindingDecision {
         let mut decision = self.spec.default.clone();
 
@@ -270,7 +267,6 @@ impl PolicyState {
             let rule = &self.spec.rules[*rule_index];
             let attempt = Attempt {
                 binding: Some(descriptor),
-                engine,
             };
             if !super::matches_rule_selectors(rule, subject, attempt) {
                 continue;

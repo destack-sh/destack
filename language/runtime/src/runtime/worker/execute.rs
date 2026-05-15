@@ -27,7 +27,6 @@ impl Worker {
             event_loop: self.event_loop.as_ref(),
             host,
             world,
-            engine: self.engine.binding_engine(),
             scope: current_runnable_scope(),
             execution_context: ExecutionContext::new(host.is_process_main_context()),
         }

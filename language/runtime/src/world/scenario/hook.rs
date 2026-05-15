@@ -5,7 +5,7 @@ use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::binding::{BindingDescriptor, BindingEngine};
+use crate::host::binding::BindingDescriptor;
 use crate::runtime::WorkerId;
 use crate::world::policy::Attempt;
 use crate::world::{RuntimeId, WorldState};
@@ -55,8 +55,6 @@ pub enum HookEvent {
         call_id: ScenarioCallId,
         /// Binding metadata for this event.
         descriptor: BindingDescriptor,
-        /// Engine kind for this event.
-        engine: Option<BindingEngine>,
         /// Monotonic timestamp for this event.
         time_ns: u64,
     },
@@ -68,8 +66,6 @@ pub enum HookEvent {
         call_id: ScenarioCallId,
         /// Binding metadata for this event.
         descriptor: BindingDescriptor,
-        /// Engine kind for this event.
-        engine: Option<BindingEngine>,
         /// Monotonic timestamp for this event.
         time_ns: u64,
     },
@@ -105,8 +101,6 @@ pub enum HookEvent {
     TimeRead {
         /// Worker identifier for this event.
         worker_id: WorkerId,
-        /// Engine kind for this event.
-        engine: Option<BindingEngine>,
         /// Monotonic timestamp for this event.
         time_ns: u64,
     },
@@ -114,8 +108,6 @@ pub enum HookEvent {
     RandomRead {
         /// Worker identifier for this event.
         worker_id: WorkerId,
-        /// Engine kind for this event.
-        engine: Option<BindingEngine>,
         /// Monotonic timestamp for this event.
         time_ns: u64,
     },
@@ -212,22 +204,10 @@ impl HookEvent {
         }
     }
 
-    /// Return one engine kind when present.
-    pub(crate) const fn engine(&self) -> Option<BindingEngine> {
-        match self {
-            Self::BindingBefore { engine, .. }
-            | Self::BindingAfter { engine, .. }
-            | Self::TimeRead { engine, .. }
-            | Self::RandomRead { engine, .. } => *engine,
-            _ => None,
-        }
-    }
-
     /// Return attempt facts for selector matching.
     pub(crate) const fn attempt(&self) -> Attempt {
         Attempt {
             binding: self.binding_descriptor(),
-            engine: self.engine(),
         }
     }
 
@@ -550,7 +530,6 @@ impl Hooks {
         &self,
         world: &mut WorldState,
         descriptor: BindingDescriptor,
-        engine: Option<BindingEngine>,
     ) -> RuntimeResult<ScenarioCallId> {
         // allocate one call id for before and after correlation
         let call_id = ScenarioCallId(self.next_call_id.fetch_add(1, Ordering::Relaxed));
@@ -561,7 +540,6 @@ impl Hooks {
                 worker_id: self.worker_id,
                 call_id,
                 descriptor,
-                engine,
                 time_ns: world.mono_nanos(),
             },
         );
@@ -577,7 +555,6 @@ impl Hooks {
         &self,
         world: &mut WorldState,
         descriptor: BindingDescriptor,
-        engine: Option<BindingEngine>,
         call_id: ScenarioCallId,
     ) {
         self.on_scenario_event(
@@ -586,7 +563,6 @@ impl Hooks {
                 worker_id: self.worker_id,
                 call_id,
                 descriptor,
-                engine,
                 time_ns: world.mono_nanos(),
             },
         );
@@ -637,24 +613,22 @@ impl Hooks {
     }
 
     /// Evaluate scenario hooks for one time read.
-    pub(crate) fn on_time_read(&self, world: &mut WorldState, engine: Option<BindingEngine>) {
+    pub(crate) fn on_time_read(&self, world: &mut WorldState) {
         self.on_scenario_event(
             world,
             HookEvent::TimeRead {
                 worker_id: self.worker_id,
-                engine,
                 time_ns: world.mono_nanos(),
             },
         );
     }
 
     /// Evaluate scenario hooks for one random read.
-    pub(crate) fn on_random_read(&self, world: &mut WorldState, engine: Option<BindingEngine>) {
+    pub(crate) fn on_random_read(&self, world: &mut WorldState) {
         self.on_scenario_event(
             world,
             HookEvent::RandomRead {
                 worker_id: self.worker_id,
-                engine,
                 time_ns: world.mono_nanos(),
             },
         );

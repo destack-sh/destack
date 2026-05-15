@@ -67,7 +67,7 @@ impl<'a> BlockLowerer<'a> {
     /// Lower one direct call.
     pub(super) fn lower_call(
         &self,
-        destination: Option<mir::ValueReference>,
+        _destination: Option<mir::ValueReference>,
         function: mir::FunctionReference,
         call: &mir::Call<mir::ArgumentSlice>,
         pool: &mut Pool<'_, '_>,
@@ -100,7 +100,6 @@ impl<'a> BlockLowerer<'a> {
         Ok(pool.instruction_with_side(
             Op::Call,
             Call {
-                dest: self.optional_value(destination, "call destination")?,
                 function: function.id,
                 target,
                 arguments: argument_range,
@@ -112,7 +111,7 @@ impl<'a> BlockLowerer<'a> {
     /// Lower one class call.
     pub(super) fn lower_class_call(
         &self,
-        destination: Option<mir::ValueReference>,
+        _destination: Option<mir::ValueReference>,
         receiver: mir::ValueReference,
         method: mir::DispatchSlot,
         call: &mir::Call<mir::ArgumentSlice>,
@@ -145,7 +144,6 @@ impl<'a> BlockLowerer<'a> {
         Ok(pool.instruction_with_side(
             class_call_op(pointer_class)?,
             CallClass {
-                dest: self.optional_value(destination, "class call destination")?,
                 receiver_offset: word_offset(self, receiver)?,
                 table_field,
                 slot: method.0,
@@ -157,7 +155,7 @@ impl<'a> BlockLowerer<'a> {
     /// Lower one interface call.
     pub(super) fn lower_interface_call(
         &self,
-        destination: Option<mir::ValueReference>,
+        _destination: Option<mir::ValueReference>,
         receiver: mir::ValueReference,
         method: mir::DispatchSlot,
         call: &mir::Call<mir::ArgumentSlice>,
@@ -190,7 +188,6 @@ impl<'a> BlockLowerer<'a> {
         Ok(pool.instruction_with_side(
             interface_call_op(pointer_class)?,
             CallInterface {
-                dest: self.optional_value(destination, "interface call destination")?,
                 receiver_offset: word_offset(self, receiver)?,
                 table_field,
                 slot: method.0,
@@ -202,7 +199,7 @@ impl<'a> BlockLowerer<'a> {
     /// Lower one indirect call.
     pub(super) fn lower_indirect_call(
         &self,
-        destination: Option<mir::ValueReference>,
+        _destination: Option<mir::ValueReference>,
         callee: mir::ValueReference,
         call: &mir::Call<mir::ArgumentSlice>,
         pool: &mut Pool<'_, '_>,
@@ -223,7 +220,6 @@ impl<'a> BlockLowerer<'a> {
         Ok(pool.instruction_with_side(
             indirect_call_op(&callee),
             CallIndirect {
-                dest: self.optional_value(destination, "indirect call destination")?,
                 callee_offset: callee.offset,
                 signature: callee.signature,
                 arguments,
@@ -312,21 +308,6 @@ impl<'a> BlockLowerer<'a> {
             0,
             0,
         ))
-    }
-
-    /// Resolve an optional MIR value for a call destination.
-    fn optional_value(
-        &self,
-        value: Option<mir::ValueReference>,
-        context: &'static str,
-    ) -> Result<Option<mir::Value>> {
-        value
-            .map(|value| {
-                value.value().ok_or_else(|| Error::MissingRepresentation {
-                    context: context.to_string(),
-                })
-            })
-            .transpose()
     }
 
     /// Return the frame state for a call terminator.

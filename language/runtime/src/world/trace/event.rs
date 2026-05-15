@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::RuntimeError;
 use crate::host::HostError;
-use crate::host::binding::{BindingEngine, BindingId, CodecId};
+use crate::host::binding::{BindingId, CodecId};
 use crate::runtime::engine::Entry;
 use crate::runtime::random::RandomStreamId;
 use crate::runtime::scheduler::{MicrotaskId, TaskId};
@@ -126,8 +126,6 @@ pub struct EntropySubject {
     pub worker_id: WorkerId,
     /// Binding identifier for this entropy event.
     pub binding_id: BindingId,
-    /// Optional engine for this entropy event.
-    pub engine: Option<BindingEngine>,
     /// Optional task identifier for this entropy event.
     pub task_id: Option<TaskId>,
     /// Optional microtask identifier for this entropy event.

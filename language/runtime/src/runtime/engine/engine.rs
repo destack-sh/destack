@@ -2,7 +2,6 @@ use {destack_engine as engine, destack_heap as heap, destack_native as native, d
 
 use super::{CallContext, Continuation, ContinuationImage, Entry, Image, MemoryContext, Outcome};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::binding::BindingEngine;
 
 /// Execution backend owned by one worker.
 pub enum Engine {
@@ -22,14 +21,6 @@ impl Engine {
             Self::Native(engine) => {
                 engine::Engine::initialize(engine, context).map_err(native_runtime_error)
             }
-        }
-    }
-
-    /// Return the binding engine represented by this backend.
-    pub const fn binding_engine(&self) -> BindingEngine {
-        match self {
-            Self::Vm(_) => BindingEngine::Vm,
-            Self::Native(_) => BindingEngine::Native,
         }
     }
 
