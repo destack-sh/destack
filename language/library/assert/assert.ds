@@ -1,4 +1,26 @@
-import { panic } from "destack:error";
+import { Promise } from "destack:async";
+import { Iterable } from "destack:iter";
+import { Equal } from "destack:ops";
+import { Error, panic, todo } from "destack:error";
+
+/// Failed assertion details.
+export struct AssertionError {
+    /// Assertion failure message.
+    message: string;
+
+    /// Observed value when available.
+    actual?: unknown;
+
+    /// Expected value when available.
+    expected?: unknown;
+}
+
+extension of AssertionError implements Error {
+    /// Format this assertion failure for users.
+    display(): string {
+        this.message
+    }
+}
 
 /// Assert that `condition` is true.
 export function assert(condition: boolean, message?: string): void {
@@ -10,4 +32,52 @@ export function assert(condition: boolean, message?: string): void {
 /// Fail unconditionally.
 export function fail(message?: string): never {
     panic(message ?? "assertion failed")
+}
+
+/// Assert that `condition` is true.
+export function ok(condition: boolean, message?: string): void {
+    assert(condition, message)
+}
+
+/// Assert that `actual` equals `expected`.
+export function equal<T>(actual: T, expected: T, message?: string): void
+where T implements Equal<T> {
+    assert(actual.equal(expected), message ?? "expected values to be equal")
+}
+
+/// Assert that `actual` does not equal `expected`.
+export function notEqual<T>(actual: T, expected: T, message?: string): void
+where T implements Equal<T> {
+    assert(!actual.equal(expected), message ?? "expected values to be different")
+}
+
+/// Assert that `actual` deeply equals `expected`.
+export function deepEqual(actual: unknown, expected: unknown, message?: string): void {
+    todo("assert.deepEqual")
+}
+
+/// Assert that `values` contains `expected`.
+export function contains<T>(values: Iterable<T>, expected: T, message?: string): void
+where T implements Equal<T> {
+    todo("assert.contains")
+}
+
+/// Assert that `body` throws.
+export function throws(body: () => void, message?: string): void {
+    todo("assert.throws")
+}
+
+/// Assert that `body` rejects.
+export function rejects(body: () => Promise<void>, message?: string): Promise<void> {
+    todo("assert.rejects")
+}
+
+/// Mark this code path as unreachable.
+export function unreachable(message?: string): never {
+    panic(message ?? "unreachable")
+}
+
+/// Record that a named code path was reached.
+export function reachable(name: string): void {
+    todo("assert.reachable")
 }
