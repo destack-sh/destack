@@ -1,5 +1,3 @@
-use std::ptr::write_bytes;
-
 use super::{
     LargeAllocation, LargeAllocationId, RawPageMapEntry, RawPlace, RawSmallSpanClass, RawSpace,
     SmallSpan,
@@ -141,19 +139,7 @@ impl RawSpace {
             };
             let first_offset = large_allocation.first_offset;
 
-            // initialize bytes before returning the raw pointer
-            match payload {
-                Payload::Bytes(bytes) => unsafe {
-                    self.mapping.write_mapped_bytes(first_offset, bytes);
-                },
-                Payload::Zeroed => unsafe {
-                    write_bytes(
-                        (self.mapping.base_address() + first_offset) as *mut u8,
-                        0,
-                        shape.byte_len,
-                    );
-                },
-            }
+            self.initialize_mapped_payload(first_offset, shape.byte_len, payload);
 
             Ok(RawPlace::Large(allocation_id))
         }
@@ -342,18 +328,7 @@ impl RawSpace {
 
         let mapping_offset = span.first_offset + slot_offset;
 
-        match allocation {
-            Payload::Bytes(bytes) => unsafe {
-                self.mapping.write_mapped_bytes(mapping_offset, bytes);
-            },
-            Payload::Zeroed => unsafe {
-                write_bytes(
-                    (self.mapping.base_address() + mapping_offset) as *mut u8,
-                    0,
-                    class.byte_len,
-                );
-            },
-        }
+        self.initialize_mapped_payload(mapping_offset, class.byte_len, allocation);
 
         let Some(span) = self.small.spans.get_mut(span_index) else {
             return Err(HeapError::MissingSpan { span_index });
@@ -497,5 +472,39 @@ impl RawSpace {
         let byte_len = byte_len as u64;
 
         byte_len.div_ceil(page_bytes) * page_bytes
+    }
+
+    /// Initialize one mapped payload range.
+    #[inline(always)]
+    pub(super) fn initialize_mapped_payload(
+        &self,
+        offset: usize,
+        clear_byte_len: usize,
+        payload: Payload<'_>,
+    ) {
+        match payload {
+            Payload::Bytes(bytes) => self.write_mapped_bytes(offset, bytes),
+            Payload::Zeroed => self.clear_mapped_bytes(offset, clear_byte_len),
+        }
+    }
+
+    /// Write bytes into one mapped payload range.
+    #[inline(always)]
+    pub(super) fn write_mapped_bytes(&self, offset: usize, bytes: &[u8]) {
+        // allocation paths materialize the destination before publishing it
+        unsafe {
+            self.mapping.write_mapped_bytes(offset, bytes);
+        }
+    }
+
+    /// Clear one mapped payload range.
+    #[inline(always)]
+    pub(super) fn clear_mapped_bytes(&self, offset: usize, byte_len: usize) {
+        let address = self.mapping.base_address() + offset;
+
+        // allocation paths materialize the destination before publishing it
+        unsafe {
+            std::ptr::write_bytes(address as *mut u8, 0, byte_len);
+        }
     }
 }

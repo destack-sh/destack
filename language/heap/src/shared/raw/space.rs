@@ -1,4 +1,3 @@
-use std::ptr::write_bytes;
 use std::sync::Arc;
 
 use destack_memory::AddressSpace;
@@ -160,20 +159,7 @@ impl SharedRawSpace {
         self.map_page_run(first_offset, &pages, allocation_index);
 
         // initialize bytes before publishing the allocation record
-        let mapping = self.mapping.write();
-        match allocation {
-            Payload::Bytes(bytes) => unsafe {
-                mapping.write_mapped_bytes(first_offset, bytes);
-            },
-            Payload::Zeroed => unsafe {
-                write_bytes(
-                    (mapping.base_address() + first_offset) as *mut u8,
-                    0,
-                    shape.byte_len,
-                );
-            },
-        }
-        drop(mapping);
+        self.initialize_mapped_payload(first_offset, shape.byte_len, allocation);
 
         let record = Arc::new(RwLock::new(SharedRawAllocation::new(
             first_offset,
@@ -337,12 +323,7 @@ impl SharedRawSpace {
         }
 
         // write replacement bytes before publishing the new page run
-        {
-            let mapping = self.mapping.write();
-            unsafe {
-                mapping.write_mapped_bytes(first_offset, bytes);
-            }
-        }
+        self.write_mapped_bytes(first_offset, bytes);
 
         self.replace_page_run(
             first_offset,
@@ -623,6 +604,43 @@ impl SharedRawSpace {
         state.next_offset = next_offset;
 
         Ok(first_offset)
+    }
+
+    /// Initialize one mapped payload range.
+    #[inline(always)]
+    fn initialize_mapped_payload(
+        &self,
+        offset: usize,
+        clear_byte_len: usize,
+        payload: Payload<'_>,
+    ) {
+        match payload {
+            Payload::Bytes(bytes) => self.write_mapped_bytes(offset, bytes),
+            Payload::Zeroed => self.clear_mapped_bytes(offset, clear_byte_len),
+        }
+    }
+
+    /// Write bytes into one mapped payload range.
+    #[inline(always)]
+    fn write_mapped_bytes(&self, offset: usize, bytes: &[u8]) {
+        let mapping = self.mapping.write();
+
+        // allocation paths materialize the destination before publishing it
+        unsafe {
+            mapping.write_mapped_bytes(offset, bytes);
+        }
+    }
+
+    /// Clear one mapped payload range.
+    #[inline(always)]
+    fn clear_mapped_bytes(&self, offset: usize, byte_len: usize) {
+        let mapping = self.mapping.write();
+        let address = mapping.base_address() + offset;
+
+        // allocation paths materialize the destination before publishing it
+        unsafe {
+            std::ptr::write_bytes(address as *mut u8, 0, byte_len);
+        }
     }
 }
 

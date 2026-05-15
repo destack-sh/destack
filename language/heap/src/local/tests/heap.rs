@@ -5,6 +5,8 @@ use crate::{
 };
 use destack_mir::{ReferenceMap, ReferenceVariant};
 
+use super::read_mapped_bytes;
+
 /// Reject one zero-size managed heap allocation.
 #[test]
 fn test_allocate_heap_rejects_zero_size_layout() {
@@ -91,8 +93,7 @@ fn test_allocate_heap_clears_reused_small_slot_tail() {
     assert!(heap.is_live(reused));
     let address = heap.base_address() + reused.offset();
 
-    // inspect the reused slot payload
-    let bytes = unsafe { std::slice::from_raw_parts(address as *const u8, 8) };
+    let bytes = read_mapped_bytes(address, 8);
 
     assert_eq!(bytes, &[0xCC, 0, 0, 0, 0, 0, 0, 0]);
 }
@@ -126,9 +127,8 @@ fn test_allocate_heap_uses_size_class_stride_for_young_runs() {
     let first_address = heap.base_address() + first.offset();
     let second_address = heap.base_address() + second.offset();
 
-    // inspect the young payloads at their native addresses
-    let first_bytes = unsafe { std::slice::from_raw_parts(first_address as *const u8, 9) };
-    let second_bytes = unsafe { std::slice::from_raw_parts(second_address as *const u8, 10) };
+    let first_bytes = read_mapped_bytes(first_address, 9);
+    let second_bytes = read_mapped_bytes(second_address, 10);
 
     assert_eq!(first_bytes, &[0xAA; 9]);
     assert_eq!(second_bytes, &[0xBB; 10]);

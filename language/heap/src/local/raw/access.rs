@@ -126,9 +126,7 @@ impl RawSpace {
     ) -> HeapResult<()> {
         let offset = location.base.offset() + byte_offset;
 
-        unsafe {
-            self.mapping.write_mapped_bytes(offset, bytes);
-        }
+        self.write_mapped_bytes(offset, bytes);
 
         Ok(())
     }
@@ -175,9 +173,7 @@ impl RawSpace {
                     let slot_offset = small_slot_offset(span.class.size_class, slot.slot_index());
                     let offset = span.first_offset + slot_offset;
 
-                    unsafe {
-                        self.mapping.write_mapped_bytes(offset, bytes);
-                    }
+                    self.write_mapped_bytes(offset, bytes);
 
                     self.usage.resize(previous_byte_len, bytes.len());
 
@@ -197,9 +193,7 @@ impl RawSpace {
                         };
                         let first_offset = allocation.first_offset;
 
-                        unsafe {
-                            self.mapping.write_mapped_bytes(first_offset, bytes);
-                        }
+                        self.write_mapped_bytes(first_offset, bytes);
 
                         RawPlace::Large(allocation_id)
                     }

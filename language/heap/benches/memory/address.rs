@@ -164,10 +164,7 @@ pub(crate) fn bench_address_space(criterion: &mut Criterion) {
                         shape.fork_lazy_word()
                     },
                     |(parent, child, address)| {
-                        // write through the exposed pointer to exercise the fault path
-                        unsafe {
-                            write_volatile(address, black_box(0xEFEF_EFEF_EFEF_EFEF));
-                        }
+                        write_word(address, black_box(0xEFEF_EFEF_EFEF_EFEF));
 
                         black_box(parent);
                         black_box(child);
@@ -199,15 +196,11 @@ pub(crate) fn bench_address_space(criterion: &mut Criterion) {
                         |(parent, child, base_address)| {
                             // write one word per page to measure first-write fault count
                             for page_index in 0..store_count {
-                                let byte_offset = page_index * PAGE_BYTES;
-                                let address = unsafe { base_address.byte_add(byte_offset) };
-
-                                unsafe {
-                                    write_volatile(
-                                        address,
-                                        black_box(0xEFEF_EFEF_EFEF_EFEF ^ page_index),
-                                    );
-                                }
+                                write_page_word(
+                                    base_address,
+                                    page_index,
+                                    black_box(0xEFEF_EFEF_EFEF_EFEF ^ page_index),
+                                );
                             }
 
                             black_box(parent);
@@ -270,10 +263,7 @@ pub(crate) fn bench_address_space(criterion: &mut Criterion) {
                         let (parent, child, address) = shape.fork_lazy_word();
                         let start = Instant::now();
 
-                        // write through the exposed pointer to time only the fault path
-                        unsafe {
-                            write_volatile(address, black_box(0xEFEF_EFEF_EFEF_EFEF));
-                        }
+                        write_word(address, black_box(0xEFEF_EFEF_EFEF_EFEF));
 
                         elapsed += start.elapsed();
                         black_box(parent);
@@ -296,16 +286,10 @@ pub(crate) fn bench_address_space(criterion: &mut Criterion) {
                         let shape = AddressSpaceShape::materialized_pages(*page_count);
                         let (parent, child, address) = shape.fork_lazy_word();
 
-                        // dirty the page before timing the second store
-                        unsafe {
-                            write_volatile(address, black_box(0xAAAA_AAAA_AAAA_AAAA));
-                        }
+                        write_word(address, black_box(0xAAAA_AAAA_AAAA_AAAA));
                         let start = Instant::now();
 
-                        // write again after the page is writable
-                        unsafe {
-                            write_volatile(address, black_box(0xBBBB_BBBB_BBBB_BBBB));
-                        }
+                        write_word(address, black_box(0xBBBB_BBBB_BBBB_BBBB));
 
                         elapsed += start.elapsed();
                         black_box(parent);
@@ -329,10 +313,7 @@ pub(crate) fn bench_address_space(criterion: &mut Criterion) {
                         let (parent, child, address) = shape.fork_eager_word();
                         let start = Instant::now();
 
-                        // eager fork should already make this page writable
-                        unsafe {
-                            write_volatile(address, black_box(0xDDDD_DDDD_DDDD_DDDD));
-                        }
+                        write_word(address, black_box(0xDDDD_DDDD_DDDD_DDDD));
 
                         elapsed += start.elapsed();
                         black_box(parent);
@@ -364,15 +345,11 @@ pub(crate) fn bench_address_space(criterion: &mut Criterion) {
 
                             // write one word per page to time only first-write faults
                             for page_index in 0..store_count {
-                                let byte_offset = page_index * PAGE_BYTES;
-                                let address = unsafe { base_address.byte_add(byte_offset) };
-
-                                unsafe {
-                                    write_volatile(
-                                        address,
-                                        black_box(0xCFCF_CFCF_CFCF_CFCF ^ page_index),
-                                    );
-                                }
+                                write_page_word(
+                                    base_address,
+                                    page_index,
+                                    black_box(0xCFCF_CFCF_CFCF_CFCF ^ page_index),
+                                );
                             }
 
                             elapsed += start.elapsed();
@@ -388,6 +365,28 @@ pub(crate) fn bench_address_space(criterion: &mut Criterion) {
     }
 
     group.finish();
+}
+
+/// Store one volatile word through an exposed benchmark address.
+#[inline(always)]
+fn write_word(address: *mut usize, value: usize) {
+    // address-space fixtures expose valid writable word addresses
+    unsafe {
+        write_volatile(address, value);
+    }
+}
+
+/// Store one volatile word on one benchmark page.
+#[inline(always)]
+fn write_page_word(base_address: *mut usize, page_index: usize, value: usize) {
+    let byte_offset = page_index * PAGE_BYTES;
+
+    // address-space fixtures expose page-aligned word ranges
+    unsafe {
+        let address = base_address.byte_add(byte_offset);
+
+        write_volatile(address, value);
+    }
 }
 
 /// Return the dirty page counts that fit inside one materialized page count.

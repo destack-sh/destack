@@ -1,5 +1,3 @@
-use std::ptr::write_bytes;
-
 use destack_mir::ReferenceMap;
 
 use super::{
@@ -306,9 +304,7 @@ impl HeapSpace {
 
         if let Some(slot) = self.reserve_young_run(layout)? {
             let reference = slot.reference;
-            unsafe {
-                self.mapping.write_mapped_bytes(reference.offset(), bytes);
-            }
+            self.write_mapped_bytes(reference.offset(), bytes);
 
             return Ok(Some(reference));
         }
@@ -320,9 +316,7 @@ impl HeapSpace {
         };
         let reference = HeapReference::new(write_offset);
 
-        unsafe {
-            self.mapping.write_mapped_bytes(write_offset, bytes);
-        }
+        self.write_mapped_bytes(write_offset, bytes);
 
         // objects allocated during marking start black
         if self.major_phase == LocalGcPhase::Mark {
@@ -541,19 +535,7 @@ impl HeapSpace {
             };
             let first_offset = allocation.first_offset;
 
-            // initialize bytes before returning the allocation reference
-            match payload {
-                Payload::Bytes(bytes) => unsafe {
-                    self.mapping.write_mapped_bytes(first_offset, bytes);
-                },
-                Payload::Zeroed => unsafe {
-                    write_bytes(
-                        (self.mapping.base_address() + first_offset) as *mut u8,
-                        0,
-                        layout.byte_len,
-                    );
-                },
-            }
+            self.initialize_mapped_payload(first_offset, layout.byte_len, payload);
 
             Ok((HeapPlace::Large(allocation_id), layout.byte_len))
         }
@@ -797,9 +779,7 @@ impl HeapSpace {
 
         // initialize only the touched pages
         match payload {
-            Payload::Bytes(bytes) => unsafe {
-                self.mapping.write_mapped_bytes(write_offset, bytes);
-            },
+            Payload::Bytes(bytes) => self.write_mapped_bytes(write_offset, bytes),
             Payload::Zeroed => {}
         }
 
@@ -822,10 +802,7 @@ impl HeapSpace {
             return Ok(None);
         };
 
-        // initialize only the touched pages
-        unsafe {
-            self.mapping.write_mapped_bytes(write_offset, bytes);
-        }
+        self.write_mapped_bytes(write_offset, bytes);
 
         Ok(Some(HeapReference::new(write_offset)))
     }
@@ -1126,27 +1103,7 @@ impl HeapSpace {
         let slot_offset = span.class.size_class * slot_index;
         let mapping_offset = span.first_offset + slot_offset;
 
-        // clear the full slot before publishing caller bytes
-        match init {
-            Payload::Bytes(bytes) if bytes.len() < class.size_class => unsafe {
-                write_bytes(
-                    (self.mapping.base_address() + mapping_offset) as *mut u8,
-                    0,
-                    class.size_class,
-                );
-                self.mapping.write_mapped_bytes(mapping_offset, bytes);
-            },
-            Payload::Bytes(bytes) => unsafe {
-                self.mapping.write_mapped_bytes(mapping_offset, bytes);
-            },
-            Payload::Zeroed => unsafe {
-                write_bytes(
-                    (self.mapping.base_address() + mapping_offset) as *mut u8,
-                    0,
-                    class.size_class,
-                );
-            },
-        }
+        self.initialize_mapped_payload(mapping_offset, class.size_class, init);
 
         let span = self
             .small
@@ -1189,6 +1146,44 @@ impl HeapSpace {
         }
 
         Ok(slot)
+    }
+
+    /// Initialize one mapped payload range.
+    #[inline(always)]
+    pub(super) fn initialize_mapped_payload(
+        &self,
+        offset: usize,
+        clear_byte_len: usize,
+        payload: Payload<'_>,
+    ) {
+        match payload {
+            Payload::Bytes(bytes) if bytes.len() < clear_byte_len => {
+                self.clear_mapped_bytes(offset, clear_byte_len);
+                self.write_mapped_bytes(offset, bytes);
+            }
+            Payload::Bytes(bytes) => self.write_mapped_bytes(offset, bytes),
+            Payload::Zeroed => self.clear_mapped_bytes(offset, clear_byte_len),
+        }
+    }
+
+    /// Write bytes into one mapped payload range.
+    #[inline(always)]
+    pub(super) fn write_mapped_bytes(&self, offset: usize, bytes: &[u8]) {
+        // allocation paths materialize the destination before publishing it
+        unsafe {
+            self.mapping.write_mapped_bytes(offset, bytes);
+        }
+    }
+
+    /// Clear one mapped payload range.
+    #[inline(always)]
+    pub(super) fn clear_mapped_bytes(&self, offset: usize, byte_len: usize) {
+        let address = self.mapping.base_address() + offset;
+
+        // allocation paths materialize the destination before publishing it
+        unsafe {
+            std::ptr::write_bytes(address as *mut u8, 0, byte_len);
+        }
     }
 }
 

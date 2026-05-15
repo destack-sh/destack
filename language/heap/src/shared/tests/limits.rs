@@ -7,6 +7,8 @@ use crate::{
 };
 use destack_mir::ReferenceMap;
 
+use super::read_mapped_bytes;
+
 const SMALL_ALLOCATION_COUNT: usize = 1024;
 const SMALL_ALLOCATION_BYTES: usize = 32;
 
@@ -125,10 +127,8 @@ fn test_flush_publishes_worker_shared_small_allocations() {
     let second_address = shared.heap_base_address() + second.offset();
 
     // inspect the published small payloads directly
-    let first_bytes =
-        unsafe { std::slice::from_raw_parts(first_address as *const u8, SMALL_ALLOCATION_BYTES) };
-    let second_bytes =
-        unsafe { std::slice::from_raw_parts(second_address as *const u8, SMALL_ALLOCATION_BYTES) };
+    let first_bytes = read_mapped_bytes(first_address, SMALL_ALLOCATION_BYTES);
+    let second_bytes = read_mapped_bytes(second_address, SMALL_ALLOCATION_BYTES);
 
     assert_eq!(first_bytes, &[0; SMALL_ALLOCATION_BYTES]);
     assert_eq!(second_bytes, &[0; SMALL_ALLOCATION_BYTES]);

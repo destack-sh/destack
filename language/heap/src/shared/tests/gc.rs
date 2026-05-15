@@ -7,6 +7,8 @@ use crate::{
 };
 use destack_mir::ReferenceMap;
 
+use super::{read_mapped_bytes, write_mapped_bytes};
+
 /// Build one shared heap whose pacer starts immediately in step-driven tests.
 fn test_shared_heap(
     layouts: &[(usize, ReferenceMap)],
@@ -135,8 +137,7 @@ fn test_collect_shared_frees_unreachable_entries() {
     assert!(!shared.is_heap_live(unreachable));
     let address = shared.heap_base_address() + reachable.offset();
 
-    // inspect the reachable payload directly
-    let bytes = unsafe { std::slice::from_raw_parts(address as *const u8, 8) };
+    let bytes = read_mapped_bytes(address, 8);
 
     assert_eq!(bytes, &[1, 2, 3, 0, 0, 0, 0, 0]);
     assert_eq!(shared.gc_state().completed_cycles, 1);
@@ -204,8 +205,7 @@ fn test_collect_shared_clears_reused_small_slot_tail() {
     assert!(shared.is_heap_live(reused));
     let address = shared.heap_base_address() + reused.offset();
 
-    // inspect the reused slot payload
-    let bytes = unsafe { std::slice::from_raw_parts(address as *const u8, 8) };
+    let bytes = read_mapped_bytes(address, 8);
 
     assert_eq!(bytes, &[0xCC, 0, 0, 0, 0, 0, 0, 0]);
 }
@@ -248,8 +248,7 @@ fn test_collect_shared_keeps_reachable_children() {
     assert!(shared.is_heap_live(child));
     let address = shared.heap_base_address() + child.offset();
 
-    // inspect the reached child payload
-    let bytes = unsafe { std::slice::from_raw_parts(address as *const u8, 8) };
+    let bytes = read_mapped_bytes(address, 8);
 
     assert_eq!(bytes, &[0xC1, 0x1D, 0, 0, 0, 0, 0, 0]);
 }
@@ -540,14 +539,7 @@ fn test_collect_shared_barrier_keeps_written_child() {
         .expect("shared heap write barrier should record");
     let address = shared.heap_base_address() + parent.offset();
 
-    // write the new edge through the live mapping
-    unsafe {
-        std::ptr::copy_nonoverlapping(
-            child.bits().to_le_bytes().as_ptr(),
-            address as *mut u8,
-            SharedHeapReference::BYTE_LEN,
-        );
-    }
+    write_mapped_bytes(address, &child.bits().to_le_bytes());
 
     while shared
         .collect_step(&[parent], true, 1)
@@ -649,7 +641,7 @@ fn test_collect_shared_keeps_run_allocation_created_during_mark() {
     let address = shared.heap_base_address() + late.offset();
 
     // inspect the late allocation payload
-    let bytes = unsafe { std::slice::from_raw_parts(address as *const u8, 8) };
+    let bytes = read_mapped_bytes(address, 8);
 
     assert_eq!(bytes, &[7, 8, 9, 0, 0, 0, 0, 0]);
 }

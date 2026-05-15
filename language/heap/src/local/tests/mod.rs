@@ -6,4 +6,4 @@ mod limits;
 mod raw;
 mod tests;
 
-pub(crate) use tests::TestHeap;
+pub(crate) use tests::{TestHeap, read_mapped_bytes, write_mapped_byte, write_mapped_bytes};
