@@ -10,7 +10,7 @@ use {destack_dir as dir, destack_mir as mir};
 use crate::{Compiler, CompilerError, CompilerResult, LowerError};
 
 use super::{FieldInput, FieldLayoutKind, LayoutPolicy, TypeLowerer};
-use crate::lower::{static_key_from_key, static_key_to_field_name};
+use crate::lower::static_key_to_field_name;
 
 /// Helpers for lowering builtin type layouts.
 pub(crate) struct BuiltinTypeLayouts<'a, 'b> {
@@ -218,7 +218,7 @@ impl<'a, 'b> BuiltinTypeLayouts<'a, 'b> {
             };
 
             // resolve a static key for the field
-            let Some(key) = static_key_from_key(tree, strings, *key) else {
+            let Some(key) = key.static_key(tree) else {
                 continue;
             };
 

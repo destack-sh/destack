@@ -3,7 +3,6 @@ mod dispatch;
 mod error;
 mod function;
 mod instance;
-mod key;
 mod module;
 mod provide;
 mod runtime;
@@ -16,7 +15,6 @@ pub(crate) use dispatch::*;
 pub use error::*;
 pub(crate) use function::*;
 pub(crate) use instance::*;
-pub(crate) use key::*;
 pub(crate) use module::{
     ModuleLowerer, access_for_storage_mutability, lower_mutability, static_key_to_field_name,
 };

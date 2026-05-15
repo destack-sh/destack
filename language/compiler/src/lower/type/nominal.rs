@@ -4,7 +4,7 @@ use destack_core::StringId;
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::lower::{
-    FieldInput, FieldLayoutKind, LayoutPolicy, TypeCacheEntry, TypeLowerer, static_key_from_key,
+    FieldInput, FieldLayoutKind, LayoutPolicy, TypeCacheEntry, TypeLowerer,
     static_key_to_field_name,
 };
 use crate::{LowerError, LowerResult};
@@ -234,14 +234,14 @@ impl ModuleLowerer<'_> {
                 }
 
                 // resolve a static key for layout naming
-                let Some(key) = static_key_from_key(self.dir_tree, self.strings, *key) else {
+                let Some(key) = key.static_key(self.dir_tree) else {
                     return Err(LowerError::UnsupportedConstruct {
                         anchor: self.diagnostic_anchor(
                             member_id
                                 .into_global_any(self.module_id)
                                 .into_anchored(Some(self.profile)),
                         ),
-                        message: "unsupported dynamic field key in nominal layout".to_string(),
+                        message: "unsupported non-public field key in nominal layout".to_string(),
                     }
                     .into());
                 };

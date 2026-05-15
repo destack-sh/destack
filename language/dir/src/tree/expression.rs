@@ -5,7 +5,7 @@ use crate::{
     Argument, AssignOperator, AssignPattern, Asynchrony, BinaryOperator, Block, Declaration,
     Declarator, DependencyItem, DependencySpace, ExportKind, GenericArgument,
     ImportAttributeClause, Keyword, LocalNodeId, MatchCase, MatchForm, Mutability, Node, NodeType,
-    Path, Pattern, Property, RangeEnd, ScalarLiteral, TemplateLiteral, TypeExpression,
+    Path, Pattern, Property, RangeEnd, ScalarLiteral, StaticKey, TemplateLiteral, TypeExpression,
     UnaryOperator,
 };
 
@@ -825,6 +825,14 @@ impl Node for Expression {
 }
 
 impl Expression {
+    /// Return this expression as a static lookup key when locally obvious.
+    pub fn static_key(&self) -> Option<StaticKey> {
+        match self {
+            Self::ScalarLiteral(ScalarLiteral::String(name)) => Some(StaticKey::Name(*name)),
+            _ => None,
+        }
+    }
+
     /// Return explicit generic arguments carried by this expression.
     #[inline]
     pub fn generic_arguments(&self) -> Option<&[LocalNodeId<GenericArgument>]> {

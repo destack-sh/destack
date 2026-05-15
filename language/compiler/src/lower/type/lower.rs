@@ -798,8 +798,17 @@ impl<'a> TypeLowerer<'a> {
             else {
                 continue;
             };
-            let Some(key) = Self::static_key_from_member_key(key.clone()) else {
-                continue;
+            let Some(key) = key.static_key(&parsed.tree) else {
+                return Err(LowerError::UnsupportedConstruct {
+                    anchor: self.diagnostic_anchor(
+                        member_id
+                            .into_global_any(symbol.module_id)
+                            .into_anchored(Some(self.profile)),
+                    ),
+                    message: "unsupported non-public field key in remote nominal layout"
+                        .to_string(),
+                }
+                .into());
             };
             let Some(declared_type) = declared_type else {
                 continue;
@@ -867,18 +876,6 @@ impl<'a> TypeLowerer<'a> {
         };
 
         Some(declaration.members.clone())
-    }
-
-    /// Convert a simple member key to a static field key.
-    fn static_key_from_member_key(key: dir::Key) -> Option<dir::StaticKey> {
-        match key {
-            dir::Key::Name(dir::Name::Identifier(name) | dir::Name::String(name)) => {
-                Some(dir::StaticKey::Name(name))
-            }
-            dir::Key::Name(dir::Name::Number(name)) => Some(dir::StaticKey::Number(name)),
-            dir::Key::Private(name) => Some(dir::StaticKey::Name(name)),
-            dir::Key::Expression(_) => None,
-        }
     }
 
     /// Lower an intrinsic ownership alias into a MIR reference type.
