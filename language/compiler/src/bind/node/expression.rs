@@ -15,6 +15,24 @@ impl Compiler {
         expression: &dir::Expression,
     ) {
         match expression {
+            dir::Expression::Label { label, body } => {
+                // bind label body scope
+                state.bind_node(id.into_any());
+                let key = dir::StaticKey::Name(*label);
+                let (symbol_id, scope_id) = state.insert_symbol_with_scope(
+                    dir::SymbolRole::Local,
+                    dir::SymbolForm::Label,
+                    Some(key),
+                    None,
+                    dir::ScopeKind::Label,
+                );
+                state.declare_symbol(symbol_id, id);
+                state.bind_node_to_scope(id.into_any(), scope_id);
+
+                state.push_scope(scope_id);
+                self.visit_expression_by_id(state, tree, *body);
+                state.pop_scope();
+            }
             dir::Expression::Import { space, items, .. } => {
                 // bind import edge
                 state.bind_node(id.into_any());
@@ -309,7 +327,7 @@ impl Compiler {
             state.bind_node_to_scope(catch.into_any(), scope_id);
             state.push_scope(scope_id);
             let catch_node = tree.get(catch);
-            dir::walk_catch(state, tree, catch, catch_node);
+            state.visit_catch(tree, catch, catch_node);
             state.pop_scope();
         }
 
@@ -351,5 +369,31 @@ impl Compiler {
         for item_id in items {
             self.visit_dependency_item_by_id(state, tree, *item_id);
         }
+    }
+
+    /// Bind one catch branch.
+    pub(in crate::bind) fn bind_catch(
+        &self,
+        state: &mut BindState<'_>,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::Catch>,
+        catch: &dir::Catch,
+    ) {
+        state.bind_node(id.into_any());
+
+        // bind catch type before introducing the catch pattern
+        if let Some(ty) = catch.ty {
+            let ty_node = tree.get(ty);
+            state.visit_type_expression(tree, ty, ty_node);
+        }
+
+        // bind catch pattern before the catch body
+        if let Some(pattern) = catch.pattern {
+            let pattern_node = tree.get(pattern);
+            state.visit_pattern(tree, pattern, pattern_node);
+        }
+
+        // visit catch body
+        self.visit_expression_by_id(state, tree, catch.body);
     }
 }

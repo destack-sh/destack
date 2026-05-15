@@ -241,6 +241,12 @@ impl Compiler {
         // bind infer node
         state.bind_node(id.into_any());
 
+        // bind optional infer constraint before introducing the inferred parameter
+        if let Some(constraint) = constraint {
+            let constraint_node = tree.get(constraint);
+            state.visit_type_expression(tree, constraint, constraint_node);
+        }
+
         // declare named inferred type parameter
         if let Some(name) = name {
             let symbol_id = state.insert_symbol(
@@ -250,12 +256,6 @@ impl Compiler {
                 None,
             );
             state.declare_symbol(symbol_id, id);
-        }
-
-        // bind optional infer constraint
-        if let Some(constraint) = constraint {
-            let constraint_node = tree.get(constraint);
-            state.visit_type_expression(tree, constraint, constraint_node);
         }
     }
 }

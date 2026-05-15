@@ -47,15 +47,14 @@ impl dir::NodeVisitor for BindState<'_> {
 
         // route global blocks into the package global scope
         if matches!(declaration, dir::Declaration::Global(_)) {
+            self.attach_global_scope();
             self.bind_node_to_scope(id.into_any(), self.global_scope);
             self.push_scope(self.global_scope);
-            self.push_origin(dir::SymbolOrigin::Global);
 
             // visit global declarations
             let compiler = self.compiler;
             compiler.bind_declaration_body(self, tree, declaration);
 
-            self.pop_origin();
             self.pop_scope();
             return;
         }
@@ -204,6 +203,16 @@ impl dir::NodeVisitor for BindState<'_> {
     ) {
         let compiler = self.compiler;
         compiler.bind_declarator(self, tree, id, declarator);
+    }
+
+    fn visit_catch(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::Catch>,
+        catch: &dir::Catch,
+    ) {
+        let compiler = self.compiler;
+        compiler.bind_catch(self, tree, id, catch);
     }
 
     fn visit_type_expression(
