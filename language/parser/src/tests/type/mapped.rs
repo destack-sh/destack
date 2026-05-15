@@ -31,12 +31,12 @@ fn test_parse_mapped_type() {
             assert!(generic_parameters.is_empty());
             let mapped_type_id = *value;
             assert_node!(parser.tree, mapped_type_id, TypeExpression::Mapped { parameter, readonly, optional, value } => {
-                assert_string!(parser, parameter.name, "test");
+                assert_string!(parser, parser.tree.get(*parameter).name, "test");
                 let name_span = parser.tree.get_main_span(mapped_type_id).expect("missing mapped parameter name span");
                 assert_eq!(parser.get_span_str(name_span), "test");
                 assert_eq!(*readonly, MappedTypeModifier::None);
                 assert_eq!(*optional, MappedTypeModifier::None);
-                assert_node!(parser.tree, parameter.source_type, TypeExpression::Union { elements } => {
+                assert_node!(parser.tree, parser.tree.get(*parameter).source_type, TypeExpression::Union { elements } => {
                     assert_eq!(elements.len(), 2);
                     assert_node!(parser.tree, elements[0], TypeExpression::ScalarLiteral { value } => {
                         assert_node!(value, ScalarLiteral::String(value) => {
@@ -62,11 +62,11 @@ fn test_parse_mapped_type() {
                 assert_string!(parser, *name, "Type");
             });
             assert_node!(parser.tree, *value, TypeExpression::Mapped { parameter, readonly, optional, value } => {
-                assert_string!(parser, parameter.name, "Property");
+                assert_string!(parser, parser.tree.get(*parameter).name, "Property");
                 assert_eq!(*readonly, MappedTypeModifier::None);
                 assert_eq!(*optional, MappedTypeModifier::None);
-                assert!(parameter.key_remap.is_none());
-                assert_node!(parser.tree, parameter.source_type, TypeExpression::KeyOf { target_type } => {
+                assert!(parser.tree.get(*parameter).key_remap.is_none());
+                assert_node!(parser.tree, parser.tree.get(*parameter).source_type, TypeExpression::KeyOf { target_type } => {
                     assert_expression_path!(parser, parser.tree.get(*target_type), "Type");
                 });
                 let value = value.expect("expected value type");
@@ -85,7 +85,7 @@ fn test_parse_mapped_type() {
                 assert_string!(parser, *name, "Type");
             });
             assert_node!(parser.tree, *value, TypeExpression::Mapped { parameter, readonly, optional, value } => {
-                assert_string!(parser, parameter.name, "Property");
+                assert_string!(parser, parser.tree.get(*parameter).name, "Property");
                 assert_eq!(*readonly, MappedTypeModifier::Remove);
                 assert_eq!(*optional, MappedTypeModifier::None);
                 let value = value.expect("expected value type");
@@ -105,7 +105,7 @@ fn test_parse_mapped_type() {
                 assert_string!(parser, *name, "Type");
             });
             assert_node!(parser.tree, *value, TypeExpression::Mapped { parameter, readonly, optional, value } => {
-                assert_string!(parser, parameter.name, "Property");
+                assert_string!(parser, parser.tree.get(*parameter).name, "Property");
                 assert_eq!(*readonly, MappedTypeModifier::None);
                 assert_eq!(*optional, MappedTypeModifier::Remove);
                 let value = value.expect("expected value type");
@@ -125,13 +125,13 @@ fn test_parse_mapped_type() {
                 assert_string!(parser, *name, "Type");
             });
             assert_node!(parser.tree, *value, TypeExpression::Mapped { parameter, readonly, optional, value } => {
-                assert_string!(parser, parameter.name, "Property");
+                assert_string!(parser, parser.tree.get(*parameter).name, "Property");
                 assert_eq!(*readonly, MappedTypeModifier::None);
                 assert_eq!(*optional, MappedTypeModifier::None);
-                assert_node!(parser.tree, parameter.source_type, TypeExpression::KeyOf { target_type } => {
+                assert_node!(parser.tree, parser.tree.get(*parameter).source_type, TypeExpression::KeyOf { target_type } => {
                     assert_expression_path!(parser, parser.tree.get(*target_type), "Type");
                 });
-                assert_node!(parser.tree, parameter.key_remap.expect("expected key remap"), TypeExpression::TemplateLiteral { strings, spans } => {
+                assert_node!(parser.tree, parser.tree.get(*parameter).key_remap.expect("expected key remap"), TypeExpression::TemplateLiteral { strings, spans } => {
                     assert_eq!(strings.len(), 2);
                     assert_eq!(spans.len(), 1);
                     assert_string!(parser, strings[0], "get");
@@ -266,11 +266,11 @@ fn test_parse_type_mapped_expression_without_value_type_in_typescript() {
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Mapped { parameter, readonly, optional, value } => {
-                assert_string!(parser, parameter.name, "K");
+                assert_string!(parser, parser.tree.get(*parameter).name, "K");
                 assert_eq!(*readonly, MappedTypeModifier::None);
                 assert_eq!(*optional, MappedTypeModifier::None);
                 assert!(value.is_none());
-                assert_node!(parser.tree, parameter.source_type, TypeExpression::Union { elements } => {
+                assert_node!(parser.tree, parser.tree.get(*parameter).source_type, TypeExpression::Union { elements } => {
                     assert_eq!(elements.len(), 2);
                 });
             });
@@ -373,8 +373,8 @@ fn test_parse_type_mapped_expression_with_parenthesized_conditional_generic_valu
                         });
                         assert_node!(parser.tree, generic_arguments[1], GenericArgument::Type { value } => {
                             assert_node!(parser.tree, *value, TypeExpression::Mapped { parameter, value, .. } => {
-                                assert_string!(parser, parameter.name, "K");
-                                assert_node!(parser.tree, parameter.source_type, TypeExpression::KeyOf { target_type } => {
+                                assert_string!(parser, parser.tree.get(*parameter).name, "K");
+                                assert_node!(parser.tree, parser.tree.get(*parameter).source_type, TypeExpression::KeyOf { target_type } => {
                                     assert_expression_path!(parser, parser.tree.get(*target_type), "O");
                                 });
                                 let value = value.expect("expected value type");
@@ -440,7 +440,7 @@ fn test_parse_type_mapped_expression_with_leading_intersection_parenthesized_con
                             assert_eq!(generic_arguments.len(), 2);
                             assert_node!(parser.tree, generic_arguments[1], GenericArgument::Type { value } => {
                                 assert_node!(parser.tree, *value, TypeExpression::Mapped { parameter, value, .. } => {
-                                    assert_string!(parser, parameter.name, "K");
+                                    assert_string!(parser, parser.tree.get(*parameter).name, "K");
                                     let value = value.expect("expected value type");
                                     assert_node!(parser.tree, value, TypeExpression::Reference { path, generic_arguments } => {
                                         assert_path!(parser, path, "C");
@@ -470,8 +470,8 @@ fn test_parse_type_mapped_expression_with_key_remap_conditional() {
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Mapped { parameter, .. } => {
-                assert_string!(parser, parameter.name, "K");
-                let key_remap = parameter.key_remap.expect("expected key remap");
+                assert_string!(parser, parser.tree.get(*parameter).name, "K");
+                let key_remap = parser.tree.get(*parameter).key_remap.expect("expected key remap");
                 assert_node!(parser.tree, key_remap, TypeExpression::Conditional { .. });
             });
         });
@@ -493,8 +493,8 @@ fn test_parse_type_mapped_expression_with_conditional_infer_constraint() {
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Mapped { parameter, value, .. } => {
-                assert_string!(parser, parameter.name, "P");
-                assert_node!(parser.tree, parameter.source_type, TypeExpression::Conditional { left, extends_type, then_type, else_type } => {
+                assert_string!(parser, parser.tree.get(*parameter).name, "P");
+                assert_node!(parser.tree, parser.tree.get(*parameter).source_type, TypeExpression::Conditional { left, extends_type, then_type, else_type } => {
                     assert_node!(parser.tree, *left, TypeExpression::Infer { name, constraint, .. } => {
                         assert_string!(parser, name.expect("expected infer name"), "U");
                         assert!(constraint.is_none());
@@ -546,8 +546,8 @@ fn test_parse_type_mapped_expression_with_remap_in_declaration_file() {
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Mapped { parameter, .. } => {
-                assert_string!(parser, parameter.name, "K");
-                assert!(parameter.key_remap.is_some());
+                assert_string!(parser, parser.tree.get(*parameter).name, "K");
+                assert!(parser.tree.get(*parameter).key_remap.is_some());
             });
         });
     });
@@ -566,8 +566,8 @@ fn test_parse_type_mapped_expression_missing_value_type() {
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Mapped { parameter, value, .. } => {
-                assert_string!(parser, parameter.name, "K");
-                assert_node!(parser.tree, parameter.source_type, TypeExpression::KeyOf { target_type } => {
+                assert_string!(parser, parser.tree.get(*parameter).name, "K");
+                assert_node!(parser.tree, parser.tree.get(*parameter).source_type, TypeExpression::KeyOf { target_type } => {
                     assert_node!(parser.tree, *target_type, TypeExpression::Reference { path, generic_arguments } => {
                         assert!(generic_arguments.is_empty());
                         assert_path!(parser, *path, "T");
@@ -593,8 +593,8 @@ fn test_parse_type_mapped_expression_missing_close_bracket_before_colon() {
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Mapped { parameter, value, .. } => {
-                assert_string!(parser, parameter.name, "K");
-                assert_node!(parser.tree, parameter.source_type, TypeExpression::KeyOf { target_type } => {
+                assert_string!(parser, parser.tree.get(*parameter).name, "K");
+                assert_node!(parser.tree, parser.tree.get(*parameter).source_type, TypeExpression::KeyOf { target_type } => {
                     assert_node!(parser.tree, *target_type, TypeExpression::Reference { path, generic_arguments } => {
                         assert!(generic_arguments.is_empty());
                         assert_path!(parser, *path, "T");
@@ -633,9 +633,9 @@ fn test_parse_type_mapped_expression_with_leading_union_constraint() {
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Mapped { parameter, value, .. } => {
-                assert_string!(parser, parameter.name, "K");
+                assert_string!(parser, parser.tree.get(*parameter).name, "K");
 
-                assert_node!(parser.tree, parameter.source_type, TypeExpression::Union { elements } => {
+                assert_node!(parser.tree, parser.tree.get(*parameter).source_type, TypeExpression::Union { elements } => {
                     assert_eq!(elements.len(), 2);
                     assert_expression_path!(parser, parser.tree.get(elements[0]), "Foo");
                     assert_expression_path!(parser, parser.tree.get(elements[1]), "Bar");
@@ -665,10 +665,10 @@ fn test_parse_type_mapped_expression_with_newline_before_remap_in_declaration_fi
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Mapped { parameter, .. } => {
-                assert_string!(parser, parameter.name, "K");
+                assert_string!(parser, parser.tree.get(*parameter).name, "K");
                 assert_node!(
                     parser.tree,
-                    parameter.key_remap.expect("expected key remap"),
+                    parser.tree.get(*parameter).key_remap.expect("expected key remap"),
                     TypeExpression::Conditional { .. }
                 );
             });

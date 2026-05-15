@@ -239,14 +239,14 @@ fn test_parse_type_mapped_expression() {
             assert_node!(parser.tree, *value, TypeExpression::Mapped { parameter, readonly, optional, value } => {
                 assert_eq!(*readonly, MappedTypeModifier::Present);
                 assert_eq!(*optional, MappedTypeModifier::Remove);
-                assert_string!(parser, parameter.name, "K");
-                assert_node!(parser.tree, parameter.source_type, TypeExpression::KeyOf { target_type } => {
+                assert_string!(parser, parser.tree.get(*parameter).name, "K");
+                assert_node!(parser.tree, parser.tree.get(*parameter).source_type, TypeExpression::KeyOf { target_type } => {
                     assert_node!(parser.tree, *target_type, TypeExpression::Reference { path, generic_arguments } => {
                         assert!(generic_arguments.is_empty());
                         assert_path!(parser, *path, "T");
                     });
                 });
-                assert_node!(parser.tree, parameter.key_remap.unwrap(), TypeExpression::TemplateLiteral { strings, spans } => {
+                assert_node!(parser.tree, parser.tree.get(*parameter).key_remap.unwrap(), TypeExpression::TemplateLiteral { strings, spans } => {
                     assert_eq!(strings.len(), 2);
                     assert_eq!(spans.len(), 1);
                     assert_string!(parser, strings[0], "foo-");
