@@ -33,10 +33,10 @@ impl Compiler {
                 self.visit_expression_by_id(state, tree, *body);
                 state.pop_scope();
             }
-            dir::Expression::Import { space, items, .. } => {
+            dir::Expression::Import { items, .. } => {
                 // bind import edge
                 state.bind_node(id.into_any());
-                self.bind_import_items(state, tree, *space, items.as_deref());
+                self.bind_import_items(state, tree, items.as_deref());
             }
             dir::Expression::Export { items, .. } => {
                 // bind export edge
@@ -342,7 +342,6 @@ impl Compiler {
         &self,
         state: &mut BindState<'_>,
         tree: &dir::Tree,
-        space: dir::DependencySpace,
         items: Option<&[dir::LocalNodeId<dir::DependencyItem>]>,
     ) {
         // skip bare side effect imports
@@ -353,7 +352,7 @@ impl Compiler {
         // bind imported items
         for item_id in items {
             let item = tree.get(*item_id);
-            self.bind_import_item(state, *item_id, space, item);
+            self.bind_import_item(state, *item_id, item);
             self.visit_dependency_item_by_id(state, tree, *item_id);
         }
     }

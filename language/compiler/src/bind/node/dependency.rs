@@ -25,14 +25,13 @@ impl Compiler {
         &self,
         state: &mut BindState<'_>,
         node_id: dir::LocalNodeId<dir::DependencyItem>,
-        import_space: dir::DependencySpace,
         dependency_item: &dir::DependencyItem,
     ) {
         // ignore non binding items
         let Some(key) = dependency_item.symbol_key() else {
             return;
         };
-        let Some(form) = dependency_item.symbol_form(import_space) else {
+        let Some(form) = dependency_item.symbol_form() else {
             return;
         };
 
