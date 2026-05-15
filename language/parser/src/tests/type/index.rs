@@ -91,8 +91,8 @@ fn test_parse_function_type_predicate_in_conditional_type() {
                     assert_node!(parser.tree, function.return_type.expect("expected return type"), TypeExpression::Predicate { asserts, subject, target } => {
                         assert!(!*asserts);
                         assert_eq!(*subject, TypePredicateSubject::Identifier(parser.strings.intern("value")));
-                        assert_node!(parser.tree, target.expect("expected predicate target"), TypeExpression::Infer { name, constraint } => {
-                            assert_string!(parser, *name, "T");
+                        assert_node!(parser.tree, target.expect("expected predicate target"), TypeExpression::Infer { name, constraint, .. } => {
+                            assert_string!(parser, name.expect("expected infer name"), "T");
                             assert!(constraint.is_none());
                         });
                     });

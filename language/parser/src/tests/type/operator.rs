@@ -35,8 +35,8 @@ fn test_parse_type_infer_span() {
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             let infer_id = *value;
-            assert_node!(parser.tree, *value, TypeExpression::Infer { name, constraint } => {
-                assert_string!(parser, *name, "Value");
+            assert_node!(parser.tree, *value, TypeExpression::Infer { name, constraint, .. } => {
+                assert_string!(parser, name.expect("expected infer name"), "Value");
                 assert!(constraint.is_none());
             });
 

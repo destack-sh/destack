@@ -11,8 +11,8 @@ use smallvec::SmallVec;
 use super::operator::TypeUnaryOperator;
 use destack_dir::{
     BinaryOperator, BlockContext, Declaration, DependencyItem, Expression, GenericArgument,
-    Keyword, LocalNodeId, NodeType, OperatorPrecedence, Path, RangeEnd, ScalarLiteral, TokenType,
-    TypeExpression, UnaryOperator,
+    InferForm, Keyword, LocalNodeId, NodeType, OperatorPrecedence, Path, RangeEnd, ScalarLiteral,
+    TokenType, TypeExpression, UnaryOperator,
 };
 
 use super::super::PendingDecorators;
@@ -1090,6 +1090,20 @@ impl Parser {
         start: &ParserSpanStart,
         expression_decorators: &mut PendingDecorators,
     ) -> ParseResult<LocalNodeId<TypeExpression>> {
+        // anonymous infer hole
+        if self.language.is_destack() && self.peek_identifier_str_is("_") {
+            self.bump();
+
+            return Ok(self.insert_node(
+                TypeExpression::Infer {
+                    form: InferForm::Hole,
+                    name: None,
+                    constraint: None,
+                },
+                self.get_span_from(start),
+            ));
+        }
+
         // declaration header prefixes or early declaration expressions
         let header = match self.eat_identifier_primary_lead(start, expression_decorators)? {
             IdentifierPrimaryLead::Header(header) => header,
@@ -2299,10 +2313,7 @@ impl Parser {
         })?;
 
         Ok(self.insert_node(
-            Expression::ObjectExpression {
-                ty: None,
-                properties,
-            },
+            Expression::ObjectExpression { properties },
             self.get_span_from(start),
         ))
     }

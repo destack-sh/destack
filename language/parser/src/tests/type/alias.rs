@@ -300,8 +300,8 @@ fn test_parse_type_parameter_default_conditional() {
                 assert_node!(parser.tree, *default, TypeExpression::Conditional { left, extends_type, then_type, else_type } => {
                     assert_expression_path!(parser, parser.tree.get(*left), "F");
                     assert_node!(parser.tree, *extends_type, TypeExpression::FunctionTypeDeclaration(function) => {
-                        assert_node!(parser.tree, function.return_type.unwrap(), TypeExpression::Infer { name, constraint } => {
-                            assert_string!(parser, *name, "T");
+                        assert_node!(parser.tree, function.return_type.unwrap(), TypeExpression::Infer { name, constraint, .. } => {
+                            assert_string!(parser, name.expect("expected infer name"), "T");
                             assert!(constraint.is_none());
                         });
                     });

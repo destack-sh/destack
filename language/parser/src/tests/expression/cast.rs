@@ -213,8 +213,8 @@ fn test_parse_type_unary_prefix_expression() {
         assert_node!(parser.tree, *value, TypeExpression::KeyOf { target_type } => {
             assert_node!(parser.tree, *target_type, TypeExpression::TypeOfValue { value } => {
                 assert_node!(parser.tree, *value, Expression::Type { value } => {
-                    assert_node!(parser.tree, *value, TypeExpression::Infer { name, constraint } => {
-                        assert_string!(parser, *name, "Value");
+                    assert_node!(parser.tree, *value, TypeExpression::Infer { name, constraint, .. } => {
+                        assert_string!(parser, name.expect("expected infer name"), "Value");
                         assert!(constraint.is_none());
                     });
                 });
