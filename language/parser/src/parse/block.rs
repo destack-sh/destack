@@ -259,6 +259,12 @@ impl Parser {
             return Ok(None);
         }
 
+        // dispatch contextual declaration heads
+        if self.should_parse_declaration_descriptor() {
+            let expression_id = self.eat_expression_in_scope()?;
+            return Ok(Some(expression_id));
+        }
+
         // parse plain identifier paths after keyword dispatch already rejected
         if let Some(expression_id) = self.try_parse_plain_identifier_expression(start)? {
             return Ok(Some(expression_id));

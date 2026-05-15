@@ -1,6 +1,4 @@
-use super::common::{
-    DECLARATION_START_TOKENS, DeclarationHeader, DescriptorHead, is_type_relation_keyword,
-};
+use super::common::{DECLARATION_START_TOKENS, DeclarationHeader, DescriptorHead};
 use super::lookahead::ParenthesizedGroupShape;
 use crate::parse::parser::ParserFlags;
 use crate::parse::prelude::*;
@@ -43,8 +41,6 @@ struct IdentifierPrimaryLookahead {
     next_is_declaration_start: bool,
     /// The contextual keyword at the current identifier, if any.
     keyword: Option<Keyword>,
-    /// Whether the identifier starts a contextual module declaration.
-    is_module_declaration_start: bool,
 }
 
 /// One expression before continuation parsing.
@@ -560,33 +556,9 @@ impl Parser {
             return Ok(None);
         }
 
-        // contextual declarations use the declaration entry path
-        let is_global_identifier = self.is_global_identifier();
-        let is_module_identifier =
-            self.language.supports_module_declaration() && self.is_module_identifier();
-        if is_global_identifier || is_module_identifier {
-            let next_token = self.next_token();
-            let next_token_type = next_token.token.ty;
-            let next_keyword = self.next_keyword();
-
-            if is_global_identifier
-                && matches!(
-                    next_token_type,
-                    TokenType::OpenBrace | TokenType::Identifier | TokenType::Literal
-                )
-            {
-                return Ok(None);
-            }
-
-            if is_module_identifier
-                && !next_token.token.is_on_new_line
-                && DECLARATION_START_TOKENS.contains(&next_token_type)
-                && matches!(next_token_type, TokenType::Identifier | TokenType::Literal)
-                && (next_token_type != TokenType::Identifier
-                    || !is_type_relation_keyword(next_keyword))
-            {
-                return Ok(None);
-            }
+        // dispatch declarations through identifier parsing
+        if self.should_parse_declaration_descriptor() {
+            return Ok(None);
         }
 
         // type-space heads need the full identifier dispatch path
@@ -636,26 +608,8 @@ impl Parser {
         start: &ParserSpanStart,
         expression_decorators: &mut PendingDecorators,
     ) -> ParseResult<IdentifierPrimaryLead> {
-        let descriptor_head_keyword = self.current_keyword();
-        let can_parse_declaration_descriptor = self.flags.is_in_statement_position()
-            || self.flags.is_in_type()
-            || self.flags.is_in_variant()
-            || self.flags.is_in_declare_context()
-            || self.language.is_declaration()
-            || matches!(
-                descriptor_head_keyword,
-                Some(
-                    Keyword::Export
-                        | Keyword::Declare
-                        | Keyword::Abstract
-                        | Keyword::Final
-                        | Keyword::Shared
-                        | Keyword::Static,
-                )
-            );
-
         // non declaration positions always keep the empty header
-        if !can_parse_declaration_descriptor || !self.should_parse_declaration_descriptor() {
+        if !self.should_parse_declaration_descriptor() {
             return Ok(IdentifierPrimaryLead::Header(DeclarationHeader::default()));
         }
 
@@ -714,21 +668,6 @@ impl Parser {
             keyword
         };
 
-        // module declarations only exist in value space
-        let is_module_declaration_start = if self.flags.is_in_decorator()
-            || self.flags.is_in_type()
-            || next_is_on_new_line
-            || !next_is_declaration_start
-            || !self.language.supports_module_declaration()
-            || !self.is_module_identifier()
-            || !matches!(next_token_type, TokenType::Identifier | TokenType::Literal)
-        {
-            false
-        } else {
-            // module names must not collide with relation keywords
-            !is_type_relation_keyword(next_keyword)
-        };
-
         IdentifierPrimaryLookahead {
             next_token_type,
             next_is_on_new_line,
@@ -736,7 +675,6 @@ impl Parser {
             following_token_type,
             next_is_declaration_start,
             keyword,
-            is_module_declaration_start,
         }
     }
 
@@ -992,10 +930,7 @@ impl Parser {
         }
 
         // plain identifier path or contextual literal
-        if lookahead.keyword.is_none()
-            && !self.flags.is_in_decorator()
-            && !lookahead.is_module_declaration_start
-        {
+        if lookahead.keyword.is_none() && !self.flags.is_in_decorator() {
             if let Some(type_expression_id) =
                 self.try_eat_contextual_type_literal_type_expression(start)?
             {
@@ -1041,12 +976,6 @@ impl Parser {
 
                 return Ok(expression_id);
             }
-        }
-
-        // contextual module declaration
-        if lookahead.keyword.is_none() && lookahead.is_module_declaration_start {
-            let namespace_id = self.eat_namespace(start, header)?;
-            return Ok(self.insert_declaration_expression(start, namespace_id));
         }
 
         // keyword expressions and declaration starters
@@ -1127,10 +1056,7 @@ impl Parser {
             && lookahead.keyword == Some(Keyword::Shared);
 
         // plain identifier path or contextual literal
-        if lookahead.keyword.is_none()
-            && !self.flags.is_in_decorator()
-            && !lookahead.is_module_declaration_start
-        {
+        if lookahead.keyword.is_none() && !self.flags.is_in_decorator() {
             if let Some(type_expression_id) =
                 self.try_eat_contextual_type_literal_type_expression(start)?
             {
@@ -1151,12 +1077,6 @@ impl Parser {
                 start,
                 lookahead.keyword.expect("checked type unary keyword"),
             );
-        }
-
-        // contextual module declaration
-        if lookahead.keyword.is_none() && lookahead.is_module_declaration_start {
-            let namespace_id = self.eat_namespace(start, header)?;
-            return Ok(self.insert_declaration_type_expression(start, namespace_id));
         }
 
         // direct type keyword forms

@@ -11,9 +11,69 @@ use super::common::{
 };
 
 impl Parser {
+    /// Return true when the current identifier can start a global or module declaration.
+    fn can_start_global_or_module_declaration(&mut self) -> bool {
+        if !self.peek_is(TokenType::Identifier) {
+            return false;
+        }
+
+        let is_global_identifier = self.is_global_identifier();
+        let is_module_identifier = self.is_module_identifier();
+        if !is_global_identifier && !is_module_identifier {
+            return false;
+        }
+
+        let next_token = self.next_token();
+        if next_token.token.is_on_new_line {
+            return false;
+        }
+
+        if is_global_identifier {
+            let can_parse_global = self.language.is_destack()
+                || self.language.is_declaration()
+                || self.flags.is_in_declare_context();
+
+            return can_parse_global && next_token.token.ty == TokenType::OpenBrace;
+        }
+
+        if self.language.is_destack() && !self.language.is_declaration() {
+            return next_token.token.ty == TokenType::OpenBrace;
+        }
+
+        matches!(
+            next_token.token.ty,
+            TokenType::OpenBrace | TokenType::Identifier | TokenType::Literal
+        )
+    }
+
+    /// Return true when the current identifier starts a named module declaration.
+    fn can_parse_named_module_declaration(&mut self) -> bool {
+        if !self.is_module_identifier() {
+            return false;
+        }
+
+        if self.language.is_destack() && !self.language.is_declaration() {
+            return false;
+        }
+
+        let next_token = self.next_token();
+        let next_token_type = next_token.token.ty;
+        let next_keyword = self.next_keyword();
+
+        if next_token.token.is_on_new_line {
+            return false;
+        }
+
+        if !matches!(next_token_type, TokenType::Identifier | TokenType::Literal) {
+            return false;
+        }
+
+        next_token_type != TokenType::Identifier || !is_type_relation_keyword(next_keyword)
+    }
+
     /// Return true when declaration modifier parsing is needed in this context.
     #[inline]
-    pub(super) fn should_parse_declaration_descriptor(&mut self) -> bool {
+    pub(crate) fn should_parse_declaration_descriptor(&mut self) -> bool {
         if self.flags.is_in_type()
             || self.flags.is_in_variant()
             || self.flags.is_in_declare_context()
@@ -40,28 +100,8 @@ impl Parser {
             return true;
         }
 
-        // contextual global and module declarations in statement position
-        if !self.flags.is_in_statement_position() {
-            return false;
-        }
-
-        let can_start_global_or_module_declaration = self.lookahead(|parser| {
-            parser.bump();
-            parser.current_token_is_on_new_line()
-                || matches!(
-                    parser.peek_token_type(),
-                    TokenType::OpenBrace | TokenType::Identifier | TokenType::Literal
-                )
-        });
-        if !can_start_global_or_module_declaration {
-            return false;
-        }
-
-        if self.is_global_identifier() {
-            return true;
-        }
-
-        self.is_module_identifier()
+        // recognize global and module declaration heads
+        self.can_start_global_or_module_declaration()
     }
 
     /// Decide whether one `{` in statement position starts an object literal.
@@ -238,15 +278,7 @@ impl Parser {
             return Ok(DescriptorHead::Header { header, decorators });
         }
 
-        // check for a modifier keyword or a global or module identifier
-        let can_start_global_or_module_declaration = self.lookahead(|parser| {
-            parser.bump();
-            parser.current_token_is_on_new_line()
-                || matches!(
-                    parser.peek_token_type(),
-                    TokenType::OpenBrace | TokenType::Identifier | TokenType::Literal
-                )
-        });
+        // check for a modifier keyword or contextual declaration identifier
         let keyword = self.current_keyword();
         let is_modifier_keyword = matches!(
             keyword,
@@ -258,12 +290,12 @@ impl Parser {
                     | Keyword::Static,
             )
         );
-        let is_global_identifier = !is_modifier_keyword
-            && can_start_global_or_module_declaration
-            && self.is_global_identifier();
-        let is_module_identifier = !is_modifier_keyword
-            && can_start_global_or_module_declaration
-            && self.is_module_identifier();
+        let is_contextual_declaration_identifier =
+            !is_modifier_keyword && self.can_start_global_or_module_declaration();
+        let is_global_identifier =
+            is_contextual_declaration_identifier && self.is_global_identifier();
+        let is_module_identifier =
+            is_contextual_declaration_identifier && self.is_module_identifier();
 
         if !is_modifier_keyword && !is_global_identifier && !is_module_identifier {
             return Ok(DescriptorHead::Header { header, decorators });
@@ -469,15 +501,44 @@ impl Parser {
             self.bump(); // eat shared
         }
 
+        // module directive declaration
+        let can_parse_module_directive = self.language.is_destack()
+            && self.flags.is_in_statement_position()
+            && header.export.is_none()
+            && !header.is_ambient
+            && self.is_module_identifier()
+            && self.next_token_type() == TokenType::OpenBrace;
+        if can_parse_module_directive {
+            let module_id = self.eat_module_directive(start)?;
+            let expression_id = self.insert_node(
+                Expression::Declaration(module_id),
+                self.get_span_from(start),
+            );
+            return Ok(DescriptorHead::Expression(expression_id));
+        }
+
+        // named module declaration
+        if self.can_parse_named_module_declaration() {
+            let module_id = self.eat_namespace(start, header)?;
+            let expression_id = self.insert_node(
+                Expression::Declaration(module_id),
+                self.get_span_from(start),
+            );
+            return Ok(DescriptorHead::Expression(expression_id));
+        }
+
         // global declaration
-        if (header.is_ambient
+        let can_parse_destack_global =
+            self.language.is_destack() && self.flags.is_in_statement_position();
+        let can_parse_ambient_global = header.is_ambient
             || self.language.is_declaration()
-            || self.flags.is_in_declare_context())
+            || self.flags.is_in_declare_context();
+        if (can_parse_destack_global || can_parse_ambient_global)
             && self.is_global_identifier()
             && self.next_token_type() == TokenType::OpenBrace
         {
             let mut global_header = header;
-            global_header.is_ambient = true;
+            global_header.is_ambient = !self.language.is_destack() || header.is_ambient;
             let global_id = self.eat_global(start, global_header)?;
             let expression_id = self.insert_node(
                 Expression::Declaration(global_id),
