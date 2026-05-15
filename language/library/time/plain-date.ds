@@ -1,0 +1,223 @@
+import { todo } from "destack:error";
+import { Duration, DurationLike } from "./duration.ds";
+import { PlainDateTime } from "./plain-date-time.ds";
+import { PlainMonthDay } from "./plain-month-day.ds";
+import { PlainTime, PlainTimeLike } from "./plain-time.ds";
+import { PlainYearMonth } from "./plain-year-month.ds";
+import { TimeZoneLike, ZonedDateTime } from "./zoned-date-time.ds";
+import {
+    ArithmeticOptions,
+    AssignmentOptions,
+    DateTimeFormatOptions,
+    DifferenceOptions,
+    ShowCalendarOption,
+} from "./option.ds";
+import { ComparisonResult, LocalesArgument } from "./unit.ds";
+
+/// Temporal calendar-like value.
+export type CalendarLike =
+    | string
+    | ZonedDateTime
+    | PlainDateTime
+    | PlainDate
+    | PlainYearMonth
+    | PlainMonthDay;
+
+/// Temporal plain date field bag.
+export type PlainDateLike = {
+    /// Calendar era.
+    era?: string;
+    /// Calendar era year.
+    eraYear?: number;
+    /// Calendar year.
+    year?: number;
+    /// Calendar month.
+    month?: number;
+    /// Calendar month code.
+    monthCode?: string;
+    /// Calendar day.
+    day?: number;
+    /// Calendar.
+    calendar?: CalendarLike;
+};
+
+/// Temporal plain date.
+export class PlainDate {
+    /// Create a plain date.
+    static from(item: PlainDate | PlainDateLike | string, options?: AssignmentOptions): PlainDate {
+        todo("PlainDate.from")
+    }
+
+    /// Compare two plain dates.
+    static compare(one: PlainDate | PlainDateLike | string, two: PlainDate | PlainDateLike | string): ComparisonResult {
+        todo("PlainDate.compare")
+    }
+
+    /// Create a plain date.
+    constructor(isoYear: number, isoMonth: number, isoDay: number, calendar?: string) {
+        todo("PlainDate.constructor")
+    }
+
+    /// Calendar era.
+    get era(): string | undefined {
+        todo("PlainDate.era")
+    }
+
+    /// Calendar era year.
+    get eraYear(): number | undefined {
+        todo("PlainDate.eraYear")
+    }
+
+    /// Calendar year.
+    get year(): number {
+        todo("PlainDate.year")
+    }
+
+    /// Calendar month.
+    get month(): number {
+        todo("PlainDate.month")
+    }
+
+    /// Calendar month code.
+    get monthCode(): string {
+        todo("PlainDate.monthCode")
+    }
+
+    /// Calendar day.
+    get day(): number {
+        todo("PlainDate.day")
+    }
+
+    /// Calendar identifier.
+    get calendarId(): string {
+        todo("PlainDate.calendarId")
+    }
+
+    /// Day of week.
+    get dayOfWeek(): number {
+        todo("PlainDate.dayOfWeek")
+    }
+
+    /// Day of year.
+    get dayOfYear(): number {
+        todo("PlainDate.dayOfYear")
+    }
+
+    /// Week of year.
+    get weekOfYear(): number | undefined {
+        todo("PlainDate.weekOfYear")
+    }
+
+    /// Week-based year.
+    get yearOfWeek(): number | undefined {
+        todo("PlainDate.yearOfWeek")
+    }
+
+    /// Days in this week.
+    get daysInWeek(): number {
+        todo("PlainDate.daysInWeek")
+    }
+
+    /// Days in this year.
+    get daysInYear(): number {
+        todo("PlainDate.daysInYear")
+    }
+
+    /// Days in this month.
+    get daysInMonth(): number {
+        todo("PlainDate.daysInMonth")
+    }
+
+    /// Months in this year.
+    get monthsInYear(): number {
+        todo("PlainDate.monthsInYear")
+    }
+
+    /// Whether this year is a leap year.
+    get inLeapYear(): boolean {
+        todo("PlainDate.inLeapYear")
+    }
+
+    /// Return true when this date equals `other`.
+    equals(other: PlainDate | PlainDateLike | string): boolean {
+        todo("PlainDate.equals")
+    }
+
+    /// Return this date with updated fields.
+    with(dateLike: PlainDateLike, options?: AssignmentOptions): PlainDate {
+        todo("PlainDate.with")
+    }
+
+    /// Return this date in another calendar.
+    withCalendar(calendar: CalendarLike): PlainDate {
+        todo("PlainDate.withCalendar")
+    }
+
+    /// Add a duration.
+    add(durationLike: Duration | DurationLike | string, options?: ArithmeticOptions): PlainDate {
+        todo("PlainDate.add")
+    }
+
+    /// Subtract a duration.
+    subtract(durationLike: Duration | DurationLike | string, options?: ArithmeticOptions): PlainDate {
+        todo("PlainDate.subtract")
+    }
+
+    /// Return the duration until `other`.
+    until(
+        other: PlainDate | PlainDateLike | string,
+        options?: DifferenceOptions<"year" | "month" | "week" | "day">,
+    ): Duration {
+        todo("PlainDate.until")
+    }
+
+    /// Return the duration since `other`.
+    since(
+        other: PlainDate | PlainDateLike | string,
+        options?: DifferenceOptions<"year" | "month" | "week" | "day">,
+    ): Duration {
+        todo("PlainDate.since")
+    }
+
+    /// Combine this date with a time.
+    toPlainDateTime(time?: PlainTime | PlainTimeLike | string): PlainDateTime {
+        todo("PlainDate.toPlainDateTime")
+    }
+
+    /// Convert this date into a zoned date-time.
+    toZonedDateTime(
+        options: string | { timeZone: TimeZoneLike; plainTime?: PlainTime | PlainTimeLike | string },
+    ): ZonedDateTime {
+        todo("PlainDate.toZonedDateTime")
+    }
+
+    /// Return the year-month part.
+    toPlainYearMonth(): PlainYearMonth {
+        todo("PlainDate.toPlainYearMonth")
+    }
+
+    /// Return the month-day part.
+    toPlainMonthDay(): PlainMonthDay {
+        todo("PlainDate.toPlainMonthDay")
+    }
+
+    /// Return a locale-aware string.
+    toLocaleString(locales?: LocalesArgument, options?: DateTimeFormatOptions): string {
+        todo("PlainDate.toLocaleString")
+    }
+
+    /// Return a JSON string.
+    toJSON(): string {
+        todo("PlainDate.toJSON")
+    }
+
+    /// Return an ISO string.
+    toString(options?: ShowCalendarOption): string {
+        todo("PlainDate.toString")
+    }
+
+    /// Reject numeric coercion.
+    valueOf(): never {
+        todo("PlainDate.valueOf")
+    }
+}

@@ -1,0 +1,333 @@
+import { todo } from "destack:error";
+import { Duration, DurationLike } from "./duration.ds";
+import { Instant } from "./instant.ds";
+import { PlainDate, CalendarLike } from "./plain-date.ds";
+import { PlainDateTime, PlainDateTimeLike } from "./plain-date-time.ds";
+import { PlainTime, PlainTimeLike } from "./plain-time.ds";
+import {
+    ArithmeticOptions,
+    DateTimeFormatOptions,
+    DifferenceOptions,
+    RoundTo,
+    ZonedDateTimeAssignmentOptions,
+    ZonedDateTimeToStringOptions,
+} from "./option.ds";
+import { ComparisonResult, LocalesArgument } from "./unit.ds";
+
+/// Temporal time-zone-like value.
+export type TimeZoneLike = string | ZonedDateTime;
+
+/// Temporal transition direction.
+export type TransitionDirection =
+    | "next"
+    | "previous"
+    | {
+        /// Transition direction.
+        direction: "next" | "previous";
+    };
+
+/// Temporal zoned date-time field bag.
+export type ZonedDateTimeLike = PlainDateTimeLike & {
+    /// Time-zone offset string.
+    offset?: string;
+    /// Time zone.
+    timeZone?: TimeZoneLike;
+    /// Calendar.
+    calendar?: CalendarLike;
+};
+
+/// Temporal zoned date-time.
+export class ZonedDateTime {
+    /// Create a zoned date-time.
+    static from(
+        item: ZonedDateTime | ZonedDateTimeLike | string,
+        options?: ZonedDateTimeAssignmentOptions,
+    ): ZonedDateTime {
+        todo("ZonedDateTime.from")
+    }
+
+    /// Compare two zoned date-times.
+    static compare(
+        one: ZonedDateTime | ZonedDateTimeLike | string,
+        two: ZonedDateTime | ZonedDateTimeLike | string,
+    ): ComparisonResult {
+        todo("ZonedDateTime.compare")
+    }
+
+    /// Create a zoned date-time.
+    constructor(epochNanoseconds: bigint, timeZone: string, calendar?: string) {
+        todo("ZonedDateTime.constructor")
+    }
+
+    /// Calendar era.
+    get era(): string | undefined {
+        todo("ZonedDateTime.era")
+    }
+
+    /// Calendar era year.
+    get eraYear(): number | undefined {
+        todo("ZonedDateTime.eraYear")
+    }
+
+    /// Calendar year.
+    get year(): number {
+        todo("ZonedDateTime.year")
+    }
+
+    /// Calendar month.
+    get month(): number {
+        todo("ZonedDateTime.month")
+    }
+
+    /// Calendar month code.
+    get monthCode(): string {
+        todo("ZonedDateTime.monthCode")
+    }
+
+    /// Calendar day.
+    get day(): number {
+        todo("ZonedDateTime.day")
+    }
+
+    /// Hour.
+    get hour(): number {
+        todo("ZonedDateTime.hour")
+    }
+
+    /// Minute.
+    get minute(): number {
+        todo("ZonedDateTime.minute")
+    }
+
+    /// Second.
+    get second(): number {
+        todo("ZonedDateTime.second")
+    }
+
+    /// Millisecond.
+    get millisecond(): number {
+        todo("ZonedDateTime.millisecond")
+    }
+
+    /// Microsecond.
+    get microsecond(): number {
+        todo("ZonedDateTime.microsecond")
+    }
+
+    /// Nanosecond.
+    get nanosecond(): number {
+        todo("ZonedDateTime.nanosecond")
+    }
+
+    /// Time-zone identifier.
+    get timeZoneId(): string {
+        todo("ZonedDateTime.timeZoneId")
+    }
+
+    /// Calendar identifier.
+    get calendarId(): string {
+        todo("ZonedDateTime.calendarId")
+    }
+
+    /// Day of week.
+    get dayOfWeek(): number {
+        todo("ZonedDateTime.dayOfWeek")
+    }
+
+    /// Day of year.
+    get dayOfYear(): number {
+        todo("ZonedDateTime.dayOfYear")
+    }
+
+    /// Week of year.
+    get weekOfYear(): number | undefined {
+        todo("ZonedDateTime.weekOfYear")
+    }
+
+    /// Week-based year.
+    get yearOfWeek(): number | undefined {
+        todo("ZonedDateTime.yearOfWeek")
+    }
+
+    /// Hours in this day.
+    get hoursInDay(): number {
+        todo("ZonedDateTime.hoursInDay")
+    }
+
+    /// Days in this week.
+    get daysInWeek(): number {
+        todo("ZonedDateTime.daysInWeek")
+    }
+
+    /// Days in this month.
+    get daysInMonth(): number {
+        todo("ZonedDateTime.daysInMonth")
+    }
+
+    /// Days in this year.
+    get daysInYear(): number {
+        todo("ZonedDateTime.daysInYear")
+    }
+
+    /// Months in this year.
+    get monthsInYear(): number {
+        todo("ZonedDateTime.monthsInYear")
+    }
+
+    /// Whether this year is a leap year.
+    get inLeapYear(): boolean {
+        todo("ZonedDateTime.inLeapYear")
+    }
+
+    /// Offset in nanoseconds.
+    get offsetNanoseconds(): number {
+        todo("ZonedDateTime.offsetNanoseconds")
+    }
+
+    /// Offset string.
+    get offset(): string {
+        todo("ZonedDateTime.offset")
+    }
+
+    /// Epoch milliseconds.
+    get epochMilliseconds(): number {
+        todo("ZonedDateTime.epochMilliseconds")
+    }
+
+    /// Epoch nanoseconds.
+    get epochNanoseconds(): bigint {
+        todo("ZonedDateTime.epochNanoseconds")
+    }
+
+    /// Return true when this zoned date-time equals `other`.
+    equals(other: ZonedDateTime | ZonedDateTimeLike | string): boolean {
+        todo("ZonedDateTime.equals")
+    }
+
+    /// Return this zoned date-time with updated fields.
+    with(zonedDateTimeLike: ZonedDateTimeLike, options?: ZonedDateTimeAssignmentOptions): ZonedDateTime {
+        todo("ZonedDateTime.with")
+    }
+
+    /// Return this zoned date-time with another time.
+    withPlainTime(time?: PlainTime | PlainTimeLike | string): ZonedDateTime {
+        todo("ZonedDateTime.withPlainTime")
+    }
+
+    /// Return this zoned date-time in another calendar.
+    withCalendar(calendar: CalendarLike): ZonedDateTime {
+        todo("ZonedDateTime.withCalendar")
+    }
+
+    /// Return this zoned date-time in another time zone.
+    withTimeZone(timeZone: TimeZoneLike): ZonedDateTime {
+        todo("ZonedDateTime.withTimeZone")
+    }
+
+    /// Add a duration.
+    add(durationLike: Duration | DurationLike | string, options?: ArithmeticOptions): ZonedDateTime {
+        todo("ZonedDateTime.add")
+    }
+
+    /// Subtract a duration.
+    subtract(durationLike: Duration | DurationLike | string, options?: ArithmeticOptions): ZonedDateTime {
+        todo("ZonedDateTime.subtract")
+    }
+
+    /// Return the duration until `other`.
+    until(
+        other: ZonedDateTime | ZonedDateTimeLike | string,
+        options?: DifferenceOptions<
+            | "year"
+            | "month"
+            | "week"
+            | "day"
+            | "hour"
+            | "minute"
+            | "second"
+            | "millisecond"
+            | "microsecond"
+            | "nanosecond"
+        >,
+    ): Duration {
+        todo("ZonedDateTime.until")
+    }
+
+    /// Return the duration since `other`.
+    since(
+        other: ZonedDateTime | ZonedDateTimeLike | string,
+        options?: DifferenceOptions<
+            | "year"
+            | "month"
+            | "week"
+            | "day"
+            | "hour"
+            | "minute"
+            | "second"
+            | "millisecond"
+            | "microsecond"
+            | "nanosecond"
+        >,
+    ): Duration {
+        todo("ZonedDateTime.since")
+    }
+
+    /// Round this zoned date-time.
+    round(
+        roundTo: RoundTo<
+            "day" | "hour" | "minute" | "second" | "millisecond" | "microsecond" | "nanosecond"
+        >,
+    ): ZonedDateTime {
+        todo("ZonedDateTime.round")
+    }
+
+    /// Return the start of this day.
+    startOfDay(): ZonedDateTime {
+        todo("ZonedDateTime.startOfDay")
+    }
+
+    /// Return the next or previous time-zone transition.
+    getTimeZoneTransition(direction: TransitionDirection): ZonedDateTime | null {
+        todo("ZonedDateTime.getTimeZoneTransition")
+    }
+
+    /// Convert this zoned date-time into an instant.
+    toInstant(): Instant {
+        todo("ZonedDateTime.toInstant")
+    }
+
+    /// Return the plain date-time part.
+    toPlainDateTime(): PlainDateTime {
+        todo("ZonedDateTime.toPlainDateTime")
+    }
+
+    /// Return the plain date part.
+    toPlainDate(): PlainDate {
+        todo("ZonedDateTime.toPlainDate")
+    }
+
+    /// Return the plain time part.
+    toPlainTime(): PlainTime {
+        todo("ZonedDateTime.toPlainTime")
+    }
+
+    /// Return a locale-aware string.
+    toLocaleString(locales?: LocalesArgument, options?: DateTimeFormatOptions): string {
+        todo("ZonedDateTime.toLocaleString")
+    }
+
+    /// Return a JSON string.
+    toJSON(): string {
+        todo("ZonedDateTime.toJSON")
+    }
+
+    /// Return an ISO string.
+    toString(options?: ZonedDateTimeToStringOptions): string {
+        todo("ZonedDateTime.toString")
+    }
+
+    /// Reject numeric coercion.
+    valueOf(): never {
+        todo("ZonedDateTime.valueOf")
+    }
+}

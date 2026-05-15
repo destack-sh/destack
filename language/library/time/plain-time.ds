@@ -1,0 +1,147 @@
+import { todo } from "destack:error";
+import { Duration, DurationLike } from "./duration.ds";
+import {
+    ArithmeticOptions,
+    AssignmentOptions,
+    DateTimeFormatOptions,
+    DifferenceOptions,
+    RoundTo,
+    ToStringPrecisionOptions,
+} from "./option.ds";
+import { ComparisonResult, LocalesArgument } from "./unit.ds";
+
+/// Temporal plain time field bag.
+export type PlainTimeLike = {
+    /// Hour.
+    hour?: number;
+    /// Minute.
+    minute?: number;
+    /// Second.
+    second?: number;
+    /// Millisecond.
+    millisecond?: number;
+    /// Microsecond.
+    microsecond?: number;
+    /// Nanosecond.
+    nanosecond?: number;
+};
+
+/// Temporal plain time.
+export class PlainTime {
+    /// Create a plain time.
+    static from(item: PlainTime | PlainTimeLike | string, options?: AssignmentOptions): PlainTime {
+        todo("PlainTime.from")
+    }
+
+    /// Compare two plain times.
+    static compare(one: PlainTime | PlainTimeLike | string, two: PlainTime | PlainTimeLike | string): ComparisonResult {
+        todo("PlainTime.compare")
+    }
+
+    /// Create a plain time.
+    constructor(
+        hour?: number,
+        minute?: number,
+        second?: number,
+        millisecond?: number,
+        microsecond?: number,
+        nanosecond?: number,
+    ) {
+        todo("PlainTime.constructor")
+    }
+
+    /// Hour.
+    get hour(): number {
+        todo("PlainTime.hour")
+    }
+
+    /// Minute.
+    get minute(): number {
+        todo("PlainTime.minute")
+    }
+
+    /// Second.
+    get second(): number {
+        todo("PlainTime.second")
+    }
+
+    /// Millisecond.
+    get millisecond(): number {
+        todo("PlainTime.millisecond")
+    }
+
+    /// Microsecond.
+    get microsecond(): number {
+        todo("PlainTime.microsecond")
+    }
+
+    /// Nanosecond.
+    get nanosecond(): number {
+        todo("PlainTime.nanosecond")
+    }
+
+    /// Return true when this time equals `other`.
+    equals(other: PlainTime | PlainTimeLike | string): boolean {
+        todo("PlainTime.equals")
+    }
+
+    /// Return this time with updated fields.
+    with(timeLike: PlainTime | PlainTimeLike, options?: AssignmentOptions): PlainTime {
+        todo("PlainTime.with")
+    }
+
+    /// Add a duration.
+    add(durationLike: Duration | DurationLike | string, options?: ArithmeticOptions): PlainTime {
+        todo("PlainTime.add")
+    }
+
+    /// Subtract a duration.
+    subtract(durationLike: Duration | DurationLike | string, options?: ArithmeticOptions): PlainTime {
+        todo("PlainTime.subtract")
+    }
+
+    /// Return the duration until `other`.
+    until(
+        other: PlainTime | PlainTimeLike | string,
+        options?: DifferenceOptions<
+            "hour" | "minute" | "second" | "millisecond" | "microsecond" | "nanosecond"
+        >,
+    ): Duration {
+        todo("PlainTime.until")
+    }
+
+    /// Return the duration since `other`.
+    since(
+        other: PlainTime | PlainTimeLike | string,
+        options?: DifferenceOptions<
+            "hour" | "minute" | "second" | "millisecond" | "microsecond" | "nanosecond"
+        >,
+    ): Duration {
+        todo("PlainTime.since")
+    }
+
+    /// Round this time.
+    round(roundTo: RoundTo<"hour" | "minute" | "second" | "millisecond" | "microsecond" | "nanosecond">): PlainTime {
+        todo("PlainTime.round")
+    }
+
+    /// Return a locale-aware string.
+    toLocaleString(locales?: LocalesArgument, options?: DateTimeFormatOptions): string {
+        todo("PlainTime.toLocaleString")
+    }
+
+    /// Return a JSON string.
+    toJSON(): string {
+        todo("PlainTime.toJSON")
+    }
+
+    /// Return an ISO string.
+    toString(options?: ToStringPrecisionOptions): string {
+        todo("PlainTime.toString")
+    }
+
+    /// Reject numeric coercion.
+    valueOf(): never {
+        todo("PlainTime.valueOf")
+    }
+}

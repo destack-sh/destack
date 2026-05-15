@@ -1,0 +1,36 @@
+import { todo } from "destack:error";
+import { Instant } from "./instant.ds";
+import { PlainDate } from "./plain-date.ds";
+import { PlainDateTime } from "./plain-date-time.ds";
+import { PlainTime } from "./plain-time.ds";
+import { TimeZoneLike, ZonedDateTime } from "./zoned-date-time.ds";
+
+/// Return the current exact time.
+export function instant(): Instant {
+    todo("Temporal.Now.instant")
+}
+
+/// Return the current ISO zoned date-time.
+export function zonedDateTimeISO(timeZone?: TimeZoneLike): ZonedDateTime {
+    todo("Temporal.Now.zonedDateTimeISO")
+}
+
+/// Return the current ISO plain date-time.
+export function plainDateTimeISO(timeZone?: TimeZoneLike): PlainDateTime {
+    todo("Temporal.Now.plainDateTimeISO")
+}
+
+/// Return the current ISO plain date.
+export function plainDateISO(timeZone?: TimeZoneLike): PlainDate {
+    todo("Temporal.Now.plainDateISO")
+}
+
+/// Return the current ISO plain time.
+export function plainTimeISO(timeZone?: TimeZoneLike): PlainTime {
+    todo("Temporal.Now.plainTimeISO")
+}
+
+/// Return the current system time-zone identifier.
+export function timeZoneId(): string {
+    todo("Temporal.Now.timeZoneId")
+}
