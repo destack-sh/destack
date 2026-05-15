@@ -520,16 +520,25 @@ pub enum Expression {
     },
 
     /// An ObjectExpression constructs an object with heterogeneous fields.
-    /// May have an optional type prefix for nominal struct construction.
     ///
     /// Examples:
     /// ```
     /// { a: 2 }
+    /// { name: "Ada", age: 32 }
+    /// ```
+    ObjectExpression {
+        properties: Vec<LocalNodeId<Property>>,
+    },
+
+    /// A StructExpression constructs a nominal value with named fields.
+    ///
+    /// Examples:
+    /// ```
     /// Vector2 { x: 1, y: 2 }
     /// some_module.MyUnion.OptionB { a: true }
     /// ```
-    ObjectExpression {
-        ty: Option<LocalNodeId<TypeExpression>>,
+    StructExpression {
+        ty: LocalNodeId<TypeExpression>,
         properties: Vec<LocalNodeId<Property>>,
     },
 

@@ -464,6 +464,7 @@ pub fn walk_type_expression<V: NodeVisitor + ?Sized>(
             }
         }
         TypeExpression::Infer {
+            form: _,
             name: _,
             constraint,
         } => {
@@ -1043,11 +1044,17 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
 
-        Expression::ObjectExpression { ty, properties } => {
-            if let Some(type_id) = ty {
-                let type_expr = tree.get(*type_id);
-                visitor.visit_type_expression(tree, *type_id, type_expr);
+        Expression::ObjectExpression { properties } => {
+            for property_id in properties {
+                let property = tree.get(*property_id);
+                visitor.visit_property(tree, *property_id, property);
             }
+        }
+
+        Expression::StructExpression { ty, properties } => {
+            let type_expr = tree.get(*ty);
+            visitor.visit_type_expression(tree, *ty, type_expr);
+
             for property_id in properties {
                 let property = tree.get(*property_id);
                 visitor.visit_property(tree, *property_id, property);

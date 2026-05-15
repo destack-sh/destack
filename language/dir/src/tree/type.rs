@@ -196,6 +196,15 @@ pub struct ConstructorTypeDeclaration {
     pub is_abstract: bool,
 }
 
+/// The parsed form of an infer type expression.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum InferForm {
+    /// Anonymous `_` type inference hole.
+    Hole,
+    /// Explicit `infer T` or `infer _` binding expression.
+    Infer,
+}
+
 /// A type-space expression.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum TypeExpression {
@@ -614,15 +623,18 @@ pub enum TypeExpression {
         spans: Vec<LocalNodeId<TypeExpression>>,
     },
 
-    /// Infer binding.
+    /// An Infer expression is a named infer binding or anonymous inference hole.
     ///
     /// Examples:
     /// ```
+    /// _
     /// infer T
+    /// infer _
     /// infer Item extends string
     /// ```
     Infer {
-        name: StringId,
+        form: InferForm,
+        name: Option<StringId>,
         constraint: Option<LocalNodeId<TypeExpression>>,
     },
 
