@@ -1,17 +1,15 @@
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use crate::{DependencyItem, Export, LocalNodeId, NamespaceExport, StaticKey, SymbolSpace};
+use crate::{ExportEntry, ExportName, StarExportEntry};
 
 /// Resolved module exports for one module.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ExportTable {
-    /// Export assignment item when present.
-    pub export_assignment: Option<LocalNodeId<DependencyItem>>,
-    /// Namespace exports declared in the module.
-    pub namespace_exports: Vec<NamespaceExport>,
-    /// Export entries by exported symbol key.
-    pub export_by_key: IndexMap<(SymbolSpace, StaticKey), Export>,
+    /// Local and indirect exports keyed by exported name.
+    pub export_by_name: IndexMap<ExportName, ExportEntry>,
+    /// Star exports declared by the module.
+    pub star_exports: Vec<StarExportEntry>,
 }
 
 impl ExportTable {
@@ -22,8 +20,26 @@ impl ExportTable {
 
     /// Return true when the module exposes no exports.
     pub fn is_empty(&self) -> bool {
-        self.export_assignment.is_none()
-            && self.namespace_exports.is_empty()
-            && self.export_by_key.is_empty()
+        self.export_by_name.is_empty() && self.star_exports.is_empty()
+    }
+
+    /// Insert one named export.
+    pub fn insert(&mut self, export: ExportEntry) -> Option<ExportEntry> {
+        self.export_by_name.insert(export.name(), export)
+    }
+
+    /// Push one star export.
+    pub fn push_star(&mut self, export: StarExportEntry) {
+        self.star_exports.push(export);
+    }
+
+    /// Iterate named exports in declaration order.
+    pub fn exports(&self) -> impl Iterator<Item = (&ExportName, &ExportEntry)> {
+        self.export_by_name.iter()
+    }
+
+    /// Iterate star exports in declaration order.
+    pub fn star_exports(&self) -> impl Iterator<Item = &StarExportEntry> {
+        self.star_exports.iter()
     }
 }

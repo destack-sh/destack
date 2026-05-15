@@ -1,19 +1,16 @@
 use destack_core::StringId;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    DependencyTarget, Expression, LocalNodeId, Name, Node, NodeType, StaticKey, SymbolForm,
-    SymbolSpace,
-};
+use crate::{Expression, LocalNodeId, Name, Node, NodeType, StaticKey, SymbolForm};
 
 /// How one dependency item binds into the local module.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum DependencyBinding {
-    /// Regular item (`import { foo } from "foo"` or `export { foo } from "foo"`).
-    Item,
-    /// Default item (`export default foo`).
+    /// Named binding (`import { foo } from "foo"` or `export { foo } from "foo"`).
+    Named,
+    /// Default binding (`export default foo`).
     Default,
-    /// Namespace (`export * from "foo"`).
+    /// Namespace binding (`export * from "foo"`).
     Namespace,
 }
 
@@ -26,34 +23,19 @@ pub enum ExportKind {
     Default,
 }
 
-/// The symbol space one dependency item imports or exports.
+/// The source form of one dependency declaration.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub enum DependencySpace {
-    /// Type dependency (`import type { Foo }` or `export type { Foo }`).
+pub enum DependencyForm {
+    /// Plain dependency (`import foo` or `export foo`).
+    Plain,
+    /// Type-marked dependency (`import type { Foo }` or `export type { Foo }`).
     Type,
-    /// Value dependency (`import foo` or `export foo`).
-    Value,
-}
-
-impl DependencySpace {
-    /// Return the symbol space preserved by this dependency syntax.
-    pub fn symbol_space(self) -> SymbolSpace {
-        match self {
-            Self::Type => SymbolSpace::Type,
-            Self::Value => SymbolSpace::Value,
-        }
-    }
-
-    /// Return the source-fidelity symbol form for this dependency syntax.
-    pub fn symbol_form(self) -> SymbolForm {
-        SymbolForm::Import
-    }
 }
 
 /// A dependency item imports or exports one binding from a target.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum DependencyItem {
-    /// One valid dependency item.
+    /// One valid dependency binding.
     ///
     /// Examples:
     /// ```
@@ -62,11 +44,11 @@ pub enum DependencyItem {
     /// default
     /// default as bar
     /// ```
-    Item {
+    Binding {
         /// How the item binds into the local module.
         binding: DependencyBinding,
-        /// The symbol space of the item, when specified.
-        space: Option<DependencySpace>,
+        /// The source form of the item, when specified.
+        form: Option<DependencyForm>,
         /// The name of the item (like `foo` in `foo as bar`, None if default).
         name: Option<Name>,
         /// The alias to use for the item (like `bar` in `foo as bar`).
@@ -85,7 +67,7 @@ impl Node for DependencyItem {
 impl DependencyItem {
     /// Return the symbol key introduced by this dependency item.
     pub fn symbol_key(&self) -> Option<StaticKey> {
-        let Self::Item { name, alias, .. } = self else {
+        let Self::Binding { name, alias, .. } = self else {
             return None;
         };
 
@@ -100,32 +82,12 @@ impl DependencyItem {
         }
     }
 
-    /// Return the symbol space introduced by this dependency item.
-    pub fn symbol_space(&self, default_space: DependencySpace) -> Option<SymbolSpace> {
-        let Self::Item { space, .. } = self else {
-            return None;
-        };
-
-        Some(space.unwrap_or(default_space).symbol_space())
-    }
-
     /// Return the symbol form introduced by this dependency item.
-    pub fn symbol_form(&self, _default_space: DependencySpace) -> Option<SymbolForm> {
-        let Self::Item { .. } = self else {
+    pub fn symbol_form(&self) -> Option<SymbolForm> {
+        let Self::Binding { .. } = self else {
             return None;
         };
 
         Some(SymbolForm::Import)
     }
-}
-
-/// A namespace export edge from `export * from` declarations.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct NamespaceExport {
-    /// The target module.
-    pub target: DependencyTarget,
-    /// The dependency space for the export.
-    pub space: DependencySpace,
-    /// The dependency item node that declared the export.
-    pub item: LocalNodeId<DependencyItem>,
 }

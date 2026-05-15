@@ -1,29 +1,14 @@
-use crate::{Declaration, Expression, GlobalNodeIdAny, LocalNodeId, LocalScopeId, StringId};
-use destack_source::{Loader, ModuleId, ModuleRelation};
+use crate::{GlobalNodeIdAny, StringId};
+use destack_source::{Loader, ModuleId};
 use serde::{Deserialize, Serialize};
 
-/// A module declared by string specifier.
-///
-/// Examples:
-/// ```
-/// declare module "legacy:widgets" {
-///     export type Widget = object;
-/// }
-///
-/// module "virtual:theme" {
-///     export let primary = "#fff";
-/// }
-/// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct StringModule {
-    /// The module specifier string.
-    pub specifier: StringId,
-    /// The declaration node id.
-    pub declaration: LocalNodeId<Declaration>,
-    /// The namespace scope for the declaration body.
-    pub scope: LocalScopeId,
-    /// The expressions declared inside the module body.
-    pub expressions: Vec<LocalNodeId<Expression>>,
+/// The relation declared by a resolved dependency edge.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, PartialOrd, Ord)]
+pub enum DependencyRelation {
+    /// Binding import.
+    Import,
+    /// Binding re-export.
+    ReExport,
 }
 
 /// The target of a resolved dependency.
@@ -36,15 +21,6 @@ pub enum DependencyTarget {
     /// import { Button } from "./ui/button";
     /// ```
     Module(ModuleId),
-    /// A module declared by string specifier.
-    ///
-    /// Examples:
-    /// ```
-    /// declare module "legacy:widgets" {
-    ///     export type Widget = object;
-    /// }
-    /// ```
-    StringModule(StringId),
     /// A host module specifier preserved for linking.
     ///
     /// Examples:
@@ -60,7 +36,7 @@ impl DependencyTarget {
     pub fn module_id(self) -> Option<ModuleId> {
         match self {
             Self::Module(module_id) => Some(module_id),
-            Self::StringModule(_) | Self::External(_) => None,
+            Self::External(_) => None,
         }
     }
 }
@@ -73,7 +49,7 @@ pub struct DependencyEdge {
     /// The static import specifier.
     pub specifier: StringId,
     /// The import edge relation.
-    pub relation: ModuleRelation,
+    pub relation: DependencyRelation,
     /// The loader override selected for the import.
     pub loader: Option<Loader>,
     /// The resolved dependency target.
