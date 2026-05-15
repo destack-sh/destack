@@ -3312,7 +3312,7 @@ b0:
             r#"
 function test(): int32 {
 b0:
-    atomic.fence seq_cst, device, device, any
+    atomic.fence sequentiallyConsistent, device, device, any
     v0: int32 = 0int32
     return v0
 }"#,
@@ -3344,7 +3344,7 @@ b0:
     fn test_memory_ssa_call_is_unknown_def() {
         let test = TestProgram::new(
             r#"
-extern function external(ref<int32, raw>): void
+external function external(ref<int32, raw>): void
 function test(v0: ref<int32, raw>): int32 {
 b0(v0: ref<int32, raw>):
     call external(v0): (ref<int32, raw>) -> void
@@ -3386,7 +3386,7 @@ b0(v0: ref<int32, raw>):
     fn test_memory_ssa_call_readnone_metadata() {
         let mut test = TestProgram::new(
             r#"
-extern function external(ref<int32, raw>): void
+external function external(ref<int32, raw>): void
 function test(v0: ref<int32, raw>): int32 {
 b0(v0: ref<int32, raw>):
     call external(v0): (ref<int32, raw>) -> void
@@ -3418,7 +3418,7 @@ b0(v0: ref<int32, raw>):
     fn test_memory_ssa_call_argmemonly_reads() {
         let mut test = TestProgram::new(
             r#"
-extern function external(ref<int32, raw>, int32): void
+external function external(ref<int32, raw>, int32): void
 function test(v0: ref<int32, raw>, v1: int32): int32 {
 b0(v0: ref<int32, raw>, v1: int32):
     call external(v0, v1): (ref<int32, raw>, int32) -> void
@@ -3474,7 +3474,7 @@ b0(v0: ref<int32, raw>, v1: int32):
         // build the test test
         let mut test = TestProgram::new(
             r#"
-extern function external(ref<int32, raw>, ref<int32, raw>): void
+external function external(ref<int32, raw>, ref<int32, raw>): void
 function test(v0: ref<int32, raw>, v1: ref<int32, raw>): int32 {
 b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
     call external(v0, v1): (ref<int32, raw>, ref<int32, raw>) -> void

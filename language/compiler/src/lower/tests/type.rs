@@ -75,7 +75,7 @@ function isCircle(value: Circle | Square): boolean {
         module_id,
         "native",
         r#"
-type isCircle.value#union { tag: uint8, payload: usize[1] }
+type isCircle.value#union { tag: uint8, payload: [usize; 1] }
 
 function isCircle(value0: isCircle.value#union): boolean {
 entry0(value0: isCircle.value#union):

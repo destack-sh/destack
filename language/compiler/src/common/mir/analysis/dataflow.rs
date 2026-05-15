@@ -101,7 +101,7 @@ where
 {
     let entry = match function.entry {
         Some(e) => e,
-        None => return DataflowResult::new(), // no body (extern function)
+        None => return DataflowResult::new(), // no body (external function)
     };
 
     let mut result = DataflowResult::new();

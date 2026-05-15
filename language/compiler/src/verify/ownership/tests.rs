@@ -189,8 +189,8 @@ b0(v0: ref<Pair, borrowed>):
 fn test_reject_exclusive_dynamic_element_overlap() {
     let mut program = VerifyProgram::new(
         r#"
-function test(v0: int32[4], v1: usize, v2: usize): void {
-b0(v0: int32[4], v1: usize, v2: usize):
+function test(v0: [int32; 4], v1: usize, v2: usize): void {
+b0(v0: [int32; 4], v1: usize, v2: usize):
     v3: ref<int32, borrowed, exclusive> = element.address v0, v1
     v4: ref<int32, borrowed, exclusive> = element.address v0, v2
     v5: int32 = load v3
@@ -208,8 +208,8 @@ b0(v0: int32[4], v1: usize, v2: usize):
 fn test_allow_exclusive_constant_element_disjoint() {
     let mut program = VerifyProgram::new(
         r#"
-function test(v0: int32[4]): void {
-b0(v0: int32[4]):
+function test(v0: [int32; 4]): void {
+b0(v0: [int32; 4]):
     v1: uint64 = 0uint64
     v2: uint64 = 1uint64
     v3: ref<int32, borrowed, exclusive> = element.address v0, v1
@@ -414,7 +414,7 @@ b0(v0: ref<int32, unique>, v1: ref<int32, unique>):
 fn test_reject_union_use_after_payload_move() {
     let mut program = VerifyProgram::new(
         r#"
-type Value = union<uint8; 0: ref<int32, unique>, 1: int32>
+type Value = variant<uint8, ref<int32, unique>> { 0uint8 = ref<int32, unique>; 1uint8 = int32; }
 
 function test(v0: Value): void {
 b0(v0: Value):
@@ -898,7 +898,7 @@ b0(v0: Box):
 fn test_reject_union_borrow_return_as_static() {
     let mut program = VerifyProgram::new(
         r#"
-type Value = union<uint8; 0: ref<int32, borrowed>, 1: int32>
+type Value = variant<uint8, ref<int32, borrowed>> { 0uint8 = ref<int32, borrowed>; 1uint8 = int32; }
 
 function test(v0: Value): ref<int32, borrowed, lifetime(static)> {
 b0(v0: Value):
@@ -1033,7 +1033,7 @@ block1(v3: int32, v4: int32):
 fn test_allow_static_borrow_return() {
     let mut program = VerifyProgram::new(
         r#"
-global value: int32, readonly = 1int32
+readonly global value: int32 = 1int32
 function test(): ref<int32, borrowed, lifetime(static)> {
 b0:
     v0: ref<int32, raw, readonly> = global.address value

@@ -139,7 +139,7 @@ impl FunctionLowerer<'_> {
                 }
                 self.state.builder.struct_(ty, values)
             }
-            mir::Type::Union { .. } => {
+            mir::Type::Variant { .. } => {
                 return Err(LowerError::UnsupportedConstruct {
                     anchor: self.diagnostic_anchor(node),
                     message: "constructor cannot initialize union values".to_string(),

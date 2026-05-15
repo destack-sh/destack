@@ -101,8 +101,8 @@ function flavorValue(): Flavor {
     let string_name = test.string_literal_global_name("sour");
     let expected = r#"
 ${string_alias}
-global ${string_name}: ref<String, managed, readonly>, readonly = "sour"
-global ${sweet_name}: ref<String, managed, readonly>, readonly = "sweet"
+readonly global ${string_name}: ref<String, managed, readonly> = "sour"
+readonly global ${sweet_name}: ref<String, managed, readonly> = "sweet"
 
 type Flavor = newtype<ref<String, managed, readonly>>;
 
@@ -259,7 +259,7 @@ function defaultValue(): int32 {
         r#"
 type Status = newtype<int32>;
 
-global Status.Default: Status, readonly = 1int32
+readonly global Status.Default: Status = 1int32
 
 function defaultValue(): int32 {
 entry0:

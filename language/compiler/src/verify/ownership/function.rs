@@ -982,7 +982,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
             return false;
         };
 
-        matches!(self.tree.get(ty), mir::Type::Union { .. })
+        matches!(self.tree.get(ty), mir::Type::Variant { .. })
     }
 
     /// Return whether one value is a borrowed reference-like value.

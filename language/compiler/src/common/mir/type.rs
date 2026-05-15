@@ -45,7 +45,7 @@ pub enum TypeKey {
         address_space: mir::AddressSpace,
         access: mir::Access,
         pointee: Box<TypeKey>,
-        is_nullable: bool,
+        nullability: mir::Nullability,
     },
     /// Fixed-size array type.
     Array {
@@ -60,6 +60,7 @@ pub enum TypeKey {
         element: Box<TypeKey>,
         address_space: mir::AddressSpace,
         access: mir::Access,
+        nullability: mir::Nullability,
     },
     /// Tuple type with ordered elements.
     Tuple {
@@ -76,10 +77,11 @@ pub enum TypeKey {
         inner: Box<TypeKey>,
         copy: mir::Copy,
     },
-    /// Union type with ordered variants.
-    Union {
+    /// Variant type with ordered cases.
+    Variant {
         tag: Box<TypeKey>,
-        variants: Vec<(u64, TypeKey)>,
+        storage: Box<TypeKey>,
+        cases: Vec<(mir::Constant, TypeKey)>,
         copy: mir::Copy,
     },
     /// Vector type with fixed lanes.
@@ -104,7 +106,7 @@ pub enum TypeKey {
         element: Box<TypeKey>,
         shape: Vec<mir::TensorDimension>,
         layout: mir::TensorViewLayout,
-        is_nullable: bool,
+        nullability: mir::Nullability,
     },
     /// Bare function signature.
     FunctionSignature {
@@ -177,14 +179,14 @@ impl TypeKey {
                 address_space,
                 access,
                 pointee,
-                is_nullable,
+                nullability,
             } => TypeKey::Reference {
                 kind: *kind,
                 lifetime: lifetime.clone(),
                 address_space: address_space.clone(),
                 access: *access,
                 pointee: Box::new(Self::from_type_reference(*pointee, tree)),
-                is_nullable: *is_nullable,
+                nullability: *nullability,
             },
 
             mir::Type::Array {
@@ -202,12 +204,14 @@ impl TypeKey {
                 element,
                 address_space,
                 access,
+                nullability,
             } => TypeKey::Slice {
                 kind: *kind,
                 lifetime: lifetime.clone(),
                 element: Box::new(Self::from_type_reference(*element, tree)),
                 address_space: address_space.clone(),
                 access: *access,
+                nullability: *nullability,
             },
 
             mir::Type::Tuple { elements, copy } => {
@@ -241,19 +245,22 @@ impl TypeKey {
                 copy: *copy,
             },
 
-            mir::Type::Union {
+            mir::Type::Variant {
                 tag,
-                variants,
+                storage,
+                cases,
                 copy,
             } => {
                 let tag = Box::new(Self::from_type_reference(*tag, tree));
-                let variants = variants
+                let storage = Box::new(Self::from_type_reference(*storage, tree));
+                let cases = cases
                     .iter()
-                    .map(|variant| (variant.tag, Self::from_type_reference(variant.ty, tree)))
+                    .map(|case| (case.tag.clone(), Self::from_type_reference(case.ty, tree)))
                     .collect();
-                TypeKey::Union {
+                TypeKey::Variant {
                     tag,
-                    variants,
+                    storage,
+                    cases,
                     copy: *copy,
                 }
             }
@@ -288,7 +295,7 @@ impl TypeKey {
                 element,
                 shape,
                 layout,
-                is_nullable,
+                nullability,
             } => TypeKey::TensorView {
                 kind: *kind,
                 lifetime: lifetime.clone(),
@@ -297,7 +304,7 @@ impl TypeKey {
                 element: Box::new(Self::from_type_reference(*element, tree)),
                 shape: shape.clone(),
                 layout: layout.clone(),
-                is_nullable: *is_nullable,
+                nullability: *nullability,
             },
 
             mir::Type::FunctionSignature { parameters, result } => {
@@ -465,7 +472,7 @@ fn types_are_equal_inner(
                 address_space: a1,
                 access: m1,
                 pointee: p1,
-                is_nullable: n1,
+                nullability: n1,
             },
             mir::Type::Reference {
                 kind: k2,
@@ -473,7 +480,7 @@ fn types_are_equal_inner(
                 address_space: a2,
                 access: m2,
                 pointee: p2,
-                is_nullable: n2,
+                nullability: n2,
             },
         ) => {
             k1 == k2
@@ -504,6 +511,7 @@ fn types_are_equal_inner(
                 element: e1,
                 address_space: a1,
                 access: m1,
+                nullability: n1,
             },
             mir::Type::Slice {
                 kind: k2,
@@ -511,12 +519,14 @@ fn types_are_equal_inner(
                 element: e2,
                 address_space: a2,
                 access: m2,
+                nullability: n2,
             },
         ) => {
             k1 == k2
                 && l1 == l2
                 && a1 == a2
                 && m1 == m2
+                && n1 == n2
                 && type_references_are_equal(*e1, *e2, tree, visiting)
         }
 
@@ -602,7 +612,7 @@ fn types_are_equal_inner(
             type_references_are_equal(*s1, *s2, tree, visiting)
         }
 
-        // different type variants are never equal
+        // different type cases are never equal
         _ => false,
     };
 

@@ -1370,7 +1370,7 @@ b0:
     fn test_different_elements_no_alias() {
         let program = TestProgram::new(
             r#"
-type Arr int32[10]
+type Arr = [int32; 10]
 function test(): void {
 b0:
     v0: ref<Arr, raw, space(stack)> = stack.alloc Arr
@@ -1558,7 +1558,7 @@ b0:
         // same array with same variable index should may alias
         let program = TestProgram::new(
             r#"
-type Arr int32[10]
+type Arr = [int32; 10]
 function test(v0: int64): void {
 b0(v0: int64):
     v1: ref<Arr, raw, space(stack)> = stack.alloc Arr

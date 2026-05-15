@@ -735,7 +735,7 @@ impl<'a> FunctionLowerer<'a> {
                 global_binding.ty,
                 access_for_storage_mutability(global_binding.mutability),
                 global_binding.space.clone(),
-                false,
+                mir::Nullability::None,
             );
             let addr = self
                 .state

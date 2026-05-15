@@ -191,7 +191,7 @@ enum SignatureType {
         /// Pointee type signature.
         pointee: Box<SignatureType>,
         /// Nullability for the reference.
-        is_nullable: bool,
+        nullability: mir::Nullability,
     },
     /// Array type signature.
     Array {
@@ -214,6 +214,8 @@ enum SignatureType {
         address_space: mir::AddressSpace,
         /// Access exposed by the slice.
         access: mir::Access,
+        /// Nullability for the slice.
+        nullability: mir::Nullability,
     },
     /// Tuple type signature.
     Tuple {
@@ -236,13 +238,15 @@ enum SignatureType {
         /// Copy of the newtype.
         copy: mir::Copy,
     },
-    /// Union type signature.
-    Union {
+    /// Variant type signature.
+    Variant {
         /// Tag type signature.
         tag: Box<SignatureType>,
+        /// Storage type signature.
+        storage: Box<SignatureType>,
         /// Variant type signatures in tag order.
-        variants: Vec<(u64, SignatureType)>,
-        /// Copy of the union.
+        cases: Vec<(mir::Constant, SignatureType)>,
+        /// Copy of the variant.
         copy: mir::Copy,
     },
     /// Vector type signature.
@@ -282,7 +286,7 @@ enum SignatureType {
         /// Tensor view layout.
         layout: mir::TensorViewLayout,
         /// Nullability for the view.
-        is_nullable: bool,
+        nullability: mir::Nullability,
     },
     /// Bare function signature.
     FunctionSignature {
@@ -339,14 +343,14 @@ impl SignatureType {
                 address_space,
                 access,
                 pointee,
-                is_nullable,
+                nullability,
             } => SignatureType::Reference {
                 kind: *kind,
                 lifetime: lifetime.clone(),
                 address_space: address_space.clone(),
                 access: *access,
                 pointee: Box::new(SignatureType::from_type(tree, pointee.ty()?)?),
-                is_nullable: *is_nullable,
+                nullability: *nullability,
             },
             mir::Type::Array {
                 element,
@@ -363,12 +367,14 @@ impl SignatureType {
                 element,
                 address_space,
                 access,
+                nullability,
             } => SignatureType::Slice {
                 kind: *kind,
                 lifetime: lifetime.clone(),
                 element: Box::new(SignatureType::from_type(tree, element.ty()?)?),
                 address_space: address_space.clone(),
                 access: *access,
+                nullability: *nullability,
             },
             mir::Type::Tuple { elements, copy } => {
                 // convert tuple elements to signature types
@@ -398,23 +404,26 @@ impl SignatureType {
                 inner: Box::new(SignatureType::from_type(tree, inner.ty()?)?),
                 copy: *copy,
             },
-            mir::Type::Union {
+            mir::Type::Variant {
                 tag,
-                variants,
+                storage,
+                cases,
                 copy,
             } => {
                 let tag = Box::new(SignatureType::from_type(tree, tag.ty()?)?);
-                let variants = variants
+                let storage = Box::new(SignatureType::from_type(tree, storage.ty()?)?);
+                let cases = cases
                     .iter()
-                    .map(|variant| {
-                        let ty = SignatureType::from_type(tree, variant.ty.ty()?)?;
-                        Some((variant.tag, ty))
+                    .map(|case| {
+                        let ty = SignatureType::from_type(tree, case.ty.ty()?)?;
+                        Some((case.tag.clone(), ty))
                     })
                     .collect::<Option<Vec<_>>>()?;
 
-                SignatureType::Union {
+                SignatureType::Variant {
                     tag,
-                    variants,
+                    storage,
+                    cases,
                     copy: *copy,
                 }
             }
@@ -446,7 +455,7 @@ impl SignatureType {
                 element,
                 shape,
                 layout,
-                is_nullable,
+                nullability,
             } => SignatureType::TensorView {
                 kind: *kind,
                 lifetime: lifetime.clone(),
@@ -455,7 +464,7 @@ impl SignatureType {
                 element: Box::new(SignatureType::from_type(tree, element.ty()?)?),
                 shape: shape.clone(),
                 layout: layout.clone(),
-                is_nullable: *is_nullable,
+                nullability: *nullability,
             },
             mir::Type::FunctionSignature { parameters, result } => {
                 // convert function signatures recursively
@@ -1766,8 +1775,8 @@ b0:
     fn test_call_graph_indirect_unknown() {
         let test = TestProgram::new(
             r#"
-function test(v0: fn(int32) -> int32, v1: int32): int32  {
-b0(v0: fn(int32) -> int32, v1: int32):
+function test(v0: (int32) -> int32, v1: int32): int32  {
+b0(v0: (int32) -> int32, v1: int32):
     v2: int32 = call.indirect v0(v1): (int32) -> int32
     return v2
 }"#,
@@ -1818,8 +1827,8 @@ b0(v0: int32):
     fn test_call_graph_tailcall_indirect_unknown() {
         let test = TestProgram::new(
             r#"
-function test(v0: fn(int32) -> int32, v1: int32): int32 {
-b0(v0: fn(int32) -> int32, v1: int32):
+function test(v0: (int32) -> int32, v1: int32): int32 {
+b0(v0: (int32) -> int32, v1: int32):
     tailCall.indirect v0(v1): (int32) -> int32
 }"#,
         );
@@ -1845,8 +1854,8 @@ b0(v0: int32):
     return v0
 }
 
-function test(v0: fn(int32) -> int32, v1: int32): int32  {
-b0(v0: fn(int32) -> int32, v1: int32):
+function test(v0: (int32) -> int32, v1: int32): int32  {
+b0(v0: (int32) -> int32, v1: int32):
     v2: int32 = call.indirect v0(v1): (int32) -> int32
     return v2
 }"#,
@@ -2029,7 +2038,7 @@ b0:
             package_id,
             1,
             r#"
-extern function callee(): int32
+external function callee(): int32
 function test(): int32 {
 b0:
     v0: int32 = call callee(): () -> int32
@@ -2064,7 +2073,7 @@ b0:
             package_id,
             0,
             r#"
-extern function callee(): int32
+external function callee(): int32
 function test(): int32 {
 b0:
     v0: int32 = call callee(): () -> int32
@@ -2111,7 +2120,7 @@ b0:
             package_id,
             1,
             r#"
-extern function callee(): int32
+external function callee(): int32
 function test(): int32 {
 b0:
     v0: int32 = call callee(): () -> int32
@@ -2156,7 +2165,7 @@ b0(v0: int32):
             package_id,
             1,
             r#"
-extern function callee(int64): int64
+external function callee(int64): int64
 function test(v0: int64): int64 {
 b0(v0: int64):
     v1: int64 = call callee(v0): (int64) -> int64
@@ -2193,7 +2202,7 @@ b0(v0: int64):
             caller_pkg,
             0,
             r#"
-extern function callee(): int32
+external function callee(): int32
 function test(): int32 {
 b0:
     v0: int32 = call callee(): () -> int32
@@ -2250,7 +2259,7 @@ b0:
             caller_pkg,
             0,
             r#"
-extern function callee(): int32
+external function callee(): int32
 function test(): int32 {
 b0:
     v0: int32 = call callee(): () -> int32

@@ -351,7 +351,7 @@ b0:
         let program = TestProgram::new(
             r#"
 global g: int32 = 0int32
-extern function external(ref<int32, raw>): void
+external function external(ref<int32, raw>): void
 function test(): void {
 b0:
     v0: ref<int32, raw, space(static)> = global.address g

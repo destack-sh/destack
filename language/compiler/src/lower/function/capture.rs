@@ -63,7 +63,7 @@ impl FunctionLowerer<'_> {
                     field.ty,
                     mir::Access::Mutable,
                     mir::AddressSpace::Local,
-                    false,
+                    mir::Nullability::None,
                 );
                 let field_addr =
                     self.state
@@ -113,7 +113,7 @@ impl FunctionLowerer<'_> {
             field.ty,
             mir::Access::Mutable,
             mir::AddressSpace::Local,
-            false,
+            mir::Nullability::None,
         );
         let addr = self
             .state
@@ -206,7 +206,7 @@ impl FunctionLowerer<'_> {
             field.ty,
             access,
             mir::AddressSpace::Local,
-            false,
+            mir::Nullability::None,
         );
         let value = if field_addr_type == result_type {
             field_addr

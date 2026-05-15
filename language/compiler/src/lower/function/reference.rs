@@ -19,7 +19,7 @@ impl FunctionLowerer<'_> {
             pointee_type,
             access,
             address_space,
-            false,
+            mir::Nullability::None,
         )
     }
 

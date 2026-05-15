@@ -257,13 +257,13 @@ impl ModuleLowerer<'_> {
                         message: "missing union payload field".to_string(),
                     })?;
 
-            mir::LayoutShape::Union {
+            mir::LayoutShape::Variant {
                 tag_offset: tag_index.offset,
                 payload_type: union_layout.payload_type,
                 payload_offset: payload_index.offset,
                 payload: match union_layout.payload {
-                    crate::lower::r#type::UnionPayload::Inline => mir::UnionPayload::Inline,
-                    crate::lower::r#type::UnionPayload::Boxed => mir::UnionPayload::Boxed,
+                    crate::lower::r#type::VariantPayload::Inline => mir::VariantPayload::Inline,
+                    crate::lower::r#type::VariantPayload::Boxed => mir::VariantPayload::Boxed,
                 },
             }
         }

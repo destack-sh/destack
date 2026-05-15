@@ -22,7 +22,7 @@ function greet(): string {
     let string_name = test.string_literal_global_name("Hello, VM");
     let expected = r#"
 ${string_alias}
-global ${string_name}: ref<String, managed, readonly>, readonly = "Hello, VM"
+readonly global ${string_name}: ref<String, managed, readonly> = "Hello, VM"
 
 function greet(): ref<String, managed, readonly> {
 entry0:

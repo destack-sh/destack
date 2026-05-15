@@ -20,7 +20,7 @@ pub(crate) struct UnionLayout {
     /// The payload field type.
     pub(crate) payload_type: mir::LocalNodeId<mir::Type>,
     /// The payload storage strategy.
-    pub(crate) payload: UnionPayload,
+    pub(crate) payload: VariantPayload,
     /// The source union type ids in tag order.
     pub(crate) source_types: Vec<dir::LocalTypeId>,
     /// The tag field index in layout order.
@@ -33,7 +33,7 @@ pub(crate) struct UnionLayout {
 
 /// Payload storage strategy for union layouts.
 #[derive(Debug, Clone, Copy)]
-pub(crate) enum UnionPayload {
+pub(crate) enum VariantPayload {
     /// Store the payload inline inside the union struct.
     Inline,
     /// Store the payload as a managed box.
@@ -143,11 +143,11 @@ impl TypeLowerer<'_> {
             .into());
         }
 
-        // use nullable references for unions of a single reference type and null
-        if let Some(nullable) =
-            self.try_lower_nullable_reference_union(types, &collected, module_id, node, builder)?
+        // use null references for unions of one reference type and null
+        if let Some(null_reference) =
+            self.try_lower_null_reference_union(types, &collected, module_id, node, builder)?
         {
-            return Ok(nullable);
+            return Ok(null_reference);
         }
 
         // resolve discriminant metadata and tag ordering
@@ -190,8 +190,8 @@ impl TypeLowerer<'_> {
         let tag_type = self.union_tag_type(tag_width, builder);
         let payload = self.union_payload(copy, max_payload_size, max_payload_alignment);
         let payload_type = match payload {
-            UnionPayload::Inline => self.inline_union_payload_type(max_payload_size, builder),
-            UnionPayload::Boxed => builder.type_managed_reference(self.ty_void),
+            VariantPayload::Inline => self.inline_union_payload_type(max_payload_size, builder),
+            VariantPayload::Boxed => builder.type_managed_reference(self.ty_void),
         };
 
         // compute field sizes and alignments
@@ -228,15 +228,23 @@ impl TypeLowerer<'_> {
             },
         ];
 
-        // compute layout and create the mir union type
+        // compute layout and create the mir variant type
         let layout = Self::compute_struct_layout(fields, LayoutPolicy::Source);
-        let variants = element_types
+        let cases = element_types
             .iter()
             .copied()
             .enumerate()
-            .map(|(tag, ty)| (tag as u64, ty))
+            .map(|(tag, ty)| {
+                (
+                    mir::Constant::UInt {
+                        value: tag as u128,
+                        width: tag_width,
+                    },
+                    ty,
+                )
+            })
             .collect();
-        let mir_type = builder.type_union(tag_type, variants, copy);
+        let mir_type = builder.type_variant(tag_type, payload_type, cases, copy);
 
         // cache layout for later field lookups
         self.layout_cache.insert(mir_type, layout.clone());
@@ -297,21 +305,21 @@ impl TypeLowerer<'_> {
         copy: mir::Copy,
         payload_size: u32,
         payload_alignment: u32,
-    ) -> UnionPayload {
+    ) -> VariantPayload {
         // require trivial copy for inline payloads
         if self.layout_policy.inline_union_requires_trivial_copyability && copy != mir::Copy::Yes {
-            return UnionPayload::Boxed;
+            return VariantPayload::Boxed;
         }
 
         // keep inline payloads aligned within the policy
         if payload_alignment > self.layout_policy.inline_union_max_alignment {
-            return UnionPayload::Boxed;
+            return VariantPayload::Boxed;
         }
         if payload_size <= self.layout_policy.inline_union_budget_bytes {
-            return UnionPayload::Inline;
+            return VariantPayload::Inline;
         }
 
-        UnionPayload::Boxed
+        VariantPayload::Boxed
     }
 
     /// Build the inline payload type for a union.
@@ -330,8 +338,8 @@ impl TypeLowerer<'_> {
         builder.type_array(self.ty_usize, slot_count as u64, mir::Copy::Yes)
     }
 
-    /// Lower union types that can be represented as nullable references.
-    fn try_lower_nullable_reference_union(
+    /// Lower union types that can be represented as references that allow null.
+    fn try_lower_null_reference_union(
         &mut self,
         types: &dir::TypeTable,
         elements: &[dir::LocalTypeId],
@@ -374,13 +382,13 @@ impl TypeLowerer<'_> {
             address_space,
             access,
             pointee,
-            is_nullable,
+            nullability,
         } = builder.tree().get(non_null_type)
         else {
             return Ok(None);
         };
 
-        if *is_nullable {
+        if nullability.allows_null() {
             return Ok(Some(non_null_type));
         }
 
@@ -388,15 +396,15 @@ impl TypeLowerer<'_> {
             return Ok(None);
         };
 
-        let nullable = builder.type_reference_with_lifetime(
+        let null_reference = builder.type_reference_with_lifetime(
             *kind,
             lifetime.clone(),
             pointee,
             *access,
             address_space.clone(),
-            true,
+            mir::Nullability::Null,
         );
-        Ok(Some(nullable))
+        Ok(Some(null_reference))
     }
 
     /// Collect union elements with deduplication.

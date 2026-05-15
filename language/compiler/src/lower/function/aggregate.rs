@@ -59,7 +59,7 @@ impl FunctionLowerer<'_> {
     /// Lower an array expression to an array value.
     ///
     /// ```ds
-    /// function make(): int32[2] {
+    /// function make(): [int32; 2] {
     ///     return [1, 2];
     /// }
     /// ```
@@ -67,7 +67,7 @@ impl FunctionLowerer<'_> {
     /// ```mir
     /// v1: int32 = const 1
     /// v2: int32 = const 2
-    /// v3: int32[2] = array int32[2] (v1, v2)
+    /// v3: [int32; 2] = array [int32; 2] (v1, v2)
     /// ```
     pub(crate) fn lower_array_expression(
         &mut self,

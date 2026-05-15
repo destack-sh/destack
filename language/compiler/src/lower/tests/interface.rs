@@ -47,7 +47,7 @@ type Drawable.object {
     color: int32;
 }
 
-extern function Drawable.draw(Drawable.object): int32
+external function Drawable.draw(Drawable.object): int32
 
 function Circle.draw(this0: Circle): int32 {
 entry0(this0: Circle):
@@ -121,7 +121,7 @@ type Drawable {
     table: ref<void, raw, readonly, space(static)>;
 }
 
-extern function Drawable.draw(Drawable.object): int32
+external function Drawable.draw(Drawable.object): int32
 
 function keep(value0: Drawable): Drawable {
 entry0(value0: Drawable):
@@ -344,9 +344,9 @@ type Widget {
     color: int32;
 }
 
-extern function Shape.area(Shape.object): int32
+external function Shape.area(Shape.object): int32
 
-extern function Paint.paint(Paint.object): int32
+external function Paint.paint(Paint.object): int32
 
 function Widget.area(this0: Widget): int32 {
 entry0(this0: Widget):
@@ -476,7 +476,7 @@ type Drawable {
     table: ref<void, raw, readonly, space(static)>;
 }
 
-extern function Drawable.draw(Drawable.object): int32
+external function Drawable.draw(Drawable.object): int32
 
 function useDrawable(value0: Drawable): int32 {
 entry0(value0: Drawable):
@@ -551,7 +551,7 @@ type Sprite {
     value: int32;
 }
 
-extern function Renderable.draw(Renderable.object): int32
+external function Renderable.draw(Renderable.object): int32
 
 function castRenderable(value0: int32): Renderable {
 entry0(value0: int32):
@@ -559,7 +559,7 @@ entry0(value0: int32):
     value2: ref<Sprite, managed, readonly> = new Sprite
     store value2, value1
     value3: ref<void, managed, readonly> = cast.bit value2 -> ref<void, managed, readonly>
-    value4: ref<usize[2], raw, readonly, space(static)> = global.address Sprite#as#Renderable#interface_table
+    value4: ref<[usize; 2], raw, readonly, space(static)> = global.address Sprite#as#Renderable#interface_table
     value5: ref<void, raw, readonly, space(static)> = cast.bit value4 -> ref<void, raw, readonly, space(static)>
     value6: Renderable = struct Renderable (value3, value5)
     return value6

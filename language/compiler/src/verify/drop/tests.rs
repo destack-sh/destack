@@ -452,7 +452,7 @@ fn test_union_payload_move_consumes_union() {
     let mut program = VerifyProgram::new(
         r#"
 @moveOnly
-	type Value = union<uint8; 0: ref<int32, unique>, 1: int32>;
+	type Value = variant<uint8, ref<int32, unique>> { 0uint8 = ref<int32, unique>; 1uint8 = int32; };
 
 function test(v0: Value): void {
 b0(v0: Value):
@@ -463,7 +463,7 @@ b0(v0: Value):
 
     program.assert_dropped_mir(
         r#"@moveOnly
-type Value = union<uint8; 0: ref<int32, unique>, 1: int32>;
+type Value = variant<uint8, ref<int32, unique>> { 0uint8 = ref<int32, unique>; 1uint8 = int32; };
 
 function test(value0: Value): void {
 entry0(value0: Value):

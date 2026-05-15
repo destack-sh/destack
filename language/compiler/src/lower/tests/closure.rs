@@ -32,12 +32,12 @@ type makeIdentity.return.function = (int32) => int32;
 
 function makeIdentity(): makeIdentity.return.function {
 entry0:
-    value0: ref?<{  }, managed> = null
+    value0: ref<{  }, managed, nullable> = null
     value1: (int32) => int32 = callable.bind makeIdentity.lambda#6, value0
     return value1
 }
 
-@environment(ref?<{  }, managed>)
+@environment(ref<{  }, managed, nullable>)
 function makeIdentity.lambda#6(value0: int32): int32 {
 entry0(value0: int32):
     return value0

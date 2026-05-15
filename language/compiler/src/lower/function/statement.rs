@@ -1026,7 +1026,7 @@ impl FunctionLowerer<'_> {
                 value_type,
                 access,
                 mir::AddressSpace::Local,
-                false,
+                mir::Nullability::None,
             );
             let reference_value = self.state.builder.new_(value_type, reference_type);
 
@@ -1094,7 +1094,7 @@ impl FunctionLowerer<'_> {
                 value_type,
                 access,
                 mir::AddressSpace::Local,
-                false,
+                mir::Nullability::None,
             );
             let reference_value = self.state.builder.new_(value_type, reference_type);
             self.state.builder.store(reference_value, value);

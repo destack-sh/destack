@@ -3643,7 +3643,7 @@ pub fn terminator_remap(
                 mir::CheckConstraint::Type { value, .. } => {
                     remap_value(value);
                 }
-                mir::CheckConstraint::Union { value, .. } => {
+                mir::CheckConstraint::Variant { value, .. } => {
                     remap_value(value);
                 }
                 mir::CheckConstraint::ReceiverType { receiver, .. } => {

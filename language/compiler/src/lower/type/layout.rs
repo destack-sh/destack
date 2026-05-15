@@ -411,7 +411,7 @@ impl TypeLowerer<'_> {
                 let total_size = Self::align_up(current_offset, max_align);
                 Some((total_size, max_align))
             }
-            mir::Type::Union { .. } => None,
+            mir::Type::Variant { .. } => None,
             mir::Type::Any { .. } => {
                 let bytes = pointer_bytes as u32;
                 Some((bytes * 2, bytes))

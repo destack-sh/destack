@@ -667,7 +667,7 @@ impl FunctionLowerer<'_> {
                 ok_value_mir_type,
                 mir::Access::Mutable,
                 mir::AddressSpace::Stack,
-                false,
+                mir::Nullability::None,
             );
             let out_ptr = self
                 .state
@@ -765,7 +765,7 @@ impl FunctionLowerer<'_> {
             err_value_mir_type,
             mir::Access::Mutable,
             mir::AddressSpace::Stack,
-            false,
+            mir::Nullability::None,
         );
         let error_out_ptr = self
             .state

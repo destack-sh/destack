@@ -384,7 +384,7 @@ b0:
     fn test_call_metadata_readnone_mod_ref() {
         let mut program = TestProgram::new(
             r#"
-extern function external(ref<int32, raw>): void
+external function external(ref<int32, raw>): void
 function test(v0: ref<int32, raw>): void {
 b0(v0: ref<int32, raw>):
     call external(v0): (ref<int32, raw>) -> void
@@ -420,7 +420,7 @@ b0(v0: ref<int32, raw>):
     fn test_call_metadata_argmemonly_access() {
         let mut program = TestProgram::new(
             r#"
-extern function external(ref<int32, raw>, ref<int32, raw>): void
+external function external(ref<int32, raw>, ref<int32, raw>): void
 function test(): void {
 b0:
     v0: ref<int32, raw, space(stack)> = stack.alloc int32

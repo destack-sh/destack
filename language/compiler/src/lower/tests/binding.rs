@@ -193,7 +193,7 @@ fn test_lower_borrows_array_element() {
     let module_id = test.add_module(
         "test.ds",
         r#"
-function borrowElement(values: int32[4]): &int32 {
+function borrowElement(values: [int32; 4]): &int32 {
     return &values[2];
 }
 "#,
@@ -209,8 +209,8 @@ function borrowElement(values: int32[4]): &int32 {
         module_id,
         "native",
         r#"
-function borrowElement(value0: int32[4]): ref<int32, borrowed> {
-entry0(value0: int32[4]):
+function borrowElement(value0: [int32; 4]): ref<int32, borrowed> {
+entry0(value0: [int32; 4]):
     value1: int32 = 2int32
     value2: ref<int32, borrowed, space(frame)> = element.address value0, value1
     return value2
@@ -226,7 +226,7 @@ fn test_lower_borrows_array_element_checked() {
     let module_id = test.add_module(
         "test.ds",
         r#"
-function borrowElementChecked(values: int32[4]): &int32 {
+function borrowElementChecked(values: [int32; 4]): &int32 {
     return &values[2];
 }
 "#,
@@ -243,9 +243,9 @@ function borrowElementChecked(values: int32[4]): &int32 {
     let string_alias = test.string_type_alias_definition();
     let expected = r#"
 ${string_alias}
-global ${bounds_check_failed}: ref<String, managed, readonly>, readonly = "bounds check failed"
-function borrowElementChecked(value0: int32[4]): ref<int32, borrowed> {
-entry0(value0: int32[4]):
+readonly global ${bounds_check_failed}: ref<String, managed, readonly> = "bounds check failed"
+function borrowElementChecked(value0: [int32; 4]): ref<int32, borrowed> {
+entry0(value0: [int32; 4]):
     value1: int32 = 2int32
     value2: int32 = 4int32
     check bounds.s value1, value2, value0 -> block2, block1
@@ -270,7 +270,7 @@ fn test_lower_borrows_array_reference_element() {
     let module_id = test.add_module(
         "test.ds",
         r#"
-function borrowElementRef(values: &int32[4]): &int32 {
+function borrowElementRef(values: &[int32; 4]): &int32 {
     return &values[2];
 }
 "#,
@@ -286,8 +286,8 @@ function borrowElementRef(values: &int32[4]): &int32 {
         module_id,
         "native",
         r#"
-function borrowElementRef(value0: ref<int32[4], borrowed>): ref<int32, borrowed> {
-entry0(value0: ref<int32[4], borrowed>):
+function borrowElementRef(value0: ref<[int32; 4], borrowed>): ref<int32, borrowed> {
+entry0(value0: ref<[int32; 4], borrowed>):
     value1: int32 = 2int32
     value2: ref<int32, borrowed, space(frame)> = element.address value0, value1
     return value2
@@ -303,7 +303,7 @@ fn test_lower_borrows_array_reference_element_checked() {
     let module_id = test.add_module(
         "test.ds",
         r#"
-function borrowElementRefChecked(values: &int32[4]): &int32 {
+function borrowElementRefChecked(values: &[int32; 4]): &int32 {
     return &values[2];
 }
 "#,
@@ -320,9 +320,9 @@ function borrowElementRefChecked(values: &int32[4]): &int32 {
     let string_alias = test.string_type_alias_definition();
     let expected = r#"
 ${string_alias}
-global ${bounds_check_failed}: ref<String, managed, readonly>, readonly = "bounds check failed"
-function borrowElementRefChecked(value0: ref<int32[4], borrowed>): ref<int32, borrowed> {
-entry0(value0: ref<int32[4], borrowed>):
+readonly global ${bounds_check_failed}: ref<String, managed, readonly> = "bounds check failed"
+function borrowElementRefChecked(value0: ref<[int32; 4], borrowed>): ref<int32, borrowed> {
+entry0(value0: ref<[int32; 4], borrowed>):
     value1: int32 = 2int32
     value2: int32 = 4int32
     check bounds.s value1, value2, value0 -> block2, block1
@@ -376,7 +376,7 @@ type Greeter {
     table: ref<void, raw, readonly, space(static)>;
 }
 
-extern function Greeter.greet(Greeter.object): int32
+external function Greeter.greet(Greeter.object): int32
 
 function borrowGreeter(value0: Greeter): ref<Greeter, borrowed> {
     local local0: Greeter, owned
@@ -420,7 +420,7 @@ type Counter {
     value: int32;
 }
 
-global Counter#vtable: ref?<void, raw, readonly, space(static)>[3], readonly, space(static) = zeroInit
+readonly global Counter#vtable: [ref<void, raw, readonly, space(static), nullable>; 3], space(static) = zeroInit
 
 function Counter.borrowValue(this0: ref<Counter, managed, readonly>): ref<int32, borrowed> {
 entry0(this0: ref<Counter, managed, readonly>):

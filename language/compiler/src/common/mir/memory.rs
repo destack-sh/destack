@@ -1566,7 +1566,7 @@ impl<'a> PointerDecomposer<'a> {
                 return false;
             };
             let ty = self.tree.get(ty);
-            ty.is_exclusive_borrowed_reference()
+            ty.is_writable_borrowed_reference()
         } else {
             false
         }

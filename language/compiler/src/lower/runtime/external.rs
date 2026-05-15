@@ -185,7 +185,7 @@ impl ModuleLowerer<'_> {
                     binding_info.ok_mir_type,
                     mir::Access::Mutable,
                     mir::AddressSpace::Stack,
-                    false,
+                    mir::Nullability::None,
                 );
                 abi_parameters.push(out_pointer);
             }
@@ -199,7 +199,7 @@ impl ModuleLowerer<'_> {
 
             let function_id =
                 self.builder
-                    .extern_function(&extern_name, &abi_parameters, abi_info.ty);
+                    .external_function(&extern_name, &abi_parameters, abi_info.ty);
             self.register_function_binding_for_symbol(target_symbol, function_id, signature)?;
             self.binding_symbols.insert(target_symbol);
             if extern_name == "destack.error.takePlatformError" {
@@ -217,10 +217,10 @@ impl ModuleLowerer<'_> {
         // attach a metadata name for the signature type
         self.assign_signature_metadata_name(signature_type, target_symbol, anchor)?;
 
-        // declare the extern function
-        let function_id = self
-            .builder
-            .extern_function(&extern_name, &parameter_types, return_type);
+        // declare the external function
+        let function_id =
+            self.builder
+                .external_function(&extern_name, &parameter_types, return_type);
         // register function binding
         self.register_function_binding_for_symbol(target_symbol, function_id, signature)?;
         if binding.is_binding {

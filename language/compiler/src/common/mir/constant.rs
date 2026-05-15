@@ -67,8 +67,10 @@ pub fn constant_matches_type(
     };
 
     match (constant_type, tree.get(destination_type)) {
-        (ConstantType::Null, mir::Type::Reference { is_nullable, .. })
-        | (ConstantType::Null, mir::Type::TensorView { is_nullable, .. }) => *is_nullable,
+        (ConstantType::Null, mir::Type::Reference { nullability, .. })
+        | (ConstantType::Null, mir::Type::TensorView { nullability, .. }) => {
+            nullability.allows_null()
+        }
         (ConstantType::Boolean, mir::Type::Boolean) => true,
         (ConstantType::Int { width, signed }, ty) => {
             let Some((ty_width, ty_signed)) = ty.int_info_with_pointer_width(pointer_width_bits)
