@@ -1,0 +1,181 @@
+import { todo } from "destack:error";
+import {
+    DurationArithmeticOptions,
+    DurationFormatOptions,
+    DurationRoundTo,
+    DurationTotalOf,
+    ToStringPrecisionOptions,
+} from "./option.ds";
+import { ComparisonResult, LocalesArgument } from "./unit.ds";
+
+/// Temporal duration field bag.
+export type DurationLike = {
+    /// Year count.
+    years?: number;
+    /// Month count.
+    months?: number;
+    /// Week count.
+    weeks?: number;
+    /// Day count.
+    days?: number;
+    /// Hour count.
+    hours?: number;
+    /// Minute count.
+    minutes?: number;
+    /// Second count.
+    seconds?: number;
+    /// Millisecond count.
+    milliseconds?: number;
+    /// Microsecond count.
+    microseconds?: number;
+    /// Nanosecond count.
+    nanoseconds?: number;
+};
+
+/// Temporal duration.
+export class Duration {
+    /// Create a duration from another duration, a field bag, or a string.
+    static from(item: Duration | DurationLike | string): Duration {
+        todo("Duration.from")
+    }
+
+    /// Compare two durations.
+    static compare(
+        one: Duration | DurationLike | string,
+        two: Duration | DurationLike | string,
+        options?: DurationArithmeticOptions,
+    ): ComparisonResult {
+        todo("Duration.compare")
+    }
+
+    /// Create a duration.
+    constructor(
+        years?: number,
+        months?: number,
+        weeks?: number,
+        days?: number,
+        hours?: number,
+        minutes?: number,
+        seconds?: number,
+        milliseconds?: number,
+        microseconds?: number,
+        nanoseconds?: number,
+    ) {
+        todo("Duration.constructor")
+    }
+
+    /// The duration sign.
+    get sign(): -1 | 0 | 1 {
+        todo("Duration.sign")
+    }
+
+    /// Whether every field is zero.
+    get blank(): boolean {
+        todo("Duration.blank")
+    }
+
+    /// Year count.
+    get years(): number {
+        todo("Duration.years")
+    }
+
+    /// Month count.
+    get months(): number {
+        todo("Duration.months")
+    }
+
+    /// Week count.
+    get weeks(): number {
+        todo("Duration.weeks")
+    }
+
+    /// Day count.
+    get days(): number {
+        todo("Duration.days")
+    }
+
+    /// Hour count.
+    get hours(): number {
+        todo("Duration.hours")
+    }
+
+    /// Minute count.
+    get minutes(): number {
+        todo("Duration.minutes")
+    }
+
+    /// Second count.
+    get seconds(): number {
+        todo("Duration.seconds")
+    }
+
+    /// Millisecond count.
+    get milliseconds(): number {
+        todo("Duration.milliseconds")
+    }
+
+    /// Microsecond count.
+    get microseconds(): number {
+        todo("Duration.microseconds")
+    }
+
+    /// Nanosecond count.
+    get nanoseconds(): number {
+        todo("Duration.nanoseconds")
+    }
+
+    /// Return the negated duration.
+    negated(): Duration {
+        todo("Duration.negated")
+    }
+
+    /// Return the absolute duration.
+    abs(): Duration {
+        todo("Duration.abs")
+    }
+
+    /// Return a duration with updated fields.
+    with(durationLike: DurationLike): Duration {
+        todo("Duration.with")
+    }
+
+    /// Add another duration.
+    add(other: Duration | DurationLike | string): Duration {
+        todo("Duration.add")
+    }
+
+    /// Subtract another duration.
+    subtract(other: Duration | DurationLike | string): Duration {
+        todo("Duration.subtract")
+    }
+
+    /// Round this duration.
+    round(roundTo: DurationRoundTo): Duration {
+        todo("Duration.round")
+    }
+
+    /// Return this duration totalled in one unit.
+    total(totalOf: DurationTotalOf): number {
+        todo("Duration.total")
+    }
+
+    /// Return a locale-aware string.
+    toLocaleString(locales?: LocalesArgument, options?: DurationFormatOptions): string {
+        todo("Duration.toLocaleString")
+    }
+
+    /// Return a JSON string.
+    toJSON(): string {
+        todo("Duration.toJSON")
+    }
+
+    /// Return an ISO string.
+    toString(options?: ToStringPrecisionOptions): string {
+        todo("Duration.toString")
+    }
+
+    /// Reject numeric coercion.
+    valueOf(): never {
+        todo("Duration.valueOf")
+    }
+}

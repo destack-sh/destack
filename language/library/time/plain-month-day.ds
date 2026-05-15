@@ -1,0 +1,85 @@
+import { todo } from "destack:error";
+import { AssignmentOptions, DateTimeFormatOptions, ShowCalendarOption } from "./option.ds";
+import { CalendarLike, PlainDate } from "./plain-date.ds";
+import { LocalesArgument } from "./unit.ds";
+
+/// Temporal plain month-day field bag.
+export type PlainMonthDayLike = {
+    /// Calendar era.
+    era?: string;
+    /// Calendar era year.
+    eraYear?: number;
+    /// Calendar year.
+    year?: number;
+    /// Calendar month.
+    month?: number;
+    /// Calendar month code.
+    monthCode?: string;
+    /// Calendar day.
+    day?: number;
+    /// Calendar.
+    calendar?: CalendarLike;
+};
+
+/// Temporal plain month-day.
+export class PlainMonthDay {
+    /// Create a plain month-day.
+    static from(item: PlainMonthDay | PlainMonthDayLike | string, options?: AssignmentOptions): PlainMonthDay {
+        todo("PlainMonthDay.from")
+    }
+
+    /// Create a plain month-day.
+    constructor(isoMonth: number, isoDay: number, calendar?: string, referenceISOYear?: number) {
+        todo("PlainMonthDay.constructor")
+    }
+
+    /// Calendar month code.
+    get monthCode(): string {
+        todo("PlainMonthDay.monthCode")
+    }
+
+    /// Calendar day.
+    get day(): number {
+        todo("PlainMonthDay.day")
+    }
+
+    /// Calendar identifier.
+    get calendarId(): string {
+        todo("PlainMonthDay.calendarId")
+    }
+
+    /// Return true when this month-day equals `other`.
+    equals(other: PlainMonthDay | PlainMonthDayLike | string): boolean {
+        todo("PlainMonthDay.equals")
+    }
+
+    /// Return this month-day with updated fields.
+    with(monthDayLike: PlainMonthDayLike, options?: AssignmentOptions): PlainMonthDay {
+        todo("PlainMonthDay.with")
+    }
+
+    /// Convert this month-day into a plain date.
+    toPlainDate(year: { year: number }): PlainDate {
+        todo("PlainMonthDay.toPlainDate")
+    }
+
+    /// Return a locale-aware string.
+    toLocaleString(locales?: LocalesArgument, options?: DateTimeFormatOptions): string {
+        todo("PlainMonthDay.toLocaleString")
+    }
+
+    /// Return a JSON string.
+    toJSON(): string {
+        todo("PlainMonthDay.toJSON")
+    }
+
+    /// Return an ISO string.
+    toString(options?: ShowCalendarOption): string {
+        todo("PlainMonthDay.toString")
+    }
+
+    /// Reject numeric coercion.
+    valueOf(): never {
+        todo("PlainMonthDay.valueOf")
+    }
+}

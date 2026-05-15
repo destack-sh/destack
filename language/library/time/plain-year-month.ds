@@ -1,0 +1,153 @@
+import { todo } from "destack:error";
+import { Duration, DurationLike } from "./duration.ds";
+import { CalendarLike, PlainDate } from "./plain-date.ds";
+import {
+    ArithmeticOptions,
+    AssignmentOptions,
+    DateTimeFormatOptions,
+    DifferenceOptions,
+    ShowCalendarOption,
+} from "./option.ds";
+import { ComparisonResult, LocalesArgument } from "./unit.ds";
+
+/// Temporal plain year-month field bag.
+export type PlainYearMonthLike = {
+    /// Calendar era.
+    era?: string;
+    /// Calendar era year.
+    eraYear?: number;
+    /// Calendar year.
+    year?: number;
+    /// Calendar month.
+    month?: number;
+    /// Calendar month code.
+    monthCode?: string;
+    /// Calendar.
+    calendar?: CalendarLike;
+};
+
+/// Temporal plain year-month.
+export class PlainYearMonth {
+    /// Create a plain year-month.
+    static from(item: PlainYearMonth | PlainYearMonthLike | string, options?: AssignmentOptions): PlainYearMonth {
+        todo("PlainYearMonth.from")
+    }
+
+    /// Compare two plain year-months.
+    static compare(
+        one: PlainYearMonth | PlainYearMonthLike | string,
+        two: PlainYearMonth | PlainYearMonthLike | string,
+    ): ComparisonResult {
+        todo("PlainYearMonth.compare")
+    }
+
+    /// Create a plain year-month.
+    constructor(isoYear: number, isoMonth: number, calendar?: string, referenceISODay?: number) {
+        todo("PlainYearMonth.constructor")
+    }
+
+    /// Calendar era.
+    get era(): string | undefined {
+        todo("PlainYearMonth.era")
+    }
+
+    /// Calendar era year.
+    get eraYear(): number | undefined {
+        todo("PlainYearMonth.eraYear")
+    }
+
+    /// Calendar year.
+    get year(): number {
+        todo("PlainYearMonth.year")
+    }
+
+    /// Calendar month.
+    get month(): number {
+        todo("PlainYearMonth.month")
+    }
+
+    /// Calendar month code.
+    get monthCode(): string {
+        todo("PlainYearMonth.monthCode")
+    }
+
+    /// Calendar identifier.
+    get calendarId(): string {
+        todo("PlainYearMonth.calendarId")
+    }
+
+    /// Days in this month.
+    get daysInMonth(): number {
+        todo("PlainYearMonth.daysInMonth")
+    }
+
+    /// Days in this year.
+    get daysInYear(): number {
+        todo("PlainYearMonth.daysInYear")
+    }
+
+    /// Months in this year.
+    get monthsInYear(): number {
+        todo("PlainYearMonth.monthsInYear")
+    }
+
+    /// Whether this year is a leap year.
+    get inLeapYear(): boolean {
+        todo("PlainYearMonth.inLeapYear")
+    }
+
+    /// Return true when this year-month equals `other`.
+    equals(other: PlainYearMonth | PlainYearMonthLike | string): boolean {
+        todo("PlainYearMonth.equals")
+    }
+
+    /// Return this year-month with updated fields.
+    with(yearMonthLike: PlainYearMonthLike, options?: AssignmentOptions): PlainYearMonth {
+        todo("PlainYearMonth.with")
+    }
+
+    /// Add a duration.
+    add(durationLike: Duration | DurationLike | string, options?: ArithmeticOptions): PlainYearMonth {
+        todo("PlainYearMonth.add")
+    }
+
+    /// Subtract a duration.
+    subtract(durationLike: Duration | DurationLike | string, options?: ArithmeticOptions): PlainYearMonth {
+        todo("PlainYearMonth.subtract")
+    }
+
+    /// Return the duration until `other`.
+    until(other: PlainYearMonth | PlainYearMonthLike | string, options?: DifferenceOptions<"year" | "month">): Duration {
+        todo("PlainYearMonth.until")
+    }
+
+    /// Return the duration since `other`.
+    since(other: PlainYearMonth | PlainYearMonthLike | string, options?: DifferenceOptions<"year" | "month">): Duration {
+        todo("PlainYearMonth.since")
+    }
+
+    /// Convert this year-month into a plain date.
+    toPlainDate(day: { day: number }): PlainDate {
+        todo("PlainYearMonth.toPlainDate")
+    }
+
+    /// Return a locale-aware string.
+    toLocaleString(locales?: LocalesArgument, options?: DateTimeFormatOptions): string {
+        todo("PlainYearMonth.toLocaleString")
+    }
+
+    /// Return a JSON string.
+    toJSON(): string {
+        todo("PlainYearMonth.toJSON")
+    }
+
+    /// Return an ISO string.
+    toString(options?: ShowCalendarOption): string {
+        todo("PlainYearMonth.toString")
+    }
+
+    /// Reject numeric coercion.
+    valueOf(): never {
+        todo("PlainYearMonth.valueOf")
+    }
+}

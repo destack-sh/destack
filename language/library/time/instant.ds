@@ -1,0 +1,107 @@
+import { todo } from "destack:error";
+import { Omit } from "destack:types";
+import { Duration, DurationLike } from "./duration.ds";
+import { DateTimeFormatOptions, DifferenceOptions, InstantToStringOptions, RoundTo } from "./option.ds";
+import { ComparisonResult, LocalesArgument } from "./unit.ds";
+import { TimeZoneLike, ZonedDateTime } from "./zoned-date-time.ds";
+
+/// Temporal instant.
+export class Instant {
+    /// Create an instant from epoch milliseconds.
+    static fromEpochMilliseconds(epochMilliseconds: number): Instant {
+        todo("Instant.fromEpochMilliseconds")
+    }
+
+    /// Create an instant from epoch nanoseconds.
+    static fromEpochNanoseconds(epochNanoseconds: bigint): Instant {
+        todo("Instant.fromEpochNanoseconds")
+    }
+
+    /// Create an instant from another instant or string.
+    static from(item: Instant | string): Instant {
+        todo("Instant.from")
+    }
+
+    /// Compare two instants.
+    static compare(one: Instant | string, two: Instant | string): ComparisonResult {
+        todo("Instant.compare")
+    }
+
+    /// Create an instant.
+    constructor(epochNanoseconds: bigint) {
+        todo("Instant.constructor")
+    }
+
+    /// Epoch milliseconds.
+    get epochMilliseconds(): number {
+        todo("Instant.epochMilliseconds")
+    }
+
+    /// Epoch nanoseconds.
+    get epochNanoseconds(): bigint {
+        todo("Instant.epochNanoseconds")
+    }
+
+    /// Return true when this instant equals `other`.
+    equals(other: Instant | string): boolean {
+        todo("Instant.equals")
+    }
+
+    /// Add a time duration.
+    add(durationLike: Omit<Duration | DurationLike, "years" | "months" | "weeks" | "days"> | string): Instant {
+        todo("Instant.add")
+    }
+
+    /// Subtract a time duration.
+    subtract(durationLike: Omit<Duration | DurationLike, "years" | "months" | "weeks" | "days"> | string): Instant {
+        todo("Instant.subtract")
+    }
+
+    /// Return the duration until `other`.
+    until(
+        other: Instant | string,
+        options?: DifferenceOptions<"hour" | "minute" | "second" | "millisecond" | "microsecond" | "nanosecond">,
+    ): Duration {
+        todo("Instant.until")
+    }
+
+    /// Return the duration since `other`.
+    since(
+        other: Instant | string,
+        options?: DifferenceOptions<"hour" | "minute" | "second" | "millisecond" | "microsecond" | "nanosecond">,
+    ): Duration {
+        todo("Instant.since")
+    }
+
+    /// Round this instant.
+    round(
+        roundTo: RoundTo<"hour" | "minute" | "second" | "millisecond" | "microsecond" | "nanosecond">,
+    ): Instant {
+        todo("Instant.round")
+    }
+
+    /// Convert this instant into an ISO zoned date-time.
+    toZonedDateTimeISO(timeZone: TimeZoneLike): ZonedDateTime {
+        todo("Instant.toZonedDateTimeISO")
+    }
+
+    /// Return a locale-aware string.
+    toLocaleString(locales?: LocalesArgument, options?: DateTimeFormatOptions): string {
+        todo("Instant.toLocaleString")
+    }
+
+    /// Return a JSON string.
+    toJSON(): string {
+        todo("Instant.toJSON")
+    }
+
+    /// Return an ISO string.
+    toString(options?: InstantToStringOptions): string {
+        todo("Instant.toString")
+    }
+
+    /// Reject numeric coercion.
+    valueOf(): never {
+        todo("Instant.valueOf")
+    }
+}

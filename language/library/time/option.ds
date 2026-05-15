@@ -1,0 +1,284 @@
+import { PlainDateTime, PlainDateTimeLike } from "./plain-date-time.ds";
+import { DateTimeUnit, LargestUnit, RoundingMode, SmallestUnit, TotalUnit } from "./unit.ds";
+import { TimeZoneLike, ZonedDateTime, ZonedDateTimeLike } from "./zoned-date-time.ds";
+
+/// Options for assigning Temporal fields.
+export type AssignmentOptions = {
+    /// How to handle out-of-range fields.
+    overflow?: "constrain" | "reject";
+};
+
+/// Options for assigning duration fields.
+export type DurationOptions = {
+    /// How to handle out-of-range duration fields.
+    overflow?: "constrain" | "balance";
+};
+
+/// Options for date and time arithmetic.
+export type ArithmeticOptions = {
+    /// How to handle out-of-range arithmetic results.
+    overflow?: "constrain" | "reject";
+};
+
+/// Options for resolving local times to instants.
+export type ToInstantOptions = {
+    /// How to resolve nonexistent or ambiguous local times.
+    disambiguation?: "compatible" | "earlier" | "later" | "reject";
+};
+
+/// Options for resolving time-zone offsets.
+export type OffsetDisambiguationOptions = {
+    /// How to handle offsets embedded in parsed values.
+    offset?: "use" | "prefer" | "ignore" | "reject";
+};
+
+/// Options for assigning zoned date-time fields.
+export type ZonedDateTimeAssignmentOptions =
+    AssignmentOptions & ToInstantOptions & OffsetDisambiguationOptions;
+
+/// Options for Temporal difference methods.
+export interface DifferenceOptions<T extends DateTimeUnit> {
+    /// Smallest unit to include.
+    smallestUnit?: SmallestUnit<T>;
+
+    /// Largest unit to include.
+    largestUnit?: LargestUnit<T>;
+
+    /// Rounding increment for the smallest unit.
+    roundingIncrement?: number;
+
+    /// Rounding mode.
+    roundingMode?: RoundingMode;
+}
+
+/// Options for Temporal round methods.
+export type RoundTo<T extends DateTimeUnit> =
+    | SmallestUnit<T>
+    | {
+        /// Smallest unit to include.
+        smallestUnit: SmallestUnit<T>;
+
+        /// Rounding increment for the smallest unit.
+        roundingIncrement?: number;
+
+        /// Rounding mode.
+        roundingMode?: RoundingMode;
+    };
+
+/// Options for `Duration.round`.
+export type DurationRoundTo =
+    | SmallestUnit<DateTimeUnit>
+    | (
+        {
+            /// Smallest unit to include.
+            smallestUnit: SmallestUnit<DateTimeUnit>;
+
+            /// Largest unit to include.
+            largestUnit?: LargestUnit<DateTimeUnit>;
+        }
+        | {
+            /// Smallest unit to include.
+            smallestUnit?: SmallestUnit<DateTimeUnit>;
+
+            /// Largest unit to include.
+            largestUnit: LargestUnit<DateTimeUnit>;
+        }
+    ) & {
+
+        /// Rounding increment for the smallest unit.
+        roundingIncrement?: number;
+
+        /// Rounding mode.
+        roundingMode?: RoundingMode;
+    };
+
+/// Options for Temporal duration arithmetic.
+export interface DurationArithmeticOptions {
+    /// Relative date or zoned date-time.
+    relativeTo?: ZonedDateTime | PlainDateTime | ZonedDateTimeLike | PlainDateTimeLike | string;
+}
+
+/// Options for `Duration.total`.
+export type DurationTotalOf =
+    | TotalUnit<DateTimeUnit>
+    | {
+        /// Unit to total into.
+        unit: TotalUnit<DateTimeUnit>;
+
+        /// Relative date or zoned date-time.
+        relativeTo?: ZonedDateTime | PlainDateTime | ZonedDateTimeLike | PlainDateTimeLike | string;
+    };
+
+/// Options for Temporal string precision.
+export type ToStringPrecisionOptions = {
+    /// Fractional second digit count.
+    fractionalSecondDigits?: "auto" | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+
+    /// Smallest unit to include.
+    smallestUnit?: SmallestUnit<"minute" | "second" | "millisecond" | "microsecond" | "nanosecond">;
+
+    /// Rounding mode.
+    roundingMode?: RoundingMode;
+};
+
+/// Options for calendar annotations in strings.
+export type ShowCalendarOption = {
+    /// Calendar annotation display mode.
+    calendarName?: "auto" | "always" | "never" | "critical";
+};
+
+/// Options for calendar-aware Temporal strings.
+export type CalendarTypeToStringOptions = ToStringPrecisionOptions & ShowCalendarOption;
+
+/// Options for instant strings.
+export type InstantToStringOptions = ToStringPrecisionOptions & {
+    /// Time zone used for rendering.
+    timeZone?: TimeZoneLike;
+};
+
+/// Options for zoned date-time strings.
+export type ZonedDateTimeToStringOptions = CalendarTypeToStringOptions & {
+    /// Time-zone annotation display mode.
+    timeZoneName?: "auto" | "never" | "critical";
+
+    /// Offset display mode.
+    offset?: "auto" | "never";
+};
+
+/// Options for locale-aware Temporal date-time formatting.
+export type DateTimeFormatOptions = {
+    /// Locale matching algorithm.
+    localeMatcher?: "best fit" | "lookup";
+
+    /// Calendar identifier.
+    calendar?: string;
+
+    /// Numbering system.
+    numberingSystem?: string;
+
+    /// Time zone identifier.
+    timeZone?: string;
+
+    /// Calendar weekday style.
+    weekday?: "long" | "short" | "narrow";
+
+    /// Calendar era style.
+    era?: "long" | "short" | "narrow";
+
+    /// Calendar year style.
+    year?: "numeric" | "2-digit";
+
+    /// Calendar month style.
+    month?: "numeric" | "2-digit" | "long" | "short" | "narrow";
+
+    /// Calendar day style.
+    day?: "numeric" | "2-digit";
+
+    /// Day period style.
+    dayPeriod?: "narrow" | "short" | "long";
+
+    /// Hour style.
+    hour?: "numeric" | "2-digit";
+
+    /// Minute style.
+    minute?: "numeric" | "2-digit";
+
+    /// Second style.
+    second?: "numeric" | "2-digit";
+
+    /// Fractional second digit count.
+    fractionalSecondDigits?: 1 | 2 | 3;
+
+    /// Time-zone name style.
+    timeZoneName?: "short" | "long" | "shortOffset" | "longOffset" | "shortGeneric" | "longGeneric";
+
+    /// Date style.
+    dateStyle?: "full" | "long" | "medium" | "short";
+
+    /// Time style.
+    timeStyle?: "full" | "long" | "medium" | "short";
+
+    /// Format matching algorithm.
+    formatMatcher?: "best fit" | "basic";
+
+    /// Whether to use 12-hour clock output.
+    hour12?: boolean;
+
+    /// Hour cycle.
+    hourCycle?: "h11" | "h12" | "h23" | "h24";
+};
+
+/// Options for locale-aware duration formatting.
+export type DurationFormatOptions = {
+    /// Locale matching algorithm.
+    localeMatcher?: "lookup" | "best fit";
+
+    /// Numbering system.
+    numberingSystem?: string;
+
+    /// Overall format style.
+    style?: "long" | "short" | "narrow" | "digital";
+
+    /// Year unit style.
+    years?: "long" | "short" | "narrow";
+
+    /// Year unit display.
+    yearsDisplay?: "always" | "auto";
+
+    /// Month unit style.
+    months?: "long" | "short" | "narrow";
+
+    /// Month unit display.
+    monthsDisplay?: "always" | "auto";
+
+    /// Week unit style.
+    weeks?: "long" | "short" | "narrow";
+
+    /// Week unit display.
+    weeksDisplay?: "always" | "auto";
+
+    /// Day unit style.
+    days?: "long" | "short" | "narrow";
+
+    /// Day unit display.
+    daysDisplay?: "always" | "auto";
+
+    /// Hour unit style.
+    hours?: "long" | "short" | "narrow" | "numeric" | "2-digit";
+
+    /// Hour unit display.
+    hoursDisplay?: "always" | "auto";
+
+    /// Minute unit style.
+    minutes?: "long" | "short" | "narrow" | "numeric" | "2-digit";
+
+    /// Minute unit display.
+    minutesDisplay?: "always" | "auto";
+
+    /// Second unit style.
+    seconds?: "long" | "short" | "narrow" | "numeric" | "2-digit";
+
+    /// Second unit display.
+    secondsDisplay?: "always" | "auto";
+
+    /// Millisecond unit style.
+    milliseconds?: "long" | "short" | "narrow" | "numeric";
+
+    /// Millisecond unit display.
+    millisecondsDisplay?: "always" | "auto";
+
+    /// Microsecond unit style.
+    microseconds?: "long" | "short" | "narrow" | "numeric";
+
+    /// Microsecond unit display.
+    microsecondsDisplay?: "always" | "auto";
+
+    /// Nanosecond unit style.
+    nanoseconds?: "long" | "short" | "narrow" | "numeric";
+
+    /// Nanosecond unit display.
+    nanosecondsDisplay?: "always" | "auto";
+
+    /// Fractional digit count.
+    fractionalDigits?: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+};
