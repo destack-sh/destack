@@ -87,7 +87,7 @@ impl<'ast> Format<JsFormatContext<'ast>> for Visibility {
 impl<'ast> Format<JsFormatContext<'ast>> for DependencyBinding {
     fn format(&self, f: &mut JsFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
-            DependencyBinding::Item => write!(f, [Keyword::Export]),
+            DependencyBinding::Named => write!(f, [Keyword::Export]),
             DependencyBinding::Default => write!(f, [Keyword::Export, space(), Keyword::Default]),
             DependencyBinding::Namespace => write!(f, [Keyword::Export]),
         }

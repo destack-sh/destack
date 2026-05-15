@@ -1,6 +1,6 @@
 use super::printer::Printer;
 use crate::{
-    Asynchrony, BindingKeyword, Declarator, DependencyBinding, DependencySpace, ForInitialization,
+    Asynchrony, BindingKeyword, Declarator, DependencyBinding, DependencyForm, ForInitialization,
     JsPrintResult, Keyword, LocalNodeId, Mutability, Statement,
 };
 use destack_source::NodeSpanType;
@@ -14,7 +14,7 @@ impl<'a> Printer<'a> {
     ) -> JsPrintResult<()> {
         match statement {
             Statement::Import {
-                space,
+                form,
                 target,
                 items,
                 attributes,
@@ -22,7 +22,7 @@ impl<'a> Printer<'a> {
             } => {
                 self.write_keyword(Keyword::Import);
 
-                if *space == DependencySpace::Type {
+                if *form == DependencyForm::Type {
                     self.write_keyword(Keyword::Type);
                 }
 
@@ -43,7 +43,7 @@ impl<'a> Printer<'a> {
                 }
             }
             Statement::Export {
-                space,
+                form,
                 target,
                 items,
                 attributes,
@@ -51,7 +51,7 @@ impl<'a> Printer<'a> {
             } => {
                 self.write_keyword(Keyword::Export);
 
-                if *space == DependencySpace::Type {
+                if *form == DependencyForm::Type {
                     self.write_keyword(Keyword::Type);
                 }
 

@@ -1,7 +1,7 @@
 use crate::format::argument::list_like;
 use crate::format::dependency::{format_export_binding, format_import_binding};
 use crate::{
-    Asynchrony, BindingKeyword, CatchClause, Declaration, DependencySpace, Expression,
+    Asynchrony, BindingKeyword, CatchClause, Declaration, DependencyForm, Expression,
     ForInitialization, FormatNode, JsFormatContext, JsFormatter, Keyword, LocalNodeId,
     LocalNodeIdAny, Mutability, NodeType, Statement,
 };
@@ -135,7 +135,7 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
     ) -> FormatResult<()> {
         match self {
             Statement::Import {
-                space: dependency_space,
+                form: dependency_form,
                 target,
                 target_module: _,
                 items,
@@ -145,7 +145,7 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
                 let items = items.as_deref().unwrap_or(&[]);
 
                 write!(f, [Keyword::Import, space()])?;
-                if *dependency_space == DependencySpace::Type {
+                if *dependency_form == DependencyForm::Type {
                     write!(f, [Keyword::Type, space()])?;
                 }
                 format_import_binding(f, *target, items, target_span)?;
@@ -154,7 +154,7 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
                 }
             }
             Statement::Export {
-                space: dependency_space,
+                form: dependency_form,
                 target,
                 target_module: _,
                 items,
@@ -163,7 +163,7 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
                 let target_span = f.context().source_part_span(node_id.id, NodeSpanType::Main);
 
                 write!(f, [Keyword::Export, space()])?;
-                if *dependency_space == DependencySpace::Type {
+                if *dependency_form == DependencyForm::Type {
                     write!(f, [Keyword::Type, space()])?;
                 }
                 format_export_binding(f, *target, items, target_span)?;

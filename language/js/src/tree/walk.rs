@@ -274,7 +274,7 @@ pub fn walk_statement<V: NodeVisitor + ?Sized>(
 
     match statement {
         Statement::Import {
-            space: _,
+            form: _,
             target: _,
             target_module: _,
             items,
@@ -294,7 +294,7 @@ pub fn walk_statement<V: NodeVisitor + ?Sized>(
             }
         }
         Statement::Export {
-            space: _,
+            form: _,
             target: _,
             target_module: _,
             items,

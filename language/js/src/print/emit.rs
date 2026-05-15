@@ -28,7 +28,7 @@ impl<'a> Printer<'a> {
     /// Print one dependency binding keyword.
     pub(crate) fn write_dependency_binding(&mut self, binding: DependencyBinding) {
         match binding {
-            DependencyBinding::Item => self.write_keyword(Keyword::Export),
+            DependencyBinding::Named => self.write_keyword(Keyword::Export),
             DependencyBinding::Default => {
                 self.write_keyword(Keyword::Export);
                 self.write_keyword(Keyword::Default);
@@ -569,7 +569,7 @@ mod tests {
 
     use super::Printer;
     use crate::{
-        Argument, BinaryOperator, DependencyBinding, DependencyItem, DependencySpace, Expression,
+        Argument, BinaryOperator, DependencyBinding, DependencyForm, DependencyItem, Expression,
         JsSourceMap, Key, LocalNodeId, LocalNodeIdAny, Name, Path, PostfixPosition, Property,
         ScalarLiteral, Statement, Tree, print_roots_minified, print_roots_minified_with_source_map,
     };
@@ -1106,8 +1106,8 @@ mod tests {
         let item = insert_dependency_item(
             &mut tree,
             DependencyItem {
-                binding: DependencyBinding::Item,
-                space: Some(DependencySpace::Type),
+                binding: DependencyBinding::Named,
+                form: Some(DependencyForm::Type),
                 name: Some(Name::Identifier(strings.intern("value"))),
                 alias: Some(strings.intern("alias")),
                 value: None,
@@ -1116,7 +1116,7 @@ mod tests {
         let statement = insert_statement(
             &mut tree,
             Statement::Import {
-                space: DependencySpace::Value,
+                form: DependencyForm::Plain,
                 target: strings.intern("./shared.js"),
                 target_module: None,
                 items: Some(vec![item]),

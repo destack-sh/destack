@@ -1,4 +1,4 @@
-use crate::{DependencyBinding, DependencyItem, DependencySpace, Keyword, LocalNodeId, Name};
+use crate::{DependencyBinding, DependencyForm, DependencyItem, Keyword, LocalNodeId, Name};
 use destack_core::StringId;
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
@@ -66,7 +66,7 @@ impl<'ast> FormatNode<'ast, DependencyItem> for DependencyItem {
         let alias_span = f.context().source_part_span(node_id.id, NodeSpanType::Main);
 
         // type
-        if self.space == Some(DependencySpace::Type) {
+        if self.form == Some(DependencyForm::Type) {
             write!(f, [Keyword::Type, space()])?;
         }
 
@@ -78,7 +78,7 @@ impl<'ast> FormatNode<'ast, DependencyItem> for DependencyItem {
                 format_dependency_item_alias(f, alias, alias_span)?;
             }
         }
-        // item binding (regular)
+        // named binding
         else {
             if let Some(name) = self.name {
                 format_dependency_item_name(f, name, name_span)?;
@@ -136,7 +136,7 @@ pub(crate) fn format_import_binding<'ast>(
                 write!(f, [list_like("{", "}", ",", &rest_items).include_space()])?;
             }
         }
-        // regular items (like `import { foo, bar } from "baz"`)
+        // named items
         else if !items.is_empty() {
             let items_vec: Vec<LocalNodeId<DependencyItem>> = items.to_vec();
             write!(f, [list_like("{", "}", ",", &items_vec).include_space()])?;

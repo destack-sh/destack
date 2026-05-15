@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     AssignOperator, Asynchrony, Block, CatchClause, Declaration, Declarator, DependencyBinding,
-    DependencyItem, DependencySpace, Expression, LocalNodeId, Mutability, Node, NodeType, Pattern,
+    DependencyForm, DependencyItem, Expression, LocalNodeId, Mutability, Node, NodeType, Pattern,
     Property, StringId, SwitchCase,
 };
 use destack_source::ModuleId;
@@ -30,7 +30,7 @@ pub struct DependencyAttributeClause {
 pub enum Statement {
     /// Import items (including type items).
     Import {
-        space: DependencySpace,
+        form: DependencyForm,
         target: StringId,
         target_module: Option<ModuleId>,
         items: Option<Vec<LocalNodeId<DependencyItem>>>,
@@ -38,7 +38,7 @@ pub enum Statement {
     },
     /// Export items (including type items).
     Export {
-        space: DependencySpace,
+        form: DependencyForm,
         target: Option<StringId>,
         target_module: Option<ModuleId>,
         items: Vec<LocalNodeId<DependencyItem>>,
