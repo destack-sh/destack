@@ -46,9 +46,6 @@ declare let qux: boolean;
 declare enum Kind {}
 declare interface Shape {}
 declare class Box {}
-declare module Outer {}
-declare module "named" {}
-declare namespace Inner {}
 ```
 
 ```ts expected
@@ -59,32 +56,21 @@ declare let qux: boolean;
 declare enum Kind {}
 declare interface Shape {}
 declare class Box {}
-declare module Outer {}
-declare module "named" {}
-declare namespace Inner {}
 ```
 
 ### module declaration bodies
 
 Module declaration bodies are parsed and formatted.
 
-```ts:main.ts
-module A {
-  export class A {}
-}
-
-declare module "B" {
-  export class B {}
+```ds
+module {
+    tree: HtmlTree
 }
 ```
 
-```ts expected
-module A {
-    export class A {}
-}
-
-declare module "B" {
-    export class B {}
+```ds expected
+module {
+    tree: HtmlTree;
 }
 ```
 

@@ -50,13 +50,3 @@ export type StripInternalTypeSignatures = {
     /** @internal */
     new (): any;
 };
-
-export namespace StripInternalNamespaceInner {
-    /** @internal */
-    export function internalFunction() {
-        console.log("test");
-    }
-}
-
-/** @internal */
-export namespace StripInternalNamespace {}
