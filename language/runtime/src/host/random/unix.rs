@@ -100,11 +100,16 @@ pub(crate) fn host_try_fill_bytes(buffer: &mut [u8]) -> RuntimeResult<()> {
 fn fill_with_getrandom_flags(buffer: &mut [u8], flags: u32) -> io::Result<()> {
     let mut offset = 0usize;
     while offset < buffer.len() {
-        let ptr = unsafe { buffer.as_mut_ptr().add(offset) } as *mut libc::c_void;
-        let remaining = buffer.len() - offset;
+        let remaining = &mut buffer[offset..];
 
         // use the libc symbol on linux
-        let read = unsafe { libc::getrandom(ptr, remaining, flags) };
+        let read = unsafe {
+            libc::getrandom(
+                remaining.as_mut_ptr().cast::<libc::c_void>(),
+                remaining.len(),
+                flags,
+            )
+        };
 
         if read < 0 {
             let error = io::Error::last_os_error();
@@ -139,22 +144,19 @@ fn fill_with_getentropy(buffer: &mut [u8]) -> io::Result<()> {
     // getentropy supports at most 256 bytes per call
     const MAX_CHUNK_BYTES: usize = 256;
 
-    let mut offset = 0usize;
-    while offset < buffer.len() {
-        let chunk_len = (buffer.len() - offset).min(MAX_CHUNK_BYTES);
-        let ptr = unsafe { buffer.as_mut_ptr().add(offset) } as *mut libc::c_void;
-
-        let status = unsafe { libc::getentropy(ptr, chunk_len) };
-        if status != 0 {
-            let error = io::Error::last_os_error();
-            if error.kind() == io::ErrorKind::Interrupted {
-                continue;
+    for chunk in buffer.chunks_mut(MAX_CHUNK_BYTES) {
+        loop {
+            let status =
+                unsafe { libc::getentropy(chunk.as_mut_ptr().cast::<libc::c_void>(), chunk.len()) };
+            if status == 0 {
+                break;
             }
 
-            return Err(error);
+            let error = io::Error::last_os_error();
+            if error.kind() != io::ErrorKind::Interrupted {
+                return Err(error);
+            }
         }
-
-        offset = offset.saturating_add(chunk_len);
     }
 
     Ok(())

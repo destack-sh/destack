@@ -78,10 +78,8 @@ impl UnixPoller {
 impl Drop for UnixPoller {
     fn drop(&mut self) {
         // close wake pipe descriptors
-        unsafe {
-            libc::close(self.wake_read);
-            libc::close(self.wake_write);
-        }
+        close_fd(self.wake_read);
+        close_fd(self.wake_write);
     }
 }
 
@@ -209,13 +207,11 @@ impl HostPoller for UnixPoller {
         // call poll and surface errors
         let _ = loop {
             let timeout_ms = timeout_ms_from_deadline(deadline);
-            let result = unsafe {
-                poll(
-                    self.pollfds.as_mut_ptr(),
-                    self.pollfds.len() as libc::nfds_t,
-                    timeout_ms,
-                )
-            };
+            let result = poll_ready(
+                self.pollfds.as_mut_ptr(),
+                self.pollfds.len() as libc::nfds_t,
+                timeout_ms,
+            );
             if result >= 0 {
                 break result;
             }
@@ -276,10 +272,45 @@ impl HostPoller for UnixPoller {
     }
 }
 
+/// Close one file descriptor.
+fn close_fd(fd: RawFd) {
+    let _ = unsafe { libc::close(fd) };
+}
+
+/// Read bytes from one descriptor.
+fn read_fd(fd: RawFd, buffer: &mut [u8]) -> isize {
+    unsafe { libc::read(fd, buffer.as_mut_ptr() as *mut _, buffer.len()) }
+}
+
+/// Write bytes to one descriptor.
+fn write_fd(fd: RawFd, bytes: &[u8]) -> isize {
+    unsafe { libc::write(fd, bytes.as_ptr() as *const _, bytes.len()) }
+}
+
+/// Create one pipe.
+fn pipe_fds(fds: &mut [RawFd; 2]) -> c_int {
+    unsafe { libc::pipe(fds.as_mut_ptr()) }
+}
+
+/// Read one descriptor control value.
+fn fcntl_get(fd: RawFd, command: c_int) -> c_int {
+    unsafe { libc::fcntl(fd, command) }
+}
+
+/// Set one descriptor control value.
+fn fcntl_set(fd: RawFd, command: c_int, value: c_int) -> c_int {
+    unsafe { libc::fcntl(fd, command, value) }
+}
+
+/// Wait for poll readiness.
+fn poll_ready(fds: *mut pollfd, len: libc::nfds_t, timeout_ms: c_int) -> c_int {
+    unsafe { poll(fds, len, timeout_ms) }
+}
+
 /// Write one wake byte into one wake pipe.
 fn wake_pipe(wake_write: RawFd) -> RuntimeResult<()> {
     let byte = [1u8];
-    let result = unsafe { libc::write(wake_write, byte.as_ptr() as *const _, byte.len()) };
+    let result = write_fd(wake_write, &byte);
     if result < 0 {
         let errno = host_core::get_errno();
         if errno != libc::EWOULDBLOCK && errno != libc::EAGAIN {
@@ -349,7 +380,7 @@ fn event_mask_from_revents(revents: c_short) -> PollerEventMask {
 fn create_wake_pipe() -> RuntimeResult<(RawFd, RawFd)> {
     // allocate a pipe for wakeup signaling
     let mut fds = [0; 2];
-    let result = unsafe { libc::pipe(fds.as_mut_ptr()) };
+    let result = pipe_fds(&mut fds);
     if result < 0 {
         return Err(io_error("poller.pipe", None));
     }
@@ -368,13 +399,13 @@ fn create_wake_pipe() -> RuntimeResult<(RawFd, RawFd)> {
 /// Mark a file descriptor as nonblocking.
 fn set_nonblocking(fd: RawFd) -> RuntimeResult<()> {
     // read the current descriptor flags
-    let flags = unsafe { libc::fcntl(fd, libc::F_GETFL) };
+    let flags = fcntl_get(fd, libc::F_GETFL);
     if flags < 0 {
         return Err(io_error("poller.fcntl", Some(fd)));
     }
 
     // update the descriptor flags
-    let result = unsafe { libc::fcntl(fd, libc::F_SETFL, flags | libc::O_NONBLOCK) };
+    let result = fcntl_set(fd, libc::F_SETFL, flags | libc::O_NONBLOCK);
     if result < 0 {
         return Err(io_error("poller.fcntl", Some(fd)));
     }
@@ -385,13 +416,13 @@ fn set_nonblocking(fd: RawFd) -> RuntimeResult<()> {
 /// Mark a file descriptor as close-on-exec.
 fn set_close_on_exec(fd: RawFd) -> RuntimeResult<()> {
     // read the current descriptor flags
-    let flags = unsafe { libc::fcntl(fd, libc::F_GETFD) };
+    let flags = fcntl_get(fd, libc::F_GETFD);
     if flags < 0 {
         return Err(io_error("poller.fcntl", Some(fd)));
     }
 
     // update the descriptor flags
-    let result = unsafe { libc::fcntl(fd, libc::F_SETFD, flags | libc::FD_CLOEXEC) };
+    let result = fcntl_set(fd, libc::F_SETFD, flags | libc::FD_CLOEXEC);
     if result < 0 {
         return Err(io_error("poller.fcntl", Some(fd)));
     }
@@ -404,7 +435,7 @@ fn drain_wake(fd: RawFd) {
     // read until the pipe is empty
     let mut buffer = [0u8; 64];
     loop {
-        let read_bytes = unsafe { libc::read(fd, buffer.as_mut_ptr() as *mut _, buffer.len()) };
+        let read_bytes = read_fd(fd, &mut buffer);
         if read_bytes > 0 {
             continue;
         }
@@ -472,7 +503,7 @@ fn io_error(context: &str, fd: Option<RawFd>) -> Box<RuntimeError> {
 
 #[cfg(test)]
 mod tests {
-    use super::UnixPoller;
+    use super::{UnixPoller, close_fd, pipe_fds, write_fd};
     use crate::host::ResourceId;
     use crate::host::poller::{HostHandle, HostPoller, HostPollerFlags, PollInterest, PollerToken};
     use crate::runtime::WorkerId;
@@ -485,11 +516,11 @@ mod tests {
         let mut poller = UnixPoller::new().expect("poller should initialize");
 
         let mut fds = [0; 2];
-        let result = unsafe { libc::pipe(fds.as_mut_ptr()) };
+        let result = pipe_fds(&mut fds);
         assert!(result == 0);
 
         let read_fd = fds[0];
-        let write_fd = fds[1];
+        let write_descriptor = fds[1];
 
         let handle = HostHandle::from_raw_fd(read_fd);
         poller
@@ -503,15 +534,13 @@ mod tests {
             .expect("register should succeed");
 
         let payload = [1u8];
-        let wrote = unsafe { libc::write(write_fd, payload.as_ptr() as *const _, payload.len()) };
+        let wrote = write_fd(write_descriptor, &payload);
         assert!(wrote >= 0);
 
         let events = poller.poll(Some(0)).expect("poll should return events");
         assert!(!events.is_empty());
 
-        unsafe {
-            libc::close(read_fd);
-            libc::close(write_fd);
-        }
+        close_fd(read_fd);
+        close_fd(write_descriptor);
     }
 }
