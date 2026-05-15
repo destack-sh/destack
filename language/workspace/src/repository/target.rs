@@ -17,8 +17,8 @@ impl Repository {
         Ok(package.targets.get(&target_id).cloned())
     }
 
-    /// Return one effective revision-scoped target by id when present.
-    pub fn effective_target(
+    /// Return one explicit or built-in revision-scoped target by id when present.
+    pub fn target_or_builtin(
         &self,
         revision: Revision,
         target_id: TargetId,
@@ -28,8 +28,8 @@ impl Repository {
             return Ok(Some(target));
         }
 
-        // implicit targets
-        Ok(Target::implicit_for_id(target_id))
+        // built-in targets
+        Ok(Target::builtin_for_id(target_id))
     }
 
     /// Return one display string for one target id.
@@ -38,7 +38,7 @@ impl Repository {
         revision: Revision,
         target_id: TargetId,
     ) -> Result<Option<String>, RepositoryError> {
-        let Some(target) = self.effective_target(revision, target_id)? else {
+        let Some(target) = self.target_or_builtin(revision, target_id)? else {
             return Ok(None);
         };
 
