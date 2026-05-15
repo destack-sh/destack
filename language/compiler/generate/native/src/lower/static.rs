@@ -317,7 +317,6 @@ fn type_id(
 mod tests {
     use destack_source::FileId;
 
-    
     use super::*;
 
     const POINTER_BYTES: u8 = 8;
@@ -326,7 +325,7 @@ mod tests {
     #[test]
     fn test_lower_static_data_preserves_record_padding() {
         let source = r#"
-global padded: { int8, int32, int16 }, readonly, space(static) = { 1int8, 100int32, 50int16 };
+readonly global padded: { int8, int32, int16 }, space(static) = { 1int8, 100int32, 50int16 };
 "#;
         let (tree, global) = parse_global(source, "padded");
 
@@ -345,11 +344,11 @@ global padded: { int8, int32, int16 }, readonly, space(static) = { 1int8, 100int
     fn test_lower_static_data_records_function_address_relocation() {
         let source = r#"
 function target(): void {
-bb0:
+b0:
     return
 }
 
-global table: ref?<void, raw, readonly, space(static)>[2], readonly, space(static) = { null, functionAddress target };
+readonly global table: [ref<void, raw, readonly, space(static), nullable>; 2], space(static) = { null, functionAddress target };
 "#;
         let (tree, global) = parse_global(source, "table");
 

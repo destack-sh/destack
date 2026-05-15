@@ -6,9 +6,9 @@ fn test_struct_construction_i32_i32() {
     // aggregates in cranelift are always pointers, so return ref type
     let mir = r#"
 function make_point(): ref<{ int32, int32 }, raw> {
-bb0:
-    v0: int32 = const 10int32
-    v1: int32 = const 20int32
+b0:
+    v0: int32 = 10int32
+    v1: int32 = 20int32
     v2: { int32, int32 } = struct { int32, int32 } (v0, v1)
     return v2
 }"#;
@@ -19,7 +19,7 @@ bb0:
 function u0:0(): int64 native {
     ss0 = explicit_slot 8, align = 4
 
-bb0:
+b0:
     v0 = const.int32 10
     v1 = const.int32 20
     v2 = stack_addr.int64 ss0
@@ -36,9 +36,9 @@ bb0:
 fn test_tuple_construction_i32_i32() {
     let mir = r#"
 function make_pair(): ref<(int32, int32), raw> {
-bb0:
-    v0: int32 = const 42int32
-    v1: int32 = const 99int32
+b0:
+    v0: int32 = 42int32
+    v1: int32 = 99int32
     v2: (int32, int32) = tuple (int32, int32) (v0, v1)
     return v2
 }"#;
@@ -49,7 +49,7 @@ bb0:
 function u0:0(): int64 native {
     ss0 = explicit_slot 8, align = 4
 
-bb0:
+b0:
     v0 = const.int32 42
     v1 = const.int32 99
     v2 = stack_addr.int64 ss0
@@ -65,12 +65,12 @@ bb0:
 #[test]
 fn test_array_construction_i32_3() {
     let mir = r#"
-function make_array(): ref<int32[3], raw> {
-bb0:
-    v0: int32 = const 1int32
-    v1: int32 = const 2int32
-    v2: int32 = const 3int32
-    v3: int32[3] = array int32[3] (v0, v1, v2)
+function make_array(): ref<[int32; 3], raw> {
+b0:
+    v0: int32 = 1int32
+    v1: int32 = 2int32
+    v2: int32 = 3int32
+    v3: [int32; 3] = array [int32; 3] (v0, v1, v2)
     return v3
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
@@ -80,7 +80,7 @@ bb0:
 function u0:0(): int64 native {
     ss0 = explicit_slot 12, align = 4
 
-bb0:
+b0:
     v0 = const.int32 1
     v1 = const.int32 2
     v2 = const.int32 3
@@ -99,10 +99,10 @@ bb0:
 fn test_struct_construction_mixed_types() {
     let mir = r#"
 function make_mixed(): ref<{ int8, int32, int16 }, raw> {
-bb0:
-    v0: int8 = const 1int8
-    v1: int32 = const 100int32
-    v2: int16 = const 50int16
+b0:
+    v0: int8 = 1int8
+    v1: int32 = 100int32
+    v2: int16 = 50int16
     v3: { int8, int32, int16 } = struct { int8, int32, int16 } (v0, v1, v2)
     return v3
 }"#;
@@ -114,7 +114,7 @@ bb0:
 function u0:0(): int64 native {
     ss0 = explicit_slot 12, align = 4
 
-bb0:
+b0:
     v0 = const.int8 1
     v1 = const.int32 100
     v2 = const.int16 50
@@ -132,11 +132,11 @@ bb0:
 #[test]
 fn test_array_construction_i64_2() {
     let mir = r#"
-function make_array(): ref<int64[2], raw> {
-bb0:
-    v0: int64 = const 100int64
-    v1: int64 = const 200int64
-    v2: int64[2] = array int64[2] (v0, v1)
+function make_array(): ref<[int64; 2], raw> {
+b0:
+    v0: int64 = 100int64
+    v1: int64 = 200int64
+    v2: [int64; 2] = array [int64; 2] (v0, v1)
     return v2
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
@@ -146,7 +146,7 @@ bb0:
 function u0:0(): int64 native {
     ss0 = explicit_slot 16, align = 8
 
-bb0:
+b0:
     v0 = const.int64 100
     v1 = const.int64 200
     v2 = stack_addr.int64 ss0

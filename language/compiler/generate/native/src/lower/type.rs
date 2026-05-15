@@ -105,8 +105,8 @@ pub(crate) fn lower_type(
             type_id.into_any(),
         )),
 
-        mir::Type::Union { .. } => Err(CodegenCraneliftError::unsupported_type(
-            "union types must be lowered to memory operations",
+        mir::Type::Variant { .. } => Err(CodegenCraneliftError::unsupported_type(
+            "variant types must be lowered to memory operations",
             type_id.into_any(),
         )),
 
