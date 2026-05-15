@@ -1,0 +1,135 @@
+import { todo } from "destack:error";
+
+/// Named regular expression capture groups.
+export type RegExpGroups = {
+    readonly [name: string]: string | undefined;
+};
+
+/// Half-open match span in UTF-16 code units.
+export struct RegExpSpan {
+    /// The inclusive start index.
+    start: number;
+
+    /// The exclusive end index.
+    end: number;
+}
+
+/// Named spans for regular expression capture groups.
+export type RegExpIndexGroups = {
+    readonly [name: string]: RegExpSpan | undefined;
+};
+
+/// Match spans produced by the `d` flag.
+export struct RegExpIndices {
+    /// The full match span.
+    match: RegExpSpan;
+
+    /// The capture spans.
+    captures: readonly (RegExpSpan | undefined)[];
+
+    /// The named capture spans.
+    groups?: RegExpIndexGroups;
+}
+
+/// One regular expression match.
+export struct RegExpMatch {
+    /// The full matched text.
+    text: string;
+
+    /// The matched captures.
+    captures: readonly (string | undefined)[];
+
+    /// The named captures.
+    groups?: RegExpGroups;
+
+    /// The start index in UTF-16 code units.
+    index: number;
+
+    /// The searched input string.
+    input: string;
+
+    /// The match spans produced by the `d` flag.
+    indices?: RegExpIndices;
+}
+
+/// Regular expression pattern.
+@languageItem("regexp.RegExp")
+export class RegExp {
+    /// The next UTF-16 index used by global and sticky matching.
+    lastIndex: number = 0;
+
+    /// Escape text so it can be used as a literal regular expression pattern.
+    static escape(text: string): string {
+        todo("RegExp.escape")
+    }
+
+    /// The source pattern.
+    get source(): string {
+        todo("RegExp.source")
+    }
+
+    /// The flags used to compile the pattern.
+    get flags(): string {
+        todo("RegExp.flags")
+    }
+
+    /// Whether the `d` flag is set.
+    get hasIndices(): boolean {
+        todo("RegExp.hasIndices")
+    }
+
+    /// Whether the `g` flag is set.
+    get global(): boolean {
+        todo("RegExp.global")
+    }
+
+    /// Whether the `i` flag is set.
+    get ignoreCase(): boolean {
+        todo("RegExp.ignoreCase")
+    }
+
+    /// Whether the `m` flag is set.
+    get multiline(): boolean {
+        todo("RegExp.multiline")
+    }
+
+    /// Whether the `s` flag is set.
+    get dotAll(): boolean {
+        todo("RegExp.dotAll")
+    }
+
+    /// Whether the `u` flag is set.
+    get unicode(): boolean {
+        todo("RegExp.unicode")
+    }
+
+    /// Whether the `v` flag is set.
+    get unicodeSets(): boolean {
+        todo("RegExp.unicodeSets")
+    }
+
+    /// Whether the `y` flag is set.
+    get sticky(): boolean {
+        todo("RegExp.sticky")
+    }
+
+    /// Create a regular expression.
+    constructor(pattern: string | RegExp, flags?: string) {
+        todo("RegExp.constructor")
+    }
+
+    /// Execute the pattern against `input`.
+    exec(input: string): RegExpMatch | null {
+        todo("RegExp.exec")
+    }
+
+    /// Return whether the pattern matches `input`.
+    test(input: string): boolean {
+        todo("RegExp.test")
+    }
+
+    /// Return the literal regular expression spelling.
+    toString(): string {
+        todo("RegExp.toString")
+    }
+}
