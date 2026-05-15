@@ -650,7 +650,7 @@ function getFirst(v: int32[] | Vec2): int32 {
 ### Reify nominal constructor calls into tagged expressions
 
 Calls that Analyze resolves as nominal constructors become tagged expressions in DIR.
-Note that tagged object literals (`Type { ... }`) are already bound as `TaggedObjectExpression`, so reify only needs to handle call-form constructors (primarily newtypes).
+Note that struct expressions (`Type { ... }`) are already bound, so reify only needs to handle call-form constructors (primarily newtypes).
 
 ```ds
 newtype UserId = int64;

@@ -208,7 +208,6 @@ impl Compiler {
                 }
 
                 Ok(dir::Expression::ObjectExpression {
-                    ty: None,
                     properties: property_ids,
                 })
             }

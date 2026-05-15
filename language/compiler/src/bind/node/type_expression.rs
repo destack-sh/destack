@@ -1,4 +1,3 @@
-use destack_core::StringId;
 use destack_dir as dir;
 use dir::NodeVisitor as _;
 
@@ -47,7 +46,9 @@ impl Compiler {
                 // bind mapped type scope
                 self.bind_mapped_type(state, tree, id, parameter, *value)
             }
-            dir::TypeExpression::Infer { name, constraint } => {
+            dir::TypeExpression::Infer {
+                name, constraint, ..
+            } => {
                 // bind inferred type parameter
                 self.bind_infer_type(state, tree, id, *name, *constraint)
             }
@@ -220,20 +221,24 @@ impl Compiler {
         state: &mut BindState<'_>,
         tree: &dir::Tree,
         id: dir::LocalNodeId<dir::TypeExpression>,
-        name: StringId,
+        name: Option<dir::StringId>,
         constraint: Option<dir::LocalNodeId<dir::TypeExpression>>,
     ) {
-        // declare inferred type parameter
+        // bind infer node
         state.bind_node(id.into_any());
-        let symbol_id = state.insert_symbol(
-            dir::SymbolRole::Local,
-            dir::SymbolForm::TypeAlias,
-            dir::SymbolSpace::Type,
-            dir::SymbolBinding::Runtime,
-            Some(dir::StaticKey::Name(name)),
-            None,
-        );
-        state.declare_symbol(symbol_id, id);
+
+        // declare named inferred type parameter
+        if let Some(name) = name {
+            let symbol_id = state.insert_symbol(
+                dir::SymbolRole::Local,
+                dir::SymbolForm::TypeAlias,
+                dir::SymbolSpace::Type,
+                dir::SymbolBinding::Runtime,
+                Some(dir::StaticKey::Name(name)),
+                None,
+            );
+            state.declare_symbol(symbol_id, id);
+        }
 
         // bind optional infer constraint
         if let Some(constraint) = constraint {

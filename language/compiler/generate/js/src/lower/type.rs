@@ -171,7 +171,6 @@ impl ModuleLowerer<'_> {
         let literal = match literal {
             dir::TypeLiteral::Never => js::TypeLiteral::Never,
             dir::TypeLiteral::Any => js::TypeLiteral::Any,
-            dir::TypeLiteral::Infer => return None,
             dir::TypeLiteral::Undefined => js::TypeLiteral::Undefined,
             dir::TypeLiteral::Unknown => js::TypeLiteral::Unknown,
             dir::TypeLiteral::Object => js::TypeLiteral::Object,

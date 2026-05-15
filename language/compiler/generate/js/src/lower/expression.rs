@@ -640,7 +640,8 @@ impl ModuleLowerer<'_> {
                     .insert_from_source(expression, self.module.id, expression_id)
                     .into_any()
             }
-            dir::Expression::ObjectExpression { properties, .. } => {
+            dir::Expression::ObjectExpression { properties }
+            | dir::Expression::StructExpression { properties, .. } => {
                 let properties = properties
                     .iter()
                     .map(|property_id| self.lower_property(*property_id))
