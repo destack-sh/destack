@@ -69,22 +69,28 @@ impl Frame {
         }
     }
 
+    /// Borrow the lowered function.
+    #[inline(always)]
+    pub(crate) fn function_ref(&self) -> &Function {
+        unsafe { self.function_ptr.as_ref() }
+    }
+
     /// Return the current MIR function id.
     #[inline(always)]
     pub(crate) fn function(&self) -> mir::LocalNodeId<mir::Function> {
-        unsafe { self.function_ptr.as_ref().mir_function }
+        self.function_ref().mir_function
     }
 
     /// Return the logical frame layout id.
     #[inline(always)]
     pub(crate) fn frame_layout(&self) -> engine::FrameLayoutId {
-        unsafe { self.function_ptr.as_ref().frame_layout }
+        self.function_ref().frame_layout
     }
 
     /// Return the active MIR block id.
     #[inline(always)]
     pub(crate) fn block_id(&self) -> mir::LocalNodeId<mir::Block> {
-        unsafe { self.function_ptr.as_ref().blocks[self.block as usize].mir_block }
+        self.function_ref().blocks[self.block as usize].mir_block
     }
 
     /// Replace this frame's byte range.
@@ -179,29 +185,6 @@ impl Frame {
         let end = start + slot.byte_len as usize;
 
         &mut self.bytes_mut()[start..end]
-    }
-
-    /// Write one word into a scalar SSA value.
-    #[inline]
-    pub(crate) fn write_value_word(
-        &mut self,
-        layout: &engine::FrameLayout,
-        value: mir::Value,
-        word: Word,
-    ) -> Result<(), Error> {
-        let slot = layout
-            .value(value.0)
-            .ok_or(Error::UndefinedValue { value })?;
-        if !slot.is_word {
-            return Err(Error::TypeMismatch {
-                expected: "word value".to_string(),
-                actual: format!("frame-backed value: {value:?}"),
-            });
-        }
-
-        self.write_word(slot, word);
-
-        Ok(())
     }
 
     /// Return the address of one local value.
@@ -310,18 +293,17 @@ impl Frame {
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
 
         // resolve the lowered function for this frame
-        let function_index = program
+        let function_ptr = program
             .functions
-            .local_index(point.function)
+            .pointer_for_function(point.function)
             .ok_or_else(|| {
                 RuntimeError::new(Error::UndefinedFunction {
                     function: point.function,
                 })
             })?;
-
-        let function_ptr = program
+        let function_ref = program
             .functions
-            .pointer_by_index(function_index)
+            .function_by_id(point.function)
             .ok_or_else(|| {
                 RuntimeError::new(Error::UndefinedFunction {
                     function: point.function,
@@ -329,13 +311,12 @@ impl Frame {
             })?;
 
         // resolve the captured block index from the lowered function
-        let function_ref = unsafe { function_ptr.as_ref() };
         let block = function_ref
             .blocks
             .iter()
             .position(|block| block.mir_block == point.block)
             .ok_or_else(|| RuntimeError::new(Error::UndefinedBlock { block: point.block }))?;
-        let layout_id = unsafe { function_ptr.as_ref().frame_layout };
+        let layout_id = function_ref.frame_layout;
         let layout = program
             .frame_layout_by_id(layout_id)
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;

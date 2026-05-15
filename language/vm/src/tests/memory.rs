@@ -152,48 +152,6 @@ b0:
     run_mir_expect(mir, "loadStore", &[], Value::int32(42));
 }
 
-/// Binding contexts can allocate and mutate explicit shared raw-space allocations.
-#[test]
-fn test_binding_context_shared_bytes_roundtrip() {
-    let mut isolate = create_isolate(
-        r#"
-function noop(): void {
-b0:
-    return
-}"#,
-    );
-
-    let pointer = isolate.with_heaps(|isolate, heap, shared| {
-        isolate
-            .with_binding_context(heap, shared, Default::default(), |context| {
-                let pointer = context
-                    .allocate_shared_bytes(&[1, 2, 3])
-                    .expect("shared allocation should succeed");
-                let initial = context
-                    .read_shared_bytes(pointer)
-                    .expect("shared bytes should decode");
-
-                assert_eq!(initial, vec![1, 2, 3]);
-
-                let pointer = context
-                    .write_shared_bytes(pointer, &[7, 8, 9, 10])
-                    .expect("shared bytes should write");
-
-                Ok(pointer)
-            })
-            .expect("runtime context should release pins")
-    });
-
-    assert_eq!(
-        Word::shared_raw_pointer(pointer).as_shared_raw_pointer(),
-        pointer
-    );
-    assert_eq!(
-        isolate.shared_heap.read_raw_bytes(pointer),
-        Ok(vec![7, 8, 9, 10])
-    );
-}
-
 /// Encode shared heap references as first-class runtime values.
 #[test]
 fn test_shared_heap_reference_value_roundtrip() {

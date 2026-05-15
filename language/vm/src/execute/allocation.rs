@@ -3,7 +3,7 @@ use crate::diagnostic::Error;
 use crate::interpreter::Machine;
 use crate::program::{AllocationLayoutId, Instruction, SliceProjectionId};
 use crate::{StackPointer, Word};
-use destack_heap::{AllocationShape, HeapError, Payload, RawAllocationShape, repeated_layout};
+use destack_heap::{HeapError, Payload, RawAllocationShape};
 
 /// Decode one power-of-two alignment from an instruction field.
 fn decode_alignment(alignment_log2: u32) -> usize {
@@ -23,14 +23,7 @@ pub(crate) fn execute_allocate_heap_small_noscan(
     // reserve from the active young run, refill on capacity failure
     let reference = match machine.reserve_young(slot_bytes) {
         Some(reference) => reference,
-        None => {
-            let table = machine.side_table_ptr();
-            let allocation = unsafe { (*table).allocation_layout(allocation) };
-            let reference_map = unsafe { (*table).reference_map(allocation.reference_map) };
-            let class = unsafe { (*table).allocation_class(allocation.class) };
-
-            machine.allocate_zeroed_heap_layout(&allocation.heap_layout(reference_map, class))?
-        }
+        None => machine.allocate_zeroed_heap_allocation(allocation)?,
     };
 
     // store result
@@ -46,14 +39,9 @@ pub(crate) fn execute_allocate_heap(
 ) -> Result<(), Error> {
     let dest = instruction.a;
     let allocation = AllocationLayoutId(instruction.b);
-    let table = machine.side_table_ptr();
-    let allocation = unsafe { (*table).allocation_layout(allocation) };
-    let reference_map = unsafe { (*table).reference_map(allocation.reference_map) };
-    let class = unsafe { (*table).allocation_class(allocation.class) };
 
     // allocate through the compiled heap layout
-    let reference =
-        machine.allocate_zeroed_heap_layout(&allocation.heap_layout(reference_map, class))?;
+    let reference = machine.allocate_zeroed_heap_allocation(allocation)?;
 
     // store result
     machine.store_word_at(dest, Word::heap_reference(reference));
@@ -74,15 +62,7 @@ pub(crate) fn execute_allocate_shared_heap_small_noscan(
     // reserve from the active worker run, refill on capacity failure
     let reference = match machine.reserve_shared_small(bucket_index, slot_bytes) {
         Some(reference) => reference,
-        None => {
-            let table = machine.side_table_ptr();
-            let allocation = unsafe { (*table).allocation_layout(allocation) };
-            let reference_map = unsafe { (*table).reference_map(allocation.reference_map) };
-            let class = unsafe { (*table).allocation_class(allocation.class) };
-
-            machine
-                .allocate_zeroed_shared_heap_layout(&allocation.heap_layout(reference_map, class))?
-        }
+        None => machine.allocate_zeroed_shared_heap_allocation(allocation)?,
     };
 
     // store result
@@ -98,14 +78,9 @@ pub(crate) fn execute_allocate_shared_heap(
 ) -> Result<(), Error> {
     let dest = instruction.a;
     let allocation = AllocationLayoutId(instruction.b);
-    let table = machine.side_table_ptr();
-    let allocation = unsafe { (*table).allocation_layout(allocation) };
-    let reference_map = unsafe { (*table).reference_map(allocation.reference_map) };
-    let class = unsafe { (*table).allocation_class(allocation.class) };
 
     // allocate through the compiled shared heap layout
-    let reference = machine
-        .allocate_zeroed_shared_heap_layout(&allocation.heap_layout(reference_map, class))?;
+    let reference = machine.allocate_zeroed_shared_heap_allocation(allocation)?;
 
     // store result
     machine.store_word_at(dest, Word::shared_heap_reference(reference));
@@ -123,33 +98,15 @@ pub(crate) fn execute_allocate_slice(
     let length = instruction.b;
     let element = AllocationLayoutId(instruction.c);
     let access = SliceProjectionId(instruction.d);
-    let table = machine.side_table_ptr();
-    let element = unsafe { (*table).allocation_layout(element) };
-    let element_reference_map = unsafe { (*table).reference_map(element.reference_map) };
-    let access = unsafe { *(*table).slice_projection(access) };
+    let access = machine.slice_projection(access);
 
     // load slice length
     let length = load_slice_length_at(machine, length)?;
 
     // build the backing array allocation shape
-    let backing_reference = {
-        let element_shape = element.shape(element_reference_map);
-        let (byte_len, reference_map) = match repeated_layout(
-            element_shape.byte_len,
-            element.alignment,
-            element_shape.reference_map,
-            length,
-        ) {
-            Ok(layout) => layout,
-            Err(error) => return Err(Error::from(error)),
-        };
-        let shape = AllocationShape::new(byte_len, element.alignment, &reference_map);
-
-        machine
-            .allocate_zeroed_heap_shape(shape)
-            .map(Word::heap_reference)
-    };
-    let backing_reference = backing_reference?;
+    let backing_reference = machine
+        .allocate_zeroed_heap_slice(element, length)
+        .map(Word::heap_reference)?;
 
     // write the slice descriptor
     store_slice_at(machine, dest, access, backing_reference, length)?;
@@ -167,33 +124,15 @@ pub(crate) fn execute_allocate_shared_slice(
     let length = instruction.b;
     let element = AllocationLayoutId(instruction.c);
     let access = SliceProjectionId(instruction.d);
-    let table = machine.side_table_ptr();
-    let element = unsafe { (*table).allocation_layout(element) };
-    let element_reference_map = unsafe { (*table).reference_map(element.reference_map) };
-    let access = unsafe { *(*table).slice_projection(access) };
+    let access = machine.slice_projection(access);
 
     // load slice length
     let length = load_slice_length_at(machine, length)?;
 
     // build the backing array allocation shape
-    let backing_reference = {
-        let element_shape = element.shape(element_reference_map);
-        let (byte_len, reference_map) = match repeated_layout(
-            element_shape.byte_len,
-            element.alignment,
-            element_shape.reference_map,
-            length,
-        ) {
-            Ok(layout) => layout,
-            Err(error) => return Err(Error::from(error)),
-        };
-        let shape = AllocationShape::new(byte_len, element.alignment, &reference_map);
-
-        machine
-            .allocate_zeroed_shared_heap_shape(shape)
-            .map(Word::shared_heap_reference)
-    };
-    let backing_reference = backing_reference?;
+    let backing_reference = machine
+        .allocate_zeroed_shared_heap_slice(element, length)
+        .map(Word::shared_heap_reference)?;
 
     // write the slice descriptor
     store_slice_at(machine, dest, access, backing_reference, length)?;

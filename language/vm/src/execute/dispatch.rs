@@ -1078,14 +1078,14 @@ fn dispatch_block_inner(
     block_index: u32,
     pc: usize,
 ) -> Transfer {
-    let mut function_ptr = function as *const Function;
+    let program = machine.program;
+    let mut function = function;
 
     // start at the requested block offset
-    let (mut block_start, mut pc, mut block_end) =
-        match block_bounds(unsafe { &*function_ptr }, block_index) {
-            Ok((block_start, block_end)) => (block_start, block_start + pc, block_end),
-            Err(error) => return Transfer::Error(error),
-        };
+    let (mut block_start, mut pc, mut block_end) = match block_bounds(function, block_index) {
+        Ok((block_start, block_end)) => (block_start, block_start + pc, block_end),
+        Err(error) => return Transfer::Error(error),
+    };
 
     loop {
         // guard against malformed block metadata
@@ -1111,7 +1111,6 @@ fn dispatch_block_inner(
                         block: target,
                         moves,
                     } => {
-                        let function = unsafe { &*function_ptr };
                         (block_start, pc, block_end) =
                             match enter_block(machine, function, target, moves) {
                                 Ok((block_start, block_end)) => {
@@ -1122,11 +1121,17 @@ fn dispatch_block_inner(
                         continue;
                     }
                     Transfer::Enter => {
-                        let frame = machine.active_frame_mut();
-                        function_ptr = frame.function_ptr.as_ptr();
-                        let function_ref = unsafe { frame.function_ptr.as_ref() };
-                        (block_start, pc, block_end) = match block_bounds(function_ref, frame.block)
-                        {
+                        let frame = machine.active_frame();
+                        let function_id = frame.function();
+                        let block = frame.block;
+                        let Some(next_function) = program.functions.function_by_id(function_id)
+                        else {
+                            return Transfer::Error(Error::UndefinedFunction {
+                                function: function_id,
+                            });
+                        };
+                        function = next_function;
+                        (block_start, pc, block_end) = match block_bounds(function, block) {
                             Ok((block_start, block_end)) => (block_start, block_start, block_end),
                             Err(error) => return Transfer::Error(error),
                         };
@@ -1137,7 +1142,6 @@ fn dispatch_block_inner(
             }};
         }
 
-        let function = unsafe { &*function_ptr };
         dispatch_instruction!(machine, function, pc, pc - block_start, step, transfer);
     }
 }

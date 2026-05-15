@@ -1,5 +1,3 @@
-use std::slice;
-
 use super::access;
 use crate::diagnostic::Error;
 use crate::interpreter::Machine;
@@ -154,10 +152,9 @@ pub(crate) fn execute_store_heap_bytes(
 ) -> Result<(), Error> {
     let (address, access, source, byte_len) = store_bytes(machine, instruction);
 
-    // borrow source frame bytes after decoding the access
-    let source = unsafe { slice::from_raw_parts(source, byte_len) };
-
-    access::store_heap_bytes(machine, address, access, source)?;
+    machine.with_frame_bytes_at(source, byte_len, |machine, source| {
+        access::store_heap_bytes(machine, address, access, source)
+    })?;
 
     Ok(())
 }
@@ -170,10 +167,9 @@ pub(crate) fn execute_store_shared_heap_bytes(
 ) -> Result<(), Error> {
     let (address, access, source, byte_len) = store_bytes(machine, instruction);
 
-    // borrow source frame bytes after decoding the access
-    let source = unsafe { slice::from_raw_parts(source, byte_len) };
-
-    access::store_shared_heap_bytes(machine, address, access, source)?;
+    machine.with_frame_bytes_at(source, byte_len, |machine, source| {
+        access::store_shared_heap_bytes(machine, address, access, source)
+    })?;
 
     Ok(())
 }
@@ -186,10 +182,9 @@ pub(crate) fn execute_store_raw_bytes(
 ) -> Result<(), Error> {
     let (address, access, source, byte_len) = store_bytes(machine, instruction);
 
-    // borrow source frame bytes after decoding the access
-    let source = unsafe { slice::from_raw_parts(source, byte_len) };
-
-    access::store_raw_bytes(machine, address, access, source)?;
+    machine.with_frame_bytes_at(source, byte_len, |machine, source| {
+        access::store_raw_bytes(machine, address, access, source)
+    })?;
 
     Ok(())
 }
@@ -202,10 +197,9 @@ pub(crate) fn execute_store_shared_raw_bytes(
 ) -> Result<(), Error> {
     let (address, access, source, byte_len) = store_bytes(machine, instruction);
 
-    // borrow source frame bytes after decoding the access
-    let source = unsafe { slice::from_raw_parts(source, byte_len) };
-
-    access::store_shared_raw_bytes(machine, address, access, source)?;
+    machine.with_frame_bytes_at(source, byte_len, |machine, source| {
+        access::store_shared_raw_bytes(machine, address, access, source)
+    })?;
 
     Ok(())
 }
@@ -218,10 +212,9 @@ pub(crate) fn execute_store_stack_bytes(
 ) -> Result<(), Error> {
     let (address, access, source, byte_len) = store_bytes(machine, instruction);
 
-    // borrow source frame bytes after decoding the access
-    let source = unsafe { slice::from_raw_parts(source, byte_len) };
-
-    access::store_stack_bytes(machine, address.as_stack_pointer(), access, source)?;
+    machine.with_frame_bytes_at(source, byte_len, |machine, source| {
+        access::store_stack_bytes(machine, address.as_stack_pointer(), access, source)
+    })?;
 
     Ok(())
 }
@@ -233,11 +226,9 @@ pub(crate) fn execute_store_frame_bytes(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (address, access, source, byte_len) = store_bytes(machine, instruction);
+    let destination = address.as_frame_pointer().add_bytes(access.byte_offset);
 
-    // borrow source frame bytes after decoding the access
-    let source = unsafe { slice::from_raw_parts(source, byte_len) };
-
-    access::store_frame_bytes(machine, address.as_frame_pointer(), access, source)?;
+    machine.copy_frame_bytes_at(source, destination.address(), byte_len);
 
     Ok(())
 }
@@ -250,10 +241,9 @@ pub(crate) fn execute_store_static_bytes(
 ) -> Result<(), Error> {
     let (address, access, source, byte_len) = store_bytes(machine, instruction);
 
-    // borrow source frame bytes after decoding the access
-    let source = unsafe { slice::from_raw_parts(source, byte_len) };
-
-    access::store_static_bytes(machine, address.as_static_pointer(), access, source)?;
+    machine.with_frame_bytes_at(source, byte_len, |machine, source| {
+        access::store_static_bytes(machine, address.as_static_pointer(), access, source)
+    })?;
 
     Ok(())
 }
@@ -279,14 +269,13 @@ fn load_bytes(
 fn store_bytes(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
-) -> (Word, Projection, *const u8, usize) {
+) -> (Word, Projection, u32, usize) {
     let address = instruction.a;
     let source = instruction.b;
     let access = ProjectionId(instruction.c);
     let access = machine.projection(access);
 
     let address = machine.load_word_at(address);
-    let source = machine.frame_pointer_at(source).address() as *const u8;
     let byte_len = access.byte_len;
 
     (address, access, source, byte_len)

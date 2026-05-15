@@ -13,9 +13,7 @@ const SWITCH_WIDTH_MASK: u32 = SWITCH_SIGN_BIT - 1;
 /// Return one pooled control edge.
 #[inline(always)]
 fn control_edge(machine: &Machine<'_, '_>, id: u32) -> Edge {
-    let table = machine.side_table_ptr();
-
-    unsafe { (*table).edge(EdgeId(id)) }
+    machine.edge(EdgeId(id))
 }
 
 /// Return one branch jump based on the evaluated condition.
@@ -87,8 +85,7 @@ fn load_wide_switch_value<const IS_SIGNED: bool>(
 ) -> Result<Option<i128>, Error> {
     let width = width as u16;
     let byte_len = width.div_ceil(8) as usize;
-    let address = machine.frame_pointer_at(offset).address() as *const u8;
-    let bytes = unsafe { std::slice::from_raw_parts(address, byte_len) };
+    let bytes = machine.frame_bytes_at(offset, byte_len);
 
     integer_bytes_to_case_value::<IS_SIGNED>(bytes, width)
 }
@@ -574,8 +571,7 @@ fixed_compare_branch_executor! {
 
 /// Execute runtime check (exits tail-call chain).
 pub(crate) fn execute_check(machine: &mut Machine<'_, '_>, instruction: &Instruction) -> Transfer {
-    let table = machine.side_table_ptr();
-    let constraint = unsafe { (*table).check(CheckId(instruction.a)) };
+    let constraint = machine.check(CheckId(instruction.a));
     let then_edge = control_edge(machine, instruction.b);
     let else_edge = control_edge(machine, instruction.c);
 
@@ -890,8 +886,7 @@ fn execute_switch_word<const IS_SIGNED: bool>(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let table = machine.side_table_ptr();
-    let cases = unsafe { (*table).switch_cases(SwitchCasesId(instruction.b)) };
+    let cases = machine.switch_cases(SwitchCasesId(instruction.b));
     let default_edge = control_edge(machine, instruction.c);
     let int_val = load_word_switch_value::<IS_SIGNED>(machine, instruction.a);
 
@@ -913,8 +908,7 @@ fn execute_switch_wide<const IS_SIGNED: bool>(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let table = machine.side_table_ptr();
-    let cases = unsafe { (*table).switch_cases(SwitchCasesId(instruction.b)) };
+    let cases = machine.switch_cases(SwitchCasesId(instruction.b));
     let default_edge = control_edge(machine, instruction.c);
 
     // load switch value
@@ -945,8 +939,7 @@ fn execute_switch_table_word<const IS_SIGNED: bool>(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let side_table = machine.side_table_ptr();
-    let table = unsafe { (*side_table).switch_table(SwitchTableId(instruction.b)) };
+    let table = machine.switch_table(SwitchTableId(instruction.b));
     let default_edge = control_edge(machine, instruction.c);
     let int_val = load_word_switch_value::<IS_SIGNED>(machine, instruction.a);
 

@@ -1,9 +1,7 @@
-use std::collections::HashMap;
 use std::mem;
 
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::interpreter::{Continuation, Interpreter, Outcome, Stack};
-use crate::isolate::BindingFn;
 use crate::options::IsolateOptions;
 use crate::program::{Function, MoveRange, Program, Transfer};
 use crate::{SharedHeap, Word};
@@ -111,7 +109,6 @@ impl Interpreter {
         isolate_id: engine::EngineId,
         program: &Program,
         options: &IsolateOptions,
-        bindings: &HashMap<String, BindingFn>,
         heap: &mut Heap,
         shared: &SharedHeap,
         shared_allocator: &mut SharedAllocator,
@@ -129,7 +126,6 @@ impl Interpreter {
             Transfer::Call {
                 function,
                 target,
-                destination,
                 arguments,
                 env,
                 moves,
@@ -138,13 +134,9 @@ impl Interpreter {
                 self.complete_call(
                     program,
                     options,
-                    bindings,
-                    heap,
-                    shared,
                     current_func,
                     function,
                     target,
-                    destination,
                     arguments,
                     env,
                     moves,
@@ -162,9 +154,6 @@ impl Interpreter {
                 self.complete_call_branch(
                     program,
                     options,
-                    bindings,
-                    heap,
-                    shared,
                     current_func,
                     function,
                     target,
@@ -182,9 +171,6 @@ impl Interpreter {
                 moves,
             } => self.complete_tail_call(
                 program,
-                bindings,
-                heap,
-                shared,
                 current_func,
                 function,
                 target,

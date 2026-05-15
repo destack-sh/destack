@@ -62,18 +62,26 @@ fn write_packed<T, const N: usize>(machine: &mut Machine<'_, '_>, offset: u32, v
     }
 }
 
-/// Store one 32-bit vector add result.
+/// Read one raw element.
+#[cfg(not(any(target_arch = "aarch64", target_arch = "x86_64")))]
 #[inline(always)]
-fn store_add_u32x4(dest: *mut u32, left: *const u32, right: *const u32) {
+fn read_element<T: Copy>(base: *const T, index: usize) -> T {
+    unsafe { base.add(index).read() }
+}
+
+/// Write one raw element.
+#[cfg(not(any(target_arch = "aarch64", target_arch = "x86_64")))]
+#[inline(always)]
+fn write_element<T>(base: *mut T, index: usize, value: T) {
     unsafe {
-        store_add_u32x4_unchecked(dest, left, right);
+        base.add(index).write(value);
     }
 }
 
 /// Store one 32-bit vector add result on AArch64.
 #[cfg(target_arch = "aarch64")]
 #[inline(always)]
-unsafe fn store_add_u32x4_unchecked(dest: *mut u32, left: *const u32, right: *const u32) {
+fn store_add_u32x4(dest: *mut u32, left: *const u32, right: *const u32) {
     // load both packed operands directly from the frame
     let left = unsafe { vld1q_u32(left) };
     let right = unsafe { vld1q_u32(right) };
@@ -88,7 +96,7 @@ unsafe fn store_add_u32x4_unchecked(dest: *mut u32, left: *const u32, right: *co
 /// Store one 32-bit vector add result on x86-64.
 #[cfg(target_arch = "x86_64")]
 #[inline(always)]
-unsafe fn store_add_u32x4_unchecked(dest: *mut u32, left: *const u32, right: *const u32) {
+fn store_add_u32x4(dest: *mut u32, left: *const u32, right: *const u32) {
     // load both packed operands directly from the frame
     let left = unsafe { _mm_loadu_si128(left.cast::<__m128i>()) };
     let right = unsafe { _mm_loadu_si128(right.cast::<__m128i>()) };
@@ -103,14 +111,13 @@ unsafe fn store_add_u32x4_unchecked(dest: *mut u32, left: *const u32, right: *co
 /// Store one 32-bit vector add result on scalar targets.
 #[cfg(not(any(target_arch = "aarch64", target_arch = "x86_64")))]
 #[inline(always)]
-unsafe fn store_add_u32x4_unchecked(dest: *mut u32, left: *const u32, right: *const u32) {
+fn store_add_u32x4(dest: *mut u32, left: *const u32, right: *const u32) {
     // preserve the same element semantics without target SIMD
     for index in 0..4 {
-        let left = unsafe { left.add(index).read() };
-        let right = unsafe { right.add(index).read() };
-        unsafe {
-            dest.add(index).write(left.wrapping_add(right));
-        }
+        let left = read_element(left, index);
+        let right = read_element(right, index);
+        let value = left.wrapping_add(right);
+        write_element(dest, index, value);
     }
 }
 
@@ -746,8 +753,7 @@ pub(crate) fn execute_vector_shuffle(
         left_count,
         right_count,
     } = machine.side::<VectorShuffle>(instruction);
-    let table = machine.side_table_ptr();
-    let mask = unsafe { (*table).u32_range(*mask) };
+    let mask = machine.u32_range(*mask);
 
     // resolve source ranges
     let left_count = *left_count as usize;

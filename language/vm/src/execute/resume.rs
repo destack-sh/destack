@@ -1,7 +1,7 @@
 use crate::Word;
 use destack_engine as engine;
 
-use super::frame::{FrameValue, frame_value_type, store_frame_value};
+use super::frame::{FrameValue, store_frame_value};
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::interpreter::{Frame, Interpreter};
 use crate::program::{FrameBinding, Program};
@@ -96,7 +96,7 @@ impl Interpreter {
             return Err(RuntimeError::new(Error::InvalidInstruction));
         }
 
-        let function = unsafe { frame.function_ptr.as_ref() };
+        let function = frame.function_ref();
         let target_index = function
             .blocks
             .iter()
@@ -136,43 +136,6 @@ impl Interpreter {
         frame.pc = pc;
 
         Ok(())
-    }
-
-    /// Enter one frame state in the current caller frame, storing a word when requested.
-    pub(crate) fn enter_caller_state_word(
-        &mut self,
-        program: &Program,
-        frame_state_id: engine::FrameStateId,
-        value: Word,
-    ) -> RuntimeResult<()> {
-        // target the current caller frame
-        let frame_index = self
-            .frames
-            .len()
-            .checked_sub(1)
-            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-
-        let frame_entry = program.frame_entry(frame_state_id);
-        let Some(received_value_slot) =
-            frame_entry.and_then(|frame_entry| frame_entry.received_value)
-        else {
-            return self.enter_frame_state(program, frame_index, frame_state_id, None);
-        };
-        let frame = self
-            .frames
-            .get(frame_index)
-            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-        let layout = program
-            .frame_layout_by_id(frame.frame_layout())
-            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-        let received_value = layout
-            .value_for_slot(received_value_slot)
-            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-        let ty = frame_value_type(program, frame, mir::Value::new(received_value))
-            .map_err(RuntimeError::new)?;
-        let value = FrameValue::word(ty, value);
-
-        self.enter_frame_state(program, frame_index, frame_state_id, Some(value))
     }
 
     /// Enter one frame state in the current caller frame from one frame value.

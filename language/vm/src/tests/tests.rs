@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use destack_engine::{StaticSpace, Value};
 use destack_heap::{
-    Allocator, GcStats, Heap, HeapLimits, HeapOptions, SharedAllocator, SharedGcWorker,
-    SharedHeapLimits,
+    Allocator, GcStats, Heap, HeapLimits, HeapOptions, HeapReference, SharedAllocator,
+    SharedGcWorker, SharedHeapLimits,
 };
 
 use crate::SharedHeap;
@@ -12,6 +12,7 @@ use destack_mir::parse::{ParseOptions, Parser};
 use destack_source::FileId;
 
 use crate::diagnostic::{Error, RuntimeResult};
+use crate::program::{Layout, encode_word_bytes};
 use crate::{Continuation, Isolate, IsolateId, IsolateOptions, Outcome, RootSet, Word};
 
 /// The virtual heap-space width used by ordinary VM tests.
@@ -137,20 +138,34 @@ impl TestIsolate {
         ty: destack_mir::LocalNodeId<destack_mir::Type>,
         values: Vec<Word>,
     ) -> Word {
-        self.with_heaps(|vm, heap, shared| {
-            vm.with_binding_context(heap, shared, Default::default(), |context| {
-                context.materialize_heap_value(ty, values)
-            })
-            .unwrap_or_else(|error| panic!("failed to materialize heap value: {error}"))
-        })
-    }
+        let layout = self
+            .isolate
+            .layout(ty)
+            .unwrap_or_else(|| panic!("missing layout for type {ty:?}"));
 
-    /// Run one callback with the isolate heaps.
-    pub(crate) fn with_heaps<R>(
-        &mut self,
-        run: impl FnOnce(&mut Isolate, &mut Heap, &SharedHeap) -> R,
-    ) -> R {
-        run(&mut self.isolate, &mut self.heap, &mut self.shared_heap)
+        // scalars travel directly as VM words
+        if layout.is_word() {
+            assert_eq!(values.len(), 1, "scalar materialization expects one value");
+
+            return values[0];
+        }
+
+        let bytes = materialize_value_bytes(&self.isolate, &self.heap, ty, layout, &values);
+        let layout_id = self
+            .isolate
+            .layout_id_for_type(ty)
+            .unwrap_or_else(|| panic!("missing layout id for type {ty:?}"));
+        let shape = self
+            .isolate
+            .allocation_shape(layout_id)
+            .unwrap_or_else(|error| panic!("failed to resolve allocation shape: {error}"));
+        let layout = self.heap.allocation_layout(shape);
+        let reference = self
+            .heap
+            .allocate_bytes(&layout, &bytes)
+            .unwrap_or_else(|error| panic!("failed to allocate materialized value: {error}"));
+
+        Word::heap_reference(reference)
     }
 
     /// Run one MIR function by name with the given arguments.
@@ -267,6 +282,96 @@ impl TestIsolate {
 
         stats
     }
+}
+
+/// Materialize one VM aggregate into heap payload bytes.
+fn materialize_value_bytes(
+    isolate: &Isolate,
+    heap: &Heap,
+    ty: destack_mir::LocalNodeId<destack_mir::Type>,
+    layout: &Layout,
+    values: &[Word],
+) -> Vec<u8> {
+    let mut bytes = vec![0u8; layout.byte_len];
+
+    // fields
+    if let Some(field_count) = layout.field_count() {
+        assert_eq!(
+            values.len(),
+            field_count,
+            "field materialization expects one value per field"
+        );
+        for (index, value) in values.iter().copied().enumerate() {
+            let field = layout
+                .field(index as u32)
+                .unwrap_or_else(|| panic!("missing field {index} for type {ty:?}"));
+            write_materialized_value(isolate, heap, field.ty, value, &mut bytes[field.offset..]);
+        }
+
+        return bytes;
+    }
+
+    // elements
+    let element = layout
+        .element()
+        .unwrap_or_else(|| panic!("type {ty:?} is not materializable as an aggregate"));
+    let element_count = layout
+        .element_count()
+        .unwrap_or_else(|| panic!("type {ty:?} has no element count"));
+    assert_eq!(
+        values.len(),
+        element_count,
+        "element materialization expects one value per element"
+    );
+    for (index, value) in values.iter().copied().enumerate() {
+        let start = element.stride * index;
+        write_materialized_value(isolate, heap, element.ty, value, &mut bytes[start..]);
+    }
+
+    bytes
+}
+
+/// Write one materialized field or element value.
+fn write_materialized_value(
+    isolate: &Isolate,
+    heap: &Heap,
+    ty: destack_mir::LocalNodeId<destack_mir::Type>,
+    value: Word,
+    destination: &mut [u8],
+) {
+    let layout = isolate
+        .layout(ty)
+        .unwrap_or_else(|| panic!("missing layout for nested type {ty:?}"));
+
+    // scalar values encode inline
+    if layout.is_word() {
+        let encoded = encode_word_bytes(isolate.tree(), ty, value)
+            .unwrap_or_else(|error| panic!("failed to encode materialized word: {error}"));
+        destination[..encoded.len()].copy_from_slice(encoded.as_slice());
+
+        return;
+    }
+
+    // aggregate values are already heap payloads
+    let source = value.as_heap_reference();
+    let payload = read_heap_payload(heap, source, layout.byte_len);
+    destination[..layout.byte_len].copy_from_slice(&payload);
+}
+
+/// Read one heap payload for test materialization.
+fn read_heap_payload(heap: &Heap, reference: HeapReference, byte_len: usize) -> Vec<u8> {
+    assert!(
+        heap.is_heap_live(reference),
+        "materialized aggregate source is not live"
+    );
+    let mut bytes = vec![0u8; byte_len];
+    let address = heap.heap_base_address() + reference.offset();
+
+    unsafe {
+        std::ptr::copy_nonoverlapping(address as *const u8, bytes.as_mut_ptr(), byte_len);
+    }
+
+    bytes
 }
 
 /// Parse MIR text and create one test isolate.

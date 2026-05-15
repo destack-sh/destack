@@ -54,9 +54,11 @@ fn encode_callable_address_environment(
     byte_len: usize,
     environment_offset: u32,
 ) -> Result<u64, Error> {
-    let environment_pointer = machine.frame_pointer_at(environment_offset).address() as *const u8;
-    let environment_bytes = unsafe { std::slice::from_raw_parts(environment_pointer, byte_len) };
-    let environment_reference = machine.allocate_heap_layout_bytes(layout, environment_bytes)?;
+    let environment_reference = machine.with_frame_bytes_at(
+        environment_offset,
+        byte_len,
+        |machine, environment_bytes| machine.allocate_heap_layout_bytes(layout, environment_bytes),
+    )?;
 
     Ok(environment_reference.bits() as u64)
 }

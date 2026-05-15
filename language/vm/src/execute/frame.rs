@@ -172,18 +172,6 @@ impl FrameValue {
             body: FrameValueBody::Bytes(bytes),
         }
     }
-
-    /// Return this value as one word.
-    #[inline]
-    pub(crate) fn into_word(self) -> Result<Word, Error> {
-        match self.body {
-            FrameValueBody::Word(value) => Ok(value),
-            FrameValueBody::Bytes(_) => Err(Error::TypeMismatch {
-                expected: "word frame value".to_string(),
-                actual: format!("byte frame value: type={:?}", self.ty),
-            }),
-        }
-    }
 }
 
 /// Encode one function entry argument into frame bytes.
@@ -205,7 +193,7 @@ pub(crate) fn encode_argument_bytes(
     Ok(bytes)
 }
 
-/// Store one field-shaped value into destination frame bytes.
+/// Store one field value into destination frame bytes.
 pub(crate) fn store_frame_fields<F>(
     machine: &mut Machine<'_, '_>,
     destination: mir::Value,
@@ -217,7 +205,7 @@ where
     let ty = machine.value_type(destination)?;
     let layout = machine.layout(ty)?.clone();
     let field_count = layout.field_count().ok_or(Error::TypeMismatch {
-        expected: "field-shaped frame value".to_string(),
+        expected: "field frame value".to_string(),
         actual: format!("{ty:?}"),
     })?;
 
@@ -274,14 +262,7 @@ fn store_argument_bytes(
     if machine.heap().is_heap_live(reference) {
         let address = machine.heap().heap_base_address() + reference.offset();
 
-        // copy from the managed payload address
-        unsafe {
-            ptr::copy_nonoverlapping(
-                address as *const u8,
-                destination.as_mut_ptr(),
-                destination.len(),
-            );
-        }
+        copy_address_to_slice(address, destination);
 
         return Ok(());
     }
@@ -294,14 +275,7 @@ fn store_argument_bytes(
     if machine.shared().is_heap_live(reference) {
         let address = machine.shared().heap_base_address() + reference.offset();
 
-        // copy from the shared payload address
-        unsafe {
-            ptr::copy_nonoverlapping(
-                address as *const u8,
-                destination.as_mut_ptr(),
-                destination.len(),
-            );
-        }
+        copy_address_to_slice(address, destination);
 
         return Ok(());
     }
@@ -350,20 +324,6 @@ fn frame_value_word(program: &Program, frame: &Frame, value: mir::Value) -> Resu
     Ok(Word::frame_pointer(FramePointer::from_address(
         frame.slot_address(slot),
     )))
-}
-
-/// Return one function return type.
-pub(crate) fn function_return_type(
-    program: &Program,
-    function: mir::LocalNodeId<mir::Function>,
-) -> Result<mir::LocalNodeId<mir::Type>, Error> {
-    let function = program.tree.get(function);
-
-    (function.return_type)
-        .ty()
-        .ok_or_else(|| Error::MissingRepresentation {
-            context: "function return type".to_string(),
-        })
 }
 
 /// Load one word or frame byte range into an owned frame value.
@@ -648,18 +608,12 @@ fn dematerialize_bytes(
         (PointerClass::Heap, engine::Value::HeapReference(reference)) => {
             let address = heap.heap_base_address() + reference.offset();
 
-            // copy from the managed payload address
-            unsafe {
-                ptr::copy_nonoverlapping(address as *const u8, bytes.as_mut_ptr(), bytes.len());
-            }
+            copy_address_to_slice(address, &mut bytes);
         }
         (PointerClass::SharedHeap, engine::Value::SharedHeapReference(reference)) => {
             let address = shared.heap_base_address() + reference.offset();
 
-            // copy from the shared payload address
-            unsafe {
-                ptr::copy_nonoverlapping(address as *const u8, bytes.as_mut_ptr(), bytes.len());
-            }
+            copy_address_to_slice(address, &mut bytes);
         }
         (pointer_class, value) => {
             return Err(Error::TypeMismatch {
@@ -710,6 +664,18 @@ fn dematerialize_scalar_bytes(
     Ok(Some(
         raw.to_le_bytes()[..byte_len].to_vec().into_boxed_slice(),
     ))
+}
+
+/// Copy bytes from one native address into one mutable slice.
+#[inline(always)]
+fn copy_address_to_slice(address: usize, destination: &mut [u8]) {
+    unsafe {
+        ptr::copy_nonoverlapping(
+            address as *const u8,
+            destination.as_mut_ptr(),
+            destination.len(),
+        );
+    }
 }
 
 /// Materialize one word into one engine boundary value.

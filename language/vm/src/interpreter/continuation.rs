@@ -289,7 +289,14 @@ impl ContinuationFrame {
                     function: function_id,
                 })
             })?;
-        let function = unsafe { function_ptr.as_ref() };
+        let function = program
+            .functions
+            .function_by_id(function_id)
+            .ok_or_else(|| {
+                RuntimeError::new(Error::UndefinedFunction {
+                    function: function_id,
+                })
+            })?;
         let layout = program
             .frame_layout_by_id(function.frame_layout)
             .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?;
