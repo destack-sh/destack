@@ -9,14 +9,15 @@ import {
     Multiply,
     Not,
     Or,
+    Ordering,
     Power,
     Remainder,
     ShiftLeft,
     ShiftRight,
     Subtract,
     Xor,
-    Ordering,
 } from "destack:ops";
+import { NumberFormatOptions } from "./number.ds";
 
 /// Arbitrary-precision integer.
 @languageItem("math.BigInt")
@@ -35,51 +36,51 @@ export class BigInt {
 }
 
 extension of BigInt implements
-    Add<BigInt>,
-    And<BigInt>,
-    Compare<BigInt>,
-    Subtract<BigInt>,
-    Equal<BigInt>,
-    Multiply<BigInt>,
-    Divide<BigInt>,
+    Add<bigint>,
+    And<bigint>,
+    Compare<bigint>,
+    Divide<bigint>,
+    Equal<bigint>,
+    Multiply<bigint>,
     Not,
-    Or<BigInt>,
-    Power<BigInt>,
-    Remainder<BigInt>,
-    ShiftLeft<int32>,
-    ShiftRight<int32>,
-    Xor<BigInt>
+    Or<bigint>,
+    Power<bigint>,
+    Remainder<bigint>,
+    ShiftLeft<usize>,
+    ShiftRight<usize>,
+    Subtract<bigint>,
+    Xor<bigint>
 {
     /// The arithmetic result type.
-    type Output = BigInt;
+    type Output = bigint;
 
     /// Return zero.
-    static zero(): BigInt {
+    static zero(): bigint {
         todo("BigInt.zero")
     }
 
     /// Return one.
-    static one(): BigInt {
+    static one(): bigint {
         todo("BigInt.one")
     }
 
     /// Convert `value` to a bigint.
-    static from(value: string | number | bigint | BigInt): BigInt {
+    static from(value: string | number | bigint): bigint {
         todo("BigInt.from")
     }
 
     /// Parse a bigint from `text`.
-    static parse(text: string, radix?: int32): BigInt {
+    static parse(text: string, radix?: number): bigint {
         todo("BigInt.parse")
     }
 
     /// Return the signed low bits of `value`.
-    static asIntN(bits: int32, value: BigInt): BigInt {
+    static asIntN(bits: number, value: bigint): bigint {
         todo("BigInt.asIntN")
     }
 
     /// Return the unsigned low bits of `value`.
-    static asUintN(bits: int32, value: BigInt): BigInt {
+    static asUintN(bits: number, value: bigint): bigint {
         todo("BigInt.asUintN")
     }
 
@@ -94,107 +95,112 @@ extension of BigInt implements
     }
 
     /// Return the absolute value.
-    abs(): BigInt {
+    abs(this: &readonly bigint): bigint {
         todo("BigInt.abs")
     }
 
     /// Return the greatest common divisor with `other`.
-    gcd(other: BigInt): BigInt {
+    gcd(this: &readonly bigint, other: bigint): bigint {
         todo("BigInt.gcd")
     }
 
     /// Return the least common multiple with `other`.
-    lcm(other: BigInt): BigInt {
+    lcm(this: &readonly bigint, other: bigint): bigint {
         todo("BigInt.lcm")
     }
 
     /// Return -1, 0, or 1 according to this integer's sign.
-    signum(): int32 {
+    signum(this: &readonly bigint): int32 {
         todo("BigInt.signum")
     }
 
     /// Return a float64 approximation.
-    toNumber(): number {
+    toNumber(this: &readonly bigint): number {
         todo("BigInt.toNumber")
     }
 
     /// Return the primitive bigint value.
-    valueOf(): bigint {
+    valueOf(this: &readonly bigint): bigint {
         todo("BigInt.valueOf")
     }
 
-    /// Return a decimal string.
-    toString(radix?: int32): string {
+    /// Return this integer as a string.
+    toString(this: &readonly bigint, radix?: number): string {
         todo("BigInt.toString")
     }
 
+    /// Return this integer as a locale-aware string.
+    toLocaleString(this: &readonly bigint, locales?: string | string[], options?: NumberFormatOptions): string {
+        todo("BigInt.toLocaleString")
+    }
+
     /// Return whether this integer equals `other`.
-    equal(other: BigInt): boolean {
+    equal(this: &readonly bigint, other: bigint): boolean {
         todo("BigInt.equal")
     }
 
     /// Compare with `other`.
-    compare(other: BigInt): Ordering {
+    compare(this: &readonly bigint, other: bigint): Ordering {
         todo("BigInt.compare")
     }
 
     /// Add `other`.
-    add(other: BigInt): this.Output {
+    add(this: &readonly bigint, other: bigint): this.Output {
         todo("BigInt.add")
     }
 
     /// Subtract `other`.
-    subtract(other: BigInt): this.Output {
+    subtract(this: &readonly bigint, other: bigint): this.Output {
         todo("BigInt.subtract")
     }
 
     /// Multiply by `other`.
-    multiply(other: BigInt): this.Output {
+    multiply(this: &readonly bigint, other: bigint): this.Output {
         todo("BigInt.multiply")
     }
 
     /// Divide by `other`.
-    divide(other: BigInt): this.Output {
+    divide(this: &readonly bigint, other: bigint): this.Output {
         todo("BigInt.divide")
     }
 
     /// Return the remainder after division by `other`.
-    remainder(other: BigInt): this.Output {
+    remainder(this: &readonly bigint, other: bigint): this.Output {
         todo("BigInt.remainder")
     }
 
     /// Raise this integer to `exponent`.
-    power(exponent: BigInt): this.Output {
+    power(this: &readonly bigint, exponent: bigint): this.Output {
         todo("BigInt.power")
     }
 
     /// Return the bitwise and with `other`.
-    and(other: BigInt): this.Output {
+    and(this: &readonly bigint, other: bigint): this.Output {
         todo("BigInt.and")
     }
 
     /// Return the bitwise or with `other`.
-    or(other: BigInt): this.Output {
+    or(this: &readonly bigint, other: bigint): this.Output {
         todo("BigInt.or")
     }
 
     /// Return the bitwise xor with `other`.
-    xor(other: BigInt): this.Output {
+    xor(this: &readonly bigint, other: bigint): this.Output {
         todo("BigInt.xor")
     }
 
     /// Return the bitwise complement.
-    not(): this.Output {
+    not(this: &readonly bigint): this.Output {
         todo("BigInt.not")
     }
 
     /// Shift left by `amount`.
-    shiftLeft(amount: int32): this.Output {
+    shiftLeft(this: &readonly bigint, amount: usize): this.Output {
         todo("BigInt.shiftLeft")
     }
 
     /// Shift right by `amount`.
-    shiftRight(amount: int32): this.Output {
+    shiftRight(this: &readonly bigint, amount: usize): this.Output {
         todo("BigInt.shiftRight")
     }
 }

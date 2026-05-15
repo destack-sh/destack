@@ -1,45 +1,164 @@
+import { todo } from "destack:error";
+
+/// Number locale formatting options.
+export type NumberFormatOptions = {
+    /// Locale matching algorithm.
+    localeMatcher?: "lookup" | "best fit";
+
+    /// Formatting style.
+    style?: "decimal" | "percent" | "currency" | "unit";
+
+    /// Numbering system.
+    numberingSystem?: string;
+
+    /// Currency code.
+    currency?: string;
+
+    /// Currency display style.
+    currencyDisplay?: "code" | "symbol" | "narrowSymbol" | "name";
+
+    /// Currency sign style.
+    currencySign?: "standard" | "accounting";
+
+    /// Unit identifier.
+    unit?: string;
+
+    /// Unit display style.
+    unitDisplay?: "short" | "long" | "narrow";
+
+    /// Whether to use grouping separators.
+    useGrouping?: boolean | "true" | "false" | "min2" | "auto" | "always";
+
+    /// Minimum integer digit count.
+    minimumIntegerDigits?: number;
+
+    /// Minimum fraction digit count.
+    minimumFractionDigits?: number;
+
+    /// Maximum fraction digit count.
+    maximumFractionDigits?: number;
+
+    /// Minimum significant digit count.
+    minimumSignificantDigits?: number;
+
+    /// Maximum significant digit count.
+    maximumSignificantDigits?: number;
+
+    /// Number notation.
+    notation?: "standard" | "scientific" | "engineering" | "compact";
+
+    /// Compact notation display style.
+    compactDisplay?: "short" | "long";
+
+    /// Sign display style.
+    signDisplay?: "auto" | "never" | "always" | "exceptZero" | "negative";
+
+    /// Rounding priority.
+    roundingPriority?: "auto" | "morePrecision" | "lessPrecision";
+
+    /// Rounding increment.
+    roundingIncrement?: 1 | 2 | 5 | 10 | 20 | 25 | 50 | 100 | 200 | 250 | 500 | 1000 | 2000 | 2500 | 5000;
+
+    /// Rounding mode.
+    roundingMode?:
+        | "ceil"
+        | "floor"
+        | "expand"
+        | "trunc"
+        | "halfCeil"
+        | "halfFloor"
+        | "halfExpand"
+        | "halfTrunc"
+        | "halfEven";
+
+    /// Trailing zero display style.
+    trailingZeroDisplay?: "auto" | "stripIfInteger";
+};
+
 /// Number constants and parsing functions.
 @languageItem("math.Number")
 export class Number {
     /// Difference between 1 and the next representable float64 value.
-    static readonly EPSILON: float64;
+    static readonly EPSILON: number = 2.220446049250313e-16;
 
     /// The largest finite float64 value.
-    static readonly MAX_VALUE: float64;
+    static readonly MAX_VALUE: number = 1.7976931348623157e308;
 
     /// The smallest positive float64 value.
-    static readonly MIN_VALUE: float64;
+    static readonly MIN_VALUE: number = 5e-324;
 
     /// The largest exactly representable integer in a float64.
-    static readonly MAX_SAFE_INTEGER: int64;
+    static readonly MAX_SAFE_INTEGER: number = 9007199254740991;
 
     /// The smallest exactly representable integer in a float64.
-    static readonly MIN_SAFE_INTEGER: int64;
+    static readonly MIN_SAFE_INTEGER: number = -9007199254740991;
 
     /// Positive infinity.
-    static readonly POSITIVE_INFINITY: float64;
+    static readonly POSITIVE_INFINITY: number = Infinity;
 
     /// Negative infinity.
-    static readonly NEGATIVE_INFINITY: float64;
+    static readonly NEGATIVE_INFINITY: number = -Infinity;
 
     /// Not-a-number.
-    static readonly NaN: float64;
+    static readonly NaN: number = NaN;
+
+    /// Return this number as a string.
+    toString(this: &readonly number, radix?: number): string {
+        todo("Number.toString")
+    }
+
+    /// Return this number in fixed-point notation.
+    toFixed(this: &readonly number, fractionDigits?: number): string {
+        todo("Number.toFixed")
+    }
+
+    /// Return this number in exponential notation.
+    toExponential(this: &readonly number, fractionDigits?: number): string {
+        todo("Number.toExponential")
+    }
+
+    /// Return this number with the requested precision.
+    toPrecision(this: &readonly number, precision?: number): string {
+        todo("Number.toPrecision")
+    }
+
+    /// Return this number as a locale-aware string.
+    toLocaleString(this: &readonly number, locales?: string | string[], options?: NumberFormatOptions): string {
+        todo("Number.toLocaleString")
+    }
+
+    /// Return the primitive number value.
+    valueOf(this: &readonly number): number {
+        todo("Number.valueOf")
+    }
 
     /// Return whether `value` is finite.
-    static isFinite(value: number): boolean;
+    static isFinite(value: unknown): boolean {
+        todo("Number.isFinite")
+    }
 
     /// Return whether `value` is an integer.
-    static isInteger(value: number): boolean;
+    static isInteger(value: unknown): boolean {
+        todo("Number.isInteger")
+    }
 
     /// Return whether `value` is NaN.
-    static isNaN(value: number): boolean;
+    static isNaN(value: unknown): boolean {
+        todo("Number.isNaN")
+    }
 
     /// Return whether `value` is exactly representable as an integer.
-    static isSafeInteger(value: number): boolean;
+    static isSafeInteger(value: unknown): boolean {
+        todo("Number.isSafeInteger")
+    }
 
     /// Parse a float64 from `text`.
-    static parseFloat(text: string): float64;
+    static parseFloat(text: string): number {
+        todo("Number.parseFloat")
+    }
 
     /// Parse an integer from `text`.
-    static parseInt(text: string, radix?: int32): int64;
+    static parseInt(text: string, radix?: number): number {
+        todo("Number.parseInt")
+    }
 }
