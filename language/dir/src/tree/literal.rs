@@ -85,8 +85,6 @@ pub enum TypeLiteral {
     Never,
     /// Any type `any`.
     Any,
-    /// Infer type `_`.
-    Infer,
     /// Uninitialized type and value.
     Undefined,
     /// Unknown type.

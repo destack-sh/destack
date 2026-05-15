@@ -945,7 +945,7 @@ TypeScript has pattern based destructuring for arguments and assignment-like exp
 | Ownership | `^value`, `&value` | bind an owned or borrowed view |
 | Guard | `pattern if (condition)` | require an extra boolean condition |
 
-`match` is the full form and checks exhaustiveness:
+For exhaustive pattern matching, Destack supports the `match` expression:
 
 ```ds
 match (result /* Result<T, E> */) {
