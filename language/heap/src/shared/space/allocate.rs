@@ -1,4 +1,3 @@
-use std::ptr::write_bytes;
 use std::sync::Arc;
 
 use destack_mir::ReferenceMap;
@@ -90,9 +89,7 @@ impl SharedHeapSpace {
             && let Payload::Bytes(bytes) = payload
             && let Some(reference) = run.reserve_reference(small.class.size_class)
         {
-            unsafe {
-                self.mapping.write_mapped_bytes(reference.offset(), bytes);
-            }
+            self.write_mapped_bytes(reference.offset(), bytes);
 
             bucket.publish_run(run);
             if !bucket.has_available_slot(run) {
@@ -294,19 +291,7 @@ impl SharedHeapSpace {
         };
         let first_offset = allocation.read().first_offset;
 
-        // initialize bytes before returning the allocation reference
-        match payload {
-            Payload::Bytes(bytes) => unsafe {
-                self.mapping.write_mapped_bytes(first_offset, bytes);
-            },
-            Payload::Zeroed => unsafe {
-                write_bytes(
-                    (self.mapping.base_address() + first_offset) as *mut u8,
-                    0,
-                    layout.byte_len,
-                );
-            },
-        }
+        self.initialize_mapped_payload(first_offset, layout.byte_len, payload);
 
         Ok(SharedHeapPlace::Large(allocation_id))
     }
@@ -580,13 +565,7 @@ impl SharedHeapSpace {
             && !slot.is_dense
             && span.take_needs_zero(slot_index)
         {
-            unsafe {
-                write_bytes(
-                    (self.mapping.base_address() + reference.offset()) as *mut u8,
-                    0,
-                    bucket.class.size_class,
-                );
-            }
+            self.clear_mapped_bytes(reference.offset(), bucket.class.size_class);
         }
 
         // publish initialized slots before returning the reference
@@ -635,19 +614,11 @@ impl SharedHeapSpace {
             && bytes.len() < bucket.class.size_class
             && span.take_needs_zero(slot_index)
         {
-            unsafe {
-                write_bytes(
-                    (self.mapping.base_address() + reference.offset()) as *mut u8,
-                    0,
-                    bucket.class.size_class,
-                );
-            }
+            self.clear_mapped_bytes(reference.offset(), bucket.class.size_class);
         }
 
         // copy the payload before publishing the initialized slot
-        unsafe {
-            self.mapping.write_mapped_bytes(reference.offset(), bytes);
-        }
+        self.write_mapped_bytes(reference.offset(), bytes);
         if let Some(span) = &span {
             span.clear_needs_zero(slot_index);
         }
@@ -695,30 +666,17 @@ impl SharedHeapSpace {
         let reference = bucket.reference_for_slot(slot_index);
         let mapping_offset = reference.offset();
 
-        // initialize the slot before publishing it to scanners
         match payload {
-            Payload::Bytes(bytes) if bytes.len() < bucket.class.size_class => unsafe {
-                write_bytes(
-                    (self.mapping.base_address() + mapping_offset) as *mut u8,
-                    0,
-                    bucket.class.size_class,
-                );
-                self.mapping.write_mapped_bytes(mapping_offset, bytes);
-            },
-            Payload::Bytes(bytes) => unsafe {
-                self.mapping.write_mapped_bytes(mapping_offset, bytes);
-            },
+            Payload::Bytes(bytes) if bytes.len() < bucket.class.size_class => {
+                self.clear_mapped_bytes(mapping_offset, bucket.class.size_class);
+                self.write_mapped_bytes(mapping_offset, bytes);
+            }
+            Payload::Bytes(bytes) => self.write_mapped_bytes(mapping_offset, bytes),
             Payload::Zeroed => {
                 if let Some(span) = &span
                     && span.take_needs_zero(slot_index)
                 {
-                    unsafe {
-                        write_bytes(
-                            (self.mapping.base_address() + mapping_offset) as *mut u8,
-                            0,
-                            bucket.class.size_class,
-                        );
-                    }
+                    self.clear_mapped_bytes(mapping_offset, bucket.class.size_class);
                 }
             }
         }
@@ -888,6 +846,44 @@ impl SharedHeapSpace {
         store.next_offset = next_offset;
 
         Ok(first_offset)
+    }
+
+    /// Initialize one mapped payload range.
+    #[inline(always)]
+    fn initialize_mapped_payload(
+        &self,
+        offset: usize,
+        clear_byte_len: usize,
+        payload: Payload<'_>,
+    ) {
+        match payload {
+            Payload::Bytes(bytes) if bytes.len() < clear_byte_len => {
+                self.clear_mapped_bytes(offset, clear_byte_len);
+                self.write_mapped_bytes(offset, bytes);
+            }
+            Payload::Bytes(bytes) => self.write_mapped_bytes(offset, bytes),
+            Payload::Zeroed => self.clear_mapped_bytes(offset, clear_byte_len),
+        }
+    }
+
+    /// Write bytes into one mapped payload range.
+    #[inline(always)]
+    fn write_mapped_bytes(&self, offset: usize, bytes: &[u8]) {
+        // allocation paths materialize the destination before publishing it
+        unsafe {
+            self.mapping.write_mapped_bytes(offset, bytes);
+        }
+    }
+
+    /// Clear one mapped payload range.
+    #[inline(always)]
+    fn clear_mapped_bytes(&self, offset: usize, byte_len: usize) {
+        let address = self.mapping.base_address() + offset;
+
+        // allocation paths materialize the destination before publishing it
+        unsafe {
+            std::ptr::write_bytes(address as *mut u8, 0, byte_len);
+        }
     }
 }
 

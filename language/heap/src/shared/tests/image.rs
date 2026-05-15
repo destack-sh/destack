@@ -6,6 +6,8 @@ use crate::{
 };
 use destack_mir::ReferenceMap;
 
+use super::{read_mapped_bytes, write_mapped_bytes};
+
 /// The allocator chunk size for small-page shared image fixtures.
 const TEST_ALLOCATOR_CHUNK_BYTES: usize = 1024 * 1024;
 
@@ -176,8 +178,7 @@ fn test_roundtrip_shared_heap_space_image() {
 
     // restored bytes should match the captured shared heap
     let first_address = restored.base_address() + first.offset();
-    let bytes =
-        unsafe { std::slice::from_raw_parts(first_address as *const u8, first_bytes.len()) };
+    let bytes = read_mapped_bytes(first_address, first_bytes.len());
 
     assert_eq!(bytes, first_bytes);
     assert_eq!(
@@ -194,17 +195,13 @@ fn test_roundtrip_shared_heap_space_image() {
         .write_barrier_bytes(first, 0, &[0xFE])
         .expect("shared heap write barrier should record");
 
-    // write through the restored heap mapping
-    unsafe {
-        std::ptr::write(first_address as *mut u8, 0xFE);
-    }
+    write_mapped_bytes(first_address, &[0xFE]);
 
     let mutated_image = restored.image().expect("shared heap image should capture");
     let mut expected_first = first_bytes.clone();
     expected_first[0] = 0xFE;
 
-    let bytes =
-        unsafe { std::slice::from_raw_parts(first_address as *const u8, expected_first.len()) };
+    let bytes = read_mapped_bytes(first_address, expected_first.len());
 
     assert_eq!(bytes, expected_first);
     assert_eq!(

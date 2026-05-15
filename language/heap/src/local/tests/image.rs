@@ -9,7 +9,7 @@ use crate::{
 };
 use destack_mir::ReferenceMap;
 
-use super::TestHeap;
+use super::{TestHeap, read_mapped_bytes, write_mapped_byte, write_mapped_bytes};
 
 /// The allocator chunk size for small-page image fixtures.
 const TEST_ALLOCATOR_CHUNK_BYTES: usize = 1024 * 1024;
@@ -90,10 +90,7 @@ fn write_payload(
         .expect("heap barrier should record");
     let address = heap.heap_base_address() + reference.offset() + start;
 
-    // copy into the managed payload address
-    unsafe {
-        std::ptr::copy_nonoverlapping(bytes.as_ptr(), address as *mut u8, bytes.len());
-    }
+    write_mapped_bytes(address, bytes);
 }
 
 /// Return the bytes for one young-space range.
@@ -234,9 +231,7 @@ fn test_roundtrip_heap_space_image() {
     );
     let first_address = restored.base_address() + first.offset();
 
-    // inspect restored heap bytes directly
-    let bytes =
-        unsafe { std::slice::from_raw_parts(first_address as *const u8, first_bytes.len()) };
+    let bytes = read_mapped_bytes(first_address, first_bytes.len());
 
     assert_eq!(bytes, first_bytes);
     assert_eq!(
@@ -254,10 +249,7 @@ fn test_roundtrip_heap_space_image() {
         .expect("heap write barrier should record");
     let address = restored.base_address() + first.offset();
 
-    // write through the restored heap mapping
-    unsafe {
-        std::ptr::write(address as *mut u8, 0xFE);
-    }
+    write_mapped_byte(address, 0xFE);
 
     let mutated_image = restored.image().expect("heap image should capture");
 
@@ -280,8 +272,7 @@ fn test_roundtrip_heap_space_image() {
         ),
         expected_first
     );
-    let bytes =
-        unsafe { std::slice::from_raw_parts(first_address as *const u8, expected_first.len()) };
+    let bytes = read_mapped_bytes(first_address, expected_first.len());
 
     assert_eq!(bytes, expected_first);
     assert_eq!(
@@ -667,10 +658,7 @@ fn test_roundtrip_heap_small_space_image() {
         .expect("heap write barrier should record");
     let address = restored.base_address() + first.offset() + 1;
 
-    // write through the restored heap mapping
-    unsafe {
-        std::ptr::write(address as *mut u8, 0xFE);
-    }
+    write_mapped_byte(address, 0xFE);
 
     let mutated_image = restored.image().expect("heap image should capture");
 
@@ -737,10 +725,7 @@ fn test_roundtrip_heap_young_space_image() {
         .expect("heap write barrier should record");
     let address = restored.base_address() + first.offset() + 1;
 
-    // write through the restored heap mapping
-    unsafe {
-        std::ptr::write(address as *mut u8, 0xFE);
-    }
+    write_mapped_byte(address, 0xFE);
 
     let mutated_image = restored.image().expect("heap image should capture");
 

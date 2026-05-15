@@ -8,6 +8,8 @@ use crate::{
 };
 use destack_mir::ReferenceMap;
 
+use super::read_mapped_bytes;
+
 /// Build one heap whose pacer triggers immediately in step-driven tests.
 fn test_heap(layouts: &[(usize, ReferenceMap)]) -> (Heap, Vec<TestLayout>) {
     let options = HeapOptions {
@@ -93,8 +95,7 @@ fn test_collect_minor_promotes_reachable_entries() {
     assert!(is_mature(&heap, reachable));
     let address = heap.base_address() + reachable.offset();
 
-    // inspect the promoted payload directly
-    let bytes = unsafe { std::slice::from_raw_parts(address as *const u8, 16) };
+    let bytes = read_mapped_bytes(address, 16);
 
     assert_eq!(bytes, &[1, 2, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
 
@@ -140,8 +141,7 @@ fn test_collect_minor_promotes_reachable_noscan_runs() {
     assert!(is_mature(&heap.heap, promoted));
     let address = heap.heap.base_address() + promoted.offset();
 
-    // inspect the promoted no-scan payload directly
-    let bytes = unsafe { std::slice::from_raw_parts(address as *const u8, 8) };
+    let bytes = read_mapped_bytes(address, 8);
 
     assert_eq!(bytes, &[0; 8]);
 }
@@ -183,9 +183,7 @@ fn test_collect_minor_promotes_reachable_child_entries() {
     assert!(is_mature(&heap, parent));
     let parent_address = heap.base_address() + parent.offset();
 
-    // load the rewritten child reference from the promoted parent
-    let child_bytes =
-        unsafe { std::slice::from_raw_parts(parent_address as *const u8, HeapReference::BYTE_LEN) };
+    let child_bytes = read_mapped_bytes(parent_address, HeapReference::BYTE_LEN);
     let rewritten_child = HeapReference::from_bits(usize::from_le_bytes(
         child_bytes.try_into().expect("child reference should fit"),
     ));
@@ -194,8 +192,7 @@ fn test_collect_minor_promotes_reachable_child_entries() {
     assert!(is_mature(&heap, rewritten_child));
     let child_address = heap.base_address() + rewritten_child.offset();
 
-    // inspect the rewritten child payload directly
-    let bytes = unsafe { std::slice::from_raw_parts(child_address as *const u8, 16) };
+    let bytes = read_mapped_bytes(child_address, 16);
 
     assert_eq!(
         bytes,
@@ -271,8 +268,7 @@ fn test_pin_promotes_young_reference() {
     assert!(is_mature(&heap, reference));
     let address = heap.base_address() + reference.offset();
 
-    // inspect the pinned payload directly
-    let bytes = unsafe { std::slice::from_raw_parts(address as *const u8, 16) };
+    let bytes = read_mapped_bytes(address, 16);
 
     assert_eq!(bytes, &[1, 2, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
 }
@@ -374,9 +370,7 @@ fn test_collect_minor_traces_pinned_roots() {
     assert!(is_mature(&heap, parent));
     let parent_address = heap.base_address() + parent.offset();
 
-    // load the rewritten child reference from the pinned parent
-    let child_bytes =
-        unsafe { std::slice::from_raw_parts(parent_address as *const u8, HeapReference::BYTE_LEN) };
+    let child_bytes = read_mapped_bytes(parent_address, HeapReference::BYTE_LEN);
     let rewritten_child = HeapReference::from_bits(usize::from_le_bytes(
         child_bytes.try_into().expect("child reference should fit"),
     ));
@@ -413,8 +407,7 @@ fn test_collect_full_traces_pinned_roots() {
     assert!(heap.is_live(reference));
     let address = heap.base_address() + reference.offset();
 
-    // inspect the pinned payload directly
-    let bytes = unsafe { std::slice::from_raw_parts(address as *const u8, 16) };
+    let bytes = read_mapped_bytes(address, 16);
 
     assert_eq!(bytes, &[1, 2, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
 }
