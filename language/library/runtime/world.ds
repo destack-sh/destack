@@ -100,8 +100,8 @@ export struct WorkerCreateOptions {
     labels?: [Label];
 }
 
-/// World state.
-export struct World {
+/// Live world.
+export class World {
     /// World handle.
     handle: WorldHandle;
     /// Active branch.
@@ -114,8 +114,11 @@ export struct World {
     labels?: [Label];
 }
 
-/// Runtime state.
-export struct Runtime {
+/// Live runtime.
+export class Runtime {
+    /// Runtime handle.
+    handle: RuntimeHandle;
+
     /// Runtime identifier.
     id: RuntimeId;
     /// Optional runtime name.
@@ -126,8 +129,11 @@ export struct Runtime {
     labels?: [Label];
 }
 
-/// Worker state.
-export struct Worker {
+/// Live worker.
+export class Worker {
+    /// Worker handle.
+    handle: WorkerHandle;
+
     /// Worker identifier.
     id: WorkerId;
     /// Owning runtime.
@@ -180,6 +186,62 @@ export struct WorkerFilter {
 export struct WorldViewOptions {
     /// Explicit revision to pin when present.
     revision?: RevisionId;
+}
+
+extension of World {
+    /// Create one world.
+    static open(options?: WorldCreateOptions): Result<World, HostError> {
+        worldCreate(options).andThen((handle) => worldDescribe(handle))
+    }
+
+    /// Close this world.
+    close(): Result<void, HostError> {
+        worldClose(this.handle)
+    }
+
+    /// Return fresh state for this world.
+    describe(): Result<World, HostError> {
+        worldDescribe(this.handle)
+    }
+
+    /// Advance this world by one scheduler step.
+    tick(): Result<TickResult, HostError> {
+        worldTick(this.handle)
+    }
+
+    /// Create one runtime in this world.
+    runtime(options?: RuntimeCreateOptions): Result<Runtime, HostError> {
+        runtimeCreate(this.handle, options).andThen((handle) => runtimeDescribe(handle))
+    }
+}
+
+extension of Runtime {
+    /// Close this runtime.
+    close(): Result<void, HostError> {
+        runtimeClose(this.handle)
+    }
+
+    /// Return fresh state for this runtime.
+    describe(): Result<Runtime, HostError> {
+        runtimeDescribe(this.handle)
+    }
+
+    /// Create one worker in this runtime.
+    worker(options?: WorkerCreateOptions): Result<Worker, HostError> {
+        workerCreate(this.handle, options).andThen((handle) => workerDescribe(handle))
+    }
+}
+
+extension of Worker {
+    /// Close this worker.
+    close(): Result<void, HostError> {
+        workerClose(this.handle)
+    }
+
+    /// Return fresh state for this worker.
+    describe(): Result<Worker, HostError> {
+        workerDescribe(this.handle)
+    }
 }
 
 /// Create one world.

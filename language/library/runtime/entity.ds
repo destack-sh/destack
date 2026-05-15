@@ -28,12 +28,74 @@ export struct LabelSelector {
 }
 
 /// Entity selector.
-export struct EntitySelector {
-    /// Optional entity kind selector.
-    kind?: EntityKind;
-    /// Optional label selector clauses.
-    labels?: [LabelSelector];
-}
+export type EntitySelector =
+    | {
+        /// Match all entities.
+        kind: "any";
+    }
+    | {
+        /// Match one entity by id.
+        kind: "id";
+        /// Entity id to match.
+        id: EntityId;
+    }
+    | {
+        /// Match a fixed set of entities by id.
+        kind: "ids";
+        /// Entity ids to match.
+        ids: [EntityId];
+    }
+    | {
+        /// Match entities by labels.
+        kind: "labels";
+        /// Label selector clauses.
+        labels: [LabelSelector];
+    }
+    | {
+        /// Match one deterministic entity from a selector result.
+        kind: "chooseOne";
+        /// Source selector.
+        selector: EntitySelector;
+    };
+
+/// Edge selector.
+export type EdgeSelector =
+    | {
+        /// Match all edges.
+        kind: "any";
+    }
+    | {
+        /// Match one edge by id.
+        kind: "id";
+        /// Edge id to match.
+        id: EdgeId;
+    }
+    | {
+        /// Match a fixed set of edges by id.
+        kind: "ids";
+        /// Edge ids to match.
+        ids: [EdgeId];
+    }
+    | {
+        /// Match edges incident to selected entities.
+        kind: "incident";
+        /// Incident entity selector.
+        entity: EntitySelector;
+    }
+    | {
+        /// Match edges between source and destination selectors.
+        kind: "between";
+        /// Source entity selector.
+        from: EntitySelector;
+        /// Destination entity selector.
+        to: EntitySelector;
+    }
+    | {
+        /// Match edges by labels.
+        kind: "labels";
+        /// Label selector clauses.
+        labels: [LabelSelector];
+    };
 
 /// Entity filter.
 export struct EntityFilter {
