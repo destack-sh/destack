@@ -11,6 +11,21 @@ use crate::{
 
 // NOTE #Performance: reduce Expression size to <=64B
 
+/// A catch branch.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Catch {
+    /// The optional catch pattern.
+    pub pattern: Option<LocalNodeId<Pattern>>,
+    /// The optional catch pattern type.
+    pub ty: Option<LocalNodeId<TypeExpression>>,
+    /// The catch body.
+    pub body: LocalNodeId<Expression>,
+}
+
+impl Node for Catch {
+    const TYPE: NodeType = NodeType::Catch;
+}
+
 /// An Expression is a generic container for all constructs.
 /// Unlike most languages, we don't differentiate "statements" and "expressions" up-front.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -266,11 +281,9 @@ pub enum Expression {
     /// }
     /// ```
     Try {
-        try_expression: LocalNodeId<Expression>,
-        catch_pattern: Option<LocalNodeId<Pattern>>,
-        catch_ty: Option<LocalNodeId<TypeExpression>>,
-        catch_expression: Option<LocalNodeId<Expression>>,
-        finally_expression: Option<LocalNodeId<Expression>>,
+        body: LocalNodeId<Expression>,
+        catch: Option<LocalNodeId<Catch>>,
+        finally: Option<LocalNodeId<Expression>>,
     },
 
     /// A Match is a match expression with case patterns.
@@ -851,16 +864,10 @@ impl Expression {
             Expression::For { .. } => true,
             Expression::Loop { .. } => true,
             Expression::Try {
-                try_expression: _,
-                catch_expression,
-                catch_pattern,
-                catch_ty: _,
-                finally_expression,
-            } => {
-                catch_expression.is_some()
-                    || catch_pattern.is_some()
-                    || finally_expression.is_some()
-            }
+                body: _,
+                catch,
+                finally,
+            } => catch.is_some() || finally.is_some(),
             Expression::Match { .. } => true,
             _ => false,
         }
@@ -886,12 +893,9 @@ impl Expression {
                     else_expression: Some(_),
                     ..
                 }
+                | Expression::Try { catch: Some(_), .. }
                 | Expression::Try {
-                    catch_expression: Some(_),
-                    ..
-                }
-                | Expression::Try {
-                    finally_expression: Some(_),
+                    finally: Some(_),
                     ..
                 }
                 | Expression::Match { .. }
@@ -924,16 +928,9 @@ impl Expression {
                 | Expression::Return { .. }
                 | Expression::Throw { .. }
                 | Expression::Debugger
+                | Expression::Try { catch: Some(_), .. }
                 | Expression::Try {
-                    catch_expression: Some(_),
-                    ..
-                }
-                | Expression::Try {
-                    catch_pattern: Some(_),
-                    ..
-                }
-                | Expression::Try {
-                    finally_expression: Some(_),
+                    finally: Some(_),
                     ..
                 }
         )

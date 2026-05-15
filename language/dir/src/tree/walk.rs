@@ -1,9 +1,9 @@
 use crate::{
-    Argument, AssignPattern, AssignPatternField, Block, Declaration, Declarator, Decorator,
+    Argument, AssignPattern, AssignPatternField, Block, Catch, Declaration, Declarator, Decorator,
     DependencyItem, EnumField, Expression, ForEachBinding, FunctionSignature, GenericArgument,
     GenericParameter, IfCondition, Key, LocalNodeId, LocalNodeIdAny, MatchCase, MatchSelector,
     Member, NodeType, NodeVisitor, Parameter, Pattern, PatternField, Property, TemplateLiteral,
-    Tree, TupleElement, TypeExpression, TypeMember, WhereClause,
+    Tree, TupleElement, TypeExpression, TypeMappedParameter, TypeMember, WhereClause,
 };
 
 /// Walk any node.
@@ -22,9 +22,17 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
             let expression = tree.expressions.get(local_idx);
             walk_expression(visitor, tree, LocalNodeId::new(node_id), expression);
         }
+        NodeType::TypeExpression => {
+            let type_expression = tree.type_expressions.get(local_idx);
+            walk_type_expression(visitor, tree, LocalNodeId::new(node_id), type_expression);
+        }
         NodeType::Block => {
             let block = tree.blocks.get(local_idx);
             walk_block(visitor, tree, LocalNodeId::new(node_id), block);
+        }
+        NodeType::Catch => {
+            let catch = tree.catches.get(local_idx);
+            walk_catch(visitor, tree, LocalNodeId::new(node_id), catch);
         }
         // --------------------------------------------------------------------
         // Declarations
@@ -40,6 +48,10 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
         NodeType::TypeMember => {
             let type_member = tree.type_members.get(local_idx);
             walk_type_member(visitor, tree, LocalNodeId::new(node_id), type_member);
+        }
+        NodeType::TypeMappedParameter => {
+            let parameter = tree.type_mapped_parameters.get(local_idx);
+            walk_type_mapped_parameter(visitor, tree, LocalNodeId::new(node_id), parameter);
         }
         NodeType::Member => {
             let member = tree.members.get(local_idx);
@@ -119,10 +131,6 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
             let decorator = tree.decorators.get(local_idx);
             walk_decorator(visitor, tree, LocalNodeId::new(node_id), decorator);
         }
-        NodeType::TypeExpression => {
-            let type_expression = tree.type_expressions.get(local_idx);
-            walk_type_expression(visitor, tree, LocalNodeId::new(node_id), type_expression);
-        }
     }
 }
 
@@ -134,10 +142,20 @@ pub fn walk_root<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &Tree, root: &L
             let expression = tree.get(expression_id);
             visitor.visit_expression(tree, expression_id, expression);
         }
+        NodeType::TypeExpression => {
+            let type_expression_id = LocalNodeId::<TypeExpression>::new(root.id);
+            let type_expression = tree.get(type_expression_id);
+            visitor.visit_type_expression(tree, type_expression_id, type_expression);
+        }
         NodeType::Block => {
             let block_id = LocalNodeId::<Block>::new(root.id);
             let block = tree.get(block_id);
             visitor.visit_block(tree, block_id, block);
+        }
+        NodeType::Catch => {
+            let catch_id = LocalNodeId::<Catch>::new(root.id);
+            let catch = tree.get(catch_id);
+            visitor.visit_catch(tree, catch_id, catch);
         }
         NodeType::Declaration => {
             let declaration_id = LocalNodeId::<Declaration>::new(root.id);
@@ -153,6 +171,11 @@ pub fn walk_root<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &Tree, root: &L
             let type_member_id = LocalNodeId::<TypeMember>::new(root.id);
             let type_member = tree.get(type_member_id);
             visitor.visit_type_member(tree, type_member_id, type_member);
+        }
+        NodeType::TypeMappedParameter => {
+            let parameter_id = LocalNodeId::<TypeMappedParameter>::new(root.id);
+            let parameter = tree.get(parameter_id);
+            visitor.visit_type_mapped_parameter(tree, parameter_id, parameter);
         }
         NodeType::Member => {
             let member_id = LocalNodeId::<Member>::new(root.id);
@@ -233,11 +256,6 @@ pub fn walk_root<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &Tree, root: &L
             let decorator_id = LocalNodeId::<Decorator>::new(root.id);
             let decorator = tree.get(decorator_id);
             visitor.visit_decorator(tree, decorator_id, decorator);
-        }
-        NodeType::TypeExpression => {
-            let type_expression_id = LocalNodeId::<TypeExpression>::new(root.id);
-            let type_expression = tree.get(type_expression_id);
-            visitor.visit_type_expression(tree, type_expression_id, type_expression);
         }
     }
 }
@@ -437,13 +455,8 @@ pub fn walk_type_expression<V: NodeVisitor + ?Sized>(
             optional: _,
             value,
         } => {
-            let source_type_node = tree.get(parameter.source_type);
-            visitor.visit_type_expression(tree, parameter.source_type, source_type_node);
-
-            if let Some(key_remap) = parameter.key_remap {
-                let key_remap_node = tree.get(key_remap);
-                visitor.visit_type_expression(tree, key_remap, key_remap_node);
-            }
+            let parameter_node = tree.get(*parameter);
+            visitor.visit_type_mapped_parameter(tree, *parameter, parameter_node);
 
             if let Some(value) = value {
                 let value_node = tree.get(*value);
@@ -868,27 +881,17 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         }
 
         Expression::Try {
-            try_expression,
-            catch_pattern,
-            catch_ty,
-            catch_expression,
-            finally_expression,
+            body,
+            catch,
+            finally,
         } => {
-            let try_expr_node = tree.get(*try_expression);
-            visitor.visit_expression(tree, *try_expression, try_expr_node);
-            if let Some(catch_pattern_id) = catch_pattern {
-                let catch_pattern_node = tree.get(*catch_pattern_id);
-                visitor.visit_pattern(tree, *catch_pattern_id, catch_pattern_node);
+            let try_expr_node = tree.get(*body);
+            visitor.visit_expression(tree, *body, try_expr_node);
+            if let Some(catch_id) = catch {
+                let catch_node = tree.get(*catch_id);
+                visitor.visit_catch(tree, *catch_id, catch_node);
             }
-            if let Some(catch_ty_id) = catch_ty {
-                let catch_ty_node = tree.get(*catch_ty_id);
-                visitor.visit_type_expression(tree, *catch_ty_id, catch_ty_node);
-            }
-            if let Some(catch_id) = catch_expression {
-                let catch_expr = tree.get(*catch_id);
-                visitor.visit_expression(tree, *catch_id, catch_expr);
-            }
-            if let Some(finally_id) = finally_expression {
+            if let Some(finally_id) = finally {
                 let finally_expr = tree.get(*finally_id);
                 visitor.visit_expression(tree, *finally_id, finally_expr);
             }
@@ -2127,4 +2130,45 @@ pub fn walk_decorator<V: NodeVisitor + ?Sized>(
     visitor.visit_any(tree, NodeType::Decorator, id.id);
     let expression = tree.get(decorator.expression);
     visitor.visit_expression(tree, decorator.expression, expression);
+}
+
+/// Walk the Catch.
+pub fn walk_catch<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &Tree,
+    id: LocalNodeId<Catch>,
+    catch: &Catch,
+) {
+    visitor.visit_any(tree, NodeType::Catch, id.id);
+
+    if let Some(pattern) = catch.pattern {
+        let pattern_node = tree.get(pattern);
+        visitor.visit_pattern(tree, pattern, pattern_node);
+    }
+
+    if let Some(ty) = catch.ty {
+        let ty_node = tree.get(ty);
+        visitor.visit_type_expression(tree, ty, ty_node);
+    }
+
+    let body = tree.get(catch.body);
+    visitor.visit_expression(tree, catch.body, body);
+}
+
+/// Walk the TypeMappedParameter.
+pub fn walk_type_mapped_parameter<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &Tree,
+    id: LocalNodeId<TypeMappedParameter>,
+    parameter: &TypeMappedParameter,
+) {
+    visitor.visit_any(tree, NodeType::TypeMappedParameter, id.id);
+
+    let source_type = tree.get(parameter.source_type);
+    visitor.visit_type_expression(tree, parameter.source_type, source_type);
+
+    if let Some(key_remap) = parameter.key_remap {
+        let key_remap_node = tree.get(key_remap);
+        visitor.visit_type_expression(tree, key_remap, key_remap_node);
+    }
 }

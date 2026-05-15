@@ -144,6 +144,10 @@ pub struct TypeMappedParameter {
     pub key_remap: Option<LocalNodeId<TypeExpression>>,
 }
 
+impl Node for TypeMappedParameter {
+    const TYPE: NodeType = NodeType::TypeMappedParameter;
+}
+
 /// A mapped-type modifier sign.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum MappedTypeModifier {
@@ -593,7 +597,7 @@ pub enum TypeExpression {
     /// { readonly [K in keyof T]?: T[K] }
     /// ```
     Mapped {
-        parameter: TypeMappedParameter,
+        parameter: LocalNodeId<TypeMappedParameter>,
         readonly: MappedTypeModifier,
         optional: MappedTypeModifier,
         value: Option<LocalNodeId<TypeExpression>>,

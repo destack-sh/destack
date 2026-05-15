@@ -1,15 +1,15 @@
 #![allow(unused_variables)]
 
 use crate::{
-    Argument, AssignPattern, AssignPatternField, Block, Declaration, Declarator, Decorator,
+    Argument, AssignPattern, AssignPatternField, Block, Catch, Declaration, Declarator, Decorator,
     DependencyItem, EnumField, Expression, GenericArgument, GenericParameter, LocalNodeId,
     MatchCase, Member, NodeType, Parameter, Pattern, PatternField, Property, Tree, TupleElement,
-    TypeExpression, TypeMember, WhereClause, walk_argument, walk_assign_pattern,
-    walk_assign_pattern_field, walk_block, walk_declaration, walk_declarator, walk_decorator,
-    walk_dependency_item, walk_enum_field, walk_expression, walk_generic_argument,
-    walk_generic_parameter, walk_match_case, walk_member, walk_parameter, walk_pattern,
-    walk_pattern_field, walk_property, walk_tuple_element, walk_type_expression, walk_type_member,
-    walk_where_clause,
+    TypeExpression, TypeMappedParameter, TypeMember, WhereClause, walk_argument,
+    walk_assign_pattern, walk_assign_pattern_field, walk_block, walk_catch, walk_declaration,
+    walk_declarator, walk_decorator, walk_dependency_item, walk_enum_field, walk_expression,
+    walk_generic_argument, walk_generic_parameter, walk_match_case, walk_member, walk_parameter,
+    walk_pattern, walk_pattern_field, walk_property, walk_tuple_element, walk_type_expression,
+    walk_type_mapped_parameter, walk_type_member, walk_where_clause,
 };
 
 #[derive(Debug, Clone, Default)]
@@ -210,6 +210,21 @@ pub trait NodeVisitor {
     /// Visit a Decorator.
     fn visit_decorator(&mut self, tree: &Tree, id: LocalNodeId<Decorator>, decorator: &Decorator) {
         walk_decorator(self, tree, id, decorator);
+    }
+
+    /// Visit a Catch.
+    fn visit_catch(&mut self, tree: &Tree, id: LocalNodeId<Catch>, catch: &Catch) {
+        walk_catch(self, tree, id, catch);
+    }
+
+    /// Visit a TypeMappedParameter.
+    fn visit_type_mapped_parameter(
+        &mut self,
+        tree: &Tree,
+        id: LocalNodeId<TypeMappedParameter>,
+        parameter: &TypeMappedParameter,
+    ) {
+        walk_type_mapped_parameter(self, tree, id, parameter);
     }
 }
 

@@ -6,16 +6,16 @@ use destack_source::{ModuleId, NodeSourceMap, NodeSpanType, Span};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Arena, Argument, AssignPattern, AssignPatternField, Block, Comment, Declaration, Declarator,
-    Decorator, DependencyItem, EnumField, Expression, GenericArgument, GenericParameter,
-    IfCondition, LocalNodeId, LocalNodeIdAny, MatchCase, Member, Node, NodeType, NodeVisitor,
-    NodeVisitorOptions, Parameter, Pattern, PatternField, Property, ProvenanceId,
-    ProvenanceMetadata, ProvenanceReason, TupleElement, TypeExpression, TypeMember, WhereClause,
-    walk_argument, walk_block, walk_declaration, walk_declarator, walk_decorator,
-    walk_dependency_item, walk_enum_field, walk_expression, walk_generic_argument,
-    walk_generic_parameter, walk_match_case, walk_member, walk_parameter, walk_pattern,
-    walk_pattern_field, walk_property, walk_tuple_element, walk_type_expression, walk_type_member,
-    walk_where_clause,
+    Arena, Argument, AssignPattern, AssignPatternField, Block, Catch, Comment, Declaration,
+    Declarator, Decorator, DependencyItem, EnumField, Expression, GenericArgument,
+    GenericParameter, IfCondition, LocalNodeId, LocalNodeIdAny, MatchCase, Member, Node, NodeType,
+    NodeVisitor, NodeVisitorOptions, Parameter, Pattern, PatternField, Property, ProvenanceId,
+    ProvenanceMetadata, ProvenanceReason, TupleElement, TypeExpression, TypeMappedParameter,
+    TypeMember, WhereClause, walk_argument, walk_block, walk_catch, walk_declaration,
+    walk_declarator, walk_decorator, walk_dependency_item, walk_enum_field, walk_expression,
+    walk_generic_argument, walk_generic_parameter, walk_match_case, walk_member, walk_parameter,
+    walk_pattern, walk_pattern_field, walk_property, walk_tuple_element, walk_type_expression,
+    walk_type_mapped_parameter, walk_type_member, walk_where_clause,
 };
 
 /// Normalized documentation attached to one DIR node.
@@ -70,25 +70,27 @@ impl NodeIndexEntry {
             0 => NodeType::Expression,
             1 => NodeType::TypeExpression,
             2 => NodeType::Block,
-            3 => NodeType::Declaration,
-            4 => NodeType::Declarator,
-            5 => NodeType::Property,
-            6 => NodeType::TypeMember,
-            7 => NodeType::Member,
-            8 => NodeType::EnumField,
-            9 => NodeType::WhereClause,
-            10 => NodeType::DependencyItem,
-            11 => NodeType::GenericParameter,
-            12 => NodeType::Parameter,
-            13 => NodeType::GenericArgument,
-            14 => NodeType::TupleElement,
-            15 => NodeType::Argument,
-            16 => NodeType::MatchCase,
-            17 => NodeType::Pattern,
-            18 => NodeType::PatternField,
-            19 => NodeType::AssignPattern,
-            20 => NodeType::AssignPatternField,
-            21 => NodeType::Decorator,
+            3 => NodeType::Catch,
+            4 => NodeType::Declaration,
+            5 => NodeType::Declarator,
+            6 => NodeType::Property,
+            7 => NodeType::TypeMember,
+            8 => NodeType::TypeMappedParameter,
+            9 => NodeType::Member,
+            10 => NodeType::EnumField,
+            11 => NodeType::WhereClause,
+            12 => NodeType::DependencyItem,
+            13 => NodeType::GenericParameter,
+            14 => NodeType::Parameter,
+            15 => NodeType::GenericArgument,
+            16 => NodeType::TupleElement,
+            17 => NodeType::Argument,
+            18 => NodeType::MatchCase,
+            19 => NodeType::Pattern,
+            20 => NodeType::PatternField,
+            21 => NodeType::AssignPattern,
+            22 => NodeType::AssignPatternField,
+            23 => NodeType::Decorator,
             _ => unreachable!("invalid DIR node type tag in packed node index"),
         }
     }
@@ -105,6 +107,8 @@ pub struct TreeMark {
     type_expressions_len: usize,
     /// The block arena length.
     blocks_len: usize,
+    /// The catch arena length.
+    catches_len: usize,
     /// The declaration arena length.
     declarations_len: usize,
     /// The declarator arena length.
@@ -113,6 +117,8 @@ pub struct TreeMark {
     properties_len: usize,
     /// The type field arena length.
     type_members_len: usize,
+    /// The mapped type parameter arena length.
+    type_mapped_parameters_len: usize,
     /// The member arena length.
     members_len: usize,
     /// The enum field arena length.
@@ -175,10 +181,12 @@ pub struct Tree {
     pub(crate) expressions: Arena<Expression>,
     pub(crate) type_expressions: Arena<TypeExpression>,
     pub(crate) blocks: Arena<Block>,
+    pub(crate) catches: Arena<Catch>,
     pub(crate) declarations: Arena<Declaration>,
     pub(crate) declarators: Arena<Declarator>,
     pub(crate) properties: Arena<Property>,
     pub(crate) type_members: Arena<TypeMember>,
+    pub(crate) type_mapped_parameters: Arena<TypeMappedParameter>,
     pub(crate) members: Arena<Member>,
     pub(crate) enum_fields: Arena<EnumField>,
     pub(crate) where_clauses: Arena<WhereClause>,
@@ -243,10 +251,12 @@ impl Tree {
             expressions: Arena::new(),
             type_expressions: Arena::new(),
             blocks: Arena::new(),
+            catches: Arena::new(),
             declarations: Arena::new(),
             declarators: Arena::new(),
             properties: Arena::new(),
             type_members: Arena::new(),
+            type_mapped_parameters: Arena::new(),
             members: Arena::new(),
             enum_fields: Arena::new(),
             where_clauses: Arena::new(),
@@ -346,10 +356,12 @@ impl Tree {
             expressions_len: self.expressions.len(),
             type_expressions_len: self.type_expressions.len(),
             blocks_len: self.blocks.len(),
+            catches_len: self.catches.len(),
             declarations_len: self.declarations.len(),
             declarators_len: self.declarators.len(),
             properties_len: self.properties.len(),
             type_members_len: self.type_members.len(),
+            type_mapped_parameters_len: self.type_mapped_parameters.len(),
             members_len: self.members.len(),
             enum_fields_len: self.enum_fields.len(),
             where_clauses_len: self.where_clauses.len(),
@@ -387,10 +399,13 @@ impl Tree {
         self.expressions.truncate(mark.expressions_len);
         self.type_expressions.truncate(mark.type_expressions_len);
         self.blocks.truncate(mark.blocks_len);
+        self.catches.truncate(mark.catches_len);
         self.declarations.truncate(mark.declarations_len);
         self.declarators.truncate(mark.declarators_len);
         self.properties.truncate(mark.properties_len);
         self.type_members.truncate(mark.type_members_len);
+        self.type_mapped_parameters
+            .truncate(mark.type_mapped_parameters_len);
         self.members.truncate(mark.members_len);
         self.enum_fields.truncate(mark.enum_fields_len);
         self.where_clauses.truncate(mark.where_clauses_len);
@@ -745,9 +760,17 @@ impl Tree {
                 let typed_id = LocalNodeId::<Expression>::new(node_id.id);
                 visitor.visit_expression(self, typed_id, self.get(typed_id));
             }
+            NodeType::TypeExpression => {
+                let typed_id = LocalNodeId::<TypeExpression>::new(node_id.id);
+                visitor.visit_type_expression(self, typed_id, self.get(typed_id));
+            }
             NodeType::Block => {
                 let typed_id = LocalNodeId::<Block>::new(node_id.id);
                 visitor.visit_block(self, typed_id, self.get(typed_id));
+            }
+            NodeType::Catch => {
+                let typed_id = LocalNodeId::<Catch>::new(node_id.id);
+                visitor.visit_catch(self, typed_id, self.get(typed_id));
             }
             NodeType::Declaration => {
                 let typed_id = LocalNodeId::<Declaration>::new(node_id.id);
@@ -764,6 +787,10 @@ impl Tree {
             NodeType::TypeMember => {
                 let typed_id = LocalNodeId::<TypeMember>::new(node_id.id);
                 visitor.visit_type_member(self, typed_id, self.get(typed_id));
+            }
+            NodeType::TypeMappedParameter => {
+                let typed_id = LocalNodeId::<TypeMappedParameter>::new(node_id.id);
+                visitor.visit_type_mapped_parameter(self, typed_id, self.get(typed_id));
             }
             NodeType::Member => {
                 let typed_id = LocalNodeId::<Member>::new(node_id.id);
@@ -800,10 +827,6 @@ impl Tree {
             NodeType::Argument => {
                 let typed_id = LocalNodeId::<Argument>::new(node_id.id);
                 visitor.visit_argument(self, typed_id, self.get(typed_id));
-            }
-            NodeType::TypeExpression => {
-                let typed_id = LocalNodeId::<TypeExpression>::new(node_id.id);
-                visitor.visit_type_expression(self, typed_id, self.get(typed_id));
             }
             NodeType::MatchCase => {
                 let typed_id = LocalNodeId::<MatchCase>::new(node_id.id);
@@ -1161,7 +1184,14 @@ impl Tree {
                 NodeType::Expression,
                 walk_expression
             );
+            validate_visit!(
+                visit_type_expression,
+                TypeExpression,
+                NodeType::TypeExpression,
+                walk_type_expression
+            );
             validate_visit!(visit_block, Block, NodeType::Block, walk_block);
+            validate_visit!(visit_catch, Catch, NodeType::Catch, walk_catch);
             validate_visit!(
                 visit_declaration,
                 Declaration,
@@ -1175,6 +1205,18 @@ impl Tree {
                 walk_declarator
             );
             validate_visit!(visit_property, Property, NodeType::Property, walk_property);
+            validate_visit!(
+                visit_type_member,
+                TypeMember,
+                NodeType::TypeMember,
+                walk_type_member
+            );
+            validate_visit!(
+                visit_type_mapped_parameter,
+                TypeMappedParameter,
+                NodeType::TypeMappedParameter,
+                walk_type_mapped_parameter
+            );
             validate_visit!(visit_member, Member, NodeType::Member, walk_member);
             validate_visit!(
                 visit_enum_field,
@@ -1219,12 +1261,6 @@ impl Tree {
                 walk_tuple_element
             );
             validate_visit!(visit_argument, Argument, NodeType::Argument, walk_argument);
-            validate_visit!(
-                visit_type_expression,
-                TypeExpression,
-                NodeType::TypeExpression,
-                walk_type_expression
-            );
             validate_visit!(
                 visit_match_case,
                 MatchCase,
@@ -1336,18 +1372,18 @@ impl Tree {
 
             // these bodies inherit statement position from the parent shell
             Expression::Try {
-                try_expression,
-                catch_expression,
-                finally_expression,
+                body,
+                catch,
+                finally,
                 ..
             } => {
-                try_expression.id == expression_id.id
-                    || catch_expression
+                body.id == expression_id.id
+                    || catch
                         .as_ref()
-                        .is_some_and(|catch_expression| catch_expression.id == expression_id.id)
-                    || finally_expression
+                        .is_some_and(|catch| self.get(*catch).body.id == expression_id.id)
+                    || finally
                         .as_ref()
-                        .is_some_and(|finally_expression| finally_expression.id == expression_id.id)
+                        .is_some_and(|finally| finally.id == expression_id.id)
             }
             Expression::Label { body, .. } => body.id == expression_id.id,
 
@@ -1731,11 +1767,14 @@ macro_rules! impl_tree_stores {
 // usage
 impl_tree_stores! {
     Expression => expressions,
+    TypeExpression => type_expressions,
     Block => blocks,
+    Catch => catches,
     Declaration => declarations,
     Declarator => declarators,
     Property => properties,
     TypeMember => type_members,
+    TypeMappedParameter => type_mapped_parameters,
     Member => members,
     EnumField => enum_fields,
     WhereClause => where_clauses,
@@ -1745,7 +1784,6 @@ impl_tree_stores! {
     GenericArgument => generic_arguments,
     TupleElement => tuple_elements,
     Argument => arguments,
-    TypeExpression => type_expressions,
     MatchCase => match_cases,
     Pattern => patterns,
     PatternField => pattern_fields,
