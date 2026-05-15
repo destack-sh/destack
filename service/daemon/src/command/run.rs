@@ -5,12 +5,12 @@ use destack_runtime::runtime::World;
 use destack_runtime::runtime::engine::Entry;
 use destack_source::{ModuleId, ProfileId, TargetId};
 use destack_vm::{Isolate, IsolateId, IsolateOptions, Value};
-use destack_workspace::{Repository, Revision, RuntimeOptionsJson, Target};
+use destack_workspace::{Profile, Repository, Revision, RuntimeOptionsJson};
 use serde::{Deserialize, Serialize};
 
 use super::CommandResult;
 use super::common::CommandInput;
-use super::context::{CommandContext, ResolvedTarget};
+use super::context::{CommandContext, SelectedTarget};
 use super::dispatch::{CommandOutcome, CommandOutputBuffer};
 
 /// Run mode for the run command.
@@ -176,19 +176,25 @@ fn run_entry_module(
     revision: Revision,
     inputs: &[CommandInput],
     entry_module: ModuleId,
-    target: &ResolvedTarget,
+    target: &SelectedTarget,
     entry_name: &str,
     args: &[String],
     run_mode: CommandRunMode,
     runtime_overrides: Option<&RuntimeOptionsJson>,
     output: &mut CommandOutputBuffer,
 ) -> CommandResult<RunResult> {
+    // profile facts
     let target_id = target.id;
-    let mut target = target.target.clone();
+    let profile = target_profile(repository, revision, entry_module, target_id)?;
+    let mut runtime_options = target.target.runtime_options.clone();
+    runtime_options.conditions = profile.conditions.clone();
+
+    // command overrides
     if let Some(runtime_overrides) = runtime_overrides {
-        apply_runtime_overrides(&mut target, runtime_overrides);
+        runtime_overrides.apply_to(&mut runtime_options);
     }
 
+    // vm isolate
     let isolate = create_isolate(
         repository,
         revision,
@@ -197,14 +203,14 @@ fn run_entry_module(
         IsolateOptions::default(),
     )?;
 
+    // runtime launch
     let entry_source = inputs
         .first()
         .ok_or_else(|| "run requires an entry module".to_string())?;
     let process_args = process_args_for_source(entry_source, args);
-    let mut world =
-        World::from_options(&target.runtime_options).map_err(|error| format!("{error}"))?;
+    let mut world = World::from_options(&runtime_options).map_err(|error| format!("{error}"))?;
     let runtime_id = world
-        .spawn_runtime(process_args, &target.runtime_options, isolate)
+        .spawn_runtime(process_args, &runtime_options, isolate)
         .map_err(|error| format!("{error}"))?;
 
     let entry = Entry::new(entry_name);
@@ -380,6 +386,18 @@ fn target_profile_id(
     module_id: ModuleId,
     target_id: TargetId,
 ) -> Result<ProfileId, String> {
+    let profile = target_profile(repository, revision, module_id, target_id)?;
+
+    Ok(profile.id())
+}
+
+/// Return the profile selected for one module target.
+fn target_profile(
+    repository: &Repository,
+    revision: Revision,
+    module_id: ModuleId,
+    target_id: TargetId,
+) -> Result<Arc<Profile>, String> {
     let profile = repository
         .module_target_profile(revision, module_id, target_id)
         .map_err(|error| format!("failed to resolve target profile: {error}"))?;
@@ -391,7 +409,7 @@ fn target_profile_id(
             .map_err(|error| format!("failed to resolve module profile: {error}"))?
     };
 
-    Ok(profile.id())
+    Ok(profile)
 }
 
 /// Convert one finite float to json.
@@ -399,11 +417,4 @@ fn float_payload(value: f64) -> serde_json::Value {
     serde_json::Number::from_f64(value)
         .map(serde_json::Value::Number)
         .unwrap_or(serde_json::Value::Null)
-}
-
-/// Apply runtime overrides to a target.
-fn apply_runtime_overrides(target: &mut Target, overrides: &RuntimeOptionsJson) {
-    let mut runtime_options = target.runtime_options.clone();
-    overrides.apply_to(&mut runtime_options);
-    target.runtime_options = runtime_options;
 }
