@@ -142,6 +142,16 @@ export {
     RangeFull,
 } from "destack:range";
 
+// regexp
+export {
+    RegExp,
+    RegExpGroups,
+    RegExpSpan,
+    RegExpIndexGroups,
+    RegExpIndices,
+    RegExpMatch,
+} from "destack:regexp";
+
 // control flow
 export {
     Error,
