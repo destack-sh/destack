@@ -1,3 +1,4 @@
+use crate::source::TokenType;
 use std::str::FromStr;
 
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
@@ -14,7 +15,6 @@ use crate::{
 
 use super::error::{ParseError, ParseResult};
 use super::parser::Parser;
-use super::token::TokenType;
 
 #[allow(clippy::type_complexity)]
 impl Parser {
@@ -32,7 +32,7 @@ impl Parser {
             let (parsed_destination, parsed_type, parsed_span, parsed_type_span) =
                 self.parse_typed_destination_parts()?;
             self.record_value_type(parsed_destination, parsed_type);
-            self.eat_token(TokenType::Equals)?;
+            self.eat_token(TokenType::Equal)?;
             destination = Some(parsed_destination.into());
             destination_type = Some(parsed_type);
             destination_span = Some(parsed_span);
@@ -46,13 +46,16 @@ impl Parser {
             // direct constant literal
             if let Some(token) = self.peek()
                 && (matches!(
-                    token.ty,
+                    self.token_type(token),
                     TokenType::BooleanLiteral
-                        | TokenType::IntLiteral
-                        | TokenType::FloatLiteral
-                        | TokenType::CharacterLiteral
-                ) || (token.ty == TokenType::Identifier
-                    && self.tree.source_text(token.span) == "null"))
+                        | TokenType::Integer
+                        | TokenType::Float
+                        | TokenType::Character
+                ) || (self.token_type(token) == TokenType::Identifier
+                    && (self.tree.source_text(token.span) == "null"
+                        || self
+                            .parse_float_constant(self.tree.source_text(token.span))
+                            .is_some())))
             {
                 let value = self.parse_constant_for_type(destination_type)?;
                 let instruction = Instruction::Const { destination, value };
@@ -270,7 +273,9 @@ impl Parser {
                 match opcode_text {
                     // binary ops
                     _ if opcode_text.parse::<BinaryOperator>().is_ok() => {
-                        let operator = opcode_text.parse().unwrap();
+                        let operator = opcode_text
+                            .parse()
+                            .map_err(|_| ParseError::invalid("binary operator", opcode_start))?;
                         let left = self.parse_value_segment(&mut segment_spans)?;
                         self.eat_token(TokenType::Comma)?;
                         let right = self.parse_value_segment(&mut segment_spans)?;
@@ -284,7 +289,9 @@ impl Parser {
 
                     // unary ops
                     _ if opcode_text.parse::<UnaryOperator>().is_ok() => {
-                        let operator = opcode_text.parse().unwrap();
+                        let operator = opcode_text
+                            .parse()
+                            .map_err(|_| ParseError::invalid("unary operator", opcode_start))?;
                         let argument = self.parse_value_segment(&mut segment_spans)?;
                         Instruction::Unary {
                             destination,
@@ -295,7 +302,9 @@ impl Parser {
 
                     // cast ops
                     _ if opcode_text.parse::<CastOperator>().is_ok() => {
-                        let operator = opcode_text.parse().unwrap();
+                        let operator = opcode_text
+                            .parse()
+                            .map_err(|_| ParseError::invalid("cast operator", opcode_start))?;
                         let argument = self.parse_value_segment(&mut segment_spans)?;
                         self.eat_token(TokenType::Arrow)?;
                         let to_type = self.parse_type_segment(&mut segment_spans)?;
@@ -1084,17 +1093,17 @@ impl Parser {
 
     /// Parse a parenthesized list of values.
     fn parse_value_paren_list(&mut self) -> ParseResult<Vec<ValueReference>> {
-        self.eat_token(TokenType::OpenParen)?;
+        self.eat_token(TokenType::OpenParenthesis)?;
         let mut values = Vec::new();
 
-        while !self.peek_token(TokenType::CloseParen) {
+        while !self.peek_token(TokenType::CloseParenthesis) {
             values.push(self.parse_value()?);
             if !self.eat_token_maybe(TokenType::Comma) {
                 break;
             }
         }
 
-        self.eat_token(TokenType::CloseParen)?;
+        self.eat_token(TokenType::CloseParenthesis)?;
         Ok(values)
     }
 
@@ -1153,10 +1162,10 @@ impl Parser {
 
     /// Parse a parenthesized list of integer values.
     fn parse_int_paren_list(&mut self) -> ParseResult<Vec<i128>> {
-        self.eat_token(TokenType::OpenParen)?;
+        self.eat_token(TokenType::OpenParenthesis)?;
         let mut values = Vec::new();
 
-        while !self.peek_token(TokenType::CloseParen) {
+        while !self.peek_token(TokenType::CloseParenthesis) {
             let value = self.parse_int_literal()?;
             values.push(value);
             if !self.eat_token_maybe(TokenType::Comma) {
@@ -1164,16 +1173,16 @@ impl Parser {
             }
         }
 
-        self.eat_token(TokenType::CloseParen)?;
+        self.eat_token(TokenType::CloseParenthesis)?;
         Ok(values)
     }
 
     /// Parse a parenthesized list of boolean values.
     fn parse_bool_paren_list(&mut self) -> ParseResult<Vec<bool>> {
-        self.eat_token(TokenType::OpenParen)?;
+        self.eat_token(TokenType::OpenParenthesis)?;
         let mut values = Vec::new();
 
-        while !self.peek_token(TokenType::CloseParen) {
+        while !self.peek_token(TokenType::CloseParenthesis) {
             let token = self.eat_token(TokenType::BooleanLiteral)?;
             let value = self.tree.source_text(token.span) == "true";
             values.push(value);
@@ -1182,7 +1191,7 @@ impl Parser {
             }
         }
 
-        self.eat_token(TokenType::CloseParen)?;
+        self.eat_token(TokenType::CloseParenthesis)?;
         Ok(values)
     }
 
@@ -1227,7 +1236,7 @@ impl Parser {
             return Ok((Place::value(value), span));
         }
 
-        self.eat_token(TokenType::OpenParen)?;
+        self.eat_token(TokenType::OpenParenthesis)?;
         let origin = self.parse_place_origin()?;
         let mut place = Place::new(origin);
 
@@ -1236,7 +1245,7 @@ impl Parser {
             place.push(projection);
         }
 
-        self.eat_token(TokenType::CloseParen)?;
+        self.eat_token(TokenType::CloseParenthesis)?;
 
         Ok((place, self.span_from_parse_start(start)))
     }
@@ -1247,7 +1256,7 @@ impl Parser {
             .peek()
             .ok_or_else(|| ParseError::unexpected_end("place origin", self.pos()))?;
 
-        match token.ty {
+        match self.token_type(token) {
             TokenType::Value => {
                 let (value, _) = self.parse_value_reference_part()?;
 
@@ -1277,39 +1286,39 @@ impl Parser {
     /// Parse one MIR place projection.
     fn parse_place_projection(&mut self) -> ParseResult<PlaceProjection> {
         if self.eat_identifier_text("field") {
-            self.eat_token(TokenType::OpenParen)?;
+            self.eat_token(TokenType::OpenParenthesis)?;
             let index = self.parse_int_literal()?;
             let index =
                 u32::try_from(index).map_err(|_| ParseError::invalid("place index", self.pos()))?;
-            self.eat_token(TokenType::CloseParen)?;
+            self.eat_token(TokenType::CloseParenthesis)?;
 
             return Ok(PlaceProjection::Field { index });
         }
 
         if self.eat_identifier_text("element") {
-            self.eat_token(TokenType::OpenParen)?;
+            self.eat_token(TokenType::OpenParenthesis)?;
             let index = self.parse_int_literal()?;
             let index =
                 u32::try_from(index).map_err(|_| ParseError::invalid("place index", self.pos()))?;
-            self.eat_token(TokenType::CloseParen)?;
+            self.eat_token(TokenType::CloseParenthesis)?;
 
             return Ok(PlaceProjection::Element { index });
         }
 
         if self.eat_identifier_text("index") {
-            self.eat_token(TokenType::OpenParen)?;
+            self.eat_token(TokenType::OpenParenthesis)?;
             let index = self.parse_value()?;
-            self.eat_token(TokenType::CloseParen)?;
+            self.eat_token(TokenType::CloseParenthesis)?;
 
             return Ok(PlaceProjection::Index { index });
         }
 
         if self.eat_identifier_text("range") {
-            self.eat_token(TokenType::OpenParen)?;
+            self.eat_token(TokenType::OpenParenthesis)?;
             let start = self.parse_value()?;
             self.eat_token(TokenType::Comma)?;
             let length = self.parse_value()?;
-            self.eat_token(TokenType::CloseParen)?;
+            self.eat_token(TokenType::CloseParenthesis)?;
 
             return Ok(PlaceProjection::Range { start, length });
         }
@@ -1392,11 +1401,11 @@ impl Parser {
         if self.tree.source_text(token.span) != "mode" {
             return Err(ParseError::invalid("mode", token.start));
         }
-        self.eat_token(TokenType::OpenParen)?;
+        self.eat_token(TokenType::OpenParenthesis)?;
         let token = self.eat_token(TokenType::Identifier)?;
         let mode_text = self.tree.source_text(token.span).to_string();
         let mode_start = token.start;
-        self.eat_token(TokenType::CloseParen)?;
+        self.eat_token(TokenType::CloseParenthesis)?;
         let mode = TensorScatterMode::parse(&mode_text)
             .ok_or_else(|| ParseError::invalid("scatter mode", mode_start))?;
         Ok(Some(mode))
@@ -1417,11 +1426,11 @@ impl Parser {
         }
 
         // parse the named value
-        self.eat_token(TokenType::OpenParen)?;
+        self.eat_token(TokenType::OpenParenthesis)?;
         let token = self.eat_token(TokenType::Identifier)?;
         let tie_break_text = self.tree.source_text(token.span).to_string();
         let tie_break_start = token.start;
-        self.eat_token(TokenType::CloseParen)?;
+        self.eat_token(TokenType::CloseParenthesis)?;
         let tie_break = TensorIndexTieBreak::parse(&tie_break_text)
             .ok_or_else(|| ParseError::invalid("tensor index reduce tie break", tie_break_start))?;
         Ok(Some(tie_break))
@@ -1434,14 +1443,14 @@ impl Parser {
         if self.tree.source_text(token.span) != "dims" {
             return Err(ParseError::invalid("dims", token.start));
         }
-        self.eat_token(TokenType::OpenParen)?;
+        self.eat_token(TokenType::OpenParenthesis)?;
 
         // parse named lists
         let mut lhs_batch = None;
         let mut rhs_batch = None;
         let mut lhs_contracting = None;
         let mut rhs_contracting = None;
-        while !self.peek_token(TokenType::CloseParen) {
+        while !self.peek_token(TokenType::CloseParenthesis) {
             let key_token = self.eat_token(TokenType::Identifier)?;
             let key_text = self.tree.source_text(key_token.span).to_string();
             let key_start = key_token.start;
@@ -1457,7 +1466,7 @@ impl Parser {
                 break;
             }
         }
-        self.eat_token(TokenType::CloseParen)?;
+        self.eat_token(TokenType::CloseParenthesis)?;
 
         // validate required keys
         let lhs_batch = lhs_batch.ok_or_else(|| ParseError::invalid("lhsBatch", self.pos()))?;
@@ -1484,7 +1493,7 @@ impl Parser {
         if self.tree.source_text(token.span) != "dims" {
             return Err(ParseError::invalid("dims", token.start));
         }
-        self.eat_token(TokenType::OpenParen)?;
+        self.eat_token(TokenType::OpenParenthesis)?;
 
         // parse named lists
         let mut input_batch = None;
@@ -1496,40 +1505,40 @@ impl Parser {
         let mut output_batch = None;
         let mut output_feature = None;
         let mut output_spatial = None;
-        while !self.peek_token(TokenType::CloseParen) {
+        while !self.peek_token(TokenType::CloseParenthesis) {
             let key_token = self.eat_token(TokenType::Identifier)?;
             match self.tree.source_text(key_token.span) {
                 "inputBatch" => {
-                    self.eat_token(TokenType::OpenParen)?;
+                    self.eat_token(TokenType::OpenParenthesis)?;
                     input_batch = Some(self.parse_int_as_u32()?);
-                    self.eat_token(TokenType::CloseParen)?;
+                    self.eat_token(TokenType::CloseParenthesis)?;
                 }
                 "inputFeature" => {
-                    self.eat_token(TokenType::OpenParen)?;
+                    self.eat_token(TokenType::OpenParenthesis)?;
                     input_feature = Some(self.parse_int_as_u32()?);
-                    self.eat_token(TokenType::CloseParen)?;
+                    self.eat_token(TokenType::CloseParenthesis)?;
                 }
                 "inputSpatial" => input_spatial = Some(self.parse_u32_paren_list()?),
                 "kernelInputFeature" => {
-                    self.eat_token(TokenType::OpenParen)?;
+                    self.eat_token(TokenType::OpenParenthesis)?;
                     kernel_input_feature = Some(self.parse_int_as_u32()?);
-                    self.eat_token(TokenType::CloseParen)?;
+                    self.eat_token(TokenType::CloseParenthesis)?;
                 }
                 "kernelOutputFeature" => {
-                    self.eat_token(TokenType::OpenParen)?;
+                    self.eat_token(TokenType::OpenParenthesis)?;
                     kernel_output_feature = Some(self.parse_int_as_u32()?);
-                    self.eat_token(TokenType::CloseParen)?;
+                    self.eat_token(TokenType::CloseParenthesis)?;
                 }
                 "kernelSpatial" => kernel_spatial = Some(self.parse_u32_paren_list()?),
                 "outputBatch" => {
-                    self.eat_token(TokenType::OpenParen)?;
+                    self.eat_token(TokenType::OpenParenthesis)?;
                     output_batch = Some(self.parse_int_as_u32()?);
-                    self.eat_token(TokenType::CloseParen)?;
+                    self.eat_token(TokenType::CloseParenthesis)?;
                 }
                 "outputFeature" => {
-                    self.eat_token(TokenType::OpenParen)?;
+                    self.eat_token(TokenType::OpenParenthesis)?;
                     output_feature = Some(self.parse_int_as_u32()?);
-                    self.eat_token(TokenType::CloseParen)?;
+                    self.eat_token(TokenType::CloseParenthesis)?;
                 }
                 "outputSpatial" => output_spatial = Some(self.parse_u32_paren_list()?),
                 _ => {
@@ -1543,7 +1552,7 @@ impl Parser {
                 break;
             }
         }
-        self.eat_token(TokenType::CloseParen)?;
+        self.eat_token(TokenType::CloseParenthesis)?;
 
         // validate required keys
         let input_batch =
@@ -1603,9 +1612,9 @@ impl Parser {
             if self.tree.source_text(token.span) != "window" {
                 return Err(ParseError::invalid("window", token.start));
             }
-            self.eat_token(TokenType::OpenParen)?;
+            self.eat_token(TokenType::OpenParenthesis)?;
 
-            while !self.peek_token(TokenType::CloseParen) {
+            while !self.peek_token(TokenType::CloseParenthesis) {
                 let key_token = self.eat_token(TokenType::Identifier)?;
                 match self.tree.source_text(key_token.span) {
                     "strides" => strides = Some(self.parse_u64_paren_list()?),
@@ -1627,7 +1636,7 @@ impl Parser {
                 }
             }
 
-            self.eat_token(TokenType::CloseParen)?;
+            self.eat_token(TokenType::CloseParenthesis)?;
         }
 
         Ok(TensorConvolutionWindow {
@@ -1651,16 +1660,16 @@ impl Parser {
             if self.tree.source_text(token.span) != "groups" {
                 return Err(ParseError::invalid("groups", token.start));
             }
-            self.eat_token(TokenType::OpenParen)?;
+            self.eat_token(TokenType::OpenParenthesis)?;
 
-            while !self.peek_token(TokenType::CloseParen) {
+            while !self.peek_token(TokenType::CloseParenthesis) {
                 let key_token = self.eat_token(TokenType::Identifier)?;
                 let key_text = self.tree.source_text(key_token.span).to_string();
                 let key_start = key_token.start;
                 let value = {
-                    self.eat_token(TokenType::OpenParen)?;
+                    self.eat_token(TokenType::OpenParenthesis)?;
                     let value = self.parse_int_as_u32()?;
-                    self.eat_token(TokenType::CloseParen)?;
+                    self.eat_token(TokenType::CloseParenthesis)?;
                     value
                 };
 
@@ -1675,7 +1684,7 @@ impl Parser {
                 }
             }
 
-            self.eat_token(TokenType::CloseParen)?;
+            self.eat_token(TokenType::CloseParenthesis)?;
         }
 
         Ok((
@@ -1691,23 +1700,23 @@ impl Parser {
         if self.tree.source_text(token.span) != "dims" {
             return Err(ParseError::invalid("dims", token.start));
         }
-        self.eat_token(TokenType::OpenParen)?;
+        self.eat_token(TokenType::OpenParenthesis)?;
 
         // parse named lists
         let mut offset_dims = None;
         let mut collapsed_slice_dims = None;
         let mut start_index_map = None;
         let mut index_vector_dim = None;
-        while !self.peek_token(TokenType::CloseParen) {
+        while !self.peek_token(TokenType::CloseParenthesis) {
             let key_token = self.eat_token(TokenType::Identifier)?;
             match self.tree.source_text(key_token.span) {
                 "offsetDims" => offset_dims = Some(self.parse_u32_paren_list()?),
                 "collapsedSliceDims" => collapsed_slice_dims = Some(self.parse_u32_paren_list()?),
                 "startIndexMap" => start_index_map = Some(self.parse_u32_paren_list()?),
                 "indexVectorDim" => {
-                    self.eat_token(TokenType::OpenParen)?;
+                    self.eat_token(TokenType::OpenParenthesis)?;
                     index_vector_dim = Some(self.parse_int_as_u32()?);
-                    self.eat_token(TokenType::CloseParen)?;
+                    self.eat_token(TokenType::CloseParenthesis)?;
                 }
                 _ => return Err(ParseError::invalid("gather dimension key", key_token.start)),
             }
@@ -1715,7 +1724,7 @@ impl Parser {
                 break;
             }
         }
-        self.eat_token(TokenType::CloseParen)?;
+        self.eat_token(TokenType::CloseParenthesis)?;
 
         // validate required keys
         let offset_dims =
@@ -1742,14 +1751,14 @@ impl Parser {
         if self.tree.source_text(token.span) != "dims" {
             return Err(ParseError::invalid("dims", token.start));
         }
-        self.eat_token(TokenType::OpenParen)?;
+        self.eat_token(TokenType::OpenParenthesis)?;
 
         // parse named lists
         let mut update_window_dims = None;
         let mut inserted_window_dims = None;
         let mut scatter_dims_to_operand_dims = None;
         let mut index_vector_dim = None;
-        while !self.peek_token(TokenType::CloseParen) {
+        while !self.peek_token(TokenType::CloseParenthesis) {
             let key_token = self.eat_token(TokenType::Identifier)?;
             match self.tree.source_text(key_token.span) {
                 "updateWindowDims" => update_window_dims = Some(self.parse_u32_paren_list()?),
@@ -1758,9 +1767,9 @@ impl Parser {
                     scatter_dims_to_operand_dims = Some(self.parse_u32_paren_list()?);
                 }
                 "indexVectorDim" => {
-                    self.eat_token(TokenType::OpenParen)?;
+                    self.eat_token(TokenType::OpenParenthesis)?;
                     index_vector_dim = Some(self.parse_int_as_u32()?);
-                    self.eat_token(TokenType::CloseParen)?;
+                    self.eat_token(TokenType::CloseParenthesis)?;
                 }
                 _ => {
                     return Err(ParseError::invalid(
@@ -1773,7 +1782,7 @@ impl Parser {
                 break;
             }
         }
-        self.eat_token(TokenType::CloseParen)?;
+        self.eat_token(TokenType::CloseParenthesis)?;
 
         // validate required keys
         let update_window_dims = update_window_dims
@@ -1924,17 +1933,17 @@ impl Parser {
     ) -> ParseResult<TypeReference> {
         let signature_start = self.pos();
         self.eat_token(TokenType::Colon)?;
-        self.eat_token(TokenType::OpenParen)?;
+        self.eat_token(TokenType::OpenParenthesis)?;
 
         let mut parameters = Vec::new();
-        while !self.peek_token(TokenType::CloseParen) {
+        while !self.peek_token(TokenType::CloseParenthesis) {
             parameters.push(self.parse_type()?.into());
             if !self.eat_token_maybe(TokenType::Comma) {
                 break;
             }
         }
 
-        self.eat_token(TokenType::CloseParen)?;
+        self.eat_token(TokenType::CloseParenthesis)?;
         self.eat_token(TokenType::Arrow)?;
         let result = self.parse_type()?;
         let signature_span = self.span_from_parse_start(signature_start);
@@ -1995,9 +2004,9 @@ impl Parser {
                 success.is_volatile = true;
             } else if token_text == "failure" {
                 self.eat_token(TokenType::Identifier)?;
-                self.eat_token(TokenType::OpenParen)?;
+                self.eat_token(TokenType::OpenParenthesis)?;
                 failure_ordering = self.parse_memory_ordering()?;
-                self.eat_token(TokenType::CloseParen)?;
+                self.eat_token(TokenType::CloseParenthesis)?;
             } else {
                 return Err(ParseError::invalid(
                     "atomic compare exchange access",
@@ -2035,9 +2044,9 @@ impl Parser {
     /// Parse one `scope(...)` synchronization clause.
     fn parse_sync_scope_clause(&mut self) -> ParseResult<SyncScope> {
         self.eat_token(TokenType::Identifier)?;
-        self.eat_token(TokenType::OpenParen)?;
+        self.eat_token(TokenType::OpenParenthesis)?;
         let scope = self.parse_sync_scope()?;
-        self.eat_token(TokenType::CloseParen)?;
+        self.eat_token(TokenType::CloseParenthesis)?;
 
         Ok(scope)
     }
@@ -2045,9 +2054,9 @@ impl Parser {
     /// Parse one `memory(...)` fence clause.
     fn parse_memory_scope_clause(&mut self) -> ParseResult<MemoryScope> {
         self.eat_token(TokenType::Identifier)?;
-        self.eat_token(TokenType::OpenParen)?;
+        self.eat_token(TokenType::OpenParenthesis)?;
         let scope = self.parse_memory_scope()?;
-        self.eat_token(TokenType::CloseParen)?;
+        self.eat_token(TokenType::CloseParenthesis)?;
 
         Ok(scope)
     }
@@ -2098,12 +2107,12 @@ impl Parser {
                 .peek()
                 .ok_or_else(|| ParseError::unexpected_end("memory flags", self.pos()))?;
             if !matches!(
-                token.ty,
+                self.token_type(token),
                 TokenType::Identifier | TokenType::Global | TokenType::Local
             ) {
                 return Err(ParseError::unexpected(
                     "memory flags",
-                    token.ty,
+                    self.token_type(token),
                     token.start,
                 ));
             }

@@ -37,68 +37,35 @@ impl<'a> FormatMirNode<'a, Global> for Global {
         // resolve the global name before formatting
         let name = f.context().global_name(id).to_string();
 
-        // imported globals
+        // declaration modifiers
         if self.linkage.is_import() {
+            write!(f, [token("external"), space()])?;
+        } else if self.linkage == Linkage::Export {
+            write!(f, [token("export"), space()])?;
+        }
+
+        if self.mutability == Mutability::Immutable {
+            write!(f, [token("readonly"), space()])?;
+        }
+
+        // global header
+        write!(
+            f,
+            [token("global"), space(), text(&name), token(":"), space()]
+        )?;
+        write!(f, [self.ty])?;
+        if self.space != AddressSpace::Local {
             write!(
                 f,
                 [
-                    token("extern"),
+                    token(","),
                     space(),
-                    token("global"),
-                    space(),
-                    text(&name),
-                    token(":"),
-                    space(),
-                    self.ty
+                    text(&format!("space({})", self.space.label()))
                 ]
             )?;
+        }
 
-            if self.mutability == Mutability::Immutable {
-                write!(f, [token(","), space(), token("readonly")])?;
-            }
-            if self.space != AddressSpace::Local {
-                write!(
-                    f,
-                    [
-                        token(","),
-                        space(),
-                        text(&format!("space({})", self.space.label()))
-                    ]
-                )?;
-            }
-        } else {
-            // linkage prefix for exported globals
-            if self.linkage == Linkage::Export {
-                write!(f, [token("export"), space()])?;
-            }
-
-            // local/exported globals
-            write!(
-                f,
-                [
-                    token("global"),
-                    space(),
-                    text(&name),
-                    token(":"),
-                    space(),
-                    self.ty
-                ]
-            )?;
-
-            if self.mutability == Mutability::Immutable {
-                write!(f, [token(","), space(), token("readonly")])?;
-            }
-            if self.space != AddressSpace::Local {
-                write!(
-                    f,
-                    [
-                        token(","),
-                        space(),
-                        text(&format!("space({})", self.space.label()))
-                    ]
-                )?;
-            }
-
+        if !self.linkage.is_import() {
             write!(f, [space(), token("="), space()])?;
 
             // format initializer

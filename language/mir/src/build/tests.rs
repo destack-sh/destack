@@ -1,7 +1,7 @@
 use crate::build::ModuleBuilder;
 use crate::{
     Access, AddressSpace, Copy, FenceAccess, Lifetime, MemoryFlags, MemoryOrdering, MemoryScope,
-    MirFormatOptions, Mutability, ReferenceKind, SyncScope, Type, format_mir,
+    MirFormatOptions, Mutability, Nullability, ReferenceKind, SyncScope, Type, format_mir,
 };
 
 /// Empty function with void return.
@@ -168,7 +168,7 @@ fn test_build_function_with_call_terminator() {
     let mut module = ModuleBuilder::new();
     let i32_type = module.type_i32();
     let signature = module.type_function_signature(vec![i32_type], i32_type);
-    let callee = module.extern_function("callee", &[i32_type], i32_type);
+    let callee = module.external_function("callee", &[i32_type], i32_type);
 
     // build function
     let mut builder = module.function("caller", &[i32_type], i32_type);
@@ -192,7 +192,7 @@ fn test_build_function_with_call_terminator() {
     let (tree, strings) = module.finish();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-extern function callee(int32): int32
+external function callee(int32): int32
 
 function caller(value0: int32): int32 {
 entry0(value0: int32):
@@ -715,7 +715,7 @@ fn test_managed_reference_types() {
         Type::Reference {
             kind: ReferenceKind::Managed,
             access: Access::Readonly,
-            is_nullable: false,
+            nullability: Nullability::None,
             ..
         }
     ));
@@ -724,7 +724,7 @@ fn test_managed_reference_types() {
         Type::Reference {
             kind: ReferenceKind::Managed,
             access: Access::Mutable,
-            is_nullable: false,
+            nullability: Nullability::None,
             ..
         }
     ));
@@ -733,7 +733,7 @@ fn test_managed_reference_types() {
         Type::Reference {
             kind: ReferenceKind::Managed,
             access: Access::Readonly,
-            is_nullable: true,
+            nullability: Nullability::Null,
             ..
         }
     ));
@@ -742,7 +742,7 @@ fn test_managed_reference_types() {
         Type::Reference {
             kind: ReferenceKind::Managed,
             access: Access::Mutable,
-            is_nullable: true,
+            nullability: Nullability::Null,
             ..
         }
     ));
@@ -751,7 +751,7 @@ fn test_managed_reference_types() {
         Type::Reference {
             kind: ReferenceKind::Raw,
             access: Access::Readonly,
-            is_nullable: false,
+            nullability: Nullability::None,
             ..
         }
     ));
@@ -760,7 +760,7 @@ fn test_managed_reference_types() {
         Type::Reference {
             kind: ReferenceKind::Raw,
             access: Access::Mutable,
-            is_nullable: false,
+            nullability: Nullability::None,
             ..
         }
     ));
@@ -916,7 +916,7 @@ fn test_build_stack_alloc() {
         address_space: AddressSpace::Stack,
         access: Access::Readonly,
         pointee: i32_type.into(),
-        is_nullable: false,
+        nullability: Nullability::None,
     });
 
     // build function with stack.alloc
@@ -1107,12 +1107,12 @@ fn test_build_array() {
     let (tree, strings) = module.finish();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-function makeArray(): int32[3] {
+function makeArray(): [int32; 3] {
 entry0:
     value0: int32 = 1int32
     value1: int32 = 2int32
     value2: int32 = 3int32
-    value3: int32[3] = array int32[3] (value0, value1, value2)
+    value3: [int32; 3] = array [int32; 3] (value0, value1, value2)
     return value3
 }";
     assert_eq!(output, expected);
@@ -1208,8 +1208,8 @@ fn test_build_element_get_array() {
     let (tree, strings) = module.finish();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-function getElement(value0: int32[3], value1: int64): int32 {
-entry0(value0: int32[3], value1: int64):
+function getElement(value0: [int32; 3], value1: int64): int32 {
+entry0(value0: [int32; 3], value1: int64):
     value2: int32 = element.get value0, 1
     return value2
 }";

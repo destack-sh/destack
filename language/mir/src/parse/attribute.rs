@@ -1,3 +1,4 @@
+use crate::source::TokenType;
 use destack_source::Span;
 
 use crate::{
@@ -7,7 +8,6 @@ use crate::{
 
 use super::error::{ParseError, ParseResult};
 use super::parser::Parser;
-use super::token::TokenType;
 
 #[allow(clippy::type_complexity)]
 impl Parser {
@@ -43,9 +43,9 @@ impl Parser {
         let name = AttributeIdentifier::Identifier(self.strings.intern(&name_text));
 
         // optional argument payload
-        let args = if self.eat_token_maybe(TokenType::OpenParen) {
+        let args = if self.eat_token_maybe(TokenType::OpenParenthesis) {
             let args = self.parse_attribute_args()?;
-            self.eat_token(TokenType::CloseParen)?;
+            self.eat_token(TokenType::CloseParenthesis)?;
             args
         } else {
             AttributeArgs::None
@@ -57,7 +57,7 @@ impl Parser {
     /// Parse a single attribute argument list.
     fn parse_attribute_args(&mut self) -> ParseResult<AttributeArgs> {
         // empty list
-        if self.peek_token(TokenType::CloseParen) {
+        if self.peek_token(TokenType::CloseParenthesis) {
             return Ok(AttributeArgs::None);
         }
 
@@ -65,14 +65,14 @@ impl Parser {
         if self.peek_token(TokenType::Identifier)
             && self
                 .peek_nth_token(1)
-                .is_some_and(|token| token.ty == TokenType::Equals)
+                .is_some_and(|token| self.token_type(token) == TokenType::Equal)
         {
             let mut pairs = Vec::new();
             loop {
                 let key_token = self.eat_token(TokenType::Identifier)?;
                 let key_text = self.tree.source_text(key_token.span).to_string();
                 let key = AttributeIdentifier::Identifier(self.strings.intern(&key_text));
-                self.eat_token(TokenType::Equals)?;
+                self.eat_token(TokenType::Equal)?;
                 let value = self.parse_attribute_value()?;
                 pairs.push(AttributeKeyValue { key, value });
 
@@ -108,18 +108,18 @@ impl Parser {
         let token = self
             .peek()
             .ok_or_else(|| ParseError::unexpected_end("attribute value", self.pos()))?;
-        let token_ty = token.ty;
+        let kind = self.token_type(token);
         let token_text = self.tree.source_text(token.span).to_string();
         let token_start = token.start;
 
         // type values
-        if self.peek_type(token_ty) {
+        if self.peek_type(kind) {
             let ty = self.parse_type()?;
             return Ok(AttributeValue::Type(TypeReference::Type(ty)));
         }
 
         // scalar and list values
-        match token_ty {
+        match kind {
             TokenType::Identifier => {
                 self.bump();
                 let identifier = AttributeIdentifier::Identifier(self.strings.intern(&token_text));
@@ -131,16 +131,16 @@ impl Parser {
                 let value = token_text == "true";
                 Ok(AttributeValue::Boolean(value))
             }
-            TokenType::IntLiteral => {
+            TokenType::Integer => {
                 let value = self.parse_int_literal()?;
                 Ok(AttributeValue::Integer(IntegerReference::Integer(value)))
             }
-            TokenType::FloatLiteral => {
+            TokenType::Float => {
                 self.bump();
                 let value = self.parse_attribute_float(&token_text, token_start)?;
                 Ok(AttributeValue::Float(value))
             }
-            TokenType::StringLiteral => {
+            TokenType::String => {
                 self.bump();
                 let value = self.parse_string_literal(&token_text).ok_or_else(|| {
                     ParseError::invalid(&format!("string literal '{token_text}'"), token_start)
@@ -161,11 +161,7 @@ impl Parser {
 
                 Ok(AttributeValue::List(values))
             }
-            _ => Err(ParseError::unexpected(
-                "attribute value",
-                token_ty,
-                token_start,
-            )),
+            _ => Err(ParseError::unexpected("attribute value", kind, token_start)),
         }
     }
 

@@ -9,7 +9,7 @@ fn test_parse_named_node_spans() {
     let source = r#"
 type Callable = () => void
 
-global Count: int32, readonly = 1int32
+readonly global Count: int32 = 1int32
 
 function use(): void {
 entry0:
@@ -49,7 +49,7 @@ entry0:
         tree.get_side_span(global_id, NodeSpanType::Region(NodeSpanRegion::Type)),
         Some(span_for_text_in(
             source,
-            "global Count: int32, readonly = 1int32",
+            "readonly global Count: int32 = 1int32",
             "int32"
         ))
     );
@@ -66,7 +66,7 @@ entry0:
         tree.get_span(global_id),
         Some(span_for_text(
             source,
-            "global Count: int32, readonly = 1int32"
+            "readonly global Count: int32 = 1int32"
         ))
     );
     assert_eq!(

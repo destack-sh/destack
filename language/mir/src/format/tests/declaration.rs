@@ -7,7 +7,7 @@ fn test_format_dotted_symbol_names() {
         r#"
 type Status = newtype<int32>
 
-global Status.Default: Status, readonly = 1int32
+readonly global Status.Default: Status = 1int32
 
 function Status.isActive(v0: Status): boolean {
 b0(v0: Status):
@@ -28,7 +28,7 @@ b0:
         r#"
 type Status = newtype<int32>;
 
-global Status.Default: Status, readonly = 1int32
+readonly global Status.Default: Status = 1int32
 
 function Status.isActive(value0: Status): boolean {
 entry0(value0: Status):
@@ -77,11 +77,11 @@ entry0(value0: Callable):
 fn test_format_import_export_declarations() {
     assert_format(
         r#"
-extern global Imported: int32, readonly
+external readonly global Imported: int32
 
 export global Exported: int32 = 7int32
 
-extern function imported(int32): int32
+external function imported(int32): int32
 
 export function exported(value0: int32): int32 {
 entry0(value0: int32):

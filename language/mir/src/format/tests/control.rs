@@ -48,7 +48,7 @@ block1(value2: int32, value3: int32):
 fn test_format_call_terminator() {
     assert_format(
         r#"
-extern function callee(int32): int32
+external function callee(int32): int32
 
 function caller(value0: int32): int32 {
 entry0(value0: int32):
@@ -86,7 +86,7 @@ entry0(value0: uint32, value1: ref<void, managed>):
 
 block1:
     value3: boolean = int.eq value0, value0
-    check unionTag value0, 1 -> block4, block5
+    check variantTag value0, 1uint32 -> block4, block5
 
 block2:
     value4: boolean = int.eq value0, value0

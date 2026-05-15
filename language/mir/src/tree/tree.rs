@@ -5,7 +5,7 @@ use destack_core::Arena;
 use destack_source::{FileId, NodeSourceMap, NodeSpanType, Span};
 use serde::{Deserialize, Serialize};
 
-use crate::parse::Token;
+use crate::source::{Token, TokenType};
 use crate::{
     Access, AddressSpace, ArgumentSlice, Attribute, Block, CommentSpan, Field, FieldSpan, Function,
     FunctionHeaderSpans, Global, Instruction, InterfaceShape, InterfaceTable, Layout, LayoutId,
@@ -313,14 +313,21 @@ impl Tree {
             }
             Type::Newtype { inner, .. } => self.type_reference_lifetime_inner(*inner, visited),
             Type::Any { interface } => self.type_reference_lifetime_inner(*interface, visited),
-            Type::Union { tag, variants, .. } => {
+            Type::Variant {
+                tag,
+                storage,
+                cases,
+                ..
+            } => {
                 let tag = self.type_reference_lifetime_inner(*tag, visited);
-                let lifetimes = variants
+                let storage = self.type_reference_lifetime_inner(*storage, visited);
+                let lifetimes = cases
                     .iter()
-                    .filter_map(|variant| self.type_reference_lifetime_inner(variant.ty, visited));
+                    .filter_map(|case| self.type_reference_lifetime_inner(case.ty, visited));
 
                 Some(Lifetime::new(
                     tag.into_iter()
+                        .chain(storage)
                         .chain(lifetimes)
                         .flat_map(|lifetime| lifetime.origins.into_iter()),
                 ))
@@ -382,11 +389,17 @@ impl Tree {
             }),
             Type::Newtype { inner, .. } => self.type_reference_contains_borrowed_refs(*inner),
             Type::Any { interface } => self.type_reference_contains_borrowed_refs(*interface),
-            Type::Union { tag, variants, .. } => {
+            Type::Variant {
+                tag,
+                storage,
+                cases,
+                ..
+            } => {
                 self.type_reference_contains_borrowed_refs(*tag)
-                    || variants
+                    || self.type_reference_contains_borrowed_refs(*storage)
+                    || cases
                         .iter()
-                        .any(|variant| self.type_reference_contains_borrowed_refs(variant.ty))
+                        .any(|case| self.type_reference_contains_borrowed_refs(case.ty))
             }
             Type::Tuple { elements, .. } => elements
                 .iter()
@@ -805,7 +818,7 @@ impl Tree {
                     address_space: AddressSpace::Local,
                     access: Access::Mutable,
                     pointee,
-                    is_nullable: true,
+                    nullability: crate::Nullability::Null,
                     ..
                 } if *pointee == TypeReference::Type(void_type)
             )
@@ -836,7 +849,7 @@ impl Tree {
                     address_space: AddressSpace::Local,
                     access: Access::Mutable,
                     pointee,
-                    is_nullable: true,
+                    nullability: crate::Nullability::Null,
                     ..
                 } if *pointee == TypeReference::Type(void_type)
             )
@@ -851,7 +864,7 @@ impl Tree {
             address_space: AddressSpace::Local,
             access: Access::Mutable,
             pointee: TypeReference::Type(void_type),
-            is_nullable: true,
+            nullability: crate::Nullability::Null,
         })
     }
 
@@ -1278,11 +1291,11 @@ impl Tree {
             }
 
             // inline comments must stay before the first newline
-            if token.ty == crate::parse::TokenType::Newline {
+            if token.ty == TokenType::Newline {
                 saw_newline = true;
             }
 
-            if token.ty == crate::parse::TokenType::Comment && !saw_newline {
+            if token.ty == TokenType::Comment && !saw_newline {
                 return Some(CommentSpan::new(token.span, self.source_text(token.span)));
             }
         }
@@ -1422,7 +1435,7 @@ impl Tree {
                 break;
             }
 
-            if token.ty == crate::parse::TokenType::Comment {
+            if token.ty == TokenType::Comment {
                 comments.push(CommentSpan::new(token.span, self.source_text(token.span)));
             }
         }

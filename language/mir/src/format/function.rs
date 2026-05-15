@@ -28,7 +28,7 @@ impl<'a> FormatMirNode<'a, Function> for Function {
             write!(
                 f,
                 [
-                    token("extern"),
+                    token("external"),
                     space(),
                     token("function"),
                     space(),
@@ -36,7 +36,7 @@ impl<'a> FormatMirNode<'a, Function> for Function {
                 ]
             )?;
 
-            // extern parameters
+            // external parameters
             format_function_parameters(id, self, true, f)?;
 
             return write!(f, [token(":"), space(), self.return_type]);

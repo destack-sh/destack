@@ -140,8 +140,8 @@ pub enum LayoutShape {
         /// The fixed element count when known.
         element_count: Option<u32>,
     },
-    /// Union layout with tag and payload offsets.
-    Union {
+    /// Variant layout with tag and payload offsets.
+    Variant {
         /// The byte offset of the tag field.
         tag_offset: u32,
         /// The payload storage type.
@@ -149,7 +149,7 @@ pub enum LayoutShape {
         /// The byte offset of the payload field.
         payload_offset: u32,
         /// The payload storage strategy.
-        payload: UnionPayload,
+        payload: VariantPayload,
     },
     /// Object layout with a class dispatch table header.
     Object {
@@ -169,9 +169,9 @@ pub enum LayoutShape {
     Callable,
 }
 
-/// Payload storage strategy for one union layout.
+/// Payload storage strategy for one variant layout.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum UnionPayload {
+pub enum VariantPayload {
     /// Store the active variant inline in the payload field.
     Inline,
     /// Store the active variant behind a managed heap reference.
@@ -228,23 +228,23 @@ pub enum ReferenceMap {
         /// The per-element reference map.
         element: Box<ReferenceMap>,
     },
-    /// Payload stores a tagged union with variant-specific reference maps.
+    /// Payload stores a tagged variant with case-specific reference maps.
     Tagged {
-        /// The byte offset of the union tag.
+        /// The byte offset of the variant tag.
         tag_offset: u32,
-        /// The byte width of the union tag.
+        /// The byte width of the variant tag.
         tag_bytes: u8,
-        /// Variant reference maps keyed by tag value.
+        /// Case reference maps keyed by normalized tag value.
         variants: Box<[ReferenceVariant]>,
     },
 }
 
-/// One tagged reference-map variant.
+/// One tagged reference-map case.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ReferenceVariant {
-    /// The numeric tag value selecting this variant.
+    /// The normalized numeric tag value selecting this case.
     pub tag: u64,
-    /// The byte offset of the variant payload.
+    /// The byte offset of the case payload.
     pub payload_offset: u32,
     /// The payload reference map for this variant.
     pub map: ReferenceMap,

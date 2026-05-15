@@ -6,14 +6,13 @@ use destack_source::{
     NodeSpanList, NodeSpanType, Span,
 };
 
+use crate::source::{Lexer, Token, TokenType};
 use crate::{
     Block, Field, Function, Global, LocalNodeId, Node, Tree, Type, Value, finalize_function_names,
 };
 
 use super::error::{ParseError, ParseResult};
 use super::key::{FieldKey, TypeKey};
-use super::lexer::Lexer;
-use super::token::{Token, TokenType};
 
 /// The result of parsing one MIR source file.
 #[derive(Debug)]
@@ -42,10 +41,9 @@ impl ParsedMir {
 
         // fail strictly when parse diagnostics were emitted
         if diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error) {
-            let diagnostic = diagnostics
-                .iter()
-                .next()
-                .expect("error diagnostics must contain at least one entry");
+            let Some(diagnostic) = diagnostics.iter().next() else {
+                return Err(ParseError::new("parser emitted an empty error set", 0));
+            };
             return Err(ParseError::from_diagnostic(diagnostic));
         }
 
@@ -179,6 +177,17 @@ impl Parser {
         self.peek().map(|t| t.start).unwrap_or(0)
     }
 
+    /// Return the MIR token type for one source token.
+    pub(super) fn token_type(&self, token: &Token) -> TokenType {
+        let text = self.tree.source_text(token.span);
+
+        match token.ty {
+            TokenType::Identifier => TokenType::from_identifier(text),
+            TokenType::Question => TokenType::Unknown,
+            ty => ty,
+        }
+    }
+
     /// Build a span for a source slice.
     pub(super) fn span_at(&self, start: usize, length: usize) -> Span {
         let start = u32::try_from(start).unwrap_or(u32::MAX);
@@ -197,6 +206,25 @@ impl Parser {
         self.span_between(start, end)
     }
 
+    /// Return whether source between one token and the next token crosses a line.
+    pub(super) fn has_line_break_after(&self, token: &Token) -> bool {
+        let Some(next) = self.peek() else {
+            return false;
+        };
+
+        let start = token.span.end;
+        let end = next.span.start;
+        if end <= start {
+            return false;
+        }
+
+        let span = Span::at(self.file_id, start, end - start);
+        self.tree
+            .source_text(span)
+            .bytes()
+            .any(|byte| matches!(byte, b'\n' | b'\r'))
+    }
+
     /// Peek the current token (skipping trivia).
     pub(super) fn peek(&self) -> Option<&Token> {
         let mut pos = self.pos;
@@ -204,7 +232,7 @@ impl Parser {
 
         while pos < tokens.len() {
             let token = &tokens[pos];
-            if !token.ty.is_trivia() {
+            if !token.is_trivia() {
                 return Some(token);
             }
             pos += 1;
@@ -220,7 +248,7 @@ impl Parser {
 
         while pos < tokens.len() {
             let token = &tokens[pos];
-            if !token.ty.is_trivia() {
+            if !token.is_trivia() {
                 if seen == n {
                     return Some(token);
                 }
@@ -236,31 +264,34 @@ impl Parser {
         let tokens = self.tree.tokens();
 
         while self.pos < tokens.len() {
-            let is_trivia = tokens[self.pos].ty.is_trivia();
+            let is_trivia = tokens[self.pos].is_trivia();
             self.pos += 1;
             if !is_trivia {
                 break;
             }
         }
+
         // skip trailing trivia
-        while self.pos < tokens.len() && tokens[self.pos].ty.is_trivia() {
+        while self.pos < tokens.len() && tokens[self.pos].is_trivia() {
             self.pos += 1;
         }
     }
 
-    /// Check if current token matches the given type.
+    /// Return whether the current source token matches one token type.
     pub(super) fn peek_token(&self, ty: TokenType) -> bool {
-        self.peek().is_some_and(|t| t.ty == ty)
+        self.peek()
+            .is_some_and(|token| self.token_type(token) == ty)
     }
 
-    /// Consume a token of the given type, or return an error.
+    /// Consume one source token with the expected token type.
     pub(super) fn eat_token(&mut self, ty: TokenType) -> ParseResult<Token> {
         let token = self
             .peek()
             .ok_or_else(|| ParseError::unexpected_end(&format!("{ty:?}"), self.pos()))?;
-        if token.ty != ty {
+        if self.token_type(token) != ty {
             return Err(ParseError::unexpected_token(&format!("{ty:?}"), token));
         }
+
         // return current token, then advance
         let pos = self.pos;
         self.bump();
@@ -268,14 +299,14 @@ impl Parser {
 
         // find the token we just consumed
         for token in tokens.iter().take(self.pos).skip(pos) {
-            if !token.ty.is_trivia() {
-                return Ok(token.clone());
+            if !token.is_trivia() {
+                return Ok(*token);
             }
         }
-        Ok(tokens[pos].clone())
+        Ok(tokens[pos])
     }
 
-    /// Consume a token if it matches, returning true if consumed.
+    /// Consume one source token when it matches one token type.
     pub(super) fn eat_token_maybe(&mut self, ty: TokenType) -> bool {
         if self.peek_token(ty) {
             self.bump();
@@ -290,7 +321,7 @@ impl Parser {
         let Some(token) = self.peek() else {
             return false;
         };
-        if token.ty != TokenType::Identifier {
+        if self.token_type(token) != TokenType::Identifier {
             return false;
         }
 
@@ -312,7 +343,7 @@ impl Parser {
             .peek()
             .ok_or_else(|| ParseError::unexpected_end("opcode", self.pos()))?;
 
-        match token.ty {
+        match self.token_type(token) {
             TokenType::Identifier
             | TokenType::Const
             | TokenType::Struct
@@ -337,7 +368,7 @@ impl Parser {
         while index > 0 {
             index -= 1;
             let token = &tokens[index];
-            if !token.ty.is_trivia() {
+            if !token.is_trivia() {
                 return Some(token.span.end as usize);
             }
         }
@@ -375,7 +406,7 @@ impl Parser {
     /// Scan a symbol name without emitting errors.
     pub(super) fn scan_symbol_name(&mut self) -> Option<String> {
         let token = self.peek()?;
-        if token.ty != TokenType::Identifier {
+        if self.token_type(token) != TokenType::Identifier {
             return None;
         }
 
@@ -416,7 +447,8 @@ impl Parser {
 
         while self.pos < tokens.len() {
             let token = &tokens[self.pos];
-            if !token.ty.is_trivia() || token.ty == TokenType::Newline {
+            let ty = self.token_type(token);
+            if !token.is_trivia() || ty == TokenType::Newline {
                 break;
             }
 
@@ -434,25 +466,29 @@ impl Parser {
             return false;
         };
 
-        if token.ty != TokenType::Identifier {
+        if self.token_type(token) != TokenType::Identifier {
             return false;
         }
 
         matches!(
-            self.peek_nth_token(1).map(|token| token.ty),
+            self.peek_nth_token(1).map(|token| self.token_type(token)),
             Some(TokenType::Colon)
         )
     }
 
     /// Return whether the current token starts a value reference.
     pub(super) fn is_value_reference_start(&self) -> bool {
-        self.peek()
-            .is_some_and(|token| matches!(token.ty, TokenType::Value | TokenType::Identifier))
+        self.peek().is_some_and(|token| {
+            matches!(
+                self.token_type(token),
+                TokenType::Value | TokenType::Identifier
+            )
+        })
     }
 
     /// Return whether the current token starts a block label.
     pub(super) fn is_block_label_start(&self) -> bool {
-        if self.peek_token(TokenType::BlockRefence) {
+        if self.peek_token(TokenType::BlockReference) {
             return true;
         }
 
@@ -460,7 +496,7 @@ impl Parser {
             return false;
         };
 
-        if token.ty != TokenType::Identifier {
+        if self.token_type(token) != TokenType::Identifier {
             return false;
         }
 
@@ -470,16 +506,16 @@ impl Parser {
             .iter()
             .enumerate()
             .skip(self.pos)
-            .find_map(|(index, token)| (!token.ty.is_trivia()).then_some(index))
+            .find_map(|(index, token)| (!token.is_trivia()).then_some(index))
         else {
             return false;
         };
 
         let mut saw_colon = false;
         for token in self.tree.tokens().iter().skip(raw_index + 1) {
-            match token.ty {
+            match self.token_type(token) {
                 TokenType::Newline | TokenType::End => break,
-                TokenType::Equals => return false,
+                TokenType::Equal => return false,
                 TokenType::Colon => saw_colon = true,
                 _ => {}
             }
@@ -496,15 +532,18 @@ impl Parser {
             return false;
         };
 
-        if !matches!(token.ty, TokenType::BlockRefence | TokenType::Identifier) {
+        if !matches!(
+            self.token_type(token),
+            TokenType::BlockReference | TokenType::Identifier
+        ) {
             return false;
         }
 
         if tokens[..token_index]
             .iter()
             .rev()
-            .take_while(|token| token.ty != TokenType::Newline)
-            .any(|token| !token.ty.is_trivia())
+            .take_while(|token| self.token_type(token) != TokenType::Newline)
+            .any(|token| !token.is_trivia())
         {
             return false;
         }
@@ -512,9 +551,9 @@ impl Parser {
         let mut saw_colon = false;
         let mut next_index = token_index + 1;
         while let Some(next_token) = tokens.get(next_index) {
-            match next_token.ty {
+            match self.token_type(next_token) {
                 TokenType::Newline | TokenType::End => break,
-                TokenType::Equals => return false,
+                TokenType::Equal => return false,
                 TokenType::Colon => saw_colon = true,
                 _ => {}
             }

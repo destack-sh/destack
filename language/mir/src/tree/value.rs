@@ -36,7 +36,7 @@ impl TypedValue {
 }
 
 /// A compile-time constant value in MIR.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Constant {
     /// Null reference constant.
     Null,

@@ -44,7 +44,7 @@ type Point {
 }
 
 @section(".rodata")
-global Count: int32, readonly = 1int32
+readonly global Count: int32 = 1int32
 
 function usePoint(value0: Point): int32 {
 entry0(value0: Point):

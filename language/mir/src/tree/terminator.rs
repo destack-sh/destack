@@ -2,8 +2,8 @@ use serde::{Deserialize, Serialize};
 use smallvec::{SmallVec, smallvec};
 
 use crate::{
-    BinaryOperator, BlockReference, Call, CallDispatchKind, DispatchSlot, FunctionReference,
-    IntegerReference, Node, NodeType, TypeReference, ValueReference,
+    BinaryOperator, BlockReference, Call, CallDispatchKind, Constant, DispatchSlot,
+    FunctionReference, IntegerReference, Node, NodeType, TypeReference, ValueReference,
 };
 
 /// One control-flow edge target.
@@ -84,12 +84,12 @@ pub enum CheckConstraint {
         /// The expected dynamic type for this descriptor.
         expected: TypeReference,
     },
-    /// Union tag check for a discriminated union value.
-    Union {
+    /// Variant tag check for a physical tagged sum value.
+    Variant {
         /// The tag value being checked.
         value: ValueReference,
-        /// The expected tag index.
-        expected: u64,
+        /// The expected tag constant.
+        expected: Constant,
     },
     /// Dynamic receiver type check for a class or concrete receiver.
     ReceiverType {
@@ -124,7 +124,7 @@ impl CheckConstraint {
             CheckConstraint::Narrow { value, .. } => smallvec![*value],
             CheckConstraint::Overflow { left, right, .. } => smallvec![*left, *right],
             CheckConstraint::Type { value, .. } => smallvec![*value],
-            CheckConstraint::Union { value, .. } => smallvec![*value],
+            CheckConstraint::Variant { value, .. } => smallvec![*value],
             CheckConstraint::ReceiverType { receiver, .. } => smallvec![*receiver],
             CheckConstraint::Implements { receiver, .. } => smallvec![*receiver],
         }

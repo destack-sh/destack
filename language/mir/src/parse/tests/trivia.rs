@@ -9,10 +9,10 @@ fn test_parse_declaration_comments() {
 // aliases
 type Callable = (int32) => int32;
 // imports
-extern function callee(int32): int32;
+external function callee(int32): int32;
 
 // globals
-global Count: int32, readonly = 1int32;
+readonly global Count: int32 = 1int32;
 
 function use(v0: Callable): int32 {
 b0(v0: Callable):
@@ -28,10 +28,10 @@ b0(v0: Callable):
 type Callable = (int32) => int32;
 
 // imports
-extern function callee(int32): int32
+external function callee(int32): int32
 
 // globals
-global Count: int32, readonly = 1int32
+readonly global Count: int32 = 1int32
 
 function use(value0: Callable): int32 {
 entry0(value0: Callable):

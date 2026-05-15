@@ -2,8 +2,9 @@ use destack_core::StringId;
 
 use crate::build::ModuleBuilder;
 use crate::{
-    Access, AddressSpace, Copy, Field, FloatType, Lifetime, LocalNodeId, ReferenceKind,
-    TensorDimension, TensorLayout, TensorViewLayout, Type, TypeReference, UnionVariant,
+    Access, AddressSpace, Constant, Copy, Field, FloatType, Lifetime, LocalNodeId, Nullability,
+    ReferenceKind, TensorDimension, TensorLayout, TensorViewLayout, Type, TypeReference,
+    VariantCase,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -101,7 +102,7 @@ impl ModuleBuilder {
         pointee: LocalNodeId<Type>,
         access: Access,
         address_space: AddressSpace,
-        is_nullable: bool,
+        nullability: Nullability,
     ) -> LocalNodeId<Type> {
         self.type_reference_with_lifetime(
             kind,
@@ -109,7 +110,7 @@ impl ModuleBuilder {
             pointee,
             access,
             address_space,
-            is_nullable,
+            nullability,
         )
     }
 
@@ -121,7 +122,7 @@ impl ModuleBuilder {
         pointee: LocalNodeId<Type>,
         access: Access,
         address_space: AddressSpace,
-        is_nullable: bool,
+        nullability: Nullability,
     ) -> LocalNodeId<Type> {
         self.tree.insert_type(Type::Reference {
             kind,
@@ -129,7 +130,7 @@ impl ModuleBuilder {
             address_space,
             access,
             pointee: pointee.into(),
-            is_nullable,
+            nullability,
         })
     }
 
@@ -144,7 +145,7 @@ impl ModuleBuilder {
             pointee,
             access,
             AddressSpace::Local,
-            false,
+            Nullability::None,
         )
     }
 
@@ -164,7 +165,7 @@ impl ModuleBuilder {
             pointee,
             access,
             AddressSpace::Local,
-            false,
+            Nullability::None,
         )
     }
 
@@ -189,7 +190,7 @@ impl ModuleBuilder {
             pointee,
             access,
             AddressSpace::Local,
-            false,
+            Nullability::None,
         )
     }
 
@@ -220,7 +221,7 @@ impl ModuleBuilder {
             pointee,
             access,
             AddressSpace::Local,
-            true,
+            Nullability::Null,
         )
     }
 
@@ -248,7 +249,7 @@ impl ModuleBuilder {
             pointee,
             access,
             AddressSpace::Local,
-            false,
+            Nullability::None,
         )
     }
 
@@ -291,7 +292,7 @@ impl ModuleBuilder {
         address_space: AddressSpace,
         shape: Vec<TensorDimension>,
         layout: TensorViewLayout,
-        is_nullable: bool,
+        nullability: Nullability,
     ) -> LocalNodeId<Type> {
         self.tree.insert_type(Type::TensorView {
             kind,
@@ -301,7 +302,7 @@ impl ModuleBuilder {
             element: element.into(),
             shape,
             layout,
-            is_nullable,
+            nullability,
         })
     }
 
@@ -345,6 +346,7 @@ impl ModuleBuilder {
             element: element.into(),
             address_space,
             access,
+            nullability: Nullability::None,
         })
     }
 
@@ -378,21 +380,23 @@ impl ModuleBuilder {
         self.tree.insert_type(Type::Struct { fields, copy })
     }
 
-    /// Create a union type with explicit copy.
-    pub fn type_union(
+    /// Create a physical variant type with explicit copy.
+    pub fn type_variant(
         &mut self,
         tag: LocalNodeId<Type>,
-        variants: Vec<(u64, LocalNodeId<Type>)>,
+        storage: LocalNodeId<Type>,
+        cases: Vec<(Constant, LocalNodeId<Type>)>,
         copy: Copy,
     ) -> LocalNodeId<Type> {
-        let variants = variants
+        let cases = cases
             .into_iter()
-            .map(|(tag, ty)| UnionVariant { tag, ty: ty.into() })
+            .map(|(tag, ty)| VariantCase { tag, ty: ty.into() })
             .collect();
 
-        self.tree.insert_type(Type::Union {
+        self.tree.insert_type(Type::Variant {
             tag: tag.into(),
-            variants,
+            storage: storage.into(),
+            cases,
             copy,
         })
     }

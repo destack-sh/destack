@@ -1,3 +1,4 @@
+use crate::source::TokenType;
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use crate::{
@@ -9,7 +10,6 @@ use crate::{
 
 use super::error::{ParseError, ParseResult};
 use super::parser::Parser;
-use super::token::TokenType;
 
 impl Parser {
     /// Parse one module.
@@ -33,8 +33,8 @@ impl Parser {
         let item_start = self.pos();
         let (attributes, attribute_spans) = self.parse_attributes()?;
 
-        // linkage
-        let linkage = if self.peek_token(TokenType::Extern) {
+        // declaration modifiers
+        let linkage = if self.peek_token(TokenType::External) {
             self.bump();
             Linkage::Import
         } else if self.peek_token(TokenType::Export) {
@@ -43,20 +43,35 @@ impl Parser {
         } else {
             Linkage::Local
         };
+        let mutability = if self.eat_token_maybe(TokenType::Readonly) {
+            Mutability::Immutable
+        } else {
+            Mutability::Mutable
+        };
 
         // item grammar
         if self.peek_token(TokenType::Type) {
             if linkage != Linkage::Local {
                 return Err(ParseError::new(
-                    "type aliases cannot be extern or export",
+                    "type aliases cannot be external or export",
+                    self.pos(),
+                ));
+            }
+            if mutability == Mutability::Immutable {
+                return Err(ParseError::new(
+                    "type aliases cannot be readonly",
                     self.pos(),
                 ));
             }
 
             self.parse_type_alias(item_start, attributes, attribute_spans)?;
         } else if self.peek_token(TokenType::Global) {
-            self.parse_global(item_start, linkage, attributes, attribute_spans)?;
+            self.parse_global(item_start, linkage, mutability, attributes, attribute_spans)?;
         } else if self.peek_token(TokenType::Function) {
+            if mutability == Mutability::Immutable {
+                return Err(ParseError::new("functions cannot be readonly", self.pos()));
+            }
+
             self.parse_function(item_start, linkage, attributes, attribute_spans)?;
         } else {
             return Err(ParseError::new(
@@ -77,8 +92,9 @@ impl Parser {
 
         while !self.peek_token(TokenType::End) {
             if self.peek_token(TokenType::At)
-                || self.peek_token(TokenType::Extern)
+                || self.peek_token(TokenType::External)
                 || self.peek_token(TokenType::Export)
+                || self.peek_token(TokenType::Readonly)
                 || self.peek_token(TokenType::Type)
                 || self.peek_token(TokenType::Global)
                 || self.peek_token(TokenType::Function)
@@ -100,7 +116,12 @@ impl Parser {
             self.skip_attribute_tokens();
 
             // item linkage
-            if self.peek_token(TokenType::Extern) || self.peek_token(TokenType::Export) {
+            if self.peek_token(TokenType::External) || self.peek_token(TokenType::Export) {
+                self.bump();
+            }
+
+            // item mutability
+            if self.peek_token(TokenType::Readonly) {
                 self.bump();
             }
 
@@ -164,7 +185,7 @@ impl Parser {
         while !self.peek_token(TokenType::End) {
             self.skip_attribute_tokens();
 
-            let linkage = if self.peek_token(TokenType::Extern) {
+            let linkage = if self.peek_token(TokenType::External) {
                 self.bump();
                 Linkage::Import
             } else if self.peek_token(TokenType::Export) {
@@ -173,6 +194,9 @@ impl Parser {
             } else {
                 Linkage::Local
             };
+            if self.peek_token(TokenType::Readonly) {
+                self.bump();
+            }
 
             if self.peek_token(TokenType::Function) {
                 let _ = self.scan_function_placeholder_signature(linkage);
@@ -192,13 +216,13 @@ impl Parser {
             self.bump();
             let _ = self.eat_token_maybe(TokenType::Identifier);
 
-            if self.peek_token(TokenType::OpenParen) {
+            if self.peek_token(TokenType::OpenParenthesis) {
                 self.bump();
                 let mut depth = 1usize;
                 while depth > 0 && !self.peek_token(TokenType::End) {
-                    if self.peek_token(TokenType::OpenParen) {
+                    if self.peek_token(TokenType::OpenParenthesis) {
                         depth += 1;
-                    } else if self.peek_token(TokenType::CloseParen) {
+                    } else if self.peek_token(TokenType::CloseParenthesis) {
                         depth = depth.saturating_sub(1);
                     }
 
@@ -248,11 +272,11 @@ impl Parser {
         &mut self,
         linkage: Linkage,
     ) -> ParseResult<Vec<crate::Parameter>> {
-        self.eat_token(TokenType::OpenParen)?;
+        self.eat_token(TokenType::OpenParenthesis)?;
 
         let parameters = if linkage.is_import() {
             let mut parameter_types = Vec::new();
-            while !self.peek_token(TokenType::CloseParen) {
+            while !self.peek_token(TokenType::CloseParenthesis) {
                 parameter_types.push(self.parse_type()?);
                 if !self.eat_token_maybe(TokenType::Comma) {
                     break;
@@ -271,7 +295,7 @@ impl Parser {
             let mut parameters = Vec::new();
             let mut next_value_id = 0u32;
 
-            while !self.peek_token(TokenType::CloseParen) {
+            while !self.peek_token(TokenType::CloseParenthesis) {
                 let value = self.scan_function_placeholder_value(&mut next_value_id)?;
                 self.eat_token(TokenType::Colon)?;
                 let ty = self.parse_type()?;
@@ -287,7 +311,7 @@ impl Parser {
             parameters
         };
 
-        self.eat_token(TokenType::CloseParen)?;
+        self.eat_token(TokenType::CloseParenthesis)?;
 
         Ok(parameters)
     }
@@ -297,11 +321,11 @@ impl Parser {
         let token = self
             .peek()
             .ok_or_else(|| ParseError::unexpected_end("value definition", self.pos()))?;
-        let token_ty = token.ty;
+        let kind = self.token_type(token);
         let token_text = self.tree.source_text(token.span).to_string();
         let token_start = token.start;
 
-        match token_ty {
+        match kind {
             TokenType::Value => {
                 self.bump();
 
@@ -321,7 +345,7 @@ impl Parser {
             }
             _ => Err(ParseError::unexpected(
                 "value definition",
-                token_ty,
+                kind,
                 token_start,
             )),
         }
@@ -386,7 +410,7 @@ impl Parser {
                 let type_span = self.span_from_parse_start(type_start);
                 (ty, type_span, field_spans, declaration_spans)
             } else {
-                let equals_token = self.eat_token(TokenType::Equals)?;
+                let equals_token = self.eat_token(TokenType::Equal)?;
                 let equals_start = equals_token.start;
                 let equals_length = self.tree.source_text(equals_token.span).len();
                 let equals_span = self.span_at(equals_start, equals_length);
@@ -481,11 +505,12 @@ impl Parser {
     }
 
     /// Parse a global definition or declaration.
-    /// Expect `[export|extern] global name: type[, readonly][, space(name)] [ = init]`.
+    /// Expect `[export|external] [readonly] global name: type[, space(name)] [ = init]`.
     pub(super) fn parse_global(
         &mut self,
         item_start: usize,
         linkage: Linkage,
+        mutability: Mutability,
         attributes: Vec<Attribute>,
         attribute_spans: Vec<Span>,
     ) -> ParseResult<LocalNodeId<Global>> {
@@ -500,38 +525,32 @@ impl Parser {
         let name_span = self.span_at(name_start, name.len());
 
         // type
-        self.eat_token(TokenType::Colon)?;
-        let (ty, type_span) = self.parse_type_part()?;
+        let colon_token = self.eat_token(TokenType::Colon)?;
+        let (ty, type_span) = self.parse_type_reference_after(colon_token, "global type");
 
         // trailing qualifiers
-        let mut mutability = Mutability::Mutable;
         let mut space = crate::AddressSpace::Local;
         while self.eat_token_maybe(TokenType::Comma) {
-            if self.eat_token_maybe(TokenType::Readonly) {
-                mutability = Mutability::Immutable;
-                continue;
-            }
-
             if self.eat_token_maybe(TokenType::AddressSpace) {
-                self.eat_token(TokenType::OpenParen)?;
+                self.eat_token(TokenType::OpenParenthesis)?;
                 let token = self
                     .peek()
                     .ok_or_else(|| ParseError::unexpected_end("global space", self.pos()))?;
                 let text = self.tree.source_text(token.span).to_string();
-                space = match token.ty {
+                space = match self.token_type(token) {
                     TokenType::Identifier | TokenType::Local => {
                         crate::AddressSpace::from_name(&text)
                     }
                     _ => {
                         return Err(ParseError::unexpected(
                             "global space",
-                            token.ty,
+                            self.token_type(token),
                             token.start,
                         ));
                     }
                 };
                 self.bump();
-                self.eat_token(TokenType::CloseParen)?;
+                self.eat_token(TokenType::CloseParenthesis)?;
                 continue;
             }
 
@@ -541,8 +560,10 @@ impl Parser {
         // initializer
         let initializer = if linkage.is_import() {
             None
+        } else if !matches!(ty, TypeReference::Type(_)) && !self.peek_token(TokenType::Equal) {
+            None
         } else {
-            self.eat_token(TokenType::Equals)?;
+            self.eat_token(TokenType::Equal)?;
             Some(self.parse_data_init()?)
         };
 
@@ -550,7 +571,7 @@ impl Parser {
         let name_id = self.strings.intern(&name);
         let global = Global {
             name: name_id,
-            ty: TypeReference::Type(ty),
+            ty,
             mutability,
             space,
             linkage,
@@ -583,7 +604,7 @@ impl Parser {
             .peek()
             .ok_or_else(|| ParseError::unexpected_end("data initializer", self.pos()))?;
 
-        match token.ty {
+        match self.token_type(token) {
             // zero initializer
             TokenType::Identifier if self.tree.source_text(token.span) == "zeroInit" => {
                 self.bump();
@@ -594,10 +615,10 @@ impl Parser {
                 if self.tree.source_text(token.span) == "b"
                     && self
                         .peek_nth_token(1)
-                        .is_some_and(|token| token.ty == TokenType::StringLiteral) =>
+                        .is_some_and(|token| self.token_type(token) == TokenType::String) =>
             {
                 self.eat_token(TokenType::Identifier)?;
-                let token = self.eat_token(TokenType::StringLiteral)?;
+                let token = self.eat_token(TokenType::String)?;
                 let token_text = self.tree.source_text(token.span).to_string();
                 let token_start = token.start;
                 let value = self.parse_string_literal(&token_text).ok_or_else(|| {
@@ -606,7 +627,7 @@ impl Parser {
                 Ok(GlobalInitializer::Bytes(value.into_bytes()))
             }
             // string literal
-            TokenType::StringLiteral => {
+            TokenType::String => {
                 let token_text = self.tree.source_text(token.span).to_string();
                 let token_start = token.start;
                 self.bump();
@@ -621,9 +642,9 @@ impl Parser {
                 Ok(GlobalInitializer::Scalar(constant))
             }
             TokenType::BooleanLiteral
-            | TokenType::IntLiteral
-            | TokenType::FloatLiteral
-            | TokenType::CharacterLiteral => {
+            | TokenType::Integer
+            | TokenType::Float
+            | TokenType::Character => {
                 let constant = self.parse_constant()?;
                 Ok(GlobalInitializer::Scalar(constant))
             }
@@ -649,7 +670,7 @@ impl Parser {
             }
             _ => Err(ParseError::unexpected(
                 "data initializer",
-                token.ty,
+                self.token_type(token),
                 token.start,
             )),
         }
@@ -663,7 +684,7 @@ fn set_type_copy(ty: &mut Type, copy: Copy, position: usize) -> ParseResult<()> 
         | Type::Tuple { copy: target, .. }
         | Type::Struct { copy: target, .. }
         | Type::Newtype { copy: target, .. }
-        | Type::Union { copy: target, .. }
+        | Type::Variant { copy: target, .. }
         | Type::Vector { copy: target, .. }
         | Type::Tensor { copy: target, .. } => {
             *target = copy;

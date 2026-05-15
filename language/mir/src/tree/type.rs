@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use destack_core::StringId;
 
-use crate::{Lifetime, LocalNodeId, Node, NodeType, TypeReference};
+use crate::{Constant, Lifetime, LocalNodeId, Node, NodeType, TypeReference};
 
 /// Mutability of a storage binding.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -18,7 +18,7 @@ pub enum Mutability {
 pub enum Access {
     /// Readonly access.
     Readonly,
-    /// Mutable aliased access.
+    /// Mutable access.
     #[default]
     Mutable,
     /// Mutable exclusive access.
@@ -97,6 +97,40 @@ pub enum ReferenceKind {
     Borrowed,
     /// Raw pointer reference.
     Raw,
+}
+
+/// Invalid-value niches carried by pointer-like values.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub enum Nullability {
+    /// No nullish values are allowed.
+    #[default]
+    None,
+    /// `null` is allowed.
+    Null,
+    /// `undefined` is allowed.
+    Undefined,
+    /// `null` and `undefined` are allowed.
+    NullOrUndefined,
+}
+
+impl Nullability {
+    /// Return whether null is a valid value.
+    #[inline]
+    pub const fn allows_null(self) -> bool {
+        matches!(self, Nullability::Null | Nullability::NullOrUndefined)
+    }
+
+    /// Return whether undefined is a valid value.
+    #[inline]
+    pub const fn allows_undefined(self) -> bool {
+        matches!(self, Nullability::Undefined | Nullability::NullOrUndefined)
+    }
+
+    /// Return whether any nullish sentinel is valid.
+    #[inline]
+    pub const fn allows_nullish(self) -> bool {
+        !matches!(self, Nullability::None)
+    }
 }
 
 /// Copy property of a type.
@@ -241,8 +275,8 @@ pub enum Type {
         access: Access,
         /// The referenced type.
         pointee: TypeReference,
-        /// Whether the reference can be null.
-        is_nullable: bool,
+        /// The nullish values allowed by this reference.
+        nullability: Nullability,
     },
     /// Slice into memory, a repeated element with explicit kind and access.
     Slice {
@@ -256,9 +290,11 @@ pub enum Type {
         address_space: AddressSpace,
         /// The element access exposed by the slice.
         access: Access,
+        /// The nullish values allowed by this slice descriptor.
+        nullability: Nullability,
     },
 
-    /// Fixed-size array: `T[N]`.
+    /// Fixed-size array: `[T; N]`.
     Array {
         /// The element type of the array.
         element: TypeReference,
@@ -288,13 +324,15 @@ pub enum Type {
         /// Copy of this newtype.
         copy: Copy,
     },
-    /// Tagged union value.
-    Union {
+    /// Physical tagged sum value.
+    Variant {
         /// The tag value type.
         tag: TypeReference,
-        /// The variants keyed by tag value.
-        variants: Vec<UnionVariant>,
-        /// Copy of this union type.
+        /// The physical payload storage type.
+        storage: TypeReference,
+        /// The cases keyed by tag value.
+        cases: Vec<VariantCase>,
+        /// Copy of this variant type.
         copy: Copy,
     },
 
@@ -334,8 +372,8 @@ pub enum Type {
         shape: Vec<TensorDimension>,
         /// The tensor view layout.
         layout: TensorViewLayout,
-        /// Whether the view can be null.
-        is_nullable: bool,
+        /// The nullish values allowed by this view descriptor.
+        nullability: Nullability,
     },
 
     /// Bare function signature.
@@ -357,12 +395,12 @@ pub enum Type {
     },
 }
 
-/// One tagged union variant.
+/// One physical tagged sum case.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct UnionVariant {
-    /// The numeric tag value selecting this variant.
-    pub tag: u64,
-    /// The variant value type.
+pub struct VariantCase {
+    /// The tag constant selecting this case.
+    pub tag: Constant,
+    /// The logical payload type.
     pub ty: TypeReference,
 }
 
@@ -489,9 +527,12 @@ impl Type {
         self.reference_kind() == Some(ReferenceKind::Borrowed)
     }
 
-    /// Whether this type is an exclusive borrowed reference.
-    pub fn is_exclusive_borrowed_reference(&self) -> bool {
-        self.is_borrowed_reference() && self.reference_access() == Some(Access::Exclusive)
+    /// Whether this type is a writable borrowed reference.
+    pub fn is_writable_borrowed_reference(&self) -> bool {
+        self.is_borrowed_reference()
+            && self
+                .reference_access()
+                .is_some_and(|access| access.can_write())
     }
 
     /// Whether this type is a unique reference.
@@ -571,7 +612,7 @@ impl Type {
             | Type::Tuple { copy, .. }
             | Type::Struct { copy, .. }
             | Type::Newtype { copy, .. }
-            | Type::Union { copy, .. }
+            | Type::Variant { copy, .. }
             | Type::Vector { copy, .. }
             | Type::Tensor { copy, .. } => *copy,
 
@@ -634,7 +675,7 @@ pub fn slice_header_types(
         address_space,
         access,
         pointee: element,
-        is_nullable: false,
+        nullability: Nullability::None,
     };
     let length = Type::Usize;
 
