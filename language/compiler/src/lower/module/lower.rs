@@ -469,7 +469,7 @@ impl<'a> ModuleLowerer<'a> {
         target: &TargetId,
     ) -> LowerResult<Target> {
         compiler
-            .effective_target(context, *target)
+            .target_or_builtin(context, *target)
             .ok_or_else(|| LowerError::Internal {
                 anchor: (module.id).into(),
                 module: module.id,

@@ -54,7 +54,7 @@ impl Compiler {
     /// Return the display name for one target id at one pinned revision.
     pub(crate) fn target_name(&self, revision: Revision, target_id: &TargetId) -> String {
         self.repository
-            .effective_target(revision, *target_id)
+            .target_or_builtin(revision, *target_id)
             .ok()
             .flatten()
             .map(|target| target.name)
