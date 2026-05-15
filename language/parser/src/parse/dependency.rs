@@ -2,7 +2,7 @@ use crate::{ParseError, ParseResult, Parser};
 
 use destack_core::StringId;
 use destack_dir::{
-    Argument, DependencyBinding, DependencyItem, DependencySpace, Expression, ImportAttribute,
+    Argument, DependencyBinding, DependencyForm, DependencyItem, Expression, ImportAttribute,
     ImportAttributeClause, ImportAttributeClauseKind, ImportAttributeValue, Key, Keyword,
     LocalNodeId, Name, NodeType, Property, TokenLiteral, TokenType,
 };
@@ -37,10 +37,10 @@ impl Parser {
         // keyword
         self.eat_keyword(Keyword::Import)?;
 
-        // kind
-        let kind = if self.should_parse_import_type_modifier() {
+        // source form
+        let form = if self.should_parse_import_type_modifier() {
             self.bump(); // eat type
-            Some(DependencySpace::Type)
+            Some(DependencyForm::Type)
         } else {
             None
         };
@@ -49,7 +49,7 @@ impl Parser {
         let mut has_binding = false;
         let items = if self.peek_dependency_binding_is() {
             has_binding = true;
-            let allow_type_modifier = kind != Some(DependencySpace::Type);
+            let allow_type_modifier = form != Some(DependencyForm::Type);
             Some(self.eat_dependency_items_block(allow_type_modifier, false)?)
         } else {
             None
@@ -71,7 +71,7 @@ impl Parser {
         // import
         let import_id = self.insert_node(
             Expression::Import {
-                space: kind.unwrap_or(DependencySpace::Value),
+                form: form.unwrap_or(DependencyForm::Plain),
                 target,
                 items,
                 attributes,
@@ -149,9 +149,9 @@ impl Parser {
             let value =
                 self.eat_expression(self.flags.not_in_position().not_in_sequence_expression())?;
             let item = self.insert_node(
-                DependencyItem::Item {
+                DependencyItem::Binding {
                     binding: DependencyBinding::Default,
-                    space: Some(DependencySpace::Value),
+                    form: Some(DependencyForm::Plain),
                     name: None,
                     alias: None,
                     value: Some(value),
@@ -160,7 +160,7 @@ impl Parser {
             );
             let export = self.insert_node(
                 Expression::Export {
-                    space: DependencySpace::Value,
+                    form: DependencyForm::Plain,
                     target: None,
                     items: vec![item],
                     attributes: None,
@@ -170,10 +170,10 @@ impl Parser {
             return Ok(export);
         }
 
-        // kind
-        let kind = if self.is_keyword(Keyword::Type) {
+        // source form
+        let form = if self.is_keyword(Keyword::Type) {
             self.bump(); // eat type
-            Some(DependencySpace::Type)
+            Some(DependencyForm::Type)
         } else {
             None
         };
@@ -189,9 +189,9 @@ impl Parser {
             let attributes = parsed_attributes
                 .as_ref()
                 .map(|parsed_attributes| parsed_attributes.clause.clone());
-            let item = DependencyItem::Item {
+            let item = DependencyItem::Binding {
                 binding: DependencyBinding::Namespace,
-                space: None,
+                form: None,
                 name: None,
                 alias: None,
                 value: None,
@@ -199,7 +199,7 @@ impl Parser {
             let item_id = self.insert_node(item, self.get_span_from(&start));
             let export = self.insert_node(
                 Expression::Export {
-                    space: kind.unwrap_or(DependencySpace::Value),
+                    form: form.unwrap_or(DependencyForm::Plain),
                     target: Some(target),
                     items: vec![item_id],
                     attributes,
@@ -224,7 +224,7 @@ impl Parser {
         }
 
         // binding
-        let allow_type_modifier = kind != Some(DependencySpace::Type);
+        let allow_type_modifier = form != Some(DependencyForm::Type);
         let items = self.eat_dependency_items_block(allow_type_modifier, true)?;
         let has_from_target = self.is_keyword(Keyword::From);
         let (target, target_span) = if has_from_target {
@@ -250,7 +250,7 @@ impl Parser {
         if target.is_none() {
             for item_id in &items {
                 let item = self.tree.get(*item_id);
-                if let DependencyItem::Item {
+                if let DependencyItem::Binding {
                     binding: DependencyBinding::Default,
                     name: None,
                     ..
@@ -268,7 +268,7 @@ impl Parser {
         // export
         let export_id = self.insert_node(
             Expression::Export {
-                space: kind.unwrap_or(DependencySpace::Value),
+                form: form.unwrap_or(DependencyForm::Plain),
                 target,
                 items,
                 attributes,
@@ -520,9 +520,9 @@ impl Parser {
                     return Err(ParseError::unexpected(self.peek()?.span));
                 }
             }
-            let item = DependencyItem::Item {
+            let item = DependencyItem::Binding {
                 binding: DependencyBinding::Default,
-                space: None,
+                form: None,
                 name: None,
                 alias: Some(alias),
                 value: None,
@@ -542,9 +542,9 @@ impl Parser {
             } else {
                 self.eat_identifier_with_span()?
             };
-            let item = DependencyItem::Item {
+            let item = DependencyItem::Binding {
                 binding: DependencyBinding::Namespace,
-                space: None,
+                form: None,
                 name: None,
                 alias: Some(alias),
                 value: None,
@@ -628,14 +628,14 @@ impl Parser {
     ) -> ParseResult<LocalNodeId<DependencyItem>> {
         let start = self.span_start();
 
-        // kind
-        let kind = if self.should_parse_dependency_type_modifier() {
+        // source form
+        let form = if self.should_parse_dependency_type_modifier() {
             if !allow_type_modifier {
                 let span = self.peek()?.span;
                 return Err(ParseError::unexpected(span));
             }
             self.bump(); // eat type
-            Some(DependencySpace::Type)
+            Some(DependencyForm::Type)
         } else {
             None
         };
@@ -658,9 +658,9 @@ impl Parser {
 
             // item
             let item = self.insert_node(
-                DependencyItem::Item {
+                DependencyItem::Binding {
                     binding: DependencyBinding::Default,
-                    space: kind,
+                    form,
                     name: None,
                     alias,
                     value: None,
@@ -691,9 +691,9 @@ impl Parser {
 
             // item
             let item = self.insert_node(
-                DependencyItem::Item {
-                    binding: DependencyBinding::Item,
-                    space: kind,
+                DependencyItem::Binding {
+                    binding: DependencyBinding::Named,
+                    form,
                     name: Some(name),
                     alias,
                     value: None,
@@ -810,7 +810,7 @@ impl Parser {
 mod tests {
     use destack_core::StringId;
     use destack_dir::{
-        DependencyBinding, DependencyItem, DependencySpace, Expression, ImportAttribute,
+        DependencyBinding, DependencyForm, DependencyItem, Expression, ImportAttribute,
         ImportAttributeClauseKind, ImportAttributeValue, LocalNodeId, Name, ScalarLiteral,
     };
     use destack_source::{LanguageType, NodeSpanList, NodeSpanRegion, NodeSpanType, Span};
@@ -847,8 +847,8 @@ mod tests {
         let import_id = parser.eat_import().unwrap();
 
         // import
-        assert_node!(parser.tree, import_id, Expression::Import { space, target, items, .. } => {
-            assert_eq!(*space, DependencySpace::Value);
+        assert_node!(parser.tree, import_id, Expression::Import { form, target, items, .. } => {
+            assert_eq!(*form, DependencyForm::Plain);
             assert_bare_import(items);
             assert_import_target_string(&parser, *target, "destack");
         });
@@ -861,11 +861,11 @@ mod tests {
         let expression_id = parser.eat_expression(parser.flags).unwrap();
 
         // import os from 'os'
-        assert_node!(parser.tree, expression_id, Expression::Import { space, target, items, .. } => {
-            assert_eq!(*space, DependencySpace::Value);
+        assert_node!(parser.tree, expression_id, Expression::Import { form, target, items, .. } => {
+            assert_eq!(*form, DependencyForm::Plain);
             let items = import_items(items);
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem::Item { binding, name: None, alias: Some(alias),.. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Binding { binding, name: None, alias: Some(alias),.. } => {
                 assert_eq!(*binding, DependencyBinding::Default);
                 assert_string!(parser, *alias, "os");
             });
@@ -880,9 +880,9 @@ mod tests {
         let import_id = parser.eat_import().unwrap();
 
         // import sample.module with { bar: true }
-        assert_node!(parser.tree, import_id, Expression::Import { space, target, items, attributes, .. } => {
+        assert_node!(parser.tree, import_id, Expression::Import { form, target, items, attributes, .. } => {
             // sample.module
-            assert_eq!(*space, DependencySpace::Value);
+            assert_eq!(*form, DependencyForm::Plain);
             assert_bare_import(items);
             assert_import_target_string(&parser, *target, "destack.geometry");
 
@@ -982,17 +982,17 @@ mod tests {
         let mut parser = test.prepare();
         let import_id = parser.eat_import().unwrap();
 
-        assert_node!(parser.tree, import_id, Expression::Import { space, target, items, .. } => {
-            assert_eq!(*space, DependencySpace::Value);
+        assert_node!(parser.tree, import_id, Expression::Import { form, target, items, .. } => {
+            assert_eq!(*form, DependencyForm::Plain);
             let items = import_items(items);
             assert_eq!(items.len(), 2);
-            assert_node!(parser.tree, items[0], DependencyItem::Item { space, name: Some(name), alias, .. } => {
-                assert_eq!(*space, None);
+            assert_node!(parser.tree, items[0], DependencyItem::Binding { form, name: Some(name), alias, .. } => {
+                assert_eq!(*form, None);
                 assert_string!(parser, name.string(), "Vector2");
                 assert!(alias.is_none());
             });
-            assert_node!(parser.tree, items[1], DependencyItem::Item { space, name: Some(name), alias: Some(alias),.. } => {
-                assert_eq!(*space, None);
+            assert_node!(parser.tree, items[1], DependencyItem::Binding { form, name: Some(name), alias: Some(alias),.. } => {
+                assert_eq!(*form, None);
                 assert_string!(parser, name.string(), "Vector3");
                 assert_string!(parser, *alias, "V3");
             });
@@ -1007,11 +1007,11 @@ mod tests {
         let import_id = parser.eat_import().unwrap();
 
         // import * as geom from ds.geometry
-        assert_node!(parser.tree, import_id, Expression::Import { space, target, items, .. } => {
-            assert_eq!(*space, DependencySpace::Value);
+        assert_node!(parser.tree, import_id, Expression::Import { form, target, items, .. } => {
+            assert_eq!(*form, DependencyForm::Plain);
             let items = import_items(items);
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem::Item { binding, name: None, alias: Some(alias), .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Binding { binding, name: None, alias: Some(alias), .. } => {
                 assert_eq!(*binding, DependencyBinding::Namespace);
                 assert_string!(parser, *alias, "geom");
             });
@@ -1026,13 +1026,13 @@ mod tests {
         let import_id = parser.eat_import().unwrap();
 
         // parse multiline named import with from on the next line
-        assert_node!(parser.tree, import_id, Expression::Import { space, target, items, .. } => {
-            assert_eq!(*space, DependencySpace::Value);
+        assert_node!(parser.tree, import_id, Expression::Import { form, target, items, .. } => {
+            assert_eq!(*form, DependencyForm::Plain);
             let items = import_items(items);
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem::Item { binding, space, name: Some(name), alias, .. } => {
-                assert_eq!(*binding, DependencyBinding::Item);
-                assert_eq!(*space, None);
+            assert_node!(parser.tree, items[0], DependencyItem::Binding { binding, form, name: Some(name), alias, .. } => {
+                assert_eq!(*binding, DependencyBinding::Named);
+                assert_eq!(*form, None);
                 assert_string!(parser, name.string(), "A");
                 assert!(alias.is_none());
             });
@@ -1050,13 +1050,13 @@ from 'foo'",
         let import_id = parser.eat_import().unwrap();
 
         // parse multiline default import with from on the next line
-        assert_node!(parser.tree, import_id, Expression::Import { space, target, items, .. } => {
-            assert_eq!(*space, DependencySpace::Value);
+        assert_node!(parser.tree, import_id, Expression::Import { form, target, items, .. } => {
+            assert_eq!(*form, DependencyForm::Plain);
             let items = import_items(items);
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem::Item { binding, space, name: None, alias: Some(alias), .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Binding { binding, form, name: None, alias: Some(alias), .. } => {
                 assert_eq!(*binding, DependencyBinding::Default);
-                assert_eq!(*space, None);
+                assert_eq!(*form, None);
                 assert_string!(parser, *alias, "HeaderNavigationButton");
             });
             assert_import_target_string(&parser, *target, "foo");
@@ -1074,21 +1074,21 @@ from 'foo'",
         let import_id = parser.eat_import().unwrap();
 
         // parse multiline default plus named imports
-        assert_node!(parser.tree, import_id, Expression::Import { space, target, items, .. } => {
-            assert_eq!(*space, DependencySpace::Value);
+        assert_node!(parser.tree, import_id, Expression::Import { form, target, items, .. } => {
+            assert_eq!(*form, DependencyForm::Plain);
             let items = import_items(items);
             assert_eq!(items.len(), 2);
 
             // default binding
-            assert_node!(parser.tree, items[0], DependencyItem::Item { binding, space: None, name: None, alias: Some(alias), .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Binding { binding, form: None, name: None, alias: Some(alias), .. } => {
                 assert_eq!(*binding, DependencyBinding::Default);
                 assert_string!(parser, *alias, "Default");
             });
 
             // type named binding
-            assert_node!(parser.tree, items[1], DependencyItem::Item { binding, space, name: Some(name), alias, .. } => {
-                assert_eq!(*binding, DependencyBinding::Item);
-                assert_eq!(*space, Some(DependencySpace::Type));
+            assert_node!(parser.tree, items[1], DependencyItem::Binding { binding, form, name: Some(name), alias, .. } => {
+                assert_eq!(*binding, DependencyBinding::Named);
+                assert_eq!(*form, Some(DependencyForm::Type));
                 assert_string!(parser, name.string(), "Item");
                 assert!(alias.is_none());
             });
@@ -1108,11 +1108,11 @@ from 'foo'",
         let import_id = parser.eat_import().unwrap();
 
         // parse default import with comment between binding and from
-        assert_node!(parser.tree, import_id, Expression::Import { space, target, items, .. } => {
-            assert_eq!(*space, DependencySpace::Value);
+        assert_node!(parser.tree, import_id, Expression::Import { form, target, items, .. } => {
+            assert_eq!(*form, DependencyForm::Plain);
             let items = import_items(items);
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem::Item { binding, space: None, name: None, alias: Some(alias), .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Binding { binding, form: None, name: None, alias: Some(alias), .. } => {
                 assert_eq!(*binding, DependencyBinding::Default);
                 assert_string!(parser, *alias, "BreakoutRooms");
             });
@@ -1130,13 +1130,13 @@ from 'foo'",
         let import_id = parser.eat_import().unwrap();
 
         // parse import target on the next line after from
-        assert_node!(parser.tree, import_id, Expression::Import { space, target, items, .. } => {
-            assert_eq!(*space, DependencySpace::Value);
+        assert_node!(parser.tree, import_id, Expression::Import { form, target, items, .. } => {
+            assert_eq!(*form, DependencyForm::Plain);
             let items = import_items(items);
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem::Item { binding, space, name: Some(name), alias, .. } => {
-                assert_eq!(*binding, DependencyBinding::Item);
-                assert_eq!(*space, None);
+            assert_node!(parser.tree, items[0], DependencyItem::Binding { binding, form, name: Some(name), alias, .. } => {
+                assert_eq!(*binding, DependencyBinding::Named);
+                assert_eq!(*form, None);
                 assert_string!(parser, name.string(), "goBack");
                 assert!(alias.is_none());
             });
@@ -1157,19 +1157,19 @@ import {
         let mut parser = test.prepare();
 
         let import_id = parser.eat_import().unwrap();
-        assert_node!(parser.tree, import_id, Expression::Import { space, target, items, .. } => {
-            assert_eq!(*space, DependencySpace::Value);
+        assert_node!(parser.tree, import_id, Expression::Import { form, target, items, .. } => {
+            assert_eq!(*form, DependencyForm::Plain);
             assert_import_target_string(&parser, *target, "./lib/object.ng");
 
             let items = import_items(items);
             assert_eq!(items.len(), 2);
-            assert_node!(parser.tree, items[0], DependencyItem::Item { space, name: Some(name), alias,.. } => {
-                assert_eq!(*space, None);
+            assert_node!(parser.tree, items[0], DependencyItem::Binding { form, name: Some(name), alias,.. } => {
+                assert_eq!(*form, None);
                 assert_string!(parser, name.string(), "StructuredObject");
                 assert!(alias.is_none());
             });
-            assert_node!(parser.tree, items[1], DependencyItem::Item { space, name: Some(name), alias,.. } => {
-                assert_eq!(*space, Some(DependencySpace::Type));
+            assert_node!(parser.tree, items[1], DependencyItem::Binding { form, name: Some(name), alias,.. } => {
+                assert_eq!(*form, Some(DependencyForm::Type));
                 assert_string!(parser, name.string(), "StructuredObjectOptions");
                 assert!(alias.is_none());
             });
@@ -1185,13 +1185,13 @@ import {
         assert_node!(parser.tree, import_id, Expression::Import { items, .. } => {
             let items = import_items(items);
             assert_eq!(items.len(), 3);
-            assert_node!(parser.tree, items[0], DependencyItem::Item { name: Some(name), .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Binding { name: Some(name), .. } => {
                 assert_string!(parser, name.string(), "foo");
             });
-            assert_node!(parser.tree, items[1], DependencyItem::Item { name: Some(name), .. } => {
+            assert_node!(parser.tree, items[1], DependencyItem::Binding { name: Some(name), .. } => {
                 assert_string!(parser, name.string(), "bar");
             });
-            assert_node!(parser.tree, items[2], DependencyItem::Item { name: Some(name), .. } => {
+            assert_node!(parser.tree, items[2], DependencyItem::Binding { name: Some(name), .. } => {
                 assert_string!(parser, name.string(), "baz");
             });
         });
@@ -1203,19 +1203,19 @@ import {
         let mut parser = test.prepare();
         let import_id = parser.eat_import().unwrap();
 
-        assert_node!(parser.tree, import_id, Expression::Import { space, target, items, .. } => {
-            assert_eq!(*space, DependencySpace::Value);
+        assert_node!(parser.tree, import_id, Expression::Import { form, target, items, .. } => {
+            assert_eq!(*form, DependencyForm::Plain);
             let items = import_items(items);
             assert_eq!(items.len(), 2);
             // Default
-            assert_node!(parser.tree, items[0], DependencyItem::Item { binding, space: None, name: None, alias: Some(alias),.. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Binding { binding, form: None, name: None, alias: Some(alias),.. } => {
                 assert_eq!(*binding, DependencyBinding::Default);
                 assert_string!(parser, *alias, "Default");
             });
             // { type Item }
-            assert_node!(parser.tree, items[1], DependencyItem::Item { binding, space, name: Some(name), alias: None,.. } => {
-                assert_eq!(*binding, DependencyBinding::Item);
-                assert_eq!(*space, Some(DependencySpace::Type));
+            assert_node!(parser.tree, items[1], DependencyItem::Binding { binding, form, name: Some(name), alias: None,.. } => {
+                assert_eq!(*binding, DependencyBinding::Named);
+                assert_eq!(*form, Some(DependencyForm::Type));
                 assert_string!(parser, name.string(), "Item");
             });
             // `foo`
@@ -1233,8 +1233,8 @@ import {
         assert_node!(parser.tree, import_id, Expression::Import { items, .. } => {
             let items = import_items(items);
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem::Item { space, name: Some(name), alias, .. } => {
-                assert_eq!(*space, None);
+            assert_node!(parser.tree, items[0], DependencyItem::Binding { form, name: Some(name), alias, .. } => {
+                assert_eq!(*form, None);
                 assert_string!(parser, name.string(), "type");
                 assert!(alias.is_none());
             });
@@ -1251,7 +1251,7 @@ import {
             let items = import_items(items);
             assert_eq!(items.len(), 1);
             assert_import_target_string(&parser, *target, "./a");
-            assert_node!(parser.tree, items[0], DependencyItem::Item { binding, name: None, alias: Some(alias), .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Binding { binding, name: None, alias: Some(alias), .. } => {
                 assert_eq!(*binding, DependencyBinding::Default);
                 assert_string!(parser, *alias, "type");
             });
@@ -1281,7 +1281,7 @@ import {
             let items = import_items(items);
             assert_eq!(items.len(), 1);
             assert_import_target_string(&parser, *target, "foo");
-            assert_node!(parser.tree, items[0], DependencyItem::Item { name: Some(name), alias: Some(alias), .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Binding { name: Some(name), alias: Some(alias), .. } => {
                 assert_string!(parser, name.string(), "a");
                 assert_string!(parser, *alias, "b");
             });
@@ -1322,8 +1322,8 @@ import {
             let items = import_items(items);
             assert_eq!(items.len(), 1);
             assert_import_target_string(&parser, *target, "foo");
-            assert_node!(parser.tree, items[0], DependencyItem::Item { space, name: Some(name), alias: Some(alias), .. } => {
-                assert_eq!(*space, Some(DependencySpace::Type));
+            assert_node!(parser.tree, items[0], DependencyItem::Binding { form, name: Some(name), alias: Some(alias), .. } => {
+                assert_eq!(*form, Some(DependencyForm::Type));
                 assert!(matches!(name, Name::String(_)));
                 assert_string!(parser, name.string(), "string");
                 assert_string!(parser, *alias, "foo");
@@ -1341,8 +1341,8 @@ import {
         assert_node!(parser.tree, import_id, Expression::Import { items, .. } => {
             let items = import_items(items);
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem::Item { space, name: Some(name), alias: Some(alias), .. } => {
-                assert_eq!(*space, None);
+            assert_node!(parser.tree, items[0], DependencyItem::Binding { form, name: Some(name), alias: Some(alias), .. } => {
+                assert_eq!(*form, None);
                 assert_string!(parser, name.string(), "type");
                 assert_string!(parser, *alias, "as");
             });
@@ -1359,8 +1359,8 @@ import {
         assert_node!(parser.tree, import_id, Expression::Import { items, .. } => {
             let items = import_items(items);
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem::Item { space, name: Some(name), alias, .. } => {
-                assert_eq!(*space, Some(DependencySpace::Type));
+            assert_node!(parser.tree, items[0], DependencyItem::Binding { form, name: Some(name), alias, .. } => {
+                assert_eq!(*form, Some(DependencyForm::Type));
                 assert_string!(parser, name.string(), "as");
                 assert!(alias.is_none());
             });
@@ -1374,8 +1374,8 @@ import {
         let mut parser = test.prepare();
         let import_id = parser.eat_import().unwrap();
 
-        assert_node!(parser.tree, import_id, Expression::Import { space, items, target, .. } => {
-            assert_eq!(*space, DependencySpace::Type);
+        assert_node!(parser.tree, import_id, Expression::Import { form, items, target, .. } => {
+            assert_eq!(*form, DependencyForm::Type);
             let items = import_items(items);
             assert_eq!(items.len(), 1);
             assert_import_target_string(&parser, *target, "foo");
@@ -1395,9 +1395,9 @@ import {
             assert_eq!(items.len(), 2);
             assert_import_target_string(&parser, *target, "foo");
             assert_node!(parser.tree, items[0], DependencyItem::Error);
-            assert_node!(parser.tree, items[1], DependencyItem::Item { binding, space, name: Some(name), alias, .. } => {
-                assert_eq!(*binding, DependencyBinding::Item);
-                assert_eq!(*space, None);
+            assert_node!(parser.tree, items[1], DependencyItem::Binding { binding, form, name: Some(name), alias, .. } => {
+                assert_eq!(*binding, DependencyBinding::Named);
+                assert_eq!(*form, None);
                 assert_string!(parser, name.string(), "Bar");
                 assert!(alias.is_none());
             });
@@ -1415,9 +1415,9 @@ import {
             let items = import_items(items);
             assert_eq!(items.len(), 1);
             assert_import_target_string(&parser, *target, "foo");
-            assert_node!(parser.tree, items[0], DependencyItem::Item { binding, space, name: Some(name), alias, .. } => {
-                assert_eq!(*binding, DependencyBinding::Item);
-                assert_eq!(*space, None);
+            assert_node!(parser.tree, items[0], DependencyItem::Binding { binding, form, name: Some(name), alias, .. } => {
+                assert_eq!(*binding, DependencyBinding::Named);
+                assert_eq!(*form, None);
                 assert_string!(parser, name.string(), "Foo");
                 assert!(alias.is_none());
             });
@@ -1438,7 +1438,7 @@ import {
                 let items = import_items(items);
                 assert_eq!(items.len(), 1);
                 assert_import_target_string(&parser, *target, "./types.ds");
-                assert_node!(parser.tree, items[0], DependencyItem::Item { name: Some(name), .. } => {
+                assert_node!(parser.tree, items[0], DependencyItem::Binding { name: Some(name), .. } => {
                     assert_string!(parser, name.string(), "Widget");
                 });
         });
@@ -1480,9 +1480,9 @@ import {
             assert_eq!(items.len(), 2);
             assert_string!(parser, *target, "foo");
             assert_node!(parser.tree, items[0], DependencyItem::Error);
-            assert_node!(parser.tree, items[1], DependencyItem::Item { binding, space, name: Some(name), alias, .. } => {
-                assert_eq!(*binding, DependencyBinding::Item);
-                assert_eq!(*space, None);
+            assert_node!(parser.tree, items[1], DependencyItem::Binding { binding, form, name: Some(name), alias, .. } => {
+                assert_eq!(*binding, DependencyBinding::Named);
+                assert_eq!(*form, None);
                 assert_string!(parser, name.string(), "Bar");
                 assert!(alias.is_none());
             });
@@ -1498,8 +1498,8 @@ import {
 
         assert_node!(parser.tree, export_id, Expression::Export { items, .. } => {
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem::Item { space, name: Some(name), alias, .. } => {
-                assert_eq!(*space, None);
+            assert_node!(parser.tree, items[0], DependencyItem::Binding { form, name: Some(name), alias, .. } => {
+                assert_eq!(*form, None);
                 assert_string!(parser, name.string(), "type");
                 assert!(alias.is_none());
             });
@@ -1531,8 +1531,8 @@ import {
         assert_node!(parser.tree, export_id, Expression::Export { target: Some(target), items, .. } => {
             assert_string!(parser, *target, "foo");
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem::Item { binding, space: None, name: Some(name), alias: Some(alias), .. } => {
-                assert_eq!(*binding, DependencyBinding::Item);
+            assert_node!(parser.tree, items[0], DependencyItem::Binding { binding, form: None, name: Some(name), alias: Some(alias), .. } => {
+                assert_eq!(*binding, DependencyBinding::Named);
                 assert_string!(parser, name.string(), "bar");
                 assert_string!(parser, *alias, "baz");
             });
@@ -1552,8 +1552,8 @@ import {
             assert_import_target_string(&parser, *target, "foo");
             let items = import_items(items);
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem::Item { binding, space: None, name: Some(name), alias: Some(alias), .. } => {
-                assert_eq!(*binding, DependencyBinding::Item);
+            assert_node!(parser.tree, items[0], DependencyItem::Binding { binding, form: None, name: Some(name), alias: Some(alias), .. } => {
+                assert_eq!(*binding, DependencyBinding::Named);
                 assert_string!(parser, name.string(), "bar");
                 assert_string!(parser, *alias, "baz");
             });
@@ -1567,17 +1567,17 @@ import {
         let mut parser = test.prepare();
         let import_id = parser.eat_import().unwrap();
 
-        assert_node!(parser.tree, import_id, Expression::Import { space, target, items, .. } => {
-            assert_eq!(*space, DependencySpace::Value);
+        assert_node!(parser.tree, import_id, Expression::Import { form, target, items, .. } => {
+            assert_eq!(*form, DependencyForm::Plain);
             let items = import_items(items);
             assert_eq!(items.len(), 2);
             // default: a
-            assert_node!(parser.tree, items[0], DependencyItem::Item { binding, space: None, name: None, alias: Some(alias),.. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Binding { binding, form: None, name: None, alias: Some(alias),.. } => {
                 assert_eq!(*binding, DependencyBinding::Default);
                 assert_string!(parser, *alias, "a");
             });
             // namespace: * as b
-            assert_node!(parser.tree, items[1], DependencyItem::Item { binding, space: None, name: None, alias: Some(alias),.. } => {
+            assert_node!(parser.tree, items[1], DependencyItem::Binding { binding, form: None, name: None, alias: Some(alias),.. } => {
                 assert_eq!(*binding, DependencyBinding::Namespace);
                 assert_string!(parser, *alias, "b");
             });
@@ -1595,21 +1595,21 @@ export type { CreateUIMessage, UIMessage }
         let mut parser = test.prepare();
 
         let export_id = parser.eat_export().unwrap();
-        assert_node!(parser.tree, export_id, Expression::Export { space, target, items, .. } => {
-            assert_eq!(*space, DependencySpace::Type);
+        assert_node!(parser.tree, export_id, Expression::Export { form, target, items, .. } => {
+            assert_eq!(*form, DependencyForm::Type);
             assert!(target.is_none());
             assert_eq!(items.len(), 2);
             // CreateUIMessage
-            assert_node!(parser.tree, items[0], DependencyItem::Item { binding, space, name: Some(name), alias,.. } => {
-                assert_eq!(*binding, DependencyBinding::Item);
-                assert_eq!(*space, None);
+            assert_node!(parser.tree, items[0], DependencyItem::Binding { binding, form, name: Some(name), alias,.. } => {
+                assert_eq!(*binding, DependencyBinding::Named);
+                assert_eq!(*form, None);
                 assert_string!(parser, name.string(), "CreateUIMessage");
                 assert!(alias.is_none());
             });
             // UIMessage
-            assert_node!(parser.tree, items[1], DependencyItem::Item { binding, space, name: Some(name), alias,.. } => {
-                assert_eq!(*binding, DependencyBinding::Item);
-                assert_eq!(*space, None);
+            assert_node!(parser.tree, items[1], DependencyItem::Binding { binding, form, name: Some(name), alias,.. } => {
+                assert_eq!(*binding, DependencyBinding::Named);
+                assert_eq!(*form, None);
                 assert_string!(parser, name.string(), "UIMessage");
                 assert!(alias.is_none());
             });
@@ -1623,12 +1623,12 @@ export type { CreateUIMessage, UIMessage }
         let export_id = parser.eat_export().unwrap();
 
         // parse multiline named export with from on the next line
-        assert_node!(parser.tree, export_id, Expression::Export { space, target: Some(target), items, .. } => {
-            assert_eq!(*space, DependencySpace::Value);
+        assert_node!(parser.tree, export_id, Expression::Export { form, target: Some(target), items, .. } => {
+            assert_eq!(*form, DependencyForm::Plain);
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem::Item { binding, space, name: Some(name), alias, .. } => {
-                assert_eq!(*binding, DependencyBinding::Item);
-                assert_eq!(*space, None);
+            assert_node!(parser.tree, items[0], DependencyItem::Binding { binding, form, name: Some(name), alias, .. } => {
+                assert_eq!(*binding, DependencyBinding::Named);
+                assert_eq!(*form, None);
                 assert_string!(parser, name.string(), "A");
                 assert!(alias.is_none());
             });
@@ -1643,10 +1643,10 @@ export type { CreateUIMessage, UIMessage }
         let export_id = parser.eat_export().unwrap();
 
         // parse multiline namespace export with from on the next line
-        assert_node!(parser.tree, export_id, Expression::Export { space, target: Some(target), items, .. } => {
-            assert_eq!(*space, DependencySpace::Value);
+        assert_node!(parser.tree, export_id, Expression::Export { form, target: Some(target), items, .. } => {
+            assert_eq!(*form, DependencyForm::Plain);
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem::Item { binding, name: None, alias: None, .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Binding { binding, name: None, alias: None, .. } => {
                 assert_eq!(*binding, DependencyBinding::Namespace);
             });
             assert_string!(parser, *target, "foo");
@@ -1658,10 +1658,10 @@ export type { CreateUIMessage, UIMessage }
         let mut test = TestParser::new("export * from 'foo'");
         let mut parser = test.prepare();
         let export_id = parser.eat_export().unwrap();
-        assert_node!(parser.tree, export_id, Expression::Export { space, target: Some(target), items, .. } => {
-            assert_eq!(*space, DependencySpace::Value);
+        assert_node!(parser.tree, export_id, Expression::Export { form, target: Some(target), items, .. } => {
+            assert_eq!(*form, DependencyForm::Plain);
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem::Item { binding, name: None, alias: None, .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Binding { binding, name: None, alias: None, .. } => {
                 assert_eq!(*binding, DependencyBinding::Namespace);
             });
             assert_string!(parser, *target, "foo");
@@ -1673,10 +1673,10 @@ export type { CreateUIMessage, UIMessage }
         let mut test = TestParser::new("export type * from 'foo'");
         let mut parser = test.prepare();
         let export_id = parser.eat_export().unwrap();
-        assert_node!(parser.tree, export_id, Expression::Export { space, target: Some(target), items, .. } => {
-            assert_eq!(*space, DependencySpace::Type);
+        assert_node!(parser.tree, export_id, Expression::Export { form, target: Some(target), items, .. } => {
+            assert_eq!(*form, DependencyForm::Type);
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem::Item { binding, name: None, alias: None, .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Binding { binding, name: None, alias: None, .. } => {
                 assert_eq!(*binding, DependencyBinding::Namespace);
             });
             assert_string!(parser, *target, "foo");
@@ -1688,10 +1688,10 @@ export type { CreateUIMessage, UIMessage }
         let mut test = TestParser::new(r#"export type * as "ns2" from 'foo'"#);
         let mut parser = test.prepare();
         let export_id = parser.eat_export().unwrap();
-        assert_node!(parser.tree, export_id, Expression::Export { space, target: Some(target), items, .. } => {
-            assert_eq!(*space, DependencySpace::Type);
+        assert_node!(parser.tree, export_id, Expression::Export { form, target: Some(target), items, .. } => {
+            assert_eq!(*form, DependencyForm::Type);
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem::Item { binding, name: None, alias: Some(alias), .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Binding { binding, name: None, alias: Some(alias), .. } => {
                 assert_eq!(*binding, DependencyBinding::Namespace);
                 assert_string!(parser, *alias, "ns2");
             });
@@ -1704,12 +1704,12 @@ export type { CreateUIMessage, UIMessage }
         let mut test = TestParser::new("export { type Options } from 'foo'");
         let mut parser = test.prepare();
         let export_id = parser.eat_export().unwrap();
-        assert_node!(parser.tree, export_id, Expression::Export { space, target: Some(target), items, .. } => {
-            assert_eq!(*space, DependencySpace::Value);
+        assert_node!(parser.tree, export_id, Expression::Export { form, target: Some(target), items, .. } => {
+            assert_eq!(*form, DependencyForm::Plain);
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem::Item { binding, space, name: Some(name), alias: None, .. } => {
-                assert_eq!(*binding, DependencyBinding::Item);
-                assert_eq!(*space, Some(DependencySpace::Type));
+            assert_node!(parser.tree, items[0], DependencyItem::Binding { binding, form, name: Some(name), alias: None, .. } => {
+                assert_eq!(*binding, DependencyBinding::Named);
+                assert_eq!(*form, Some(DependencyForm::Type));
                 assert_string!(parser, name.string(), "Options");
             });
             assert_string!(parser, *target, "foo");
@@ -1721,12 +1721,12 @@ export type { CreateUIMessage, UIMessage }
         let mut test = TestParser::new("export type { Options } from 'foo'");
         let mut parser = test.prepare();
         let export_id = parser.eat_export().unwrap();
-        assert_node!(parser.tree, export_id, Expression::Export { space, target: Some(target), items, .. } => {
-            assert_eq!(*space, DependencySpace::Type);
+        assert_node!(parser.tree, export_id, Expression::Export { form, target: Some(target), items, .. } => {
+            assert_eq!(*form, DependencyForm::Type);
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem::Item { binding, space, name: Some(name), alias: None, .. } => {
-                assert_eq!(*binding, DependencyBinding::Item);
-                assert_eq!(*space, None);
+            assert_node!(parser.tree, items[0], DependencyItem::Binding { binding, form, name: Some(name), alias: None, .. } => {
+                assert_eq!(*binding, DependencyBinding::Named);
+                assert_eq!(*form, None);
                 assert_string!(parser, name.string(), "Options");
             });
             assert_string!(parser, *target, "foo");
@@ -1738,10 +1738,10 @@ export type { CreateUIMessage, UIMessage }
         let mut test = TestParser::new("export * as foo from 'foo'");
         let mut parser = test.prepare();
         let export_id = parser.eat_export().unwrap();
-        assert_node!(parser.tree, export_id, Expression::Export { space, target: Some(target), items, .. } => {
-            assert_eq!(*space, DependencySpace::Value);
+        assert_node!(parser.tree, export_id, Expression::Export { form, target: Some(target), items, .. } => {
+            assert_eq!(*form, DependencyForm::Plain);
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem::Item { binding, name: None, alias: Some(alias), .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Binding { binding, name: None, alias: Some(alias), .. } => {
                 assert_eq!(*binding, DependencyBinding::Namespace);
                 assert_string!(parser, *alias, "foo");
             });
@@ -1754,10 +1754,10 @@ export type { CreateUIMessage, UIMessage }
         let mut test = TestParser::new("export default foo");
         let mut parser = test.prepare();
         let export_id = parser.eat_export().unwrap();
-        assert_node!(parser.tree, export_id, Expression::Export { space, target: None, items, .. } => {
-            assert_eq!(*space, DependencySpace::Value);
+        assert_node!(parser.tree, export_id, Expression::Export { form, target: None, items, .. } => {
+            assert_eq!(*form, DependencyForm::Plain);
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem::Item { binding, name: None, alias: None, value: Some(value), .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Binding { binding, name: None, alias: None, value: Some(value), .. } => {
                 assert_eq!(*binding, DependencyBinding::Default);
                 assert_expression_path!(parser, parser.tree.get(*value), "foo");
             });
@@ -1769,11 +1769,11 @@ export type { CreateUIMessage, UIMessage }
         let mut test = TestParser::new("export { default } from 'foo'");
         let mut parser = test.prepare();
         let export_id = parser.eat_export().unwrap();
-        assert_node!(parser.tree, export_id, Expression::Export { space, target: Some(target), items, .. } => {
-            assert_eq!(*space, DependencySpace::Value);
+        assert_node!(parser.tree, export_id, Expression::Export { form, target: Some(target), items, .. } => {
+            assert_eq!(*form, DependencyForm::Plain);
             assert_string!(parser, *target, "foo");
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem::Item { binding, name: None, alias, .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Binding { binding, name: None, alias, .. } => {
                 assert_eq!(*binding, DependencyBinding::Default);
                 assert!(alias.is_none());
             });
@@ -1785,24 +1785,24 @@ export type { CreateUIMessage, UIMessage }
         let mut test = TestParser::new("export { default as bar, baz as baz, biz } from 'foo'");
         let mut parser = test.prepare();
         let export_id = parser.eat_export().unwrap();
-        assert_node!(parser.tree, export_id, Expression::Export { space, target: Some(target), items, .. } => {
-            assert_eq!(*space, DependencySpace::Value);
+        assert_node!(parser.tree, export_id, Expression::Export { form, target: Some(target), items, .. } => {
+            assert_eq!(*form, DependencyForm::Plain);
             assert_string!(parser, *target, "foo");
             assert_eq!(items.len(), 3);
             // default as bar
-            assert_node!(parser.tree, items[0], DependencyItem::Item { binding, name: None, alias: Some(alias), .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Binding { binding, name: None, alias: Some(alias), .. } => {
                 assert_eq!(*binding, DependencyBinding::Default);
                 assert_string!(parser, *alias, "bar");
             });
             // baz as baz
-            assert_node!(parser.tree, items[1], DependencyItem::Item { binding, name: Some(name), alias: Some(alias), .. } => {
-                assert_eq!(*binding, DependencyBinding::Item);
+            assert_node!(parser.tree, items[1], DependencyItem::Binding { binding, name: Some(name), alias: Some(alias), .. } => {
+                assert_eq!(*binding, DependencyBinding::Named);
                 assert_string!(parser, name.string(), "baz");
                 assert_string!(parser, *alias, "baz");
             });
             // biz
-            assert_node!(parser.tree, items[2], DependencyItem::Item { binding, name: Some(name), alias, .. } => {
-                assert_eq!(*binding, DependencyBinding::Item);
+            assert_node!(parser.tree, items[2], DependencyItem::Binding { binding, name: Some(name), alias, .. } => {
+                assert_eq!(*binding, DependencyBinding::Named);
                 assert_string!(parser, name.string(), "biz");
                 assert!(alias.is_none());
             });
@@ -1814,17 +1814,17 @@ export type { CreateUIMessage, UIMessage }
         let mut test = TestParser::new("export { default as bar, default as baz } from 'foo'");
         let mut parser = test.prepare();
         let export_id = parser.eat_export().unwrap();
-        assert_node!(parser.tree, export_id, Expression::Export { space, target: Some(target), items, .. } => {
-            assert_eq!(*space, DependencySpace::Value);
+        assert_node!(parser.tree, export_id, Expression::Export { form, target: Some(target), items, .. } => {
+            assert_eq!(*form, DependencyForm::Plain);
             assert_string!(parser, *target, "foo");
             assert_eq!(items.len(), 2);
             // default as bar
-            assert_node!(parser.tree, items[0], DependencyItem::Item { binding, name: None, alias: Some(alias), .. } => {
+            assert_node!(parser.tree, items[0], DependencyItem::Binding { binding, name: None, alias: Some(alias), .. } => {
                 assert_eq!(*binding, DependencyBinding::Default);
                 assert_string!(parser, *alias, "bar");
             });
             // default as baz
-            assert_node!(parser.tree, items[1], DependencyItem::Item { binding, name: None, alias: Some(alias), .. } => {
+            assert_node!(parser.tree, items[1], DependencyItem::Binding { binding, name: None, alias: Some(alias), .. } => {
                 assert_eq!(*binding, DependencyBinding::Default);
                 assert_string!(parser, *alias, "baz");
             });
@@ -1862,13 +1862,13 @@ export type { CreateUIMessage, UIMessage }
         let mut parser = test.prepare();
         let export_id = parser.eat_export().unwrap();
 
-        assert_node!(parser.tree, export_id, Expression::Export { space, target, items, .. } => {
-            assert_eq!(*space, DependencySpace::Value);
+        assert_node!(parser.tree, export_id, Expression::Export { form, target, items, .. } => {
+            assert_eq!(*form, DependencyForm::Plain);
             assert!(target.is_none());
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem::Item { binding, space, name: Some(name), alias, .. } => {
-                assert_eq!(*binding, DependencyBinding::Item);
-                assert_eq!(*space, None);
+            assert_node!(parser.tree, items[0], DependencyItem::Binding { binding, form, name: Some(name), alias, .. } => {
+                assert_eq!(*binding, DependencyBinding::Named);
+                assert_eq!(*form, None);
                 assert_string!(parser, name.string(), "if");
                 assert!(alias.is_none());
             });
@@ -1882,13 +1882,13 @@ export type { CreateUIMessage, UIMessage }
         let mut parser = test.prepare();
         let export_id = parser.eat_export().unwrap();
 
-        assert_node!(parser.tree, export_id, Expression::Export { space, target, items, .. } => {
-            assert_eq!(*space, DependencySpace::Value);
+        assert_node!(parser.tree, export_id, Expression::Export { form, target, items, .. } => {
+            assert_eq!(*form, DependencyForm::Plain);
             assert!(target.is_none());
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem::Item { binding, space, name: Some(name), alias: Some(alias), .. } => {
-                assert_eq!(*binding, DependencyBinding::Item);
-                assert_eq!(*space, None);
+            assert_node!(parser.tree, items[0], DependencyItem::Binding { binding, form, name: Some(name), alias: Some(alias), .. } => {
+                assert_eq!(*binding, DependencyBinding::Named);
+                assert_eq!(*form, None);
                 assert_string!(parser, name.string(), "if");
                 assert_string!(parser, *alias, "foo");
             });
@@ -1901,13 +1901,13 @@ export type { CreateUIMessage, UIMessage }
         let mut parser = test.prepare();
         let export_id = parser.eat_export().unwrap();
 
-        assert_node!(parser.tree, export_id, Expression::Export { space, target, items, .. } => {
-            assert_eq!(*space, DependencySpace::Value);
+        assert_node!(parser.tree, export_id, Expression::Export { form, target, items, .. } => {
+            assert_eq!(*form, DependencyForm::Plain);
             assert!(target.is_none());
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem::Item { binding, space, name: Some(name), alias: Some(alias), .. } => {
-                assert_eq!(*binding, DependencyBinding::Item);
-                assert_eq!(*space, None);
+            assert_node!(parser.tree, items[0], DependencyItem::Binding { binding, form, name: Some(name), alias: Some(alias), .. } => {
+                assert_eq!(*binding, DependencyBinding::Named);
+                assert_eq!(*form, None);
                 assert_string!(parser, name.string(), "localName");
                 assert_string!(parser, *alias, "external-name");
             });
@@ -1924,31 +1924,31 @@ export type { CreateUIMessage, UIMessage }
         let export_id = parser.eat_export().unwrap();
 
         // export
-        assert_node!(parser.tree, export_id, Expression::Export { space, target, items, .. } => {
-            assert_eq!(*space, DependencySpace::Value);
+        assert_node!(parser.tree, export_id, Expression::Export { form, target, items, .. } => {
+            assert_eq!(*form, DependencyForm::Plain);
             assert!(target.is_none());
             assert_eq!(items.len(), 3);
 
             // true alias
-            assert_node!(parser.tree, items[0], DependencyItem::Item { binding, space, name: Some(name), alias: Some(alias), .. } => {
-                assert_eq!(*binding, DependencyBinding::Item);
-                assert_eq!(*space, None);
+            assert_node!(parser.tree, items[0], DependencyItem::Binding { binding, form, name: Some(name), alias: Some(alias), .. } => {
+                assert_eq!(*binding, DependencyBinding::Named);
+                assert_eq!(*form, None);
                 assert_string!(parser, name.string(), "true_instance");
                 assert_string!(parser, *alias, "true");
             });
 
             // false alias
-            assert_node!(parser.tree, items[1], DependencyItem::Item { binding, space, name: Some(name), alias: Some(alias), .. } => {
-                assert_eq!(*binding, DependencyBinding::Item);
-                assert_eq!(*space, None);
+            assert_node!(parser.tree, items[1], DependencyItem::Binding { binding, form, name: Some(name), alias: Some(alias), .. } => {
+                assert_eq!(*binding, DependencyBinding::Named);
+                assert_eq!(*form, None);
                 assert_string!(parser, name.string(), "false_instance");
                 assert_string!(parser, *alias, "false");
             });
 
             // null alias
-            assert_node!(parser.tree, items[2], DependencyItem::Item { binding, space, name: Some(name), alias: Some(alias), .. } => {
-                assert_eq!(*binding, DependencyBinding::Item);
-                assert_eq!(*space, None);
+            assert_node!(parser.tree, items[2], DependencyItem::Binding { binding, form, name: Some(name), alias: Some(alias), .. } => {
+                assert_eq!(*binding, DependencyBinding::Named);
+                assert_eq!(*form, None);
                 assert_string!(parser, name.string(), "null_instance");
                 assert_string!(parser, *alias, "null");
             });
@@ -1962,13 +1962,13 @@ export type { CreateUIMessage, UIMessage }
         let mut parser = test.prepare();
         let export_id = parser.eat_export().unwrap();
 
-        assert_node!(parser.tree, export_id, Expression::Export { space, target, items, .. } => {
-            assert_eq!(*space, DependencySpace::Value);
+        assert_node!(parser.tree, export_id, Expression::Export { form, target, items, .. } => {
+            assert_eq!(*form, DependencyForm::Plain);
             assert!(target.is_none());
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem::Item { binding, space, name: Some(name), alias, .. } => {
-                assert_eq!(*binding, DependencyBinding::Item);
-                assert_eq!(*space, None);
+            assert_node!(parser.tree, items[0], DependencyItem::Binding { binding, form, name: Some(name), alias, .. } => {
+                assert_eq!(*binding, DependencyBinding::Named);
+                assert_eq!(*form, None);
                 assert_string!(parser, name.string(), "as");
                 assert!(alias.is_none());
             });
@@ -1982,13 +1982,13 @@ export type { CreateUIMessage, UIMessage }
         let mut parser = test.prepare();
         let export_id = parser.eat_export().unwrap();
 
-        assert_node!(parser.tree, export_id, Expression::Export { space, target, items, .. } => {
-            assert_eq!(*space, DependencySpace::Value);
+        assert_node!(parser.tree, export_id, Expression::Export { form, target, items, .. } => {
+            assert_eq!(*form, DependencyForm::Plain);
             assert!(target.is_none());
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem::Item { binding, space, name: Some(name), alias, .. } => {
-                assert_eq!(*binding, DependencyBinding::Item);
-                assert_eq!(*space, None);
+            assert_node!(parser.tree, items[0], DependencyItem::Binding { binding, form, name: Some(name), alias, .. } => {
+                assert_eq!(*binding, DependencyBinding::Named);
+                assert_eq!(*form, None);
                 assert_string!(parser, name.string(), "type");
                 assert!(alias.is_none());
             });
@@ -2003,13 +2003,13 @@ export type { CreateUIMessage, UIMessage }
         let mut parser = test.prepare();
         let export_id = parser.eat_export().unwrap();
 
-        assert_node!(parser.tree, export_id, Expression::Export { space, target, items, .. } => {
-            assert_eq!(*space, DependencySpace::Value);
+        assert_node!(parser.tree, export_id, Expression::Export { form, target, items, .. } => {
+            assert_eq!(*form, DependencyForm::Plain);
             assert!(target.is_none());
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem::Item { binding, space, name: Some(name), alias: Some(alias), .. } => {
-                assert_eq!(*binding, DependencyBinding::Item);
-                assert_eq!(*space, None);
+            assert_node!(parser.tree, items[0], DependencyItem::Binding { binding, form, name: Some(name), alias: Some(alias), .. } => {
+                assert_eq!(*binding, DependencyBinding::Named);
+                assert_eq!(*form, None);
                 assert_string!(parser, name.string(), "type");
                 assert_string!(parser, *alias, "if");
             });
@@ -2024,13 +2024,13 @@ export type { CreateUIMessage, UIMessage }
         let mut parser = test.prepare();
         let export_id = parser.eat_export().unwrap();
 
-        assert_node!(parser.tree, export_id, Expression::Export { space, target, items, .. } => {
-            assert_eq!(*space, DependencySpace::Value);
+        assert_node!(parser.tree, export_id, Expression::Export { form, target, items, .. } => {
+            assert_eq!(*form, DependencyForm::Plain);
             assert!(target.is_none());
             assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem::Item { binding, space, name: Some(name), alias: Some(alias), .. } => {
-                assert_eq!(*binding, DependencyBinding::Item);
-                assert_eq!(*space, Some(DependencySpace::Type));
+            assert_node!(parser.tree, items[0], DependencyItem::Binding { binding, form, name: Some(name), alias: Some(alias), .. } => {
+                assert_eq!(*binding, DependencyBinding::Named);
+                assert_eq!(*form, Some(DependencyForm::Type));
                 assert_string!(parser, name.string(), "as");
                 assert_string!(parser, *alias, "if");
             });
@@ -2089,8 +2089,8 @@ export type { CreateUIMessage, UIMessage }
 
         test.assert_no_errors(&parser);
         assert_eq!(expressions.len(), 1);
-        assert_node!(parser.tree, expressions[0], Expression::Import { space, target, items, .. } => {
-            assert_eq!(*space, DependencySpace::Type);
+        assert_node!(parser.tree, expressions[0], Expression::Import { form, target, items, .. } => {
+            assert_eq!(*form, DependencyForm::Type);
             assert_import_target_string(&parser, *target, "a");
             let _items = assert_empty_import_shell(items);
         });
