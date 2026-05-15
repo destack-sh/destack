@@ -1,12 +1,12 @@
 use destack_artifact::Html;
 use destack_html as html;
-use destack_source::{FileId, ModuleEdge, ModuleId, Span};
+use destack_source::{FileId, ModuleId, Span};
 use destack_workspace::Module;
 
 use crate::{LinkError, LinkResult};
 
 use super::super::plan::Plan;
-use super::super::{AssetReference, ScriptLinker};
+use super::super::{AssetReference, ModuleEdge, ScriptLinker};
 use crate::link::{OutputLocation, TargetLocation};
 
 /// Print one rewritten HTML document through the shared HTML printer.

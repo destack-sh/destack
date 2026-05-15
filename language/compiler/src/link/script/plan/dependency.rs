@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 
 use destack_artifact::{ModuleOutput, ScriptOutput};
-use destack_codegen_js::DependencySpace;
+use destack_codegen_js::DependencyForm;
 use destack_source::{ModuleId, PackageId, Span, TargetId};
 use destack_workspace::{ProviderContext, Target};
 use indexmap::{IndexMap, IndexSet};
@@ -160,7 +160,7 @@ impl Compiler {
 
         // bundled static imports
         for dependency in static_script_dependencies(&script.module) {
-            if dependency.kind == DependencySpace::Type {
+            if dependency.form == DependencyForm::Type {
                 continue;
             }
 
@@ -242,7 +242,7 @@ impl Compiler {
 
         // retained external static imports
         for dependency in static_script_dependencies(&script.module) {
-            if dependency.kind == DependencySpace::Type {
+            if dependency.form == DependencyForm::Type {
                 continue;
             }
 

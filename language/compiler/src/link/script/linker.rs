@@ -4,12 +4,13 @@ use std::sync::Arc;
 use destack_artifact::{ArtifactKey, Data, DirExported, DirImported, ModuleOutput};
 use destack_dir as dir;
 use destack_source::{
-    File, FileId, FileType, ModuleEdge, ModuleId, ModuleRelation, PackageId, ProfileId, Span,
-    StringId, TargetId,
+    File, FileId, FileType, ModuleId, PackageId, ProfileId, Span, StringId, TargetId,
 };
 use destack_workspace::{Module, ProviderContext, Revision, Target};
 
 use crate::{Compiler, LinkError, LinkResult};
+
+use super::{ModuleEdge, ModuleRelation};
 
 /// One script target linker.
 pub(crate) struct ScriptLinker<'a> {
@@ -203,14 +204,14 @@ fn module_dependency_edges(imported: &DirImported, exported: &DirExported) -> Ve
         push_module_edge(
             &mut edges,
             Some(dependency.target),
-            dependency.relation,
+            dependency_relation(dependency.relation),
             Some(dependency.specifier),
             dependency.loader,
         );
     }
 
     // re-export edges
-    for export in exported.exports.namespace_exports.iter() {
+    for export in exported.exports.star_exports() {
         push_module_edge(
             &mut edges,
             Some(export.target),
@@ -224,6 +225,14 @@ fn module_dependency_edges(imported: &DirImported, exported: &DirExported) -> Ve
     edges.dedup();
 
     edges
+}
+
+/// Return the script-linker relation for one DIR dependency relation.
+fn dependency_relation(relation: dir::DependencyRelation) -> ModuleRelation {
+    match relation {
+        dir::DependencyRelation::Import => ModuleRelation::Import,
+        dir::DependencyRelation::ReExport => ModuleRelation::ReExport,
+    }
 }
 
 /// Push one concrete module edge when the target is a module.

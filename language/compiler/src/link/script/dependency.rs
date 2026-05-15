@@ -1,8 +1,59 @@
 use destack_codegen_js::{
-    DependencySpace, Expression, LocalNodeId, Module, Node, NodeVisitor, NodeVisitorOptions,
+    DependencyForm, Expression, LocalNodeId, Module, Node, NodeVisitor, NodeVisitorOptions,
     ScalarLiteral, Statement, Tree, walk_expression, walk_statement,
 };
-use destack_source::ModuleId;
+use destack_source::{Loader, ModuleId, StringId};
+
+/// The relation between linked script modules.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub(crate) enum ModuleRelation {
+    /// Binding import.
+    Import,
+    /// Binding re-export.
+    ReExport,
+    /// Non-binding module reference.
+    Reference,
+}
+
+/// One resolved relation from a source module to another source module.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub(crate) struct ModuleEdge {
+    /// The target module.
+    pub(crate) target: ModuleId,
+    /// The source relation.
+    pub(crate) relation: ModuleRelation,
+    /// The authored specifier when the relation has one.
+    pub(crate) specifier: Option<StringId>,
+    /// The local source site when the relation came from a document or style node.
+    pub(crate) site: Option<u32>,
+    /// The requested loader override when the relation has one.
+    pub(crate) loader: Option<Loader>,
+}
+
+impl ModuleEdge {
+    /// Create one module edge.
+    pub(crate) fn new(target: ModuleId, relation: ModuleRelation) -> Self {
+        Self {
+            target,
+            relation,
+            specifier: None,
+            site: None,
+            loader: None,
+        }
+    }
+
+    /// Return this edge with an authored specifier.
+    pub(crate) fn with_specifier(mut self, specifier: Option<StringId>) -> Self {
+        self.specifier = specifier;
+        self
+    }
+
+    /// Return this edge with a loader override.
+    pub(crate) fn with_loader(mut self, loader: Option<Loader>) -> Self {
+        self.loader = loader;
+        self
+    }
+}
 
 /// One script dependency target.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -41,8 +92,8 @@ impl ScriptDependencyTarget {
 /// One static script import or re-export.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct StaticScriptDependency {
-    /// The dependency kind.
-    pub(crate) kind: DependencySpace,
+    /// The dependency form.
+    pub(crate) form: DependencyForm,
     /// The dependency target.
     pub(crate) target: ScriptDependencyTarget,
 }
@@ -109,7 +160,7 @@ fn collect_static_statement_dependency(
 ) {
     match statement {
         Statement::Import {
-            space: kind,
+            form,
             target,
             target_module,
             ..
@@ -118,12 +169,12 @@ fn collect_static_statement_dependency(
             let target = script_dependency_target(&specifier, *target_module);
 
             dependencies.push(StaticScriptDependency {
-                kind: *kind,
+                form: *form,
                 target,
             });
         }
         Statement::Export {
-            space: kind,
+            form,
             target: Some(target),
             target_module,
             ..
@@ -132,7 +183,7 @@ fn collect_static_statement_dependency(
             let target = script_dependency_target(&specifier, *target_module);
 
             dependencies.push(StaticScriptDependency {
-                kind: *kind,
+                form: *form,
                 target,
             });
         }

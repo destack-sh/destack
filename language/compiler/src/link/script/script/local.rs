@@ -65,7 +65,7 @@ impl Compiler {
                         message: "resource namespace import is missing an alias".to_string(),
                     })?
                 }
-                js::DependencyBinding::Item => match item.name {
+                js::DependencyBinding::Named => match item.name {
                     Some(js::Name::Identifier(name)) if module.strings.get(name) == "default" => {
                         item.alias.unwrap_or(name)
                     }
@@ -181,7 +181,7 @@ impl Compiler {
                 js::DependencyBinding::Default | js::DependencyBinding::Namespace => item
                     .alias
                     .map(|alias| module.strings.get(alias).to_string()),
-                js::DependencyBinding::Item => {
+                js::DependencyBinding::Named => {
                     if let Some(alias) = item.alias {
                         Some(module.strings.get(alias).to_string())
                     } else {
@@ -582,15 +582,18 @@ impl Compiler {
         let mut properties = Vec::new();
 
         // runtime value exports
-        for ((space, key), export) in target_directory.exports.export_by_key.iter() {
-            if *space != dir::SymbolSpace::Value {
+        for (key, export) in target_directory.exports.exports() {
+            let Some(static_key) = key.named_key() else {
                 continue;
-            }
-            if !seen_keys.insert(*key) {
+            };
+            let dir::ExportEntry::Local(export) = export else {
+                continue;
+            };
+            if !seen_keys.insert(static_key) {
                 continue;
             }
 
-            let target_symbol = export.target;
+            let target_symbol = export.source.into_global(target_module);
             let (target_symbol, target_name) = self.resolve_same_output_printable_symbol(
                 target_symbol,
                 profile_id,
@@ -601,7 +604,7 @@ impl Compiler {
                 module_id,
                 module,
                 self.repository.string_pool().as_ref(),
-                *key,
+                static_key,
                 target_id,
                 package_id,
                 context,

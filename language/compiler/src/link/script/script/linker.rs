@@ -36,7 +36,7 @@ impl<'a> ScriptLinker<'a> {
 
                 module.strings.get(alias).to_string()
             }
-            js::DependencyBinding::Item => {
+            js::DependencyBinding::Named => {
                 let alias = item
                     .alias
                     .map(|alias| module.strings.get(alias).to_string());
@@ -49,7 +49,7 @@ impl<'a> ScriptLinker<'a> {
             specifier.to_string(),
             Self::import_mode_tag(item.binding),
             imported_name,
-            item.space.map(Self::import_kind_tag),
+            item.form.map(Self::import_form_tag),
         );
 
         Some((local_binding, source))
@@ -58,17 +58,17 @@ impl<'a> ScriptLinker<'a> {
     /// Return one stable hashable tag for one import mode.
     fn import_mode_tag(binding: js::DependencyBinding) -> u8 {
         match binding {
-            js::DependencyBinding::Item => 0,
+            js::DependencyBinding::Named => 0,
             js::DependencyBinding::Default => 1,
             js::DependencyBinding::Namespace => 2,
         }
     }
 
-    /// Return one stable hashable tag for one import kind.
-    fn import_kind_tag(space: js::DependencySpace) -> u8 {
-        match space {
-            js::DependencySpace::Type => 0,
-            js::DependencySpace::Value => 1,
+    /// Return one stable hashable tag for one import form.
+    fn import_form_tag(form: js::DependencyForm) -> u8 {
+        match form {
+            js::DependencyForm::Type => 0,
+            js::DependencyForm::Plain => 1,
         }
     }
 
@@ -97,7 +97,7 @@ impl<'a> ScriptLinker<'a> {
                 let statement = module.tree.get(statement_id).clone();
 
                 let js::Statement::Import {
-                    space: kind,
+                    form,
                     target,
                     items,
                     attributes,
@@ -110,7 +110,7 @@ impl<'a> ScriptLinker<'a> {
                 let items = items.unwrap_or_default();
 
                 // keep type imports and attributed imports untouched here
-                if kind == js::DependencySpace::Type || attributes.is_some() {
+                if form == js::DependencyForm::Type || attributes.is_some() {
                     let specifier = module.strings.get(target).to_string();
                     imported_specifiers.insert(specifier);
                     normalized_roots.push(root);
@@ -346,7 +346,7 @@ impl Compiler {
         items.iter().all(|item_id| {
             let item = module.tree.get(*item_id);
 
-            item.binding == js::DependencyBinding::Item && item.value.is_none()
+            item.binding == js::DependencyBinding::Named && item.value.is_none()
         })
     }
 

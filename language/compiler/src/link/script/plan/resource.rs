@@ -72,8 +72,8 @@ fn insert_default_export_statement(
     let default_name_id = strings.intern(DEFAULT_EXPORT_NAME);
     let export_item = tree.insert_from_source_any(
         js::DependencyItem {
-            binding: js::DependencyBinding::Item,
-            space: Some(js::DependencySpace::Value),
+            binding: js::DependencyBinding::Named,
+            form: Some(js::DependencyForm::Plain),
             name: Some(js::Name::Identifier(binding_name_id)),
             alias: Some(default_name_id),
             value: None,
@@ -85,7 +85,7 @@ fn insert_default_export_statement(
 
     tree.insert_from_source_any(
         js::Statement::Export {
-            space: js::DependencySpace::Value,
+            form: js::DependencyForm::Plain,
             target: None,
             target_module: None,
             items: vec![export_item],

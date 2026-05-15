@@ -5,7 +5,7 @@ use crate::{LinkError, LinkResult};
 
 use destack_artifact::ScriptOutput;
 use destack_codegen_js::{
-    DependencyItem, DependencySpace, DependencyBinding, Expression, LocalNodeId, LocalNodeIdAny,
+    DependencyItem, DependencyForm, DependencyBinding, Expression, LocalNodeId, LocalNodeIdAny,
     Tree, NodeType, NodeVisitor, NodeVisitorOptions, ScalarLiteral, Module, Statement,
     walk_expression, walk_root,
 };
@@ -76,7 +76,7 @@ impl<'a> ScriptLinker<'a> {
         items.iter().all(|item_id| {
             let item = module.tree.get(*item_id);
 
-            item.binding == DependencyBinding::Item && item.alias.is_none() && item.value.is_none()
+            item.binding == DependencyBinding::Named && item.alias.is_none() && item.value.is_none()
         })
     }
 
@@ -89,7 +89,7 @@ impl<'a> ScriptLinker<'a> {
         items.iter().all(|item_id| {
             let item = module.tree.get(*item_id);
 
-            item.binding == DependencyBinding::Item && item.value.is_none()
+            item.binding == DependencyBinding::Named && item.value.is_none()
         })
     }
 
@@ -285,7 +285,7 @@ impl<'a> ScriptLinker<'a> {
 
             match statement {
                 Statement::Import {
-                    space: kind,
+                    form,
                     target: specifier,
                     target_module: Some(target_module),
                     items,
@@ -294,13 +294,13 @@ impl<'a> ScriptLinker<'a> {
                 } => (
                     module.strings.get(*specifier).to_string(),
                     *target_module,
-                    *kind == DependencySpace::Type,
+                    *form == DependencyForm::Type,
                     items.clone().unwrap_or_default(),
                     attributes.is_some(),
                     true,
                 ),
                 Statement::Export {
-                    space: kind,
+                    form,
                     target: Some(specifier),
                     target_module: Some(target_module),
                     items,
@@ -308,7 +308,7 @@ impl<'a> ScriptLinker<'a> {
                 } => (
                     module.strings.get(*specifier).to_string(),
                     *target_module,
-                    *kind == DependencySpace::Type,
+                    *form == DependencyForm::Type,
                     items.clone(),
                     false,
                     false,
