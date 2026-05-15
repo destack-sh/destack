@@ -345,7 +345,7 @@ b0(v0: int32):
     branch v2, b2, b1
 b1:
     v3: int32 = 1int32
-    v4: ref<int32[512], raw, space(stack)> = stack.alloc int32[512]
+    v4: ref<[int32; 512], raw, space(stack)> = stack.alloc [int32; 512]
     v5: int32 = int.sub v0, v3
     tailCall countdown(v5): (int32) -> int32
 b2:
@@ -443,9 +443,9 @@ b0:
     v0: int32 = 10int32
     v1: int32 = 20int32
     v2: int32 = 30int32
-    v3: int32[3] = array int32[3] (v0, v1, v2)
+    v3: [int32; 3] = array [int32; 3] (v0, v1, v2)
     jump b1(v3)
-b1(v4: int32[3]):
+b1(v4: [int32; 3]):
     v5: int32 = element.get v4, 2
     return v5
 }"#;
@@ -461,10 +461,10 @@ b0(v0: int32):
     v1: int32 = 10int32
     v2: int32 = 20int32
     v3: int32 = 30int32
-    v4: int32[3] = array int32[3] (v1, v2, v3)
-    v5: int32[3] = element.set v4, 2, v0
+    v4: [int32; 3] = array [int32; 3] (v1, v2, v3)
+    v5: [int32; 3] = element.set v4, 2, v0
     jump b1(v5)
-b1(v6: int32[3]):
+b1(v6: [int32; 3]):
     v7: int32 = element.get v6, 2
     return v7
 }"#;

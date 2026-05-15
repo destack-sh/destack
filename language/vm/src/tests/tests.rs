@@ -631,9 +631,9 @@ type Greeter#object {
     greet: () => int32;
 }
 
-global GreeterImpl#vtable: ref?<void, raw, readonly, space(local)>[3], readonly = zeroInit
+readonly global GreeterImpl#vtable: [ref<void, raw, readonly, space(local), nullable>; 3] = zeroInit
 
-extern function Greeter.greet(Greeter#object): int32
+external function Greeter.greet(Greeter#object): int32
 
 function callInterface(v0: Greeter): int32 {
 b0(v0: Greeter):
@@ -657,7 +657,7 @@ b0:
 function GreeterImpl.constructor(v0: int32): ref<GreeterImpl, managed, readonly> {
 b0(v0: int32):
     v1: ref<GreeterImpl, managed, readonly> = new GreeterImpl
-    v2: ref<ref?<void, raw, readonly, space(local)>[3], raw, readonly, space(local)> = global.address GreeterImpl#vtable
+    v2: ref<[ref<void, raw, readonly, space(local), nullable>; 3], raw, readonly, space(local)> = global.address GreeterImpl#vtable
     v3: ref<void, raw, readonly, space(local)> = cast.bit v2 -> ref<void, raw, readonly, space(local)>
     v4: int32 = 0int32
     v5: GreeterImpl = struct GreeterImpl (v3, v4)

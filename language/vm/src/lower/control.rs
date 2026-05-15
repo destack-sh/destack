@@ -1,8 +1,8 @@
 use destack_mir as mir;
 
 use crate::program::{
-    BoundsCheck, Check, Instruction, NarrowCheck, Op, OverflowCheck, ShiftRangeCheck, UnionCheck,
-    ValueLayout, repr_type,
+    BoundsCheck, Check, Instruction, NarrowCheck, Op, OverflowCheck, ShiftRangeCheck, ValueLayout,
+    VariantCheck, repr_type,
 };
 use crate::{Error, Result};
 
@@ -109,15 +109,14 @@ impl<'a> BlockLowerer<'a> {
                     expected: expected.id,
                 })
             }
-            mir::CheckConstraint::Union { value, expected } => {
-                let value = check_value(*value, "union check value")?;
-                let (_, is_signed) = checked_integer(self, value)?;
-                let check = UnionCheck {
+            mir::CheckConstraint::Variant { value, expected } => {
+                let value = check_value(*value, "variant check value")?;
+                let check = VariantCheck {
                     value: word_offset(self, value)?,
-                    expected: *expected,
+                    expected: constant_word_bits(expected)?,
                 };
 
-                Ok(union_check(is_signed, check))
+                Ok(Check::Variant(check))
             }
             mir::CheckConstraint::ReceiverType { .. } => Err(Error::UnsupportedInstruction {
                 name: "receiverType check".to_string(),
@@ -478,6 +477,23 @@ fn check_value(value: mir::ValueReference, context: &'static str) -> Result<mir:
     })
 }
 
+/// Return one constant as VM word bits.
+fn constant_word_bits(value: &mir::Constant) -> Result<u64> {
+    match value {
+        mir::Constant::Null => Ok(0),
+        mir::Constant::Boolean { value } => Ok(u64::from(*value)),
+        mir::Constant::Int { value, width, .. } if *width <= u64::BITS as u16 => {
+            Ok((*value as i64) as u64)
+        }
+        mir::Constant::UInt { value, width } if *width <= u64::BITS as u16 => {
+            u64::try_from(*value).map_err(|_| Error::InvalidInstruction)
+        }
+        mir::Constant::Float { bits, .. } => Ok(*bits),
+        mir::Constant::Char { value } => Ok(u64::from(*value as u32)),
+        mir::Constant::Int { .. } | mir::Constant::UInt { .. } => Err(Error::InvalidInstruction),
+    }
+}
+
 /// Select one concrete overflow check.
 fn overflow_check(
     operator: mir::BinaryOperator,
@@ -536,13 +552,4 @@ fn narrow_check(is_signed: bool, check: NarrowCheck) -> Check {
     }
 
     Check::NarrowUint(check)
-}
-
-/// Select one concrete union check.
-fn union_check(is_signed: bool, check: UnionCheck) -> Check {
-    if is_signed {
-        return Check::UnionInt(check);
-    }
-
-    Check::UnionUint(check)
 }

@@ -68,10 +68,8 @@ pub(crate) enum Check {
         /// The expected type id.
         expected: u32,
     },
-    /// Signed union tag check.
-    UnionInt(UnionCheck),
-    /// Unsigned union tag check.
-    UnionUint(UnionCheck),
+    /// Variant tag check.
+    Variant(VariantCheck),
 }
 
 /// Bounds check over index and length words.
@@ -101,9 +99,9 @@ pub(crate) struct NarrowCheck {
     pub(crate) to_width: u8,
 }
 
-/// Union tag check over one word.
+/// Variant tag check over one word.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct UnionCheck {
+pub(crate) struct VariantCheck {
     /// The tag word offset.
     pub(crate) value: u32,
     /// The expected tag.

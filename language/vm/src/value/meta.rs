@@ -1,6 +1,27 @@
 use destack_mir as mir;
 use serde::{Deserialize, Serialize};
 
+/// The packed bit mask for the reference kind.
+const REF_KIND_MASK: u16 = 0x7;
+
+/// The shift used for packed reference access.
+const REF_ACCESS_SHIFT: u8 = 3;
+
+/// The packed bit mask for reference access.
+const REF_ACCESS_MASK: u16 = 0x3 << REF_ACCESS_SHIFT;
+
+/// The shift used for packed reference nullability.
+const REF_NULLABILITY_SHIFT: u8 = 5;
+
+/// The packed bit mask for reference nullability.
+const REF_NULLABILITY_MASK: u16 = 0x3 << REF_NULLABILITY_SHIFT;
+
+/// The shift used for the packed reference address space.
+const REF_ADDRESS_SPACE_SHIFT: u8 = 7;
+
+/// The packed bit mask for the reference address space.
+const REF_ADDRESS_SPACE_MASK: u16 = 0x7 << REF_ADDRESS_SPACE_SHIFT;
+
 /// Address space class for reference metadata.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ReferenceAddressSpace {
@@ -86,24 +107,6 @@ pub struct ReferenceMeta {
     bits: u16,
 }
 
-/// The packed bit mask for the reference kind.
-const REF_KIND_MASK: u16 = 0x7;
-
-/// The shift used for packed reference access.
-const REF_ACCESS_SHIFT: u8 = 3;
-
-/// The packed bit mask for reference access.
-const REF_ACCESS_MASK: u16 = 0x3 << REF_ACCESS_SHIFT;
-
-/// The packed bit that marks nullable references.
-const REF_NULLABLE_BIT: u16 = 1 << 5;
-
-/// The shift used for the packed reference address space.
-const REF_ADDRESS_SPACE_SHIFT: u8 = 6;
-
-/// The packed bit mask for the reference address space.
-const REF_ADDRESS_SPACE_MASK: u16 = 0x7 << REF_ADDRESS_SPACE_SHIFT;
-
 impl ReferenceMeta {
     /// Empty reference metadata.
     pub const NONE: Self = Self { bits: 0 };
@@ -118,7 +121,7 @@ impl ReferenceMeta {
         kind: mir::ReferenceKind,
         address_space: mir::AddressSpace,
         access: mir::Access,
-        is_nullable: bool,
+        nullability: mir::Nullability,
     ) -> Self {
         let kind_bits = match kind {
             mir::ReferenceKind::Managed => 1,
@@ -133,12 +136,16 @@ impl ReferenceMeta {
         };
         let address_space_bits =
             u16::from(ReferenceAddressSpace::from_mir(address_space).to_bits());
+        let nullability_bits = match nullability {
+            mir::Nullability::None => 0,
+            mir::Nullability::Null => 1,
+            mir::Nullability::Undefined => 2,
+            mir::Nullability::NullOrUndefined => 3,
+        };
 
         let mut bits = kind_bits | (access_bits << REF_ACCESS_SHIFT);
+        bits |= nullability_bits << REF_NULLABILITY_SHIFT;
         bits |= address_space_bits << REF_ADDRESS_SPACE_SHIFT;
-        if is_nullable {
-            bits |= REF_NULLABLE_BIT;
-        }
 
         Self { bits }
     }
@@ -167,9 +174,14 @@ impl ReferenceMeta {
         }
     }
 
-    /// Check whether this reference is nullable.
-    pub fn is_nullable(self) -> bool {
-        self.bits & REF_NULLABLE_BIT != 0
+    /// Get the reference nullability.
+    pub fn nullability(self) -> mir::Nullability {
+        match (self.bits & REF_NULLABILITY_MASK) >> REF_NULLABILITY_SHIFT {
+            1 => mir::Nullability::Null,
+            2 => mir::Nullability::Undefined,
+            3 => mir::Nullability::NullOrUndefined,
+            _ => mir::Nullability::None,
+        }
     }
 
     /// Get the reference address space.

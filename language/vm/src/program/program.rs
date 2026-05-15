@@ -487,10 +487,10 @@ fn validate_zero_scalar_type(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) 
             kind: _,
             address_space: _,
             access: _,
-            is_nullable,
+            nullability,
             ..
         } => {
-            if !is_nullable {
+            if !nullability.allows_null() {
                 return Err(Error::UnsupportedZeroValue {
                     ty: format!("{ty_node:?}"),
                 });

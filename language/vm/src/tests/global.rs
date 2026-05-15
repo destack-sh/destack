@@ -6,7 +6,7 @@ use crate::tests::{assert_runtime_error_matches, run_mir, run_mir_expect, run_mi
 #[test]
 fn test_global_get_constant() {
     let mir = r#"
-global value: int32, readonly = 42int32
+readonly global value: int32 = 42int32
 
 function read(): int32 {
 b0:
@@ -40,7 +40,7 @@ b0:
 #[test]
 fn test_global_immutable_write() {
     let mir = r#"
-global CONST: int32, readonly = 42int32
+readonly global CONST: int32 = 42int32
 
 function badWrite(): void {
 b0:
@@ -135,7 +135,7 @@ b0:
 #[test]
 fn test_global_aggregate() {
     let mir = r#"
-global pair: (int32, int32), readonly = {10int32, 20int32}
+readonly global pair: (int32, int32) = {10int32, 20int32}
 
 function getSecond(): int32 {
 b0:
@@ -151,12 +151,12 @@ b0:
 #[test]
 fn test_global_string_bytes() {
     let mir = r#"
-global message: uint8[4], readonly = b"boom"
+readonly global message: [uint8; 4] = b"boom"
 
 function readSecond(): uint8 {
 b0:
-    v0: ref<uint8[4], raw, readonly> = global.address message
-    v1: uint8[4] = load v0
+    v0: ref<[uint8; 4], raw, readonly> = global.address message
+    v1: [uint8; 4] = load v0
     v2: uint8 = element.get v1, 1
     return v2
 }"#;
@@ -167,8 +167,8 @@ b0:
 #[test]
 fn test_multiple_globals() {
     let mir = r#"
-global first: int32, readonly = 10int32
-global second: int32, readonly = 20int32
+readonly global first: int32 = 10int32
+readonly global second: int32 = 20int32
 global third: int32 = 30int32
 
 function sum(): int32 {
@@ -211,7 +211,7 @@ b0:
 #[test]
 fn test_global_negative_init() {
     let mir = r#"
-global neg: int32, readonly = -42int32
+readonly global neg: int32 = -42int32
 
 function read(): int32 {
 b0:
@@ -226,7 +226,7 @@ b0:
 #[test]
 fn test_global_float() {
     let mir = r#"
-global pi: float64, readonly = 3.14159float64
+readonly global pi: float64 = 3.14159float64
 
 function read(): float64 {
 b0:

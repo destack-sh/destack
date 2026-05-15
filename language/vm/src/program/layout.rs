@@ -369,11 +369,11 @@ fn build_layout(
                 .collect::<Result<Vec<_>>>()?;
             build_record_layout(tree, layouts, ty, field_types)?
         }
-        mir::Type::Union { .. } => {
+        mir::Type::Variant { .. } => {
             let layout = tree
                 .type_layout(ty)
                 .ok_or_else(|| Error::MissingRepresentation {
-                    context: "union layout".to_string(),
+                    context: "variant layout".to_string(),
                 })?;
             build_mir_layout(tree, layouts, layout)?
         }
@@ -995,9 +995,9 @@ fn build_reference_map(
     ty: mir::LocalNodeId<mir::Type>,
 ) -> Result<ReferenceMap> {
     if let Some(layout) = tree.type_layout(ty)
-        && matches!(layout.shape, mir::LayoutShape::Union { .. })
+        && matches!(layout.shape, mir::LayoutShape::Variant { .. })
     {
-        return build_union_reference_map(tree, layouts, ty, layout);
+        return build_variant_reference_map(tree, layouts, ty, layout);
     }
 
     let mut local_offsets = Vec::new();
@@ -1025,14 +1025,14 @@ fn build_reference_map(
     Ok(reference_map)
 }
 
-/// Build a tag-selected reference map for one lowered union.
-fn build_union_reference_map(
+/// Build a tag-selected reference map for one lowered variant.
+fn build_variant_reference_map(
     tree: &mir::Tree,
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     ty: mir::LocalNodeId<mir::Type>,
     layout: &mir::Layout,
 ) -> Result<ReferenceMap> {
-    let mir::LayoutShape::Union {
+    let mir::LayoutShape::Variant {
         tag_offset,
         payload_type,
         payload_offset,
@@ -1040,28 +1040,28 @@ fn build_union_reference_map(
     } = &layout.shape
     else {
         return Err(Error::InvariantViolation {
-            context: "reference map requested for non-union layout".to_string(),
+            context: "reference map requested for non-variant layout".to_string(),
         });
     };
-    let mir::Type::Union { tag, variants, .. } = tree.get(ty) else {
+    let mir::Type::Variant { tag, cases, .. } = tree.get(ty) else {
         return Err(Error::InvariantViolation {
-            context: "reference map requested for non-union type".to_string(),
+            context: "reference map requested for non-variant type".to_string(),
         });
     };
     let tag_type = tag.ty().ok_or_else(|| Error::InvariantViolation {
-        context: "union tag type is not concrete".to_string(),
+        context: "variant tag type is not concrete".to_string(),
     })?;
 
-    let tag_bytes = union_tag_bytes(tree, tag_type)?;
-    let mut reference_variants = Vec::with_capacity(variants.len());
+    let tag_bytes = variant_tag_bytes(tree, tag_type)?;
+    let mut reference_variants = Vec::with_capacity(cases.len());
 
-    for variant in variants.iter() {
-        let element_type = variant.ty.ty().ok_or_else(|| Error::InvariantViolation {
-            context: "union variant type is not concrete".to_string(),
+    for case in cases.iter() {
+        let element_type = case.ty.ty().ok_or_else(|| Error::InvariantViolation {
+            context: "variant case type is not concrete".to_string(),
         })?;
-        let map = union_variant_reference_map(layouts, *payload, *payload_type, element_type)?;
+        let map = variant_case_reference_map(layouts, *payload, *payload_type, element_type)?;
         reference_variants.push(mir::ReferenceVariant {
-            tag: variant.tag,
+            tag: variant_tag_bits(tree, tag_type, &case.tag)?,
             payload_offset: *payload_offset,
             map,
         });
@@ -1074,36 +1074,67 @@ fn build_union_reference_map(
     })
 }
 
-/// Return the tag byte width for one union tag type.
-fn union_tag_bytes(tree: &mir::Tree, tag_type: mir::LocalNodeId<mir::Type>) -> Result<u8> {
+/// Return one variant case tag as normalized runtime bits.
+fn variant_tag_bits(
+    tree: &mir::Tree,
+    tag_type: mir::LocalNodeId<mir::Type>,
+    tag: &mir::Constant,
+) -> Result<u64> {
+    match (tree.get(tag_type), tag) {
+        (
+            mir::Type::Int {
+                width,
+                is_signed: true,
+            },
+            mir::Constant::Int { value, .. },
+        ) if *width <= u64::BITS as u16 => Ok((*value as i64) as u64),
+        (
+            mir::Type::Int {
+                width,
+                is_signed: false,
+            },
+            mir::Constant::UInt { value, .. },
+        ) if *width <= u64::BITS as u16 => {
+            u64::try_from(*value).map_err(|_| Error::InvariantViolation {
+                context: "variant tag does not fit in one word".to_string(),
+            })
+        }
+        _ => Err(Error::InvariantViolation {
+            context: "variant tag does not match tag type".to_string(),
+        }),
+    }
+}
+
+/// Return the tag byte width for one variant tag type.
+fn variant_tag_bytes(tree: &mir::Tree, tag_type: mir::LocalNodeId<mir::Type>) -> Result<u8> {
     let mir::Type::Int { width, .. } = tree.get(tag_type) else {
         return Err(Error::InvariantViolation {
-            context: format!("union tag type is not integer: {tag_type:?}"),
+            context: format!("variant tag type is not integer: {tag_type:?}"),
         });
     };
 
     u8::try_from(scalar_byte_len(*width as usize)).map_err(|_| Error::InvariantViolation {
-        context: format!("union tag width is too large: {width}"),
+        context: format!("variant tag width is too large: {width}"),
     })
 }
 
-/// Return the payload reference map for one union variant.
-fn union_variant_reference_map(
+/// Return the payload reference map for one variant case.
+fn variant_case_reference_map(
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
-    payload: mir::UnionPayload,
+    payload: mir::VariantPayload,
     payload_type: mir::LocalNodeId<mir::Type>,
     element_type: mir::LocalNodeId<mir::Type>,
 ) -> Result<ReferenceMap> {
     let payload_type = match payload {
-        mir::UnionPayload::Inline => element_type,
-        mir::UnionPayload::Boxed => payload_type,
+        mir::VariantPayload::Inline => element_type,
+        mir::VariantPayload::Boxed => payload_type,
     };
 
     layouts
         .get(&payload_type)
         .map(|layout| layout.reference_map.clone())
         .ok_or_else(|| Error::InvariantViolation {
-            context: format!("missing union variant layout for {payload_type:?}"),
+            context: format!("missing variant case layout for {payload_type:?}"),
         })
 }
 
@@ -1479,18 +1510,18 @@ type Holder {
 type Ref = ref<int32, managed, readonly>;
 type Plain = int32;
 type Tag = uint8;
-type Payload = usize[1];
-type Shape = union<Tag; 0: Ref, 1: Plain>"#;
+type Payload = [usize; 1];
+type Shape = variant<Tag, Payload> { 0uint8 = Ref; 1uint8 = Plain; }"#;
         let (mut tree, strings) = parse_tree_with_layout(mir_text, DataLayout::default());
         let union_type = lookup_type_alias(&tree, &strings, "Shape");
         let tag_type = lookup_type_alias(&tree, &strings, "Tag");
         let payload_type = lookup_type_alias(&tree, &strings, "Payload");
         let layout_id = tree.metadata.layout.layout_table.insert(mir::Layout {
-            shape: mir::LayoutShape::Union {
+            shape: mir::LayoutShape::Variant {
                 tag_offset: 0,
                 payload_type,
                 payload_offset: 8,
-                payload: mir::UnionPayload::Inline,
+                payload: mir::VariantPayload::Inline,
             },
             size: 16,
             alignment: 8,
@@ -1516,7 +1547,7 @@ type Shape = union<Tag; 0: Ref, 1: Plain>"#;
         });
         let union_types = tree
             .iter_nodes::<Type>()
-            .filter_map(|(type_id, ty)| matches!(ty, Type::Union { .. }).then_some(type_id))
+            .filter_map(|(type_id, ty)| matches!(ty, Type::Variant { .. }).then_some(type_id))
             .collect::<Vec<_>>();
 
         for union_type in union_types {

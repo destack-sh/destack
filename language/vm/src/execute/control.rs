@@ -3,7 +3,7 @@ use crate::diagnostic::Error;
 use crate::interpreter::Machine;
 use crate::program::{
     BoundsCheck, Check, CheckId, Edge, EdgeId, Instruction, MoveRange, NarrowCheck, OverflowCheck,
-    ShiftRangeCheck, SwitchCasesId, SwitchTableId, Transfer, UnionCheck,
+    ShiftRangeCheck, SwitchCasesId, SwitchTableId, Transfer, VariantCheck,
 };
 use {destack_engine as engine, destack_mir as mir};
 
@@ -251,15 +251,9 @@ fn narrow_check<const IS_SIGNED: bool>(machine: &Machine<'_, '_>, check: NarrowC
     u128::from(value) <= max_value
 }
 
-/// Evaluate one union tag check.
+/// Evaluate one variant tag check.
 #[inline(always)]
-fn union_check<const IS_SIGNED: bool>(machine: &Machine<'_, '_>, check: UnionCheck) -> bool {
-    if IS_SIGNED {
-        let actual = load_signed_word(machine, check.value);
-
-        return actual >= 0 && actual as u64 == check.expected;
-    }
-
+fn variant_check(machine: &Machine<'_, '_>, check: VariantCheck) -> bool {
     let actual = load_unsigned_word(machine, check.value);
 
     actual == check.expected
@@ -411,8 +405,7 @@ fn evaluate_check(machine: &Machine<'_, '_>, constraint: &Check) -> Result<bool,
 
             Ok(value.as_u64() == u64::from(*expected))
         }
-        Check::UnionInt(check) => Ok(union_check::<true>(machine, *check)),
-        Check::UnionUint(check) => Ok(union_check::<false>(machine, *check)),
+        Check::Variant(check) => Ok(variant_check(machine, *check)),
     }
 }
 
