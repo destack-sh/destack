@@ -305,34 +305,35 @@ impl NodeVisitor for CognitiveComplexityVisitor {
 
         // handle try catch finally with catch and finally penalties
         if let Expression::Try {
-            try_expression,
-            catch_expression,
-            finally_expression,
+            body,
+            catch,
+            finally,
             ..
         } = expression
         {
             // visit try body under one nesting level
             self.nesting += 1;
-            let try_expression_id = *try_expression;
-            let try_expression = tree.get(try_expression_id);
-            self.visit_expression(tree, try_expression_id, try_expression);
+            let body_id = *body;
+            let body = tree.get(body_id);
+            self.visit_expression(tree, body_id, body);
             self.nesting -= 1;
 
             // catch receives structural and nesting penalties
-            if let Some(catch_expression_id) = catch_expression {
+            if let Some(catch_id) = catch {
                 self.add_nesting_complexity();
                 self.nesting += 1;
-                let catch_expression = tree.get(*catch_expression_id);
-                self.visit_expression(tree, *catch_expression_id, catch_expression);
+                let catch = tree.get(*catch_id);
+                let catch_expression = tree.get(catch.body);
+                self.visit_expression(tree, catch.body, catch_expression);
                 self.nesting -= 1;
             }
 
             // finally receives structural flat penalty
-            if let Some(finally_expression_id) = finally_expression {
+            if let Some(finally_id) = finally {
                 self.add_flat_complexity();
                 self.nesting += 1;
-                let finally_expression = tree.get(*finally_expression_id);
-                self.visit_expression(tree, *finally_expression_id, finally_expression);
+                let finally = tree.get(*finally_id);
+                self.visit_expression(tree, *finally_id, finally);
                 self.nesting -= 1;
             }
 

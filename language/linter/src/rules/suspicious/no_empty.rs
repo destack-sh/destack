@@ -137,19 +137,14 @@ fn block_is_catch_body(
     let Some(parent_id) = ctx.dir.get_parent_id(block_expression_id.id) else {
         return false;
     };
-    if ctx.dir.get_node_type(parent_id) != dir::NodeType::Expression {
+    if ctx.dir.get_node_type(parent_id) != dir::NodeType::Catch {
         return false;
     }
 
-    let parent_expression_id = dir::LocalNodeId::<dir::Expression>::new(parent_id);
-    let parent_expression = ctx.dir.get(parent_expression_id);
-    matches!(
-        parent_expression,
-        dir::Expression::Try {
-            catch_expression: Some(catch_expression_id),
-            ..
-        } if *catch_expression_id == block_expression_id
-    )
+    let catch_id = dir::LocalNodeId::<dir::Catch>::new(parent_id);
+    let catch = ctx.dir.get(catch_id);
+
+    catch.body == block_expression_id
 }
 
 #[cfg(test)]

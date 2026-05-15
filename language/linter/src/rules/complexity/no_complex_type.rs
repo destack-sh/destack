@@ -333,6 +333,7 @@ fn type_expression_complexity_inner(
         TypeExpression::Mapped {
             parameter, value, ..
         } => {
+            let parameter = tree.get(*parameter);
             max_depth = max_depth.max(type_expression_complexity_inner(
                 tree,
                 parameter.source_type,

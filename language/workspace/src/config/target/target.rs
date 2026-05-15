@@ -12,7 +12,7 @@ use serde::Deserialize;
 use crate::{CompilerOptions, PolicyOptions, PolicyOptionsJson};
 
 use super::super::runtime::{
-    runtime_options_with_base, ExecutionMode, ExecutionModeJson, RuntimeConfigJson, RuntimeOptions,
+    ExecutionMode, ExecutionModeJson, RuntimeConfigJson, RuntimeOptions, runtime_options_with_base,
 };
 use super::codegen::*;
 use super::js::*;

@@ -38,7 +38,7 @@ impl LintRule for NoUnsafeFinally {
         // inspect try expressions that include finally blocks
         for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
             let dir::Expression::Try {
-                finally_expression: Some(finally_id),
+                finally: Some(finally_id),
                 ..
             } = ctx.dir.get(node_id)
             else {
@@ -64,8 +64,8 @@ impl LintRule for NoUnsafeFinally {
             };
 
             // resolve finally expression
-            let finally_expression = ctx.dir.get(*finally_id);
-            visitor.visit_expression(ctx.dir.tree(), *finally_id, finally_expression);
+            let finally = ctx.dir.get(*finally_id);
+            visitor.visit_expression(ctx.dir.tree(), *finally_id, finally);
 
             // report all unsafe control-flow diagnostics from this finally traversal
             for diagnostic in visitor.diagnostics {

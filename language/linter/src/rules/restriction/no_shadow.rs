@@ -90,7 +90,7 @@ impl LintRule for NoShadow {
 /// Return true when this symbol can participate in no-shadow checks.
 fn symbol_is_shadow_candidate(symbol: &dir::Symbol) -> bool {
     // keep named value-space symbols only
-    if symbol.space != dir::SymbolSpace::Value {
+    if !symbol.form.is_visible_in(dir::SymbolSpace::Value) {
         return false;
     }
     if symbol.key.is_none() {

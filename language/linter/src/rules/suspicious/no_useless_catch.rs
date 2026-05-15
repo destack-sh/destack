@@ -34,36 +34,34 @@ impl LintRule for NoUselessCatch {
         let meta = self.meta();
 
         for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
-            let dir::Expression::Try {
-                catch_pattern,
-                catch_expression,
-                finally_expression,
-                ..
-            } = ctx.dir.get(node_id)
-            else {
+            let dir::Expression::Try { catch, finally, .. } = ctx.dir.get(node_id) else {
                 continue;
             };
 
             // need both a catch pattern and expression
-            let (Some(pattern_id), Some(catch_expr_id)) = (catch_pattern, catch_expression) else {
+            let Some(catch_id) = catch else {
+                continue;
+            };
+            let catch = ctx.dir.get(*catch_id);
+            let (Some(pattern_id), catch_expr_id) = (catch.pattern, catch.body) else {
                 continue;
             };
 
             // get the bound name from the catch pattern
-            let Some(catch_name) = get_pattern_binding_name(ctx, *pattern_id) else {
+            let Some(catch_name) = get_pattern_binding_name(ctx, pattern_id) else {
                 continue;
             };
 
             // check if the catch expression just throws the caught variable
-            if is_throw_of_name(ctx, *catch_expr_id, catch_name) {
+            if is_throw_of_name(ctx, catch_expr_id, catch_name) {
                 let severity = ctx.get_effective_severity(meta, node_id);
                 if !severity.is_enabled() {
                     continue;
                 }
 
-                let has_finally_clause = finally_expression.is_some();
+                let has_finally_clause = finally.is_some();
                 let diagnostic_span = if has_finally_clause {
-                    ctx.dir.get_span(*catch_expr_id)
+                    ctx.dir.get_span(catch_expr_id)
                 } else {
                     ctx.dir.get_span(node_id)
                 };
