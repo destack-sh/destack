@@ -378,7 +378,7 @@ impl DiagnosticContext for TestProviderContext {
             DiagnosticDisplay::Target(target_id) => {
                 let target = self
                     .repository
-                    .effective_target(self.revision, target_id)
+                    .target_or_builtin(self.revision, target_id)
                     .expect("linter test provider should read target");
                 let Some(target) = target else {
                     return Err(Self::invalid_anchor(format!(
@@ -720,6 +720,7 @@ impl TestProgram {
             Vec::new(),
             Vec::new(),
             Vec::new(),
+            None,
             None,
             environment.key_all(),
             ProfileFlags::default(),

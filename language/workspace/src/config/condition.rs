@@ -1,8 +1,9 @@
 use indexmap::IndexSet;
 use serde::{Deserialize, Serialize};
+use std::hash::{Hash, Hasher};
 
 /// Active source graph and runtime selection conditions.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ConditionSet {
     /// Active source graph modes.
     pub modes: IndexSet<String>,
@@ -16,6 +17,17 @@ pub struct ConditionSet {
     pub target: Option<String>,
     /// Active product.
     pub product: Option<String>,
+}
+
+impl Hash for ConditionSet {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        hash_condition_names(&self.modes, state);
+        hash_condition_names(&self.roles, state);
+        hash_condition_names(&self.features, state);
+        hash_condition_names(&self.tags, state);
+        self.target.hash(state);
+        self.product.hash(state);
+    }
 }
 
 impl ConditionSet {
@@ -38,6 +50,15 @@ impl ConditionSet {
     pub fn contains_tag(&self, name: &str) -> bool {
         self.tags.contains(name)
     }
+}
+
+/// Hash source graph condition names independent of insertion order.
+fn hash_condition_names<H: Hasher>(names: &IndexSet<String>, state: &mut H) {
+    let mut names = names.iter().collect::<Vec<_>>();
+    names.sort();
+
+    names.len().hash(state);
+    names.iter().for_each(|name| name.hash(state));
 }
 
 /// Policy selector over active source graph and runtime conditions.

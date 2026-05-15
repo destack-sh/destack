@@ -58,6 +58,8 @@ pub struct ProfileKey {
     pub features: Vec<String>,
     /// Active source graph tags for the profile.
     pub tags: Vec<String>,
+    /// Active build target for the profile.
+    pub target: Option<String>,
     /// Active product for the profile.
     pub product: Option<String>,
     /// Compile-time environment identity for `import.meta.env`.
@@ -84,6 +86,7 @@ impl ProfileKey {
         roles: Vec<String>,
         features: Vec<String>,
         tags: Vec<String>,
+        target: Option<String>,
         product: Option<String>,
         env: HostEnvironmentKey,
         flags: ProfileFlags,
@@ -110,6 +113,7 @@ impl ProfileKey {
             roles,
             features,
             tags,
+            target,
             product,
             env,
             flags,

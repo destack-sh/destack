@@ -1,7 +1,7 @@
 use destack_artifact::ProfileKey;
 
 use crate::{
-    CompilerOptions, DestackConfig, HostEnvironment, ProfileOptions, Target,
+    CompilerOptions, ConditionSet, DestackConfig, HostEnvironment, ProfileOptions, Target,
     profile_flags_for_compiler_options,
 };
 
@@ -15,6 +15,122 @@ pub(crate) fn profile_key_for_target(
     product: Option<&str>,
     product_role: Option<&str>,
 ) -> ProfileKey {
+    let compiler_options =
+        profile_compiler_options_for_target(target, compiler_options, profile_config, product_role);
+    let conditions =
+        condition_set_from_compiler_options(target, &compiler_options, config, product);
+    let emit = target.emit;
+
+    // runtime surface
+    let runtime = profile_config
+        .and_then(|profile| profile.runtime.as_ref().map(|runtime| runtime.runtime))
+        .unwrap_or(target.runtime);
+    let platform = profile_config
+        .and_then(|profile| profile.platform)
+        .unwrap_or(target.platform);
+    let host = profile_config
+        .and_then(|profile| profile.host)
+        .unwrap_or(target.host);
+
+    // comptime environment
+    let env = profile_config
+        .and_then(|profile| profile.comptime_env.as_ref())
+        .or(compiler_options.comptime_env.as_ref())
+        .map(|keys| environment.key_whitelist(keys))
+        .unwrap_or_else(|| environment.key_all());
+
+    // compiler flags
+    let flags = profile_flags_for_compiler_options(&compiler_options);
+    let globals = compiler_options
+        .globals
+        .iter()
+        .map(|path| path.display().to_string())
+        .collect();
+    let tree = compiler_options.tree.clone();
+    let derive = compiler_options.derive.clone();
+
+    ProfileKey::new(
+        emit,
+        runtime,
+        platform,
+        host,
+        target.target_arch.clone(),
+        target.target_vendor.clone(),
+        target.target_abi.clone(),
+        globals,
+        tree,
+        derive,
+        conditions.modes.iter().cloned().collect(),
+        conditions.roles.iter().cloned().collect(),
+        conditions.features.iter().cloned().collect(),
+        conditions.tags.iter().cloned().collect(),
+        conditions.target.clone(),
+        conditions.product.clone(),
+        env,
+        flags,
+    )
+}
+
+/// Build one condition set from already resolved compiler options.
+fn condition_set_from_compiler_options(
+    target: &Target,
+    compiler_options: &CompilerOptions,
+    config: Option<&DestackConfig>,
+    product: Option<&str>,
+) -> ConditionSet {
+    ConditionSet {
+        modes: inherited_conditions(
+            &compiler_options.modes,
+            |config, name| {
+                config
+                    .modes
+                    .get(name)
+                    .map(|options| options.extends.as_slice())
+            },
+            config,
+        ),
+        roles: inherited_conditions(
+            &compiler_options.roles,
+            |config, name| {
+                config
+                    .roles
+                    .get(name)
+                    .map(|options| options.extends.as_slice())
+            },
+            config,
+        ),
+        features: inherited_conditions(
+            &compiler_options.features,
+            |config, name| {
+                config
+                    .features
+                    .get(name)
+                    .map(|options| options.extends.as_slice())
+            },
+            config,
+        ),
+        tags: inherited_conditions(
+            &compiler_options.tags,
+            |config, name| {
+                config
+                    .tags
+                    .get(name)
+                    .map(|options| options.extends.as_slice())
+            },
+            config,
+        ),
+        target: Some(target.name.clone()),
+        product: product.map(str::to_string),
+    }
+}
+
+/// Build compiler options after profile, product, and target modifiers.
+fn profile_compiler_options_for_target(
+    target: &Target,
+    compiler_options: &CompilerOptions,
+    profile_config: Option<&ProfileOptions>,
+    product_role: Option<&str>,
+) -> CompilerOptions {
     let mut compiler_options = compiler_options.clone();
 
     // profile compiler overrides
@@ -38,119 +154,27 @@ pub(crate) fn profile_key_for_target(
     if let Some(product_role) = product_role {
         compiler_options.roles.push(product_role.to_string());
     }
-    let compiler_options = target.compiler_options(&compiler_options);
-    let emit = target.emit;
 
-    // runtime surface
-    let runtime = profile_config
-        .and_then(|profile| profile.runtime.as_ref().map(|runtime| runtime.runtime))
-        .unwrap_or(target.runtime);
-    let platform = profile_config
-        .and_then(|profile| profile.platform)
-        .unwrap_or(target.platform);
-    let host = profile_config
-        .and_then(|profile| profile.host)
-        .unwrap_or(target.host);
+    target.compiler_options(&compiler_options)
+}
 
-    // comptime environment
-    let env = profile_config
-        .and_then(|profile| profile.comptime_env.as_ref())
-        .or(compiler_options.comptime_env.as_ref())
-        .map(|keys| environment.key_whitelist(keys))
-        .unwrap_or_else(|| environment.key_all());
+/// Expand selected source graph names through declared parents.
+fn inherited_conditions(
+    selected: &[String],
+    parents_for: impl for<'a> Fn(&'a DestackConfig, &str) -> Option<&'a [String]>,
+    config: Option<&DestackConfig>,
+) -> indexmap::IndexSet<String> {
+    let mut conditions = indexmap::IndexSet::new();
 
-    let mut modes = Vec::new();
-    for mode in &compiler_options.modes {
-        // declared parent modes
-        if let Some(options) = config.and_then(|config| config.modes.get(mode)) {
-            for parent in &options.extends {
-                if !modes.contains(parent) {
-                    modes.push(parent.clone());
-                }
-            }
+    for name in selected {
+        // declared parent conditions
+        if let Some(parents) = config.and_then(|config| parents_for(config, name)) {
+            conditions.extend(parents.iter().cloned());
         }
 
-        // selected mode
-        if !modes.contains(mode) {
-            modes.push(mode.clone());
-        }
-    }
-    let mut roles = Vec::new();
-    for role in &compiler_options.roles {
-        // declared parent roles
-        if let Some(options) = config.and_then(|config| config.roles.get(role)) {
-            for parent in &options.extends {
-                if !roles.contains(parent) {
-                    roles.push(parent.clone());
-                }
-            }
-        }
-
-        // selected role
-        if !roles.contains(role) {
-            roles.push(role.clone());
-        }
-    }
-    let mut features = Vec::new();
-    for feature in &compiler_options.features {
-        // declared parent features
-        if let Some(options) = config.and_then(|config| config.features.get(feature)) {
-            for parent in &options.extends {
-                if !features.contains(parent) {
-                    features.push(parent.clone());
-                }
-            }
-        }
-
-        // selected feature
-        if !features.contains(feature) {
-            features.push(feature.clone());
-        }
-    }
-    let mut tags = Vec::new();
-    for tag in &compiler_options.tags {
-        // declared parent tags
-        if let Some(options) = config.and_then(|config| config.tags.get(tag)) {
-            for parent in &options.extends {
-                if !tags.contains(parent) {
-                    tags.push(parent.clone());
-                }
-            }
-        }
-
-        // selected tag
-        if !tags.contains(tag) {
-            tags.push(tag.clone());
-        }
+        // selected condition
+        conditions.insert(name.clone());
     }
 
-    // compiler flags
-    let flags = profile_flags_for_compiler_options(&compiler_options);
-    let globals = compiler_options
-        .globals
-        .iter()
-        .map(|path| path.display().to_string())
-        .collect();
-    let tree = compiler_options.tree.clone();
-    let derive = compiler_options.derive.clone();
-
-    ProfileKey::new(
-        emit,
-        runtime,
-        platform,
-        host,
-        target.target_arch.clone(),
-        target.target_vendor.clone(),
-        target.target_abi.clone(),
-        globals,
-        tree,
-        derive,
-        modes,
-        roles,
-        features,
-        tags,
-        product.map(str::to_string),
-        env,
-        flags,
-    )
+    conditions
 }
