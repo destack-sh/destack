@@ -1,10 +1,12 @@
-use crate::tests::module::TestModule;
-use crate::tests::snapshot::DirSnapshotSet;
+use crate::tests::TestCompiler;
+use crate::tests::snapshot::{DirSnapshotSet, assert_snapshot};
 
 #[test]
 fn test_bind_global_scope() {
-    let module = TestModule::parse(
-        r#"
+    let compiler = TestCompiler::new()
+        .module(
+            "main.ds",
+            r#"
 import { Process, Task } from "runtime";
 
 global {
@@ -17,12 +19,11 @@ global {
 
 let process: string = "local";
 "#,
-    );
-    let dir_bound = module.bind();
+        )
+        .build();
 
-    module.assert_dir_bound_snapshot(
-        &dir_bound,
-        DirSnapshotSet::binding(),
+    assert_snapshot(
+        compiler.dir_snapshot("main.ds", DirSnapshotSet::binding()),
         r#"
 import { Process, Task } from "runtime";
 /// @binding.symbol name=Process role=local form=import scope=<module>@1

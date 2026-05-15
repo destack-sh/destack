@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use super::{DirSnapshotBuilder, SnapshotTable, format};
+use super::{DirSnapshotBuilder, SnapshotTable, value};
 use crate::tests::snapshot::{SnapshotAnchor, SnapshotRow};
 
 impl SnapshotTable for dir::TypeTable {
@@ -10,19 +10,19 @@ impl SnapshotTable for dir::TypeTable {
             let mut row = SnapshotRow::new(builder.anchor_node(node_id), "type", "node")
                 .field("node", builder.node_label(node_id));
 
-            format::add_optional_type(&mut row, "declared", entry.declared);
-            format::add_optional_type(&mut row, "inferred", entry.inferred);
-            format::add_optional_type(&mut row, "receiver", entry.receiver);
-            format::add_optional_type(&mut row, "contextual", entry.contextual);
-            format::add_optional_type(&mut row, "signature", entry.signature);
-            format::add_optional_instantiation(&mut row, "instantiation", entry.instantiation);
+            value::add_optional_type(&mut row, "declared", entry.declared);
+            value::add_optional_type(&mut row, "inferred", entry.inferred);
+            value::add_optional_type(&mut row, "receiver", entry.receiver);
+            value::add_optional_type(&mut row, "contextual", entry.contextual);
+            value::add_optional_type(&mut row, "signature", entry.signature);
+            value::add_optional_instantiation(&mut row, "instantiation", entry.instantiation);
 
             if let Some(addressability) = entry.addressability {
-                row = row.field("addressability", format::debug(addressability));
+                row = row.field("addressability", value::debug(addressability));
             }
 
             if let Some(resolution) = &entry.resolution {
-                row = row.field("resolution", format::resolution(builder, resolution));
+                row = row.field("resolution", value::resolution(builder, resolution));
             }
 
             builder.push(row);
@@ -35,9 +35,9 @@ impl SnapshotTable for dir::TypeTable {
 
             if let Some(parameter) = entry.generic_parameter {
                 row = row
-                    .field("parameter", format::debug(parameter.space))
-                    .optional_field("constraint", format::optional_type_id(parameter.constraint))
-                    .optional_field("variance", format::optional_debug(parameter.variance));
+                    .field("parameter", value::debug(parameter.space))
+                    .optional_field("constraint", value::optional_type_id(parameter.constraint))
+                    .optional_field("variance", value::optional_debug(parameter.variance));
             }
 
             if let Some(parameters) = &entry.generic_parameter_symbols {
@@ -51,9 +51,9 @@ impl SnapshotTable for dir::TypeTable {
                 );
             }
 
-            format::add_optional_type(&mut row, "instance", entry.instance_type);
-            format::add_optional_type(&mut row, "value", entry.value_type);
-            format::add_optional_type(&mut row, "alias", entry.alias_target_type);
+            value::add_optional_type(&mut row, "instance", entry.instance_type);
+            value::add_optional_type(&mut row, "value", entry.value_type);
+            value::add_optional_type(&mut row, "alias", entry.alias_target_type);
 
             if let Some(lineage_id) = entry.lineage_id {
                 row = row.field("lineage", lineage_id.to_string());
