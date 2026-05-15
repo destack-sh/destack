@@ -14,7 +14,7 @@ UNSAFE_CANDIDATE_PATTERN = r"\bunsafe\b|@\s*unsafe\b"
 RUST_UNSAFE_PATTERN = r"(?<!r#)\bunsafe\b"
 ANSI_PATTERN = re.compile(r"\x1b\[[0-9;]*m")
 
-GENERATED_PATHS = (
+VENDORED_PATHS = (
     "language/compiler/generate/native/cranelift/**",
     "language/compiler/generate/native/pulley/**",
     "language/compiler/generate/native/regalloc2/**",
@@ -78,8 +78,9 @@ class Audit:
 class Options:
     """Command line options."""
 
+    repository_root: Path
     root: Path
-    include_generated: bool
+    include_vendored: bool
     include_fixtures: bool
     depth: int
     file_count: int
@@ -91,18 +92,35 @@ def parse_args() -> Options:
 
     parser = argparse.ArgumentParser(description="Audit unsafe source usage.")
     parser.add_argument("--root", type=Path, default=None, help="Repository root to audit.")
-    parser.add_argument("--include-generated", action="store_true", help="Include generated backend source.")
+    parser.add_argument(
+        "--include-vendored",
+        action="store_true",
+        help="Include vendored backend source.",
+    )
+    parser.add_argument(
+        "--include-generated",
+        action="store_true",
+        dest="include_vendored",
+        help=argparse.SUPPRESS,
+    )
     parser.add_argument("--include-fixtures", action="store_true", help="Include test fixtures.")
     parser.add_argument("--depth", type=int, default=4, help="Directory depth for aggregate output.")
     parser.add_argument("--files", type=int, default=25, help="Number of hottest files to print.")
-    parser.add_argument("--color", choices=["auto", "always", "never"], default="auto", help="Color output.")
+    parser.add_argument(
+        "--color",
+        choices=["auto", "always", "never"],
+        default="auto",
+        help="Color output.",
+    )
     args = parser.parse_args()
 
+    repository_root = repo_root()
     root = args.root.resolve() if args.root else repo_root()
 
     return Options(
+        repository_root=repository_root,
         root=root,
-        include_generated=args.include_generated,
+        include_vendored=args.include_vendored,
         include_fixtures=args.include_fixtures,
         depth=args.depth,
         file_count=args.files,
@@ -128,6 +146,7 @@ def candidate_files(options: Options) -> list[Path]:
 def ripgrep_candidate_files(options: Options) -> list[Path]:
     """Return unsafe candidate files through ripgrep."""
 
+    search_root = search_path(options)
     command = [
         "rg",
         "--files-with-matches",
@@ -142,14 +161,21 @@ def ripgrep_candidate_files(options: Options) -> list[Path]:
         command.extend(["--glob", f"!{pattern}"])
 
     command.append(UNSAFE_CANDIDATE_PATTERN)
+    command.append(search_root)
 
-    result = subprocess.run(command, cwd=options.root, capture_output=True, text=True, check=False)
+    result = subprocess.run(
+        command,
+        cwd=options.repository_root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
     if result.returncode not in (0, 1):
         raise SystemExit(result.stderr.strip() or "rg failed")
 
     files = []
     for line in result.stdout.splitlines():
-        path = (options.root / line).resolve()
+        path = (options.repository_root / line).resolve()
         if path.suffix in SOURCE_EXTENSIONS:
             files.append(path)
 
@@ -164,7 +190,7 @@ def python_candidate_files(options: Options) -> list[Path]:
         if not path.is_file() or path.suffix not in SOURCE_EXTENSIONS:
             continue
 
-        relative = path.relative_to(options.root)
+        relative = path.relative_to(options.repository_root)
         if is_excluded(relative, options):
             continue
 
@@ -175,12 +201,21 @@ def python_candidate_files(options: Options) -> list[Path]:
     return sorted(files)
 
 
+def search_path(options: Options) -> str:
+    """Return the ripgrep search path relative to the repository root."""
+
+    try:
+        return options.root.relative_to(options.repository_root).as_posix()
+    except ValueError:
+        return options.root.as_posix()
+
+
 def excluded_paths(options: Options) -> tuple[str, ...]:
     """Return ripgrep exclusion globs."""
 
     paths = list(IGNORED_PATHS)
-    if not options.include_generated:
-        paths.extend(GENERATED_PATHS)
+    if not options.include_vendored:
+        paths.extend(VENDORED_PATHS)
 
     if not options.include_fixtures:
         paths.extend(FIXTURE_PATHS)
@@ -195,7 +230,7 @@ def is_excluded(path: Path, options: Options) -> bool:
     if any(path.match(pattern) or text.startswith(pattern.removesuffix("/**")) for pattern in IGNORED_PATHS):
         return True
 
-    if not options.include_generated and any(path.match(pattern) for pattern in GENERATED_PATHS):
+    if not options.include_vendored and any(path.match(pattern) for pattern in VENDORED_PATHS):
         return True
 
     if not options.include_fixtures and any(path.match(pattern) for pattern in FIXTURE_PATHS):
@@ -524,6 +559,7 @@ def print_report(audits: list[Audit], options: Options) -> None:
 
     print(paint("unsafe audit", Color.bold + Color.magenta, colors))
     print(f"{paint('root', Color.bold, colors)}   {paint(str(options.root), Color.dim, colors)}")
+    print(f"{paint('vendor', Color.bold, colors)} {'included' if options.include_vendored else 'excluded'}")
     print(f"{paint('total', Color.bold, colors)}  {paint_total(total, colors).strip()}  {format_counts(counts)}")
 
     print_extension_table(audits, colors)
