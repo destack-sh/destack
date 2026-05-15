@@ -1249,7 +1249,7 @@ impl FunctionLowerer<'_> {
                 .ok()
                 .flatten()
                 .or_else(|| self.concrete_symbol_for_expression(*left)),
-            dir::Expression::ObjectExpression { ty: Some(ty), .. } => {
+            dir::Expression::StructExpression { ty, .. } => {
                 let type_id = self.type_id_for_type_expression(*ty)?;
                 self.concrete_symbol_for_type(type_id)
             }

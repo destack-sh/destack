@@ -184,6 +184,8 @@ function wrap<T>(value: T): T {
 }
 
 type Element<T> = T extends Array<infer U> ? U : T
+type Hole = Box<_>
+type Anonymous<T> = T extends infer _ ? true : false
 "#,
     );
 
@@ -226,6 +228,8 @@ function wrap<T>(value: T): T {
 }
 
 type Element<T> = T extends Array<infer U> ? U : T
+type Hole = Box<_>
+type Anonymous<T> = T extends infer _ ? true : false
 "#,
     );
 
@@ -236,7 +240,7 @@ type Element<T> = T extends Array<infer U> ? U : T
         .iter_nodes::<dir::GenericParameter>()
         .map(|parameter_id| symbol_for_node(&fixture, parameter_id))
         .collect::<Vec<_>>();
-    assert_eq!(generic_parameters.len(), 2);
+    assert_eq!(generic_parameters.len(), 3);
     for symbol_id in generic_parameters {
         let symbol = fixture.bound.bindings.get_symbol(symbol_id);
         assert!(symbol.is_generic_parameter());
@@ -260,6 +264,41 @@ type Element<T> = T extends Array<infer U> ? U : T
     let infer_symbol = fixture.bound.bindings.get_symbol(infer_symbols[0]);
     assert_eq!(infer_symbol.form, dir::SymbolForm::TypeAlias);
     assert!(infer_symbol.declaration.is_some());
+
+    // anonymous inference forms
+    let hole_count = fixture
+        .parsed
+        .tree
+        .iter_nodes::<dir::TypeExpression>()
+        .filter(|type_expression_id| {
+            matches!(
+                fixture.parsed.tree.get(*type_expression_id),
+                dir::TypeExpression::Infer {
+                    form: dir::InferForm::Hole,
+                    name: None,
+                    ..
+                }
+            )
+        })
+        .count();
+    let anonymous_infer_count = fixture
+        .parsed
+        .tree
+        .iter_nodes::<dir::TypeExpression>()
+        .filter(|type_expression_id| {
+            matches!(
+                fixture.parsed.tree.get(*type_expression_id),
+                dir::TypeExpression::Infer {
+                    form: dir::InferForm::Infer,
+                    name: None,
+                    ..
+                }
+            )
+        })
+        .count();
+    assert_eq!(hole_count, 1);
+    assert_eq!(anonymous_infer_count, 1);
+    assert!(symbols_named(&fixture, "_").is_empty());
 }
 
 #[test]

@@ -304,7 +304,7 @@ impl Compiler {
                 }
             }
             Expression::ObjectExpression { properties, .. }
-            | Expression::TaggedObjectExpression { properties, .. } => {
+            | Expression::StructExpression { properties, .. } => {
                 for property_id in properties {
                     modified |=
                         self.normalize_nested_coalesce_in_property(state, scope, property_id)?;

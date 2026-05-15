@@ -662,10 +662,9 @@ impl<'a> FunctionLowerer<'a> {
                 }
             },
 
-            dir::Expression::ObjectExpression {
-                ty: Some(ty),
-                properties,
-            } => self.lower_tagged_object_expression(expression_id, *ty, properties),
+            dir::Expression::StructExpression { ty, properties } => {
+                self.lower_tagged_object_expression(expression_id, *ty, properties)
+            }
 
             dir::Expression::Declaration(declaration_id) => {
                 // lower function declarations used as values
