@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use destack_dir::{GlobalSymbolId, StaticKey, SymbolForm, SymbolSpace};
+use destack_dir::{GlobalSymbolId, StaticKey, SymbolForm};
 use destack_source::{ModuleId, PathExt, ProfileId};
 use destack_workspace::{Repository, Revision};
 
@@ -17,7 +17,7 @@ pub(crate) struct ExportedSymbol {
     pub name: String,
     /// The kind of symbol.
     pub kind: SymbolForm,
-    /// The symbol space.
+    /// The export lookup space.
     pub space: dir::SymbolSpace,
     /// The module that exports this symbol.
     pub module_id: ModuleId,
@@ -51,12 +51,12 @@ fn export_symbol_shape(
     revision: Revision,
     symbol_id: GlobalSymbolId,
     profile_id: ProfileId,
-) -> Option<(SymbolForm, SymbolSpace)> {
+) -> Option<SymbolForm> {
     let ctx = query_context_for_profile(repository, revision, symbol_id.module_id, profile_id)?;
     let symbols = ctx.dir().symbols();
     let symbol = symbols.get_symbol(symbol_id.local_id);
 
-    Some((symbol.form, symbol.space))
+    Some(symbol.form)
 }
 
 /// Search for importable symbols across the current workspace root.
@@ -119,15 +119,14 @@ pub(crate) fn get_module_exports_maybe(
 
     let mut exports = Vec::new();
 
-    for ((_, key), export) in ctx.dir().exported().exports.export_by_key.iter() {
+    for ((space, key), export) in ctx.dir().exported().exports.export_by_key.iter() {
         let StaticKey::Name(string_id) = *key else {
             continue;
         };
 
         let target_symbol = export.target;
 
-        let Some((kind, space)) =
-            export_symbol_shape(repository, revision, target_symbol, profile_id)
+        let Some(kind) = export_symbol_shape(repository, revision, target_symbol, profile_id)
         else {
             continue;
         };
@@ -136,7 +135,7 @@ pub(crate) fn get_module_exports_maybe(
         exports.push(ExportedSymbol {
             name,
             kind,
-            space,
+            space: *space,
             module_id,
             local_id: target_symbol.local_id,
             module_path: module_path.clone(),
