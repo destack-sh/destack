@@ -184,8 +184,8 @@ impl Target {
         TargetOptions::default().to_target(name.as_str())
     }
 
-    /// Return the known implicit target names.
-    pub fn implicit_target_names() -> &'static [&'static str] {
+    /// Return the known built-in target names.
+    pub fn builtin_target_names() -> &'static [&'static str] {
         &[
             "default",
             "js",
@@ -198,15 +198,15 @@ impl Target {
         ]
     }
 
-    /// Create an implicit target configuration for a known target id.
-    pub fn implicit_for_id(target_id: TargetId) -> Option<Self> {
+    /// Create a built-in target configuration for a known target id.
+    pub fn builtin_for_id(target_id: TargetId) -> Option<Self> {
         let package_id = target_id.package_id();
 
-        for name in Self::implicit_target_names() {
-            let implicit_target_id = TargetId::new(package_id, name);
+        for name in Self::builtin_target_names() {
+            let builtin_target_id = TargetId::new(package_id, name);
 
-            if implicit_target_id == target_id {
-                return Self::implicit_for_name(name);
+            if builtin_target_id == target_id {
+                return Self::builtin_for_name(name);
             }
         }
 
@@ -312,8 +312,8 @@ impl Target {
         target
     }
 
-    /// Create an implicit target configuration for a known target name.
-    pub fn implicit_for_name(name: &str) -> Option<Self> {
+    /// Create a built-in target configuration for a known target name.
+    pub fn builtin_for_name(name: &str) -> Option<Self> {
         match name {
             "default" => Some(Self::default()),
             "js" => Some(Self::js(name)),

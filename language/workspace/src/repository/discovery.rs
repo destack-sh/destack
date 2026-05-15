@@ -59,7 +59,7 @@ impl Repository {
     ) -> Result<Vec<ModuleId>, TargetDiscoveryError> {
         let package_id = target_id.package_id();
         let package = self.target_package(revision, package_id, target_id)?;
-        let target = self.effective_target_for_discovery(revision, package_id, target_id)?;
+        let target = self.target_or_builtin_for_discovery(revision, package_id, target_id)?;
         let config = self.target_config(revision, package_id, target_id)?;
 
         // selected roots
@@ -126,14 +126,14 @@ impl Repository {
             })
     }
 
-    /// Return one effective target.
-    fn effective_target_for_discovery(
+    /// Return one target or built-in.
+    fn target_or_builtin_for_discovery(
         &self,
         revision: Revision,
         package_id: PackageId,
         target_id: TargetId,
     ) -> Result<Target, TargetDiscoveryError> {
-        self.effective_target(revision, target_id)
+        self.target_or_builtin(revision, target_id)
             .map_err(|error| TargetDiscoveryError::RepositoryRead {
                 package: package_id,
                 target: target_id,
