@@ -1,0 +1,41 @@
+import { RandomSeed } from "destack:runtime";
+import { Json } from "destack:json";
+
+/// Stable replay identifier.
+export newtype ReplayId = string;
+
+/// Replay source kind.
+export enum ReplayKind {
+    /// Ordinary test replay.
+    Case = 1,
+    /// Fuzz sample replay.
+    Fuzz = 2,
+    /// Simulation replay.
+    Simulation = 3,
+    /// Benchmark replay.
+    Bench = 4,
+}
+
+/// One recorded replay input.
+export struct ReplayInput {
+    /// Input name.
+    name: string;
+
+    /// Input value.
+    value: Json;
+}
+
+/// Reproducible test run input.
+export struct Replay {
+    /// Replay identifier when persisted.
+    id?: ReplayId;
+
+    /// Replay kind.
+    kind: ReplayKind;
+
+    /// Deterministic seed when relevant.
+    seed?: RandomSeed;
+
+    /// Recorded inputs.
+    inputs?: [ReplayInput];
+}

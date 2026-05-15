@@ -1,0 +1,45 @@
+import * as test from "destack:test";
+import { CorpusId } from "./corpus.ds";
+import { Seed } from "./sample.ds";
+
+/// Fuzz registration options.
+export type Options = test.Options & {
+    /// Deterministic generation seed.
+    seed?: Seed;
+
+    /// Generated sample count.
+    samples?: uint64;
+
+    /// Maximum shrinking steps after failure.
+    maxShrinks?: uint32;
+
+    /// Corpus to seed and update.
+    corpus?: CorpusId;
+};
+
+/// Generated string options.
+export struct StringOptions {
+    /// Minimum string length.
+    minLength?: uint32;
+
+    /// Maximum string length.
+    maxLength?: uint32;
+
+    /// Characters to generate from when provided.
+    alphabet?: [char];
+}
+
+/// Generated floating-point options.
+export struct FloatOptions {
+    /// Minimum generated value.
+    min?: float64;
+
+    /// Maximum generated value.
+    max?: float64;
+
+    /// Whether NaN may be generated.
+    nan?: boolean;
+
+    /// Whether infinities may be generated.
+    infinity?: boolean;
+}

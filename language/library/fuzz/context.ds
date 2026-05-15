@@ -1,0 +1,20 @@
+import * as test from "destack:test";
+import { Sample } from "./sample.ds";
+
+/// Fuzz callback context.
+export newtype interface Context extends test.CaseContext {
+    /// Generated sample metadata.
+    readonly sample: Sample;
+
+    /// Add one concrete example.
+    example<T>(value: T): void;
+}
+
+/// Fuzz callback result.
+export type BodyResult = test.BodyResult;
+
+/// Fuzz callback.
+export type Body<T> = (value: T, ctx: Context) => BodyResult;
+
+/// Fuzz suite callback.
+export type SuiteBody = () => void;

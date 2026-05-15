@@ -1,28 +1,61 @@
 import { todo } from "destack:error";
-import { type TestOptions } from "./options.ds";
+import { Duration } from "destack:time";
+import { SuiteId } from "./id.ds";
+import { Options } from "./options.ds";
 
-/// Test suite callback.
+/// Test suite registration callback.
 export type SuiteBody = () => void;
 
 /// Suite registration argument after the suite name.
-export type SuiteArgument = SuiteBody | TestOptions | number;
+export type SuiteArgument = SuiteBody | Options | Duration;
+
+/// Registered test suite.
+export struct Suite {
+    /// Stable suite identifier.
+    id: SuiteId;
+
+    /// Suite name.
+    name: string;
+
+    /// Suite options.
+    options?: Options;
+}
+
+/// Register one test suite.
+export function registerSuite(
+    name: string,
+    argument?: SuiteArgument,
+    body?: SuiteBody,
+): void {
+    todo("test.registerSuite")
+}
 
 /// Register one test suite.
 export function describe(name: string, argument?: SuiteArgument, body?: SuiteBody): void {
-    todo("describe")
+    registerSuite(name, argument, body)
 }
 
 /// Register one test suite.
 export function suite(name: string, argument?: SuiteArgument, body?: SuiteBody): void {
-    describe(name, argument, body)
+    registerSuite(name, argument, body)
+}
+
+/// Register one skipped test suite.
+export function suiteSkip(name: string, body?: SuiteBody): void {
+    registerSuite(name, { skip: true }, body)
+}
+
+/// Register one focused test suite.
+export function suiteOnly(name: string, body?: SuiteBody): void {
+    registerSuite(name, { only: true }, body)
 }
 
 /// Register one skipped test suite.
 export function describeSkip(name: string, body?: SuiteBody): void {
-    describe(name, { skip: true }, body)
+    suiteSkip(name, body)
 }
 
 /// Register one focused test suite.
 export function describeOnly(name: string, body?: SuiteBody): void {
-    describe(name, { only: true }, body)
+    suiteOnly(name, body)
 }

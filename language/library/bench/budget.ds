@@ -1,0 +1,23 @@
+import { Duration } from "destack:time";
+import { Samples } from "./measurement.ds";
+
+/// Benchmark regression budget.
+export struct Budget {
+    /// Maximum allowed run duration.
+    maxDuration?: Duration;
+
+    /// Maximum allowed relative error in parts per million.
+    maxRelativeErrorPpm?: uint32;
+
+    /// Maximum allowed regression against a baseline in parts per million.
+    maxRegressionPpm?: uint32;
+}
+
+/// Named benchmark baseline.
+export struct Baseline {
+    /// Baseline name.
+    name: string;
+
+    /// Baseline sample series.
+    samples: Samples;
+}

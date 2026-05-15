@@ -1,0 +1,90 @@
+import { SourceLocation, todo } from "destack:error";
+import { Label } from "destack:runtime";
+import { Case } from "./case.ds";
+import { CaseId, SuiteId } from "./id.ds";
+import { CaseKind, Options } from "./options.ds";
+import { Body } from "./result.ds";
+import { Run } from "./run.ds";
+import { Suite, SuiteBody } from "./suite.ds";
+
+/// Test case registration payload.
+export struct CaseDefinition<TOptions = Options, TBody = Body> {
+    /// Case name.
+    name: string;
+
+    /// Case kind.
+    kind: CaseKind;
+
+    /// Case options.
+    options?: TOptions;
+
+    /// Case body.
+    body?: TBody;
+
+    /// Labels attached by the registering layer.
+    labels?: [Label];
+
+    /// Registration source location when available.
+    location?: SourceLocation;
+}
+
+/// Test suite registration payload.
+export struct SuiteDefinition<TOptions = Options, TBody = SuiteBody> {
+    /// Suite name.
+    name: string;
+
+    /// Suite options.
+    options?: TOptions;
+
+    /// Suite body.
+    body?: TBody;
+
+    /// Labels attached by the registering layer.
+    labels?: [Label];
+
+    /// Registration source location when available.
+    location?: SourceLocation;
+}
+
+/// Collected test module manifest.
+export struct Manifest {
+    /// Registered suites.
+    suites: [Suite];
+
+    /// Registered cases.
+    cases: [Case];
+}
+
+/// Test module registry.
+export class Registry {
+    /// Register one case.
+    registerCase<TOptions, TBody>(
+        this: &exclusive Registry,
+        definition: CaseDefinition<TOptions, TBody>,
+    ): CaseId {
+        todo("test.Registry.registerCase")
+    }
+
+    /// Register one suite.
+    registerSuite<TOptions, TBody>(
+        this: &exclusive Registry,
+        definition: SuiteDefinition<TOptions, TBody>,
+    ): SuiteId {
+        todo("test.Registry.registerSuite")
+    }
+
+    /// Seal this registry into an immutable manifest.
+    seal(this: ^Registry): Manifest {
+        todo("test.Registry.seal")
+    }
+}
+
+/// Return the active module registry.
+export function currentRegistry(): &exclusive Registry {
+    todo("test.currentRegistry")
+}
+
+/// Return the recorded runs for the current session.
+export function runs(): [Run] {
+    todo("test.runs")
+}

@@ -1,0 +1,55 @@
+import { Instant } from "destack:time";
+import { Artifact } from "./artifact.ds";
+import { CaseId, RunId, SuiteId } from "./id.ds";
+import { Issue } from "./issue.ds";
+import { Replay } from "./replay.ds";
+
+/// Test run target.
+export type RunTarget =
+    | { caseId: CaseId }
+    | { suiteId: SuiteId };
+
+/// Test run outcome.
+export enum Outcome {
+    /// The run has not started.
+    Pending = 1,
+    /// The run completed successfully.
+    Passed = 2,
+    /// The run found one or more issues.
+    Failed = 3,
+    /// The run was skipped.
+    Skipped = 4,
+    /// The run exceeded its deadline.
+    TimedOut = 5,
+    /// The run was cancelled.
+    Cancelled = 6,
+    /// The run definition was invalid.
+    Invalid = 7,
+}
+
+/// One execution of a test case or suite.
+export struct Run {
+    /// Stable run identifier.
+    id: RunId;
+
+    /// Executed target.
+    target: RunTarget;
+
+    /// Run outcome.
+    outcome: Outcome;
+
+    /// Issues found during the run.
+    issues: [Issue];
+
+    /// Artifacts produced by the run.
+    artifacts: [Artifact];
+
+    /// Replay input when available.
+    replay?: Replay;
+
+    /// Start time when recorded.
+    startedAt?: Instant;
+
+    /// End time when recorded.
+    endedAt?: Instant;
+}

@@ -1,0 +1,118 @@
+import { RangeBounds } from "destack:range";
+import { Schema } from "destack:schema";
+import { todo } from "destack:error";
+import { FloatOptions, StringOptions } from "./options.ds";
+
+/// Generated array options.
+export struct ArrayOptions<T> {
+    /// Minimum array length.
+    minLength?: uint32;
+
+    /// Maximum array length.
+    maxLength?: uint32;
+
+    /// Element generator.
+    element: Generator<T>;
+}
+
+/// Generated choice weight.
+export struct Weight<T> {
+    /// Choice weight.
+    weight: uint32;
+
+    /// Choice generator.
+    generator: Generator<T>;
+}
+
+/// Value generator.
+export class Generator<T> {
+    /// Generate boolean values.
+    static bool(): Generator<boolean> {
+        todo("fuzz.Generator.bool")
+    }
+
+    /// Generate signed 32-bit integers.
+    static int32(range?: RangeBounds<int32>): Generator<int32> {
+        todo("fuzz.Generator.int32")
+    }
+
+    /// Generate unsigned 32-bit integers.
+    static uint32(range?: RangeBounds<uint32>): Generator<uint32> {
+        todo("fuzz.Generator.uint32")
+    }
+
+    /// Generate signed 64-bit integers.
+    static int64(range?: RangeBounds<int64>): Generator<int64> {
+        todo("fuzz.Generator.int64")
+    }
+
+    /// Generate unsigned 64-bit integers.
+    static uint64(range?: RangeBounds<uint64>): Generator<uint64> {
+        todo("fuzz.Generator.uint64")
+    }
+
+    /// Generate floating-point values.
+    static float64(options?: FloatOptions): Generator<float64> {
+        todo("fuzz.Generator.float64")
+    }
+
+    /// Generate strings.
+    static string(options?: StringOptions): Generator<string> {
+        todo("fuzz.Generator.string")
+    }
+
+    /// Generate arrays.
+    static array<T>(options: ArrayOptions<T>): Generator<Array<T>> {
+        todo("fuzz.Generator.array")
+    }
+
+    /// Generate values from a schema.
+    static fromSchema<T>(schema: &readonly Schema<T>): Generator<T> {
+        todo("fuzz.Generator.fromSchema")
+    }
+
+    /// Generate one constant value.
+    static constant<T>(value: T): Generator<T> {
+        todo("fuzz.Generator.constant")
+    }
+
+    /// Generate one value from `generators`.
+    static oneOf<T>(generators: [Generator<T>]): Generator<T> {
+        todo("fuzz.Generator.oneOf")
+    }
+
+    /// Generate one value from weighted choices.
+    static weighted<T>(choices: [Weight<T>]): Generator<T> {
+        todo("fuzz.Generator.weighted")
+    }
+
+    /// Generate optional values.
+    optional(this: &readonly Generator<T>): Generator<T | undefined> {
+        todo("fuzz.Generator.optional")
+    }
+
+    /// Map generated values.
+    map<U>(this: &readonly Generator<T>, body: (value: T) => U): Generator<U> {
+        todo("fuzz.Generator.map")
+    }
+
+    /// Generate another value from each generated value.
+    flatMap<U>(this: &readonly Generator<T>, body: (value: T) => Generator<U>): Generator<U> {
+        todo("fuzz.Generator.flatMap")
+    }
+
+    /// Keep generated values that match `predicate`.
+    filter(this: &readonly Generator<T>, predicate: (value: T) => boolean): Generator<T> {
+        todo("fuzz.Generator.filter")
+    }
+
+    /// Generate a pair from this generator and `other`.
+    and<U>(this: &readonly Generator<T>, other: Generator<U>): Generator<(T, U)> {
+        todo("fuzz.Generator.and")
+    }
+
+    /// Shrink `value` toward simpler generated values.
+    shrink(this: &readonly Generator<T>, value: T): Generator<T> {
+        todo("fuzz.Generator.shrink")
+    }
+}

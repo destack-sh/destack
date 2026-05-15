@@ -1,0 +1,11 @@
+/// Stable test case identifier.
+export newtype CaseId = string;
+
+/// Stable test suite identifier.
+export newtype SuiteId = string;
+
+/// Stable test run identifier.
+export newtype RunId = string;
+
+/// Named test resource key.
+export newtype ResourceKey = string;

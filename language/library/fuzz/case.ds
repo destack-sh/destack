@@ -1,0 +1,68 @@
+import { todo } from "destack:error";
+import { Body, SuiteBody } from "./context.ds";
+import { Generator } from "./generator.ds";
+import { Options } from "./options.ds";
+
+/// Fuzz registration argument after the generator.
+export type Argument<T> = Body<T> | Options;
+
+/// Fuzz suite argument after the name.
+export type SuiteArgument = SuiteBody | Options;
+
+/// Registered fuzz case.
+export struct Case<T> {
+    /// Case name.
+    name: string;
+
+    /// Case generator.
+    generator: Generator<T>;
+
+    /// Case options.
+    options?: Options;
+}
+
+/// Registered fuzz suite.
+export struct Suite {
+    /// Suite name.
+    name: string;
+
+    /// Suite options.
+    options?: Options;
+}
+
+/// Register one fuzz case.
+export function registerCase<T>(
+    name: string,
+    generator: Generator<T>,
+    argument?: Argument<T>,
+    body?: Body<T>,
+): void {
+    todo("fuzz.registerCase")
+}
+
+/// Register one fuzz suite.
+export function suite(name: string, argument?: SuiteArgument, body?: SuiteBody): void {
+    todo("fuzz.registerSuite")
+}
+
+/// Register one skipped fuzz case.
+export function caseSkip<T>(name: string, generator: Generator<T>, body?: Body<T>): void {
+    registerCase(name, generator, { skip: true }, body)
+}
+
+/// Register one focused fuzz case.
+export function caseOnly<T>(name: string, generator: Generator<T>, body?: Body<T>): void {
+    registerCase(name, generator, { only: true }, body)
+}
+
+/// Register one skipped fuzz suite.
+export function suiteSkip(name: string, body?: SuiteBody): void {
+    suite(name, { skip: true }, body)
+}
+
+/// Register one focused fuzz suite.
+export function suiteOnly(name: string, body?: SuiteBody): void {
+    suite(name, { only: true }, body)
+}
+
+export { registerCase as case };
