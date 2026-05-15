@@ -1,5 +1,5 @@
 use crate::{Declaration, Expression, GlobalNodeIdAny, LocalNodeId, LocalScopeId, StringId};
-use destack_source::{Loader, ModuleEdgeRelation, ModuleId};
+use destack_source::{Loader, ModuleId, ModuleRelation};
 use serde::{Deserialize, Serialize};
 
 /// A module declared by string specifier.
@@ -73,7 +73,7 @@ pub struct DependencyEdge {
     /// The static import specifier.
     pub specifier: StringId,
     /// The import edge relation.
-    pub relation: ModuleEdgeRelation,
+    pub relation: ModuleRelation,
     /// The loader override selected for the import.
     pub loader: Option<Loader>,
     /// The resolved dependency target.

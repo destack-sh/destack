@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use destack_dir as dir;
-use destack_source::{ModuleEdgeRelation, ModuleId, Span};
+use destack_source::{ModuleId, ModuleRelation, Span};
 use destack_workspace::Repository;
 
 use crate::core::{DirQueryContext, SourceQueryContext};
@@ -109,7 +109,7 @@ fn resolved_import_target_module(
     let target_id = dir.strings().intern(specifier);
     let dependency = dir.imported().dependencies.iter().find(|dependency| {
         dependency.specifier == target_id
-            && dependency.relation == ModuleEdgeRelation::Import
+            && dependency.relation == ModuleRelation::Import
             && dependency.loader.is_none()
     })?;
 

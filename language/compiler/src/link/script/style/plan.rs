@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use destack_artifact::{ArtifactKey, Css, Data};
 use destack_css as css;
-use destack_source::{FileType, ModuleEdge, ModuleEdgeRelation, ModuleId, StringId};
+use destack_source::{FileType, ModuleEdge, ModuleId, ModuleRelation, StringId};
 use destack_workspace::{Module, ProviderError};
 use indexmap::{IndexMap, IndexSet};
 
@@ -83,7 +83,7 @@ impl<'a> ScriptLinker<'a> {
 
             for edge in module_edges
                 .iter()
-                .filter(|edge| edge.relation == ModuleEdgeRelation::StyleImport)
+                .filter(|edge| edge.relation == ModuleRelation::Import)
             {
                 queued_module_ids.push(edge.target);
             }
@@ -122,14 +122,14 @@ impl<'a> ScriptLinker<'a> {
 
             for edge in module_edges
                 .iter()
-                .filter(|edge| edge.relation == ModuleEdgeRelation::StyleImport)
+                .filter(|edge| edge.relation == ModuleRelation::Import)
             {
                 queued_module_ids.push(edge.target);
             }
 
             for edge in module_edges
                 .iter()
-                .filter(|edge| edge.relation == ModuleEdgeRelation::StyleUrl)
+                .filter(|edge| edge.relation == ModuleRelation::Reference)
             {
                 asset_module_ids.insert(edge.target);
             }
@@ -839,7 +839,7 @@ impl<'a> ScriptLinker<'a> {
         Ok(self
             .module_edge_for_site_specifier(
                 module_edges,
-                destack_source::ModuleEdgeRelation::StyleImport,
+                ModuleRelation::Import,
                 resource.id,
                 specifier_id,
             )
@@ -859,7 +859,7 @@ impl<'a> ScriptLinker<'a> {
         Ok(self
             .module_edge_for_site_specifier(
                 module_edges,
-                destack_source::ModuleEdgeRelation::StyleUrl,
+                ModuleRelation::Reference,
                 resource.id,
                 specifier_id,
             )
