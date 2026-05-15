@@ -311,7 +311,7 @@ impl Parser {
                 self.bump(); // eat assign
                 Some(DependencyBinding::Namespace)
             } else {
-                Some(DependencyBinding::Item)
+                Some(DependencyBinding::Named)
             };
 
             // export namespace handled by export statement parsing
@@ -372,7 +372,7 @@ impl Parser {
 
             header.export = match export_mode {
                 Some(DependencyBinding::Default) => Some(ExportKind::Default),
-                Some(DependencyBinding::Item) => Some(ExportKind::Named),
+                Some(DependencyBinding::Named) => Some(ExportKind::Named),
                 Some(DependencyBinding::Namespace) | None => None,
             };
 

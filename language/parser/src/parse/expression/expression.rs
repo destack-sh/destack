@@ -2817,7 +2817,7 @@ impl Parser {
                     let mut exported_declaration_expression = None;
                     for item_id in items {
                         let item = self.tree.get(*item_id);
-                        let DependencyItem::Item {
+                        let DependencyItem::Binding {
                             value: Some(value_expression_id),
                             ..
                         } = item

@@ -452,7 +452,7 @@ fn test_parse_export_default_regex_literal() {
     assert_node!(parser.tree, expr_id, Expression::Export { target, items, .. } => {
         assert!(target.is_none());
         assert_eq!(items.len(), 1);
-        assert_node!(parser.tree, items[0], DependencyItem::Item { value: Some(value), .. } => {
+        assert_node!(parser.tree, items[0], DependencyItem::Binding { value: Some(value), .. } => {
             assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::RegexString { .. }));
         });
     });
