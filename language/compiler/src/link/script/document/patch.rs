@@ -1,12 +1,12 @@
 use destack_artifact::Html;
 use destack_html as html;
-use destack_source::{FileId, ModuleEdge, Span};
+use destack_source::{FileId, Span};
 use destack_workspace::Module;
 
 use crate::{LinkError, LinkResult};
 
-use super::super::ScriptLinker;
 use super::super::plan::Plan;
+use super::super::{ModuleEdge, ScriptLinker};
 use super::render::{is_html_element_name, render_html_attribute_value};
 use crate::link::OutputLocation;
 

@@ -611,7 +611,7 @@ impl ScriptLinker<'_> {
             js::DependencyBinding::Default | js::DependencyBinding::Namespace => item
                 .alias
                 .map(|alias| module.strings.get(alias).to_string()),
-            js::DependencyBinding::Item => {
+            js::DependencyBinding::Named => {
                 if let Some(alias) = item.alias {
                     return Some(module.strings.get(alias).to_string());
                 }
@@ -1050,7 +1050,7 @@ impl ScriptLinker<'_> {
                             js::DependencyBinding::Default | js::DependencyBinding::Namespace => {
                                 item.alias = Some(module.strings.intern(name));
                             }
-                            js::DependencyBinding::Item => {
+                            js::DependencyBinding::Named => {
                                 if item.alias.is_some() {
                                     item.alias = Some(module.strings.intern(name));
                                 } else if let Some(js::Name::Identifier(_))

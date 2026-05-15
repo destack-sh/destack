@@ -433,7 +433,6 @@ impl DeclarationBindingAccess for js::Declaration {
     fn name(&self) -> Option<js::Name> {
         match self {
             js::Declaration::Global(_) => None,
-            js::Declaration::Namespace(declaration) => declaration.name,
             js::Declaration::Type(declaration) => declaration.name,
             js::Declaration::Class(declaration) => declaration.name,
             js::Declaration::Interface(declaration) => declaration.name,
@@ -445,7 +444,6 @@ impl DeclarationBindingAccess for js::Declaration {
     fn name_mut(&mut self) -> Option<&mut Option<js::Name>> {
         match self {
             js::Declaration::Global(_) => None,
-            js::Declaration::Namespace(declaration) => Some(&mut declaration.name),
             js::Declaration::Type(declaration) => Some(&mut declaration.name),
             js::Declaration::Class(declaration) => Some(&mut declaration.name),
             js::Declaration::Interface(declaration) => Some(&mut declaration.name),
@@ -457,7 +455,6 @@ impl DeclarationBindingAccess for js::Declaration {
     fn export(&self) -> Option<js::DependencyBinding> {
         match self {
             js::Declaration::Global(_) => None,
-            js::Declaration::Namespace(declaration) => declaration.export,
             js::Declaration::Type(declaration) => declaration.export,
             js::Declaration::Class(declaration) => declaration.export,
             js::Declaration::Interface(declaration) => declaration.export,

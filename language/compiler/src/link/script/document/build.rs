@@ -2,13 +2,13 @@ use std::collections::BTreeSet;
 
 use destack_artifact::{ArtifactKey, Data, Html};
 use destack_html as html;
-use destack_source::{FileType, ModuleEdge, ModuleId, ModuleRelation, StringId};
+use destack_source::{FileType, ModuleId, StringId};
 use destack_workspace::{Module, ProviderError};
 use indexmap::IndexSet;
 
 use crate::{CompilerResult, LinkError, LinkResult};
 
-use super::super::ScriptLinker;
+use super::super::{ModuleEdge, ModuleRelation, ScriptLinker};
 use crate::CompilerError;
 
 impl<'a> ScriptLinker<'a> {

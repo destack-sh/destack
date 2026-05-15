@@ -1,6 +1,6 @@
 use destack_artifact::ScriptOutput;
 use destack_codegen_js::{
-    DependencyItem, DependencySpace, Expression, LocalNodeId, LocalNodeIdAny, NodeType,
+    DependencyItem, DependencyForm, Expression, LocalNodeId, LocalNodeIdAny, NodeType,
     Module, Statement,
 };
 use destack_source::{ModuleId, PackageId, TargetId};
@@ -48,7 +48,7 @@ impl<'a> ScriptLinker<'a> {
         module_id: ModuleId,
         module: &mut Module,
         statement_id: LocalNodeId<Statement>,
-        kind: DependencySpace,
+        form: DependencyForm,
         specifier: &str,
         target_module: Option<ModuleId>,
         items: &[LocalNodeId<DependencyItem>],
@@ -72,7 +72,7 @@ impl<'a> ScriptLinker<'a> {
         }
 
         // erase bundled type-only imports
-        if kind == DependencySpace::Type {
+        if form == DependencyForm::Type {
             return Ok(ScriptStatementAction::Drop);
         }
 
@@ -137,7 +137,7 @@ impl<'a> ScriptLinker<'a> {
         &self,
         module_id: ModuleId,
         module: &Module,
-        kind: DependencySpace,
+        form: DependencyForm,
         specifier: Option<String>,
         target_module: Option<ModuleId>,
         items: &[LocalNodeId<DependencyItem>],
@@ -169,7 +169,7 @@ impl<'a> ScriptLinker<'a> {
         }
 
         // erase bundled type-only re-exports
-        if kind == DependencySpace::Type {
+        if form == DependencyForm::Type {
             return Ok(ScriptStatementAction::Drop);
         }
 
@@ -209,7 +209,7 @@ impl<'a> ScriptLinker<'a> {
 
         match statement {
             Statement::Import {
-                space: kind,
+                form,
                 target: specifier,
                 target_module,
                 items,
@@ -218,7 +218,7 @@ impl<'a> ScriptLinker<'a> {
                 module_id,
                 module,
                 statement_id,
-                *kind,
+                *form,
                 module.strings.get(*specifier),
                 *target_module,
                 items.as_deref().unwrap_or(&[]),
@@ -228,7 +228,7 @@ impl<'a> ScriptLinker<'a> {
                 package_id,
             ),
             Statement::Export {
-                space: kind,
+                form,
                 target: export_target,
                 target_module,
                 items,
@@ -236,7 +236,7 @@ impl<'a> ScriptLinker<'a> {
             } => self.classify_bundled_export_statement(
                 module_id,
                 module,
-                *kind,
+                *form,
                 export_target.map(|target| module.strings.get(target).to_string()),
                 *target_module,
                 items,

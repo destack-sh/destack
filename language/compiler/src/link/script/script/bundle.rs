@@ -41,7 +41,7 @@ impl Compiler {
         script: &mut js::Module,
         module_id: ModuleId,
         statement_id: js::LocalNodeId<js::Statement>,
-        space: js::DependencySpace,
+        form: js::DependencyForm,
         specifier: &str,
         target_module: Option<ModuleId>,
         items: &[js::LocalNodeId<js::DependencyItem>],
@@ -68,7 +68,7 @@ impl Compiler {
         }
 
         // erase bundled type-only imports
-        if space == js::DependencySpace::Type {
+        if form == js::DependencyForm::Type {
             return Ok(None);
         }
 
@@ -132,7 +132,7 @@ impl Compiler {
         script: &mut js::Module,
         module_id: ModuleId,
         statement_id: js::LocalNodeId<js::Statement>,
-        space: js::DependencySpace,
+        form: js::DependencyForm,
         specifier: Option<String>,
         target_module: Option<ModuleId>,
         items: &[js::LocalNodeId<js::DependencyItem>],
@@ -165,7 +165,7 @@ impl Compiler {
         }
 
         // erase bundled type-only re-exports
-        if space == js::DependencySpace::Type {
+        if form == js::DependencyForm::Type {
             return Ok(None);
         }
 
@@ -213,7 +213,7 @@ impl Compiler {
 
         match statement {
             js::Statement::Import {
-                space: kind,
+                form,
                 target: specifier,
                 target_module,
                 items,
@@ -226,7 +226,7 @@ impl Compiler {
                     script,
                     module_id,
                     statement_id,
-                    kind,
+                    form,
                     &specifier,
                     target_module,
                     &items,
@@ -239,7 +239,7 @@ impl Compiler {
                 )
             }
             js::Statement::Export {
-                space: kind,
+                form,
                 target: export_target,
                 target_module,
                 items,
@@ -248,7 +248,7 @@ impl Compiler {
                 script,
                 module_id,
                 statement_id,
-                kind,
+                form,
                 export_target.map(|target| script.strings.get(target).to_string()),
                 target_module,
                 &items,

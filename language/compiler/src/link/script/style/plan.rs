@@ -2,14 +2,14 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use destack_artifact::{ArtifactKey, Css, Data};
 use destack_css as css;
-use destack_source::{FileType, ModuleEdge, ModuleId, ModuleRelation, StringId};
+use destack_source::{FileType, ModuleId, StringId};
 use destack_workspace::{Module, ProviderError};
 use indexmap::{IndexMap, IndexSet};
 
 use crate::link::OutputLocation;
 use crate::{CompilerResult, LinkError, LinkResult};
 
-use super::super::ScriptLinker;
+use super::super::{ModuleEdge, ModuleRelation, ScriptLinker};
 use crate::CompilerError;
 
 impl<'a> ScriptLinker<'a> {
