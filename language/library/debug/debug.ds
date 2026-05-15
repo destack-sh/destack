@@ -1,4 +1,5 @@
 import { PackedArray } from "destack:collections";
+import { Result } from "destack:error";
 import { HostError } from "destack:error/host";
 import { SourceLocation } from "destack:error/stack";
 import { FrameId, FrameSlotId, FrameStateId } from "destack:runtime/frame";
@@ -6,10 +7,10 @@ import { BranchId, Moment } from "destack:runtime/lineage";
 import { WorldHandle, WorldViewHandle, WorkerId } from "destack:runtime/world";
 
 /// Runtime debug scope identifier.
-export newtype DebugScopeId = uint32;
+export newtype ScopeId = uint32;
 
 /// Runtime debug binding identifier.
-export newtype DebugBindingId = uint32;
+export newtype BindingId = uint32;
 
 /// Runtime inline frame identifier.
 export newtype InlineFrameId = uint32;
@@ -24,14 +25,14 @@ export struct ExecutionPoint {
     frameState: FrameStateId;
 }
 
-/// Source-level debug projection for one execution point.
-export struct DebugPoint {
+/// Source-level projection for one execution point.
+export struct Point {
     /// Execution coordinate.
     execution: ExecutionPoint;
     /// Source location when debug metadata is available.
     location?: SourceLocation;
     /// Active scope when debug metadata is available.
-    scope?: DebugScopeId;
+    scope?: ScopeId;
     /// Active inline frame when this point is inlined.
     inlineFrame?: InlineFrameId;
 }
@@ -50,7 +51,7 @@ export enum StopReason {
     Panic = 5,
     /// Execution yielded to the runtime.
     Yield = 6,
-    /// Execution stopped on a scenario hook.
+    /// Execution stopped on a scenario event.
     Scenario = 7,
 }
 
@@ -63,7 +64,7 @@ export struct Stop {
     /// Stopped worker.
     worker: WorkerId;
     /// Source-level debug point when available.
-    point?: DebugPoint;
+    point?: Point;
 }
 
 /// Debugger step mode.
@@ -91,17 +92,17 @@ export struct StepOptions {
 }
 
 /// Source-level debug scope.
-export struct DebugScope {
+export struct Scope {
     /// Scope identifier.
-    id: DebugScopeId;
+    id: ScopeId;
     /// Optional display name.
     name?: string;
     /// Parent scope when present.
-    parent?: DebugScopeId;
+    parent?: ScopeId;
 }
 
 /// Debug binding kind.
-export enum DebugBindingKind {
+export enum BindingKind {
     /// Function parameter binding.
     Parameter = 1,
     /// Local binding.
@@ -113,19 +114,19 @@ export enum DebugBindingKind {
 }
 
 /// Source-level debug binding.
-export struct DebugBinding {
+export struct Binding {
     /// Binding identifier.
-    id: DebugBindingId;
+    id: BindingId;
     /// Binding name.
     name: string;
     /// Binding kind.
-    kind: DebugBindingKind;
+    kind: BindingKind;
     /// Scope containing this binding.
-    scope: DebugScopeId;
+    scope: ScopeId;
 }
 
 /// Debug slot binding value.
-export struct DebugValueSlot {
+export struct ValueSlot {
     /// Value discriminator.
     kind: "slot";
     /// Frame slot containing this value when available.
@@ -133,7 +134,7 @@ export struct DebugValueSlot {
 }
 
 /// Debug byte binding value.
-export struct DebugValueBytes {
+export struct ValueBytes {
     /// Value discriminator.
     kind: "bytes";
     /// Encoded value bytes when available.
@@ -141,39 +142,136 @@ export struct DebugValueBytes {
 }
 
 /// Optimized-out debug binding value.
-export struct DebugValueOptimizedOut {
+export struct ValueOptimizedOut {
     /// Value discriminator.
     kind: "optimizedOut";
 }
 
 /// Unavailable debug binding value.
-export struct DebugValueUnavailable {
+export struct ValueUnavailable {
     /// Value discriminator.
     kind: "unavailable";
 }
 
 /// Debug binding value.
 @derive(Tagged)
-export newtype DebugValue =
-    | DebugValueSlot
-    | DebugValueBytes
-    | DebugValueOptimizedOut
-    | DebugValueUnavailable;
+export newtype Value =
+    | ValueSlot
+    | ValueBytes
+    | ValueOptimizedOut
+    | ValueUnavailable;
 
 /// Debug scope list page.
-export struct DebugScopePage {
+export struct ScopePage {
     /// Scope records in this page.
-    scopes: PackedArray<DebugScope>;
+    scopes: PackedArray<Scope>;
     /// Next scope cursor when more records exist.
-    next?: DebugScopeId;
+    next?: ScopeId;
 }
 
 /// Debug binding list page.
-export struct DebugBindingPage {
+export struct BindingPage {
     /// Binding records in this page.
-    bindings: PackedArray<DebugBinding>;
+    bindings: PackedArray<Binding>;
     /// Next binding cursor when more records exist.
-    next?: DebugBindingId;
+    next?: BindingId;
+}
+
+/// Debugger for one world.
+export class Debugger {
+    /// World controlled by this debugger.
+    readonly world: WorldHandle;
+
+    /// Create a debugger.
+    constructor(world: WorldHandle) {
+        this.world = world
+    }
+
+    /// Return the current stop state.
+    stop(this: &readonly Debugger): Result<Stop, HostError> {
+        readStop(this.world)
+    }
+
+    /// Return the debug point for one frame.
+    point(
+        this: &readonly Debugger,
+        view: WorldViewHandle,
+        worker: WorkerId,
+        frame: FrameId,
+    ): Result<Point, HostError> {
+        readPoint(view, worker, frame)
+    }
+
+    /// List source scopes visible from one frame.
+    scopes(
+        this: &readonly Debugger,
+        view: WorldViewHandle,
+        frame: FrameId,
+        limit: uint32,
+        after?: ScopeId,
+    ): Result<ScopePage, HostError> {
+        listScopes(view, frame, limit, after)
+    }
+
+    /// List source bindings visible from one scope.
+    bindings(
+        this: &readonly Debugger,
+        view: WorldViewHandle,
+        scope: ScopeId,
+        limit: uint32,
+        after?: BindingId,
+    ): Result<BindingPage, HostError> {
+        listBindings(view, scope, limit, after)
+    }
+
+    /// Read one source binding value.
+    read(
+        this: &readonly Debugger,
+        view: WorldViewHandle,
+        frame: FrameId,
+        binding: BindingId,
+    ): Result<Value, HostError> {
+        readBinding(view, frame, binding)
+    }
+
+    /// Pause execution.
+    pause(this: &readonly Debugger): Result<Stop, HostError> {
+        pause(this.world)
+    }
+
+    /// Resume execution.
+    resume(this: &readonly Debugger): Result<Stop, HostError> {
+        resume(this.world)
+    }
+
+    /// Step execution.
+    step(
+        this: &readonly Debugger,
+        worker: WorkerId,
+        options: StepOptions,
+    ): Result<Stop, HostError> {
+        step(this.world, worker, options)
+    }
+
+    /// Rewind execution to one moment.
+    rewind(this: &readonly Debugger, moment: Moment): Result<Stop, HostError> {
+        rewind(this.world, moment)
+    }
+
+    /// Run execution to one moment.
+    runTo(this: &readonly Debugger, moment: Moment): Result<Stop, HostError> {
+        runTo(this.world, moment)
+    }
+
+    /// Fork execution at one moment.
+    forkAt(this: &readonly Debugger, moment: Moment): Result<BranchId, HostError> {
+        forkAt(this.world, moment)
+    }
+}
+
+/// Open a debugger for one world.
+export function open(world: WorldHandle): Debugger {
+    new Debugger(world)
 }
 
 /// Return the current debugger stop state.
@@ -185,7 +283,7 @@ export struct DebugBindingPage {
     provider: "runtime",
     affinity: "worker",
 })
-export declare function currentStop(world: WorldHandle): Result<Stop, HostError>;
+export declare function readStop(world: WorldHandle): Result<Stop, HostError>;
 
 /// Return the debug point for one frame.
 @binding("destack.debug.point", {
@@ -196,11 +294,11 @@ export declare function currentStop(world: WorldHandle): Result<Stop, HostError>
     provider: "runtime",
     affinity: "worker",
 })
-export declare function debugPoint(
+export declare function readPoint(
     view: WorldViewHandle,
     worker: WorkerId,
     frame: FrameId,
-): Result<DebugPoint, HostError>;
+): Result<Point, HostError>;
 
 /// List source scopes visible from one frame.
 @binding("destack.debug.scopes", {
@@ -215,8 +313,8 @@ export declare function listScopes(
     view: WorldViewHandle,
     frame: FrameId,
     limit: uint32,
-    after?: DebugScopeId,
-): Result<DebugScopePage, HostError>;
+    after?: ScopeId,
+): Result<ScopePage, HostError>;
 
 /// List source bindings visible from one scope.
 @binding("destack.debug.bindings", {
@@ -229,10 +327,10 @@ export declare function listScopes(
 })
 export declare function listBindings(
     view: WorldViewHandle,
-    scope: DebugScopeId,
+    scope: ScopeId,
     limit: uint32,
-    after?: DebugBindingId,
-): Result<DebugBindingPage, HostError>;
+    after?: BindingId,
+): Result<BindingPage, HostError>;
 
 /// Read one source binding value.
 @binding("destack.debug.binding", {
@@ -246,8 +344,8 @@ export declare function listBindings(
 export declare function readBinding(
     view: WorldViewHandle,
     frame: FrameId,
-    binding: DebugBindingId,
-): Result<DebugValue, HostError>;
+    binding: BindingId,
+): Result<Value, HostError>;
 
 /// Pause debugger execution.
 @binding("destack.debug.pause", {
