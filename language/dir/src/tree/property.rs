@@ -193,8 +193,8 @@ impl Member {
             Self::AssociatedType { name, .. } | Self::AssociatedConst { name, .. } => {
                 Some(StaticKey::Name(*name))
             }
-            Self::Field { key, .. } => key.static_key(),
-            Self::Method { key: Some(key), .. } => key.static_key(),
+            Self::Field { key, .. } => key.direct_static_key(),
+            Self::Method { key: Some(key), .. } => key.direct_static_key(),
             Self::Method { key: None, .. }
             | Self::StaticBlock { .. }
             | Self::ComptimeBlock { .. }

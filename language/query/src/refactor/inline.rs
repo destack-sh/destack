@@ -688,14 +688,7 @@ fn property_parent_expression(
 
 /// Resolve a static key for a property key when possible.
 fn key_name_key(key: &dir::Key) -> Option<dir::StaticKey> {
-    // resolve a static key for shorthand property matching
-    match key {
-        dir::Key::Name(dir::Name::Identifier(name) | dir::Name::String(name)) => {
-            Some(dir::StaticKey::Name(*name))
-        }
-        dir::Key::Name(dir::Name::Number(name)) => Some(dir::StaticKey::Number(*name)),
-        _ => None,
-    }
+    key.direct_static_key()
 }
 
 /// Resolve the precise span for a reference expression.

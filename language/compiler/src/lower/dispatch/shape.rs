@@ -5,7 +5,7 @@ use destack_core::StringId;
 
 use crate::{LowerError, LowerResult};
 
-use crate::lower::{ModuleLowerer, static_key_from_key, static_key_to_field_name};
+use crate::lower::{ModuleLowerer, static_key_to_field_name};
 
 /// A slot in an interface dispatch layout.
 #[derive(Debug, Clone)]
@@ -240,14 +240,14 @@ impl ModuleLowerer<'_> {
         member_id: dir::LocalNodeId<dir::TypeMember>,
         key: dir::Key,
     ) -> LowerResult<StringId> {
-        let Some(key) = static_key_from_key(self.dir_tree, self.strings, key) else {
+        let Some(key) = key.static_key(self.dir_tree) else {
             return Err(LowerError::UnsupportedConstruct {
                 anchor: self.diagnostic_anchor(
                     member_id
                         .into_global_any(self.module_id)
                         .into_anchored(Some(self.profile)),
                 ),
-                message: "unsupported dynamic field key in interface layout".to_string(),
+                message: "unsupported non-public field key in interface layout".to_string(),
             }
             .into());
         };

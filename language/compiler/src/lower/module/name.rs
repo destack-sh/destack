@@ -4,7 +4,7 @@ use {destack_dir as dir, destack_mir as mir};
 use destack_core::{StringId, StringPool, stable_hash_text};
 use destack_workspace::{Module, Package};
 
-use crate::lower::{ModuleLowerer, static_key_from_key};
+use crate::lower::ModuleLowerer;
 use crate::{LowerError, LowerResult};
 
 /// Suffix for object metadata names.
@@ -997,7 +997,7 @@ impl ModuleLowerer<'_> {
         let key = key?;
 
         // resolve the key into a static key
-        let key = static_key_from_key(self.dir_tree, self.strings, key)?;
+        let key = key.static_key(self.dir_tree)?;
 
         // return the static key name
         Some(self.static_key_name(key))
