@@ -1,7 +1,7 @@
 use destack_artifact::Runtime;
 use serde::{Deserialize, Serialize};
 
-use crate::{ExecutionMode, ReplayPayloadMode};
+use crate::{ConditionSet, ExecutionMode, ReplayPayloadMode};
 
 use super::random::{RandomOptions, RandomOptionsJson, RandomSource};
 use super::replay::ReplayOptions;
@@ -20,6 +20,9 @@ pub struct RuntimeOptions {
     pub runtime: Runtime,
     /// Stable runtime name for policy selection.
     pub name: Option<String>,
+    /// Active source graph conditions for runtime policy selection.
+    #[serde(default)]
+    pub conditions: ConditionSet,
     /// Runtime scheduler configuration.
     pub scheduler: SchedulerOptions,
     /// Runtime worker configuration.

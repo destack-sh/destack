@@ -6,8 +6,8 @@ use im::OrdMap;
 
 use crate::repository::key::profile_key_for_target;
 use crate::{
-    CompilerOptions, DestackConfig, HostEnvironment, ProfileEnvironment, ProfileOptions,
-    Repository, RepositoryError, Revision, Target,
+    CompilerOptions, ConditionSet, DestackConfig, HostEnvironment, ProfileEnvironment,
+    ProfileOptions, Repository, RepositoryError, Revision, Target,
 };
 
 /// One resolved semantic profile.
@@ -15,6 +15,8 @@ use crate::{
 pub struct Profile {
     /// The canonical profile key.
     pub key: ProfileKey,
+    /// The active source graph conditions.
+    pub conditions: ConditionSet,
     /// The resolved environment values.
     pub env: ProfileEnvironment,
 }
@@ -23,8 +25,13 @@ impl Profile {
     /// Build one resolved semantic profile from one canonical key.
     pub fn from_key(key: ProfileKey, environment: &HostEnvironment) -> Self {
         let env = ProfileEnvironment::from_key(&key.env, environment, &key.modes);
+        let conditions = conditions_from_key(&key);
 
-        Self { key, env }
+        Self {
+            key,
+            conditions,
+            env,
+        }
     }
 
     /// Return the deterministic profile id for this profile.
@@ -35,6 +42,18 @@ impl Profile {
     /// Return the deterministic profile id for one canonical key.
     pub fn id_for_key(key: &ProfileKey) -> ProfileId {
         ProfileId::new(key.stable_hash())
+    }
+}
+
+/// Build source graph conditions from one canonical profile key.
+fn conditions_from_key(key: &ProfileKey) -> ConditionSet {
+    ConditionSet {
+        modes: key.modes.iter().cloned().collect(),
+        roles: key.roles.iter().cloned().collect(),
+        features: key.features.iter().cloned().collect(),
+        tags: key.tags.iter().cloned().collect(),
+        target: key.target.clone(),
+        product: key.product.clone(),
     }
 }
 
@@ -127,8 +146,8 @@ impl Repository {
             return Ok(None);
         }
 
-        // explicit or implicit target
-        let Some(target) = self.effective_target(revision, target_id)? else {
+        // explicit or built-in target
+        let Some(target) = self.target_or_builtin(revision, target_id)? else {
             return Ok(None);
         };
 
