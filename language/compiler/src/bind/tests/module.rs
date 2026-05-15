@@ -1,10 +1,12 @@
-use crate::tests::module::TestModule;
-use crate::tests::snapshot::DirSnapshotSet;
+use crate::tests::TestCompiler;
+use crate::tests::snapshot::{DirSnapshotSet, assert_snapshot};
 
 #[test]
 fn test_bind_module_scope_surface() {
-    let module = TestModule::parse(
-        r#"
+    let compiler = TestCompiler::new()
+        .module(
+            "main.ds",
+            r#"
 import { dep as local, type TypeDep } from "dep";
 
 global {
@@ -28,12 +30,11 @@ type Pick<T> = {
     [K in keyof T as `get${K}`]: T[K];
 };
 "#,
-    );
-    let dir_bound = module.bind();
+        )
+        .build();
 
-    module.assert_dir_bound_snapshot(
-        &dir_bound,
-        DirSnapshotSet::binding(),
+    assert_snapshot(
+        compiler.dir_snapshot("main.ds", DirSnapshotSet::binding()),
         r#"
 import { dep as local, type TypeDep } from "dep";
 /// @binding.symbol name=local role=local form=import scope=<module>@1
@@ -99,20 +100,21 @@ type Pick<T> = {
 
 #[test]
 fn test_bind_module_directive_namespace() {
-    let module = TestModule::parse(
-        r#"
+    let compiler = TestCompiler::new()
+        .module(
+            "main.ds",
+            r#"
 module {
     let renderer: Renderer = createRenderer();
 }
 
 let renderer: string = "local";
 "#,
-    );
-    let dir_bound = module.bind();
+        )
+        .build();
 
-    module.assert_dir_bound_snapshot(
-        &dir_bound,
-        DirSnapshotSet::binding(),
+    assert_snapshot(
+        compiler.dir_snapshot("main.ds", DirSnapshotSet::binding()),
         r#"
 module {
 /// @binding.scope scope=scope2 kind=namespace parent=<module>@1

@@ -1,10 +1,12 @@
-use crate::tests::module::TestModule;
-use crate::tests::snapshot::DirSnapshotSet;
+use crate::tests::TestCompiler;
+use crate::tests::snapshot::{DirSnapshotSet, assert_snapshot};
 
 #[test]
 fn test_bind_label_scopes() {
-    let module = TestModule::parse(
-        r#"
+    let compiler = TestCompiler::new()
+        .module(
+            "main.ds",
+            r#"
 let done: boolean = false;
 
 outer: for (let index = 0; index < 3; index = index + 1) {
@@ -14,12 +16,11 @@ outer: for (let index = 0; index < 3; index = index + 1) {
     }
 }
 "#,
-    );
-    let dir_bound = module.bind();
+        )
+        .build();
 
-    module.assert_dir_bound_snapshot(
-        &dir_bound,
-        DirSnapshotSet::binding(),
+    assert_snapshot(
+        compiler.dir_snapshot("main.ds", DirSnapshotSet::binding()),
         r#"
 let done: boolean = false;
 /// @binding.symbol name=done role=local form=variable scope=<module>@1 mutability=mutable

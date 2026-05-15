@@ -1,10 +1,12 @@
-use crate::tests::module::TestModule;
-use crate::tests::snapshot::DirSnapshotSet;
+use crate::tests::TestCompiler;
+use crate::tests::snapshot::{DirSnapshotSet, assert_snapshot};
 
 #[test]
 fn test_bind_loop_and_if_let_scopes() {
-    let module = TestModule::parse(
-        r#"
+    let compiler = TestCompiler::new()
+        .module(
+            "main.ds",
+            r#"
 for (let index: number = 0; index < 10; index = index + 1) {
     let index: number = index;
 }
@@ -15,12 +17,11 @@ let output: number = if (let Some(value) = maybe) {
     0
 };
 "#,
-    );
-    let dir_bound = module.bind();
+        )
+        .build();
 
-    module.assert_dir_bound_snapshot(
-        &dir_bound,
-        DirSnapshotSet::binding(),
+    assert_snapshot(
+        compiler.dir_snapshot("main.ds", DirSnapshotSet::binding()),
         r#"
 for (let index: number = 0; index < 10; index = index + 1) {
 /// @binding.scope scope=scope2 kind=block parent=<module>@1
@@ -55,17 +56,18 @@ let output: number = if (let Some(value) = maybe) {
 
 #[test]
 fn test_bind_redeclaration_cursors() {
-    let module = TestModule::parse(
-        r#"
+    let compiler = TestCompiler::new()
+        .module(
+            "main.ds",
+            r#"
 let x: number = 1;
 let x: number = x;
 "#,
-    );
-    let dir_bound = module.bind();
+        )
+        .build();
 
-    module.assert_dir_bound_snapshot(
-        &dir_bound,
-        DirSnapshotSet::binding().with_binding_nodes(),
+    assert_snapshot(
+        compiler.dir_snapshot("main.ds", DirSnapshotSet::binding().with_binding_nodes()),
         r#"
 let x: number = 1;
 /// @binding.node node=expression scope=<module>@1 source="let x: number = 1"

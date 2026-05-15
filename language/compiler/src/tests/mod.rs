@@ -1,5 +1,4 @@
-mod assert;
-pub(crate) mod module;
+mod core;
 pub(crate) mod snapshot;
-mod tests;
-mod tracing;
+
+pub(crate) use core::*;

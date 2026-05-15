@@ -1,10 +1,12 @@
-use crate::tests::module::TestModule;
-use crate::tests::snapshot::DirSnapshotSet;
+use crate::tests::TestCompiler;
+use crate::tests::snapshot::{DirSnapshotSet, assert_snapshot};
 
 #[test]
 fn test_bind_member_scopes() {
-    let module = TestModule::parse(
-        r#"
+    let compiler = TestCompiler::new()
+        .module(
+            "main.ds",
+            r#"
 struct User<T> {
     id: string;
     type Id = string;
@@ -20,12 +22,11 @@ interface Reader<T> {
     type Item = T;
 }
 "#,
-    );
-    let dir_bound = module.bind();
+        )
+        .build();
 
-    module.assert_dir_bound_snapshot(
-        &dir_bound,
-        DirSnapshotSet::binding(),
+    assert_snapshot(
+        compiler.dir_snapshot("main.ds", DirSnapshotSet::binding()),
         r#"
 struct User<T> {
 /// @binding.symbol name=User role=namespace form=struct scope=<module>@1

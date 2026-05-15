@@ -1,10 +1,12 @@
-use crate::tests::module::TestModule;
-use crate::tests::snapshot::DirSnapshotSet;
+use crate::tests::TestCompiler;
+use crate::tests::snapshot::{DirSnapshotSet, assert_snapshot};
 
 #[test]
 fn test_bind_destructuring_patterns() {
-    let module = TestModule::parse(
-        r#"
+    let compiler = TestCompiler::new()
+        .module(
+            "main.ds",
+            r#"
 let { id, name: displayName }: User = user;
 let [first, , ...rest]: Items = items;
 
@@ -13,12 +15,11 @@ function visit({ id }: User, [first]: Items) {
     first;
 }
 "#,
-    );
-    let dir_bound = module.bind();
+        )
+        .build();
 
-    module.assert_dir_bound_snapshot(
-        &dir_bound,
-        DirSnapshotSet::binding(),
+    assert_snapshot(
+        compiler.dir_snapshot("main.ds", DirSnapshotSet::binding()),
         r#"
 let { id, name: displayName }: User = user;
 /// @binding.symbol name=id#1 role=local form=variable scope=<module>@1 mutability=mutable

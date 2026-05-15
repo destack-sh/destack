@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use super::{DirSnapshotBuilder, SnapshotTable, format};
+use super::{DirSnapshotBuilder, SnapshotTable, value};
 use crate::tests::snapshot::{SnapshotAnchor, SnapshotRow};
 
 impl SnapshotTable for dir::CaptureTable {
@@ -11,11 +11,11 @@ impl SnapshotTable for dir::CaptureTable {
                 .field("bindings", capture.captures.len().to_string())
                 .optional_field(
                     "this",
-                    format::optional_capture_binding(builder, capture.this),
+                    value::optional_capture_binding(builder, capture.this),
                 )
                 .optional_field(
                     "directive",
-                    capture.directive.as_ref().map(format::capture_directive),
+                    capture.directive.as_ref().map(value::capture_directive),
                 );
             builder.push(row);
         }

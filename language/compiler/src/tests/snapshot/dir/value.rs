@@ -76,19 +76,39 @@ pub(super) fn resolution(builder: &DirSnapshotBuilder<'_>, resolution: &dir::Res
     }
 }
 
-/// Return one dependency target label.
-pub(super) fn dependency_target(
+/// Add one dependency target field.
+pub(super) fn add_dependency_target(
+    row: SnapshotRow,
     builder: &DirSnapshotBuilder<'_>,
     target: dir::DependencyTarget,
-) -> String {
+) -> SnapshotRow {
     match target {
-        dir::DependencyTarget::Module(module_id) => format!("{module_id}"),
-        dir::DependencyTarget::StringModule(specifier) => {
-            format!("string:{}", builder.strings.get(specifier))
+        dir::DependencyTarget::Module(module_id) => {
+            row.field("module", builder.module_path(module_id))
         }
         dir::DependencyTarget::External(specifier) => {
-            format!("external:{}", builder.strings.get(specifier))
+            row.field("external", builder.strings.get(specifier))
         }
+    }
+}
+
+/// Return one export name label.
+pub(super) fn export_name(builder: &DirSnapshotBuilder<'_>, name: dir::ExportName) -> String {
+    match name {
+        dir::ExportName::Default => "default".to_string(),
+        dir::ExportName::Named(name) => builder.static_key(name),
+    }
+}
+
+/// Return one export selector label.
+pub(super) fn export_selector(
+    builder: &DirSnapshotBuilder<'_>,
+    selector: dir::ExportSelector,
+) -> String {
+    match selector {
+        dir::ExportSelector::Default => "default".to_string(),
+        dir::ExportSelector::Named(name) => builder.static_key(name),
+        dir::ExportSelector::Namespace => "namespace".to_string(),
     }
 }
 

@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use super::{DirSnapshotBuilder, SnapshotTable, format};
+use super::{DirSnapshotBuilder, SnapshotTable, value};
 use crate::tests::snapshot::{SnapshotAnchor, SnapshotRow};
 
 impl SnapshotTable for dir::GuardTable {
@@ -8,7 +8,7 @@ impl SnapshotTable for dir::GuardTable {
         for (node_id, entry) in &self.entry_by_node {
             let row = SnapshotRow::new(builder.anchor_node(*node_id), "guard", "entry")
                 .field("node", builder.node_label(*node_id))
-                .field("kind", format::debug(*entry));
+                .field("kind", value::debug(*entry));
             builder.push(row);
         }
 
