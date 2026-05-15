@@ -14,19 +14,6 @@ pub struct GlobalDeclaration {
     pub statements: Vec<LocalNodeId<Statement>>,
 }
 
-/// A namespace declaration.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct NamespaceDeclaration {
-    /// The namespace name.
-    pub name: Option<Name>,
-    /// The export binding of the declaration.
-    pub export: Option<DependencyBinding>,
-    /// Whether the declaration is ambient.
-    pub is_ambient: bool,
-    /// The statements inside the namespace body.
-    pub statements: Vec<LocalNodeId<Statement>>,
-}
-
 /// A type alias declaration.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TypeDeclaration {
@@ -121,13 +108,11 @@ pub struct FunctionDeclaration {
     pub body: Option<LocalNodeId<Block>>,
 }
 
-/// A Declaration is a declaration in some namespace.
+/// A declaration item.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Declaration {
     /// Global augmentation declaration.
     Global(GlobalDeclaration),
-    /// Namespace declaration.
-    Namespace(NamespaceDeclaration),
     /// Type alias declaration.
     Type(TypeDeclaration),
     /// Class declaration.
@@ -149,7 +134,6 @@ impl Declaration {
     pub fn is_type_only(&self) -> bool {
         match self {
             Self::Global(GlobalDeclaration { is_ambient, .. })
-            | Self::Namespace(NamespaceDeclaration { is_ambient, .. })
             | Self::Type(TypeDeclaration { is_ambient, .. })
             | Self::Class(ClassDeclaration { is_ambient, .. })
             | Self::Interface(InterfaceDeclaration { is_ambient, .. })

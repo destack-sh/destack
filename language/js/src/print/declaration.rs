@@ -25,20 +25,6 @@ impl<'a> Printer<'a> {
                 self.print_statement_list(statements)?;
                 self.write_punct("}");
             }
-            Declaration::Namespace(namespace) => {
-                let statements = &namespace.statements;
-
-                self.print_statement_prefix(namespace.export, namespace.is_ambient);
-                self.write_keyword(Keyword::Namespace);
-
-                if let Some(name) = namespace.name {
-                    self.write_name(name);
-                }
-
-                self.write_punct("{");
-                self.print_statement_list(statements)?;
-                self.write_punct("}");
-            }
             Declaration::Type(ty) => {
                 let generic_parameters = &ty.generic_parameters;
                 let value = ty.value;
