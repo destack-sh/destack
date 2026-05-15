@@ -30,8 +30,8 @@ pub enum Hook {
     SchedulerTimerFire,
     /// Trigger when one ingress event is enqueued into the worker loop.
     IngressEnqueue,
-    /// Trigger when time is read.
-    TimeRead,
+    /// Trigger when one clock is read.
+    ClockRead,
     /// Trigger when random data is read.
     RandomRead,
     /// Trigger when one resource is attached.
@@ -97,8 +97,8 @@ pub enum HookEvent {
         /// Monotonic timestamp for this event.
         time_ns: u64,
     },
-    /// Event fired when time is read.
-    TimeRead {
+    /// Event fired when one clock is read.
+    ClockRead {
         /// Worker identifier for this event.
         worker_id: WorkerId,
         /// Monotonic timestamp for this event.
@@ -161,7 +161,7 @@ impl HookEvent {
             Self::SchedulerDequeue { .. } => Hook::SchedulerDequeue,
             Self::SchedulerTimerFire { .. } => Hook::SchedulerTimerFire,
             Self::IngressEnqueue { .. } => Hook::IngressEnqueue,
-            Self::TimeRead { .. } => Hook::TimeRead,
+            Self::ClockRead { .. } => Hook::ClockRead,
             Self::RandomRead { .. } => Hook::RandomRead,
             Self::ResourceAttach { .. } => Hook::ResourceAttach,
             Self::ResourceDetach { .. } => Hook::ResourceDetach,
@@ -177,7 +177,7 @@ impl HookEvent {
             | Self::SchedulerDequeue { worker_id, .. }
             | Self::SchedulerTimerFire { worker_id, .. }
             | Self::IngressEnqueue { worker_id, .. }
-            | Self::TimeRead { worker_id, .. }
+            | Self::ClockRead { worker_id, .. }
             | Self::RandomRead { worker_id, .. }
             | Self::ResourceAttach { worker_id, .. }
             | Self::ResourceDetach { worker_id, .. } => *worker_id,
@@ -225,7 +225,7 @@ impl HookEvent {
             | Self::SchedulerDequeue { time_ns, .. }
             | Self::SchedulerTimerFire { time_ns, .. }
             | Self::IngressEnqueue { time_ns, .. }
-            | Self::TimeRead { time_ns, .. }
+            | Self::ClockRead { time_ns, .. }
             | Self::RandomRead { time_ns, .. }
             | Self::ResourceAttach { time_ns, .. }
             | Self::ResourceDetach { time_ns, .. } => *time_ns,
@@ -626,11 +626,11 @@ impl Hooks {
         );
     }
 
-    /// Evaluate scenario hooks for one time read.
-    pub(crate) fn on_time_read(&self, world: &mut WorldState) {
+    /// Evaluate scenario hooks for one clock read.
+    pub(crate) fn on_clock_read(&self, world: &mut WorldState) {
         self.on_scenario_event(
             world,
-            HookEvent::TimeRead {
+            HookEvent::ClockRead {
                 worker_id: self.worker_id,
                 time_ns: world.mono_nanos(),
             },

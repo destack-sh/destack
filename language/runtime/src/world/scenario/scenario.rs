@@ -7,7 +7,7 @@ use crate::runtime::WorkerId;
 use crate::runtime::random::Random;
 use crate::world::policy::Subject;
 
-use super::{FaultKindCatalog, FaultRule, FaultRuleId, FaultRuleState, HookEvent, TriggeredFault};
+use super::{FaultCatalog, FaultRule, FaultRuleId, FaultRuleState, HookEvent, TriggeredFault};
 
 /// Stable identifier for one scenario.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -79,7 +79,7 @@ impl Scenario {
     /// Validate all scenario invariants against one topology kind catalog.
     pub(crate) fn validate_with_kind_catalog(
         &self,
-        kind_catalog: &impl FaultKindCatalog,
+        kind_catalog: &impl FaultCatalog,
     ) -> RuntimeResult<()> {
         self.validate_unique_rule_ids()?;
 
@@ -94,7 +94,7 @@ impl Scenario {
     pub(crate) fn add_rule(
         &mut self,
         rule: FaultRule,
-        kind_catalog: &impl FaultKindCatalog,
+        kind_catalog: &impl FaultCatalog,
     ) -> RuntimeResult<()> {
         if self.has_rule_id(&rule.id) {
             return Err(Self::invalid_scenario_error(format!(
@@ -139,7 +139,7 @@ impl Scenario {
         &mut self,
         rule_id: &FaultRuleId,
         rule: FaultRule,
-        kind_catalog: &impl FaultKindCatalog,
+        kind_catalog: &impl FaultCatalog,
     ) -> RuntimeResult<()> {
         if rule.id != *rule_id {
             return Err(Self::invalid_scenario_error(format!(
@@ -320,8 +320,8 @@ mod tests {
     use crate::runtime::random::Random;
     use crate::world::policy::Subject;
     use crate::world::scenario::{
-        ActivationWindow, Fault, FaultRule, FaultTarget, FaultType, Hook, HookEvent, Lifetime,
-        Scenario, ScenarioCallId, ScenarioId, Trigger,
+        ActivationWindow, Fault, FaultError, FaultRule, FaultTarget, FaultType, Hook, HookEvent,
+        Lifetime, Scenario, ScenarioCallId, ScenarioId, Trigger,
     };
 
     const TEST_RUNTIME_NAME: &str = "test-runtime";
@@ -547,8 +547,8 @@ mod tests {
             format!("test.{id_suffix}"),
             Fault {
                 target: FaultTarget::Call {},
-                fault_type: FaultType::Error {
-                    code: "EFAULT".to_string(),
+                fault_type: FaultType::OperationError {
+                    error: FaultError::new("EFAULT"),
                 },
             },
             trigger,

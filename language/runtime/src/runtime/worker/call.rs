@@ -261,8 +261,8 @@ impl BindingCallContext {
 
     /// Notify policy hooks about one clock-read operation.
     #[inline]
-    pub fn on_time_read(&self) {
-        self.hooks().on_time_read(self.world());
+    pub fn on_clock_read(&self) {
+        self.hooks().on_clock_read(self.world());
     }
 
     /// Notify policy hooks about one random-read operation.
