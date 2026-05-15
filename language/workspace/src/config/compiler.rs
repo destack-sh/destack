@@ -15,17 +15,17 @@ pub struct CompilerOptions {
     pub module: JsModuleFormat,
     /// ECMAScript target version.
     pub es_target: EsTarget,
-    /// Default environment for IDEs and CLI usage.
+    /// Default environment.
     pub environment: Option<String>,
-    /// Default profile for IDEs and CLI usage.
+    /// Default profile.
     pub profile: Option<String>,
-    /// Default active source graph modes for IDEs and CLI usage.
+    /// Default active source graph modes.
     pub modes: Vec<String>,
-    /// Default active source graph roles for IDEs and CLI usage.
+    /// Default active source graph roles.
     pub roles: Vec<String>,
-    /// Default active source graph features for IDEs and CLI usage.
+    /// Default active source graph features.
     pub features: Vec<String>,
-    /// Default active source graph tags for IDEs and CLI usage.
+    /// Default active source graph tags.
     pub tags: Vec<String>,
     /// Comptime environment whitelist (if omitted, all env keys are visible).
     pub comptime_env: Option<Vec<String>>,
@@ -41,14 +41,12 @@ pub struct CompilerOptions {
     pub no_managed: DiagnosticPolicy,
     /// Policy for all heap allocation.
     pub no_heap: DiagnosticPolicy,
-    /// Policy for runtime usage (no managed memory, no Promise, no exceptions, ...).
+    /// Policy for runtime usage (no managed memory, no Promise, ...).
     pub no_runtime: DiagnosticPolicy,
     /// Policy for low level internal protocol imports (`platform:`).
     pub no_internal_import: DiagnosticPolicy,
     /// Policy for overloads that are not statically resolvable.
     pub no_implicit_dynamic_dispatch: DiagnosticPolicy,
-    /// Policy for `throw`.
-    pub no_throw: DiagnosticPolicy,
 
     // emit
     /// Root directory of source files (controls output directory structure, not module resolution).
@@ -85,7 +83,6 @@ impl Default for CompilerOptions {
             no_runtime: DiagnosticPolicy::Allow,
             no_internal_import: DiagnosticPolicy::Allow,
             no_implicit_dynamic_dispatch: DiagnosticPolicy::Allow,
-            no_throw: DiagnosticPolicy::Allow,
 
             // emit
             root_dir: None,
@@ -101,7 +98,6 @@ impl CompilerOptions {
     /// Enable native-only restrictions for native and wasm targets.
     pub fn apply_native_restrictions(&mut self) {
         self.no_managed = DiagnosticPolicy::Deny;
-        self.no_throw = DiagnosticPolicy::Deny;
     }
 
     /// Enable heap-free restrictions.
@@ -117,7 +113,6 @@ impl CompilerOptions {
         self.no_runtime = DiagnosticPolicy::Deny;
         self.no_heap = DiagnosticPolicy::Deny;
         self.no_managed = DiagnosticPolicy::Deny;
-        self.no_throw = DiagnosticPolicy::Deny;
         self.no_implicit_dynamic_dispatch = DiagnosticPolicy::Deny;
     }
 }
@@ -223,17 +218,17 @@ pub struct CompilerOptionsJson {
     pub module: Option<String>,
     /// ECMAScript target version (e.g., "es2022", "esnext").
     pub target: Option<String>,
-    /// Default environment for IDEs and CLI usage.
+    /// Default environment.
     pub environment: Option<String>,
-    /// Default profile for IDEs and CLI usage.
+    /// Default profile.
     pub profile: Option<String>,
-    /// Default active source graph modes for IDEs and CLI usage.
+    /// Default active source graph modes.
     pub modes: Option<Vec<String>>,
-    /// Default active source graph roles for IDEs and CLI usage.
+    /// Default active source graph roles.
     pub roles: Option<Vec<String>>,
-    /// Default active source graph features for IDEs and CLI usage.
+    /// Default active source graph features.
     pub features: Option<Vec<String>>,
-    /// Default active source graph tags for IDEs and CLI usage.
+    /// Default active source graph tags.
     pub tags: Option<Vec<String>>,
     /// Comptime environment whitelist (if omitted, all env keys are visible).
     pub comptime_env: Option<Vec<String>>,
@@ -249,14 +244,12 @@ pub struct CompilerOptionsJson {
     pub no_managed: Option<DiagnosticPolicyJson>,
     /// Policy for all heap allocation.
     pub no_heap: Option<DiagnosticPolicyJson>,
-    /// Policy for runtime usage (no managed memory, no Promise, no exceptions, ...).
+    /// Policy for runtime usage (no managed memory, no Promise, ...).
     pub no_runtime: Option<DiagnosticPolicyJson>,
     /// Policy for low level internal protocol imports (`platform:`).
     pub no_internal_import: Option<DiagnosticPolicyJson>,
     /// Policy for overloads that are not statically resolvable.
     pub no_implicit_dynamic_dispatch: Option<DiagnosticPolicyJson>,
-    /// Policy for `throw`.
-    pub no_throw: Option<DiagnosticPolicyJson>,
 
     // emit
     /// Root directory of source files (controls output directory structure, not module resolution).
@@ -318,10 +311,6 @@ impl From<&CompilerOptionsJson> for CompilerOptions {
                 .unwrap_or(DiagnosticPolicy::Allow),
             no_implicit_dynamic_dispatch: json
                 .no_implicit_dynamic_dispatch
-                .map(DiagnosticPolicy::from)
-                .unwrap_or(DiagnosticPolicy::Allow),
-            no_throw: json
-                .no_throw
                 .map(DiagnosticPolicy::from)
                 .unwrap_or(DiagnosticPolicy::Allow),
 

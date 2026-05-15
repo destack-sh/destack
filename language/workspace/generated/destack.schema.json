@@ -395,21 +395,21 @@
           ]
         },
         "environment": {
-          "description": "Default environment for IDEs and CLI usage.",
+          "description": "Default environment.",
           "type": [
             "string",
             "null"
           ]
         },
         "profile": {
-          "description": "Default profile for IDEs and CLI usage.",
+          "description": "Default profile.",
           "type": [
             "string",
             "null"
           ]
         },
         "modes": {
-          "description": "Default active source graph modes for IDEs and CLI usage.",
+          "description": "Default active source graph modes.",
           "type": [
             "array",
             "null"
@@ -419,7 +419,7 @@
           }
         },
         "roles": {
-          "description": "Default active source graph roles for IDEs and CLI usage.",
+          "description": "Default active source graph roles.",
           "type": [
             "array",
             "null"
@@ -429,7 +429,7 @@
           }
         },
         "features": {
-          "description": "Default active source graph features for IDEs and CLI usage.",
+          "description": "Default active source graph features.",
           "type": [
             "array",
             "null"
@@ -439,7 +439,7 @@
           }
         },
         "tags": {
-          "description": "Default active source graph tags for IDEs and CLI usage.",
+          "description": "Default active source graph tags.",
           "type": [
             "array",
             "null"
@@ -508,7 +508,7 @@
           ]
         },
         "noRuntime": {
-          "description": "Policy for runtime usage (no managed memory, no Promise, no exceptions, ...).",
+          "description": "Policy for runtime usage (no managed memory, no Promise, ...).",
           "anyOf": [
             {
               "$ref": "#/$defs/DiagnosticPolicyJson"
@@ -531,17 +531,6 @@
         },
         "noImplicitDynamicDispatch": {
           "description": "Policy for overloads that are not statically resolvable.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/DiagnosticPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "noThrow": {
-          "description": "Policy for `throw`.",
           "anyOf": [
             {
               "$ref": "#/$defs/DiagnosticPolicyJson"

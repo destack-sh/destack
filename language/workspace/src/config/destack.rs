@@ -536,9 +536,6 @@ impl DestackConfig {
         {
             compiler.no_implicit_dynamic_dispatch = parent_compiler.no_implicit_dynamic_dispatch;
         }
-        if parent_compiler.no_throw.is_stricter_than(compiler.no_throw) {
-            compiler.no_throw = parent_compiler.no_throw;
-        }
         if compiler.root_dir.is_none() {
             compiler.root_dir = parent_compiler.root_dir.clone();
         }
