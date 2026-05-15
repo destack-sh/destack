@@ -1260,19 +1260,19 @@ impl ModuleLowerer<'_> {
                     .into_any()
             }
             dir::Expression::Try {
-                try_expression,
-                catch_pattern,
-                catch_ty: _,
-                catch_expression,
-                finally_expression,
+                body,
+                catch,
+                finally,
             } => {
-                let try_block = self.lower_expression_as_block(*try_expression)?;
-                let catch_clause = match catch_expression {
-                    Some(catch_expression) => {
-                        let pattern = catch_pattern
-                            .map(|catch_pattern| self.lower_pattern(catch_pattern))
+                let try_block = self.lower_expression_as_block(*body)?;
+                let catch_clause = match catch {
+                    Some(catch) => {
+                        let catch = self.dir_tree.get(*catch);
+                        let pattern = catch
+                            .pattern
+                            .map(|pattern| self.lower_pattern(pattern))
                             .transpose()?;
-                        let body = self.lower_expression_as_block(*catch_expression)?;
+                        let body = self.lower_expression_as_block(catch.body)?;
                         let catch_clause = js::CatchClause { pattern, body };
                         Some(self.tree.insert_from_source(
                             catch_clause,
@@ -1282,8 +1282,8 @@ impl ModuleLowerer<'_> {
                     }
                     None => None,
                 };
-                let finally_block = finally_expression
-                    .map(|finally_expression| self.lower_expression_as_block(finally_expression))
+                let finally_block = finally
+                    .map(|finally| self.lower_expression_as_block(finally))
                     .transpose()?;
                 let statement = js::Statement::Try {
                     try_block,

@@ -101,8 +101,6 @@ impl Compiler {
         let symbol_id = state.insert_symbol(
             dir::SymbolRole::Local,
             dir::SymbolForm::Variable,
-            dir::SymbolSpace::Value,
-            dir::SymbolBinding::Runtime,
             Some(key),
             None,
         );
@@ -121,7 +119,6 @@ impl Compiler {
     ) {
         let binding = BindingContext {
             export: None,
-            binding: dir::SymbolBinding::Runtime,
             mutability: None,
             declared_type,
         };

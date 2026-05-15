@@ -32,22 +32,12 @@ impl Compiler {
         let Some(key) = dependency_item.symbol_key() else {
             return;
         };
-        let Some(space) = dependency_item.symbol_space(import_space) else {
-            return;
-        };
         let Some(form) = dependency_item.symbol_form(import_space) else {
             return;
         };
 
         // declare imported symbol
-        let symbol_id = state.insert_symbol(
-            dir::SymbolRole::Local,
-            form,
-            space,
-            dir::SymbolBinding::Runtime,
-            Some(key),
-            None,
-        );
+        let symbol_id = state.insert_symbol(dir::SymbolRole::Local, form, Some(key), None);
 
         state.declare_symbol(symbol_id, node_id);
     }

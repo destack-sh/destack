@@ -15,16 +15,14 @@ impl Compiler {
     ) -> Option<dir::LocalScopeId> {
         // ignore anonymous declarations
         let form = declaration.symbol_form()?;
-        let binding = state.binding_for_declaration(declaration.is_ambient());
         let role = declaration.symbol_role()?;
         let scope_kind = declaration.symbol_scope_kind()?;
-        let space = form.symbol_space();
         let key = declaration.name().map(|name| name.static_key());
         let export = declaration.export();
 
         // declare surface symbol and scope
         let (symbol_id, scope_id) =
-            state.insert_symbol_with_scope(role, form, space, binding, key, export, scope_kind);
+            state.insert_symbol_with_scope(role, form, key, export, scope_kind);
 
         state.declare_symbol(symbol_id, node_id);
 
