@@ -5,6 +5,51 @@ use serde::{Deserialize, Serialize};
 
 use crate::{LocalSymbolId, StaticKey};
 
+/// A lexical container for symbols.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Scope {
+    /// The kind of the scope.
+    pub kind: ScopeKind,
+    /// The parent scope.
+    pub parent: Option<LocalScope>,
+    /// The owner of the scope.
+    pub owner: Option<LocalSymbolId>,
+
+    /// The bindings in lexical order.
+    pub bindings: Vec<ScopeBinding>,
+
+    /// The children scopes.
+    pub children: Vec<LocalScopeId>,
+}
+
+impl Scope {
+    /// Whether the scope is the root scope.
+    #[inline]
+    pub fn is_root(&self) -> bool {
+        self.parent.is_none()
+    }
+
+    /// Get the current scope mark.
+    pub fn mark(&self) -> LocalScopeMark {
+        LocalScopeMark(self.bindings.len() as u32)
+    }
+
+    /// Insert a symbol into the scope.
+    pub fn append(&mut self, key: Option<StaticKey>, symbol_id: LocalSymbolId) -> LocalScopeMark {
+        let mark = LocalScopeMark(self.bindings.len() as u32);
+        self.bindings.push(ScopeBinding {
+            key,
+            symbol: symbol_id,
+        });
+        mark
+    }
+
+    /// Insert a child scope into the scope.
+    pub fn append_child(&mut self, scope_id: LocalScopeId) {
+        self.children.push(scope_id);
+    }
+}
+
 /// The kind of a scope.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum ScopeKind {
@@ -20,6 +65,8 @@ pub enum ScopeKind {
     Type,
     /// Conditional type infer scope.
     TypeConditional,
+    /// Labeled expression body.
+    Label,
     /// Block expression or statement surface.
     Block,
 }
@@ -127,49 +174,4 @@ pub struct ScopeBinding {
     pub key: Option<StaticKey>,
     /// The bound symbol.
     pub symbol: LocalSymbolId,
-}
-
-/// A lexical container for symbols.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Scope {
-    /// The kind of the scope.
-    pub kind: ScopeKind,
-    /// The parent scope.
-    pub parent: Option<LocalScope>,
-    /// The owner of the scope.
-    pub owner: Option<LocalSymbolId>,
-
-    /// The bindings in lexical order.
-    pub bindings: Vec<ScopeBinding>,
-
-    /// The children scopes.
-    pub children: Vec<LocalScopeId>,
-}
-
-impl Scope {
-    /// Whether the scope is the root scope.
-    #[inline]
-    pub fn is_root(&self) -> bool {
-        self.parent.is_none()
-    }
-
-    /// Get the current scope mark.
-    pub fn mark(&self) -> LocalScopeMark {
-        LocalScopeMark(self.bindings.len() as u32)
-    }
-
-    /// Insert a symbol into the scope.
-    pub fn append(&mut self, key: Option<StaticKey>, symbol_id: LocalSymbolId) -> LocalScopeMark {
-        let mark = LocalScopeMark(self.bindings.len() as u32);
-        self.bindings.push(ScopeBinding {
-            key,
-            symbol: symbol_id,
-        });
-        mark
-    }
-
-    /// Insert a child scope into the scope.
-    pub fn append_child(&mut self, scope_id: LocalScopeId) {
-        self.children.push(scope_id);
-    }
 }

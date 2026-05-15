@@ -3,6 +3,46 @@ use serde::{Deserialize, Serialize};
 
 use crate::{ExportKind, GlobalNodeIdAny, LocalScope, Mutability, NodeType, StaticKey, StringId};
 
+/// A bindable item or local in a scope.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Symbol {
+    /// The scope lookup role of the symbol.
+    pub role: SymbolRole,
+    /// The declaration form of the symbol.
+    pub form: SymbolForm,
+    /// The mutability for value bindings when known.
+    pub binding_mutability: Option<Mutability>,
+
+    /// Where this symbol was introduced.
+    pub origin: SymbolOrigin,
+    /// The key of the symbol.
+    pub key: Option<StaticKey>,
+    /// The scope that introduces the symbol.
+    pub scope: LocalScope,
+
+    /// The export kind of the symbol.
+    pub export_kind: Option<ExportKind>,
+    /// The declaration node that introduced this symbol.
+    pub declaration: Option<GlobalNodeIdAny>,
+}
+
+impl Symbol {
+    /// Get the name of the symbol.
+    #[inline]
+    pub fn name(&self) -> Option<StringId> {
+        match self.key {
+            Some(StaticKey::Name(name)) => Some(name),
+            _ => None,
+        }
+    }
+
+    /// Check whether this symbol is a generic parameter.
+    pub fn is_generic_parameter(&self) -> bool {
+        self.declaration
+            .is_some_and(|declaration| declaration.local_id.ty == NodeType::GenericParameter)
+    }
+}
+
 /// The space of a symbol.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum SymbolSpace {
@@ -79,6 +119,8 @@ pub enum SymbolForm {
     Enum,
     /// Function symbol.
     Function,
+    /// Label symbol.
+    Label,
     /// Extension symbol.
     Extension,
     /// Transparent type alias symbol.
@@ -98,6 +140,7 @@ impl SymbolForm {
     pub fn symbol_space(self) -> SymbolSpace {
         match self {
             Self::Interface | Self::TypeAlias => SymbolSpace::Type,
+            Self::Label => SymbolSpace::Label,
             Self::Class
             | Self::Enum
             | Self::Extension
@@ -133,7 +176,7 @@ impl SymbolForm {
                     | Self::Struct
                     | Self::Variable
             ),
-            SymbolSpace::Label => false,
+            SymbolSpace::Label => self == Self::Label,
         }
     }
 }
@@ -188,45 +231,5 @@ impl GlobalSymbolId {
 impl From<GlobalSymbolId> for LocalSymbolId {
     fn from(id: GlobalSymbolId) -> Self {
         id.local_id
-    }
-}
-
-/// A bindable item or local in a scope.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Symbol {
-    /// The scope lookup role of the symbol.
-    pub role: SymbolRole,
-    /// The declaration form of the symbol.
-    pub form: SymbolForm,
-    /// The mutability for value bindings when known.
-    pub binding_mutability: Option<Mutability>,
-
-    /// Where this symbol was introduced.
-    pub origin: SymbolOrigin,
-    /// The key of the symbol.
-    pub key: Option<StaticKey>,
-    /// The scope that introduces the symbol.
-    pub scope: LocalScope,
-
-    /// The export kind of the symbol.
-    pub export_kind: Option<ExportKind>,
-    /// The declaration node that introduced this symbol.
-    pub declaration: Option<GlobalNodeIdAny>,
-}
-
-impl Symbol {
-    /// Get the name of the symbol.
-    #[inline]
-    pub fn name(&self) -> Option<StringId> {
-        match self.key {
-            Some(StaticKey::Name(name)) => Some(name),
-            _ => None,
-        }
-    }
-
-    /// Check whether this symbol is a generic parameter.
-    pub fn is_generic_parameter(&self) -> bool {
-        self.declaration
-            .is_some_and(|declaration| declaration.local_id.ty == NodeType::GenericParameter)
     }
 }
