@@ -5,10 +5,10 @@ use destack_core::StringPool;
 use destack_mir::{LayoutId, LayoutShape, LayoutTable, ReferenceMap};
 use {destack_engine as engine, destack_heap as heap, destack_mir as mir};
 
-use super::layout::{Layout, LayoutIndex, build_layouts, callable_object_layout};
+use super::layout::{Layout, TypeTable, build_layouts, callable_object_layout};
 use super::{
-    CallTarget, CallableObjectLayout, FrameBinding, FrameEntry, FrameState, FrameStateTable,
-    Function, FunctionTable, ProgramPoint, SideTable, SideTableBuilder,
+    CallTarget, CallableObjectLayout, FrameBinding, FrameEntry, Function, FunctionTable,
+    ProgramPoint, ResumeState, ResumeTable, SideTable, SideTableBuilder,
 };
 use crate::lower::{ValueType, analyze_value_types, lower_function};
 use crate::{Error, FunctionPointer, Result, StaticPointer, Word};
@@ -23,17 +23,19 @@ pub struct Program {
     pub(crate) functions: FunctionTable,
     /// Side table referenced by compact side records.
     pub(crate) side_table: SideTable,
-    /// Lookup table for function ids by name.
-    function_id_by_name: HashMap<String, mir::LocalNodeId<mir::Function>>,
-    /// Layout metadata for types, heap allocation, and binding views.
-    layout_index: LayoutIndex,
     /// Immutable program static data.
     pub(crate) statics: engine::StaticSpace,
+    /// Engine-visible execution layout.
+    pub(crate) layout: engine::ProgramLayout,
+    /// Heap allocation layouts keyed by MIR layout id.
+    heap_layouts: LayoutTable,
 
-    /// Engine-visible execution layout tables.
-    pub(crate) program_layout: engine::ProgramLayout,
-    /// Dense frame-state metadata.
-    frame_states: FrameStateTable,
+    /// Lookup table for function ids by name.
+    function_id_by_name: HashMap<String, mir::LocalNodeId<mir::Function>>,
+    /// VM physical type table.
+    types: TypeTable,
+    /// VM resume recipes.
+    resume: ResumeTable,
 }
 
 impl Program {
@@ -89,7 +91,7 @@ impl Program {
     /// Convert one MIR type id into one engine value layout id.
     #[inline]
     pub(crate) fn value_layout_id(&self, ty: mir::LocalNodeId<mir::Type>) -> engine::ValueLayoutId {
-        LayoutIndex::value_layout_id(ty)
+        TypeTable::value_layout_id(ty)
     }
 
     /// Convert one engine value layout id into one MIR type id.
@@ -98,7 +100,7 @@ impl Program {
         &self,
         layout: engine::ValueLayoutId,
     ) -> mir::LocalNodeId<mir::Type> {
-        LayoutIndex::type_for_value_layout(layout)
+        TypeTable::type_for_value_layout(layout)
     }
 
     /// Return the callable heap object layout for this program.
@@ -128,56 +130,53 @@ impl Program {
         &self,
         frame_layout: engine::FrameLayoutId,
     ) -> Option<&engine::FrameLayout> {
-        self.program_layout
-            .frame_layouts
-            .get(frame_layout.0 as usize)
+        self.layout.frame_layouts.get(frame_layout.0 as usize)
     }
 
-    /// Return the lowered program point for one frame state.
+    /// Return the lowered program point for one resume state.
     pub(crate) fn point_for_frame_state(
         &self,
         frame_state: engine::FrameStateId,
     ) -> Option<ProgramPoint> {
-        self.frame_states
-            .state(frame_state)
-            .map(|state| state.point)
+        self.resume.state(frame_state).map(|state| state.point)
     }
 
-    /// Return the source-level debug point for one frame state.
+    /// Return the source-level debug point for one resume state.
     pub(crate) fn debug_point_for_frame_state(
         &self,
         frame_state: engine::FrameStateId,
     ) -> Option<mir::DebugPoint> {
-        self.frame_states
+        self.resume
             .state(frame_state)
             .map(|state| state.debug_point)
     }
 
-    /// Return the entry data for one frame state.
+    /// Return the entry data for one resume state.
     pub(crate) fn frame_entry(&self, frame_state: engine::FrameStateId) -> Option<&FrameEntry> {
-        self.frame_states
+        self.resume
             .state(frame_state)
             .and_then(|state| state.entry.as_ref())
     }
 
-    /// Return the single-frame materialization for one frame state.
+    /// Return the single frame materialization for one resume state.
     pub(crate) fn frame_materialization(
         &self,
         frame_state: engine::FrameStateId,
     ) -> Option<&engine::FrameMaterialization> {
-        self.frame_states
-            .state(frame_state)
+        self.layout
+            .frame_states
+            .get(frame_state.0 as usize)
             .map(|state| &state.materialization)
     }
 
     /// Return the compiled layout for one MIR type.
     pub(crate) fn layout(&self, ty: mir::LocalNodeId<mir::Type>) -> Option<&Layout> {
-        self.layout_index.layout(ty)
+        self.types.layout(ty)
     }
 
     /// Return the compiled layout for one program layout id.
     pub(crate) fn layout_for_value_id(&self, layout: engine::ValueLayoutId) -> Option<&Layout> {
-        self.layout_index.layout_for_value_id(layout)
+        self.types.layout_for_value_id(layout)
     }
 
     /// Encode one global initializer into its declared bytes.
@@ -186,17 +185,12 @@ impl Program {
         initializer: &mir::GlobalInitializer,
         ty: mir::LocalNodeId<mir::Type>,
     ) -> Result<Vec<u8>> {
-        initializer_bytes(
-            &self.tree,
-            self.layout_index.type_layouts(),
-            initializer,
-            ty,
-        )
+        initializer_bytes(&self.tree, &self.types, initializer, ty)
     }
 
     /// Return the MIR layouts for this program.
     pub(crate) fn layouts(&self) -> &LayoutTable {
-        self.layout_index.table()
+        &self.heap_layouts
     }
 
     /// Return the heap allocation shape for one layout id.
@@ -204,12 +198,22 @@ impl Program {
         &self,
         layout_id: LayoutId,
     ) -> Result<heap::AllocationShape<'_>> {
-        self.layout_index.allocation_shape(layout_id)
+        let Some(layout) = self.heap_layouts.layouts.get(layout_id.index()) else {
+            return Err(Error::InvariantViolation {
+                context: format!("missing allocation layout {layout_id:?}"),
+            });
+        };
+
+        Ok(heap::AllocationShape::new(
+            layout.size as usize,
+            layout.alignment as usize,
+            &layout.reference_map,
+        ))
     }
 
     /// Return the layout id for one MIR type.
     pub(crate) fn layout_id_for_type(&self, ty: mir::LocalNodeId<mir::Type>) -> Option<LayoutId> {
-        self.layout_index.layout_id_for_type(ty)
+        self.types.layout_id_for_type(ty)
     }
 
     /// Return the program static address for one global.
@@ -225,32 +229,18 @@ impl Program {
         self.statics.region(self.static_id(global)).is_some()
     }
 
-    /// Return one MIR type by display name.
-    pub(crate) fn type_by_display_name(&self, name: &str) -> Option<mir::LocalNodeId<mir::Type>> {
-        for (type_id, _) in self.tree.iter_nodes::<mir::Type>() {
-            let Some(display_name) = self.tree.type_display_name(type_id) else {
-                continue;
-            };
-            if self.strings.get(display_name) == name {
-                return Some(type_id);
-            }
-        }
-
-        None
-    }
-
-    /// Return one frame state id for one lowered program point.
+    /// Return one resume state id for one lowered program point.
     pub(crate) fn frame_state_at(&self, point: ProgramPoint) -> Option<engine::FrameStateId> {
-        self.frame_states.state_id_at(point)
+        self.resume.state_id_at(point)
     }
 
     /// Return the caller return destination implied by one lowered program point.
     pub(crate) fn return_destination_at(&self, point: ProgramPoint) -> Result<Option<mir::Value>> {
-        let Some(frame_state) = self.frame_states.state_id_at(point) else {
+        let Some(frame_state) = self.resume.state_id_at(point) else {
             return Ok(None);
         };
         let destination = self
-            .frame_states
+            .resume
             .state(frame_state)
             .and_then(|state| state.return_destination);
 
@@ -265,8 +255,8 @@ impl fmt::Debug for Program {
                 "functions",
                 &format!("<{} functions>", self.function_id_by_name.len()),
             )
-            .field("frame_layouts", &self.program_layout.frame_layouts.len())
-            .field("frame_states", &self.frame_states.len())
+            .field("frame_layouts", &self.layout.frame_layouts.len())
+            .field("resume", &self.resume.len())
             .field("statics", &self.statics.len())
             .finish_non_exhaustive()
     }
@@ -283,14 +273,34 @@ struct InitializerRange {
     byte_len: usize,
 }
 
+/// Layout lookup for static initializer encoding.
+trait TypeLayoutLookup {
+    /// Return one compiled VM layout by MIR type.
+    fn layout_for(&self, ty: mir::LocalNodeId<mir::Type>) -> Option<&Layout>;
+}
+
+impl TypeLayoutLookup for TypeTable {
+    /// Return one compiled VM layout by MIR type.
+    fn layout_for(&self, ty: mir::LocalNodeId<mir::Type>) -> Option<&Layout> {
+        self.layout(ty)
+    }
+}
+
+impl TypeLayoutLookup for HashMap<mir::LocalNodeId<mir::Type>, Layout> {
+    /// Return one compiled VM layout by MIR type.
+    fn layout_for(&self, ty: mir::LocalNodeId<mir::Type>) -> Option<&Layout> {
+        self.get(&ty)
+    }
+}
+
 /// Encode one static initializer into bytes.
 fn initializer_bytes(
     tree: &mir::Tree,
-    layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
+    types: &impl TypeLayoutLookup,
     initializer: &mir::GlobalInitializer,
     ty: mir::LocalNodeId<mir::Type>,
 ) -> Result<Vec<u8>> {
-    let layout = layouts.get(&ty).ok_or_else(|| Error::TypeMismatch {
+    let layout = types.layout_for(ty).ok_or_else(|| Error::TypeMismatch {
         expected: "compiled initializer layout".to_string(),
         actual: format!("{ty:?}"),
     })?;
@@ -301,7 +311,7 @@ fn initializer_bytes(
 
     match initializer {
         mir::GlobalInitializer::Zero => {
-            validate_zero_initializer(tree, layouts, ty)?;
+            validate_zero_initializer(tree, types, ty)?;
 
             Ok(vec![0; layout.byte_len])
         }
@@ -316,7 +326,7 @@ fn initializer_bytes(
             Ok(bytes.clone())
         }
         mir::GlobalInitializer::Aggregate(elements) => {
-            payload_initializer_bytes(tree, layouts, elements, ty)
+            payload_initializer_bytes(tree, types, elements, ty)
         }
         mir::GlobalInitializer::Scalar(_) | mir::GlobalInitializer::FunctionAddress(_) => {
             Err(Error::TypeMismatch {
@@ -441,10 +451,10 @@ fn constant_scalar_bytes(constant: &mir::Constant, byte_len: usize) -> Result<Ve
 /// Validate one zero initializer against the declared type.
 fn validate_zero_initializer(
     tree: &mir::Tree,
-    layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
+    types: &impl TypeLayoutLookup,
     ty: mir::LocalNodeId<mir::Type>,
 ) -> Result<()> {
-    let layout = layouts.get(&ty).ok_or_else(|| Error::TypeMismatch {
+    let layout = types.layout_for(ty).ok_or_else(|| Error::TypeMismatch {
         expected: "compiled initializer layout".to_string(),
         actual: format!("{ty:?}"),
     })?;
@@ -455,8 +465,8 @@ fn validate_zero_initializer(
         return Ok(());
     }
 
-    for range in initializer_ranges(layouts, ty)? {
-        validate_zero_initializer(tree, layouts, range.ty)?;
+    for range in initializer_ranges(types, ty)? {
+        validate_zero_initializer(tree, types, range.ty)?;
     }
 
     Ok(())
@@ -497,15 +507,15 @@ fn validate_zero_scalar_type(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) 
 /// Encode one payload initializer into bytes.
 fn payload_initializer_bytes(
     tree: &mir::Tree,
-    layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
+    types: &impl TypeLayoutLookup,
     elements: &[mir::GlobalInitializer],
     ty: mir::LocalNodeId<mir::Type>,
 ) -> Result<Vec<u8>> {
-    let layout = layouts.get(&ty).ok_or_else(|| Error::TypeMismatch {
+    let layout = types.layout_for(ty).ok_or_else(|| Error::TypeMismatch {
         expected: "compiled payload layout".to_string(),
         actual: format!("{ty:?}"),
     })?;
-    let ranges = initializer_ranges(layouts, ty)?;
+    let ranges = initializer_ranges(types, ty)?;
     if elements.len() != ranges.len() {
         return Err(Error::TypeMismatch {
             expected: format!("{} initializer elements", ranges.len()),
@@ -515,7 +525,7 @@ fn payload_initializer_bytes(
 
     let mut bytes = vec![0u8; layout.byte_len];
     for (element, range) in elements.iter().zip(ranges.into_iter()) {
-        let value_bytes = initializer_bytes(tree, layouts, element, range.ty)?;
+        let value_bytes = initializer_bytes(tree, types, element, range.ty)?;
         if value_bytes.len() != range.byte_len {
             return Err(Error::TypeMismatch {
                 expected: format!("{} initializer bytes", range.byte_len),
@@ -538,10 +548,10 @@ fn payload_initializer_bytes(
 
 /// Return initializer byte ranges for one payload type.
 fn initializer_ranges(
-    layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
+    types: &impl TypeLayoutLookup,
     ty: mir::LocalNodeId<mir::Type>,
 ) -> Result<Vec<InitializerRange>> {
-    let layout = layouts.get(&ty).ok_or_else(|| Error::TypeMismatch {
+    let layout = types.layout_for(ty).ok_or_else(|| Error::TypeMismatch {
         expected: "compiled payload layout".to_string(),
         actual: format!("{ty:?}"),
     })?;
@@ -589,8 +599,8 @@ struct ProgramBuilder {
     shared_heap_options: heap::HeapOptions,
     tree: mir::Tree,
     strings: StringPool,
-    program_layout: engine::ProgramLayout,
-    frame_states: FrameStateTable,
+    layout: engine::ProgramLayout,
+    resume: ResumeTable,
 }
 
 impl ProgramBuilder {
@@ -606,8 +616,8 @@ impl ProgramBuilder {
             shared_heap_options,
             tree,
             strings,
-            program_layout: engine::ProgramLayout::default(),
-            frame_states: FrameStateTable::default(),
+            layout: engine::ProgramLayout::default(),
+            resume: ResumeTable::default(),
         }
     }
 
@@ -617,28 +627,29 @@ impl ProgramBuilder {
         let (function_ids, target_by_id) = self.build_function_targets();
         let type_layouts = build_layouts(&self.tree)?;
         let layout_id_by_type = self.build_layout_id_map(&type_layouts)?;
-        let layouts = self.build_layout_table(&type_layouts, &layout_id_by_type)?;
-        let layout_index = LayoutIndex::new(layouts, type_layouts, layout_id_by_type);
-        let statics = self.build_statics(layout_index.type_layouts())?;
+        let heap_layouts = self.build_layout_table(&type_layouts, &layout_id_by_type)?;
+        let statics = self.build_statics(&type_layouts)?;
         let mut side_table = SideTableBuilder::default();
         let functions = self.build_functions(
             &function_ids,
             &target_by_id,
-            layout_index.type_layouts(),
-            layout_index.layout_ids(),
+            &type_layouts,
+            &layout_id_by_type,
             &mut side_table,
         )?;
         let side_table = side_table.finish();
         let functions = FunctionTable::new(functions, target_by_id);
+        let types = TypeTable::new(type_layouts, layout_id_by_type)?;
 
         Ok(Program {
             tree: self.tree,
             strings: self.strings,
             function_id_by_name,
             statics,
-            layout_index,
-            program_layout: self.program_layout,
-            frame_states: self.frame_states,
+            types,
+            heap_layouts,
+            layout: self.layout,
+            resume: self.resume,
             functions,
             side_table,
         })
@@ -756,7 +767,7 @@ impl ProgramBuilder {
         Ok(layout_id_by_type)
     }
 
-    /// Build the MIR layout table from the program layouts.
+    /// Build the MIR layout table from compiled type layouts.
     fn build_layout_table(
         &self,
         layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
@@ -776,7 +787,7 @@ impl ProgramBuilder {
             fields: Vec::new(),
         });
 
-        // program layouts
+        // compiled type layouts
         for (type_id, layout_id) in layout_id_by_type {
             let layout = layouts
                 .get(type_id)
@@ -795,15 +806,15 @@ impl ProgramBuilder {
                     fields: Vec::new(),
                 },
             };
-            let layout_index = layout_id.index();
+            let index = layout_id.index();
 
-            if layout_index >= table.layouts.len() {
+            if index >= table.layouts.len() {
                 return Err(Error::InvariantViolation {
                     context: format!("layout id out of range: {layout_id:?}"),
                 });
             }
 
-            table.layouts[layout_index] = module_layout;
+            table.layouts[index] = module_layout;
         }
 
         Ok(table)
@@ -886,16 +897,16 @@ impl ProgramBuilder {
         // derive the logical frame shape before lowering
         let frame_layout = self.build_frame_layout(function, &value_types, layouts)?;
         let liveness = { mir::FunctionLiveness::build(function, &self.tree) };
-        let (yield_frame_states, call_frame_states) =
-            self.build_frame_states(function_id, &frame_layout, &liveness)?;
+        let (yield_resume, call_resume) =
+            self.build_resume(function_id, &frame_layout, &liveness)?;
 
         // lower the function with the preassigned yield resume ids
         let function = lower_function(
             &self.tree,
             function_id,
             &frame_layout,
-            &yield_frame_states,
-            &call_frame_states,
+            &yield_resume,
+            &call_resume,
             call_targets,
             layouts,
             layout_id_by_type,
@@ -908,14 +919,14 @@ impl ProgramBuilder {
             context: format!("program function {function_id:?}"),
         })?;
 
-        // append the frame layout before assigning frame states
-        self.program_layout.frame_layouts.push(frame_layout.clone());
+        // append the frame layout before assigning resume states
+        self.layout.frame_layouts.push(frame_layout.clone());
 
         // append states for every lowered instruction point
         for block in &function.blocks {
             for (pc, source_point) in block.source_point_by_pc.iter().copied().enumerate() {
                 let point = ProgramPoint::new(function_id, block.mir_block, pc as u32);
-                let frame_state_id = self.frame_states.next_id();
+                let frame_state_id = self.resume.next_id();
                 let return_destination = self.return_destination(block.mir_block, source_point)?;
 
                 self.append_frame_state(
@@ -1037,7 +1048,7 @@ impl ProgramBuilder {
         });
 
         Ok(engine::FrameLayout {
-            id: engine::FrameLayoutId(self.program_layout.frame_layouts.len() as u32),
+            id: engine::FrameLayoutId(self.layout.frame_layouts.len() as u32),
             slots,
             value_count,
             local_count,
@@ -1086,7 +1097,7 @@ impl ProgramBuilder {
     }
 
     /// Build the semantic resume lookups for one function.
-    fn build_frame_states(
+    fn build_resume(
         &mut self,
         function_id: mir::LocalNodeId<mir::Function>,
         frame_layout: &engine::FrameLayout,
@@ -1096,10 +1107,10 @@ impl ProgramBuilder {
         HashMap<mir::LocalNodeId<mir::Block>, engine::FrameStateId>,
     )> {
         let block_ids = self.tree.get(function_id).blocks.clone();
-        let mut yield_frame_states = HashMap::new();
-        let mut call_frame_states = HashMap::new();
+        let mut yield_resume = HashMap::new();
+        let mut call_resume = HashMap::new();
 
-        // assign frame states to suspension and call edges
+        // assign resume states to suspension and call edges
         for block_id in block_ids {
             let yield_edge = {
                 let block = self.tree.get(block_id);
@@ -1141,7 +1152,7 @@ impl ProgramBuilder {
                     received_value,
                 )?;
 
-                yield_frame_states.insert(block_id, frame_state_id);
+                yield_resume.insert(block_id, frame_state_id);
                 continue;
             }
 
@@ -1186,11 +1197,11 @@ impl ProgramBuilder {
                     received_value,
                 )?;
 
-                call_frame_states.insert(block_id, target_state_id);
+                call_resume.insert(block_id, target_state_id);
             }
         }
 
-        Ok((yield_frame_states, call_frame_states))
+        Ok((yield_resume, call_resume))
     }
 
     /// Return the trailing received value for one edge when present.
@@ -1219,7 +1230,7 @@ impl ProgramBuilder {
         Ok(None)
     }
 
-    /// Append one frame state and its entry recipe.
+    /// Append one resume state and its entry recipe.
     fn append_entry_state(
         &mut self,
         function_id: mir::LocalNodeId<mir::Function>,
@@ -1271,7 +1282,7 @@ impl ProgramBuilder {
                 .transpose()?,
         };
 
-        let frame_state_id = self.frame_states.next_id();
+        let frame_state_id = self.resume.next_id();
         let point = ProgramPoint::new(function_id, block, 0);
 
         self.append_frame_state(
@@ -1288,7 +1299,7 @@ impl ProgramBuilder {
         Ok(frame_state_id)
     }
 
-    /// Append one frame state and its attached metadata.
+    /// Append one resume state and its attached metadata.
     fn append_frame_state(
         &mut self,
         frame_layout: &engine::FrameLayout,
@@ -1334,29 +1345,29 @@ impl ProgramBuilder {
         let debug_point =
             mir::DebugPoint::new(point.function, block, source_point.unwrap_or_default());
 
-        self.program_layout.frame_states.push(engine::FrameState {
+        self.layout.frame_states.push(engine::FrameState {
             id: frame_state,
             point: engine::InstructionPoint {
                 function: engine::FunctionId(point.function.id),
                 block: engine::BlockId(point.block.id),
                 instruction: engine::InstructionIndex(point.pc),
             },
+            materialization,
         });
-        self.frame_states.push(
+        self.resume.push(
             frame_state,
-            FrameState {
+            ResumeState {
                 point,
                 debug_point,
                 entry: frame_entry,
                 return_destination,
-                materialization,
             },
         );
 
         Ok(())
     }
 
-    /// Return the values materialized at one frame state.
+    /// Return the values materialized at one resume state.
     fn materialized_values(
         &self,
         frame_layout: &engine::FrameLayout,
@@ -1405,7 +1416,7 @@ impl ProgramBuilder {
         Ok(values)
     }
 
-    /// Return the locals materialized at one frame state.
+    /// Return the locals materialized at one resume state.
     fn materialized_locals(
         &self,
         liveness: &mir::FunctionLiveness,
@@ -1414,7 +1425,7 @@ impl ProgramBuilder {
         liveness.local_live_in(block).clone()
     }
 
-    /// Return whether one frame slot is materialized at this frame state.
+    /// Return whether one frame slot is materialized at this resume state.
     fn is_materialized_slot(
         &self,
         layout: &engine::FrameLayout,

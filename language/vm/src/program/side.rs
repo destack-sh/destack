@@ -248,8 +248,6 @@ pub(crate) struct CallableBind {
 /// Direct function call.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Call {
-    /// The optional destination value.
-    pub(crate) dest: Option<mir::Value>,
     /// The callee function index.
     pub(crate) function: u32,
     /// The resolved call target.
@@ -276,8 +274,6 @@ pub(crate) struct CallBranch {
 /// Class method call.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct CallClass {
-    /// The optional destination value.
-    pub(crate) dest: Option<mir::Value>,
     /// The receiver word offset.
     pub(crate) receiver_offset: u32,
     /// The dispatch table field projection.
@@ -306,8 +302,6 @@ pub(crate) struct CallClassBranch {
 /// Interface method call.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct CallInterface {
-    /// The optional destination value.
-    pub(crate) dest: Option<mir::Value>,
     /// The receiver word offset.
     pub(crate) receiver_offset: u32,
     /// The interface table field projection.
@@ -336,8 +330,6 @@ pub(crate) struct CallInterfaceBranch {
 /// Indirect function call.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct CallIndirect {
-    /// The optional destination value.
-    pub(crate) dest: Option<mir::Value>,
     /// The callee word offset.
     pub(crate) callee_offset: u32,
     /// The expected callable signature.
