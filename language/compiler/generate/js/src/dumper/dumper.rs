@@ -490,7 +490,7 @@ impl_dump_display! {
     js::BindingKind,
     js::BindingOperator,
     js::BindingAnchor,
-    js::DependencySpace,
+    js::DependencyForm,
     js::DependencyBinding,
     js::FunctionForm,
     js::FunctionRole,
@@ -675,14 +675,14 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
     ) {
         match statement {
             js::Statement::Import {
-                space,
+                form,
                 target,
                 target_module,
                 items: _,
                 attributes: _,
             } => {
                 self.node("js::Statement::Import", id.id)
-                    .field("space", space)
+                    .field("form", form)
                     .field("target", target)
                     .field_optional(
                         "target_module",
@@ -691,14 +691,14 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
                     .end();
             }
             js::Statement::Export {
-                space,
+                form,
                 target,
                 target_module,
                 items: _,
                 attributes: _,
             } => {
                 self.node("js::Statement::Export", id.id)
-                    .field("space", space)
+                    .field("form", form)
                     .field_optional("target", target)
                     .field_optional(
                         "target_module",
@@ -1086,18 +1086,6 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
                     .field("is_ambient", is_ambient)
                     .end();
             }
-            js::Declaration::Namespace(js::NamespaceDeclaration {
-                name,
-                export,
-                is_ambient,
-                statements: _,
-            }) => {
-                self.node("js::Declaration::Namespace", id.id)
-                    .field_optional("name", name)
-                    .field_optional("export", export)
-                    .field("is_ambient", is_ambient)
-                    .end();
-            }
             js::Declaration::Type(js::TypeDeclaration {
                 name,
                 export,
@@ -1284,7 +1272,7 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
     ) {
         self.node("js::DependencyItem", id.id)
             .field("binding", &dependency_item.binding)
-            .field_optional("space", &dependency_item.space)
+            .field_optional("form", &dependency_item.form)
             .field_optional("name", &dependency_item.name)
             .field_optional("alias", &dependency_item.alias)
             .end();

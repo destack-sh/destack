@@ -380,7 +380,7 @@ impl ModuleLowerer<'_> {
             }
 
             dir::Expression::Import {
-                space,
+                form,
                 target,
                 items,
                 attributes,
@@ -388,7 +388,7 @@ impl ModuleLowerer<'_> {
                 let target = *target;
                 let items = items
                     .as_ref()
-                    .map(|items| self.lower_dependency_items(*space, items.as_slice()))
+                    .map(|items| self.lower_dependency_items(*form, items.as_slice()))
                     .transpose()?;
                 let attributes = attributes
                     .as_ref()
@@ -397,9 +397,9 @@ impl ModuleLowerer<'_> {
                     })
                     .transpose()?;
                 let target_module = self.dependency_target_module(expression_id.into_any());
-                let space = self.lower_dependency_space(*space);
+                let form = self.lower_dependency_form(*form);
                 let statement = js::Statement::Import {
-                    space,
+                    form,
                     target,
                     target_module,
                     items,
@@ -410,21 +410,21 @@ impl ModuleLowerer<'_> {
                     .into_any()
             }
             dir::Expression::Export {
-                space,
+                form,
                 target,
                 items,
                 attributes,
             } => {
-                let items = self.lower_dependency_items(*space, items.as_slice())?;
+                let items = self.lower_dependency_items(*form, items.as_slice())?;
                 let attributes = attributes
                     .as_ref()
                     .map(|attributes| {
                         self.lower_import_attributes(expression_id.into_any(), attributes)
                     })
                     .transpose()?;
-                let space = self.lower_dependency_space(*space);
+                let form = self.lower_dependency_form(*form);
                 let statement = js::Statement::Export {
-                    space,
+                    form,
                     target: *target,
                     target_module: self.dependency_target_module(expression_id.into_any()),
                     items,
