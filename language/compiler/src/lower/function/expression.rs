@@ -73,9 +73,9 @@ impl FunctionLowerer<'_> {
             return Ok((value, self.context.type_lowerer.ty_bool));
         }
 
-        // handle nullable reference comparisons
+        // handle null reference comparisons
         if let Some(value) =
-            self.lower_nullable_reference_comparison(expression_id, left, operator, right)?
+            self.lower_null_reference_comparison(expression_id, left, operator, right)?
         {
             return Ok((value, self.context.type_lowerer.ty_bool));
         }
@@ -291,7 +291,7 @@ impl FunctionLowerer<'_> {
         // union types use the tag field for runtime checks
         let is_union_value = matches!(
             self.context.types.get_type(left_type_id),
-            dir::Type::Union { .. }
+            dir::Type::Union(_)
         );
         if guard_entry == dir::GuardEntry::UnionTag && !is_union_value {
             return Err(LowerError::Internal {
@@ -517,8 +517,8 @@ impl FunctionLowerer<'_> {
         Ok(self.state.builder.cast(operator, value, target_type))
     }
 
-    /// Lower null comparisons against nullable references.
-    fn lower_nullable_reference_comparison(
+    /// Lower null comparisons against references that allow null.
+    fn lower_null_reference_comparison(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         left: dir::LocalNodeId<dir::Expression>,
@@ -540,7 +540,7 @@ impl FunctionLowerer<'_> {
         let left = self.unwrap_expression(left);
         let right = self.unwrap_expression(right);
 
-        // match nullable comparisons with null literals
+        // match null comparisons
         let (value_id, literal) = match (
             self.type_literal_for_expression(left),
             self.type_literal_for_expression(right),
@@ -555,19 +555,19 @@ impl FunctionLowerer<'_> {
             return Ok(None);
         }
 
-        // lower the operand and confirm nullable reference type
+        // lower the operand and confirm it allows null
         let (value, value_type) = self.lower_value_expression(value_id)?;
-        let is_nullable_reference = matches!(
+        let is_null_reference = matches!(
             self.state.builder.tree().get(value_type),
             mir::Type::Reference {
-                is_nullable: true,
+                nullability: mir::Nullability::Null | mir::Nullability::NullOrUndefined,
                 ..
             } | mir::Type::TensorView {
-                is_nullable: true,
+                nullability: mir::Nullability::Null | mir::Nullability::NullOrUndefined,
                 ..
             }
         );
-        if !is_nullable_reference {
+        if !is_null_reference {
             return Ok(None);
         }
 

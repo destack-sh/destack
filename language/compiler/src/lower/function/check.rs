@@ -159,7 +159,7 @@ impl FunctionLowerer<'_> {
         Ok(())
     }
 
-    /// Emit a null check for a nullable reference when enabled.
+    /// Emit a null check for a reference that allows null.
     pub(crate) fn emit_null_check(
         &mut self,
         _expression_id: dir::LocalNodeId<dir::Expression>,
@@ -171,12 +171,12 @@ impl FunctionLowerer<'_> {
             return Ok(());
         }
 
-        // skip non nullable references
-        let mir::Type::Reference { is_nullable, .. } = self.state.builder.tree().get(value_type)
+        // skip references that cannot be null
+        let mir::Type::Reference { nullability, .. } = self.state.builder.tree().get(value_type)
         else {
             return Ok(());
         };
-        if !*is_nullable {
+        if !nullability.allows_null() {
             return Ok(());
         }
 

@@ -6,7 +6,7 @@ use crate::{CompilerError, CompilerResult, LowerError, ScalarType};
 use crate::lower::FunctionLowerer;
 use crate::lower::r#type::{
     DiscriminantKey, DiscriminantLiteral, DiscriminantValue, UnionDiscriminantField, UnionLayout,
-    UnionPayload,
+    VariantPayload,
 };
 
 /// Literal values used for union literal comparisons.
@@ -30,14 +30,14 @@ enum DiscriminantLiteralValue<'a> {
 }
 
 /// Union discriminant comparison data for tag checks.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub(crate) struct UnionTagComparison {
     /// The tag value being compared.
     pub(crate) tag_value: mir::Value,
     /// The tag constant used for comparison.
     pub(crate) tag_const: mir::Value,
-    /// The expected tag index.
-    pub(crate) tag_index: usize,
+    /// The expected tag constant.
+    pub(crate) expected: mir::Constant,
     /// Whether the comparison expects equality.
     pub(crate) is_equal: bool,
 }
@@ -51,8 +51,10 @@ impl FunctionLowerer<'_> {
     ) -> CompilerResult<mir::Value> {
         // build the zero value based on the payload strategy
         match layout.payload {
-            UnionPayload::Inline => self.inline_union_payload_zero_value(layout.payload_type, node),
-            UnionPayload::Boxed => self.zero_value_for_type(layout.payload_type, node),
+            VariantPayload::Inline => {
+                self.inline_union_payload_zero_value(layout.payload_type, node)
+            }
+            VariantPayload::Boxed => self.zero_value_for_type(layout.payload_type, node),
         }
     }
 
@@ -70,7 +72,7 @@ impl FunctionLowerer<'_> {
             payload_type,
             mir::Access::Mutable,
             mir::AddressSpace::Stack,
-            false,
+            mir::Nullability::None,
         );
         let payload_ptr = self
             .state
@@ -87,7 +89,7 @@ impl FunctionLowerer<'_> {
             value_type,
             mir::Access::Mutable,
             mir::AddressSpace::Stack,
-            false,
+            mir::Nullability::None,
         );
         let value_ptr = self.state.builder.bitcast(payload_ptr, value_ref_type);
         self.state.builder.store(value_ptr, value);
@@ -110,7 +112,7 @@ impl FunctionLowerer<'_> {
             payload_type,
             mir::Access::Mutable,
             mir::AddressSpace::Stack,
-            false,
+            mir::Nullability::None,
         );
         let payload_ptr = self
             .state
@@ -126,7 +128,7 @@ impl FunctionLowerer<'_> {
             target_type,
             mir::Access::Mutable,
             mir::AddressSpace::Stack,
-            false,
+            mir::Nullability::None,
         );
         let target_ptr = self.state.builder.bitcast(payload_ptr, target_ref_type);
         Ok(self.state.builder.load(target_ptr, target_type))
@@ -154,33 +156,17 @@ impl FunctionLowerer<'_> {
             .map_err(CompilerError::from)?;
 
         // build the tag constant
-        let (tag_width, tag_signed) = match self.state.builder.tree().get(layout.tag_type) {
-            mir::Type::Int {
-                width,
-                is_signed: signed,
-            } => (*width, *signed),
-            _ => {
-                return Err(LowerError::UnsupportedConstruct {
-                    anchor: self.diagnostic_anchor(node),
-                    message: "union tag must be an integer type".to_string(),
-                }
-                .into());
-            }
-        };
-        let tag_value = self
-            .state
-            .builder
-            .iconst(tag_index as i128, tag_width, tag_signed);
+        let tag_value = self.union_tag_constant(layout, tag_index)?;
 
         // build the union payload
         let payload = match layout.payload {
-            UnionPayload::Inline => self.inline_union_payload_from_value(
+            VariantPayload::Inline => self.inline_union_payload_from_value(
                 layout.payload_type,
                 variant_value,
                 variant_mir_type,
                 node,
             )?,
-            UnionPayload::Boxed => {
+            VariantPayload::Boxed => {
                 let boxed = self.box_value(variant_value, variant_mir_type);
                 self.state.builder.bitcast(boxed, layout.payload_type)
             }
@@ -366,7 +352,7 @@ impl FunctionLowerer<'_> {
         Ok(Some(UnionTagComparison {
             tag_value,
             tag_const,
-            tag_index: tag_index as usize,
+            expected: self.union_tag_constant_value(&layout, tag_index as usize)?,
             is_equal,
         }))
     }
@@ -451,12 +437,12 @@ impl FunctionLowerer<'_> {
         let right_type_id = self.type_for_expression_or_error(right)?;
         let (union_expr, literal_expr_id, union_type_id) = if matches!(
             self.context.types.get_type(left_type_id),
-            dir::Type::Union { .. }
+            dir::Type::Union(_)
         ) {
             (left, right, left_type_id)
         } else if matches!(
             self.context.types.get_type(right_type_id),
-            dir::Type::Union { .. }
+            dir::Type::Union(_)
         ) {
             (right, left, right_type_id)
         } else {
@@ -637,9 +623,9 @@ impl FunctionLowerer<'_> {
             return Ok(false);
         };
 
-        let constraint = mir::CheckConstraint::Union {
+        let constraint = mir::CheckConstraint::Variant {
             value: comparison.tag_value.into(),
-            expected: comparison.tag_index as u64,
+            expected: comparison.expected,
         };
 
         // swap branches for inequality comparisons
@@ -664,7 +650,7 @@ impl FunctionLowerer<'_> {
         // resolve the receiver type
         let receiver_type_id = self.type_for_expression(receiver_id)?;
         let receiver_type = self.context.types.get_type(receiver_type_id);
-        if !matches!(receiver_type, dir::Type::Union { .. }) {
+        if !matches!(receiver_type, dir::Type::Union(_)) {
             return None;
         }
 
@@ -829,13 +815,13 @@ impl FunctionLowerer<'_> {
 
         // build the payload for the union
         let payload = match union_layout.payload {
-            UnionPayload::Inline => self.inline_union_payload_from_value(
+            VariantPayload::Inline => self.inline_union_payload_from_value(
                 union_layout.payload_type,
                 literal_value,
                 literal_type,
                 node,
             )?,
-            UnionPayload::Boxed => {
+            VariantPayload::Boxed => {
                 let boxed = self.box_value(literal_value, literal_type);
                 self.state.builder.bitcast(boxed, union_layout.payload_type)
             }
@@ -878,6 +864,41 @@ impl FunctionLowerer<'_> {
             .state
             .builder
             .iconst(tag_index as i128, *width, *signed))
+    }
+
+    /// Build a MIR tag constant for one union tag index.
+    fn union_tag_constant_value(
+        &self,
+        layout: &UnionLayout,
+        tag_index: usize,
+    ) -> CompilerResult<mir::Constant> {
+        let mir::Type::Int { width, is_signed } = self.state.builder.tree().get(layout.tag_type)
+        else {
+            return Err(LowerError::UnsupportedConstruct {
+                anchor: self.diagnostic_anchor(
+                    self.context
+                        .types
+                        .get_type_source(layout.source_types[0])
+                        .into_global(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
+                message: "union tag must be an integer type".to_string(),
+            }
+            .into());
+        };
+
+        if *is_signed {
+            return Ok(mir::Constant::Int {
+                value: tag_index as i128,
+                width: *width,
+                is_signed: true,
+            });
+        }
+
+        Ok(mir::Constant::UInt {
+            value: tag_index as u128,
+            width: *width,
+        })
     }
 
     /// Lower a discriminant literal into a MIR value.

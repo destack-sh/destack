@@ -127,7 +127,7 @@ impl ModuleLowerer<'_> {
             err_mir_type,
             mir::Access::Mutable,
             mir::AddressSpace::Stack,
-            false,
+            mir::Nullability::None,
         );
         let error_id_type = self.builder.type_u64();
         let parameters = vec![out_ptr_type, error_id_type];
@@ -140,7 +140,7 @@ impl ModuleLowerer<'_> {
 
         let function_id =
             self.builder
-                .extern_function(&binding.name, &parameters, status_layout.ty);
+                .external_function(&binding.name, &parameters, status_layout.ty);
         self.register_function_binding_for_symbol(symbol, function_id, signature)?;
         self.binding_symbols.insert(symbol);
 

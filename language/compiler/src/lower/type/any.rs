@@ -66,7 +66,7 @@ impl TypeLowerer<'_> {
             self.ty_void,
             mir::Access::Readonly,
             mir::AddressSpace::Static,
-            false,
+            mir::Nullability::None,
         );
 
         // compute field sizes and alignments

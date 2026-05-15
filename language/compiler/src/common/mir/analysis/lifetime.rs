@@ -364,7 +364,7 @@ b0:
             address_space: mir::AddressSpace::Local,
             access: mir::Access::Readonly,
             pointee: int_ty.into(),
-            is_nullable: false,
+            nullability: mir::Nullability::None,
         });
         let signature = program.tree.insert_type(mir::Type::FunctionSignature {
             parameters: vec![int_ty.into()],
@@ -396,7 +396,7 @@ b0:
             address_space: mir::AddressSpace::Local,
             access: mir::Access::Readonly,
             pointee: int_ty.into(),
-            is_nullable: false,
+            nullability: mir::Nullability::None,
         });
         let signature = program.tree.insert_type(mir::Type::FunctionSignature {
             parameters: vec![int_ty.into(), borrowed_ref.into()],

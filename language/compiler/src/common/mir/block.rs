@@ -1463,10 +1463,12 @@ pub fn terminator_substitute_uses(
                     value: substitute(*value),
                     expected: *expected,
                 },
-                mir::CheckConstraint::Union { value, expected } => mir::CheckConstraint::Union {
-                    value: substitute(*value),
-                    expected: *expected,
-                },
+                mir::CheckConstraint::Variant { value, expected } => {
+                    mir::CheckConstraint::Variant {
+                        value: substitute(*value),
+                        expected: expected.clone(),
+                    }
+                }
                 mir::CheckConstraint::ReceiverType { receiver, expected } => {
                     mir::CheckConstraint::ReceiverType {
                         receiver: substitute(*receiver),

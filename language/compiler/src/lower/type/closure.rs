@@ -128,7 +128,7 @@ impl ModuleLowerer<'_> {
             env_type,
             mir::Access::Mutable,
             mir::AddressSpace::Local,
-            false,
+            mir::Nullability::None,
         );
 
         // cache the env layout for the function
@@ -167,7 +167,7 @@ impl ModuleLowerer<'_> {
                     value_type,
                     access,
                     mir::AddressSpace::Local,
-                    false,
+                    mir::Nullability::None,
                 )
             }
             dir::CaptureMode::Copy | dir::CaptureMode::Move => value_type,
@@ -234,7 +234,7 @@ impl ModuleLowerer<'_> {
             env_type,
             mir::Access::Mutable,
             mir::AddressSpace::Local,
-            true,
+            mir::Nullability::Null,
         );
         self.empty_function_environment_type = Some(env_type);
         self.empty_function_environment_pointer_type = Some(env_pointer_type);
@@ -255,7 +255,7 @@ impl ModuleLowerer<'_> {
             env_type,
             mir::Access::Mutable,
             mir::AddressSpace::Local,
-            true,
+            mir::Nullability::Null,
         );
         self.empty_function_environment_pointer_type = Some(env_pointer_type);
         env_pointer_type

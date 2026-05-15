@@ -39,7 +39,7 @@ impl FunctionLowerer<'_> {
             global.ty,
             access_for_storage_mutability(global.mutability),
             global.space.clone(),
-            false,
+            mir::Nullability::None,
         );
         let addr = self.state.builder.global_addr(global.global, addr_type);
         if addr_type == result_type {

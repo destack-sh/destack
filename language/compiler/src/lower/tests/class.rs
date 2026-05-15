@@ -131,12 +131,12 @@ type PacketHeader {
     packetSize: int32;
 }
 
-global PacketHeader#vtable: ref?<void, raw, readonly, space(static)>[2], readonly, space(static) = zeroInit
-global MessageHeader#vtable: ref?<void, raw, readonly, space(static)>[3], readonly, space(static) = zeroInit
+readonly global PacketHeader#vtable: [ref<void, raw, readonly, space(static), nullable>; 2], space(static) = zeroInit
+readonly global MessageHeader#vtable: [ref<void, raw, readonly, space(static), nullable>; 3], space(static) = zeroInit
 
 function readPacketSize(value0: int32): int32 {
 entry0(value0: int32):
-    value1: ref<ref?<void, raw, readonly, space(static)>[2], raw, readonly, space(static)> = global.address PacketHeader#vtable
+    value1: ref<[ref<void, raw, readonly, space(static), nullable>; 2], raw, readonly, space(static)> = global.address PacketHeader#vtable
     value2: ref<void, raw, readonly, space(static)> = cast.bit value1 -> ref<void, raw, readonly, space(static)>
     value3: PacketHeader = struct PacketHeader (value2, value0)
     value4: ref<PacketHeader, managed, readonly> = new PacketHeader
@@ -305,8 +305,8 @@ type Dog {
     breed: int32;
 }
 
-global Animal#vtable: ref?<void, raw, readonly, space(static)>[3], readonly, space(static) = zeroInit
-global Dog#vtable: ref?<void, raw, readonly, space(static)>[3], readonly, space(static) = zeroInit
+readonly global Animal#vtable: [ref<void, raw, readonly, space(static), nullable>; 3], space(static) = zeroInit
+readonly global Dog#vtable: [ref<void, raw, readonly, space(static), nullable>; 3], space(static) = zeroInit
 
 function useDog(value0: ref<Dog, managed, readonly>): int32 {
 entry0(value0: ref<Dog, managed, readonly>):
@@ -384,8 +384,8 @@ type Vehicle {
     vtable: ref<void, raw, readonly, space(static)>;
 }
 
-global Vehicle#vtable: ref?<void, raw, readonly, space(static)>[4], readonly, space(static) = zeroInit
-global Car#vtable: ref?<void, raw, readonly, space(static)>[5], readonly, space(static) = zeroInit
+readonly global Vehicle#vtable: [ref<void, raw, readonly, space(static), nullable>; 4], space(static) = zeroInit
+readonly global Car#vtable: [ref<void, raw, readonly, space(static), nullable>; 5], space(static) = zeroInit
 
 function Vehicle.start(this0: ref<Vehicle, managed, readonly>): int32 {
 entry0(this0: ref<Vehicle, managed, readonly>):
@@ -481,8 +481,8 @@ type FileLogger {
     fileMode: int32;
 }
 
-global Logger#vtable: ref?<void, raw, readonly, space(static)>[3], readonly, space(static) = zeroInit
-global FileLogger#vtable: ref?<void, raw, readonly, space(static)>[3], readonly, space(static) = zeroInit
+readonly global Logger#vtable: [ref<void, raw, readonly, space(static), nullable>; 3], space(static) = zeroInit
+readonly global FileLogger#vtable: [ref<void, raw, readonly, space(static), nullable>; 3], space(static) = zeroInit
 
 function callLogger(value0: ref<Logger, managed, readonly>): int32 {
 entry0(value0: ref<Logger, managed, readonly>):
@@ -551,8 +551,8 @@ type Logger {
     vtable: ref<void, raw, readonly, space(static)>;
 }
 
-global Logger#vtable: ref?<void, raw, readonly, space(static)>[3], readonly, space(static) = zeroInit
-global FileLogger#vtable: ref?<void, raw, readonly, space(static)>[3], readonly, space(static) = zeroInit
+readonly global Logger#vtable: [ref<void, raw, readonly, space(static), nullable>; 3], space(static) = zeroInit
+readonly global FileLogger#vtable: [ref<void, raw, readonly, space(static), nullable>; 3], space(static) = zeroInit
 
 function callLogger(value0: ref<Logger, managed, readonly>): int32 {
 entry0(value0: ref<Logger, managed, readonly>):

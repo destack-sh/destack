@@ -27,7 +27,7 @@ function sum(a: int32, b: int32): int32 {
     let string_alias = test.string_type_alias_definition();
     let expected = r#"
 ${string_alias}
-global ${integer_overflow}: ref<String, managed, readonly>, readonly = "integer overflow"
+readonly global ${integer_overflow}: ref<String, managed, readonly> = "integer overflow"
 function sum(value0: int32, value1: int32): int32 {
 entry0(value0: int32, value1: int32):
     value2: (int32, boolean) = intrinsic.math.arithmetic.overflowing.add(value0, value1)
@@ -112,7 +112,7 @@ function sum(a: uint32, b: uint32): uint32 {
     let string_alias = test.string_type_alias_definition();
     let expected = r#"
 ${string_alias}
-global ${integer_overflow}: ref<String, managed, readonly>, readonly = "integer overflow"
+readonly global ${integer_overflow}: ref<String, managed, readonly> = "integer overflow"
 function sum(value0: uint32, value1: uint32): uint32 {
 entry0(value0: uint32, value1: uint32):
     value2: (uint32, boolean) = intrinsic.math.arithmetic.overflowing.add(value0, value1)
@@ -190,8 +190,8 @@ function quotient(a: int32, b: int32): int32 {
     let string_alias = test.string_type_alias_definition();
     let expected = r#"
 ${string_alias}
-global ${division_by_zero}: ref<String, managed, readonly>, readonly = "division by zero"
-global ${division_overflow}: ref<String, managed, readonly>, readonly = "division overflow"
+readonly global ${division_by_zero}: ref<String, managed, readonly> = "division by zero"
+readonly global ${division_overflow}: ref<String, managed, readonly> = "division overflow"
 function quotient(value0: int32, value1: int32): int32 {
 entry0(value0: int32, value1: int32):
     check zeroDivisor value1 -> block2, block1
@@ -287,8 +287,8 @@ function quotient(a: uint32, b: uint32): uint32 {
     let string_alias = test.string_type_alias_definition();
     let expected = r#"
 ${string_alias}
-global ${division_by_zero}: ref<String, managed, readonly>, readonly = "division by zero"
-global ${division_overflow}: ref<String, managed, readonly>, readonly = "division overflow"
+readonly global ${division_by_zero}: ref<String, managed, readonly> = "division by zero"
+readonly global ${division_overflow}: ref<String, managed, readonly> = "division overflow"
 function quotient(value0: uint32, value1: uint32): uint32 {
 entry0(value0: uint32, value1: uint32):
     check zeroDivisor value1 -> block2, block1
@@ -332,7 +332,7 @@ function shift(value: int32, amount: int32): int32 {
     let string_alias = test.string_type_alias_definition();
     let expected = r#"
 ${string_alias}
-global ${shift_out_of_range}: ref<String, managed, readonly>, readonly = "shift out of range"
+readonly global ${shift_out_of_range}: ref<String, managed, readonly> = "shift out of range"
 function shift(value0: int32, value1: int32): int32 {
 entry0(value0: int32, value1: int32):
     check shiftRange.s value1, 32 -> block2, block1
@@ -413,7 +413,7 @@ function shift(value: uint32, amount: uint32): uint32 {
     let string_alias = test.string_type_alias_definition();
     let expected = r#"
 ${string_alias}
-global ${shift_out_of_range}: ref<String, managed, readonly>, readonly = "shift out of range"
+readonly global ${shift_out_of_range}: ref<String, managed, readonly> = "shift out of range"
 function shift(value0: uint32, value1: uint32): uint32 {
 entry0(value0: uint32, value1: uint32):
     check shiftRange.u value1, 32 -> block2, block1
@@ -438,7 +438,7 @@ fn test_lower_bounds_checks() {
     let module_id = test.add_module(
         "test.ds",
         r#"
-function element(values: int32[4], index: int32): int32 {
+function element(values: [int32; 4], index: int32): int32 {
     return values[index];
 }
 "#,
@@ -455,9 +455,9 @@ function element(values: int32[4], index: int32): int32 {
     let string_alias = test.string_type_alias_definition();
     let expected = r#"
 ${string_alias}
-global ${bounds_check_failed}: ref<String, managed, readonly>, readonly = "bounds check failed"
-function element(value0: int32[4], value1: int32): int32 {
-entry0(value0: int32[4], value1: int32):
+readonly global ${bounds_check_failed}: ref<String, managed, readonly> = "bounds check failed"
+function element(value0: [int32; 4], value1: int32): int32 {
+entry0(value0: [int32; 4], value1: int32):
     value2: int32 = 4int32
     check bounds.s value1, value2, value0 -> block2, block1
 block1:
@@ -481,7 +481,7 @@ fn test_lower_bounds_checks_trap() {
     let module_id = test.add_module(
         "test.ds",
         r#"
-function element(values: int32[4], index: int32): int32 {
+function element(values: [int32; 4], index: int32): int32 {
     return values[index];
 }
 "#,
@@ -498,8 +498,8 @@ function element(values: int32[4], index: int32): int32 {
         module_id,
         "native",
         r#"
-function element(value0: int32[4], value1: int32): int32 {
-entry0(value0: int32[4], value1: int32):
+function element(value0: [int32; 4], value1: int32): int32 {
+entry0(value0: [int32; 4], value1: int32):
     value2: int32 = 4int32
     check bounds.s value1, value2, value0 -> block2, block1
 
@@ -521,7 +521,7 @@ fn test_lower_bounds_checks_unsigned() {
     let module_id = test.add_module(
         "test.ds",
         r#"
-function element(values: int32[4], index: uint32): int32 {
+function element(values: [int32; 4], index: uint32): int32 {
     return values[index];
 }
 "#,
@@ -538,9 +538,9 @@ function element(values: int32[4], index: uint32): int32 {
     let string_alias = test.string_type_alias_definition();
     let expected = r#"
 ${string_alias}
-global ${bounds_check_failed}: ref<String, managed, readonly>, readonly = "bounds check failed"
-function element(value0: int32[4], value1: uint32): int32 {
-entry0(value0: int32[4], value1: uint32):
+readonly global ${bounds_check_failed}: ref<String, managed, readonly> = "bounds check failed"
+function element(value0: [int32; 4], value1: uint32): int32 {
+entry0(value0: [int32; 4], value1: uint32):
     value2: uint32 = 4uint32
     check bounds.u value1, value2, value0 -> block2, block1
 block1:

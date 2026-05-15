@@ -494,7 +494,7 @@ impl<'a> DropPlan<'a> {
             return false;
         };
 
-        matches!(self.tree.get(ty), mir::Type::Union { .. })
+        matches!(self.tree.get(ty), mir::Type::Variant { .. })
     }
 
     /// Return the storage release required for one place.
@@ -606,7 +606,7 @@ impl<'a> DropPlan<'a> {
                 *inner,
                 moved,
             ),
-            mir::Type::Union { .. } => {
+            mir::Type::Variant { .. } => {
                 panic!("partial union drops require active variant metadata")
             }
             ty => {

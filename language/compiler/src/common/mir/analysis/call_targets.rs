@@ -178,8 +178,9 @@ function callee(v0: int32): int32 {
 b0(v0: int32):
     return v0
 }
-function test(v0: fn(int32) -> int32, v1: int32): int32  {
-b0(v0: fn(int32) -> int32, v1: int32) -> v2: int32 = call.indirect v0(v1): (int32) -> int32
+function test(v0: (int32) -> int32, v1: int32): int32  {
+b0(v0: (int32) -> int32, v1: int32):
+    v2: int32 = call.indirect v0(v1): (int32) -> int32
     return v2
 }"#,
         );

@@ -465,7 +465,7 @@ mod tests {
                 width: 32,
                 signed: true,
             }),
-            is_nullable: false,
+            nullability: mir::Nullability::None,
         };
         let ref_f64 = TypeKey::Reference {
             kind: mir::ReferenceKind::Raw,
@@ -473,7 +473,7 @@ mod tests {
             address_space: mir::AddressSpace::Local,
             access: mir::Access::Mutable,
             pointee: Box::new(TypeKey::Float { width: 64 }),
-            is_nullable: false,
+            nullability: mir::Nullability::None,
         };
 
         let loc_ref_i32 = make_loc_with_type(0, ref_i32);
@@ -523,7 +523,7 @@ mod tests {
                 width: 32,
                 signed: true,
             }),
-            is_nullable: false,
+            nullability: mir::Nullability::None,
         };
         let int_ty = TypeKey::Int {
             width: 32,
@@ -550,7 +550,7 @@ mod tests {
                 width: 32,
                 signed: true,
             }),
-            is_nullable: false,
+            nullability: mir::Nullability::None,
         };
 
         let loc1 = make_loc_with_type(0, ref_ty.clone());
@@ -574,7 +574,7 @@ mod tests {
                 width: 32,
                 signed: true,
             }),
-            is_nullable: false,
+            nullability: mir::Nullability::None,
         };
         let ref_shared = TypeKey::Reference {
             kind: mir::ReferenceKind::Raw,
@@ -585,7 +585,7 @@ mod tests {
                 width: 32,
                 signed: true,
             }),
-            is_nullable: false,
+            nullability: mir::Nullability::None,
         };
 
         let loc1 = make_loc_with_type(0, ref_generic);

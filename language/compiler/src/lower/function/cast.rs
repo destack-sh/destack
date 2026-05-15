@@ -3,7 +3,7 @@ use {destack_dir as dir, destack_mir as mir};
 use crate::{CompilerError, CompilerResult, LowerError, ScalarType};
 
 use crate::lower::FunctionLowerer;
-use crate::lower::r#type::UnionPayload;
+use crate::lower::r#type::VariantPayload;
 
 #[allow(clippy::too_many_arguments)]
 impl FunctionLowerer<'_> {
@@ -123,20 +123,20 @@ impl FunctionLowerer<'_> {
                     kind: source_kind,
                     access: source_access,
                     pointee: source_pointee,
-                    is_nullable: source_nullable,
+                    nullability: source_nullability,
                     ..
                 },
                 mir::Type::Reference {
                     kind: target_kind,
                     access: target_access,
                     pointee: target_pointee,
-                    is_nullable: target_nullable,
+                    nullability: target_nullability,
                     ..
                 },
             ) if source_kind == target_kind
                 && source_access == target_access
                 && source_pointee == target_pointee
-                && source_nullable == target_nullable
+                && source_nullability == target_nullability
         )
     }
 
@@ -157,11 +157,11 @@ impl FunctionLowerer<'_> {
 
         let source_is_union = matches!(
             self.context.types.get_type(source_type_id),
-            dir::Type::Union { .. }
+            dir::Type::Union(_)
         );
         let target_is_union = matches!(
             self.context.types.get_type(target_type_id),
-            dir::Type::Union { .. }
+            dir::Type::Union(_)
         );
 
         if target_is_union {
@@ -615,7 +615,7 @@ impl FunctionLowerer<'_> {
                         target_mir_type,
                         mir::Access::Readonly,
                         mir::AddressSpace::Local,
-                        false,
+                        mir::Nullability::None,
                     );
                     let casted = self.state.builder.bitcast(value_ptr, reference_type);
                     self.state.builder.load(casted, target_mir_type)
@@ -657,7 +657,7 @@ impl FunctionLowerer<'_> {
     /// ->
     /// ```mir
     /// v1: uint8 = const 0
-    /// v2: usize[1] = <payload>
+    /// v2: [usize; 1] = <payload>
     /// v3: Union = struct Union (v1, v2)
     /// ```
     pub(crate) fn lower_union_upcast(
@@ -751,13 +751,13 @@ impl FunctionLowerer<'_> {
             // lower the source value into the payload
             let (value, source_mir_type) = self.lower_value_expression(value_id)?;
             match layout.payload {
-                UnionPayload::Inline => self.inline_union_payload_from_value(
+                VariantPayload::Inline => self.inline_union_payload_from_value(
                     layout.payload_type,
                     value,
                     source_mir_type,
                     node,
                 )?,
-                UnionPayload::Boxed => {
+                VariantPayload::Boxed => {
                     let boxed = self.box_value(value, source_mir_type);
                     self.state.builder.bitcast(boxed, layout.payload_type)
                 }
@@ -818,19 +818,19 @@ impl FunctionLowerer<'_> {
             .into_global_any(self.context.module_id)
             .into_anchored(Some(self.context.profile));
         let value = match layout.payload {
-            UnionPayload::Inline => self.inline_union_payload_to_value(
+            VariantPayload::Inline => self.inline_union_payload_to_value(
                 layout.payload_type,
                 payload_value,
                 target_mir_type,
                 node,
             )?,
-            UnionPayload::Boxed => {
+            VariantPayload::Boxed => {
                 let reference_type = self.state.builder.type_reference(
                     mir::ReferenceKind::Managed,
                     target_mir_type,
                     mir::Access::Readonly,
                     mir::AddressSpace::Local,
-                    false,
+                    mir::Nullability::None,
                 );
                 let casted = self.state.builder.bitcast(payload_value, reference_type);
                 self.state.builder.load(casted, target_mir_type)
@@ -841,7 +841,7 @@ impl FunctionLowerer<'_> {
         Ok((value, target_mir_type))
     }
 
-    /// Lower a nullable upcast into a union or nullable reference.
+    /// Lower a nullable upcast into a union or reference that allows null.
     ///
     /// ```ds
     /// function take(node: Node): Node | null {
@@ -856,7 +856,7 @@ impl FunctionLowerer<'_> {
     /// ```
     /// ->
     /// ```mir
-    /// v1: ref?<Node, managed, readonly> = cast.bit v0 -> ref?<Node, managed, readonly>
+    /// v1: ref<Node, managed, readonly, nullable> = cast.bit v0 -> ref<Node, managed, readonly, nullable>
     /// ```
     pub(crate) fn lower_nullable_upcast(
         &mut self,
@@ -873,7 +873,7 @@ impl FunctionLowerer<'_> {
             return self.lower_union_upcast(expression_id, value_id);
         }
 
-        // reject undefined in nullable reference casts
+        // reject undefined in null reference casts
         let source_type_id = self.type_for_expression_or_error(value_id)?;
         if matches!(
             self.context.types.get_type(source_type_id),
@@ -923,7 +923,7 @@ impl FunctionLowerer<'_> {
         Ok((value, target_mir_type))
     }
 
-    /// Lower a nullable downcast into a union or nullable reference.
+    /// Lower a nullable downcast into a union or reference that allows null.
     ///
     /// ```ds
     /// function take(value: Node | null): Node {
@@ -1197,7 +1197,7 @@ impl FunctionLowerer<'_> {
             value_type,
             mir::Access::Readonly,
             mir::AddressSpace::Local,
-            false,
+            mir::Nullability::None,
         );
 
         // allocate and store the value

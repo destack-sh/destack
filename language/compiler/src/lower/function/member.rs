@@ -543,7 +543,7 @@ impl FunctionLowerer<'_> {
     /// Lower an index expression to an element address and load.
     ///
     /// ```ds
-    /// function read(values: int32[3]): int32 {
+    /// function read(values: [int32; 3]): int32 {
     ///     return values[1];
     /// }
     /// ```
@@ -592,7 +592,7 @@ impl FunctionLowerer<'_> {
                 result_type,
                 mir::Access::Readonly,
                 mir::AddressSpace::Frame,
-                false,
+                mir::Nullability::None,
             );
             let pointer = self
                 .state

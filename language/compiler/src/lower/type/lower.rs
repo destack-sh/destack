@@ -646,7 +646,13 @@ impl<'a> TypeLowerer<'a> {
             .form_access(types, form.access)
             .unwrap_or_else(|| self.default_reference_access(kind));
 
-        Ok(builder.type_reference(kind, base_type, access, address_space, false))
+        Ok(builder.type_reference(
+            kind,
+            base_type,
+            access,
+            address_space,
+            mir::Nullability::None,
+        ))
     }
 
     /// Lower a type to its value representation, without default class indirection.
@@ -963,7 +969,7 @@ impl<'a> TypeLowerer<'a> {
             base_type,
             access,
             address_space,
-            false,
+            mir::Nullability::None,
         )))
     }
 
@@ -1037,7 +1043,13 @@ impl<'a> TypeLowerer<'a> {
             .static_form_access(static_arguments)
             .unwrap_or_else(|| self.default_reference_access(kind));
 
-        Ok(builder.type_reference(kind, base_type, access, address_space, false))
+        Ok(builder.type_reference(
+            kind,
+            base_type,
+            access,
+            address_space,
+            mir::Nullability::None,
+        ))
     }
 
     /// Return the default access for one ownership kind.
@@ -1209,7 +1221,7 @@ impl<'a> TypeLowerer<'a> {
             kind,
             access,
             pointee,
-            is_nullable,
+            nullability,
             ..
         } = mir_type
         else {
@@ -1224,7 +1236,14 @@ impl<'a> TypeLowerer<'a> {
             .into());
         };
 
-        Ok(builder.type_reference(kind, pointee, access, address_space, is_nullable))
+        Ok(builder.type_reference_with_lifetime(
+            kind,
+            mir::Lifetime::empty(),
+            pointee,
+            access,
+            address_space,
+            nullability,
+        ))
     }
 
     /// Return the source name for one symbol when artifacts are available.

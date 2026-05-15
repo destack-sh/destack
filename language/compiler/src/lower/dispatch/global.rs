@@ -39,7 +39,7 @@ impl ModuleLowerer<'_> {
             self.type_lowerer.ty_void,
             mir::Access::Readonly,
             mir::AddressSpace::Static,
-            true,
+            mir::Nullability::Null,
         );
         let table_type = self
             .builder
@@ -54,7 +54,7 @@ impl ModuleLowerer<'_> {
             table_type,
             mir::Access::Readonly,
             mir::AddressSpace::Static,
-            false,
+            mir::Nullability::None,
         );
         self.builder.tree_mut().get_mut(global_id).space = mir::AddressSpace::Static;
 
@@ -104,7 +104,7 @@ impl ModuleLowerer<'_> {
             table_type,
             mir::Access::Readonly,
             mir::AddressSpace::Static,
-            false,
+            mir::Nullability::None,
         );
         self.builder.tree_mut().get_mut(global_id).space = mir::AddressSpace::Static;
 

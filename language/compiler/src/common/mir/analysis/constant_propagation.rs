@@ -513,7 +513,7 @@ mod tests {
     fn test_readonly_global_load_not_constant() {
         let test = TestProgram::new(
             r#"
-global flag: boolean, readonly = true
+readonly global flag: boolean = true
 function test(): boolean {
 b0:
     v0: ref<boolean, raw, readonly> = global.address flag
@@ -565,7 +565,7 @@ b0:
     fn test_non_scalar_global_not_constant() {
         let test = TestProgram::new(
             r#"
-global flag: boolean, readonly = zeroInit
+readonly global flag: boolean = zeroInit
 function test(): boolean {
 b0:
     v0: ref<boolean, raw, readonly> = global.address flag
