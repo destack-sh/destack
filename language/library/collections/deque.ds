@@ -114,7 +114,7 @@ extension<T> of Deque<T> implements
     }
 
     /// Replace the element at `index`.
-    indexSet(this: &Deque<T>, index: number, value: T): void {
+    indexSet(this: &exclusive Deque<T>, index: number, value: T): void {
         todo("Deque.indexSet")
     }
 
