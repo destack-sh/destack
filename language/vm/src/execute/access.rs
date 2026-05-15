@@ -74,6 +74,14 @@ fn load_native_bytes(address: usize, destination: *mut u8, destination_len: usiz
     }
 }
 
+/// Store bytes to one native address.
+#[inline(always)]
+fn store_native_bytes(address: usize, bytes: &[u8]) {
+    unsafe {
+        ptr::copy_nonoverlapping(bytes.as_ptr(), address as *mut u8, bytes.len());
+    }
+}
+
 /// Sign extend one loaded scalar.
 #[inline(always)]
 fn sign_extend_scalar(raw: u64, byte_len: usize) -> u64 {
@@ -122,11 +130,12 @@ pub(super) fn store_scalar_at_address<const BYTE_LEN: usize>(address: usize, val
 /// Load one non-native-width unsigned scalar payload from one address.
 #[cold]
 #[inline(never)]
-unsafe fn load_bytewise_unsigned_raw(source: *const u8, byte_len: usize) -> u64 {
+fn load_bytewise_unsigned_raw(source: *const u8, byte_len: usize) -> u64 {
+    let source = unsafe { std::slice::from_raw_parts(source, byte_len) };
     let mut raw = 0u64;
 
-    for index in 0..byte_len {
-        raw |= unsafe { source.add(index).read() as u64 } << (index * 8);
+    for (index, byte) in source.iter().copied().enumerate() {
+        raw |= (byte as u64) << (index * 8);
     }
 
     raw
@@ -155,13 +164,11 @@ fn store_unsigned_raw(address: usize, raw: u64, byte_len: usize) {
 /// Store one non-native-width unsigned scalar payload to one address.
 #[cold]
 #[inline(never)]
-unsafe fn store_bytewise_unsigned_raw(destination: *mut u8, raw: u64, byte_len: usize) {
-    for index in 0..byte_len {
-        unsafe {
-            destination
-                .add(index)
-                .write(((raw >> (index * 8)) & 0xFF) as u8);
-        }
+fn store_bytewise_unsigned_raw(destination: *mut u8, raw: u64, byte_len: usize) {
+    let destination = unsafe { std::slice::from_raw_parts_mut(destination, byte_len) };
+
+    for (index, byte) in destination.iter_mut().enumerate() {
+        *byte = ((raw >> (index * 8)) & 0xFF) as u8;
     }
 }
 
@@ -232,9 +239,7 @@ pub(crate) fn store_raw_bytes(
 ) -> Result<(), Error> {
     let pointer = pointer.as_raw_pointer();
     let address = local_raw_address(machine, pointer, access.byte_offset);
-    unsafe {
-        ptr::copy_nonoverlapping(bytes.as_ptr(), address as *mut u8, bytes.len());
-    }
+    store_native_bytes(address, bytes);
 
     Ok(())
 }
@@ -262,9 +267,7 @@ pub(crate) fn store_shared_raw_bytes(
 ) -> Result<(), Error> {
     let pointer = pointer.as_shared_raw_pointer();
     let address = shared_raw_address(machine, pointer, access.byte_offset);
-    unsafe {
-        ptr::copy_nonoverlapping(bytes.as_ptr(), address as *mut u8, bytes.len());
-    }
+    store_native_bytes(address, bytes);
 
     Ok(())
 }
@@ -651,9 +654,7 @@ pub(crate) fn store_heap_bytes(
 
     let start = access.byte_offset;
     let address = local_heap_address(machine, reference, start);
-    unsafe {
-        ptr::copy_nonoverlapping(bytes.as_ptr(), address as *mut u8, bytes.len());
-    }
+    store_native_bytes(address, bytes);
 
     Ok(())
 }
@@ -687,9 +688,7 @@ pub(crate) fn store_shared_heap_bytes(
 
     let start = access.byte_offset;
     let address = shared_heap_address(machine, reference, start);
-    unsafe {
-        ptr::copy_nonoverlapping(bytes.as_ptr(), address as *mut u8, bytes.len());
-    }
+    store_native_bytes(address, bytes);
 
     Ok(())
 }
@@ -718,9 +717,7 @@ pub(crate) fn store_stack_bytes(
 ) -> Result<(), Error> {
     let pointer = pointer.add_bytes(access.byte_offset);
 
-    unsafe {
-        ptr::copy_nonoverlapping(bytes.as_ptr(), pointer.address() as *mut u8, bytes.len());
-    }
+    store_native_bytes(pointer.address(), bytes);
 
     Ok(())
 }
@@ -754,23 +751,6 @@ pub(crate) fn store_frame_slot_by_layout(
     store_scalar_by_layout_at_address(pointer.address(), slot_layout(access), value);
 }
 
-/// Store bytes into a frame pointer.
-#[inline(always)]
-pub(crate) fn store_frame_bytes(
-    _machine: &mut Machine<'_, '_>,
-    pointer: FramePointer,
-    access: Projection,
-    bytes: &[u8],
-) -> Result<(), Error> {
-    let pointer = pointer.add_bytes(access.byte_offset);
-
-    unsafe {
-        ptr::copy(bytes.as_ptr(), pointer.address() as *mut u8, bytes.len());
-    }
-
-    Ok(())
-}
-
 /// Store one scalar through a static pointer.
 #[inline(always)]
 pub(crate) fn store_static_scalar_by_layout(
@@ -795,9 +775,7 @@ pub(crate) fn store_static_bytes(
 ) -> Result<(), Error> {
     let pointer = pointer.add_bytes(access.byte_offset);
 
-    unsafe {
-        ptr::copy_nonoverlapping(bytes.as_ptr(), pointer.address() as *mut u8, bytes.len());
-    }
+    store_native_bytes(pointer.address(), bytes);
 
     Ok(())
 }

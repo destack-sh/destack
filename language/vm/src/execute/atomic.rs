@@ -12,6 +12,13 @@ use crate::program::{
     AtomicReadModifyWriteShape, AtomicShape, AtomicWidth, Instruction,
 };
 
+macro_rules! atomic_ref {
+    ($address:expr, $atomic:ty, $value:ty) => {{
+        // lowered layouts guarantee atomic width and alignment
+        unsafe { <$atomic>::from_ptr($address as *mut $value) }
+    }};
+}
+
 /// Execute one atomic load.
 pub(crate) fn execute_atomic_load(
     machine: &mut Machine<'_, '_>,
@@ -208,13 +215,11 @@ fn atomic_load(address: usize, shape: AtomicShape) -> Result<u64, Error> {
     let order = shape.order.to_std_load()?;
 
     // compiled layouts guarantee atomic width and alignment
-    let value = unsafe {
-        match shape.width {
-            AtomicWidth::Width8 => AtomicU8::from_ptr(address as *mut u8).load(order) as u64,
-            AtomicWidth::Width16 => AtomicU16::from_ptr(address as *mut u16).load(order) as u64,
-            AtomicWidth::Width32 => AtomicU32::from_ptr(address as *mut u32).load(order) as u64,
-            AtomicWidth::Width64 => AtomicU64::from_ptr(address as *mut u64).load(order),
-        }
+    let value = match shape.width {
+        AtomicWidth::Width8 => atomic_ref!(address, AtomicU8, u8).load(order) as u64,
+        AtomicWidth::Width16 => atomic_ref!(address, AtomicU16, u16).load(order) as u64,
+        AtomicWidth::Width32 => atomic_ref!(address, AtomicU32, u32).load(order) as u64,
+        AtomicWidth::Width64 => atomic_ref!(address, AtomicU64, u64).load(order),
     };
 
     Ok(value)
@@ -226,17 +231,11 @@ fn atomic_store(address: usize, raw: u64, shape: AtomicShape) -> Result<(), Erro
     let order = shape.order.to_std_store()?;
 
     // compiled layouts guarantee atomic width and alignment
-    unsafe {
-        match shape.width {
-            AtomicWidth::Width8 => AtomicU8::from_ptr(address as *mut u8).store(raw as u8, order),
-            AtomicWidth::Width16 => {
-                AtomicU16::from_ptr(address as *mut u16).store(raw as u16, order)
-            }
-            AtomicWidth::Width32 => {
-                AtomicU32::from_ptr(address as *mut u32).store(raw as u32, order)
-            }
-            AtomicWidth::Width64 => AtomicU64::from_ptr(address as *mut u64).store(raw, order),
-        }
+    match shape.width {
+        AtomicWidth::Width8 => atomic_ref!(address, AtomicU8, u8).store(raw as u8, order),
+        AtomicWidth::Width16 => atomic_ref!(address, AtomicU16, u16).store(raw as u16, order),
+        AtomicWidth::Width32 => atomic_ref!(address, AtomicU32, u32).store(raw as u32, order),
+        AtomicWidth::Width64 => atomic_ref!(address, AtomicU64, u64).store(raw, order),
     }
 
     Ok(())
@@ -248,19 +247,11 @@ fn atomic_exchange(address: usize, raw: u64, shape: AtomicShape) -> Result<u64, 
     let order = shape.order.to_std();
 
     // compiled layouts guarantee atomic width and alignment
-    let value = unsafe {
-        match shape.width {
-            AtomicWidth::Width8 => {
-                AtomicU8::from_ptr(address as *mut u8).swap(raw as u8, order) as u64
-            }
-            AtomicWidth::Width16 => {
-                AtomicU16::from_ptr(address as *mut u16).swap(raw as u16, order) as u64
-            }
-            AtomicWidth::Width32 => {
-                AtomicU32::from_ptr(address as *mut u32).swap(raw as u32, order) as u64
-            }
-            AtomicWidth::Width64 => AtomicU64::from_ptr(address as *mut u64).swap(raw, order),
-        }
+    let value = match shape.width {
+        AtomicWidth::Width8 => atomic_ref!(address, AtomicU8, u8).swap(raw as u8, order) as u64,
+        AtomicWidth::Width16 => atomic_ref!(address, AtomicU16, u16).swap(raw as u16, order) as u64,
+        AtomicWidth::Width32 => atomic_ref!(address, AtomicU32, u32).swap(raw as u32, order) as u64,
+        AtomicWidth::Width64 => atomic_ref!(address, AtomicU64, u64).swap(raw, order),
     };
 
     Ok(value)
@@ -280,51 +271,57 @@ fn atomic_compare_exchange(
     let failure = failure_order.to_std_compare_exchange_failure()?;
 
     // compiled layouts guarantee atomic width and alignment
-    let value =
-        unsafe {
-            match shape.width {
-                AtomicWidth::Width8 if is_weak => match AtomicU8::from_ptr(address as *mut u8)
-                    .compare_exchange_weak(expected as u8, new_value as u8, success, failure)
-                {
-                    Ok(old) | Err(old) => old as u64,
-                },
-                AtomicWidth::Width8 => match AtomicU8::from_ptr(address as *mut u8)
-                    .compare_exchange(expected as u8, new_value as u8, success, failure)
-                {
-                    Ok(old) | Err(old) => old as u64,
-                },
-                AtomicWidth::Width16 if is_weak => match AtomicU16::from_ptr(address as *mut u16)
-                    .compare_exchange_weak(expected as u16, new_value as u16, success, failure)
-                {
-                    Ok(old) | Err(old) => old as u64,
-                },
-                AtomicWidth::Width16 => match AtomicU16::from_ptr(address as *mut u16)
-                    .compare_exchange(expected as u16, new_value as u16, success, failure)
-                {
-                    Ok(old) | Err(old) => old as u64,
-                },
-                AtomicWidth::Width32 if is_weak => match AtomicU32::from_ptr(address as *mut u32)
-                    .compare_exchange_weak(expected as u32, new_value as u32, success, failure)
-                {
-                    Ok(old) | Err(old) => old as u64,
-                },
-                AtomicWidth::Width32 => match AtomicU32::from_ptr(address as *mut u32)
-                    .compare_exchange(expected as u32, new_value as u32, success, failure)
-                {
-                    Ok(old) | Err(old) => old as u64,
-                },
-                AtomicWidth::Width64 if is_weak => match AtomicU64::from_ptr(address as *mut u64)
-                    .compare_exchange_weak(expected, new_value, success, failure)
-                {
-                    Ok(old) | Err(old) => old,
-                },
-                AtomicWidth::Width64 => match AtomicU64::from_ptr(address as *mut u64)
-                    .compare_exchange(expected, new_value, success, failure)
-                {
-                    Ok(old) | Err(old) => old,
-                },
-            }
-        };
+    let value = match shape.width {
+        AtomicWidth::Width8 if is_weak => match atomic_ref!(address, AtomicU8, u8)
+            .compare_exchange_weak(expected as u8, new_value as u8, success, failure)
+        {
+            Ok(old) | Err(old) => old as u64,
+        },
+        AtomicWidth::Width8 => match atomic_ref!(address, AtomicU8, u8).compare_exchange(
+            expected as u8,
+            new_value as u8,
+            success,
+            failure,
+        ) {
+            Ok(old) | Err(old) => old as u64,
+        },
+        AtomicWidth::Width16 if is_weak => match atomic_ref!(address, AtomicU16, u16)
+            .compare_exchange_weak(expected as u16, new_value as u16, success, failure)
+        {
+            Ok(old) | Err(old) => old as u64,
+        },
+        AtomicWidth::Width16 => match atomic_ref!(address, AtomicU16, u16).compare_exchange(
+            expected as u16,
+            new_value as u16,
+            success,
+            failure,
+        ) {
+            Ok(old) | Err(old) => old as u64,
+        },
+        AtomicWidth::Width32 if is_weak => match atomic_ref!(address, AtomicU32, u32)
+            .compare_exchange_weak(expected as u32, new_value as u32, success, failure)
+        {
+            Ok(old) | Err(old) => old as u64,
+        },
+        AtomicWidth::Width32 => match atomic_ref!(address, AtomicU32, u32).compare_exchange(
+            expected as u32,
+            new_value as u32,
+            success,
+            failure,
+        ) {
+            Ok(old) | Err(old) => old as u64,
+        },
+        AtomicWidth::Width64 if is_weak => match atomic_ref!(address, AtomicU64, u64)
+            .compare_exchange_weak(expected, new_value, success, failure)
+        {
+            Ok(old) | Err(old) => old,
+        },
+        AtomicWidth::Width64 => match atomic_ref!(address, AtomicU64, u64)
+            .compare_exchange(expected, new_value, success, failure)
+        {
+            Ok(old) | Err(old) => old,
+        },
+    };
 
     Ok(value)
 }
@@ -362,19 +359,17 @@ fn atomic_fetch_add(address: usize, raw: u64, shape: AtomicShape) -> Result<u64,
     let order = shape.order.to_std();
 
     // compiled layouts guarantee atomic width and alignment
-    let value = unsafe {
-        match shape.width {
-            AtomicWidth::Width8 => {
-                AtomicU8::from_ptr(address as *mut u8).fetch_add(raw as u8, order) as u64
-            }
-            AtomicWidth::Width16 => {
-                AtomicU16::from_ptr(address as *mut u16).fetch_add(raw as u16, order) as u64
-            }
-            AtomicWidth::Width32 => {
-                AtomicU32::from_ptr(address as *mut u32).fetch_add(raw as u32, order) as u64
-            }
-            AtomicWidth::Width64 => AtomicU64::from_ptr(address as *mut u64).fetch_add(raw, order),
+    let value = match shape.width {
+        AtomicWidth::Width8 => {
+            atomic_ref!(address, AtomicU8, u8).fetch_add(raw as u8, order) as u64
         }
+        AtomicWidth::Width16 => {
+            atomic_ref!(address, AtomicU16, u16).fetch_add(raw as u16, order) as u64
+        }
+        AtomicWidth::Width32 => {
+            atomic_ref!(address, AtomicU32, u32).fetch_add(raw as u32, order) as u64
+        }
+        AtomicWidth::Width64 => atomic_ref!(address, AtomicU64, u64).fetch_add(raw, order),
     };
 
     Ok(value)
@@ -386,19 +381,17 @@ fn atomic_fetch_sub(address: usize, raw: u64, shape: AtomicShape) -> Result<u64,
     let order = shape.order.to_std();
 
     // compiled layouts guarantee atomic width and alignment
-    let value = unsafe {
-        match shape.width {
-            AtomicWidth::Width8 => {
-                AtomicU8::from_ptr(address as *mut u8).fetch_sub(raw as u8, order) as u64
-            }
-            AtomicWidth::Width16 => {
-                AtomicU16::from_ptr(address as *mut u16).fetch_sub(raw as u16, order) as u64
-            }
-            AtomicWidth::Width32 => {
-                AtomicU32::from_ptr(address as *mut u32).fetch_sub(raw as u32, order) as u64
-            }
-            AtomicWidth::Width64 => AtomicU64::from_ptr(address as *mut u64).fetch_sub(raw, order),
+    let value = match shape.width {
+        AtomicWidth::Width8 => {
+            atomic_ref!(address, AtomicU8, u8).fetch_sub(raw as u8, order) as u64
         }
+        AtomicWidth::Width16 => {
+            atomic_ref!(address, AtomicU16, u16).fetch_sub(raw as u16, order) as u64
+        }
+        AtomicWidth::Width32 => {
+            atomic_ref!(address, AtomicU32, u32).fetch_sub(raw as u32, order) as u64
+        }
+        AtomicWidth::Width64 => atomic_ref!(address, AtomicU64, u64).fetch_sub(raw, order),
     };
 
     Ok(value)
@@ -410,19 +403,17 @@ fn atomic_fetch_and(address: usize, raw: u64, shape: AtomicShape) -> Result<u64,
     let order = shape.order.to_std();
 
     // compiled layouts guarantee atomic width and alignment
-    let value = unsafe {
-        match shape.width {
-            AtomicWidth::Width8 => {
-                AtomicU8::from_ptr(address as *mut u8).fetch_and(raw as u8, order) as u64
-            }
-            AtomicWidth::Width16 => {
-                AtomicU16::from_ptr(address as *mut u16).fetch_and(raw as u16, order) as u64
-            }
-            AtomicWidth::Width32 => {
-                AtomicU32::from_ptr(address as *mut u32).fetch_and(raw as u32, order) as u64
-            }
-            AtomicWidth::Width64 => AtomicU64::from_ptr(address as *mut u64).fetch_and(raw, order),
+    let value = match shape.width {
+        AtomicWidth::Width8 => {
+            atomic_ref!(address, AtomicU8, u8).fetch_and(raw as u8, order) as u64
         }
+        AtomicWidth::Width16 => {
+            atomic_ref!(address, AtomicU16, u16).fetch_and(raw as u16, order) as u64
+        }
+        AtomicWidth::Width32 => {
+            atomic_ref!(address, AtomicU32, u32).fetch_and(raw as u32, order) as u64
+        }
+        AtomicWidth::Width64 => atomic_ref!(address, AtomicU64, u64).fetch_and(raw, order),
     };
 
     Ok(value)
@@ -434,19 +425,15 @@ fn atomic_fetch_or(address: usize, raw: u64, shape: AtomicShape) -> Result<u64, 
     let order = shape.order.to_std();
 
     // compiled layouts guarantee atomic width and alignment
-    let value = unsafe {
-        match shape.width {
-            AtomicWidth::Width8 => {
-                AtomicU8::from_ptr(address as *mut u8).fetch_or(raw as u8, order) as u64
-            }
-            AtomicWidth::Width16 => {
-                AtomicU16::from_ptr(address as *mut u16).fetch_or(raw as u16, order) as u64
-            }
-            AtomicWidth::Width32 => {
-                AtomicU32::from_ptr(address as *mut u32).fetch_or(raw as u32, order) as u64
-            }
-            AtomicWidth::Width64 => AtomicU64::from_ptr(address as *mut u64).fetch_or(raw, order),
+    let value = match shape.width {
+        AtomicWidth::Width8 => atomic_ref!(address, AtomicU8, u8).fetch_or(raw as u8, order) as u64,
+        AtomicWidth::Width16 => {
+            atomic_ref!(address, AtomicU16, u16).fetch_or(raw as u16, order) as u64
         }
+        AtomicWidth::Width32 => {
+            atomic_ref!(address, AtomicU32, u32).fetch_or(raw as u32, order) as u64
+        }
+        AtomicWidth::Width64 => atomic_ref!(address, AtomicU64, u64).fetch_or(raw, order),
     };
 
     Ok(value)
@@ -458,19 +445,17 @@ fn atomic_fetch_xor(address: usize, raw: u64, shape: AtomicShape) -> Result<u64,
     let order = shape.order.to_std();
 
     // compiled layouts guarantee atomic width and alignment
-    let value = unsafe {
-        match shape.width {
-            AtomicWidth::Width8 => {
-                AtomicU8::from_ptr(address as *mut u8).fetch_xor(raw as u8, order) as u64
-            }
-            AtomicWidth::Width16 => {
-                AtomicU16::from_ptr(address as *mut u16).fetch_xor(raw as u16, order) as u64
-            }
-            AtomicWidth::Width32 => {
-                AtomicU32::from_ptr(address as *mut u32).fetch_xor(raw as u32, order) as u64
-            }
-            AtomicWidth::Width64 => AtomicU64::from_ptr(address as *mut u64).fetch_xor(raw, order),
+    let value = match shape.width {
+        AtomicWidth::Width8 => {
+            atomic_ref!(address, AtomicU8, u8).fetch_xor(raw as u8, order) as u64
         }
+        AtomicWidth::Width16 => {
+            atomic_ref!(address, AtomicU16, u16).fetch_xor(raw as u16, order) as u64
+        }
+        AtomicWidth::Width32 => {
+            atomic_ref!(address, AtomicU32, u32).fetch_xor(raw as u32, order) as u64
+        }
+        AtomicWidth::Width64 => atomic_ref!(address, AtomicU64, u64).fetch_xor(raw, order),
     };
 
     Ok(value)
@@ -482,19 +467,17 @@ fn atomic_fetch_min(address: usize, raw: u64, shape: AtomicShape) -> Result<u64,
     let order = shape.order.to_std();
 
     // compiled layouts guarantee atomic width and alignment
-    let value = unsafe {
-        match shape.width {
-            AtomicWidth::Width8 => {
-                AtomicU8::from_ptr(address as *mut u8).fetch_min(raw as u8, order) as u64
-            }
-            AtomicWidth::Width16 => {
-                AtomicU16::from_ptr(address as *mut u16).fetch_min(raw as u16, order) as u64
-            }
-            AtomicWidth::Width32 => {
-                AtomicU32::from_ptr(address as *mut u32).fetch_min(raw as u32, order) as u64
-            }
-            AtomicWidth::Width64 => AtomicU64::from_ptr(address as *mut u64).fetch_min(raw, order),
+    let value = match shape.width {
+        AtomicWidth::Width8 => {
+            atomic_ref!(address, AtomicU8, u8).fetch_min(raw as u8, order) as u64
         }
+        AtomicWidth::Width16 => {
+            atomic_ref!(address, AtomicU16, u16).fetch_min(raw as u16, order) as u64
+        }
+        AtomicWidth::Width32 => {
+            atomic_ref!(address, AtomicU32, u32).fetch_min(raw as u32, order) as u64
+        }
+        AtomicWidth::Width64 => atomic_ref!(address, AtomicU64, u64).fetch_min(raw, order),
     };
 
     Ok(value)
@@ -506,19 +489,17 @@ fn atomic_fetch_max(address: usize, raw: u64, shape: AtomicShape) -> Result<u64,
     let order = shape.order.to_std();
 
     // compiled layouts guarantee atomic width and alignment
-    let value = unsafe {
-        match shape.width {
-            AtomicWidth::Width8 => {
-                AtomicU8::from_ptr(address as *mut u8).fetch_max(raw as u8, order) as u64
-            }
-            AtomicWidth::Width16 => {
-                AtomicU16::from_ptr(address as *mut u16).fetch_max(raw as u16, order) as u64
-            }
-            AtomicWidth::Width32 => {
-                AtomicU32::from_ptr(address as *mut u32).fetch_max(raw as u32, order) as u64
-            }
-            AtomicWidth::Width64 => AtomicU64::from_ptr(address as *mut u64).fetch_max(raw, order),
+    let value = match shape.width {
+        AtomicWidth::Width8 => {
+            atomic_ref!(address, AtomicU8, u8).fetch_max(raw as u8, order) as u64
         }
+        AtomicWidth::Width16 => {
+            atomic_ref!(address, AtomicU16, u16).fetch_max(raw as u16, order) as u64
+        }
+        AtomicWidth::Width32 => {
+            atomic_ref!(address, AtomicU32, u32).fetch_max(raw as u32, order) as u64
+        }
+        AtomicWidth::Width64 => atomic_ref!(address, AtomicU64, u64).fetch_max(raw, order),
     };
 
     Ok(value)
@@ -530,20 +511,18 @@ fn atomic_fetch_min_signed(address: usize, raw: u64, shape: AtomicShape) -> Resu
     let order = shape.order.to_std();
 
     // compiled layouts guarantee atomic width and alignment
-    let value = unsafe {
-        match shape.width {
-            AtomicWidth::Width8 => {
-                AtomicI8::from_ptr(address as *mut i8).fetch_min(raw as i8, order) as u8 as u64
-            }
-            AtomicWidth::Width16 => {
-                AtomicI16::from_ptr(address as *mut i16).fetch_min(raw as i16, order) as u16 as u64
-            }
-            AtomicWidth::Width32 => {
-                AtomicI32::from_ptr(address as *mut i32).fetch_min(raw as i32, order) as u32 as u64
-            }
-            AtomicWidth::Width64 => {
-                AtomicI64::from_ptr(address as *mut i64).fetch_min(raw as i64, order) as u64
-            }
+    let value = match shape.width {
+        AtomicWidth::Width8 => {
+            atomic_ref!(address, AtomicI8, i8).fetch_min(raw as i8, order) as u8 as u64
+        }
+        AtomicWidth::Width16 => {
+            atomic_ref!(address, AtomicI16, i16).fetch_min(raw as i16, order) as u16 as u64
+        }
+        AtomicWidth::Width32 => {
+            atomic_ref!(address, AtomicI32, i32).fetch_min(raw as i32, order) as u32 as u64
+        }
+        AtomicWidth::Width64 => {
+            atomic_ref!(address, AtomicI64, i64).fetch_min(raw as i64, order) as u64
         }
     };
 
@@ -556,20 +535,18 @@ fn atomic_fetch_max_signed(address: usize, raw: u64, shape: AtomicShape) -> Resu
     let order = shape.order.to_std();
 
     // compiled layouts guarantee atomic width and alignment
-    let value = unsafe {
-        match shape.width {
-            AtomicWidth::Width8 => {
-                AtomicI8::from_ptr(address as *mut i8).fetch_max(raw as i8, order) as u8 as u64
-            }
-            AtomicWidth::Width16 => {
-                AtomicI16::from_ptr(address as *mut i16).fetch_max(raw as i16, order) as u16 as u64
-            }
-            AtomicWidth::Width32 => {
-                AtomicI32::from_ptr(address as *mut i32).fetch_max(raw as i32, order) as u32 as u64
-            }
-            AtomicWidth::Width64 => {
-                AtomicI64::from_ptr(address as *mut i64).fetch_max(raw as i64, order) as u64
-            }
+    let value = match shape.width {
+        AtomicWidth::Width8 => {
+            atomic_ref!(address, AtomicI8, i8).fetch_max(raw as i8, order) as u8 as u64
+        }
+        AtomicWidth::Width16 => {
+            atomic_ref!(address, AtomicI16, i16).fetch_max(raw as i16, order) as u16 as u64
+        }
+        AtomicWidth::Width32 => {
+            atomic_ref!(address, AtomicI32, i32).fetch_max(raw as i32, order) as u32 as u64
+        }
+        AtomicWidth::Width64 => {
+            atomic_ref!(address, AtomicI64, i64).fetch_max(raw as i64, order) as u64
         }
     };
 
@@ -616,7 +593,7 @@ where
     let failure = shape.order.to_std_update_failure();
 
     // compiled layouts guarantee atomic width and alignment
-    let atomic = unsafe { AtomicU32::from_ptr(address as *mut u32) };
+    let atomic = atomic_ref!(address, AtomicU32, u32);
     let mut old = atomic.load(failure);
 
     // retry until the weak compare exchange accepts the computed update
@@ -639,7 +616,7 @@ where
     let failure = shape.order.to_std_update_failure();
 
     // compiled layouts guarantee atomic width and alignment
-    let atomic = unsafe { AtomicU64::from_ptr(address as *mut u64) };
+    let atomic = atomic_ref!(address, AtomicU64, u64);
     let mut old = atomic.load(failure);
 
     // retry until the weak compare exchange accepts the computed update

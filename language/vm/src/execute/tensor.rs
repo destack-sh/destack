@@ -34,9 +34,7 @@ const POINTER_BYTE_LEN: usize = usize::BITS as usize / 8;
 /// Borrow one compiled tensor layout.
 #[inline(always)]
 fn tensor_layout<'iso>(machine: &Machine<'_, 'iso>, id: TensorLayoutId) -> &'iso TensorLayout {
-    let table = machine.side_table_ptr();
-
-    unsafe { (*table).tensor_layout(id) }
+    machine.tensor_layout(id)
 }
 
 /// Return a frame value address by byte offset.
@@ -47,10 +45,8 @@ fn frame_value(machine: &Machine<'_, '_>, offset: u32) -> Word {
 
 /// Return one frame offset range.
 #[inline(always)]
-fn frame_offsets<'a>(machine: &'a Machine<'_, '_>, range: U32RangeId) -> &'a [u32] {
-    let table = machine.side_table_ptr();
-
-    unsafe { (*table).u32_range(range) }
+fn frame_offsets<'iso>(machine: &Machine<'_, 'iso>, range: U32RangeId) -> &'iso [u32] {
+    machine.u32_range(range)
 }
 
 /// Return the byte offset for one tensor view stride slot.
@@ -820,9 +816,23 @@ fn contiguous_unary_addresses(
     (dest, argument)
 }
 
+/// Read one contiguous element.
+#[inline(always)]
+fn read_contiguous<T: Copy>(base: *const T, index: usize) -> T {
+    unsafe { base.add(index).read() }
+}
+
+/// Write one contiguous element.
+#[inline(always)]
+fn write_contiguous<T>(base: *mut T, index: usize, value: T) {
+    unsafe {
+        base.add(index).write(value);
+    }
+}
+
 /// Execute one contiguous binary value kernel.
 #[inline(always)]
-unsafe fn execute_contiguous_binary_value<T, F>(
+fn execute_contiguous_binary_value<T, F>(
     dest: *mut T,
     left: *const T,
     right: *const T,
@@ -835,12 +845,10 @@ where
 {
     // walk contiguous elements directly
     for index in 0..element_count {
-        let left_value = unsafe { left.add(index).read() };
-        let right_value = unsafe { right.add(index).read() };
+        let left_value = read_contiguous(left, index);
+        let right_value = read_contiguous(right, index);
         let value = operation(left_value, right_value)?;
-        unsafe {
-            dest.add(index).write(value);
-        }
+        write_contiguous(dest, index, value);
     }
 
     Ok(())
@@ -848,7 +856,7 @@ where
 
 /// Execute one contiguous binary comparison kernel.
 #[inline(always)]
-unsafe fn execute_contiguous_binary_compare<T, F>(
+fn execute_contiguous_binary_compare<T, F>(
     dest: *mut u8,
     left: *const T,
     right: *const T,
@@ -861,12 +869,10 @@ where
 {
     // write boolean result bytes directly
     for index in 0..element_count {
-        let left_value = unsafe { left.add(index).read() };
-        let right_value = unsafe { right.add(index).read() };
+        let left_value = read_contiguous(left, index);
+        let right_value = read_contiguous(right, index);
         let value = u8::from(operation(left_value, right_value));
-        unsafe {
-            dest.add(index).write(value);
-        }
+        write_contiguous(dest, index, value);
     }
 
     Ok(())
@@ -874,7 +880,7 @@ where
 
 /// Execute one contiguous unary value kernel.
 #[inline(always)]
-unsafe fn execute_contiguous_unary_value<T, F>(
+fn execute_contiguous_unary_value<T, F>(
     dest: *mut T,
     argument: *const T,
     element_count: usize,
@@ -886,11 +892,9 @@ where
 {
     // walk contiguous elements directly
     for index in 0..element_count {
-        let argument = unsafe { argument.add(index).read() };
+        let argument = read_contiguous(argument, index);
         let value = operation(argument);
-        unsafe {
-            dest.add(index).write(value);
-        }
+        write_contiguous(dest, index, value);
     }
 
     Ok(())
@@ -904,9 +908,7 @@ fn execute_contiguous_add_u32(
     right: *const u32,
     element_count: usize,
 ) -> Result<(), Error> {
-    unsafe {
-        execute_contiguous_add_u32_unchecked(dest, left, right, element_count);
-    }
+    execute_contiguous_add_u32_unchecked(dest, left, right, element_count);
 
     Ok(())
 }
@@ -914,7 +916,7 @@ fn execute_contiguous_add_u32(
 /// Execute contiguous 32-bit integer addition on AArch64.
 #[cfg(target_arch = "aarch64")]
 #[inline(always)]
-unsafe fn execute_contiguous_add_u32_unchecked(
+fn execute_contiguous_add_u32_unchecked(
     dest: *mut u32,
     left: *const u32,
     right: *const u32,
@@ -936,11 +938,10 @@ unsafe fn execute_contiguous_add_u32_unchecked(
 
     // finish scalar tail
     while index < element_count {
-        let left_value = unsafe { left.add(index).read() };
-        let right_value = unsafe { right.add(index).read() };
-        unsafe {
-            dest.add(index).write(left_value.wrapping_add(right_value));
-        }
+        let left_value = read_contiguous(left, index);
+        let right_value = read_contiguous(right, index);
+        let value = left_value.wrapping_add(right_value);
+        write_contiguous(dest, index, value);
         index += 1;
     }
 }
@@ -948,7 +949,7 @@ unsafe fn execute_contiguous_add_u32_unchecked(
 /// Execute contiguous 32-bit integer addition on x86-64.
 #[cfg(target_arch = "x86_64")]
 #[inline(always)]
-unsafe fn execute_contiguous_add_u32_unchecked(
+fn execute_contiguous_add_u32_unchecked(
     dest: *mut u32,
     left: *const u32,
     right: *const u32,
@@ -970,11 +971,10 @@ unsafe fn execute_contiguous_add_u32_unchecked(
 
     // finish scalar tail
     while index < element_count {
-        let left_value = unsafe { left.add(index).read() };
-        let right_value = unsafe { right.add(index).read() };
-        unsafe {
-            dest.add(index).write(left_value.wrapping_add(right_value));
-        }
+        let left_value = read_contiguous(left, index);
+        let right_value = read_contiguous(right, index);
+        let value = left_value.wrapping_add(right_value);
+        write_contiguous(dest, index, value);
         index += 1;
     }
 }
@@ -982,7 +982,7 @@ unsafe fn execute_contiguous_add_u32_unchecked(
 /// Execute contiguous 32-bit integer addition on scalar targets.
 #[cfg(not(any(target_arch = "aarch64", target_arch = "x86_64")))]
 #[inline(always)]
-unsafe fn execute_contiguous_add_u32_unchecked(
+fn execute_contiguous_add_u32_unchecked(
     dest: *mut u32,
     left: *const u32,
     right: *const u32,
@@ -990,11 +990,10 @@ unsafe fn execute_contiguous_add_u32_unchecked(
 ) {
     // walk contiguous elements directly
     for index in 0..element_count {
-        let left_value = unsafe { left.add(index).read() };
-        let right_value = unsafe { right.add(index).read() };
-        unsafe {
-            dest.add(index).write(left_value.wrapping_add(right_value));
-        }
+        let left_value = read_contiguous(left, index);
+        let right_value = read_contiguous(right, index);
+        let value = left_value.wrapping_add(right_value);
+        write_contiguous(dest, index, value);
     }
 }
 
@@ -1080,42 +1079,36 @@ fn remainder_u64(left: u64, right: u64) -> Result<u64, Error> {
 
 macro_rules! execute_contiguous_binary {
     ($dest:expr, $left:expr, $right:expr, $count:expr, $ty:ty, $operation:expr) => {
-        unsafe {
-            execute_contiguous_binary_value(
-                $dest.cast::<$ty>(),
-                $left.cast::<$ty>(),
-                $right.cast::<$ty>(),
-                $count,
-                $operation,
-            )
-        }
+        execute_contiguous_binary_value(
+            $dest.cast::<$ty>(),
+            $left.cast::<$ty>(),
+            $right.cast::<$ty>(),
+            $count,
+            $operation,
+        )
     };
 }
 
 macro_rules! execute_contiguous_compare {
     ($dest:expr, $left:expr, $right:expr, $count:expr, $ty:ty, $operation:expr) => {
-        unsafe {
-            execute_contiguous_binary_compare(
-                $dest,
-                $left.cast::<$ty>(),
-                $right.cast::<$ty>(),
-                $count,
-                $operation,
-            )
-        }
+        execute_contiguous_binary_compare(
+            $dest,
+            $left.cast::<$ty>(),
+            $right.cast::<$ty>(),
+            $count,
+            $operation,
+        )
     };
 }
 
 macro_rules! execute_contiguous_unary {
     ($dest:expr, $argument:expr, $count:expr, $ty:ty, $operation:expr) => {
-        unsafe {
-            execute_contiguous_unary_value(
-                $dest.cast::<$ty>(),
-                $argument.cast::<$ty>(),
-                $count,
-                $operation,
-            )
-        }
+        execute_contiguous_unary_value(
+            $dest.cast::<$ty>(),
+            $argument.cast::<$ty>(),
+            $count,
+            $operation,
+        )
     };
 }
 
@@ -2292,8 +2285,7 @@ pub(crate) fn execute_tensor_broadcast(
         source_layout,
         dest_layout,
     } = machine.side::<TensorBroadcast>(instruction);
-    let table = machine.side_table_ptr();
-    let dimensions = unsafe { (*table).u32_range(*dimensions) };
+    let dimensions = machine.u32_range(*dimensions);
 
     // resolve compiled tensor descriptors
     let source_layout = tensor_layout(machine, *source_layout);
@@ -2346,8 +2338,7 @@ pub(crate) fn execute_tensor_transpose(
         source_layout,
         dest_layout,
     } = machine.side::<TensorTranspose>(instruction);
-    let table = machine.side_table_ptr();
-    let permutation = unsafe { (*table).u32_range(*permutation) };
+    let permutation = machine.u32_range(*permutation);
 
     // resolve compiled tensor descriptors
     let source_layout = tensor_layout(machine, *source_layout);
@@ -2600,8 +2591,7 @@ pub(crate) fn execute_tensor_concat(
         axis,
         dest_layout,
     } = machine.side::<TensorConcat>(instruction);
-    let table = machine.side_table_ptr();
-    let tensor_layouts = unsafe { (*table).u32_range(*tensor_layouts) };
+    let tensor_layouts = machine.u32_range(*tensor_layouts);
 
     // resolve compiled tensor descriptor
     let dest_layout = tensor_layout(machine, *dest_layout);
@@ -2694,8 +2684,7 @@ fn execute_tensor_reduce_elements(
         dest_layout,
         kernel: _,
     } = machine.side::<TensorReduce>(instruction);
-    let table = machine.side_table_ptr();
-    let axes = unsafe { (*table).u32_range(*axes) };
+    let axes = machine.u32_range(*axes);
 
     // resolve compiled tensor descriptors
     let source_layout = tensor_layout(machine, *source_layout);
@@ -3051,8 +3040,7 @@ pub(crate) fn execute_tensor_dot(
         dest_layout,
         element_layout,
     } = machine.side::<TensorDot>(instruction);
-    let table = machine.side_table_ptr();
-    let dimensions = unsafe { (*table).tensor_dot(*dimensions) };
+    let dimensions = machine.tensor_dot(*dimensions);
 
     // resolve compiled tensor descriptors
     let left_layout = tensor_layout(machine, *left_layout);
@@ -3225,9 +3213,8 @@ pub(crate) fn execute_tensor_convolution(
         dest_layout,
         element_layout,
     } = machine.side::<TensorConvolution>(instruction);
-    let table = machine.side_table_ptr();
-    let dimensions = unsafe { (*table).tensor_convolution(*dimensions) };
-    let window = unsafe { (*table).tensor_window(*window) };
+    let dimensions = machine.tensor_convolution(*dimensions);
+    let window = machine.tensor_window(*window);
 
     // resolve compiled tensor descriptors
     let input_layout = tensor_layout(machine, *input_layout);
@@ -3475,9 +3462,8 @@ pub(crate) fn execute_tensor_gather(
         indices_layout,
         dest_layout,
     } = machine.side::<TensorGather>(instruction);
-    let table = machine.side_table_ptr();
-    let dimensions = unsafe { (*table).tensor_gather(*dimensions) };
-    let slice_sizes = unsafe { (*table).u32_range(*slice_sizes) };
+    let dimensions = machine.tensor_gather(*dimensions);
+    let slice_sizes = machine.u32_range(*slice_sizes);
 
     // resolve compiled tensor descriptors
     let source_layout = tensor_layout(machine, *source_layout);
@@ -3601,8 +3587,7 @@ fn execute_tensor_scatter_elements(
         element_layout,
         mode: _,
     } = machine.side::<TensorScatter>(instruction);
-    let table = machine.side_table_ptr();
-    let dimensions = unsafe { (*table).tensor_scatter(*dimensions) };
+    let dimensions = machine.tensor_scatter(*dimensions);
 
     // resolve compiled tensor descriptors
     let source_layout = tensor_layout(machine, *source_layout);

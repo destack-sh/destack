@@ -40,24 +40,6 @@ fn integer_byte_len(width: u16) -> usize {
     width.div_ceil(8) as usize
 }
 
-/// Return frame bytes at one lowered frame offset.
-#[inline(always)]
-fn frame_bytes_at<'a>(machine: &'a Machine<'_, '_>, offset: u32, byte_len: usize) -> &'a [u8] {
-    let address = machine.frame_pointer_at(offset).address() as *const u8;
-
-    unsafe { std::slice::from_raw_parts(address, byte_len) }
-}
-
-/// Store bytes at one lowered frame offset.
-#[inline(always)]
-fn store_frame_bytes_at(machine: &mut Machine<'_, '_>, offset: u32, bytes: &[u8]) {
-    let destination = machine.frame_pointer_at(offset).address() as *mut u8;
-
-    unsafe {
-        std::ptr::copy_nonoverlapping(bytes.as_ptr(), destination, bytes.len());
-    }
-}
-
 /// Cast one integer bit pattern into the requested pointer-shaped target type.
 fn cast_integer_to_pointer(raw: u64, field: u32) -> Result<Word, Error> {
     let layout = PointerCast::from_field(field).decode()?;
@@ -438,7 +420,7 @@ pub(crate) fn execute_cast_word_to_wide_int(
     let result = cast_integer_bytes(&source, source_width, source_signed, dest_width);
 
     // store result bytes
-    store_frame_bytes_at(machine, dest, &result);
+    machine.store_frame_bytes_at(dest, &result);
 
     Ok(())
 }
@@ -455,7 +437,7 @@ pub(crate) fn execute_cast_wide_int_to_word(
     let (source_width, dest_width) = cast.widths_pair();
 
     // cast from frame bytes into word bits
-    let source = frame_bytes_at(machine, arg, integer_byte_len(source_width));
+    let source = machine.frame_bytes_at(arg, integer_byte_len(source_width));
     let bytes = cast_integer_bytes(source, source_width, source_signed, dest_width);
     let result = integer_bytes_to_word(&bytes, dest_width, dest_signed)?;
 
@@ -477,11 +459,11 @@ pub(crate) fn execute_cast_wide_int(
     let (source_width, dest_width) = cast.widths_pair();
 
     // cast from frame bytes into frame bytes
-    let source = frame_bytes_at(machine, arg, integer_byte_len(source_width));
+    let source = machine.frame_bytes_at(arg, integer_byte_len(source_width));
     let result = cast_integer_bytes(source, source_width, source_signed, dest_width);
 
     // store result bytes
-    store_frame_bytes_at(machine, dest, &result);
+    machine.store_frame_bytes_at(dest, &result);
 
     Ok(())
 }
