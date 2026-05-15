@@ -112,7 +112,7 @@ impl LintRule for NoUselessRename {
             // inspect each renamed item in the clause
             for item_id in items {
                 let item = ctx.dir.get(*item_id);
-                let dir::DependencyItem::Item {
+                let dir::DependencyItem::Binding {
                     alias: Some(alias_id),
                     name: Some(name),
                     ..

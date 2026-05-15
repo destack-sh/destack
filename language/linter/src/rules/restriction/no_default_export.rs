@@ -63,7 +63,6 @@ impl LintRule for NoDefaultExport {
             let export = match declaration {
                 dir::Declaration::Global(_) => None,
                 dir::Declaration::Module(_) => None,
-                dir::Declaration::Namespace(declaration) => declaration.export,
                 dir::Declaration::Type(declaration) => declaration.export,
                 dir::Declaration::Struct(declaration) => declaration.export,
                 dir::Declaration::Class(declaration) => declaration.export,
@@ -121,14 +120,14 @@ fn dependency_item_exports_default(
     };
 
     match item {
-        dir::DependencyItem::Item {
+        dir::DependencyItem::Binding {
             binding,
-            space,
+            form,
             name,
             alias,
             ..
         } => {
-            if space.unwrap_or(dir::DependencySpace::Value) != dir::DependencySpace::Value {
+            if form.unwrap_or(dir::DependencyForm::Plain) != dir::DependencyForm::Plain {
                 return false;
             }
 
@@ -150,7 +149,7 @@ fn dependency_item_export_name(
     }
 
     match binding {
-        dir::DependencyBinding::Item => name.map(|name| name.string()),
+        dir::DependencyBinding::Named => name.map(|name| name.string()),
         dir::DependencyBinding::Default => name.map(|name| name.string()).or(Some(default_name)),
         dir::DependencyBinding::Namespace => None,
     }

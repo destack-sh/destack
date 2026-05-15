@@ -356,7 +356,6 @@ Opt-in rules that ban certain patterns by project choice. These rules may confli
 | `LR015` | `no-labels` | ESLint | AST | ✓ | No | None | Disallow labeled statements |
 | `LR036` | `no-layer-violation` | SonarQube | DIR | ✓ | No | None | Disallow imports that cross configured module component boundaries |
 | `LR016` | `no-magic-numbers` | ESLint | AST | ✓ | No | None | Disallow magic numbers |
-| `LR017` | `no-namespace` | TS-ESLint | AST | ✓ | No | None | Disallow TypeScript namespaces |
 | `LR020` | `no-parameter-reassignment` | SonarQube | DIR | ✓ | Sometimes | Unsafe | Disallow reassigning function parameters |
 | `LR021` | `no-placeholder-implementation` | ESLint | AST | ✓ | No | None | Disallow placeholder implementations (throw "not implemented", etc.) |
 | `LR022` | `no-plusplus` | ESLint | AST | ✓ | Sometimes | Safe | Disallow `++` and `--` operators |

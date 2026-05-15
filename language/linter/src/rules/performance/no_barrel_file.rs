@@ -55,12 +55,12 @@ impl LintRule for NoBarrelFile {
             let expression = ctx.dir.get(expression_id);
             match expression {
                 Expression::Export {
-                    space,
+                    form,
                     target,
                     items,
                     ..
                 } => {
-                    if target.is_some() && export_is_value_reexport(ctx, *space, items.as_slice()) {
+                    if target.is_some() && export_is_value_reexport(ctx, *form, items.as_slice()) {
                         if first_value_reexport_id.is_none() {
                             first_value_reexport_id = Some(expression_id);
                         }
@@ -125,10 +125,10 @@ fn module_is_declaration_file(ctx: &LintModuleContext<'_>) -> bool {
 /// Return true when one export-from clause re-exports runtime values.
 fn export_is_value_reexport(
     ctx: &LintModuleContext<'_>,
-    space: dir::DependencySpace,
+    form: dir::DependencyForm,
     items: &[dir::LocalNodeId<dir::DependencyItem>],
 ) -> bool {
-    if space == dir::DependencySpace::Type {
+    if form == dir::DependencyForm::Type {
         return false;
     }
 
@@ -139,7 +139,7 @@ fn export_is_value_reexport(
     items.iter().any(|item_id| {
         let item = ctx.dir.get(*item_id);
         match item {
-            dir::DependencyItem::Item { space, .. } => *space != Some(dir::DependencySpace::Type),
+            dir::DependencyItem::Binding { form, .. } => *form != Some(dir::DependencyForm::Type),
             dir::DependencyItem::Error => true,
         }
     })

@@ -77,10 +77,6 @@ pub struct LinterRestrictionOptions {
     pub allow_switch_labels: bool,
     /// Magic numbers to allow.
     pub allowed_magic_numbers: Vec<f64>,
-    /// Allow `declare namespace` and `declare module foo {}` in `no-namespace`.
-    pub allow_namespace_declarations: bool,
-    /// Allow namespace declarations in definition files for `no-namespace`.
-    pub allow_namespace_definition_files: bool,
     /// Allow `++` and `--` in for-loop afterthoughts for `no-plusplus`.
     pub allow_plusplus_for_loop_afterthoughts: bool,
     /// Where `no-warning-comments` should match terms.
@@ -106,8 +102,6 @@ impl Default for LinterRestrictionOptions {
             allow_loop_labels: false,
             allow_switch_labels: false,
             allowed_magic_numbers: vec![-1.0, 0.0, 1.0, 2.0],
-            allow_namespace_declarations: false,
-            allow_namespace_definition_files: true,
             allow_plusplus_for_loop_afterthoughts: false,
             warning_comment_location: WarningCommentLocation::Start,
             warning_comment_decoration: Vec::new(),
@@ -140,10 +134,6 @@ pub struct LinterRestrictionJson {
     pub allow_switch_labels: Option<bool>,
     /// Magic numbers to allow.
     pub allowed_magic_numbers: Option<Vec<f64>>,
-    /// Allow `declare namespace` and `declare module foo {}` in `no-namespace`.
-    pub allow_namespace_declarations: Option<bool>,
-    /// Allow namespace declarations in definition files for `no-namespace`.
-    pub allow_namespace_definition_files: Option<bool>,
     /// Allow `++` and `--` in for-loop afterthoughts for `no-plusplus`.
     pub allow_plusplus_for_loop_afterthoughts: Option<bool>,
     /// Where `no-warning-comments` should match terms.
@@ -195,14 +185,6 @@ impl LinterRestrictionJson {
 
         if let Some(ref allowed_magic_numbers) = self.allowed_magic_numbers {
             options.restriction.allowed_magic_numbers = allowed_magic_numbers.clone();
-        }
-
-        if let Some(allow_namespace_declarations) = self.allow_namespace_declarations {
-            options.restriction.allow_namespace_declarations = allow_namespace_declarations;
-        }
-
-        if let Some(allow_namespace_definition_files) = self.allow_namespace_definition_files {
-            options.restriction.allow_namespace_definition_files = allow_namespace_definition_files;
         }
 
         if let Some(allow_plusplus_for_loop_afterthoughts) =

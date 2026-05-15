@@ -243,8 +243,8 @@ fn collect_imported_module_dependencies(imported: &DirImported, dependencies: &m
 
 /// Extend one dependency list with direct export edges.
 fn collect_exported_module_dependencies(exported: &DirExported, dependencies: &mut Vec<ModuleId>) {
-    // collect namespace re export edges
-    for export in exported.exports.namespace_exports.iter() {
+    // collect star export edges
+    for export in exported.exports.star_exports() {
         if let Some(module_id) = export.target.module_id() {
             dependencies.push(module_id);
         }
