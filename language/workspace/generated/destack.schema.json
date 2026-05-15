@@ -198,8 +198,45 @@
         "$ref": "#/$defs/ModeJson"
       }
     },
+    "roles": {
+      "description": "Named source graph roles.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "$ref": "#/$defs/RoleJson"
+      }
+    },
+    "features": {
+      "description": "Named optional source graph features.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "$ref": "#/$defs/FeatureJson"
+      }
+    },
+    "tags": {
+      "description": "Named source graph tags.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "$ref": "#/$defs/TagJson"
+      }
+    },
     "defaultTarget": {
       "description": "Default target for the package.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "defaultProduct": {
+      "description": "Default product for the package.",
       "type": [
         "string",
         "null"
@@ -373,6 +410,36 @@
         },
         "modes": {
           "description": "Default active source graph modes for IDEs and CLI usage.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "roles": {
+          "description": "Default active source graph roles for IDEs and CLI usage.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "features": {
+          "description": "Default active source graph features for IDEs and CLI usage.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "tags": {
+          "description": "Default active source graph tags for IDEs and CLI usage.",
           "type": [
             "array",
             "null"
@@ -630,11 +697,11 @@
           "description": "Access outcome selected by this rule.",
           "$ref": "#/$defs/PolicyAccess"
         },
-        "world": {
-          "description": "World selected when access is allowed.",
+        "route": {
+          "description": "Route selected when access is allowed.",
           "anyOf": [
             {
-              "$ref": "#/$defs/PolicyWorld"
+              "$ref": "#/$defs/PolicyRoute"
             },
             {
               "type": "null"
@@ -680,6 +747,72 @@
           "anyOf": [
             {
               "$ref": "#/$defs/RuntimeIdentitySelectorJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "mode": {
+          "description": "Active mode selector.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ConditionSelectorJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "role": {
+          "description": "Active role selector.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ConditionSelectorJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "feature": {
+          "description": "Active feature selector.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ConditionSelectorJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tag": {
+          "description": "Active tag selector.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ConditionSelectorJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "target": {
+          "description": "Active target selector.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ConditionSelectorJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "product": {
+          "description": "Active product selector.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ConditionSelectorJson"
             },
             {
               "type": "null"
@@ -825,6 +958,42 @@
         }
       ]
     },
+    "ConditionSelectorJson": {
+      "description": "Condition selector accepted by static policy JSON.",
+      "anyOf": [
+        {
+          "description": "Condition name shorthand.",
+          "type": "string"
+        },
+        {
+          "description": "Condition name shorthand list.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        {
+          "description": "Structured condition selector.",
+          "$ref": "#/$defs/ConditionSelectorJsonObject"
+        }
+      ]
+    },
+    "ConditionSelectorJsonObject": {
+      "description": "Structured condition selector accepted by static policy JSON.",
+      "type": "object",
+      "properties": {
+        "patterns": {
+          "description": "Condition name glob patterns.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "patterns"
+      ]
+    },
     "PolicyAccess": {
       "description": "Policy access result selected by one rule.",
       "oneOf": [
@@ -840,8 +1009,8 @@
         }
       ]
     },
-    "PolicyWorld": {
-      "description": "Runtime world used for allowed effects.",
+    "PolicyRoute": {
+      "description": "Binding route used for allowed actions.",
       "oneOf": [
         {
           "description": "Execute against the live host.",
@@ -949,17 +1118,6 @@
             }
           ]
         },
-        "simulation": {
-          "description": "Runtime simulation configuration.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/SimulationOptionsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
         "trace": {
           "description": "Runtime trace configuration.",
           "anyOf": [
@@ -1043,15 +1201,6 @@
         },
         "microtaskBudget": {
           "description": "Maximum number of microtasks per tick.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "hostEventBudget": {
-          "description": "Maximum host semantic events dispatched in sequence before one poller event.",
           "type": [
             "integer",
             "null"
@@ -1235,11 +1384,11 @@
       "description": "Runtime time options for JSON deserialization.",
       "type": "object",
       "properties": {
-        "mode": {
-          "description": "Clock mode selection.",
+        "source": {
+          "description": "Clock source selection.",
           "anyOf": [
             {
-              "$ref": "#/$defs/TimeModeJson"
+              "$ref": "#/$defs/ClockSourceJson"
             },
             {
               "type": "null"
@@ -1264,8 +1413,8 @@
         }
       }
     },
-    "TimeModeJson": {
-      "description": "Time mode for JSON deserialization.",
+    "ClockSourceJson": {
+      "description": "Clock source for JSON deserialization.",
       "oneOf": [
         {
           "description": "Use the host clock directly.",
@@ -1283,11 +1432,11 @@
       "description": "Runtime randomness options for JSON deserialization.",
       "type": "object",
       "properties": {
-        "mode": {
+        "source": {
           "description": "Randomness source selection.",
           "anyOf": [
             {
-              "$ref": "#/$defs/RandomModeJson"
+              "$ref": "#/$defs/RandomSourceJson"
             },
             {
               "type": "null"
@@ -1312,8 +1461,8 @@
         }
       }
     },
-    "RandomModeJson": {
-      "description": "Randomness mode for JSON deserialization.",
+    "RandomSourceJson": {
+      "description": "Randomness source for JSON deserialization.",
       "oneOf": [
         {
           "description": "Use the host randomness source.",
@@ -1326,78 +1475,6 @@
           "const": "deterministic"
         }
       ]
-    },
-    "SimulationOptionsJson": {
-      "description": "Runtime simulation configuration for JSON deserialization.",
-      "type": "object",
-      "properties": {
-        "time": {
-          "description": "Simulation settings for time facts.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/TimeSimulationOptionsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "random": {
-          "description": "Simulation settings for randomness facts.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RandomSimulationOptionsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        }
-      }
-    },
-    "TimeSimulationOptionsJson": {
-      "description": "Simulation settings for time facts for JSON deserialization.",
-      "type": "object",
-      "properties": {
-        "epochNs": {
-          "description": "Epoch in nanoseconds for simulated wall time.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "timeZone": {
-          "description": "Time zone identifier or fixed offset string.",
-          "type": [
-            "string",
-            "null"
-          ]
-        }
-      }
-    },
-    "RandomSimulationOptionsJson": {
-      "description": "Simulation settings for randomness facts for JSON deserialization.",
-      "type": "object",
-      "properties": {
-        "seed": {
-          "description": "Seed for deterministic randomness streams.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "perRunnable": {
-          "description": "Whether to use one random stream per runnable.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        }
-      }
     },
     "TraceOptionsJson": {
       "description": "Runtime trace configuration for JSON deserialization.",
@@ -6017,6 +6094,36 @@
             "type": "string"
           }
         },
+        "roles": {
+          "description": "Active source graph roles for this profile.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "features": {
+          "description": "Active source graph features for this profile.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "tags": {
+          "description": "Active source graph tags for this profile.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
         "tree": {
           "description": "Default tree tag builder provider.",
           "type": [
@@ -6050,6 +6157,23 @@
       "description": "Source graph mode JSON from `destack.json`.",
       "type": "object",
       "properties": {
+        "description": {
+          "description": "Human-readable mode description.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "labels": {
+          "description": "Mode labels.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
         "extends": {
           "description": "Mode names included before this mode.",
           "anyOf": [
@@ -6082,6 +6206,186 @@
         },
         {
           "description": "Extend many modes in order.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "RoleJson": {
+      "description": "Source graph role JSON from `destack.json`.",
+      "type": "object",
+      "properties": {
+        "description": {
+          "description": "Human-readable role description.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "labels": {
+          "description": "Role labels.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "extends": {
+          "description": "Role names included before this role.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RoleExtends"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "dependencies": {
+          "description": "Dependencies enabled by this role.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/$defs/DependencyOptionsJson"
+          }
+        }
+      }
+    },
+    "RoleExtends": {
+      "description": "Role extends field from `destack.json`.",
+      "anyOf": [
+        {
+          "description": "Extend one role.",
+          "type": "string"
+        },
+        {
+          "description": "Extend many roles in order.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "FeatureJson": {
+      "description": "Source graph feature JSON from `destack.json`.",
+      "type": "object",
+      "properties": {
+        "description": {
+          "description": "Human-readable feature description.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "labels": {
+          "description": "Feature labels.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "extends": {
+          "description": "Feature names included before this feature.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FeatureExtends"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "dependencies": {
+          "description": "Dependencies enabled by this feature.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/$defs/DependencyOptionsJson"
+          }
+        }
+      }
+    },
+    "FeatureExtends": {
+      "description": "Feature extends field from `destack.json`.",
+      "anyOf": [
+        {
+          "description": "Extend one feature.",
+          "type": "string"
+        },
+        {
+          "description": "Extend many features in order.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "TagJson": {
+      "description": "Source graph tag JSON from `destack.json`.",
+      "type": "object",
+      "properties": {
+        "description": {
+          "description": "Human-readable tag description.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "labels": {
+          "description": "Tag labels.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "extends": {
+          "description": "Tag names included before this tag.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TagExtends"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "dependencies": {
+          "description": "Dependencies enabled by this tag.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/$defs/DependencyOptionsJson"
+          }
+        }
+      }
+    },
+    "TagExtends": {
+      "description": "Tag extends field from `destack.json`.",
+      "anyOf": [
+        {
+          "description": "Extend one tag.",
+          "type": "string"
+        },
+        {
+          "description": "Extend many tags in order.",
           "type": "array",
           "items": {
             "type": "string"

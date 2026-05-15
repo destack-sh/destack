@@ -717,6 +717,10 @@ impl TestProgram {
             None,
             Vec::new(),
             Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            None,
             environment.key_all(),
             ProfileFlags::default(),
         );

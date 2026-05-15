@@ -12,6 +12,8 @@ pub(crate) fn profile_key_for_target(
     profile_config: Option<&ProfileOptions>,
     config: Option<&DestackConfig>,
     environment: &HostEnvironment,
+    product: Option<&str>,
+    product_role: Option<&str>,
 ) -> ProfileKey {
     let mut compiler_options = compiler_options.clone();
 
@@ -27,6 +29,14 @@ pub(crate) fn profile_key_for_target(
             .derive
             .extend(profile_config.derive.clone());
         compiler_options.modes.extend(profile_config.modes.clone());
+        compiler_options.roles.extend(profile_config.roles.clone());
+        compiler_options
+            .features
+            .extend(profile_config.features.clone());
+        compiler_options.tags.extend(profile_config.tags.clone());
+    }
+    if let Some(product_role) = product_role {
+        compiler_options.roles.push(product_role.to_string());
     }
     let compiler_options = target.compiler_options(&compiler_options);
     let emit = target.emit;
@@ -65,6 +75,54 @@ pub(crate) fn profile_key_for_target(
             modes.push(mode.clone());
         }
     }
+    let mut roles = Vec::new();
+    for role in &compiler_options.roles {
+        // declared parent roles
+        if let Some(options) = config.and_then(|config| config.roles.get(role)) {
+            for parent in &options.extends {
+                if !roles.contains(parent) {
+                    roles.push(parent.clone());
+                }
+            }
+        }
+
+        // selected role
+        if !roles.contains(role) {
+            roles.push(role.clone());
+        }
+    }
+    let mut features = Vec::new();
+    for feature in &compiler_options.features {
+        // declared parent features
+        if let Some(options) = config.and_then(|config| config.features.get(feature)) {
+            for parent in &options.extends {
+                if !features.contains(parent) {
+                    features.push(parent.clone());
+                }
+            }
+        }
+
+        // selected feature
+        if !features.contains(feature) {
+            features.push(feature.clone());
+        }
+    }
+    let mut tags = Vec::new();
+    for tag in &compiler_options.tags {
+        // declared parent tags
+        if let Some(options) = config.and_then(|config| config.tags.get(tag)) {
+            for parent in &options.extends {
+                if !tags.contains(parent) {
+                    tags.push(parent.clone());
+                }
+            }
+        }
+
+        // selected tag
+        if !tags.contains(tag) {
+            tags.push(tag.clone());
+        }
+    }
 
     // compiler flags
     let flags = profile_flags_for_compiler_options(&compiler_options);
@@ -88,6 +146,10 @@ pub(crate) fn profile_key_for_target(
         tree,
         derive,
         modes,
+        roles,
+        features,
+        tags,
+        product.map(str::to_string),
         env,
         flags,
     )

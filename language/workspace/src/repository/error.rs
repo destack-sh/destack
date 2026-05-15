@@ -22,6 +22,12 @@ pub enum RepositoryError {
     MissingPackage { package: PackageId },
     /// The requested target does not exist in the given revision.
     MissingTarget { target: TargetId },
+    /// The requested product does not exist in the given revision.
+    MissingProduct { product: String },
+    /// The requested product does not contain the selected target.
+    MissingProductTarget { product: String, target: String },
+    /// The requested product target matches multiple product roles.
+    AmbiguousProductTarget { product: String, target: String },
     /// The requested profile does not exist in the repository.
     MissingProfile { profile: ProfileId },
     /// The requested artifact entry does not exist in the repository store.
@@ -69,6 +75,21 @@ impl fmt::Display for RepositoryError {
             }
             Self::MissingTarget { target } => {
                 write!(formatter, "missing repository target '{target}'")
+            }
+            Self::MissingProduct { product } => {
+                write!(formatter, "missing repository product '{product}'")
+            }
+            Self::MissingProductTarget { product, target } => {
+                write!(
+                    formatter,
+                    "product '{product}' does not contain target '{target}'"
+                )
+            }
+            Self::AmbiguousProductTarget { product, target } => {
+                write!(
+                    formatter,
+                    "product '{product}' matches target '{target}' through multiple roles"
+                )
             }
             Self::MissingProfile { profile } => {
                 write!(formatter, "missing repository profile '{profile}'")

@@ -18,6 +18,12 @@ pub struct ProfileOptions {
     pub comptime_env: Option<Vec<String>>,
     /// Active source graph modes for this profile.
     pub modes: Vec<String>,
+    /// Active source graph roles for this profile.
+    pub roles: Vec<String>,
+    /// Active source graph features for this profile.
+    pub features: Vec<String>,
+    /// Active source graph tags for this profile.
+    pub tags: Vec<String>,
     /// Default tree tag builder provider.
     pub tree: Option<String>,
     /// Global provider modules for this profile.
@@ -45,6 +51,9 @@ impl ProfileOptions {
             host,
             comptime_env: json.comptime_env.clone(),
             modes: json.modes.clone().unwrap_or_default(),
+            roles: json.roles.clone().unwrap_or_default(),
+            features: json.features.clone().unwrap_or_default(),
+            tags: json.tags.clone().unwrap_or_default(),
             tree: json.tree.clone(),
             globals: json
                 .globals
@@ -81,6 +90,12 @@ pub struct ProfileOptionsJson {
     pub comptime_env: Option<Vec<String>>,
     /// Active source graph modes for this profile.
     pub modes: Option<Vec<String>>,
+    /// Active source graph roles for this profile.
+    pub roles: Option<Vec<String>>,
+    /// Active source graph features for this profile.
+    pub features: Option<Vec<String>>,
+    /// Active source graph tags for this profile.
+    pub tags: Option<Vec<String>>,
     /// Default tree tag builder provider.
     pub tree: Option<String>,
     /// Global provider modules for this profile.

@@ -5,16 +5,17 @@ use std::sync::Arc;
 use destack_source::{File, FileId};
 use indexmap::IndexMap;
 use serde::Deserialize;
+use serde::de::DeserializeOwned;
 use serde_json::Value;
 
 use crate::config::{
-    CompilerOptions, DependencyJsonMap, DependencyMap, EnvironmentOptions, FormatterOptions,
-    LinterOptions, ModeOptions, PolicyOptions, PolicyOptionsJson, ProductOptions,
-    ProductOptionsJson, ProfileOptions, ProfileOptionsJson, RuntimeOptions, TargetOptions,
-    VendorOptions, VendorOptionsJson, builtin_modes, dependency_options_from_json,
-    environment_options_from_json, extend_environment_options, parse_jsonc_file,
-    runtime_options_from_json, runtime_options_with_base, validate_dependency_json_map,
-    vendor_options_with_base,
+    CompilerOptions, DependencyJsonMap, DependencyMap, EnvironmentOptions, FeatureJson,
+    FeatureOptions, FormatterOptions, LinterOptions, ModeOptions, PolicyOptions, PolicyOptionsJson,
+    ProductOptions, ProductOptionsJson, ProfileOptions, ProfileOptionsJson, RoleJson, RoleOptions,
+    RuntimeOptions, TagJson, TagOptions, TargetOptions, VendorOptions, VendorOptionsJson,
+    builtin_modes, builtin_roles, dependency_options_from_json, environment_options_from_json,
+    extend_environment_options, parse_jsonc_file, runtime_options_from_json,
+    runtime_options_with_base, validate_dependency_json_map, vendor_options_with_base,
 };
 
 use super::compiler::CompilerOptionsJson;
@@ -81,8 +82,16 @@ pub struct DestackOptions {
     pub profiles: Option<IndexMap<String, ProfileOptionsJson>>,
     /// Named source graph modes.
     pub modes: Option<IndexMap<String, ModeJson>>,
+    /// Named source graph roles.
+    pub roles: Option<IndexMap<String, RoleJson>>,
+    /// Named optional source graph features.
+    pub features: Option<IndexMap<String, FeatureJson>>,
+    /// Named source graph tags.
+    pub tags: Option<IndexMap<String, TagJson>>,
     /// Default target for the package.
     pub default_target: Option<String>,
+    /// Default product for the package.
+    pub default_product: Option<String>,
 }
 
 impl DestackOptions {
@@ -163,8 +172,16 @@ pub struct DestackConfig {
     pub profiles: IndexMap<String, ProfileOptions>,
     /// Named source graph modes.
     pub modes: IndexMap<String, ModeOptions>,
+    /// Named source graph roles.
+    pub roles: IndexMap<String, RoleOptions>,
+    /// Named optional source graph features.
+    pub features: IndexMap<String, FeatureOptions>,
+    /// Named source graph tags.
+    pub tags: IndexMap<String, TagOptions>,
     /// Default target for the package.
     pub default_target: Option<String>,
+    /// Default product for the package.
+    pub default_product: Option<String>,
     /// Workspace package root glob patterns when discovery is explicit.
     pub workspace_packages: Option<Vec<String>>,
     /// Workspace member groups.
@@ -201,12 +218,10 @@ impl DestackConfig {
         }
         validate_dependency_json_map(options.dependencies.as_ref())
             .map_err(|error| serde_json::Error::io(invalid_config_error(error)))?;
-        if let Some(modes) = &options.modes {
-            for mode in modes.values() {
-                mode.validate()
-                    .map_err(|error| serde_json::Error::io(invalid_config_error(error)))?;
-            }
-        }
+        validate_named_json_map("mode", options.modes.as_ref(), ModeJson::validate)?;
+        validate_named_json_map("role", options.roles.as_ref(), RoleJson::validate)?;
+        validate_named_json_map("feature", options.features.as_ref(), FeatureJson::validate)?;
+        validate_named_json_map("tag", options.tags.as_ref(), TagJson::validate)?;
 
         let path = file
             .path
@@ -275,13 +290,11 @@ impl DestackConfig {
 
         // source graph modes
         let mut modes = builtin_modes();
-        if let Some(mode_map) = &options.modes {
-            modes.extend(
-                mode_map
-                    .iter()
-                    .map(|(name, mode_json)| (name.clone(), ModeOptions::from_json(mode_json))),
-            );
-        }
+        modes.extend(options_from_json(&options.modes, ModeOptions::from_json));
+        let mut roles = builtin_roles();
+        roles.extend(options_from_json(&options.roles, RoleOptions::from_json));
+        let features = options_from_json(&options.features, FeatureOptions::from_json);
+        let tags = options_from_json(&options.tags, TagOptions::from_json);
         Ok(Self {
             file_id: file.id,
             path,
@@ -329,7 +342,11 @@ impl DestackConfig {
                 .transpose()?
                 .unwrap_or_default(),
             modes,
+            roles,
+            features,
+            tags,
             default_target: options.default_target.clone(),
+            default_product: options.default_product.clone(),
             workspace_packages: options
                 .workspace
                 .as_ref()
@@ -378,24 +395,14 @@ impl DestackConfig {
             }
         }
 
-        for (mode, options) in &self.modes {
-            for parent in &options.extends {
-                if parent == mode {
-                    let error = Error::new(
-                        ErrorKind::InvalidData,
-                        format!("mode '{mode}' extends itself"),
-                    );
-                    return Err(serde_json::Error::io(error));
-                }
-                if !self.modes.contains_key(parent) {
-                    let error = Error::new(
-                        ErrorKind::InvalidData,
-                        format!("mode '{mode}' extends unknown mode '{parent}'"),
-                    );
-                    return Err(serde_json::Error::io(error));
-                }
-            }
-        }
+        validate_extends("mode", &self.modes, |mode| &mode.extends)
+            .map_err(|error| serde_json::Error::io(invalid_config_error(error)))?;
+        validate_extends("role", &self.roles, |role| &role.extends)
+            .map_err(|error| serde_json::Error::io(invalid_config_error(error)))?;
+        validate_extends("feature", &self.features, |feature| &feature.extends)
+            .map_err(|error| serde_json::Error::io(invalid_config_error(error)))?;
+        validate_extends("tag", &self.tags, |tag| &tag.extends)
+            .map_err(|error| serde_json::Error::io(invalid_config_error(error)))?;
 
         Ok(())
     }
@@ -480,6 +487,15 @@ impl DestackConfig {
         }
         if compiler.modes.is_empty() {
             compiler.modes = parent_compiler.modes.clone();
+        }
+        if compiler.roles.is_empty() {
+            compiler.roles = parent_compiler.roles.clone();
+        }
+        if compiler.features.is_empty() {
+            compiler.features = parent_compiler.features.clone();
+        }
+        if compiler.tags.is_empty() {
+            compiler.tags = parent_compiler.tags.clone();
         }
         if compiler.comptime_env.is_none() {
             compiler.comptime_env = parent_compiler.comptime_env.clone();
@@ -653,17 +669,11 @@ impl DestackConfig {
             }
         }
         let child_modes = self.options.modes.as_ref();
-
-        for (name, mode) in &parent.modes {
-            if child_modes.is_some_and(|modes| modes.contains_key(name)) {
-                continue;
-            }
-
-            self.modes.insert(name.clone(), mode.clone());
-        }
+        inherit_named_options(&mut self.modes, child_modes, &parent.modes);
         if let Some(modes) = child_modes {
             for name in modes.keys() {
-                let mode_json = self.merged_mode_json(parent, name)?;
+                let mode_json =
+                    self.merged_named_json::<ModeJson>(parent, "modes", "mode", name)?;
                 mode_json
                     .validate()
                     .map_err(|error| serde_json::Error::io(invalid_config_error(error)))?;
@@ -671,8 +681,52 @@ impl DestackConfig {
                 self.modes.insert(name.clone(), mode);
             }
         }
+        let child_roles = self.options.roles.as_ref();
+        inherit_named_options(&mut self.roles, child_roles, &parent.roles);
+        if let Some(roles) = child_roles {
+            for name in roles.keys() {
+                let role_json =
+                    self.merged_named_json::<RoleJson>(parent, "roles", "role", name)?;
+                role_json
+                    .validate()
+                    .map_err(|error| serde_json::Error::io(invalid_config_error(error)))?;
+                let role = RoleOptions::from_json(&role_json);
+                self.roles.insert(name.clone(), role);
+            }
+        }
+
+        let child_features = self.options.features.as_ref();
+        inherit_named_options(&mut self.features, child_features, &parent.features);
+        if let Some(features) = child_features {
+            for name in features.keys() {
+                let feature_json =
+                    self.merged_named_json::<FeatureJson>(parent, "features", "feature", name)?;
+                feature_json
+                    .validate()
+                    .map_err(|error| serde_json::Error::io(invalid_config_error(error)))?;
+                let feature = FeatureOptions::from_json(&feature_json);
+                self.features.insert(name.clone(), feature);
+            }
+        }
+
+        let child_tags = self.options.tags.as_ref();
+        inherit_named_options(&mut self.tags, child_tags, &parent.tags);
+        if let Some(tags) = child_tags {
+            for name in tags.keys() {
+                let tag_json = self.merged_named_json::<TagJson>(parent, "tags", "tag", name)?;
+                tag_json
+                    .validate()
+                    .map_err(|error| serde_json::Error::io(invalid_config_error(error)))?;
+                let tag = TagOptions::from_json(&tag_json);
+                self.tags.insert(name.clone(), tag);
+            }
+        }
+
         if self.default_target.is_none() {
             self.default_target = parent.default_target.clone();
+        }
+        if self.default_product.is_none() {
+            self.default_product = parent.default_product.clone();
         }
 
         Ok(())
@@ -720,15 +774,24 @@ impl DestackConfig {
         serde_json::from_value(merged_json)
     }
 
-    /// Return one merged mode JSON object for one inherited mode name.
-    fn merged_mode_json(&self, parent: &Self, name: &str) -> Result<ModeJson, serde_json::Error> {
-        let child_json = self.raw_named_json("modes", name).ok_or_else(|| {
+    /// Return one merged named JSON object for one inherited declaration.
+    fn merged_named_json<T>(
+        &self,
+        parent: &Self,
+        section: &str,
+        kind: &str,
+        name: &str,
+    ) -> Result<T, serde_json::Error>
+    where
+        T: DeserializeOwned,
+    {
+        let child_json = self.raw_named_json(section, name).ok_or_else(|| {
             serde_json::Error::io(Error::new(
                 ErrorKind::InvalidData,
-                format!("failed to find mode config during inheritance: mode={name}"),
+                format!("failed to find {kind} config during inheritance: {kind}={name}"),
             ))
         })?;
-        let merged_json = if let Some(parent_json) = parent.raw_named_json("modes", name) {
+        let merged_json = if let Some(parent_json) = parent.raw_named_json(section, name) {
             Self::merge_json(parent_json, child_json)
         } else {
             child_json.clone()
@@ -789,4 +852,74 @@ impl DestackConfig {
 /// Return one invalid config IO error.
 fn invalid_config_error(message: impl Into<String>) -> Error {
     Error::new(ErrorKind::InvalidData, message.into())
+}
+
+/// Convert named JSON declarations into normalized options.
+fn options_from_json<J, O>(
+    json: &Option<IndexMap<String, J>>,
+    convert: impl Fn(&J) -> O,
+) -> IndexMap<String, O> {
+    json.as_ref()
+        .map(|items| {
+            items
+                .iter()
+                .map(|(name, item)| (name.clone(), convert(item)))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Inherit parent declarations not overridden by child JSON.
+fn inherit_named_options<O, J>(
+    current: &mut IndexMap<String, O>,
+    current_json: Option<&IndexMap<String, J>>,
+    parent: &IndexMap<String, O>,
+) where
+    O: Clone,
+{
+    for (name, item) in parent {
+        if current_json.is_some_and(|json| json.contains_key(name)) {
+            continue;
+        }
+
+        current.insert(name.clone(), item.clone());
+    }
+}
+
+/// Validate named JSON declarations.
+fn validate_named_json_map<T>(
+    kind: &str,
+    items: Option<&IndexMap<String, T>>,
+    validate: impl Fn(&T) -> Result<(), String>,
+) -> Result<(), serde_json::Error> {
+    if let Some(items) = items {
+        for (name, item) in items {
+            validate(item).map_err(|error| {
+                serde_json::Error::io(invalid_config_error(format!("{kind} '{name}': {error}")))
+            })?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Validate named declaration inheritance edges.
+fn validate_extends<T>(
+    kind: &str,
+    items: &IndexMap<String, T>,
+    extends: impl Fn(&T) -> &[String],
+) -> Result<(), String> {
+    for (name, item) in items {
+        for parent in extends(item) {
+            if parent == name {
+                return Err(format!("{kind} '{name}' extends itself"));
+            }
+
+            if !items.contains_key(parent) {
+                return Err(format!("{kind} '{name}' extends unknown {kind} '{parent}'"));
+            }
+        }
+    }
+
+    Ok(())
 }
