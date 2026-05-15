@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 
 use destack_artifact::{ArtifactKey, Data, Html};
 use destack_html as html;
-use destack_source::{FileType, ModuleEdge, ModuleEdgeRelation, ModuleId, StringId};
+use destack_source::{FileType, ModuleEdge, ModuleId, ModuleRelation, StringId};
 use destack_workspace::{Module, ProviderError};
 use indexmap::IndexSet;
 
@@ -344,7 +344,7 @@ impl<'a> ScriptLinker<'a> {
         let specifier_id = StringId::for_text(specifier);
         let Some(module_edge) = self.module_edge_for_site_specifier(
             module_edges,
-            ModuleEdgeRelation::DocumentScript,
+            ModuleRelation::Reference,
             attribute_id,
             specifier_id,
         ) else {
@@ -380,7 +380,7 @@ impl<'a> ScriptLinker<'a> {
         let specifier_id = StringId::for_text(specifier);
         let Some(module_edge) = self.module_edge_for_site_specifier(
             module_edges,
-            ModuleEdgeRelation::Resource,
+            ModuleRelation::Reference,
             attribute_id,
             specifier_id,
         ) else {
@@ -402,7 +402,7 @@ impl<'a> ScriptLinker<'a> {
         let specifier_id = StringId::for_text(specifier);
         let Some(module_edge) = self.module_edge_for_site_specifier(
             module_edges,
-            ModuleEdgeRelation::DocumentStylesheet,
+            ModuleRelation::Reference,
             attribute_id,
             specifier_id,
         ) else {

@@ -4,7 +4,7 @@ use std::sync::Arc;
 use destack_artifact::{ArtifactKey, Data, DirExported, DirImported, ModuleOutput};
 use destack_dir as dir;
 use destack_source::{
-    File, FileId, FileType, ModuleEdge, ModuleEdgeRelation, ModuleId, PackageId, ProfileId, Span,
+    File, FileId, FileType, ModuleEdge, ModuleId, ModuleRelation, PackageId, ProfileId, Span,
     StringId, TargetId,
 };
 use destack_workspace::{Module, ProviderContext, Revision, Target};
@@ -174,7 +174,7 @@ impl<'a> ScriptLinker<'a> {
     pub(crate) fn module_edge_for_site_specifier(
         &self,
         edges: &[ModuleEdge],
-        relation: ModuleEdgeRelation,
+        relation: ModuleRelation,
         reference_site: u32,
         specifier: StringId,
     ) -> Option<ModuleEdge> {
@@ -209,12 +209,12 @@ fn module_dependency_edges(imported: &DirImported, exported: &DirExported) -> Ve
         );
     }
 
-    // namespace exports
+    // re-export edges
     for export in exported.exports.namespace_exports.iter() {
         push_module_edge(
             &mut edges,
             Some(export.target),
-            ModuleEdgeRelation::NamespaceExport,
+            ModuleRelation::ReExport,
             None,
             None,
         );
@@ -230,7 +230,7 @@ fn module_dependency_edges(imported: &DirImported, exported: &DirExported) -> Ve
 fn push_module_edge(
     edges: &mut Vec<ModuleEdge>,
     target: Option<dir::DependencyTarget>,
-    relation: ModuleEdgeRelation,
+    relation: ModuleRelation,
     specifier: Option<StringId>,
     loader: Option<destack_source::Loader>,
 ) {

@@ -1,7 +1,7 @@
 use destack_core::StringId;
 use serde::{Deserialize, Serialize};
 
-use crate::{Loader, ModuleEdgeRelation, ModuleId};
+use crate::{Loader, ModuleId, ModuleRelation};
 
 /// One resolved relation from a source module to another source module.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, PartialOrd, Ord)]
@@ -9,7 +9,7 @@ pub struct ModuleEdge {
     /// The target module.
     pub target: ModuleId,
     /// The source relation.
-    pub relation: ModuleEdgeRelation,
+    pub relation: ModuleRelation,
     /// The authored specifier when the relation has one.
     pub specifier: Option<StringId>,
     /// The local source site when the relation came from a concrete document or style node.
@@ -20,7 +20,7 @@ pub struct ModuleEdge {
 
 impl ModuleEdge {
     /// Create one module edge.
-    pub fn new(target: ModuleId, relation: ModuleEdgeRelation) -> Self {
+    pub fn new(target: ModuleId, relation: ModuleRelation) -> Self {
         Self {
             target,
             relation,
