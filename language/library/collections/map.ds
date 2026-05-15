@@ -133,6 +133,11 @@ where K implements Equal<K> {
         todo("Map.from")
     }
 
+    /// Group `values` by a computed key.
+    static groupBy<T>(values: Iterable<T>, key: (value: T, index: number) => K): Map<K, Array<T>> {
+        todo("Map.groupBy")
+    }
+
     /// Create a map from entries.
     static fromIterator(entries: Iterator<(K, V)>): Map<K, V> {
         todo("Map.fromIterator")
@@ -206,7 +211,7 @@ where K implements Equal<K> {
     }
 
     /// Replace a key-value pair through the index operator.
-    indexSet(this: &Map<K, V>, key: K, value: V): void {
+    indexSet(this: &exclusive Map<K, V>, key: K, value: V): void {
         this.set(key, value);
     }
 
@@ -232,12 +237,12 @@ where K implements Equal<K> {
     }
 
     /// Insert or replace a key-value pair.
-    set(this: &Map<K, V>, key: K, value: V): this {
+    set(this: &exclusive Map<K, V>, key: K, value: V): this {
         todo("Map.set")
     }
 
     /// Insert or replace all entries.
-    extend(this: &Map<K, V>, entries: Iterable<(K, V)>): void {
+    extend(this: &exclusive Map<K, V>, entries: Iterable<(K, V)>): void {
         todo("Map.extend")
     }
 
@@ -285,8 +290,18 @@ where K implements Equal<K> {
         todo("Map.keys")
     }
 
+    /// Return copied keys.
+    keys(): Iterator<K> {
+        todo("Map.keys")
+    }
+
     /// Return all values.
     values(this: &Map<K, V>): Iterator<&V> {
+        todo("Map.values")
+    }
+
+    /// Return copied values.
+    values(): Iterator<V> {
         todo("Map.values")
     }
 
@@ -302,6 +317,11 @@ where K implements Equal<K> {
 
     /// Return all entries.
     entries(this: &Map<K, V>): Iterator<MapEntry<&readonly K, &V>> {
+        todo("Map.entries")
+    }
+
+    /// Return copied entries.
+    entries(): Iterator<(K, V)> {
         todo("Map.entries")
     }
 

@@ -69,9 +69,19 @@ extension<T> of Array<T> implements
         todo("Array.from")
     }
 
+    /// Create an array from `values` and map each value.
+    static from<U>(values: Iterable<U>, map: (value: U, index: number) => T): Array<T> {
+        todo("Array.from")
+    }
+
     /// Create an array from `values`.
     static fromIterator(values: Iterator<T>): Array<T> {
         todo("Array.fromIterator")
+    }
+
+    /// Create an array from `items`.
+    static of(...items: T[]): Array<T> {
+        todo("Array.of")
     }
 
     /// Create the default array.
@@ -104,6 +114,11 @@ extension<T> of Array<T> implements
         todo("Array.index")
     }
 
+    /// Return the element at `index`, counting from the end when negative.
+    at(index: number): T | undefined {
+        todo("Array.at")
+    }
+
     /// Borrow the element at `index`.
     index(this: &Array<T>, index: number): &T {
         todo("Array.index")
@@ -120,7 +135,7 @@ extension<T> of Array<T> implements
     }
 
     /// Replace the element at `index`.
-    indexSet(this: &Array<T>, index: number, value: T): void {
+    indexSet(this: &exclusive Array<T>, index: number, value: T): void {
         todo("Array.indexSet")
     }
 
@@ -169,6 +184,11 @@ extension<T> of Array<T> implements
         todo("Array.push")
     }
 
+    /// Append `values`.
+    push(this: &Array<T>, ...values: T[]): number {
+        todo("Array.push")
+    }
+
     /// Append all `values`.
     extend(this: &Array<T>, values: Iterable<T>): void {
         todo("Array.extend")
@@ -177,6 +197,16 @@ extension<T> of Array<T> implements
     /// Remove and return the last element.
     pop(this: &exclusive Array<T>): T | undefined {
         todo("Array.pop")
+    }
+
+    /// Remove and return the first element.
+    shift(this: &exclusive Array<T>): T | undefined {
+        todo("Array.shift")
+    }
+
+    /// Prepend `values`.
+    unshift(this: &exclusive Array<T>, ...values: T[]): number {
+        todo("Array.unshift")
     }
 
     /// Insert `value` at `index`.
@@ -192,6 +222,16 @@ extension<T> of Array<T> implements
     /// Remove all elements.
     clear(this: &exclusive Array<T>): void {
         todo("Array.clear")
+    }
+
+    /// Overwrite a range with `value`.
+    fill(this: &exclusive Array<T>, value: T, start?: number, end?: number): this {
+        todo("Array.fill")
+    }
+
+    /// Copy a range within this array.
+    copyWithin(this: &exclusive Array<T>, target: number, start: number, end?: number): this {
+        todo("Array.copyWithin")
     }
 
     /// Retain only elements accepted by `predicate`.
@@ -254,6 +294,16 @@ extension<T> of Array<T> implements
         todo("Array.findIndex")
     }
 
+    /// Return the last element accepted by `predicate`.
+    findLast(predicate: (value: T, index: number) => boolean): T | undefined {
+        todo("Array.findLast")
+    }
+
+    /// Return the index of the last element accepted by `predicate`.
+    findLastIndex(predicate: (value: T, index: number) => boolean): number {
+        todo("Array.findLastIndex")
+    }
+
     /// Return whether any element is accepted by `predicate`.
     some(predicate: (value: T, index: number) => boolean): boolean {
         todo("Array.some")
@@ -279,6 +329,11 @@ extension<T> of Array<T> implements
         todo("Array.indexOf")
     }
 
+    /// Return the last index of `value`.
+    lastIndexOf(value: T, fromIndex?: number): number {
+        todo("Array.lastIndexOf")
+    }
+
     /// Join all elements into a string.
     join(separator?: string): string {
         todo("Array.join")
@@ -289,9 +344,19 @@ extension<T> of Array<T> implements
         todo("Array.reverse")
     }
 
+    /// Return a reversed copy.
+    toReversed(): Array<T> {
+        todo("Array.toReversed")
+    }
+
     /// Sort this array in place.
     sort(this: &exclusive Array<T>, compare?: (a: &readonly T, b: &readonly T) => number): this {
         todo("Array.sort")
+    }
+
+    /// Return a sorted copy.
+    toSorted(compare?: (a: &readonly T, b: &readonly T) => number): Array<T> {
+        todo("Array.toSorted")
     }
 
     /// Splice this array.
@@ -304,14 +369,39 @@ extension<T> of Array<T> implements
         todo("Array.splice")
     }
 
+    /// Return a spliced copy.
+    toSpliced(start: number, deleteCount?: number, ...items: T[]): Array<T> {
+        todo("Array.toSpliced")
+    }
+
+    /// Return a copy with `value` at `index`.
+    with(index: number, value: T): Array<T> {
+        todo("Array.with")
+    }
+
     /// Flatten nested arrays.
-    flat<D extends number = 1>(depth?: D): Array<unknown> {
+    flat<U>(this: Array<ReadonlyArray<U>>, depth?: number): Array<U> {
         todo("Array.flat")
     }
 
     /// Map and flatten nested arrays.
-    flatMap<U>(f: (value: T, index: number) => Array<U>): Array<U> {
+    flatMap<U>(f: (value: T, index: number) => U | ReadonlyArray<U>): Array<U> {
         todo("Array.flatMap")
+    }
+
+    /// Return an iterator over numeric indices.
+    keys(): Iterator<number> {
+        todo("Array.keys")
+    }
+
+    /// Return an iterator over copied values.
+    values(): Iterator<T> {
+        todo("Array.values")
+    }
+
+    /// Return an iterator over copied index-value entries.
+    entries(): Iterator<(number, T)> {
+        todo("Array.entries")
     }
 
     /// Return an iterator over copied values.

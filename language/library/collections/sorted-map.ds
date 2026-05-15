@@ -184,7 +184,7 @@ extension<K: Compare<K>, V> of SortedMap<K, V> implements
     }
 
     /// Replace a key-value pair through the index operator.
-    indexSet(this: &SortedMap<K, V>, key: K, value: V): void {
+    indexSet(this: &exclusive SortedMap<K, V>, key: K, value: V): void {
         this.set(key, value);
     }
 
@@ -205,12 +205,12 @@ extension<K: Compare<K>, V> of SortedMap<K, V> implements
     }
 
     /// Insert or replace a key-value pair.
-    set(this: &SortedMap<K, V>, key: K, value: V): this {
+    set(this: &exclusive SortedMap<K, V>, key: K, value: V): this {
         todo("SortedMap.set")
     }
 
     /// Insert or replace all entries.
-    extend(this: &SortedMap<K, V>, entries: Iterable<(K, V)>): void {
+    extend(this: &exclusive SortedMap<K, V>, entries: Iterable<(K, V)>): void {
         todo("SortedMap.extend")
     }
 

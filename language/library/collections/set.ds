@@ -156,6 +156,21 @@ where T implements Equal<T> {
         todo("Set.isDisjointFrom")
     }
 
+    /// Return copied values as keys.
+    keys(): Iterator<T> {
+        todo("Set.keys")
+    }
+
+    /// Return copied values.
+    values(): Iterator<T> {
+        todo("Set.values")
+    }
+
+    /// Return copied value-value entries.
+    entries(): Iterator<(T, T)> {
+        todo("Set.entries")
+    }
+
     /// Return an iterator over copied values.
     iterator(): Iterator<T> {
         todo("Set.iterator")
