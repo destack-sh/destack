@@ -60,8 +60,6 @@ pub enum Keyword {
     Const,
     /// Let expression.
     Let,
-    /// Declare a namespace.
-    Namespace,
     /// Declare a type.
     Type,
     /// Declare a newtype.
@@ -263,7 +261,6 @@ impl Keyword {
             // declarations
             Keyword::Const => "const",
             Keyword::Let => "let",
-            Keyword::Namespace => "namespace",
             Keyword::Type => "type",
             Keyword::Newtype => "newtype",
             Keyword::Struct => "struct",
@@ -371,7 +368,6 @@ impl FromStr for Keyword {
             // declarations
             "const" => Ok(Keyword::Const),
             "let" => Ok(Keyword::Let),
-            "namespace" => Ok(Keyword::Namespace),
             "type" => Ok(Keyword::Type),
             "newtype" => Ok(Keyword::Newtype),
             "struct" => Ok(Keyword::Struct),

@@ -1422,7 +1422,6 @@ impl Tree {
                 .is_some_and(|body_expression_id| body_expression_id.id == expression_id.id),
             Declaration::Global(declaration) => declaration.expressions.contains(&expression_id),
             Declaration::Module(declaration) => declaration.expressions.contains(&expression_id),
-            Declaration::Namespace(declaration) => declaration.expressions.contains(&expression_id),
 
             // everything else treats child expressions as operands
             _ => false,
