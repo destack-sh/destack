@@ -71,6 +71,7 @@ Dynamic shapes and unsound types are incompatible with a strict sound compilatio
 - **Coercion hooks**: `valueOf`, `toString`, and `Symbol.toPrimitive` do not participate in implicit object coercion.
 - **Symbol magic**: `Symbol.hasInstance`, `Symbol.species`, `Symbol.isConcatSpreadable`, and other such hooks are not supported.
   Use typed `iterator()` / `asyncIterator()` protocols.
+- **Callable `Symbol`**: Symbols work, but use `Symbol.create("name")` for fresh symbols and `Symbol.for("name")` for registry symbols (instead of the magic `Symbol("name")` form).
 
 # Language
 
