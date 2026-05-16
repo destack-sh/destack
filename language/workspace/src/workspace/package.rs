@@ -5,7 +5,7 @@ use destack_source::{FileId, PackageId, TargetId, Uri};
 use im::OrdMap;
 use indexmap::IndexMap;
 
-use crate::config::{DependencyMap, Target, VendorOptions};
+use crate::config::{DependencyMap, Target, Vendor};
 
 /// The ownership kind for a package.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -36,8 +36,8 @@ pub struct Package {
     /// Package dependencies enabled by source graph mode.
     pub mode_dependencies: IndexMap<String, DependencyMap>,
     /// Vendored dependency resolution options.
-    pub vendoring: VendorOptions,
-    /// The destack.json declaration file id when present.
+    pub vendoring: Vendor,
+    /// The `destack.json` file id when present.
     pub destack_file_id: Option<FileId>,
     /// The package targets.
     pub targets: IndexMap<TargetId, Target>,

@@ -1,24 +1,30 @@
 use destack_artifact::ProfileKey;
 
 use crate::{
-    CompilerOptions, ConditionSet, DestackDeclaration, HostEnvironment, ProfileOptions, Target,
+    CompilerOptions, ConditionSet, Destack, HostEnvironment, ProfileOptions, Target,
     profile_flags_for_compiler_options,
 };
 
 /// Build one profile key for one target.
 pub(crate) fn profile_key_for_target(
+    target_name: &str,
     target: &Target,
     compiler_options: &CompilerOptions,
     profile_config: Option<&ProfileOptions>,
-    config: Option<&DestackDeclaration>,
+    config: Option<&Destack>,
     environment: &HostEnvironment,
     product: Option<&str>,
     product_role: Option<&str>,
 ) -> ProfileKey {
     let compiler_options =
         profile_compiler_options_for_target(target, compiler_options, profile_config, product_role);
-    let conditions =
-        condition_set_from_compiler_options(target, &compiler_options, config, product);
+    let conditions = condition_set_from_compiler_options(
+        target_name,
+        target,
+        &compiler_options,
+        config,
+        product,
+    );
     let emit = target.emit;
 
     // runtime surface
@@ -73,9 +79,10 @@ pub(crate) fn profile_key_for_target(
 
 /// Build one condition set from already resolved compiler options.
 fn condition_set_from_compiler_options(
+    target_name: &str,
     target: &Target,
     compiler_options: &CompilerOptions,
-    config: Option<&DestackDeclaration>,
+    config: Option<&Destack>,
     product: Option<&str>,
 ) -> ConditionSet {
     ConditionSet {
@@ -123,7 +130,7 @@ fn condition_set_from_compiler_options(
             },
             config,
         ),
-        target: Some(target.name.clone()),
+        target: Some(target_name.to_string()),
         product: product.map(str::to_string),
         platform: Some(target.platform),
         host: Some(target.host),
@@ -168,8 +175,8 @@ fn profile_compiler_options_for_target(
 /// Expand selected source graph names through declared parents.
 fn inherited_conditions(
     selected: &[String],
-    parents_for: impl for<'a> Fn(&'a DestackDeclaration, &str) -> Option<&'a [String]>,
-    config: Option<&DestackDeclaration>,
+    parents_for: impl for<'a> Fn(&'a Destack, &str) -> Option<&'a [String]>,
+    config: Option<&Destack>,
 ) -> indexmap::IndexSet<String> {
     let mut conditions = indexmap::IndexSet::new();
 

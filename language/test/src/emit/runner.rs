@@ -176,7 +176,7 @@ fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
     // load the tracked package config through the real repository path
     let destack_config_file_id = repository.file_id(&destack_config_path);
     let config = match repository
-        .destack_config_for_file(revision, destack_config_file_id)
+        .destack_for_file(revision, destack_config_file_id)
         .expect("failed to load tracked destack.json from revision")
     {
         Some(config) => config,

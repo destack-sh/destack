@@ -50,6 +50,8 @@ impl Runtime {
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize,
 )]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
 pub enum Platform {
     /// Unknown operating system.
     #[default]
@@ -199,6 +201,8 @@ impl Platform {
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize,
 )]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
 pub enum Host {
     /// Unknown host environment.
     #[default]
@@ -269,6 +273,8 @@ impl Host {
 
 /// CPU architecture for native targets.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
 pub enum TargetArch {
     /// x86_64.
     X86_64,
@@ -361,6 +367,8 @@ impl TargetArch {
 
 /// Target vendor for native targets.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
 pub enum TargetVendor {
     /// Unknown vendor.
     Unknown,
@@ -422,6 +430,8 @@ impl TargetVendor {
 
 /// Target ABI flavor.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
 pub enum TargetAbi {
     /// GNU environment.
     Gnu,

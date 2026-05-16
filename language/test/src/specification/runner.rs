@@ -363,7 +363,7 @@ fn apply_destack_config_for_spec(
         let destack_config_file_id = repository.file_id(&destack_config_path);
 
         !repository
-            .destack_config_for_file(revision, destack_config_file_id)
+            .destack_for_file(revision, destack_config_file_id)
             .map_err(|error| format!("failed to load destack.json: {error}"))?
             .ok_or_else(|| "failed to load destack.json".to_string())?
             .as_ref()

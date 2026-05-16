@@ -186,17 +186,16 @@ impl Repository {
         revision: Revision,
         package_id: PackageId,
     ) -> Result<IndexMap<String, ConditionGate>, RepositoryError> {
-        let aliases =
-            if let Some(config) = self.destack_config_for_package_id(revision, package_id)? {
-                config
-                    .conditions
-                    .aliases
-                    .iter()
-                    .map(|(name, alias)| (name.clone(), alias.clone()))
-                    .collect()
-            } else {
-                builtin_condition_aliases()
-            };
+        let aliases = if let Some(config) = self.destack_for_package_id(revision, package_id)? {
+            config
+                .conditions
+                .aliases
+                .iter()
+                .map(|(name, alias)| (name.clone(), alias.clone()))
+                .collect()
+        } else {
+            builtin_condition_aliases()
+        };
 
         Ok(aliases)
     }
@@ -449,7 +448,7 @@ mod tests {
         // strip aliases before preserving the compound declaration extension
         let base_path = Repository::condition_base_path(
             Path::new("src/user.test.d.ds"),
-            FileType::DestackDeclaration,
+            FileType::Destack,
             &aliases,
         );
 

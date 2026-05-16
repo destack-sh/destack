@@ -4,7 +4,7 @@ use std::sync::Arc;
 use destack_source::{ModuleId, PackageId, TargetId, matches as glob_matches};
 
 use crate::repository::{Repository, RepositoryError, Revision};
-use crate::{DestackDeclaration, Package, Target, TargetDiscovery};
+use crate::{DestackFile, Package, Target, TargetDiscovery};
 
 /// Describe a failure while discovering target modules.
 #[derive(Debug, Clone)]
@@ -16,7 +16,7 @@ pub enum TargetDiscoveryError {
         /// Target id for the discovery.
         target: TargetId,
         /// The repository failure.
-        error: RepositoryError,
+        error: Box<RepositoryError>,
     },
     /// Missing package for target discovery.
     MissingPackage {
@@ -118,7 +118,7 @@ impl Repository {
             .map_err(|error| TargetDiscoveryError::RepositoryRead {
                 package: package_id,
                 target: target_id,
-                error,
+                error: Box::new(error),
             })?
             .ok_or(TargetDiscoveryError::MissingPackage {
                 package: package_id,
@@ -137,7 +137,7 @@ impl Repository {
             .map_err(|error| TargetDiscoveryError::RepositoryRead {
                 package: package_id,
                 target: target_id,
-                error,
+                error: Box::new(error),
             })?
             .ok_or(TargetDiscoveryError::MissingTarget {
                 package: package_id,
@@ -151,12 +151,12 @@ impl Repository {
         revision: Revision,
         package_id: PackageId,
         target_id: TargetId,
-    ) -> Result<Option<Arc<DestackDeclaration>>, TargetDiscoveryError> {
-        self.destack_config_for_package_id(revision, package_id)
+    ) -> Result<Option<Arc<DestackFile>>, TargetDiscoveryError> {
+        self.destack_for_package_id(revision, package_id)
             .map_err(|error| TargetDiscoveryError::RepositoryRead {
                 package: package_id,
                 target: target_id,
-                error,
+                error: Box::new(error),
             })
     }
 
@@ -211,7 +211,7 @@ impl Repository {
             TargetDiscoveryError::RepositoryRead {
                 package: package_id,
                 target: target_id,
-                error,
+                error: Box::new(error),
             }
         })?
         else {
@@ -221,7 +221,7 @@ impl Repository {
             TargetDiscoveryError::RepositoryRead {
                 package: package_id,
                 target: target_id,
-                error,
+                error: Box::new(error),
             }
         })?
         else {
@@ -251,7 +251,7 @@ impl Repository {
             .map_err(|error| TargetDiscoveryError::RepositoryRead {
                 package: package_id,
                 target: target_id,
-                error,
+                error: Box::new(error),
             })?;
 
         // package modules
@@ -260,7 +260,7 @@ impl Repository {
                 TargetDiscoveryError::RepositoryRead {
                     package: package_id,
                     target: target_id,
-                    error,
+                    error: Box::new(error),
                 }
             })?
             else {

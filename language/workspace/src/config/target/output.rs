@@ -1,8 +1,9 @@
-use destack_artifact::EmitFormat;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 /// How modules are discovered for a build target.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
 pub enum TargetDiscovery {
     /// Start from entry points and follow imports.
     /// Requires `entry` to be set. Used for bundles/executables.
@@ -26,7 +27,7 @@ pub enum OutputMode {
 }
 
 /// Source map emission mode for one target.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub enum SourceMapMode {
@@ -48,38 +49,5 @@ impl SourceMapMode {
     /// Return whether this mode inlines maps into emitted text.
     pub fn is_inline(self) -> bool {
         matches!(self, Self::Inline)
-    }
-}
-
-/// Emit family for JSON deserialization.
-#[derive(Debug, Clone, Copy, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "lowercase")]
-pub enum EmitFormatJson {
-    /// JavaScript (.js).
-    #[serde(alias = "javascript")]
-    Js,
-    /// TypeScript (.ts).
-    #[serde(alias = "typescript")]
-    Ts,
-    /// HTML document output.
-    Html,
-    /// WebAssembly (.wasm).
-    #[serde(alias = "webassembly")]
-    Wasm,
-    /// Native binary.
-    #[serde(alias = "binary")]
-    Native,
-}
-
-impl From<EmitFormatJson> for EmitFormat {
-    fn from(value: EmitFormatJson) -> Self {
-        match value {
-            EmitFormatJson::Js => EmitFormat::Js,
-            EmitFormatJson::Ts => EmitFormat::Ts,
-            EmitFormatJson::Html => EmitFormat::Html,
-            EmitFormatJson::Wasm => EmitFormat::Wasm,
-            EmitFormatJson::Native => EmitFormat::Native,
-        }
     }
 }

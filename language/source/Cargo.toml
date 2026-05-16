@@ -11,6 +11,10 @@ rust-version.workspace = true
 path = "src/lib.rs"
 doctest = false
 
+[features]
+default = []
+schema = ["schemars"]
+
 [dependencies]
 # language
 destack_core = { workspace = true }
@@ -23,6 +27,7 @@ indexmap = { workspace = true }
 parking_lot = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["preserve_order"] }
+schemars = { workspace = true, optional = true }
 simdutf8 = { workspace = true }
 smallvec = { workspace = true }
 rustc-hash = { workspace = true }

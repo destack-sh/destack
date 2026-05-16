@@ -1,5 +1,9 @@
+use serde::{Deserialize, Serialize};
+
 /// The indent style.
-#[derive(Debug, Eq, PartialEq, Clone, Copy, Hash, Default)]
+#[derive(Debug, Eq, PartialEq, Clone, Copy, Hash, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
 pub enum IndentStyle {
     /// Use tabs to indent.
     #[default]
@@ -35,14 +39,18 @@ impl std::fmt::Display for IndentStyle {
 }
 
 /// The type of line ending to apply to the printed input.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Default)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum LineEnding {
     /// Line Feed only (\n), common on Linux and macOS as well as inside git repos.
     #[default]
+    #[serde(rename = "lf")]
     LineFeed,
     /// Carriage Return + Line Feed characters (\r\n), common on Windows.
+    #[serde(rename = "crlf")]
     CarriageReturnLineFeed,
     /// Carriage Return character only (\r), used very rarely.
+    #[serde(rename = "cr")]
     CarriageReturn,
 }
 

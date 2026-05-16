@@ -2,6 +2,8 @@ use serde::{Deserialize, Serialize};
 
 /// Execution mode for runtime scheduling and replay.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
 pub enum ExecutionMode {
     /// Fast execution without determinism guarantees.
     #[default]
@@ -37,6 +39,8 @@ impl ExecutionMode {
 
 /// Replay payload selection for record/replay.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
 pub enum ReplayPayloadMode {
     /// Record only the result value.
     #[default]
@@ -61,51 +65,5 @@ impl ReplayPayloadMode {
     /// Parse from a string value.
     pub fn parse(s: &str) -> Option<Self> {
         s.parse().ok()
-    }
-}
-
-/// Execution mode for JSON deserialization.
-#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "lowercase")]
-pub enum ExecutionModeJson {
-    /// Fast execution without determinism guarantees.
-    Fast,
-    /// Deterministic scheduling with controlled randomness.
-    Deterministic,
-    /// Record external effects for replay.
-    Record,
-    /// Replay external effects from the log.
-    Replay,
-}
-
-impl From<ExecutionModeJson> for ExecutionMode {
-    fn from(value: ExecutionModeJson) -> Self {
-        match value {
-            ExecutionModeJson::Fast => ExecutionMode::Fast,
-            ExecutionModeJson::Deterministic => ExecutionMode::Deterministic,
-            ExecutionModeJson::Record => ExecutionMode::Record,
-            ExecutionModeJson::Replay => ExecutionMode::Replay,
-        }
-    }
-}
-
-/// Replay payload mode for JSON deserialization.
-#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub enum ReplayPayloadModeJson {
-    /// Record only the result value.
-    ResultsOnly,
-    /// Record arguments and results for verification.
-    ArgumentsAndResults,
-}
-
-impl From<ReplayPayloadModeJson> for ReplayPayloadMode {
-    fn from(value: ReplayPayloadModeJson) -> Self {
-        match value {
-            ReplayPayloadModeJson::ResultsOnly => ReplayPayloadMode::ResultsOnly,
-            ReplayPayloadModeJson::ArgumentsAndResults => ReplayPayloadMode::ArgumentsAndResults,
-        }
     }
 }

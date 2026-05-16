@@ -8,34 +8,26 @@ use serde::Deserialize;
 use serde_json::Value;
 
 use crate::config::{
-    CompilerOptions, ConditionGate, ConditionOptions, ConditionOptionsJson, DependencyJsonMap,
-    DependencyMap, DiagnosticPolicy, EnvironmentOptions, FeatureOptions, FormatterOptions,
-    LinterOptions, ModeOptions, PolicyOptions, PolicyOptionsJson, ProductOptions,
-    ProductOptionsJson, ProfileOptions, ProfileOptionsJson, RoleOptions, RuntimeOptions,
-    TagOptions, TargetOptions, VendorOptions, VendorOptionsJson, builtin_modes, builtin_roles,
-    dependency_options_from_json, environment_options_from_json, parse_jsonc_file,
-    runtime_options_from_json, validate_dependency_json_map,
+    CompilerOptions, ConditionCatalog, ConditionGate, DependencyMap, DiagnosticPolicy,
+    EnvironmentOptions, FormatterOptions, LinterOptions, Policy, Product, ProfileOptions,
+    RuntimeOptions, Target, Vendor, builtin_modes, builtin_roles, parse_jsonc_file,
+    validate_dependency_map,
 };
 
-use super::compiler::CompilerOptionsJson;
-use super::environment::EnvironmentJson;
-use super::formatter::FormatterJson;
-use super::linter::LinterJson;
-use super::runtime::RuntimeConfigJson;
-use super::target::TargetJson;
-
-/// Top-level options parsed from `destack.json`.
+/// Destack configuration document.
 #[derive(Debug, Deserialize, Clone, Default)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "schema", schemars(title = "Destack"))]
+#[serde(default)]
 #[serde(rename_all = "camelCase")]
-pub struct DestackOptions {
+pub struct Destack {
     /// Package name.
     pub name: Option<String>,
     /// Package version.
     pub version: Option<String>,
     /// Whether the package is private.
     #[serde(rename = "private")]
-    pub r#private: Option<bool>,
+    pub is_private: Option<bool>,
     /// Package description.
     pub description: Option<String>,
     /// Package license identifier.
@@ -45,52 +37,130 @@ pub struct DestackOptions {
     /// Package homepage.
     pub homepage: Option<String>,
     /// Package keywords.
-    pub keywords: Option<Vec<String>>,
+    pub keywords: Vec<String>,
     /// Repository wide workspace package and group configuration.
     workspace: Option<WorkspaceLayout>,
     /// Config path inherited before this config.
     pub extends: Option<String>,
     /// Specific files to include in the project.
-    pub files: Option<Vec<String>>,
+    pub files: Vec<String>,
     /// Glob patterns for files to include.
-    pub include: Option<Vec<String>>,
+    pub include: Vec<String>,
     /// Glob patterns for files to exclude.
-    pub exclude: Option<Vec<String>>,
+    pub exclude: Vec<String>,
     /// Package dependencies.
-    pub dependencies: Option<DependencyJsonMap>,
-    /// Vendored dependency resolution options.
-    pub vendoring: Option<VendorOptionsJson>,
-    /// Compiler options.
-    pub compiler: CompilerOptionsJson,
+    pub dependencies: DependencyMap,
+    /// Vendored dependency resolution declaration.
+    pub vendoring: Vendor,
+    /// Compiler configuration.
+    pub compiler: CompilerOptions,
     /// Package policy declarations and rules.
-    pub policy: PolicyOptionsJson,
-    /// Runtime options.
-    pub runtime: RuntimeConfigJson,
-    /// Formatter options.
-    pub formatter: FormatterJson,
-    /// Linter options.
-    pub linter: LinterJson,
+    pub policy: Policy,
+    /// Runtime configuration.
+    pub runtime: RuntimeOptions,
+    /// Formatter configuration.
+    pub formatter: FormatterOptions,
+    /// Linter configuration.
+    pub linter: LinterOptions,
     /// Build targets.
-    pub targets: Option<IndexMap<String, TargetJson>>,
+    pub targets: IndexMap<String, Target>,
     /// Deliverable products.
-    pub products: Option<IndexMap<String, ProductOptionsJson>>,
+    pub products: IndexMap<String, Product>,
     /// Named reusable toolchain and runtime environments.
-    pub environments: Option<IndexMap<String, EnvironmentJson>>,
+    pub environments: IndexMap<String, EnvironmentOptions>,
     /// Named profiles for semantic configuration.
-    pub profiles: Option<IndexMap<String, ProfileOptionsJson>>,
+    pub profiles: IndexMap<String, ProfileOptions>,
     /// Named source graph conditions.
-    pub conditions: Option<ConditionOptionsJson>,
+    pub conditions: ConditionCatalog,
     /// Default target for the package.
     pub default_target: Option<String>,
     /// Default product for the package.
     pub default_product: Option<String>,
 }
 
-impl DestackOptions {
+impl Destack {
     /// Return the declared `extends` specifiers in order.
-    pub fn extends(&self) -> impl Iterator<Item = &str> {
+    pub(crate) fn extends(&self) -> impl Iterator<Item = &str> {
         self.extends.iter().map(String::as_str)
     }
+
+    /// Complete derived config fields after deserialization.
+    pub(crate) fn finish(&mut self) -> Result<(), serde_json::Error> {
+        let mut modes = builtin_modes();
+        modes.extend(std::mem::take(&mut self.conditions.modes));
+        self.conditions.modes = modes;
+
+        let mut roles = builtin_roles();
+        roles.extend(std::mem::take(&mut self.conditions.roles));
+        self.conditions.roles = roles;
+
+        let mut aliases = IndexMap::new();
+        for name in self.conditions.modes.keys() {
+            insert_condition_alias(&mut aliases, name, ConditionGate::mode(name.clone()))?;
+        }
+        for name in self.conditions.roles.keys() {
+            insert_condition_alias(&mut aliases, name, ConditionGate::role(name.clone()))?;
+        }
+        for name in self.conditions.features.keys() {
+            insert_condition_alias(&mut aliases, name, ConditionGate::feature(name.clone()))?;
+        }
+        for name in self.conditions.tags.keys() {
+            insert_condition_alias(&mut aliases, name, ConditionGate::tag(name.clone()))?;
+        }
+        for (name, alias) in std::mem::take(&mut self.conditions.aliases) {
+            if aliases.contains_key(&name) {
+                let error = format!("condition alias '{name}' conflicts with a condition name");
+                return Err(serde_json::Error::io(invalid_config_error(error)));
+            }
+            if alias.is_empty() {
+                let error = format!("condition alias '{name}' must define at least one selector");
+                return Err(serde_json::Error::io(invalid_config_error(error)));
+            }
+
+            aliases.insert(name, alias);
+        }
+        self.conditions.aliases = aliases;
+
+        Ok(())
+    }
+
+    /// Validate resolved configuration invariants.
+    pub fn validate(&self) -> Result<(), String> {
+        self.policy.validate()?;
+
+        for target in self.targets.values() {
+            target.policy.validate()?;
+        }
+        for product in self.products.values() {
+            product.policy.validate()?;
+            product.validate()?;
+        }
+        for (product_name, product) in &self.products {
+            for (role, target_name) in &product.targets {
+                if !self.targets.contains_key(target_name) {
+                    let error = format!(
+                        "product '{product_name}' role '{role}' references unknown target '{target_name}'"
+                    );
+                    return Err(error);
+                }
+            }
+        }
+
+        validate_extends("mode", &self.conditions.modes, |mode| &mode.extends)?;
+        validate_extends("role", &self.conditions.roles, |role| &role.extends)?;
+        validate_extends("feature", &self.conditions.features, |feature| {
+            &feature.extends
+        })?;
+        validate_extends("tag", &self.conditions.tags, |tag| &tag.extends)?;
+
+        Ok(())
+    }
+}
+
+/// Return the JSON schema for `destack.json`.
+#[cfg(feature = "schema")]
+pub fn destack_schema() -> schemars::Schema {
+    schemars::schema_for!(Destack)
 }
 
 /// Workspace package layout.
@@ -104,80 +174,33 @@ struct WorkspaceLayout {
     groups: Option<IndexMap<String, Vec<String>>>,
 }
 
-/// Parsed or effective `destack.json` declaration.
+/// Loaded `destack.json` file.
 #[derive(Debug, Clone)]
-pub struct DestackDeclaration {
+pub struct DestackFile {
     /// The id of the `destack.json` file.
     pub file_id: FileId,
     /// The declaration files used to build this effective declaration.
-    pub declaration_file_ids: Vec<FileId>,
+    pub file_ids: Vec<FileId>,
     /// Path to the `destack.json` file.
     pub path: PathBuf,
     /// The directory containing the `destack.json` file.
     pub directory: PathBuf,
-    /// The effective options parsed from the declaration JSON.
-    pub options: DestackOptions,
-    /// The effective declaration JSON.
-    declaration_json: Value,
-
-    /// Package name.
-    pub name: Option<String>,
-    /// Package version.
-    pub version: Option<String>,
-    /// Whether the package is private.
-    pub is_private: Option<bool>,
-    /// Package description.
-    pub description: Option<String>,
-    /// Package license identifier.
-    pub license: Option<String>,
-    /// Package repository metadata.
-    pub repository: Option<Value>,
-    /// Package homepage.
-    pub homepage: Option<String>,
-    /// Package keywords.
-    pub keywords: Vec<String>,
-    /// Specific files to include in the project.
-    pub files: Vec<String>,
-    /// Glob patterns for files to include.
-    pub include: Vec<String>,
-    /// Glob patterns for files to exclude.
-    pub exclude: Vec<String>,
-    /// Package dependencies.
-    pub dependencies: DependencyMap,
-    /// Vendored dependency resolution options.
-    pub vendoring: VendorOptions,
-    /// Compiler options.
-    pub compiler: CompilerOptions,
-    /// Package policy declarations and rules.
-    pub policy: PolicyOptions,
-    /// Runtime options.
-    pub runtime: RuntimeOptions,
-    /// Formatter options.
-    pub formatter: FormatterOptions,
-    /// Linter options.
-    pub linter: LinterOptions,
-    /// Build targets.
-    pub targets: IndexMap<String, TargetOptions>,
-    /// Deliverable products.
-    pub products: IndexMap<String, ProductOptions>,
-    /// Named reusable toolchain and runtime environments.
-    pub environments: IndexMap<String, EnvironmentOptions>,
-    /// Named profiles for semantic configuration.
-    pub profiles: IndexMap<String, ProfileOptions>,
-    /// Named source graph conditions.
-    pub conditions: ConditionOptions,
-    /// Default target for the package.
-    pub default_target: Option<String>,
-    /// Default product for the package.
-    pub default_product: Option<String>,
-    /// Workspace package root glob patterns when discovery is explicit.
-    pub workspace_packages: Option<Vec<String>>,
-    /// Workspace member groups.
-    pub workspace_groups: IndexMap<String, Vec<String>>,
+    /// The effective parsed declaration.
+    pub destack: Destack,
+    /// The effective declaration source.
+    source: Value,
 }
 
-impl DestackDeclaration {
-    /// Parse one `destack.json` declaration from one file.
+impl std::ops::Deref for DestackFile {
+    type Target = Destack;
+
+    fn deref(&self) -> &Self::Target {
+        &self.destack
+    }
+}
+
+impl DestackFile {
+    /// Parse one `destack.json` configuration from one file.
     pub fn parse(file: &Arc<File>) -> Result<Self, serde_json::Error> {
         let path = file
             .path
@@ -189,136 +212,70 @@ impl DestackDeclaration {
                     "destack.json must have a valid path",
                 ))
             })?;
-        let declaration_json = parse_jsonc_file(file)?;
+        let source = parse_jsonc_file(file)?;
 
-        Self::from_json(file.id, vec![file.id], path, declaration_json)
+        Self::from_file(file.id, vec![file.id], path, source)
     }
 
     /// Return the declared `extends` specifiers in order.
     pub fn extends(&self) -> impl Iterator<Item = &str> {
-        self.options.extends()
+        self.destack.extends()
     }
 
-    /// Validate resolved declaration invariants.
+    /// Validate resolved configuration invariants.
     pub fn validate(&self) -> Result<(), serde_json::Error> {
-        self.policy
+        self.destack
             .validate()
             .map_err(|error| serde_json::Error::io(Error::new(ErrorKind::InvalidData, error)))?;
-
-        for target in self.targets.values() {
-            target.policy.validate().map_err(|error| {
-                serde_json::Error::io(Error::new(ErrorKind::InvalidData, error))
-            })?;
-        }
-        for product in self.products.values() {
-            product.policy.validate().map_err(|error| {
-                serde_json::Error::io(Error::new(ErrorKind::InvalidData, error))
-            })?;
-        }
-        for (product_name, product) in &self.products {
-            for (role, target_name) in &product.targets {
-                if !self.targets.contains_key(target_name) {
-                    let error = Error::new(
-                        ErrorKind::InvalidData,
-                        format!(
-                            "product '{product_name}' role '{role}' references unknown target '{target_name}'"
-                        ),
-                    );
-                    return Err(serde_json::Error::io(error));
-                }
-            }
-        }
-
-        validate_extends("mode", &self.conditions.modes, |mode| &mode.extends)
-            .map_err(|error| serde_json::Error::io(invalid_config_error(error)))?;
-        validate_extends("role", &self.conditions.roles, |role| &role.extends)
-            .map_err(|error| serde_json::Error::io(invalid_config_error(error)))?;
-        validate_extends("feature", &self.conditions.features, |feature| {
-            &feature.extends
-        })
-        .map_err(|error| serde_json::Error::io(invalid_config_error(error)))?;
-        validate_extends("tag", &self.conditions.tags, |tag| &tag.extends)
-            .map_err(|error| serde_json::Error::io(invalid_config_error(error)))?;
 
         Ok(())
     }
 
-    /// Inherit settings from one parent declaration.
+    /// Return explicit workspace package root patterns.
+    pub fn workspace_packages(&self) -> Option<&[String]> {
+        self.destack
+            .workspace
+            .as_ref()
+            .and_then(|workspace| workspace.packages.as_deref())
+    }
+
+    /// Return workspace member groups.
+    pub fn workspace_groups(&self) -> Option<&IndexMap<String, Vec<String>>> {
+        self.destack
+            .workspace
+            .as_ref()
+            .and_then(|workspace| workspace.groups.as_ref())
+    }
+
+    /// Inherit settings from one parent configuration.
     pub fn extend_from(&mut self, parent: &Self) -> Result<(), serde_json::Error> {
-        let mut declaration_json =
-            Self::merge_declaration_json(&parent.declaration_json, &self.declaration_json);
-        let options: DestackOptions = serde_json::from_value(declaration_json.clone())?;
-        let compiler = CompilerOptions::from(&options.compiler);
-        let declaration_file_ids =
-            merge_declaration_file_ids(&parent.declaration_file_ids, &self.declaration_file_ids);
+        let mut source = Self::merge_source(&parent.source, &self.source);
+        let destack: Destack = serde_json::from_value(source.clone())?;
+        let compiler = destack.compiler.clone();
+        let file_ids = merge_file_ids(&parent.file_ids, &self.file_ids);
 
         // preserve monotonic compiler restrictions
-        Self::apply_parent_restrictions(&mut declaration_json, &compiler, &parent.compiler)?;
+        Self::apply_parent_restrictions(&mut source, &compiler, &parent.compiler)?;
 
-        *self = Self::from_json(
-            self.file_id,
-            declaration_file_ids,
-            self.path.clone(),
-            declaration_json,
-        )?;
+        *self = Self::from_file(self.file_id, file_ids, self.path.clone(), source)?;
 
         Ok(())
     }
 
-    /// Build one declaration from effective declaration JSON.
-    fn from_json(
+    /// Build one configuration from an effective source value.
+    fn from_file(
         file_id: FileId,
-        declaration_file_ids: Vec<FileId>,
+        file_ids: Vec<FileId>,
         path: PathBuf,
-        declaration_json: Value,
+        source: Value,
     ) -> Result<Self, serde_json::Error> {
-        let options: DestackOptions = serde_json::from_value(declaration_json.clone())?;
+        let mut file: Destack = serde_json::from_value(source.clone())?;
 
-        options
-            .linter
-            .validate()
-            .map_err(|error| serde_json::Error::io(Error::new(ErrorKind::InvalidData, error)))?;
-        options
-            .policy
-            .validate()
-            .map_err(|error| serde_json::Error::io(Error::new(ErrorKind::InvalidData, error)))?;
-        if let Some(targets) = &options.targets {
-            for target in targets.values() {
-                target
-                    .validate()
-                    .map_err(|error| serde_json::Error::io(invalid_config_error(error)))?;
-            }
-        }
-        if let Some(products) = &options.products {
-            for product in products.values() {
-                product
-                    .validate()
-                    .map_err(|error| serde_json::Error::io(invalid_config_error(error)))?;
-            }
-        }
-        validate_dependency_json_map(options.dependencies.as_ref())
+        file.finish()?;
+        file.validate()
             .map_err(|error| serde_json::Error::io(invalid_config_error(error)))?;
-        let condition_json = options.conditions.as_ref();
-        validate_named_json_map(
-            "mode",
-            condition_json.and_then(|conditions| conditions.modes.as_ref()),
-            super::mode::ModeJson::validate,
-        )?;
-        validate_named_json_map(
-            "role",
-            condition_json.and_then(|conditions| conditions.roles.as_ref()),
-            super::role::RoleJson::validate,
-        )?;
-        validate_named_json_map(
-            "feature",
-            condition_json.and_then(|conditions| conditions.features.as_ref()),
-            super::feature::FeatureJson::validate,
-        )?;
-        validate_named_json_map(
-            "tag",
-            condition_json.and_then(|conditions| conditions.tags.as_ref()),
-            super::tag::TagJson::validate,
-        )?;
+        validate_dependency_map(Some(&file.dependencies))
+            .map_err(|error| serde_json::Error::io(invalid_config_error(error)))?;
 
         let directory = path.parent().map(PathBuf::from).ok_or_else(|| {
             serde_json::Error::io(Error::new(
@@ -326,122 +283,19 @@ impl DestackDeclaration {
                 "destack.json must have a parent directory",
             ))
         })?;
-        let compiler = CompilerOptions::from(&options.compiler);
-        let dependencies = dependency_options_from_json(&options.dependencies);
-        let vendoring = VendorOptions::from_json(options.vendoring.as_ref());
-        let mut policy = PolicyOptions::default();
-        options.policy.apply_to(&mut policy);
-        let runtime = runtime_options_from_json(Some(&options.runtime));
-        let targets = options
-            .targets
-            .as_ref()
-            .map(|target_map| {
-                target_map
-                    .iter()
-                    .map(|(name, target_json)| {
-                        let target = TargetOptions::from_json_with_runtime_and_policy(
-                            target_json,
-                            &runtime,
-                            &policy,
-                        )
-                        .map_err(|error| {
-                            serde_json::Error::io(invalid_config_error(format!(
-                                "target '{name}': {error}"
-                            )))
-                        })?;
 
-                        Ok((name.clone(), target))
-                    })
-                    .collect::<Result<IndexMap<_, _>, serde_json::Error>>()
-            })
-            .transpose()?
-            .unwrap_or_default();
-        let products = options
-            .products
-            .as_ref()
-            .map(|product_map| {
-                product_map
-                    .iter()
-                    .map(|(name, product_json)| {
-                        let product = ProductOptions::from_json_with_policy(product_json, &policy);
-
-                        (name.clone(), product)
-                    })
-                    .collect()
-            })
-            .unwrap_or_default();
-        let mut formatter = FormatterOptions::default();
-        options.formatter.apply(&mut formatter);
-        let mut linter = LinterOptions::default();
-        options.linter.apply(&mut linter);
-
-        // source graph conditions
-        let conditions = condition_options_from_json(condition_json)?;
         Ok(Self {
             file_id,
-            declaration_file_ids,
+            file_ids,
             path,
             directory,
-            declaration_json,
-            name: options.name.clone(),
-            version: options.version.clone(),
-            is_private: options.r#private,
-            description: options.description.clone(),
-            license: options.license.clone(),
-            repository: options.repository.clone(),
-            homepage: options.homepage.clone(),
-            keywords: options.keywords.clone().unwrap_or_default(),
-            files: options.files.clone().unwrap_or_default(),
-            include: options.include.clone().unwrap_or_default(),
-            exclude: options.exclude.clone().unwrap_or_default(),
-            dependencies,
-            vendoring,
-            compiler,
-            policy,
-            runtime,
-            formatter,
-            linter,
-            targets,
-            products,
-            environments: environment_options_from_json(&options.environments),
-            profiles: options
-                .profiles
-                .as_ref()
-                .map(|profile_map| {
-                    profile_map
-                        .iter()
-                        .map(|(name, profile_json)| {
-                            let profile =
-                                ProfileOptions::from_json(profile_json).map_err(|error| {
-                                    serde_json::Error::io(invalid_config_error(format!(
-                                        "profile '{name}': {error}"
-                                    )))
-                                })?;
-
-                            Ok((name.clone(), profile))
-                        })
-                        .collect::<Result<IndexMap<_, _>, serde_json::Error>>()
-                })
-                .transpose()?
-                .unwrap_or_default(),
-            conditions,
-            default_target: options.default_target.clone(),
-            default_product: options.default_product.clone(),
-            workspace_packages: options
-                .workspace
-                .as_ref()
-                .and_then(|workspace| workspace.packages.clone()),
-            workspace_groups: options
-                .workspace
-                .as_ref()
-                .and_then(|workspace| workspace.groups.clone())
-                .unwrap_or_default(),
-            options,
+            source,
+            destack: file,
         })
     }
 
-    /// Merge one child declaration JSON value over one parent declaration JSON value.
-    fn merge_declaration_json(parent: &Value, child: &Value) -> Value {
+    /// Merge one child source value over one parent source value.
+    fn merge_source(parent: &Value, child: &Value) -> Value {
         let mut parent = parent.clone();
 
         // drop inheritance directives before merging
@@ -452,7 +306,7 @@ impl DestackDeclaration {
         Self::merge_json(&parent, child)
     }
 
-    /// Merge one child JSON value over one parent JSON value.
+    /// Merge one child file value over one parent file value.
     fn merge_json(parent: &Value, child: &Value) -> Value {
         match (parent, child) {
             (Value::Object(parent), Value::Object(child)) => {
@@ -496,7 +350,7 @@ impl DestackDeclaration {
         }
     }
 
-    /// Merge one child policy JSON value over one parent policy JSON value.
+    /// Merge one child policy file value over one parent policy file value.
     fn merge_policy_json(parent: &Value, child: &Value) -> Value {
         let mut merged = Self::merge_json(parent, child);
 
@@ -532,36 +386,31 @@ impl DestackDeclaration {
 
     /// Apply parent restrictions that descendants cannot loosen.
     fn apply_parent_restrictions(
-        declaration_json: &mut Value,
+        source: &mut Value,
         compiler: &CompilerOptions,
         parent: &CompilerOptions,
     ) -> Result<(), serde_json::Error> {
         Self::apply_parent_restriction(
-            declaration_json,
+            source,
             "noManaged",
             compiler.no_managed,
             parent.no_managed,
         )?;
+        Self::apply_parent_restriction(source, "noHeap", compiler.no_heap, parent.no_heap)?;
         Self::apply_parent_restriction(
-            declaration_json,
-            "noHeap",
-            compiler.no_heap,
-            parent.no_heap,
-        )?;
-        Self::apply_parent_restriction(
-            declaration_json,
+            source,
             "noRuntime",
             compiler.no_runtime,
             parent.no_runtime,
         )?;
         Self::apply_parent_restriction(
-            declaration_json,
+            source,
             "noInternalImport",
             compiler.no_internal_import,
             parent.no_internal_import,
         )?;
         Self::apply_parent_restriction(
-            declaration_json,
+            source,
             "noImplicitDynamicDispatch",
             compiler.no_implicit_dynamic_dispatch,
             parent.no_implicit_dynamic_dispatch,
@@ -572,7 +421,7 @@ impl DestackDeclaration {
 
     /// Apply one parent restriction when it is stricter than the child.
     fn apply_parent_restriction(
-        declaration_json: &mut Value,
+        source: &mut Value,
         key: &str,
         compiler_policy: DiagnosticPolicy,
         parent_policy: DiagnosticPolicy,
@@ -581,13 +430,13 @@ impl DestackDeclaration {
             return Ok(());
         }
 
-        let Some(declaration_json) = declaration_json.as_object_mut() else {
+        let Some(source) = source.as_object_mut() else {
             return Err(serde_json::Error::io(invalid_config_error(
                 "effective destack declaration must be an object",
             )));
         };
 
-        let compiler_json = declaration_json
+        let compiler_json = source
             .entry("compiler")
             .or_insert_with(|| Value::Object(serde_json::Map::new()));
         let Some(compiler_json) = compiler_json.as_object_mut() else {
@@ -607,99 +456,6 @@ fn invalid_config_error(message: impl Into<String>) -> Error {
     Error::new(ErrorKind::InvalidData, message.into())
 }
 
-/// Convert condition declarations into normalized condition options.
-fn condition_options_from_json(
-    json: Option<&ConditionOptionsJson>,
-) -> Result<ConditionOptions, serde_json::Error> {
-    // merge built-in and declared modes
-    let mut modes = builtin_modes();
-    if let Some(json) = json.and_then(|conditions| conditions.modes.as_ref()) {
-        modes.extend(json.iter().map(|(name, mode)| {
-            let mode = ModeOptions::from_json(mode);
-
-            (name.clone(), mode)
-        }));
-    }
-
-    // merge built-in and declared roles
-    let mut roles = builtin_roles();
-    if let Some(json) = json.and_then(|conditions| conditions.roles.as_ref()) {
-        roles.extend(json.iter().map(|(name, role)| {
-            let role = RoleOptions::from_json(role);
-
-            (name.clone(), role)
-        }));
-    }
-
-    // convert declared feature and tag groups
-    let features: IndexMap<String, FeatureOptions> = json
-        .and_then(|conditions| conditions.features.as_ref())
-        .map(|features| {
-            features
-                .iter()
-                .map(|(name, feature)| {
-                    let feature = FeatureOptions::from_json(feature);
-
-                    (name.clone(), feature)
-                })
-                .collect()
-        })
-        .unwrap_or_default();
-    let tags: IndexMap<String, TagOptions> = json
-        .and_then(|conditions| conditions.tags.as_ref())
-        .map(|tags| {
-            tags.iter()
-                .map(|(name, tag)| {
-                    let tag = TagOptions::from_json(tag);
-
-                    (name.clone(), tag)
-                })
-                .collect()
-        })
-        .unwrap_or_default();
-
-    // create aliases for every declared source graph condition
-    let mut aliases = IndexMap::new();
-    for name in modes.keys() {
-        insert_condition_alias(&mut aliases, name, ConditionGate::mode(name.clone()))?;
-    }
-    for name in roles.keys() {
-        insert_condition_alias(&mut aliases, name, ConditionGate::role(name.clone()))?;
-    }
-    for name in features.keys() {
-        insert_condition_alias(&mut aliases, name, ConditionGate::feature(name.clone()))?;
-    }
-    for name in tags.keys() {
-        insert_condition_alias(&mut aliases, name, ConditionGate::tag(name.clone()))?;
-    }
-
-    // merge explicit aliases after checking for automatic alias collisions
-    if let Some(json) = json.and_then(|conditions| conditions.aliases.as_ref()) {
-        for (name, alias) in json {
-            if aliases.contains_key(name) {
-                let error = format!("condition alias '{name}' conflicts with a condition name");
-                return Err(serde_json::Error::io(invalid_config_error(error)));
-            }
-
-            let alias = ConditionGate::from_json(alias);
-            if alias.is_empty() {
-                let error = format!("condition alias '{name}' must define at least one selector");
-                return Err(serde_json::Error::io(invalid_config_error(error)));
-            }
-
-            aliases.insert(name.clone(), alias);
-        }
-    }
-
-    Ok(ConditionOptions {
-        modes,
-        roles,
-        features,
-        tags,
-        aliases,
-    })
-}
-
 /// Insert one automatic condition alias.
 fn insert_condition_alias(
     aliases: &mut IndexMap<String, ConditionGate>,
@@ -717,7 +473,7 @@ fn insert_condition_alias(
 }
 
 /// Merge declaration file ids in inherited order.
-fn merge_declaration_file_ids(parent: &[FileId], child: &[FileId]) -> Vec<FileId> {
+fn merge_file_ids(parent: &[FileId], child: &[FileId]) -> Vec<FileId> {
     let mut file_ids = Vec::with_capacity(parent.len() + child.len());
 
     for file_id in parent.iter().chain(child) {
@@ -729,24 +485,7 @@ fn merge_declaration_file_ids(parent: &[FileId], child: &[FileId]) -> Vec<FileId
     file_ids
 }
 
-/// Validate named JSON declarations.
-fn validate_named_json_map<T>(
-    kind: &str,
-    items: Option<&IndexMap<String, T>>,
-    validate: impl Fn(&T) -> Result<(), String>,
-) -> Result<(), serde_json::Error> {
-    if let Some(items) = items {
-        for (name, item) in items {
-            validate(item).map_err(|error| {
-                serde_json::Error::io(invalid_config_error(format!("{kind} '{name}': {error}")))
-            })?;
-        }
-    }
-
-    Ok(())
-}
-
-/// Return one diagnostic policy JSON value.
+/// Return one diagnostic policy file value.
 fn policy_json_value(policy: DiagnosticPolicy) -> Value {
     let value = match policy {
         DiagnosticPolicy::Allow => "allow",

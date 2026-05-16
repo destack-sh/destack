@@ -182,7 +182,9 @@ pub(super) fn format_file(
         parsed.parents.clone(),
     );
 
-    format_expressions(&context, &parsed.roots)
+    let roots = parsed.roots_for_file(file_id)?;
+
+    format_expressions(&context, roots)
 }
 
 /// Format expressions and return the result string.
@@ -214,13 +216,13 @@ pub(super) fn formatting_options_for_path(
 ) -> FormatterOptions {
     let package = repository.nearest_package(revision, path).ok().flatten();
     if let Some(package) = package
-        && let Ok(Some(config)) = repository.destack_config_for_package_id(revision, package.id)
+        && let Ok(Some(config)) = repository.destack_for_package_id(revision, package.id)
     {
         return config.formatter.clone();
     }
 
     repository
-        .destack_config_for_workspace(revision)
+        .destack_for_workspace(revision)
         .ok()
         .flatten()
         .map(|config| config.formatter.clone())

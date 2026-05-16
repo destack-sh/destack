@@ -1,7 +1,7 @@
 use destack_source::{PackageId, TargetId};
 
 use crate::repository::{Repository, RepositoryError, Revision};
-use crate::{DestackDeclaration, ProductOptions, Target};
+use crate::{Destack, Product, Target};
 
 impl Repository {
     /// Return one exact revision-scoped target by id when present.
@@ -38,11 +38,39 @@ impl Repository {
         revision: Revision,
         target_id: TargetId,
     ) -> Result<Option<String>, RepositoryError> {
-        let Some(target) = self.target_or_builtin(revision, target_id)? else {
+        let Some(_target) = self.target_or_builtin(revision, target_id)? else {
             return Ok(None);
         };
+        let package_id = target_id.package_id();
+        let config = self.destack_for_package_id(revision, package_id)?;
 
-        Ok(Some(target.name))
+        // configured targets
+        if let Some(config) = config.as_ref() {
+            for target_name in config.targets.keys() {
+                if TargetId::new(package_id, target_name) == target_id {
+                    return Ok(Some(target_name.clone()));
+                }
+            }
+        }
+
+        // built-in targets
+        for target_name in Target::builtin_target_names() {
+            if TargetId::new(package_id, target_name) == target_id {
+                return Ok(Some((*target_name).to_string()));
+            }
+        }
+
+        Ok(None)
+    }
+
+    /// Return one configured or built-in target name by id.
+    pub fn target_name(
+        &self,
+        revision: Revision,
+        target_id: TargetId,
+    ) -> Result<String, RepositoryError> {
+        self.target_display(revision, target_id)?
+            .ok_or(RepositoryError::MissingTarget { target: target_id })
     }
 
     /// Return the package default target when one is selected by configuration.
@@ -56,7 +84,7 @@ impl Repository {
                 package: package_id,
             });
         };
-        let config = self.destack_config_for_package_id(revision, package_id)?;
+        let config = self.destack_for_package_id(revision, package_id)?;
 
         // honor one explicit default target from config
         if let Some(config) = config.as_ref()
@@ -111,7 +139,7 @@ impl Repository {
                 package: package_id,
             });
         };
-        let config = self.destack_config_for_package_id(revision, package_id)?;
+        let config = self.destack_for_package_id(revision, package_id)?;
 
         let Some(config) = config.as_ref() else {
             return Ok(None);
@@ -134,7 +162,7 @@ impl Repository {
                 package: package_id,
             });
         };
-        let config = self.destack_config_for_package_id(revision, package_id)?;
+        let config = self.destack_for_package_id(revision, package_id)?;
         let Some(config) = config.as_ref() else {
             return Ok(None);
         };
@@ -168,9 +196,7 @@ impl Repository {
 }
 
 /// Return the selected product declaration when product selection is unambiguous.
-fn selected_product(
-    config: &DestackDeclaration,
-) -> Result<Option<(&str, &ProductOptions)>, RepositoryError> {
+fn selected_product(config: &Destack) -> Result<Option<(&str, &Product)>, RepositoryError> {
     // use the explicit default product
     if let Some(default_product) = config.default_product.as_ref() {
         let Some(product) = config.products.get(default_product) else {

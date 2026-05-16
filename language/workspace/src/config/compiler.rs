@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::config::target::{EsTarget, JsModuleFormat};
 
@@ -8,12 +8,16 @@ use crate::config::target::{EsTarget, JsModuleFormat};
 ///
 /// `.ds` semantics are always strict; these options only describe project,
 /// build, interop, and compile-time policy.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(default)]
+#[serde(rename_all = "camelCase")]
 pub struct CompilerOptions {
     // module & target
     /// JavaScript module format for output.
     pub module: JsModuleFormat,
     /// ECMAScript target version.
+    #[serde(rename = "target")]
     pub es_target: EsTarget,
     /// Default environment.
     pub environment: Option<String>,
@@ -118,56 +122,9 @@ impl CompilerOptions {
 }
 
 /// Diagnostic policy for allow/warn/deny enforcement.
-#[derive(Debug, Clone, Copy, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
-pub enum DiagnosticPolicyValueJson {
-    Allow,
-    Warn,
-    #[serde(alias = "error")]
-    Deny,
-}
-
-/// Diagnostic policy for JSON deserialization.
-#[derive(Debug, Clone, Copy, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(untagged)]
-pub enum DiagnosticPolicyJson {
-    Bool(bool),
-    Value(DiagnosticPolicyValueJson),
-}
-
-impl From<DiagnosticPolicyJson> for DiagnosticPolicy {
-    fn from(value: DiagnosticPolicyJson) -> Self {
-        match value {
-            DiagnosticPolicyJson::Bool(true) => DiagnosticPolicy::Deny,
-            DiagnosticPolicyJson::Bool(false) => DiagnosticPolicy::Allow,
-            DiagnosticPolicyJson::Value(DiagnosticPolicyValueJson::Allow) => {
-                DiagnosticPolicy::Allow
-            }
-            DiagnosticPolicyJson::Value(DiagnosticPolicyValueJson::Warn) => DiagnosticPolicy::Warn,
-            DiagnosticPolicyJson::Value(DiagnosticPolicyValueJson::Deny) => DiagnosticPolicy::Deny,
-        }
-    }
-}
-
-impl DiagnosticPolicyJson {
-    /// Convert allow-style policies where `true` means allow.
-    pub fn into_allow_policy(self) -> DiagnosticPolicy {
-        match self {
-            DiagnosticPolicyJson::Bool(true) => DiagnosticPolicy::Allow,
-            DiagnosticPolicyJson::Bool(false) => DiagnosticPolicy::Deny,
-            DiagnosticPolicyJson::Value(DiagnosticPolicyValueJson::Allow) => {
-                DiagnosticPolicy::Allow
-            }
-            DiagnosticPolicyJson::Value(DiagnosticPolicyValueJson::Warn) => DiagnosticPolicy::Warn,
-            DiagnosticPolicyJson::Value(DiagnosticPolicyValueJson::Deny) => DiagnosticPolicy::Deny,
-        }
-    }
-}
-
-/// Diagnostic policy for allow/warn/deny enforcement.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DiagnosticPolicy {
     /// Allow without diagnostics.
     Allow,
@@ -205,131 +162,5 @@ impl DiagnosticPolicy {
             DiagnosticPolicy::Warn => 1,
             DiagnosticPolicy::Deny => 2,
         }
-    }
-}
-
-/// Destack configuration compiler options.
-#[derive(Debug, Default, Deserialize, Clone)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub struct CompilerOptionsJson {
-    // module & target
-    /// Module format for output (e.g., "esnext").
-    pub module: Option<String>,
-    /// ECMAScript target version (e.g., "es2022", "esnext").
-    pub target: Option<String>,
-    /// Default environment.
-    pub environment: Option<String>,
-    /// Default profile.
-    pub profile: Option<String>,
-    /// Default active source graph modes.
-    pub modes: Option<Vec<String>>,
-    /// Default active source graph roles.
-    pub roles: Option<Vec<String>>,
-    /// Default active source graph features.
-    pub features: Option<Vec<String>>,
-    /// Default active source graph tags.
-    pub tags: Option<Vec<String>>,
-    /// Comptime environment whitelist (if omitted, all env keys are visible).
-    pub comptime_env: Option<Vec<String>>,
-    /// Default tree tag builder provider.
-    pub tree: Option<String>,
-    /// Global provider modules added to every target profile.
-    pub globals: Option<Vec<String>>,
-    /// Derive providers automatically considered for nominal declarations.
-    pub derive: Option<Vec<String>>,
-
-    // static restrictions
-    /// Policy for GC-managed defaults and allocations.
-    pub no_managed: Option<DiagnosticPolicyJson>,
-    /// Policy for all heap allocation.
-    pub no_heap: Option<DiagnosticPolicyJson>,
-    /// Policy for runtime usage (no managed memory, no Promise, ...).
-    pub no_runtime: Option<DiagnosticPolicyJson>,
-    /// Policy for low level internal protocol imports (`platform:`).
-    pub no_internal_import: Option<DiagnosticPolicyJson>,
-    /// Policy for overloads that are not statically resolvable.
-    pub no_implicit_dynamic_dispatch: Option<DiagnosticPolicyJson>,
-
-    // emit
-    /// Root directory of source files (controls output directory structure, not module resolution).
-    pub root_dir: Option<String>,
-    /// Output directory for compiled files.
-    pub out_dir: Option<String>,
-    /// Output directory for declaration files (.d.ts). Defaults to outDir.
-    pub declaration_dir: Option<String>,
-    /// Generate declaration maps for `.d.ts` output.
-    pub declaration_map: Option<bool>,
-    /// Do not emit output files.
-    pub no_emit: Option<bool>,
-}
-
-impl From<&CompilerOptionsJson> for CompilerOptions {
-    fn from(json: &CompilerOptionsJson) -> Self {
-        let mut options = Self {
-            module: json
-                .module
-                .as_deref()
-                .and_then(JsModuleFormat::parse)
-                .unwrap_or_default(),
-            es_target: json
-                .target
-                .as_deref()
-                .and_then(EsTarget::parse)
-                .unwrap_or_default(),
-            environment: json.environment.clone(),
-            profile: json.profile.clone(),
-            modes: json.modes.clone().unwrap_or_default(),
-            roles: json.roles.clone().unwrap_or_default(),
-            features: json.features.clone().unwrap_or_default(),
-            tags: json.tags.clone().unwrap_or_default(),
-            comptime_env: json.comptime_env.clone(),
-            tree: json.tree.clone(),
-            globals: json
-                .globals
-                .as_ref()
-                .map(|globals| globals.iter().map(PathBuf::from).collect())
-                .unwrap_or_default(),
-            derive: json.derive.clone().unwrap_or_default(),
-
-            // static restrictions
-            no_managed: json
-                .no_managed
-                .map(DiagnosticPolicy::from)
-                .unwrap_or(DiagnosticPolicy::Allow),
-            no_heap: json
-                .no_heap
-                .map(DiagnosticPolicy::from)
-                .unwrap_or(DiagnosticPolicy::Allow),
-            no_runtime: json
-                .no_runtime
-                .map(DiagnosticPolicy::from)
-                .unwrap_or(DiagnosticPolicy::Allow),
-            no_internal_import: json
-                .no_internal_import
-                .map(DiagnosticPolicy::from)
-                .unwrap_or(DiagnosticPolicy::Allow),
-            no_implicit_dynamic_dispatch: json
-                .no_implicit_dynamic_dispatch
-                .map(DiagnosticPolicy::from)
-                .unwrap_or(DiagnosticPolicy::Allow),
-
-            // emit
-            root_dir: json.root_dir.as_ref().map(PathBuf::from),
-            out_dir: json.out_dir.as_ref().map(PathBuf::from),
-            declaration_dir: json.declaration_dir.as_ref().map(PathBuf::from),
-            declaration_map: json.declaration_map.unwrap_or(false),
-            no_emit: json.no_emit.unwrap_or(false),
-        };
-
-        // apply heap-free restrictions when requested
-        options.apply_no_heap_restrictions();
-
-        // apply runtime-free restrictions when requested
-        if options.no_runtime.is_deny() {
-            options.apply_no_runtime_restrictions();
-        }
-
-        options
     }
 }
