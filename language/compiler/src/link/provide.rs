@@ -29,7 +29,7 @@ impl Compiler {
     ) -> CompilerResult<PackageOutput> {
         // load package and target configuration
         let package = self.package(context.revision(), package_id);
-        let config = self.destack_config_for_package(context, package_id);
+        let config = self.destack_for_package(context, package_id);
         let package_path = package.path.clone();
         let root_directory = config
             .as_ref()

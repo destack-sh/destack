@@ -36,6 +36,7 @@ impl<'a> BinaryLinker<'a> {
             self.compiler.append_manifest_output(
                 self.package_dir,
                 self.target,
+                self.target_name(),
                 &mut output,
                 manifest,
             )?;
@@ -60,7 +61,7 @@ impl<'a> BinaryLinker<'a> {
                 .ok_or_else(|| LinkError::Internal {
                     anchor: (self.package_id).into(),
                     package: self.package_id,
-                    message: format!("profile not found for target '{}'", self.target.name),
+                    message: format!("profile not found for target '{}'", self.target_name()),
                 })?;
             let _ = profile_id;
             match self
@@ -99,7 +100,8 @@ impl<'a> BinaryLinker<'a> {
                     package: self.package_id,
                     message: format!(
                         "missing module output for module {:?} target '{}': {error:?}",
-                        module_id, self.target.name
+                        module_id,
+                        self.target_name()
                     ),
                 })?;
 
@@ -109,7 +111,8 @@ impl<'a> BinaryLinker<'a> {
                     package: self.package_id,
                     message: format!(
                         "expected binary output for module {:?} target '{}'",
-                        module_id, self.target.name
+                        module_id,
+                        self.target_name()
                     ),
                 }
                 .into());
@@ -161,7 +164,7 @@ impl<'a> BinaryLinker<'a> {
 
     /// Build the public build manifest for this binary target.
     fn build_manifest(&self, output: &PackageOutput) -> BuildManifest {
-        let output_layout = TargetLocation::new(self.package_dir, self.target);
+        let output_layout = TargetLocation::new(self.package_dir, self.target, self.target_name());
         let mut files = output
             .outputs
             .values()

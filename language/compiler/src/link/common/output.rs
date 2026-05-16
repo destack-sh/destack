@@ -58,13 +58,14 @@ impl Compiler {
         &self,
         package_dir: &Path,
         target: &Target,
+        target_name: &str,
         output: &mut PackageOutput,
         manifest: BuildManifest,
     ) -> LinkResult<()> {
         let manifest_content = serde_json::to_string_pretty(&manifest)
             .unwrap_or_else(|_| serde_json::to_string(&manifest).unwrap_or_default());
 
-        let output_layout = TargetLocation::new(package_dir, target);
+        let output_layout = TargetLocation::new(package_dir, target, target_name);
         let manifest_path = output_layout.manifest_location();
 
         output

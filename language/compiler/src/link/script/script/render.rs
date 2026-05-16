@@ -159,7 +159,7 @@ impl<'a> ScriptLinker<'a> {
     /// Link graph-based outputs for this target.
     fn link_output_graph(&self, plan: &Plan) -> LinkResult<Vec<OutputFile>> {
         let file_type = self.script_output_file_type()?;
-        let target_layout = TargetLocation::new(self.package_dir, self.target);
+        let target_layout = TargetLocation::new(self.package_dir, self.target, self.target_name());
         let mut output_files = Vec::new();
 
         // linked outputs

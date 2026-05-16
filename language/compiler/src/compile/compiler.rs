@@ -31,7 +31,7 @@ impl std::fmt::Debug for Compiler {
 impl Compiler {
     /// Create a new compiler.
     pub fn new(repository: Arc<Repository>) -> Self {
-        let comptime_target = Target::comptime("comptime");
+        let comptime_target = Target::comptime();
         let artifacts = repository.artifact_store().clone();
 
         Self {

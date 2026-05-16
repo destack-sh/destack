@@ -13,23 +13,22 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         target: &Target,
+        target_id: &TargetId,
         profile: ProfileId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ModuleOutput> {
-        // construct target identity from the module package
+        // load the owning module once for backend context
         let module = self.module(context.revision(), module_id);
-        let package_id = module.package_id;
-        let target_id = TargetId::new(package_id, &target.name);
 
         // require the optimized MIR state
         context
-            .require(ArtifactKey::mir_optimized(module_id, profile, target_id))
+            .require(ArtifactKey::mir_optimized(module_id, profile, *target_id))
             .map_err(CompilerError::from)?;
         let mir_optimized = self
-            .mir_optimized(context, module_id, profile, &target_id)
+            .mir_optimized(context, module_id, profile, target_id)
             .map_err(CompilerError::from)?;
         let mir_lowered = self
-            .mir_lowered(context, module_id, profile, &target_id)
+            .mir_lowered(context, module_id, profile, target_id)
             .map_err(CompilerError::from)?;
         let state = GenerateState::new(
             module_id,

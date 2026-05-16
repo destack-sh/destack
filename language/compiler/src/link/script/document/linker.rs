@@ -48,7 +48,8 @@ impl<'a> ScriptLinker<'a> {
         module_id: ModuleId,
         document_index: usize,
     ) -> LinkResult<OutputLocation> {
-        let target_location = TargetLocation::new(self.package_dir, self.target);
+        let target_location =
+            TargetLocation::new(self.package_dir, self.target, self.target_name());
 
         // one explicit outFile addresses the single document directly
         if let Some(out_file) = self.target.out_file.as_ref() {
@@ -140,7 +141,8 @@ impl<'a> ScriptLinker<'a> {
         document_location: &OutputLocation,
         plan: &Plan,
     ) -> LinkResult<Vec<String>> {
-        let target_location = TargetLocation::new(self.package_dir, self.target);
+        let target_location =
+            TargetLocation::new(self.package_dir, self.target, self.target_name());
         let mut explicit_stylesheet_module_ids = stylesheet_module_ids
             .iter()
             .copied()

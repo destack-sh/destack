@@ -200,15 +200,15 @@ impl<'a> ScriptLinker<'a> {
             return Ok(OutputLayout::default());
         }
 
-        let output_layout = TargetLocation::new(self.package_dir, self.target);
+        let output_layout = TargetLocation::new(self.package_dir, self.target, self.target_name());
 
         match output_graph.bundle_mode() {
             BundleMode::SingleFile => Ok(OutputLayout {
-                output_names: vec![self.target.name.clone()],
+                output_names: vec![self.target_name().to_string()],
                 output_locations: vec![OutputLayout::entry_output_location(
                     &output_layout,
                     self.target,
-                    &self.target.name,
+                    self.target_name(),
                     None,
                 )],
             }),
@@ -222,7 +222,7 @@ impl<'a> ScriptLinker<'a> {
         &self,
         output_graph: &OutputGraph,
     ) -> LinkResult<OutputLayout> {
-        let output_layout = TargetLocation::new(self.package_dir, self.target);
+        let output_layout = TargetLocation::new(self.package_dir, self.target, self.target_name());
         let mut used_names = HashSet::new();
         let mut used_output_paths = HashSet::new();
         let mut output_names = Vec::with_capacity(output_graph.outputs().len());
@@ -434,12 +434,12 @@ mod tests {
     /// Render configured entry and shared output file names.
     #[test]
     fn test_renders_configured_script_output_file_names() {
-        let mut target = Target::js("bundle");
+        let mut target = Target::js();
         target.out_dir = Path::new("dist/bundle").to_path_buf();
         target.bundle_output.entry_file_names = Some("entries/[name]-entry.[ext]".to_string());
         target.bundle_output.chunk_file_names = Some("chunks/[name]-shared.[ext]".to_string());
 
-        let layout = TargetLocation::new(Path::new("/workspace/pkg"), &target);
+        let layout = TargetLocation::new(Path::new("/workspace/pkg"), &target, "bundle");
         let entry_path = OutputLayout::entry_output_location(&layout, &target, "application", None);
         let shared_path =
             OutputLayout::shared_output_location(&layout, &target, "shared-value", None);
@@ -457,10 +457,10 @@ mod tests {
     /// Render configured entry file name templates for linked script entries.
     #[test]
     fn test_renders_entry_file_name_template_for_script_entry() {
-        let mut target = Target::js("app");
+        let mut target = Target::js();
         target.bundle_output.entry_file_names = Some("entries/[name]-bundle.[ext]".to_string());
 
-        let layout = TargetLocation::new(Path::new("/workspace/pkg"), &target);
+        let layout = TargetLocation::new(Path::new("/workspace/pkg"), &target, "app");
         let entry_path = OutputLayout::entry_output_location(&layout, &target, "app", None);
 
         assert_eq!(
@@ -472,10 +472,10 @@ mod tests {
     /// Render configured shared file name templates for linked script outputs.
     #[test]
     fn test_renders_shared_file_name_template_for_script_output() {
-        let mut target = Target::js("app");
+        let mut target = Target::js();
         target.bundle_output.chunk_file_names = Some("chunks/[name]-shared.[ext]".to_string());
 
-        let layout = TargetLocation::new(Path::new("/workspace/pkg"), &target);
+        let layout = TargetLocation::new(Path::new("/workspace/pkg"), &target, "app");
         let shared_path =
             OutputLayout::shared_output_location(&layout, &target, "shared-value", None);
 
@@ -488,7 +488,7 @@ mod tests {
     /// Resolve preserve-modules script output paths from module source paths.
     #[test]
     fn test_resolves_script_module_output_path() {
-        let target = Target::js("app");
+        let target = Target::js();
         let package_id = PackageId::from_path(Path::new("/workspace/pkg"));
         let module = Module::blank(
             ModuleId::from_relative_path(package_id, Path::new("src/util/math.ds")),
