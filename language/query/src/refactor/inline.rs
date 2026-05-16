@@ -815,7 +815,7 @@ fn inline_shadow_safe(
 
 /// Resolve a symbol within a scope chain.
 fn resolve_symbol_in_scope(
-    symbols: &dir::BindingTable,
+    symbols: &dir::BindingTable<'_>,
     mut scope_id: dir::LocalScopeId,
     mut scope_mark: dir::LocalScopeMark,
     key: dir::StaticKey,
@@ -1090,9 +1090,9 @@ struct CapturedSymbolVisitor<'a> {
     /// The revision for semantic lookups.
     revision: Revision,
     /// The checked type table.
-    types: &'a dir::TypeTable,
+    types: &'a dir::TypeTable<'a>,
     /// The symbol table for the current module.
-    symbols: &'a dir::BindingTable,
+    symbols: &'a dir::BindingTable<'a>,
     /// The module that owns visited nodes.
     module_id: destack_source::ModuleId,
     /// The symbol being inlined.
@@ -1110,8 +1110,8 @@ impl<'a> CapturedSymbolVisitor<'a> {
     fn new(
         repository: &'a Repository,
         revision: Revision,
-        types: &'a dir::TypeTable,
-        symbols: &'a dir::BindingTable,
+        types: &'a dir::TypeTable<'a>,
+        symbols: &'a dir::BindingTable<'a>,
         module_id: ModuleId,
         inline_symbol: dir::GlobalSymbolId,
         captured: &'a mut HashMap<dir::StaticKey, dir::GlobalSymbolId>,

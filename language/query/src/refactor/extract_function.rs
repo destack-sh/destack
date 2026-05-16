@@ -899,7 +899,7 @@ struct ReferenceCollector<'a> {
     /// The module that owns visited nodes.
     module_id: ModuleId,
     /// The checked type table.
-    types: &'a dir::TypeTable,
+    types: &'a dir::TypeTable<'a>,
     /// Collected references keyed by symbol id.
     references: &'a mut HashMap<dir::GlobalSymbolId, dir::LocalNodeId<dir::Expression>>,
     /// The visitor options for traversal.
@@ -910,7 +910,7 @@ impl<'a> ReferenceCollector<'a> {
     /// Create a reference collector.
     fn new(
         module_id: ModuleId,
-        types: &'a dir::TypeTable,
+        types: &'a dir::TypeTable<'a>,
         references: &'a mut HashMap<dir::GlobalSymbolId, dir::LocalNodeId<dir::Expression>>,
     ) -> Self {
         Self {

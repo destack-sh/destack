@@ -266,7 +266,7 @@ pub fn hover(
 fn resolve_hover_type_text(
     repository: &Repository,
     ctx: &QueryContext,
-    symbols: &dir::BindingTable,
+    symbols: &dir::BindingTable<'_>,
     hover_node_id: dir::LocalNodeIdAny,
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<String> {

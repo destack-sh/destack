@@ -27,9 +27,9 @@ pub(crate) struct QueryContext {
     /// The exported module DIR.
     dir_exported: Arc<DirExported>,
     /// The expanded binding table.
-    dir_bindings: dir::BindingTable,
+    dir_bindings: dir::BindingTable<'static>,
     /// The checked type table.
-    dir_types: dir::TypeTable,
+    dir_types: dir::TypeTable<'static>,
     /// Shared repository strings.
     strings: Arc<StringPool>,
     /// The revision used for this context.
@@ -113,9 +113,9 @@ pub(crate) struct DirQueryContext<'a> {
     /// The exported DIR artifact.
     exported: &'a DirExported,
     /// The expanded binding table.
-    symbols: &'a dir::BindingTable,
+    symbols: &'a dir::BindingTable<'static>,
     /// The checked type table.
-    types: &'a dir::TypeTable,
+    types: &'a dir::TypeTable<'static>,
     /// Shared repository strings.
     strings: &'a StringPool,
 }
@@ -154,7 +154,7 @@ impl<'a> DirQueryContext<'a> {
     }
 
     /// Return the DIR symbol table.
-    pub(crate) fn symbols(self) -> &'a dir::BindingTable {
+    pub(crate) fn symbols(self) -> &'a dir::BindingTable<'static> {
         self.symbols
     }
 
@@ -176,7 +176,7 @@ impl<'a> DirQueryContext<'a> {
     }
 
     /// Return the DIR type table.
-    pub(crate) fn types(self) -> &'a dir::TypeTable {
+    pub(crate) fn types(self) -> &'a dir::TypeTable<'static> {
         self.types
     }
 

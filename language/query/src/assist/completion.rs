@@ -516,7 +516,7 @@ impl<'a> CompletionBuilder<'a> {
 
     /// Resolve one callable and constructable value shape from one type id.
     fn value_shape_for_type(
-        types: &dir::TypeTable,
+        types: &dir::TypeTable<'_>,
         type_id: dir::LocalTypeId,
     ) -> CompletionValueShape {
         match types.get_type(type_id) {
@@ -548,7 +548,7 @@ impl<'a> CompletionBuilder<'a> {
     /// Return one canonical nominal type symbol from one type id.
     fn type_symbol_for_type(
         &self,
-        types: &dir::TypeTable,
+        types: &dir::TypeTable<'_>,
         type_id: dir::LocalTypeId,
     ) -> Option<dir::GlobalSymbolId> {
         let symbol_id = types.get_type(type_id).symbol()?;
@@ -577,7 +577,7 @@ impl<'a> CompletionBuilder<'a> {
     /// Return related nominal type symbols from one type id.
     fn type_symbols_for_type(
         &self,
-        types: &dir::TypeTable,
+        types: &dir::TypeTable<'_>,
         type_id: dir::LocalTypeId,
     ) -> Vec<dir::GlobalSymbolId> {
         let mut symbols = Vec::new();
@@ -598,7 +598,7 @@ impl<'a> CompletionBuilder<'a> {
     /// Collect related nominal type symbols from one type.
     fn collect_type_symbols(
         &self,
-        types: &dir::TypeTable,
+        types: &dir::TypeTable<'_>,
         type_id: dir::LocalTypeId,
         seen_types: &mut HashSet<dir::LocalTypeId>,
         seen_symbols: &mut HashSet<dir::GlobalSymbolId>,
@@ -681,7 +681,7 @@ impl<'a> CompletionBuilder<'a> {
     fn completion_for_member(
         &self,
         member: MemberInfo,
-        types: Option<&dir::TypeTable>,
+        types: Option<&dir::TypeTable<'_>>,
         is_extension_member: bool,
     ) -> Option<Completion> {
         // only string-named members become surface completions

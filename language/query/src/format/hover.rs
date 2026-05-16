@@ -56,7 +56,7 @@ pub fn format_member_hover(
     member_id: dir::LocalNodeId<dir::Member>,
     module_id: ModuleId,
     dir_tree: dir::View<'_>,
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     container: Option<&str>,
 ) -> String {
     // resolve the member name from its key
@@ -146,7 +146,7 @@ pub fn format_enum_field_hover(
     field: &dir::EnumField,
     field_id: dir::LocalNodeId<dir::EnumField>,
     module_id: ModuleId,
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     container: Option<&str>,
 ) -> String {
     // resolve the enum field name
@@ -179,7 +179,7 @@ pub fn format_parameter_hover(
     param: &dir::Parameter,
     param_id: dir::LocalNodeId<dir::Parameter>,
     module_id: ModuleId,
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
 ) -> String {
     // resolve the parameter name
     let name = match param {
@@ -207,8 +207,8 @@ pub fn format_parameter_hover(
 pub fn format_local_variable_hover(
     name: Option<&str>,
     symbol_id: dir::GlobalSymbolId,
-    symbols: &dir::BindingTable,
-    types: &dir::TypeTable,
+    symbols: &dir::BindingTable<'_>,
+    types: &dir::TypeTable<'_>,
     repository: &Repository,
     revision: Revision,
     strings: &StringPool,
@@ -251,7 +251,7 @@ fn format_method_hover(
     signature: &dir::FunctionSignature,
     module_id: ModuleId,
     dir_tree: dir::View<'_>,
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     repository: &Repository,
     revision: Revision,
     strings: &StringPool,

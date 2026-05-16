@@ -57,8 +57,8 @@ pub(crate) enum MemberKind {
 /// Handles reference types, object types, union types, intersection types, and extension members
 /// visible from the current module.
 pub(crate) fn resolve_type_members(
-    types: &TypeTable,
-    symbols: &BindingTable,
+    types: &TypeTable<'_>,
+    symbols: &BindingTable<'_>,
     type_id: LocalTypeId,
     repository: &Repository,
     revision: Revision,
@@ -84,8 +84,8 @@ pub(crate) fn resolve_type_members(
 /// Internal recursive implementation with depth limit.
 fn resolve_type_members_inner(
     ty: &Type,
-    types: &TypeTable,
-    _symbols: &BindingTable,
+    types: &TypeTable<'_>,
+    _symbols: &BindingTable<'_>,
     strings: &StringPool,
     repository: &Repository,
     revision: Revision,
@@ -339,8 +339,8 @@ pub(crate) fn resolve_reference_members(
 /// Resolve members from a local symbol by using its recorded instance type.
 fn resolve_local_symbol_members(
     symbol_id: LocalSymbolId,
-    types: &TypeTable,
-    symbols: &BindingTable,
+    types: &TypeTable<'_>,
+    symbols: &BindingTable<'_>,
     strings: &destack_core::StringPool,
 ) -> Vec<MemberInfo> {
     // prepare the member buffer
@@ -493,7 +493,7 @@ fn static_key_to_member_name(key: &StaticKey, strings: &destack_core::StringPool
 }
 
 /// Check if a type is a function type.
-fn is_function_type(types: &TypeTable, type_id: LocalTypeId) -> bool {
+fn is_function_type(types: &TypeTable<'_>, type_id: LocalTypeId) -> bool {
     // return true for function types
     matches!(types.get_type(type_id), Type::Function(_))
 }
