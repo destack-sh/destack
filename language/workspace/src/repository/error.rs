@@ -45,6 +45,18 @@ pub enum RepositoryError {
         /// The parse error message.
         message: String,
     },
+    /// A `destack.json` inheritance chain is cyclic.
+    ConfigCycle {
+        /// The config path that repeated.
+        path: PathBuf,
+    },
+    /// A `destack.json` inheritance specifier is invalid.
+    InvalidConfigExtends {
+        /// The config file id.
+        file: FileId,
+        /// The invalid specifier.
+        specifier: String,
+    },
     /// One attached file system operation failed.
     FileSystem {
         operation: &'static str,
@@ -113,6 +125,19 @@ impl fmt::Display for RepositoryError {
                 write!(
                     formatter,
                     "invalid repository config for '{file}': {message}"
+                )
+            }
+            Self::ConfigCycle { path } => {
+                write!(
+                    formatter,
+                    "circular destack config inheritance for '{}'",
+                    path.display()
+                )
+            }
+            Self::InvalidConfigExtends { file, specifier } => {
+                write!(
+                    formatter,
+                    "invalid destack config inheritance specifier '{specifier}' for '{file}'"
                 )
             }
             Self::FileSystem {

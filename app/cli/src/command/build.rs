@@ -64,7 +64,6 @@ pub fn run(args: &BuildArgs) -> i32 {
         };
         let config = match load_destack_config_for_program(
             &args.program,
-            &context.resolver,
             &context.repository,
             context.revision,
             context.repository.workspace_root(),

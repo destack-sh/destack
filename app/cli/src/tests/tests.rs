@@ -7,7 +7,6 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use destack_artifact::MemoryCacheStore;
 use destack_daemon::WatchPolicy;
-use destack_resolver::{Resolver, ResolverOptions};
 use destack_source::{FileSystem, MemoryFileSystem, MemoryFileWatcher};
 use destack_workspace::{Edit, HostEnvironment, Ref, Repository, Revision};
 use serde_json::{Value, json};
@@ -24,10 +23,8 @@ pub(super) struct TestProgram {
     pub root: PathBuf,
     /// The in memory file system.
     pub fs: Arc<MemoryFileSystem>,
-    /// The repository for resolver state.
+    /// The repository under test.
     pub repository: Arc<Repository>,
-    /// Resolver for workspace lookups.
-    pub resolver: Resolver,
 }
 
 impl TestProgram {
@@ -45,15 +42,11 @@ impl TestProgram {
             HostEnvironment::capture_process(),
         ));
 
-        // create a resolver for workspace lookups
-        let resolver = Resolver::from_repository(repository.clone(), ResolverOptions::default());
-
         // return the test harness
         Self {
             root,
             fs,
             repository,
-            resolver,
         }
     }
 

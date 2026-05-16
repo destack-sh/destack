@@ -23,7 +23,6 @@ destack_linter = { workspace = true }
 destack_mir = { workspace = true }
 destack_parser = { workspace = true }
 destack_query = { workspace = true }
-destack_resolver = { workspace = true }
 destack_source = { workspace = true }
 destack_workspace = { path = "../workspace", default-features = false }
 

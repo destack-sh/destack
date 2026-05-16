@@ -29,7 +29,6 @@ destack_mir = { workspace = true }
 destack_parser = { workspace = true }
 destack_query = { workspace = true }
 destack_workspace = { workspace = true }
-destack_resolver = { workspace = true }
 destack_runtime = { workspace = true }
 destack_session = { workspace = true }
 destack_service = { workspace = true }
