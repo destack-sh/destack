@@ -28,6 +28,8 @@ pub enum DependencyTarget {
     /// import "https://cdn.example/app.js";
     /// ```
     External(StringId),
+    /// A dependency edge whose target could not be resolved.
+    Unresolved,
 }
 
 impl DependencyTarget {
@@ -36,7 +38,7 @@ impl DependencyTarget {
     pub fn module_id(self) -> Option<ModuleId> {
         match self {
             Self::Module(module_id) => Some(module_id),
-            Self::External(_) => None,
+            Self::External(_) | Self::Unresolved => None,
         }
     }
 }

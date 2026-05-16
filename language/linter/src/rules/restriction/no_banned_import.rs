@@ -285,6 +285,7 @@ fn matching_target(
                 });
             }
         }
+        dir::DependencyTarget::Unresolved => {}
     }
 
     None
