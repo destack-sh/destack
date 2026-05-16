@@ -23,8 +23,6 @@ pub struct ProfileFlags {
     pub no_internal_import: bool,
     /// Require static dispatch.
     pub no_implicit_dynamic_dispatch: bool,
-    /// Forbid `throw`.
-    pub no_throw: bool,
 }
 
 /// Canonical profile key for semantic identity.
