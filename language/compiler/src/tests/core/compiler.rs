@@ -9,7 +9,7 @@ use destack_artifact::{
 use destack_source::{DiagnosticCollection, FileContent, MemoryFileSystem, ModuleId};
 use destack_workspace::{Edit, HostEnvironment, ProviderError, Ref, Repository, Revision};
 
-use crate::tests::snapshot::{DirSnapshotBuilder, DirSnapshotSet};
+use crate::tests::snapshot::{DirSnapshotBuilder, DirSnapshotSet, render_diagnostics};
 
 use super::module::{TestModule, parse_module, parsed_dependency};
 use super::provider::TestProvider;
@@ -160,18 +160,14 @@ impl TestCompiler {
         ArtifactKey::dir_exported(entry.module.id, entry.profile)
     }
 
-    /// Assert diagnostic codes produced by one module artifact.
-    pub(crate) fn assert_diagnostic_codes(&self, key: ArtifactKey, expected: &[&str]) {
+    /// Render diagnostics produced by one artifact key.
+    pub(crate) fn diagnostic_snapshot(&self, key: ArtifactKey) -> String {
         let diagnostics = self
             .repository
             .diagnostics(self.revision, Some(key))
             .expect("test diagnostics should be readable");
-        let codes = diagnostics
-            .iter()
-            .map(|diagnostic| diagnostic.code.as_str())
-            .collect::<Vec<_>>();
 
-        assert_eq!(codes, expected);
+        render_diagnostics(self.repository.as_ref(), self.revision, &diagnostics)
     }
 
     /// Render one module DIR snapshot.

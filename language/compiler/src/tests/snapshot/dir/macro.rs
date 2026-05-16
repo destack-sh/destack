@@ -14,7 +14,7 @@ impl SnapshotTable for dir::MacroTable {
             .field("target", builder.node_label(invocation.target_node))
             .field(
                 "trigger",
-                value::macro_trigger(builder, &invocation.trigger),
+                value::macro_trigger_label(builder, &invocation.trigger),
             )
             .field(
                 "implementation",

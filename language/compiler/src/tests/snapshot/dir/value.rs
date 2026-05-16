@@ -3,38 +3,21 @@ use std::fmt::Debug;
 use destack_dir as dir;
 
 use super::DirSnapshotBuilder;
-use crate::tests::snapshot::{SnapshotField, SnapshotRow};
 
-/// Add an optional type id field when present.
-pub(super) fn add_optional_type(
-    row: &mut SnapshotRow,
-    key: &'static str,
-    value: Option<dir::LocalTypeId>,
-) {
-    if let Some(value) = value {
-        row.fields.push(SnapshotField {
-            key,
-            value: type_id(value),
-        });
-    }
+/// Return one optional local type id label.
+pub(super) fn optional_type_label(value: Option<dir::LocalTypeId>) -> Option<String> {
+    value.map(type_label)
 }
 
-/// Add an optional instantiation id field when present.
-pub(super) fn add_optional_instantiation(
-    row: &mut SnapshotRow,
-    key: &'static str,
+/// Return one optional instantiation id label.
+pub(super) fn optional_instantiation_label(
     value: Option<dir::LocalInstantiationId>,
-) {
-    if let Some(value) = value {
-        row.fields.push(SnapshotField {
-            key,
-            value: value.to_string(),
-        });
-    }
+) -> Option<String> {
+    value.map(|value| value.to_string())
 }
 
-/// Render one debug name as lower snake case.
-pub(super) fn debug<T>(value: T) -> String
+/// Return one debug label as lower snake case.
+pub(super) fn debug_label<T>(value: T) -> String
 where
     T: Debug,
 {
@@ -43,98 +26,85 @@ where
     lower_snake(&debug)
 }
 
-/// Render one optional debug value.
-pub(super) fn optional_debug<T>(value: Option<T>) -> Option<String>
+/// Return one optional debug label.
+pub(super) fn optional_debug_label<T>(value: Option<T>) -> Option<String>
 where
     T: Debug,
 {
-    value.map(debug)
+    value.map(debug_label)
 }
 
-/// Return one optional type id.
-pub(super) fn optional_type_id(value: Option<dir::LocalTypeId>) -> Option<String> {
-    value.map(type_id)
-}
-
-/// Return one local type id.
-pub(super) fn type_id(type_id: dir::LocalTypeId) -> String {
+/// Return one local type id label.
+pub(super) fn type_label(type_id: dir::LocalTypeId) -> String {
     format!("type{}", type_id.0)
 }
 
 /// Return one local symbol id label.
-pub(super) fn local_symbol(symbol_id: dir::LocalSymbolId) -> String {
+pub(super) fn local_symbol_label(symbol_id: dir::LocalSymbolId) -> String {
     format!("symbol{}", symbol_id.id)
 }
 
 /// Return one resolution label.
-pub(super) fn resolution(builder: &DirSnapshotBuilder<'_>, resolution: &dir::Resolution) -> String {
+pub(super) fn resolution_label(
+    builder: &DirSnapshotBuilder<'_>,
+    resolution: &dir::Resolution,
+) -> String {
     match resolution {
         dir::Resolution::Symbol(symbol_id) => builder.symbol_label(*symbol_id),
         dir::Resolution::Dependency(dependency) => format!("dependency:{dependency:?}"),
-        dir::Resolution::Label(label) => format!("label:{}", debug(label)),
+        dir::Resolution::Label(label) => format!("label:{}", debug_label(label)),
         dir::Resolution::Dispatch(dispatch) => format!("dispatch:{dispatch:?}"),
     }
 }
 
-/// Add one dependency target field.
-pub(super) fn add_dependency_target(
-    row: SnapshotRow,
+/// Return one dependency target field.
+pub(super) fn dependency_target_field(
     builder: &DirSnapshotBuilder<'_>,
     target: dir::DependencyTarget,
-) -> SnapshotRow {
+) -> (&'static str, String) {
     match target {
-        dir::DependencyTarget::Module(module_id) => {
-            row.field("module", builder.module_path(module_id))
-        }
+        dir::DependencyTarget::Module(module_id) => ("module", builder.module_path(module_id)),
         dir::DependencyTarget::External(specifier) => {
-            row.field("external", builder.strings.get(specifier))
+            ("external", builder.strings.get(specifier).to_string())
         }
+        dir::DependencyTarget::Unresolved => ("target", "<unresolved>".to_string()),
     }
 }
 
-/// Return one export name label.
-pub(super) fn export_name(builder: &DirSnapshotBuilder<'_>, name: dir::ExportName) -> String {
-    match name {
-        dir::ExportName::Default => "default".to_string(),
-        dir::ExportName::Named(name) => builder.static_key(name),
+/// Return one export key label.
+pub(super) fn export_key_label(builder: &DirSnapshotBuilder<'_>, key: dir::ExportKey) -> String {
+    match key {
+        dir::ExportKey::Default => "<default>".to_string(),
+        dir::ExportKey::Named(name) => builder.static_key(name),
     }
 }
 
 /// Return one export selector label.
-pub(super) fn export_selector(
+pub(super) fn export_selector_label(
     builder: &DirSnapshotBuilder<'_>,
     selector: dir::ExportSelector,
 ) -> String {
     match selector {
-        dir::ExportSelector::Default => "default".to_string(),
+        dir::ExportSelector::Default => "<default>".to_string(),
         dir::ExportSelector::Named(name) => builder.static_key(name),
-        dir::ExportSelector::Namespace => "namespace".to_string(),
+        dir::ExportSelector::Namespace => "<namespace>".to_string(),
     }
 }
 
 /// Return one captured binding label.
-pub(super) fn optional_capture_binding(
+pub(super) fn optional_capture_binding_label(
     builder: &DirSnapshotBuilder<'_>,
     binding: Option<dir::CapturedBinding>,
 ) -> Option<String> {
     binding.map(|binding| {
         let symbol = builder.symbol_label(binding.symbol);
-        let mode = debug(binding.mode);
+        let mode = debug_label(binding.mode);
         format!("{symbol}:{mode}")
     })
 }
 
-/// Return one capture directive label.
-pub(super) fn capture_directive(directive: &dir::CaptureDirective) -> String {
-    format!(
-        "default:{} rules:{}",
-        debug(directive.default),
-        directive.rules.len()
-    )
-}
-
 /// Return one macro trigger label.
-pub(super) fn macro_trigger(
+pub(super) fn macro_trigger_label(
     builder: &DirSnapshotBuilder<'_>,
     trigger: &dir::MacroTrigger,
 ) -> String {
