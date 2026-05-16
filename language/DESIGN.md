@@ -1862,7 +1862,7 @@ That is convenient and often what we want, but sometimes we need to take direct 
 
 Destack supports explicit, optional modifiers for controlling memory ownership and placement:
 - **Ownership** - who "owns" the value: managed (`T`), owned (`^T`), borrowed (`&T`, `&readonly T`, `&exclusive T`), or raw (`*T`).
-- **Placement** - where the value is located: ambient by default, `shared` across Workers, explicit `"local"` in the type algebra, or some other target-defined space.
+- **Placement** - where the value is located: ambient by default, explicitly `local` to one Worker, `shared` across Workers, `static` for static storage, or `frame` for activation storage.
 
 Plain `T` still behaves as the type's default representation, exactly like we're used to from TypeScript: value types are values, object types are managed references.
 The two axes of ownership and placement compose and commute freely, e.g. `shared ^T` and `^shared T` both mean an owned handle to a value in shared space, and `shared &T` is a borrow of a shared value.
@@ -1900,9 +1900,6 @@ Each ownership form also has a corresponding normalized representation in our li
 Space determines where some value is actually located in memory, and since Destack follows web and JS/TS convention, we use the `Worker`-local heap as the default main memory space.
 Ordinary managed objects, arrays, strings, functions, closures, and module bindings live in local space, and user and library code can almost always just pretend spaces don't even exist.
 
-The "space" of a type and its corresponding memory region are usually just a logical distinction that is more about correctness and performance than physical representation.
-For non-uniform memory targets, assigning specific memory spaces in one unified memory placement system is however quite convenient.
-
 ```ds
 struct Request<T> {
     header: Header,
@@ -1914,7 +1911,7 @@ let sharedRequest: shared Request<Body>;  // explicit, shared -> Request is shar
 ```
 
 Memory placement is contextual and all types are "ambient" by default, i.e., they come with no inherent placement.
-Aggregate types - types containing other types - are placed wherever their parent is placed until some root either specifies placement explicitly (e.g., `WithPlace<T, ..>`, `shared T`) or we reach the top, which - as established - is `local` to the Worker's own local heap by default.
+Aggregate types - types containing other types - are placed wherever their parent is placed until some root either specifies placement explicitly (e.g., `WithPlace<T, ..>`, `local T`, `shared T`) or we reach the top, which - as established - is `local` to the Worker's own local heap by default.
 This "ambient placement" rule is also why we distinguish `Place` from `Space`: `Space` is concrete, while `Place` may also be `"ambient"`.
 
 #### Shared Space
@@ -1945,6 +1942,7 @@ For genuinely _shared_ process-global state, the binding _itself_ can be declare
 | `shared const world: shared World = new World()` | shared | shared | same runtime meaning, explicit on both axes |
 
 Note that making the binding itself as `shared` also types the value as `shared` (as it is illegal to point from shared storage into local storage anyway, this is convenient).
+There is no `local const` form because ordinary module bindings are already Worker-local.
 
 ### Capabilities
 
@@ -2176,7 +2174,7 @@ Low-level code can of course still control finalization explicitly:
 ### Algebra
 
 Type "algebra" is just a fancy way of saying that Destack supports querying and manipulating ownership and placement in its TypeScript-based type system, because _they_ are part of the type system.
-Qualified surface forms like `readonly T`, `^T`, `&T`, `*T`, and `shared T` are sugar over a single normalized `Form`.
+Qualified surface forms like `readonly T`, `^T`, `&T`, `*T`, `local T`, and `shared T` are sugar over a single normalized `Form`.
 Plain `T` may remain unqualified, but algebra operators treat it as managed, mutable, and ambient when they need a default.
 Unlike `Place`, `Access` is always concrete: plain `T` has access `"mutable"`, not some ambient access.
 
@@ -2201,7 +2199,9 @@ readonly User   // Form<User, "managed", "ambient", never, "readonly">
 &User           // Form<User, "borrowed", "ambient", L, "mutable">
 &exclusive User // Form<User, "borrowed", "ambient", L, "exclusive">
 *User           // Form<User, "raw", "ambient">
+local User      // Form<User, "managed", "local">
 shared User     // Form<User, "managed", "shared">
+local ^User     // Form<User, "owned", "local">
 shared ^User    // Form<User, "owned", "shared">
 ^shared User    // Form<User, "owned", "shared">
 ```
@@ -2214,7 +2214,9 @@ Managed<User> satisfies Form<User, "managed", "ambient">;
 Owned<User> satisfies Form<User, "owned", "ambient">;
 Raw<User> satisfies Form<User, "raw", "ambient">;
 
+local User satisfies WithSpace<User, "local">;
 shared User satisfies WithSpace<User, "shared">;
+local ^User satisfies WithSpace<^User, "local">;
 shared ^User satisfies WithSpace<^User, "shared">;
 ^shared User satisfies WithSpace<^User, "shared">;
 
@@ -2243,20 +2245,24 @@ AccessOf<^readonly User> satisfies "readonly";
 AccessOf<&exclusive User> satisfies "exclusive";
 ```
 
-`Space` represents a concrete space like `"local"` or `"shared"` while `Place` means either a concrete `Space` or `"ambient"`, and ambient placement follows the containing context until a final layout is required:
+`Space` represents one builtin concrete space while `Place` means either a concrete `Space` or `"ambient"`, and ambient placement follows the containing context until a final layout is required:
 ```ds
 PlaceOf<User> satisfies "ambient";
 SpaceOf<^User> satisfies never;
 PlaceIn<^User, "shared"> satisfies "shared";
 
+PlaceOf<local User> satisfies "local";
+SpaceOf<local User> satisfies "local";
+PlaceIn<local User, "shared"> satisfies "local";
+
 PlaceOf<shared User> satisfies "shared";
 SpaceOf<shared User> satisfies "shared";
 PlaceIn<shared User, "local"> satisfies "shared";
 
-PlaceOf<User | shared User> satisfies "ambient" | "shared";
-SpaceOf<User | shared User> satisfies "shared";
-PlaceIn<User | shared User, "local"> satisfies "local" | "shared";
-PlaceIn<User | shared User, "shared"> satisfies "shared";
+PlaceOf<User | local User | shared User> satisfies "ambient" | "local" | "shared";
+SpaceOf<User | local User | shared User> satisfies "local" | "shared";
+PlaceIn<User | local User | shared User, "local"> satisfies "local" | "shared";
+PlaceIn<User | local User | shared User, "shared"> satisfies "shared" | "local";
 ```
 
 Predicates with `Is*` are convenience wrappers around those same accessors:
