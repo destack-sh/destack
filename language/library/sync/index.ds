@@ -1,6 +1,7 @@
 export {
     Atomic,
     AtomicScope,
+    AtomicWaitResult,
     MemoryOrdering,
     MemoryRegionSet,
     MemoryScope,
@@ -22,6 +23,8 @@ export {
     atomicFetchXor,
     atomicLoad,
     atomicStore,
+    atomicWait,
+    atomicWake,
 } from "./atomic.ds";
 export * from "./barrier.ds";
 export * from "./condvar.ds";
@@ -29,5 +32,6 @@ export * from "./mutex.ds";
 export * from "./once.ds";
 export * from "./reader.ds";
 export * from "./rwlock.ds";
+export * from "./semaphore.ds";
 export * from "./seek.ds";
 export * from "./writer.ds";

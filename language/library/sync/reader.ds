@@ -1,5 +1,4 @@
-import { type Result, todo } from "destack:error";
-import { type IoError } from "destack:error";
+import { IoError, Result, todo } from "destack:error";
 
 /// Byte reader.
 export interface Reader {

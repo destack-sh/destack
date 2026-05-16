@@ -1,7 +1,6 @@
-import { todo } from "destack:error";
-import { type Result } from "destack:error";
-import { type MaybeUninit } from "destack:memory";
-import { type Atomic } from "./atomic.ds";
+import { Result, todo } from "destack:error";
+import { MaybeUninit } from "destack:memory";
+import { Atomic } from "./atomic.ds";
 
 /// One-time execution state.
 export class Once {

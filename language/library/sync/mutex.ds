@@ -1,7 +1,7 @@
 import { todo } from "destack:error";
-import { type Dispose } from "destack:memory";
-import { type Dereference } from "destack:ops";
-import { type Atomic } from "./atomic.ds";
+import { Default, Dispose } from "destack:memory";
+import { Dereference } from "destack:ops";
+import { Atomic } from "./atomic.ds";
 
 /// Mutual exclusion lock.
 export class Mutex<T> {
@@ -24,6 +24,23 @@ export class Mutex<T> {
     /// Try to lock this mutex without blocking.
     tryLock(): MutexGuard<T> | undefined {
         todo("Mutex.tryLock")
+    }
+
+    /// Borrow the protected value without locking.
+    getExclusive(this: &exclusive Mutex<T>): &exclusive T {
+        todo("Mutex.getExclusive")
+    }
+
+    /// Consume this mutex and return the protected value.
+    intoInner(this: ^Mutex<T>): T {
+        todo("Mutex.intoInner")
+    }
+}
+
+extension<T: Default> of Mutex<T> implements Default {
+    /// Create the default mutex.
+    static default(): Mutex<T> {
+        new Mutex(T.default())
     }
 }
 

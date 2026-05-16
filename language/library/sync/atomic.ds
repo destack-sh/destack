@@ -82,6 +82,9 @@ export enum MemoryRegionSet {
     Any = 511,
 }
 
+/// Result of waiting on an atomic value.
+export type AtomicWaitResult = "notEqual" | "timedOut" | "woken";
+
 /// Atomic storage for one value.
 export newtype Atomic<T> = intrinsic;
 
@@ -117,6 +120,20 @@ extension<T> of Atomic<T> {
 }
 
 extension<T: int> of Atomic<T> {
+    /// Wait while the value is equal to `expected`.
+    wait(
+        expected: T,
+        order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent,
+        timeoutNanos?: uint64,
+    ): AtomicWaitResult {
+        todo("Atomic.wait")
+    }
+
+    /// Wake workers waiting on this atomic value.
+    wake(count?: usize): usize {
+        todo("Atomic.wake")
+    }
+
     /// Add `value` and return the previous value.
     fetchAdd(value: T, order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent): T {
         todo("Atomic.fetchAdd")
@@ -445,3 +462,21 @@ export declare function atomicFence(
     isMakeAvailable: boolean,
     isMakeVisible: boolean,
 ): void;
+
+/// Wait on an atomic integer location.
+///
+/// Blocks the current Worker or parks the current simulated Worker while `ptr` equals `expected`.
+@intrinsic("sync.atomic.wait")
+export declare function atomicWait<T: int>(
+    ptr: *T,
+    expected: T,
+    order: MemoryOrdering,
+    timeoutNanos?: uint64,
+): AtomicWaitResult;
+
+/// Wake waiters blocked on an atomic integer location.
+@intrinsic("sync.atomic.wake")
+export declare function atomicWake<T: int>(
+    ptr: *T,
+    count?: usize,
+): usize;
