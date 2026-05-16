@@ -10,7 +10,7 @@ use destack_source::{
 };
 use destack_workspace::{ProviderContext, ProviderError, Revision};
 
-use crate::verify::{DropInsert, OwnershipCheck, VerifyError, VerifyState};
+use crate::verify::{BorrowObligationRecord, DropInsert, OwnershipCheck, VerifyError, VerifyState};
 
 /// Placeholder module id for verify tests.
 fn test_module_id() -> ModuleId {
@@ -119,6 +119,21 @@ impl VerifyProgram {
         OwnershipCheck.run(&mut self.tree, &mut state);
 
         collect_errors(&state)
+    }
+
+    /// Run ownership verification and return borrow obligations.
+    pub(super) fn run_ownership_obligations(
+        &mut self,
+    ) -> (Vec<VerifyError>, Vec<BorrowObligationRecord>) {
+        let mut state = VerifyState::new(
+            test_module_id(),
+            test_profile_id(),
+            test_target_id(),
+            &self.provider,
+        );
+        OwnershipCheck.run(&mut self.tree, &mut state);
+
+        (collect_errors(&state), state.borrow_obligations().to_vec())
     }
 
     /// Run drop insertion.
