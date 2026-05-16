@@ -30,8 +30,7 @@ impl Compiler {
                 package: package_id,
                 message: format!(
                     "missing module output for module {:?} target '{}': {error:?}",
-                    module_id,
-                    self.target_name(context.revision(), target_id)
+                    module_id, target_id
                 ),
             })?;
         let ModuleOutput::Script(script) = artifact.as_ref() else {
@@ -40,8 +39,7 @@ impl Compiler {
                 package: package_id,
                 message: format!(
                     "expected script output for module {:?} target '{}'",
-                    module_id,
-                    self.target_name(context.revision(), target_id)
+                    module_id, target_id
                 ),
             });
         };

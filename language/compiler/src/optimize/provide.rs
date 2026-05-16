@@ -1,4 +1,4 @@
-use crate::{Compiler, CompilerResult, OptimizeError, OptimizeResult};
+use crate::{Compiler, CompilerResult, OptimizeError, OptimizeResult, OptimizeWarning};
 use destack_workspace::ProviderContext;
 use std::mem;
 use std::str::FromStr;
@@ -98,10 +98,10 @@ impl Compiler {
 
         // collect accumulated diagnostics from verification passes
         for error in pipeline_context.take_errors() {
-            self.emit_built_diagnostic(context, error)?;
+            self.emit_diagnostic::<OptimizeError>(context, error)?;
         }
         for warning in pipeline_context.take_warnings() {
-            self.emit_built_diagnostic(context, warning)?;
+            self.emit_diagnostic::<OptimizeWarning>(context, warning)?;
         }
 
         // freeze optimized MIR patch

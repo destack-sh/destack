@@ -4,7 +4,7 @@ mod diagnostic;
 mod error;
 mod phase;
 mod provide;
-mod read;
+mod repository;
 
 pub use compiler::*;
 pub use diagnostic::*;

@@ -21,10 +21,7 @@ impl Compiler {
                 .ok_or_else(|| GenerateError::Internal {
                     anchor: (module_id).into(),
                     module: module_id,
-                    message: format!(
-                        "target '{}' not found",
-                        self.target_name(context.revision(), target_id)
-                    ),
+                    message: format!("target '{target_id}' not found"),
                 })?;
 
         let resolved_profile = self
@@ -32,10 +29,7 @@ impl Compiler {
             .ok_or_else(|| GenerateError::Internal {
                 anchor: (module_id).into(),
                 module: module_id,
-                message: format!(
-                    "profile not found for target '{}'",
-                    self.target_name(context.revision(), target_id)
-                ),
+                message: format!("profile not found for target '{}'", target.name),
             })?;
         if resolved_profile != profile {
             return Err(GenerateError::Internal {
@@ -43,7 +37,7 @@ impl Compiler {
                 module: module_id,
                 message: format!(
                     "target '{}' resolved to profile '{resolved_profile:?}', not '{profile:?}'",
-                    self.target_name(context.revision(), target_id)
+                    target.name
                 ),
             }
             .into());
