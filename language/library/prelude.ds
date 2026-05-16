@@ -30,7 +30,7 @@ export {
     Any,
     Box,
     Pin,
-    PhantomData,
+    Phantom,
     MaybeUninit,
     Default,
     Managed,
