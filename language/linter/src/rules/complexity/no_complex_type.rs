@@ -110,6 +110,7 @@ fn type_expression_complexity_inner(
         TypeExpression::Union { .. }
             | TypeExpression::Intersection { .. }
             | TypeExpression::Readonly { .. }
+            | TypeExpression::Local { .. }
             | TypeExpression::Shared { .. }
             | TypeExpression::KeyOf { .. }
             | TypeExpression::TypeOfValue { .. }
@@ -258,6 +259,7 @@ fn type_expression_complexity_inner(
         }
         TypeExpression::Member { left, .. }
         | TypeExpression::Readonly { target_type: left }
+        | TypeExpression::Local { target_type: left }
         | TypeExpression::Shared { target_type: left }
         | TypeExpression::KeyOf { target_type: left }
         | TypeExpression::Must { target_type: left }
