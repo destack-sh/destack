@@ -2,8 +2,7 @@ use destack_core::{StringId, StringPool};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ExportName, ExportSelector, Expression, LocalNodeId, Name, Node, NodeType, StaticKey,
-    SymbolForm,
+    ExportKey, ExportSelector, Expression, LocalNodeId, Name, Node, NodeType, StaticKey, SymbolForm,
 };
 
 /// How one dependency item binds into the local module.
@@ -118,8 +117,8 @@ impl DependencyItem {
         Some(selector)
     }
 
-    /// Return the export name introduced by this dependency item.
-    pub fn export_name(&self, strings: &StringPool) -> Option<ExportName> {
+    /// Return the export key introduced by this dependency item.
+    pub fn export_key(&self, strings: &StringPool) -> Option<ExportKey> {
         let Self::Binding {
             binding,
             name,
@@ -131,13 +130,13 @@ impl DependencyItem {
         };
 
         if let Some(alias) = alias {
-            return Some(ExportName::from_string(*alias, strings));
+            return Some(ExportKey::from_string(*alias, strings));
         }
 
         match binding {
-            DependencyBinding::Default => Some(ExportName::Default),
+            DependencyBinding::Default => Some(ExportKey::Default),
             DependencyBinding::Named | DependencyBinding::Namespace => {
-                name.map(|name| ExportName::from_name(name, strings))
+                name.map(|name| ExportKey::from_name(name, strings))
             }
         }
     }
