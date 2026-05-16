@@ -22,7 +22,7 @@ pub struct SymbolDecorator {
 /// Return candidate symbols for an expression usage site.
 pub fn expression_candidate_symbols(
     local_module_id: ModuleId,
-    local_types: &dir::TypeTable,
+    local_types: &dir::TypeTable<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Vec<dir::GlobalSymbolId> {
     let mut symbols = Vec::new();
@@ -51,8 +51,8 @@ pub fn expression_symbol_decorator_map<T>(
     local_module_id: ModuleId,
     local_tree: &dir::Tree,
     local_strings: &StringPool,
-    local_symbols: &dir::BindingTable,
-    local_types: &dir::TypeTable,
+    local_symbols: &dir::BindingTable<'_>,
+    local_types: &dir::TypeTable<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
     decorator_symbol: dir::GlobalSymbolId,
     mut map: impl FnMut(&SymbolDecorator) -> Option<T>,
@@ -90,8 +90,8 @@ pub fn expression_has_symbol_decorator(
     local_module_id: ModuleId,
     local_tree: &dir::Tree,
     local_strings: &StringPool,
-    local_symbols: &dir::BindingTable,
-    local_types: &dir::TypeTable,
+    local_symbols: &dir::BindingTable<'_>,
+    local_types: &dir::TypeTable<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
     decorator_symbol: dir::GlobalSymbolId,
 ) -> bool {
@@ -156,8 +156,8 @@ fn symbol_decorators_in_module(
     module_id: ModuleId,
     tree: &dir::Tree,
     strings: &StringPool,
-    symbols: &dir::BindingTable,
-    types: &dir::TypeTable,
+    symbols: &dir::BindingTable<'_>,
+    types: &dir::TypeTable<'_>,
     symbol_id: dir::LocalSymbolId,
     decorator_symbol: dir::GlobalSymbolId,
 ) -> Vec<SymbolDecorator> {
@@ -194,7 +194,7 @@ fn symbol_decorator_from_expression(
     module_id: ModuleId,
     tree: &dir::Tree,
     strings: &StringPool,
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     decorator: &dir::Decorator,
     decorator_symbol: dir::GlobalSymbolId,
 ) -> Option<SymbolDecorator> {
@@ -237,7 +237,7 @@ fn unwrap_parenthesized_expression(
 /// Check both the decorator call and callee for a resolved decorator symbol.
 fn decorator_expression_matches(
     module_id: ModuleId,
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
     callee_id: dir::LocalNodeId<dir::Expression>,
     decorator_symbol: dir::GlobalSymbolId,
@@ -291,7 +291,7 @@ pub fn symbol_for(
     artifacts: &ArtifactCache,
     profile_id: ProfileId,
     local_module_id: ModuleId,
-    local_symbols: &dir::BindingTable,
+    local_symbols: &dir::BindingTable<'_>,
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<dir::Symbol> {
     if symbol_id.module_id == local_module_id {
@@ -312,8 +312,8 @@ pub fn symbol_decorators_for(
     local_module_id: ModuleId,
     local_tree: &dir::Tree,
     local_strings: &StringPool,
-    local_symbols: &dir::BindingTable,
-    local_types: &dir::TypeTable,
+    local_symbols: &dir::BindingTable<'_>,
+    local_types: &dir::TypeTable<'_>,
     symbol_id: dir::GlobalSymbolId,
     decorator_symbol: dir::GlobalSymbolId,
 ) -> Vec<SymbolDecorator> {
@@ -354,7 +354,7 @@ pub fn symbol_declaration_for(
     artifacts: &ArtifactCache,
     profile_id: ProfileId,
     local_module_id: ModuleId,
-    local_symbols: &dir::BindingTable,
+    local_symbols: &dir::BindingTable<'_>,
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<dir::GlobalNodeIdAny> {
     let symbol = symbol_for(
@@ -372,7 +372,7 @@ pub fn symbol_initializer_expression(
     artifacts: &ArtifactCache,
     profile_id: ProfileId,
     local_module_id: ModuleId,
-    local_symbols: &dir::BindingTable,
+    local_symbols: &dir::BindingTable<'_>,
     tree: &dir::Tree,
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<dir::LocalNodeId<dir::Expression>> {
@@ -394,7 +394,7 @@ pub fn symbol_initializer_expression(
 
 /// Resolve one initializer expression from a symbol declaration node.
 pub fn declaration_initializer_expression(
-    symbols: &dir::BindingTable,
+    symbols: &dir::BindingTable<'_>,
     tree: &dir::Tree,
     declaration_id: dir::GlobalNodeIdAny,
     symbol_id: dir::LocalSymbolId,
@@ -492,7 +492,7 @@ pub fn symbol_value_type_id_for(
     artifacts: &ArtifactCache,
     profile_id: ProfileId,
     local_module_id: ModuleId,
-    local_types: &dir::TypeTable,
+    local_types: &dir::TypeTable<'_>,
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<SymbolValueTypeId> {
     if symbol_id.module_id == local_module_id {
@@ -516,9 +516,9 @@ pub fn symbol_value_type_map_for<T>(
     artifacts: &ArtifactCache,
     profile_id: ProfileId,
     local_module_id: ModuleId,
-    local_types: &dir::TypeTable,
+    local_types: &dir::TypeTable<'_>,
     symbol_id: dir::GlobalSymbolId,
-    map: impl FnOnce(&dir::TypeTable, dir::LocalTypeId) -> T,
+    map: impl FnOnce(&dir::TypeTable<'_>, dir::LocalTypeId) -> T,
 ) -> Option<T> {
     let value_type_id = symbol_value_type_id_for(
         artifacts,
@@ -541,7 +541,7 @@ fn checked_type_table_for(
     artifacts: &ArtifactCache,
     module_id: ModuleId,
     profile_id: ProfileId,
-) -> Option<dir::TypeTable> {
+) -> Option<dir::TypeTable<'static>> {
     let bound = artifacts.dir_bound(module_id, profile_id)?;
     let expanded = artifacts.dir_expanded(module_id, profile_id)?;
     let checked = artifacts.dir_checked(module_id, profile_id)?;

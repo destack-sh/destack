@@ -202,7 +202,7 @@ fn await_operand_expression_id(
 fn awaits_are_independent(
     tree: &dir::Tree,
     module_id: destack_source::ModuleId,
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     previous: &AwaitStatement,
     current: &AwaitStatement,
 ) -> bool {
@@ -225,7 +225,7 @@ fn awaits_are_independent(
 fn expression_references_any_symbol(
     tree: &dir::Tree,
     module_id: destack_source::ModuleId,
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
     target_symbols: &HashSet<dir::LocalSymbolId>,
 ) -> bool {
@@ -240,7 +240,7 @@ struct SymbolReferenceVisitor<'a> {
     /// The current module id.
     module_id: destack_source::ModuleId,
     /// The type table carrying semantic resolutions.
-    types: &'a dir::TypeTable,
+    types: &'a dir::TypeTable<'a>,
     /// Target local symbols to detect.
     target_symbols: &'a HashSet<dir::LocalSymbolId>,
     /// Whether any target symbol was referenced.
@@ -253,7 +253,7 @@ impl<'a> SymbolReferenceVisitor<'a> {
     /// Build a visitor for one symbol set.
     fn new(
         module_id: destack_source::ModuleId,
-        types: &'a dir::TypeTable,
+        types: &'a dir::TypeTable<'a>,
         target_symbols: &'a HashSet<dir::LocalSymbolId>,
     ) -> Self {
         Self {

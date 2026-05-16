@@ -100,9 +100,9 @@ pub struct LintModuleContext<'a> {
     /// The DIR string pool.
     pub strings: &'a StringPool,
     /// The symbol table.
-    pub symbols: dir::BindingTable,
+    pub symbols: dir::BindingTable<'static>,
     /// The type table.
-    pub types: &'a dir::TypeTable,
+    pub types: &'a dir::TypeTable<'static>,
     /// The top-level expressions of the Module.
     pub roots: Vec<dir::LocalNodeId<dir::Expression>>,
 
@@ -143,8 +143,8 @@ impl<'a> LintModuleContext<'a> {
         parsed: &'a DirParsed,
         expanded: &'a DirExpanded,
         strings: &'a StringPool,
-        symbols: dir::BindingTable,
-        types: &'a dir::TypeTable,
+        symbols: dir::BindingTable<'static>,
+        types: &'a dir::TypeTable<'static>,
         namespace_scope: dir::LocalScopeId,
         options: &'a LinterOptions,
         compute_fixes: bool,
@@ -214,7 +214,7 @@ impl<'a> LintModuleContext<'a> {
     }
 
     /// Return one checked type table for one revision-scoped module.
-    pub fn dir_type_table(&self, module_id: ModuleId) -> Option<dir::TypeTable> {
+    pub fn dir_type_table(&self, module_id: ModuleId) -> Option<dir::TypeTable<'static>> {
         let bound = self.dir_bound(module_id)?;
         let expanded = self.dir_expanded(module_id)?;
         let checked = self.dir_checked(module_id)?;

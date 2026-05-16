@@ -59,7 +59,7 @@ impl ModuleSymbolUsage {
 pub fn collect_module_symbol_usage(
     module_id: ModuleId,
     tree: &dir::Tree,
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
 ) -> ModuleSymbolUsage {
     let mut usage = ModuleSymbolUsage::default();
 
@@ -84,7 +84,7 @@ pub fn collect_module_symbol_usage(
 /// Resolve the single lexical target symbol for one expression.
 fn expression_target_symbol(
     module_id: ModuleId,
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<dir::GlobalSymbolId> {
     types.symbol_resolution(expression_id.into_global_any(module_id))
@@ -94,7 +94,7 @@ fn expression_target_symbol(
 pub fn collect_local_symbol_direct_reference_expression_ids(
     module_id: ModuleId,
     tree: &dir::Tree,
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     symbol_id: dir::LocalSymbolId,
 ) -> Vec<dir::LocalNodeId<dir::Expression>> {
     let mut references = Vec::new();
@@ -114,7 +114,7 @@ pub fn collect_local_symbol_direct_reference_expression_ids(
 pub fn local_symbol_has_direct_references(
     module_id: ModuleId,
     tree: &dir::Tree,
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     symbol_id: dir::LocalSymbolId,
 ) -> bool {
     tree.iter_nodes_of_type::<dir::Expression>()
@@ -128,7 +128,7 @@ pub fn local_symbol_has_direct_references(
 pub fn collect_expression_read_symbol_usage(
     module_id: ModuleId,
     tree: &dir::Tree,
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> HashSet<dir::GlobalSymbolId> {
     let mut collector = ReadSymbolCollector {
@@ -146,7 +146,7 @@ pub fn collect_expression_read_symbol_usage(
 pub fn collect_module_read_symbol_usage(
     module_id: ModuleId,
     tree: &dir::Tree,
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
 ) -> HashSet<dir::GlobalSymbolId> {
     let mut reads = HashSet::new();
 
@@ -177,7 +177,7 @@ pub fn collect_module_read_symbol_usage(
 pub fn collect_assigned_symbol_usage(
     module_id: ModuleId,
     tree: &dir::Tree,
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     mut include_assignment: impl FnMut(
         dir::LocalNodeId<dir::Expression>,
         dir::LocalNodeId<dir::Expression>,
@@ -211,7 +211,7 @@ struct ReadSymbolCollector<'a> {
     /// The module being scanned.
     module_id: ModuleId,
     /// The type table carrying semantic resolutions.
-    types: &'a dir::TypeTable,
+    types: &'a dir::TypeTable<'a>,
     /// Collected symbols read from one expression.
     reads: HashSet<dir::GlobalSymbolId>,
     /// Visitor options.

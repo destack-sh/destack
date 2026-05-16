@@ -124,9 +124,9 @@ pub struct TaintAnalysis<'a> {
     /// Active module strings.
     strings: &'a StringPool,
     /// Active module symbols.
-    symbols: &'a dir::BindingTable,
+    symbols: &'a dir::BindingTable<'a>,
     /// Active module types.
-    types: &'a dir::TypeTable,
+    types: &'a dir::TypeTable<'a>,
     /// Mutable cache reused across checks.
     cache: &'a mut TaintCache,
     /// Whether heuristic taint sources should be included.
@@ -142,8 +142,8 @@ impl<'a> TaintAnalysis<'a> {
         module_id: ModuleId,
         tree: &'a dir::Tree,
         strings: &'a StringPool,
-        symbols: &'a dir::BindingTable,
-        types: &'a dir::TypeTable,
+        symbols: &'a dir::BindingTable<'a>,
+        types: &'a dir::TypeTable<'a>,
         cache: &'a mut TaintCache,
         include_heuristic_sources: bool,
     ) -> Self {
@@ -759,8 +759,8 @@ pub fn expression_sink_taint_labels(
     module_id: ModuleId,
     tree: &dir::Tree,
     strings: &StringPool,
-    symbols: &dir::BindingTable,
-    types: &dir::TypeTable,
+    symbols: &dir::BindingTable<'_>,
+    types: &dir::TypeTable<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> TaintLabels {
     let Some(sink_symbol) = language_item_symbol(artifacts, profile_id, dir::LanguageItem::Sink)
@@ -797,8 +797,8 @@ pub fn expression_sanitizer_taint_labels(
     module_id: ModuleId,
     tree: &dir::Tree,
     strings: &StringPool,
-    symbols: &dir::BindingTable,
-    types: &dir::TypeTable,
+    symbols: &dir::BindingTable<'_>,
+    types: &dir::TypeTable<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> TaintLabels {
     let Some(sanitizer_symbol) =
@@ -859,8 +859,8 @@ fn symbol_taint_labels_from_decorators(
     module_id: ModuleId,
     tree: &dir::Tree,
     strings: &StringPool,
-    symbols: &dir::BindingTable,
-    types: &dir::TypeTable,
+    symbols: &dir::BindingTable<'_>,
+    types: &dir::TypeTable<'_>,
     symbol_id: dir::GlobalSymbolId,
 ) -> TaintLabels {
     let Some(taint_symbol) = language_item_symbol(artifacts, profile_id, dir::LanguageItem::Taint)

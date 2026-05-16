@@ -226,7 +226,7 @@ fn scope_subtree_contains_name(
 /// Collect parameter symbol usage while tracking recursive call argument context.
 struct RecursiveParameterUseVisitor<'a> {
     /// The DIR type table.
-    types: &'a dir::TypeTable,
+    types: &'a dir::TypeTable<'a>,
     /// The current module id.
     module_id: destack_source::ModuleId,
     /// The current callable symbol.
@@ -246,7 +246,7 @@ struct RecursiveParameterUseVisitor<'a> {
 impl<'a> RecursiveParameterUseVisitor<'a> {
     /// Build a visitor for one callable body.
     fn new(
-        types: &'a dir::TypeTable,
+        types: &'a dir::TypeTable<'a>,
         module_id: destack_source::ModuleId,
         function_symbol: dir::GlobalSymbolId,
         parameter_symbols: HashSet<dir::LocalSymbolId>,

@@ -5,7 +5,7 @@ use destack_dir as dir;
 
 /// Return the type id used for flow queries.
 pub fn normalized_flow_type_id(
-    _types: &dir::TypeTable,
+    _types: &dir::TypeTable<'_>,
     type_id: dir::LocalTypeId,
 ) -> dir::LocalTypeId {
     type_id
@@ -15,7 +15,7 @@ pub fn normalized_flow_type_id(
 ///
 /// This also treats `any` and `unknown` as compatible escape hatches.
 pub fn types_are_equivalent_or_any(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     left_type_id: dir::LocalTypeId,
     right_type_id: dir::LocalTypeId,
 ) -> bool {
@@ -103,7 +103,7 @@ fn union_or_intersection_elements(ty: &dir::Type) -> Option<&[dir::LocalTypeId]>
 ///
 /// This follows instance types first and then value types for aliases.
 fn reference_symbol_type_id(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     symbol: dir::GlobalSymbolId,
 ) -> Option<dir::LocalTypeId> {
     types
@@ -113,7 +113,7 @@ fn reference_symbol_type_id(
 
 /// Visit all available type ids for one reference symbol.
 fn for_each_reference_symbol_type_id(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     symbol: dir::GlobalSymbolId,
     mut visitor: impl FnMut(dir::LocalTypeId),
 ) {
@@ -173,7 +173,7 @@ enum TypeBooleanQuery<'a> {
     /// Check reference symbol type compatibility.
     ReferenceSymbolForm {
         /// Local symbol table for declaration form reads.
-        symbols: &'a dir::BindingTable,
+        symbols: &'a dir::BindingTable<'a>,
         /// Required symbol type.
         symbol_form: dir::SymbolForm,
     },
@@ -263,7 +263,7 @@ impl TypeBooleanQueryState {
 
 /// Evaluate one boolean type query from one source type id.
 fn evaluate_boolean_type_query(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     type_id: dir::LocalTypeId,
     query: TypeBooleanQuery<'_>,
 ) -> bool {
@@ -274,7 +274,7 @@ fn evaluate_boolean_type_query(
 
 /// Evaluate one boolean type query for one normalized type id.
 fn evaluate_boolean_type_query_inner(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     type_id: dir::LocalTypeId,
     query: TypeBooleanQuery<'_>,
     state: &mut TypeBooleanQueryState,
@@ -351,7 +351,7 @@ fn type_query_composition_policy(
 
 /// Aggregate boolean query results across one list of element types.
 fn aggregate_boolean_query_results(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     element_type_ids: &[dir::LocalTypeId],
     query: TypeBooleanQuery<'_>,
     composition_policy: TypeCompositionPolicy,
@@ -369,7 +369,7 @@ fn aggregate_boolean_query_results(
 
 /// Evaluate one boolean type query for one reference symbol.
 fn evaluate_reference_boolean_type_query(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     symbol: dir::GlobalSymbolId,
     generic_arguments: Option<&[dir::StaticArgument]>,
     query: TypeBooleanQuery<'_>,
@@ -452,7 +452,7 @@ fn evaluate_reference_boolean_type_query(
 
 /// Evaluate one boolean type query for one terminal type node.
 fn evaluate_terminal_boolean_type_query(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     ty: &dir::Type,
     query: TypeBooleanQuery<'_>,
     state: &mut TypeBooleanQueryState,
@@ -708,7 +708,7 @@ fn evaluate_terminal_boolean_type_query(
 
 /// Return true when static arguments contain an empty map value argument.
 fn generic_arguments_contain_empty_map_value(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     generic_arguments: Option<&[dir::StaticArgument]>,
 ) -> bool {
     let Some(generic_arguments) = generic_arguments else {
@@ -723,7 +723,7 @@ fn generic_arguments_contain_empty_map_value(
 
 /// Return true when one static argument resolves to `void` or `never`.
 fn generic_argument_is_void_or_never_type(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     generic_argument: &dir::StaticArgument,
 ) -> bool {
     match generic_argument {
@@ -797,13 +797,13 @@ fn type_literal_is_symbol_like_property_key(value: &dir::LiteralType) -> bool {
 }
 
 /// Return true when the type is strictly boolean.
-pub fn is_strict_boolean_type(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> bool {
+pub fn is_strict_boolean_type(types: &dir::TypeTable<'_>, type_id: dir::LocalTypeId) -> bool {
     evaluate_boolean_type_query(types, type_id, TypeBooleanQuery::StrictBoolean)
 }
 
 /// Return true when the type is an array type.
 pub fn is_array_type(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     type_id: dir::LocalTypeId,
     array_symbol: Option<dir::GlobalSymbolId>,
 ) -> bool {
@@ -811,7 +811,7 @@ pub fn is_array_type(
 }
 
 /// Return the fixed arity when one type resolves to a tuple.
-pub fn tuple_type_arity(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> Option<usize> {
+pub fn tuple_type_arity(types: &dir::TypeTable<'_>, type_id: dir::LocalTypeId) -> Option<usize> {
     let mut current_type_id = normalized_flow_type_id(types, type_id);
     let mut visited_type_ids = HashSet::new();
 
@@ -839,7 +839,7 @@ pub fn tuple_type_arity(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> Op
 
 /// Return true when the type is an array or tuple whose elements are strings.
 pub fn is_string_array_type(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     type_id: dir::LocalTypeId,
     array_symbol: Option<dir::GlobalSymbolId>,
     string_symbol: Option<dir::GlobalSymbolId>,
@@ -850,7 +850,7 @@ pub fn is_string_array_type(
 
 /// Evaluate string-array compatibility recursively.
 fn is_string_array_type_inner(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     type_id: dir::LocalTypeId,
     array_symbol: Option<dir::GlobalSymbolId>,
     string_symbol: Option<dir::GlobalSymbolId>,
@@ -918,7 +918,7 @@ fn is_string_array_type_inner(
 
 /// Resolve one static argument into a concrete type id when available.
 fn generic_argument_type_id(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     generic_argument: &dir::StaticArgument,
 ) -> Option<dir::LocalTypeId> {
     match generic_argument {
@@ -935,7 +935,7 @@ fn generic_argument_type_id(
 /// This returns true for direct arrays, tuples, and any union or intersection
 /// branch that resolves to an array-like structure.
 pub fn is_array_like_iteration_type(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     strings: &StringPool,
     type_id: dir::LocalTypeId,
     array_symbol: Option<dir::GlobalSymbolId>,
@@ -946,7 +946,7 @@ pub fn is_array_like_iteration_type(
 
 /// Evaluate array-like iteration compatibility recursively.
 fn is_array_like_iteration_type_inner(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     strings: &StringPool,
     type_id: dir::LocalTypeId,
     array_symbol: Option<dir::GlobalSymbolId>,
@@ -1006,7 +1006,7 @@ fn is_array_like_iteration_type_inner(
 
 /// Return true when one object declares a numeric index signature.
 fn object_has_numeric_index_signature(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     index_signatures: &[dir::TypeIndexSignature],
 ) -> bool {
     index_signatures
@@ -1016,7 +1016,7 @@ fn object_has_numeric_index_signature(
 
 /// Return true when one object has a numeric `length` field.
 fn object_has_array_like_length_field(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     strings: &StringPool,
     fields: &[dir::TypeField],
 ) -> bool {
@@ -1034,7 +1034,7 @@ fn object_has_array_like_length_field(
 
 /// Return true when the type is a string type.
 pub fn is_string_type(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     type_id: dir::LocalTypeId,
     string_symbol: Option<dir::GlobalSymbolId>,
 ) -> bool {
@@ -1042,19 +1042,19 @@ pub fn is_string_type(
 }
 
 /// Return true when the type is a floating point type.
-pub fn is_float_type(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> bool {
+pub fn is_float_type(types: &dir::TypeTable<'_>, type_id: dir::LocalTypeId) -> bool {
     evaluate_boolean_type_query(types, type_id, TypeBooleanQuery::Float)
 }
 
 /// Return true when the type is a function type.
-pub fn is_function_type(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> bool {
+pub fn is_function_type(types: &dir::TypeTable<'_>, type_id: dir::LocalTypeId) -> bool {
     evaluate_boolean_type_query(types, type_id, TypeBooleanQuery::Function)
 }
 
 /// Return true when one type may resolve to one symbol type.
 pub fn is_reference_symbol_form(
-    types: &dir::TypeTable,
-    symbols: &dir::BindingTable,
+    types: &dir::TypeTable<'_>,
+    symbols: &dir::BindingTable<'_>,
     type_id: dir::LocalTypeId,
     symbol_form: dir::SymbolForm,
 ) -> bool {
@@ -1069,24 +1069,27 @@ pub fn is_reference_symbol_form(
 }
 
 /// Return true when one type is an infer variable.
-pub fn is_infer_var_type(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> bool {
+pub fn is_infer_var_type(types: &dir::TypeTable<'_>, type_id: dir::LocalTypeId) -> bool {
     evaluate_boolean_type_query(types, type_id, TypeBooleanQuery::InferVar)
 }
 
 /// Return true when one type declares a `this` parameter.
-pub fn has_this_parameter_type(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> bool {
+pub fn has_this_parameter_type(types: &dir::TypeTable<'_>, type_id: dir::LocalTypeId) -> bool {
     evaluate_boolean_type_query(types, type_id, TypeBooleanQuery::HasThisParameter)
 }
 
 /// Return true when one type declares a non-void `this` parameter.
-pub fn has_non_void_this_parameter_type(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> bool {
+pub fn has_non_void_this_parameter_type(
+    types: &dir::TypeTable<'_>,
+    type_id: dir::LocalTypeId,
+) -> bool {
     let mut visited_type_ids = HashSet::new();
     has_non_void_this_parameter_type_inner(types, type_id, &mut visited_type_ids)
 }
 
 /// Evaluate non-void `this` parameter compatibility recursively.
 fn has_non_void_this_parameter_type_inner(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     type_id: dir::LocalTypeId,
     visited_type_ids: &mut HashSet<dir::LocalTypeId>,
 ) -> bool {
@@ -1130,22 +1133,22 @@ fn has_non_void_this_parameter_type_inner(
 }
 
 /// Return true when one type has a useful `toString` representation.
-pub fn has_useful_to_string_type(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> bool {
+pub fn has_useful_to_string_type(types: &dir::TypeTable<'_>, type_id: dir::LocalTypeId) -> bool {
     evaluate_boolean_type_query(types, type_id, TypeBooleanQuery::HasUsefulToString)
 }
 
 /// Return true when the type is an async function.
-pub fn is_async_function_type(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> bool {
+pub fn is_async_function_type(types: &dir::TypeTable<'_>, type_id: dir::LocalTypeId) -> bool {
     evaluate_boolean_type_query(types, type_id, TypeBooleanQuery::AsyncFunction)
 }
 
 /// Return true when the type is `any`.
-pub fn is_any_type(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> bool {
+pub fn is_any_type(types: &dir::TypeTable<'_>, type_id: dir::LocalTypeId) -> bool {
     evaluate_boolean_type_query(types, type_id, TypeBooleanQuery::Any)
 }
 
 /// Return true when the type is `Error`.
-pub fn is_error_type(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> bool {
+pub fn is_error_type(types: &dir::TypeTable<'_>, type_id: dir::LocalTypeId) -> bool {
     matches!(
         types.get_type(normalized_flow_type_id(types, type_id)),
         dir::Type::Error
@@ -1153,13 +1156,13 @@ pub fn is_error_type(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> bool 
 }
 
 /// Return true when the type tree contains explicit `any` (but not `unknown`).
-pub fn is_explicit_any_type(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> bool {
+pub fn is_explicit_any_type(types: &dir::TypeTable<'_>, type_id: dir::LocalTypeId) -> bool {
     evaluate_boolean_type_query(types, type_id, TypeBooleanQuery::ExplicitAny)
 }
 
 /// Return true when the type is a Promise.
 pub fn is_promise_type(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     type_id: dir::LocalTypeId,
     promise_symbol: Option<dir::GlobalSymbolId>,
 ) -> bool {
@@ -1172,7 +1175,7 @@ pub fn is_promise_type(
 
 /// Return true when the type is Promise or any-like.
 pub fn is_promise_or_any_type(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     type_id: dir::LocalTypeId,
     promise_symbol: Option<dir::GlobalSymbolId>,
 ) -> bool {
@@ -1189,7 +1192,7 @@ pub fn is_promise_or_any_type(
 
 /// Return true when one type supports Promise spread elements.
 pub fn supports_promise_spread_elements(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     type_id: dir::LocalTypeId,
     promise_symbol: Option<dir::GlobalSymbolId>,
 ) -> bool {
@@ -1206,7 +1209,7 @@ pub fn supports_promise_spread_elements(
 
 /// Return true when one type contains `Map<_, void | never>`.
 pub fn contains_map_with_empty_value_type(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     type_id: dir::LocalTypeId,
     map_symbol: dir::GlobalSymbolId,
 ) -> bool {
@@ -1218,13 +1221,13 @@ pub fn contains_map_with_empty_value_type(
 }
 
 /// Return true when the type is `void` or `never`.
-pub fn is_void_or_never_type(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> bool {
+pub fn is_void_or_never_type(types: &dir::TypeTable<'_>, type_id: dir::LocalTypeId) -> bool {
     evaluate_boolean_type_query(types, type_id, TypeBooleanQuery::VoidOrNever)
 }
 
 /// Return true when the type can be interpolated into a template string.
 pub fn is_template_interpolation_type(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     type_id: dir::LocalTypeId,
     string_symbol: Option<dir::GlobalSymbolId>,
 ) -> bool {
@@ -1236,23 +1239,29 @@ pub fn is_template_interpolation_type(
 }
 
 /// Return true when the type is string-like for object property keys.
-pub fn is_string_like_property_key_type(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> bool {
+pub fn is_string_like_property_key_type(
+    types: &dir::TypeTable<'_>,
+    type_id: dir::LocalTypeId,
+) -> bool {
     evaluate_boolean_type_query(types, type_id, TypeBooleanQuery::StringLikePropertyKey)
 }
 
 /// Return true when the type is numeric for object property keys.
-pub fn is_numeric_property_key_type(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> bool {
+pub fn is_numeric_property_key_type(types: &dir::TypeTable<'_>, type_id: dir::LocalTypeId) -> bool {
     evaluate_boolean_type_query(types, type_id, TypeBooleanQuery::NumericPropertyKey)
 }
 
 /// Return true when the type is symbol-like for object property keys.
-pub fn is_symbol_like_property_key_type(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> bool {
+pub fn is_symbol_like_property_key_type(
+    types: &dir::TypeTable<'_>,
+    type_id: dir::LocalTypeId,
+) -> bool {
     evaluate_boolean_type_query(types, type_id, TypeBooleanQuery::SymbolLikePropertyKey)
 }
 
 /// Return true when the type is definitely a non error runtime value.
 pub fn is_definitely_non_error_value_type(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     type_id: dir::LocalTypeId,
     error_symbol: Option<dir::GlobalSymbolId>,
     result_symbol: Option<dir::GlobalSymbolId>,
@@ -1272,13 +1281,13 @@ pub fn is_definitely_non_error_value_type(
 }
 
 /// Return true when the type can evaluate to a nullish value.
-pub fn is_maybe_nullish_type(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> bool {
+pub fn is_maybe_nullish_type(types: &dir::TypeTable<'_>, type_id: dir::LocalTypeId) -> bool {
     evaluate_boolean_type_query(types, type_id, TypeBooleanQuery::MaybeNullish)
 }
 
 /// Return true when the type can evaluate to a non nullish falsy value.
 pub fn has_non_nullish_falsy_type(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     strings: &StringPool,
     type_id: dir::LocalTypeId,
 ) -> bool {
@@ -1349,7 +1358,7 @@ impl TypeNullishnessState {
 
 /// Return truthiness certainty for one type.
 pub fn type_truthiness(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     strings: &StringPool,
     type_id: dir::LocalTypeId,
 ) -> TypeTruthiness {
@@ -1358,14 +1367,14 @@ pub fn type_truthiness(
 }
 
 /// Return nullishness certainty for one type.
-pub fn type_nullishness(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> TypeNullishness {
+pub fn type_nullishness(types: &dir::TypeTable<'_>, type_id: dir::LocalTypeId) -> TypeNullishness {
     let mut state = TypeNullishnessState::new();
     type_nullishness_inner(types, type_id, &mut state)
 }
 
 /// Unwrap nested `Type::Value` wrappers to one underlying type.
 pub fn unwrap_value_type_id(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     mut type_id: dir::LocalTypeId,
 ) -> dir::LocalTypeId {
     let mut active_type_ids = HashSet::new();
@@ -1385,7 +1394,7 @@ pub fn unwrap_value_type_id(
 
 /// Return truthiness certainty for one type with recursion protection and caching.
 fn type_truthiness_inner(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     strings: &StringPool,
     type_id: dir::LocalTypeId,
     state: &mut TypeTruthinessState,
@@ -1507,7 +1516,7 @@ fn type_truthiness_inner(
 
 /// Return nullishness certainty for one type with recursion protection and caching.
 fn type_nullishness_inner(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     type_id: dir::LocalTypeId,
     state: &mut TypeNullishnessState,
 ) -> TypeNullishness {
@@ -1625,7 +1634,7 @@ fn combine_nullishness(values: impl Iterator<Item = TypeNullishness>) -> TypeNul
 
 /// Resolve the parameter type at an index for a function-like type.
 pub fn function_parameter_type_at(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     type_id: dir::LocalTypeId,
     index: usize,
 ) -> Option<dir::LocalTypeId> {
@@ -1636,7 +1645,7 @@ pub fn function_parameter_type_at(
 
 /// Resolve all parameter types at an index for a function-like type.
 pub fn function_parameter_types_at(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     type_id: dir::LocalTypeId,
     index: usize,
 ) -> Vec<dir::LocalTypeId> {
@@ -1652,7 +1661,7 @@ pub fn function_parameter_types_at(
 
 /// Resolve the return type for a function-like type.
 pub fn function_return_type(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     type_id: dir::LocalTypeId,
 ) -> Option<dir::LocalTypeId> {
     let normalized_type_id = normalized_flow_type_id(types, type_id);
@@ -1662,7 +1671,7 @@ pub fn function_return_type(
 
 /// Return true when the type may include one nominal symbol.
 fn type_may_be_nominal_symbol(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     type_id: dir::LocalTypeId,
     symbol: Option<dir::GlobalSymbolId>,
 ) -> bool {
@@ -1682,7 +1691,7 @@ fn type_may_be_nominal_symbol(
 
 /// Return true when the type may include one nominal symbol with cycle protection.
 fn type_may_be_nominal_symbol_inner(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     type_id: dir::LocalTypeId,
     symbol: dir::GlobalSymbolId,
     state: &mut TypeQueryState,
@@ -1729,7 +1738,7 @@ fn type_may_be_nominal_symbol_inner(
 
 /// Return true when one symbol lineage reaches a target symbol.
 fn symbol_lineage_contains(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     symbol: dir::GlobalSymbolId,
     target_symbol: dir::GlobalSymbolId,
 ) -> bool {
@@ -1739,7 +1748,7 @@ fn symbol_lineage_contains(
 
 /// Return true when one symbol lineage reaches a target symbol with cycle protection.
 fn symbol_lineage_contains_inner(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     symbol: dir::GlobalSymbolId,
     target_symbol: dir::GlobalSymbolId,
     state: &mut SymbolQueryState,
@@ -1782,7 +1791,7 @@ fn symbol_lineage_contains_inner(
 
 /// Resolve a parameter type for a function type with cycle protection.
 fn function_parameter_type_at_inner(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     type_id: dir::LocalTypeId,
     index: usize,
     state: &mut TypeQueryState,
@@ -1825,7 +1834,7 @@ fn function_parameter_type_at_inner(
 
 /// Resolve all parameter types for a function type with cycle protection.
 fn function_parameter_types_at_inner(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     type_id: dir::LocalTypeId,
     index: usize,
     state: &mut TypeQueryState,
@@ -1880,7 +1889,7 @@ fn function_parameter_types_at_inner(
 
 /// Resolve a return type for a function type with cycle protection.
 fn function_return_type_inner(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     type_id: dir::LocalTypeId,
     state: &mut TypeQueryState,
 ) -> Option<dir::LocalTypeId> {

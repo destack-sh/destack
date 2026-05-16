@@ -144,7 +144,7 @@ struct FunctionCallCollector<'a> {
     /// The module being scanned.
     module_id: destack_source::ModuleId,
     /// The type table carrying semantic resolutions.
-    types: &'a dir::TypeTable,
+    types: &'a dir::TypeTable<'a>,
     /// Whether conditionals were seen while traversing this body.
     has_conditional: bool,
     /// Called function symbols in this body.

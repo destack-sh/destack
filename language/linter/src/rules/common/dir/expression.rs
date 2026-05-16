@@ -577,8 +577,8 @@ pub fn expression_discarded_call_like_value(
 pub fn expression_is_any_typed(
     module_id: ModuleId,
     tree: &dir::Tree,
-    symbols: &dir::BindingTable,
-    types: &dir::TypeTable,
+    symbols: &dir::BindingTable<'_>,
+    types: &dir::TypeTable<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     // unwrap parenthesized expressions
@@ -619,7 +619,7 @@ pub fn expression_is_any_typed(
 pub fn expression_declared_or_inferred_type_id(
     module_id: ModuleId,
     tree: &dir::Tree,
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<dir::LocalTypeId> {
     // unwrap parenthesized expressions
@@ -638,9 +638,9 @@ pub fn expression_type_map<T>(
     profile_id: ProfileId,
     module_id: ModuleId,
     tree: &dir::Tree,
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
-    map: impl FnOnce(&dir::TypeTable, dir::LocalTypeId) -> T,
+    map: impl FnOnce(&dir::TypeTable<'_>, dir::LocalTypeId) -> T,
 ) -> Option<T> {
     let expression_id = expression_unwrap_parenthesized(tree, expression_id);
 
@@ -660,9 +660,9 @@ pub fn expression_type_or_call_return_type_map<T>(
     profile_id: ProfileId,
     module_id: ModuleId,
     tree: &dir::Tree,
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
-    mut map: impl FnMut(&dir::TypeTable, dir::LocalTypeId) -> T,
+    mut map: impl FnMut(&dir::TypeTable<'_>, dir::LocalTypeId) -> T,
 ) -> Option<T> {
     let expression_id = expression_unwrap_parenthesized(tree, expression_id);
 
@@ -711,7 +711,7 @@ pub fn expression_type_or_call_return_type_map<T>(
 pub fn expression_is_promise_like(
     module_id: ModuleId,
     tree: &dir::Tree,
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     promise_symbol: dir::GlobalSymbolId,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
@@ -754,7 +754,7 @@ pub fn expression_is_promise_like(
 /// Return true when a declaration marks a symbol as `any`.
 fn declaration_marks_symbol_as_any(
     tree: &dir::Tree,
-    symbols: &dir::BindingTable,
+    symbols: &dir::BindingTable<'_>,
     declaration_id: dir::GlobalNodeIdAny,
     symbol_id: dir::LocalSymbolId,
 ) -> bool {

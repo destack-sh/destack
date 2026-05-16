@@ -221,9 +221,9 @@ struct CapturedMutableSymbolCollector<'a> {
     /// The DIR tree.
     tree: &'a dir::Tree,
     /// The symbol table.
-    symbols: &'a dir::BindingTable,
+    symbols: &'a dir::BindingTable<'a>,
     /// The type table carrying semantic resolutions.
-    types: &'a dir::TypeTable,
+    types: &'a dir::TypeTable<'a>,
     /// The function scope id for local ownership checks.
     function_scope_id: dir::LocalScopeId,
     /// The active loop scopes for relation checks.
@@ -239,8 +239,8 @@ impl<'a> CapturedMutableSymbolCollector<'a> {
     fn new(
         module_id: destack_source::ModuleId,
         tree: &'a dir::Tree,
-        symbols: &'a dir::BindingTable,
-        types: &'a dir::TypeTable,
+        symbols: &'a dir::BindingTable<'a>,
+        types: &'a dir::TypeTable<'a>,
         function_scope_id: dir::LocalScopeId,
         active_loop_scopes: &'a [dir::LocalScopeId],
     ) -> Self {
@@ -339,7 +339,7 @@ impl NodeVisitor for CapturedMutableSymbolCollector<'_> {
 
 /// Return true when one scope is equal to or nested under one ancestor scope.
 fn scope_is_descendant_of(
-    symbols: &dir::BindingTable,
+    symbols: &dir::BindingTable<'_>,
     mut scope_id: dir::LocalScopeId,
     ancestor_scope_id: dir::LocalScopeId,
 ) -> bool {

@@ -207,7 +207,7 @@ fn report_redundant_constituents(
 
 /// Mark redundancies from top and bottom type constituents.
 fn mark_top_bottom_redundancies(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     constituents: &[Constituent],
     chain_kind: TypeConstituentChainKind,
     redundant_indices: &mut [bool],
@@ -300,7 +300,7 @@ fn mark_top_bottom_redundancies(
 
 /// Mark literal and primitive redundancies within one chain.
 fn mark_literal_primitive_redundancies(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     constituents: &[Constituent],
     chain_kind: TypeConstituentChainKind,
     redundant_indices: &mut [bool],
@@ -354,7 +354,7 @@ fn mark_semantically_equivalent_redundancies(
 
 /// Choose the strongest top constituent index.
 fn choose_best_top(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     constituents: &[Constituent],
     top_indices: &[usize],
     chain_kind: TypeConstituentChainKind,
@@ -366,7 +366,7 @@ fn choose_best_top(
 
 /// Choose the strongest bottom constituent index.
 fn choose_best_bottom(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     constituents: &[Constituent],
     bottom_indices: &[usize],
     chain_kind: TypeConstituentChainKind,
@@ -407,7 +407,7 @@ fn reduced_chain_replacement(
 
 /// Return one top-rank score for a type constituent when it is a top element.
 fn top_rank(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     type_id: dir::LocalTypeId,
     chain_kind: TypeConstituentChainKind,
 ) -> Option<u8> {
@@ -427,7 +427,7 @@ fn top_rank(
 
 /// Return one bottom-rank score for a type constituent when it is a bottom element.
 fn bottom_rank(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     type_id: dir::LocalTypeId,
     chain_kind: TypeConstituentChainKind,
 ) -> Option<u8> {
@@ -441,7 +441,7 @@ fn bottom_rank(
 
 /// Return true when one type id resolves to one exact type literal.
 fn matches_type_literal(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     type_id: dir::LocalTypeId,
     literal: LiteralType,
 ) -> bool {
@@ -479,7 +479,10 @@ enum TypeLiteralKind {
 }
 
 /// Return one comparable literal or primitive kind for a type id.
-fn type_literal_kind(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> Option<TypeLiteralKind> {
+fn type_literal_kind(
+    types: &dir::TypeTable<'_>,
+    type_id: dir::LocalTypeId,
+) -> Option<TypeLiteralKind> {
     let ty = types.get_type(type_id);
     let dir::Type::Literal(value) = ty else {
         return None;
