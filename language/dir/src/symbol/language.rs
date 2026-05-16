@@ -606,7 +606,7 @@ define_language_items! {
         /// `destack:memory/phantom`.
         phantom {
             /// Zero-sized ownership marker.
-            PhantomData => (Newtype, "memory/phantom", "PhantomData"),
+            Phantom => (Newtype, "memory/phantom", "Phantom"),
         }
 
         /// `destack:memory/dispose`.
