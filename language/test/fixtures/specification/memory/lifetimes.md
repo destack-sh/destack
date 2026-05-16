@@ -189,9 +189,9 @@ async function read(value: int32): Promise<int32> {
 }
 ```
 
-### managed borrow across await is allowed
+### local managed borrow across await is rejected
 
-Managed owners stay rooted while their interior borrows are live.
+Local managed owners can be reached again after suspension, so their interior borrows are current-turn only.
 
 ```ds
 class User {
@@ -208,9 +208,51 @@ async function read(user: User): Promise<string> {
 }
 ```
 
-### mutable borrow across await is allowed
+- contains: suspension
 
-Ordinary borrowed access may cross suspension.
+### local managed borrow across yield is rejected
+
+Generator suspension has the same current-turn boundary as async suspension.
+
+```ds
+class User {
+    name: string = "";
+}
+
+function* read(user: User): Generator<string, void, unknown> {
+    let name = &readonly user.name;
+    yield "ready";
+    name satisfies &readonly string;
+    return name.clone();
+}
+```
+
+- contains: suspension
+
+### shared managed borrow across await is rejected
+
+Shared managed storage can be borrowed non-exclusively, but managed-rooted interior borrows still cannot survive suspension.
+
+```ds
+class User {
+    name: string = "";
+}
+
+declare function ready(): Promise<void>;
+
+async function read(user: shared User): Promise<string> {
+    let name = &readonly user.name;
+    await ready();
+    name satisfies shared &readonly string;
+    return name.clone();
+}
+```
+
+- contains: suspension
+
+### mutable parameter borrow across await is source-checked
+
+Borrowed parameters may cross suspension when the caller proves the source is suspension-stable.
 
 ```ds
 declare function ready(): Promise<void>;
@@ -222,9 +264,9 @@ async function read(value: &int32): Promise<int32> {
 }
 ```
 
-### readonly borrow across await is allowed
+### readonly parameter borrow across await is source-checked
 
-Readonly borrowed access may cross suspension.
+Readonly borrowed parameters follow the same source proof rule.
 
 ```ds
 declare function ready(): Promise<void>;
@@ -265,6 +307,25 @@ async function read(value: int32): Promise<int32> {
     let borrow = &value;
     borrow satisfies &int32;
     return value;
+}
+```
+
+### shared owned borrow across await is allowed
+
+Shared placement does not remove the uniqueness proof of owned storage.
+
+```ds
+struct Packet {
+    id: int32;
+}
+
+declare function ready(): Promise<void>;
+
+async function read(packet: shared ^Packet): Promise<int32> {
+    let id = &readonly packet.id;
+    await ready();
+    id satisfies shared (&readonly int32);
+    return *id;
 }
 ```
 
