@@ -468,7 +468,7 @@ struct CallbackBodyUsageVisitor<'a> {
     /// The module being scanned.
     module_id: destack_source::ModuleId,
     /// The type table carrying semantic resolutions.
-    types: &'a dir::TypeTable,
+    types: &'a dir::TypeTable<'a>,
     /// The callback function symbol.
     function_symbol: dir::GlobalSymbolId,
     /// The callback function name when present.

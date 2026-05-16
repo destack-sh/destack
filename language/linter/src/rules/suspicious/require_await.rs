@@ -237,7 +237,7 @@ fn analyze_async_callable_body(
     profile_id: ProfileId,
     module_id: ModuleId,
     tree: &dir::Tree,
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     body_id: dir::LocalNodeId<dir::Expression>,
     is_generator: bool,
     promise_symbol: Option<dir::GlobalSymbolId>,
@@ -299,7 +299,7 @@ struct RequireAwaitBodyVisitor<'a> {
     /// Current module id for type lookups.
     module_id: ModuleId,
     /// Type table used for Promise like checks.
-    types: &'a dir::TypeTable,
+    types: &'a dir::TypeTable<'a>,
     /// Whether this callable is a generator.
     is_generator: bool,
     /// Known Promise symbol in this module profile.
@@ -322,7 +322,7 @@ impl<'a> RequireAwaitBodyVisitor<'a> {
         artifacts: &'a ArtifactCache,
         profile_id: ProfileId,
         module_id: ModuleId,
-        types: &'a dir::TypeTable,
+        types: &'a dir::TypeTable<'a>,
         is_generator: bool,
         promise_symbol: Option<dir::GlobalSymbolId>,
         async_function_symbols: &'a HashSet<dir::GlobalSymbolId>,
@@ -435,7 +435,7 @@ fn expression_is_thenable_return_value(
     profile_id: ProfileId,
     module_id: ModuleId,
     tree: &dir::Tree,
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     promise_symbol: Option<dir::GlobalSymbolId>,
     async_function_symbols: &HashSet<dir::GlobalSymbolId>,
     expression_id: dir::LocalNodeId<dir::Expression>,
@@ -480,7 +480,7 @@ fn expression_is_implicit_thenable_return(
     profile_id: ProfileId,
     module_id: ModuleId,
     tree: &dir::Tree,
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     promise_symbol: Option<dir::GlobalSymbolId>,
     async_function_symbols: &HashSet<dir::GlobalSymbolId>,
     body_id: dir::LocalNodeId<dir::Expression>,
@@ -506,7 +506,7 @@ fn expression_is_implicit_thenable_return(
 fn expression_is_async_symbol_call(
     module_id: ModuleId,
     tree: &dir::Tree,
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
     async_function_symbols: &HashSet<dir::GlobalSymbolId>,
 ) -> bool {

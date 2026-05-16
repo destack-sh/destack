@@ -382,7 +382,7 @@ impl<'a, 'b> PreferForOfVisitor<'a, 'b> {
 /// Collector to check how the index variable is used.
 struct IndexUseCollector<'a> {
     module_id: destack_source::ModuleId,
-    types: &'a dir::TypeTable,
+    types: &'a dir::TypeTable<'a>,
     index_symbol: GlobalSymbolId,
     array_symbol: GlobalSymbolId,
     all_uses_are_indexing: bool,

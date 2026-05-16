@@ -8,7 +8,7 @@ use crate::LintModuleContext;
 /// Resolve one direct binding name and symbol from a simple pattern binding.
 pub fn pattern_binding_name_and_symbol(
     tree: &dir::Tree,
-    symbols: &dir::BindingTable,
+    symbols: &dir::BindingTable<'_>,
     pattern_id: dir::LocalNodeId<dir::Pattern>,
 ) -> Option<(dir::StringId, dir::LocalSymbolId)> {
     let pattern = tree.get(pattern_id);
@@ -23,7 +23,7 @@ pub fn pattern_binding_name_and_symbol(
 /// Resolve one binding name and symbol pair from a parameter.
 pub fn parameter_binding_name_and_symbol(
     tree: &dir::Tree,
-    symbols: &dir::BindingTable,
+    symbols: &dir::BindingTable<'_>,
     parameter_id: dir::LocalNodeId<dir::Parameter>,
 ) -> Option<(dir::StringId, dir::LocalSymbolId)> {
     let parameter = tree.get(parameter_id);
@@ -45,7 +45,7 @@ pub fn parameter_binding_name_and_symbol(
 /// Return true when one signature declares a value binding with the target name.
 pub fn signature_declares_value_name(
     tree: &dir::Tree,
-    symbols: &dir::BindingTable,
+    symbols: &dir::BindingTable<'_>,
     signature: &dir::FunctionSignature,
     name: dir::StringId,
 ) -> bool {
@@ -66,7 +66,7 @@ pub fn signature_declares_value_name(
 /// Return true when one parameter declares a value binding with the target name.
 fn parameter_declares_value_name(
     tree: &dir::Tree,
-    symbols: &dir::BindingTable,
+    symbols: &dir::BindingTable<'_>,
     parameter_id: dir::LocalNodeId<dir::Parameter>,
     name: dir::StringId,
 ) -> bool {
@@ -82,7 +82,7 @@ fn parameter_declares_value_name(
 /// Collect value-space binding symbols declared by one parameter.
 pub fn collect_parameter_value_binding_symbols(
     tree: &dir::Tree,
-    symbols: &dir::BindingTable,
+    symbols: &dir::BindingTable<'_>,
     parameter_id: dir::LocalNodeId<dir::Parameter>,
     bindings: &mut HashSet<dir::LocalSymbolId>,
 ) {
@@ -111,7 +111,7 @@ pub fn collect_parameter_value_binding_symbols(
 /// Collect value-space binding symbols declared by a pattern subtree.
 pub fn collect_pattern_value_binding_symbols(
     tree: &dir::Tree,
-    symbols: &dir::BindingTable,
+    symbols: &dir::BindingTable<'_>,
     pattern_id: dir::LocalNodeId<dir::Pattern>,
     bindings: &mut HashSet<dir::LocalSymbolId>,
 ) {
@@ -163,7 +163,7 @@ pub fn collect_pattern_value_binding_symbols(
 /// Collect value-space binding symbols declared by one pattern field.
 pub fn collect_pattern_field_value_binding_symbols(
     tree: &dir::Tree,
-    symbols: &dir::BindingTable,
+    symbols: &dir::BindingTable<'_>,
     field_id: dir::LocalNodeId<dir::PatternField>,
     bindings: &mut HashSet<dir::LocalSymbolId>,
 ) {
@@ -195,7 +195,7 @@ pub fn collect_pattern_field_value_binding_symbols(
 
 /// Collect one symbol when it belongs to value space.
 fn collect_symbol_when_value_space(
-    symbols: &dir::BindingTable,
+    symbols: &dir::BindingTable<'_>,
     symbol_id: dir::LocalSymbolId,
     bindings: &mut HashSet<dir::LocalSymbolId>,
 ) {
@@ -211,7 +211,7 @@ fn collect_symbol_when_value_space(
 pub fn collect_callable_parameter_value_binding_symbols(
     module_id: ModuleId,
     tree: &dir::Tree,
-    symbols: &dir::BindingTable,
+    symbols: &dir::BindingTable<'_>,
 ) -> HashSet<dir::GlobalSymbolId> {
     let mut global_symbols = HashSet::new();
 
@@ -262,7 +262,7 @@ pub fn collect_callable_parameter_value_binding_symbols(
 fn collect_signature_parameter_value_binding_symbols(
     module_id: ModuleId,
     tree: &dir::Tree,
-    symbols: &dir::BindingTable,
+    symbols: &dir::BindingTable<'_>,
     signature: &dir::FunctionSignature,
     global_symbols: &mut HashSet<dir::GlobalSymbolId>,
 ) {

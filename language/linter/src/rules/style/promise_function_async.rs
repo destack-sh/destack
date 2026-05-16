@@ -124,7 +124,7 @@ impl LintRule for PromiseFunctionAsync {
 
 /// Return true when one type resolves to Promise.
 fn type_is_promise_symbol(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     type_id: dir::LocalTypeId,
     promise_symbol: dir::GlobalSymbolId,
 ) -> bool {
