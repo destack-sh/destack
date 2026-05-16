@@ -59,6 +59,22 @@ type Bound = T extends infer _ extends string ? true : false;
     );
 }
 
+/// Local placement types should format like ordinary type operators.
+#[test]
+fn test_format_local_type_operator() {
+    assert_format_program!(
+        r#"type LocalUser = local   User
+type MaybeLocal = local (User | undefined)
+type LocalBox = local ^User
+"#,
+        r#"type LocalUser = local User;
+type MaybeLocal = local (User | undefined);
+type LocalBox = local ^User;
+"#,
+        FileType::Destack
+    );
+}
+
 /// Conditional type alternate comments should stay on the `:` branch.
 #[test]
 fn test_format_type_conditional_alternate_line_comment() {
