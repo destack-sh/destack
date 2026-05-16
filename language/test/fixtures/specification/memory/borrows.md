@@ -32,6 +32,38 @@ let write = &exclusive counter;
 write.value = 1;
 ```
 
+### shared managed fields can be borrowed non-exclusively
+
+Shared managed storage can be borrowed as long as the borrow does not require uniqueness.
+
+```ds
+class User {
+    name: string = "";
+}
+
+let user: shared User = new User();
+let name = &readonly user.name;
+
+name satisfies shared &readonly string;
+```
+
+### shared managed values cannot be borrowed exclusively
+
+
+Exclusive borrowed access cannot be proven from a shared managed handle (ever, unfortunately).
+```ds
+class Counter {
+    value: int32 = 0;
+}
+
+let counter: shared Counter = new Counter();
+let write = &exclusive counter;
+
+write.value = 1;
+```
+
+- contains: shared managed
+
 ### owned fields can be borrowed
 
 Borrowing an owned field does not move the owner.
