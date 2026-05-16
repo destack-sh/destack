@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactKey, ArtifactPin, ArtifactVersion, DirBound, DirChecked, DirExpanded, DirExported,
-    DirImported, DirParsed, GlobalEnvironment,
+    ArtifactKey, ArtifactPin, ArtifactVersion, DirBound, DirExpanded, DirExported, DirImported,
+    DirParsed, GlobalEnvironment,
 };
 use destack_core::StringPool;
 use destack_dir as dir;
@@ -26,8 +26,10 @@ pub(crate) struct QueryContext {
     dir_expanded: Arc<DirExpanded>,
     /// The exported module DIR.
     dir_exported: Arc<DirExported>,
-    /// The checked module DIR.
-    dir_checked: Arc<DirChecked>,
+    /// The expanded binding table.
+    dir_bindings: dir::BindingTable,
+    /// The checked type table.
+    dir_types: dir::TypeTable,
     /// Shared repository strings.
     strings: Arc<StringPool>,
     /// The revision used for this context.
@@ -110,20 +112,22 @@ pub(crate) struct DirQueryContext<'a> {
     expanded: &'a DirExpanded,
     /// The exported DIR artifact.
     exported: &'a DirExported,
-    /// The checked DIR artifact.
-    checked: &'a DirChecked,
+    /// The expanded binding table.
+    symbols: &'a dir::BindingTable,
+    /// The checked type table.
+    types: &'a dir::TypeTable,
     /// Shared repository strings.
     strings: &'a StringPool,
 }
 
 impl<'a> DirQueryContext<'a> {
     /// Return the module id for this dir view.
-    pub(crate) fn module_id(self) -> ModuleId {
+    pub(crate) fn module_id(&self) -> ModuleId {
         self.module_id
     }
 
     /// Return the revision for this dir view.
-    pub(crate) fn revision(self) -> Revision {
+    pub(crate) fn revision(&self) -> Revision {
         self.revision
     }
 
@@ -136,7 +140,7 @@ impl<'a> DirQueryContext<'a> {
     }
 
     /// Return whether one DIR symbol is visible in this query view.
-    pub(crate) fn symbol_is_visible(self, symbol_id: dir::GlobalSymbolId) -> bool {
+    pub(crate) fn symbol_is_visible(&self, symbol_id: dir::GlobalSymbolId) -> bool {
         if symbol_id.module_id != self.module_id {
             return true;
         }
@@ -151,12 +155,12 @@ impl<'a> DirQueryContext<'a> {
 
     /// Return the DIR symbol table.
     pub(crate) fn symbols(self) -> &'a dir::BindingTable {
-        &self.bound.bindings
+        self.symbols
     }
 
     /// Return the symbol declared by one local node when bound.
     pub(crate) fn symbol_for_node(
-        self,
+        &self,
         node_id: dir::LocalNodeIdAny,
     ) -> Option<dir::LocalSymbolId> {
         let declaration = node_id.into_global(self.module_id);
@@ -165,7 +169,7 @@ impl<'a> DirQueryContext<'a> {
     }
 
     /// Return the lexical scope attached to one local node when bound.
-    pub(crate) fn scope_for_node(self, node_id: dir::LocalNodeIdAny) -> Option<dir::LocalScope> {
+    pub(crate) fn scope_for_node(&self, node_id: dir::LocalNodeIdAny) -> Option<dir::LocalScope> {
         let node_id = node_id.into_global(self.module_id);
 
         self.symbols().scope_for_node(node_id)
@@ -173,7 +177,7 @@ impl<'a> DirQueryContext<'a> {
 
     /// Return the DIR type table.
     pub(crate) fn types(self) -> &'a dir::TypeTable {
-        &self.checked.types
+        self.types
     }
 
     /// Return the top level DIR roots.
@@ -187,7 +191,7 @@ impl<'a> DirQueryContext<'a> {
     }
 
     /// Return the namespace scope for this module.
-    pub(crate) fn namespace_scope(self) -> dir::LocalScopeId {
+    pub(crate) fn namespace_scope(&self) -> dir::LocalScopeId {
         self.bound.namespace_scope
     }
 
@@ -203,7 +207,7 @@ impl<'a> DirQueryContext<'a> {
 
     /// Get the inferred type id for a node.
     pub(crate) fn expression_type_id(
-        self,
+        &self,
         node_id: dir::LocalNodeIdAny,
     ) -> Option<dir::LocalTypeId> {
         let global_node_id = node_id.into_global(self.module_id);
@@ -211,7 +215,7 @@ impl<'a> DirQueryContext<'a> {
     }
 
     /// Get the declared or inferred type id for a node.
-    pub(crate) fn node_type_id(self, node_id: dir::LocalNodeIdAny) -> Option<dir::LocalTypeId> {
+    pub(crate) fn node_type_id(&self, node_id: dir::LocalNodeIdAny) -> Option<dir::LocalTypeId> {
         let global_node_id = node_id.into_global(self.module_id);
         self.types()
             .get_declared_or_inferred_type_id(global_node_id)
@@ -258,7 +262,8 @@ impl QueryContext {
             imported: self.dir_imported.as_ref(),
             expanded: self.dir_expanded.as_ref(),
             exported: self.dir_exported.as_ref(),
-            checked: self.dir_checked.as_ref(),
+            symbols: &self.dir_bindings,
+            types: &self.dir_types,
             strings: self.strings.as_ref(),
         }
     }
@@ -326,6 +331,8 @@ pub(crate) fn query_context_for_profile(
     let dir_expanded = artifacts.dir_expanded(&expanded_version)?;
     let dir_exported = artifacts.dir_exported(&exported_version)?;
     let dir_checked = artifacts.dir_checked(&checked_version)?;
+    let dir_bindings = dir_expanded.binding_table(&dir_bound);
+    let dir_types = dir_checked.type_table(&dir_bound, &dir_expanded);
 
     // artifact roots
     let parsed_pin = artifacts.pin(&parsed_version)?;
@@ -350,7 +357,8 @@ pub(crate) fn query_context_for_profile(
         dir_imported,
         dir_expanded,
         dir_exported,
-        dir_checked,
+        dir_bindings,
+        dir_types,
         strings: repository.string_pool().clone(),
         revision,
         profile_id: selected_profile,
