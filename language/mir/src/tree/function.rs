@@ -108,6 +108,8 @@ pub struct Function {
     pub return_type: TypeReference,
     /// Lifetime origins for the return value.
     pub return_lifetime: Lifetime,
+    /// Borrow obligations required by this function body.
+    pub borrow_obligations: Vec<BorrowObligation>,
     /// Pointer attribute for the return value.
     pub return_attribute: PointerAttribute,
 
@@ -130,6 +132,16 @@ pub struct Function {
     pub allocation: AllocationMode,
     /// The suspension kind when this function can suspend.
     pub suspension: Option<SuspensionKind>,
+}
+
+/// Borrow source proof required by a function body.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum BorrowObligation {
+    /// Borrow source must be stable across suspension.
+    SuspensionStable {
+        /// The lifetime whose source must be stable.
+        lifetime: Lifetime,
+    },
 }
 
 impl Node for Function {
@@ -200,6 +212,7 @@ impl Function {
             places: PlaceTable::new(),
             return_type,
             return_lifetime: Lifetime::empty(),
+            borrow_obligations: Vec::new(),
             memory_effect: MemoryEffect::unknown(),
             call_behavior: CallBehavior::unknown(),
             allocation_size: None,

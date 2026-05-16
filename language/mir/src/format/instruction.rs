@@ -2,6 +2,8 @@ use destack_fir::format::{FormatError, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::write;
 
+use super::r#type::format_borrow_obligations;
+
 use crate::{
     AtomicAccess, CompareExchangeAccess, FenceAccess, FormatMirNode, FunctionReference,
     GlobalReference, Instruction, LocalNodeId, LocalReference, MemoryFlags, MemoryScope,
@@ -1654,7 +1656,11 @@ fn format_call_signature_suffix<'a>(
 
     match signature {
         TypeReference::Type(signature) => match f.context().tree.get(signature) {
-            crate::Type::FunctionSignature { parameters, result } => {
+            crate::Type::FunctionSignature {
+                parameters,
+                result,
+                borrow_obligations,
+            } => {
                 write!(f, [token("(")])?;
                 for (index, parameter) in parameters.iter().enumerate() {
                     if index > 0 {
@@ -1662,7 +1668,8 @@ fn format_call_signature_suffix<'a>(
                     }
                     write!(f, [*parameter])?;
                 }
-                write!(f, [token(")"), space(), token("->"), space(), *result])
+                write!(f, [token(")"), space(), token("->"), space(), *result])?;
+                format_borrow_obligations(borrow_obligations, f)
             }
             _ => write!(f, [signature]),
         },

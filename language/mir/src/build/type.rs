@@ -420,6 +420,7 @@ impl ModuleBuilder {
         self.tree.insert_type(Type::FunctionSignature {
             parameters,
             result: result.into(),
+            borrow_obligations: Vec::new(),
         })
     }
 

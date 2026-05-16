@@ -142,6 +142,7 @@ impl Parser {
                         places: PlaceTable::new(),
                         return_type: TypeReference::Type(void_type),
                         return_lifetime: Lifetime::empty(),
+                        borrow_obligations: Vec::new(),
                         memory_effect: MemoryEffect::unknown(),
                         call_behavior: CallBehavior::unknown(),
                         allocation_size: None,

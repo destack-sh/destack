@@ -224,7 +224,9 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
                 visitor.visit_type(tree, element, element_ty);
             }
         }
-        Type::FunctionSignature { parameters, result } => {
+        Type::FunctionSignature {
+            parameters, result, ..
+        } => {
             for parameter_id in parameters {
                 if let TypeReference::Type(parameter_id) = *parameter_id {
                     let parameter_ty = tree.get(parameter_id);

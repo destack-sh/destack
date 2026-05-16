@@ -1948,11 +1948,13 @@ impl Parser {
         let result = self.parse_type()?;
         let signature_span = self.span_from_parse_start(signature_start);
         segment_spans.push(signature_span);
+        let borrow_obligations = self.parse_borrow_obligations()?;
 
         Ok(self
             .intern_type(Type::FunctionSignature {
                 parameters,
                 result: result.into(),
+                borrow_obligations,
             })?
             .into())
     }

@@ -2,9 +2,9 @@ use crate::source::{Token, TokenType};
 use destack_source::Span;
 
 use crate::{
-    Access, AddressSpace, Attribute, Copy, Field, FieldSpan, Lifetime, LifetimeOrigin, LocalNodeId,
-    Nullability, ReferenceKind, TensorDimension, TensorDimensionOrder, TensorLayout,
-    TensorViewLayout, Type, TypeDeclarationSpans, TypeReference, VariantCase,
+    Access, AddressSpace, Attribute, BorrowObligation, Copy, Field, FieldSpan, Lifetime,
+    LifetimeOrigin, LocalNodeId, Nullability, ReferenceKind, TensorDimension, TensorDimensionOrder,
+    TensorLayout, TensorViewLayout, Type, TypeDeclarationSpans, TypeReference, VariantCase,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -453,9 +453,11 @@ impl Parser {
         parameters: Vec<TypeReference>,
     ) -> ParseResult<LocalNodeId<Type>> {
         let result = self.parse_type()?;
+        let borrow_obligations = self.parse_borrow_obligations()?;
         self.intern_type(Type::FunctionSignature {
             parameters,
             result: result.into(),
+            borrow_obligations,
         })
     }
 
@@ -908,6 +910,29 @@ impl Parser {
         }
 
         Ok(Lifetime::new(origins))
+    }
+
+    /// Parse function signature borrow obligations.
+    pub(super) fn parse_borrow_obligations(&mut self) -> ParseResult<Vec<BorrowObligation>> {
+        let mut obligations = Vec::new();
+
+        // parse trailing suspension source requirements
+        while self.peek_token(TokenType::At) {
+            self.eat_token(TokenType::At)?;
+            let name_token = self.eat_token(TokenType::Identifier)?;
+            let name_text = self.tree.source_text(name_token.span);
+            if name_text != "suspensionSafe" {
+                return Err(ParseError::invalid(
+                    &format!("borrow obligation '@{name_text}'"),
+                    name_token.start,
+                ));
+            }
+
+            let lifetime = self.parse_lifetime_group()?;
+            obligations.push(BorrowObligation::SuspensionStable { lifetime });
+        }
+
+        Ok(obligations)
     }
 
     /// Parse an optional trailing tensor layout assignment.

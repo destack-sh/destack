@@ -890,7 +890,9 @@ fn record_type_use_inner(
             };
             record_type_use_inner(tree, element, counts, visited);
         }
-        Type::FunctionSignature { parameters, result } => {
+        Type::FunctionSignature {
+            parameters, result, ..
+        } => {
             // record function signature types
             for parameter_id in parameters {
                 let TypeReference::Type(parameter_id) = *parameter_id else {
@@ -1362,7 +1364,9 @@ fn collect_alias_dependencies(
             Type::TensorView { element, .. } => {
                 record_dependency(*element, root, alias_types, &mut dependencies, &mut stack);
             }
-            Type::FunctionSignature { parameters, result } => {
+            Type::FunctionSignature {
+                parameters, result, ..
+            } => {
                 for parameter in parameters {
                     record_dependency(*parameter, root, alias_types, &mut dependencies, &mut stack);
                 }
