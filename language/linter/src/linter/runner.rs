@@ -348,6 +348,8 @@ impl LintRunner {
             .expect("lint DIR pass requires committed checked DIR artifact");
 
         let strings = repository.string_pool().clone();
+        let symbols = expanded.binding_table(&bound);
+        let types = checked.type_table(&bound, &expanded);
         let mut ctx = LintModuleContext::new(
             repository,
             artifacts,
@@ -358,8 +360,8 @@ impl LintRunner {
             parsed.as_ref(),
             expanded.as_ref(),
             strings.as_ref(),
-            &bound.bindings,
-            &checked.types,
+            symbols,
+            &types,
             bound.namespace_scope,
             options,
             self.compute_fixes,

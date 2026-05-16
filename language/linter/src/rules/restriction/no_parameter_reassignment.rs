@@ -39,7 +39,7 @@ impl LintRule for NoParameterReassignment {
         let parameter_symbols = collect_callable_parameter_value_binding_symbols(
             ctx.module_id(),
             ctx.dir.tree(),
-            ctx.symbols,
+            &ctx.symbols,
         );
 
         // skip when there are no callable parameter symbols

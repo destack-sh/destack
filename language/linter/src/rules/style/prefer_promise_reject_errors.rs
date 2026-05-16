@@ -305,7 +305,7 @@ fn executor_reject_symbol(
 
     let reject_parameter_id = *declaration.signature.parameters.get(1)?;
     let (_, reject_symbol) =
-        parameter_binding_name_and_symbol(ctx.dir.tree(), ctx.symbols, reject_parameter_id)?;
+        parameter_binding_name_and_symbol(ctx.dir.tree(), &ctx.symbols, reject_parameter_id)?;
     Some(reject_symbol)
 }
 

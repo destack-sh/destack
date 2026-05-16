@@ -229,9 +229,8 @@ impl<'a, 'b> NoArrayForEachVisitor<'a, 'b> {
         let is_name_taken = |candidate: &str| {
             let candidate_id = self.ctx.string_id(candidate);
             let candidate_key = dir::StaticKey::Name(candidate_id);
-            self.ctx
-                .symbols
-                .find_symbol_up_to(scope, candidate_key, scope_cursor.mark)
+            scope
+                .find_symbol_up_to(candidate_key, scope_cursor.mark)
                 .is_some()
         };
 

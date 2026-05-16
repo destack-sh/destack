@@ -259,7 +259,7 @@ fn callback_parameter_binding(
     let parameter_id =
         first_callback_parameter_in_declaration(ctx.dir.tree(), declaration_id.local_id)?;
     let (name_id, symbol_id) =
-        parameter_binding_name_and_symbol(ctx.dir.tree(), ctx.symbols, parameter_id)?;
+        parameter_binding_name_and_symbol(ctx.dir.tree(), &ctx.symbols, parameter_id)?;
 
     Some((parameter_id, name_id, symbol_id))
 }
@@ -283,7 +283,7 @@ fn callback_declaration(
         ctx.artifacts.as_ref(),
         ctx.profile_id,
         ctx.module_id(),
-        ctx.symbols,
+        &ctx.symbols,
         target_symbol,
     )
 }

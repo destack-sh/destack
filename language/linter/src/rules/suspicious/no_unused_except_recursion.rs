@@ -208,7 +208,7 @@ fn scope_subtree_contains_name(
 
         let scope = ctx.symbols.get_scope_by_id(current_scope_id);
 
-        for (_, symbol_id) in ctx.symbols.named_symbols(scope) {
+        for (_, symbol_id) in scope.named_symbols() {
             let symbol = ctx.symbols.get_symbol(symbol_id);
             if symbol.name() == Some(name_id) {
                 return true;

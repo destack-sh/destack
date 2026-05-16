@@ -299,7 +299,9 @@ pub fn symbol_for(
     }
 
     let dir = artifacts.dir_bound(symbol_id.module_id, profile_id)?;
-    Some(dir.bindings.get_symbol(symbol_id.local_id).clone())
+    let symbols = dir.binding_table();
+
+    Some(symbols.get_symbol(symbol_id.local_id).clone())
 }
 
 /// Read matching decorators for a symbol.
@@ -333,13 +335,15 @@ pub fn symbol_decorators_for(
     let Some(parsed) = artifacts.dir_parsed(symbol_id.module_id) else {
         return Vec::new();
     };
+    let symbols = dir.binding_table();
+    let types = dir.type_table();
 
     symbol_decorators_in_module(
         symbol_id.module_id,
         &parsed.tree,
         local_strings,
-        &dir.bindings,
-        &dir.types,
+        &symbols,
+        &types,
         symbol_id.local_id,
         decorator_symbol,
     )
@@ -499,8 +503,8 @@ pub fn symbol_value_type_id_for(
         });
     }
 
-    let dir = artifacts.dir_checked(symbol_id.module_id, profile_id)?;
-    let type_id = dir.types.get_value_type_id(symbol_id)?;
+    let types = checked_type_table_for(artifacts, symbol_id.module_id, profile_id)?;
+    let type_id = types.get_value_type_id(symbol_id)?;
     Some(SymbolValueTypeId {
         module_id: symbol_id.module_id,
         type_id,
@@ -528,6 +532,19 @@ pub fn symbol_value_type_map_for<T>(
         return Some(map(local_types, value_type_id.type_id));
     }
 
-    let dir = artifacts.dir_checked(value_type_id.module_id, profile_id)?;
-    Some(map(&dir.types, value_type_id.type_id))
+    let types = checked_type_table_for(artifacts, value_type_id.module_id, profile_id)?;
+    Some(map(&types, value_type_id.type_id))
+}
+
+/// Read checked type state for one module.
+fn checked_type_table_for(
+    artifacts: &ArtifactCache,
+    module_id: ModuleId,
+    profile_id: ProfileId,
+) -> Option<dir::TypeTable> {
+    let bound = artifacts.dir_bound(module_id, profile_id)?;
+    let expanded = artifacts.dir_expanded(module_id, profile_id)?;
+    let checked = artifacts.dir_checked(module_id, profile_id)?;
+
+    Some(checked.type_table(&bound, &expanded))
 }

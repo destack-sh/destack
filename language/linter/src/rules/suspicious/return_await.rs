@@ -471,7 +471,7 @@ fn expression_thenable_certainty(
     if expression_is_any_typed(
         ctx.module_id(),
         ctx.dir.tree(),
-        ctx.symbols,
+        &ctx.symbols,
         ctx.types,
         expression_id,
     ) {

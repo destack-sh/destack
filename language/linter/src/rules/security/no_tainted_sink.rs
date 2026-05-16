@@ -90,7 +90,7 @@ impl<'a, 'b> NoTaintedSinkVisitor<'a, 'b> {
             self.ctx.module_id(),
             self.ctx.dir.tree(),
             self.ctx.strings,
-            self.ctx.symbols,
+            &self.ctx.symbols,
             self.ctx.types,
             callee_id,
         );
@@ -124,7 +124,7 @@ impl<'a, 'b> NoTaintedSinkVisitor<'a, 'b> {
             self.ctx.module_id(),
             self.ctx.dir.tree(),
             self.ctx.strings,
-            self.ctx.symbols,
+            &self.ctx.symbols,
             self.ctx.types,
             left,
         );
@@ -151,7 +151,7 @@ impl<'a, 'b> NoTaintedSinkVisitor<'a, 'b> {
             self.ctx.module_id(),
             self.ctx.dir.tree(),
             self.ctx.strings,
-            self.ctx.symbols,
+            &self.ctx.symbols,
             self.ctx.types,
             &mut self.taint_cache,
             false,

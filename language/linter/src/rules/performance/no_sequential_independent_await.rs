@@ -174,7 +174,7 @@ fn await_statement_from_expression(
     let mut bound_symbols = HashSet::new();
     collect_pattern_value_binding_symbols(
         ctx.dir.tree(),
-        ctx.symbols,
+        &ctx.symbols,
         declarator.pattern,
         &mut bound_symbols,
     );

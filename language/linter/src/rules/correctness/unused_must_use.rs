@@ -145,7 +145,7 @@ fn expression_has_must_use(
         ctx.module_id(),
         ctx.dir.tree(),
         ctx.strings,
-        ctx.symbols,
+        &ctx.symbols,
         ctx.types,
         expression_id,
         must_use_symbol,

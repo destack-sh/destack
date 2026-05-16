@@ -147,7 +147,7 @@ impl<'a, 'b> UselessAssignmentVisitor<'a, 'b> {
                     let mut local_symbols = HashSet::new();
                     collect_pattern_value_binding_symbols(
                         self.ctx.dir.tree(),
-                        self.ctx.symbols,
+                        &self.ctx.symbols,
                         declarator.pattern,
                         &mut local_symbols,
                     );

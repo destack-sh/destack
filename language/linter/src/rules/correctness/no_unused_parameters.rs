@@ -109,7 +109,7 @@ impl LintRule for NoUnusedParameters {
                     // collect nested pattern bindings from this parameter
                     collect_parameter_value_binding_symbols(
                         ctx.dir.tree(),
-                        ctx.symbols,
+                        &ctx.symbols,
                         parameter_id,
                         &mut bindings,
                     );

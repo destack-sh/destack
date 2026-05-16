@@ -358,7 +358,7 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
             self.ctx.artifacts.as_ref(),
             self.ctx.profile_id,
             self.ctx.module_id(),
-            self.ctx.symbols,
+            &self.ctx.symbols,
             symbol_id,
         ) else {
             return self.symbol_has_this_parameter(symbol_id);
@@ -411,10 +411,10 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
         }
 
         // load foreign module types for the `this` parameter check
-        let Some(module_dir) = self.ctx.dir_checked(symbol_type_id.module_id) else {
+        let Some(types) = self.ctx.dir_type_table(symbol_type_id.module_id) else {
             return false;
         };
-        has_non_void_this_parameter_type(&module_dir.types, symbol_type_id.type_id)
+        has_non_void_this_parameter_type(&types, symbol_type_id.type_id)
     }
 }
 

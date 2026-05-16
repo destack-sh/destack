@@ -146,7 +146,7 @@ fn swapped_pair_type_compatible(
             ctx.artifacts.as_ref(),
             ctx.profile_id,
             ctx.module_id(),
-            ctx.symbols,
+            &ctx.symbols,
             symbol_id,
         ) else {
             continue;
@@ -316,7 +316,7 @@ fn parameter_names_for_symbol(
         ctx.artifacts.as_ref(),
         ctx.profile_id,
         ctx.module_id(),
-        ctx.symbols,
+        &ctx.symbols,
         symbol_id,
     )?;
 

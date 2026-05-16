@@ -294,7 +294,7 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
                 self.ctx.artifacts.as_ref(),
                 self.ctx.profile_id,
                 self.ctx.module_id(),
-                self.ctx.symbols,
+                &self.ctx.symbols,
                 self.ctx.dir.tree(),
                 target_symbol,
             ) else {
@@ -391,7 +391,7 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
             self.ctx.artifacts.as_ref(),
             self.ctx.profile_id,
             self.ctx.module_id(),
-            self.ctx.symbols,
+            &self.ctx.symbols,
             self.ctx.dir.tree(),
             target_symbol,
         )?;

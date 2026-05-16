@@ -33,7 +33,8 @@ impl LintRule for NoShadow {
         let meta = self.meta();
 
         // scan all local symbols in deterministic order
-        for symbol_id in ctx.symbols.symbol_ids() {
+        let symbol_ids = ctx.symbols.symbol_ids().collect::<Vec<_>>();
+        for symbol_id in symbol_ids {
             let symbol = ctx.symbols.get_symbol(symbol_id);
             if !symbol_is_shadow_candidate(symbol) {
                 continue;
@@ -136,9 +137,7 @@ fn find_shadowed_ancestor<'a>(
     // walk the lexical parent chain and stop at the first shadowed ancestor
     while let Some(parent_cursor) = parent {
         let parent_scope = ctx.symbols.get_scope_by_id(parent_cursor.id);
-        let shadowed_symbol_id =
-            ctx.symbols
-                .find_symbol_up_to(parent_scope, key, parent_cursor.mark);
+        let shadowed_symbol_id = parent_scope.find_symbol_up_to(key, parent_cursor.mark);
         if let Some(shadowed_symbol_id) = shadowed_symbol_id {
             let shadowed_symbol = ctx.symbols.get_symbol(shadowed_symbol_id);
             if symbols_shadow_each_other(symbol, shadowed_symbol) {
