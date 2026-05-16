@@ -5,14 +5,14 @@ use crate::{DependencyItem, DependencyTarget, LocalNodeId, LocalSymbolId, Name, 
 
 /// The exported name in one module record.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum ExportName {
+pub enum ExportKey {
     /// The ECMAScript default export name.
     Default,
     /// A named export key.
     Named(StaticKey),
 }
 
-impl ExportName {
+impl ExportKey {
     /// Build one named export key.
     #[inline]
     pub fn named(key: StaticKey) -> Self {
@@ -56,7 +56,7 @@ impl ExportName {
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct LocalExportEntry {
     /// The exported name.
-    pub name: ExportName,
+    pub key: ExportKey,
     /// The local symbol exposed by the export.
     pub source: LocalSymbolId,
     /// The export clause item that declared this export.
@@ -78,7 +78,7 @@ pub enum ExportSelector {
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct IndirectExportEntry {
     /// The exported name in the current module.
-    pub name: ExportName,
+    pub key: ExportKey,
     /// The dependency item that declared the export.
     pub item: LocalNodeId<DependencyItem>,
     /// The target module selected by the export.
@@ -97,12 +97,12 @@ pub enum ExportEntry {
 }
 
 impl ExportEntry {
-    /// Return the exported name.
+    /// Return the exported key.
     #[inline]
-    pub fn name(self) -> ExportName {
+    pub fn key(self) -> ExportKey {
         match self {
-            Self::Local(export) => export.name,
-            Self::Indirect(export) => export.name,
+            Self::Local(export) => export.key,
+            Self::Indirect(export) => export.key,
         }
     }
 }
