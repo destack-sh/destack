@@ -1,7 +1,7 @@
 use destack_artifact::ProfileKey;
 
 use crate::{
-    CompilerOptions, ConditionSet, DestackConfig, HostEnvironment, ProfileOptions, Target,
+    CompilerOptions, ConditionSet, DestackDeclaration, HostEnvironment, ProfileOptions, Target,
     profile_flags_for_compiler_options,
 };
 
@@ -10,7 +10,7 @@ pub(crate) fn profile_key_for_target(
     target: &Target,
     compiler_options: &CompilerOptions,
     profile_config: Option<&ProfileOptions>,
-    config: Option<&DestackConfig>,
+    config: Option<&DestackDeclaration>,
     environment: &HostEnvironment,
     product: Option<&str>,
     product_role: Option<&str>,
@@ -75,7 +75,7 @@ pub(crate) fn profile_key_for_target(
 fn condition_set_from_compiler_options(
     target: &Target,
     compiler_options: &CompilerOptions,
-    config: Option<&DestackConfig>,
+    config: Option<&DestackDeclaration>,
     product: Option<&str>,
 ) -> ConditionSet {
     ConditionSet {
@@ -161,8 +161,8 @@ fn profile_compiler_options_for_target(
 /// Expand selected source graph names through declared parents.
 fn inherited_conditions(
     selected: &[String],
-    parents_for: impl for<'a> Fn(&'a DestackConfig, &str) -> Option<&'a [String]>,
-    config: Option<&DestackConfig>,
+    parents_for: impl for<'a> Fn(&'a DestackDeclaration, &str) -> Option<&'a [String]>,
+    config: Option<&DestackDeclaration>,
 ) -> indexmap::IndexSet<String> {
     let mut conditions = indexmap::IndexSet::new();
 

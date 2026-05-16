@@ -3,7 +3,7 @@ use std::sync::Arc;
 use destack_artifact::ArtifactDependency;
 use destack_source::{File, FileId, ModuleId, PackageId, ProfileId, TargetId};
 use destack_workspace::{
-    DestackConfig, Module, Package, ProviderContext, Revision, Target, TargetDiscoveryError,
+    DestackDeclaration, Module, Package, ProviderContext, Revision, Target, TargetDiscoveryError,
 };
 
 use crate::Compiler;
@@ -25,13 +25,8 @@ impl Compiler {
             .file(revision, file_id)
             .unwrap_or_else(|error| panic!("failed to load file: {error}"))
             .unwrap_or_else(|| panic!("missing file for {file_id:?}"));
-        let content_id = self
-            .repository
-            .file_content_id(revision, file_id)
-            .unwrap_or_else(|error| panic!("failed to load file content id: {error}"))
-            .unwrap_or_else(|| panic!("missing file content id for {file_id:?}"));
 
-        context.track(ArtifactDependency::file_content(file_id, content_id));
+        self.track_file_content(context, file_id);
 
         file
     }
@@ -49,27 +44,38 @@ impl Compiler {
         self.module(revision, module_id).is_code()
     }
 
-    /// Load one package Destack config and record its file dependency.
+    /// Load one package Destack config and record its declaration file dependencies.
     pub(crate) fn destack_config_for_package(
         &self,
         context: &dyn ProviderContext,
         package_id: PackageId,
-    ) -> Option<Arc<DestackConfig>> {
+    ) -> Option<Arc<DestackDeclaration>> {
         let revision = context.revision();
-        let package = self.package(revision, package_id);
-        if let Some(file_id) = package.destack_file_id {
-            let content_id = self
-                .repository
-                .file_content_id(revision, file_id)
-                .unwrap_or_else(|error| panic!("failed to load package config content id: {error}"))
-                .unwrap_or_else(|| panic!("missing package config content id for {package_id:?}"));
+        let config = self
+            .repository
+            .destack_config_for_package_id(revision, package_id)
+            .unwrap_or_else(|error| panic!("failed to load package config: {error}"));
 
-            context.track(ArtifactDependency::file_content(file_id, content_id));
+        // track every declaration that built the effective config
+        if let Some(config) = config.as_ref() {
+            for file_id in &config.declaration_file_ids {
+                self.track_file_content(context, *file_id);
+            }
         }
 
-        self.repository
-            .destack_config_for_package_id(revision, package_id)
-            .unwrap_or_else(|error| panic!("failed to load package config: {error}"))
+        config
+    }
+
+    /// Record one source file content dependency.
+    pub(crate) fn track_file_content(&self, context: &dyn ProviderContext, file_id: FileId) {
+        let revision = context.revision();
+        let content_id = self
+            .repository
+            .file_content_id(revision, file_id)
+            .unwrap_or_else(|error| panic!("failed to load file content id: {error}"))
+            .unwrap_or_else(|| panic!("missing file content id for {file_id:?}"));
+
+        context.track(ArtifactDependency::file_content(file_id, content_id));
     }
 
     /// Return one target or built-in and record its configuration dependency.

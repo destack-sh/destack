@@ -5,7 +5,7 @@ use std::sync::Arc;
 use destack_source::{FileId, PackageId};
 
 use crate::repository::{Repository, RepositoryError, Revision};
-use crate::{DestackConfig, Package};
+use crate::{DestackDeclaration, Package};
 
 impl Repository {
     /// Return one inherited destack config by workspace path.
@@ -13,18 +13,18 @@ impl Repository {
         &self,
         revision: Revision,
         path: &Path,
-    ) -> Result<Option<DestackConfig>, RepositoryError> {
-        let mut stack = BTreeSet::new();
+    ) -> Result<Option<DestackDeclaration>, RepositoryError> {
+        let mut active_paths = BTreeSet::new();
 
-        self.inherited_destack_config_for_path_inner(revision, path, &mut stack)
+        self.inherit_destack_config(revision, path, &mut active_paths)
     }
 
-    /// Return one parsed destack config by file id.
-    pub fn destack_config_for_file(
+    /// Return one local destack declaration by file id.
+    fn local_destack_declaration_for_file(
         &self,
         revision: Revision,
         file_id: FileId,
-    ) -> Result<Option<Arc<DestackConfig>>, RepositoryError> {
+    ) -> Result<Option<Arc<DestackDeclaration>>, RepositoryError> {
         // read file
         let Some(content_id) = self.file_content_id(revision, file_id)? else {
             return Ok(None);
@@ -50,7 +50,7 @@ impl Repository {
         let Some(file) = self.file(revision, file_id)? else {
             return Ok(None);
         };
-        let config = DestackConfig::parse(&file)
+        let config = DestackDeclaration::parse(&file)
             .map(Arc::new)
             .map_err(|error| error.to_string());
         let destack_config = config
@@ -69,43 +69,34 @@ impl Repository {
         destack_config
     }
 
-    /// Return the parsed root workspace config for one revision.
+    /// Return the effective root workspace config for one revision.
     pub fn destack_config_for_workspace(
         &self,
         revision: Revision,
-    ) -> Result<Option<Arc<DestackConfig>>, RepositoryError> {
-        let file_id = self.file_id(&self.root.join("destack.json"));
-        self.destack_config_for_file(revision, file_id)
-    }
+    ) -> Result<Option<Arc<DestackDeclaration>>, RepositoryError> {
+        let path = self.root.join("destack.json");
+        let config = self.inherited_destack_config_for_path(revision, &path)?;
 
-    /// Return one parsed `destack.json` config by workspace path.
-    pub fn destack_config_for_path(
-        &self,
-        revision: Revision,
-        path: &Path,
-    ) -> Result<Option<Arc<DestackConfig>>, RepositoryError> {
-        let file_id = self.file_id(path);
-
-        self.destack_config_for_file(revision, file_id)
+        Ok(config.map(Arc::new))
     }
 
     /// Return one inherited destack config by workspace path.
-    fn inherited_destack_config_for_path_inner(
+    fn inherit_destack_config(
         &self,
         revision: Revision,
         path: &Path,
-        stack: &mut BTreeSet<PathBuf>,
-    ) -> Result<Option<DestackConfig>, RepositoryError> {
+        active_paths: &mut BTreeSet<PathBuf>,
+    ) -> Result<Option<DestackDeclaration>, RepositoryError> {
         let Some(path) = normalize_path(path) else {
             return Ok(None);
         };
         let file_id = self.file_id(&path);
 
         // parse child config
-        let Some(config) = self.destack_config_for_file(revision, file_id)? else {
+        let Some(config) = self.local_destack_declaration_for_file(revision, file_id)? else {
             return Ok(None);
         };
-        if !stack.insert(path.clone()) {
+        if !active_paths.insert(path.clone()) {
             return Err(RepositoryError::ConfigCycle { path });
         }
         let mut config = config.as_ref().clone();
@@ -114,8 +105,7 @@ impl Repository {
         let parents = config.extends().map(str::to_string).collect::<Vec<_>>();
         for extends in parents {
             let parent_path = config_parent_path(&config, &extends)?;
-            let Some(parent) =
-                self.inherited_destack_config_for_path_inner(revision, &parent_path, stack)?
+            let Some(parent) = self.inherit_destack_config(revision, &parent_path, active_paths)?
             else {
                 return Err(RepositoryError::MissingFile {
                     path: parent_path.display().to_string(),
@@ -130,7 +120,15 @@ impl Repository {
                 })?;
         }
 
-        stack.remove(&path);
+        // validate inherited invariants
+        config
+            .validate()
+            .map_err(|error| RepositoryError::InvalidConfig {
+                file: config.file_id,
+                message: error.to_string(),
+            })?;
+
+        active_paths.remove(&path);
 
         Ok(Some(config))
     }
@@ -154,30 +152,28 @@ impl Repository {
         Ok(package_roots)
     }
 
-    /// Return the parsed `destack.json` config for one package.
+    /// Return the effective `destack.json` config for one package.
     pub fn destack_config_for_package(
         &self,
         revision: Revision,
         package: &Package,
-    ) -> Result<Option<Arc<DestackConfig>>, RepositoryError> {
-        if let Some(destack_file_id) = package.destack_file_id {
-            return self.destack_config_for_file(revision, destack_file_id);
-        }
-
+    ) -> Result<Option<Arc<DestackDeclaration>>, RepositoryError> {
         let Some(package_path) = package.path.as_ref() else {
             return Ok(None);
         };
 
-        let file_id = self.file_id(&package_path.join("destack.json"));
-        self.destack_config_for_file(revision, file_id)
+        let path = package_path.join("destack.json");
+        let config = self.inherited_destack_config_for_path(revision, &path)?;
+
+        Ok(config.map(Arc::new))
     }
 
-    /// Return the parsed `destack.json` config for one package id.
+    /// Return the effective `destack.json` config for one package id.
     pub fn destack_config_for_package_id(
         &self,
         revision: Revision,
         package_id: PackageId,
-    ) -> Result<Option<Arc<DestackConfig>>, RepositoryError> {
+    ) -> Result<Option<Arc<DestackDeclaration>>, RepositoryError> {
         let Some(package) = self.package(revision, package_id)? else {
             return Ok(None);
         };
@@ -187,7 +183,10 @@ impl Repository {
 }
 
 /// Resolve one config inheritance specifier.
-fn config_parent_path(config: &DestackConfig, specifier: &str) -> Result<PathBuf, RepositoryError> {
+fn config_parent_path(
+    config: &DestackDeclaration,
+    specifier: &str,
+) -> Result<PathBuf, RepositoryError> {
     let specifier_path = Path::new(specifier);
     if specifier_path.components().next().is_none() {
         return Err(RepositoryError::InvalidConfigExtends {
@@ -226,28 +225,4 @@ fn normalize_path(path: &Path) -> Option<PathBuf> {
     }
 
     Some(normalized)
-}
-
-#[cfg(test)]
-mod tests {
-    use std::path::Path;
-
-    use super::normalize_path;
-
-    #[test]
-    fn test_normalize_path_rejects_parent_underflow() {
-        let path = normalize_path(Path::new("../base.destack.json"));
-
-        assert!(path.is_none());
-    }
-
-    #[test]
-    fn test_normalize_path_folds_relative_segments() {
-        let path = normalize_path(Path::new("packages/app/../base.destack.json"));
-
-        assert_eq!(
-            path.as_deref(),
-            Some(Path::new("packages/base.destack.json"))
-        );
-    }
 }

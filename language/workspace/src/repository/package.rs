@@ -28,10 +28,15 @@ impl Repository {
             .path
             .as_ref()
             .and_then(|path| self.tracked_file_id(files, &path.join("destack.json")));
-        let destack_config = match destack_file_id {
-            Some(file_id) => self.destack_config_for_file(revision, file_id)?,
-            None => None,
-        };
+        let destack_config = package
+            .path
+            .as_ref()
+            .map(|path| {
+                self.inherited_destack_config_for_path(revision, &path.join("destack.json"))
+            })
+            .transpose()?
+            .flatten()
+            .map(Arc::new);
         let config = destack_config.as_deref();
         let mut targets = IndexMap::new();
         let mut mode_dependencies = IndexMap::new();

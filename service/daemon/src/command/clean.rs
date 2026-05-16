@@ -1,5 +1,5 @@
 use destack_source::DiagnosticCollection;
-use destack_workspace::DestackConfig;
+use destack_workspace::DestackDeclaration;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -144,7 +144,7 @@ impl CommandContext<'_> {
 }
 
 /// Collect output paths for one config.
-fn collect_output_paths(config: &DestackConfig, paths: &mut HashSet<PathBuf>) {
+fn collect_output_paths(config: &DestackDeclaration, paths: &mut HashSet<PathBuf>) {
     let options = config;
 
     if let Some(out_dir) = options.compiler.out_dir.as_ref() {

@@ -9,7 +9,7 @@ use destack_query::Query;
 use destack_session::{FileChange, Session};
 use destack_source::{FileType, ModuleId, ProfileId, TargetId, glob};
 use destack_workspace::{
-    ConfigPatch, DestackConfig, Edit, OptimizeLevel, Ref, Repository, Revision, Target,
+    ConfigPatch, DestackDeclaration, Edit, OptimizeLevel, Ref, Repository, Revision, Target,
     TargetDiscovery, apply_config_patches_to_json, parse_jsonc_text,
 };
 use serde_json::{Map, Value};
@@ -464,7 +464,7 @@ impl<'a> CommandContext<'a> {
     }
 
     /// Load one `destack.json` config for a path.
-    pub(super) fn load_destack_config(&self, path: &Path) -> CommandResult<DestackConfig> {
+    pub(super) fn load_destack_config(&self, path: &Path) -> CommandResult<DestackDeclaration> {
         let revision = self.revision()?;
 
         load_destack_config(&self.repository, revision, path)
@@ -481,7 +481,7 @@ impl<'a> CommandContext<'a> {
     pub(super) fn load_workspace_configs(
         &self,
         revision: Revision,
-    ) -> CommandResult<Vec<DestackConfig>> {
+    ) -> CommandResult<Vec<DestackDeclaration>> {
         load_workspace_configs(&self.repository, revision)
     }
 }
@@ -548,7 +548,7 @@ fn load_destack_config(
     repository: &Repository,
     revision: Revision,
     path: &Path,
-) -> CommandResult<DestackConfig> {
+) -> CommandResult<DestackDeclaration> {
     repository
         .inherited_destack_config_for_path(revision, path)
         .map_err(|error| error.to_string())?
@@ -569,10 +569,13 @@ fn find_destack_config(repository: &Repository, revision: Revision, cwd: &Path) 
 
     loop {
         let candidate = directory.join("destack.json");
-        match repository.destack_config_for_path(revision, &candidate) {
-            Ok(Some(_)) => return Some(candidate),
-            Ok(None) => {}
-            Err(_) => return None,
+        if repository
+            .file_metadata(revision, &candidate)
+            .ok()
+            .flatten()
+            .is_some_and(|metadata| metadata.is_file)
+        {
+            return Some(candidate);
         }
 
         if !directory.pop() {
@@ -584,7 +587,7 @@ fn find_destack_config(repository: &Repository, revision: Revision, cwd: &Path) 
 fn load_workspace_configs(
     repository: &Repository,
     revision: Revision,
-) -> CommandResult<Vec<DestackConfig>> {
+) -> CommandResult<Vec<DestackDeclaration>> {
     let mut configs = BTreeMap::new();
     for package_path in repository
         .package_roots(revision)
@@ -604,7 +607,7 @@ fn load_workspace_configs(
 }
 
 fn collect_sources_from_destack_config(
-    config: &DestackConfig,
+    config: &DestackDeclaration,
     target_name: Option<&str>,
 ) -> Vec<PathBuf> {
     let options = config;

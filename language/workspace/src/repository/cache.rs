@@ -7,7 +7,7 @@ use destack_source::{FileContentId, ProfileId};
 use im::OrdMap;
 use rustc_hash::FxHashSet;
 
-use crate::{DestackConfig, ModuleIndex, PackageIndex, Profile, Workspace};
+use crate::{DestackDeclaration, ModuleIndex, PackageIndex, Profile, Workspace};
 
 /// Lazily derived data for one revision identity.
 #[derive(Debug, Default)]
@@ -36,7 +36,7 @@ impl RevisionCache {
 pub(crate) struct FileCache {
     /// The config parse result by exact content.
     pub(crate) destack_config_by_content_id:
-        DashMap<FileContentId, Result<Arc<DestackConfig>, String>>,
+        DashMap<FileContentId, Result<Arc<DestackDeclaration>, String>>,
 }
 
 impl FileCache {

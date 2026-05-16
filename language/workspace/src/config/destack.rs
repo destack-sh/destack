@@ -5,17 +5,16 @@ use std::sync::Arc;
 use destack_source::{File, FileId};
 use indexmap::IndexMap;
 use serde::Deserialize;
-use serde::de::DeserializeOwned;
 use serde_json::Value;
 
 use crate::config::{
-    CompilerOptions, DependencyJsonMap, DependencyMap, EnvironmentOptions, FeatureJson,
-    FeatureOptions, FormatterOptions, LinterOptions, ModeOptions, PolicyOptions, PolicyOptionsJson,
-    ProductOptions, ProductOptionsJson, ProfileOptions, ProfileOptionsJson, RoleJson, RoleOptions,
-    RuntimeOptions, TagJson, TagOptions, TargetOptions, VendorOptions, VendorOptionsJson,
-    builtin_modes, builtin_roles, dependency_options_from_json, environment_options_from_json,
-    extend_environment_options, parse_jsonc_file, runtime_options_from_json,
-    runtime_options_with_base, validate_dependency_json_map, vendor_options_with_base,
+    CompilerOptions, DependencyJsonMap, DependencyMap, DiagnosticPolicy, EnvironmentOptions,
+    FeatureJson, FeatureOptions, FormatterOptions, LinterOptions, ModeOptions, PolicyOptions,
+    PolicyOptionsJson, ProductOptions, ProductOptionsJson, ProfileOptions, ProfileOptionsJson,
+    RoleJson, RoleOptions, RuntimeOptions, TagJson, TagOptions, TargetOptions, VendorOptions,
+    VendorOptionsJson, builtin_modes, builtin_roles, dependency_options_from_json,
+    environment_options_from_json, parse_jsonc_file, runtime_options_from_json,
+    validate_dependency_json_map,
 };
 
 use super::compiler::CompilerOptionsJson;
@@ -112,19 +111,21 @@ struct WorkspaceLayout {
     groups: Option<IndexMap<String, Vec<String>>>,
 }
 
-/// Parsed `destack.json` config.
+/// Parsed or effective `destack.json` declaration.
 #[derive(Debug, Clone)]
-pub struct DestackConfig {
+pub struct DestackDeclaration {
     /// The id of the `destack.json` file.
     pub file_id: FileId,
+    /// The declaration files used to build this effective declaration.
+    pub declaration_file_ids: Vec<FileId>,
     /// Path to the `destack.json` file.
     pub path: PathBuf,
     /// The directory containing the `destack.json` file.
     pub directory: PathBuf,
-    /// The raw options parsed from the `destack.json` file.
+    /// The effective options parsed from the declaration JSON.
     pub options: DestackOptions,
-    /// The raw config JSON for exact child over parent merging.
-    raw_options: Value,
+    /// The effective declaration JSON.
+    declaration_json: Value,
 
     /// Package name.
     pub name: Option<String>,
@@ -188,11 +189,101 @@ pub struct DestackConfig {
     pub workspace_groups: IndexMap<String, Vec<String>>,
 }
 
-impl DestackConfig {
-    /// Parse one `destack.json` config from one file.
+impl DestackDeclaration {
+    /// Parse one `destack.json` declaration from one file.
     pub fn parse(file: &Arc<File>) -> Result<Self, serde_json::Error> {
-        let raw_options = parse_jsonc_file(file)?;
-        let options: DestackOptions = serde_json::from_value(raw_options.clone())?;
+        let path = file
+            .path
+            .clone()
+            .or_else(|| file.uri.to_path_buf())
+            .ok_or_else(|| {
+                serde_json::Error::io(Error::new(
+                    ErrorKind::InvalidData,
+                    "destack.json must have a valid path",
+                ))
+            })?;
+        let declaration_json = parse_jsonc_file(file)?;
+
+        Self::from_json(file.id, vec![file.id], path, declaration_json)
+    }
+
+    /// Return the declared `extends` specifiers in order.
+    pub fn extends(&self) -> impl Iterator<Item = &str> {
+        self.options.extends()
+    }
+
+    /// Validate resolved declaration invariants.
+    pub fn validate(&self) -> Result<(), serde_json::Error> {
+        self.policy
+            .validate()
+            .map_err(|error| serde_json::Error::io(Error::new(ErrorKind::InvalidData, error)))?;
+
+        for target in self.targets.values() {
+            target.policy.validate().map_err(|error| {
+                serde_json::Error::io(Error::new(ErrorKind::InvalidData, error))
+            })?;
+        }
+        for product in self.products.values() {
+            product.policy.validate().map_err(|error| {
+                serde_json::Error::io(Error::new(ErrorKind::InvalidData, error))
+            })?;
+        }
+        for (product_name, product) in &self.products {
+            for (role, target_name) in &product.targets {
+                if !self.targets.contains_key(target_name) {
+                    let error = Error::new(
+                        ErrorKind::InvalidData,
+                        format!(
+                            "product '{product_name}' role '{role}' references unknown target '{target_name}'"
+                        ),
+                    );
+                    return Err(serde_json::Error::io(error));
+                }
+            }
+        }
+
+        validate_extends("mode", &self.modes, |mode| &mode.extends)
+            .map_err(|error| serde_json::Error::io(invalid_config_error(error)))?;
+        validate_extends("role", &self.roles, |role| &role.extends)
+            .map_err(|error| serde_json::Error::io(invalid_config_error(error)))?;
+        validate_extends("feature", &self.features, |feature| &feature.extends)
+            .map_err(|error| serde_json::Error::io(invalid_config_error(error)))?;
+        validate_extends("tag", &self.tags, |tag| &tag.extends)
+            .map_err(|error| serde_json::Error::io(invalid_config_error(error)))?;
+
+        Ok(())
+    }
+
+    /// Inherit settings from one parent declaration.
+    pub fn extend_from(&mut self, parent: &Self) -> Result<(), serde_json::Error> {
+        let mut declaration_json =
+            Self::merge_declaration_json(&parent.declaration_json, &self.declaration_json);
+        let options: DestackOptions = serde_json::from_value(declaration_json.clone())?;
+        let compiler = CompilerOptions::from(&options.compiler);
+        let declaration_file_ids =
+            merge_declaration_file_ids(&parent.declaration_file_ids, &self.declaration_file_ids);
+
+        // preserve monotonic compiler restrictions
+        Self::apply_parent_restrictions(&mut declaration_json, &compiler, &parent.compiler)?;
+
+        *self = Self::from_json(
+            self.file_id,
+            declaration_file_ids,
+            self.path.clone(),
+            declaration_json,
+        )?;
+
+        Ok(())
+    }
+
+    /// Build one declaration from effective declaration JSON.
+    fn from_json(
+        file_id: FileId,
+        declaration_file_ids: Vec<FileId>,
+        path: PathBuf,
+        declaration_json: Value,
+    ) -> Result<Self, serde_json::Error> {
+        let options: DestackOptions = serde_json::from_value(declaration_json.clone())?;
 
         options
             .linter
@@ -223,16 +314,6 @@ impl DestackConfig {
         validate_named_json_map("feature", options.features.as_ref(), FeatureJson::validate)?;
         validate_named_json_map("tag", options.tags.as_ref(), TagJson::validate)?;
 
-        let path = file
-            .path
-            .clone()
-            .or_else(|| file.uri.to_path_buf())
-            .ok_or_else(|| {
-                serde_json::Error::io(Error::new(
-                    ErrorKind::InvalidData,
-                    "destack.json must have a valid path",
-                ))
-            })?;
         let directory = path.parent().map(PathBuf::from).ok_or_else(|| {
             serde_json::Error::io(Error::new(
                 ErrorKind::InvalidData,
@@ -296,10 +377,11 @@ impl DestackConfig {
         let features = options_from_json(&options.features, FeatureOptions::from_json);
         let tags = options_from_json(&options.tags, TagOptions::from_json);
         Ok(Self {
-            file_id: file.id,
+            file_id,
+            declaration_file_ids,
             path,
             directory,
-            raw_options,
+            declaration_json,
             name: options.name.clone(),
             version: options.version.clone(),
             is_private: options.r#private,
@@ -360,467 +442,16 @@ impl DestackConfig {
         })
     }
 
-    /// Return the declared `extends` specifiers in order.
-    pub fn extends(&self) -> impl Iterator<Item = &str> {
-        self.options.extends()
-    }
+    /// Merge one child declaration JSON value over one parent declaration JSON value.
+    fn merge_declaration_json(parent: &Value, child: &Value) -> Value {
+        let mut parent = parent.clone();
 
-    /// Validate resolved config invariants.
-    pub fn validate(&self) -> Result<(), serde_json::Error> {
-        self.policy
-            .validate()
-            .map_err(|error| serde_json::Error::io(Error::new(ErrorKind::InvalidData, error)))?;
-
-        for target in self.targets.values() {
-            target.policy.validate().map_err(|error| {
-                serde_json::Error::io(Error::new(ErrorKind::InvalidData, error))
-            })?;
-        }
-        for product in self.products.values() {
-            product.policy.validate().map_err(|error| {
-                serde_json::Error::io(Error::new(ErrorKind::InvalidData, error))
-            })?;
-        }
-        for (product_name, product) in &self.products {
-            for (role, target_name) in &product.targets {
-                if !self.targets.contains_key(target_name) {
-                    let error = Error::new(
-                        ErrorKind::InvalidData,
-                        format!(
-                            "product '{product_name}' role '{role}' references unknown target '{target_name}'"
-                        ),
-                    );
-                    return Err(serde_json::Error::io(error));
-                }
-            }
+        // drop inheritance directives before merging
+        if let Value::Object(parent) = &mut parent {
+            parent.remove("extends");
         }
 
-        validate_extends("mode", &self.modes, |mode| &mode.extends)
-            .map_err(|error| serde_json::Error::io(invalid_config_error(error)))?;
-        validate_extends("role", &self.roles, |role| &role.extends)
-            .map_err(|error| serde_json::Error::io(invalid_config_error(error)))?;
-        validate_extends("feature", &self.features, |feature| &feature.extends)
-            .map_err(|error| serde_json::Error::io(invalid_config_error(error)))?;
-        validate_extends("tag", &self.tags, |tag| &tag.extends)
-            .map_err(|error| serde_json::Error::io(invalid_config_error(error)))?;
-
-        Ok(())
-    }
-
-    /// Inherit settings from one parent config.
-    #[allow(clippy::cognitive_complexity, clippy::too_many_lines)]
-    pub fn extend_from(&mut self, parent: &Self) -> Result<(), serde_json::Error> {
-        // package metadata
-        if self.options.name.is_none() {
-            self.name = parent.name.clone();
-        }
-        if self.options.version.is_none() {
-            self.version = parent.version.clone();
-        }
-        if self.options.r#private.is_none() {
-            self.is_private = parent.is_private;
-        }
-        if self.options.description.is_none() {
-            self.description = parent.description.clone();
-        }
-        if self.options.license.is_none() {
-            self.license = parent.license.clone();
-        }
-        if self.options.repository.is_none() {
-            self.repository = parent.repository.clone();
-        }
-        if self.options.homepage.is_none() {
-            self.homepage = parent.homepage.clone();
-        }
-        if self.options.keywords.is_none() {
-            self.keywords = parent.keywords.clone();
-        }
-
-        // workspace
-        if let Some(workspace) = self.options.workspace.as_ref() {
-            if workspace.packages.is_none() {
-                self.workspace_packages = parent.workspace_packages.clone();
-            }
-            if workspace.groups.is_none() {
-                self.workspace_groups = parent.workspace_groups.clone();
-            } else {
-                for (name, members) in &parent.workspace_groups {
-                    if !self.workspace_groups.contains_key(name) {
-                        self.workspace_groups.insert(name.clone(), members.clone());
-                    }
-                }
-            }
-        } else {
-            self.workspace_packages = parent.workspace_packages.clone();
-            self.workspace_groups = parent.workspace_groups.clone();
-        }
-
-        // source selection
-        if self.files.is_empty() {
-            self.files = parent.files.clone();
-        }
-        if self.include.is_empty() {
-            self.include = parent.include.clone();
-        }
-        if self.exclude.is_empty() {
-            self.exclude = parent.exclude.clone();
-        }
-
-        // dependencies
-        for (name, dependency) in &parent.dependencies {
-            if !self.dependencies.contains_key(name) {
-                self.dependencies.insert(name.clone(), dependency.clone());
-            }
-        }
-        self.vendoring =
-            vendor_options_with_base(&parent.vendoring, self.options.vendoring.as_ref());
-
-        // compiler
-        let parent_compiler = &parent.compiler;
-        let compiler = &mut self.compiler;
-
-        if compiler.environment.is_none() {
-            compiler.environment = parent_compiler.environment.clone();
-        }
-        if compiler.profile.is_none() {
-            compiler.profile = parent_compiler.profile.clone();
-        }
-        if compiler.modes.is_empty() {
-            compiler.modes = parent_compiler.modes.clone();
-        }
-        if compiler.roles.is_empty() {
-            compiler.roles = parent_compiler.roles.clone();
-        }
-        if compiler.features.is_empty() {
-            compiler.features = parent_compiler.features.clone();
-        }
-        if compiler.tags.is_empty() {
-            compiler.tags = parent_compiler.tags.clone();
-        }
-        if compiler.comptime_env.is_none() {
-            compiler.comptime_env = parent_compiler.comptime_env.clone();
-        }
-        if compiler.tree.is_none() {
-            compiler.tree = parent_compiler.tree.clone();
-        }
-        if self.options.compiler.globals.is_none() {
-            compiler.globals = parent_compiler.globals.clone();
-        }
-        if self.options.compiler.derive.is_none() {
-            compiler.derive = parent_compiler.derive.clone();
-        }
-        if parent_compiler
-            .no_managed
-            .is_stricter_than(compiler.no_managed)
-        {
-            compiler.no_managed = parent_compiler.no_managed;
-        }
-        if parent_compiler.no_heap.is_stricter_than(compiler.no_heap) {
-            compiler.no_heap = parent_compiler.no_heap;
-        }
-        if parent_compiler
-            .no_runtime
-            .is_stricter_than(compiler.no_runtime)
-        {
-            compiler.no_runtime = parent_compiler.no_runtime;
-        }
-        if parent_compiler
-            .no_internal_import
-            .is_stricter_than(compiler.no_internal_import)
-        {
-            compiler.no_internal_import = parent_compiler.no_internal_import;
-        }
-        if parent_compiler
-            .no_implicit_dynamic_dispatch
-            .is_stricter_than(compiler.no_implicit_dynamic_dispatch)
-        {
-            compiler.no_implicit_dynamic_dispatch = parent_compiler.no_implicit_dynamic_dispatch;
-        }
-        if compiler.root_dir.is_none() {
-            compiler.root_dir = parent_compiler.root_dir.clone();
-        }
-        if compiler.out_dir.is_none() {
-            compiler.out_dir = parent_compiler.out_dir.clone();
-        }
-        if compiler.declaration_dir.is_none() {
-            compiler.declaration_dir = parent_compiler.declaration_dir.clone();
-        }
-        if self.options.compiler.declaration_map.is_none() {
-            compiler.declaration_map = parent_compiler.declaration_map;
-        }
-        if self.options.compiler.no_emit.is_none() {
-            compiler.no_emit = parent_compiler.no_emit;
-        }
-
-        // policy
-        self.policy =
-            PolicyOptions::from_json_with_parent(Some(&self.options.policy), &parent.policy);
-
-        // formatter
-        let child_formatter = &self.options.formatter;
-        let formatter = &mut self.formatter;
-        let parent_formatter = &parent.formatter;
-
-        if child_formatter.line_ending.is_none() {
-            formatter.line_ending = parent_formatter.line_ending;
-        }
-        if child_formatter.indent_style.is_none() {
-            formatter.indent_style = parent_formatter.indent_style;
-        }
-        if child_formatter.indent_width.is_none() {
-            formatter.indent_width = parent_formatter.indent_width;
-        }
-        if child_formatter.line_width.is_none() {
-            formatter.line_width = parent_formatter.line_width;
-        }
-
-        // linter
-        let child_linter = &self.options.linter;
-        let linter = &mut self.linter;
-        let parent_linter = &parent.linter;
-
-        if child_linter.enabled.is_none() {
-            linter.enabled = parent_linter.enabled;
-        }
-        if child_linter.rules.preset.is_none()
-            && child_linter.rules.recommended.is_none()
-            && child_linter.rules.all.is_none()
-        {
-            linter.preset = parent_linter.preset;
-        }
-        for (category, severity) in &parent_linter.categories {
-            if !linter.categories.contains_key(category) {
-                linter.categories.insert(*category, *severity);
-            }
-        }
-        for (rule, severity) in &parent_linter.overrides {
-            if !linter.overrides.contains_key(rule) {
-                linter.overrides.insert(rule.clone(), *severity);
-            }
-        }
-
-        // runtime
-        self.runtime = runtime_options_with_base(&parent.runtime, Some(&self.options.runtime));
-
-        // declaration maps
-        let mut environments = environment_options_from_json(&self.options.environments);
-        extend_environment_options(&mut environments, &parent.environments);
-        self.environments = environments;
-
-        // targets
-        if let Some(targets) = &self.options.targets {
-            for name in targets.keys() {
-                let target_json = self.merged_target_json(parent, name)?;
-                target_json
-                    .validate()
-                    .map_err(|error| serde_json::Error::io(invalid_config_error(error)))?;
-                let options = TargetOptions::from_json_with_runtime_and_policy(
-                    &target_json,
-                    &self.runtime,
-                    &self.policy,
-                )
-                .map_err(|error| {
-                    serde_json::Error::io(invalid_config_error(format!("target '{name}': {error}")))
-                })?;
-                self.targets.insert(name.clone(), options);
-            }
-        }
-        for (name, target) in &parent.targets {
-            if !self.targets.contains_key(name) {
-                self.targets.insert(name.clone(), target.clone());
-            }
-        }
-
-        // products
-        if let Some(products) = &self.options.products {
-            for name in products.keys() {
-                let product_json = self.merged_product_json(parent, name)?;
-                product_json
-                    .validate()
-                    .map_err(|error| serde_json::Error::io(invalid_config_error(error)))?;
-                let product = ProductOptions::from_json_with_policy(&product_json, &self.policy);
-                self.products.insert(name.clone(), product);
-            }
-        }
-        for (name, product) in &parent.products {
-            if !self.products.contains_key(name) {
-                self.products.insert(name.clone(), product.clone());
-            }
-        }
-
-        // profiles
-        if let Some(profiles) = &self.options.profiles {
-            for name in profiles.keys() {
-                let profile_json = self.merged_profile_json(parent, name)?;
-                let profile = ProfileOptions::from_json(&profile_json).map_err(|error| {
-                    serde_json::Error::io(invalid_config_error(format!(
-                        "profile '{name}': {error}"
-                    )))
-                })?;
-                self.profiles.insert(name.clone(), profile);
-            }
-        }
-        for (name, profile) in &parent.profiles {
-            if !self.profiles.contains_key(name) {
-                self.profiles.insert(name.clone(), profile.clone());
-            }
-        }
-        let child_modes = self.options.modes.as_ref();
-        inherit_named_options(&mut self.modes, child_modes, &parent.modes);
-        if let Some(modes) = child_modes {
-            for name in modes.keys() {
-                let mode_json =
-                    self.merged_named_json::<ModeJson>(parent, "modes", "mode", name)?;
-                mode_json
-                    .validate()
-                    .map_err(|error| serde_json::Error::io(invalid_config_error(error)))?;
-                let mode = ModeOptions::from_json(&mode_json);
-                self.modes.insert(name.clone(), mode);
-            }
-        }
-        let child_roles = self.options.roles.as_ref();
-        inherit_named_options(&mut self.roles, child_roles, &parent.roles);
-        if let Some(roles) = child_roles {
-            for name in roles.keys() {
-                let role_json =
-                    self.merged_named_json::<RoleJson>(parent, "roles", "role", name)?;
-                role_json
-                    .validate()
-                    .map_err(|error| serde_json::Error::io(invalid_config_error(error)))?;
-                let role = RoleOptions::from_json(&role_json);
-                self.roles.insert(name.clone(), role);
-            }
-        }
-
-        let child_features = self.options.features.as_ref();
-        inherit_named_options(&mut self.features, child_features, &parent.features);
-        if let Some(features) = child_features {
-            for name in features.keys() {
-                let feature_json =
-                    self.merged_named_json::<FeatureJson>(parent, "features", "feature", name)?;
-                feature_json
-                    .validate()
-                    .map_err(|error| serde_json::Error::io(invalid_config_error(error)))?;
-                let feature = FeatureOptions::from_json(&feature_json);
-                self.features.insert(name.clone(), feature);
-            }
-        }
-
-        let child_tags = self.options.tags.as_ref();
-        inherit_named_options(&mut self.tags, child_tags, &parent.tags);
-        if let Some(tags) = child_tags {
-            for name in tags.keys() {
-                let tag_json = self.merged_named_json::<TagJson>(parent, "tags", "tag", name)?;
-                tag_json
-                    .validate()
-                    .map_err(|error| serde_json::Error::io(invalid_config_error(error)))?;
-                let tag = TagOptions::from_json(&tag_json);
-                self.tags.insert(name.clone(), tag);
-            }
-        }
-
-        if self.default_target.is_none() {
-            self.default_target = parent.default_target.clone();
-        }
-        if self.default_product.is_none() {
-            self.default_product = parent.default_product.clone();
-        }
-
-        Ok(())
-    }
-
-    /// Return one merged target JSON object for one inherited target name.
-    fn merged_target_json(
-        &self,
-        parent: &Self,
-        name: &str,
-    ) -> Result<TargetJson, serde_json::Error> {
-        let child_json = self.raw_named_json("targets", name).ok_or_else(|| {
-            serde_json::Error::io(Error::new(
-                ErrorKind::InvalidData,
-                format!("failed to find target config during inheritance: target={name}"),
-            ))
-        })?;
-        let merged_json = if let Some(parent_json) = parent.raw_named_json("targets", name) {
-            Self::merge_json(parent_json, child_json)
-        } else {
-            child_json.clone()
-        };
-
-        serde_json::from_value(merged_json)
-    }
-
-    /// Return one merged product JSON object for one inherited product name.
-    fn merged_product_json(
-        &self,
-        parent: &Self,
-        name: &str,
-    ) -> Result<ProductOptionsJson, serde_json::Error> {
-        let child_json = self.raw_named_json("products", name).ok_or_else(|| {
-            serde_json::Error::io(Error::new(
-                ErrorKind::InvalidData,
-                format!("failed to find product config during inheritance: product={name}"),
-            ))
-        })?;
-        let merged_json = if let Some(parent_json) = parent.raw_named_json("products", name) {
-            Self::merge_json(parent_json, child_json)
-        } else {
-            child_json.clone()
-        };
-
-        serde_json::from_value(merged_json)
-    }
-
-    /// Return one merged named JSON object for one inherited declaration.
-    fn merged_named_json<T>(
-        &self,
-        parent: &Self,
-        section: &str,
-        kind: &str,
-        name: &str,
-    ) -> Result<T, serde_json::Error>
-    where
-        T: DeserializeOwned,
-    {
-        let child_json = self.raw_named_json(section, name).ok_or_else(|| {
-            serde_json::Error::io(Error::new(
-                ErrorKind::InvalidData,
-                format!("failed to find {kind} config during inheritance: {kind}={name}"),
-            ))
-        })?;
-        let merged_json = if let Some(parent_json) = parent.raw_named_json(section, name) {
-            Self::merge_json(parent_json, child_json)
-        } else {
-            child_json.clone()
-        };
-
-        serde_json::from_value(merged_json)
-    }
-
-    /// Return one merged profile JSON object for one inherited profile name.
-    fn merged_profile_json(
-        &self,
-        parent: &Self,
-        name: &str,
-    ) -> Result<ProfileOptionsJson, serde_json::Error> {
-        let child_json = self.raw_named_json("profiles", name).ok_or_else(|| {
-            serde_json::Error::io(Error::new(
-                ErrorKind::InvalidData,
-                format!("failed to find profile config during inheritance: profile={name}"),
-            ))
-        })?;
-        let merged_json = if let Some(parent_json) = parent.raw_named_json("profiles", name) {
-            Self::merge_json(parent_json, child_json)
-        } else {
-            child_json.clone()
-        };
-
-        serde_json::from_value(merged_json)
-    }
-
-    /// Return one named raw JSON entry from one config section.
-    fn raw_named_json<'a>(&'a self, section: &str, name: &str) -> Option<&'a Value> {
-        self.raw_options.get(section)?.get(name)
+        Self::merge_json(&parent, child)
     }
 
     /// Merge one child JSON value over one parent JSON value.
@@ -831,7 +462,13 @@ impl DestackConfig {
 
                 for (key, child_value) in child {
                     let merged_value = if let Some(parent_value) = merged.get(key) {
-                        Self::merge_json(parent_value, child_value)
+                        if key == "policy" {
+                            Self::merge_policy_json(parent_value, child_value)
+                        } else if key == "dependencies" {
+                            Self::merge_dependency_json(parent_value, child_value)
+                        } else {
+                            Self::merge_json(parent_value, child_value)
+                        }
                     } else {
                         child_value.clone()
                     };
@@ -843,6 +480,127 @@ impl DestackConfig {
             }
             _ => child.clone(),
         }
+    }
+
+    /// Merge dependency maps without merging individual dependency declarations.
+    fn merge_dependency_json(parent: &Value, child: &Value) -> Value {
+        match (parent, child) {
+            (Value::Object(parent), Value::Object(child)) => {
+                let mut merged = parent.clone();
+
+                for (key, child_value) in child {
+                    merged.insert(key.clone(), child_value.clone());
+                }
+
+                Value::Object(merged)
+            }
+            _ => child.clone(),
+        }
+    }
+
+    /// Merge one child policy JSON value over one parent policy JSON value.
+    fn merge_policy_json(parent: &Value, child: &Value) -> Value {
+        let mut merged = Self::merge_json(parent, child);
+
+        // append policy declarations instead of replacing them
+        if let Value::Object(merged) = &mut merged {
+            Self::merge_policy_array(merged, parent, child, "requires");
+            Self::merge_policy_array(merged, parent, child, "rules");
+        }
+
+        merged
+    }
+
+    /// Merge one policy array when both declarations define it.
+    fn merge_policy_array(
+        merged: &mut serde_json::Map<String, Value>,
+        parent: &Value,
+        child: &Value,
+        key: &str,
+    ) {
+        let Some(parent_items) = parent.get(key).and_then(Value::as_array) else {
+            return;
+        };
+        let Some(child_items) = child.get(key).and_then(Value::as_array) else {
+            return;
+        };
+
+        let mut items = Vec::with_capacity(parent_items.len() + child_items.len());
+        items.extend(parent_items.iter().cloned());
+        items.extend(child_items.iter().cloned());
+
+        merged.insert(key.to_string(), Value::Array(items));
+    }
+
+    /// Apply parent restrictions that descendants cannot loosen.
+    fn apply_parent_restrictions(
+        declaration_json: &mut Value,
+        compiler: &CompilerOptions,
+        parent: &CompilerOptions,
+    ) -> Result<(), serde_json::Error> {
+        Self::apply_parent_restriction(
+            declaration_json,
+            "noManaged",
+            compiler.no_managed,
+            parent.no_managed,
+        )?;
+        Self::apply_parent_restriction(
+            declaration_json,
+            "noHeap",
+            compiler.no_heap,
+            parent.no_heap,
+        )?;
+        Self::apply_parent_restriction(
+            declaration_json,
+            "noRuntime",
+            compiler.no_runtime,
+            parent.no_runtime,
+        )?;
+        Self::apply_parent_restriction(
+            declaration_json,
+            "noInternalImport",
+            compiler.no_internal_import,
+            parent.no_internal_import,
+        )?;
+        Self::apply_parent_restriction(
+            declaration_json,
+            "noImplicitDynamicDispatch",
+            compiler.no_implicit_dynamic_dispatch,
+            parent.no_implicit_dynamic_dispatch,
+        )?;
+
+        Ok(())
+    }
+
+    /// Apply one parent restriction when it is stricter than the child.
+    fn apply_parent_restriction(
+        declaration_json: &mut Value,
+        key: &str,
+        compiler_policy: DiagnosticPolicy,
+        parent_policy: DiagnosticPolicy,
+    ) -> Result<(), serde_json::Error> {
+        if !parent_policy.is_stricter_than(compiler_policy) {
+            return Ok(());
+        }
+
+        let Some(declaration_json) = declaration_json.as_object_mut() else {
+            return Err(serde_json::Error::io(invalid_config_error(
+                "effective destack declaration must be an object",
+            )));
+        };
+
+        let compiler_json = declaration_json
+            .entry("compiler")
+            .or_insert_with(|| Value::Object(serde_json::Map::new()));
+        let Some(compiler_json) = compiler_json.as_object_mut() else {
+            return Err(serde_json::Error::io(invalid_config_error(
+                "effective compiler declaration must be an object",
+            )));
+        };
+
+        compiler_json.insert(key.to_string(), policy_json_value(parent_policy));
+
+        Ok(())
     }
 }
 
@@ -866,21 +624,17 @@ fn options_from_json<J, O>(
         .unwrap_or_default()
 }
 
-/// Inherit parent declarations not overridden by child JSON.
-fn inherit_named_options<O, J>(
-    current: &mut IndexMap<String, O>,
-    current_json: Option<&IndexMap<String, J>>,
-    parent: &IndexMap<String, O>,
-) where
-    O: Clone,
-{
-    for (name, item) in parent {
-        if current_json.is_some_and(|json| json.contains_key(name)) {
-            continue;
-        }
+/// Merge declaration file ids in inherited order.
+fn merge_declaration_file_ids(parent: &[FileId], child: &[FileId]) -> Vec<FileId> {
+    let mut file_ids = Vec::with_capacity(parent.len() + child.len());
 
-        current.insert(name.clone(), item.clone());
+    for file_id in parent.iter().chain(child) {
+        if !file_ids.contains(file_id) {
+            file_ids.push(*file_id);
+        }
     }
+
+    file_ids
 }
 
 /// Validate named JSON declarations.
@@ -898,6 +652,17 @@ fn validate_named_json_map<T>(
     }
 
     Ok(())
+}
+
+/// Return one diagnostic policy JSON value.
+fn policy_json_value(policy: DiagnosticPolicy) -> Value {
+    let value = match policy {
+        DiagnosticPolicy::Allow => "allow",
+        DiagnosticPolicy::Warn => "warn",
+        DiagnosticPolicy::Deny => "deny",
+    };
+
+    Value::String(value.to_string())
 }
 
 /// Validate named declaration inheritance edges.

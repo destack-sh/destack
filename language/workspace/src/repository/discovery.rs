@@ -4,7 +4,7 @@ use std::sync::Arc;
 use destack_source::{ModuleId, PackageId, TargetId, matches as glob_matches};
 
 use crate::repository::{Repository, RepositoryError, Revision};
-use crate::{DestackConfig, Package, Target, TargetDiscovery};
+use crate::{DestackDeclaration, Package, Target, TargetDiscovery};
 
 /// Describe a failure while discovering target modules.
 #[derive(Debug, Clone)]
@@ -151,7 +151,7 @@ impl Repository {
         revision: Revision,
         package_id: PackageId,
         target_id: TargetId,
-    ) -> Result<Option<Arc<DestackConfig>>, TargetDiscoveryError> {
+    ) -> Result<Option<Arc<DestackDeclaration>>, TargetDiscoveryError> {
         self.destack_config_for_package_id(revision, package_id)
             .map_err(|error| TargetDiscoveryError::RepositoryRead {
                 package: package_id,
