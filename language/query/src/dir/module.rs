@@ -120,7 +120,7 @@ pub(crate) fn get_module_exports_maybe(
     let mut exports = Vec::new();
 
     for (key, export) in ctx.dir().exported().exports.exports() {
-        let dir::ExportName::Named(StaticKey::Name(string_id)) = *key else {
+        let dir::ExportKey::Named(StaticKey::Name(string_id)) = *key else {
             continue;
         };
         let dir::ExportEntry::Local(export) = export else {

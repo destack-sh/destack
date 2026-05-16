@@ -13,6 +13,13 @@ pub enum ExportError {
         name: String,
     },
 
+    /// Module exports the same key twice.
+    #[diagnostic(code = "ET101", message = "duplicate export '{key}'")]
+    DuplicateExport {
+        anchor: DiagnosticAnchor,
+        key: String,
+    },
+
     /// Internal export failure.
     #[diagnostic(code = "ET900", message = "internal error: {message}")]
     Internal {
