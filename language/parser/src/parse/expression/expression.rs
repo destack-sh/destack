@@ -56,7 +56,7 @@ struct ParsedExpression {
 fn contextual_type_keyword_starts_member_path(lookahead: &IdentifierPrimaryLookahead) -> bool {
     let is_contextual_type_keyword = matches!(
         lookahead.keyword,
-        Some(Keyword::Keyof | Keyword::Readonly | Keyword::Shared)
+        Some(Keyword::Keyof | Keyword::Readonly | Keyword::Local | Keyword::Shared)
     );
     let has_member_access = lookahead.next_token_type == TokenType::Dot
         || (lookahead.next_token_type == TokenType::Maybe
@@ -728,6 +728,7 @@ impl Parser {
             Keyword::Typeof => TypeUnaryOperator::Typeof,
             Keyword::Keyof => TypeUnaryOperator::Keyof,
             Keyword::Readonly => TypeUnaryOperator::Readonly,
+            Keyword::Local if self.language.is_destack() => TypeUnaryOperator::Local,
             Keyword::Shared if self.language.is_destack() => TypeUnaryOperator::Shared,
             _ => unreachable!(),
         };
@@ -780,6 +781,16 @@ impl Parser {
                 )?;
 
                 TypeExpression::Readonly { target_type }
+            }
+            TypeUnaryOperator::Local => {
+                let target_type = self.eat_type_expression_or_recover_missing(
+                    self.flags
+                        .with_ambient_context(right_ambient_context)
+                        .with_expression_context(right_expression_context),
+                    NodeType::Expression,
+                )?;
+
+                TypeExpression::Local { target_type }
             }
             TypeUnaryOperator::Shared => {
                 let target_type = self.eat_type_expression_or_recover_missing(
@@ -916,7 +927,7 @@ impl Parser {
             lookahead.keyword,
             Some(Keyword::Typeof | Keyword::Keyof | Keyword::Readonly)
         ) || self.language.is_destack()
-            && lookahead.keyword == Some(Keyword::Shared);
+            && matches!(lookahead.keyword, Some(Keyword::Local | Keyword::Shared));
 
         // shorthand lambda form
         if !self.flags.is_in_match_case()
@@ -1053,7 +1064,7 @@ impl Parser {
             lookahead.keyword,
             Some(Keyword::Typeof | Keyword::Keyof | Keyword::Readonly)
         ) || self.language.is_destack()
-            && lookahead.keyword == Some(Keyword::Shared);
+            && matches!(lookahead.keyword, Some(Keyword::Local | Keyword::Shared));
 
         // plain identifier path or contextual literal
         if lookahead.keyword.is_none() && !self.flags.is_in_decorator() {
@@ -1980,6 +1991,16 @@ impl Parser {
                 )?;
 
                 TypeExpression::Readonly { target_type }
+            }
+            TypeUnaryOperator::Local => {
+                let target_type = self.eat_type_expression_or_recover_missing(
+                    self.flags
+                        .with_type(true)
+                        .with_expression_context(right_flags),
+                    NodeType::Expression,
+                )?;
+
+                TypeExpression::Local { target_type }
             }
             TypeUnaryOperator::Shared => {
                 let target_type = self.eat_type_expression_or_recover_missing(

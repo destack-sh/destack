@@ -28,6 +28,8 @@ pub(crate) enum TypeUnaryOperator {
     Keyof,
     /// `readonly T`
     Readonly,
+    /// `local T`
+    Local,
     /// `shared T`
     Shared,
     /// `!T`
@@ -44,6 +46,7 @@ impl TypeUnaryOperator {
             TypeUnaryOperator::Typeof => TYPE_UNARY_PRECEDENCE + 4,
             TypeUnaryOperator::Keyof => TYPE_UNARY_PRECEDENCE + 3,
             TypeUnaryOperator::Readonly => TYPE_UNARY_PRECEDENCE + 3,
+            TypeUnaryOperator::Local => TYPE_UNARY_PRECEDENCE + 3,
             TypeUnaryOperator::Shared => TYPE_UNARY_PRECEDENCE + 3,
             TypeUnaryOperator::Not => TYPE_UNARY_PRECEDENCE + 3,
             TypeUnaryOperator::AsComptime => TYPE_UNARY_PRECEDENCE + 2,
@@ -61,6 +64,7 @@ impl TypeUnaryOperator {
             "typeof" => Some(TypeUnaryOperator::Typeof),
             "keyof" => Some(TypeUnaryOperator::Keyof),
             "readonly" => Some(TypeUnaryOperator::Readonly),
+            "local" => Some(TypeUnaryOperator::Local),
             "shared" => Some(TypeUnaryOperator::Shared),
             _ => None,
         }
@@ -367,7 +371,11 @@ impl Parser {
         let token = *self.peek().ok()?;
         let token_str = self.get_span_str(token.span);
         let operator = TypeUnaryOperator::from_prefix_token(token_str, token.token.ty)?;
-        if operator == TypeUnaryOperator::Shared && !self.language.is_destack() {
+        if matches!(
+            operator,
+            TypeUnaryOperator::Local | TypeUnaryOperator::Shared
+        ) && !self.language.is_destack()
+        {
             return None;
         }
 
