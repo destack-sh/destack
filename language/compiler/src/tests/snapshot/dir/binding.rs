@@ -13,7 +13,7 @@ impl SnapshotTable for dir::BindingSegment {
             let anchor = builder.anchor_scope(self.module_id, scope_id, scope, &node_scopes);
             let row = SnapshotRow::new(anchor, "binding", "scope")
                 .field("scope", builder.scope_label(scope_id))
-                .field("kind", value::debug(scope.kind))
+                .field("kind", value::debug_label(scope.kind))
                 .optional_field("parent", builder.optional_scope_label(scope.parent))
                 .optional_field("owner", builder.optional_local_symbol_label(scope.owner));
             builder.push(row);
@@ -26,20 +26,20 @@ impl SnapshotTable for dir::BindingSegment {
             let mut row =
                 SnapshotRow::new(builder.anchor_symbol(global_symbol_id), "binding", "symbol")
                     .field("name", builder.local_symbol_label(symbol_id))
-                    .field("role", value::debug(symbol.role))
-                    .field("form", value::debug(symbol.form))
+                    .field("role", value::debug_label(symbol.role))
+                    .field("form", value::debug_label(symbol.form))
                     .field("scope", builder.scope_cursor_label(symbol.scope));
 
             if let Some(mutability) = symbol.binding_mutability {
-                row = row.field("mutability", value::debug(mutability));
+                row = row.field("mutability", value::debug_label(mutability));
             }
 
             if symbol.origin != dir::SymbolOrigin::Module {
-                row = row.field("origin", value::debug(symbol.origin));
+                row = row.field("origin", value::debug_label(symbol.origin));
             }
 
             if let Some(export_kind) = symbol.export_kind {
-                row = row.field("export", value::debug(export_kind));
+                row = row.field("export", value::debug_label(export_kind));
             }
 
             builder.push(row);
@@ -48,9 +48,9 @@ impl SnapshotTable for dir::BindingSegment {
         // render replacement segments when a patch masks old bindings
         for (symbol_id, symbol) in self.replaced_symbols() {
             let row = SnapshotRow::new(SnapshotAnchor::End, "binding", "replaced_symbol")
-                .field("name", value::local_symbol(symbol_id))
-                .field("role", value::debug(symbol.role))
-                .field("form", value::debug(symbol.form));
+                .field("name", value::local_symbol_label(symbol_id))
+                .field("role", value::debug_label(symbol.role))
+                .field("form", value::debug_label(symbol.form));
             builder.push(row);
         }
 

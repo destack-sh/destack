@@ -10,19 +10,23 @@ impl SnapshotTable for dir::TypeSegment {
             let mut row = SnapshotRow::new(builder.anchor_node(node_id), "type", "node")
                 .field("node", builder.node_label(node_id));
 
-            value::add_optional_type(&mut row, "declared", entry.declared);
-            value::add_optional_type(&mut row, "inferred", entry.inferred);
-            value::add_optional_type(&mut row, "receiver", entry.receiver);
-            value::add_optional_type(&mut row, "contextual", entry.contextual);
-            value::add_optional_type(&mut row, "signature", entry.signature);
-            value::add_optional_instantiation(&mut row, "instantiation", entry.instantiation);
+            row = row
+                .optional_field("declared", value::optional_type_label(entry.declared))
+                .optional_field("inferred", value::optional_type_label(entry.inferred))
+                .optional_field("receiver", value::optional_type_label(entry.receiver))
+                .optional_field("contextual", value::optional_type_label(entry.contextual))
+                .optional_field("signature", value::optional_type_label(entry.signature))
+                .optional_field(
+                    "instantiation",
+                    value::optional_instantiation_label(entry.instantiation),
+                );
 
             if let Some(addressability) = entry.addressability {
-                row = row.field("addressability", value::debug(addressability));
+                row = row.field("addressability", value::debug_label(addressability));
             }
 
             if let Some(resolution) = &entry.resolution {
-                row = row.field("resolution", value::resolution(builder, resolution));
+                row = row.field("resolution", value::resolution_label(builder, resolution));
             }
 
             builder.push(row);
@@ -35,9 +39,12 @@ impl SnapshotTable for dir::TypeSegment {
 
             if let Some(parameter) = entry.generic_parameter {
                 row = row
-                    .field("parameter", value::debug(parameter.space))
-                    .optional_field("constraint", value::optional_type_id(parameter.constraint))
-                    .optional_field("variance", value::optional_debug(parameter.variance));
+                    .field("parameter", value::debug_label(parameter.space))
+                    .optional_field(
+                        "constraint",
+                        value::optional_type_label(parameter.constraint),
+                    )
+                    .optional_field("variance", value::optional_debug_label(parameter.variance));
             }
 
             if let Some(parameters) = &entry.generic_parameter_symbols {
@@ -51,9 +58,10 @@ impl SnapshotTable for dir::TypeSegment {
                 );
             }
 
-            value::add_optional_type(&mut row, "instance", entry.instance_type);
-            value::add_optional_type(&mut row, "value", entry.value_type);
-            value::add_optional_type(&mut row, "alias", entry.alias_target_type);
+            row = row
+                .optional_field("instance", value::optional_type_label(entry.instance_type))
+                .optional_field("value", value::optional_type_label(entry.value_type))
+                .optional_field("alias", value::optional_type_label(entry.alias_target_type));
 
             if let Some(lineage_id) = entry.lineage_id {
                 row = row.field("lineage", lineage_id.to_string());

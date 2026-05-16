@@ -5,7 +5,7 @@ use crate::tests::snapshot::{SnapshotAnchor, SnapshotRow};
 
 impl SnapshotTable for dir::ExportTable {
     fn add_snapshot_rows(&self, builder: &mut DirSnapshotBuilder<'_>) {
-        for export in self.export_by_name.values() {
+        for export in self.export_by_key.values() {
             match export {
                 dir::ExportEntry::Local(export) => {
                     let symbol_id = export.source.into_global(builder.tree.module_id);
@@ -16,16 +16,21 @@ impl SnapshotTable for dir::ExportTable {
                         builder.anchor_symbol(symbol_id)
                     };
                     let row = SnapshotRow::new(anchor, "export", "local")
-                        .field("name", value::export_name(builder, export.name))
+                        .field("key", value::export_key_label(builder, export.key))
                         .field("source", builder.local_symbol_label(export.source));
                     builder.push(row);
                 }
                 dir::ExportEntry::Indirect(export) => {
                     let node_id = export.item.into_global(builder.tree.module_id).into_any();
                     let row = SnapshotRow::new(builder.anchor_node(node_id), "export", "indirect")
-                        .field("name", value::export_name(builder, export.name))
-                        .field("import", value::export_selector(builder, export.imported));
-                    let row = value::add_dependency_target(row, builder, export.target);
+                        .field("key", value::export_key_label(builder, export.key))
+                        .field(
+                            "import",
+                            value::export_selector_label(builder, export.imported),
+                        );
+                    let (target_key, target_value) =
+                        value::dependency_target_field(builder, export.target);
+                    let row = row.field(target_key, target_value);
                     builder.push(row);
                 }
             }
@@ -34,12 +39,13 @@ impl SnapshotTable for dir::ExportTable {
         for export in &self.star_exports {
             let node_id = export.item.into_global(builder.tree.module_id).into_any();
             let row = SnapshotRow::new(builder.anchor_node(node_id), "export", "star");
-            let row = value::add_dependency_target(row, builder, export.target);
+            let (target_key, target_value) = value::dependency_target_field(builder, export.target);
+            let row = row.field(target_key, target_value);
             builder.push(row);
         }
 
         let row = SnapshotRow::new(SnapshotAnchor::End, "export", "summary")
-            .field("exports", self.export_by_name.len().to_string())
+            .field("exports", self.export_by_key.len().to_string())
             .field("stars", self.star_exports.len().to_string());
         builder.push(row);
     }
