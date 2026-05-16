@@ -130,4 +130,18 @@ impl Loader {
 
         Some(self.as_str())
     }
+
+    /// Return the canonical extension for this loader when it has one.
+    pub fn extension(self) -> Option<&'static str> {
+        match self {
+            Self::Destack => Some("ds"),
+            Self::TypeScript => Some("ts"),
+            Self::JavaScript => Some("js"),
+            Self::Json => Some("json"),
+            Self::Toml => Some("toml"),
+            Self::Yaml => Some("yaml"),
+            Self::Text => Some("txt"),
+            Self::Binary | Self::File | Self::Base64 => None,
+        }
+    }
 }
