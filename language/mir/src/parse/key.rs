@@ -1,9 +1,9 @@
 use destack_core::StringId;
 
 use crate::{
-    Access, AddressSpace, Attribute, Copy, Field, FloatType, Lifetime, LocalNodeId, Nullability,
-    ReferenceKind, TensorDimension, TensorLayout, TensorViewLayout, Type, TypeReference,
-    VariantCase,
+    Access, AddressSpace, Attribute, BorrowObligation, Copy, Field, FloatType, Lifetime,
+    LocalNodeId, Nullability, ReferenceKind, TensorDimension, TensorLayout, TensorViewLayout, Type,
+    TypeReference, VariantCase,
 };
 
 /// Interning key for struct fields.
@@ -124,6 +124,7 @@ pub(super) enum TypeKey {
     FunctionSignature {
         parameters: Vec<TypeReference>,
         result: TypeReference,
+        borrow_obligations: Vec<BorrowObligation>,
     },
     /// Function pointer type.
     FunctionPointer { signature: TypeReference },
@@ -256,9 +257,14 @@ impl TypeKey {
                 nullability: *nullability,
             },
 
-            Type::FunctionSignature { parameters, result } => TypeKey::FunctionSignature {
+            Type::FunctionSignature {
+                parameters,
+                result,
+                borrow_obligations,
+            } => TypeKey::FunctionSignature {
                 parameters: parameters.clone(),
                 result: *result,
+                borrow_obligations: borrow_obligations.clone(),
             },
             Type::FunctionPointer { signature } => TypeKey::FunctionPointer {
                 signature: *signature,

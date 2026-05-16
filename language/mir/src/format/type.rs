@@ -5,10 +5,10 @@ use destack_fir::write;
 use super::attribute::{write_attributes, write_attributes_before_anchor, write_inline_attributes};
 
 use crate::{
-    Access, AddressSpace, Attribute, AttributeIdentifier, Copy, Field, FieldSpan, FormatMirNode,
-    Lifetime, LifetimeOrigin, LocalNodeId, MirFormatContext, MirFormatter, Nullability,
-    ReferenceKind, TensorDimension, TensorDimensionOrder, TensorLayout, TensorViewLayout, Type,
-    TypeAlias, TypeDeclarationSpans, TypeReference, write_comments_before,
+    Access, AddressSpace, Attribute, AttributeIdentifier, BorrowObligation, Copy, Field, FieldSpan,
+    FormatMirNode, Lifetime, LifetimeOrigin, LocalNodeId, MirFormatContext, MirFormatter,
+    Nullability, ReferenceKind, TensorDimension, TensorDimensionOrder, TensorLayout,
+    TensorViewLayout, Type, TypeAlias, TypeDeclarationSpans, TypeReference, write_comments_before,
 };
 
 impl<'a> FormatMirNode<'a, Type> for Type {
@@ -438,7 +438,11 @@ fn format_type_inner<'a>(
             }
             write!(f, [token(">")])
         }
-        Type::FunctionSignature { parameters, result } => {
+        Type::FunctionSignature {
+            parameters,
+            result,
+            borrow_obligations,
+        } => {
             write!(f, [token("(")])?;
             for (i, param) in parameters.iter().enumerate() {
                 if i > 0 {
@@ -446,12 +450,18 @@ fn format_type_inner<'a>(
                 }
                 write!(f, [param])?;
             }
-            write!(f, [token(")"), space(), token("->"), space(), result])
+            write!(f, [token(")"), space(), token("->"), space(), result])?;
+            format_borrow_obligations(borrow_obligations, f)
         }
         Type::FunctionPointer { signature } | Type::Callable { signature, .. } => {
             if let TypeReference::Type(signature) = *signature {
                 let signature_type = f.context().tree.get(signature);
-                if let Type::FunctionSignature { parameters, result } = signature_type {
+                if let Type::FunctionSignature {
+                    parameters,
+                    result,
+                    borrow_obligations,
+                } = signature_type
+                {
                     write!(f, [token("(")])?;
                     for (i, param) in parameters.iter().enumerate() {
                         if i > 0 {
@@ -465,6 +475,7 @@ fn format_type_inner<'a>(
                         _ => unreachable!(),
                     };
                     write!(f, [token(")"), space(), token(arrow), space(), result])?;
+                    format_borrow_obligations(borrow_obligations, f)?;
                     return Ok(());
                 }
             }
@@ -608,7 +619,31 @@ fn format_lifetime<'a>(lifetime: &Lifetime, f: &mut MirFormatter<'a, '_>) -> For
         return Ok(());
     }
 
-    write!(f, [token(","), space(), token("lifetime"), token("(")])?;
+    write!(f, [token(","), space(), token("lifetime")])?;
+    format_lifetime_group(lifetime, f)
+}
+
+pub(super) fn format_borrow_obligations<'a>(
+    obligations: &[BorrowObligation],
+    f: &mut MirFormatter<'a, '_>,
+) -> FormatResult<()> {
+    for obligation in obligations {
+        match obligation {
+            BorrowObligation::SuspensionStable { lifetime } => {
+                write!(f, [space(), token("@"), token("suspensionSafe")])?;
+                format_lifetime_group(lifetime, f)?;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn format_lifetime_group<'a>(
+    lifetime: &Lifetime,
+    f: &mut MirFormatter<'a, '_>,
+) -> FormatResult<()> {
+    write!(f, [token("(")])?;
     for (index, source) in lifetime.origins.iter().enumerate() {
         if index > 0 {
             write!(f, [token(","), space()])?;

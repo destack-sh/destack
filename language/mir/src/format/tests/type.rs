@@ -70,6 +70,20 @@ entry0(value0: ref<int32, borrowed, lifetime(static)>):
     );
 }
 
+/// Formats callable suspension contracts canonically.
+#[test]
+fn test_format_callable_suspension_contract() {
+    assert_format(
+        r#"
+function callContract(value0: (ref<int32, borrowed, readonly>) -> int32 @suspensionSafe(0), value1: ref<int32, borrowed, readonly>): int32 {
+entry0(value0: (ref<int32, borrowed, readonly>) -> int32 @suspensionSafe(0), value1: ref<int32, borrowed, readonly>):
+    value2: int32 = call.indirect value0(value1): (ref<int32, borrowed, readonly>) -> int32 @suspensionSafe(0)
+    return value2
+}
+"#,
+    );
+}
+
 /// Formats borrowed shaped views canonically.
 #[test]
 fn test_format_borrowed_shaped_views() {
