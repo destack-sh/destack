@@ -53,12 +53,15 @@ impl Compiler {
         let parsed = self
             .dir_parsed(context, module)
             .map_err(CompilerError::from)?;
+        let bound = self
+            .dir_bound(context, module, profile)
+            .map_err(CompilerError::from)?;
         let module = self.module(context.revision(), module);
 
         // build local dependency table
         let view = dir::View::new(&parsed.tree);
         let mut state = ImportState::new(context.revision(), module.as_ref(), self.strings(), view);
-        self.collect_dependencies(&mut state, &parsed.roots)?;
+        self.collect_dependencies(&mut state, &bound.roots)?;
         let (imported, diagnostics) = state.finish();
         for diagnostic in diagnostics {
             self.emit_diagnostic(context, diagnostic)?;

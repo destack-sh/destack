@@ -1,12 +1,10 @@
 use std::path::{Path, PathBuf};
 
 use destack_dir as dir;
-use destack_source::{Loader, ModuleSpecifier};
+use destack_source::{FileType, Loader, ModuleId, ModuleSpecifier};
 
 use crate::import::state::ImportState;
-use crate::{Compiler, CompilerResult, ImportError};
-
-const SOURCE_EXTENSION_CANDIDATES: &[&str] = &["ds", "d.ds", "ts", "tsx", "js", "jsx"];
+use crate::{Compiler, CompilerResult, DiagnosticAnchor, ImportError};
 
 impl Compiler {
     /// Import one binding dependency edge.
@@ -44,7 +42,7 @@ impl Compiler {
     ) -> CompilerResult<()> {
         // resolve loader and module target
         let loader = self.loader_for_attributes(state, expression_id, attributes)?;
-        let target = self.resolve_dependency_target(state, specifier, loader, expression_id)?;
+        let target = self.dependency_target(state, expression_id, specifier, loader)?;
 
         // append dependency edge
         let dependency = dir::DependencyEdge {
@@ -119,64 +117,65 @@ impl Compiler {
         }
     }
 
-    /// Resolve one dependency target inside the sealed repository revision.
-    fn resolve_dependency_target(
+    /// Return the dependency target for one module specifier.
+    fn dependency_target(
         &self,
         state: &mut ImportState<'_>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
         specifier: dir::StringId,
         loader: Option<Loader>,
-        expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<dir::DependencyTarget> {
         let specifier_text = state.strings().get(specifier).to_string();
         let specifier_text = specifier_text.as_str();
+        let anchor = state.anchor_node(expression_id.id)?;
 
-        // preserve explicit host modules for the linker
+        // preserve explicit host modules
         if is_protocol_specifier(specifier_text) {
             return Ok(dir::DependencyTarget::External(specifier));
         }
 
-        // reject unsupported package and absolute forms
-        if !is_relative_specifier(specifier_text) {
+        // reject non relative module specifiers
+        let specifier_parts = if is_relative_specifier(specifier_text) {
+            ModuleSpecifier::parse(specifier_text)
+        } else {
             state.push_diagnostic(ImportError::UnsupportedModuleSpecifier {
-                anchor: state.anchor_node(expression_id.id)?,
+                anchor,
                 target: specifier_text.to_string(),
             });
 
             return Ok(dir::DependencyTarget::Unresolved);
-        }
+        };
 
         // reject local query and fragment syntax
-        let specifier_parts = ModuleSpecifier::parse(specifier_text);
         if specifier_parts.query.is_some() || specifier_parts.fragment.is_some() {
             state.push_diagnostic(ImportError::UnsupportedModuleSpecifier {
-                anchor: state.anchor_node(expression_id.id)?,
+                anchor,
                 target: specifier_text.to_string(),
             });
 
             return Ok(dir::DependencyTarget::Unresolved);
         }
 
-        // resolve local module paths inside the sealed revision
-        let candidates =
-            self.local_dependency_candidates(state, specifier_parts.path(), loader, expression_id)?;
-        let mut matches = Vec::new();
-        for path in candidates {
-            if let Some(module_id) = self.module_id_for_path(state.revision, &path)? {
-                matches.push((path, module_id));
-            }
-        }
+        // look up local modules
+        let Some(matches) =
+            self.candidate_dependencies(state, &anchor, specifier_parts.path(), loader)?
+        else {
+            return Ok(dir::DependencyTarget::Unresolved);
+        };
 
         match matches.as_slice() {
+            // no module matched
             [] => {
                 state.push_diagnostic(ImportError::UnresolvedModule {
-                    anchor: state.anchor_node(expression_id.id)?,
+                    anchor,
                     target: specifier_text.to_string(),
                 });
 
                 Ok(dir::DependencyTarget::Unresolved)
             }
-            [(_, module_id)] => {
-                let anchor = state.anchor_node(expression_id.id)?;
+
+            // exactly one module matched
+            [(path, module_id)] => {
                 let module = self
                     .repository
                     .module(state.revision, *module_id)
@@ -189,17 +188,31 @@ impl Compiler {
                         message: format!("missing dependency module {module_id:?}"),
                     })?;
 
+                // reject direct imports of conditional module files
+                let file_id = self.repository.file_id(&path);
+                if file_id != module.file_id {
+                    state.push_diagnostic(ImportError::UnsupportedModuleSpecifier {
+                        anchor,
+                        target: specifier_text.to_string(),
+                    });
+
+                    return Ok(dir::DependencyTarget::Unresolved);
+                }
+
+                // accept same-package local modules
                 if module.package_id == state.module.package_id {
                     Ok(dir::DependencyTarget::Module(*module_id))
                 } else {
                     state.push_diagnostic(ImportError::CrossPackageImport {
-                        anchor: state.anchor_node(expression_id.id)?,
+                        anchor,
                         target: specifier_text.to_string(),
                     });
 
                     Ok(dir::DependencyTarget::Unresolved)
                 }
             }
+
+            // multiple modules matched
             _ => {
                 let candidates = matches
                     .iter()
@@ -208,7 +221,7 @@ impl Compiler {
                     .join(", ");
 
                 state.push_diagnostic(ImportError::AmbiguousModuleSpecifier {
-                    anchor: state.anchor_node(expression_id.id)?,
+                    anchor,
                     target: specifier_text.to_string(),
                     candidates,
                 });
@@ -218,16 +231,40 @@ impl Compiler {
         }
     }
 
-    /// Return candidate local module paths for one relative specifier.
-    fn local_dependency_candidates(
+    /// Return local dependency matches for one relative module specifier.
+    fn candidate_dependencies(
         &self,
         state: &mut ImportState<'_>,
+        anchor: &DiagnosticAnchor,
         specifier: &str,
         loader: Option<Loader>,
-        expression_id: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<Vec<PathBuf>> {
-        // resolve against current module path
-        let anchor = state.anchor_node(expression_id.id)?;
+    ) -> CompilerResult<Option<Vec<(PathBuf, ModuleId)>>> {
+        let Some(candidates) =
+            self.candidate_dependencies_paths(state, anchor, specifier, loader)?
+        else {
+            return Ok(None);
+        };
+        let mut matches = Vec::new();
+
+        // collect modules for existing candidate paths
+        for path in candidates {
+            let module_id = self.module_id_for_path(state.revision, &path)?;
+            if let Some(module_id) = module_id {
+                matches.push((path, module_id));
+            }
+        }
+
+        Ok(Some(matches))
+    }
+
+    /// Return candidate local module paths for one relative specifier.
+    fn candidate_dependencies_paths(
+        &self,
+        state: &mut ImportState<'_>,
+        anchor: &DiagnosticAnchor,
+        specifier: &str,
+        loader: Option<Loader>,
+    ) -> CompilerResult<Option<Vec<PathBuf>>> {
         let specifier_path = Path::new(specifier);
         let current_path = state
             .module
@@ -237,6 +274,8 @@ impl Compiler {
                 anchor: anchor.clone(),
                 message: format!("module {:?} has no dependency base path", state.module.id),
             })?;
+
+        // resolve against the current module path
         let path = if specifier_path.is_absolute() {
             specifier_path.to_path_buf()
         } else {
@@ -249,29 +288,31 @@ impl Compiler {
         };
         let Some(path) = self.normalize_workspace_path(path) else {
             state.push_diagnostic(ImportError::UnsupportedModuleSpecifier {
-                anchor,
+                anchor: anchor.clone(),
                 target: specifier.to_string(),
             });
 
-            return Ok(Vec::new());
+            return Ok(None);
         };
 
         // use exact file paths as written
         if path.extension().is_some() {
-            return Ok(vec![path]);
+            return Ok(Some(vec![path]));
         }
 
         // use loader extension when explicitly selected
         if let Some(extension) = loader.and_then(Loader::extension) {
-            return Ok(vec![path.with_extension(extension)]);
+            return Ok(Some(vec![path.with_extension(extension)]));
         }
 
-        let candidates = SOURCE_EXTENSION_CANDIDATES
+        // try supported code module extensions in deterministic order
+        let candidates = FileType::CODE_MODULE_EXTENSION_CANDIDATES
             .iter()
+            .filter_map(FileType::extension)
             .map(|extension| path.with_extension(extension))
             .collect();
 
-        Ok(candidates)
+        Ok(Some(candidates))
     }
 }
 
