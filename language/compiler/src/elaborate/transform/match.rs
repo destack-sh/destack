@@ -86,9 +86,7 @@ impl Compiler {
         state: &mut ElaborateState<'_>,
         match_id: LocalNodeId<Expression>,
     ) -> ElaborateResult<LocalTypeId> {
-        if let Some(type_id) = state
-            .types
-            .get_declared_or_inferred_type_id(match_id.into_global_any(state.tree.module_id))
+        if let Some(type_id) = state.type_table().get_declared_or_inferred_type_id(match_id.into_global_any(state.tree.module_id))
         {
             return Ok(type_id);
         }
@@ -106,7 +104,7 @@ impl Compiler {
                 MatchCase::Block { body, .. } => body.into_global_any(state.tree.module_id),
             };
 
-            let Some(body_type_id) = state.types.get_declared_or_inferred_type_id(body_id) else {
+            let Some(body_type_id) = state.type_table().get_declared_or_inferred_type_id(body_id) else {
                 return Err(ElaborateError::UnsupportedConstruct {
                     anchor: state.module_id.into(),
                 });
@@ -130,7 +128,7 @@ impl Compiler {
         };
 
         state
-            .types
+            .types_tail
             .set_inferred_type(match_id.into_global_any(state.tree.module_id), case_type_id);
 
         Ok(case_type_id)
@@ -168,14 +166,12 @@ impl Compiler {
                 let block_expr: LocalNodeId<Expression> = state
                     .tree
                     .insert_as_owner(block_expr_id, Expression::Block(*body));
-                let block_type_id = state
-                    .types
-                    .get_declared_or_inferred_type_id(body.into_global_any(state.tree.module_id))
+                let block_type_id = state.type_table().get_declared_or_inferred_type_id(body.into_global_any(state.tree.module_id))
                     .ok_or_else(|| ElaborateError::UnsupportedConstruct {
                         anchor: state.module_id.into(),
                     })?;
                 self.set_expression_type(
-                    state.types,
+                    state.types_tail,
                     state.tree.module_id,
                     block_expr,
                     block_type_id,
@@ -410,7 +406,7 @@ impl Compiler {
         );
 
         // record the match type on the expression
-        self.set_expression_type(state.types, state.tree.module_id, if_expr, match_type_id);
+        self.set_expression_type(state.types_tail, state.tree.module_id, if_expr, match_type_id);
 
         if_expr
     }
@@ -1338,9 +1334,7 @@ impl Compiler {
         let expr_id = self.insert_is_type_check_expression(state, match_id, value, ty, scope);
 
         // resolve the value type for runtime checks
-        let Some(value_type_id) = state
-            .types
-            .get_declared_or_inferred_type_id(value.into_global_any(state.tree.module_id))
+        let Some(value_type_id) = state.type_table().get_declared_or_inferred_type_id(value.into_global_any(state.tree.module_id))
         else {
             return Err(ElaborateError::UnsupportedConstruct {
                 anchor: state.module_id.into(),
@@ -1348,9 +1342,7 @@ impl Compiler {
         };
 
         // resolve the target type for runtime checks
-        let Some(target_type_id) = state
-            .types
-            .get_declared_or_inferred_type_id(ty.into_global_any(state.tree.module_id))
+        let Some(target_type_id) = state.type_table().get_declared_or_inferred_type_id(ty.into_global_any(state.tree.module_id))
         else {
             return Err(ElaborateError::UnsupportedConstruct {
                 anchor: state.module_id.into(),
@@ -1358,7 +1350,8 @@ impl Compiler {
         };
 
         // derive and record the runtime check kind
-        let guard_entry = self.guard_entry_for_relation(state.types, value_type_id, target_type_id);
+        let guard_entry =
+            self.guard_entry_for_relation(&state.type_table(), value_type_id, target_type_id);
         let Some(guard_entry) = guard_entry else {
             return Err(ElaborateError::UnsupportedConstruct {
                 anchor: state.module_id.into(),
@@ -1438,7 +1431,7 @@ impl Compiler {
             },
         );
         self.set_scalar_literal_type(
-            state.types,
+            state.types_tail,
             state.tree.module_id,
             index_expr,
             ScalarLiteral::Integer(index as i64),
@@ -1468,7 +1461,7 @@ impl Compiler {
             })?;
 
         // assign the element type
-        self.set_expression_type(state.types, state.tree.module_id, expr_id, element_type_id);
+        self.set_expression_type(state.types_tail, state.tree.module_id, expr_id, element_type_id);
         Ok(expr_id)
     }
 
@@ -1507,7 +1500,7 @@ impl Compiler {
             })?;
 
         // assign the field type
-        self.set_expression_type(state.types, state.tree.module_id, expr_id, field_type_id);
+        self.set_expression_type(state.types_tail, state.tree.module_id, expr_id, field_type_id);
         Ok(expr_id)
     }
 
@@ -1741,16 +1734,14 @@ impl Compiler {
         let expr_id = state
             .tree
             .insert_as_owner(block_expr_id, Expression::Block(block));
-        let body_type_id = state
-            .types
-            .get_declared_or_inferred_type_id(body.into_global_any(state.tree.module_id))
+        let body_type_id = state.type_table().get_declared_or_inferred_type_id(body.into_global_any(state.tree.module_id))
             .ok_or_else(|| ElaborateError::UnsupportedConstruct {
                 anchor: state.module_id.into(),
             })?;
         state
-            .types
+            .types_tail
             .set_inferred_type(block.into_global_any(state.tree.module_id), body_type_id);
-        self.set_expression_type(state.types, state.tree.module_id, expr_id, body_type_id);
+        self.set_expression_type(state.types_tail, state.tree.module_id, expr_id, body_type_id);
         Ok(expr_id)
     }
 
@@ -1766,20 +1757,16 @@ impl Compiler {
     ) -> ElaborateResult<LocalNodeId<Expression>> {
         // don't double wrap if already a block
         if let Expression::Block(block) = state.tree.get(body) {
-            let body_type_id = state
-                .types
-                .get_declared_or_inferred_type_id(body.into_global_any(state.tree.module_id));
+            let body_type_id = state.type_table().get_declared_or_inferred_type_id(body.into_global_any(state.tree.module_id));
             if let Some(_body_type_id) = body_type_id {
                 return Ok(body);
             }
 
-            let block_type_id = state
-                .types
-                .get_declared_or_inferred_type_id(block.into_global_any(state.tree.module_id))
+            let block_type_id = state.type_table().get_declared_or_inferred_type_id(block.into_global_any(state.tree.module_id))
                 .ok_or_else(|| ElaborateError::UnsupportedConstruct {
                     anchor: state.module_id.into(),
                 })?;
-            self.set_expression_type(state.types, state.tree.module_id, body, block_type_id);
+            self.set_expression_type(state.types_tail, state.tree.module_id, body, block_type_id);
 
             return Ok(body);
         }
@@ -1814,16 +1801,14 @@ impl Compiler {
         let expr_id = state
             .tree
             .insert_as_owner(block_expr_id, Expression::Block(block));
-        let body_type_id = state
-            .types
-            .get_declared_or_inferred_type_id(body.into_global_any(state.tree.module_id))
+        let body_type_id = state.type_table().get_declared_or_inferred_type_id(body.into_global_any(state.tree.module_id))
             .ok_or_else(|| ElaborateError::UnsupportedConstruct {
                 anchor: state.module_id.into(),
             })?;
         state
-            .types
+            .types_tail
             .set_inferred_type(block.into_global_any(state.tree.module_id), body_type_id);
-        self.set_expression_type(state.types, state.tree.module_id, expr_id, body_type_id);
+        self.set_expression_type(state.types_tail, state.tree.module_id, expr_id, body_type_id);
         Ok(expr_id)
     }
 
@@ -1854,11 +1839,9 @@ impl Compiler {
         value: LocalNodeId<Expression>,
         index: usize,
     ) -> Option<LocalTypeId> {
-        let value_type_id = state
-            .types
-            .get_declared_or_inferred_type_id(value.into_global_any(state.tree.module_id))?;
-        let value_type_id = state.types.unwrap_value_type_id(value_type_id);
-        let value_type = state.types.get_type(value_type_id);
+        let value_type_id = state.type_table().get_declared_or_inferred_type_id(value.into_global_any(state.tree.module_id))?;
+        let value_type_id = state.type_table().unwrap_value_type_id(value_type_id);
+        let value_type = state.type_table().get_type(value_type_id);
 
         match value_type {
             dir::Type::Tuple(tuple) => tuple.elements.get(index).map(|element| element.ty),
@@ -1875,11 +1858,9 @@ impl Compiler {
         value: LocalNodeId<Expression>,
         name: StringId,
     ) -> Option<LocalTypeId> {
-        let value_type_id = state
-            .types
-            .get_declared_or_inferred_type_id(value.into_global_any(state.tree.module_id))?;
-        let value_type_id = state.types.unwrap_value_type_id(value_type_id);
-        let value_type = state.types.get_type(value_type_id);
+        let value_type_id = state.type_table().get_declared_or_inferred_type_id(value.into_global_any(state.tree.module_id))?;
+        let value_type_id = state.type_table().unwrap_value_type_id(value_type_id);
+        let value_type = state.type_table().get_type(value_type_id);
 
         match value_type {
             dir::Type::Object(object) => object

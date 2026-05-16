@@ -32,13 +32,13 @@ pub(crate) struct FunctionLoweringContext<'a> {
     /// Provide access to the DIR tree for expression lookup.
     pub(crate) dir_tree: &'a dir::Tree,
     /// Provide access to symbol metadata for type resolution.
-    pub(crate) symbols: &'a dir::BindingTable,
+    pub(crate) symbols: &'a dir::BindingTable<'a>,
     /// Provide access to inferred and declared types.
-    pub(crate) types: &'a dir::TypeTable,
+    pub(crate) types: &'a dir::TypeTable<'a>,
     /// Elaborated type guard entries.
     pub(crate) guards: &'a dir::GuardTable,
     /// Provide access to capture metadata for closures.
-    pub(crate) captures: &'a dir::CaptureTable,
+    pub(crate) captures: &'a dir::CaptureTable<'a>,
     /// Provide access to the program string pool for name resolution.
     pub(crate) strings: &'a StringPool,
     /// Language intrinsic bindings for this profile.

@@ -1,4 +1,4 @@
-use destack_artifact::{DirBound, DirChecked, DirParsed};
+use destack_artifact::{DirBound, DirParsed};
 use destack_core::StringPool;
 use destack_workspace::{Module, Target};
 use {destack_dir as dir, destack_js as js};
@@ -21,9 +21,9 @@ pub struct ModuleLowerer<'a> {
     /// The DIR tree.
     pub(crate) dir_tree: &'a dir::Tree,
     /// The symbol table.
-    pub(crate) symbols: &'a dir::BindingTable,
+    pub(crate) symbols: dir::BindingTable<'static>,
     /// The type table.
-    pub(crate) types: &'a dir::TypeTable,
+    pub(crate) types: &'a dir::TypeTable<'static>,
     /// The target configuration.
     pub(crate) target: &'a Target,
 
@@ -115,7 +115,8 @@ impl<'a> ModuleLowerer<'a> {
         parsed: &'a DirParsed,
         source_strings: &'a StringPool,
         bound: &'a DirBound,
-        checked: &'a DirChecked,
+        symbols: dir::BindingTable<'static>,
+        types: &'a dir::TypeTable<'static>,
         target: &'a Target,
     ) -> Self {
         let strings = StringPool::new();
@@ -127,8 +128,8 @@ impl<'a> ModuleLowerer<'a> {
             source_strings,
             dir_tree: &parsed.tree,
             dir_roots: bound.roots.as_ref(),
-            symbols: &bound.bindings,
-            types: &checked.types,
+            symbols,
+            types,
             target,
             tree: js::Tree::new(),
             roots: Vec::new(),

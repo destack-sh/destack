@@ -20,9 +20,7 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
     ) -> ElaborateResult<()> {
         // load the operator resolution for this node
-        let Some(resolution) = state
-            .types
-            .resolution(expression_id.into_global_any(state.module_id))
+        let Some(resolution) = state.type_table().resolution(expression_id.into_global_any(state.module_id))
             .cloned()
         else {
             return Ok(());
@@ -82,9 +80,7 @@ impl Compiler {
                 receiver,
                 candidate.clone(),
             );
-            let receiver = state
-                .types
-                .get_declared_or_inferred_type_id(call_id.into_global_any(state.module_id))
+            let receiver = state.type_table().get_declared_or_inferred_type_id(call_id.into_global_any(state.module_id))
                 .or(receiver);
 
             state.tree.replace(
@@ -218,12 +214,12 @@ impl Compiler {
             .and_then(|signature| signature.return_type)
         {
             state
-                .types
-                .set_inferred_type(call_id.into_global_any(state.module_id), return_type);
+            .types_tail
+            .set_inferred_type(call_id.into_global_any(state.module_id), return_type);
         }
 
         // attach static resolution for lower call emission
-        state.types.set_resolution(
+        state.types_tail.set_resolution(
             call_id.into_global_any(state.module_id),
             Resolution::Dispatch(DispatchResolution::Static {
                 receiver: resolution_receiver,
@@ -262,10 +258,10 @@ impl Compiler {
         );
 
         // annotate member type when available
-        if let Some(member_type_id) = state.types.get_value_type_id(target_symbol) {
+        if let Some(member_type_id) = state.type_table().get_value_type_id(target_symbol) {
             state
-                .types
-                .set_inferred_type(member_id.into_global_any(state.module_id), member_type_id);
+            .types_tail
+            .set_inferred_type(member_id.into_global_any(state.module_id), member_type_id);
         }
 
         // create call arguments
@@ -313,7 +309,7 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
         receiver: Option<LocalTypeId>,
     ) {
-        state.types.set_resolution(
+        state.types_tail.set_resolution(
             expression_id.into_global_any(state.module_id),
             Resolution::Dispatch(DispatchResolution::Builtin { receiver }),
         );

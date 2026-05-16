@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    DirBound, DirChecked, DirParsed, EmitFormat, ScriptDeclaration, ScriptLanguage, ScriptOutput,
+    DirBound, DirChecked, DirExpanded, DirParsed, EmitFormat, ScriptDeclaration, ScriptLanguage,
+    ScriptOutput,
 };
 use destack_core::StringPool;
 use destack_js as js;
@@ -19,6 +20,8 @@ pub struct ScriptOutputGenerator<'a> {
     parsed: Arc<DirParsed>,
     /// The current bound DIR artifact.
     bound: Arc<DirBound>,
+    /// The current expanded DIR artifact.
+    expanded: Arc<DirExpanded>,
     /// The current checked DIR artifact.
     checked: Arc<DirChecked>,
     /// The shared string pool.
@@ -33,6 +36,7 @@ impl<'a> ScriptOutputGenerator<'a> {
         module: Arc<Module>,
         parsed: Arc<DirParsed>,
         bound: Arc<DirBound>,
+        expanded: Arc<DirExpanded>,
         checked: Arc<DirChecked>,
         strings: Arc<StringPool>,
         target: &'a Target,
@@ -41,6 +45,7 @@ impl<'a> ScriptOutputGenerator<'a> {
             module,
             parsed,
             bound,
+            expanded,
             checked,
             strings,
             target,
@@ -63,6 +68,7 @@ impl<'a> ScriptOutputGenerator<'a> {
         let module = self.module.as_ref();
         let parsed = self.parsed.as_ref();
         let bound = self.bound.as_ref();
+        let expanded = self.expanded.as_ref();
         let checked = self.checked.as_ref();
 
         // resource modules are linked directly in the script linker
@@ -81,6 +87,7 @@ impl<'a> ScriptOutputGenerator<'a> {
             parsed,
             self.strings.as_ref(),
             bound,
+            expanded,
             checked,
             self.target,
         )?;

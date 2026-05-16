@@ -22,7 +22,7 @@ impl Compiler {
         module_id: ModuleId,
         profile_id: ProfileId,
         tree: &dir::Tree,
-        types: &dir::TypeTable,
+        types: &dir::TypeTable<'_>,
         tree_patch: &mut dir::Patch,
         comptime_patch: ComptimePatch,
     ) {

@@ -272,7 +272,9 @@ impl ModuleLowerer<'_> {
             .qualified_symbol_name(symbol)
             .or_else(|| {
                 let dir = self.dir_bound_if_present(symbol.module_id)?;
-                self.symbol_path_from_symbols(symbol, &dir.bindings)
+                let bindings = dir.binding_table();
+
+                self.symbol_path_from_symbols(symbol, &bindings)
             })
             .ok_or_else(|| LowerError::UnsupportedConstruct {
                 anchor: self.diagnostic_anchor(anchor),
@@ -490,7 +492,9 @@ impl ModuleLowerer<'_> {
 
         let name = self.qualified_symbol_name(reference.symbol).or_else(|| {
             let dir = self.dir_bound_if_present(reference.symbol.module_id)?;
-            self.symbol_path_from_symbols(reference.symbol, &dir.bindings)
+            let bindings = dir.binding_table();
+
+            self.symbol_path_from_symbols(reference.symbol, &bindings)
         })?;
 
         if self.symbol_is(reference.symbol, dir::SymbolForm::Class) {
@@ -525,7 +529,9 @@ impl ModuleLowerer<'_> {
         if let dir::Type::Reference(reference) = dir_type {
             return self.qualified_symbol_name(reference.symbol).or_else(|| {
                 let dir = self.dir_bound_if_present(reference.symbol.module_id)?;
-                self.symbol_path_from_symbols(reference.symbol, &dir.bindings)
+                let bindings = dir.binding_table();
+
+                self.symbol_path_from_symbols(reference.symbol, &bindings)
             });
         }
 
@@ -1047,7 +1053,9 @@ impl ModuleLowerer<'_> {
             .compiler
             .module(self.context.revision(), symbol_id.module_id);
         let dir = self.dir_bound_if_present(symbol_id.module_id)?;
-        self.qualified_symbol_name_for_module(symbol_id, module.as_ref(), &dir.bindings)
+        let bindings = dir.binding_table();
+
+        self.qualified_symbol_name_for_module(symbol_id, module.as_ref(), &bindings)
     }
 
     /// Resolve the qualified name for a symbol and module pair.
@@ -1055,7 +1063,7 @@ impl ModuleLowerer<'_> {
         &self,
         symbol_id: dir::GlobalSymbolId,
         module: &Module,
-        symbols: &dir::BindingTable,
+        symbols: &dir::BindingTable<'_>,
     ) -> Option<String> {
         // load the owning package
         let package = self
@@ -1107,7 +1115,7 @@ impl ModuleLowerer<'_> {
     fn symbol_path_from_symbols(
         &self,
         symbol_id: dir::GlobalSymbolId,
-        symbols: &dir::BindingTable,
+        symbols: &dir::BindingTable<'_>,
     ) -> Option<String> {
         // seed with the symbol name
         let symbol = symbols.get_symbol(symbol_id.into_local());

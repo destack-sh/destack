@@ -40,13 +40,13 @@ pub(crate) struct ModuleLowerer<'a> {
     /// Stable module-level node for generated module state.
     pub(crate) module_node: dir::LocalNodeIdAny,
     /// Provide access to symbol metadata for type resolution.
-    pub(crate) symbols: &'a dir::BindingTable,
+    pub(crate) symbols: &'a dir::BindingTable<'a>,
     /// Provide access to inferred and declared types.
-    pub(crate) types: &'a dir::TypeTable,
+    pub(crate) types: &'a dir::TypeTable<'a>,
     /// Elaborated type guard entries.
     pub(crate) guards: &'a dir::GuardTable,
     /// Provide access to capture metadata for closures.
-    pub(crate) captures: &'a dir::CaptureTable,
+    pub(crate) captures: &'a dir::CaptureTable<'a>,
     /// Runtime check configuration for this target.
     pub(crate) runtime_checks: RuntimeCheckConfig,
     /// Language intrinsic bindings for this profile.
@@ -145,10 +145,10 @@ impl<'a> ModuleLowerer<'a> {
         dir_roots: &'a [dir::LocalNodeId<dir::Expression>],
         strings: &'a StringPool,
         module_node: dir::LocalNodeIdAny,
-        symbols: &'a dir::BindingTable,
-        types: &'a dir::TypeTable,
+        symbols: &'a dir::BindingTable<'a>,
+        types: &'a dir::TypeTable<'a>,
         guards: &'a dir::GuardTable,
-        captures: &'a dir::CaptureTable,
+        captures: &'a dir::CaptureTable<'a>,
         target: &'a TargetId,
         pointer_bytes: u8,
     ) -> CompilerResult<Self> {

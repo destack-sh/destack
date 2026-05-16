@@ -4,14 +4,14 @@ use destack_dir as dir;
 /// Binding table names for DIR snapshots.
 pub(super) struct BindingSnapshotName<'a> {
     /// The binding table being named.
-    bindings: &'a dir::BindingTable,
+    bindings: &'a dir::BindingTable<'a>,
     /// The string pool used by source names.
     strings: &'a StringPool,
 }
 
 impl<'a> BindingSnapshotName<'a> {
     /// Create a binding table namer.
-    pub(super) fn new(bindings: &'a dir::BindingTable, strings: &'a StringPool) -> Self {
+    pub(super) fn new(bindings: &'a dir::BindingTable<'a>, strings: &'a StringPool) -> Self {
         Self { bindings, strings }
     }
 

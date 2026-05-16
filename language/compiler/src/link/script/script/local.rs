@@ -322,6 +322,16 @@ impl Compiler {
                     module_id,
                 ),
             })?;
+        let source_expanded = self.dir_expanded(context, module_id, profile_id).map_err(
+            |error| LinkError::Internal {
+                anchor: (package_id).into(),
+                package: package_id,
+                message: format!(
+                    "missing expanded DIR for same-output import rewrite module {:?}: {error:?}",
+                    module_id,
+                ),
+            },
+        )?;
         let origin = module
             .tree
             .get_origin(item_id.id)
@@ -332,10 +342,10 @@ impl Compiler {
             })?;
         let source_item_id = dir::LocalNodeId::<dir::DependencyItem>::new(origin.node_id);
 
+        let source_symbols = source_expanded.binding_table(&source_bound);
         let target_symbol = {
-            if let Some(symbol) = source_bound
-                .bindings
-                .symbol_for_declaration(source_item_id.into_global_any(module_id))
+            if let Some(symbol) =
+                source_symbols.symbol_for_declaration(source_item_id.into_global_any(module_id))
             {
                 symbol.into_global(module_id)
             } else {
@@ -349,9 +359,10 @@ impl Compiler {
                         ),
                     }
                 })?;
+                let types = checked.type_table(&source_bound, &source_expanded);
                 let item_node = source_item_id.into_global_any(module_id);
                 let Some(dir::DependencyResolution::Symbol(symbol)) =
-                    checked.types.dependency_resolution(item_node)
+                    types.dependency_resolution(item_node)
                 else {
                     return Err(LinkError::Internal {
                         anchor: (package_id).into(),
@@ -388,7 +399,18 @@ impl Compiler {
                     symbol_id
                 ),
             })?;
-        let symbol = source_bound.bindings.get_symbol(symbol_id.local_id);
+        let source_expanded = self
+            .dir_expanded(context, symbol_id.module_id, profile_id)
+            .map_err(|error| LinkError::Internal {
+                anchor: (package_id).into(),
+                package: package_id,
+                message: format!(
+                    "missing expanded DIR for same-output import target symbol {:?}: {error:?}",
+                    symbol_id
+                ),
+            })?;
+        let symbols = source_expanded.binding_table(&source_bound);
+        let symbol = symbols.get_symbol(symbol_id.local_id);
 
         // use the source declaration name for same-output local bridging
         if let Some(name) = symbol.name() {

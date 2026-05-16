@@ -33,8 +33,13 @@ pub(crate) fn enum_field_value_for_symbol(
         Ok(snapshot) => snapshot,
         Err(error) => return Err(error.into()),
     };
-    let symbols = &bound.bindings;
-    let types = &checked.types;
+    let expanded = compiler.dir_expanded(context, member_symbol.module_id, profile);
+    let expanded = match expanded {
+        Ok(snapshot) => snapshot,
+        Err(error) => return Err(error.into()),
+    };
+    let symbols = expanded.binding_table(&bound);
+    let types = checked.type_table(&bound, &expanded);
 
     // require the member symbol to be an enum field
     let member_entry = symbols.get_symbol(member_symbol.local_id);

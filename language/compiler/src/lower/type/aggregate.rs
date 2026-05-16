@@ -25,7 +25,7 @@ impl TypeLowerer<'_> {
     /// Resolve an integer literal length from one DIR type id.
     fn array_sized_length_from_type(
         &self,
-        types: &dir::TypeTable,
+        types: &dir::TypeTable<'_>,
         mut type_id: dir::LocalTypeId,
     ) -> Option<u64> {
         for _ in 0..MAX_ARRAY_COUNT_UNWRAP_STEPS {
@@ -49,7 +49,7 @@ impl TypeLowerer<'_> {
     /// This computes the layout for the struct fields and creates the MIR type.
     pub(crate) fn lower_object_type(
         &mut self,
-        types: &dir::TypeTable,
+        types: &dir::TypeTable<'_>,
         fields: &[dir::TypeField],
         module_id: ModuleId,
         node: dir::AnchoredGlobalNodeId,
@@ -97,7 +97,7 @@ impl TypeLowerer<'_> {
     /// Lower a DIR tuple type to a MIR tuple type.
     pub(crate) fn lower_tuple_type(
         &mut self,
-        types: &dir::TypeTable,
+        types: &dir::TypeTable<'_>,
         elements: &[dir::TypeElement],
         module_id: ModuleId,
         node: dir::AnchoredGlobalNodeId,
@@ -128,7 +128,7 @@ impl TypeLowerer<'_> {
     /// Lower a DIR sized array type to a MIR array type.
     pub(crate) fn lower_array_sized_type(
         &mut self,
-        types: &dir::TypeTable,
+        types: &dir::TypeTable<'_>,
         element: dir::LocalTypeId,
         count: dir::LocalTypeId,
         module_id: ModuleId,

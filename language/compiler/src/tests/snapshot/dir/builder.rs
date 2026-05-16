@@ -27,7 +27,7 @@ pub(crate) struct DirSnapshotBuilder<'a> {
     /// The string pool used by DIR ids.
     pub(super) strings: &'a StringPool,
     /// The binding table used for human-readable symbol labels.
-    pub(super) bindings: Option<&'a dir::BindingTable>,
+    pub(super) bindings: Option<&'a dir::BindingTable<'a>>,
     /// Module paths used in multi-module snapshots.
     pub(super) module_path_by_id: Option<&'a BTreeMap<ModuleId, String>>,
     /// Whether to render dense binding node rows.
@@ -52,7 +52,7 @@ impl<'a> DirSnapshotBuilder<'a> {
     }
 
     /// Set the binding table used for symbol labels.
-    pub(crate) fn with_bindings(mut self, bindings: &'a dir::BindingTable) -> Self {
+    pub(crate) fn with_bindings(mut self, bindings: &'a dir::BindingTable<'a>) -> Self {
         self.bindings = Some(bindings);
         self
     }
@@ -79,33 +79,33 @@ impl<'a> DirSnapshotBuilder<'a> {
         self.binding_nodes = selection.binding_nodes;
 
         if selection.binding {
-            self.add_table(&bound.bindings);
+            self.add_table(bound.bindings.as_ref());
         }
 
         if selection.types {
-            self.add_table(&bound.types);
+            self.add_table(bound.types.as_ref());
         }
     }
 
     /// Add selected rows for an imported DIR artifact.
     pub(crate) fn add_imported(&mut self, selection: DirSnapshotSet, imported: &DirImported) {
         if selection.dependency {
-            self.add_table(&imported.dependencies);
+            self.add_table(imported.dependencies.as_ref());
         }
     }
 
     /// Add selected rows for an expanded DIR artifact.
     pub(crate) fn add_expanded(&mut self, selection: DirSnapshotSet, expanded: &DirExpanded) {
         if selection.binding {
-            self.add_table(&expanded.bindings);
+            self.add_table(expanded.bindings.as_ref());
         }
 
         if selection.dependency {
-            self.add_table(&expanded.dependencies);
+            self.add_table(expanded.dependencies.as_ref());
         }
 
         if selection.types {
-            self.add_table(&expanded.types);
+            self.add_table(expanded.types.as_ref());
         }
 
         if selection.macros {
@@ -123,15 +123,15 @@ impl<'a> DirSnapshotBuilder<'a> {
     /// Add selected rows for a checked DIR artifact.
     pub(crate) fn add_checked(&mut self, selection: DirSnapshotSet, checked: &DirChecked) {
         if selection.types {
-            self.add_table(&checked.types);
+            self.add_table(checked.types.as_ref());
         }
 
         if selection.layout {
-            self.add_table(&checked.layouts);
+            self.add_table(checked.layouts.as_ref());
         }
 
         if selection.capture {
-            self.add_table(&checked.captures);
+            self.add_table(checked.captures.as_ref());
         }
     }
 
@@ -142,38 +142,38 @@ impl<'a> DirSnapshotBuilder<'a> {
         materialized: &DirMaterialized,
     ) {
         if selection.binding {
-            self.add_table(&materialized.bindings);
+            self.add_table(materialized.bindings.as_ref());
         }
 
         if selection.types {
-            self.add_table(&materialized.types);
+            self.add_table(materialized.types.as_ref());
         }
 
         if selection.capture {
-            self.add_table(&materialized.captures);
+            self.add_table(materialized.captures.as_ref());
         }
 
         if selection.layout {
-            self.add_table(&materialized.layouts);
+            self.add_table(materialized.layouts.as_ref());
         }
     }
 
     /// Add selected rows for an elaborated DIR artifact.
     pub(crate) fn add_elaborated(&mut self, selection: DirSnapshotSet, elaborated: &DirElaborated) {
         if selection.binding {
-            self.add_table(&elaborated.bindings);
+            self.add_table(elaborated.bindings.as_ref());
         }
 
         if selection.types {
-            self.add_table(&elaborated.types);
+            self.add_table(elaborated.types.as_ref());
         }
 
         if selection.capture {
-            self.add_table(&elaborated.captures);
+            self.add_table(elaborated.captures.as_ref());
         }
 
         if selection.layout {
-            self.add_table(&elaborated.layouts);
+            self.add_table(elaborated.layouts.as_ref());
         }
 
         if selection.guard {
@@ -214,25 +214,22 @@ impl<'a> DirSnapshotBuilder<'a> {
     /// Return the source anchor for one scope.
     pub(super) fn anchor_scope(
         &self,
-        bindings: &dir::BindingTable,
+        module_id: ModuleId,
         scope_id: dir::LocalScopeId,
         scope: &dir::Scope,
+        node_scopes: &[(dir::GlobalNodeIdAny, dir::LocalScope)],
     ) -> SnapshotAnchor {
         if let Some(owner) = scope.owner {
-            let symbol_id = owner.into_global(bindings.module_id);
+            let symbol_id = owner.into_global(module_id);
             return self.anchor_symbol(symbol_id);
         }
 
         let end_scope = dir::LocalScope::new(scope_id, dir::LocalScopeMark::end());
-        let first_node = bindings
-            .node_scopes()
+        let first_node = node_scopes
+            .iter()
             .find(|(_, scope)| *scope == end_scope)
-            .or_else(|| {
-                bindings
-                    .node_scopes()
-                    .find(|(_, scope)| scope.id == scope_id)
-            })
-            .map(|(node_id, _)| node_id);
+            .or_else(|| node_scopes.iter().find(|(_, scope)| scope.id == scope_id))
+            .map(|(node_id, _)| *node_id);
 
         if let Some(node_id) = first_node {
             self.anchor_node(node_id)
@@ -339,7 +336,7 @@ impl<'a> DirSnapshotBuilder<'a> {
     }
 
     /// Return the active binding table.
-    fn binding_table(&self) -> &'a dir::BindingTable {
+    fn binding_table(&self) -> &'a dir::BindingTable<'a> {
         let Some(bindings) = self.bindings else {
             panic!("dir snapshot needs bindings")
         };

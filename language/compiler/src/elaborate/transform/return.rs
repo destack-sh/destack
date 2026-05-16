@@ -38,7 +38,7 @@ impl Compiler {
     ) -> ElaborateResult<()> {
         // collect function and method bodies to rewrite
         let mut body_ids = Vec::new();
-        let module_id = state.types.module_id;
+        let module_id = state.types_tail.module_id;
         for declaration_id in state.tree.iter_node_ids_of_type::<Declaration>() {
             if !self.is_active_in_state(state, declaration_id.into_any()) {
                 continue;
@@ -121,7 +121,7 @@ impl Compiler {
                     self.make_return_explicit(state, else_expr, scope)?;
                 }
 
-                self.set_void_expression_type(state.types, state.types.module_id, expr_id);
+                self.set_void_expression_type(state.types_tail, state.types_tail.module_id, expr_id);
             }
 
             Expression::If {
@@ -153,9 +153,7 @@ impl Compiler {
             | Expression::Debugger => {}
 
             _ => {
-                let Some(type_id) = state
-                    .types
-                    .get_declared_or_inferred_type_id(expr_id.into_global_any(state.module_id))
+                let Some(type_id) = state.type_table().get_declared_or_inferred_type_id(expr_id.into_global_any(state.module_id))
                 else {
                     self.replace_expression_with_explicit_return(state, expr_id, scope);
                     return Ok(());
@@ -175,7 +173,7 @@ impl Compiler {
 
     /// Check whether a function symbol has an explicit void return type.
     fn function_returns_void(&self, state: &ElaborateState<'_>, symbol: GlobalSymbolId) -> bool {
-        let Some(value_type_id) = state.types.get_value_type_id(symbol) else {
+        let Some(value_type_id) = state.type_table().get_value_type_id(symbol) else {
             return false;
         };
 
@@ -184,7 +182,7 @@ impl Compiler {
 
     /// Check whether a function return type is void.
     fn return_type_is_void(&self, state: &ElaborateState<'_>, type_id: LocalTypeId) -> bool {
-        match state.types.get_type(type_id) {
+        match state.type_table().get_type(type_id) {
             Type::Function(function) => {
                 let Some(return_type_id) = function.return_type else {
                     return false;
@@ -198,7 +196,7 @@ impl Compiler {
 
     /// Check whether a type id resolves to void.
     fn type_is_void(&self, state: &ElaborateState<'_>, type_id: LocalTypeId) -> bool {
-        match state.types.get_type(type_id) {
+        match state.type_table().get_type(type_id) {
             Type::Literal(dir::LiteralType {
                 value: TypeLiteral::Void,
             }) => true,
@@ -209,7 +207,7 @@ impl Compiler {
 
     /// Check whether a type id resolves to void or never.
     fn type_is_void_or_never(&self, state: &ElaborateState<'_>, type_id: LocalTypeId) -> bool {
-        match state.types.get_type(type_id) {
+        match state.type_table().get_type(type_id) {
             Type::Literal(dir::LiteralType {
                 value: TypeLiteral::Void | TypeLiteral::Never,
             }) => true,
@@ -228,21 +226,23 @@ impl Compiler {
         let block = state.tree.get(block_id);
         let type_id = match block.tail_expression {
             Some(expression_id) => {
-                self.expression_type_id_or_error(state.types.module_id, expression_id, state.types)?
+                let types = state.type_table();
+
+                self.expression_type_id_or_error(state.types_tail.module_id, expression_id, &types)?
             }
             None => {
                 let ty = Type::Literal(dir::LiteralType {
                     value: TypeLiteral::Void,
                 });
-                state.types.insert_type_from(ty, block_id)
+                state.types_tail.insert_type_from(ty, block_id)
             }
         };
 
         state
-            .types
-            .set_inferred_type(block_id.into_global_any(state.types.module_id), type_id);
-        state.types.set_inferred_type(
-            expression_id.into_global_any(state.types.module_id),
+            .types_tail
+            .set_inferred_type(block_id.into_global_any(state.types_tail.module_id), type_id);
+        state.types_tail.set_inferred_type(
+            expression_id.into_global_any(state.types_tail.module_id),
             type_id,
         );
 

@@ -130,7 +130,7 @@ impl Compiler {
                 };
                 let new_let: LocalNodeId<Expression> =
                     state.tree.insert_as_owner(new_let_id, new_binding);
-                self.set_void_expression_type(state.types, state.types.module_id, new_let);
+                self.set_void_expression_type(state.types_tail, state.types_tail.module_id, new_let);
                 new_leading_expressions.push(new_let);
             }
         }

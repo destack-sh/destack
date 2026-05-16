@@ -90,16 +90,14 @@ impl Compiler {
             state.tree.replace(if_id, match_expression);
 
             // preserve the original if expression type on the match node
-            let match_type_id = state
-                .types
-                .get_declared_or_inferred_type_id(if_id.into_global_any(state.tree.module_id));
+            let match_type_id = state.type_table().get_declared_or_inferred_type_id(if_id.into_global_any(state.tree.module_id));
             if let Some(match_type_id) = match_type_id {
-                self.set_expression_type(state.types, state.tree.module_id, if_id, match_type_id);
+                self.set_expression_type(state.types_tail, state.tree.module_id, if_id, match_type_id);
             } else {
-                let then_type_id = state.types.get_declared_or_inferred_type_id(
+                let then_type_id = state.type_table().get_declared_or_inferred_type_id(
                     then_expression.into_global_any(state.tree.module_id),
                 );
-                let else_type_id = state.types.get_declared_or_inferred_type_id(
+                let else_type_id = state.type_table().get_declared_or_inferred_type_id(
                     else_expression.into_global_any(state.tree.module_id),
                 );
                 let (Some(then_type_id), Some(else_type_id)) = (then_type_id, else_type_id) else {
@@ -115,9 +113,10 @@ impl Compiler {
                         vec![then_type_id, else_type_id],
                         then_type_id,
                         state.types,
+                        state.types_tail,
                     )
                 };
-                self.set_expression_type(state.types, state.tree.module_id, if_id, match_type_id);
+                self.set_expression_type(state.types_tail, state.tree.module_id, if_id, match_type_id);
             }
         }
 
@@ -232,13 +231,13 @@ impl Compiler {
         let void_type = Type::Literal(dir::LiteralType {
             value: TypeLiteral::Void,
         });
-        let void_type_id = state.types.insert_type_from(void_type, block);
-        let module_id = state.types.module_id;
+        let void_type_id = state.types_tail.insert_type_from(void_type, block);
+        let module_id = state.types_tail.module_id;
         state
-            .types
+            .types_tail
             .set_inferred_type(block.into_global_any(module_id), void_type_id);
         state
-            .types
+            .types_tail
             .set_inferred_type(block_expr_id.into_global_any(module_id), void_type_id);
 
         block_expr_id

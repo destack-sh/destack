@@ -255,7 +255,8 @@ impl ModuleLowerer<'_> {
                 module: self.module_id,
                 message: format!("missing parsed DIR artifact for {:?}", symbol.module_id),
             })?;
-        let symbol_entry = dir.bindings.get_symbol(symbol.local_id);
+        let bindings = dir.binding_table();
+        let symbol_entry = bindings.get_symbol(symbol.local_id);
 
         if let Some(name) = self.host_decorator_name(
             expression_id,

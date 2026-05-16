@@ -11,7 +11,7 @@ impl TypeLowerer<'_> {
     /// Select the primary type for an intersection layout.
     pub(crate) fn select_intersection_primary_type(
         &self,
-        types: &dir::TypeTable,
+        types: &dir::TypeTable<'_>,
         elements: &[dir::LocalTypeId],
         module_id: ModuleId,
         node: dir::AnchoredGlobalNodeId,
@@ -95,7 +95,7 @@ impl TypeLowerer<'_> {
     fn collect_intersection_element(
         &self,
         type_id: dir::LocalTypeId,
-        types: &dir::TypeTable,
+        types: &dir::TypeTable<'_>,
         visited: &mut HashSet<dir::LocalTypeId>,
         collected: &mut Vec<dir::LocalTypeId>,
     ) {
