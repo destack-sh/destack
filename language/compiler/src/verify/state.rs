@@ -6,6 +6,15 @@ use destack_workspace::{ProfileId, ProviderContext};
 use crate::DiagnosticAnchor;
 use crate::verify::VerifyError;
 
+/// Borrow obligation with a source anchor.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct BorrowObligationRecord {
+    /// The borrow obligation.
+    pub obligation: mir::BorrowObligation,
+    /// The suspension point that needs the proof.
+    pub anchor: DiagnosticAnchor,
+}
+
 /// State for one verify phase provider run.
 pub(crate) struct VerifyState<'a> {
     /// The module being verified.
@@ -18,6 +27,8 @@ pub(crate) struct VerifyState<'a> {
     pub(in crate::verify) context: &'a dyn ProviderContext,
     /// Accumulated errors.
     errors: Vec<DiagnosticBuilder<VerifyError>>,
+    /// Accumulated borrow obligations.
+    borrow_obligations: Vec<BorrowObligationRecord>,
 }
 
 impl std::fmt::Debug for VerifyState<'_> {
@@ -27,6 +38,7 @@ impl std::fmt::Debug for VerifyState<'_> {
             .field("profile", &self.profile)
             .field("target", &self.target)
             .field("errors", &self.errors.len())
+            .field("borrow_obligations", &self.borrow_obligations.len())
             .finish()
     }
 }
@@ -45,6 +57,7 @@ impl<'a> VerifyState<'a> {
             target,
             context,
             errors: Vec::new(),
+            borrow_obligations: Vec::new(),
         }
     }
 
@@ -62,6 +75,13 @@ impl<'a> VerifyState<'a> {
         self.errors.push(error.into());
     }
 
+    /// Record one borrow obligation.
+    pub(crate) fn require_borrow(&mut self, obligation: BorrowObligationRecord) {
+        if !self.borrow_obligations.contains(&obligation) {
+            self.borrow_obligations.push(obligation);
+        }
+    }
+
     /// Return true when any errors were emitted.
     pub(crate) fn has_errors(&self) -> bool {
         !self.errors.is_empty()
@@ -71,6 +91,12 @@ impl<'a> VerifyState<'a> {
     #[cfg(test)]
     pub(crate) fn errors(&self) -> &[DiagnosticBuilder<VerifyError>] {
         &self.errors
+    }
+
+    /// Return accumulated borrow obligations.
+    #[cfg(test)]
+    pub(crate) fn borrow_obligations(&self) -> &[BorrowObligationRecord] {
+        &self.borrow_obligations
     }
 
     /// Drain all diagnostics.

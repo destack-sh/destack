@@ -11,7 +11,7 @@ pub(super) struct FlowState {
     pub(super) moves: MoveSet,
     /// Active loans.
     pub(super) loans: LoanSet,
-    /// Borrow roots.
+    /// Borrow sources.
     pub(super) borrows: BorrowMap,
     /// Borrow references already reported as invalid.
     pub(super) invalid_borrows: Vec<mir::Value>,
@@ -33,10 +33,10 @@ impl FlowState {
         let mut loans = LoanSet::default();
         let mut invalid_borrows = Vec::new();
 
-        // merge borrow roots conservatively across incoming edges
+        // merge borrow sources conservatively across incoming edges
         for predecessor in predecessors {
-            for (value, roots) in &predecessor.borrows.roots {
-                borrows.merge_roots(*value, roots);
+            for (value, sources) in &predecessor.borrows.sources {
+                borrows.merge_sources(*value, sources);
             }
         }
 

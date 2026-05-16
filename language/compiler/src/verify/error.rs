@@ -24,13 +24,13 @@ pub enum VerifyError {
         code = "EV102",
         message = "cannot partially move value with custom drop"
     )]
-    PartialMoveOfDropType { anchor: DiagnosticAnchor },
+    PartialMoveOfCustomDrop { anchor: DiagnosticAnchor },
 
     /// A new borrow conflicts with an active borrow.
     #[diagnostic(code = "EV200", message = "borrow conflicts with active borrow")]
-    ConflictingLoan {
+    BorrowConflict {
         anchor: DiagnosticAnchor,
-        existing_loan: DiagnosticAnchor,
+        active_borrow: DiagnosticAnchor,
     },
 
     /// Cannot change a place while an overlapping loan is live.
@@ -46,7 +46,21 @@ pub enum VerifyError {
 
     /// Exclusive borrowed access cannot cross a suspension point.
     #[diagnostic(code = "EV203", message = "exclusive borrow cannot cross suspension")]
-    ExclusiveLoanAcrossSuspension {
+    ExclusiveBorrowAcrossSuspension {
+        anchor: DiagnosticAnchor,
+        borrowed_at: DiagnosticAnchor,
+    },
+
+    /// Exclusive borrowed access cannot be created from shared managed storage.
+    #[diagnostic(
+        code = "EV204",
+        message = "cannot borrow shared managed storage exclusively"
+    )]
+    ExclusiveBorrowFromSharedManaged { anchor: DiagnosticAnchor },
+
+    /// Borrowed access must have an owned or static source to cross suspension.
+    #[diagnostic(code = "EV205", message = "borrow cannot cross suspension")]
+    BorrowAcrossSuspension {
         anchor: DiagnosticAnchor,
         borrowed_at: DiagnosticAnchor,
     },
