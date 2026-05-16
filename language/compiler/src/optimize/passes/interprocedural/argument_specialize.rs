@@ -454,11 +454,15 @@ fn clone_function(
     let mut block_map = HashMap::new();
     for block_id in &original.blocks {
         let block = tree.get(*block_id);
+        let name = block.name;
+        let parameters = block.parameters.clone();
+        let terminator = tree.get(block.terminator).clone();
+        let terminator = tree.insert(terminator);
         let new_block = mir::Block {
-            name: None,
-            parameters: block.parameters.clone(),
+            name,
+            parameters,
             instructions: Vec::new(),
-            terminator: block.terminator.clone(),
+            terminator,
         };
         let new_block_id = tree.insert(new_block);
         block_map.insert(*block_id, new_block_id);
@@ -492,11 +496,10 @@ fn clone_function(
     // remap terminators with new block ids
     for block_id in &original.blocks {
         let new_block_id = block_map[block_id];
-        let new_block = tree.get(new_block_id).clone();
-        let mut terminator = tree.get(new_block.terminator).clone();
+        let terminator_id = tree.get(new_block_id).terminator;
+        let mut terminator = tree.get(terminator_id).clone();
         terminator_remap(&mut terminator, &block_map, &value_map);
-        tree.replace(new_block_id, new_block);
-        tree.replace(tree.get(new_block_id).terminator, terminator);
+        tree.replace(terminator_id, terminator);
     }
 
     // build the new function
@@ -676,22 +679,24 @@ b0:
 }"#;
 
         let expected = r#"
-function callee(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
-    return v2
+function callee(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: int32 = int.add value0, value1
+    return value2
 }
+
 function root(): int32 {
-b0:
-    v0: int32 = 2int32
-    v1: int32 = 3int32
-    v2: int32 = call callee$spec0(): () -> int32
-    return v2
+entry0:
+    value0: int32 = 2int32
+    value1: int32 = 3int32
+    value2: int32 = call callee$spec0(): () -> int32
+    return value2
 }
+
 function callee$spec0(): int32 {
-b0:
-    v0: int32 = 5int32
-    return v0
+entry0:
+    value2: int32 = 5int32
+    return value2
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -717,22 +722,24 @@ b0:
 }"#;
 
         let expected = r#"
-function callee(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
-    return v2
+function callee(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: int32 = int.add value0, value1
+    return value2
 }
+
 function root(): int32 {
-b0:
-    v0: int32 = 2int32
-    v1: int32 = 3int32
-    v2: int32 = call callee$spec0(): () -> int32
-    return v2
+entry0:
+    value0: int32 = 2int32
+    value1: int32 = 3int32
+    value2: int32 = call callee$spec0(): () -> int32
+    return value2
 }
+
 function callee$spec0(): int32 {
-b0:
-    v0: int32 = 5int32
-    return v0
+entry0:
+    value2: int32 = 5int32
+    return value2
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -759,6 +766,7 @@ b0:
         let expected_signature = mir::Type::FunctionSignature {
             parameters: callee.parameters.iter().map(|param| param.ty).collect(),
             result: callee.return_type,
+            borrow_obligations: Vec::new(),
         };
 
         assert!(
@@ -897,7 +905,7 @@ b0:
         test.record_callsite_profile(&mut profile, call_id, 5);
 
         test.run_module_pass_with_profile(&ArgumentSpecialize, profile);
-        test.assert_output(input);
+        test.assert_unchanged(input);
     }
 
     /// Missing callsite profiles prevent specialization.
@@ -924,7 +932,7 @@ b0:
         test.record_function_profile(&mut profile, root_id, 100);
 
         test.run_module_pass_with_profile(&ArgumentSpecialize, profile);
-        test.assert_output(input);
+        test.assert_unchanged(input);
     }
 
     /// Missing function profiles prevent specialization below the hot threshold.
@@ -952,7 +960,7 @@ b0:
         test.record_callsite_profile(&mut profile, call_id, 5);
 
         test.run_module_pass_with_profile(&ArgumentSpecialize, profile);
-        test.assert_output(input);
+        test.assert_unchanged(input);
     }
 
     /// Hot callsites specialize when profile data is present.
@@ -973,22 +981,24 @@ b0:
 }"#;
 
         let expected = r#"
-function callee(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    v2: int32 = int.add v0, v1
-    return v2
+function callee(value0: int32, value1: int32): int32 {
+entry0(value0: int32, value1: int32):
+    value2: int32 = int.add value0, value1
+    return value2
 }
+
 function root(): int32 {
-b0:
-    v0: int32 = 2int32
-    v1: int32 = 3int32
-    v2: int32 = call callee$spec0(): () -> int32
-    return v2
+entry0:
+    value0: int32 = 2int32
+    value1: int32 = 3int32
+    value2: int32 = call callee$spec0(): () -> int32
+    return value2
 }
+
 function callee$spec0(): int32 {
-b0:
-    v0: int32 = 5int32
-    return v0
+entry0:
+    value2: int32 = 5int32
+    return value2
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -1019,20 +1029,22 @@ b0:
 }"#;
 
         let expected = r#"
-function callee(v0: int32): int32 {
-b0(v0: int32):
-    return v0
+function callee(value0: int32): int32 {
+entry0(value0: int32):
+    return value0
 }
+
 function root(): int32 {
-b0:
-    v0: int32 = 7int32
-    v1: int32 = call callee$spec0(v0): (int32) -> int32
-    return v1
+entry0:
+    value0: int32 = 7int32
+    value1: int32 = call callee$spec0(value0): (int32) -> int32
+    return value1
 }
-function callee$spec0(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 7int32
-    return v1
+
+function callee$spec0(value0: int32): int32 {
+entry0(value0: int32):
+    value1: int32 = 7int32
+    return value1
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -1069,7 +1081,7 @@ b0:
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&ArgumentSpecialize);
-        test.assert_output(input);
+        test.assert_unchanged(input);
     }
 
     /// External callees are not specialized.
@@ -1086,7 +1098,7 @@ b0:
 
         let mut test = TestProgram::new(input);
         test.run_module_pass(&ArgumentSpecialize);
-        test.assert_output(input);
+        test.assert_unchanged(input);
     }
 
     /// Specialization stops at the per function limit.
@@ -1113,43 +1125,48 @@ b0:
 }"#;
 
         let expected = r#"
-function callee(v0: int32): int32 {
-b0(v0: int32):
-    return v0
+function callee(value0: int32): int32 {
+entry0(value0: int32):
+    return value0
 }
+
 function root(): int32 {
-b0:
-    v0: int32 = 1int32
-    v1: int32 = 2int32
-    v2: int32 = 3int32
-    v3: int32 = 4int32
-    v4: int32 = 5int32
-    v5: int32 = call callee$spec0(): () -> int32
-    v6: int32 = call callee$spec1(): () -> int32
-    v7: int32 = call callee$spec2(): () -> int32
-    v8: int32 = call callee$spec3(): () -> int32
-    v9: int32 = call callee(v4): (int32) -> int32
-    return v9
+entry0:
+    value0: int32 = 1int32
+    value1: int32 = 2int32
+    value2: int32 = 3int32
+    value3: int32 = 4int32
+    value4: int32 = 5int32
+    value5: int32 = call callee$spec0(): () -> int32
+    value6: int32 = call callee$spec1(): () -> int32
+    value7: int32 = call callee$spec2(): () -> int32
+    value8: int32 = call callee$spec3(): () -> int32
+    value9: int32 = call callee(value4): (int32) -> int32
+    return value9
 }
+
 function callee$spec0(): int32 {
-b0:
-    v0: int32 = 1int32
-    return v0
+entry0:
+    value1: int32 = 1int32
+    return value1
 }
+
 function callee$spec1(): int32 {
-b0:
-    v0: int32 = 2int32
-    return v0
+entry0:
+    value1: int32 = 2int32
+    return value1
 }
+
 function callee$spec2(): int32 {
-b0:
-    v0: int32 = 3int32
-    return v0
+entry0:
+    value1: int32 = 3int32
+    return value1
 }
+
 function callee$spec3(): int32 {
-b0:
-    v0: int32 = 4int32
-    return v0
+entry0:
+    value1: int32 = 4int32
+    return value1
 }"#;
 
         let mut test = TestProgram::new(input);

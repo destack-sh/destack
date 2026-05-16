@@ -177,6 +177,7 @@ pub fn build_signature_type(
     tree.insert_type(mir::Type::FunctionSignature {
         parameters,
         result: function.return_type,
+        borrow_obligations: function.borrow_obligations.clone(),
     })
 }
 

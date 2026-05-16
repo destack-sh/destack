@@ -606,6 +606,7 @@ mod tests {
                     signed: true,
                 }],
                 result: Box::new(TypeKey::Void),
+                borrow_obligations: Vec::new(),
             }),
         };
         let int_ty = TypeKey::Int {

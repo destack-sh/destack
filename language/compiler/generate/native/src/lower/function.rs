@@ -1579,7 +1579,10 @@ impl<'a> FunctionLowerer<'a> {
         };
 
         // extract function pointer params and result
-        let mir::Type::FunctionSignature { parameters, result } = self.tree.get(signature) else {
+        let mir::Type::FunctionSignature {
+            parameters, result, ..
+        } = self.tree.get(signature)
+        else {
             return Err(CodegenCraneliftError::Internal {
                 message: format!("{error_context} signature is not a function signature"),
             });
