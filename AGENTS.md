@@ -18,7 +18,7 @@
 "// build drop plan for each function" is much better than ""// each function gets an independent drop plan" (begin with a verb!)
 - Trivial functions (<3-4 lines) do not _need_ comments / blank lines, especially when the comments just repeat the documentation above.
 - Also, tests don't need quite the same level of comments, especially within obvious test cases.
-- Documentation comments for functions/types/etc. should be proper sentences with punctuation.
+- Documentation comments for functions/types/etc. _should_ be proper sentences _with_ punctuation.
 - Files should NOT have a top-level documentation comments. They always get stale.
 - Go multiline if there is more than one sentence. Only one sentence should begin per line.
 - For methods, documentation should be imperative, usually starting with a verb (e.g., "Send a message").
@@ -64,18 +64,18 @@ else {
 
 - Names should be obvious, clear, and idiomatic to the language and topic.
 - Where relevant prior art exists, we should follow existing modern terminology.
-- Shorter, stronger nouns and verbs are almost always better
+- Shorter, stronger nouns and verbs are almost always better.
 - Prefer writing out most names and words (even in variable names, `extension` > `ext`, `directory` > `dir`).
-- As with logic, symmetry in naming across related logic is simpler 
-- Avoid single-letter variables unless obvious (`i`, `x`, `Vector.x` are fine).
-- Booleans should start with `is_` unless already clear (or otherwise required by context).
-- Abstraction sludge names like "seam", "lane", "parts", "info", "factory", "semantics", "data", "inner", "wrapper", "facts", "summary", .. and friends are to be treated with high suspicion and are almost certainly wrong (and tempotation to use them implies conceptual muddiness that should be revisited).
-- The same logic applies for module and file names too: single part file names are clearer while "support", "helper" and "utils" are sludgy
+- As with logic, symmetry in naming across related logic is simpler, and simpler is better. 
+- Avoid single-letter variables unless obvious (e.g., `i`, `x`, `Vector.x` are fine).
+- Booleans should start with `is_` unless already clear (or otherwise required by context), though enums are usually better anyway.
+- Abstraction sludge names like "seam", "lane", "parts", "info", "factory", "semantics", "data", "inner", "wrapper", "facts", "summary", .. and friends are to be treated with high suspicion and are almost certainly wrong (and temptation to use them implies conceptual muddiness that should be revisited).
+- The same logic applies for module and file names too: single part file names are clearer while "support", "helper" and "utils" are sludgy.
 
 ### Logic
 
-- Less is more, every line of code is a liability, every ounce of state is suspicious. Fewer overloads are better, fewer fields are better, fewer dependencies are better, etc.
-- When writing some logic or function and it turns into 500 lines, wonder if it could be done in 100 lines. If it's 100 lines, maybe it could be 10. If it's 10, maybe we can remove it alltogether, or phrase the problem differently to avoid this logic.
+- Less is more, every line of code is a liability, every bit of state is suspicious. Fewer overloads are better, fewer fields are better, fewer dependencies are better, etc.
+- When writing some logic or function and it turns into 500 lines, wonder if it could be done in 100 lines. If it's 100 lines, maybe it could be 10. If it's 10, maybe we can remove it alltogether, or phrase the problem differently to avoid this problem in the first place.
 - Long methods are allowed if the logic isn't meaningfully extractable / resuable.
 - Prefer pure(ish) functions, pass in context explicitly when needed (usually as the last argument).
 - Break larger code blocks into logical chunks with whitespace and/or preamble comments.
@@ -90,7 +90,7 @@ let first_digit = (dt_bytes[0] - b'0') as i64;
 let second_digit = (dt_bytes[1] - b'0') as i64;
 let number = 10 * first_digit + second_digit;
 ```
-- It is usually preferable to "spell out" branches when possible instead of doing repeated continue/return/whatever jumps:
+- It is usually preferable to "spell out" branches at the same "level" whenever possible, instead of doing repeated continue/return/whatever jumps (which are harder to trace mentally):
 ```
 /// option A
 if A {
@@ -107,19 +107,19 @@ else {
 
 ### Factoring
 
-- The point of all code is to solve real-world problems and model them with the fewest, most pristine nouns and verbs (types and functions) possible, using the fewest possible resources (bytes, instructions, cycles, whatever). 
+- The point of all code is to solve real-world problems and model them with the fewest, most pristine nouns and verbs (types and functions) possible that the machine understands, using the fewest possible resources (bytes, instructions, cycles, whatever). 
 - Where good relevant prior art exists, we should try to follow it, especially in terminology, configuration, interfaces, and even behavior where sensible.
-- Every proposed change is really a question: "what shape should the logic have in the long term to support changes _like_ this?", the answer to that question leads to a more maintainable codebase, even if it means more work in the short term.
+- Every proposed change is really a question: "what shape should the codebase have in the long term to support changes and features _like_ this?"; the answer to that question leads to a more maintainable codebase, even if it means more work in the short term.
 - Sometimes the right answer is "no", and the right response to a change is "no, not here, not now".
 - One of the few things worse than superflous duplication is forced abstraction.
-- Often, when properly factored, the real world (and thus the way to model it) is surprisingly symmetrical at varying scales (types, functions, files, modules, sub-systems). Identifying symmetry and generalising it - even if only informally, no real interface required - is very valuable (naming, parameter conventions, file names and placement, module layout, .. anything).
-- Try to make logic "incrementally granular" (as per Casey Muratori), i.e., ideally we should be able to reuse logic at various pieces of granularity.
-- Conceptually, this means not hiding details too much, and assuming (especially internally) that the caller is a consenting adult.
+- Often, when properly factored, the real world (and thus the way to model it) is surprisingly symmetrical at varying scales (types, functions, files, modules, sub-systems). Identifying symmetry and generalising it - even if only informally, no "real" language-level interface required - is very valuable (naming, parameter conventions, file names and placement, module layout, .. anything).
+- Try to make logic "incrementally granular" (as per Casey Muratori), i.e., ideally we should be able to reuse logic _and_ state at various pieces of granularity.
+- Conceptually, incremental granularity means not hiding details too much, and assuming (especially internally, within the castle) that the caller is a consenting adult.
 - Relatedly, try hard to _avoid_ "banana and the jungle" shaped model solutions where pulling in one component requires pulling in a whole deep object graph. 
-- That said, it is often beneficial to have strong clear nouns and verbs, and it's usually easier to think about state when it is bundled in nouns.
+- That said, it is often beneficial to have strong clear nouns and verbs, and it's usually easier to think about state when it is bundled in nouns (dare I say "objects", but no OOP abstraction nonsense).
 - Even associated functions (that don't depend on state at all) often benefit from being tied to relevant nouns in cases where one presents itself, just because it reads nicer. 
 - More specifically, as a trivial example, when a function takes an array of something, try to make it work on a single "element" instead and just loop in the caller. Prefer parameteric mutability. etc. etc., that sort of thing. 
-- Usually, in each file, the "top" / most important nouns should go up top (constants at the very top), followed by successively more internal / inner nouns, and any relevant free functions at the very bottom (+ tests as neede ofc).
+- Usually, in each file, the "top" / most important nouns should go up top (constants at the very top above it), followed by successively more internal / inner nouns, and any relevant free functions at the very bottom (+ tests as neede ofc).
 - Often, when we're tempted to add a matrix of methods like "x_for_y", the more pristine factoring is to back up and (re)align state and logic construction flows in a more natural way.
 
 ### Refactoring
@@ -127,6 +127,7 @@ else {
 - Just like writing is editing, progrmaming is refactoring, and we refactor as we go and as our understanding of the problem deepens and the right solution shape reveals itself.
 - If we do our job right, and have the right level of testing, refactors should be reasonably painless and only touch the parts of the model we actually needed.
 - As with factoring, we should always try to make our work easier as we go: "make the change easy, then make the change".
+- Sometimes it is however easier to just rip out a component alltogether and rewrite it completely, especially if it's say <5k LoC or so.
 - We should always strive to refactor and "clean" as we go, continuously re-audit and semantically compress where the opportunity presents itself. Nothing is final.
 - Relatedly, as we go, we must never assume that what is already there is good just because it exists, even if it's in use, even if it's already tested. 
 - As a corollary, failing tests do not _always_ mean that the new code is wrong, the tests might also be wrong. That said, tests and expectations should never be silently changed without explicit prior discussion and agreement.
