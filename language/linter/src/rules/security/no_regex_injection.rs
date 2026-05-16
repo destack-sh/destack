@@ -172,7 +172,7 @@ impl<'a, 'b> NoRegexInjectionVisitor<'a, 'b> {
             self.ctx.module_id(),
             self.ctx.dir.tree(),
             self.ctx.strings,
-            self.ctx.symbols,
+            &self.ctx.symbols,
             self.ctx.types,
             &mut self.taint_cache,
             true,

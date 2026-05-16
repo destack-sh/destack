@@ -158,11 +158,11 @@ fn source_expression_is_declared_any(
     }
 
     // cross module
-    let Some(module_dir) = ctx.dir_checked(source_value_type_id.module_id) else {
+    let Some(types) = ctx.dir_type_table(source_value_type_id.module_id) else {
         return false;
     };
-    let source_type_id = unwrap_value_type_id(&module_dir.types, source_value_type_id.type_id);
-    is_any_type(&module_dir.types, source_type_id)
+    let source_type_id = unwrap_value_type_id(&types, source_value_type_id.type_id);
+    is_any_type(&types, source_type_id)
 }
 
 /// Return true when the target expression is an explicit `any` type literal.

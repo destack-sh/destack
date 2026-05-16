@@ -79,7 +79,7 @@ impl<'a, 'b> PreferStructLiteralVisitor<'a, 'b> {
             self.ctx.artifacts.as_ref(),
             self.ctx.profile_id,
             self.ctx.module_id(),
-            self.ctx.symbols,
+            &self.ctx.symbols,
             target_symbol,
         )
         .is_some_and(|symbol| symbol.form == SymbolForm::Struct)
@@ -96,7 +96,7 @@ impl<'a, 'b> PreferStructLiteralVisitor<'a, 'b> {
             self.ctx.artifacts.as_ref(),
             self.ctx.profile_id,
             self.ctx.module_id(),
-            self.ctx.symbols,
+            &self.ctx.symbols,
             target_symbol,
         )?;
         if target_symbol_entry.form != SymbolForm::Struct {
@@ -108,7 +108,7 @@ impl<'a, 'b> PreferStructLiteralVisitor<'a, 'b> {
             self.ctx.artifacts.as_ref(),
             self.ctx.profile_id,
             self.ctx.module_id(),
-            self.ctx.symbols,
+            &self.ctx.symbols,
             target_symbol,
         )?;
         if declaration_id.local_id.ty != dir::NodeType::Declaration {

@@ -128,7 +128,7 @@ impl<'a, 'b> DeprecatedUsageVisitor<'a, 'b> {
             self.ctx.module_id(),
             self.ctx.dir.tree(),
             self.ctx.strings,
-            self.ctx.symbols,
+            &self.ctx.symbols,
             self.ctx.types,
             expression_id,
             deprecated_symbol,

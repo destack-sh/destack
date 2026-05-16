@@ -51,7 +51,7 @@ impl LintRule for PreferPatternOverGuard {
 
             // keep simple binding patterns whose guard compares the same symbol to one literal
             let Some((_, binding_symbol)) =
-                pattern_binding_name_and_symbol(ctx.dir.tree(), ctx.symbols, pattern_id)
+                pattern_binding_name_and_symbol(ctx.dir.tree(), &ctx.symbols, pattern_id)
             else {
                 continue;
             };

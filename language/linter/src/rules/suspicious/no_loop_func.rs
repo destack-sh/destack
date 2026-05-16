@@ -98,7 +98,7 @@ impl<'a, 'b> NoLoopFuncVisitor<'a, 'b> {
         let mut collector = CapturedMutableSymbolCollector::new(
             self.ctx.module_id(),
             self.ctx.dir.tree(),
-            self.ctx.symbols,
+            &self.ctx.symbols,
             self.ctx.types,
             function_scope.id,
             self.active_loop_scopes.as_slice(),

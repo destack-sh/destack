@@ -137,7 +137,7 @@ fn collect_async_function_symbols(ctx: &LintModuleContext<'_>) -> HashSet<dir::G
         let mut binding_symbols = HashSet::new();
         collect_pattern_value_binding_symbols(
             ctx.dir.tree(),
-            ctx.symbols,
+            &ctx.symbols,
             declarator.pattern,
             &mut binding_symbols,
         );

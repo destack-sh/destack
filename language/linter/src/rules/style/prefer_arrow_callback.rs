@@ -439,7 +439,7 @@ fn callback_body_usage(
     let new_name = ctx.string_id("new");
     let target_name = ctx.string_id("target");
     let ignore_arguments_reference =
-        signature_declares_value_name(ctx.dir.tree(), ctx.symbols, signature, arguments_name);
+        signature_declares_value_name(ctx.dir.tree(), &ctx.symbols, signature, arguments_name);
 
     // walk only the current callback body
     let mut visitor = CallbackBodyUsageVisitor {

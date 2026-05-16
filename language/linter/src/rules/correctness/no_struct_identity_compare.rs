@@ -92,7 +92,7 @@ impl<'a, 'b> StructCompareVisitor<'a, 'b> {
         let left_is_struct = self.ctx.expression_type_id(left).is_some_and(|type_id| {
             is_reference_symbol_form(
                 self.ctx.types,
-                self.ctx.symbols,
+                &self.ctx.symbols,
                 type_id,
                 SymbolForm::Struct,
             )
@@ -102,7 +102,7 @@ impl<'a, 'b> StructCompareVisitor<'a, 'b> {
         let right_is_struct = self.ctx.expression_type_id(right).is_some_and(|type_id| {
             is_reference_symbol_form(
                 self.ctx.types,
-                self.ctx.symbols,
+                &self.ctx.symbols,
                 type_id,
                 SymbolForm::Struct,
             )

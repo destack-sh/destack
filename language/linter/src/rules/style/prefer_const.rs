@@ -242,7 +242,7 @@ impl NodeVisitor for LetDeclarationCollector<'_, '_> {
                 let mut declarator_symbols = HashSet::new();
                 collect_pattern_value_binding_symbols(
                     tree,
-                    self.ctx.symbols,
+                    &self.ctx.symbols,
                     declarator.pattern,
                     &mut declarator_symbols,
                 );
