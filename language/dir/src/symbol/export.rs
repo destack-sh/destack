@@ -1,6 +1,7 @@
+use destack_core::{StringId, StringPool};
 use serde::{Deserialize, Serialize};
 
-use crate::{DependencyItem, DependencyTarget, LocalNodeId, LocalSymbolId, StaticKey};
+use crate::{DependencyItem, DependencyTarget, LocalNodeId, LocalSymbolId, Name, StaticKey};
 
 /// The exported name in one module record.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -30,6 +31,23 @@ impl ExportName {
         match self {
             Self::Default => None,
             Self::Named(key) => Some(key),
+        }
+    }
+
+    /// Build one export name from a parsed name.
+    pub fn from_name(name: Name, strings: &StringPool) -> Self {
+        match name {
+            Name::Identifier(name) | Name::String(name) => Self::from_string(name, strings),
+            Name::Number(name) => Self::Named(StaticKey::Number(name)),
+        }
+    }
+
+    /// Build one export name from a string.
+    pub fn from_string(name: StringId, strings: &StringPool) -> Self {
+        if strings.get(name) == "default" {
+            Self::Default
+        } else {
+            Self::Named(StaticKey::Name(name))
         }
     }
 }

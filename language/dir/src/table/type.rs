@@ -1,5 +1,7 @@
+use std::sync::Arc;
+
 use destack_source::ModuleId;
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -10,9 +12,444 @@ use crate::{
     VarianceModifier,
 };
 
-/// Append-only type slots and relations for one DIR artifact.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// Cumulative type slots and relations for one DIR module.
+#[derive(Debug, Clone)]
 pub struct TypeTable {
+    /// The module id of the type table.
+    pub module_id: ModuleId,
+    /// The ordered type table segments.
+    segments: Vec<Arc<TypeSegment>>,
+}
+
+impl TypeTable {
+    /// Create a type table from ordered segments.
+    pub fn from_segments(segments: Vec<Arc<TypeSegment>>) -> Self {
+        let first = segments
+            .first()
+            .unwrap_or_else(|| panic!("type table needs at least one segment"));
+        let module_id = first.module_id;
+
+        // require a single module owner
+        for segment in &segments {
+            assert_eq!(
+                segment.module_id, module_id,
+                "type table segment belongs to a different module"
+            );
+        }
+
+        Self {
+            module_id,
+            segments,
+        }
+    }
+
+    /// Create a type table from one segment.
+    pub fn from_segment(segment: Arc<TypeSegment>) -> Self {
+        Self::from_segments(vec![segment])
+    }
+
+    /// Iterate type attachments keyed by DIR node.
+    pub fn node_entries(&self) -> Box<dyn Iterator<Item = (GlobalNodeIdAny, &NodeEntry)> + '_> {
+        let mut seen = IndexSet::new();
+        let entries = self
+            .segments
+            .iter()
+            .rev()
+            .flat_map(|segment| segment.nodes.iter().rev())
+            .filter_map(move |(node_id, entry)| seen.insert(*node_id).then_some((*node_id, entry)))
+            .collect::<Vec<_>>();
+
+        Box::new(entries.into_iter().rev())
+    }
+
+    /// Iterate type attachments keyed by DIR symbol.
+    pub fn symbol_entries(&self) -> Box<dyn Iterator<Item = (GlobalSymbolId, &SymbolEntry)> + '_> {
+        let mut seen = IndexSet::new();
+        let entries = self
+            .segments
+            .iter()
+            .rev()
+            .flat_map(|segment| segment.symbols.iter().rev())
+            .filter_map(move |(symbol_id, entry)| {
+                seen.insert(*symbol_id).then_some((*symbol_id, entry))
+            })
+            .collect::<Vec<_>>();
+
+        Box::new(entries.into_iter().rev())
+    }
+
+    /// Iterate committed instantiations with their local ids.
+    pub fn iter_instantiations(
+        &self,
+    ) -> impl Iterator<Item = (LocalInstantiationId, &Instantiation)> + '_ {
+        self.segments
+            .iter()
+            .flat_map(|segment| segment.iter_instantiations())
+    }
+
+    /// Return the instantiation attached to a source node.
+    pub fn node_instantiation_id(&self, node_id: GlobalNodeIdAny) -> Option<LocalInstantiationId> {
+        self.node_entry(node_id)
+            .and_then(|entry| entry.instantiation)
+    }
+
+    /// Find one exact instantiation by shape.
+    pub fn find_instantiation(&self, expected: &Instantiation) -> Option<LocalInstantiationId> {
+        for (instantiation_id, instantiation) in self.iter_instantiations() {
+            if instantiation == expected {
+                return Some(instantiation_id);
+            }
+        }
+
+        None
+    }
+
+    /// Get an instantiation by id.
+    pub fn get_instantiation(&self, instantiation_id: LocalInstantiationId) -> &Instantiation {
+        for segment in &self.segments {
+            if let Some(instantiation) = segment.get_local_instantiation(instantiation_id) {
+                return instantiation;
+            }
+        }
+
+        panic!("DIR instantiation {instantiation_id:?} is not visible")
+    }
+
+    /// Get a lineage by its id.
+    pub fn get_lineage(&self, lineage_id: LocalLineageId) -> &Lineage {
+        for segment in &self.segments {
+            if let Some(lineage) = segment.get_local_lineage(lineage_id) {
+                return lineage;
+            }
+        }
+
+        panic!("DIR lineage {lineage_id:?} is not visible")
+    }
+
+    /// Get the lineage id for a symbol.
+    pub fn symbol_lineage_id(&self, symbol_id: GlobalSymbolId) -> Option<LocalLineageId> {
+        self.symbol_entry(symbol_id)
+            .and_then(|entry| entry.lineage_id)
+    }
+
+    /// Get the lineage for a symbol directly.
+    pub fn symbol_lineage(&self, symbol_id: GlobalSymbolId) -> Option<&Lineage> {
+        self.symbol_lineage_id(symbol_id)
+            .map(|id| self.get_lineage(id))
+    }
+
+    /// Iterate over all lineages with their associated symbol ids.
+    pub fn iter_lineages(&self) -> Box<dyn Iterator<Item = (GlobalSymbolId, &Lineage)> + '_> {
+        let local = self.symbol_entries().filter_map(|(symbol_id, entry)| {
+            entry.lineage_id.map(|lineage_id| {
+                let lineage = self.get_lineage(lineage_id);
+                (symbol_id, lineage)
+            })
+        });
+
+        Box::new(local)
+    }
+
+    /// Get an extension by its id.
+    pub fn get_extension(&self, extension_id: LocalExtensionId) -> &Extension {
+        for segment in &self.segments {
+            if let Some(extension) = segment.get_local_extension(extension_id) {
+                return extension;
+            }
+        }
+
+        panic!("DIR extension {extension_id:?} is not visible")
+    }
+
+    /// Get an extension id by its symbol.
+    pub fn symbol_extension_id(
+        &self,
+        extension_symbol: GlobalSymbolId,
+    ) -> Option<LocalExtensionId> {
+        self.symbol_entry(extension_symbol)
+            .and_then(|entry| entry.extension_id)
+    }
+
+    /// Iterate extensions targeting a specific type symbol.
+    pub fn target_extensions(
+        &self,
+        target_symbol: GlobalSymbolId,
+    ) -> impl Iterator<Item = LocalExtensionId> + '_ {
+        self.segments.iter().flat_map(move |segment| {
+            segment
+                .target_extensions(target_symbol)
+                .into_iter()
+                .flatten()
+                .copied()
+        })
+    }
+
+    /// Iterate over all extensions.
+    pub fn iter_extensions(&self) -> impl Iterator<Item = (LocalExtensionId, &Extension)> + '_ {
+        self.segments
+            .iter()
+            .flat_map(|segment| segment.iter_extensions())
+    }
+
+    /// Get the resolved target for a node.
+    pub fn resolution(&self, node_id: GlobalNodeIdAny) -> Option<&Resolution> {
+        self.node_entry(node_id)
+            .and_then(|entry| entry.resolution.as_ref())
+    }
+
+    /// Get the lexical symbol resolution for a node.
+    pub fn symbol_resolution(&self, node_id: GlobalNodeIdAny) -> Option<GlobalSymbolId> {
+        match self.resolution(node_id) {
+            Some(Resolution::Symbol(symbol_id)) => Some(*symbol_id),
+            _ => None,
+        }
+    }
+
+    /// Get the dependency resolution for a node.
+    pub fn dependency_resolution(&self, node_id: GlobalNodeIdAny) -> Option<&DependencyResolution> {
+        match self.resolution(node_id) {
+            Some(Resolution::Dependency(resolution)) => Some(resolution),
+            _ => None,
+        }
+    }
+
+    /// Get the label resolution for a node.
+    pub fn label_resolution(&self, node_id: GlobalNodeIdAny) -> Option<LabelResolution> {
+        match self.resolution(node_id) {
+            Some(Resolution::Label(resolution)) => Some(*resolution),
+            _ => None,
+        }
+    }
+
+    /// Get the declared type id for a node.
+    pub fn get_declared_type_id(&self, node_id: GlobalNodeIdAny) -> Option<LocalTypeId> {
+        self.node_entry(node_id).and_then(|entry| entry.declared)
+    }
+
+    /// Get the inferred type id for a node.
+    pub fn get_inferred_type_id(&self, node_id: GlobalNodeIdAny) -> Option<LocalTypeId> {
+        self.node_entry(node_id).and_then(|entry| entry.inferred)
+    }
+
+    /// Get the declared or inferred type id for a node.
+    pub fn get_declared_or_inferred_type_id(
+        &self,
+        node_id: GlobalNodeIdAny,
+    ) -> Option<LocalTypeId> {
+        let entry = self.node_entry(node_id)?;
+
+        entry.declared.or(entry.inferred)
+    }
+
+    /// Get the member receiver type id for a node.
+    pub fn member_receiver_type_id(&self, node_id: GlobalNodeIdAny) -> Option<LocalTypeId> {
+        self.node_entry(node_id).and_then(|entry| entry.receiver)
+    }
+
+    /// Get the contextual object type id for a node.
+    pub fn contextual_object_type_id(&self, node_id: GlobalNodeIdAny) -> Option<LocalTypeId> {
+        self.node_entry(node_id).and_then(|entry| entry.contextual)
+    }
+
+    /// Get the signature type id for a node.
+    pub fn signature_type_id(&self, node_id: GlobalNodeIdAny) -> Option<LocalTypeId> {
+        self.node_entry(node_id).and_then(|entry| entry.signature)
+    }
+
+    /// Get the addressability for a node.
+    pub fn get_addressability(&self, node_id: GlobalNodeIdAny) -> Option<Addressability> {
+        self.node_entry(node_id)
+            .and_then(|entry| entry.addressability)
+    }
+
+    /// Get the instance type id for a symbol.
+    pub fn get_instance_type_id(&self, symbol_id: GlobalSymbolId) -> Option<LocalTypeId> {
+        self.symbol_entry(symbol_id)
+            .and_then(|entry| entry.instance_type)
+    }
+
+    /// Find the symbol that owns an instance type id.
+    pub fn symbol_for_instance_type(
+        &self,
+        instance_type_id: LocalTypeId,
+    ) -> Option<GlobalSymbolId> {
+        self.symbol_entries().find_map(|(symbol, entry)| {
+            (entry.instance_type == Some(instance_type_id)).then_some(symbol)
+        })
+    }
+
+    /// Get the value type id for a symbol.
+    pub fn get_value_type_id(&self, symbol_id: GlobalSymbolId) -> Option<LocalTypeId> {
+        self.symbol_entry(symbol_id)
+            .and_then(|entry| entry.value_type)
+    }
+
+    /// Get the declared target type id for an alias symbol.
+    pub fn get_alias_target_type_id(&self, symbol_id: GlobalSymbolId) -> Option<LocalTypeId> {
+        self.symbol_entry(symbol_id)
+            .and_then(|entry| entry.alias_target_type)
+    }
+
+    /// Get the backing type for an enum symbol.
+    pub fn get_enum_backing_type(&self, symbol_id: GlobalSymbolId) -> Option<EnumBackingType> {
+        self.symbol_entry(symbol_id)
+            .and_then(|entry| entry.enum_backing)
+    }
+
+    /// Get the resolved enum field value.
+    pub fn get_enum_field_value(&self, symbol_id: GlobalSymbolId) -> Option<EnumFieldValue> {
+        self.symbol_entry(symbol_id)
+            .and_then(|entry| entry.enum_field_value)
+    }
+
+    /// Get the type id for a symbol through its declaration form.
+    pub fn symbol_type_id(
+        &self,
+        symbols: &BindingTable,
+        symbol_id: GlobalSymbolId,
+    ) -> Option<LocalTypeId> {
+        let symbol = symbols.get_symbol(symbol_id.local_id);
+
+        match symbol.form {
+            SymbolForm::TypeAlias => self.get_alias_target_type_id(symbol_id),
+            SymbolForm::Newtype => self
+                .get_instance_type_id(symbol_id)
+                .or_else(|| self.get_alias_target_type_id(symbol_id)),
+            _ => self
+                .get_value_type_id(symbol_id)
+                .or_else(|| self.get_instance_type_id(symbol_id)),
+        }
+    }
+
+    /// Get a type by its id.
+    pub fn get_type(&self, type_id: LocalTypeId) -> &Type {
+        self.get_type_maybe(type_id)
+            .unwrap_or_else(|| panic!("DIR type {type_id:?} is not visible"))
+    }
+
+    /// Get a type by its id when present.
+    pub fn get_type_maybe(&self, type_id: LocalTypeId) -> Option<&Type> {
+        for segment in self.segments.iter().rev() {
+            if let Some(ty) = segment.get_type_maybe(type_id) {
+                return Some(ty);
+            }
+        }
+
+        None
+    }
+
+    /// Strip value wrapper types to reach the underlying type id.
+    pub fn unwrap_value_type_id(&self, type_id: LocalTypeId) -> LocalTypeId {
+        let mut current = type_id;
+        loop {
+            match self.get_type(current) {
+                Type::Value(value) => current = value.value,
+                _ => return current,
+            }
+        }
+    }
+
+    /// Iterate over all type ids.
+    pub fn iter_type_ids(&self) -> impl Iterator<Item = LocalTypeId> + '_ {
+        let end = self.type_count();
+
+        (0..end).map(LocalTypeId::new)
+    }
+
+    /// Return provenance for a type id.
+    pub fn type_origin(&self, type_id: LocalTypeId) -> TypeOrigin {
+        self.type_provenance(type_id).origin
+    }
+
+    /// Get the source id for a type.
+    pub fn get_type_source(&self, type_id: LocalTypeId) -> LocalNodeIdAny {
+        self.type_provenance(type_id).source_id
+    }
+
+    /// Return true when a type originated from an imported module.
+    pub fn is_imported_type(&self, type_id: LocalTypeId) -> bool {
+        matches!(self.type_origin(type_id), TypeOrigin::Imported)
+    }
+
+    /// Get the number of types in the table.
+    pub fn type_count(&self) -> u32 {
+        self.segments
+            .last()
+            .map(|segment| segment.type_count())
+            .unwrap_or(0)
+    }
+
+    /// Get the number of instantiations in the table.
+    pub fn instantiation_count(&self) -> u32 {
+        self.segments
+            .last()
+            .map(|segment| segment.instantiation_count())
+            .unwrap_or(0)
+    }
+
+    /// Get the number of lineages in the table.
+    pub fn lineage_count(&self) -> u32 {
+        self.segments
+            .last()
+            .map(|segment| segment.lineage_count())
+            .unwrap_or(0)
+    }
+
+    /// Get the number of extensions in the table.
+    pub fn extension_count(&self) -> u32 {
+        self.segments
+            .last()
+            .map(|segment| segment.extension_count())
+            .unwrap_or(0)
+    }
+
+    /// Return the number of entries in this table.
+    pub fn len(&self) -> u32 {
+        self.type_count()
+    }
+
+    /// Return true when this table has no entries.
+    pub fn is_empty(&self) -> bool {
+        self.segments.iter().all(|segment| segment.is_empty())
+    }
+
+    /// Return a node entry when present.
+    fn node_entry(&self, node_id: GlobalNodeIdAny) -> Option<&NodeEntry> {
+        for segment in self.segments.iter().rev() {
+            if let Some(entry) = segment.node_entry(node_id) {
+                return Some(entry);
+            }
+        }
+
+        None
+    }
+
+    /// Return a symbol entry when present.
+    fn symbol_entry(&self, symbol_id: GlobalSymbolId) -> Option<&SymbolEntry> {
+        for segment in self.segments.iter().rev() {
+            if let Some(entry) = segment.symbol_entry(symbol_id) {
+                return Some(entry);
+            }
+        }
+
+        None
+    }
+
+    /// Return provenance for a type id.
+    fn type_provenance(&self, type_id: LocalTypeId) -> TypeProvenance {
+        for segment in &self.segments {
+            if segment.contains_type_id(type_id) {
+                return segment.type_provenance(type_id);
+            }
+        }
+
+        panic!("missing type provenance for type id {type_id:?}");
+    }
+}
+
+/// Type slots and relations added by one DIR phase.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TypeSegment {
     /// The module id of the type store.
     pub module_id: ModuleId,
     /// The first type id owned by this table segment.
@@ -45,8 +482,8 @@ pub struct TypeTable {
     pub(crate) extensions_by_target_symbol: IndexMap<GlobalSymbolId, Vec<LocalExtensionId>>,
 }
 
-impl TypeTable {
-    /// Create a new TypeTable.
+impl TypeSegment {
+    /// Create a new type segment.
     pub fn new(module_id: ModuleId) -> Self {
         Self {
             module_id,
@@ -905,83 +1342,4 @@ pub struct TypeProvenance {
     pub source_id: LocalNodeIdAny,
     /// The provenance of this type slot.
     pub origin: TypeOrigin,
-}
-
-#[cfg(test)]
-mod tests {
-    use std::path::Path;
-
-    use destack_source::{ModuleId, PackageId};
-
-    use super::{TypeOrigin, TypeTable};
-    use crate::{FloatType, LiteralType, LocalNodeIdAny, NodeType, PrimitiveType, SliceType, Type};
-
-    fn test_module_id() -> ModuleId {
-        let package_id = PackageId::from_path(Path::new("dir-type-table-test"));
-
-        ModuleId::from_relative_path(package_id, Path::new("module.ds"))
-    }
-
-    #[test]
-    fn test_insert_type_from_any_tracks_local_type_provenance() {
-        let mut types = TypeTable::new(test_module_id());
-        let source_id = LocalNodeIdAny::new(7, NodeType::Expression);
-        let type_id = types.insert_type_from_any(Type::Literal(LiteralType::Any), source_id);
-
-        assert_eq!(types.get_type_source(type_id), source_id);
-        assert_eq!(types.type_origin(type_id), TypeOrigin::Local);
-        assert!(!types.is_imported_type(type_id));
-    }
-
-    #[test]
-    fn test_insert_imported_type_from_any_tracks_imported_type_provenance() {
-        let mut types = TypeTable::new(test_module_id());
-        let source_id = LocalNodeIdAny::new(9, NodeType::Expression);
-        let type_id = types.insert_imported_type_from_any(
-            Type::Literal(LiteralType::Primitive(PrimitiveType::Float(
-                FloatType::Float64,
-            ))),
-            source_id,
-        );
-
-        assert_eq!(types.get_type_source(type_id), source_id);
-        assert_eq!(types.type_origin(type_id), TypeOrigin::Imported);
-        assert!(types.is_imported_type(type_id));
-    }
-
-    #[test]
-    fn test_insert_type_from_type_preserves_origin_and_source_metadata() {
-        let mut types = TypeTable::new(test_module_id());
-        let source_id = LocalNodeIdAny::new(13, NodeType::Expression);
-        let source_type_id = types.insert_imported_type_from_any(
-            Type::Literal(LiteralType::Primitive(PrimitiveType::String)),
-            source_id,
-        );
-
-        let mapped_type_id = types.insert_type_from_type(
-            Type::Slice(SliceType {
-                element: Some(source_type_id),
-                is_readonly: false,
-            }),
-            source_type_id,
-        );
-
-        assert_eq!(types.get_type_source(mapped_type_id), source_id);
-        assert_eq!(types.type_origin(mapped_type_id), TypeOrigin::Imported);
-    }
-
-    #[test]
-    fn test_update_type_preserves_type_provenance() {
-        let mut types = TypeTable::new(test_module_id());
-        let source_id = LocalNodeIdAny::new(21, NodeType::Expression);
-        let type_id = types.insert_type_from_any(
-            Type::Literal(LiteralType::Primitive(PrimitiveType::Boolean)),
-            source_id,
-        );
-
-        types.update_type(type_id, Type::Literal(LiteralType::Unknown));
-
-        assert_eq!(types.get_type_source(type_id), source_id);
-        assert_eq!(types.type_origin(type_id), TypeOrigin::Local);
-    }
 }

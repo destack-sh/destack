@@ -48,6 +48,60 @@ impl Scope {
     pub fn append_child(&mut self, scope_id: LocalScopeId) {
         self.children.push(scope_id);
     }
+
+    /// Iterate named symbols in lexical order.
+    pub fn named_symbols(&self) -> impl Iterator<Item = (StaticKey, LocalSymbolId)> + '_ {
+        self.bindings
+            .iter()
+            .filter_map(|binding| binding.key.map(|key| (key, binding.symbol)))
+    }
+
+    /// Iterate named symbols in lexical order up to a mark.
+    pub fn named_symbols_up_to(
+        &self,
+        mark: LocalScopeMark,
+    ) -> impl Iterator<Item = (StaticKey, LocalSymbolId)> + '_ {
+        let limit = mark.0 as usize;
+
+        self.bindings
+            .iter()
+            .take(limit)
+            .filter_map(|binding| binding.key.map(|key| (key, binding.symbol)))
+    }
+
+    /// Iterate anonymous symbols in lexical order.
+    pub fn anonymous_symbols(&self) -> impl Iterator<Item = LocalSymbolId> + '_ {
+        self.bindings
+            .iter()
+            .filter_map(|binding| binding.key.is_none().then_some(binding.symbol))
+    }
+
+    /// Find the latest symbol with one key.
+    pub fn find_symbol(&self, key: StaticKey) -> Option<LocalSymbolId> {
+        for binding in self.bindings.iter().rev() {
+            if binding.key != Some(key) {
+                continue;
+            }
+
+            return Some(binding.symbol);
+        }
+
+        None
+    }
+
+    /// Find the latest symbol with one key up to a mark.
+    pub fn find_symbol_up_to(&self, key: StaticKey, mark: LocalScopeMark) -> Option<LocalSymbolId> {
+        let limit = mark.0 as usize;
+        for binding in self.bindings.iter().take(limit).rev() {
+            if binding.key != Some(key) {
+                continue;
+            }
+
+            return Some(binding.symbol);
+        }
+
+        None
+    }
 }
 
 /// The kind of a scope.
