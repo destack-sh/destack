@@ -31,7 +31,6 @@ impl Repository {
     pub(crate) fn decrement_revision_pin(&self, revision: Revision) {
         if let Some(entry) = self.revisions.get(&revision) {
             entry.unpin();
-            return;
         }
     }
 

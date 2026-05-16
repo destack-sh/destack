@@ -1632,6 +1632,7 @@ dependencies = [
  "parking_lot",
  "rustc-hash 2.1.2",
  "rustix",
+ "schemars",
  "serde",
  "serde_json",
  "simdutf8",

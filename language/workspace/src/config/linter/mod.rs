@@ -15,7 +15,3 @@ pub use restriction::*;
 pub use security::*;
 pub use style::*;
 pub use suspicious::*;
-
-pub(crate) use core::{
-    validate_exact_enum_order, validate_regex_patterns, validate_single_character_strings,
-};

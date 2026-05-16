@@ -129,7 +129,7 @@ impl Repository {
             return Ok(Arc::clone(workspace));
         }
 
-        let workspace_config = self.destack_config_for_workspace(revision)?;
+        let workspace_config = self.destack_for_workspace(revision)?;
         let packages = self.package_index(revision)?;
         let kind = if packages.len() > 1 {
             WorkspaceKind::Monorepo

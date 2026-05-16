@@ -1,18 +1,17 @@
 use indexmap::IndexMap;
-use regex::Regex;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use super::{
-    LinterComplexityJson, LinterComplexityOptions, LinterCorrectnessJson, LinterCorrectnessOptions,
-    LinterPerformanceJson, LinterPerformanceOptions, LinterRestrictionJson,
-    LinterRestrictionOptions, LinterSecurityJson, LinterSecurityOptions, LinterStyleJson,
-    LinterStyleOptions, LinterSuspiciousJson, LinterSuspiciousOptions,
+    LinterComplexityOptions, LinterCorrectnessOptions, LinterPerformanceOptions,
+    LinterRestrictionOptions, LinterSecurityOptions, LinterStyleOptions, LinterSuspiciousOptions,
 };
 
 /// Lint rule categories.
 ///
 /// Each category has a letter code used in lint identifiers (e.g., `LC002` for Correctness).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
 pub enum LintCategory {
     /// Correctness (C) lints detect likely bugs and logic errors.
     /// These are high-confidence issues that are almost always wrong.
@@ -120,7 +119,9 @@ impl std::fmt::Display for LintCategory {
 }
 
 /// Lint rule preset.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
 pub enum LintPreset {
     /// No rules enabled by default.
     None,
@@ -163,7 +164,9 @@ impl std::fmt::Display for LintPreset {
 }
 
 /// Preferred array type syntax for the `array-type` rule.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
 pub enum ArrayTypeStyle {
     /// Prefer `T[]` syntax.
     #[default]
@@ -173,7 +176,9 @@ pub enum ArrayTypeStyle {
 }
 
 /// Preferred type definition syntax for the `consistent-type-definitions` rule.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
 pub enum TypeDefinitionStyle {
     /// Prefer `type` aliases.
     #[default]
@@ -183,7 +188,9 @@ pub enum TypeDefinitionStyle {
 }
 
 /// Filename case style for the `filename-case` rule.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
 pub enum FilenameCase {
     /// kebab-case (e.g., `my-component.ts`).
     #[default]
@@ -197,7 +204,9 @@ pub enum FilenameCase {
 }
 
 /// Return-await mode for the `return-await` rule.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
 pub enum ReturnAwaitMode {
     /// Require await only in error handling contexts and forbid it elsewhere.
     #[default]
@@ -211,7 +220,9 @@ pub enum ReturnAwaitMode {
 }
 
 /// Required Unicode regex flag for `require-unicode-regexp`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
 pub enum UnicodeRegexpRequireFlag {
     /// Require the `u` flag.
     #[default]
@@ -231,7 +242,9 @@ impl UnicodeRegexpRequireFlag {
 }
 
 /// Switch counting variant for `cyclomatic-complexity`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
 pub enum CyclomaticComplexityVariant {
     /// Count each non-default switch case as a branch.
     #[default]
@@ -241,7 +254,9 @@ pub enum CyclomaticComplexityVariant {
 }
 
 /// `this` parameter counting policy for `max-params`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
 pub enum MaxParamsCountThis {
     /// Never count the `this` parameter.
     Never,
@@ -253,7 +268,9 @@ pub enum MaxParamsCountThis {
 }
 
 /// Enforcement mode for `operator-assignment`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
 pub enum OperatorAssignmentMode {
     /// Require shorthand assignment where possible.
     #[default]
@@ -263,7 +280,9 @@ pub enum OperatorAssignmentMode {
 }
 
 /// Enforcement mode for `object-shorthand`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
 pub enum ObjectShorthandMode {
     /// Require shorthand for methods and properties.
     #[default]
@@ -281,7 +300,9 @@ pub enum ObjectShorthandMode {
 }
 
 /// Enforcement mode for `yoda`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
 pub enum YodaMode {
     /// Require literal comparisons in Yoda form.
     Always,
@@ -291,7 +312,9 @@ pub enum YodaMode {
 }
 
 /// Ordering policy for `grouped-accessor-pairs`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
 pub enum GroupedAccessorPairsOrder {
     /// Allow either adjacent accessor order.
     #[default]
@@ -303,7 +326,9 @@ pub enum GroupedAccessorPairsOrder {
 }
 
 /// Member syntax groups for `sort-imports`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
 pub enum SortImportsMemberSyntax {
     /// Side-effect import syntax.
     None,
@@ -316,7 +341,9 @@ pub enum SortImportsMemberSyntax {
 }
 
 /// Destructuring policy for `prefer-const`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
 pub enum PreferConstDestructuring {
     /// Report any const eligible binding in a destructuring.
     #[default]
@@ -326,7 +353,9 @@ pub enum PreferConstDestructuring {
 }
 
 /// Warning comment term matching location for `no-warning-comments`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
 pub enum WarningCommentLocation {
     /// Match terms only at the logical start of the comment.
     #[default]
@@ -336,7 +365,9 @@ pub enum WarningCommentLocation {
 }
 
 /// Bitwise operators configurable for the `no-bitwise` rule.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
 pub enum BitwiseOperator {
     /// `&`
     And,
@@ -393,7 +424,10 @@ impl BitwiseOperator {
 /// 1. Individual rule overrides
 /// 2. Category-level overrides
 /// 3. Preset defaults
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(default)]
+#[serde(rename_all = "camelCase")]
 pub struct LinterOptions {
     /// Whether linting is enabled.
     pub enabled: bool,
@@ -567,7 +601,9 @@ impl LinterOptions {
 }
 
 /// Rule severity level.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
 pub enum LintSeverity {
     /// Rule is disabled.
     Off,
@@ -629,550 +665,10 @@ impl std::fmt::Display for LintSeverity {
     }
 }
 
-/// Linter options (top-level, like Biome/Deno).
-#[derive(Debug, Default, Deserialize, Clone)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub struct LinterJson {
-    /// Whether linting is enabled. Default: true.
-    pub enabled: Option<bool>,
-    /// Rule configuration.
-    #[serde(default)]
-    pub rules: LinterRulesJson,
-    /// Correctness-category options.
-    #[serde(default, flatten)]
-    pub correctness: LinterCorrectnessJson,
-    /// Suspicious-category options.
-    #[serde(default, flatten)]
-    pub suspicious: LinterSuspiciousJson,
-    /// Performance-category options.
-    #[serde(default, flatten)]
-    pub performance: LinterPerformanceJson,
-    /// Style-category options.
-    #[serde(default, flatten)]
-    pub style: LinterStyleJson,
-    /// Security-category options.
-    #[serde(default, flatten)]
-    pub security: LinterSecurityJson,
-    /// Complexity-category options.
-    #[serde(default, flatten)]
-    pub complexity: LinterComplexityJson,
-    /// Restriction-category options.
-    #[serde(default, flatten)]
-    pub restriction: LinterRestrictionJson,
-}
-
-impl LinterJson {
-    /// Validate configuration values that need semantic checking.
-    pub fn validate(&self) -> Result<(), String> {
-        self.correctness.validate()?;
-        self.suspicious.validate()?;
-        self.performance.validate()?;
-        self.style.validate()?;
-        self.security.validate()?;
-        self.complexity.validate()?;
-        self.restriction.validate()?;
-
-        Ok(())
-    }
-
-    /// Apply linter options to a LinterOptions struct.
-    pub fn apply(&self, options: &mut LinterOptions) {
-        if let Some(enabled) = self.enabled {
-            options.enabled = enabled;
-        }
-
-        self.rules.apply(options);
-        self.correctness.apply(options);
-        self.suspicious.apply(options);
-        self.performance.apply(options);
-        self.style.apply(options);
-        self.security.apply(options);
-        self.complexity.apply(options);
-        self.restriction.apply(options);
-    }
-}
-
-/// Validate one list of regex patterns.
-pub(crate) fn validate_regex_patterns(
-    field_name: &str,
-    patterns: Option<&[String]>,
-) -> Result<(), String> {
-    let Some(patterns) = patterns else {
-        return Ok(());
-    };
-
-    for pattern in patterns {
-        Regex::new(pattern)
-            .map_err(|error| format!("invalid regex in {field_name}: `{pattern}`: {error}"))?;
-    }
-
-    Ok(())
-}
-
-/// Validate one list of single-character strings.
-pub(crate) fn validate_single_character_strings(
-    field_name: &str,
-    values: Option<&[String]>,
-) -> Result<(), String> {
-    let Some(values) = values else {
-        return Ok(());
-    };
-
-    for value in values {
-        if value.chars().count() != 1 {
-            return Err(format!(
-                "invalid value in {field_name}: `{value}` must be exactly one character"
-            ));
-        }
-    }
-
-    Ok(())
-}
-
-/// Validate that one enum list is a permutation of the expected values.
-pub(crate) fn validate_exact_enum_order<T: PartialEq + Copy>(
-    field_name: &str,
-    values: Option<&[T]>,
-    expected_values: &[T],
-) -> Result<(), String> {
-    let Some(values) = values else {
-        return Ok(());
-    };
-
-    if values.len() != expected_values.len() {
-        return Err(format!(
-            "{field_name} must contain exactly {} values",
-            expected_values.len()
-        ));
-    }
-
-    for expected_value in expected_values {
-        let occurrences = values
-            .iter()
-            .copied()
-            .filter(|value| value == expected_value)
-            .count();
-        if occurrences != 1 {
-            return Err(format!(
-                "{field_name} must contain each member syntax value exactly once"
-            ));
-        }
-    }
-
-    Ok(())
-}
-
-/// Linter rules configuration.
-#[derive(Debug, Default, Deserialize, Clone)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub struct LinterRulesJson {
-    /// Preset: "none", "recommended", "strict", or "all".
-    pub preset: Option<String>,
-    /// Enable the recommended rule set (shorthand for preset: "recommended").
-    pub recommended: Option<bool>,
-    /// Enable all rules (shorthand for preset: "all").
-    pub all: Option<bool>,
-    /// Category-level severity overrides.
-    pub categories: Option<IndexMap<LintCategoryJson, RuleSeverityJson>>,
-    /// Individual rule overrides (rule name -> severity).
-    #[serde(flatten)]
-    pub overrides: IndexMap<String, RuleSeverityJson>,
-}
-
-impl LinterRulesJson {
-    /// Apply rules configuration to LinterOptions.
-    pub fn apply(&self, options: &mut LinterOptions) {
-        // preset field takes precedence
-        if let Some(preset_str) = &self.preset {
-            if let Some(preset) = LintPreset::parse(preset_str) {
-                options.preset = preset;
-            }
-        } else if let Some(true) = self.all {
-            options.preset = LintPreset::All;
-        } else if let Some(recommended) = self.recommended {
-            options.preset = if recommended {
-                LintPreset::Recommended
-            } else {
-                LintPreset::None
-            };
-        }
-
-        // category overrides
-        if let Some(categories) = &self.categories {
-            for (category, severity) in categories {
-                options
-                    .categories
-                    .insert((*category).into(), (*severity).into());
-            }
-        }
-
-        // rule overrides
-        for (rule, severity) in &self.overrides {
-            options.overrides.insert(rule.clone(), (*severity).into());
-        }
-    }
-}
-
-/// Rule severity for JSON deserialization.
-#[derive(Debug, Clone, Copy, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "lowercase")]
-pub enum RuleSeverityJson {
-    /// Rule is disabled.
-    Off,
-    /// Rule produces warnings.
-    Warn,
-    /// Rule produces errors.
-    Error,
-}
-
-impl From<RuleSeverityJson> for LintSeverity {
-    fn from(value: RuleSeverityJson) -> Self {
-        match value {
-            RuleSeverityJson::Off => LintSeverity::Off,
-            RuleSeverityJson::Warn => LintSeverity::Warning,
-            RuleSeverityJson::Error => LintSeverity::Error,
-        }
-    }
-}
-
-/// Lint category for JSON deserialization.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "lowercase")]
-pub enum LintCategoryJson {
-    /// Correctness lints detect likely bugs and logic errors.
-    Correctness,
-    /// Suspicious lints detect code that is likely unintentional.
-    Suspicious,
-    /// Performance lints detect inefficient patterns.
-    Performance,
-    /// Style lints enforce consistent coding style.
-    Style,
-    /// Security lints detect potential vulnerabilities.
-    Security,
-    /// Complexity lints detect overly complex code.
-    Complexity,
-    /// Restriction lints enforce project-specific restrictions.
-    Restriction,
-}
-
-impl From<LintCategoryJson> for LintCategory {
-    fn from(value: LintCategoryJson) -> Self {
-        match value {
-            LintCategoryJson::Correctness => LintCategory::Correctness,
-            LintCategoryJson::Suspicious => LintCategory::Suspicious,
-            LintCategoryJson::Performance => LintCategory::Performance,
-            LintCategoryJson::Style => LintCategory::Style,
-            LintCategoryJson::Security => LintCategory::Security,
-            LintCategoryJson::Complexity => LintCategory::Complexity,
-            LintCategoryJson::Restriction => LintCategory::Restriction,
-        }
-    }
-}
-
-/// Preferred array type syntax for the `array-type` rule.
-#[derive(Debug, Clone, Copy, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "lowercase")]
-pub enum ArrayTypeStyleJson {
-    /// Prefer `T[]` syntax.
-    Array,
-    /// Prefer `Array<T>` syntax.
-    Generic,
-}
-
-impl From<ArrayTypeStyleJson> for ArrayTypeStyle {
-    fn from(value: ArrayTypeStyleJson) -> Self {
-        match value {
-            ArrayTypeStyleJson::Array => ArrayTypeStyle::Array,
-            ArrayTypeStyleJson::Generic => ArrayTypeStyle::Generic,
-        }
-    }
-}
-
-/// Preferred type definition syntax for the `consistent-type-definitions` rule.
-#[derive(Debug, Clone, Copy, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "lowercase")]
-pub enum TypeDefinitionStyleJson {
-    /// Prefer `type` aliases.
-    Type,
-    /// Prefer `interface` declarations.
-    Interface,
-}
-
-impl From<TypeDefinitionStyleJson> for TypeDefinitionStyle {
-    fn from(value: TypeDefinitionStyleJson) -> Self {
-        match value {
-            TypeDefinitionStyleJson::Type => TypeDefinitionStyle::Type,
-            TypeDefinitionStyleJson::Interface => TypeDefinitionStyle::Interface,
-        }
-    }
-}
-
-/// Filename case style for the `filename-case` rule.
-#[derive(Debug, Clone, Copy, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "lowercase")]
-pub enum FilenameCaseJson {
-    /// kebab-case (e.g., `my-component.ts`).
-    Kebab,
-    /// snake_case (e.g., `my_component.ts`).
-    Snake,
-    /// camelCase (e.g., `myComponent.ts`).
-    Camel,
-    /// PascalCase (e.g., `MyComponent.ts`).
-    Pascal,
-}
-
-impl From<FilenameCaseJson> for FilenameCase {
-    fn from(value: FilenameCaseJson) -> Self {
-        match value {
-            FilenameCaseJson::Kebab => FilenameCase::Kebab,
-            FilenameCaseJson::Snake => FilenameCase::Snake,
-            FilenameCaseJson::Camel => FilenameCase::Camel,
-            FilenameCaseJson::Pascal => FilenameCase::Pascal,
-        }
-    }
-}
-
-/// Return-await mode for linter JSON.
-#[derive(Debug, Clone, Copy, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "kebab-case")]
-pub enum ReturnAwaitModeJson {
-    /// Require await only in error handling contexts and forbid it elsewhere.
-    InTryCatch,
-    /// Require await only in error handling contexts and do not enforce elsewhere.
-    ErrorHandlingCorrectnessOnly,
-    /// Require await in all contexts.
-    Always,
-    /// Forbid await in all contexts.
-    Never,
-}
-
-impl From<ReturnAwaitModeJson> for ReturnAwaitMode {
-    fn from(value: ReturnAwaitModeJson) -> Self {
-        match value {
-            ReturnAwaitModeJson::InTryCatch => ReturnAwaitMode::InTryCatch,
-            ReturnAwaitModeJson::ErrorHandlingCorrectnessOnly => {
-                ReturnAwaitMode::ErrorHandlingCorrectnessOnly
-            }
-            ReturnAwaitModeJson::Always => ReturnAwaitMode::Always,
-            ReturnAwaitModeJson::Never => ReturnAwaitMode::Never,
-        }
-    }
-}
-
-/// Required Unicode regex flag accepted in linter JSON.
-#[derive(Debug, Clone, Copy, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "lowercase")]
-pub enum UnicodeRegexpRequireFlagJson {
-    /// Require the `u` flag.
-    U,
-    /// Require the `v` flag.
-    V,
-}
-
-impl From<UnicodeRegexpRequireFlagJson> for UnicodeRegexpRequireFlag {
-    fn from(value: UnicodeRegexpRequireFlagJson) -> Self {
-        match value {
-            UnicodeRegexpRequireFlagJson::U => UnicodeRegexpRequireFlag::U,
-            UnicodeRegexpRequireFlagJson::V => UnicodeRegexpRequireFlag::V,
-        }
-    }
-}
-
-/// Cyclomatic-complexity variant accepted in linter JSON.
-#[derive(Debug, Clone, Copy, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "lowercase")]
-pub enum CyclomaticComplexityVariantJson {
-    /// Count each non-default switch case.
-    Classic,
-    /// Count each switch once regardless of case count.
-    Modified,
-}
-
-impl From<CyclomaticComplexityVariantJson> for CyclomaticComplexityVariant {
-    fn from(value: CyclomaticComplexityVariantJson) -> Self {
-        match value {
-            CyclomaticComplexityVariantJson::Classic => CyclomaticComplexityVariant::Classic,
-            CyclomaticComplexityVariantJson::Modified => CyclomaticComplexityVariant::Modified,
-        }
-    }
-}
-
-/// Max-params `this` counting mode accepted in linter JSON.
-#[derive(Debug, Clone, Copy, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "kebab-case")]
-pub enum MaxParamsCountThisJson {
-    /// Never count `this`.
-    Never,
-    /// Count `this` unless it is explicitly typed as `void`.
-    ExceptVoid,
-    /// Always count `this`.
-    Always,
-}
-
-impl From<MaxParamsCountThisJson> for MaxParamsCountThis {
-    fn from(value: MaxParamsCountThisJson) -> Self {
-        match value {
-            MaxParamsCountThisJson::Never => MaxParamsCountThis::Never,
-            MaxParamsCountThisJson::ExceptVoid => MaxParamsCountThis::ExceptVoid,
-            MaxParamsCountThisJson::Always => MaxParamsCountThis::Always,
-        }
-    }
-}
-
-/// Operator-assignment mode accepted in linter JSON.
-#[derive(Debug, Clone, Copy, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "lowercase")]
-pub enum OperatorAssignmentModeJson {
-    /// Require shorthand assignment where possible.
-    Always,
-    /// Disallow shorthand assignment operators.
-    Never,
-}
-
-impl From<OperatorAssignmentModeJson> for OperatorAssignmentMode {
-    fn from(value: OperatorAssignmentModeJson) -> Self {
-        match value {
-            OperatorAssignmentModeJson::Always => OperatorAssignmentMode::Always,
-            OperatorAssignmentModeJson::Never => OperatorAssignmentMode::Never,
-        }
-    }
-}
-
-/// Object shorthand mode accepted in linter JSON.
-#[derive(Debug, Clone, Copy, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "kebab-case")]
-pub enum ObjectShorthandModeJson {
-    /// Require shorthand for methods and properties.
-    Always,
-    /// Require shorthand for methods only.
-    Methods,
-    /// Require shorthand for properties only.
-    Properties,
-    /// Disallow shorthand methods and properties.
-    Never,
-    /// Require object literals to use consistent shorthand style.
-    Consistent,
-    /// Require shorthand only when every eligible property can use it.
-    ConsistentAsNeeded,
-}
-
-impl From<ObjectShorthandModeJson> for ObjectShorthandMode {
-    fn from(value: ObjectShorthandModeJson) -> Self {
-        match value {
-            ObjectShorthandModeJson::Always => ObjectShorthandMode::Always,
-            ObjectShorthandModeJson::Methods => ObjectShorthandMode::Methods,
-            ObjectShorthandModeJson::Properties => ObjectShorthandMode::Properties,
-            ObjectShorthandModeJson::Never => ObjectShorthandMode::Never,
-            ObjectShorthandModeJson::Consistent => ObjectShorthandMode::Consistent,
-            ObjectShorthandModeJson::ConsistentAsNeeded => ObjectShorthandMode::ConsistentAsNeeded,
-        }
-    }
-}
-
-/// Yoda mode accepted in linter JSON.
-#[derive(Debug, Clone, Copy, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "lowercase")]
-pub enum YodaModeJson {
-    /// Require literal comparisons in Yoda form.
-    Always,
-    /// Disallow literal comparisons in Yoda form.
-    Never,
-}
-
-impl From<YodaModeJson> for YodaMode {
-    fn from(value: YodaModeJson) -> Self {
-        match value {
-            YodaModeJson::Always => YodaMode::Always,
-            YodaModeJson::Never => YodaMode::Never,
-        }
-    }
-}
-
-/// JSON form of `grouped-accessor-pairs` ordering.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "kebab-case")]
-pub enum GroupedAccessorPairsOrderJson {
-    /// Allow either adjacent accessor order.
-    AnyOrder,
-    /// Require getters before setters.
-    GetBeforeSet,
-    /// Require setters before getters.
-    SetBeforeGet,
-}
-
-impl From<GroupedAccessorPairsOrderJson> for GroupedAccessorPairsOrder {
-    fn from(value: GroupedAccessorPairsOrderJson) -> Self {
-        match value {
-            GroupedAccessorPairsOrderJson::AnyOrder => GroupedAccessorPairsOrder::AnyOrder,
-            GroupedAccessorPairsOrderJson::GetBeforeSet => GroupedAccessorPairsOrder::GetBeforeSet,
-            GroupedAccessorPairsOrderJson::SetBeforeGet => GroupedAccessorPairsOrder::SetBeforeGet,
-        }
-    }
-}
-
-/// JSON form of `sort-imports` member syntax groups.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "lowercase")]
-pub enum SortImportsMemberSyntaxJson {
-    /// Side-effect import syntax.
-    None,
-    /// Namespace import syntax.
-    All,
-    /// Multiple named imports.
-    Multiple,
-    /// Single default or named import.
-    Single,
-}
-
-impl From<SortImportsMemberSyntaxJson> for SortImportsMemberSyntax {
-    fn from(value: SortImportsMemberSyntaxJson) -> Self {
-        match value {
-            SortImportsMemberSyntaxJson::None => SortImportsMemberSyntax::None,
-            SortImportsMemberSyntaxJson::All => SortImportsMemberSyntax::All,
-            SortImportsMemberSyntaxJson::Multiple => SortImportsMemberSyntax::Multiple,
-            SortImportsMemberSyntaxJson::Single => SortImportsMemberSyntax::Single,
-        }
-    }
-}
-
-/// JSON form of `prefer-const` destructuring policy.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "lowercase")]
-pub enum PreferConstDestructuringJson {
-    /// Report any const eligible binding in a destructuring.
-    Any,
-    /// Report destructuring bindings only when all are const eligible.
-    All,
-}
-
-impl From<PreferConstDestructuringJson> for PreferConstDestructuring {
-    fn from(value: PreferConstDestructuringJson) -> Self {
-        match value {
-            PreferConstDestructuringJson::Any => PreferConstDestructuring::Any,
-            PreferConstDestructuringJson::All => PreferConstDestructuring::All,
-        }
-    }
-}
-
 /// Condition assignment policy for `no-cond-assign`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "kebab-case")]
 pub enum ConditionAssignmentMode {
     /// Allow assignments only when wrapped in extra parentheses.
     #[default]
@@ -1181,28 +677,10 @@ pub enum ConditionAssignmentMode {
     Always,
 }
 
-/// Condition assignment policy accepted in linter JSON.
-#[derive(Debug, Clone, Copy, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "kebab-case")]
-pub enum ConditionAssignmentModeJson {
-    /// Allow assignments only when wrapped in extra parentheses.
-    ExceptParens,
-    /// Disallow assignments anywhere inside the condition.
-    Always,
-}
-
-impl From<ConditionAssignmentModeJson> for ConditionAssignmentMode {
-    fn from(value: ConditionAssignmentModeJson) -> Self {
-        match value {
-            ConditionAssignmentModeJson::ExceptParens => ConditionAssignmentMode::ExceptParens,
-            ConditionAssignmentModeJson::Always => ConditionAssignmentMode::Always,
-        }
-    }
-}
-
 /// Empty function kinds that `no-empty-function` may allow.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
 pub enum EmptyFunctionKind {
     /// Regular function declarations and expressions.
     Functions,
@@ -1226,138 +704,4 @@ pub enum EmptyFunctionKind {
     AsyncMethods,
     /// Override methods.
     OverrideMethods,
-}
-
-/// Empty function kinds accepted in linter JSON.
-#[derive(Debug, Clone, Copy, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub enum EmptyFunctionKindJson {
-    /// Regular function declarations and expressions.
-    Functions,
-    /// Arrow or lambda functions.
-    ArrowFunctions,
-    /// Generator functions.
-    GeneratorFunctions,
-    /// Ordinary methods.
-    Methods,
-    /// Generator methods.
-    GeneratorMethods,
-    /// Getter methods.
-    Getters,
-    /// Setter methods.
-    Setters,
-    /// Constructor methods.
-    Constructors,
-    /// Async functions.
-    AsyncFunctions,
-    /// Async methods.
-    AsyncMethods,
-    /// Override methods.
-    OverrideMethods,
-}
-
-impl From<EmptyFunctionKindJson> for EmptyFunctionKind {
-    fn from(value: EmptyFunctionKindJson) -> Self {
-        match value {
-            EmptyFunctionKindJson::Functions => EmptyFunctionKind::Functions,
-            EmptyFunctionKindJson::ArrowFunctions => EmptyFunctionKind::ArrowFunctions,
-            EmptyFunctionKindJson::GeneratorFunctions => EmptyFunctionKind::GeneratorFunctions,
-            EmptyFunctionKindJson::Methods => EmptyFunctionKind::Methods,
-            EmptyFunctionKindJson::GeneratorMethods => EmptyFunctionKind::GeneratorMethods,
-            EmptyFunctionKindJson::Getters => EmptyFunctionKind::Getters,
-            EmptyFunctionKindJson::Setters => EmptyFunctionKind::Setters,
-            EmptyFunctionKindJson::Constructors => EmptyFunctionKind::Constructors,
-            EmptyFunctionKindJson::AsyncFunctions => EmptyFunctionKind::AsyncFunctions,
-            EmptyFunctionKindJson::AsyncMethods => EmptyFunctionKind::AsyncMethods,
-            EmptyFunctionKindJson::OverrideMethods => EmptyFunctionKind::OverrideMethods,
-        }
-    }
-}
-
-/// Warning comment matching locations accepted in linter JSON.
-#[derive(Debug, Clone, Copy, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "lowercase")]
-pub enum WarningCommentLocationJson {
-    /// Match terms only at the logical start of the comment.
-    Start,
-    /// Match terms anywhere in the comment body.
-    Anywhere,
-}
-
-impl From<WarningCommentLocationJson> for WarningCommentLocation {
-    fn from(value: WarningCommentLocationJson) -> Self {
-        match value {
-            WarningCommentLocationJson::Start => WarningCommentLocation::Start,
-            WarningCommentLocationJson::Anywhere => WarningCommentLocation::Anywhere,
-        }
-    }
-}
-
-/// Bitwise operators accepted in linter JSON for the `no-bitwise` rule.
-#[derive(Debug, Clone, Copy, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-pub enum BitwiseOperatorJson {
-    /// `&`
-    #[serde(rename = "&")]
-    And,
-    /// `^`
-    #[serde(rename = "^")]
-    Xor,
-    /// `|`
-    #[serde(rename = "|")]
-    Or,
-    /// `~`
-    #[serde(rename = "~")]
-    Not,
-    /// `<<`
-    #[serde(rename = "<<")]
-    ShiftLeft,
-    /// `>>`
-    #[serde(rename = ">>")]
-    ShiftRight,
-    /// `>>>`
-    #[serde(rename = ">>>")]
-    UnsignedShiftRight,
-    /// `&=`
-    #[serde(rename = "&=")]
-    AndAssign,
-    /// `^=`
-    #[serde(rename = "^=")]
-    XorAssign,
-    /// `|=`
-    #[serde(rename = "|=")]
-    OrAssign,
-    /// `<<=`
-    #[serde(rename = "<<=")]
-    ShiftLeftAssign,
-    /// `>>=`
-    #[serde(rename = ">>=")]
-    ShiftRightAssign,
-    /// `>>>=`
-    #[serde(rename = ">>>=")]
-    UnsignedShiftRightAssign,
-}
-
-impl From<BitwiseOperatorJson> for BitwiseOperator {
-    fn from(value: BitwiseOperatorJson) -> Self {
-        match value {
-            BitwiseOperatorJson::And => BitwiseOperator::And,
-            BitwiseOperatorJson::Xor => BitwiseOperator::Xor,
-            BitwiseOperatorJson::Or => BitwiseOperator::Or,
-            BitwiseOperatorJson::Not => BitwiseOperator::Not,
-            BitwiseOperatorJson::ShiftLeft => BitwiseOperator::ShiftLeft,
-            BitwiseOperatorJson::ShiftRight => BitwiseOperator::ShiftRight,
-            BitwiseOperatorJson::UnsignedShiftRight => BitwiseOperator::UnsignedShiftRight,
-            BitwiseOperatorJson::AndAssign => BitwiseOperator::AndAssign,
-            BitwiseOperatorJson::XorAssign => BitwiseOperator::XorAssign,
-            BitwiseOperatorJson::OrAssign => BitwiseOperator::OrAssign,
-            BitwiseOperatorJson::ShiftLeftAssign => BitwiseOperator::ShiftLeftAssign,
-            BitwiseOperatorJson::ShiftRightAssign => BitwiseOperator::ShiftRightAssign,
-            BitwiseOperatorJson::UnsignedShiftRightAssign => {
-                BitwiseOperator::UnsignedShiftRightAssign
-            }
-        }
-    }
 }

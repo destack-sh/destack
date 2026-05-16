@@ -1,7 +1,9 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 /// Floating point math optimization policy.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
 pub enum FloatMathPolicy {
     /// Strict IEEE semantics.
     #[default]
@@ -33,7 +35,9 @@ impl FloatMathPolicy {
 }
 
 /// Runtime check policy for generated safety checks.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
 pub enum CheckPolicy {
     /// Always emit the check.
     Always,
@@ -65,7 +69,10 @@ impl CheckPolicy {
 }
 
 /// Runtime checks emitted by generated code.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(default)]
+#[serde(rename_all = "camelCase")]
 pub struct RuntimeChecks {
     /// Integer overflow check policy.
     pub overflow: CheckPolicy,
@@ -96,7 +103,9 @@ impl RuntimeChecks {
 }
 
 /// Check failure behavior.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
 pub enum CheckFailurePolicy {
     /// Trap immediately on a failed check.
     Trap,
@@ -124,134 +133,5 @@ impl CheckFailurePolicy {
     /// Parse from a string value.
     pub fn parse(s: &str) -> Option<Self> {
         s.parse().ok()
-    }
-}
-
-/// Floating point math policy for JSON deserialization.
-#[derive(Debug, Clone, Copy, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "lowercase")]
-pub enum FloatMathPolicyJson {
-    /// Strict IEEE semantics.
-    Strict,
-    /// Permit reassociation but preserve NaNs and infinities.
-    #[serde(alias = "reassoc", alias = "reassociate")]
-    Reassociate,
-    /// Enable fast math optimizations.
-    Fast,
-}
-
-impl From<FloatMathPolicyJson> for FloatMathPolicy {
-    fn from(value: FloatMathPolicyJson) -> Self {
-        match value {
-            FloatMathPolicyJson::Strict => FloatMathPolicy::Strict,
-            FloatMathPolicyJson::Reassociate => FloatMathPolicy::Reassociate,
-            FloatMathPolicyJson::Fast => FloatMathPolicy::Fast,
-        }
-    }
-}
-
-/// Runtime check policy for JSON deserialization.
-#[derive(Debug, Clone, Copy, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "lowercase")]
-pub enum CheckPolicyJson {
-    /// Always emit the check.
-    Always,
-    /// Emit the check for debug profiles.
-    Debug,
-    /// Never emit the check.
-    Never,
-}
-
-impl From<CheckPolicyJson> for CheckPolicy {
-    fn from(value: CheckPolicyJson) -> Self {
-        match value {
-            CheckPolicyJson::Always => CheckPolicy::Always,
-            CheckPolicyJson::Debug => CheckPolicy::Debug,
-            CheckPolicyJson::Never => CheckPolicy::Never,
-        }
-    }
-}
-
-/// Runtime checks for JSON deserialization.
-#[derive(Debug, Clone, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(untagged)]
-pub enum RuntimeChecksJson {
-    /// Shorthand used for every runtime check.
-    Policy(CheckPolicyJson),
-    /// Structured runtime checks.
-    Checks(RuntimeChecksObjectJson),
-}
-
-impl From<RuntimeChecksJson> for RuntimeChecks {
-    fn from(value: RuntimeChecksJson) -> Self {
-        match value {
-            RuntimeChecksJson::Policy(policy) => Self::all(CheckPolicy::from(policy)),
-            RuntimeChecksJson::Checks(checks) => RuntimeChecks::from(checks),
-        }
-    }
-}
-
-/// Structured runtime checks for JSON deserialization.
-#[derive(Debug, Clone, Default, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub struct RuntimeChecksObjectJson {
-    /// Default policy for checks without an explicit override.
-    pub default: Option<CheckPolicyJson>,
-    /// Integer overflow check policy.
-    pub overflow: Option<CheckPolicyJson>,
-    /// Bounds check policy for array and slice accesses.
-    pub bounds: Option<CheckPolicyJson>,
-    /// Null check policy for reference operations.
-    pub null: Option<CheckPolicyJson>,
-    /// Division check policy for divide and remainder operations.
-    pub division: Option<CheckPolicyJson>,
-    /// Shift range check policy.
-    pub shift: Option<CheckPolicyJson>,
-    /// Check failure behavior.
-    pub failure: Option<CheckFailurePolicyJson>,
-}
-
-impl From<RuntimeChecksObjectJson> for RuntimeChecks {
-    fn from(value: RuntimeChecksObjectJson) -> Self {
-        let default = value.default.map(CheckPolicy::from).unwrap_or_default();
-
-        Self {
-            overflow: value.overflow.map(CheckPolicy::from).unwrap_or(default),
-            bounds: value.bounds.map(CheckPolicy::from).unwrap_or(default),
-            null: value.null.map(CheckPolicy::from).unwrap_or(default),
-            division: value.division.map(CheckPolicy::from).unwrap_or(default),
-            shift: value.shift.map(CheckPolicy::from).unwrap_or(default),
-            failure: value
-                .failure
-                .map(CheckFailurePolicy::from)
-                .unwrap_or_default(),
-        }
-    }
-}
-
-/// Check failure behavior for JSON deserialization.
-#[derive(Debug, Clone, Copy, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "lowercase")]
-pub enum CheckFailurePolicyJson {
-    /// Trap immediately on a failed check.
-    Trap,
-    /// Trigger a panic on a failed check.
-    Panic,
-    /// Abort execution on a failed check.
-    Abort,
-}
-
-impl From<CheckFailurePolicyJson> for CheckFailurePolicy {
-    fn from(value: CheckFailurePolicyJson) -> Self {
-        match value {
-            CheckFailurePolicyJson::Trap => CheckFailurePolicy::Trap,
-            CheckFailurePolicyJson::Panic => CheckFailurePolicy::Panic,
-            CheckFailurePolicyJson::Abort => CheckFailurePolicy::Abort,
-        }
     }
 }

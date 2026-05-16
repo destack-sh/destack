@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-use super::runtime::{RuntimeIdentitySelector, RuntimeIdentitySelectorJson};
-use super::{ConditionSelector, ConditionSelectorJson};
+use super::ConditionSelector;
+use super::runtime::RuntimeIdentitySelector;
 
 /// Policy domain where one action is exercised.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
@@ -40,6 +40,9 @@ pub enum PolicyRoute {
 
 /// Package selector used by static policy rules.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(default)]
+#[serde(rename_all = "camelCase")]
 pub struct PackageSelector {
     /// Package name glob patterns.
     pub patterns: Vec<String>,
@@ -54,6 +57,9 @@ impl PackageSelector {
 
 /// Policy subject matched by one rule.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(default)]
+#[serde(rename_all = "camelCase")]
 pub struct PolicySubject {
     /// Package selector.
     pub package: Option<PackageSelector>,
@@ -101,8 +107,11 @@ impl PolicySubject {
 
 /// Declared policy action required by one package.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
 pub struct PolicyRequirement {
     /// Policy domain where the action is exercised.
+    #[serde(default)]
     pub domain: PolicyDomain,
     /// Action name required by package code.
     pub action: String,
@@ -112,8 +121,11 @@ pub struct PolicyRequirement {
 
 /// Policy rule for package, target, or runtime evaluation.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
 pub struct PolicyRule {
     /// Policy domain where the action is exercised.
+    #[serde(default)]
     pub domain: PolicyDomain,
     /// Subject matched by this rule.
     pub subject: PolicySubject,
@@ -129,25 +141,17 @@ pub struct PolicyRule {
 
 /// Static policy configuration.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub struct PolicyOptions {
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(default)]
+#[serde(rename_all = "camelCase")]
+pub struct Policy {
     /// Package-declared policy requirements.
     pub requires: Vec<PolicyRequirement>,
     /// Ordered authorization rules.
     pub rules: Vec<PolicyRule>,
 }
 
-impl PolicyOptions {
-    /// Append child policy declarations to one parent policy.
-    pub fn from_json_with_parent(json: Option<&PolicyOptionsJson>, parent: &Self) -> Self {
-        let mut options = parent.clone();
-
-        if let Some(json) = json {
-            json.apply_to(&mut options);
-        }
-
-        options
-    }
-
+impl Policy {
     /// Validate resolved policy declarations.
     pub fn validate(&self) -> Result<(), String> {
         // requirements
@@ -175,225 +179,6 @@ impl PolicyOptions {
         }
 
         Ok(())
-    }
-}
-
-/// Package selector accepted by static policy JSON.
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(untagged)]
-pub enum PackageSelectorJson {
-    /// Package name shorthand.
-    Pattern(String),
-    /// Package name shorthand list.
-    Patterns(Vec<String>),
-    /// Structured package selector.
-    Selector(PackageSelectorJsonObject),
-}
-
-/// Structured package selector accepted by static policy JSON.
-#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq, Eq)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub struct PackageSelectorJsonObject {
-    /// Package name glob patterns.
-    pub patterns: Vec<String>,
-}
-
-impl From<&PackageSelectorJson> for PackageSelector {
-    fn from(value: &PackageSelectorJson) -> Self {
-        match value {
-            PackageSelectorJson::Pattern(pattern) => Self {
-                patterns: vec![pattern.clone()],
-            },
-            PackageSelectorJson::Patterns(patterns) => Self {
-                patterns: patterns.clone(),
-            },
-            PackageSelectorJson::Selector(selector) => Self {
-                patterns: selector.patterns.clone(),
-            },
-        }
-    }
-}
-
-/// Policy subject JSON.
-#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq, Eq)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub struct PolicySubjectJson {
-    /// Package selector.
-    pub package: Option<PackageSelectorJson>,
-    /// Runtime identity selector.
-    pub runtime_identity: Option<RuntimeIdentitySelectorJson>,
-    /// Worker identity selector.
-    pub worker: Option<RuntimeIdentitySelectorJson>,
-    /// Active mode selector.
-    pub mode: Option<ConditionSelectorJson>,
-    /// Active role selector.
-    pub role: Option<ConditionSelectorJson>,
-    /// Active feature selector.
-    pub feature: Option<ConditionSelectorJson>,
-    /// Active tag selector.
-    pub tag: Option<ConditionSelectorJson>,
-    /// Active target selector.
-    pub target: Option<ConditionSelectorJson>,
-    /// Active product selector.
-    pub product: Option<ConditionSelectorJson>,
-    /// Active target platform selector.
-    pub platform: Option<ConditionSelectorJson>,
-    /// Active host environment selector.
-    pub host: Option<ConditionSelectorJson>,
-    /// Active runtime selector.
-    pub runtime: Option<ConditionSelectorJson>,
-}
-
-impl PolicySubjectJson {
-    /// Return whether this selector matches no subject dimension.
-    pub fn is_empty(&self) -> bool {
-        PolicySubject::from(self).is_empty()
-    }
-}
-
-impl From<&PolicySubjectJson> for PolicySubject {
-    fn from(value: &PolicySubjectJson) -> Self {
-        Self {
-            package: value.package.as_ref().map(PackageSelector::from),
-            runtime_identity: value
-                .runtime_identity
-                .as_ref()
-                .map(RuntimeIdentitySelector::from),
-            worker: value.worker.as_ref().map(RuntimeIdentitySelector::from),
-            mode: value.mode.as_ref().map(ConditionSelector::from),
-            role: value.role.as_ref().map(ConditionSelector::from),
-            feature: value.feature.as_ref().map(ConditionSelector::from),
-            tag: value.tag.as_ref().map(ConditionSelector::from),
-            target: value.target.as_ref().map(ConditionSelector::from),
-            product: value.product.as_ref().map(ConditionSelector::from),
-            platform: value.platform.as_ref().map(ConditionSelector::from),
-            host: value.host.as_ref().map(ConditionSelector::from),
-            runtime: value.runtime.as_ref().map(ConditionSelector::from),
-        }
-    }
-}
-
-/// Policy requirement JSON.
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub struct PolicyRequirementJson {
-    /// Policy domain where the action is exercised.
-    #[serde(default)]
-    pub domain: PolicyDomain,
-    /// Action name required by package code.
-    pub action: String,
-    /// Resource scope touched by the action.
-    pub resource: String,
-}
-
-impl From<&PolicyRequirementJson> for PolicyRequirement {
-    fn from(value: &PolicyRequirementJson) -> Self {
-        Self {
-            domain: value.domain,
-            action: value.action.clone(),
-            resource: value.resource.clone(),
-        }
-    }
-}
-
-/// Policy rule JSON.
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub struct PolicyRuleJson {
-    /// Policy domain where the action is exercised.
-    #[serde(default)]
-    pub domain: PolicyDomain,
-    /// Subject matched by this rule.
-    pub subject: PolicySubjectJson,
-    /// Action name matched by this rule.
-    pub action: String,
-    /// Resource scope matched by this rule.
-    pub resource: String,
-    /// Access outcome selected by this rule.
-    pub access: PolicyAccess,
-    /// Route selected when access is allowed.
-    pub route: Option<PolicyRoute>,
-}
-
-impl From<&PolicyRuleJson> for PolicyRule {
-    fn from(value: &PolicyRuleJson) -> Self {
-        let route = match value.access {
-            PolicyAccess::Allow => Some(value.route.unwrap_or_default()),
-            PolicyAccess::Deny => None,
-        };
-
-        Self {
-            domain: value.domain,
-            subject: PolicySubject::from(&value.subject),
-            action: value.action.clone(),
-            resource: value.resource.clone(),
-            access: value.access,
-            route,
-        }
-    }
-}
-
-/// Static policy configuration JSON.
-#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq, Eq)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub struct PolicyOptionsJson {
-    /// Package-declared policy requirements.
-    pub requires: Option<Vec<PolicyRequirementJson>>,
-    /// Ordered authorization rules.
-    pub rules: Option<Vec<PolicyRuleJson>>,
-}
-
-impl PolicyOptionsJson {
-    /// Validate explicit policy declarations before they are normalized.
-    pub fn validate(&self) -> Result<(), String> {
-        // requirements
-        if let Some(requires) = &self.requires {
-            for (index, requirement) in requires.iter().enumerate() {
-                validate_policy_text(&requirement.action, "requires", index, "action")?;
-                validate_policy_text(&requirement.resource, "requires", index, "resource")?;
-            }
-        }
-
-        // rules
-        if let Some(rules) = &self.rules {
-            for (index, rule) in rules.iter().enumerate() {
-                validate_policy_text(&rule.action, "rules", index, "action")?;
-                validate_policy_text(&rule.resource, "rules", index, "resource")?;
-
-                // subject selector
-                if rule.subject.is_empty() {
-                    return Err(format!("policy.rules[{index}].subject must not be empty"));
-                }
-
-                // deny rules
-                if rule.access == PolicyAccess::Deny && rule.route.is_some() {
-                    return Err(format!(
-                        "policy.rules[{index}].route is only valid when access is allow"
-                    ));
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Append explicit policy declarations to one base set of options.
-    pub fn apply_to(&self, options: &mut PolicyOptions) {
-        if let Some(requires) = &self.requires {
-            options
-                .requires
-                .extend(requires.iter().map(PolicyRequirement::from));
-        }
-
-        if let Some(rules) = &self.rules {
-            options.rules.extend(rules.iter().map(PolicyRule::from));
-        }
     }
 }
 

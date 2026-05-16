@@ -261,7 +261,7 @@ impl Repository {
                 .artifact_store()
                 .diagnostics(version)
                 .map(|diagnostics| diagnostics.as_ref().clone())
-                .ok_or_else(|| RepositoryError::MissingArtifact { version: *version })?;
+                .ok_or(RepositoryError::MissingArtifact { version: *version })?;
             diagnostics.merge_from(&artifact_diagnostics);
         }
 

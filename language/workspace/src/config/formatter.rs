@@ -1,9 +1,9 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use destack_source::{IndentStyle, LineEnding};
 
 /// Quote style for string literals.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub enum QuoteStyle {
     /// Use double quotes: `"hello"`.
     #[default]
@@ -68,7 +68,7 @@ impl std::fmt::Display for QuoteStyle {
 }
 
 /// Trailing comma policy for multi-line constructs.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub enum TrailingComma {
     /// Add trailing commas everywhere valid in ES2017+ (functions, arrays, objects).
     #[default]
@@ -117,7 +117,7 @@ impl std::fmt::Display for TrailingComma {
 }
 
 /// Arrow function parentheses policy.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub enum ArrowParentheses {
     /// Always include parentheses: `(x) => x`.
     #[default]
@@ -152,7 +152,7 @@ impl std::fmt::Display for ArrowParentheses {
 }
 
 /// Object property quote style.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub enum QuoteProperty {
     /// Only quote properties when required (e.g., `{ "foo-bar": 1, baz: 2 }`).
     #[default]
@@ -191,7 +191,7 @@ impl std::fmt::Display for QuoteProperty {
 }
 
 /// Import organization mode.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub enum OrganizeImports {
     /// Organize imports: sort statements by group and specifiers alphabetically.
     On,
@@ -231,7 +231,7 @@ impl std::fmt::Display for OrganizeImports {
 }
 
 /// Sort order for import/export specifiers.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub enum ImportSortOrder {
     /// Natural sort: numbers ordered as integers (a1 < a2 < a10).
     #[default]
@@ -266,7 +266,7 @@ impl std::fmt::Display for ImportSortOrder {
 }
 
 /// How to choose between single-line and multiline JSDoc comments.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub enum JsdocCommentLineStrategy {
     /// Use one line when the content fits on one line.
     #[default]
@@ -278,7 +278,7 @@ pub enum JsdocCommentLineStrategy {
 }
 
 /// How to wrap JSDoc prose.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub enum JsdocLineWrappingStyle {
     /// Re-wrap text greedily to the configured width.
     #[default]
@@ -333,7 +333,10 @@ impl Default for JsdocOptions {
 ///
 /// Controls code style decisions made by the formatter.
 /// Default values match the standard formatter defaults used by Destack.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(default)]
+#[serde(rename_all = "camelCase")]
 pub struct FormatterOptions {
     /// Line ending style (LF, CRLF, CR).
     pub line_ending: LineEnding,
@@ -388,108 +391,22 @@ impl FormatterOptions {
     }
 }
 
-/// Line ending style for JSON deserialization.
-#[derive(Debug, Clone, Copy, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-pub enum LineEndingJson {
-    /// Unix-style line endings (LF).
-    #[serde(rename = "lf")]
-    Lf,
-    /// Windows-style line endings (CRLF).
-    #[serde(rename = "crlf")]
-    Crlf,
-    /// Classic Mac-style line endings (CR).
-    #[serde(rename = "cr")]
-    Cr,
-}
-
-impl From<LineEndingJson> for LineEnding {
-    fn from(value: LineEndingJson) -> Self {
-        match value {
-            LineEndingJson::Lf => LineEnding::LineFeed,
-            LineEndingJson::Crlf => LineEnding::CarriageReturnLineFeed,
-            LineEndingJson::Cr => LineEnding::CarriageReturn,
-        }
-    }
-}
-
-/// Indent style for JSON deserialization.
-#[derive(Debug, Clone, Copy, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "lowercase")]
-pub enum IndentStyleJson {
-    #[serde(alias = "tabs")]
-    Tab,
-    #[serde(alias = "spaces")]
-    Space,
-}
-
-impl From<IndentStyleJson> for IndentStyle {
-    fn from(value: IndentStyleJson) -> Self {
-        match value {
-            IndentStyleJson::Tab => IndentStyle::Tab,
-            IndentStyleJson::Space => IndentStyle::Space,
-        }
-    }
-}
-
-/// Formatter options (top-level, like Biome/Deno).
-///
-/// Field names use familiar formatter option naming.
-#[derive(Debug, Default, Deserialize, Clone)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub struct FormatterJson {
-    /// Line ending style: "lf", "crlf", or "cr".
-    #[serde(alias = "endOfLine")]
-    pub line_ending: Option<LineEndingJson>,
-    /// Indent style: "tab" or "space".
-    pub indent_style: Option<IndentStyleJson>,
-    /// Number of spaces per indent. Default: 4.
-    #[serde(alias = "tabWidth")]
-    pub indent_width: Option<u8>,
-    /// Maximum line width (best effort). Default: 100.
-    #[serde(alias = "printWidth")]
-    pub line_width: Option<u16>,
-}
-
-impl FormatterJson {
-    /// Apply formatter options to a FormatterOptions struct.
-    pub fn apply(&self, options: &mut FormatterOptions) {
-        // layout
-        if let Some(line_ending) = self.line_ending {
-            options.line_ending = line_ending.into();
-        }
-        if let Some(indent_style) = self.indent_style {
-            options.indent_style = indent_style.into();
-        }
-        if let Some(indent_width) = self.indent_width {
-            options.indent_width = indent_width;
-        }
-        if let Some(line_width) = self.line_width {
-            options.line_width = line_width;
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn test_parse_layout_options_with_camel_case_values() {
+    fn test_parse_layout_options() {
         let input = r#"
             {
-                "printWidth": 120,
-                "tabWidth": 2,
+                "lineWidth": 120,
+                "indentWidth": 2,
                 "indentStyle": "tab",
-                "endOfLine": "crlf"
+                "lineEnding": "crlf"
             }
         "#;
 
-        let json: FormatterJson = serde_json::from_str(input).unwrap();
-        let mut options = FormatterOptions::default();
-        json.apply(&mut options);
+        let options: FormatterOptions = serde_json::from_str(input).unwrap();
 
         assert_eq!(options.line_width, 120);
         assert_eq!(options.indent_width, 2);

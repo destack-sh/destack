@@ -6,7 +6,7 @@ use im::OrdMap;
 
 use crate::repository::key::profile_key_for_target;
 use crate::{
-    CompilerOptions, ConditionSet, DestackDeclaration, HostEnvironment, ProfileEnvironment,
+    CompilerOptions, ConditionSet, Destack, DestackFile, HostEnvironment, ProfileEnvironment,
     ProfileOptions, Repository, RepositoryError, Revision, Target,
 };
 
@@ -75,23 +75,21 @@ impl Repository {
         // package profile inputs
         let (config, compiler_options) =
             self.package_config_and_compiler_options(revision, module.package_id)?;
-        let target = self
-            .package_default_target(revision, module.package_id)?
-            .map(|(_, target)| target)
-            .unwrap_or_default();
+        let (target_name, target) = self.package_profile_target(revision, module.package_id)?;
         let product = self.package_default_product(revision, module.package_id)?;
         let product_role = self.product_role_for_target(
             revision,
             module.package_id,
             product.as_deref(),
-            &target.name,
+            &target_name,
         )?;
 
         // profile identity
         let profile = self.profile_from_target(
+            &target_name,
             &target,
             &compiler_options,
-            config.as_deref(),
+            config.as_deref().map(|config| &config.destack),
             &revision_state.host,
             product.as_deref(),
             product_role.as_deref(),
@@ -111,19 +109,17 @@ impl Repository {
         // package profile inputs
         let (config, compiler_options) =
             self.package_config_and_compiler_options(revision, package_id)?;
-        let target = self
-            .package_default_target(revision, package_id)?
-            .map(|(_, target)| target)
-            .unwrap_or_default();
+        let (target_name, target) = self.package_profile_target(revision, package_id)?;
         let product = self.package_default_product(revision, package_id)?;
         let product_role =
-            self.product_role_for_target(revision, package_id, product.as_deref(), &target.name)?;
+            self.product_role_for_target(revision, package_id, product.as_deref(), &target_name)?;
 
         // profile identity
         let profile = self.profile_from_target(
+            &target_name,
             &target,
             &compiler_options,
-            config.as_deref(),
+            config.as_deref().map(|config| &config.destack),
             &revision_state.host,
             product.as_deref(),
             product_role.as_deref(),
@@ -153,6 +149,7 @@ impl Repository {
         let Some(target) = self.target_or_builtin(revision, target_id)? else {
             return Ok(None);
         };
+        let target_name = self.target_name(revision, target_id)?;
 
         // target profile inputs
         let (config, compiler_options) =
@@ -162,14 +159,15 @@ impl Repository {
             revision,
             module.package_id,
             product.as_deref(),
-            &target.name,
+            &target_name,
         )?;
 
         // profile identity
         let profile = self.profile_from_target(
+            &target_name,
             &target,
             &compiler_options,
-            config.as_deref(),
+            config.as_deref().map(|config| &config.destack),
             &revision_state.host,
             product.as_deref(),
             product_role.as_deref(),
@@ -299,8 +297,8 @@ impl Repository {
         &self,
         revision: Revision,
         package_id: PackageId,
-    ) -> Result<(Option<Arc<DestackDeclaration>>, CompilerOptions), RepositoryError> {
-        let config = self.destack_config_for_package_id(revision, package_id)?;
+    ) -> Result<(Option<Arc<DestackFile>>, CompilerOptions), RepositoryError> {
+        let config = self.destack_for_package_id(revision, package_id)?;
         let compiler_options = config
             .as_ref()
             .map(|config| config.compiler.clone())
@@ -312,15 +310,17 @@ impl Repository {
     /// Build one resolved profile from one target and effective option set.
     fn profile_from_target(
         &self,
+        target_name: &str,
         target: &Target,
         compiler_options: &CompilerOptions,
-        config: Option<&DestackDeclaration>,
+        config: Option<&Destack>,
         environment: &HostEnvironment,
         product: Option<&str>,
         product_role: Option<&str>,
     ) -> Arc<Profile> {
         let profile_config = Self::profile_options_for_target(target, compiler_options, config);
         let key = profile_key_for_target(
+            target_name,
             target,
             compiler_options,
             profile_config,
@@ -331,6 +331,21 @@ impl Repository {
         );
 
         Arc::new(Profile::from_key(key, environment))
+    }
+
+    /// Return the package profile target or the built-in default target.
+    fn package_profile_target(
+        &self,
+        revision: Revision,
+        package_id: PackageId,
+    ) -> Result<(String, Target), RepositoryError> {
+        if let Some((target_id, target)) = self.package_default_target(revision, package_id)? {
+            let target_name = self.target_name(revision, target_id)?;
+
+            return Ok((target_name, target));
+        }
+
+        Ok(("default".to_string(), Target::default()))
     }
 
     /// Return the active product role when the target belongs to the selected product.
@@ -352,7 +367,7 @@ impl Repository {
     fn profile_options_for_target<'a>(
         target: &'a Target,
         compiler_options: &'a CompilerOptions,
-        config: Option<&'a DestackDeclaration>,
+        config: Option<&'a Destack>,
     ) -> Option<&'a ProfileOptions> {
         let config = config?;
         let profile_name = target

@@ -5,8 +5,13 @@ use destack_source::matches as glob_matches;
 use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
 
+use super::DependencyMap;
+
 /// Active source graph and runtime selection conditions.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(default)]
+#[serde(rename_all = "camelCase")]
 pub struct ConditionSet {
     /// Active source graph modes.
     pub modes: IndexSet<String>,
@@ -64,65 +69,45 @@ impl ConditionSet {
     }
 }
 
+/// Named source graph condition.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(default)]
+#[serde(rename_all = "camelCase")]
+pub struct Condition {
+    /// Human-readable condition description.
+    pub description: Option<String>,
+    /// Condition labels.
+    pub labels: IndexMap<String, String>,
+    /// Condition names included before this condition.
+    pub extends: Vec<String>,
+    /// Dependencies enabled by this condition.
+    pub dependencies: DependencyMap,
+}
+
 /// Named condition declarations from `destack.json`.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct ConditionOptions {
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(default)]
+#[serde(rename_all = "camelCase")]
+pub struct ConditionCatalog {
     /// Named source graph modes.
-    pub modes: IndexMap<String, super::ModeOptions>,
+    pub modes: IndexMap<String, Condition>,
     /// Named source graph roles.
-    pub roles: IndexMap<String, super::RoleOptions>,
+    pub roles: IndexMap<String, Condition>,
     /// Named optional source graph features.
-    pub features: IndexMap<String, super::FeatureOptions>,
+    pub features: IndexMap<String, Condition>,
     /// Named source graph tags.
-    pub tags: IndexMap<String, super::TagOptions>,
+    pub tags: IndexMap<String, Condition>,
     /// Named file condition aliases.
     pub aliases: IndexMap<String, ConditionGate>,
 }
 
-/// Condition declarations JSON from `destack.json`.
-#[derive(Debug, Clone, Default, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub struct ConditionOptionsJson {
-    /// Named source graph modes.
-    pub modes: Option<IndexMap<String, super::ModeJson>>,
-    /// Named source graph roles.
-    pub roles: Option<IndexMap<String, super::RoleJson>>,
-    /// Named optional source graph features.
-    pub features: Option<IndexMap<String, super::FeatureJson>>,
-    /// Named source graph tags.
-    pub tags: Option<IndexMap<String, super::TagJson>>,
-    /// Named file condition aliases.
-    pub aliases: Option<IndexMap<String, ConditionGateJson>>,
-}
-
-/// Condition gate JSON from `destack.json`.
-#[derive(Debug, Clone, Default, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub struct ConditionGateJson {
-    /// Active mode selector.
-    pub mode: Option<ConditionSelectorJson>,
-    /// Active role selector.
-    pub role: Option<ConditionSelectorJson>,
-    /// Active feature selector.
-    pub feature: Option<ConditionSelectorJson>,
-    /// Active tag selector.
-    pub tag: Option<ConditionSelectorJson>,
-    /// Active build target selector.
-    pub target: Option<ConditionSelectorJson>,
-    /// Active product selector.
-    pub product: Option<ConditionSelectorJson>,
-    /// Active target platform selector.
-    pub platform: Option<ConditionSelectorJson>,
-    /// Active host environment selector.
-    pub host: Option<ConditionSelectorJson>,
-    /// Active runtime selector.
-    pub runtime: Option<ConditionSelectorJson>,
-}
-
 /// Predicate over active source graph and runtime conditions.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(default)]
+#[serde(rename_all = "camelCase")]
 pub struct ConditionGate {
     /// Active mode selector.
     pub mode: Option<ConditionSelector>,
@@ -174,21 +159,6 @@ impl ConditionGate {
         Self {
             tag: Some(ConditionSelector::exact(name)),
             ..Self::default()
-        }
-    }
-
-    /// Convert from one JSON condition gate declaration.
-    pub fn from_json(json: &ConditionGateJson) -> Self {
-        Self {
-            mode: json.mode.as_ref().map(ConditionSelector::from),
-            role: json.role.as_ref().map(ConditionSelector::from),
-            feature: json.feature.as_ref().map(ConditionSelector::from),
-            tag: json.tag.as_ref().map(ConditionSelector::from),
-            target: json.target.as_ref().map(ConditionSelector::from),
-            product: json.product.as_ref().map(ConditionSelector::from),
-            platform: json.platform.as_ref().map(ConditionSelector::from),
-            host: json.host.as_ref().map(ConditionSelector::from),
-            runtime: json.runtime.as_ref().map(ConditionSelector::from),
         }
     }
 
@@ -280,6 +250,7 @@ pub fn builtin_condition_aliases() -> IndexMap<String, ConditionGate> {
 
 /// Selector over one active condition axis.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct ConditionSelector {
     /// Condition names or glob patterns.
     pub patterns: Vec<String>,
@@ -310,44 +281,6 @@ impl ConditionSelector {
     /// Return whether this selector matches any condition name.
     pub fn matches_any<'a>(&self, names: impl IntoIterator<Item = &'a str>) -> bool {
         self.patterns.is_empty() || names.into_iter().any(|name| self.matches(name))
-    }
-}
-
-/// Condition selector JSON accepted by configuration files.
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(untagged)]
-pub enum ConditionSelectorJson {
-    /// Condition name shorthand.
-    Pattern(String),
-    /// Condition name shorthand list.
-    Patterns(Vec<String>),
-    /// Structured condition selector.
-    Selector(ConditionSelectorJsonObject),
-}
-
-/// Structured condition selector JSON accepted by configuration files.
-#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq, Eq)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub struct ConditionSelectorJsonObject {
-    /// Condition name glob patterns.
-    pub patterns: Vec<String>,
-}
-
-impl From<&ConditionSelectorJson> for ConditionSelector {
-    fn from(value: &ConditionSelectorJson) -> Self {
-        match value {
-            ConditionSelectorJson::Pattern(pattern) => Self {
-                patterns: vec![pattern.clone()],
-            },
-            ConditionSelectorJson::Patterns(patterns) => Self {
-                patterns: patterns.clone(),
-            },
-            ConditionSelectorJson::Selector(selector) => Self {
-                patterns: selector.patterns.clone(),
-            },
-        }
     }
 }
 

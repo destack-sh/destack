@@ -148,14 +148,14 @@ impl Linter {
 
     /// Return workspace scoped lint options for one revision.
     fn workspace_linter_options(&self, revision: Revision) -> Result<LinterOptions, LinterError> {
-        let destack_config_for_workspace = self
+        let destack = self
             .repository
-            .destack_config_for_workspace(revision)
+            .destack_for_workspace(revision)
             .map_err(|error| LinterError::Repository {
-            message: error.to_string(),
-        })?;
+                message: error.to_string(),
+            })?;
 
-        Ok(destack_config_for_workspace
+        Ok(destack
             .map(|options| options.linter.clone())
             .unwrap_or_default())
     }
@@ -168,7 +168,7 @@ impl Linter {
     ) -> Result<LinterOptions, LinterError> {
         let config = self
             .repository
-            .destack_config_for_package_id(revision, package_id)
+            .destack_for_package_id(revision, package_id)
             .map_err(|error| LinterError::Repository {
                 message: error.to_string(),
             })?;

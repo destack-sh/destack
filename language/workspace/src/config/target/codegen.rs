@@ -2,6 +2,8 @@ use serde::{Deserialize, Serialize};
 
 /// Optimization level for builds.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
 pub enum OptimizeLevel {
     /// No optimization (O0).
     #[default]
@@ -40,29 +42,10 @@ impl From<OptimizeLevel> for u8 {
     }
 }
 
-/// Optimization setting accepted by target JSON.
-#[derive(Debug, Clone, Copy, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(untagged)]
-pub enum OptimizeJson {
-    /// Enable or disable optimization.
-    Enabled(bool),
-    /// Explicit optimization level.
-    Level(#[cfg_attr(feature = "schema", schemars(range(min = 0, max = 4)))] u8),
-}
-
-impl From<OptimizeJson> for OptimizeLevel {
-    fn from(value: OptimizeJson) -> Self {
-        match value {
-            OptimizeJson::Enabled(false) => Self::O0,
-            OptimizeJson::Enabled(true) => Self::O2,
-            OptimizeJson::Level(level) => Self::from(level),
-        }
-    }
-}
-
 /// Debug info emission policy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
 pub enum DebugInfoLevel {
     /// No debug info.
     #[default]
@@ -90,32 +73,5 @@ impl DebugInfoLevel {
     /// Parse from a string value.
     pub fn parse(s: &str) -> Option<Self> {
         s.parse().ok()
-    }
-}
-
-/// Debug info emission policy for JSON deserialization.
-#[derive(Debug, Clone, Copy, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "lowercase")]
-pub enum DebugInfoLevelJson {
-    /// No debug info.
-    #[serde(alias = "off")]
-    None,
-    /// Line tables only.
-    #[serde(alias = "lines")]
-    #[serde(alias = "line_tables")]
-    Line,
-    /// Full debug info.
-    #[serde(alias = "full")]
-    Full,
-}
-
-impl From<DebugInfoLevelJson> for DebugInfoLevel {
-    fn from(value: DebugInfoLevelJson) -> Self {
-        match value {
-            DebugInfoLevelJson::None => DebugInfoLevel::None,
-            DebugInfoLevelJson::Line => DebugInfoLevel::Line,
-            DebugInfoLevelJson::Full => DebugInfoLevel::Full,
-        }
     }
 }

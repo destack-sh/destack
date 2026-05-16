@@ -31,9 +31,7 @@ impl Repository {
         let destack_config = package
             .path
             .as_ref()
-            .map(|path| {
-                self.inherited_destack_config_for_path(revision, &path.join("destack.json"))
-            })
+            .map(|path| self.inherited_destack_for_path(revision, &path.join("destack.json")))
             .transpose()?
             .flatten()
             .map(Arc::new);
@@ -43,11 +41,10 @@ impl Repository {
 
         // explicit targets
         if let Some(config) = config {
-            for (name, options) in &config.targets {
+            for (name, target) in &config.targets {
                 let target_id = TargetId::new(package.id, name);
-                let target = options.to_target(name);
 
-                targets.insert(target_id, target);
+                targets.insert(target_id, target.clone());
             }
 
             for (name, mode) in &config.conditions.modes {
@@ -102,10 +99,10 @@ impl Repository {
         revision: Revision,
         files: &OrdMap<FileId, FileEntry>,
     ) -> Result<Vec<(PathBuf, PackageKind)>, RepositoryError> {
-        let workspace_config = self.destack_config_for_workspace(revision)?;
+        let workspace_config = self.destack_for_workspace(revision)?;
         let workspace_packages = workspace_config
             .as_ref()
-            .and_then(|config| config.workspace_packages.as_deref());
+            .and_then(|config| config.workspace_packages());
         let mut package_roots = Vec::new();
         let mut seen = HashSet::new();
 
