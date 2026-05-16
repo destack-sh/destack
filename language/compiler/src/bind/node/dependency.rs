@@ -40,4 +40,26 @@ impl Compiler {
 
         state.declare_symbol(symbol_id, node_id);
     }
+
+    /// Bind one exported dependency item.
+    pub(in crate::bind) fn bind_export_item(
+        &self,
+        state: &mut BindState<'_>,
+        node_id: dir::LocalNodeId<dir::DependencyItem>,
+        dependency_item: &dir::DependencyItem,
+    ) {
+        if !dependency_item.is_default_value_export() {
+            return;
+        }
+
+        // declare anonymous default export
+        let symbol_id = state.insert_symbol(
+            dir::SymbolRole::Local,
+            dir::SymbolForm::Variable,
+            None,
+            Some(dir::ExportKind::Default),
+        );
+
+        state.declare_symbol(symbol_id, node_id);
+    }
 }

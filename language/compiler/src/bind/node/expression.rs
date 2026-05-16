@@ -366,6 +366,8 @@ impl Compiler {
     ) {
         // visit exported items
         for item_id in items {
+            let item = tree.get(*item_id);
+            self.bind_export_item(state, *item_id, item);
             self.visit_dependency_item_by_id(state, tree, *item_id);
         }
     }
