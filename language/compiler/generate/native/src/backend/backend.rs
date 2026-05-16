@@ -47,12 +47,12 @@ impl CodegenCraneliftBackend {
 
     /// Create a backend for WebAssembly output.
     pub fn wasm() -> CodegenCraneliftResult<Self> {
-        Self::new(&Target::wasm_js("wasm"))
+        Self::new(&Target::wasm_js())
     }
 
     /// Create a backend for native output (host triple).
     pub fn native() -> CodegenCraneliftResult<Self> {
-        Self::new(&Target::native("native"))
+        Self::new(&Target::native())
     }
 
     /// Get the target triple for the given target configuration.

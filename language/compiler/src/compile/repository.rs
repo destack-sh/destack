@@ -4,8 +4,7 @@ use std::sync::Arc;
 use destack_artifact::ArtifactDependency;
 use destack_source::{File, FileId, ModuleId, PackageId, ProfileId, TargetId};
 use destack_workspace::{
-    DestackDeclaration, Module, Package, Profile, ProviderContext, Revision, Target,
-    TargetDiscoveryError,
+    DestackFile, Module, Package, Profile, ProviderContext, Revision, Target, TargetDiscoveryError,
 };
 
 use crate::{Compiler, CompilerError, CompilerResult};
@@ -57,20 +56,20 @@ impl Compiler {
     }
 
     /// Load one package Destack config and record its declaration file dependencies.
-    pub(crate) fn destack_config_for_package(
+    pub(crate) fn destack_for_package(
         &self,
         context: &dyn ProviderContext,
         package_id: PackageId,
-    ) -> Option<Arc<DestackDeclaration>> {
+    ) -> Option<Arc<DestackFile>> {
         let revision = context.revision();
         let config = self
             .repository
-            .destack_config_for_package_id(revision, package_id)
+            .destack_for_package_id(revision, package_id)
             .unwrap_or_else(|error| panic!("failed to load package config: {error}"));
 
         // track every declaration that built the effective config
         if let Some(config) = config.as_ref() {
-            for file_id in &config.declaration_file_ids {
+            for file_id in &config.file_ids {
                 self.track_file_content(context, *file_id);
             }
         }
@@ -107,6 +106,13 @@ impl Compiler {
         ));
 
         Some(target)
+    }
+
+    /// Return one target name from the repository model.
+    pub(crate) fn target_name(&self, revision: Revision, target_id: TargetId) -> String {
+        self.repository
+            .target_name(revision, target_id)
+            .unwrap_or_else(|error| panic!("failed to load target name: {error}"))
     }
 
     /// Return module ids selected by one target and record the target module dependency.

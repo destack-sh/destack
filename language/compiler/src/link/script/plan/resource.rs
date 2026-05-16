@@ -283,7 +283,7 @@ impl<'a> ScriptLinker<'a> {
                     package: self.package_id,
                     message: format!("missing output placement for output id {}", output_id.0),
                 })?;
-        let target_layout = TargetLocation::new(self.package_dir, self.target);
+        let target_layout = TargetLocation::new(self.package_dir, self.target, self.target_name());
 
         Ok(target_layout.runtime_reference(current_output, &output_location))
     }

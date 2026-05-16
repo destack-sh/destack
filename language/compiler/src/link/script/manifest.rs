@@ -74,7 +74,7 @@ impl<'a> ScriptLinker<'a> {
         output: &PackageOutput,
         plan: &Plan,
     ) -> BuildManifest {
-        let target_layout = TargetLocation::new(self.package_dir, self.target);
+        let target_layout = TargetLocation::new(self.package_dir, self.target, self.target_name());
         let mut files = output
             .outputs
             .iter()

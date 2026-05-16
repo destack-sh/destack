@@ -20,6 +20,8 @@ pub(crate) struct BinaryLinker<'a> {
     pub(super) target: &'a Target,
     /// The target id being linked.
     pub(super) target_id: &'a TargetId,
+    /// The target name selected by the target id.
+    pub(super) target_name: String,
     /// The package owning the target.
     pub(super) package_id: PackageId,
 }
@@ -35,6 +37,8 @@ impl<'a> BinaryLinker<'a> {
         target_id: &'a TargetId,
         package_id: PackageId,
     ) -> Self {
+        let target_name = compiler.target_name(context.revision(), *target_id);
+
         Self {
             compiler,
             context,
@@ -42,7 +46,13 @@ impl<'a> BinaryLinker<'a> {
             root_dir,
             target,
             target_id,
+            target_name,
             package_id,
         }
+    }
+
+    /// Return the active target name.
+    pub(crate) fn target_name(&self) -> &str {
+        &self.target_name
     }
 }

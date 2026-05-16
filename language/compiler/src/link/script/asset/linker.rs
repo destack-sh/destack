@@ -267,7 +267,7 @@ impl<'a> ScriptLinker<'a> {
             package: self.package_id,
             message: format!("asset module '{}' has no filesystem path", module.uri),
         })?;
-        let output_layout = TargetLocation::new(self.package_dir, self.target);
+        let output_layout = TargetLocation::new(self.package_dir, self.target, self.target_name());
         let directory = directory_token(self.root_dir, self.package_dir, source_path);
         let name = name_token(source_path).ok_or_else(|| LinkError::InvalidOutputPath {
             anchor: module.id.into(),

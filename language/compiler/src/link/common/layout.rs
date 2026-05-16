@@ -30,14 +30,17 @@ pub(crate) struct TargetLocation<'a> {
     package_dir: &'a Path,
     /// The target whose outputs are being laid out.
     target: &'a Target,
+    /// The target name used for default output names.
+    target_name: &'a str,
 }
 
 impl<'a> TargetLocation<'a> {
     /// Create one output location resolver for one package target.
-    pub(crate) fn new(package_dir: &'a Path, target: &'a Target) -> Self {
+    pub(crate) fn new(package_dir: &'a Path, target: &'a Target, target_name: &'a str) -> Self {
         Self {
             package_dir,
             target,
+            target_name,
         }
     }
 
@@ -55,7 +58,7 @@ impl<'a> TargetLocation<'a> {
             self.target.resolve_out_dir(self.package_dir)
         };
 
-        OutputLocation::new(manifest_directory.join(format!("{}.manifest.json", self.target.name)))
+        OutputLocation::new(manifest_directory.join(format!("{}.manifest.json", self.target_name)))
     }
 
     /// Resolve one linked HTML document path for this target.
@@ -143,7 +146,7 @@ impl<'a> TargetLocation<'a> {
         }
 
         self.output_directory()
-            .join(format!("{}.{}", self.target.name, extension))
+            .join(format!("{}.{}", self.target_name, extension))
     }
 
     /// Render one configured output file name template with explicit token values.
@@ -262,9 +265,9 @@ mod tests {
     /// Render import references between emitted output files.
     #[test]
     fn test_render_output_reference_between_output_files() {
-        let mut target = Target::html("site");
+        let mut target = Target::html();
         target.out_dir = PathBuf::from("dist");
-        let layout = TargetLocation::new(Path::new("/workspace/pkg"), &target);
+        let layout = TargetLocation::new(Path::new("/workspace/pkg"), &target, "site");
         let document_path =
             layout.output_location(Path::new("/workspace/pkg/dist/index.html").to_path_buf());
         let entry_path =

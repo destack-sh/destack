@@ -1,6 +1,6 @@
 use destack_codegen_js as js;
 use destack_core::StringPool;
-use destack_workspace::TargetOptions;
+use destack_workspace::Target;
 
 use super::linker::Rewriter;
 
@@ -233,7 +233,7 @@ impl TestRewriter {
     /// Create one test rewriter around one module.
     fn new(module: js::Module) -> Self {
         Self {
-            target: TargetOptions::default().to_target("test"),
+            target: Target::native(),
             module,
         }
     }

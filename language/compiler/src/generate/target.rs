@@ -23,13 +23,14 @@ impl Compiler {
                     module: module_id,
                     message: format!("target '{target_id}' not found"),
                 })?;
+        let target_name = self.target_name(context.revision(), *target_id);
 
         let resolved_profile = self
             .target_profile_id(context.revision(), module_id, target_id)
             .ok_or_else(|| GenerateError::Internal {
                 anchor: (module_id).into(),
                 module: module_id,
-                message: format!("profile not found for target '{}'", target.name),
+                message: format!("profile not found for target '{target_name}'"),
             })?;
         if resolved_profile != profile {
             return Err(GenerateError::Internal {
@@ -37,7 +38,7 @@ impl Compiler {
                 module: module_id,
                 message: format!(
                     "target '{}' resolved to profile '{resolved_profile:?}', not '{profile:?}'",
-                    target.name
+                    target_name
                 ),
             }
             .into());
@@ -55,7 +56,7 @@ impl Compiler {
         {
             if target.uses_native_generate_pipeline() {
                 return self
-                    .generate_binary_module_output(module_id, &target, profile, context)
+                    .generate_binary_module_output(module_id, &target, target_id, profile, context)
                     .map_err(CompilerError::from);
             }
         }
@@ -69,7 +70,7 @@ impl Compiler {
                     module: module_id,
                     message: format!(
                         "native codegen is disabled: cannot generate output '{:?}' for target '{}'",
-                        target.emit, target.name
+                        target.emit, target_name
                     ),
                 }
                 .into());
@@ -81,7 +82,7 @@ impl Compiler {
             module: module_id,
             message: format!(
                 "unsupported output '{:?}' for target '{}'",
-                target.emit, target.name
+                target.emit, target_name
             ),
         }
         .into())

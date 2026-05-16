@@ -48,6 +48,7 @@ impl<'a> ScriptLinker<'a> {
             self.compiler.append_manifest_output(
                 self.package_dir,
                 self.target,
+                self.target_name(),
                 &mut output,
                 manifest,
             )?;

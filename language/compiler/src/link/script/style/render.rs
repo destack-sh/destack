@@ -96,7 +96,8 @@ impl<'a> ScriptLinker<'a> {
                         module_id
                     ),
                 })?;
-        let target_location = TargetLocation::new(self.package_dir, self.target);
+        let target_location =
+            TargetLocation::new(self.package_dir, self.target, self.target_name());
         let mut stack = Vec::new();
         let mut context = Vec::new();
         let mut emitted_modules = BTreeSet::new();

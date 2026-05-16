@@ -74,7 +74,11 @@ pub(super) fn render_html_attribute_value(
                     else {
                         return Ok(value.value.clone());
                     };
-                    let target_location = TargetLocation::new(linker.package_dir, linker.target);
+                    let target_location = TargetLocation::new(
+                        linker.package_dir,
+                        linker.target,
+                        linker.target_name(),
+                    );
                     let output_id = plan
                         .output_graph()
                         .output_id_for_module(module_id)
@@ -111,7 +115,11 @@ pub(super) fn render_html_attribute_value(
                     else {
                         return Ok(value.value.clone());
                     };
-                    let target_location = TargetLocation::new(linker.package_dir, linker.target);
+                    let target_location = TargetLocation::new(
+                        linker.package_dir,
+                        linker.target,
+                        linker.target_name(),
+                    );
                     let output_location =
                         plan.stylesheet_output_location(module_id).ok_or_else(|| {
                             LinkError::Internal {
@@ -505,7 +513,8 @@ fn render_html_asset_reference(
     module_id: ModuleId,
     suffix: &str,
 ) -> LinkResult<String> {
-    let target_location = TargetLocation::new(linker.package_dir, linker.target);
+    let target_location =
+        TargetLocation::new(linker.package_dir, linker.target, linker.target_name());
     let asset_reference =
         plan.asset_reference_map()
             .get(&module_id)
