@@ -173,8 +173,6 @@ impl DiagnosticFormat for FileType {
         let name = match self {
             FileType::Destack => "ds",
             FileType::DestackDeclaration => "d.ds",
-            FileType::DestackText => "dst",
-            FileType::DestackBinary => "dsb",
             FileType::JavaScript => "js",
             FileType::JavaScriptXml => "jsx",
             FileType::TypeScript => "ts",
@@ -193,7 +191,6 @@ impl DiagnosticFormat for FileType {
             FileType::Node => "node",
             FileType::SourceMap => "source map",
             FileType::Object => "object",
-            FileType::DestackMir => "mir",
             FileType::Image => "image",
             FileType::Font => "font",
             FileType::Audio => "audio",

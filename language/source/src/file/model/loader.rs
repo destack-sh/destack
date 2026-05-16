@@ -32,10 +32,9 @@ impl From<FileType> for Loader {
     fn from(file_type: FileType) -> Self {
         match file_type {
             FileType::Destack | FileType::DestackDeclaration => Self::Destack,
-            FileType::TypeScript
-            | FileType::TypeScriptXml
-            | FileType::TypeScriptDeclaration
-            | FileType::DestackText => Self::TypeScript,
+            FileType::TypeScript | FileType::TypeScriptXml | FileType::TypeScriptDeclaration => {
+                Self::TypeScript
+            }
             FileType::JavaScript | FileType::JavaScriptXml => Self::JavaScript,
             FileType::Json => Self::Json,
             FileType::Toml => Self::Toml,
@@ -46,12 +45,10 @@ impl From<FileType> for Loader {
             | FileType::Html
             | FileType::Css
             | FileType::Svg
-            | FileType::SourceMap
-            | FileType::DestackMir => Self::Text,
+            | FileType::SourceMap => Self::Text,
             FileType::Wasm
             | FileType::Node
             | FileType::Object
-            | FileType::DestackBinary
             | FileType::Image
             | FileType::Font
             | FileType::Audio

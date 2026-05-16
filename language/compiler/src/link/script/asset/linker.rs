@@ -143,7 +143,6 @@ fn explicit_media_type(file_type: FileType) -> Option<&'static str> {
         FileType::Markdown => Some("text/markdown"),
         FileType::Wasm => Some("application/wasm"),
         FileType::SourceMap => Some("application/json"),
-        FileType::DestackMir => Some("text/plain"),
         _ => None,
     }
 }
@@ -167,7 +166,6 @@ fn uses_utf8_charset(file_type: FileType) -> bool {
             | FileType::TypeScriptXml
             | FileType::TypeScriptDeclaration
             | FileType::SourceMap
-            | FileType::DestackMir
     )
 }
 

@@ -5,16 +5,13 @@ use serde::{Deserialize, Serialize};
 /// The format of a source file.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum FileType {
-    // code
+    // destack
     /// `.ds`
     Destack,
     /// `.d.ds`
     DestackDeclaration,
-    // FUGU: remove .dst and .dsb
-    /// `.dst`
-    DestackText,
-    /// `.dsb`
-    DestackBinary,
+
+    // javascript/typescript compatibility
     /// `.js`
     JavaScript,
     /// `.jsx`
@@ -58,10 +55,6 @@ pub enum FileType {
     /// Object file `.o`
     Object,
 
-    // compiler text artifacts
-    /// `.mir`, `.dsmir` - Destack MIR text.
-    DestackMir,
-
     // media: coarse categories (pass-through)
     /// Image files (png, jpg, gif, webp, avif, ico, bmp, tiff, dds, tga, exr, hdr, psd)
     Image,
@@ -90,7 +83,6 @@ pub enum FileType {
 pub const WATCHABLE_FILE_TYPES: &[FileType] = &[
     FileType::Destack,
     FileType::DestackDeclaration,
-    FileType::DestackText,
     FileType::JavaScript,
     FileType::JavaScriptXml,
     FileType::TypeScript,
@@ -106,7 +98,6 @@ pub const WATCHABLE_FILE_TYPES: &[FileType] = &[
     FileType::Css,
     FileType::Svg,
     FileType::SourceMap,
-    FileType::DestackMir,
 ];
 
 impl FileType {
@@ -126,8 +117,6 @@ impl FileType {
             // destack
             "ds" => FileType::Destack,
             "d.ds" => FileType::DestackDeclaration,
-            "dst" => FileType::DestackText,
-            "dsb" => FileType::DestackBinary,
 
             // javascript/typescript
             "js" => FileType::JavaScript,
@@ -154,9 +143,6 @@ impl FileType {
             "node" => FileType::Node,
             "map" => FileType::SourceMap,
             "o" => FileType::Object,
-
-            // compiler text artifacts
-            "mir" | "dsmir" => FileType::DestackMir,
 
             // images
             "png" | "jpg" | "jpeg" | "gif" | "webp" | "avif" | "ico" | "bmp" | "tiff" | "tif"
@@ -227,8 +213,6 @@ impl FileType {
             // destack
             FileType::Destack => "ds",
             FileType::DestackDeclaration => "d.ds",
-            FileType::DestackText => "dst",
-            FileType::DestackBinary => "dsb",
 
             // javascript/typescript
             FileType::JavaScript => "js",
@@ -255,9 +239,6 @@ impl FileType {
             FileType::Node => "node",
             FileType::SourceMap => "map",
             FileType::Object => "o",
-
-            // compiler text artifacts
-            FileType::DestackMir => "mir",
 
             // coarse categories have no single extension
             FileType::Image
@@ -287,7 +268,6 @@ impl FileType {
             self,
             FileType::Destack
                 | FileType::DestackDeclaration
-                | FileType::DestackText
                 | FileType::JavaScript
                 | FileType::JavaScriptXml
                 | FileType::TypeScript
@@ -312,7 +292,6 @@ impl FileType {
                 | FileType::Svg
                 | FileType::Env
                 | FileType::SourceMap
-                | FileType::DestackMir
         )
     }
 
@@ -323,7 +302,6 @@ impl FileType {
             FileType::Wasm
                 | FileType::Node
                 | FileType::Object
-                | FileType::DestackBinary
                 | FileType::Image
                 | FileType::Font
                 | FileType::Audio
@@ -342,8 +320,6 @@ impl FileType {
         match self {
             FileType::Destack => &["**/*.ds"],
             FileType::DestackDeclaration => &["**/*.d.ds"],
-            FileType::DestackText => &["**/*.dst"],
-            FileType::DestackBinary => &["**/*.dsb"],
             FileType::JavaScript => &["**/*.js"],
             FileType::JavaScriptXml => &["**/*.jsx"],
             FileType::TypeScript => &["**/*.ts"],
@@ -362,7 +338,6 @@ impl FileType {
             FileType::Node => &["**/*.node"],
             FileType::SourceMap => &["**/*.map"],
             FileType::Object => &["**/*.o"],
-            FileType::DestackMir => &["**/*.mir", "**/*.dsmir"],
             FileType::Image
             | FileType::Font
             | FileType::Audio

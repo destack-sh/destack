@@ -29,9 +29,7 @@ impl TryFrom<FileType> for LanguageType {
     /// Try to convert one file type into its source language.
     fn try_from(file_type: FileType) -> Result<Self, Self::Error> {
         match file_type {
-            FileType::Destack | FileType::DestackText | FileType::DestackBinary => {
-                Ok(Self::Destack)
-            }
+            FileType::Destack => Ok(Self::Destack),
             FileType::DestackDeclaration => Ok(Self::DestackDeclaration),
             FileType::JavaScript => Ok(Self::JavaScript),
             FileType::JavaScriptXml => Ok(Self::JavaScriptXml),
