@@ -4,10 +4,13 @@ use std::sync::Arc;
 
 use destack_source::{FileId, FileType, LanguageType, Loader, ModuleId, PackageId, Uri};
 use im::OrdMap;
-use rustc_hash::{FxHashMap, FxHashSet};
+use indexmap::IndexMap;
+use rustc_hash::FxHashMap;
 
 use crate::repository::{FileEntry, Repository, RepositoryError, Revision};
-use crate::{Mode, Module, ModuleFile, ModuleIndex, PackageIndex};
+use crate::{
+    ConditionGate, Module, ModuleFile, ModuleIndex, PackageIndex, builtin_condition_aliases,
+};
 
 /// One file before it is assigned to its canonical module.
 #[derive(Debug)]
@@ -18,8 +21,8 @@ struct ModuleFileCandidate {
     path: PathBuf,
     /// The source file type.
     file_type: FileType,
-    /// The mode suffix when this is a mode file.
-    mode: Option<String>,
+    /// The condition alias suffixes for this file.
+    aliases: Vec<ConditionFileAlias>,
     /// The owning package id.
     package_id: PackageId,
     /// The owning package root.
@@ -35,26 +38,34 @@ impl Repository {
         packages: &PackageIndex,
     ) -> Result<ModuleIndex, RepositoryError> {
         let mut base_files = FxHashMap::default();
-        let mut mode_files: FxHashMap<PathBuf, Vec<ModuleFileCandidate>> = FxHashMap::default();
-        let mut known_modes = FxHashMap::default();
+        let mut condition_files: FxHashMap<PathBuf, Vec<ModuleFileCandidate>> =
+            FxHashMap::default();
+        let mut known_aliases = FxHashMap::default();
 
-        // collect base files and their mode files
+        // collect base files and their conditional files
         for (file_id, entry) in files.iter() {
             let path = self.root.join(&entry.logical_path);
             let Some(candidate) =
-                self.module_file_candidate(revision, *file_id, path, packages, &mut known_modes)?
+                self.module_file_candidate(revision, *file_id, path, packages, &mut known_aliases)?
             else {
                 continue;
             };
 
-            if let Some(mode) = candidate.mode.as_ref() {
-                if let Some(base_path) =
-                    Self::mode_base_path(&candidate.path, candidate.file_type, mode)
-                {
-                    mode_files.entry(base_path).or_default().push(candidate);
-                }
-            } else {
+            if candidate.aliases.is_empty() {
                 base_files.insert(candidate.path.clone(), candidate);
+            } else {
+                let Some(base_path) = Self::condition_base_path(
+                    &candidate.path,
+                    candidate.file_type,
+                    &candidate.aliases,
+                ) else {
+                    continue;
+                };
+
+                condition_files
+                    .entry(base_path)
+                    .or_default()
+                    .push(candidate);
             }
         }
 
@@ -62,15 +73,17 @@ impl Repository {
         let mut module_index = OrdMap::new();
         for (base_path, base) in base_files {
             let mut module = self.module_from_candidate(base);
-            if let Some(mut files) = mode_files.remove(&base_path) {
+            if let Some(mut files) = condition_files.remove(&base_path) {
                 files.sort_by(|left, right| {
-                    left.mode
-                        .cmp(&right.mode)
+                    left.aliases
+                        .len()
+                        .cmp(&right.aliases.len())
+                        .then_with(|| left.aliases.cmp(&right.aliases))
                         .then_with(|| left.path.cmp(&right.path))
                 });
 
                 for file in files {
-                    module.push_mode_file(Self::module_file_from_candidate(file));
+                    module.push_condition_file(Self::module_file_from_candidate(file));
                 }
             }
 
@@ -87,7 +100,7 @@ impl Repository {
         file_id: FileId,
         path: PathBuf,
         packages: &PackageIndex,
-        known_modes: &mut FxHashMap<PackageId, FxHashSet<String>>,
+        known_aliases: &mut FxHashMap<PackageId, IndexMap<String, ConditionGate>>,
     ) -> Result<Option<ModuleFileCandidate>, RepositoryError> {
         let file_type = FileType::from_path_or_unknown(&path);
 
@@ -99,21 +112,21 @@ impl Repository {
         let Some(package) = packages.nearest_package(&path) else {
             return Ok(None);
         };
-        let known_modes = match known_modes.entry(package.id) {
+        let known_aliases = match known_aliases.entry(package.id) {
             Entry::Occupied(entry) => entry.into_mut(),
             Entry::Vacant(entry) => {
-                let modes = self.known_modes_for_package(revision, package.id)?;
+                let aliases = self.condition_aliases_for_package(revision, package.id)?;
 
-                entry.insert(modes)
+                entry.insert(aliases)
             }
         };
-        let mode = Self::mode_for_path(&path, file_type, known_modes);
+        let aliases = Self::condition_aliases_for_path(&path, file_type, known_aliases);
 
         Ok(Some(ModuleFileCandidate {
             file_id,
             path,
             file_type,
-            mode,
+            aliases,
             package_id: package.id,
             package_root: package.path.clone(),
         }))
@@ -141,10 +154,20 @@ impl Repository {
         )
     }
 
-    /// Build one module file from a mode file candidate.
+    /// Build one module file from a conditional file candidate.
     fn module_file_from_candidate(candidate: ModuleFileCandidate) -> ModuleFile {
         let language_type = LanguageType::try_from(candidate.file_type).ok();
         let loader = Loader::from(candidate.file_type);
+        let aliases = candidate
+            .aliases
+            .iter()
+            .map(|alias| alias.name.clone())
+            .collect();
+        let gates = candidate
+            .aliases
+            .into_iter()
+            .map(|alias| alias.gate)
+            .collect();
 
         ModuleFile::new(
             candidate.file_id,
@@ -152,50 +175,88 @@ impl Repository {
             Some(candidate.path),
             language_type,
             loader,
-            candidate.mode,
+            aliases,
+            gates,
         )
     }
 
-    /// Return the known mode names for one package.
-    fn known_modes_for_package(
+    /// Return the known condition aliases for one package.
+    fn condition_aliases_for_package(
         &self,
         revision: Revision,
         package_id: PackageId,
-    ) -> Result<FxHashSet<String>, RepositoryError> {
-        let modes =
+    ) -> Result<IndexMap<String, ConditionGate>, RepositoryError> {
+        let aliases =
             if let Some(config) = self.destack_config_for_package_id(revision, package_id)? {
-                config.modes.keys().cloned().collect()
-            } else {
-                Mode::BUILTINS
+                config
+                    .conditions
+                    .aliases
                     .iter()
-                    .map(|mode| mode.name.to_string())
+                    .map(|(name, alias)| (name.clone(), alias.clone()))
                     .collect()
+            } else {
+                builtin_condition_aliases()
             };
 
-        Ok(modes)
+        Ok(aliases)
     }
 
-    /// Return the mode suffix for one path when it has one.
-    fn mode_for_path(
+    /// Return condition aliases for one path when it has any.
+    fn condition_aliases_for_path(
         path: &Path,
         file_type: FileType,
-        known_modes: &FxHashSet<String>,
-    ) -> Option<String> {
-        let extension = file_type.extension()?;
-        let file_name = path.file_name()?.to_str()?;
-        let suffix = format!(".{extension}");
-        let stem = file_name.strip_suffix(&suffix)?;
-        let (_, mode) = stem.rsplit_once('.')?;
+        known_aliases: &IndexMap<String, ConditionGate>,
+    ) -> Vec<ConditionFileAlias> {
+        // skip files that cannot compose source modules
+        if !file_type.is_code() {
+            return Vec::new();
+        }
 
-        known_modes.contains(mode).then(|| mode.to_string())
+        // strip the loader extension before reading suffixes
+        let Some(extension) = file_type.extension() else {
+            return Vec::new();
+        };
+        let Some(file_name) = path.file_name().and_then(|name| name.to_str()) else {
+            return Vec::new();
+        };
+        let suffix = format!(".{extension}");
+        let Some(stem) = file_name.strip_suffix(&suffix) else {
+            return Vec::new();
+        };
+
+        // walk known aliases from the right edge
+        let mut aliases = Vec::new();
+        for segment in stem.rsplit('.') {
+            let Some((rank, name, alias)) = known_aliases.get_full(segment) else {
+                break;
+            };
+
+            aliases.push(ConditionFileAlias {
+                rank,
+                name: name.clone(),
+                gate: alias.clone(),
+            });
+        }
+        aliases.reverse();
+
+        aliases
     }
 
-    /// Return the base path for one mode file.
-    fn mode_base_path(path: &Path, file_type: FileType, mode: &str) -> Option<PathBuf> {
+    /// Return the base path for one conditional file.
+    fn condition_base_path(
+        path: &Path,
+        file_type: FileType,
+        aliases: &[ConditionFileAlias],
+    ) -> Option<PathBuf> {
         let extension = file_type.extension()?;
         let path_text = path.as_os_str().to_string_lossy();
-        let mode_suffix = format!(".{mode}.{extension}");
-        let base = path_text.strip_suffix(&mode_suffix)?;
+        let alias_suffix = aliases
+            .iter()
+            .map(|alias| alias.name.as_str())
+            .collect::<Vec<_>>()
+            .join(".");
+        let suffix = format!(".{alias_suffix}.{extension}");
+        let base = path_text.strip_suffix(&suffix)?;
 
         Some(PathBuf::from(format!("{base}.{extension}")))
     }
@@ -312,5 +373,98 @@ impl Repository {
         }
 
         file_type.is_code() || file_type.is_data() || file_type.is_text() || file_type.is_binary()
+    }
+}
+
+/// One condition alias used by a physical module file.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ConditionFileAlias {
+    /// The declaration rank of this alias.
+    rank: usize,
+    /// The alias suffix name.
+    name: String,
+    /// The condition gate matched by this alias.
+    gate: ConditionGate,
+}
+
+impl PartialOrd for ConditionFileAlias {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for ConditionFileAlias {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.rank
+            .cmp(&other.rank)
+            .then_with(|| self.name.cmp(&other.name))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::{Path, PathBuf};
+
+    use super::*;
+
+    #[test]
+    fn test_find_condition_aliases_from_chained_suffixes() {
+        let mut aliases = IndexMap::new();
+        aliases.insert("test".to_string(), ConditionGate::mode("test"));
+        aliases.insert(
+            "browser".to_string(),
+            ConditionGate {
+                host: Some(crate::ConditionSelector::exact("browser")),
+                ..ConditionGate::default()
+            },
+        );
+
+        // preserve suffix order and declaration rank
+        let file_aliases = Repository::condition_aliases_for_path(
+            Path::new("src/user.test.browser.ds"),
+            FileType::Destack,
+            &aliases,
+        );
+        let names = file_aliases
+            .iter()
+            .map(|alias| alias.name.as_str())
+            .collect::<Vec<_>>();
+        let ranks = file_aliases
+            .iter()
+            .map(|alias| alias.rank)
+            .collect::<Vec<_>>();
+
+        assert_eq!(names, vec!["test", "browser"]);
+        assert_eq!(ranks, vec![0, 1]);
+    }
+
+    #[test]
+    fn test_find_condition_base_path_for_compound_extensions() {
+        let aliases = vec![ConditionFileAlias {
+            rank: 0,
+            name: "test".to_string(),
+            gate: ConditionGate::mode("test"),
+        }];
+
+        // strip aliases before preserving the compound declaration extension
+        let base_path = Repository::condition_base_path(
+            Path::new("src/user.test.d.ds"),
+            FileType::DestackDeclaration,
+            &aliases,
+        );
+
+        assert_eq!(base_path, Some(PathBuf::from("src/user.d.ds")));
+    }
+
+    #[test]
+    fn test_skip_unknown_condition_suffixes() {
+        let aliases = IndexMap::new();
+        let file_aliases = Repository::condition_aliases_for_path(
+            Path::new("src/user.preview.ds"),
+            FileType::Destack,
+            &aliases,
+        );
+
+        assert!(file_aliases.is_empty());
     }
 }

@@ -1,10 +1,9 @@
-use std::path::Path;
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactDependency, DirParsed};
+use destack_artifact::{ArtifactDependency, DirParsed, DirParsedFile};
 use destack_dir as dir;
 use destack_parser::{Parser, ParserOptions};
-use destack_source::{FileContentId, FileId, FileType, ProfileId, Span};
+use destack_source::{File, FileContentId, FileId, LanguageType, ProfileId, Span};
 use destack_workspace::{Module, Repository, Revision};
 
 /// One code module in a compiler test.
@@ -21,31 +20,63 @@ pub(crate) struct TestModule {
 }
 
 /// Parse one test module into a parsed DIR artifact.
-pub(crate) fn parse_module(module: &Module, source: &str, repository: &Repository) -> DirParsed {
-    let source_file = Arc::new(destack_source::File::from_text(
-        module.file_id,
-        module
-            .path
-            .as_ref()
-            .map(|path| path.to_string_lossy().to_string())
-            .unwrap_or_else(|| module.uri.to_string()),
-        module.uri.clone(),
-        module.path.clone(),
-        FileType::from_path_or_unknown(
-            module
-                .path
-                .as_deref()
-                .unwrap_or_else(|| Path::new("main.ds")),
-        ),
-        source.to_string(),
-    ));
+pub(crate) fn parse_module(
+    module: &Module,
+    repository: &Repository,
+    revision: Revision,
+) -> DirParsed {
+    let mut tree = dir::Tree::new(module.id);
+    let mut files = Vec::with_capacity(module.files.len());
+    let mut tokens = Vec::new();
+    let mut side_tokens = Vec::new();
 
-    // parse source
-    let mut parser = Parser::lex_file_with_options(
-        source_file,
-        module.code_language_type(),
+    // parse each contributing file into one module tree
+    for module_file in &module.files {
+        let source_file = repository
+            .file(revision, module_file.file_id)
+            .expect("test file lookup should work")
+            .expect("test file should exist");
+        let parsed_file = parse_module_file(
+            module_file.aliases.clone(),
+            source_file,
+            repository,
+            &mut tree,
+            &mut tokens,
+            &mut side_tokens,
+        );
+
+        files.push(parsed_file);
+    }
+
+    // preserve a stable module-level anchor
+    let anchor_expression = tree.insert(
+        dir::Expression::ScalarLiteral(dir::ScalarLiteral::Boolean(false)),
+        Span::empty(module.file_id),
+    );
+
+    DirParsed::new(tree, files, tokens, side_tokens, anchor_expression)
+}
+
+/// Parse one physical module file into a shared parsed DIR tree.
+fn parse_module_file(
+    aliases: Vec<String>,
+    source_file: Arc<File>,
+    repository: &Repository,
+    tree: &mut dir::Tree,
+    tokens: &mut Vec<dir::TokenSpan>,
+    side_tokens: &mut Vec<dir::TokenSpan>,
+) -> DirParsedFile {
+    let language_type =
+        LanguageType::try_from(source_file.ty).expect("test code file should have a language type");
+
+    // parse the file with the shared tree
+    let tree_in = std::mem::replace(tree, dir::Tree::new(tree.module_id));
+    let mut parser = Parser::lex_module_tree_with_options(
+        source_file.clone(),
+        language_type,
         ParserOptions::default(),
         repository.string_pool().clone(),
+        tree_in,
     );
     let roots = parser.parse();
     let diagnostics = parser.diagnostics.collect();
@@ -54,29 +85,50 @@ pub(crate) fn parse_module(module: &Module, source: &str, repository: &Repositor
         "compiler source should parse cleanly: {diagnostics:?}"
     );
 
-    // build parsed artifact
-    let (tokens, side_tokens) = parser.take_tokens();
-    parser.tree.module_id = module.id;
-    let anchor_expression = parser.tree.insert(
+    // append token side data
+    let token_start = tokens.len() as u32;
+    let side_token_start = side_tokens.len() as u32;
+    let (mut file_tokens, mut file_side_tokens) = parser.take_tokens();
+    tokens.append(&mut file_tokens);
+    side_tokens.append(&mut file_side_tokens);
+    let token_end = tokens.len() as u32;
+    let side_token_end = side_tokens.len() as u32;
+
+    // restore the shared tree
+    *tree = parser.tree;
+    let anchor_expression = tree.insert(
         dir::Expression::ScalarLiteral(dir::ScalarLiteral::Boolean(false)),
-        Span::empty(module.file_id),
+        Span::empty(source_file.id),
     );
 
-    DirParsed::from_tree(parser.tree, roots, tokens, side_tokens, anchor_expression)
+    DirParsedFile {
+        file_id: source_file.id,
+        aliases,
+        roots,
+        token_range: token_start..token_end,
+        side_token_range: side_token_start..side_token_end,
+        anchor_expression,
+    }
 }
 
-/// Return the source content dependency for one parsed module.
-pub(crate) fn parsed_dependency(
+/// Return source content dependencies for one parsed module.
+pub(crate) fn parsed_dependencies(
     repository: &Repository,
     revision: Revision,
     module: &Module,
-) -> ArtifactDependency {
-    let content = file_content_id(repository, revision, module.file_id);
+) -> Vec<ArtifactDependency> {
+    module
+        .files
+        .iter()
+        .map(|file| {
+            let content = file_content_id(repository, revision, file.file_id);
 
-    ArtifactDependency::FileContent {
-        file: module.file_id,
-        content,
-    }
+            ArtifactDependency::FileContent {
+                file: file.file_id,
+                content,
+            }
+        })
+        .collect()
 }
 
 /// Return one file content id from the repository.

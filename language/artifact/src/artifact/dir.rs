@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use destack_dir as dir;
+use destack_source::FileId;
 use serde::{Deserialize, Serialize};
 
 /// Parsed DIR for one source module.
@@ -10,8 +11,8 @@ pub struct DirParsed {
     pub tree: dir::Tree,
     /// The parsed parent index.
     pub parents: dir::NodeParentIndex,
-    /// The top-level expressions.
-    pub roots: Vec<dir::LocalNodeId<dir::Expression>>,
+    /// The parsed physical files.
+    pub files: Vec<DirParsedFile>,
     /// The module tokens.
     pub tokens: Vec<dir::TokenSpan>,
     /// The module side tokens.
@@ -21,10 +22,10 @@ pub struct DirParsed {
 }
 
 impl DirParsed {
-    /// Create a parsed DIR artifact from one tree.
-    pub fn from_tree(
+    /// Create a parsed DIR artifact.
+    pub fn new(
         tree: dir::Tree,
-        roots: Vec<dir::LocalNodeId<dir::Expression>>,
+        files: Vec<DirParsedFile>,
         tokens: Vec<dir::TokenSpan>,
         side_tokens: Vec<dir::TokenSpan>,
         anchor_expression: dir::LocalNodeId<dir::Expression>,
@@ -34,12 +35,39 @@ impl DirParsed {
         Self {
             tree,
             parents,
-            roots,
+            files,
             tokens,
             side_tokens,
             anchor_expression,
         }
     }
+
+    /// Return parsed side data for one physical file.
+    pub fn file(&self, file_id: FileId) -> Option<&DirParsedFile> {
+        self.files.iter().find(|file| file.file_id == file_id)
+    }
+
+    /// Return parsed roots for one physical file.
+    pub fn roots_for_file(&self, file_id: FileId) -> Option<&[dir::LocalNodeId<dir::Expression>]> {
+        self.file(file_id).map(|file| file.roots.as_slice())
+    }
+}
+
+/// Parsed roots and side data for one physical file in a canonical module.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DirParsedFile {
+    /// The source file id.
+    pub file_id: FileId,
+    /// The condition aliases attached to this file.
+    pub aliases: Vec<String>,
+    /// The top-level expressions parsed from this file.
+    pub roots: Vec<dir::LocalNodeId<dir::Expression>>,
+    /// Token range inside the module token buffer.
+    pub token_range: std::ops::Range<u32>,
+    /// Side token range inside the module side token buffer.
+    pub side_token_range: std::ops::Range<u32>,
+    /// Stable anchor expression for diagnostics in this file.
+    pub anchor_expression: dir::LocalNodeId<dir::Expression>,
 }
 
 /// Bound DIR base for one source module.

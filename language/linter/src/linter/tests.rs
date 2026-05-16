@@ -7,8 +7,8 @@ use std::sync::{Arc, LazyLock, Once};
 use destack_artifact::{
     ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactOutcome, ArtifactPayload,
     ArtifactProvider, ArtifactVersion, DiagnosticAnchor, DiagnosticContext, DiagnosticDisplay,
-    DiagnosticError, DirParsed, EmitFormat, Host, MemoryCacheStore, Platform, ProfileFlags,
-    ProfileKey, Runtime, ToDiagnostic,
+    DiagnosticError, DirParsed, DirParsedFile, EmitFormat, Host, MemoryCacheStore, Platform,
+    ProfileFlags, ProfileKey, Runtime, ToDiagnostic,
 };
 use destack_compiler::Compiler;
 use destack_core::StringPool;
@@ -192,7 +192,16 @@ fn anchor_dir_parsed(module_id: ModuleId, file: &File) -> DirParsed {
     let mut tree = dir::Tree::new(module_id);
     let anchor_expression = insert_anchor_expression(&mut tree, file.id);
 
-    DirParsed::from_tree(tree, Vec::new(), Vec::new(), Vec::new(), anchor_expression)
+    let file = DirParsedFile {
+        file_id: file.id,
+        aliases: Vec::new(),
+        roots: Vec::new(),
+        token_range: 0..0,
+        side_token_range: 0..0,
+        anchor_expression,
+    };
+
+    DirParsed::new(tree, vec![file], Vec::new(), Vec::new(), anchor_expression)
 }
 
 /// Parse one code module into DIR.
@@ -215,9 +224,18 @@ fn parse_code_dir(
     let (tokens, side_tokens) = parser.take_tokens();
     let anchor_expression = insert_anchor_expression(&mut parser.tree, file.id);
 
-    DirParsed::from_tree(
+    let parsed_file = DirParsedFile {
+        file_id: file.id,
+        aliases: Vec::new(),
+        roots: expressions,
+        token_range: 0..tokens.len() as u32,
+        side_token_range: 0..side_tokens.len() as u32,
+        anchor_expression,
+    };
+
+    DirParsed::new(
         parser.tree,
-        expressions,
+        vec![parsed_file],
         tokens,
         side_tokens,
         anchor_expression,

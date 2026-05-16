@@ -1057,13 +1057,25 @@ impl Parser {
         module_id: ModuleId,
         strings: Arc<StringPool>,
     ) -> Self {
-        // initialize the lexer for lazy lexing
-        let lexer = Lexer::new(file.clone(), language);
-
-        // size the hot buffers from source bytes up front
         let source_len = file.text().len();
         let estimated_tokens = source_len / ESTIMATED_TOKEN_BYTES;
         let estimated_nodes = estimated_tokens;
+        let tree = Tree::with_capacity(module_id, estimated_nodes);
+
+        Self::parser_for_module_tree(file, language, strings, tree)
+    }
+
+    /// Create one parser that appends into an existing DIR tree.
+    fn parser_for_module_tree(
+        file: Arc<File>,
+        language: LanguageType,
+        strings: Arc<StringPool>,
+        tree: Tree,
+    ) -> Self {
+        // initialize the lexer for lazy lexing
+        let lexer = Lexer::new(file.clone(), language);
+
+        // initialize source-local parser state
         let file_id = file.id;
         let type_literal_identifiers = TypeLiteralIdentifiers::new(strings.as_ref());
         Self {
@@ -1083,7 +1095,7 @@ impl Parser {
             flags: ParserFlags::default(),
             preserve_parenthesized_wrappers: true,
             language,
-            tree: Tree::with_capacity(module_id, estimated_nodes),
+            tree,
             strings,
             diagnostics: DiagnosticCollector::new(),
             errors: Vec::new(),
@@ -1139,6 +1151,23 @@ impl Parser {
         strings: Arc<StringPool>,
     ) -> Self {
         let mut parser = Self::parser_for_module(file, language, module_id, strings);
+        parser
+            .lexer
+            .set_retain_trivia_tokens(options.retain_trivia_tokens);
+        parser.reset();
+        parser.apply_options(options);
+        parser
+    }
+
+    /// Lex a module text File into an existing DIR tree and apply parser options.
+    pub fn lex_module_tree_with_options(
+        file: Arc<File>,
+        language: LanguageType,
+        options: ParserOptions,
+        strings: Arc<StringPool>,
+        tree: Tree,
+    ) -> Self {
+        let mut parser = Self::parser_for_module_tree(file, language, strings, tree);
         parser
             .lexer
             .set_retain_trivia_tokens(options.retain_trivia_tokens);

@@ -76,7 +76,9 @@ impl<'a> SourceQueryContext<'a> {
 
     /// Return the source DIR roots.
     pub(crate) fn roots(self) -> &'a [dir::LocalNodeId<dir::Expression>] {
-        &self.dir.roots
+        self.dir
+            .roots_for_file(self.file_id)
+            .unwrap_or_else(|| panic!("query source file was not parsed: {:?}", self.file_id))
     }
 
     /// Return the module string pool.

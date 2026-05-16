@@ -5,6 +5,8 @@ use destack_source::{FileId, LanguageType, Loader, ModuleId, PackageId, Uri};
 use im::OrdMap;
 use rustc_hash::FxHashMap;
 
+use crate::{ConditionGate, ConditionSet};
+
 /// One source module.
 #[derive(Debug, Clone)]
 pub struct Module {
@@ -43,7 +45,8 @@ impl Module {
             path.clone(),
             language_type,
             loader,
-            None,
+            Vec::new(),
+            Vec::new(),
         );
 
         Self {
@@ -58,28 +61,17 @@ impl Module {
         }
     }
 
-    /// Add one mode file to this module.
-    pub fn push_mode_file(&mut self, file: ModuleFile) {
+    /// Add one conditional file to this module.
+    pub fn push_condition_file(&mut self, file: ModuleFile) {
         self.files.push(file);
     }
 
-    /// Return files active for one mode set.
-    pub fn files_for_modes<'a>(&'a self, modes: &[String]) -> Vec<&'a ModuleFile> {
-        let mut files = self
-            .files
+    /// Return files active for one condition set.
+    pub fn files_for_conditions<'a>(&'a self, conditions: &ConditionSet) -> Vec<&'a ModuleFile> {
+        self.files
             .iter()
-            .filter(|file| file.mode.is_none())
-            .collect::<Vec<_>>();
-
-        for mode in modes {
-            files.extend(
-                self.files
-                    .iter()
-                    .filter(|file| file.mode.as_deref() == Some(mode.as_str())),
-            );
-        }
-
-        files
+            .filter(|file| file.matches(conditions))
+            .collect()
     }
 
     /// Return true when this module contains code.
@@ -143,8 +135,10 @@ pub struct ModuleFile {
     pub language_type: Option<LanguageType>,
     /// The loader used to interpret the source file.
     pub loader: Loader,
-    /// The mode that activates this file.
-    pub mode: Option<String>,
+    /// The condition aliases that activate this file.
+    pub aliases: Vec<String>,
+    /// The condition gates that activate this file.
+    pub gates: Vec<ConditionGate>,
 }
 
 impl ModuleFile {
@@ -155,7 +149,8 @@ impl ModuleFile {
         path: Option<PathBuf>,
         language_type: Option<LanguageType>,
         loader: Loader,
-        mode: Option<String>,
+        aliases: Vec<String>,
+        gates: Vec<ConditionGate>,
     ) -> Self {
         Self {
             file_id,
@@ -163,8 +158,14 @@ impl ModuleFile {
             path,
             language_type,
             loader,
-            mode,
+            aliases,
+            gates,
         }
+    }
+
+    /// Return whether this file is active for one condition set.
+    pub fn matches(&self, conditions: &ConditionSet) -> bool {
+        self.gates.iter().all(|gate| gate.matches(conditions))
     }
 }
 
@@ -235,5 +236,84 @@ impl ModuleIndex {
     /// Return the module id for one contributing file uri.
     pub(crate) fn module_id_for_uri(&self, uri: &Uri) -> Option<ModuleId> {
         self.module_by_uri.get(uri).copied()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::{Path, PathBuf};
+
+    use destack_source::{FileType, PackageId};
+
+    use super::*;
+
+    #[test]
+    fn test_select_module_files_for_active_conditions() {
+        let package_id = PackageId::new(1);
+        let module_id = ModuleId::new(package_id, 1);
+        let mut module = Module::blank(
+            module_id,
+            FileId::new(1),
+            Uri::from_path(Path::new("main.ds")),
+            Some(PathBuf::from("main.ds")),
+            package_id,
+            Some(LanguageType::Destack),
+            Loader::Destack,
+        );
+        let test_file = ModuleFile::new(
+            FileId::new(2),
+            Uri::from_path(Path::new("main.test.ds")),
+            Some(PathBuf::from("main.test.ds")),
+            Some(LanguageType::Destack),
+            Loader::Destack,
+            vec!["test".to_string()],
+            vec![ConditionGate::mode("test")],
+        );
+        module.push_condition_file(test_file);
+
+        // select the base file without active modes
+        let conditions = ConditionSet::default();
+        let files = module.files_for_conditions(&conditions);
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].file_id, FileId::new(1));
+
+        // select base and conditional files with matching modes
+        let mut conditions = ConditionSet::default();
+        conditions.modes.insert("test".to_string());
+        let files = module.files_for_conditions(&conditions);
+        let file_ids = files.iter().map(|file| file.file_id).collect::<Vec<_>>();
+        assert_eq!(file_ids, vec![FileId::new(1), FileId::new(2)]);
+    }
+
+    #[test]
+    fn test_module_index_tracks_conditional_files() {
+        let package_id = PackageId::new(1);
+        let module_id = ModuleId::new(package_id, 1);
+        let mut module = Module::blank(
+            module_id,
+            FileId::new(1),
+            Uri::from_path(Path::new("main.ds")),
+            Some(PathBuf::from("main.ds")),
+            package_id,
+            Some(LanguageType::Destack),
+            Loader::Destack,
+        );
+        module.push_condition_file(ModuleFile::new(
+            FileId::new(2),
+            Uri::from_path(Path::new("main.test.ds")),
+            Some(PathBuf::from("main.test.ds")),
+            Some(LanguageType::try_from(FileType::Destack).unwrap()),
+            Loader::Destack,
+            vec!["test".to_string()],
+            vec![ConditionGate::mode("test")],
+        ));
+
+        // index every contributing file against the canonical module
+        let mut modules = OrdMap::new();
+        modules.insert(module_id, Arc::new(module));
+        let index = ModuleIndex::new(modules);
+
+        assert_eq!(index.module_id_for_file(FileId::new(1)), Some(module_id));
+        assert_eq!(index.module_id_for_file(FileId::new(2)), Some(module_id));
     }
 }
