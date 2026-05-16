@@ -5,7 +5,7 @@ use dir::{
 };
 
 use crate::elaborate::ElaborateState;
-use crate::{Compiler, ElaborateResult};
+use crate::{Compiler, ElaborateError, ElaborateResult};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -24,7 +24,13 @@ impl Compiler {
         state: &mut ElaborateState<'_>,
         block_id: LocalNodeId<Block>,
     ) -> ElaborateResult<()> {
-        self.reinfer_block_type(block_id, state.tree, state.types, state.module_id)
+        self.reinfer_block_type(
+            block_id,
+            state.tree,
+            state.types,
+            state.types_tail,
+            state.module_id,
+        )
     }
 
     /// Return one expression for effect-position insertion.
@@ -60,7 +66,7 @@ impl Compiler {
         let cloned_id = state.tree.insert_as_owner(cloned_id, expression.clone());
 
         // copy inferred type and resolution metadata
-        state.types.copy_node_relations(
+        state.types_tail.copy_node_relations(
             origin_id.into_global_any(state.module_id),
             cloned_id.into_global_any(state.module_id),
         );
@@ -87,7 +93,7 @@ impl Compiler {
                 value: Some(value_id),
             },
         );
-        self.set_never_expression_type(state.types, state.module_id, expression_id);
+        self.set_never_expression_type(state.types_tail, state.module_id, expression_id);
     }
 
     /// Insert one assignment pattern that targets one expression.
@@ -143,7 +149,7 @@ impl Compiler {
                 right: value_id,
             },
         );
-        self.set_void_expression_type(state.types, state.module_id, expression_id);
+        self.set_void_expression_type(state.types_tail, state.module_id, expression_id);
     }
 
     /// Insert a local reference expression for one value symbol.
@@ -157,7 +163,10 @@ impl Compiler {
     ) -> ElaborateResult<LocalNodeId<Expression>> {
         // resolve the symbol value type
         let value_type_id =
-            self.value_type_id_or_error(state.module_id, target_symbol, origin_id, state.types)?;
+            state.type_table().get_value_type_id(target_symbol)
+                .ok_or_else(|| ElaborateError::UnsupportedConstruct {
+                    anchor: state.module_id.into(),
+                })?;
 
         // insert the local reference expression
         let reference_id = state.tree.reserve_from(
@@ -176,11 +185,11 @@ impl Compiler {
         );
         let reference_node = reference_id.into_global_any(state.module_id);
         state
-            .types
+            .types_tail
             .set_symbol_resolution(reference_node, target_symbol);
 
         // annotate the reference type
-        self.set_expression_type(state.types, state.module_id, reference_id, value_type_id);
+        self.set_expression_type(state.types_tail, state.module_id, reference_id, value_type_id);
 
         Ok(reference_id)
     }
@@ -248,7 +257,7 @@ impl Compiler {
                 declarators: vec![declarator_id],
             },
         );
-        self.set_void_expression_type(state.types, state.module_id, let_id);
+        self.set_void_expression_type(state.types_tail, state.module_id, let_id);
 
         let_id
     }

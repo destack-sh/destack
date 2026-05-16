@@ -35,7 +35,7 @@ pub(crate) struct TypeLowerer<'a> {
     /// DIR tree being lowered.
     pub(super) dir_tree: &'a dir::Tree,
     /// Symbol table for local declaration form reads.
-    pub(super) symbols: &'a dir::BindingTable,
+    pub(super) symbols: &'a dir::BindingTable<'a>,
     /// Cached Vector type symbol for vector lowering.
     pub(crate) vector_symbol: Option<dir::GlobalSymbolId>,
     /// Cached MIR types by DIR type id.
@@ -90,7 +90,7 @@ impl<'a> TypeLowerer<'a> {
         strings: &'a dir::StringPool,
         profile: ProfileId,
         dir_tree: &'a dir::Tree,
-        symbols: &'a dir::BindingTable,
+        symbols: &'a dir::BindingTable<'a>,
         vector_symbol: Option<dir::GlobalSymbolId>,
     ) -> Self {
         let pointer_width_bits = u16::from(pointer_bytes) * 8;
@@ -300,7 +300,7 @@ impl<'a> TypeLowerer<'a> {
     /// Build the function pointer signature type for a function type.
     fn lower_function_signature_type(
         &mut self,
-        types: &dir::TypeTable,
+        types: &dir::TypeTable<'_>,
         type_id: dir::LocalTypeId,
         module_id: ModuleId,
         node: dir::AnchoredGlobalNodeId,
@@ -342,7 +342,7 @@ impl<'a> TypeLowerer<'a> {
     /// Lower a DIR type to a MIR type.
     pub(crate) fn lower_type(
         &mut self,
-        types: &dir::TypeTable,
+        types: &dir::TypeTable<'_>,
         type_id: dir::LocalTypeId,
         module_id: ModuleId,
         node: dir::AnchoredGlobalNodeId,
@@ -457,7 +457,7 @@ impl<'a> TypeLowerer<'a> {
     /// Lower an enum symbol to its backing MIR type.
     fn lower_enum_backing_type(
         &mut self,
-        types: &dir::TypeTable,
+        types: &dir::TypeTable<'_>,
         enum_symbol: dir::GlobalSymbolId,
         node: dir::AnchoredGlobalNodeId,
         builder: &mut mir::ModuleBuilder,
@@ -488,7 +488,7 @@ impl<'a> TypeLowerer<'a> {
     /// Lower an enum symbol to its nominal MIR wrapper type.
     fn lower_nominal_enum_type(
         &mut self,
-        types: &dir::TypeTable,
+        types: &dir::TypeTable<'_>,
         enum_symbol: dir::GlobalSymbolId,
         node: dir::AnchoredGlobalNodeId,
         builder: &mut mir::ModuleBuilder,
@@ -505,7 +505,7 @@ impl<'a> TypeLowerer<'a> {
     /// Lower a nominal reference type to its MIR representation.
     fn lower_reference_type(
         &mut self,
-        types: &dir::TypeTable,
+        types: &dir::TypeTable<'_>,
         type_id: dir::LocalTypeId,
         symbol: dir::GlobalSymbolId,
         generic_arguments: Option<&[dir::StaticArgument]>,
@@ -593,7 +593,7 @@ impl<'a> TypeLowerer<'a> {
     /// Lower one canonical storage form.
     fn lower_form_type(
         &mut self,
-        types: &dir::TypeTable,
+        types: &dir::TypeTable<'_>,
         form: &dir::TypeForm,
         module_id: ModuleId,
         node: dir::AnchoredGlobalNodeId,
@@ -632,7 +632,7 @@ impl<'a> TypeLowerer<'a> {
     /// Lower one form that produces a reference carrier.
     fn lower_form_reference_type(
         &mut self,
-        types: &dir::TypeTable,
+        types: &dir::TypeTable<'_>,
         form: &dir::TypeForm,
         kind: mir::ReferenceKind,
         module_id: ModuleId,
@@ -658,7 +658,7 @@ impl<'a> TypeLowerer<'a> {
     /// Lower a type to its value representation, without default class indirection.
     fn lower_value_representation_type(
         &mut self,
-        types: &dir::TypeTable,
+        types: &dir::TypeTable<'_>,
         type_id: dir::LocalTypeId,
         module_id: ModuleId,
         node: dir::AnchoredGlobalNodeId,
@@ -678,7 +678,7 @@ impl<'a> TypeLowerer<'a> {
     /// Lower one nominal type to its direct instance representation.
     fn lower_nominal_instance_type(
         &mut self,
-        types: &dir::TypeTable,
+        types: &dir::TypeTable<'_>,
         type_id: dir::LocalTypeId,
         symbol: dir::GlobalSymbolId,
         module_id: ModuleId,
@@ -772,8 +772,20 @@ impl<'a> TypeLowerer<'a> {
                 return Ok(None);
             }
         };
-        let Some(members) = self.struct_members_for_symbol(symbol, &bound.bindings, &parsed.tree)
-        else {
+        let expanded =
+            match self
+                .compiler
+                .dir_expanded(self.context, symbol.module_id, self.profile)
+            {
+                Ok(expanded) => expanded,
+                Err(_) => {
+                    self.remote_nominal_layouts_in_progress.remove(&symbol);
+                    return Ok(None);
+                }
+            };
+        let bindings = expanded.binding_table(&bound);
+        let types = checked.type_table(&bound, &expanded);
+        let Some(members) = self.struct_members_for_symbol(symbol, &bindings, &parsed.tree) else {
             self.remote_nominal_layouts_in_progress.remove(&symbol);
             return Ok(None);
         };
@@ -786,7 +798,7 @@ impl<'a> TypeLowerer<'a> {
             self.compiler.repository.string_pool().as_ref(),
             self.profile,
             &parsed.tree,
-            &bound.bindings,
+            &bindings,
             self.vector_symbol,
         );
         let mut fields = Vec::new();
@@ -813,8 +825,7 @@ impl<'a> TypeLowerer<'a> {
             let Some(declared_type) = declared_type else {
                 continue;
             };
-            let type_id = checked
-                .types
+            let type_id = types
                 .get_declared_or_inferred_type_id(declared_type.into_global_any(symbol.module_id))
                 .ok_or_else(|| LowerError::MissingType {
                     anchor: self.diagnostic_anchor(
@@ -823,13 +834,8 @@ impl<'a> TypeLowerer<'a> {
                             .into_anchored(Some(self.profile)),
                     ),
                 })?;
-            let field_type = field_lowerer.lower_type(
-                &checked.types,
-                type_id,
-                symbol.module_id,
-                node,
-                builder,
-            )?;
+            let field_type =
+                field_lowerer.lower_type(&types, type_id, symbol.module_id, node, builder)?;
             let mir_type = builder.tree().get(field_type);
             let (size, alignment) = field_lowerer
                 .size_and_align_of_type(mir_type, builder.tree())
@@ -862,7 +868,7 @@ impl<'a> TypeLowerer<'a> {
     fn struct_members_for_symbol(
         &self,
         symbol: dir::GlobalSymbolId,
-        symbols: &dir::BindingTable,
+        symbols: &dir::BindingTable<'_>,
         tree: &dir::Tree,
     ) -> Option<Vec<dir::LocalNodeId<dir::Member>>> {
         let declaration = symbols.get_symbol(symbol.local_id).declaration?;
@@ -881,7 +887,7 @@ impl<'a> TypeLowerer<'a> {
     /// Lower an intrinsic ownership alias into a MIR reference type.
     fn lower_ownership_alias_type(
         &mut self,
-        types: &dir::TypeTable,
+        types: &dir::TypeTable<'_>,
         type_id: dir::LocalTypeId,
         symbol: dir::GlobalSymbolId,
         static_arguments: Option<&[dir::StaticArgument]>,
@@ -973,7 +979,7 @@ impl<'a> TypeLowerer<'a> {
     /// Lower a statically parameterized `Form` alias.
     fn lower_static_form_alias_type(
         &mut self,
-        types: &dir::TypeTable,
+        types: &dir::TypeTable<'_>,
         type_id: dir::LocalTypeId,
         static_arguments: Option<&[dir::StaticArgument]>,
         module_id: ModuleId,
@@ -1025,7 +1031,7 @@ impl<'a> TypeLowerer<'a> {
     /// Lower a statically parameterized `Form` reference carrier.
     fn lower_static_form_reference_type(
         &mut self,
-        types: &dir::TypeTable,
+        types: &dir::TypeTable<'_>,
         base_type_id: dir::LocalTypeId,
         static_arguments: &[dir::StaticArgument],
         kind: mir::ReferenceKind,
@@ -1139,7 +1145,7 @@ impl<'a> TypeLowerer<'a> {
     /// Return the address space encoded by a resolved `Form` type.
     fn form_address_space(
         &self,
-        types: &dir::TypeTable,
+        types: &dir::TypeTable<'_>,
         place: dir::LocalTypeId,
     ) -> mir::AddressSpace {
         let Some(place) = self.string_literal_type(types, place) else {
@@ -1155,7 +1161,11 @@ impl<'a> TypeLowerer<'a> {
     }
 
     /// Return the access encoded by a resolved `Form` type.
-    fn form_access(&self, types: &dir::TypeTable, access: dir::LocalTypeId) -> Option<mir::Access> {
+    fn form_access(
+        &self,
+        types: &dir::TypeTable<'_>,
+        access: dir::LocalTypeId,
+    ) -> Option<mir::Access> {
         let access = self.string_literal_type(types, access)?;
         let access = self.strings.get(access);
 
@@ -1170,7 +1180,7 @@ impl<'a> TypeLowerer<'a> {
     /// Return a string literal encoded as a DIR type.
     fn string_literal_type(
         &self,
-        types: &dir::TypeTable,
+        types: &dir::TypeTable<'_>,
         type_id: dir::LocalTypeId,
     ) -> Option<dir::StringId> {
         let dir::Type::Literal(literal) = types.get_type(type_id) else {
@@ -1249,13 +1259,19 @@ impl<'a> TypeLowerer<'a> {
             .compiler
             .dir_bound(self.context, symbol.module_id, self.profile)
             .ok()?;
-        dir.bindings.get_symbol(symbol.local_id).name()
+        let expanded = self
+            .compiler
+            .dir_expanded(self.context, symbol.module_id, self.profile)
+            .ok()?;
+        let bindings = expanded.binding_table(&dir);
+
+        bindings.get_symbol(symbol.local_id).name()
     }
 
     /// Lower a function type into its closure-pair representation.
     fn lower_function_type(
         &mut self,
-        types: &dir::TypeTable,
+        types: &dir::TypeTable<'_>,
         type_id: dir::LocalTypeId,
         module_id: ModuleId,
         node: dir::AnchoredGlobalNodeId,
@@ -1313,7 +1329,7 @@ impl<'a> TypeLowerer<'a> {
     /// Lower an intersection type by selecting its primary element.
     fn lower_intersection_type(
         &mut self,
-        types: &dir::TypeTable,
+        types: &dir::TypeTable<'_>,
         elements: &[dir::LocalTypeId],
         module_id: ModuleId,
         node: dir::AnchoredGlobalNodeId,

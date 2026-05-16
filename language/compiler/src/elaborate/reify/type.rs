@@ -4,7 +4,7 @@ use destack_dir as dir;
 use dir::{
     Argument, CastOperator, Declaration, DispatchResolution, Expression, GlobalSymbolId,
     LocalNodeId, LocalTypeId, Member, NodeType, PrimitiveType, Resolution, ScalarLiteral, Type,
-    TypeLiteral, TypeTable,
+    TypeLiteral, TypeSegment, TypeTable,
 };
 
 use crate::elaborate::ElaborateState;
@@ -20,9 +20,7 @@ impl Compiler {
         arguments: &[LocalNodeId<Argument>],
     ) -> ElaborateResult<Option<Vec<Option<LocalTypeId>>>> {
         // resolve the call resolution
-        let Some(resolution) = state
-            .types
-            .resolution(expression_id.into_global_any(state.module_id))
+        let Some(resolution) = state.type_table().resolution(expression_id.into_global_any(state.module_id))
             .cloned()
         else {
             return Ok(None);
@@ -128,7 +126,7 @@ impl Compiler {
         symbol: GlobalSymbolId,
     ) -> Option<LocalTypeId> {
         // read the function value type
-        let value_type_id = state.types.get_value_type_id(symbol)?;
+        let value_type_id = state.type_table().get_value_type_id(symbol)?;
 
         // unwrap to a function return type
         self.return_type_from_type_id(state, value_type_id)
@@ -141,7 +139,7 @@ impl Compiler {
         type_id: LocalTypeId,
     ) -> Option<LocalTypeId> {
         // unwrap value types when needed
-        match state.types.get_type(type_id) {
+        match state.type_table().get_type(type_id) {
             Type::Function(function) => function.return_type,
             Type::Value(value) => self.return_type_from_type_id(state, value.value),
             _ => None,
@@ -240,7 +238,7 @@ pub(super) fn common_numeric_type_id_for_binary(
     left_type_id: LocalTypeId,
     right_type_id: LocalTypeId,
     source_id: LocalNodeId<Expression>,
-    types: &mut TypeTable,
+    types_tail: &mut TypeSegment,
 ) -> Option<LocalTypeId> {
     // read the left and right types
     let left_type = types.get_type(left_type_id);
@@ -450,7 +448,7 @@ pub(super) fn is_union_type(ty: &Type) -> bool {
 }
 
 /// Check whether a type is a nullable union type.
-pub(super) fn is_nullable_union(ty: &Type, types: &TypeTable) -> bool {
+pub(super) fn is_nullable_union(ty: &Type, types: &TypeTable<'_>) -> bool {
     let Type::Union(union) = ty else {
         return false;
     };

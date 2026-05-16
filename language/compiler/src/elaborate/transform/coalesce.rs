@@ -155,7 +155,7 @@ impl Compiler {
                 else_expression: Some(else_assignment),
             },
         );
-        self.set_void_expression_type(state.types, state.module_id, if_id);
+        self.set_void_expression_type(state.types_tail, state.module_id, if_id);
         new_expressions.push(if_id);
 
         Ok(true)
@@ -211,7 +211,7 @@ impl Compiler {
             },
         );
         state.tree.mark_inactive(original_value_id.into_any());
-        self.set_void_expression_type(state.types, state.module_id, original_return_id);
+        self.set_void_expression_type(state.types_tail, state.module_id, original_return_id);
         new_expressions.push(original_return_id);
 
         Ok(true)
@@ -436,9 +436,7 @@ impl Compiler {
         right: LocalNodeId<Expression>,
     ) -> ElaborateResult<bool> {
         // preserve current expression result type for rewritten nodes
-        let result_type_id = state
-            .types
-            .get_declared_or_inferred_type_id(expression_id.into_global_any(state.module_id));
+        let result_type_id = state.type_table().get_declared_or_inferred_type_id(expression_id.into_global_any(state.module_id));
 
         // create one lexical block scope for the local temp
         let block_scope_id = state
@@ -509,11 +507,11 @@ impl Compiler {
 
         // restore result type metadata on rewritten nodes
         if let Some(result_type_id) = result_type_id {
-            self.set_expression_type(state.types, state.module_id, if_id, result_type_id);
+            self.set_expression_type(state.types_tail, state.module_id, if_id, result_type_id);
             state
-                .types
-                .set_inferred_type(block_id.into_global_any(state.module_id), result_type_id);
-            state.types.set_inferred_type(
+            .types_tail
+            .set_inferred_type(block_id.into_global_any(state.module_id), result_type_id);
+            state.types_tail.set_inferred_type(
                 expression_id.into_global_any(state.module_id),
                 result_type_id,
             );
@@ -528,23 +526,21 @@ impl Compiler {
         state: &mut ElaborateState<'_>,
         left: LocalNodeId<Expression>,
     ) -> bool {
-        let Some(left_type_id) = state
-            .types
-            .get_declared_or_inferred_type_id(left.into_global_any(state.module.id))
+        let Some(left_type_id) = state.type_table().get_declared_or_inferred_type_id(left.into_global_any(state.module.id))
         else {
             return false;
         };
-        let left_type_id = state.types.unwrap_value_type_id(left_type_id);
+        let left_type_id = state.type_table().unwrap_value_type_id(left_type_id);
 
         let mut candidates = Vec::new();
-        match state.types.get_type(left_type_id) {
+        match state.type_table().get_type(left_type_id) {
             Type::Union(union) => candidates.extend(union.elements.iter().copied()),
             _ => candidates.push(left_type_id),
         }
 
         for candidate_id in candidates {
-            let candidate_id = state.types.unwrap_value_type_id(candidate_id);
-            let candidate = state.types.get_type(candidate_id);
+            let candidate_id = state.type_table().unwrap_value_type_id(candidate_id);
+            let candidate = state.type_table().get_type(candidate_id);
             if matches!(
                 candidate,
                 Type::Literal(dir::LiteralType {
@@ -578,7 +574,7 @@ impl Compiler {
             None,
         );
         let global_symbol = symbol_id.into_global(state.module_id);
-        state.types.set_value_type(global_symbol, value_type_id);
+        state.types_tail.set_value_type(global_symbol, value_type_id);
 
         // create one stable synthetic name
         let name_text = format!("{name_prefix}{}", symbol_id.id);
@@ -681,13 +677,11 @@ impl Compiler {
         }
 
         // require a known type for the left operand
-        let Some(left_type_id) = state
-            .types
-            .get_declared_or_inferred_type_id(left.into_global_any(state.module_id))
+        let Some(left_type_id) = state.type_table().get_declared_or_inferred_type_id(left.into_global_any(state.module_id))
         else {
             return Ok(None);
         };
-        let left_type_id = state.types.unwrap_value_type_id(left_type_id);
+        let left_type_id = state.type_table().unwrap_value_type_id(left_type_id);
 
         // bind the left operand once before nullish checks
         let (left_temp_let, left_temp_symbol, left_temp_name) = self

@@ -308,12 +308,13 @@ impl TestCompiler {
     fn render_module_snapshot(&self, entry: &TestModule, selection: DirSnapshotSet) -> String {
         let parsed = self.dir_parsed(entry);
         let bound = self.dir_bound(entry);
+        let bindings = bound.binding_table();
         let mut builder = DirSnapshotBuilder::new(
             &entry.source,
             &parsed.tree,
             self.repository.string_pool().as_ref(),
         )
-        .with_bindings(&bound.bindings)
+        .with_bindings(&bindings)
         .with_module_paths(&self.module_path_by_id);
 
         builder.add_bound(selection, &bound);

@@ -1,5 +1,5 @@
 use destack_artifact::{
-    ArtifactKey, DiagnosticAnchor, DirBound, DirChecked, DirParsed, GlobalEnvironment,
+    ArtifactKey, DiagnosticAnchor, DirBound, DirChecked, DirExpanded, DirParsed, GlobalEnvironment,
 };
 use destack_core::StringPool;
 use destack_source::ModuleId;
@@ -66,6 +66,18 @@ impl<'a, 'b> BuiltinTypeLayouts<'a, 'b> {
         let snapshot = self
             .compiler
             .dir_bound(self.context, module_id, self.profile);
+
+        match snapshot {
+            Ok(snapshot) => Ok(snapshot),
+            Err(error) => Err(error.into()),
+        }
+    }
+
+    /// Read one committed expanded DIR snapshot for a module.
+    fn require_expanded_dir(&self, module_id: ModuleId) -> CompilerResult<Arc<DirExpanded>> {
+        let snapshot = self
+            .compiler
+            .dir_expanded(self.context, module_id, self.profile);
 
         match snapshot {
             Ok(snapshot) => Ok(snapshot),
@@ -163,7 +175,7 @@ impl<'a, 'b> BuiltinTypeLayouts<'a, 'b> {
     fn struct_members_for_symbol(
         &self,
         symbol: dir::GlobalSymbolId,
-        symbols: &dir::BindingTable,
+        symbols: &dir::BindingTable<'_>,
         tree: &dir::Tree,
     ) -> Option<Vec<dir::LocalNodeId<dir::Member>>> {
         // resolve the declaration for the symbol
@@ -185,8 +197,8 @@ impl<'a, 'b> BuiltinTypeLayouts<'a, 'b> {
     fn struct_field_inputs(
         &mut self,
         tree: &dir::Tree,
-        symbols: &dir::BindingTable,
-        types: &dir::TypeTable,
+        symbols: &dir::BindingTable<'_>,
+        types: &dir::TypeTable<'_>,
         strings: &StringPool,
         members: &[dir::LocalNodeId<dir::Member>],
         module_id: ModuleId,
@@ -273,20 +285,22 @@ impl<'a, 'b> BuiltinTypeLayouts<'a, 'b> {
         // load the bound structure and checked type store
         let parsed = self.require_parsed_dir(symbol.module_id)?;
         let bound = self.require_bound_dir(symbol.module_id)?;
+        let expanded = self.require_expanded_dir(symbol.module_id)?;
         let checked = self.require_checked_dir_data(symbol.module_id)?;
         let tree = &parsed.tree;
-        let symbols = &bound.bindings;
+        let symbols = expanded.binding_table(&bound);
+        let types = checked.type_table(&bound, &expanded);
 
         // resolve struct members for the symbol
-        let Some(members) = self.struct_members_for_symbol(symbol, symbols, tree) else {
+        let Some(members) = self.struct_members_for_symbol(symbol, &symbols, tree) else {
             return Ok(None);
         };
 
         // compute field inputs for the struct layout
         let field_inputs = self.struct_field_inputs(
             tree,
-            symbols,
-            &checked.types,
+            &symbols,
+            &types,
             self.compiler.repository.string_pool().as_ref(),
             &members,
             symbol.module_id,
@@ -318,7 +332,14 @@ impl<'a, 'b> BuiltinTypeLayouts<'a, 'b> {
         else {
             return;
         };
-        let symbol_entry = dir.bindings.get_symbol(symbol.local_id);
+        let Ok(expanded) = self
+            .compiler
+            .dir_expanded(self.context, symbol.module_id, self.profile)
+        else {
+            return;
+        };
+        let bindings = expanded.binding_table(&dir);
+        let symbol_entry = bindings.get_symbol(symbol.local_id);
 
         // resolve the symbol key
         let Some(key) = symbol_entry.key else {
@@ -340,8 +361,8 @@ impl<'a, 'b> BuiltinTypeLayouts<'a, 'b> {
     fn resolve_layout_type_id(
         &self,
         tree: &dir::Tree,
-        symbols: &dir::BindingTable,
-        types: &dir::TypeTable,
+        symbols: &dir::BindingTable<'_>,
+        types: &dir::TypeTable<'_>,
         module_id: ModuleId,
         type_id: dir::LocalTypeId,
     ) -> dir::LocalTypeId {

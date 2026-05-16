@@ -63,9 +63,9 @@ impl dir::NodeVisitor for ExpressionTypeCollector {
 /// Visitor that collects address taken bindings.
 struct AddressTakenCollector<'a> {
     /// Provide access to inferred type information.
-    types: &'a dir::TypeTable,
+    types: &'a dir::TypeTable<'a>,
     /// Provide access to declaration forms.
-    symbols: &'a dir::BindingTable,
+    symbols: &'a dir::BindingTable<'a>,
     /// Identify the module for expression lookups.
     module_id: destack_source::ModuleId,
     /// Symbols that require addressable locals.
@@ -79,8 +79,8 @@ struct AddressTakenCollector<'a> {
 impl<'a> AddressTakenCollector<'a> {
     /// Create a new address-taken collector.
     fn new(
-        types: &'a dir::TypeTable,
-        symbols: &'a dir::BindingTable,
+        types: &'a dir::TypeTable<'a>,
+        symbols: &'a dir::BindingTable<'a>,
         module_id: destack_source::ModuleId,
     ) -> Self {
         Self {
@@ -734,10 +734,7 @@ impl ModuleLowerer<'_> {
         if is_member {
             let scope = self.symbols.get_scope_by_id(symbol_data.scope.id);
             let this_name = self.strings.intern("this");
-            if let Some(symbol) = self
-                .symbols
-                .find_symbol(scope, dir::StaticKey::Name(this_name))
-            {
+            if let Some(symbol) = scope.find_symbol(dir::StaticKey::Name(this_name)) {
                 return Some(symbol.into_global(self.module_id));
             }
         }

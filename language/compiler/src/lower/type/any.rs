@@ -26,7 +26,7 @@ impl TypeLowerer<'_> {
     /// Lower one erased Any value layout.
     pub(crate) fn lower_any_value_type(
         &mut self,
-        types: &dir::TypeTable,
+        types: &dir::TypeTable<'_>,
         type_id: dir::LocalTypeId,
         module_id: ModuleId,
         node: dir::AnchoredGlobalNodeId,

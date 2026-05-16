@@ -3,7 +3,7 @@ use destack_dir as dir;
 use super::{DirSnapshotBuilder, SnapshotTable, value};
 use crate::tests::snapshot::{SnapshotAnchor, SnapshotRow};
 
-impl SnapshotTable for dir::TypeTable {
+impl SnapshotTable for dir::TypeSegment {
     fn add_snapshot_rows(&self, builder: &mut DirSnapshotBuilder<'_>) {
         // render node level attachments where type checking placed information
         for (node_id, entry) in self.node_entries() {

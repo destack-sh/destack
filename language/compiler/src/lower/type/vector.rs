@@ -14,7 +14,7 @@ impl TypeLowerer<'_> {
     /// Lower a Vector<T, N> reference type to a MIR vector type.
     pub(super) fn lower_vector_reference_type(
         &mut self,
-        types: &dir::TypeTable,
+        types: &dir::TypeTable<'_>,
         type_id: dir::LocalTypeId,
         module_id: ModuleId,
         node: dir::AnchoredGlobalNodeId,

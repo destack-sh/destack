@@ -20,9 +20,11 @@ pub(crate) struct ElaborateState<'a> {
     /// The local DIR tree.
     pub(crate) tree: &'a mut dir::Tree,
     /// The local symbol table.
-    pub(crate) symbols: &'a mut dir::BindingTable,
-    /// The local type table.
-    pub(crate) types: &'a mut dir::TypeTable,
+    pub(crate) symbols: &'a mut dir::BindingTable<'static>,
+    /// The readable type table from prior phases.
+    pub(crate) types: &'a dir::TypeTable<'static>,
+    /// The local type segment.
+    pub(crate) types_tail: &'a mut dir::TypeSegment,
     /// Elaborated type guard entries.
     pub(crate) guards: &'a mut GuardTable,
 }
@@ -37,8 +39,9 @@ impl<'a> ElaborateState<'a> {
         profile: ProfileId,
         options: ElaborateOptions,
         tree: &'a mut dir::Tree,
-        symbols: &'a mut dir::BindingTable,
-        types: &'a mut dir::TypeTable,
+        symbols: &'a mut dir::BindingTable<'static>,
+        types: &'a dir::TypeTable<'static>,
+        types_tail: &'a mut dir::TypeSegment,
         guards: &'a mut GuardTable,
     ) -> Self {
         Self {
@@ -50,7 +53,13 @@ impl<'a> ElaborateState<'a> {
             tree,
             symbols,
             types,
+            types_tail,
             guards,
         }
+    }
+
+    /// Return the visible type table for this elaborate run.
+    pub(crate) fn type_table(&self) -> dir::TypeTable<'_> {
+        self.types.with_tail(self.types_tail)
     }
 }

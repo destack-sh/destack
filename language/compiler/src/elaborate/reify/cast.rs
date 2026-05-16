@@ -51,9 +51,7 @@ impl Compiler {
         let Some(source_type_id) = self.value_type_id_for_expression(state, value) else {
             return Ok(());
         };
-        let Some(target_type_id) = state
-            .types
-            .get_declared_or_inferred_type_id(expression_id.into_global_any(state.module_id))
+        let Some(target_type_id) = state.type_table().get_declared_or_inferred_type_id(expression_id.into_global_any(state.module_id))
         else {
             return Ok(());
         };
@@ -83,9 +81,7 @@ impl Compiler {
         left: LocalNodeId<Expression>,
     ) -> ElaborateResult<()> {
         // require the inferred must result type
-        let Some(target_type_id) = state
-            .types
-            .get_declared_or_inferred_type_id(expression_id.into_global_any(state.module_id))
+        let Some(target_type_id) = state.type_table().get_declared_or_inferred_type_id(expression_id.into_global_any(state.module_id))
         else {
             return Ok(());
         };
@@ -96,7 +92,7 @@ impl Compiler {
 
         // replace the must wrapper with the reified expression
         state.tree.replace_from(expression_id, reified_value_id);
-        state.types.copy_node_relations(
+        state.types_tail.copy_node_relations(
             reified_value_id.into_global_any(state.module_id),
             expression_id.into_global_any(state.module_id),
         );
@@ -130,9 +126,7 @@ impl Compiler {
             };
 
             // require a declared target type on the binding
-            let Some(target_type_id) = state
-                .types
-                .get_declared_type_id(declarator_id.into_global_any(state.module_id))
+            let Some(target_type_id) = state.type_table().get_declared_type_id(declarator_id.into_global_any(state.module_id))
             else {
                 continue;
             };
@@ -372,19 +366,17 @@ impl Compiler {
         value_id: LocalNodeId<Expression>,
     ) -> Option<LocalTypeId> {
         // prefer node-local declared or inferred types
-        if let Some(type_id) = state
-            .types
-            .get_declared_or_inferred_type_id(value_id.into_global_any(state.module_id))
+        if let Some(type_id) = state.type_table().get_declared_or_inferred_type_id(value_id.into_global_any(state.module_id))
         {
-            return Some(state.types.unwrap_value_type_id(type_id));
+            return Some(state.type_table().unwrap_value_type_id(type_id));
         }
 
         // otherwise fall back to reference symbol value types
         let node = value_id.into_global_any(state.module_id);
-        let symbol = state.types.symbol_resolution(node)?;
-        let type_id = state.types.get_value_type_id(symbol)?;
+        let symbol = state.type_table().symbol_resolution(node)?;
+        let type_id = state.type_table().get_value_type_id(symbol)?;
 
-        Some(state.types.unwrap_value_type_id(type_id))
+        Some(state.type_table().unwrap_value_type_id(type_id))
     }
 
     /// Wrap one expression in an implicit `as` when the target type narrows it.
@@ -399,14 +391,14 @@ impl Compiler {
         let Some(value_type_id) = self.value_type_id_for_expression(state, value_id) else {
             return Ok(value_id);
         };
-        let value_type_id = state.types.unwrap_value_type_id(value_type_id);
-        let target_type_id = state.types.unwrap_value_type_id(target_type_id);
+        let value_type_id = state.type_table().unwrap_value_type_id(value_type_id);
+        let target_type_id = state.type_table().unwrap_value_type_id(target_type_id);
 
         // skip casts that do not change semantics
         if value_type_id == target_type_id
             || has_matching_implicit_value_runtime_family(
-                state.types.get_type(value_type_id),
-                state.types.get_type(target_type_id),
+                state.type_table().get_type(value_type_id),
+                state.type_table().get_type(target_type_id),
             )
         {
             return Ok(value_id);
@@ -414,7 +406,7 @@ impl Compiler {
 
         // preserve literal-to-literal identity after value unwrapping
         if matches!(
-            (state.types.get_type(value_type_id), state.types.get_type(target_type_id)),
+            (state.type_table().get_type(value_type_id), state.type_table().get_type(target_type_id)),
             (Type::Literal(dir::LiteralType { value: left }), Type::Literal(dir::LiteralType { value: right })) if left == right
         ) {
             return Ok(value_id);
@@ -453,7 +445,7 @@ impl Compiler {
                 target_type,
             },
         );
-        state.types.set_inferred_type(
+        state.types_tail.set_inferred_type(
             expression_id.into_global_any(state.module_id),
             target_type_id,
         );
@@ -476,7 +468,7 @@ impl Compiler {
                 expression: expression_id,
             },
         );
-        state.types.set_inferred_type(
+        state.types_tail.set_inferred_type(
             parenthesized_id.into_global_any(state.module_id),
             target_type_id,
         );
@@ -492,8 +484,8 @@ impl Compiler {
         target_id: LocalTypeId,
     ) -> CastOperator {
         // unwrap value wrappers before classification
-        let source_id = state.types.unwrap_value_type_id(source_id);
-        let target_id = state.types.unwrap_value_type_id(target_id);
+        let source_id = state.type_table().unwrap_value_type_id(source_id);
+        let target_id = state.type_table().unwrap_value_type_id(target_id);
 
         // fast path for identical types
         if source_id == target_id {
@@ -501,8 +493,8 @@ impl Compiler {
         }
 
         // read the source and target types
-        let source = state.types.get_type(source_id).clone();
-        let target = state.types.get_type(target_id).clone();
+        let source = state.type_table().get_type(source_id).clone();
+        let target = state.type_table().get_type(target_id).clone();
 
         // any
         if is_any_type(&target) {
@@ -567,10 +559,10 @@ impl Compiler {
         }
 
         // nullable
-        if is_nullable_union(&target, state.types) {
+        if is_nullable_union(&target, &state.type_table()) {
             return CastOperator::NullableUpcast;
         }
-        if is_nullable_union(&source, state.types) {
+        if is_nullable_union(&source, &state.type_table()) {
             return CastOperator::NullableDowncast;
         }
 
@@ -603,7 +595,7 @@ impl Compiler {
                 return None;
             };
 
-            state.types.get_enum_backing_type(reference.symbol)
+            state.type_table().get_enum_backing_type(reference.symbol)
         };
 
         // enum to primitive

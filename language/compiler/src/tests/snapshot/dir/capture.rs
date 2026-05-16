@@ -3,7 +3,7 @@ use destack_dir as dir;
 use super::{DirSnapshotBuilder, SnapshotTable, value};
 use crate::tests::snapshot::{SnapshotAnchor, SnapshotRow};
 
-impl SnapshotTable for dir::CaptureTable {
+impl SnapshotTable for dir::CaptureSegment {
     fn add_snapshot_rows(&self, builder: &mut DirSnapshotBuilder<'_>) {
         for (symbol_id, capture) in &self.capture_by_function {
             let row = SnapshotRow::new(builder.anchor_symbol(*symbol_id), "capture", "function")

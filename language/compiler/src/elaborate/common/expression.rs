@@ -94,7 +94,7 @@ impl Compiler {
             Some(dir::ProvenanceReason::Elaborated),
         );
         let cloned_id = state.tree.insert_as_owner(cloned_id, cloned_expression);
-        state.types.copy_node_relations(
+        state.types_tail.copy_node_relations(
             expression_id.into_global_any(state.module_id),
             cloned_id.into_global_any(state.module_id),
         );
@@ -111,12 +111,12 @@ impl Compiler {
         scope: dir::LocalScope,
     ) -> LocalNodeId<TypeExpression> {
         // choose the compact type expression form
-        let expression = match state.types.get_type(type_id) {
+        let expression = match state.type_table().get_type(type_id) {
             Type::Literal(dir::LiteralType { value }) => TypeExpression::Literal {
                 value: value.clone(),
             },
             _ => {
-                let source_id = state.types.get_type_source(type_id);
+                let source_id = state.type_table().get_type_source(type_id);
                 let source_expression_id = match source_id.ty {
                     // clone one existing type expression source when available
                     NodeType::TypeExpression => source_id.into_typed::<TypeExpression>(),
@@ -180,8 +180,8 @@ impl Compiler {
 
         // annotate with its literal type
         let literal_type = Type::Literal(dir::LiteralType { value });
-        let literal_type_id = state.types.insert_type_from(literal_type, literal_id);
-        state.types.set_inferred_type(
+        let literal_type_id = state.types_tail.insert_type_from(literal_type, literal_id);
+        state.types_tail.set_inferred_type(
             literal_id.into_global_any(state.tree.module_id),
             literal_type_id,
         );
@@ -217,7 +217,7 @@ impl Compiler {
         );
 
         // annotate with boolean type
-        self.set_boolean_expression_type(state.types, state.tree.module_id, expression_id);
+        self.set_boolean_expression_type(state.types_tail, state.tree.module_id, expression_id);
         expression_id
     }
 
@@ -243,7 +243,7 @@ impl Compiler {
             .insert_as_owner(expression_id, Expression::Is { value, target_type });
 
         // annotate with boolean type
-        self.set_boolean_expression_type(state.types, state.tree.module_id, expression_id);
+        self.set_boolean_expression_type(state.types_tail, state.tree.module_id, expression_id);
         expression_id
     }
 }

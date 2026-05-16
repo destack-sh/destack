@@ -175,7 +175,7 @@ impl FunctionLowerer<'_> {
         let dir = self.dir_bound_if_present(symbol.module_id)?;
         let parsed = self.dir_parsed_if_present(symbol.module_id)?;
         let tree = &parsed.tree;
-        let symbols = &dir.bindings;
+        let symbols = dir.binding_table();
 
         // resolve the declaration node
         let symbol_entry = symbols.get_symbol(symbol.local_id);
@@ -230,7 +230,7 @@ impl FunctionLowerer<'_> {
         let dir = self.dir_bound_if_present(symbol.module_id)?;
         let parsed = self.dir_parsed_if_present(symbol.module_id)?;
         let tree = &parsed.tree;
-        let symbols = &dir.bindings;
+        let symbols = dir.binding_table();
 
         // resolve the declaration node
         let symbol_entry = symbols.get_symbol(symbol.local_id);

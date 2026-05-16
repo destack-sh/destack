@@ -119,7 +119,7 @@ impl TypeLowerer<'_> {
     /// Lower a DIR union type into a tagged union layout.
     pub(crate) fn lower_union_type(
         &mut self,
-        types: &dir::TypeTable,
+        types: &dir::TypeTable<'_>,
         type_id: dir::LocalTypeId,
         elements: &[dir::LocalTypeId],
         module_id: ModuleId,
@@ -341,7 +341,7 @@ impl TypeLowerer<'_> {
     /// Lower union types that can be represented as references that allow null.
     fn try_lower_null_reference_union(
         &mut self,
-        types: &dir::TypeTable,
+        types: &dir::TypeTable<'_>,
         elements: &[dir::LocalTypeId],
         module_id: ModuleId,
         node: dir::AnchoredGlobalNodeId,
@@ -411,7 +411,7 @@ impl TypeLowerer<'_> {
     fn collect_union_element(
         &self,
         type_id: dir::LocalTypeId,
-        types: &dir::TypeTable,
+        types: &dir::TypeTable<'_>,
         visited: &mut HashSet<dir::LocalTypeId>,
         collected: &mut Vec<dir::LocalTypeId>,
     ) {
@@ -439,7 +439,7 @@ impl TypeLowerer<'_> {
     /// Order union elements by discriminant tags when available.
     fn order_union_elements_by_discriminant(
         &self,
-        types: &dir::TypeTable,
+        types: &dir::TypeTable<'_>,
         elements: &[dir::LocalTypeId],
         node: dir::AnchoredGlobalNodeId,
         strings: &StringPool,
@@ -561,7 +561,7 @@ impl TypeLowerer<'_> {
     /// Collect discriminant literal fields for an object-like type.
     fn discriminant_fields_for_type(
         &self,
-        types: &dir::TypeTable,
+        types: &dir::TypeTable<'_>,
         type_id: dir::LocalTypeId,
         node: dir::AnchoredGlobalNodeId,
     ) -> LowerResult<Option<HashMap<dir::StaticKey, DiscriminantLiteral>>> {
@@ -573,7 +573,7 @@ impl TypeLowerer<'_> {
     /// Collect discriminant fields with recursion and alias expansion.
     fn discriminant_fields_for_type_inner(
         &self,
-        types: &dir::TypeTable,
+        types: &dir::TypeTable<'_>,
         type_id: dir::LocalTypeId,
         node: dir::AnchoredGlobalNodeId,
         visited: &mut HashSet<dir::LocalTypeId>,
@@ -653,7 +653,7 @@ impl TypeLowerer<'_> {
     /// Resolve a discriminant literal for a type when possible.
     fn discriminant_literal_for_type(
         &self,
-        types: &dir::TypeTable,
+        types: &dir::TypeTable<'_>,
         type_id: dir::LocalTypeId,
         node: dir::AnchoredGlobalNodeId,
     ) -> LowerResult<Option<DiscriminantLiteral>> {
@@ -665,7 +665,7 @@ impl TypeLowerer<'_> {
     /// Resolve a discriminant literal with recursion tracking.
     fn discriminant_literal_for_type_inner(
         &self,
-        types: &dir::TypeTable,
+        types: &dir::TypeTable<'_>,
         type_id: dir::LocalTypeId,
         node: dir::AnchoredGlobalNodeId,
         visited: &mut HashSet<dir::LocalTypeId>,

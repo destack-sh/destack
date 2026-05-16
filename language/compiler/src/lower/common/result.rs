@@ -20,7 +20,7 @@ pub(crate) struct ResultUnionInfo {
 
 /// Resolve the Ok/Err union metadata for a Result-like type.
 pub(crate) fn resolve_result_union(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     strings: &StringPool,
     type_id: dir::LocalTypeId,
 ) -> Option<ResultUnionInfo> {
@@ -54,7 +54,7 @@ pub(crate) fn resolve_result_union(
 }
 
 /// Return true when a type id resolves to void.
-pub(crate) fn is_void_type(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> bool {
+pub(crate) fn is_void_type(types: &dir::TypeTable<'_>, type_id: dir::LocalTypeId) -> bool {
     let mut visited = HashSet::new();
     is_void_type_inner(types, type_id, &mut visited)
 }
@@ -73,7 +73,7 @@ struct ResultVariantInfo {
 }
 
 fn resolve_union_type_id(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     type_id: dir::LocalTypeId,
 ) -> Option<dir::LocalTypeId> {
     let mut visited = HashSet::new();
@@ -81,7 +81,7 @@ fn resolve_union_type_id(
 }
 
 fn resolve_union_type_id_inner(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     type_id: dir::LocalTypeId,
     visited: &mut HashSet<dir::LocalTypeId>,
 ) -> Option<dir::LocalTypeId> {
@@ -108,7 +108,7 @@ fn resolve_union_type_id_inner(
 }
 
 fn is_void_type_inner(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     type_id: dir::LocalTypeId,
     visited: &mut HashSet<dir::LocalTypeId>,
 ) -> bool {
@@ -133,7 +133,7 @@ fn is_void_type_inner(
 }
 
 fn result_variant_info(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     strings: &StringPool,
     type_id: dir::LocalTypeId,
 ) -> Option<ResultVariantInfo> {
@@ -187,7 +187,7 @@ fn result_variant_info(
 }
 
 fn resolve_object_fields(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     type_id: dir::LocalTypeId,
 ) -> Option<Vec<dir::TypeField>> {
     let mut visited = HashSet::new();
@@ -195,7 +195,7 @@ fn resolve_object_fields(
 }
 
 fn resolve_object_fields_inner(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     type_id: dir::LocalTypeId,
     visited: &mut HashSet<dir::LocalTypeId>,
 ) -> Option<Vec<dir::TypeField>> {

@@ -160,8 +160,9 @@ impl FunctionLowerer<'_> {
         let Some(dir) = self.dir_bound_if_present(symbol.module_id) else {
             return false;
         };
+        let bindings = dir.binding_table();
 
-        dir.bindings.get_symbol(symbol.local_id).role == dir::SymbolRole::Namespace
+        bindings.get_symbol(symbol.local_id).role == dir::SymbolRole::Namespace
     }
 
     /// Check whether a symbol requires an addressable local.

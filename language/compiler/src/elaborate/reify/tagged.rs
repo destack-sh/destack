@@ -29,9 +29,9 @@ struct NominalLookupView<'a> {
     /// The tree for declaration lookup.
     tree: &'a Tree,
     /// The symbol table for declaration mapping.
-    symbols: &'a BindingTable,
+    symbols: &'a BindingTable<'a>,
     /// The type table for constructor classification.
-    types: &'a TypeTable,
+    types: &'a TypeTable<'a>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -52,7 +52,7 @@ impl Compiler {
             return Ok(false);
         };
         let callee_node = callee_id.into_global_any(state.module_id);
-        let Some(callee_symbol) = state.types.symbol_resolution(callee_node) else {
+        let Some(callee_symbol) = state.type_table().symbol_resolution(callee_node) else {
             return Ok(false);
         };
 
@@ -119,8 +119,18 @@ impl Compiler {
         }
 
         // load the remote module data for imported symbols
-        let declared = self
-            .dir_declared(state.provider, symbol.module_id, state.profile)
+        let parsed = self
+            .dir_parsed(state.provider, symbol.module_id)
+            .map_err(|_| ElaborateError::UnsupportedConstruct {
+                anchor: symbol.module_id.into(),
+            })?;
+        let bound = self
+            .dir_bound(state.provider, symbol.module_id, state.profile)
+            .map_err(|_| ElaborateError::UnsupportedConstruct {
+                anchor: symbol.module_id.into(),
+            })?;
+        let expanded = self
+            .dir_expanded(state.provider, symbol.module_id, state.profile)
             .map_err(|_| ElaborateError::UnsupportedConstruct {
                 anchor: symbol.module_id.into(),
             })?;
@@ -129,12 +139,14 @@ impl Compiler {
             .map_err(|_| ElaborateError::UnsupportedConstruct {
                 anchor: symbol.module_id.into(),
             })?;
+        let symbols = expanded.binding_table(&bound);
+        let types = checked.type_table(&bound, &expanded);
 
         let view = NominalLookupView {
             module_id: symbol.module_id,
-            tree: &declared.tree,
-            symbols: &declared.bindings,
-            types: &checked.types,
+            tree: &parsed.tree,
+            symbols: &symbols,
+            types: &types,
         };
         Ok(self.nominal_constructor_kind_for_symbol_in_dir(symbol, view))
     }
@@ -253,8 +265,8 @@ impl Compiler {
 
                 let source_node = callee_id.into_global_any(state.module_id);
                 let target_node = type_expression_id.into_global_any(state.module_id);
-                if let Some(symbol_id) = state.types.symbol_resolution(source_node) {
-                    state.types.set_symbol_resolution(target_node, symbol_id);
+                if let Some(symbol_id) = state.type_table().symbol_resolution(source_node) {
+                    state.types_tail.set_symbol_resolution(target_node, symbol_id);
                 }
 
                 Some(type_expression_id)

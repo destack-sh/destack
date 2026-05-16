@@ -22,8 +22,9 @@ impl Compiler {
         profile: ProfileId,
         context: &dyn ProviderContext,
         tree: &mut dir::Tree,
-        symbols: &mut dir::BindingTable,
-        types: &mut dir::TypeTable,
+        symbols: &mut dir::BindingTable<'_>,
+        types: &dir::TypeTable<'_>,
+        types_tail: &mut dir::TypeSegment,
         guards: &mut GuardTable,
     ) -> ElaborateResult<()> {
         // skip non-code modules
@@ -33,7 +34,16 @@ impl Compiler {
 
         let options = self.elaborate_options(context, module);
         let mut state = ElaborateState::new(
-            context, module.id, module, profile, options, tree, symbols, types, guards,
+            context,
+            module.id,
+            module,
+            profile,
+            options,
+            tree,
+            symbols,
+            types,
+            types_tail,
+            guards,
         );
 
         // collect member expressions used as call or new callees
@@ -110,7 +120,7 @@ impl Compiler {
 
             Expression::Path { .. } => {
                 let node = expression_id.into_global_any(state.module_id);
-                let Some(target_symbol) = state.types.symbol_resolution(node) else {
+                let Some(target_symbol) = state.type_table().symbol_resolution(node) else {
                     return Ok(());
                 };
                 self.reify_implicit_casts_in_reference(state, expression_id, target_symbol)?;

@@ -64,8 +64,14 @@ impl Compiler {
         let bound = self
             .dir_bound(context, module_id, profile)
             .map_err(CompilerError::from)?;
+        let expanded = self
+            .dir_expanded(context, module_id, profile)
+            .map_err(CompilerError::from)?;
         let checked = self
             .dir_checked(context, module_id, profile)
+            .map_err(CompilerError::from)?;
+        let materialized = self
+            .dir_materialized(context, module_id, profile)
             .map_err(CompilerError::from)?;
         let elaborated = self
             .dir_elaborated(context, module_id, profile)
@@ -75,6 +81,9 @@ impl Compiler {
         let mir_tree = {
             let module = self.module(context.revision(), module_id);
             let pointer_bytes = self.pointer_bytes_for_target_config(module_id, target)?;
+            let bindings = elaborated.binding_table(&bound, &expanded, &materialized);
+            let types = elaborated.type_table(&bound, &expanded, &checked, &materialized);
+            let captures = elaborated.capture_table(&checked, &materialized);
 
             let mut lowerer = ModuleLowerer::new(
                 self,
@@ -85,10 +94,10 @@ impl Compiler {
                 &bound.roots,
                 self.repository.string_pool().as_ref(),
                 bound.module_node,
-                &bound.bindings,
-                &checked.types,
+                &bindings,
+                &types,
                 &elaborated.guards,
-                &checked.captures,
+                &captures,
                 &target_id,
                 pointer_bytes,
             )?;

@@ -3,12 +3,14 @@ use destack_dir as dir;
 use super::{DirSnapshotBuilder, SnapshotTable, value};
 use crate::tests::snapshot::{SnapshotAnchor, SnapshotRow};
 
-impl SnapshotTable for dir::BindingTable {
+impl SnapshotTable for dir::BindingSegment {
     fn add_snapshot_rows(&self, builder: &mut DirSnapshotBuilder<'_>) {
+        let node_scopes = self.node_scopes().collect::<Vec<_>>();
+
         // render scope rows before symbols so the summary remains readable
         for scope_id in self.scope_ids() {
             let scope = self.get_scope_by_id(scope_id);
-            let anchor = builder.anchor_scope(self, scope_id, scope);
+            let anchor = builder.anchor_scope(self.module_id, scope_id, scope, &node_scopes);
             let row = SnapshotRow::new(anchor, "binding", "scope")
                 .field("scope", builder.scope_label(scope_id))
                 .field("kind", value::debug(scope.kind))
@@ -54,7 +56,7 @@ impl SnapshotTable for dir::BindingTable {
 
         // render exact node cursors only for targeted binding tests
         if builder.binding_nodes {
-            for (node_id, scope) in self.node_scopes() {
+            for (node_id, scope) in node_scopes {
                 let row = SnapshotRow::new(builder.anchor_node(node_id), "binding", "node")
                     .field("node", builder.node_label(node_id))
                     .field("scope", builder.scope_cursor_label(scope))

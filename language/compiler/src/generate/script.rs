@@ -29,6 +29,9 @@ impl Compiler {
         let bound = self
             .dir_bound(context, module_id, profile)
             .map_err(CompilerError::from)?;
+        let expanded = self
+            .dir_expanded(context, module_id, profile)
+            .map_err(CompilerError::from)?;
         let checked = self
             .dir_checked(context, module_id, profile)
             .map_err(CompilerError::from)?;
@@ -39,6 +42,7 @@ impl Compiler {
             module.clone(),
             parsed.clone(),
             bound.clone(),
+            expanded,
             checked,
             self.repository.string_pool().clone(),
             target,

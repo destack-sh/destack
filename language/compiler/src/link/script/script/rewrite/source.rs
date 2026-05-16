@@ -28,7 +28,7 @@ pub(super) struct MinifySourceContext {
     /// The source strings.
     pub(super) strings: Arc<StringPool>,
     /// The source symbol table.
-    pub(super) symbols: Arc<dir::BindingTable>,
+    pub(super) symbols: Arc<dir::BindingTable<'static>>,
     /// The namespace scope for this module.
     pub(super) namespace_scope: dir::LocalScopeId,
 }
@@ -121,7 +121,7 @@ impl ScriptLinker<'_> {
 
         Ok(Some(MinifySourceContext {
             strings: self.compiler.repository.string_pool().clone(),
-            symbols: Arc::new(dir.bindings.clone()),
+            symbols: Arc::new(dir.binding_table()),
             namespace_scope: dir.namespace_scope,
         }))
     }

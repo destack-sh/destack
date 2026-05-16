@@ -59,7 +59,7 @@ impl Compiler {
     fn insert_comptime_type_expression_for_type_id(
         &self,
         tree: &mut dir::Tree,
-        types: &dir::TypeTable,
+        types: &dir::TypeTable<'_>,
         module_id: ModuleId,
         profile_id: ProfileId,
         anchor_id: dir::LocalNodeIdAny,
@@ -95,7 +95,7 @@ impl Compiler {
     pub(crate) fn static_expression_to_expression(
         &self,
         tree: &mut dir::Tree,
-        types: &dir::TypeTable,
+        types: &dir::TypeTable<'_>,
         module_id: ModuleId,
         profile_id: ProfileId,
         anchor_id: dir::LocalNodeIdAny,
@@ -223,7 +223,7 @@ impl Compiler {
     pub(crate) fn static_property_to_property(
         &self,
         tree: &mut dir::Tree,
-        types: &dir::TypeTable,
+        types: &dir::TypeTable<'_>,
         module_id: ModuleId,
         profile_id: ProfileId,
         anchor_id: dir::LocalNodeIdAny,

@@ -30,7 +30,7 @@ impl Compiler {
 
         // annotate the literal with boolean type
         self.set_scalar_literal_type(
-            state.types,
+            state.types_tail,
             state.tree.module_id,
             expression_id,
             ScalarLiteral::Boolean(value),

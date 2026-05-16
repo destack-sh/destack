@@ -103,7 +103,7 @@ impl Compiler {
             Some(dir::ProvenanceReason::Reified),
         );
         let cloned_id = state.tree.insert_as_owner(cloned_id, cloned_expression);
-        state.types.copy_node_relations(
+        state.types_tail.copy_node_relations(
             expression_id.into_global_any(state.module_id),
             cloned_id.into_global_any(state.module_id),
         );
@@ -140,7 +140,7 @@ impl Compiler {
         };
 
         let cloned_id = state.tree.insert_as_owner(cloned_id, cloned_argument);
-        state.types.copy_node_relations(
+        state.types_tail.copy_node_relations(
             argument_id.into_global_any(state.module_id),
             cloned_id.into_global_any(state.module_id),
         );
@@ -159,9 +159,7 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
     ) -> ElaborateResult<()> {
         // get the resolution for this expression
-        let Some(resolution) = state
-            .types
-            .resolution(expression_id.into_global_any(state.module_id))
+        let Some(resolution) = state.type_table().resolution(expression_id.into_global_any(state.module_id))
             .cloned()
         else {
             return Ok(());
@@ -251,13 +249,11 @@ impl Compiler {
             );
 
             // set the type for the if expression (same as original expression)
-            if let Some(expr_type_id) = state
-                .types
-                .get_declared_or_inferred_type_id(expression_id.into_global_any(state.module_id))
+            if let Some(expr_type_id) = state.type_table().get_declared_or_inferred_type_id(expression_id.into_global_any(state.module_id))
             {
                 state
-                    .types
-                    .set_inferred_type(if_id.into_global(state.module_id), expr_type_id);
+            .types_tail
+            .set_inferred_type(if_id.into_global(state.module_id), expr_type_id);
             }
         }
 
@@ -335,7 +331,7 @@ impl Compiler {
             receiver: receiver_type,
             target: candidate.clone(),
         });
-        state.types.set_resolution(
+        state.types_tail.set_resolution(
             cloned_id.into_global_any(state.module_id),
             static_resolution,
         );
