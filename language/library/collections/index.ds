@@ -5,8 +5,16 @@ export { SmallArray } from "./small-array.ds";
 export { Slice } from "./slice.ds";
 export { Map, MapEntry, MapEntryHandle } from "./map.ds";
 export { PackedMap, PackedMapEntry, PackedMapEntryHandle } from "./packed-map.ds";
+export {
+    ConcurrentMap,
+    ConcurrentMapEntry,
+    ConcurrentMapRead,
+    ConcurrentMapWrite,
+} from "./concurrent-map.ds";
 export { Set } from "./set.ds";
 export { PackedSet } from "./packed-set.ds";
+export { ConcurrentSet, ConcurrentSetRead } from "./concurrent-set.ds";
+export { ConcurrentQueue } from "./concurrent-queue.ds";
 export { Slab, SlabKey } from "./slab.ds";
 export { Deque } from "./deque.ds";
 export { PackedDeque } from "./packed-deque.ds";

@@ -1,0 +1,64 @@
+import { todo } from "destack:error";
+import { From } from "destack:convert";
+import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
+import { Clone, Default } from "destack:memory";
+import { Atomic } from "destack:sync";
+
+/// A concurrent multi-producer multi-consumer queue.
+export class ConcurrentQueue<T> {
+    /// The queue state.
+    state: Atomic<uint64>;
+}
+
+extension<T> of ConcurrentQueue<T> implements
+    Default,
+    From<Iterable<T>>,
+    FromIterator<T>,
+    Extend<T>
+{
+    /// Create an empty concurrent queue.
+    static new(): ConcurrentQueue<T> {
+        todo("ConcurrentQueue.new")
+    }
+
+    /// Create a concurrent queue from values.
+    static from(values: Iterable<T>): ConcurrentQueue<T> {
+        todo("ConcurrentQueue.from")
+    }
+
+    /// Create a concurrent queue from `values`.
+    static fromIterator(values: Iterator<T>): ConcurrentQueue<T> {
+        todo("ConcurrentQueue.fromIterator")
+    }
+
+    /// Create the default concurrent queue.
+    static default(): ConcurrentQueue<T> {
+        ConcurrentQueue.new()
+    }
+
+    /// Return whether this queue is currently empty.
+    get isEmpty(): boolean {
+        todo("ConcurrentQueue.isEmpty")
+    }
+
+    /// Push `value` to the back of the queue.
+    push(this: &ConcurrentQueue<T>, value: T): void {
+        todo("ConcurrentQueue.push")
+    }
+
+    /// Append all `values` to the back of the queue.
+    extend(this: &ConcurrentQueue<T>, values: Iterable<T>): void {
+        todo("ConcurrentQueue.extend")
+    }
+
+    /// Clone and return the front value without removing it.
+    peek(this: &ConcurrentQueue<T>): T | undefined
+    where T implements Clone {
+        todo("ConcurrentQueue.peek")
+    }
+
+    /// Remove and return the front value.
+    pop(this: &ConcurrentQueue<T>): T | undefined {
+        todo("ConcurrentQueue.pop")
+    }
+}

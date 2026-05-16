@@ -1,0 +1,146 @@
+import { todo } from "destack:error";
+import { Borrow, From } from "destack:convert";
+import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
+import { Clone, Default, Dispose } from "destack:memory";
+import { Dereference, Equal, Hash } from "destack:ops";
+import { ConcurrentMap, ConcurrentMapRead } from "./concurrent-map.ds";
+
+/// Read guard for one concurrent set value.
+export struct ConcurrentSetRead<T> {
+    /// The backing map read guard.
+    private guard: ConcurrentMapRead<T, void>;
+}
+
+/// A sharded concurrent hash set.
+export class ConcurrentSet<T> {
+    /// The backing concurrent map.
+    map: ConcurrentMap<T, void>;
+}
+
+extension<T: Hash> of ConcurrentSetRead<T>
+    implements Dispose, Dereference<"readonly"> {
+    /// The projected result form.
+    type Output = &readonly T;
+
+    /// Borrow the stored value.
+    get value(): &readonly T {
+        todo("ConcurrentSetRead.value")
+    }
+
+    /// Release this guard.
+    dispose(): void {
+        todo("ConcurrentSetRead.dispose")
+    }
+
+    /// Borrow the stored value.
+    dereference(): this.Output {
+        todo("ConcurrentSetRead.dereference")
+    }
+}
+
+extension<T> of ConcurrentSet<T> implements Default {
+    /// Create an empty concurrent set.
+    static new(): ConcurrentSet<T> {
+        todo("ConcurrentSet.new")
+    }
+
+    /// Create a concurrent set with room for at least `capacity` values.
+    static withCapacity(capacity: usize): ConcurrentSet<T> {
+        todo("ConcurrentSet.withCapacity")
+    }
+
+    /// Create the default concurrent set.
+    static default(): ConcurrentSet<T> {
+        ConcurrentSet.new()
+    }
+}
+
+extension<T: Hash> of ConcurrentSet<T> implements
+    From<Iterable<T>>,
+    FromIterator<T>,
+    Extend<T>
+{
+    /// Create a concurrent set from values.
+    static from(values: Iterable<T>): ConcurrentSet<T> {
+        todo("ConcurrentSet.from")
+    }
+
+    /// Create a concurrent set from `values`.
+    static fromIterator(values: Iterator<T>): ConcurrentSet<T> {
+        todo("ConcurrentSet.fromIterator")
+    }
+
+    /// Return the number of values.
+    get size(): number {
+        this.map.size
+    }
+
+    /// Return whether this set has no values.
+    get isEmpty(): boolean {
+        this.map.isEmpty
+    }
+
+    /// Return whether `value` is present.
+    has<Q: Hash>(this: &ConcurrentSet<T>, value: &readonly Q): boolean
+    where T implements Borrow<Q>, Q implements Equal<Q> {
+        todo("ConcurrentSet.has")
+    }
+
+    /// Clone and return the stored value equal to `value`.
+    get<Q: Hash>(this: &ConcurrentSet<T>, value: &readonly Q): T | undefined
+    where T implements Borrow<Q>, Q implements Equal<Q>, T implements Clone {
+        todo("ConcurrentSet.get")
+    }
+
+    /// Return a read guard for one stored value.
+    read<Q: Hash>(this: &ConcurrentSet<T>, value: &readonly Q): ConcurrentSetRead<T> | undefined
+    where T implements Borrow<Q>, Q implements Equal<Q> {
+        todo("ConcurrentSet.read")
+    }
+
+    /// Call `body` with readonly access to one stored value.
+    with<Q: Hash, R>(
+        this: &ConcurrentSet<T>,
+        value: &readonly Q,
+        body: (value: &readonly T) => R,
+    ): R | undefined
+    where T implements Borrow<Q>, Q implements Equal<Q> {
+        todo("ConcurrentSet.with")
+    }
+
+    /// Add `value` when absent.
+    add(this: &ConcurrentSet<T>, value: T): boolean {
+        todo("ConcurrentSet.add")
+    }
+
+    /// Add all `values`.
+    extend(this: &ConcurrentSet<T>, values: Iterable<T>): void {
+        todo("ConcurrentSet.extend")
+    }
+
+    /// Retain only values accepted by `predicate`.
+    retain(this: &ConcurrentSet<T>, predicate: (value: &readonly T) => boolean): void {
+        todo("ConcurrentSet.retain")
+    }
+
+    /// Remove all values and return them.
+    drain(this: &ConcurrentSet<T>): Iterator<T> {
+        todo("ConcurrentSet.drain")
+    }
+
+    /// Remove values accepted by `predicate` and return them.
+    extractIf(this: &ConcurrentSet<T>, predicate: (value: &readonly T) => boolean): Iterator<T> {
+        todo("ConcurrentSet.extractIf")
+    }
+
+    /// Remove `value`.
+    remove<Q: Hash>(this: &ConcurrentSet<T>, value: &readonly Q): T | undefined
+    where T implements Borrow<Q>, Q implements Equal<Q> {
+        todo("ConcurrentSet.remove")
+    }
+
+    /// Remove all values.
+    clear(this: &ConcurrentSet<T>): void {
+        todo("ConcurrentSet.clear")
+    }
+}
