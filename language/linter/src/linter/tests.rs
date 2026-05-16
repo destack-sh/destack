@@ -394,17 +394,17 @@ impl DiagnosticContext for TestProviderContext {
                 Ok(name)
             }
             DiagnosticDisplay::Target(target_id) => {
-                let target = self
+                let target_name = self
                     .repository
-                    .target_or_builtin(self.revision, target_id)
-                    .expect("linter test provider should read target");
-                let Some(target) = target else {
+                    .target_display(self.revision, target_id)
+                    .expect("linter test provider should read target name");
+                let Some(target_name) = target_name else {
                     return Err(Self::invalid_anchor(format!(
                         "diagnostic target is not tracked in revision: {target_id:?}"
                     )));
                 };
 
-                Ok(target.name)
+                Ok(target_name)
             }
         }
     }
