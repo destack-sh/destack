@@ -24,7 +24,7 @@ pub struct Profile {
 impl Profile {
     /// Build one resolved semantic profile from one canonical key.
     pub fn from_key(key: ProfileKey, environment: &HostEnvironment) -> Self {
-        let env = ProfileEnvironment::from_key(&key.env, environment, &key.modes);
+        let env = ProfileEnvironment::from_key(&key, environment);
         let conditions = conditions_from_key(&key);
 
         Self {
@@ -54,6 +54,9 @@ fn conditions_from_key(key: &ProfileKey) -> ConditionSet {
         tags: key.tags.iter().cloned().collect(),
         target: key.target.clone(),
         product: key.product.clone(),
+        platform: Some(key.platform),
+        host: Some(key.host),
+        runtime: Some(key.runtime),
     }
 }
 

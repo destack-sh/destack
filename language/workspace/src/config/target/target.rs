@@ -60,6 +60,12 @@ pub struct Target {
     pub profile: Option<String>,
     /// Active source graph modes for this target.
     pub modes: Vec<String>,
+    /// Active source graph roles for this target.
+    pub roles: Vec<String>,
+    /// Active optional features for this target.
+    pub features: Vec<String>,
+    /// Active source graph tags for this target.
+    pub tags: Vec<String>,
     /// Assembly topology for this script target.
     pub assembly: BundleMode,
     /// Whether to preserve one emitted module file per reachable module.
@@ -350,11 +356,14 @@ impl Target {
         let mut compiler_options = compiler_options.clone();
         let is_native_output = self.emit.is_wasm() || self.emit.is_native();
 
-        // target semantic defaults
+        // target defaults
         if self.tree.is_some() {
             compiler_options.tree = self.tree.clone();
         }
         compiler_options.modes.extend(self.modes.clone());
+        compiler_options.roles.extend(self.roles.clone());
+        compiler_options.features.extend(self.features.clone());
+        compiler_options.tags.extend(self.tags.clone());
         compiler_options.globals.extend(self.globals.clone());
         compiler_options.derive.extend(self.derive.clone());
 
@@ -539,6 +548,24 @@ impl Target {
     /// Set active source graph modes for this target.
     pub fn with_modes(mut self, modes: impl IntoIterator<Item = impl Into<String>>) -> Self {
         self.modes = modes.into_iter().map(Into::into).collect();
+        self
+    }
+
+    /// Set active source graph roles for this target.
+    pub fn with_roles(mut self, roles: impl IntoIterator<Item = impl Into<String>>) -> Self {
+        self.roles = roles.into_iter().map(Into::into).collect();
+        self
+    }
+
+    /// Set active optional features for this target.
+    pub fn with_features(mut self, features: impl IntoIterator<Item = impl Into<String>>) -> Self {
+        self.features = features.into_iter().map(Into::into).collect();
+        self
+    }
+
+    /// Set active source graph tags for this target.
+    pub fn with_tags(mut self, tags: impl IntoIterator<Item = impl Into<String>>) -> Self {
+        self.tags = tags.into_iter().map(Into::into).collect();
         self
     }
 
@@ -853,6 +880,12 @@ pub struct TargetOptions {
     pub profile: Option<String>,
     /// Active source graph modes for this target.
     pub modes: Vec<String>,
+    /// Active source graph roles for this target.
+    pub roles: Vec<String>,
+    /// Active optional features for this target.
+    pub features: Vec<String>,
+    /// Active source graph tags for this target.
+    pub tags: Vec<String>,
     /// Assembly topology for this script target.
     pub assembly: BundleMode,
     /// Whether to preserve one emitted module file per reachable module.
@@ -941,6 +974,9 @@ impl Default for TargetOptions {
             es_target: EsTarget::default(),
             profile: None,
             modes: Vec::new(),
+            roles: Vec::new(),
+            features: Vec::new(),
+            tags: Vec::new(),
             assembly: BundleMode::default(),
             preserve_modules: false,
             preserve_modules_root: None,
@@ -1032,6 +1068,9 @@ impl TargetOptions {
             es_target: self.es_target,
             profile: self.profile.clone(),
             modes: self.modes.clone(),
+            roles: self.roles.clone(),
+            features: self.features.clone(),
+            tags: self.tags.clone(),
             assembly: self.assembly,
             preserve_modules: self.preserve_modules,
             preserve_modules_root: self.preserve_modules_root.clone(),
@@ -1219,6 +1258,9 @@ impl TargetOptions {
                 .unwrap_or_default(),
             profile: json.profile.clone(),
             modes: json.modes.clone().unwrap_or_default(),
+            roles: json.roles.clone().unwrap_or_default(),
+            features: json.features.clone().unwrap_or_default(),
+            tags: json.tags.clone().unwrap_or_default(),
             assembly,
             preserve_modules,
             preserve_modules_root,
@@ -1373,6 +1415,12 @@ pub struct TargetJson {
     pub profile: Option<String>,
     /// Active source graph modes for this target.
     pub modes: Option<Vec<String>>,
+    /// Active source graph roles for this target.
+    pub roles: Option<Vec<String>>,
+    /// Active optional features for this target.
+    pub features: Option<Vec<String>>,
+    /// Active source graph tags for this target.
+    pub tags: Option<Vec<String>>,
     /// Assembly topology for this script target.
     pub assembly: Option<BundleMode>,
     /// Whether to preserve one emitted module file per reachable module.

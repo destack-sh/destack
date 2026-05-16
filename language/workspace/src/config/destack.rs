@@ -8,20 +8,19 @@ use serde::Deserialize;
 use serde_json::Value;
 
 use crate::config::{
-    CompilerOptions, DependencyJsonMap, DependencyMap, DiagnosticPolicy, EnvironmentOptions,
-    FeatureJson, FeatureOptions, FormatterOptions, LinterOptions, ModeOptions, PolicyOptions,
-    PolicyOptionsJson, ProductOptions, ProductOptionsJson, ProfileOptions, ProfileOptionsJson,
-    RoleJson, RoleOptions, RuntimeOptions, TagJson, TagOptions, TargetOptions, VendorOptions,
-    VendorOptionsJson, builtin_modes, builtin_roles, dependency_options_from_json,
-    environment_options_from_json, parse_jsonc_file, runtime_options_from_json,
-    validate_dependency_json_map,
+    CompilerOptions, ConditionGate, ConditionOptions, ConditionOptionsJson, DependencyJsonMap,
+    DependencyMap, DiagnosticPolicy, EnvironmentOptions, FeatureOptions, FormatterOptions,
+    LinterOptions, ModeOptions, PolicyOptions, PolicyOptionsJson, ProductOptions,
+    ProductOptionsJson, ProfileOptions, ProfileOptionsJson, RoleOptions, RuntimeOptions,
+    TagOptions, TargetOptions, VendorOptions, VendorOptionsJson, builtin_modes, builtin_roles,
+    dependency_options_from_json, environment_options_from_json, parse_jsonc_file,
+    runtime_options_from_json, validate_dependency_json_map,
 };
 
 use super::compiler::CompilerOptionsJson;
 use super::environment::EnvironmentJson;
 use super::formatter::FormatterJson;
 use super::linter::LinterJson;
-use super::mode::ModeJson;
 use super::runtime::RuntimeConfigJson;
 use super::target::TargetJson;
 
@@ -79,14 +78,8 @@ pub struct DestackOptions {
     pub environments: Option<IndexMap<String, EnvironmentJson>>,
     /// Named profiles for semantic configuration.
     pub profiles: Option<IndexMap<String, ProfileOptionsJson>>,
-    /// Named source graph modes.
-    pub modes: Option<IndexMap<String, ModeJson>>,
-    /// Named source graph roles.
-    pub roles: Option<IndexMap<String, RoleJson>>,
-    /// Named optional source graph features.
-    pub features: Option<IndexMap<String, FeatureJson>>,
-    /// Named source graph tags.
-    pub tags: Option<IndexMap<String, TagJson>>,
+    /// Named source graph conditions.
+    pub conditions: Option<ConditionOptionsJson>,
     /// Default target for the package.
     pub default_target: Option<String>,
     /// Default product for the package.
@@ -171,14 +164,8 @@ pub struct DestackDeclaration {
     pub environments: IndexMap<String, EnvironmentOptions>,
     /// Named profiles for semantic configuration.
     pub profiles: IndexMap<String, ProfileOptions>,
-    /// Named source graph modes.
-    pub modes: IndexMap<String, ModeOptions>,
-    /// Named source graph roles.
-    pub roles: IndexMap<String, RoleOptions>,
-    /// Named optional source graph features.
-    pub features: IndexMap<String, FeatureOptions>,
-    /// Named source graph tags.
-    pub tags: IndexMap<String, TagOptions>,
+    /// Named source graph conditions.
+    pub conditions: ConditionOptions,
     /// Default target for the package.
     pub default_target: Option<String>,
     /// Default product for the package.
@@ -242,13 +229,15 @@ impl DestackDeclaration {
             }
         }
 
-        validate_extends("mode", &self.modes, |mode| &mode.extends)
+        validate_extends("mode", &self.conditions.modes, |mode| &mode.extends)
             .map_err(|error| serde_json::Error::io(invalid_config_error(error)))?;
-        validate_extends("role", &self.roles, |role| &role.extends)
+        validate_extends("role", &self.conditions.roles, |role| &role.extends)
             .map_err(|error| serde_json::Error::io(invalid_config_error(error)))?;
-        validate_extends("feature", &self.features, |feature| &feature.extends)
-            .map_err(|error| serde_json::Error::io(invalid_config_error(error)))?;
-        validate_extends("tag", &self.tags, |tag| &tag.extends)
+        validate_extends("feature", &self.conditions.features, |feature| {
+            &feature.extends
+        })
+        .map_err(|error| serde_json::Error::io(invalid_config_error(error)))?;
+        validate_extends("tag", &self.conditions.tags, |tag| &tag.extends)
             .map_err(|error| serde_json::Error::io(invalid_config_error(error)))?;
 
         Ok(())
@@ -309,10 +298,27 @@ impl DestackDeclaration {
         }
         validate_dependency_json_map(options.dependencies.as_ref())
             .map_err(|error| serde_json::Error::io(invalid_config_error(error)))?;
-        validate_named_json_map("mode", options.modes.as_ref(), ModeJson::validate)?;
-        validate_named_json_map("role", options.roles.as_ref(), RoleJson::validate)?;
-        validate_named_json_map("feature", options.features.as_ref(), FeatureJson::validate)?;
-        validate_named_json_map("tag", options.tags.as_ref(), TagJson::validate)?;
+        let condition_json = options.conditions.as_ref();
+        validate_named_json_map(
+            "mode",
+            condition_json.and_then(|conditions| conditions.modes.as_ref()),
+            super::mode::ModeJson::validate,
+        )?;
+        validate_named_json_map(
+            "role",
+            condition_json.and_then(|conditions| conditions.roles.as_ref()),
+            super::role::RoleJson::validate,
+        )?;
+        validate_named_json_map(
+            "feature",
+            condition_json.and_then(|conditions| conditions.features.as_ref()),
+            super::feature::FeatureJson::validate,
+        )?;
+        validate_named_json_map(
+            "tag",
+            condition_json.and_then(|conditions| conditions.tags.as_ref()),
+            super::tag::TagJson::validate,
+        )?;
 
         let directory = path.parent().map(PathBuf::from).ok_or_else(|| {
             serde_json::Error::io(Error::new(
@@ -369,13 +375,8 @@ impl DestackDeclaration {
         let mut linter = LinterOptions::default();
         options.linter.apply(&mut linter);
 
-        // source graph modes
-        let mut modes = builtin_modes();
-        modes.extend(options_from_json(&options.modes, ModeOptions::from_json));
-        let mut roles = builtin_roles();
-        roles.extend(options_from_json(&options.roles, RoleOptions::from_json));
-        let features = options_from_json(&options.features, FeatureOptions::from_json);
-        let tags = options_from_json(&options.tags, TagOptions::from_json);
+        // source graph conditions
+        let conditions = condition_options_from_json(condition_json)?;
         Ok(Self {
             file_id,
             declaration_file_ids,
@@ -423,10 +424,7 @@ impl DestackDeclaration {
                 })
                 .transpose()?
                 .unwrap_or_default(),
-            modes,
-            roles,
-            features,
-            tags,
+            conditions,
             default_target: options.default_target.clone(),
             default_product: options.default_product.clone(),
             workspace_packages: options
@@ -609,19 +607,113 @@ fn invalid_config_error(message: impl Into<String>) -> Error {
     Error::new(ErrorKind::InvalidData, message.into())
 }
 
-/// Convert named JSON declarations into normalized options.
-fn options_from_json<J, O>(
-    json: &Option<IndexMap<String, J>>,
-    convert: impl Fn(&J) -> O,
-) -> IndexMap<String, O> {
-    json.as_ref()
-        .map(|items| {
-            items
+/// Convert condition declarations into normalized condition options.
+fn condition_options_from_json(
+    json: Option<&ConditionOptionsJson>,
+) -> Result<ConditionOptions, serde_json::Error> {
+    // merge built-in and declared modes
+    let mut modes = builtin_modes();
+    if let Some(json) = json.and_then(|conditions| conditions.modes.as_ref()) {
+        modes.extend(json.iter().map(|(name, mode)| {
+            let mode = ModeOptions::from_json(mode);
+
+            (name.clone(), mode)
+        }));
+    }
+
+    // merge built-in and declared roles
+    let mut roles = builtin_roles();
+    if let Some(json) = json.and_then(|conditions| conditions.roles.as_ref()) {
+        roles.extend(json.iter().map(|(name, role)| {
+            let role = RoleOptions::from_json(role);
+
+            (name.clone(), role)
+        }));
+    }
+
+    // convert declared feature and tag groups
+    let features: IndexMap<String, FeatureOptions> = json
+        .and_then(|conditions| conditions.features.as_ref())
+        .map(|features| {
+            features
                 .iter()
-                .map(|(name, item)| (name.clone(), convert(item)))
+                .map(|(name, feature)| {
+                    let feature = FeatureOptions::from_json(feature);
+
+                    (name.clone(), feature)
+                })
                 .collect()
         })
-        .unwrap_or_default()
+        .unwrap_or_default();
+    let tags: IndexMap<String, TagOptions> = json
+        .and_then(|conditions| conditions.tags.as_ref())
+        .map(|tags| {
+            tags.iter()
+                .map(|(name, tag)| {
+                    let tag = TagOptions::from_json(tag);
+
+                    (name.clone(), tag)
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    // create aliases for every declared source graph condition
+    let mut aliases = IndexMap::new();
+    for name in modes.keys() {
+        insert_condition_alias(&mut aliases, name, ConditionGate::mode(name.clone()))?;
+    }
+    for name in roles.keys() {
+        insert_condition_alias(&mut aliases, name, ConditionGate::role(name.clone()))?;
+    }
+    for name in features.keys() {
+        insert_condition_alias(&mut aliases, name, ConditionGate::feature(name.clone()))?;
+    }
+    for name in tags.keys() {
+        insert_condition_alias(&mut aliases, name, ConditionGate::tag(name.clone()))?;
+    }
+
+    // merge explicit aliases after checking for automatic alias collisions
+    if let Some(json) = json.and_then(|conditions| conditions.aliases.as_ref()) {
+        for (name, alias) in json {
+            if aliases.contains_key(name) {
+                let error = format!("condition alias '{name}' conflicts with a condition name");
+                return Err(serde_json::Error::io(invalid_config_error(error)));
+            }
+
+            let alias = ConditionGate::from_json(alias);
+            if alias.is_empty() {
+                let error = format!("condition alias '{name}' must define at least one selector");
+                return Err(serde_json::Error::io(invalid_config_error(error)));
+            }
+
+            aliases.insert(name.clone(), alias);
+        }
+    }
+
+    Ok(ConditionOptions {
+        modes,
+        roles,
+        features,
+        tags,
+        aliases,
+    })
+}
+
+/// Insert one automatic condition alias.
+fn insert_condition_alias(
+    aliases: &mut IndexMap<String, ConditionGate>,
+    name: &str,
+    gate: ConditionGate,
+) -> Result<(), serde_json::Error> {
+    if aliases.contains_key(name) {
+        let error = format!("condition alias '{name}' is declared by multiple condition groups");
+        return Err(serde_json::Error::io(invalid_config_error(error)));
+    }
+
+    aliases.insert(name.to_string(), gate);
+
+    Ok(())
 }
 
 /// Merge declaration file ids in inherited order.

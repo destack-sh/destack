@@ -27,6 +27,14 @@ impl std::str::FromStr for Runtime {
 }
 
 impl Runtime {
+    /// Return the canonical lowercase tag for this runtime.
+    pub fn canonical_tag(&self) -> &'static str {
+        match self {
+            Self::Destack => "destack",
+            Self::Js => "js",
+        }
+    }
+
     /// Parse from a string value.
     pub fn parse(s: &str) -> Option<Self> {
         s.parse().ok()
