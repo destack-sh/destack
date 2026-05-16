@@ -1944,7 +1944,7 @@ For genuinely _shared_ process-global state, the binding _itself_ can be declare
 Note that making the binding itself as `shared` also types the value as `shared` (as it is illegal to point from shared storage into local storage anyway, this is convenient).
 There is no `local const` form because ordinary module bindings are already Worker-local.
 
-### Allocation
+### Allocator
 
 The primary typed construction path is `new`, which initializes a `T` and produces the ownership form required by the destination type.
 The destination decides whether that is managed storage, owned storage, inline frame storage, shared storage, or some lower-level allocation form.
@@ -1978,7 +1978,7 @@ function interruptHandler(input: &[Sample]): Frame {
 }
 ```
 
-### Safety
+### Safety, Safety and Safety
 
 The borrow checker tracks where a borrow came from, because validity depends on the source, not only on the lifetime name.
 `Lifetime` says which external value must outlive a borrow, while the borrow source says whether that value is owned, managed, local, shared, static, or frame storage.
