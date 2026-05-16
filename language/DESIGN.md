@@ -2409,12 +2409,54 @@ And because Destack is a fully integrated stack, the runtime has been co-designe
 
 Like many JS/TS-adjacent runtimes, Destack supports importing additional file types beyond code modules.
 
-### Modes
+### Conditions
 
-Modes generalise the idea of `module.tests.ds` into a more flexible `<module>.<mode>.ds` schema where `<mode>`s may include both well known contexts (`dev`, `prod`, `test`, `bench`, `lint`), and additional user-defined modes from `destack.json`. 
-The base `module.ds` is always included when a mode is active, and additional `module.<mode>.ds` files are automatically included as if they were just at the end of the file.
+Conditions generalise the idea behind `module.tests.ds` and `[cfg(attr)]`-style feature gating into a flexible "condition system" for, well, conditionally including sources and parts of sources into some builds (but not others).
+We recognize `conditions` of `mode`, `feature`, `role`, and a general `tag`, in addition to all the usual target gates (e.g. `host`, `runtime`, `target`, `platform`):
 
-For example, when importing `./user` with `test` mode active, both `user.ds` and `user.test.ds` are included:
+```json:destack.json
+{
+    "conditions": {
+        "modes": {
+            "test": {},
+            "dev": {},
+            "prod": {},
+            "preview": { "extends": "dev" }
+        },
+        "features": {
+            "checkout": {},
+            "rendererv2": {}
+        },
+        "roles": {
+            "server": {},
+            "client": {}
+        },
+        "aliases": {
+            "browser": { "host": "browser" }
+        }
+    },
+    "compiler": {
+        "modes": ["preview"]
+    }
+}
+```
+
+
+The active conditions are available within code via `import.meta.<condition>` (like `import.meta.roles`) as usual for in-code dynamic gating:
+
+```ds
+function getRenderer(): Renderer {
+    if (import.meta.features.includes("rendererv2")) {
+        return new RendererV2();
+    } else {
+        return new RendererV1();
+    }
+}
+```
+
+On the import side, Destack also generalises `<module>.<alias>.ds` to support conditional inclusion of files (appended to the `module.ds` file itself) based on the active conditions via `aliases`.
+Every named condition is automatically available as an `alias`, and additional `aliases` can be declared explicitly in `"conditions"` based on target-shaped gates.
+For example, when importing `./user` with `test` mode active, both `user.ds` and `user.test.ds` are included (as if):
 
 ```ds
 // user.ds
@@ -2428,21 +2470,7 @@ test("loadUser", () => {
 });
 ```
 
-In effect, this is just a file-level shortcut around static if gating `@if(import.meta.modes.includes("mode"))` for all declaratoins in a file.
-Compiler, profile, and target options select active modes with `modes`:
-
-```json:destack.json
-{
-    "modes": {
-        "preview": { "extends": "dev" }
-    },
-    "compiler": {
-        "modes": ["preview"]
-    }
-}
-```
-
-When a mode extends other modes, the inherited modes are included "before" the extending mode.
+Chained like `user.test.browser.ds` behave as "and" gates on all conditions, that is, `user.test.browser.ds` is included only when both `test` mode and the `browser` alias match.
 
 ### Import Meta
 
@@ -2454,10 +2482,16 @@ When a mode extends other modes, the inherited modes are included "before" the e
 | `import.meta.path` | current local file path, when available | `string | undefined` | `"/app/src/main.ds"`, `undefined` |
 | `import.meta.dir` | current local directory, when available | `string | undefined` | `"/app/src"`, `undefined` |
 | `import.meta.output` | output artifact format | `Output` | `"js"`, `"wasm"`, `"native"` |
-| `import.meta.platform` | target platform | `Platform` | `"linux"`, `"windows"`, `"web"` |
+| `import.meta.platform` | target operating system | `Platform` | `"linux"`, `"windows"`, `"none"` |
+| `import.meta.host` | target host environment | `Host` | `"browser"`, `"native"`, `"wasi"` |
 | `import.meta.target` | target family and ABI | `Target` | `{ family: "unix", arch: "x64", abi: "gnu" }` |
+| `import.meta.targetName` | active build target name | `string | undefined` | `"web"`, `"native"` |
+| `import.meta.product` | active deliverable product name | `string | undefined` | `"app"`, `"server"` |
 | `import.meta.runtime` | semantic runtime | `Runtime` | `"destack"`, `"js"` |
 | `import.meta.modes` | active source graph modes | `readonly string[]` | `["test"]`, `["dev", "lint"]` |
+| `import.meta.roles` | active source graph roles | `readonly string[]` | `["server"]`, `["client"]` |
+| `import.meta.features` | active source graph features | `readonly string[]` | `["checkout"]`, `["renderer"]` |
+| `import.meta.tags` | active source graph tags | `readonly string[]` | `["preview"]`, `["internal"]` |
 | `import.meta.debug` | `debug` mode shorthand | `bool` | `true`, `false` |
 | `import.meta.dev` | `dev` mode shorthand | `bool` | `true`, `false` |
 | `import.meta.prod` | `prod` mode shorthand | `bool` | `true`, `false` |

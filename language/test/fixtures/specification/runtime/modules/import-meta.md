@@ -57,6 +57,29 @@ const abi: string | undefined = import.meta.target.abi;
 const arch: string | undefined = import.meta.target.arch;
 ```
 
+### active profile metadata is typed
+
+`import.meta` exposes active target, product, and host metadata.
+
+```ds
+const targetName: string | undefined = import.meta.targetName;
+const product: string | undefined = import.meta.product;
+
+const host = import.meta.host;
+host satisfies "unknown" | "native" | "browser" | "wasi" | "emscripten" | "freestanding";
+```
+
+### active conditions are typed
+
+`import.meta` exposes every active condition axis.
+
+```ds
+const modes: readonly string[] = import.meta.modes;
+const roles: readonly string[] = import.meta.roles;
+const features: readonly string[] = import.meta.features;
+const tags: readonly string[] = import.meta.tags;
+```
+
 ### builtin modes have boolean shorthands
 
 Built-in modes are exposed as boolean shorthands.
