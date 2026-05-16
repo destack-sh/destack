@@ -1,7 +1,7 @@
 import { todo } from "destack:error";
-import { type Dispose } from "destack:memory";
-import { type Dereference } from "destack:ops";
-import { type Atomic } from "./atomic.ds";
+import { Default, Dispose } from "destack:memory";
+import { Dereference } from "destack:ops";
+import { Atomic } from "./atomic.ds";
 
 /// Reader-writer lock.
 export class RwLock<T> {
@@ -34,6 +34,23 @@ export class RwLock<T> {
     /// Try to lock this value for exclusive writing.
     tryWrite(): RwLockWriteGuard<T> | undefined {
         todo("RwLock.tryWrite")
+    }
+
+    /// Borrow the protected value without locking.
+    getExclusive(this: &exclusive RwLock<T>): &exclusive T {
+        todo("RwLock.getExclusive")
+    }
+
+    /// Consume this lock and return the protected value.
+    intoInner(this: ^RwLock<T>): T {
+        todo("RwLock.intoInner")
+    }
+}
+
+extension<T: Default> of RwLock<T> implements Default {
+    /// Create the default reader-writer lock.
+    static default(): RwLock<T> {
+        new RwLock(T.default())
     }
 }
 
@@ -76,5 +93,10 @@ extension<T> of RwLockWriteGuard<T> implements Dispose, Dereference<"exclusive">
     /// Borrow the protected value.
     dereference(): this.Output {
         todo("RwLockWriteGuard.dereference")
+    }
+
+    /// Downgrade this write guard to a read guard.
+    downgrade(this: ^RwLockWriteGuard<T>): RwLockReadGuard<T> {
+        todo("RwLockWriteGuard.downgrade")
     }
 }

@@ -1,5 +1,5 @@
 import { todo } from "destack:error";
-import { type Atomic } from "./atomic.ds";
+import { Atomic } from "./atomic.ds";
 
 /// Reusable synchronization barrier.
 export class Barrier {

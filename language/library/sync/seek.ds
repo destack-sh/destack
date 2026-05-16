@@ -1,5 +1,4 @@
-import { type Result } from "destack:error";
-import { type IoError } from "destack:error";
+import { IoError, Result } from "destack:error";
 
 /// Seek origin.
 @derive(Tagged)
