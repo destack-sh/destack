@@ -1,16 +1,19 @@
-use destack_core::StringId;
+use destack_core::{StringId, StringPool};
 use serde::{Deserialize, Serialize};
 
-use crate::{Expression, LocalNodeId, Name, Node, NodeType, StaticKey, SymbolForm};
+use crate::{
+    ExportName, ExportSelector, Expression, LocalNodeId, Name, Node, NodeType, StaticKey,
+    SymbolForm,
+};
 
 /// How one dependency item binds into the local module.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum DependencyBinding {
     /// Named binding (`import { foo } from "foo"` or `export { foo } from "foo"`).
     Named,
-    /// Default binding (`export default foo`).
+    /// Default binding (`import foo from "foo"` or `export default foo`).
     Default,
-    /// Namespace binding (`export * from "foo"`).
+    /// Namespace binding (`import * as foo from "foo"` or `export * from "foo"`).
     Namespace,
 }
 
@@ -26,7 +29,7 @@ pub enum ExportKind {
 /// The source form of one dependency declaration.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum DependencyForm {
-    /// Plain dependency (`import foo` or `export foo`).
+    /// Plain dependency (`import { foo } from "foo"` or `export { foo }`).
     Plain,
     /// Type-marked dependency (`import type { Foo }` or `export type { Foo }`).
     Type,
@@ -89,5 +92,77 @@ impl DependencyItem {
         };
 
         Some(SymbolForm::Import)
+    }
+
+    /// Return the local binding key selected by this export item.
+    pub fn export_source_key(&self) -> Option<StaticKey> {
+        let Self::Binding { name, .. } = self else {
+            return None;
+        };
+
+        name.map(|name| name.static_key())
+    }
+
+    /// Return the target selector introduced by this export item.
+    pub fn export_selector(&self) -> Option<ExportSelector> {
+        let Self::Binding { binding, name, .. } = self else {
+            return None;
+        };
+
+        let selector = match binding {
+            DependencyBinding::Default => ExportSelector::Default,
+            DependencyBinding::Namespace => ExportSelector::Namespace,
+            DependencyBinding::Named => ExportSelector::Named((*name)?.static_key()),
+        };
+
+        Some(selector)
+    }
+
+    /// Return the export name introduced by this dependency item.
+    pub fn export_name(&self, strings: &StringPool) -> Option<ExportName> {
+        let Self::Binding {
+            binding,
+            name,
+            alias,
+            ..
+        } = self
+        else {
+            return None;
+        };
+
+        if let Some(alias) = alias {
+            return Some(ExportName::from_string(*alias, strings));
+        }
+
+        match binding {
+            DependencyBinding::Default => Some(ExportName::Default),
+            DependencyBinding::Named | DependencyBinding::Namespace => {
+                name.map(|name| ExportName::from_name(name, strings))
+            }
+        }
+    }
+
+    /// Check whether this item declares a star export.
+    pub fn is_star_export(&self) -> bool {
+        matches!(
+            self,
+            Self::Binding {
+                binding: DependencyBinding::Namespace,
+                alias: None,
+                ..
+            }
+        )
+    }
+
+    /// Check whether this item declares a default export expression.
+    pub fn is_default_value_export(&self) -> bool {
+        matches!(
+            self,
+            Self::Binding {
+                binding: DependencyBinding::Default,
+                value: Some(_),
+                ..
+            }
+        )
     }
 }

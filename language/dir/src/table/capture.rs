@@ -1,17 +1,69 @@
-use indexmap::IndexMap;
+use std::sync::Arc;
+
+use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
 
 use crate::{GlobalSymbolId, StringId};
 
-/// Capture side table keyed by function symbols.
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+/// Cumulative captures for one DIR module.
+#[derive(Debug, Clone, Default)]
 pub struct CaptureTable {
+    /// The ordered capture table segments.
+    segments: Vec<Arc<CaptureSegment>>,
+}
+
+impl CaptureTable {
+    /// Create a capture table from ordered segments.
+    pub fn from_segments(segments: Vec<Arc<CaptureSegment>>) -> Self {
+        Self { segments }
+    }
+
+    /// Create a capture table from one segment.
+    pub fn from_segment(segment: Arc<CaptureSegment>) -> Self {
+        Self::from_segments(vec![segment])
+    }
+
+    /// Get capture directive for a function symbol.
+    pub fn capture_directive(&self, symbol: GlobalSymbolId) -> Option<&CaptureDirective> {
+        self.capture(symbol)
+            .and_then(|capture| capture.directive.as_ref())
+    }
+
+    /// Get capture for a function symbol.
+    pub fn capture(&self, symbol: GlobalSymbolId) -> Option<&Capture> {
+        for segment in self.segments.iter().rev() {
+            if let Some(capture) = segment.capture(symbol) {
+                return Some(capture);
+            }
+        }
+
+        None
+    }
+
+    /// Iterate visible captures in segment order.
+    pub fn captures(&self) -> Box<dyn Iterator<Item = (GlobalSymbolId, &Capture)> + '_> {
+        let mut seen = IndexSet::new();
+        let captures = self
+            .segments
+            .iter()
+            .rev()
+            .flat_map(|segment| segment.capture_by_function.iter().rev())
+            .filter_map(move |(symbol, capture)| seen.insert(*symbol).then_some((*symbol, capture)))
+            .collect::<Vec<_>>();
+
+        Box::new(captures.into_iter().rev())
+    }
+}
+
+/// Captures added by one DIR phase.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct CaptureSegment {
     /// Capture for each function symbol.
     pub capture_by_function: IndexMap<GlobalSymbolId, Capture>,
 }
 
-impl CaptureTable {
-    /// Create an empty capture table.
+impl CaptureSegment {
+    /// Create an empty capture segment.
     pub fn new() -> Self {
         Self::default()
     }

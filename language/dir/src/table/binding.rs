@@ -1,4 +1,5 @@
 use std::fmt::Debug;
+use std::sync::Arc;
 
 use destack_source::ModuleId;
 use indexmap::IndexMap;
@@ -10,10 +11,188 @@ use crate::{
     SymbolOrigin, SymbolRole,
 };
 
-/// Lexical scopes and symbols for one DIR module.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// Cumulative lexical scopes and symbols for one DIR module.
+#[derive(Debug, Clone)]
 pub struct BindingTable {
     /// The module id of the binding table.
+    pub module_id: ModuleId,
+    /// The ordered binding table segments.
+    segments: Vec<Arc<BindingSegment>>,
+}
+
+impl BindingTable {
+    /// Create a binding table from ordered segments.
+    pub fn from_segments(segments: Vec<Arc<BindingSegment>>) -> Self {
+        let first = segments
+            .first()
+            .unwrap_or_else(|| panic!("binding table needs at least one segment"));
+        let module_id = first.module_id;
+
+        // require a single module owner
+        for segment in &segments {
+            assert_eq!(
+                segment.module_id, module_id,
+                "binding table segment belongs to a different module"
+            );
+        }
+
+        Self {
+            module_id,
+            segments,
+        }
+    }
+
+    /// Create a binding table from one segment.
+    pub fn from_segment(segment: Arc<BindingSegment>) -> Self {
+        Self::from_segments(vec![segment])
+    }
+
+    /// Iterate symbol ids.
+    pub fn symbol_ids(&self) -> impl Iterator<Item = LocalSymbolId> + '_ {
+        (0..self.symbol_count()).map(LocalSymbolId::new)
+    }
+
+    /// Iterate visible symbols.
+    pub fn symbols(&self) -> impl Iterator<Item = &Symbol> {
+        self.symbol_ids()
+            .map(|symbol_id| self.get_symbol(symbol_id))
+    }
+
+    /// Get the number of symbols.
+    pub fn symbol_count(&self) -> u32 {
+        self.segments
+            .last()
+            .map(|segment| segment.symbol_count())
+            .unwrap_or(0)
+    }
+
+    /// Get a symbol by its raw id.
+    pub fn get_symbol_by_id(&self, symbol_id: u32) -> &Symbol {
+        self.get_symbol(LocalSymbolId::new(symbol_id))
+    }
+
+    /// Iterate scope ids.
+    pub fn scope_ids(&self) -> impl Iterator<Item = LocalScopeId> + '_ {
+        (0..self.scope_count()).map(LocalScopeId::new)
+    }
+
+    /// Iterate visible scopes.
+    pub fn scopes(&self) -> impl Iterator<Item = &Scope> {
+        self.scope_ids()
+            .map(|scope_id| self.get_scope_by_id(scope_id))
+    }
+
+    /// Get the number of scopes.
+    pub fn scope_count(&self) -> u32 {
+        self.segments
+            .last()
+            .map(|segment| segment.scope_count())
+            .unwrap_or(0)
+    }
+
+    /// Return one visible symbol.
+    pub fn get_symbol(&self, symbol_id: LocalSymbolId) -> &Symbol {
+        self.get_symbol_maybe(symbol_id)
+            .unwrap_or_else(|| panic!("DIR symbol {symbol_id:?} is not visible"))
+    }
+
+    /// Return one visible symbol when present.
+    pub fn get_symbol_maybe(&self, symbol_id: LocalSymbolId) -> Option<&Symbol> {
+        for segment in self.segments.iter().rev() {
+            if let Some(symbol) = segment.get_symbol_maybe(symbol_id) {
+                return Some(symbol);
+            }
+        }
+
+        None
+    }
+
+    /// Return one visible scope.
+    pub fn get_scope_by_id(&self, scope_id: LocalScopeId) -> &Scope {
+        self.get_scope_maybe(scope_id)
+            .unwrap_or_else(|| panic!("DIR scope {scope_id:?} is not visible"))
+    }
+
+    /// Return one visible scope by cursor.
+    pub fn get_scope(&self, scope: LocalScope) -> &Scope {
+        self.get_scope_by_id(scope.id)
+    }
+
+    /// Return the visible scope that owns one symbol.
+    pub fn get_scope_by_symbol(&self, symbol_id: LocalSymbolId) -> &Scope {
+        let symbol = self.get_symbol(symbol_id);
+
+        self.get_scope(symbol.scope)
+    }
+
+    /// Return one visible scope when present.
+    pub fn get_scope_maybe(&self, scope_id: LocalScopeId) -> Option<&Scope> {
+        for segment in self.segments.iter().rev() {
+            if let Some(scope) = segment.get_scope_maybe(scope_id) {
+                return Some(scope);
+            }
+        }
+
+        None
+    }
+
+    /// Find the symbol declared by one node.
+    pub fn symbol_for_declaration(&self, declaration: GlobalNodeIdAny) -> Option<LocalSymbolId> {
+        for segment in self.segments.iter().rev() {
+            if let Some(symbol_id) = segment.symbol_for_declaration(declaration) {
+                return Some(symbol_id);
+            }
+        }
+
+        None
+    }
+
+    /// Iterate symbols keyed by declaration node.
+    pub fn declaration_symbols(
+        &self,
+    ) -> impl Iterator<Item = (GlobalNodeIdAny, LocalSymbolId)> + '_ {
+        self.segments
+            .iter()
+            .flat_map(|segment| segment.declaration_symbols())
+    }
+
+    /// Return the lexical scope attached to one global node.
+    pub fn scope_for_node(&self, node_id: GlobalNodeIdAny) -> Option<LocalScope> {
+        for segment in self.segments.iter().rev() {
+            if let Some(scope) = segment.scope_for_node(node_id) {
+                return Some(scope);
+            }
+        }
+
+        None
+    }
+
+    /// Iterate scopes keyed by owner or member node.
+    pub fn node_scopes(&self) -> impl Iterator<Item = (GlobalNodeIdAny, LocalScope)> + '_ {
+        self.segments
+            .iter()
+            .flat_map(|segment| segment.node_scopes())
+    }
+
+    /// Iterate symbols replaced by later segments.
+    pub fn replaced_symbols(&self) -> impl Iterator<Item = (LocalSymbolId, &Symbol)> + '_ {
+        self.segments
+            .iter()
+            .flat_map(|segment| segment.replaced_symbols())
+    }
+
+    /// Iterate scopes replaced by later segments.
+    pub fn replaced_scopes(&self) -> impl Iterator<Item = (LocalScopeId, &Scope)> + '_ {
+        self.segments
+            .iter()
+            .flat_map(|segment| segment.replaced_scopes())
+    }
+}
+
+/// Lexical scopes and symbols added by one DIR phase.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BindingSegment {
+    /// The module id of the binding segment.
     pub module_id: ModuleId,
     /// The first symbol id owned by this table segment.
     pub(crate) first_symbol_id: u32,
@@ -35,8 +214,8 @@ pub struct BindingTable {
 }
 
 #[allow(clippy::too_many_arguments)]
-impl BindingTable {
-    /// Create a new BindingTable.
+impl BindingSegment {
+    /// Create a new binding segment.
     pub fn new(module_id: ModuleId) -> Self {
         Self {
             module_id,
@@ -51,7 +230,7 @@ impl BindingTable {
         }
     }
 
-    /// Create a new empty segment after an existing binding table segment.
+    /// Create a new empty segment after an existing binding segment.
     pub fn from_base(base: &Self) -> Self {
         Self {
             module_id: base.module_id,
@@ -76,19 +255,6 @@ impl BindingTable {
         self.first_scope_id
     }
 
-    /// Get the symbols.
-    #[inline]
-    pub fn symbols(&self) -> impl Iterator<Item = &Symbol> {
-        self.symbol_ids()
-            .map(|symbol_id| self.get_symbol(symbol_id))
-    }
-
-    /// Get a symbol by its raw id.
-    #[inline]
-    pub fn get_symbol_by_id(&self, symbol_id: u32) -> &Symbol {
-        self.get_symbol(LocalSymbolId::new(symbol_id))
-    }
-
     /// Iterate symbol ids.
     pub fn symbol_ids(&self) -> impl Iterator<Item = LocalSymbolId> + '_ {
         (self.first_symbol_id..self.symbol_count()).map(LocalSymbolId::new)
@@ -98,13 +264,6 @@ impl BindingTable {
     #[inline]
     pub fn symbol_count(&self) -> u32 {
         self.first_symbol_id + self.symbols.len() as u32
-    }
-
-    /// Get the scopes.
-    #[inline]
-    pub fn scopes(&self) -> impl Iterator<Item = &Scope> {
-        self.scope_ids()
-            .map(|scope_id| self.get_scope_by_id(scope_id))
     }
 
     /// Iterate scope ids.
@@ -244,23 +403,10 @@ impl BindingTable {
             .unwrap_or_else(|| panic!("DIR symbol {symbol_id:?} is not mutable in this segment"))
     }
 
-    /// Get the scope view for a scope id.
+    /// Get the scope cursor for a scope id.
     #[inline]
     pub fn get_scope_mark(&self, scope_id: LocalScopeId) -> LocalScopeMark {
         self.get_scope_by_id(scope_id).mark()
-    }
-
-    /// Get the scope for a symbol id.
-    #[inline]
-    pub fn get_scope_by_symbol(&self, symbol_id: LocalSymbolId) -> &Scope {
-        let symbol = self.get_symbol(symbol_id);
-        self.get_scope_by_id(symbol.scope.id)
-    }
-
-    /// Get the scope for a scope cursor.
-    #[inline]
-    pub fn get_scope(&self, scope: LocalScope) -> &Scope {
-        self.get_scope_by_id(scope.id)
     }
 
     /// Get a scope by its id.
@@ -274,6 +420,12 @@ impl BindingTable {
             .unwrap_or_else(|| panic!("DIR scope {scope_id:?} is not allocated in this segment"))
     }
 
+    /// Get a scope by id when this table owns or replaces it.
+    #[inline]
+    pub fn get_scope_maybe(&self, scope_id: LocalScopeId) -> Option<&Scope> {
+        self.get_local_scope(scope_id)
+    }
+
     /// Get the scope mutable by its id.
     #[inline]
     pub fn get_scope_by_id_mut(&mut self, scope_id: LocalScopeId) -> &mut Scope {
@@ -285,70 +437,6 @@ impl BindingTable {
         self.replaced_scope_by_id
             .get_mut(&scope_id)
             .unwrap_or_else(|| panic!("DIR scope {scope_id:?} is not mutable in this segment"))
-    }
-
-    /// Iterate named symbols in a scope.
-    pub fn named_symbols<'a>(
-        &'a self,
-        scope: &'a Scope,
-    ) -> impl Iterator<Item = (StaticKey, LocalSymbolId)> + 'a {
-        scope
-            .bindings
-            .iter()
-            .filter_map(|binding| binding.key.map(|key| (key, binding.symbol)))
-    }
-
-    /// Iterate named symbols in a scope up to a mark.
-    pub fn named_symbols_up_to<'a>(
-        &'a self,
-        scope: &'a Scope,
-        mark: LocalScopeMark,
-    ) -> impl Iterator<Item = (StaticKey, LocalSymbolId)> + 'a {
-        let limit = mark.0 as usize;
-        scope
-            .bindings
-            .iter()
-            .take(limit)
-            .filter_map(|binding| binding.key.map(|key| (key, binding.symbol)))
-    }
-
-    /// Iterate anonymous symbols in a scope.
-    pub fn anonymous_symbols<'a>(
-        &'a self,
-        scope: &'a Scope,
-    ) -> impl Iterator<Item = LocalSymbolId> + 'a {
-        scope
-            .bindings
-            .iter()
-            .filter_map(|binding| binding.key.is_none().then_some(binding.symbol))
-    }
-
-    /// Find a symbol in a scope by key.
-    pub fn find_symbol(&self, scope: &Scope, key: StaticKey) -> Option<LocalSymbolId> {
-        for binding in scope.bindings.iter().rev() {
-            if binding.key != Some(key) {
-                continue;
-            }
-            return Some(binding.symbol);
-        }
-        None
-    }
-
-    /// Find a symbol in a scope by key up to a mark.
-    pub fn find_symbol_up_to(
-        &self,
-        scope: &Scope,
-        key: StaticKey,
-        mark: LocalScopeMark,
-    ) -> Option<LocalSymbolId> {
-        let limit = mark.0 as usize;
-        for binding in scope.bindings.iter().take(limit).rev() {
-            if binding.key != Some(key) {
-                continue;
-            }
-            return Some(binding.symbol);
-        }
-        None
     }
 
     /// Get a symbol owned or replaced by this table segment.
