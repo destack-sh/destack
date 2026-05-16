@@ -1944,54 +1944,10 @@ For genuinely _shared_ process-global state, the binding _itself_ can be declare
 Note that making the binding itself as `shared` also types the value as `shared` (as it is illegal to point from shared storage into local storage anyway, this is convenient).
 There is no `local const` form because ordinary module bindings are already Worker-local.
 
-### Capabilities
-
-Like other similar languages, Destack encodes synchronisation and memory primitives as (newtype) interfaces like `Copy`, `Clone`, `Send`, and `Sync`
-(As said, these are separate from and orthogonal to ownership and placement.)
-
-| Capability | Meaning |
-|------------|---------|
-| `Copy` | Value can be duplicated implicitly without changing ownership responsibilities. |
-| `Clone` | Code can explicitly create another value, possibly by running code or allocating. |
-| `Send` | Value can cross a Worker boundary. |
-| `Sync` | References to shared values can be used concurrently through the type's own API. |
-
-As discussed above, `shared T` means `T` lives in shared space; it does _not_ make `T` automatically `Sync`.
-Userland APIs such as channels, Worker pools, atomics, locks, and actors can require `Send` or `Sync` when they need those stronger guarantees.
-
-### Conversions
-
-The rules for converting references follow from three basic rules:
-- References must always be valid (the referent must never be deallocated while the reference is live),
-- Shared memory must not point into local memory (directly or indirectly).
-- Exclusive references must be truly exclusive (no possibly overlapping loan is live).
-(Raw pointers are your own dirty unchecked business.)
-
-| From | To | Allow | Explanation |
-|------|----|-------|-------------|
-| `T` | `&T` | yes | while the source place stays live |
-| `T` | `&readonly T` | yes | while the source place stays live |
-| local `T` | `&exclusive T` | yes | while no overlapping loan is live and the loan does not cross suspension |
-| shared `T` | `&exclusive T` | no | exclusive access to unsynchronized shared storage |
-| `&T` | `&readonly T` | yes | readonly reborrow |
-| `&exclusive T` | `&T` / `&readonly T` | yes | temporary reborrow that suspends the exclusive loan |
-| `^T` | `&T` / `&readonly T` / `&exclusive T` | yes | while the owned source stays live and the requested loan rules hold |
-| `T` | `^T` | no | managed ownership does not become unique ownership |
-| `&T` | `T` / `^T` | no | borrowed access does not own the value |
-| `*T` | `&T` / `&readonly T` / `&exclusive T` | yes | explicit unsafe reborrow |
-| `T` / `&T` / `^T` | `*T` | yes | explicit raw pointer conversion |
-
-The default type for a borrow is `&T`, and typing it as `*T` produces a raw pointer instead:
-
-```ds
-let user = new User();
-let userBorrow: &User = &user;
-let userPointer: *User = &user;
-```
-
 ### Allocation
 
-The primary typed construction path is `new`, which allocates heap storage, initializes a `T`, and produces the ownership form required by the destination type.
+The primary typed construction path is `new`, which initializes a `T` and produces the ownership form required by the destination type.
+The destination decides whether that is managed storage, owned storage, inline frame storage, shared storage, or some lower-level allocation form.
 
 ```ds
 let a: User = new User();   // managed
@@ -2021,6 +1977,55 @@ function interruptHandler(input: &[Sample]): Frame {
     return buildFrameOnStack(input);
 }
 ```
+
+### Safety
+
+The borrow checker tracks where a borrow came from, because validity depends on the source, not only on the lifetime name.
+`Lifetime` says which external value must outlive a borrow, while the borrow source says whether that value is owned, managed, local, shared, static, or frame storage.
+
+This matters most around suspension: owned and static storage can keep a non-exclusive borrow valid while an async frame or generator frame is suspended.
+Local managed storage cannot: another local task may still reach the same managed object after suspension, so an interior borrow into it is only valid for the current turn.
+Shared managed storage can be borrowed non-exclusively, because that preserves aliasing safety.
+It cannot produce `&exclusive T`, because a shared managed handle cannot prove uniqueness across Workers.
+
+This gives us the useful local ergonomics we want without runtime checks:
+local managed values can satisfy short `&T`, `&readonly T`, and even `&exclusive T` access, but only while the borrow stays within the current non-suspending turn.
+shared managed values can satisfy `&T` and `&readonly T`, but not `&exclusive T`.
+For borrowed parameters, a suspending function records a source obligation: the caller must prove that the lifetime being carried across suspension is rooted in owned or static storage.
+
+### Conversions
+
+The rules for converting references follow from three basic rules:
+- References must always be valid (the referent must never be deallocated while the reference is live),
+- Shared memory must not point into local memory (directly or indirectly).
+- Exclusive references must be truly exclusive (no possibly overlapping loan is live).
+(Raw pointers are your own dirty unchecked business.)
+
+| From | To | Allow | Explanation |
+|------|----|-------|-------------|
+| local managed `T` | `&T` / `&readonly T` | yes | while the source place stays live and the borrow does not cross suspension |
+| local managed `T` | `&exclusive T` | yes | while no overlapping loan is live and the borrow does not cross suspension |
+| shared managed `T` | `&T` / `&readonly T` | yes | shared-safe APIs remain responsible for synchronization and data-race safety |
+| shared managed `T` | `&exclusive T` | no | a shared managed handle cannot prove uniqueness |
+| owned `^T` | `&T` / `&readonly T` / `&exclusive T` | yes | while the owned source stays live and the requested loan rules hold |
+| shared owned `shared ^T` | `shared &T` / `shared &readonly T` / `shared &exclusive T` | yes | owned storage remains unique even when placed in shared space |
+| `&T` | `&readonly T` | yes | readonly reborrow |
+| `&exclusive T` | `&T` / `&readonly T` | yes | temporary reborrow that suspends the exclusive loan |
+| borrowed parameter | borrowed access across suspension | source-checked | the caller must prove the source is owned or static |
+| `T` | `^T` | no | managed ownership does not become unique ownership |
+| `&T` | `T` / `^T` | no | borrowed access does not own the value |
+| `*T` | `&T` / `&readonly T` / `&exclusive T` | yes | explicit unsafe reborrow |
+| `T` / `&T` / `^T` | `*T` | yes | explicit raw pointer conversion |
+
+The default type for a borrow is `&T`, and typing it as `*T` produces a raw pointer instead:
+
+```ds
+let user = new User();
+let userBorrow: &User = &user;
+let userPointer: *User = &user;
+```
+
+As in Rust, just converting a borrow `&T` to a raw pointer `*T` by itself is perfectly safe, it's only dereferncing and manipulating raw pointers that becomes `@unsafe`.
 
 ### Borrowing
 
@@ -2262,7 +2267,7 @@ PlaceIn<shared User, "local"> satisfies "shared";
 PlaceOf<User | local User | shared User> satisfies "ambient" | "local" | "shared";
 SpaceOf<User | local User | shared User> satisfies "local" | "shared";
 PlaceIn<User | local User | shared User, "local"> satisfies "local" | "shared";
-PlaceIn<User | local User | shared User, "shared"> satisfies "shared" | "local";
+PlaceIn<User | local User | shared User, "shared"> satisfies "local" | "shared";
 ```
 
 Predicates with `Is*` are convenience wrappers around those same accessors:
@@ -2308,7 +2313,7 @@ PlaceOf<typeof sharedBuffer> satisfies "shared";
 
 ### Polymorphism
 
-Since ownership, access, lifetime, and placement are all part of `Form`, contracts and implementors get to be polymorphic and (somewhat) conditional over their ownership, space, and access, even on the receiver type.
+Since ownership, access, lifetime, and placement are all reified as `Form` _types_, contracts and implementors get to be polymorphic and (somewhat) conditional over their ownership, space, and access, even on the receiver type.
 That lets types expose one natural operation when only the projected form changes, and separate operations when the semantics actually differ.
 The caller chooses the level of control by writing the expression / providing the type they mean:
 
@@ -2351,6 +2356,21 @@ for (const point of ^points) {
     point satisfies Point;
 }
 ```
+
+### Capabilities
+
+Like other similar languages, Destack encodes synchronisation and memory primitives as (newtype) interfaces like `Copy`, `Clone`, `Send`, and `Sync`
+(As said, these are separate from and orthogonal to ownership and placement.)
+
+| Capability | Meaning |
+|------------|---------|
+| `Copy` | Value can be duplicated implicitly without changing ownership responsibilities. |
+| `Clone` | Code can explicitly create another value, possibly by running code or allocating. |
+| `Send` | Value can cross a Worker boundary. |
+| `Sync` | References to shared values can be used concurrently through the type's own API. |
+
+It should be noted again that `shared T` means `T` lives in shared space; it does _not_ make `T` automatically `Sync` by itself.
+Userland APIs such as channels, Worker pools, atomics, locks, and actors can require `Send` or `Sync` when they need those stronger guarantees, very similar to Rust or even Swift.
 
 ### Synchronisation
 
