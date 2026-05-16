@@ -390,6 +390,7 @@ pub fn walk_type_expression<V: NodeVisitor + ?Sized>(
         TypeExpression::Const => {}
         TypeExpression::This => {}
         TypeExpression::Readonly { target_type }
+        | TypeExpression::Local { target_type }
         | TypeExpression::Shared { target_type }
         | TypeExpression::KeyOf { target_type }
         | TypeExpression::Must { target_type }
