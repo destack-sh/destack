@@ -1,11 +1,11 @@
 import { todo } from "destack:error";
-import { type Send } from "destack:memory";
+import { Send } from "destack:memory";
 import {
-    type AsyncReceiver,
-    type AsyncSender,
-    type ChannelOptions,
-    type Receiver,
-    type Sender,
+    AsyncReceiver,
+    AsyncSender,
+    ChannelOptions,
+    Receiver,
+    Sender,
 } from "./channel.ds";
 
 /// Create a local blocking multi-producer multi-consumer channel.
