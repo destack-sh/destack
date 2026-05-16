@@ -2,24 +2,38 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{DependencyEdge, DependencyRelation, DependencyTarget, GlobalNodeIdAny};
+use crate::{DependencyEdge, DependencyRelation, DependencyTarget, GlobalNodeIdAny, SegmentView};
 
 /// Cumulative module dependency edges for one profile-scoped DIR module.
 #[derive(Debug, Clone, Default)]
-pub struct DependencyTable {
+pub struct DependencyTable<'a> {
     /// The ordered dependency table segments.
-    segments: Vec<Arc<DependencySegment>>,
+    segments: SegmentView<'a, DependencySegment>,
 }
 
-impl DependencyTable {
+impl DependencyTable<'static> {
     /// Create a dependency table from ordered segments.
     pub fn from_segments(segments: Vec<Arc<DependencySegment>>) -> Self {
-        Self { segments }
+        Self {
+            segments: SegmentView::from_segments(segments),
+        }
     }
 
     /// Create a dependency table from one segment.
     pub fn from_segment(segment: Arc<DependencySegment>) -> Self {
         Self::from_segments(vec![segment])
+    }
+}
+
+impl<'a> DependencyTable<'a> {
+    /// Create a dependency table from a segment view.
+    pub fn from_view(segments: SegmentView<'a, DependencySegment>) -> Self {
+        Self { segments }
+    }
+
+    /// Create a dependency table by appending a borrowed tail segment.
+    pub fn with_tail<'b>(&'b self, tail: &'b DependencySegment) -> DependencyTable<'b> {
+        DependencyTable::from_view(self.segments.with_tail(tail))
     }
 
     /// Iterate visible dependency edges.

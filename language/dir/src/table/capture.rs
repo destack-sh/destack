@@ -3,24 +3,38 @@ use std::sync::Arc;
 use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
 
-use crate::{GlobalSymbolId, StringId};
+use crate::{GlobalSymbolId, SegmentView, StringId};
 
 /// Cumulative captures for one DIR module.
 #[derive(Debug, Clone, Default)]
-pub struct CaptureTable {
+pub struct CaptureTable<'a> {
     /// The ordered capture table segments.
-    segments: Vec<Arc<CaptureSegment>>,
+    segments: SegmentView<'a, CaptureSegment>,
 }
 
-impl CaptureTable {
+impl CaptureTable<'static> {
     /// Create a capture table from ordered segments.
     pub fn from_segments(segments: Vec<Arc<CaptureSegment>>) -> Self {
-        Self { segments }
+        Self {
+            segments: SegmentView::from_segments(segments),
+        }
     }
 
     /// Create a capture table from one segment.
     pub fn from_segment(segment: Arc<CaptureSegment>) -> Self {
         Self::from_segments(vec![segment])
+    }
+}
+
+impl<'a> CaptureTable<'a> {
+    /// Create a capture table from a segment view.
+    pub fn from_view(segments: SegmentView<'a, CaptureSegment>) -> Self {
+        Self { segments }
+    }
+
+    /// Create a capture table by appending a borrowed tail segment.
+    pub fn with_tail<'b>(&'b self, tail: &'b CaptureSegment) -> CaptureTable<'b> {
+        CaptureTable::from_view(self.segments.with_tail(tail))
     }
 
     /// Get capture directive for a function symbol.
