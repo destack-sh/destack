@@ -49,7 +49,7 @@ pub fn resolve_script_command(
 ) -> CliResult<Option<ScriptCommand>> {
     let context = workspace_context(program_args, None)?;
     let cwd = program_args.effective_cwd();
-    resolve_script_command_with_resolver(
+    resolve_script_command_for_repository(
         program_args,
         script_name,
         &context.repository,
@@ -183,8 +183,8 @@ fn resolve_destack_config_task(
     Ok(tasks.into_iter().find(|task| task.name == name))
 }
 
-/// Resolve a script command using the provided resolver and cwd.
-pub(crate) fn resolve_script_command_with_resolver(
+/// Resolve a script command from one repository revision.
+pub(crate) fn resolve_script_command_for_repository(
     program_args: &ProgramArgs,
     script_name: &str,
     repository: &destack_workspace::Repository,

@@ -1079,7 +1079,6 @@ dependencies = [
  "destack_lsp",
  "destack_parser",
  "destack_query",
- "destack_resolver",
  "destack_runtime",
  "destack_service",
  "destack_session",
@@ -1246,7 +1245,6 @@ dependencies = [
  "destack_mir",
  "destack_parser",
  "destack_query",
- "destack_resolver",
  "destack_runtime",
  "destack_service",
  "destack_session",
@@ -1420,7 +1418,6 @@ dependencies = [
  "destack_lsp_types",
  "destack_parser",
  "destack_query",
- "destack_resolver",
  "destack_service",
  "destack_session",
  "destack_source",
@@ -1548,31 +1545,11 @@ dependencies = [
  "destack_core",
  "destack_dir",
  "destack_qir",
- "destack_resolver",
  "destack_source",
  "destack_workspace",
  "parking_lot",
  "serde",
  "serde_json",
-]
-
-[[package]]
-name = "destack_resolver"
-version = "0.55.4"
-dependencies = [
- "cfg-if",
- "destack_artifact",
- "destack_dir",
- "destack_parser",
- "destack_source",
- "destack_unicode",
- "destack_workspace",
- "indexmap",
- "papaya",
- "rustc-hash 2.1.2",
- "serde",
- "serde_json",
- "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -1633,7 +1610,6 @@ dependencies = [
  "destack_mir",
  "destack_parser",
  "destack_query",
- "destack_resolver",
  "destack_source",
  "destack_workspace",
  "parking_lot",
@@ -2986,16 +2962,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "papaya"
-version = "0.2.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "997ee03cd38c01469a7046643714f0ad28880bcb9e6679ff0666e24817ca19b7"
-dependencies = [
- "equivalent",
- "seize",
-]
-
-[[package]]
 name = "parcel_selectors"
 version = "0.28.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3726,16 +3692,6 @@ name = "seahash"
 version = "4.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1c107b6f4780854c8b126e228ea8869f4d7b71260f962fefb57b996b8959ba6b"
-
-[[package]]
-name = "seize"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5b55fb86dfd3a2f5f76ea78310a88f96c4ea21a3031f8d212443d56123fd0521"
-dependencies = [
- "libc",
- "windows-sys 0.61.2",
-]
 
 [[package]]
 name = "semver"

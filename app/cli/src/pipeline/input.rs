@@ -54,7 +54,6 @@ pub fn collect_sources_from_destack_config(
     let context = workspace_context(program_args, None)?;
     let config = load_destack_config_for_program(
         program_args,
-        &context.resolver,
         &context.repository,
         context.revision,
         context.repository.workspace_root(),

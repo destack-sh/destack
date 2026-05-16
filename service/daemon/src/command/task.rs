@@ -222,7 +222,6 @@ impl CommandContext<'_> {
         &self,
         options: &CommandTaskOptions,
     ) -> CommandResult<Vec<TaskProject>> {
-        let resolver = self.resolver();
         let revision = self.revision()?;
         let workspace = self
             .daemon
@@ -230,7 +229,7 @@ impl CommandContext<'_> {
             .workspace(revision)
             .map_err(|error| format!("failed to derive workspace: {error}"))?;
         let mut projects = if !options.projects.is_empty() || !options.groups.is_empty() {
-            load_workspace_task_projects(&resolver, self.repository.as_ref(), revision, &workspace)?
+            load_workspace_task_projects(self.repository.as_ref(), revision, &workspace)?
         } else {
             let project_path = resolve_task_project_path(
                 self.repository.as_ref(),
@@ -239,7 +238,8 @@ impl CommandContext<'_> {
                 self.common.config_path.as_deref(),
             )?;
             vec![load_task_project(
-                &resolver,
+                self.repository.as_ref(),
+                revision,
                 &workspace.root,
                 &project_path,
             )?]
@@ -327,29 +327,17 @@ fn load_tasks(
 
 /// Load one task project from one project path.
 fn load_task_project(
-    resolver: &destack_resolver::Resolver,
+    repository: &Repository,
+    revision: Revision,
     workspace_root: &Path,
     project_path: &Path,
 ) -> CommandResult<TaskProject> {
-    let repository = resolver.repository();
-    let reference = destack_workspace::Ref::for_workspace_root(repository.workspace_root());
-    let revision = repository
-        .current(&reference)
-        .map_err(|error| error.to_string())?;
-
     let project = relative_project_path(project_path, workspace_root);
     let destack_config_path = exact_destack_config_path(repository, revision, project_path);
     let declaration = if let Some(destack_config_path) = destack_config_path.as_ref() {
-        let mut context = destack_resolver::ResolverContext::new(revision);
-        Some(
-            resolver
-                .read_destack(
-                    destack_config_path,
-                    &mut context,
-                    destack_resolver::CachePolicy::UseCache,
-                )
-                .map_err(|error| error.to_string())?,
-        )
+        repository
+            .inherited_destack_config_for_path(revision, destack_config_path)
+            .map_err(|error| error.to_string())?
     } else {
         None
     };
@@ -376,7 +364,6 @@ fn load_task_project(
 
 /// Load all task projects from one workspace.
 fn load_workspace_task_projects(
-    resolver: &destack_resolver::Resolver,
     repository: &Repository,
     revision: Revision,
     workspace: &Workspace,
@@ -396,7 +383,12 @@ fn load_workspace_task_projects(
 
     let mut projects = Vec::new();
     for project_path in project_paths {
-        projects.push(load_task_project(resolver, &workspace.root, &project_path)?);
+        projects.push(load_task_project(
+            repository,
+            revision,
+            &workspace.root,
+            &project_path,
+        )?);
     }
 
     Ok(projects)

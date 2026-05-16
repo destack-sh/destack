@@ -14,12 +14,11 @@ The stress tree now has two kinds of inputs.
 stress/
 ├── generate.sh              # generator entry point for large generated corpora
 ├── parser/                  # generated parser throughput fixtures
-├── resolver/                # generated module graph fixtures
 ├── checker/                 # generated checker fixtures
 └── project/                 # checked in shared project recipes for query and lsp
 ```
 
-The generated parser, resolver, and checker corpora are still created on demand.
+The generated parser and checker corpora are still created on demand.
 The query and LSP lanes use checked in recipe files so the shared corpus shape is reviewable and stable.
 
 ## Project Recipes
@@ -56,7 +55,7 @@ The current LSP battery checks:
 Run these from `language/`.
 
 ```bash
-# generate the large parser, resolver, and checker corpora
+# generate the large parser and checker corpora
 just generate-stress
 
 # run every stress lane

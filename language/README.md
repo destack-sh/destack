@@ -17,7 +17,6 @@ The language toolchain is split into several Rust crates, each handling a specif
 | [`lsp`](lsp/README.md) | Alpha | Language Server Protocol service implementation |
 | [`parser`](parser/README.md) | Alpha | Lexer and parser for `.ds`, `.ts`, `.tsx`, `.js`, and `.jsx` |
 | [`query`](query/README.md) | Alpha | Semantic tooling queries and presentation formatting |
-| [`resolver`](resolver/README.md) | Alpha | JS and TS style module and package resolution |
 | [`runtime`](runtime/README.md) | Experimental | Native runtime, platform bindings, and host integration |
 | [`workspace`](workspace/README.md) | Alpha | Stateful multi-program workspaces |
 

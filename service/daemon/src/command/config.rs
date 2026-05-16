@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use destack_source::DiagnosticCollection;
+use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 
 use super::CommandResult;
@@ -51,8 +52,8 @@ impl CommandContext<'_> {
         let config = config;
 
         // parse raw config json
-        let resolver = self.resolver();
-        let config_json = read_config_json(&resolver, &config_path)?;
+        let revision = self.revision()?;
+        let config_json = read_config_json(&self.repository, revision, &config_path)?;
 
         // collect target metadata
         let target_names: Vec<String> = config.targets.keys().cloned().collect();
@@ -74,14 +75,10 @@ impl CommandContext<'_> {
 
 /// Read and parse a destack.json file into JSON.
 fn read_config_json(
-    resolver: &destack_resolver::Resolver,
+    repository: &Repository,
+    revision: Revision,
     path: &Path,
 ) -> CommandResult<serde_json::Value> {
-    let repository = resolver.repository();
-    let reference = destack_workspace::Ref::for_workspace_root(repository.workspace_root());
-    let revision = repository
-        .current(&reference)
-        .map_err(|error| error.to_string())?;
     let file_id = repository.file_id(path);
     let file = repository
         .file(revision, file_id)

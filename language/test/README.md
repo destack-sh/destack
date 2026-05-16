@@ -24,7 +24,6 @@ The language suite taxonomy is:
 | **Conformance** | Conformance | Mixed | `fixtures/conformance/` | External parser and formatter corpora used as regression inputs, not product compatibility targets |
 | **Query** | Correctness | Quick | `fixtures/query/` | Query-layer IDE behavior |
 | **LSP** | Correctness | Quick | `fixtures/lsp/` | Applied editor scenarios over the real in-process LSP server |
-| **Resolver** | Correctness | Quick | crate local tests | Module path resolution |
 | **Formatter** | Correctness | Quick | `fixtures/formatter/` | Formatting behavior on first-party fixtures |
 | **Stress** | Correctness | Full | `fixtures/stress/` | Shared hostile corpora and invariant-based consumers for parser, checker, query, and LSP |
 
@@ -88,7 +87,6 @@ just test-emit
 just test-specification
 just test-query
 just test-lsp
-just test-resolver
 just test-formatter
 just test-grammar
 

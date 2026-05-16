@@ -6,7 +6,6 @@ use std::sync::Arc;
 use destack_compiler::Compiler;
 use destack_linter::Linter;
 use destack_query::Query;
-use destack_resolver::{CachePolicy, Resolver, ResolverContext, ResolverOptions};
 use destack_session::{FileChange, Session};
 use destack_source::{FileType, ModuleId, ProfileId, TargetId, glob};
 use destack_workspace::{
@@ -449,30 +448,33 @@ impl<'a> CommandContext<'a> {
         !matches!(target.optimize_level, OptimizeLevel::O0)
     }
 
-    /// Build a resolver for the current repository.
-    pub(super) fn resolver(&self) -> Resolver {
-        Resolver::from_repository(
-            self.repository.clone(),
-            ResolverOptions::workspace_defaults(self.root.clone()),
-        )
-    }
-
     /// Resolve a destack.json path for the current repository.
     pub(super) fn resolve_destack_config_path(
         &self,
         override_path: Option<&Path>,
     ) -> CommandResult<PathBuf> {
-        resolve_destack_config_path(&self.resolver(), self.root.as_path(), override_path)
+        let revision = self.revision()?;
+
+        resolve_destack_config_path(
+            &self.repository,
+            revision,
+            self.root.as_path(),
+            override_path,
+        )
     }
 
     /// Load one `destack.json` config for a path.
     pub(super) fn load_destack_config(&self, path: &Path) -> CommandResult<DestackConfig> {
-        load_destack_config(&self.resolver(), path)
+        let revision = self.revision()?;
+
+        load_destack_config(&self.repository, revision, path)
     }
 
     /// Find destack.json for a directory.
     pub(super) fn find_destack_config(&self, cwd: &Path) -> Option<PathBuf> {
-        find_destack_config(&self.resolver(), cwd)
+        let revision = self.revision().ok()?;
+
+        find_destack_config(&self.repository, revision, cwd)
     }
 
     /// Load all visible workspace `destack.json` configs.
@@ -480,7 +482,7 @@ impl<'a> CommandContext<'a> {
         &self,
         revision: Revision,
     ) -> CommandResult<Vec<DestackConfig>> {
-        load_workspace_configs(&self.resolver(), &self.repository, revision)
+        load_workspace_configs(&self.repository, revision)
     }
 }
 
@@ -512,13 +514,11 @@ fn sanitize_command_input_name(name: &str) -> String {
 }
 
 fn resolve_destack_config_path(
-    resolver: &Resolver,
+    repository: &Repository,
+    revision: Revision,
     cwd: &Path,
     override_path: Option<&Path>,
 ) -> CommandResult<PathBuf> {
-    let revision = resolver_revision(resolver)?;
-    let repository = resolver.repository();
-
     let destack_config_path = if let Some(config_path) = override_path {
         let resolved = if config_path.is_absolute() {
             config_path.to_path_buf()
@@ -531,31 +531,31 @@ fn resolve_destack_config_path(
             .ok_or_else(|| "destack.json not found".to_string())?;
 
         if metadata.is_directory {
-            find_destack_config(resolver, &resolved)
+            find_destack_config(repository, revision, &resolved)
                 .ok_or_else(|| "destack.json not found".to_string())?
         } else {
             resolved
         }
     } else {
-        find_destack_config(resolver, cwd).ok_or_else(|| "destack.json not found".to_string())?
+        find_destack_config(repository, revision, cwd)
+            .ok_or_else(|| "destack.json not found".to_string())?
     };
 
     Ok(destack_config_path)
 }
 
-fn load_destack_config(resolver: &Resolver, path: &Path) -> CommandResult<DestackConfig> {
-    let revision = resolver_revision(resolver)?;
-    let mut context = ResolverContext::new(revision);
-
-    Ok(resolver
-        .read_destack(path, &mut context, CachePolicy::UseCache)
-        .map_err(|error| error.to_string())?)
+fn load_destack_config(
+    repository: &Repository,
+    revision: Revision,
+    path: &Path,
+) -> CommandResult<DestackConfig> {
+    repository
+        .inherited_destack_config_for_path(revision, path)
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| format!("destack.json not found: {}", path.display()).into())
 }
 
-fn find_destack_config(resolver: &Resolver, cwd: &Path) -> Option<PathBuf> {
-    let revision = resolver_revision(resolver).ok()?;
-    let repository = resolver.repository();
-
+fn find_destack_config(repository: &Repository, revision: Revision, cwd: &Path) -> Option<PathBuf> {
     let mut directory = if repository
         .file_metadata(revision, cwd)
         .ok()
@@ -581,17 +581,7 @@ fn find_destack_config(resolver: &Resolver, cwd: &Path) -> Option<PathBuf> {
     }
 }
 
-fn resolver_revision(resolver: &Resolver) -> CommandResult<Revision> {
-    let repository = resolver.repository();
-    let reference = Ref::for_workspace_root(repository.workspace_root());
-
-    repository
-        .current(&reference)
-        .map_err(|error| error.to_string().into())
-}
-
 fn load_workspace_configs(
-    resolver: &Resolver,
     repository: &Repository,
     revision: Revision,
 ) -> CommandResult<Vec<DestackConfig>> {
@@ -600,18 +590,19 @@ fn load_workspace_configs(
         .package_roots(revision)
         .map_err(|error| error.to_string())?
     {
-        if let Some(path) = find_destack_config(resolver, package_path.as_path()) {
+        if let Some(path) = find_destack_config(repository, revision, package_path.as_path()) {
             configs.entry(path).or_insert_with(|| package_path.clone());
         }
     }
 
     let mut resolved = Vec::new();
     for (path, _) in configs {
-        resolved.push(load_destack_config(resolver, &path)?);
+        resolved.push(load_destack_config(repository, revision, &path)?);
     }
 
     Ok(resolved)
 }
+
 fn collect_sources_from_destack_config(
     config: &DestackConfig,
     target_name: Option<&str>,
