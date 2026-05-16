@@ -26,7 +26,7 @@ pub(crate) struct VisibleSymbol<'a> {
 /// * `mark` - Scope mark (position within the scope)
 /// * `space_filter` - Optional filter for symbol space.
 pub(crate) fn visible_symbols<'a>(
-    symbols: &'a BindingTable,
+    symbols: &'a BindingTable<'a>,
     scope_id: LocalScopeId,
     mark: LocalScopeMark,
     space_filter: Option<SymbolSpace>,
@@ -42,7 +42,7 @@ pub(crate) fn visible_symbols<'a>(
 
 /// Iterator for walking visible symbols up the scope chain.
 struct VisibleSymbolIterator<'a> {
-    symbols: &'a BindingTable,
+    symbols: &'a BindingTable<'a>,
     current_scope_id: Option<LocalScopeId>,
     current_mark: LocalScopeMark,
     space_filter: Option<SymbolSpace>,

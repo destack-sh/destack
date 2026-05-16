@@ -224,7 +224,7 @@ pub(crate) fn expected_parameter_hint_for_symbol(
 fn collect_expected_type_symbols(
     repository: &Repository,
     revision: Revision,
-    types: &destack_dir::TypeTable,
+    types: &destack_dir::TypeTable<'_>,
     type_id: LocalTypeId,
 ) -> Vec<GlobalSymbolId> {
     let mut symbols = Vec::new();
@@ -248,7 +248,7 @@ fn collect_expected_type_symbols(
 fn collect_expected_type_symbols_inner(
     repository: &Repository,
     revision: Revision,
-    types: &destack_dir::TypeTable,
+    types: &destack_dir::TypeTable<'_>,
     type_id: LocalTypeId,
     seen_types: &mut HashSet<LocalTypeId>,
     seen_symbols: &mut HashSet<GlobalSymbolId>,
@@ -348,7 +348,7 @@ fn resolve_expected_parameter_id(
 }
 
 /// Classify the expected value shape for one parameter type.
-fn expected_value_shape(types: &destack_dir::TypeTable, type_id: LocalTypeId) -> (bool, bool) {
+fn expected_value_shape(types: &destack_dir::TypeTable<'_>, type_id: LocalTypeId) -> (bool, bool) {
     let ty = types.get_type(type_id);
 
     match ty {

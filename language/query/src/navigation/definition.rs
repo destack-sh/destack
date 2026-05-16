@@ -244,7 +244,7 @@ pub fn goto_type_definition(
 
 /// Resolve the nominal symbol for a possibly wrapped type.
 fn resolve_nominal_type_symbol(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     type_id: dir::LocalTypeId,
 ) -> Option<dir::GlobalSymbolId> {
     match types.get_type(type_id) {

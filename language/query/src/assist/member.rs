@@ -106,7 +106,7 @@ fn get_expression_symbol(
 
 /// Keep one concrete type id and skip unevaluated placeholders.
 fn concrete_type_id(
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     type_id: Option<dir::LocalTypeId>,
 ) -> Option<dir::LocalTypeId> {
     let type_id = type_id?;

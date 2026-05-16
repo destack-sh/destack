@@ -393,7 +393,7 @@ fn scope_mark_at_offset(
     scope_id: dir::LocalScopeId,
     offset: u32,
     dir_tree: dir::View<'_>,
-    symbols: &dir::BindingTable,
+    symbols: &dir::BindingTable<'_>,
 ) -> dir::LocalScopeMark {
     let scope = symbols.get_scope_by_id(scope_id);
     if scope.bindings.is_empty() {
@@ -426,7 +426,7 @@ fn scope_mark_at_offset(
 
 /// Resolve the owned scope for one declaration id.
 fn owned_scope_for_declaration_id(
-    symbols: &dir::BindingTable,
+    symbols: &dir::BindingTable<'_>,
     declaration_id: u32,
 ) -> Option<dir::LocalScopeId> {
     for (index, scope) in symbols.scopes().enumerate() {
@@ -449,7 +449,7 @@ fn owned_scope_for_declaration_id(
 
 /// Resolve the owned scope for one parsed declaration id.
 fn owned_scope_for_source_declaration_id(
-    symbols: &dir::BindingTable,
+    symbols: &dir::BindingTable<'_>,
     dir_tree: dir::View<'_>,
     source_id: u32,
 ) -> Option<dir::LocalScopeId> {

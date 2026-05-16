@@ -164,7 +164,7 @@ pub(crate) fn is_object_literal_key_position(
 /// Resolve one recorded contextual object type.
 fn contextual_object_type(
     dir: DirQueryContext<'_>,
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     node_id: dir::LocalNodeIdAny,
 ) -> Option<dir::LocalTypeId> {
     let global_node_id = node_id.into_global(dir.module_id());

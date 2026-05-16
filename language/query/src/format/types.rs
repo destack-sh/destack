@@ -37,7 +37,7 @@ pub fn format_global_type(
 /// Format a type by its id.
 pub fn format_local_type(
     ty_id: dir::LocalTypeId,
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     repository: &Repository,
     revision: Revision,
     strings: &StringPool,
@@ -49,7 +49,7 @@ pub fn format_local_type(
 /// Format a type as a human-readable string.
 pub fn format_type(
     ty: &dir::Type,
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     repository: &Repository,
     revision: Revision,
     strings: &StringPool,
@@ -413,7 +413,7 @@ pub fn format_scalar_literal(scalar: &dir::ScalarLiteral, strings: &StringPool) 
 /// Format a type for inlay hints.
 pub fn format_type_for_inlay_hint(
     ty: &dir::Type,
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     repository: &Repository,
     revision: Revision,
     strings: &StringPool,
@@ -447,7 +447,7 @@ pub fn widened_scalar_literal_name(value: &dir::ScalarLiteral) -> &'static str {
 pub fn format_type_reference(
     symbol: dir::GlobalSymbolId,
     generic_arguments: Option<&[dir::StaticArgument]>,
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     repository: &Repository,
     revision: Revision,
     strings: &StringPool,
@@ -650,7 +650,7 @@ pub fn format_symbol_key(key: &dir::SymbolKey, strings: &StringPool) -> String {
 /// Format a StaticArgument.
 pub fn format_static_argument(
     argument: &dir::StaticArgument,
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     repository: &Repository,
     revision: Revision,
     strings: &StringPool,
@@ -675,7 +675,7 @@ pub fn format_static_argument(
 /// Format a StaticExpression.
 pub fn format_static_expression(
     expression: &dir::StaticExpression,
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     repository: &Repository,
     revision: Revision,
     strings: &StringPool,
@@ -773,7 +773,7 @@ fn format_source_type_intrinsic(intrinsic: &dir::IntrinsicType) -> String {
 
 fn format_type_tuple_element(
     element: &dir::TypeElement,
-    types: &dir::TypeTable,
+    types: &dir::TypeTable<'_>,
     repository: &Repository,
     revision: Revision,
     strings: &StringPool,
