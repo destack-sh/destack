@@ -60,11 +60,7 @@ impl<'a> BinaryLinker<'a> {
                 .ok_or_else(|| LinkError::Internal {
                     anchor: (self.package_id).into(),
                     package: self.package_id,
-                    message: format!(
-                        "profile not found for target '{}'",
-                        self.compiler
-                            .target_name(self.context.revision(), self.target_id)
-                    ),
+                    message: format!("profile not found for target '{}'", self.target.name),
                 })?;
             let _ = profile_id;
             match self
@@ -103,9 +99,7 @@ impl<'a> BinaryLinker<'a> {
                     package: self.package_id,
                     message: format!(
                         "missing module output for module {:?} target '{}': {error:?}",
-                        module_id,
-                        self.compiler
-                            .target_name(self.context.revision(), self.target_id)
+                        module_id, self.target.name
                     ),
                 })?;
 
@@ -115,9 +109,7 @@ impl<'a> BinaryLinker<'a> {
                     package: self.package_id,
                     message: format!(
                         "expected binary output for module {:?} target '{}'",
-                        module_id,
-                        self.compiler
-                            .target_name(self.context.revision(), self.target_id)
+                        module_id, self.target.name
                     ),
                 }
                 .into());

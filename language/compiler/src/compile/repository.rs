@@ -1,14 +1,26 @@
+use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 
 use destack_artifact::ArtifactDependency;
 use destack_source::{File, FileId, ModuleId, PackageId, ProfileId, TargetId};
 use destack_workspace::{
-    DestackDeclaration, Module, Package, ProviderContext, Revision, Target, TargetDiscoveryError,
+    DestackDeclaration, Module, Package, Profile, ProviderContext, Revision, Target,
+    TargetDiscoveryError,
 };
 
-use crate::Compiler;
+use crate::{Compiler, CompilerError, CompilerResult};
 
 impl Compiler {
+    /// Return one derived semantic profile by id for one explicit revision.
+    pub(crate) fn profile(&self, revision: Revision, profile_id: ProfileId) -> Profile {
+        self.repository
+            .profile(revision, profile_id)
+            .unwrap_or_else(|error| panic!("failed to load profile {profile_id:?}: {error}"))
+            .unwrap_or_else(|| panic!("missing compiler profile for {profile_id:?}"))
+            .as_ref()
+            .clone()
+    }
+
     /// Return one module from one repository revision.
     pub(crate) fn module(&self, revision: Revision, module_id: ModuleId) -> Arc<Module> {
         self.repository
@@ -147,5 +159,42 @@ impl Compiler {
     ) -> ProfileId {
         self.target_profile_id(revision, module_id, target_id)
             .unwrap_or_else(|| self.default_profile_id(revision, module_id))
+    }
+
+    /// Return the module id for one path in a sealed revision.
+    pub(crate) fn module_id_for_path(
+        &self,
+        revision: Revision,
+        path: &Path,
+    ) -> CompilerResult<Option<ModuleId>> {
+        self.repository
+            .module_id_for_path(revision, path)
+            .map_err(|error| CompilerError::Internal {
+                message: format!(
+                    "failed to resolve module path '{}': {error}",
+                    path.display()
+                ),
+            })
+    }
+
+    /// Normalize one workspace logical path.
+    pub(crate) fn normalize_workspace_path(&self, path: PathBuf) -> Option<PathBuf> {
+        let mut normalized = PathBuf::new();
+
+        // fold lexical path components
+        for component in path.components() {
+            match component {
+                Component::CurDir => {}
+                Component::ParentDir => {
+                    if !normalized.pop() {
+                        return None;
+                    }
+                }
+                Component::Normal(component) => normalized.push(component),
+                Component::RootDir | Component::Prefix(_) => {}
+            }
+        }
+
+        Some(normalized)
     }
 }

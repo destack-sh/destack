@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use destack_artifact::{ArtifactStore, DiagnosticBuilder, DiagnosticLike};
-use destack_source::{ProfileId, TargetId};
-use destack_workspace::{Profile, ProviderContext, Repository, Revision, Target};
+use destack_core::StringPool;
+use destack_workspace::{ProviderContext, Repository, Target};
 
 use crate::CompilerResult;
 
@@ -41,47 +41,22 @@ impl Compiler {
         }
     }
 
-    /// Return one derived semantic profile by id for one explicit revision.
-    pub(crate) fn profile(&self, revision: Revision, profile_id: ProfileId) -> Profile {
-        self.repository
-            .profile(revision, profile_id)
-            .unwrap_or_else(|error| panic!("failed to load profile {profile_id:?}: {error}"))
-            .unwrap_or_else(|| panic!("missing compiler profile for {profile_id:?}"))
-            .as_ref()
-            .clone()
-    }
-
-    /// Return the display name for one target id at one pinned revision.
-    pub(crate) fn target_name(&self, revision: Revision, target_id: &TargetId) -> String {
-        self.repository
-            .target_or_builtin(revision, *target_id)
-            .ok()
-            .flatten()
-            .map(|target| target.name)
-            .unwrap_or_else(|| target_id.to_string())
+    /// Return the shared string pool.
+    pub(crate) fn strings(&self) -> &StringPool {
+        self.repository.string_pool().as_ref()
     }
 
     /// Add one diagnostic produced during a provider attempt.
     pub(crate) fn emit_diagnostic<T>(
         &self,
         context: &dyn ProviderContext,
-        diagnostic: T,
+        diagnostic: impl Into<DiagnosticBuilder<T>>,
     ) -> CompilerResult<()>
     where
         T: DiagnosticLike,
     {
-        self.emit_built_diagnostic(context, DiagnosticBuilder::new(diagnostic))
-    }
+        let diagnostic = diagnostic.into();
 
-    /// Add one decorated diagnostic produced during a provider attempt.
-    pub(crate) fn emit_built_diagnostic<T>(
-        &self,
-        context: &dyn ProviderContext,
-        diagnostic: DiagnosticBuilder<T>,
-    ) -> CompilerResult<()>
-    where
-        T: DiagnosticLike,
-    {
         context.emit(&diagnostic)?;
 
         Ok(())

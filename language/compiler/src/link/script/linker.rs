@@ -52,10 +52,9 @@ impl<'a> ScriptLinker<'a> {
         }
     }
 
-    /// Return the display name for the active target.
-    pub(crate) fn target_name(&self) -> String {
-        self.compiler
-            .target_name(self.context.revision(), self.target_id)
+    /// Return the active target name.
+    pub(crate) fn target_name(&self) -> &str {
+        &self.target.name
     }
 
     /// Return the pinned revision for this link.

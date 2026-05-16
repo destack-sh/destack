@@ -629,7 +629,6 @@ impl Compiler {
                 static_key,
                 target_id,
                 package_id,
-                context,
             )?;
             let value = self.insert_same_output_symbol_path(
                 module,
@@ -684,7 +683,6 @@ impl Compiler {
         key: dir::StaticKey,
         target_id: &TargetId,
         package_id: PackageId,
-        context: &dyn ProviderContext,
     ) -> LinkResult<js::Key> {
         let name = match key {
             dir::StaticKey::Name(name) => {
@@ -709,7 +707,7 @@ impl Compiler {
                     target: target_id.clone(),
                     message: format!(
                         "bundled same-output namespace imports do not support symbol-keyed exports in '{}'",
-                        self.target_name(context.revision(), target_id)
+                        target_id
                     ),
                 });
             }

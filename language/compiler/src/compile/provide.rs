@@ -1,4 +1,4 @@
-use destack_artifact::{ArtifactFailure, ArtifactKey, ArtifactPayload, DiagnosticBuilder};
+use destack_artifact::{ArtifactFailure, ArtifactKey, ArtifactPayload};
 use destack_workspace::{ProviderContext, ProviderError, ProviderResult};
 
 use crate::{Compiler, CompilerError, CompilerResult};
@@ -99,7 +99,7 @@ impl Compiler {
         match result {
             Ok(payload) => Ok(payload),
             Err(CompilerError::Diagnostic(diagnostic)) => {
-                self.emit_built_diagnostic(context, DiagnosticBuilder::new(diagnostic))
+                self.emit_diagnostic(context, diagnostic)
                     .map_err(|error| Box::new(error.into_provider_error()))?;
 
                 Err(ProviderError::failed(ArtifactFailure::diagnostics()).into())
