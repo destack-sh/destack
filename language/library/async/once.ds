@@ -1,7 +1,6 @@
-import { todo } from "destack:error";
-import { type Result } from "destack:error";
-import { type MaybeUninit } from "destack:memory";
-import { type Promise } from "./promise.ds";
+import { Result, todo } from "destack:error";
+import { MaybeUninit } from "destack:memory";
+import { Promise } from "./promise.ds";
 
 /// One-time async execution state.
 export class AsyncOnce {

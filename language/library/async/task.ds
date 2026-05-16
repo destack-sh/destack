@@ -1,6 +1,5 @@
-import { todo } from "destack:error";
-import { type AsyncResult } from "destack:error";
-import { type Promise } from "./promise.ds";
+import { AsyncResult, todo } from "destack:error";
+import { Promise } from "./promise.ds";
 
 /// Worker-local asynchronous task.
 export class Task<T> {

@@ -1,7 +1,7 @@
 import { todo } from "destack:error";
-import { type Dispose } from "destack:memory";
-import { type Dereference } from "destack:ops";
-import { type Promise } from "./promise.ds";
+import { Default, Dispose } from "destack:memory";
+import { Dereference } from "destack:ops";
+import { Promise } from "./promise.ds";
 
 /// Asynchronous reader-writer lock.
 export class AsyncRwLock<T> {
@@ -31,6 +31,23 @@ export class AsyncRwLock<T> {
     /// Try to lock this value for exclusive writing.
     tryWrite(): AsyncRwLockWriteGuard<T> | undefined {
         todo("AsyncRwLock.tryWrite")
+    }
+
+    /// Borrow the protected value without locking.
+    getExclusive(this: &exclusive AsyncRwLock<T>): &exclusive T {
+        todo("AsyncRwLock.getExclusive")
+    }
+
+    /// Consume this lock and return the protected value.
+    intoInner(this: ^AsyncRwLock<T>): T {
+        todo("AsyncRwLock.intoInner")
+    }
+}
+
+extension<T: Default> of AsyncRwLock<T> implements Default {
+    /// Create the default async reader-writer lock.
+    static default(): AsyncRwLock<T> {
+        new AsyncRwLock(T.default())
     }
 }
 
@@ -73,5 +90,10 @@ extension<T> of AsyncRwLockWriteGuard<T> implements Dispose, Dereference<"exclus
     /// Borrow the protected value.
     dereference(): this.Output {
         todo("AsyncRwLockWriteGuard.dereference")
+    }
+
+    /// Downgrade this write guard to a read guard.
+    downgrade(this: ^AsyncRwLockWriteGuard<T>): AsyncRwLockReadGuard<T> {
+        todo("AsyncRwLockWriteGuard.downgrade")
     }
 }

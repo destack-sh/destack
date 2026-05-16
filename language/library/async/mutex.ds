@@ -1,7 +1,7 @@
 import { todo } from "destack:error";
-import { type Dispose } from "destack:memory";
-import { type Dereference } from "destack:ops";
-import { type Promise } from "./promise.ds";
+import { Default, Dispose } from "destack:memory";
+import { Dereference } from "destack:ops";
+import { Promise } from "./promise.ds";
 
 /// Asynchronous mutual exclusion lock.
 export class AsyncMutex<T> {
@@ -21,6 +21,23 @@ export class AsyncMutex<T> {
     /// Try to lock this mutex without suspending.
     tryLock(): AsyncMutexGuard<T> | undefined {
         todo("AsyncMutex.tryLock")
+    }
+
+    /// Borrow the protected value without locking.
+    getExclusive(this: &exclusive AsyncMutex<T>): &exclusive T {
+        todo("AsyncMutex.getExclusive")
+    }
+
+    /// Consume this mutex and return the protected value.
+    intoInner(this: ^AsyncMutex<T>): T {
+        todo("AsyncMutex.intoInner")
+    }
+}
+
+extension<T: Default> of AsyncMutex<T> implements Default {
+    /// Create the default async mutex.
+    static default(): AsyncMutex<T> {
+        new AsyncMutex(T.default())
     }
 }
 

@@ -1,0 +1,66 @@
+import { todo } from "destack:error";
+import { Dispose } from "destack:memory";
+import { Atomic } from "destack:sync";
+import { Promise } from "./promise.ds";
+
+/// Asynchronous counting semaphore.
+export class AsyncSemaphore {
+    /// The available permit count.
+    state: Atomic<isize>;
+
+    /// Create an async semaphore with `permits` available permits.
+    constructor(permits: usize) {
+        this.state = Atomic.new(permits as isize)
+    }
+
+    /// Return the number of immediately available permits.
+    get availablePermits(): usize {
+        todo("AsyncSemaphore.availablePermits")
+    }
+
+    /// Acquire one permit by suspending the current task if needed.
+    acquire(): Promise<AsyncSemaphorePermit> {
+        todo("AsyncSemaphore.acquire")
+    }
+
+    /// Try to acquire one permit without suspending.
+    tryAcquire(): AsyncSemaphorePermit | undefined {
+        todo("AsyncSemaphore.tryAcquire")
+    }
+
+    /// Acquire `count` permits by suspending the current task if needed.
+    acquireMany(count: usize): Promise<AsyncSemaphorePermit> {
+        todo("AsyncSemaphore.acquireMany")
+    }
+
+    /// Try to acquire `count` permits without suspending.
+    tryAcquireMany(count: usize): AsyncSemaphorePermit | undefined {
+        todo("AsyncSemaphore.tryAcquireMany")
+    }
+
+    /// Release `count` permits.
+    release(count: usize = 1): void {
+        todo("AsyncSemaphore.release")
+    }
+}
+
+/// Active async semaphore permit.
+export struct AsyncSemaphorePermit {
+    /// The semaphore that issued this permit.
+    semaphore: *AsyncSemaphore;
+
+    /// The number of acquired permits.
+    count: usize;
+}
+
+extension of AsyncSemaphorePermit implements Dispose {
+    /// Release this permit.
+    dispose(): void {
+        todo("AsyncSemaphorePermit.dispose")
+    }
+
+    /// Consume this permit without releasing it.
+    forget(this: ^AsyncSemaphorePermit): void {
+        todo("AsyncSemaphorePermit.forget")
+    }
+}

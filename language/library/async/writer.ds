@@ -1,5 +1,4 @@
-import { type AsyncResult } from "destack:error";
-import { type IoError } from "destack:error";
+import { AsyncResult, IoError } from "destack:error";
 
 /// Asynchronous byte writer.
 export interface AsyncWriter {

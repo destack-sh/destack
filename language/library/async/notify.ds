@@ -1,0 +1,29 @@
+import { todo } from "destack:error";
+import { Atomic } from "destack:sync";
+import { Promise } from "./promise.ds";
+
+/// Asynchronous notification primitive.
+export class Notify {
+    /// The notification generation.
+    state: Atomic<uint64>;
+
+    /// Create a notification primitive.
+    constructor() {
+        this.state = Atomic.new(0)
+    }
+
+    /// Wait for the next notification.
+    notified(): Promise<void> {
+        todo("Notify.notified")
+    }
+
+    /// Wake one waiting task.
+    notifyOne(): void {
+        todo("Notify.notifyOne")
+    }
+
+    /// Wake all waiting tasks.
+    notifyAll(): void {
+        todo("Notify.notifyAll")
+    }
+}
