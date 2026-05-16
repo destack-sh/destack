@@ -5,7 +5,7 @@ export type StaticLifetime = "static";
 export type Lifetime = StaticLifetime | intrinsic;
 
 /// Concrete memory space tag kind.
-export type Space = intrinsic;
+export type Space = "local" | "shared" | "static" | "frame";
 
 /// Placement tag kind for qualified storage.
 export type Place = "ambient" | Space;
