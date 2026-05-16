@@ -1622,6 +1622,22 @@ pub fn type_expression_is_equal(
             },
         )
         | (
+            dir::TypeExpression::Local {
+                target_type: left_target,
+            },
+            dir::TypeExpression::Local {
+                target_type: right_target,
+            },
+        )
+        | (
+            dir::TypeExpression::Shared {
+                target_type: left_target,
+            },
+            dir::TypeExpression::Shared {
+                target_type: right_target,
+            },
+        )
+        | (
             dir::TypeExpression::KeyOf {
                 target_type: left_target,
             },
@@ -2110,6 +2126,9 @@ pub fn type_expression_has_side_effects(
         // wrapped type expressions
         dir::TypeExpression::Parenthesized { expression }
         | dir::TypeExpression::Readonly {
+            target_type: expression,
+        }
+        | dir::TypeExpression::Local {
             target_type: expression,
         }
         | dir::TypeExpression::Shared {

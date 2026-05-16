@@ -234,6 +234,7 @@ pub fn type_expression_contains_reference_segment(
         }
 
         dir::TypeExpression::Readonly { target_type }
+        | dir::TypeExpression::Local { target_type }
         | dir::TypeExpression::Shared { target_type }
         | dir::TypeExpression::KeyOf { target_type }
         | dir::TypeExpression::Must { target_type }
