@@ -159,7 +159,10 @@ fn function_signature_matches(
     function_id: mir::LocalNodeId<mir::Function>,
     signature: mir::LocalNodeId<mir::Type>,
 ) -> Result<bool, Error> {
-    let mir::Type::FunctionSignature { parameters, result } = tree.get(signature) else {
+    let mir::Type::FunctionSignature {
+        parameters, result, ..
+    } = tree.get(signature)
+    else {
         return Err(Error::InvalidInstruction);
     };
     let function = tree.get(function_id);

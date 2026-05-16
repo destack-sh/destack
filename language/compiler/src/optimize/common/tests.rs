@@ -481,6 +481,7 @@ impl TestProgram {
         self.tree.insert_type(mir::Type::FunctionSignature {
             parameters: param_tys,
             result: return_ty,
+            borrow_obligations: Vec::new(),
         })
     }
 

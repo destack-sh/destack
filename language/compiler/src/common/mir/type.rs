@@ -112,6 +112,7 @@ pub enum TypeKey {
     FunctionSignature {
         parameters: Vec<TypeKey>,
         result: Box<TypeKey>,
+        borrow_obligations: Vec<mir::BorrowObligation>,
     },
     /// Function pointer type.
     FunctionPointer { signature: Box<TypeKey> },
@@ -307,7 +308,11 @@ impl TypeKey {
                 nullability: *nullability,
             },
 
-            mir::Type::FunctionSignature { parameters, result } => {
+            mir::Type::FunctionSignature {
+                parameters,
+                result,
+                borrow_obligations,
+            } => {
                 let parameters = parameters
                     .iter()
                     .map(|param| Self::from_type_reference(*param, tree))
@@ -315,6 +320,7 @@ impl TypeKey {
                 TypeKey::FunctionSignature {
                     parameters,
                     result: Box::new(Self::from_type_reference(*result, tree)),
+                    borrow_obligations: borrow_obligations.clone(),
                 }
             }
             mir::Type::FunctionPointer { signature } => TypeKey::FunctionPointer {
@@ -587,13 +593,16 @@ fn types_are_equal_inner(
             mir::Type::FunctionSignature {
                 parameters: p1,
                 result: r1,
+                borrow_obligations: o1,
             },
             mir::Type::FunctionSignature {
                 parameters: p2,
                 result: r2,
+                borrow_obligations: o2,
             },
         ) => {
-            p1.len() == p2.len()
+            o1 == o2
+                && p1.len() == p2.len()
                 && p1
                     .iter()
                     .zip(p2.iter())

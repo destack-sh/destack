@@ -200,10 +200,20 @@ impl<'a> MirFormatContext<'a> {
     /// Get the display name of a block in the current function.
     pub fn block_name(&self, id: LocalNodeId<Block>) -> String {
         let block = self.tree.get(id);
-        let name = block
-            .name
-            .unwrap_or_else(|| panic!("missing MIR block name for {id:?}"));
-        self.strings.get(name).to_string()
+        if let Some(name) = block.name {
+            self.strings.get(name).to_string()
+        } else if let Some(function_id) = self.current_function {
+            let function = self.tree.get(function_id);
+            let index = function
+                .blocks
+                .iter()
+                .position(|block_id| *block_id == id)
+                .unwrap_or(id.id as usize);
+            let prefix = if index == 0 { "entry" } else { "block" };
+            format!("{prefix}{index}")
+        } else {
+            format!("block{}", id.id)
+        }
     }
 
     /// Get the index of a local in the current function.
@@ -223,11 +233,11 @@ impl<'a> MirFormatContext<'a> {
             .current_function
             .unwrap_or_else(|| panic!("missing current function while formatting {value:?}"));
         let function = self.tree.get(function_id);
-        let name = function
-            .value_name(value)
-            .unwrap_or_else(|| panic!("missing MIR value name for {value:?}"));
-
-        self.strings.get(name).to_string()
+        if let Some(name) = function.value_name(value) {
+            self.strings.get(name).to_string()
+        } else {
+            format!("value{}", value.0)
+        }
     }
 
     /// Get the unique function display name.

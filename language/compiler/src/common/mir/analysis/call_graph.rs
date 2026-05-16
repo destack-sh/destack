@@ -98,6 +98,8 @@ struct SignatureKey {
     parameters: Vec<SignatureType>,
     /// The return type signature.
     result: SignatureType,
+    /// Borrow obligations callers must satisfy.
+    borrow_obligations: Vec<mir::BorrowObligation>,
 }
 
 impl SignatureKey {
@@ -113,7 +115,11 @@ impl SignatureKey {
         // capture result signature
         let result = SignatureType::from_type(tree, function.return_type.ty()?)?;
 
-        Some(Self { parameters, result })
+        Some(Self {
+            parameters,
+            result,
+            borrow_obligations: function.borrow_obligations.clone(),
+        })
     }
 
     /// Build a signature key from a function pointer type.
@@ -124,7 +130,12 @@ impl SignatureKey {
         let signature = signature.into().ty()?;
 
         // load the function pointer signature
-        let mir::Type::FunctionSignature { parameters, result } = tree.get(signature) else {
+        let mir::Type::FunctionSignature {
+            parameters,
+            result,
+            borrow_obligations,
+        } = tree.get(signature)
+        else {
             return None;
         };
 
@@ -137,7 +148,11 @@ impl SignatureKey {
         // capture result signature
         let result = SignatureType::from_type(tree, result.ty()?)?;
 
-        Some(Self { parameters, result })
+        Some(Self {
+            parameters,
+            result,
+            borrow_obligations: borrow_obligations.clone(),
+        })
     }
 }
 
@@ -294,6 +309,8 @@ enum SignatureType {
         parameters: Vec<SignatureType>,
         /// Result type signature.
         result: Box<SignatureType>,
+        /// Borrow obligations callers must satisfy.
+        borrow_obligations: Vec<mir::BorrowObligation>,
     },
     /// Function pointer type signature.
     FunctionPointer {
@@ -466,7 +483,11 @@ impl SignatureType {
                 layout: layout.clone(),
                 nullability: *nullability,
             },
-            mir::Type::FunctionSignature { parameters, result } => {
+            mir::Type::FunctionSignature {
+                parameters,
+                result,
+                borrow_obligations,
+            } => {
                 // convert function signatures recursively
                 let parameters = parameters
                     .iter()
@@ -476,7 +497,11 @@ impl SignatureType {
                 // capture the result type signature
                 let result = Box::new(SignatureType::from_type(tree, result.ty()?)?);
 
-                SignatureType::FunctionSignature { parameters, result }
+                SignatureType::FunctionSignature {
+                    parameters,
+                    result,
+                    borrow_obligations: borrow_obligations.clone(),
+                }
             }
             mir::Type::FunctionPointer { signature } => SignatureType::FunctionPointer {
                 signature: Box::new(SignatureType::from_type(tree, signature.ty()?)?),

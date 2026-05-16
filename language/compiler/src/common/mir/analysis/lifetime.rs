@@ -337,6 +337,7 @@ b0:
         let signature = program.tree.insert_type(mir::Type::FunctionSignature {
             parameters: vec![int_ty.into()],
             result: int_ty.into(),
+            borrow_obligations: Vec::new(),
         });
 
         let lifetime = LifetimeAnalysis::resolve_signature(signature, &program.tree);
@@ -369,6 +370,7 @@ b0:
         let signature = program.tree.insert_type(mir::Type::FunctionSignature {
             parameters: vec![int_ty.into()],
             result: borrowed_ref.into(),
+            borrow_obligations: Vec::new(),
         });
 
         let lifetime = LifetimeAnalysis::resolve_signature(signature, &program.tree);
@@ -401,6 +403,7 @@ b0:
         let signature = program.tree.insert_type(mir::Type::FunctionSignature {
             parameters: vec![int_ty.into(), borrowed_ref.into()],
             result: borrowed_ref.into(),
+            borrow_obligations: Vec::new(),
         });
 
         let lifetime = LifetimeAnalysis::resolve_signature(signature, &program.tree);
