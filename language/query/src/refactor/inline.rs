@@ -823,7 +823,7 @@ fn resolve_symbol_in_scope(
     // resolve a name through the scope chain honoring scope marks
     loop {
         let scope = symbols.get_scope_by_id(scope_id);
-        if let Some(symbol_id) = symbols.find_symbol_up_to(scope, key, scope_mark) {
+        if let Some(symbol_id) = scope.find_symbol_up_to(key, scope_mark) {
             return Some(symbol_id);
         }
 
