@@ -11,7 +11,7 @@ use destack_workspace::{Edit, HostEnvironment, ProviderError, Ref, Repository, R
 
 use crate::tests::snapshot::{DirSnapshotBuilder, DirSnapshotSet, render_diagnostics};
 
-use super::module::{TestModule, parse_module, parsed_dependency};
+use super::module::{TestModule, parse_module, parsed_dependencies};
 use super::provider::TestProvider;
 
 /// A compiler test builder.
@@ -235,6 +235,10 @@ impl TestCompiler {
         if !module.is_code() {
             return None;
         }
+        let file_id = repository.file_id(path.as_ref());
+        if file_id != module.file_id {
+            return None;
+        }
 
         // parse module source
         let source = repository
@@ -243,7 +247,7 @@ impl TestCompiler {
             .expect("test file should exist")
             .text()
             .to_string();
-        let dir_parsed = parse_module(module.as_ref(), &source, repository);
+        let dir_parsed = parse_module(module.as_ref(), repository, revision);
 
         // resolve effective profile
         let profile = repository
@@ -266,16 +270,16 @@ impl TestCompiler {
         entries: &BTreeMap<String, TestModule>,
     ) {
         for entry in entries.values() {
-            let dependency = parsed_dependency(repository, revision, entry.module.as_ref());
+            let dependencies = parsed_dependencies(repository, revision, entry.module.as_ref());
             let key = ArtifactKey::dir_parsed(entry.module.id);
-            let version = ArtifactVersion::new(key, [dependency.clone()]);
+            let version = ArtifactVersion::new(key, dependencies.clone());
 
             repository
                 .complete_artifact(
                     revision,
                     version,
                     ArtifactPayload::DirParsed(entry.dir_parsed.clone()),
-                    vec![dependency],
+                    dependencies,
                     DiagnosticCollection::new(),
                 )
                 .expect("test parsed artifact should publish");
@@ -294,6 +298,12 @@ impl TestCompiler {
                 let module_id = repository
                     .module_id_for_path(revision, path.as_ref())
                     .expect("test module lookup should work")?;
+                let module = repository
+                    .module(revision, module_id)
+                    .expect("test module lookup should work")?;
+                if repository.file_id(path.as_ref()) != module.file_id {
+                    return None;
+                }
 
                 Some((module_id, path.clone()))
             })
