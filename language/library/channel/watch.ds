@@ -1,11 +1,39 @@
-import { todo } from "destack:error";
-import { type Promise } from "destack:async";
-import { type Send } from "destack:memory";
+import { AsyncResult, Result, todo } from "destack:error";
+import { Dispose, Send } from "destack:memory";
+import { Dereference } from "destack:ops";
+import { ReceiveError, SendError } from "./channel.ds";
+
+/// Borrowed snapshot of a watched value.
+export struct WatchRef<T> {
+    /// The receiver that owns this snapshot.
+    private receiver: *WatchReceiver<T>;
+}
+
+extension<T> of WatchRef<T> implements Dispose, Dereference<"readonly"> {
+    /// The projected result form.
+    type Output = &readonly T;
+
+    /// Release this snapshot.
+    dispose(): void {
+        todo("WatchRef.dispose")
+    }
+
+    /// Borrow the watched value.
+    dereference(): this.Output {
+        todo("WatchRef.dereference")
+    }
+}
 
 /// Sender for the latest watched value.
 export interface WatchSender<T> {
     /// Replace the watched value.
-    send(value: ^T): void;
+    send(value: ^T): Result<void, SendError<T>>;
+
+    /// Replace the watched value and return the old value.
+    sendReplace(value: ^T): T;
+
+    /// Return whether all receivers are closed.
+    isClosed(): boolean;
 
     /// Close this sender.
     close(): void;
@@ -13,11 +41,17 @@ export interface WatchSender<T> {
 
 /// Receiver for the latest watched value.
 export interface WatchReceiver<T> {
-    /// Borrow the latest value.
-    borrow(): &readonly T;
+    /// Borrow the latest value as a stable snapshot.
+    borrow(): WatchRef<T>;
+
+    /// Borrow the latest value and mark it as observed.
+    borrowAndUpdate(): WatchRef<T>;
+
+    /// Return whether an unobserved value is available.
+    hasChanged(): Result<boolean, ReceiveError>;
 
     /// Wait for a changed value.
-    changed(): Promise<void>;
+    changed(): AsyncResult<void, ReceiveError>;
 
     /// Close this receiver.
     close(): void;

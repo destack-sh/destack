@@ -1,6 +1,6 @@
 import { todo } from "destack:error";
-import { type Send } from "destack:memory";
-import { type AsyncReceiver, type AsyncSender, type Receiver, type Sender } from "./channel.ds";
+import { Send } from "destack:memory";
+import { AsyncReceiver, AsyncSender, Receiver, Sender } from "./channel.ds";
 
 /// Create a local blocking one-shot channel.
 export function channel<T>(): (Sender<T>, Receiver<T>) {
