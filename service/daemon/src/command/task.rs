@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use destack_source::DiagnosticCollection;
-use destack_workspace::{DestackConfig, Repository, Revision, Workspace};
+use destack_workspace::{DestackDeclaration, Repository, Revision, Workspace};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -493,7 +493,7 @@ fn relative_project_path(project_path: &Path, workspace_root: &Path) -> String {
 
 /// Resolve selected project names from explicit projects and groups.
 fn resolve_task_project_selection_names(
-    root_options: Option<&DestackConfig>,
+    root_options: Option<&DestackDeclaration>,
     projects: &[TaskProject],
     selected_projects: &[String],
     selected_groups: &[String],
@@ -615,7 +615,7 @@ fn ambiguous_project_error(selector: &str, projects: &[&TaskProject]) -> String 
 }
 
 /// Build one unknown workspace group error with suggestions.
-fn unknown_group_error(group_name: &str, root_options: &DestackConfig) -> String {
+fn unknown_group_error(group_name: &str, root_options: &DestackDeclaration) -> String {
     let groups: Vec<&str> = root_options
         .workspace_groups
         .keys()

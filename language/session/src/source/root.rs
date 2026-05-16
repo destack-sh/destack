@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use destack_artifact::DiskCacheStore;
 use destack_source::{File, FileId, FileSystem, FileType, Uri};
-use destack_workspace::{DestackConfig, HostEnvironment, Ref, Repository, RepositoryError};
+use destack_workspace::{DestackDeclaration, HostEnvironment, Ref, Repository, RepositoryError};
 
 use super::reload::{RELOAD_EXCLUDED_DIRECTORY_NAMES, is_reload_path};
 use super::{FileSystemSource, RepositorySource, RepositorySourceFilter};
@@ -91,7 +91,7 @@ fn find_destack_source_root(
 fn read_source_destack_config(
     fs: &dyn FileSystem,
     root: &Path,
-) -> Result<Option<DestackConfig>, RepositoryError> {
+) -> Result<Option<DestackDeclaration>, RepositoryError> {
     let path = root.join("destack.json");
 
     // read Destack config when present
@@ -118,10 +118,10 @@ fn read_source_destack_config(
     let path = path.clone();
     let file = Arc::new(file);
 
-    DestackConfig::parse(&file)
-        .map(Some)
-        .map_err(|error| RepositoryError::WorkspaceRootDiscovery {
+    DestackDeclaration::parse(&file).map(Some).map_err(|error| {
+        RepositoryError::WorkspaceRootDiscovery {
             path,
             message: error.to_string(),
-        })
+        }
+    })
 }

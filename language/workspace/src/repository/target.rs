@@ -1,7 +1,7 @@
 use destack_source::{PackageId, TargetId};
 
 use crate::repository::{Repository, RepositoryError, Revision};
-use crate::{DestackConfig, ProductOptions, Target};
+use crate::{DestackDeclaration, ProductOptions, Target};
 
 impl Repository {
     /// Return one exact revision-scoped target by id when present.
@@ -169,7 +169,7 @@ impl Repository {
 
 /// Return the selected product declaration when product selection is unambiguous.
 fn selected_product(
-    config: &DestackConfig,
+    config: &DestackDeclaration,
 ) -> Result<Option<(&str, &ProductOptions)>, RepositoryError> {
     // use the explicit default product
     if let Some(default_product) = config.default_product.as_ref() {

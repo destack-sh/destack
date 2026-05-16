@@ -1,7 +1,7 @@
 use std::process::Command;
 
 use destack_source::DiagnosticCollection;
-use destack_workspace::DestackConfig;
+use destack_workspace::DestackDeclaration;
 use serde::{Deserialize, Serialize};
 
 use super::CommandResult;
@@ -256,6 +256,6 @@ fn parse_version_output(stdout: &[u8], stderr: &[u8]) -> Option<String> {
 }
 
 /// Collect extends entries for a config.
-fn list_extends(config: &DestackConfig) -> Vec<String> {
+fn list_extends(config: &DestackDeclaration) -> Vec<String> {
     config.options.extends.iter().cloned().collect()
 }

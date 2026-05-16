@@ -6,7 +6,7 @@ use im::OrdMap;
 
 use crate::repository::key::profile_key_for_target;
 use crate::{
-    CompilerOptions, ConditionSet, DestackConfig, HostEnvironment, ProfileEnvironment,
+    CompilerOptions, ConditionSet, DestackDeclaration, HostEnvironment, ProfileEnvironment,
     ProfileOptions, Repository, RepositoryError, Revision, Target,
 };
 
@@ -296,7 +296,7 @@ impl Repository {
         &self,
         revision: Revision,
         package_id: PackageId,
-    ) -> Result<(Option<Arc<DestackConfig>>, CompilerOptions), RepositoryError> {
+    ) -> Result<(Option<Arc<DestackDeclaration>>, CompilerOptions), RepositoryError> {
         let config = self.destack_config_for_package_id(revision, package_id)?;
         let compiler_options = config
             .as_ref()
@@ -311,7 +311,7 @@ impl Repository {
         &self,
         target: &Target,
         compiler_options: &CompilerOptions,
-        config: Option<&DestackConfig>,
+        config: Option<&DestackDeclaration>,
         environment: &HostEnvironment,
         product: Option<&str>,
         product_role: Option<&str>,
@@ -349,7 +349,7 @@ impl Repository {
     fn profile_options_for_target<'a>(
         target: &'a Target,
         compiler_options: &'a CompilerOptions,
-        config: Option<&'a DestackConfig>,
+        config: Option<&'a DestackDeclaration>,
     ) -> Option<&'a ProfileOptions> {
         let config = config?;
         let profile_name = target
