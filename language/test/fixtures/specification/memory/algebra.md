@@ -16,19 +16,20 @@ struct Point {
 Managed<Point> satisfies Form<Point, "managed", "ambient">;
 ```
 
-### shared rewrites space
+### local and shared rewrite space
 
-`shared T` is `WithSpace<T, "shared">`.
+`local T` and `shared T` are surface forms for concrete placement.
 
 ```ds
 struct Cell {
     value: int32;
 }
 
+local Cell satisfies WithSpace<Cell, "local">;
 shared Cell satisfies WithSpace<Cell, "shared">;
 ```
 
-### owned shared forms commute
+### owned placement forms commute
 
 Ownership and placement can be written in either order.
 
@@ -37,8 +38,10 @@ struct Cell {
     value: int32;
 }
 
-shared (^Cell) satisfies ^(shared Cell);
-shared (^Cell) satisfies WithSpace<^Cell, "shared">;
+local ^Cell satisfies ^local Cell;
+local ^Cell satisfies WithSpace<^Cell, "local">;
+shared ^Cell satisfies ^shared Cell;
+shared ^Cell satisfies WithSpace<^Cell, "shared">;
 ```
 
 ### Local and Ambient rewrite placement
@@ -79,6 +82,7 @@ struct Cell {
 }
 
 PlaceOf<Cell> satisfies "ambient";
+PlaceOf<local Cell> satisfies "local";
 PlaceOf<shared Cell> satisfies "shared";
 ```
 
@@ -91,9 +95,9 @@ struct Cell {
     value: int32;
 }
 
-PlaceOf<Cell | shared Cell> satisfies "ambient" | "shared";
-SpaceOf<Cell | shared Cell> satisfies "shared";
-PlaceIn<Cell | shared Cell, "local"> satisfies "local" | "shared";
+PlaceOf<Cell | local Cell | shared Cell> satisfies "ambient" | "local" | "shared";
+SpaceOf<Cell | local Cell | shared Cell> satisfies "local" | "shared";
+PlaceIn<Cell | local Cell | shared Cell, "local"> satisfies "local" | "shared";
 ```
 
 ### OwnershipOf extracts explicit ownership

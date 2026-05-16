@@ -19,9 +19,23 @@ function kernel(data: shared (&Point)): int32 {
 
 ## values
 
-### local is a type form
+### local places values in local space
 
-`Local<T>` places a value in Worker-local space.
+`local T` explicitly rebases `T` into Worker-local space.
+
+```ds
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+let point: local Point = Point { x: 1, y: 2 };
+point satisfies WithSpace<Point, "local">;
+```
+
+### Local places values in local space
+
+`Local<T>` also explicitly rebased `T` into local space.
 
 ```ds
 struct Point {
@@ -30,7 +44,7 @@ struct Point {
 }
 
 let point: Local<Point> = Point { x: 1, y: 2 };
-point satisfies WithSpace<Point, "local">;
+point satisfies local Point;
 ```
 
 ### shared places values in shared space
