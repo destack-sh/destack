@@ -68,6 +68,7 @@ fn type_needs_postfix_parentheses(
         | TypeExpression::Implements { .. }
         | TypeExpression::Mapped { .. }
         | TypeExpression::Readonly { .. }
+        | TypeExpression::Local { .. }
         | TypeExpression::Shared { .. }
         | TypeExpression::KeyOf { .. }
         | TypeExpression::TypeOfValue { .. }
@@ -100,6 +101,7 @@ fn type_needs_index_object_parentheses(
         | TypeExpression::Extends { .. }
         | TypeExpression::Implements { .. }
         | TypeExpression::Readonly { .. }
+        | TypeExpression::Local { .. }
         | TypeExpression::Shared { .. }
         | TypeExpression::KeyOf { .. }
         | TypeExpression::TypeOfValue { .. }
@@ -1538,6 +1540,29 @@ fn effective_type_parent(
     }
 }
 
+/// Return whether one prefix operand needs grouping.
+fn type_needs_prefix_operand_parentheses(
+    context: &DestackFormatContext<'_>,
+    child_id: LocalNodeId<TypeExpression>,
+) -> bool {
+    match context.tree.get(child_id) {
+        TypeExpression::Union { elements } | TypeExpression::Intersection { elements } => {
+            elements.len() > 1
+        }
+        TypeExpression::Conditional { .. }
+        | TypeExpression::In { .. }
+        | TypeExpression::Extends { .. }
+        | TypeExpression::Implements { .. }
+        | TypeExpression::Mapped { .. }
+        | TypeExpression::Range { .. } => true,
+        TypeExpression::Infer { constraint, .. } => constraint.is_some(),
+        TypeExpression::Predicate { .. }
+        | TypeExpression::FunctionTypeDeclaration(_)
+        | TypeExpression::ConstructorTypeDeclaration(_) => true,
+        _ => false,
+    }
+}
+
 /// Return whether one parent type forces parentheses around its child position.
 fn type_parent_requires_parentheses(
     context: &DestackFormatContext<'_>,
@@ -1551,23 +1576,20 @@ fn type_parent_requires_parentheses(
             *left == child_id && type_needs_index_object_parentheses(context, child_id)
         }
 
-        // unary type operators bind tighter than unions, intersections, and conditionals
-        TypeExpression::Readonly { target_type } | TypeExpression::Shared { target_type } => {
-            *target_type == child_id
-        }
-        TypeExpression::KeyOf { target_type } => {
-            *target_type == child_id
-                && !matches!(
-                    context.tree.get(child_id),
-                    TypeExpression::TypeOfValue { .. }
-                )
-        }
-        TypeExpression::Must { target_type }
-        | TypeExpression::AsComptime { target_type }
+        // prefix type operators only group lower precedence operands
+        TypeExpression::Readonly { target_type }
+        | TypeExpression::Local { target_type }
+        | TypeExpression::Shared { target_type }
+        | TypeExpression::KeyOf { target_type }
         | TypeExpression::Not { target_type }
         | TypeExpression::OwnedOf { target_type, .. }
         | TypeExpression::BorrowedOf { target_type, .. }
-        | TypeExpression::PointerOf { target_type, .. } => *target_type == child_id,
+        | TypeExpression::PointerOf { target_type, .. } => {
+            *target_type == child_id && type_needs_prefix_operand_parentheses(context, child_id)
+        }
+        TypeExpression::Must { target_type } | TypeExpression::AsComptime { target_type } => {
+            *target_type == child_id
+        }
 
         // value space typeof keeps its own precedence
         TypeExpression::TypeOfValue { .. } => false,
@@ -1780,6 +1802,7 @@ pub(crate) fn type_expression_needs_parentheses_in_parent(
             _ => type_parent_requires_parentheses(context, parent_id, parent_child_id),
         },
         TypeExpression::Readonly { .. }
+        | TypeExpression::Local { .. }
         | TypeExpression::Shared { .. }
         | TypeExpression::KeyOf { .. }
         | TypeExpression::TypeOfValue { .. }
@@ -2641,6 +2664,9 @@ pub(crate) fn write_type_expression_body<'ast>(
         }
         TypeExpression::Readonly { target_type } => {
             write!(f, [Keyword::Readonly, space(), target_type])?;
+        }
+        TypeExpression::Local { target_type } => {
+            write!(f, [Keyword::Local, space(), target_type])?;
         }
         TypeExpression::Shared { target_type } => {
             write!(f, [token("shared"), space(), target_type])?;
