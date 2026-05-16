@@ -7,29 +7,43 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Arena, ExportKind, GlobalNodeIdAny, LocalNodeId, LocalNodeIdAny, LocalScope, LocalScopeId,
-    LocalScopeMark, LocalSymbolId, Node, Scope, ScopeKind, StaticKey, Symbol, SymbolForm,
-    SymbolOrigin, SymbolRole,
+    LocalScopeMark, LocalSymbolId, Node, Scope, ScopeKind, SegmentView, StaticKey, Symbol,
+    SymbolForm, SymbolOrigin, SymbolRole,
 };
 
 /// Cumulative lexical scopes and symbols for one DIR module.
 #[derive(Debug, Clone)]
-pub struct BindingTable {
+pub struct BindingTable<'a> {
     /// The module id of the binding table.
     pub module_id: ModuleId,
     /// The ordered binding table segments.
-    segments: Vec<Arc<BindingSegment>>,
+    segments: SegmentView<'a, BindingSegment>,
 }
 
-impl BindingTable {
+impl BindingTable<'static> {
     /// Create a binding table from ordered segments.
     pub fn from_segments(segments: Vec<Arc<BindingSegment>>) -> Self {
+        let segments = SegmentView::from_segments(segments);
+
+        Self::from_view(segments)
+    }
+
+    /// Create a binding table from one segment.
+    pub fn from_segment(segment: Arc<BindingSegment>) -> Self {
+        Self::from_segments(vec![segment])
+    }
+}
+
+impl<'a> BindingTable<'a> {
+    /// Create a binding table from a segment view.
+    pub fn from_view(segments: SegmentView<'a, BindingSegment>) -> Self {
         let first = segments
             .first()
             .unwrap_or_else(|| panic!("binding table needs at least one segment"));
         let module_id = first.module_id;
 
         // require a single module owner
-        for segment in &segments {
+        for segment in segments.iter() {
             assert_eq!(
                 segment.module_id, module_id,
                 "binding table segment belongs to a different module"
@@ -42,9 +56,9 @@ impl BindingTable {
         }
     }
 
-    /// Create a binding table from one segment.
-    pub fn from_segment(segment: Arc<BindingSegment>) -> Self {
-        Self::from_segments(vec![segment])
+    /// Create a binding table by appending a borrowed tail segment.
+    pub fn with_tail<'b>(&'b self, tail: &'b BindingSegment) -> BindingTable<'b> {
+        BindingTable::from_view(self.segments.with_tail(tail))
     }
 
     /// Iterate symbol ids.

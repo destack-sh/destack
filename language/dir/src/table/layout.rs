@@ -3,25 +3,41 @@ use std::sync::Arc;
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
+use crate::SegmentView;
+
 /// Cumulative layouts for one DIR module.
 #[derive(Debug, Clone)]
-pub struct LayoutTable {
+pub struct LayoutTable<'a> {
     /// The module id of the layout table.
     pub module_id: ModuleId,
     /// The ordered layout table segments.
-    segments: Vec<Arc<LayoutSegment>>,
+    segments: SegmentView<'a, LayoutSegment>,
 }
 
-impl LayoutTable {
+impl LayoutTable<'static> {
     /// Create a layout table from ordered segments.
     pub fn from_segments(segments: Vec<Arc<LayoutSegment>>) -> Self {
+        let segments = SegmentView::from_segments(segments);
+
+        Self::from_view(segments)
+    }
+
+    /// Create a layout table from one segment.
+    pub fn from_segment(segment: Arc<LayoutSegment>) -> Self {
+        Self::from_segments(vec![segment])
+    }
+}
+
+impl<'a> LayoutTable<'a> {
+    /// Create a layout table from a segment view.
+    pub fn from_view(segments: SegmentView<'a, LayoutSegment>) -> Self {
         let first = segments
             .first()
             .unwrap_or_else(|| panic!("layout table needs at least one segment"));
         let module_id = first.module_id;
 
         // require a single module owner
-        for segment in &segments {
+        for segment in segments.iter() {
             assert_eq!(
                 segment.module_id, module_id,
                 "layout table segment belongs to a different module"
@@ -34,9 +50,9 @@ impl LayoutTable {
         }
     }
 
-    /// Create a layout table from one segment.
-    pub fn from_segment(segment: Arc<LayoutSegment>) -> Self {
-        Self::from_segments(vec![segment])
+    /// Create a layout table by appending a borrowed tail segment.
+    pub fn with_tail<'b>(&'b self, tail: &'b LayoutSegment) -> LayoutTable<'b> {
+        LayoutTable::from_view(self.segments.with_tail(tail))
     }
 
     /// Return whether this table has no layouts.

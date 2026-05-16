@@ -8,29 +8,43 @@ use crate::{
     Addressability, Arena, BindingTable, DependencyResolution, EnumBackingType, EnumFieldValue,
     Extension, GlobalNodeIdAny, GlobalSymbolId, Instantiation, IntersectionType, LabelResolution,
     Lineage, LiteralType, LocalExtensionId, LocalInstantiationId, LocalLineageId, LocalNodeId,
-    LocalNodeIdAny, LocalTypeId, Node, Resolution, StaticExpression, SymbolForm, Type, UnionType,
-    VarianceModifier,
+    LocalNodeIdAny, LocalTypeId, Node, Resolution, SegmentView, StaticExpression, SymbolForm, Type,
+    UnionType, VarianceModifier,
 };
 
 /// Cumulative type slots and relations for one DIR module.
 #[derive(Debug, Clone)]
-pub struct TypeTable {
+pub struct TypeTable<'a> {
     /// The module id of the type table.
     pub module_id: ModuleId,
     /// The ordered type table segments.
-    segments: Vec<Arc<TypeSegment>>,
+    segments: SegmentView<'a, TypeSegment>,
 }
 
-impl TypeTable {
+impl TypeTable<'static> {
     /// Create a type table from ordered segments.
     pub fn from_segments(segments: Vec<Arc<TypeSegment>>) -> Self {
+        let segments = SegmentView::from_segments(segments);
+
+        Self::from_view(segments)
+    }
+
+    /// Create a type table from one segment.
+    pub fn from_segment(segment: Arc<TypeSegment>) -> Self {
+        Self::from_segments(vec![segment])
+    }
+}
+
+impl<'a> TypeTable<'a> {
+    /// Create a type table from a segment view.
+    pub fn from_view(segments: SegmentView<'a, TypeSegment>) -> Self {
         let first = segments
             .first()
             .unwrap_or_else(|| panic!("type table needs at least one segment"));
         let module_id = first.module_id;
 
         // require a single module owner
-        for segment in &segments {
+        for segment in segments.iter() {
             assert_eq!(
                 segment.module_id, module_id,
                 "type table segment belongs to a different module"
@@ -43,9 +57,9 @@ impl TypeTable {
         }
     }
 
-    /// Create a type table from one segment.
-    pub fn from_segment(segment: Arc<TypeSegment>) -> Self {
-        Self::from_segments(vec![segment])
+    /// Create a type table by appending a borrowed tail segment.
+    pub fn with_tail<'b>(&'b self, tail: &'b TypeSegment) -> TypeTable<'b> {
+        TypeTable::from_view(self.segments.with_tail(tail))
     }
 
     /// Iterate type attachments keyed by DIR node.
@@ -106,7 +120,7 @@ impl TypeTable {
 
     /// Get an instantiation by id.
     pub fn get_instantiation(&self, instantiation_id: LocalInstantiationId) -> &Instantiation {
-        for segment in &self.segments {
+        for segment in self.segments.iter() {
             if let Some(instantiation) = segment.get_local_instantiation(instantiation_id) {
                 return instantiation;
             }
@@ -117,7 +131,7 @@ impl TypeTable {
 
     /// Get a lineage by its id.
     pub fn get_lineage(&self, lineage_id: LocalLineageId) -> &Lineage {
-        for segment in &self.segments {
+        for segment in self.segments.iter() {
             if let Some(lineage) = segment.get_local_lineage(lineage_id) {
                 return lineage;
             }
@@ -152,7 +166,7 @@ impl TypeTable {
 
     /// Get an extension by its id.
     pub fn get_extension(&self, extension_id: LocalExtensionId) -> &Extension {
-        for segment in &self.segments {
+        for segment in self.segments.iter() {
             if let Some(extension) = segment.get_local_extension(extension_id) {
                 return extension;
             }
@@ -305,7 +319,7 @@ impl TypeTable {
     /// Get the type id for a symbol through its declaration form.
     pub fn symbol_type_id(
         &self,
-        symbols: &BindingTable,
+        symbols: &BindingTable<'_>,
         symbol_id: GlobalSymbolId,
     ) -> Option<LocalTypeId> {
         let symbol = symbols.get_symbol(symbol_id.local_id);
@@ -437,7 +451,7 @@ impl TypeTable {
 
     /// Return provenance for a type id.
     fn type_provenance(&self, type_id: LocalTypeId) -> TypeProvenance {
-        for segment in &self.segments {
+        for segment in self.segments.iter() {
             if segment.contains_type_id(type_id) {
                 return segment.type_provenance(type_id);
             }
@@ -1042,7 +1056,7 @@ impl TypeSegment {
     /// Get the type id for a symbol through its declaration form.
     pub fn symbol_type_id(
         &self,
-        symbols: &BindingTable,
+        symbols: &BindingTable<'_>,
         symbol_id: GlobalSymbolId,
     ) -> Option<LocalTypeId> {
         let symbol = symbols.get_symbol(symbol_id.local_id);

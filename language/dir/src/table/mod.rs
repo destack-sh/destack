@@ -5,6 +5,7 @@ mod export;
 mod guard;
 mod layout;
 mod r#macro;
+mod segment;
 mod r#type;
 
 pub use binding::*;
@@ -14,4 +15,5 @@ pub use export::*;
 pub use guard::*;
 pub use layout::*;
 pub use r#macro::*;
+pub use segment::*;
 pub use r#type::*;
