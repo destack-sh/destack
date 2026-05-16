@@ -1,11 +1,11 @@
 import { todo } from "destack:error";
 import {
-    type IterableIterator,
-    type IteratorResult,
+    IterableIterator,
+    IteratorResult,
 } from "destack:iter";
-import { type Drop } from "destack:memory";
-import { type ContinuationHandle } from "./continuation.ds";
-import { type Promise } from "./promise.ds";
+import { Drop } from "destack:memory";
+import { ContinuationHandle } from "./continuation.ds";
+import { Promise } from "./promise.ds";
 
 /// State of a generator object.
 export type GeneratorState = "suspended" | "running" | "completed";
