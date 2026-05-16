@@ -34,6 +34,7 @@ pub(crate) fn keyword_from_identifier(identifier: &str) -> Option<Keyword> {
                     | b'f'
                     | b'i'
                     | b'k'
+                    | b'l'
                     | b'm'
                     | b'n'
                     | b's'

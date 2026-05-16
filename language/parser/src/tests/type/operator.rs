@@ -92,6 +92,105 @@ fn test_parse_typescript_type_expression_keeps_shared_as_identifier() {
 }
 
 #[test]
+fn test_parse_local_type_expression() {
+    let mut test = TestParser::new("type T = local Value");
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
+
+    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::Local { target_type } => {
+                assert_node!(parser.tree, *target_type, TypeExpression::Reference { path, generic_arguments } => {
+                    assert!(generic_arguments.is_empty());
+                    assert_path!(parser, *path, "Value");
+                });
+            });
+        });
+    });
+}
+
+#[test]
+fn test_parse_local_type_operator_precedence() {
+    let mut test = TestParser::new("type T = local Value | undefined");
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
+
+    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::Union { elements } => {
+                assert_eq!(elements.len(), 2);
+                assert_node!(parser.tree, elements[0], TypeExpression::Local { target_type } => {
+                    assert_node!(parser.tree, *target_type, TypeExpression::Reference { path, generic_arguments } => {
+                        assert!(generic_arguments.is_empty());
+                        assert_path!(parser, *path, "Value");
+                    });
+                });
+                assert_node!(parser.tree, elements[1], TypeExpression::Literal { value } => {
+                    assert_eq!(*value, TypeLiteral::Undefined);
+                });
+            });
+        });
+    });
+}
+
+#[test]
+fn test_parse_local_owned_type_expression() {
+    let mut test = TestParser::new("type T = local ^Value");
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
+
+    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::Local { target_type } => {
+                assert_node!(parser.tree, *target_type, TypeExpression::OwnedOf { target_type, .. } => {
+                    assert_node!(parser.tree, *target_type, TypeExpression::Reference { path, generic_arguments } => {
+                        assert!(generic_arguments.is_empty());
+                        assert_path!(parser, *path, "Value");
+                    });
+                });
+            });
+        });
+    });
+}
+
+#[test]
+fn test_parse_owned_local_type_expression() {
+    let mut test = TestParser::new("type T = ^local Value");
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
+
+    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::OwnedOf { target_type, .. } => {
+                assert_node!(parser.tree, *target_type, TypeExpression::Local { target_type } => {
+                    assert_node!(parser.tree, *target_type, TypeExpression::Reference { path, generic_arguments } => {
+                        assert!(generic_arguments.is_empty());
+                        assert_path!(parser, *path, "Value");
+                    });
+                });
+            });
+        });
+    });
+}
+
+#[test]
+fn test_parse_typescript_type_expression_keeps_local_as_identifier() {
+    let mut test = TestParser::new_with_language("local Value", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let type_id = parser
+        .with_flags(parser.flags.in_type(), |parser| {
+            parser.eat_type_expression()
+        })
+        .unwrap();
+
+    assert_expression_path!(parser, parser.tree.get(type_id), "local");
+
+    let next_span = parser.peek().unwrap().span;
+    assert_eq!(parser.get_span_str(next_span), "Value");
+    test.assert_no_errors(&parser);
+}
+
+#[test]
 fn test_parse_type_not_operator_span() {
     let mut test = TestParser::new("type T = !Unpin");
     let mut parser = test.prepare();
