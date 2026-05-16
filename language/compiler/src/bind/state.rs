@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use destack_artifact::{DirBound, DirParsed};
 use destack_dir as dir;
 use destack_workspace::Module;
@@ -32,9 +34,9 @@ pub(in crate::bind) struct BindState<'a> {
     pub(in crate::bind) binding_stack: Vec<BindingContext>,
 
     /// The binding table being built.
-    pub(in crate::bind) bindings: dir::BindingTable,
+    pub(in crate::bind) bindings: dir::BindingSegment,
     /// The type table being initialized.
-    pub(in crate::bind) types: dir::TypeTable,
+    pub(in crate::bind) types: dir::TypeSegment,
     /// The bound module roots.
     pub(in crate::bind) roots: Vec<dir::LocalNodeId<dir::Expression>>,
     /// The module namespace scope.
@@ -51,7 +53,7 @@ impl<'a> BindState<'a> {
         parsed: &'a DirParsed,
     ) -> Self {
         // create root scopes
-        let mut bindings = dir::BindingTable::new(module.id);
+        let mut bindings = dir::BindingSegment::new(module.id);
         let namespace_scope = bindings.insert_scope(dir::ScopeKind::Module, None, None);
         let namespace = dir::LocalScope::new(namespace_scope, dir::LocalScopeMark::end());
         let global_scope = bindings.insert_scope(dir::ScopeKind::Global, None, None);
@@ -78,7 +80,7 @@ impl<'a> BindState<'a> {
                 declared_type: None,
             }],
             bindings,
-            types: dir::TypeTable::new(module.id),
+            types: dir::TypeSegment::new(module.id),
             roots: Vec::new(),
             namespace_scope,
             global_scope,
@@ -93,8 +95,8 @@ impl<'a> BindState<'a> {
     /// Finish the bound DIR artifact.
     pub(in crate::bind) fn finish(self) -> DirBound {
         DirBound {
-            bindings: self.bindings,
-            types: self.types,
+            bindings: Arc::new(self.bindings),
+            types: Arc::new(self.types),
             roots: self.roots,
             module_node: self.parsed.anchor_expression.into_any(),
             namespace_scope: self.namespace_scope,
