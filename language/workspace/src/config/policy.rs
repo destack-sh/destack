@@ -58,7 +58,7 @@ pub struct PolicySubject {
     /// Package selector.
     pub package: Option<PackageSelector>,
     /// Runtime identity selector.
-    pub runtime: Option<RuntimeIdentitySelector>,
+    pub runtime_identity: Option<RuntimeIdentitySelector>,
     /// Worker identity selector.
     pub worker: Option<RuntimeIdentitySelector>,
     /// Active mode selector.
@@ -73,13 +73,19 @@ pub struct PolicySubject {
     pub target: Option<ConditionSelector>,
     /// Active product selector.
     pub product: Option<ConditionSelector>,
+    /// Active target platform selector.
+    pub platform: Option<ConditionSelector>,
+    /// Active host environment selector.
+    pub host: Option<ConditionSelector>,
+    /// Active runtime selector.
+    pub runtime: Option<ConditionSelector>,
 }
 
 impl PolicySubject {
     /// Return whether this selector matches no subject dimension.
     pub fn is_empty(&self) -> bool {
         package_selector_is_empty(&self.package)
-            && self.runtime.is_none()
+            && self.runtime_identity.is_none()
             && self.worker.is_none()
             && condition_selector_is_empty(&self.mode)
             && condition_selector_is_empty(&self.role)
@@ -87,6 +93,9 @@ impl PolicySubject {
             && condition_selector_is_empty(&self.tag)
             && condition_selector_is_empty(&self.target)
             && condition_selector_is_empty(&self.product)
+            && condition_selector_is_empty(&self.platform)
+            && condition_selector_is_empty(&self.host)
+            && condition_selector_is_empty(&self.runtime)
     }
 }
 
@@ -215,7 +224,7 @@ pub struct PolicySubjectJson {
     /// Package selector.
     pub package: Option<PackageSelectorJson>,
     /// Runtime identity selector.
-    pub runtime: Option<RuntimeIdentitySelectorJson>,
+    pub runtime_identity: Option<RuntimeIdentitySelectorJson>,
     /// Worker identity selector.
     pub worker: Option<RuntimeIdentitySelectorJson>,
     /// Active mode selector.
@@ -230,6 +239,12 @@ pub struct PolicySubjectJson {
     pub target: Option<ConditionSelectorJson>,
     /// Active product selector.
     pub product: Option<ConditionSelectorJson>,
+    /// Active target platform selector.
+    pub platform: Option<ConditionSelectorJson>,
+    /// Active host environment selector.
+    pub host: Option<ConditionSelectorJson>,
+    /// Active runtime selector.
+    pub runtime: Option<ConditionSelectorJson>,
 }
 
 impl PolicySubjectJson {
@@ -243,7 +258,10 @@ impl From<&PolicySubjectJson> for PolicySubject {
     fn from(value: &PolicySubjectJson) -> Self {
         Self {
             package: value.package.as_ref().map(PackageSelector::from),
-            runtime: value.runtime.as_ref().map(RuntimeIdentitySelector::from),
+            runtime_identity: value
+                .runtime_identity
+                .as_ref()
+                .map(RuntimeIdentitySelector::from),
             worker: value.worker.as_ref().map(RuntimeIdentitySelector::from),
             mode: value.mode.as_ref().map(ConditionSelector::from),
             role: value.role.as_ref().map(ConditionSelector::from),
@@ -251,6 +269,9 @@ impl From<&PolicySubjectJson> for PolicySubject {
             tag: value.tag.as_ref().map(ConditionSelector::from),
             target: value.target.as_ref().map(ConditionSelector::from),
             product: value.product.as_ref().map(ConditionSelector::from),
+            platform: value.platform.as_ref().map(ConditionSelector::from),
+            host: value.host.as_ref().map(ConditionSelector::from),
+            runtime: value.runtime.as_ref().map(ConditionSelector::from),
         }
     }
 }

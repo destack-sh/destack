@@ -83,6 +83,7 @@ fn condition_set_from_compiler_options(
             &compiler_options.modes,
             |config, name| {
                 config
+                    .conditions
                     .modes
                     .get(name)
                     .map(|options| options.extends.as_slice())
@@ -93,6 +94,7 @@ fn condition_set_from_compiler_options(
             &compiler_options.roles,
             |config, name| {
                 config
+                    .conditions
                     .roles
                     .get(name)
                     .map(|options| options.extends.as_slice())
@@ -103,6 +105,7 @@ fn condition_set_from_compiler_options(
             &compiler_options.features,
             |config, name| {
                 config
+                    .conditions
                     .features
                     .get(name)
                     .map(|options| options.extends.as_slice())
@@ -113,6 +116,7 @@ fn condition_set_from_compiler_options(
             &compiler_options.tags,
             |config, name| {
                 config
+                    .conditions
                     .tags
                     .get(name)
                     .map(|options| options.extends.as_slice())
@@ -121,6 +125,9 @@ fn condition_set_from_compiler_options(
         ),
         target: Some(target.name.clone()),
         product: product.map(str::to_string),
+        platform: Some(target.platform),
+        host: Some(target.host),
+        runtime: Some(target.runtime),
     }
 }
 

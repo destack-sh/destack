@@ -50,7 +50,7 @@ impl Repository {
                 targets.insert(target_id, target);
             }
 
-            for (name, mode) in &config.modes {
+            for (name, mode) in &config.conditions.modes {
                 if !mode.dependencies.is_empty() {
                     mode_dependencies.insert(name.clone(), mode.dependencies.clone());
                 }

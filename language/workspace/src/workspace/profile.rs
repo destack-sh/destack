@@ -1,4 +1,4 @@
-use destack_artifact::{HostEnvironmentKey, ProfileFlags};
+use destack_artifact::{HostEnvironmentKey, ProfileFlags, ProfileKey};
 use serde::{Deserialize, Serialize};
 
 use crate::HostEnvironment;
@@ -28,6 +28,22 @@ pub struct ProfileEnvironment {
     pub lint: bool,
     /// Active source graph modes.
     pub modes: Vec<String>,
+    /// Active source graph roles.
+    pub roles: Vec<String>,
+    /// Active source graph features.
+    pub features: Vec<String>,
+    /// Active source graph tags.
+    pub tags: Vec<String>,
+    /// Active build target name.
+    pub target: Option<String>,
+    /// Active deliverable product name.
+    pub product: Option<String>,
+    /// Active target platform tag.
+    pub platform: String,
+    /// Active target host tag.
+    pub host: String,
+    /// Active runtime tag.
+    pub runtime: String,
 }
 
 impl ProfileEnvironment {
@@ -54,22 +70,22 @@ impl ProfileEnvironment {
     }
 
     /// Build one profile environment from one host environment key.
-    pub fn from_key(key: &HostEnvironmentKey, host: &HostEnvironment, modes: &[String]) -> Self {
-        let node_env = Self::node_env_from_key(key, host, modes);
-        let debug = has_mode(modes, Mode::DEBUG);
-        let dev = has_mode(modes, Mode::DEV);
-        let prod = has_mode(modes, Mode::PROD);
-        let test = has_mode(modes, Mode::TEST);
-        let bench = has_mode(modes, Mode::BENCH);
-        let lint = has_mode(modes, Mode::LINT);
-        let modes = modes.to_vec();
+    pub fn from_key(key: &ProfileKey, host: &HostEnvironment) -> Self {
+        let node_env = Self::node_env_from_key(&key.env, host, &key.modes);
+        let debug = has_mode(&key.modes, Mode::DEBUG);
+        let dev = has_mode(&key.modes, Mode::DEV);
+        let prod = has_mode(&key.modes, Mode::PROD);
+        let test = has_mode(&key.modes, Mode::TEST);
+        let bench = has_mode(&key.modes, Mode::BENCH);
+        let lint = has_mode(&key.modes, Mode::LINT);
         let mut values = key
+            .env
             .keys()
             .iter()
             .filter_map(|key| host.get(key).map(|value| (key.clone(), value.to_string())))
             .collect::<Vec<_>>();
 
-        let has_node_env = key.keys().iter().any(|key| key == "NODE_ENV");
+        let has_node_env = key.env.keys().iter().any(|key| key == "NODE_ENV");
 
         if has_node_env
             && let Some(node_env_value) = node_env.clone()
@@ -89,7 +105,15 @@ impl ProfileEnvironment {
             test,
             bench,
             lint,
-            modes,
+            modes: key.modes.clone(),
+            roles: key.roles.clone(),
+            features: key.features.clone(),
+            tags: key.tags.clone(),
+            target: key.target.clone(),
+            product: key.product.clone(),
+            platform: key.platform.canonical_tag().to_string(),
+            host: key.host.canonical_tag().to_string(),
+            runtime: key.runtime.canonical_tag().to_string(),
         }
     }
 }

@@ -188,45 +188,16 @@
         "$ref": "#/$defs/ProfileOptionsJson"
       }
     },
-    "modes": {
-      "description": "Named source graph modes.",
-      "type": [
-        "object",
-        "null"
-      ],
-      "additionalProperties": {
-        "$ref": "#/$defs/ModeJson"
-      }
-    },
-    "roles": {
-      "description": "Named source graph roles.",
-      "type": [
-        "object",
-        "null"
-      ],
-      "additionalProperties": {
-        "$ref": "#/$defs/RoleJson"
-      }
-    },
-    "features": {
-      "description": "Named optional source graph features.",
-      "type": [
-        "object",
-        "null"
-      ],
-      "additionalProperties": {
-        "$ref": "#/$defs/FeatureJson"
-      }
-    },
-    "tags": {
-      "description": "Named source graph tags.",
-      "type": [
-        "object",
-        "null"
-      ],
-      "additionalProperties": {
-        "$ref": "#/$defs/TagJson"
-      }
+    "conditions": {
+      "description": "Named source graph conditions.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ConditionOptionsJson"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "defaultTarget": {
       "description": "Default target for the package.",
@@ -720,7 +691,7 @@
             }
           ]
         },
-        "runtime": {
+        "runtimeIdentity": {
           "description": "Runtime identity selector.",
           "anyOf": [
             {
@@ -799,6 +770,39 @@
         },
         "product": {
           "description": "Active product selector.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ConditionSelectorJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "platform": {
+          "description": "Active target platform selector.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ConditionSelectorJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "host": {
+          "description": "Active host environment selector.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ConditionSelectorJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "runtime": {
+          "description": "Active runtime selector.",
           "anyOf": [
             {
               "$ref": "#/$defs/ConditionSelectorJson"
@@ -948,7 +952,7 @@
       ]
     },
     "ConditionSelectorJson": {
-      "description": "Condition selector accepted by static policy JSON.",
+      "description": "Condition selector JSON accepted by configuration files.",
       "anyOf": [
         {
           "description": "Condition name shorthand.",
@@ -968,7 +972,7 @@
       ]
     },
     "ConditionSelectorJsonObject": {
-      "description": "Structured condition selector accepted by static policy JSON.",
+      "description": "Structured condition selector JSON accepted by configuration files.",
       "type": "object",
       "properties": {
         "patterns": {
@@ -3287,20 +3291,6 @@
             "format": "double"
           }
         },
-        "allowNamespaceDeclarations": {
-          "description": "Allow `declare namespace` and `declare module foo {}` in `no-namespace`.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "allowNamespaceDefinitionFiles": {
-          "description": "Allow namespace declarations in definition files for `no-namespace`.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
         "allowPlusplusForLoopAfterthoughts": {
           "description": "Allow `++` and `--` in for-loop afterthoughts for `no-plusplus`.",
           "type": [
@@ -4337,6 +4327,36 @@
         },
         "modes": {
           "description": "Active source graph modes for this target.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "roles": {
+          "description": "Active source graph roles for this target.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "features": {
+          "description": "Active optional features for this target.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "tags": {
+          "description": "Active source graph tags for this target.",
           "type": [
             "array",
             "null"
@@ -6142,6 +6162,62 @@
         }
       }
     },
+    "ConditionOptionsJson": {
+      "description": "Condition declarations JSON from `destack.json`.",
+      "type": "object",
+      "properties": {
+        "modes": {
+          "description": "Named source graph modes.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/$defs/ModeJson"
+          }
+        },
+        "roles": {
+          "description": "Named source graph roles.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/$defs/RoleJson"
+          }
+        },
+        "features": {
+          "description": "Named optional source graph features.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/$defs/FeatureJson"
+          }
+        },
+        "tags": {
+          "description": "Named source graph tags.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/$defs/TagJson"
+          }
+        },
+        "aliases": {
+          "description": "Named file condition aliases.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/$defs/ConditionGateJson"
+          }
+        }
+      }
+    },
     "ModeJson": {
       "description": "Source graph mode JSON from `destack.json`.",
       "type": "object",
@@ -6381,6 +6457,111 @@
           }
         }
       ]
+    },
+    "ConditionGateJson": {
+      "description": "Condition gate JSON from `destack.json`.",
+      "type": "object",
+      "properties": {
+        "mode": {
+          "description": "Active mode selector.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ConditionSelectorJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "role": {
+          "description": "Active role selector.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ConditionSelectorJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "feature": {
+          "description": "Active feature selector.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ConditionSelectorJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tag": {
+          "description": "Active tag selector.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ConditionSelectorJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "target": {
+          "description": "Active build target selector.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ConditionSelectorJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "product": {
+          "description": "Active product selector.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ConditionSelectorJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "platform": {
+          "description": "Active target platform selector.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ConditionSelectorJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "host": {
+          "description": "Active host environment selector.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ConditionSelectorJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "runtime": {
+          "description": "Active runtime selector.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ConditionSelectorJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
     }
   }
 }

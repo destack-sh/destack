@@ -6,18 +6,19 @@ use crate::host::binding::{
 use crate::world::{EdgeId, EntityId};
 use destack_source::matches as glob_matches;
 use destack_workspace::{
-    ConditionSelector, ConditionSet, ExecutionMode, PackageSelector, RuntimeIdentitySelector,
-    RuntimeLabelOperator, RuntimeLabelRequirement, RuntimeLabelSelector,
+    ConditionGate, ConditionSelector, ConditionSet, ExecutionMode, PackageSelector,
+    RuntimeIdentitySelector, RuntimeLabelOperator, RuntimeLabelRequirement, RuntimeLabelSelector,
 };
 use serde::{Deserialize, Serialize};
 
 /// Selector clauses for policy subjects.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SubjectSelector {
     /// Package selector.
     pub package: Option<PackageSelector>,
     /// Runtime identity selector.
-    pub runtime: Option<RuntimeIdentitySelector>,
+    pub runtime_identity: Option<RuntimeIdentitySelector>,
     /// Worker identity selector.
     pub worker: Option<RuntimeIdentitySelector>,
     /// Execution-mode selector.
@@ -34,6 +35,12 @@ pub struct SubjectSelector {
     pub target: Option<ConditionSelector>,
     /// Active product selector.
     pub product: Option<ConditionSelector>,
+    /// Active target platform selector.
+    pub platform: Option<ConditionSelector>,
+    /// Active host environment selector.
+    pub host: Option<ConditionSelector>,
+    /// Active runtime selector.
+    pub runtime: Option<ConditionSelector>,
 }
 
 /// Subject facts for one policy evaluation.
@@ -262,7 +269,7 @@ impl SubjectSelector {
     /// Return true when this selector has no clauses.
     pub fn is_empty(&self) -> bool {
         self.package.as_ref().is_none_or(PackageSelector::is_empty)
-            && self.runtime.is_none()
+            && self.runtime_identity.is_none()
             && self.worker.is_none()
             && self.execution.is_none()
             && self.mode.as_ref().is_none_or(ConditionSelector::is_empty)
@@ -277,6 +284,15 @@ impl SubjectSelector {
                 .product
                 .as_ref()
                 .is_none_or(ConditionSelector::is_empty)
+            && self
+                .platform
+                .as_ref()
+                .is_none_or(ConditionSelector::is_empty)
+            && self.host.as_ref().is_none_or(ConditionSelector::is_empty)
+            && self
+                .runtime
+                .as_ref()
+                .is_none_or(ConditionSelector::is_empty)
     }
 
     /// Return true when this selector matches one policy subject.
@@ -289,7 +305,7 @@ impl SubjectSelector {
         }
 
         // runtime
-        if let Some(runtime) = &self.runtime
+        if let Some(runtime) = &self.runtime_identity
             && !matches_identity_selector(runtime, subject.runtime_name, subject.runtime_labels)
         {
             return false;
@@ -569,92 +585,19 @@ fn matches_package_selector(selector: &PackageSelector, package_name: Option<&st
 
 /// Return true when all source graph selectors match.
 fn matches_conditions(selector: &SubjectSelector, conditions: &ConditionSet) -> bool {
-    // mode
-    if let Some(mode) = &selector.mode
-        && !matches_condition_selector(mode, conditions, |conditions, pattern| {
-            conditions
-                .modes
-                .iter()
-                .any(|mode| glob_match(pattern, mode))
-        })
-    {
-        return false;
-    }
+    let gate = ConditionGate {
+        mode: selector.mode.clone(),
+        role: selector.role.clone(),
+        feature: selector.feature.clone(),
+        tag: selector.tag.clone(),
+        target: selector.target.clone(),
+        product: selector.product.clone(),
+        platform: selector.platform.clone(),
+        host: selector.host.clone(),
+        runtime: selector.runtime.clone(),
+    };
 
-    // role
-    if let Some(role) = &selector.role
-        && !matches_condition_selector(role, conditions, |conditions, pattern| {
-            conditions
-                .roles
-                .iter()
-                .any(|role| glob_match(pattern, role))
-        })
-    {
-        return false;
-    }
-
-    // feature
-    if let Some(feature) = &selector.feature
-        && !matches_condition_selector(feature, conditions, |conditions, pattern| {
-            conditions
-                .features
-                .iter()
-                .any(|feature| glob_match(pattern, feature))
-        })
-    {
-        return false;
-    }
-
-    // tag
-    if let Some(tag) = &selector.tag
-        && !matches_condition_selector(tag, conditions, |conditions, pattern| {
-            conditions.tags.iter().any(|tag| glob_match(pattern, tag))
-        })
-    {
-        return false;
-    }
-
-    // target
-    if let Some(target) = &selector.target
-        && !matches_condition_selector(target, conditions, |conditions, pattern| {
-            conditions
-                .target
-                .as_deref()
-                .is_some_and(|target| glob_match(pattern, target))
-        })
-    {
-        return false;
-    }
-
-    // product
-    if let Some(product) = &selector.product
-        && !matches_condition_selector(product, conditions, |conditions, pattern| {
-            conditions
-                .product
-                .as_deref()
-                .is_some_and(|product| glob_match(pattern, product))
-        })
-    {
-        return false;
-    }
-
-    true
-}
-
-/// Return true when one source graph selector matches.
-fn matches_condition_selector(
-    selector: &ConditionSelector,
-    conditions: &ConditionSet,
-    matches_pattern: impl Fn(&ConditionSet, &str) -> bool,
-) -> bool {
-    if selector.patterns.is_empty() {
-        return true;
-    }
-
-    selector
-        .patterns
-        .iter()
-        .any(|pattern| matches_pattern(conditions, pattern))
+    gate.matches(conditions)
 }
 
 /// Return true when one label selector matches labels.
