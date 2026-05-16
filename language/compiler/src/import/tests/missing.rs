@@ -152,6 +152,45 @@ export let value = 1;
 }
 
 #[test]
+fn test_import_reports_conditional_file_specifier() {
+    let compiler = TestCompiler::new()
+        .data(
+            "destack.json",
+            r#"{ "conditions": { "modes": { "preview": {} } }, "compiler": {}, "policy": {}, "runtime": {}, "formatter": {}, "linter": {} }"#,
+        )
+        .module(
+            "main.ds",
+            r#"
+import { value } from "./user.preview.ds";
+"#,
+        )
+        .module(
+            "user.ds",
+            r#"
+export let value = 1;
+"#,
+        )
+        .module(
+            "user.preview.ds",
+            r#"
+export let preview = true;
+"#,
+        )
+        .build();
+
+    compiler
+        .provide_dir_imported("main.ds")
+        .expect("artifact should be provided with diagnostics");
+    assert_snapshot(
+        compiler.diagnostic_snapshot(compiler.dir_imported_key("main.ds")),
+        r#"
+/// @diagnostic.error code=EI204 message="unsupported module specifier './user.preview.ds'"
+/// @diagnostic.label line=2 column=1 source="import { value } from \"./user.preview.ds\";"
+"#,
+    );
+}
+
+#[test]
 fn test_import_reports_ambiguous_extensionless_specifier() {
     let compiler = TestCompiler::new()
         .module(
