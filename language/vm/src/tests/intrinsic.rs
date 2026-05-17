@@ -802,12 +802,12 @@ b0(v0: int32):
 }
 
 #[test]
-fn test_terminator_trap_panic() {
+fn test_terminator_panic() {
     let mir = r#"
 function test(): void {
 b0:
     v0: ref<int32, managed, readonly> = new int32
-    trap.panic v0
+    panic v0
 }
 "#;
     let result = run_mir(mir, "test", &[]);

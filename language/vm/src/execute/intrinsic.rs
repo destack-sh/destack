@@ -302,9 +302,9 @@ word_intrinsic!(
     transmute
 );
 word_intrinsic!(
-    /// Execute address space cast.
-    execute_intrinsic_address_space_cast,
-    address_space_cast
+    /// Execute space cast.
+    execute_intrinsic_space_cast,
+    space_cast
 );
 word_intrinsic!(
     /// Execute raw pointer offset.
@@ -495,9 +495,7 @@ pub(crate) fn execute_intrinsic(
         mir::Intrinsic::PrefetchRead => execute_intrinsic_prefetch_read(machine, instruction),
         mir::Intrinsic::PrefetchWrite => execute_intrinsic_prefetch_write(machine, instruction),
         mir::Intrinsic::Transmute => execute_intrinsic_transmute(machine, instruction),
-        mir::Intrinsic::AddressSpaceCast => {
-            execute_intrinsic_address_space_cast(machine, instruction)
-        }
+        mir::Intrinsic::SpaceCast => execute_intrinsic_space_cast(machine, instruction),
         mir::Intrinsic::PointerOffsetFrom => {
             execute_intrinsic_pointer_offset_from(machine, instruction)
         }
@@ -1472,9 +1470,9 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         self.first_argument(mir::Intrinsic::Transmute, args)
     }
 
-    /// Cast between address spaces.
-    fn address_space_cast(&self, _arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
-        self.first_argument(mir::Intrinsic::AddressSpaceCast, args)
+    /// Cast between spaces.
+    fn space_cast(&self, _arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+        self.first_argument(mir::Intrinsic::SpaceCast, args)
     }
 
     // pointer operations

@@ -16,87 +16,64 @@ const REF_NULLABILITY_SHIFT: u8 = 5;
 /// The packed bit mask for reference nullability.
 const REF_NULLABILITY_MASK: u16 = 0x3 << REF_NULLABILITY_SHIFT;
 
-/// The shift used for the packed reference address space.
-const REF_ADDRESS_SPACE_SHIFT: u8 = 7;
+/// The shift used for the packed reference space.
+const REF_SPACE_SHIFT: u8 = 7;
 
-/// The packed bit mask for the reference address space.
-const REF_ADDRESS_SPACE_MASK: u16 = 0x7 << REF_ADDRESS_SPACE_SHIFT;
+/// The packed bit mask for the reference space.
+const REF_SPACE_MASK: u16 = 0x7 << REF_SPACE_SHIFT;
 
-/// Address space class for reference metadata.
+/// Space class for reference metadata.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum ReferenceAddressSpace {
+pub enum ReferenceSpace {
     /// Worker-local heap.
     Local,
     /// World-shared heap.
     Shared,
-    /// Stack allocation.
-    Stack,
     /// Frame bytes.
     Frame,
     /// Static image memory.
     Static,
-    /// Named backend space.
-    Named,
 }
 
-impl ReferenceAddressSpace {
-    /// Map a MIR address space into a VM reference address space.
-    pub fn from_mir(address_space: mir::AddressSpace) -> Self {
-        match address_space {
-            mir::AddressSpace::Local => ReferenceAddressSpace::Local,
-            mir::AddressSpace::Shared => ReferenceAddressSpace::Shared,
-            mir::AddressSpace::Stack => ReferenceAddressSpace::Stack,
-            mir::AddressSpace::Frame => ReferenceAddressSpace::Frame,
-            mir::AddressSpace::Static => ReferenceAddressSpace::Static,
-            mir::AddressSpace::Named(_) => ReferenceAddressSpace::Named,
+impl ReferenceSpace {
+    /// Map a MIR space into a VM reference space.
+    pub fn from_mir(space: mir::Space) -> Self {
+        match space {
+            mir::Space::Local => ReferenceSpace::Local,
+            mir::Space::Shared => ReferenceSpace::Shared,
+            mir::Space::Frame => ReferenceSpace::Frame,
+            mir::Space::Static => ReferenceSpace::Static,
         }
     }
 
-    /// Decode a reference address space from packed bits.
+    /// Decode a reference space from packed bits.
     pub fn from_bits(bits: u8) -> Self {
         match bits {
-            0 => ReferenceAddressSpace::Local,
-            1 => ReferenceAddressSpace::Stack,
-            2 => ReferenceAddressSpace::Static,
-            3 => ReferenceAddressSpace::Shared,
-            4 => ReferenceAddressSpace::Frame,
-            _ => ReferenceAddressSpace::Named,
+            0 => ReferenceSpace::Local,
+            1 => ReferenceSpace::Frame,
+            2 => ReferenceSpace::Static,
+            3 => ReferenceSpace::Shared,
+            _ => panic!("invalid reference space bits {bits}"),
         }
     }
 
-    /// Encode a reference address space as packed bits.
+    /// Encode a reference space as packed bits.
     pub fn to_bits(self) -> u8 {
         match self {
-            ReferenceAddressSpace::Local => 0,
-            ReferenceAddressSpace::Stack => 1,
-            ReferenceAddressSpace::Static => 2,
-            ReferenceAddressSpace::Shared => 3,
-            ReferenceAddressSpace::Frame => 4,
-            ReferenceAddressSpace::Named => 5,
+            ReferenceSpace::Local => 0,
+            ReferenceSpace::Frame => 1,
+            ReferenceSpace::Static => 2,
+            ReferenceSpace::Shared => 3,
         }
-    }
-
-    /// Check whether this address space is supported by the VM.
-    pub fn is_supported_by_vm(self) -> bool {
-        matches!(
-            self,
-            ReferenceAddressSpace::Local
-                | ReferenceAddressSpace::Shared
-                | ReferenceAddressSpace::Stack
-                | ReferenceAddressSpace::Frame
-                | ReferenceAddressSpace::Static
-        )
     }
 
     /// Return a human-readable label for diagnostics.
     pub fn label(self) -> &'static str {
         match self {
-            ReferenceAddressSpace::Local => "local",
-            ReferenceAddressSpace::Shared => "shared",
-            ReferenceAddressSpace::Stack => "stack",
-            ReferenceAddressSpace::Frame => "frame",
-            ReferenceAddressSpace::Static => "static",
-            ReferenceAddressSpace::Named => "named",
+            ReferenceSpace::Local => "local",
+            ReferenceSpace::Shared => "shared",
+            ReferenceSpace::Frame => "frame",
+            ReferenceSpace::Static => "static",
         }
     }
 }
@@ -119,7 +96,7 @@ impl ReferenceMeta {
     /// Create reference metadata.
     pub fn new(
         kind: mir::ReferenceKind,
-        address_space: mir::AddressSpace,
+        space: mir::Space,
         access: mir::Access,
         nullability: mir::Nullability,
     ) -> Self {
@@ -134,8 +111,7 @@ impl ReferenceMeta {
             mir::Access::Mutable => 1,
             mir::Access::Exclusive => 2,
         };
-        let address_space_bits =
-            u16::from(ReferenceAddressSpace::from_mir(address_space).to_bits());
+        let space_bits = u16::from(ReferenceSpace::from_mir(space).to_bits());
         let nullability_bits = match nullability {
             mir::Nullability::None => 0,
             mir::Nullability::Null => 1,
@@ -145,7 +121,7 @@ impl ReferenceMeta {
 
         let mut bits = kind_bits | (access_bits << REF_ACCESS_SHIFT);
         bits |= nullability_bits << REF_NULLABILITY_SHIFT;
-        bits |= address_space_bits << REF_ADDRESS_SPACE_SHIFT;
+        bits |= space_bits << REF_SPACE_SHIFT;
 
         Self { bits }
     }
@@ -184,10 +160,10 @@ impl ReferenceMeta {
         }
     }
 
-    /// Get the reference address space.
-    pub fn address_space(self) -> ReferenceAddressSpace {
-        let bits = ((self.bits & REF_ADDRESS_SPACE_MASK) >> REF_ADDRESS_SPACE_SHIFT) as u8;
-        ReferenceAddressSpace::from_bits(bits)
+    /// Get the reference space.
+    pub fn space(self) -> ReferenceSpace {
+        let bits = ((self.bits & REF_SPACE_MASK) >> REF_SPACE_SHIFT) as u8;
+        ReferenceSpace::from_bits(bits)
     }
 
     /// Return the raw metadata bits.

@@ -16,7 +16,7 @@ use crate::program::{Layout, encode_word_bytes};
 use crate::{Continuation, Isolate, IsolateId, IsolateOptions, Outcome, RootSet, Word};
 
 /// The virtual heap-space width used by ordinary VM tests.
-const TEST_HEAP_SPACE_BYTES: usize = 16 * 1024 * 1024;
+const TEST_LOCAL_SPACE_BYTES: usize = 16 * 1024 * 1024;
 
 /// The isolate and authoritative heap used by one test runtime.
 pub(crate) struct TestIsolate {
@@ -61,8 +61,8 @@ pub(crate) fn create_test_shared_heap() -> SharedHeap {
 /// Create heap options for ordinary local VM tests.
 fn test_local_heap_options() -> HeapOptions {
     HeapOptions {
-        heap_space_bytes: TEST_HEAP_SPACE_BYTES,
-        raw_space_bytes: TEST_HEAP_SPACE_BYTES,
+        heap_space_bytes: TEST_LOCAL_SPACE_BYTES,
+        raw_space_bytes: TEST_LOCAL_SPACE_BYTES,
         ..HeapOptions::local()
     }
 }
@@ -70,8 +70,8 @@ fn test_local_heap_options() -> HeapOptions {
 /// Create heap options for ordinary shared VM tests.
 pub(crate) fn test_shared_heap_options() -> HeapOptions {
     HeapOptions {
-        heap_space_bytes: TEST_HEAP_SPACE_BYTES,
-        raw_space_bytes: TEST_HEAP_SPACE_BYTES,
+        heap_space_bytes: TEST_LOCAL_SPACE_BYTES,
+        raw_space_bytes: TEST_LOCAL_SPACE_BYTES,
         ..HeapOptions::shared()
     }
 }

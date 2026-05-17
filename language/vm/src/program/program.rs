@@ -141,14 +141,12 @@ impl Program {
         self.resume.state(frame_state).map(|state| state.point)
     }
 
-    /// Return the source-level debug point for one resume state.
-    pub(crate) fn debug_point_for_frame_state(
+    /// Return the source MIR point for one resume state.
+    pub(crate) fn mir_point_for_frame_state(
         &self,
         frame_state: engine::FrameStateId,
-    ) -> Option<mir::DebugPoint> {
-        self.resume
-            .state(frame_state)
-            .map(|state| state.debug_point)
+    ) -> Option<u32> {
+        self.resume.state(frame_state).map(|state| state.mir_point)
     }
 
     /// Return the entry data for one resume state.
@@ -485,7 +483,7 @@ fn validate_zero_scalar_type(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) 
         | mir::Type::Boolean => Ok(()),
         mir::Type::Reference {
             kind: _,
-            address_space: _,
+            space: _,
             access: _,
             nullability,
             ..
@@ -924,10 +922,10 @@ impl ProgramBuilder {
 
         // append states for every lowered instruction point
         for block in &function.blocks {
-            for (pc, source_point) in block.source_point_by_pc.iter().copied().enumerate() {
+            for (pc, mir_point) in block.mir_point_by_pc.iter().copied().enumerate() {
                 let point = ProgramPoint::new(function_id, block.mir_block, pc as u32);
                 let frame_state_id = self.resume.next_id();
-                let return_destination = self.return_destination(block.mir_block, source_point)?;
+                let return_destination = self.return_destination(block.mir_block, mir_point)?;
 
                 self.append_frame_state(
                     &frame_layout,
@@ -937,7 +935,7 @@ impl ProgramBuilder {
                     frame_state_id,
                     None,
                     return_destination,
-                    Some(source_point),
+                    Some(mir_point),
                 )?;
             }
         }
@@ -949,16 +947,16 @@ impl ProgramBuilder {
     fn return_destination(
         &self,
         block: mir::LocalNodeId<mir::Block>,
-        source_point: u32,
+        mir_point: u32,
     ) -> Result<Option<mir::Value>> {
         // block entry has no preceding call
-        if source_point == 0 {
+        if mir_point == 0 {
             return Ok(None);
         }
 
         // inspect the source instruction immediately before this point
         let block = self.tree.get(block);
-        let instruction_index = source_point as usize - 1;
+        let instruction_index = mir_point as usize - 1;
         let Some(instruction_id) = block.instructions.get(instruction_index).copied() else {
             return Ok(None);
         };
@@ -1309,14 +1307,14 @@ impl ProgramBuilder {
         frame_state: engine::FrameStateId,
         frame_entry: Option<FrameEntry>,
         return_destination: Option<mir::Value>,
-        source_point: Option<u32>,
+        mir_point: Option<u32>,
     ) -> Result<()> {
         let materialized_values = self.materialized_values(
             frame_layout,
             liveness,
             block,
             frame_entry.as_ref(),
-            source_point,
+            mir_point,
         )?;
         let materialized_locals = self.materialized_locals(liveness, block);
         let sources = frame_layout
@@ -1342,8 +1340,7 @@ impl ProgramBuilder {
             frame_layout: frame_layout.id,
             sources,
         };
-        let debug_point =
-            mir::DebugPoint::new(point.function, block, source_point.unwrap_or_default());
+        let mir_point = mir_point.unwrap_or_default();
 
         self.layout.frame_states.push(engine::FrameState {
             id: frame_state,
@@ -1358,7 +1355,7 @@ impl ProgramBuilder {
             frame_state,
             ResumeState {
                 point,
-                debug_point,
+                mir_point,
                 entry: frame_entry,
                 return_destination,
             },
@@ -1374,15 +1371,15 @@ impl ProgramBuilder {
         liveness: &mir::FunctionLiveness,
         block: mir::LocalNodeId<mir::Block>,
         frame_entry: Option<&FrameEntry>,
-        source_point: Option<u32>,
+        mir_point: Option<u32>,
     ) -> Result<HashSet<mir::Value>> {
         let Some(frame_entry) = frame_entry else {
-            let source_point = source_point.ok_or(Error::InvalidInstruction)?;
+            let mir_point = mir_point.ok_or(Error::InvalidInstruction)?;
 
             return Ok(liveness.value_live_before_instruction(
                 &self.tree,
                 block,
-                source_point as usize,
+                mir_point as usize,
             ));
         };
 

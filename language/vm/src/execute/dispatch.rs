@@ -1042,7 +1042,9 @@ macro_rules! dispatch_instruction {
             Op::TensorStore => $step!(super::execute_tensor_store($machine, instruction)),
             Op::TensorTranspose => $step!(super::execute_tensor_transpose($machine, instruction)),
             Op::TensorView => $step!(super::execute_tensor_view($machine, instruction)),
-            Op::Panic => $transfer!(super::execute_panic($machine, instruction)),
+            Op::Panic | Op::PanicValue | Op::ResumePanic => {
+                $transfer!(super::execute_panic($machine, instruction))
+            }
             Op::Unreachable => $transfer!(super::execute_unreachable($machine, instruction)),
             Op::VectorConvert => $step!(super::execute_vector_convert($machine, instruction)),
             Op::VectorExtract => $step!(super::execute_vector_extract($machine, instruction)),

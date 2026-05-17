@@ -174,8 +174,8 @@ impl<'a> BlockLowerer<'a> {
         Ok(Instruction::new(op, word_offset(self, pointer)?, 0, 0, 0))
     }
 
-    /// Lower one stack allocation.
-    pub(super) fn lower_stack_alloc(
+    /// Lower one frame allocation.
+    pub(super) fn lower_frame_alloc(
         &self,
         destination: mir::ValueReference,
         layout: mir::TypeReference,
@@ -184,13 +184,13 @@ impl<'a> BlockLowerer<'a> {
         let destination = destination
             .value()
             .ok_or_else(|| Error::MissingRepresentation {
-                context: "stack alloc destination".to_string(),
+                context: "frame alloc destination".to_string(),
             })?;
         let allocation_type = layout.ty().ok_or_else(|| Error::MissingRepresentation {
-            context: "stack alloc layout".to_string(),
+            context: "frame alloc layout".to_string(),
         })?;
 
-        // stack allocation must produce a stack pointer
+        // frame allocation must produce a frame allocation pointer
         let pointer_class = pointer_class_for_value(self.value_layout_map(), destination);
         if !matches!(pointer_class, PointerClass::Stack) {
             return Err(Error::InvalidPointerType {
@@ -291,19 +291,14 @@ fn slice_backing_pointer_class(
     tree: &mir::Tree,
     result_type: mir::LocalNodeId<mir::Type>,
 ) -> Result<PointerClass> {
-    let mir::Type::Slice {
-        kind,
-        address_space,
-        ..
-    } = tree.get(result_type)
-    else {
+    let mir::Type::Slice { kind, space, .. } = tree.get(result_type) else {
         return Err(Error::TypeMismatch {
             expected: "slice result type".to_string(),
             actual: format!("{result_type:?}"),
         });
     };
 
-    let pointer_class = pointer_class_from_reference(address_space.clone(), *kind);
+    let pointer_class = pointer_class_from_reference(space.clone(), *kind);
     match pointer_class {
         PointerClass::Heap | PointerClass::SharedHeap => Ok(pointer_class),
         _ => Err(Error::InvalidPointerType {
@@ -375,7 +370,7 @@ fn unique_free_op(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) -> Result<O
     let ty = repr_type(tree, ty);
     let mir::Type::Reference {
         kind: mir::ReferenceKind::Unique,
-        address_space,
+        space,
         ..
     } = tree.get(ty)
     else {
@@ -384,8 +379,7 @@ fn unique_free_op(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) -> Result<O
         });
     };
 
-    let pointer_class =
-        pointer_class_from_reference(address_space.clone(), mir::ReferenceKind::Unique);
+    let pointer_class = pointer_class_from_reference(space.clone(), mir::ReferenceKind::Unique);
     match pointer_class {
         PointerClass::Heap => Ok(Op::FreeHeap),
         PointerClass::SharedHeap => Ok(Op::FreeSharedHeap),

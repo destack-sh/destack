@@ -77,7 +77,7 @@ impl Program {
                     mir::ReferenceKind::Managed
                     | mir::ReferenceKind::Unique
                     | mir::ReferenceKind::Borrowed,
-                address_space: mir::AddressSpace::Local,
+                space: mir::Space::Local,
                 ..
             }
             | mir::Type::Callable { .. } => {
@@ -88,7 +88,7 @@ impl Program {
                     mir::ReferenceKind::Managed
                     | mir::ReferenceKind::Unique
                     | mir::ReferenceKind::Borrowed,
-                address_space: mir::AddressSpace::Shared,
+                space: mir::Space::Shared,
                 ..
             } => Ok(Some(HeapEdge::Shared(SharedHeapReference::from_bits(bits)))),
             _ => Ok(None),

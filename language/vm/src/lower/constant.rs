@@ -3,7 +3,7 @@ use destack_mir as mir;
 use destack_heap::{HeapReference, RawPointer, SharedHeapReference, SharedRawPointer};
 
 use crate::program::{ConstValue, Instruction, Op};
-use crate::{Error, ReferenceAddressSpace, Result, Word};
+use crate::{Error, ReferenceSpace, Result, Word};
 
 use super::frame::{value_offset, word_offset};
 use super::lower::BlockLowerer;
@@ -64,14 +64,14 @@ impl<'a> BlockLowerer<'a> {
 
         match reference.kind() {
             Some(mir::ReferenceKind::Managed | mir::ReferenceKind::Unique)
-                if matches!(reference.address_space(), ReferenceAddressSpace::Shared) =>
+                if matches!(reference.space(), ReferenceSpace::Shared) =>
             {
                 Word::shared_heap_reference(SharedHeapReference::NULL)
             }
             Some(mir::ReferenceKind::Managed | mir::ReferenceKind::Unique) => {
                 Word::heap_reference(HeapReference::NULL)
             }
-            _ if matches!(reference.address_space(), ReferenceAddressSpace::Shared) => {
+            _ if matches!(reference.space(), ReferenceSpace::Shared) => {
                 Word::shared_raw_pointer(SharedRawPointer::NULL)
             }
             _ => Word::raw_pointer(RawPointer::NULL),

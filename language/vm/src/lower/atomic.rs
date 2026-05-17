@@ -274,7 +274,7 @@ fn require_atomic_pointer(
     // require a concrete reference type
     let mir::Type::Reference {
         kind,
-        address_space,
+        space,
         pointee,
         ..
     } = tree.get(pointer_type)
@@ -284,7 +284,7 @@ fn require_atomic_pointer(
         });
     };
 
-    let pointer_class = pointer_class_from_reference(address_space.clone(), *kind);
+    let pointer_class = pointer_class_from_reference(space.clone(), *kind);
     let address = atomic_address(pointer_class)?;
 
     // require atomic storage

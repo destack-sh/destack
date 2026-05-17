@@ -404,10 +404,10 @@ fn build_layout(
         mir::Type::Slice {
             kind,
             element: _,
-            address_space,
+            space,
             access: _,
             ..
-        } => build_slice_layout(tree, *kind, address_space.clone())?,
+        } => build_slice_layout(tree, *kind, space.clone())?,
         mir::Type::Callable { .. } => {
             scalar_layout(tree.pointer_bytes() as usize, tree.pointer_bytes() as usize)
         }
@@ -642,9 +642,9 @@ fn build_array_layout(
 fn build_slice_layout(
     tree: &mir::Tree,
     kind: mir::ReferenceKind,
-    address_space: mir::AddressSpace,
+    space: mir::Space,
 ) -> Result<Layout> {
-    let pointer_class = pointer_class_from_reference(address_space, kind);
+    let pointer_class = pointer_class_from_reference(space, kind);
     let data_layout =
         word_layout_from_pointer_class(pointer_class).ok_or_else(|| Error::InvalidPointerType {
             actual: format!("{pointer_class:?}"),
@@ -875,20 +875,15 @@ fn contains_callable(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) -> Resul
     }
 }
 
-/// Return the address space when the repr type is one heap reference.
-fn heap_reference_space(
-    tree: &mir::Tree,
-    ty: mir::LocalNodeId<mir::Type>,
-) -> Option<mir::AddressSpace> {
+/// Return the space when the repr type is one heap reference.
+fn heap_reference_space(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) -> Option<mir::Space> {
     let ty = repr_type(tree, ty);
 
     match tree.get(ty) {
-        mir::Type::Reference {
-            kind,
-            address_space,
-            ..
-        } if is_heap_reference_kind(*kind) => Some(address_space.clone()),
-        mir::Type::Callable { .. } => Some(mir::AddressSpace::Local),
+        mir::Type::Reference { kind, space, .. } if is_heap_reference_kind(*kind) => {
+            Some(space.clone())
+        }
+        mir::Type::Callable { .. } => Some(mir::Space::Local),
         _ => None,
     }
 }
@@ -1154,8 +1149,8 @@ fn append_reference_offsets(
     match &layout.shape {
         // scalar heap references contribute one direct offset
         LayoutShape::Scalar => match heap_reference_space(tree, ty) {
-            Some(mir::AddressSpace::Local) => local_offsets.push(base_offset),
-            Some(mir::AddressSpace::Shared) => shared_offsets.push(base_offset),
+            Some(mir::Space::Local) => local_offsets.push(base_offset),
+            Some(mir::Space::Shared) => shared_offsets.push(base_offset),
             _ => {}
         },
 
@@ -1187,21 +1182,16 @@ fn append_reference_offsets(
 
         // slice descriptors trace the backing storage pointer
         LayoutShape::Slice => {
-            let mir::Type::Slice {
-                kind,
-                address_space,
-                ..
-            } = tree.get(repr_type(tree, ty))
-            else {
+            let mir::Type::Slice { kind, space, .. } = tree.get(repr_type(tree, ty)) else {
                 return Err(Error::InvariantViolation {
                     context: "slice layout requested for non-slice type".to_string(),
                 });
             };
 
             if is_heap_reference_kind(*kind) {
-                match address_space {
-                    mir::AddressSpace::Local => local_offsets.push(base_offset),
-                    mir::AddressSpace::Shared => shared_offsets.push(base_offset),
+                match space {
+                    mir::Space::Local => local_offsets.push(base_offset),
+                    mir::Space::Shared => shared_offsets.push(base_offset),
                     _ => {}
                 }
             }
@@ -1209,21 +1199,16 @@ fn append_reference_offsets(
 
         // tensor view descriptors trace the backing storage pointer
         LayoutShape::TensorView { .. } => {
-            let mir::Type::TensorView {
-                kind,
-                address_space,
-                ..
-            } = tree.get(repr_type(tree, ty))
-            else {
+            let mir::Type::TensorView { kind, space, .. } = tree.get(repr_type(tree, ty)) else {
                 return Err(Error::InvariantViolation {
                     context: "tensor view layout requested for non-tensor-view type".to_string(),
                 });
             };
 
             if is_heap_reference_kind(*kind) {
-                match address_space {
-                    mir::AddressSpace::Local => local_offsets.push(base_offset),
-                    mir::AddressSpace::Shared => shared_offsets.push(base_offset),
+                match space {
+                    mir::Space::Local => local_offsets.push(base_offset),
+                    mir::Space::Shared => shared_offsets.push(base_offset),
                     _ => {}
                 }
             }

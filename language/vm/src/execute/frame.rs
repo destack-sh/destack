@@ -346,23 +346,22 @@ pub(crate) fn frame_value_from_word(
     let frame = frames
         .iter()
         .find(|frame| frame.owns_stack_range(pointer.address(), layout.byte_len))
-        .ok_or(Error::InvalidAddressSpace {
+        .ok_or(Error::InvalidSpace {
             expected: "frame".to_string(),
             actual: format!("{value:?}"),
         })?;
-    let start =
-        pointer
-            .address()
-            .checked_sub(frame.base_address())
-            .ok_or(Error::InvalidAddressSpace {
-                expected: "frame".to_string(),
-                actual: format!("{value:?}"),
-            })?;
+    let start = pointer
+        .address()
+        .checked_sub(frame.base_address())
+        .ok_or(Error::InvalidSpace {
+            expected: "frame".to_string(),
+            actual: format!("{value:?}"),
+        })?;
     let end = start + layout.byte_len;
     let bytes = frame
         .bytes()
         .get(start..end)
-        .ok_or(Error::InvalidAddressSpace {
+        .ok_or(Error::InvalidSpace {
             expected: "frame".to_string(),
             actual: format!("{value:?}"),
         })?
@@ -550,11 +549,7 @@ fn boundary_pointer_class(program: &Program, ty: mir::LocalNodeId<mir::Type>) ->
     let ty = repr_type(&program.tree, ty);
 
     match program.tree.get(ty) {
-        mir::Type::Slice {
-            kind,
-            address_space,
-            ..
-        } => pointer_class_from_reference(address_space.clone(), *kind),
+        mir::Type::Slice { kind, space, .. } => pointer_class_from_reference(space.clone(), *kind),
         _ => PointerClass::Heap,
     }
 }

@@ -274,7 +274,7 @@ pub(crate) fn value_layout_from_type(
         },
         mir::Type::Reference {
             kind,
-            address_space,
+            space,
             access,
             pointee,
             nullability,
@@ -282,8 +282,8 @@ pub(crate) fn value_layout_from_type(
         } => match pointee.ty() {
             Some(pointee) => ValueLayout::Pointer {
                 pointee,
-                pointer_class: pointer_class_from_reference(address_space.clone(), *kind),
-                reference: ReferenceMeta::new(*kind, address_space.clone(), *access, *nullability),
+                pointer_class: pointer_class_from_reference(space.clone(), *kind),
+                reference: ReferenceMeta::new(*kind, space.clone(), *access, *nullability),
             },
             None => ValueLayout::Unknown,
         },
@@ -361,14 +361,9 @@ pub(crate) fn word_layout_from_type(
         }
         mir::Type::Float(mir::FloatType::Float32) => Some(WordLayout::Float32),
         mir::Type::Float(mir::FloatType::Float64) => Some(WordLayout::Float64),
-        mir::Type::Reference {
-            kind,
-            address_space,
-            ..
-        } => word_layout_from_pointer_class(pointer_class_from_reference(
-            address_space.clone(),
-            *kind,
-        )),
+        mir::Type::Reference { kind, space, .. } => {
+            word_layout_from_pointer_class(pointer_class_from_reference(space.clone(), *kind))
+        }
         mir::Type::Callable { .. } => Some(WordLayout::HeapReference),
         mir::Type::FunctionSignature { .. } | mir::Type::FunctionPointer { .. } => {
             Some(WordLayout::FunctionPointer)
@@ -408,24 +403,22 @@ pub(crate) fn scalar_layout_from_type(
 
 /// Map a reference kind to one runtime pointer class.
 pub(crate) fn pointer_class_from_reference(
-    address_space: mir::AddressSpace,
+    space: mir::Space,
     kind: mir::ReferenceKind,
 ) -> PointerClass {
-    match address_space {
-        mir::AddressSpace::Local => match kind {
+    match space {
+        mir::Space::Local => match kind {
             mir::ReferenceKind::Managed | mir::ReferenceKind::Unique => PointerClass::Heap,
             mir::ReferenceKind::Borrowed => PointerClass::HeapAddress,
             mir::ReferenceKind::Raw => PointerClass::Raw,
         },
-        mir::AddressSpace::Shared => match kind {
+        mir::Space::Shared => match kind {
             mir::ReferenceKind::Managed | mir::ReferenceKind::Unique => PointerClass::SharedHeap,
             mir::ReferenceKind::Borrowed => PointerClass::SharedHeapAddress,
             mir::ReferenceKind::Raw => PointerClass::SharedRaw,
         },
-        mir::AddressSpace::Stack => PointerClass::Stack,
-        mir::AddressSpace::Frame => PointerClass::Frame,
-        mir::AddressSpace::Static => PointerClass::Static,
-        mir::AddressSpace::Named(_) => PointerClass::Unknown,
+        mir::Space::Frame => PointerClass::Frame,
+        mir::Space::Static => PointerClass::Static,
     }
 }
 

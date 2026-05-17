@@ -371,18 +371,17 @@ impl<'a> BlockLowerer<'a> {
                 }
             }
 
-            mir::Terminator::Trap { kind, payload } => match kind {
-                mir::TrapKind::Abort => Instruction::new(Op::Abort, 0, 0, 0, 0),
-                mir::TrapKind::Panic => {
-                    let payload = payload.and_then(|payload| payload.value()).ok_or_else(|| {
-                        Error::MissingRepresentation {
-                            context: "trap panic payload".to_string(),
-                        }
-                    })?;
+            mir::Terminator::Panic { payload } => {
+                let Some(payload) = payload.and_then(|payload| payload.value()) else {
+                    return Ok(Instruction::new(Op::Panic, 0, 0, 0, 0));
+                };
 
-                    Instruction::new(Op::Panic, word_offset(self, payload)?, 0, 0, 0)
-                }
-            },
+                Instruction::new(Op::PanicValue, word_offset(self, payload)?, 0, 0, 0)
+            }
+
+            mir::Terminator::ResumePanic => Instruction::new(Op::ResumePanic, 0, 0, 0, 0),
+
+            mir::Terminator::Trap { .. } => Instruction::new(Op::Abort, 0, 0, 0, 0),
 
             mir::Terminator::Unreachable => Instruction::new(Op::Unreachable, 0, 0, 0, 0),
 
