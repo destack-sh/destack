@@ -451,11 +451,11 @@ export {
     pure,
     tailcall,
     taint,
+    source,
     sink,
-    sanitizer,
+    untaint,
     unsafe,
-    allowUnsafe,
-    trusted,
+    safe,
 } from "destack:decorator";
 
 // macros

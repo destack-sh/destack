@@ -1,12 +1,10 @@
 /// Return a well-aligned dangling raw pointer.
-@unsafe
 @intrinsic("memory.ptr.dangling")
 export declare function dangling<T>(): *T;
 
-/// Cast `pointer` to another element type.
-@unsafe
-@intrinsic("memory.ptr.cast")
-export declare function cast<T, U>(pointer: *T): *U;
+/// Offset `pointer` by `count` elements without claiming allocation validity.
+@intrinsic("memory.ptr.wrappingOffset")
+export declare function wrappingOffset<T>(pointer: *T, count: int): *T;
 
 /// Offset `pointer` by `count` elements.
 @unsafe
@@ -71,22 +69,22 @@ export declare function dropInPlace<T>(destination: *T): void;
 /// Copy non-overlapping bytes from `source` to `destination`.
 @unsafe
 @intrinsic("memory.raw.copyBytes")
-export declare function memcpy(destination: *void, source: *void, length: usize): void;
+export declare function copyBytes(destination: *void, source: *void, length: usize): void;
 
 /// Copy bytes from `source` to `destination`, allowing overlap.
 @unsafe
 @intrinsic("memory.raw.moveBytes")
-export declare function memmove(destination: *void, source: *void, length: usize): void;
+export declare function moveBytes(destination: *void, source: *void, length: usize): void;
 
 /// Fill bytes at `destination` with `value`.
 @unsafe
 @intrinsic("memory.raw.setBytes")
-export declare function memset(destination: *void, value: uint8, length: usize): void;
+export declare function setBytes(destination: *void, value: uint8, length: usize): void;
 
 /// Compare raw bytes lexicographically.
 @unsafe
 @intrinsic("memory.raw.compareBytes")
-export declare function memcmp(a: *void, b: *void, length: usize): int32;
+export declare function compareBytes(a: *void, b: *void, length: usize): int32;
 
 /// Copy `count` values from `source` to `destination`, allowing overlap.
 @unsafe
