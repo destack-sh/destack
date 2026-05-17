@@ -37,7 +37,7 @@ entry0(value0: int32, value1: int32):
 block1:
     value5: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${integer_overflow}
     value6: ref<String, managed, readonly> = load value5
-    trap.panic value6
+    panic value6
 block2:
     return value3
 }
@@ -122,7 +122,7 @@ entry0(value0: uint32, value1: uint32):
 block1:
     value5: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${integer_overflow}
     value6: ref<String, managed, readonly> = load value5
-    trap.panic value6
+    panic value6
 block2:
     return value3
 }
@@ -198,13 +198,13 @@ entry0(value0: int32, value1: int32):
 block1:
     value2: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${division_by_zero}
     value3: ref<String, managed, readonly> = load value2
-    trap.panic value3
+    panic value3
 block2:
     check int.div.overflow.s value0, value1 -> block4, block3
 block3:
     value4: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${division_overflow}
     value5: ref<String, managed, readonly> = load value4
-    trap.panic value5
+    panic value5
 block4:
     value6: int32 = int.div.s value0, value1
     return value6
@@ -295,7 +295,7 @@ entry0(value0: uint32, value1: uint32):
 block1:
     value2: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${division_by_zero}
     value3: ref<String, managed, readonly> = load value2
-    trap.panic value3
+    panic value3
 block2:
     value4: uint32 = int.div.u value0, value1
     return value4
@@ -339,7 +339,7 @@ entry0(value0: int32, value1: int32):
 block1:
     value2: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${shift_out_of_range}
     value3: ref<String, managed, readonly> = load value2
-    trap.panic value3
+    panic value3
 block2:
     value4: int32 = int.shl value0, value1
     return value4
@@ -420,7 +420,7 @@ entry0(value0: uint32, value1: uint32):
 block1:
     value2: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${shift_out_of_range}
     value3: ref<String, managed, readonly> = load value2
-    trap.panic value3
+    panic value3
 block2:
     value4: uint32 = int.shl value0, value1
     return value4
@@ -463,7 +463,7 @@ entry0(value0: [int32; 4], value1: int32):
 block1:
     value3: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${bounds_check_failed}
     value4: ref<String, managed, readonly> = load value3
-    trap.panic value4
+    panic value4
 block2:
     value5: int32 = element.get value0, value1
     return value5
@@ -546,7 +546,7 @@ entry0(value0: [int32; 4], value1: uint32):
 block1:
     value3: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${bounds_check_failed}
     value4: ref<String, managed, readonly> = load value3
-    trap.panic value4
+    panic value4
 block2:
     value5: int32 = element.get value0, value1
     return value5

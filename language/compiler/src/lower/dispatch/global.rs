@@ -38,7 +38,7 @@ impl ModuleLowerer<'_> {
             mir::ReferenceKind::Raw,
             self.type_lowerer.ty_void,
             mir::Access::Readonly,
-            mir::AddressSpace::Static,
+            mir::Space::Static,
             mir::Nullability::Null,
         );
         let table_type = self
@@ -53,10 +53,10 @@ impl ModuleLowerer<'_> {
             mir::ReferenceKind::Raw,
             table_type,
             mir::Access::Readonly,
-            mir::AddressSpace::Static,
+            mir::Space::Static,
             mir::Nullability::None,
         );
-        self.builder.tree_mut().get_mut(global_id).space = mir::AddressSpace::Static;
+        self.builder.tree_mut().get_mut(global_id).space = mir::Space::Static;
 
         Ok(DispatchTableGlobal {
             global_id,
@@ -103,10 +103,10 @@ impl ModuleLowerer<'_> {
             mir::ReferenceKind::Raw,
             table_type,
             mir::Access::Readonly,
-            mir::AddressSpace::Static,
+            mir::Space::Static,
             mir::Nullability::None,
         );
-        self.builder.tree_mut().get_mut(global_id).space = mir::AddressSpace::Static;
+        self.builder.tree_mut().get_mut(global_id).space = mir::Space::Static;
 
         Ok(DispatchTableGlobal {
             global_id,

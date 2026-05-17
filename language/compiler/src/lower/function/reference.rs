@@ -7,30 +7,29 @@ use crate::lower::{
 };
 
 impl FunctionLowerer<'_> {
-    /// Build one borrowed reference type in the given address space.
+    /// Build one borrowed reference type in the given space.
     fn borrowed_reference_type(
         &mut self,
         pointee_type: mir::LocalNodeId<mir::Type>,
         access: mir::Access,
-        address_space: mir::AddressSpace,
+        space: mir::Space,
     ) -> mir::LocalNodeId<mir::Type> {
         self.state.builder.type_reference(
             mir::ReferenceKind::Borrowed,
             pointee_type,
             access,
-            address_space,
+            space,
             mir::Nullability::None,
         )
     }
 
-    /// Return the address space carried by one MIR reference type.
-    fn reference_address_space(
+    /// Return the space carried by one MIR reference type.
+    fn reference_space(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         reference_type: mir::LocalNodeId<mir::Type>,
-    ) -> CompilerResult<mir::AddressSpace> {
-        let mir::Type::Reference { address_space, .. } =
-            self.state.builder.tree().get(reference_type)
+    ) -> CompilerResult<mir::Space> {
+        let mir::Type::Reference { space, .. } = self.state.builder.tree().get(reference_type)
         else {
             return Err(LowerError::Internal {
                 anchor: (self.context.module_id).into(),
@@ -40,19 +39,19 @@ impl FunctionLowerer<'_> {
             .into());
         };
 
-        Ok(address_space.clone())
+        Ok(space.clone())
     }
 
-    /// Return the address space produced when borrowing one expression.
-    fn borrow_address_space(
+    /// Return the space produced when borrowing one expression.
+    fn borrow_space(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         expression: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<mir::AddressSpace> {
+    ) -> CompilerResult<mir::Space> {
         match self.context.dir_tree.get(expression) {
             // nested borrows preserve the inner storage space
             dir::Expression::Parenthesized { expression } => {
-                self.borrow_address_space(expression_id, *expression)
+                self.borrow_space(expression_id, *expression)
             }
 
             // resolved paths borrow from their storage owner
@@ -60,10 +59,10 @@ impl FunctionLowerer<'_> {
                 let target_symbol = self.resolve_expression_symbol(expression)?;
                 if let Some(field) = self.capture_field_for_symbol(target_symbol) {
                     if field.mode == dir::CaptureMode::Borrow {
-                        return self.reference_address_space(expression_id, field.ty);
+                        return self.reference_space(expression_id, field.ty);
                     }
 
-                    return Ok(mir::AddressSpace::Local);
+                    return Ok(mir::Space::Local);
                 }
 
                 if let Some(binding) = self
@@ -74,16 +73,16 @@ impl FunctionLowerer<'_> {
                     .copied()
                 {
                     return match binding.storage {
-                        LocalStorage::Local(_) => Ok(mir::AddressSpace::Frame),
+                        LocalStorage::Local(_) => Ok(mir::Space::Frame),
                         LocalStorage::IndirectBinding { reference_type, .. } => {
-                            self.reference_address_space(expression_id, reference_type)
+                            self.reference_space(expression_id, reference_type)
                         }
                         LocalStorage::Variable(_) => {
                             if matches!(
                                 self.state.builder.tree().get(binding.ty),
                                 mir::Type::Reference { .. }
                             ) {
-                                return self.reference_address_space(expression_id, binding.ty);
+                                return self.reference_space(expression_id, binding.ty);
                             }
 
                             Err(LowerError::Internal {
@@ -102,38 +101,36 @@ impl FunctionLowerer<'_> {
             }
 
             // 'this' follows the same storage rules as ordinary locals
-            dir::Expression::This => self.this_borrow_address_space(expression_id),
+            dir::Expression::This => self.this_borrow_space(expression_id),
 
             // field and element borrows preserve the aggregate storage space
             dir::Expression::Member { left, .. }
             | dir::Expression::PrivateMember { left, .. }
-            | dir::Expression::Index { left, .. } => {
-                self.borrow_address_space(expression_id, *left)
-            }
+            | dir::Expression::Index { left, .. } => self.borrow_space(expression_id, *left),
 
             // rvalue borrows spill into a temporary local slot first
-            _ => Ok(mir::AddressSpace::Frame),
+            _ => Ok(mir::Space::Frame),
         }
     }
 
-    /// Return the address space produced when borrowing `this`.
-    fn this_borrow_address_space(
+    /// Return the space produced when borrowing `this`.
+    fn this_borrow_space(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<mir::AddressSpace> {
+    ) -> CompilerResult<mir::Space> {
         // direct method receiver storage
         if let Some(binding) = self.state.bindings.this_binding {
             return match binding.storage {
-                LocalStorage::Local(_) => Ok(mir::AddressSpace::Frame),
+                LocalStorage::Local(_) => Ok(mir::Space::Frame),
                 LocalStorage::IndirectBinding { reference_type, .. } => {
-                    self.reference_address_space(expression_id, reference_type)
+                    self.reference_space(expression_id, reference_type)
                 }
                 LocalStorage::Variable(_) => {
                     if matches!(
                         self.state.builder.tree().get(binding.ty),
                         mir::Type::Reference { .. }
                     ) {
-                        return self.reference_address_space(expression_id, binding.ty);
+                        return self.reference_space(expression_id, binding.ty);
                     }
 
                     Err(LowerError::Internal {
@@ -151,10 +148,10 @@ impl FunctionLowerer<'_> {
             && let Some(field) = self.capture_field_for_symbol(this_symbol)
         {
             if field.mode == dir::CaptureMode::Borrow {
-                return self.reference_address_space(expression_id, field.ty);
+                return self.reference_space(expression_id, field.ty);
             }
 
-            return Ok(mir::AddressSpace::Local);
+            return Ok(mir::Space::Local);
         }
 
         Err(LowerError::UnsupportedConstruct {
@@ -261,8 +258,8 @@ impl FunctionLowerer<'_> {
             .map(lower_mutability)
             .map(access_for_storage_mutability)
             .unwrap_or(mir::Access::Mutable);
-        let address_space = self.borrow_address_space(expression_id, right)?;
-        let result_type = self.borrowed_reference_type(pointee_type, access, address_space);
+        let space = self.borrow_space(expression_id, right)?;
+        let result_type = self.borrowed_reference_type(pointee_type, access, space);
 
         // lower the reference target to an address when possible
         match self.context.dir_tree.get(right) {

@@ -366,23 +366,23 @@ impl FunctionLowerer<'_> {
         if let Some((dispatch_target, receiver_value)) = dispatch_target {
             let value = match dispatch_target {
                 DispatchTarget::Interface {
-                    declaring_type,
+                    interface,
                     slot,
                     signature: _,
                 } => self.state.builder.call_interface(
                     receiver_value,
-                    declaring_type,
+                    interface,
                     slot,
                     signature,
                     arguments,
                 ),
                 DispatchTarget::Class {
-                    declaring_type,
+                    class,
                     slot,
                     function_id,
                 } => self.state.builder.call_class(
                     receiver_value,
-                    declaring_type,
+                    class,
                     slot,
                     Some(function_id),
                     signature,
@@ -496,23 +496,23 @@ impl FunctionLowerer<'_> {
         if let Some((dispatch_target, receiver_value)) = dispatch_target {
             match dispatch_target {
                 DispatchTarget::Interface {
-                    declaring_type,
+                    interface,
                     slot,
                     signature: _,
                 } => self.state.builder.call_interface_void(
                     receiver_value,
-                    declaring_type,
+                    interface,
                     slot,
                     signature,
                     arguments,
                 ),
                 DispatchTarget::Class {
-                    declaring_type,
+                    class,
                     slot,
                     function_id,
                 } => self.state.builder.call_class_void(
                     receiver_value,
-                    declaring_type,
+                    class,
                     slot,
                     Some(function_id),
                     signature,
@@ -591,7 +591,7 @@ impl FunctionLowerer<'_> {
                 mir::ReferenceKind::Raw,
                 result_type,
                 mir::Access::Readonly,
-                mir::AddressSpace::Frame,
+                mir::Space::Frame,
                 mir::Nullability::None,
             );
             let pointer = self

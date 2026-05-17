@@ -12,7 +12,7 @@ const ATOMIC_METADATA_SLOTS: [AtomicMetadataSlot; 7] = [
     AtomicMetadataSlot::Ordering,
     AtomicMetadataSlot::Scope,
     AtomicMetadataSlot::MemoryScope,
-    AtomicMetadataSlot::Spaces,
+    AtomicMetadataSlot::Regions,
     AtomicMetadataSlot::IsVolatile,
     AtomicMetadataSlot::IsMakeAvailable,
     AtomicMetadataSlot::IsMakeVisible,
@@ -27,7 +27,7 @@ enum AtomicMetadataSlot {
     /// The fence memory scope.
     MemoryScope,
     /// The memory space set.
-    Spaces,
+    Regions,
     /// The volatile flag.
     IsVolatile,
     /// The make-available flag.
@@ -1096,7 +1096,7 @@ impl FunctionLowerer<'_> {
                 AtomicMetadataSlot::MemoryScope => {
                     memory_scope = Some(self.parse_memory_scope(expression_id, expression)?);
                 }
-                AtomicMetadataSlot::Spaces => {
+                AtomicMetadataSlot::Regions => {
                     spaces = Some(self.parse_memory_space_set(expression_id, expression)?);
                 }
                 AtomicMetadataSlot::IsVolatile => {
@@ -1195,9 +1195,9 @@ impl FunctionLowerer<'_> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         argument_id: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<mir::MemorySpaceSet> {
+    ) -> CompilerResult<mir::SpaceSet> {
         let name = self.enum_member_name(expression_id, argument_id)?;
-        mir::MemorySpaceSet::try_from(name.as_ref()).map_err(|_| {
+        mir::SpaceSet::try_from(name.as_ref()).map_err(|_| {
             self.error(
                 expression_id,
                 "unsupported memory space set for atomic intrinsic",

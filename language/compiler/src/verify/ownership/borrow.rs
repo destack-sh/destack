@@ -11,8 +11,8 @@ pub(super) enum BorrowSource {
     Owned,
     /// Managed storage.
     Managed {
-        /// The storage address space.
-        space: mir::AddressSpace,
+        /// The storage space.
+        space: mir::Space,
         /// The parameter keeping this managed handle alive.
         parameter: Option<u32>,
     },
@@ -34,7 +34,7 @@ impl BorrowSource {
     pub(super) fn allows_borrow(&self, access: mir::Access) -> bool {
         match self {
             Self::Managed {
-                space: mir::AddressSpace::Shared,
+                space: mir::Space::Shared,
                 ..
             } => !access.is_exclusive(),
             Self::Static | Self::Parameter(_) | Self::Owned | Self::Managed { .. } => true,

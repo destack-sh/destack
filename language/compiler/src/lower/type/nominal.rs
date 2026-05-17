@@ -147,7 +147,7 @@ impl ModuleLowerer<'_> {
                 mir::ReferenceKind::Raw,
                 self.type_lowerer.ty_void,
                 mir::Access::Readonly,
-                mir::AddressSpace::Static,
+                mir::Space::Static,
                 mir::Nullability::None,
             );
             let (size, alignment) = self

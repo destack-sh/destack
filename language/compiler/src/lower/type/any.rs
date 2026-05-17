@@ -65,7 +65,7 @@ impl TypeLowerer<'_> {
             mir::ReferenceKind::Raw,
             self.ty_void,
             mir::Access::Readonly,
-            mir::AddressSpace::Static,
+            mir::Space::Static,
             mir::Nullability::None,
         );
 

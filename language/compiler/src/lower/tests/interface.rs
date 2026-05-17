@@ -162,7 +162,7 @@ entry0(this0: Circle):
             table_type,
             mir::Type::Reference {
                 kind: mir::ReferenceKind::Raw,
-                address_space: mir::AddressSpace::Static,
+                space: mir::Space::Static,
                 ..
             }
         ));
@@ -500,7 +500,7 @@ entry0(this0: Circle):
 
         // assert the dispatch payload
         assert_eq!(info.slot, mir::DispatchSlot::new(2));
-        assert_eq!(info.declaring_type, interface_type);
+        assert_eq!(info.interface, interface_type);
     });
 }
 

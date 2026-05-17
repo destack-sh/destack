@@ -379,7 +379,7 @@ impl TypeLowerer<'_> {
         let mir::Type::Reference {
             kind,
             lifetime,
-            address_space,
+            space,
             access,
             pointee,
             nullability,
@@ -401,7 +401,7 @@ impl TypeLowerer<'_> {
             lifetime.clone(),
             pointee,
             *access,
-            address_space.clone(),
+            space.clone(),
             mir::Nullability::Null,
         );
         Ok(Some(null_reference))

@@ -9,8 +9,8 @@ pub(crate) struct GlobalBinding {
     pub(crate) ty: mir::LocalNodeId<mir::Type>,
     /// The mutability of the global.
     pub(crate) mutability: mir::Mutability,
-    /// The address space of the global.
-    pub(crate) space: mir::AddressSpace,
+    /// The space of the global.
+    pub(crate) space: mir::Space,
 }
 
 /// Storage for a lowered local binding.

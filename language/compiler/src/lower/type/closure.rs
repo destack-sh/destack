@@ -127,7 +127,7 @@ impl ModuleLowerer<'_> {
             mir::ReferenceKind::Managed,
             env_type,
             mir::Access::Mutable,
-            mir::AddressSpace::Local,
+            mir::Space::Local,
             mir::Nullability::None,
         );
 
@@ -166,7 +166,7 @@ impl ModuleLowerer<'_> {
                     mir::ReferenceKind::Managed,
                     value_type,
                     access,
-                    mir::AddressSpace::Local,
+                    mir::Space::Local,
                     mir::Nullability::None,
                 )
             }
@@ -233,7 +233,7 @@ impl ModuleLowerer<'_> {
             mir::ReferenceKind::Managed,
             env_type,
             mir::Access::Mutable,
-            mir::AddressSpace::Local,
+            mir::Space::Local,
             mir::Nullability::Null,
         );
         self.empty_function_environment_type = Some(env_type);
@@ -254,7 +254,7 @@ impl ModuleLowerer<'_> {
             mir::ReferenceKind::Managed,
             env_type,
             mir::Access::Mutable,
-            mir::AddressSpace::Local,
+            mir::Space::Local,
             mir::Nullability::Null,
         );
         self.empty_function_environment_pointer_type = Some(env_pointer_type);

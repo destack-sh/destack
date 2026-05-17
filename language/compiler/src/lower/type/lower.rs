@@ -641,18 +641,12 @@ impl<'a> TypeLowerer<'a> {
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
         let base_type =
             self.lower_value_representation_type(types, form.base, module_id, node, builder)?;
-        let address_space = self.form_address_space(types, form.place);
+        let space = self.form_space(types, form.place, module_id, node)?;
         let access = self
             .form_access(types, form.access)
             .unwrap_or_else(|| self.default_reference_access(kind));
 
-        Ok(builder.type_reference(
-            kind,
-            base_type,
-            access,
-            address_space,
-            mir::Nullability::None,
-        ))
+        Ok(builder.type_reference(kind, base_type, access, space, mir::Nullability::None))
     }
 
     /// Lower a type to its value representation, without default class indirection.
@@ -943,9 +937,9 @@ impl<'a> TypeLowerer<'a> {
                 let inner_type_id =
                     self.first_type_static_argument(static_arguments, type_id, module_id, node)?;
                 let inner_type = self.lower_type(types, inner_type_id, module_id, node, builder)?;
-                let shared_type = self.rewrite_reference_address_space(
+                let shared_type = self.rewrite_reference_space(
                     inner_type,
-                    mir::AddressSpace::Shared,
+                    mir::Space::Shared,
                     type_id,
                     module_id,
                     node,
@@ -964,14 +958,14 @@ impl<'a> TypeLowerer<'a> {
             self.first_type_static_argument(static_arguments, type_id, module_id, node)?;
         let base_type =
             self.lower_value_representation_type(types, base_type_id, module_id, node, builder)?;
-        let address_space = self.ownership_form_address_space(static_arguments);
+        let space = self.ownership_form_space(static_arguments, type_id, module_id, node)?;
         let access = self.default_reference_access(kind);
 
         Ok(Some(builder.type_reference(
             kind,
             base_type,
             access,
-            address_space,
+            space,
             mir::Nullability::None,
         )))
     }
@@ -1041,18 +1035,12 @@ impl<'a> TypeLowerer<'a> {
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
         let base_type =
             self.lower_value_representation_type(types, base_type_id, module_id, node, builder)?;
-        let address_space = self.static_form_address_space(static_arguments);
+        let space = self.static_form_space(static_arguments, base_type_id, module_id, node)?;
         let access = self
             .static_form_access(static_arguments)
             .unwrap_or_else(|| self.default_reference_access(kind));
 
-        Ok(builder.type_reference(
-            kind,
-            base_type,
-            access,
-            address_space,
-            mir::Nullability::None,
-        ))
+        Ok(builder.type_reference(kind, base_type, access, space, mir::Nullability::None))
     }
 
     /// Return the default access for one ownership kind.
@@ -1103,30 +1091,46 @@ impl<'a> TypeLowerer<'a> {
         Ok(*ty)
     }
 
-    /// Return the address space encoded by an ownership form.
-    fn ownership_form_address_space(
+    /// Return the space encoded by an ownership form.
+    fn ownership_form_space(
         &self,
         static_arguments: Option<&[dir::StaticArgument]>,
-    ) -> mir::AddressSpace {
+        type_id: dir::LocalTypeId,
+        module_id: ModuleId,
+        node: dir::AnchoredGlobalNodeId,
+    ) -> LowerResult<mir::Space> {
         let Some(arguments) = static_arguments else {
-            return mir::AddressSpace::Local;
+            return Ok(mir::Space::Local);
         };
 
-        self.static_form_address_space(arguments)
+        self.static_form_space(arguments, type_id, module_id, node)
     }
 
-    /// Return the address space encoded by static `Form` arguments.
-    fn static_form_address_space(&self, arguments: &[dir::StaticArgument]) -> mir::AddressSpace {
+    /// Return the space encoded by static `Form` arguments.
+    fn static_form_space(
+        &self,
+        arguments: &[dir::StaticArgument],
+        type_id: dir::LocalTypeId,
+        module_id: ModuleId,
+        node: dir::AnchoredGlobalNodeId,
+    ) -> LowerResult<mir::Space> {
         let Some(space) = self.static_string_argument(arguments, 2) else {
-            return mir::AddressSpace::Local;
+            return Ok(mir::Space::Local);
         };
         let space = self.strings.get(space);
 
         if space == "ambient" {
-            return mir::AddressSpace::Local;
+            return Ok(mir::Space::Local);
         }
 
-        mir::AddressSpace::from_name(space.as_ref())
+        mir::Space::from_name(space.as_ref()).ok_or_else(|| {
+            LowerError::UnsupportedType {
+                anchor: self.diagnostic_anchor(node),
+                ty: type_id.into_global(module_id),
+                message: format!("unknown space '{space}'"),
+            }
+            .into()
+        })
     }
 
     /// Return the access encoded by static `Form` arguments.
@@ -1142,22 +1146,31 @@ impl<'a> TypeLowerer<'a> {
         }
     }
 
-    /// Return the address space encoded by a resolved `Form` type.
-    fn form_address_space(
+    /// Return the space encoded by a resolved `Form` type.
+    fn form_space(
         &self,
         types: &dir::TypeTable<'_>,
-        place: dir::LocalTypeId,
-    ) -> mir::AddressSpace {
-        let Some(place) = self.string_literal_type(types, place) else {
-            return mir::AddressSpace::Local;
+        place_type_id: dir::LocalTypeId,
+        module_id: ModuleId,
+        node: dir::AnchoredGlobalNodeId,
+    ) -> LowerResult<mir::Space> {
+        let Some(place) = self.string_literal_type(types, place_type_id) else {
+            return Ok(mir::Space::Local);
         };
-        let place = self.strings.get(place);
+        let place_text = self.strings.get(place);
 
-        if place == "ambient" {
-            return mir::AddressSpace::Local;
+        if place_text == "ambient" {
+            return Ok(mir::Space::Local);
         }
 
-        mir::AddressSpace::from_name(place.as_ref())
+        mir::Space::from_name(place_text.as_ref()).ok_or_else(|| {
+            LowerError::UnsupportedType {
+                anchor: self.diagnostic_anchor(node),
+                ty: place_type_id.into_global(module_id),
+                message: format!("unknown space '{place_text}'"),
+            }
+            .into()
+        })
     }
 
     /// Return the access encoded by a resolved `Form` type.
@@ -1213,11 +1226,11 @@ impl<'a> TypeLowerer<'a> {
         Some(*value)
     }
 
-    /// Rewrite a lowered reference into another address space.
-    fn rewrite_reference_address_space(
+    /// Rewrite a lowered reference into another space.
+    fn rewrite_reference_space(
         &self,
         ty: mir::LocalNodeId<mir::Type>,
-        address_space: mir::AddressSpace,
+        space: mir::Space,
         type_id: dir::LocalTypeId,
         module_id: ModuleId,
         node: dir::AnchoredGlobalNodeId,
@@ -1248,7 +1261,7 @@ impl<'a> TypeLowerer<'a> {
             mir::Lifetime::empty(),
             pointee,
             access,
-            address_space,
+            space,
             nullability,
         ))
     }
