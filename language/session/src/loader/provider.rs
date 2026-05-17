@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactDependency, ArtifactKey, ArtifactPayload};
+use destack_artifact::{ArtifactDependency, ArtifactKey, ArtifactPathState, ArtifactPayload};
 use destack_source::{File, FileId};
 use destack_workspace::{ProviderContext, Revision};
 
@@ -36,6 +36,10 @@ impl SessionState {
             .file(revision, file_id)?
             .ok_or(SessionError::FileNotTracked { file_id })?;
 
+        attempt.track(ArtifactDependency::path_state(
+            file_id,
+            ArtifactPathState::File,
+        ));
         attempt.track(ArtifactDependency::file_content(file_id, content_id));
 
         Ok(file)
