@@ -637,7 +637,7 @@ fn loop_clobbers_access(
             };
 
             for access_id in accesses {
-                if memory_ssa.def_clobbers_access(*access_id, use_access, alias, tree) {
+                if memory_ssa.def_clobbers_access(*access_id, use_access, alias) {
                     return true;
                 }
             }
@@ -1111,7 +1111,7 @@ b4:
         let input = r#"
 function test(v0: boolean): int32 {
 b0(v0: boolean):
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     v2: int64 = 4int64
     jump b1
 b1:
@@ -1124,7 +1124,7 @@ b2:
         let expected = r#"
 function test(v0: boolean): int32 {
 b0(v0: boolean):
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     v2: int64 = 4int64
     v3: int32 = intrinsic.memory.raw.compareBytes(v1, v1, v2)
     jump b1
@@ -1193,8 +1193,8 @@ b2:
         let input = r#"
 function test(v0: boolean): int32 {
 b0(v0: boolean):
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
-    v2: ref<int32, raw, space(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
+    v2: ref<int32, raw, space(frame)> = frame.alloc int32
     v3: int32 = 1int32
     store v1, v3
     jump b1
@@ -1209,8 +1209,8 @@ b2:
         let expected = r#"
 function test(v0: boolean): int32 {
 b0(v0: boolean):
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
-    v2: ref<int32, raw, space(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
+    v2: ref<int32, raw, space(frame)> = frame.alloc int32
     v3: int32 = 1int32
     store v1, v3
     v4: int32 = 2int32
@@ -1235,7 +1235,7 @@ b2:
         let input = r#"
 function test(v0: boolean): int32 {
 b0(v0: boolean):
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     v2: int32 = 1int32
     store v1, v2
     jump b1
@@ -1250,7 +1250,7 @@ b2:
         let expected = r#"
 function test(v0: boolean): int32 {
 b0(v0: boolean):
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     v2: int32 = 1int32
     store v1, v2
     v3: int32 = 2int32
@@ -1275,7 +1275,7 @@ b2:
         let input = r#"
 function test(v0: boolean, v1: boolean): int32 {
 b0(v0: boolean, v1: boolean):
-    v2: ref<int32, raw, space(stack)> = stack.alloc int32
+    v2: ref<int32, raw, space(frame)> = frame.alloc int32
     v3: int32 = 1int32
     store v2, v3
     jump b1
@@ -1340,7 +1340,7 @@ b2:
         let input = r#"
 function test(v0: boolean): int32 {
 b0(v0: boolean):
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     v2: int32 = 1int32
     store v1, v2
     jump b1
@@ -1360,74 +1360,6 @@ b0(v0: ref<int32, raw>):
         test.run_pass(&LoopSimplify);
         test.run_pass(&Licm);
         test.assert_unchanged(input);
-    }
-
-    /// Load with a disjoint alias scope is hoisted.
-    #[test]
-    fn test_hoist_load_with_noalias_scope() {
-        let input = r#"
-function test(v0: boolean, v1: ref<int32, raw>, v2: ref<int32, raw>): int32 {
-b0(v0: boolean, v1: ref<int32, raw>, v2: ref<int32, raw>):
-    jump b1
-b1:
-    v3: int32 = load v1
-    v4: int32 = 1int32
-    store v2, v4
-    branch v0, b1, b2
-b2:
-    return v3
-}"#;
-        let expected = r#"
-function test(v0: boolean, v1: ref<int32, raw>, v2: ref<int32, raw>): int32 {
-b0(v0: boolean, v1: ref<int32, raw>, v2: ref<int32, raw>):
-    v3: int32 = load v1
-    v4: int32 = 1int32
-    jump b1
-b1:
-    store v2, v4
-    branch v0, b1, b2
-b2:
-    return v3
-}"#;
-
-        let mut test = TestProgram::new(input);
-        let function_id = test.first_function_id();
-        let function = test.tree.get(function_id);
-        let block = test.tree.get(function.blocks[1]);
-        let load_v1 = block.instructions[0];
-        let store_v2 = block.instructions[2];
-
-        let domain = test.tree.metadata.memory.alias_scopes.create_domain(None);
-        let scope_a = test
-            .tree
-            .metadata
-            .memory
-            .alias_scopes
-            .create_scope(domain, None);
-
-        test.insert_pointer_access(
-            load_v1,
-            mir::MemoryAccessKind::Read,
-            mir::Value::new(1),
-            None,
-            vec![scope_a],
-            Vec::new(),
-            None,
-        );
-
-        test.insert_pointer_access(
-            store_v2,
-            mir::MemoryAccessKind::Write,
-            mir::Value::new(2),
-            None,
-            Vec::new(),
-            vec![scope_a],
-            None,
-        );
-
-        test.run_pass(&LoopSimplify);
-        test.run_pass(&Licm);
-        test.assert_output(expected);
     }
 
     /// Multiple independent loops each get their invariants hoisted.

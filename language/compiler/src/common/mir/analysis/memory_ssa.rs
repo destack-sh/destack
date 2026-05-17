@@ -5,10 +5,9 @@ use smallvec::SmallVec;
 
 use crate::common::mir::{
     Analysis, AnalysisId, ControlFlowGraph, DominatorTree, FunctionAnalyses, FunctionAnalysis,
-    MemoryLocation, TypeContext, TypeKey, ValueTypeMap, address_spaces_may_alias,
-    alias_scopes_may_alias, build_value_definition_map, collect_reachable_blocks,
-    compute_dominance_frontiers, resolve_pointer_address_space, resolve_pointer_kind,
-    resolve_pointer_pointee_type, space_sets_may_alias, type_alias_tags_may_alias,
+    MemoryLocation, TypeContext, TypeKey, ValueTypeMap, build_value_definition_map,
+    collect_reachable_blocks, compute_dominance_frontiers, resolve_pointer_kind,
+    resolve_pointer_pointee_type, resolve_pointer_space, spaces_may_alias,
 };
 
 /// Identifier for a memory access in MemorySSA.
@@ -44,14 +43,14 @@ impl MemoryAccessLocation {
         ptr: mir::Value,
         access_type: Option<TypeKey>,
         pointer_kind: Option<mir::ReferenceKind>,
-        pointer_address_space: Option<mir::AddressSpace>,
+        pointer_space: Option<mir::Space>,
         pointer_width_bits: u16,
     ) -> Self {
         Self::from_pointer_with_size(
             ptr,
             access_type,
             pointer_kind,
-            pointer_address_space,
+            pointer_space,
             None,
             pointer_width_bits,
         )
@@ -62,7 +61,7 @@ impl MemoryAccessLocation {
         ptr: mir::Value,
         access_type: Option<TypeKey>,
         pointer_kind: Option<mir::ReferenceKind>,
-        pointer_address_space: Option<mir::AddressSpace>,
+        pointer_space: Option<mir::Space>,
         size: Option<u64>,
         pointer_width_bits: u16,
     ) -> Self {
@@ -76,7 +75,7 @@ impl MemoryAccessLocation {
             inferred_size,
             access_type,
             pointer_kind,
-            pointer_address_space,
+            pointer_space,
         ))
     }
 
@@ -103,16 +102,8 @@ pub struct MemoryAccessEffect {
     pub is_barrier: bool,
     /// The memory location being accessed.
     pub location: MemoryAccessLocation,
-    /// The effect space set associated with this access.
-    pub space_set: mir::MemorySpaceSet,
-    /// The address spaces associated with this access.
-    pub address_spaces: Option<mir::AddressSpaceSet>,
-    /// Alias scopes applied to this access.
-    pub alias_scopes: Vec<mir::MemoryAliasScopeId>,
-    /// No alias scopes applied to this access.
-    pub noalias_scopes: Vec<mir::MemoryAliasScopeId>,
-    /// Optional type-alias tag for this access.
-    pub type_alias_tag: Option<mir::TypeAliasTagId>,
+    /// The backing memory spaces associated with this access.
+    pub space_set: mir::SpaceSet,
 }
 
 /// Query information for clobbering access lookups.
@@ -120,32 +111,16 @@ pub struct MemoryAccessEffect {
 struct MemoryAccessQuery {
     /// The memory location being accessed.
     location: MemoryAccessLocation,
-    /// The effect space set associated with this query.
-    space_set: mir::MemorySpaceSet,
-    /// The address spaces associated with this query.
-    address_spaces: Option<mir::AddressSpaceSet>,
-    /// Alias scopes applied to this access.
-    alias_scopes: Vec<mir::MemoryAliasScopeId>,
-    /// No alias scopes applied to this access.
-    noalias_scopes: Vec<mir::MemoryAliasScopeId>,
-    /// Optional type-alias tag for the access.
-    type_alias_tag: Option<mir::TypeAliasTagId>,
+    /// The backing memory spaces associated with this query.
+    space_set: mir::SpaceSet,
 }
 
 impl MemoryAccessQuery {
     /// Create a query from a full access effect.
     fn from_effect(effect: &MemoryAccessEffect) -> Self {
-        // canonicalize alias scopes for cache stability
-        let alias_scopes = canonicalize_alias_scopes(effect.alias_scopes.clone());
-        let noalias_scopes = canonicalize_alias_scopes(effect.noalias_scopes.clone());
-
         Self {
             location: effect.location.clone(),
             space_set: effect.space_set,
-            address_spaces: effect.address_spaces.clone(),
-            alias_scopes,
-            noalias_scopes,
-            type_alias_tag: effect.type_alias_tag,
         }
     }
 
@@ -154,30 +129,16 @@ impl MemoryAccessQuery {
         Self {
             location: location.clone(),
             space_set: space_set_for_location(location),
-            address_spaces: None,
-            alias_scopes: Vec::new(),
-            noalias_scopes: Vec::new(),
-            type_alias_tag: None,
         }
     }
 }
 
 /// Determine the location set for a memory location.
-fn space_set_for_location(location: &MemoryAccessLocation) -> mir::MemorySpaceSet {
+fn space_set_for_location(location: &MemoryAccessLocation) -> mir::SpaceSet {
     match location {
-        MemoryAccessLocation::Local(_) => mir::MemorySpaceSet::STACK,
-        _ => mir::MemorySpaceSet::ANY,
+        MemoryAccessLocation::Local(_) => mir::SpaceSet::FRAME,
+        _ => mir::SpaceSet::ANY,
     }
-}
-
-/// Canonicalize alias scope lists for stable comparisons.
-fn canonicalize_alias_scopes(
-    mut scopes: Vec<mir::MemoryAliasScopeId>,
-) -> Vec<mir::MemoryAliasScopeId> {
-    // sort scopes by id and drop duplicates
-    scopes.sort_by_key(|scope| scope.index());
-    scopes.dedup();
-    scopes
 }
 
 impl MemoryAccessEffect {
@@ -189,11 +150,7 @@ impl MemoryAccessEffect {
             is_volatile,
             is_barrier: false,
             location,
-            space_set: mir::MemorySpaceSet::ANY,
-            address_spaces: None,
-            alias_scopes: Vec::new(),
-            noalias_scopes: Vec::new(),
-            type_alias_tag: None,
+            space_set: mir::SpaceSet::ANY,
         }
     }
 
@@ -205,11 +162,7 @@ impl MemoryAccessEffect {
             is_volatile,
             is_barrier: false,
             location,
-            space_set: mir::MemorySpaceSet::ANY,
-            address_spaces: None,
-            alias_scopes: Vec::new(),
-            noalias_scopes: Vec::new(),
-            type_alias_tag: None,
+            space_set: mir::SpaceSet::ANY,
         }
     }
 
@@ -221,11 +174,7 @@ impl MemoryAccessEffect {
             is_volatile,
             is_barrier: false,
             location,
-            space_set: mir::MemorySpaceSet::ANY,
-            address_spaces: None,
-            alias_scopes: Vec::new(),
-            noalias_scopes: Vec::new(),
-            type_alias_tag: None,
+            space_set: mir::SpaceSet::ANY,
         }
     }
 
@@ -237,11 +186,7 @@ impl MemoryAccessEffect {
             is_volatile: false,
             is_barrier: true,
             location: MemoryAccessLocation::Unknown,
-            space_set: mir::MemorySpaceSet::ANY,
-            address_spaces: None,
-            alias_scopes: Vec::new(),
-            noalias_scopes: Vec::new(),
-            type_alias_tag: None,
+            space_set: mir::SpaceSet::ANY,
         }
     }
 }
@@ -603,7 +548,6 @@ impl MemorySSA {
         def_access: MemoryAccessId,
         target_access: MemoryAccessId,
         alias: &crate::common::mir::analysis::AliasAnalysis,
-        tree: &mir::Tree,
     ) -> bool {
         // only defs can clobber accesses
         let MemoryAccess::Def(def_access) = self.access(def_access) else {
@@ -620,7 +564,7 @@ impl MemorySSA {
         // build a query for the target effect
         let query = MemoryAccessQuery::from_effect(target_effect);
 
-        access_clobbers_query(def_access, &query, alias, tree)
+        access_clobbers_query(def_access, &query, alias)
     }
 
     /// Compute the clobbering access for a memory location.
@@ -657,7 +601,7 @@ impl MemorySSA {
             }
 
             MemoryAccess::Def(def_access) => {
-                if access_clobbers_query(def_access, query, alias, tree) {
+                if access_clobbers_query(def_access, query, alias) {
                     access_id
                 } else {
                     let defining_access = def_access
@@ -905,13 +849,13 @@ impl<'a> MemoryAccessCollector<'a> {
 
                 let access_type = self.pointer_access_type(view);
                 let pointer_kind = self.pointer_kind(view);
-                let pointer_address_space = self.pointer_address_space(view);
+                let pointer_space = self.pointer_space(view);
                 let mut effect = MemoryAccessEffect::read(
                     MemoryAccessLocation::from_pointer(
                         view,
                         access_type,
                         pointer_kind,
-                        pointer_address_space,
+                        pointer_space,
                         self.type_context.pointer_width_bits,
                     ),
                     false,
@@ -930,13 +874,13 @@ impl<'a> MemoryAccessCollector<'a> {
 
                 let access_type = self.pointer_access_type(view);
                 let pointer_kind = self.pointer_kind(view);
-                let pointer_address_space = self.pointer_address_space(view);
+                let pointer_space = self.pointer_space(view);
                 let mut effect = MemoryAccessEffect::write(
                     MemoryAccessLocation::from_pointer(
                         view,
                         access_type,
                         pointer_kind,
-                        pointer_address_space,
+                        pointer_space,
                         self.type_context.pointer_width_bits,
                     ),
                     false,
@@ -955,7 +899,7 @@ impl<'a> MemoryAccessCollector<'a> {
                 let mut effects = SmallVec::new();
                 let target_access = self.pointer_access_type(target);
                 let target_kind = self.pointer_kind(target);
-                let target_space = self.pointer_address_space(target);
+                let target_space = self.pointer_space(target);
                 let mut target_effect = MemoryAccessEffect::write(
                     MemoryAccessLocation::from_pointer(
                         target,
@@ -971,7 +915,7 @@ impl<'a> MemoryAccessCollector<'a> {
 
                 let source_access = self.pointer_access_type(source);
                 let source_kind = self.pointer_kind(source);
-                let source_space = self.pointer_address_space(source);
+                let source_space = self.pointer_space(source);
                 let mut source_effect = MemoryAccessEffect::read(
                     MemoryAccessLocation::from_pointer(
                         source,
@@ -997,7 +941,7 @@ impl<'a> MemoryAccessCollector<'a> {
 
                 let access_type = self.pointer_access_type(pointer);
                 let pointer_kind = self.pointer_kind(pointer);
-                let pointer_space = self.pointer_address_space(pointer);
+                let pointer_space = self.pointer_space(pointer);
                 let mut effect = MemoryAccessEffect::read(
                     MemoryAccessLocation::from_pointer(
                         pointer,
@@ -1021,7 +965,7 @@ impl<'a> MemoryAccessCollector<'a> {
 
                 let access_type = self.pointer_access_type(pointer);
                 let pointer_kind = self.pointer_kind(pointer);
-                let pointer_space = self.pointer_address_space(pointer);
+                let pointer_space = self.pointer_space(pointer);
                 let mut effect = MemoryAccessEffect::write(
                     MemoryAccessLocation::from_pointer(
                         pointer,
@@ -1045,7 +989,7 @@ impl<'a> MemoryAccessCollector<'a> {
 
                 let access_type = self.pointer_access_type(pointer);
                 let pointer_kind = self.pointer_kind(pointer);
-                let pointer_space = self.pointer_address_space(pointer);
+                let pointer_space = self.pointer_space(pointer);
                 let mut effect = MemoryAccessEffect::read(
                     MemoryAccessLocation::from_pointer(
                         pointer,
@@ -1069,7 +1013,7 @@ impl<'a> MemoryAccessCollector<'a> {
 
                 let access_type = self.pointer_access_type(pointer);
                 let pointer_kind = self.pointer_kind(pointer);
-                let pointer_space = self.pointer_address_space(pointer);
+                let pointer_space = self.pointer_space(pointer);
                 let mut effect = MemoryAccessEffect::write(
                     MemoryAccessLocation::from_pointer(
                         pointer,
@@ -1094,7 +1038,7 @@ impl<'a> MemoryAccessCollector<'a> {
 
                 let access_type = self.pointer_access_type(pointer);
                 let pointer_kind = self.pointer_kind(pointer);
-                let pointer_space = self.pointer_address_space(pointer);
+                let pointer_space = self.pointer_space(pointer);
                 let mut effect = MemoryAccessEffect::read_write(
                     MemoryAccessLocation::from_pointer(
                         pointer,
@@ -1140,14 +1084,12 @@ impl<'a> MemoryAccessCollector<'a> {
                 self.apply_local_location(&mut effect);
                 Self::single_effect(effect)
             }
-            mir::Instruction::Call { call, .. }
-            | mir::Instruction::CallClass { call, .. }
-            | mir::Instruction::CallInterface { call, .. } => {
-                self.call_effects(instruction, call.arguments, None)
+            mir::Instruction::Call { .. }
+            | mir::Instruction::CallClass { .. }
+            | mir::Instruction::CallInterface { .. } => {
+                self.call_effects(instruction_id, instruction)
             }
-            mir::Instruction::CallIndirect { call, .. } => {
-                self.call_effects(instruction, call.arguments, None)
-            }
+            mir::Instruction::CallIndirect { .. } => self.call_effects(instruction_id, instruction),
             mir::Instruction::RawFree { .. }
             | mir::Instruction::Free { .. }
             | mir::Instruction::Drop { .. }
@@ -1156,7 +1098,7 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Instruction::New { .. }
             | mir::Instruction::NewSlice { .. }
             | mir::Instruction::RawAlloc { .. }
-            | mir::Instruction::StackAlloc { .. } => Self::single_effect(
+            | mir::Instruction::FrameAlloc { .. } => Self::single_effect(
                 MemoryAccessEffect::read_write(MemoryAccessLocation::Unknown, false),
             ),
             mir::Instruction::Intrinsic {
@@ -1191,7 +1133,7 @@ impl<'a> MemoryAccessCollector<'a> {
             mir::MemoryAccessTarget::Pointer(pointer) => {
                 let access_type = self.pointer_access_type(pointer);
                 let pointer_kind = self.pointer_kind(pointer);
-                let pointer_space = self.pointer_address_space(pointer);
+                let pointer_space = self.pointer_space(pointer);
                 MemoryAccessLocation::from_pointer_with_size(
                     pointer,
                     access_type,
@@ -1242,27 +1184,18 @@ impl<'a> MemoryAccessCollector<'a> {
         }
 
         // apply location metadata
-        let (space_set, address_spaces) = self.space_set_for_metadata(access, &effect.location);
-        effect.space_set = space_set;
-        effect.address_spaces = address_spaces;
-
-        effect.alias_scopes = canonicalize_alias_scopes(access.alias_scopes.clone());
-        effect.noalias_scopes = canonicalize_alias_scopes(access.noalias_scopes.clone());
-        effect.type_alias_tag = access.type_alias_tag;
+        effect.space_set = self.space_set_for_metadata(access, &effect.location);
         effect
     }
 
     /// Apply pointer location metadata to an effect.
     fn apply_pointer_location(&mut self, effect: &mut MemoryAccessEffect, pointer: mir::Value) {
-        let (space_set, address_spaces) = self.space_set_for_pointer(pointer);
-        effect.space_set = space_set;
-        effect.address_spaces = address_spaces;
+        effect.space_set = self.space_set_for_pointer(pointer);
     }
 
     /// Apply local location metadata to an effect.
     fn apply_local_location(&mut self, effect: &mut MemoryAccessEffect) {
-        effect.space_set = mir::MemorySpaceSet::STACK;
-        effect.address_spaces = self.address_space_set(mir::AddressSpace::Stack);
+        effect.space_set = mir::SpaceSet::FRAME;
     }
 
     /// Resolve location metadata from an access description.
@@ -1270,111 +1203,51 @@ impl<'a> MemoryAccessCollector<'a> {
         &mut self,
         access: &mir::MemoryAccessMetadata,
         location: &MemoryAccessLocation,
-    ) -> (mir::MemorySpaceSet, Option<mir::AddressSpaceSet>) {
-        if let Some(address_space) = access.address_space.clone() {
-            let space_set = self.space_set_for_address_space(address_space.clone());
-            return (space_set, self.address_space_set(address_space));
+    ) -> mir::SpaceSet {
+        if let Some(space) = access.space.clone() {
+            return self.space_set_for_space(space);
         }
 
         match access.target {
-            mir::MemoryAccessTarget::Local(_) => (
-                mir::MemorySpaceSet::STACK,
-                self.address_space_set(mir::AddressSpace::Stack),
-            ),
-            mir::MemoryAccessTarget::Global(global) => (
-                mir::MemorySpaceSet::STATIC,
-                self.address_space_set(self.tree.get(global).space.clone()),
-            ),
+            mir::MemoryAccessTarget::Local(_) => mir::SpaceSet::FRAME,
+            mir::MemoryAccessTarget::Global(global) => {
+                self.space_set_for_space(self.tree.get(global).space.clone())
+            }
             mir::MemoryAccessTarget::Pointer(pointer) => self.space_set_for_pointer(pointer),
-            mir::MemoryAccessTarget::Unknown => (space_set_for_location(location), None),
+            mir::MemoryAccessTarget::Unknown => space_set_for_location(location),
         }
     }
 
     /// Resolve the location set for a pointer value.
-    fn space_set_for_pointer(
-        &mut self,
-        pointer: mir::Value,
-    ) -> (mir::MemorySpaceSet, Option<mir::AddressSpaceSet>) {
-        let Some(address_space) =
-            resolve_pointer_address_space(pointer, self.tree, &self.value_types)
-        else {
-            return (mir::MemorySpaceSet::ANY, None);
+    fn space_set_for_pointer(&mut self, pointer: mir::Value) -> mir::SpaceSet {
+        let Some(space) = resolve_pointer_space(pointer, self.tree, &self.value_types) else {
+            return mir::SpaceSet::ANY;
         };
 
-        let space_set = self.space_set_for_address_space(address_space.clone());
-        let address_spaces = self.address_space_set(address_space);
-        (space_set, address_spaces)
+        self.space_set_for_space(space)
     }
 
-    /// Map an address space to a location set.
-    fn space_set_for_address_space(&self, address_space: mir::AddressSpace) -> mir::MemorySpaceSet {
-        match address_space {
-            mir::AddressSpace::Stack => mir::MemorySpaceSet::STACK,
-            mir::AddressSpace::Frame => mir::MemorySpaceSet::STACK,
-            mir::AddressSpace::Static => mir::MemorySpaceSet::STATIC,
-            mir::AddressSpace::Shared => mir::MemorySpaceSet::SHARED,
-            mir::AddressSpace::Local => mir::MemorySpaceSet::LOCAL,
-            mir::AddressSpace::Named(_) => mir::MemorySpaceSet::ANY,
-        }
-    }
-
-    /// Build an address space set when the space is explicit.
-    fn address_space_set(&self, address_space: mir::AddressSpace) -> Option<mir::AddressSpaceSet> {
-        Some(mir::AddressSpaceSet::new(vec![address_space]))
-    }
-
-    /// Merge pointer and call location sets conservatively.
-    fn merge_space_sets(
-        &self,
-        pointer_set: mir::MemorySpaceSet,
-        call_set: mir::MemorySpaceSet,
-    ) -> mir::MemorySpaceSet {
-        let intersection = pointer_set.intersection(call_set);
-        if intersection.is_empty() {
-            mir::MemorySpaceSet::ANY
-        } else {
-            intersection
-        }
-    }
-
-    /// Merge pointer and call address space sets conservatively.
-    fn merge_address_spaces(
-        &self,
-        pointer_spaces: Option<mir::AddressSpaceSet>,
-        call_spaces: Option<&mir::AddressSpaceSet>,
-    ) -> Option<mir::AddressSpaceSet> {
-        match (pointer_spaces, call_spaces) {
-            (Some(pointer_spaces), Some(call_spaces)) => {
-                if pointer_spaces.is_disjoint(call_spaces) {
-                    None
-                } else {
-                    let spaces = pointer_spaces
-                        .spaces
-                        .iter()
-                        .cloned()
-                        .filter(|space| call_spaces.contains(space.clone()))
-                        .collect();
-                    Some(mir::AddressSpaceSet::new(spaces))
-                }
-            }
-            (Some(pointer_spaces), None) => Some(pointer_spaces),
-            (None, Some(call_spaces)) => Some(call_spaces.clone()),
-            (None, None) => None,
+    /// Map one space to a backing space set.
+    fn space_set_for_space(&self, space: mir::Space) -> mir::SpaceSet {
+        match space {
+            mir::Space::Frame => mir::SpaceSet::FRAME,
+            mir::Space::Static => mir::SpaceSet::STATIC,
+            mir::Space::Shared => mir::SpaceSet::SHARED,
+            mir::Space::Local => mir::SpaceSet::LOCAL,
         }
     }
 
     /// Determine memory effects for a call instruction using metadata.
     fn call_effects(
         &mut self,
+        instruction_id: mir::LocalNodeId<mir::Instruction>,
         instruction: &mir::Instruction,
-        arguments: mir::ArgumentSlice,
-        env: Option<mir::Value>,
     ) -> SmallVec<[MemoryAccessEffect; 2]> {
-        // read callsite effects when present
         // use callsite or callee metadata for memory effects
-        let mut memory_effects = instruction
-            .call_memory_effect()
-            .cloned()
+        let callsite = mir::CallSite::Instruction(instruction_id);
+        let call_metadata = self.tree.metadata.functions.call(callsite);
+        let mut memory_effects = call_metadata
+            .map(|metadata| metadata.memory.clone())
             .or_else(|| self.callee_memory_effects(instruction));
 
         // fall back to conservative unknown when missing
@@ -1390,115 +1263,9 @@ impl<'a> MemoryAccessCollector<'a> {
             return SmallVec::new();
         }
 
-        // inaccessible only effects do not touch visible memory
-        if effects.inaccessible_mem_only {
+        // empty spaces do not touch program memory
+        if effects.spaces.is_empty() {
             return SmallVec::new();
-        }
-
-        // handle argmemonly calls by modeling argument accesses directly
-        if effects.argmemonly {
-            // load call arguments
-            let mut args = self.tree.get_arguments(arguments).to_vec();
-            if let Some(env) = env {
-                args.push(env.into());
-            }
-            if args.is_empty() {
-                return SmallVec::new();
-            }
-
-            // resolve argument types
-            let arg_types = self.call_argument_types(instruction);
-            let mut arg_types = if let Some(arg_types) = arg_types {
-                arg_types
-            } else {
-                return Self::single_effect(self.effect_from_call_effect(&effects));
-            };
-            if let Some(env) = env {
-                let Some(env_type) = self.value_types.value_type(env) else {
-                    return Self::single_effect(self.effect_from_call_effect(&effects));
-                };
-
-                arg_types.push(env_type);
-            }
-
-            // collect access effects per argument
-            let mut arg_effects = SmallVec::new();
-            for (index, &arg_value) in args.iter().enumerate() {
-                let Some(arg_value) = arg_value.value() else {
-                    continue;
-                };
-
-                // read the argument type
-                let arg_type = match arg_types.get(index) {
-                    Some(ty) => *ty,
-                    None => continue,
-                };
-
-                // skip non reference arguments
-                if !matches!(
-                    self.tree.get(arg_type),
-                    mir::Type::Reference { .. } | mir::Type::TensorView { .. }
-                ) {
-                    continue;
-                }
-
-                // read argument metadata
-                let arg_attribute = instruction
-                    .call_argument_attributes()
-                    .and_then(|argument_attributes| argument_attributes.get(index))
-                    .cloned()
-                    .unwrap_or_default();
-
-                // clamp access to the call effects
-                let access = self.clamp_argument_access(arg_attribute.access, &effects);
-                if access == mir::ArgumentAccess::None {
-                    continue;
-                }
-
-                // build the access location
-                let size = arg_attribute
-                    .attributes
-                    .dereferenceable_bytes
-                    .or(arg_attribute.attributes.dereferenceable_or_null_bytes);
-                let access_type = self.pointer_access_type(arg_value);
-                let pointer_kind = self.pointer_kind(arg_value);
-                let pointer_space = self.pointer_address_space(arg_value);
-                let location = MemoryAccessLocation::from_pointer_with_size(
-                    arg_value,
-                    access_type,
-                    pointer_kind,
-                    pointer_space,
-                    size,
-                    self.type_context.pointer_width_bits,
-                );
-
-                // convert access mode to a memory effect
-                let mut effect = match access {
-                    mir::ArgumentAccess::Read => MemoryAccessEffect::read(location, false),
-                    mir::ArgumentAccess::Write => MemoryAccessEffect::write(location, false),
-                    mir::ArgumentAccess::ReadWrite => {
-                        MemoryAccessEffect::read_write(location, false)
-                    }
-                    mir::ArgumentAccess::None => continue,
-                };
-
-                // apply location metadata for argument accesses
-                let (pointer_space_set, pointer_spaces) = self.space_set_for_pointer(arg_value);
-                effect.space_set = self.merge_space_sets(pointer_space_set, effects.spaces);
-                effect.address_spaces =
-                    self.merge_address_spaces(pointer_spaces, effects.address_spaces.as_ref());
-
-                effect.alias_scopes = canonicalize_alias_scopes(arg_attribute.alias_scopes.clone());
-                effect.noalias_scopes =
-                    canonicalize_alias_scopes(arg_attribute.noalias_scopes.clone());
-                effect.type_alias_tag = arg_attribute.type_alias_tag;
-
-                // record the access effect
-                arg_effects.push(effect);
-            }
-
-            // return the recorded argument effects
-            return arg_effects;
         }
 
         // fall back to a single summarized access
@@ -1516,78 +1283,18 @@ impl<'a> MemoryAccessCollector<'a> {
         };
 
         effect.space_set = effects.spaces;
-        effect.address_spaces = effects.address_spaces.clone();
         effect
-    }
-
-    /// Clamp argument access based on the call wide effects.
-    fn clamp_argument_access(
-        &self,
-        access: mir::ArgumentAccess,
-        effects: &mir::MemoryEffect,
-    ) -> mir::ArgumentAccess {
-        // drop access when the call does not touch memory
-        if !effects.reads && !effects.writes {
-            return mir::ArgumentAccess::None;
-        }
-
-        // compute the read and write mask for this argument
-        let reads = effects.reads
-            && matches!(
-                access,
-                mir::ArgumentAccess::Read | mir::ArgumentAccess::ReadWrite
-            );
-        let writes = effects.writes
-            && matches!(
-                access,
-                mir::ArgumentAccess::Write | mir::ArgumentAccess::ReadWrite
-            );
-
-        // map the mask back to an access mode
-        match (reads, writes) {
-            (true, true) => mir::ArgumentAccess::ReadWrite,
-            (true, false) => mir::ArgumentAccess::Read,
-            (false, true) => mir::ArgumentAccess::Write,
-            (false, false) => mir::ArgumentAccess::None,
-        }
-    }
-
-    /// Resolve the call argument types from metadata or direct signatures.
-    fn call_argument_types(
-        &self,
-        instruction: &mir::Instruction,
-    ) -> Option<Vec<mir::LocalNodeId<mir::Type>>> {
-        // prefer the signature from the instruction
-        if let Some(signature) = instruction.call_signature() {
-            let signature = self.tree.get(signature.ty()?);
-            if let mir::Type::FunctionSignature { parameters, .. } = signature {
-                return parameters
-                    .iter()
-                    .map(|parameter| parameter.ty())
-                    .collect::<Option<Vec<_>>>();
-            }
-        }
-
-        // fall back to direct call signatures when available
-        if let mir::Instruction::Call { function, .. } = instruction {
-            let callee = self.tree.get(function.function()?);
-            let parameters = callee
-                .parameters
-                .iter()
-                .map(|param| param.ty.ty())
-                .collect::<Option<Vec<_>>>()?;
-            return Some(parameters);
-        }
-
-        None
     }
 
     /// Read memory effects from a direct callee when available.
     fn callee_memory_effects(&self, instruction: &mir::Instruction) -> Option<mir::MemoryEffect> {
         // only direct calls have callee metadata
-        let function = instruction.call_declared_target()?;
-        let callee = self.tree.get(function.function()?);
-        Some(callee.memory_effect.clone())
+        let function = instruction.call_direct_target()?.function()?;
+        self.tree
+            .metadata
+            .functions
+            .function(function)
+            .map(|metadata| metadata.memory.clone())
     }
 
     /// Determine memory effects for an intrinsic.
@@ -1650,8 +1357,8 @@ impl<'a> MemoryAccessCollector<'a> {
                         let src_type = self.pointer_access_type(src);
                         let dst_kind = self.pointer_kind(dst);
                         let src_kind = self.pointer_kind(src);
-                        let dst_space = self.pointer_address_space(dst);
-                        let src_space = self.pointer_address_space(src);
+                        let dst_space = self.pointer_space(dst);
+                        let src_space = self.pointer_space(src);
                         let mut read_effect = MemoryAccessEffect::read(
                             MemoryAccessLocation::from_pointer_with_size(
                                 src,
@@ -1703,7 +1410,7 @@ impl<'a> MemoryAccessCollector<'a> {
                     Some(dst) => {
                         let dst_type = self.pointer_access_type(dst);
                         let dst_kind = self.pointer_kind(dst);
-                        let dst_space = self.pointer_address_space(dst);
+                        let dst_space = self.pointer_space(dst);
                         let mut effect = MemoryAccessEffect::write(
                             MemoryAccessLocation::from_pointer_with_size(
                                 dst,
@@ -1744,8 +1451,8 @@ impl<'a> MemoryAccessCollector<'a> {
                         let right_type = self.pointer_access_type(right);
                         let left_kind = self.pointer_kind(left);
                         let right_kind = self.pointer_kind(right);
-                        let left_space = self.pointer_address_space(left);
-                        let right_space = self.pointer_address_space(right);
+                        let left_space = self.pointer_space(left);
+                        let right_space = self.pointer_space(right);
                         let mut left_effect = MemoryAccessEffect::read(
                             MemoryAccessLocation::from_pointer_with_size(
                                 left,
@@ -1801,7 +1508,7 @@ impl<'a> MemoryAccessCollector<'a> {
 
                         let access_type = self.pointer_access_type(pointer);
                         let pointer_kind = self.pointer_kind(pointer);
-                        let pointer_space = self.pointer_address_space(pointer);
+                        let pointer_space = self.pointer_space(pointer);
                         let mut effect = MemoryAccessEffect::read(
                             MemoryAccessLocation::from_pointer(
                                 pointer,
@@ -1827,7 +1534,7 @@ impl<'a> MemoryAccessCollector<'a> {
 
             // type punning and pointer ops
             mir::Intrinsic::Transmute
-            | mir::Intrinsic::AddressSpaceCast
+            | mir::Intrinsic::SpaceCast
             | mir::Intrinsic::PointerOffsetFrom
             | mir::Intrinsic::RawEq => SmallVec::new(),
 
@@ -1911,9 +1618,9 @@ impl<'a> MemoryAccessCollector<'a> {
         resolve_pointer_kind(pointer, self.tree, &self.value_types)
     }
 
-    /// Resolve the address space for a pointer value.
-    fn pointer_address_space(&self, pointer: mir::Value) -> Option<mir::AddressSpace> {
-        resolve_pointer_address_space(pointer, self.tree, &self.value_types)
+    /// Resolve the TS++ space for a pointer value.
+    fn pointer_space(&self, pointer: mir::Value) -> Option<mir::Space> {
+        resolve_pointer_space(pointer, self.tree, &self.value_types)
     }
 
     /// Get or compute a type key.
@@ -2057,7 +1764,6 @@ fn access_clobbers_query(
     def_access: &MemoryDef,
     query: &MemoryAccessQuery,
     alias: &crate::common::mir::analysis::AliasAnalysis,
-    tree: &mir::Tree,
 ) -> bool {
     // treat barriers as clobbering all memory
     if def_access.effect.is_barrier {
@@ -2070,17 +1776,12 @@ fn access_clobbers_query(
     }
 
     // disambiguate by location sets
-    if !space_sets_may_alias(def_access.effect.space_set, query.space_set) {
-        return false;
-    }
-
-    // disambiguate by address spaces
-    if !address_spaces_may_alias(&def_access.effect.address_spaces, &query.address_spaces) {
+    if !spaces_may_alias(def_access.effect.space_set, query.space_set) {
         return false;
     }
 
     // disambiguate by alias scopes and tbaa
-    if !effects_may_alias(&def_access.effect, query, tree) {
+    if !effects_may_alias(&def_access.effect, query) {
         return false;
     }
 
@@ -2114,48 +1815,14 @@ fn access_clobbers_query(
     }
 
     // fall back to mod ref for unknown spaces
-    let mod_ref = alias.get_mod_ref_info_with_metadata(
-        def_access.instruction,
-        pointer_location,
-        &query.alias_scopes,
-        &query.noalias_scopes,
-        query.type_alias_tag,
-    );
+    let mod_ref = alias.get_mod_ref_info_with_metadata(def_access.instruction, pointer_location);
     mod_ref.is_mod()
 }
 
 /// Check whether two access effects may alias.
-fn effects_may_alias(
-    def_effect: &MemoryAccessEffect,
-    query: &MemoryAccessQuery,
-    tree: &mir::Tree,
-) -> bool {
+fn effects_may_alias(def_effect: &MemoryAccessEffect, query: &MemoryAccessQuery) -> bool {
     // check location sets
-    if !space_sets_may_alias(def_effect.space_set, query.space_set) {
-        return false;
-    }
-
-    // check address spaces
-    if !address_spaces_may_alias(&def_effect.address_spaces, &query.address_spaces) {
-        return false;
-    }
-
-    // check scoped noalias metadata
-    if !alias_scopes_may_alias(
-        &def_effect.alias_scopes,
-        &def_effect.noalias_scopes,
-        &query.alias_scopes,
-        &query.noalias_scopes,
-    ) {
-        return false;
-    }
-
-    // check type-alias disambiguation
-    if !type_alias_tags_may_alias(
-        &tree.metadata.memory.type_alias,
-        def_effect.type_alias_tag,
-        query.type_alias_tag,
-    ) {
+    if !spaces_may_alias(def_effect.space_set, query.space_set) {
         return false;
     }
 
@@ -2180,7 +1847,7 @@ fn access_clobbers_location(
 
     // disambiguate by location sets
     let query_space_set = space_set_for_location(location);
-    if !space_sets_may_alias(def_access.effect.space_set, query_space_set) {
+    if !spaces_may_alias(def_access.effect.space_set, query_space_set) {
         return false;
     }
 
@@ -2207,13 +1874,7 @@ fn access_clobbers_location(
         return false;
     }
 
-    let mod_ref = alias.get_mod_ref_info_with_metadata(
-        def_access.instruction,
-        pointer_location,
-        &[],
-        &[],
-        None,
-    );
+    let mod_ref = alias.get_mod_ref_info_with_metadata(def_access.instruction, pointer_location);
     mod_ref.is_mod()
 }
 
@@ -2407,8 +2068,8 @@ b3:
             r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     v2: int32 = 1int32
     store v0, v2
     v3: int32 = 2int32
@@ -2448,7 +2109,7 @@ b0:
             r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = load v0
     return v1
 }"#,
@@ -2458,7 +2119,7 @@ b0:
         let instructions = test.entry_instructions(function_id);
         let load_inst = instructions[1];
 
-        let flags = mir::MemoryFlags::with_flags(mir::MemorySpaceSet::ANY, true, false);
+        let flags = mir::MemoryFlags::with_flags(mir::SpaceSet::ANY, true, false);
         let access = mir::MemoryAccessMetadata {
             kind: mir::MemoryAccessKind::Read,
             target: mir::MemoryAccessTarget::Pointer(mir::Value::new(0)),
@@ -2470,10 +2131,7 @@ b0:
             scope: Some(mir::SyncScope::Device),
             memory_scope: Some(mir::MemoryScope::Device),
             flags: Some(flags),
-            address_space: Some(mir::AddressSpace::Stack),
-            alias_scopes: Vec::new(),
-            noalias_scopes: Vec::new(),
-            type_alias_tag: None,
+            space: Some(mir::Space::Frame),
         };
         test.insert_memory_accesses(load_inst, vec![access]);
 
@@ -2489,407 +2147,9 @@ b0:
         assert!(effect.is_barrier);
     }
 
-    /// MemorySSA uses alias scopes to ignore disjoint accesses.
+    /// Backing spaces can disambiguate memory accesses.
     #[test]
-    fn test_memory_ssa_clobber_skips_alias_scope() {
-        let mut test = TestProgram::new(
-            r#"
-function test(v0: ref<int32, raw>, v1: ref<int32, raw>): int32 {
-b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
-    v2: int32 = 1int32
-    store v0, v2
-    v3: int32 = 2int32
-    store v1, v3
-    v4: int32 = load v0
-    return v4
-}"#,
-        );
-
-        // create a scope for the disjoint access
-        let scope = test.create_alias_scope();
-
-        // locate store and load instructions
-        let function_id = test.first_function_id();
-        let instructions = test.entry_instructions(function_id);
-        let store_v0 = instructions[1];
-        let store_v1 = instructions[3];
-        let load_v0 = instructions[4];
-
-        // attach alias scope metadata to the store on v1
-        test.insert_pointer_access(
-            store_v1,
-            mir::MemoryAccessKind::Write,
-            mir::Value::new(1),
-            Some(4),
-            vec![scope],
-            Vec::new(),
-            None,
-        );
-
-        // attach noalias metadata to the load of v0
-        test.insert_pointer_access(
-            load_v0,
-            mir::MemoryAccessKind::Read,
-            mir::Value::new(0),
-            Some(4),
-            Vec::new(),
-            vec![scope],
-            None,
-        );
-
-        // build analyses
-        let function = test.tree.get(function_id);
-        let analyses = test.function_analyses(function);
-        let memory_ssa = analyses.get::<MemorySSA>();
-        let alias = analyses.get::<AliasAnalysis>();
-
-        // locate memory accesses
-        let load_access = memory_ssa
-            .access_for_instruction(load_v0)
-            .expect("missing load access");
-        let store_access = memory_ssa
-            .access_for_instruction(store_v0)
-            .expect("missing store access");
-
-        // clobber should skip the scoped store on v1
-        let clobber = memory_ssa.clobbering_access_for_use(load_access, &alias, &test.tree);
-        assert_eq!(clobber, store_access);
-    }
-
-    /// MemorySSA uses TBAA tags to ignore disjoint types.
-    #[test]
-    fn test_memory_ssa_clobber_skips_tbaa() {
-        let mut test = TestProgram::new(
-            r#"
-function test(v0: ref<int32, raw>, v1: ref<int32, raw>): int32 {
-b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
-    v2: int32 = 1int32
-    store v0, v2
-    v3: int32 = 2int32
-    store v1, v3
-    v4: int32 = load v0
-    return v4
-}"#,
-        );
-
-        // create disjoint tbaa tags
-        let root = test.create_type_alias_node(None, false);
-        let int_node = test.create_type_alias_node(Some(root), false);
-        let float_node = test.create_type_alias_node(Some(root), false);
-        let int_tag = test.create_type_alias_tag(root, int_node, 0, 4, false);
-        let float_tag = test.create_type_alias_tag(root, float_node, 0, 4, false);
-
-        // locate store and load instructions
-        let function_id = test.first_function_id();
-        let instructions = test.entry_instructions(function_id);
-        let store_v0 = instructions[1];
-        let store_v1 = instructions[3];
-        let load_v0 = instructions[4];
-
-        // tag store and load with disjoint tbaa metadata
-        test.insert_pointer_access(
-            store_v1,
-            mir::MemoryAccessKind::Write,
-            mir::Value::new(1),
-            Some(4),
-            Vec::new(),
-            Vec::new(),
-            Some(float_tag),
-        );
-
-        test.insert_pointer_access(
-            load_v0,
-            mir::MemoryAccessKind::Read,
-            mir::Value::new(0),
-            Some(4),
-            Vec::new(),
-            Vec::new(),
-            Some(int_tag),
-        );
-
-        // build analyses
-        let function = test.tree.get(function_id);
-        let analyses = test.function_analyses(function);
-        let memory_ssa = analyses.get::<MemorySSA>();
-        let alias = analyses.get::<AliasAnalysis>();
-
-        // locate memory accesses
-        let load_access = memory_ssa
-            .access_for_instruction(load_v0)
-            .expect("missing load access");
-        let store_access = memory_ssa
-            .access_for_instruction(store_v0)
-            .expect("missing store access");
-
-        // clobber should skip the tbaa disjoint store
-        let clobber = memory_ssa.clobbering_access_for_use(load_access, &alias, &test.tree);
-        assert_eq!(clobber, store_access);
-    }
-
-    /// MemorySSA applies noalias metadata in either direction.
-    #[test]
-    fn test_memory_ssa_clobber_alias_scope_symmetry() {
-        // input test
-        let mut test = TestProgram::new(
-            r#"
-function test(v0: ref<int32, raw>, v1: ref<int32, raw>): int32 {
-b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
-    v2: int32 = 1int32
-    store v0, v2
-    v3: int32 = 2int32
-    store v1, v3
-    v4: int32 = load v0
-    return v4
-}"#,
-        );
-
-        // create a scope for the disjoint access
-        let scope = test.create_alias_scope();
-
-        // locate store and load instructions
-        let function_id = test.first_function_id();
-        let instructions = test.entry_instructions(function_id);
-        let store_v0 = instructions[1];
-        let store_v1 = instructions[3];
-        let load_v0 = instructions[4];
-
-        // attach noalias metadata to the store on v1
-        test.insert_pointer_access(
-            store_v1,
-            mir::MemoryAccessKind::Write,
-            mir::Value::new(1),
-            Some(4),
-            Vec::new(),
-            vec![scope],
-            None,
-        );
-
-        // attach alias scope metadata to the load of v0
-        test.insert_pointer_access(
-            load_v0,
-            mir::MemoryAccessKind::Read,
-            mir::Value::new(0),
-            Some(4),
-            vec![scope],
-            Vec::new(),
-            None,
-        );
-
-        // build analyses
-        let function = test.tree.get(function_id);
-        let analyses = test.function_analyses(function);
-        let memory_ssa = analyses.get::<MemorySSA>();
-        let alias = analyses.get::<AliasAnalysis>();
-
-        // locate memory accesses
-        let load_access = memory_ssa
-            .access_for_instruction(load_v0)
-            .expect("missing load access");
-        let store_access = memory_ssa
-            .access_for_instruction(store_v0)
-            .expect("missing store access");
-
-        // clobber should skip the scoped store on v1
-        let clobber = memory_ssa.clobbering_access_for_use(load_access, &alias, &test.tree);
-        assert_eq!(clobber, store_access);
-    }
-
-    /// MemorySSA respects disjoint TBAA offsets.
-    #[test]
-    fn test_memory_ssa_clobber_tbaa_disjoint_offsets() {
-        // input test
-        let mut test = TestProgram::new(
-            r#"
-function test(v0: ref<int32, raw>, v1: ref<int32, raw>): int32 {
-b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
-    v2: int32 = 1int32
-    store v0, v2
-    v3: int32 = 2int32
-    store v1, v3
-    v4: int32 = load v0
-    return v4
-}"#,
-        );
-
-        // create disjoint tbaa tags with the same base and access
-        let root = test.create_type_alias_node(None, false);
-        let access = test.create_type_alias_node(Some(root), false);
-        let tag_a = test.create_type_alias_tag(root, access, 0, 4, false);
-        let tag_b = test.create_type_alias_tag(root, access, 8, 4, false);
-
-        // locate store and load instructions
-        let function_id = test.first_function_id();
-        let instructions = test.entry_instructions(function_id);
-        let store_v0 = instructions[1];
-        let store_v1 = instructions[3];
-        let load_v0 = instructions[4];
-
-        // tag store and load with disjoint tbaa metadata
-        test.insert_pointer_access(
-            store_v1,
-            mir::MemoryAccessKind::Write,
-            mir::Value::new(1),
-            Some(4),
-            Vec::new(),
-            Vec::new(),
-            Some(tag_b),
-        );
-
-        test.insert_pointer_access(
-            load_v0,
-            mir::MemoryAccessKind::Read,
-            mir::Value::new(0),
-            Some(4),
-            Vec::new(),
-            Vec::new(),
-            Some(tag_a),
-        );
-
-        // build analyses
-        let function = test.tree.get(function_id);
-        let analyses = test.function_analyses(function);
-        let memory_ssa = analyses.get::<MemorySSA>();
-        let alias = analyses.get::<AliasAnalysis>();
-
-        // locate memory accesses
-        let load_access = memory_ssa
-            .access_for_instruction(load_v0)
-            .expect("missing load access");
-        let store_access = memory_ssa
-            .access_for_instruction(store_v0)
-            .expect("missing store access");
-
-        // clobber should skip the disjoint tbaa store
-        let clobber = memory_ssa.clobbering_access_for_use(load_access, &alias, &test.tree);
-        assert_eq!(clobber, store_access);
-    }
-
-    /// MemorySSA does not disambiguate overlapping TBAA offsets.
-    #[test]
-    fn test_memory_ssa_clobber_tbaa_overlap_offsets() {
-        // input test
-        let mut test = TestProgram::new(
-            r#"
-function test(v0: ref<int32, raw>, v1: ref<int32, raw>): int32 {
-b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
-    v2: int32 = 1int32
-    store v0, v2
-    v3: int32 = 2int32
-    store v1, v3
-    v4: int32 = load v0
-    return v4
-}"#,
-        );
-
-        // create overlapping tbaa tags with the same base and access
-        let root = test.create_type_alias_node(None, false);
-        let access = test.create_type_alias_node(Some(root), false);
-        let tag_a = test.create_type_alias_tag(root, access, 0, 8, false);
-        let tag_b = test.create_type_alias_tag(root, access, 4, 8, false);
-
-        // locate store and load instructions
-        let function_id = test.first_function_id();
-        let instructions = test.entry_instructions(function_id);
-        let store_v1 = instructions[3];
-        let load_v0 = instructions[4];
-
-        // tag store and load with overlapping tbaa metadata
-        test.insert_pointer_access(
-            store_v1,
-            mir::MemoryAccessKind::Write,
-            mir::Value::new(1),
-            Some(8),
-            Vec::new(),
-            Vec::new(),
-            Some(tag_b),
-        );
-
-        test.insert_pointer_access(
-            load_v0,
-            mir::MemoryAccessKind::Read,
-            mir::Value::new(0),
-            Some(8),
-            Vec::new(),
-            Vec::new(),
-            Some(tag_a),
-        );
-
-        // build analyses
-        let function = test.tree.get(function_id);
-        let analyses = test.function_analyses(function);
-        let memory_ssa = analyses.get::<MemorySSA>();
-        let alias = analyses.get::<AliasAnalysis>();
-
-        // locate memory accesses
-        let load_access = memory_ssa
-            .access_for_instruction(load_v0)
-            .expect("missing load access");
-        let store_access = memory_ssa
-            .access_for_instruction(store_v1)
-            .expect("missing store access");
-
-        // clobber should see the overlapping tbaa store
-        let clobber = memory_ssa.clobbering_access_for_use(load_access, &alias, &test.tree);
-        assert_eq!(clobber, store_access);
-    }
-
-    /// Alias scopes can disambiguate memory accesses.
-    #[test]
-    fn test_memory_ssa_alias_scopes_disambiguate() {
-        let mut test = TestProgram::new(
-            r#"
-function test(v0: ref<int32, raw>): int32 {
-b0(v0: ref<int32, raw>):
-    v1: int32 = 1int32
-    store v0, v1
-    v2: int32 = load v0
-    return v2
-}"#,
-        );
-
-        let function_id = test.first_function_id();
-        let instructions = test.entry_instructions(function_id);
-        let store_inst = instructions[1];
-        let load_inst = instructions[2];
-
-        let scope = test.create_alias_scope();
-
-        test.insert_pointer_access(
-            store_inst,
-            mir::MemoryAccessKind::Write,
-            mir::Value::new(0),
-            Some(4),
-            vec![scope],
-            Vec::new(),
-            None,
-        );
-
-        test.insert_pointer_access(
-            load_inst,
-            mir::MemoryAccessKind::Read,
-            mir::Value::new(0),
-            Some(4),
-            Vec::new(),
-            vec![scope],
-            None,
-        );
-
-        let function = test.tree.get(function_id);
-        let analyses = test.function_analyses(function);
-        let memory_ssa = analyses.get::<MemorySSA>();
-        let alias = analyses.get::<AliasAnalysis>();
-
-        let load_access = memory_ssa
-            .access_for_instruction(load_inst)
-            .expect("missing load access");
-
-        let clobber = memory_ssa.clobbering_access_for_use(load_access, &alias, &test.tree);
-        assert_eq!(clobber, memory_ssa.live_on_entry());
-    }
-
-    /// Address spaces can disambiguate memory accesses.
-    #[test]
-    fn test_memory_ssa_address_space_disambiguate() {
+    fn test_memory_ssa_space_disambiguate() {
         let mut test = TestProgram::new(
             r#"
 function test(v0: ref<int32, raw>): int32 {
@@ -2917,10 +2177,7 @@ b0(v0: ref<int32, raw>):
             scope: None,
             memory_scope: None,
             flags: None,
-            address_space: Some(mir::AddressSpace::Stack),
-            alias_scopes: Vec::new(),
-            noalias_scopes: Vec::new(),
-            type_alias_tag: None,
+            space: Some(mir::Space::Frame),
         };
         let load_access = mir::MemoryAccessMetadata {
             kind: mir::MemoryAccessKind::Read,
@@ -2933,10 +2190,7 @@ b0(v0: ref<int32, raw>):
             scope: None,
             memory_scope: None,
             flags: None,
-            address_space: Some(mir::AddressSpace::Static),
-            alias_scopes: Vec::new(),
-            noalias_scopes: Vec::new(),
-            type_alias_tag: None,
+            space: Some(mir::Space::Static),
         };
 
         test.insert_memory_accesses(store_inst, vec![store_access]);
@@ -2963,8 +2217,8 @@ b0(v0: ref<int32, raw>):
             r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     v2: int32 = 1int32
     store v0, v2
     v3: int32 = 2int32
@@ -2986,9 +2240,6 @@ b0:
             mir::MemoryAccessKind::Read,
             mir::Value::new(1),
             Some(4),
-            Vec::new(),
-            Vec::new(),
-            None,
         );
 
         // build analyses
@@ -3119,8 +2370,8 @@ b0:
             r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     v2: int64 = 4int64
     intrinsic.memory.raw.copyBytes(v0, v1, v2)
     v3: int32 = load v0
@@ -3153,9 +2404,9 @@ b0:
         let write_ptr =
             pointer_from_location(&write_effect.location).expect("missing write pointer");
 
-        let stack_allocs = test.stack_alloc_destinations_in_entry(function_id);
-        let dest_value = *stack_allocs.first().expect("missing stack allocation");
-        let src_value = *stack_allocs.get(1).expect("missing stack allocation");
+        let frame_allocs = test.frame_alloc_destinations_in_entry(function_id);
+        let dest_value = *frame_allocs.first().expect("missing stack allocation");
+        let src_value = *frame_allocs.get(1).expect("missing stack allocation");
 
         assert_eq!(read_ptr, src_value);
         assert_eq!(write_ptr, dest_value);
@@ -3174,8 +2425,8 @@ b0:
             r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     v2: int64 = 4int64
     v3: int32 = intrinsic.memory.raw.compareBytes(v0, v1, v2)
     return v3
@@ -3208,7 +2459,7 @@ b0:
             r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = load v0
     store v0, v1
     return v1
@@ -3229,9 +2480,6 @@ b0:
             mir::MemoryAccessKind::Read,
             mir::Value::new(0),
             Some(4),
-            Vec::new(),
-            Vec::new(),
-            None,
             true,
             None,
         );
@@ -3240,9 +2488,6 @@ b0:
             mir::MemoryAccessKind::Write,
             mir::Value::new(0),
             Some(4),
-            Vec::new(),
-            Vec::new(),
-            None,
             true,
             None,
         );
@@ -3274,7 +2519,7 @@ b0:
             r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = atomic.load v0, acquire, device, device, any
     atomic.store v0, v1, release, device, device, any
     return v1
@@ -3381,9 +2626,9 @@ b0(v0: ref<int32, raw>):
         ));
     }
 
-    /// Call metadata readnone suppresses memory accesses.
+    /// Call metadata no memory suppresses memory accesses.
     #[test]
-    fn test_memory_ssa_call_readnone_metadata() {
+    fn test_memory_ssa_skips_no_memory_call() {
         let mut test = TestProgram::new(
             r#"
 external function external(ref<int32, raw>): void
@@ -3397,11 +2642,8 @@ b0(v0: ref<int32, raw>):
 
         let function_id = test.entry_function_id();
         let (call_inst, _callee) = test.first_call_in_entry(function_id);
-        let instruction = test.tree.get_mut(call_inst);
-        let Some(memory_effect) = instruction.call_memory_effect_mut() else {
-            panic!("expected call instruction");
-        };
-        *memory_effect = Some(mir::MemoryEffect::none());
+        let callsite = mir::CallSite::Instruction(call_inst);
+        test.tree.metadata.functions.call_mut(callsite).memory = mir::MemoryEffect::none();
 
         let function = test.tree.get(function_id);
         let analyses = test.function_analyses(function);
@@ -3409,63 +2651,8 @@ b0(v0: ref<int32, raw>):
 
         assert!(
             memory_ssa.accesses_for_instruction(call_inst).is_none(),
-            "readnone calls should not create memory accesses"
+            "no memory calls should not create memory accesses"
         );
-    }
-
-    /// Call metadata argmemonly reads are modeled as pointer uses.
-    #[test]
-    fn test_memory_ssa_call_argmemonly_reads() {
-        let mut test = TestProgram::new(
-            r#"
-external function external(ref<int32, raw>, int32): void
-function test(v0: ref<int32, raw>, v1: int32): int32 {
-b0(v0: ref<int32, raw>, v1: int32):
-    call external(v0, v1): (ref<int32, raw>, int32) -> void
-    v2: int32 = 0int32
-    return v2
-}"#,
-        );
-
-        let function_id = test.entry_function_id();
-        let param_value = {
-            let function = test.tree.get(function_id);
-            function.parameters[0]
-                .value
-                .value()
-                .expect("parameter value should be concrete")
-        };
-        let (call_inst, _callee) = test.first_call_in_entry(function_id);
-
-        let arg0 = mir::ArgumentAttribute {
-            access: mir::ArgumentAccess::Read,
-            ..Default::default()
-        };
-        let arg1 = mir::ArgumentAttribute::default();
-
-        let instruction = test.tree.get_mut(call_inst);
-        let mir::Instruction::Call { call, .. } = instruction else {
-            panic!("expected call instruction");
-        };
-
-        call.memory_effect =
-            Some(mir::MemoryEffect::read_only(mir::MemorySpaceSet::NONE).with_argmemonly());
-        call.argument_attributes = vec![arg0, arg1];
-
-        let function = test.tree.get(function_id);
-        let analyses = test.function_analyses(function);
-        let memory_ssa = analyses.get::<MemorySSA>();
-        let memory_ssa = memory_ssa.as_ref();
-
-        let accesses = instruction_accesses(memory_ssa, call_inst);
-        assert_eq!(accesses.len(), 1);
-
-        let effect = access_effect(memory_ssa, accesses[0]);
-        assert!(effect.reads);
-        assert!(!effect.writes);
-
-        let read_ptr = pointer_from_location(&effect.location).expect("missing read pointer");
-        assert_eq!(read_ptr, param_value);
     }
 
     /// Memory access metadata overrides default instruction effects.
@@ -3512,10 +2699,7 @@ b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
             scope: None,
             memory_scope: None,
             flags: None,
-            address_space: None,
-            alias_scopes: Vec::new(),
-            noalias_scopes: Vec::new(),
-            type_alias_tag: None,
+            space: None,
         };
         let write_access = mir::MemoryAccessMetadata {
             kind: mir::MemoryAccessKind::Write,
@@ -3528,10 +2712,7 @@ b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
             scope: None,
             memory_scope: None,
             flags: None,
-            address_space: None,
-            alias_scopes: Vec::new(),
-            noalias_scopes: Vec::new(),
-            type_alias_tag: None,
+            space: None,
         };
 
         // attach memory access metadata to the call
@@ -3638,7 +2819,7 @@ b0:
     v0: int32 = 0int32
     return v0
 b1:
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     v2: int32 = 1int32
     store v1, v2
     return v2

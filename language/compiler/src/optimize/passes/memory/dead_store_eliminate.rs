@@ -8,8 +8,8 @@ use crate::common::mir::analysis::{
 };
 use crate::common::mir::{
     DecomposedPointer, PointerDecomposer, RangeRelation, ValueTypeMap, build_value_definition_map,
-    collect_block_param_defs, collect_local_defs, collect_non_escaping_stack_allocs,
-    collect_stack_alloc_bases_for_value, range_relation, stack_alloc_base,
+    collect_block_param_defs, collect_frame_alloc_bases_for_value, collect_local_defs,
+    collect_non_escaping_frame_allocs, frame_alloc_base, range_relation,
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext, TypeContext};
 
@@ -27,7 +27,7 @@ declare_mir_pass! {
     /// // before DSE
     /// function before(): int32 {
     /// b0:
-    ///     v0 = stack.alloc int32
+    ///     v0 = frame.alloc int32
     ///     v1 = 1int32
     ///     store v0, v1        // dead: overwritten below
     ///     v2 = 2int32
@@ -41,7 +41,7 @@ declare_mir_pass! {
     /// // after DSE
     /// function after(): int32 {
     /// b0:
-    ///     v0 = stack.alloc int32
+    ///     v0 = frame.alloc int32
     ///     v1 = 1int32
     ///     // store removed
     ///     v2 = 2int32
@@ -138,16 +138,16 @@ fn run_dead_store_eliminate(
     // collect non escaping stack allocations
     let definitions = build_value_definition_map(function, tree);
     let constants = build_integer_constant_map(function, tree);
-    let non_escaping_stack_allocs = collect_non_escaping_stack_allocs(function, tree, &definitions);
+    let non_escaping_frame_allocs = collect_non_escaping_frame_allocs(function, tree, &definitions);
     let local_defs = collect_local_defs(function, tree);
     let param_defs = collect_block_param_defs(function, tree);
-    let stack_alloc_reads = collect_stack_alloc_reads(
+    let frame_alloc_reads = collect_frame_alloc_reads(
         function,
         memory_ssa,
         &definitions,
         &local_defs,
         &param_defs,
-        &non_escaping_stack_allocs,
+        &non_escaping_frame_allocs,
         tree,
     );
 
@@ -175,8 +175,8 @@ fn run_dead_store_eliminate(
         if store_is_non_escaping_stack(
             &store,
             &definitions,
-            &non_escaping_stack_allocs,
-            &stack_alloc_reads,
+            &non_escaping_frame_allocs,
+            &frame_alloc_reads,
             tree,
         ) {
             dead_stores.insert(store.instruction);
@@ -446,13 +446,13 @@ fn record_live_clobber(
 }
 
 /// Collect stack allocation bases that are read by any memory access.
-fn collect_stack_alloc_reads(
+fn collect_frame_alloc_reads(
     function: &mir::Function,
     memory_ssa: &MemorySSA,
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     local_defs: &HashMap<mir::LocalNodeId<mir::Local>, Vec<mir::Value>>,
     param_defs: &HashMap<mir::Value, Vec<mir::Value>>,
-    stack_allocs: &HashSet<mir::Value>,
+    frame_allocs: &HashSet<mir::Value>,
     tree: &mir::Tree,
 ) -> HashSet<mir::Value> {
     // collect stack bases with reads
@@ -481,13 +481,13 @@ fn collect_stack_alloc_reads(
 
                 // resolve stack bases for the pointer
                 let mut visited = HashSet::new();
-                collect_stack_alloc_bases_for_value(
+                collect_frame_alloc_bases_for_value(
                     location.ptr,
                     definitions,
                     local_defs,
                     param_defs,
                     tree,
-                    stack_allocs,
+                    frame_allocs,
                     &mut visited,
                     &mut reads,
                 );
@@ -502,8 +502,8 @@ fn collect_stack_alloc_reads(
 fn store_is_non_escaping_stack(
     store: &StoreCandidate,
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-    non_escaping_stack_allocs: &HashSet<mir::Value>,
-    stack_alloc_reads: &HashSet<mir::Value>,
+    non_escaping_frame_allocs: &HashSet<mir::Value>,
+    frame_alloc_reads: &HashSet<mir::Value>,
     tree: &mir::Tree,
 ) -> bool {
     // only pointer locations can be stack allocations
@@ -515,17 +515,17 @@ fn store_is_non_escaping_stack(
     let Some(pointer) = store.pointer else {
         return false;
     };
-    let Some(base) = stack_alloc_base(pointer, definitions, tree) else {
+    let Some(base) = frame_alloc_base(pointer, definitions, tree) else {
         return false;
     };
 
     // skip when the stack location is read
-    if stack_alloc_reads.contains(&base) {
+    if frame_alloc_reads.contains(&base) {
         return false;
     }
 
     // report whether the base is non escaping
-    non_escaping_stack_allocs.contains(&base)
+    non_escaping_frame_allocs.contains(&base)
 }
 
 /// Return true when a later clobbering def postdominates the store.
@@ -584,7 +584,7 @@ fn store_is_postdominated_by_clobber(
             &store.location,
             &mut decomposer,
         ) {
-            if overwrites && memory_ssa.def_clobbers_access(def.access, store.access, aa, tree) {
+            if overwrites && memory_ssa.def_clobbers_access(def.access, store.access, aa) {
                 return true;
             }
 
@@ -592,7 +592,7 @@ fn store_is_postdominated_by_clobber(
         }
 
         if matches!(store.location, MemoryAccessLocation::Local(_))
-            && memory_ssa.def_clobbers_access(def.access, store.access, aa, tree)
+            && memory_ssa.def_clobbers_access(def.access, store.access, aa)
         {
             return true;
         }
@@ -727,9 +727,6 @@ mod tests {
             mir::MemoryAccessKind::Write,
             pointer,
             Some(size),
-            Vec::new(),
-            Vec::new(),
-            None,
             is_volatile,
             ordering,
         );
@@ -744,7 +741,7 @@ mod tests {
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 1int32
     store v0, v1
     v2: int32 = 2int32
@@ -755,7 +752,7 @@ b0:
         let expected = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 1int32
     v2: int32 = 2int32
     store v0, v2
@@ -776,7 +773,7 @@ b0:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 1int32
     store v0, v1
     v2: int32 = load v0
@@ -799,7 +796,7 @@ b0:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 42int32
     store v0, v1
     v2: int32 = 0int32
@@ -808,7 +805,7 @@ b0:
         let expected = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 42int32
     v2: int32 = 0int32
     return v2
@@ -825,7 +822,7 @@ b0:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 1int32
     store v0, v1
     v2: int32 = 2int32
@@ -858,7 +855,7 @@ b0:
 external function external(ref<int32, raw>): void
 function test(): void {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 42int32
     store v0, v1
     call external(v0): (ref<int32, raw>) -> void
@@ -870,14 +867,14 @@ b0:
         test.assert_unchanged(input);
     }
 
-    /// Store before a nocapture readnone call is removed.
+    /// Store before a nonescaping no memory call is removed.
     #[test]
-    fn test_remove_store_before_nocapture_readnone_call() {
+    fn test_remove_store_before_nonescaping_no_memory_call() {
         let input = r#"
 external function external(ref<int32, raw>): void
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 42int32
     store v0, v1
     call external(v0): (ref<int32, raw>) -> void
@@ -888,7 +885,7 @@ b0:
 external function external(ref<int32, raw>): void
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 42int32
     call external(v0): (ref<int32, raw>) -> void
     v2: int32 = 0int32
@@ -900,22 +897,16 @@ b0:
         let function_id = test.entry_function_id();
         let (call_inst, _callee) = test.first_call_in_entry(function_id);
 
-        let arg0 = mir::ArgumentAttribute {
-            attributes: mir::PointerAttribute {
-                capture: mir::CaptureKind::NoCapture,
-                ..Default::default()
-            },
+        let arg0 = mir::CallArgumentEffect {
             access: mir::ArgumentAccess::None,
+            escape: mir::ArgumentEscape::None,
             ..Default::default()
         };
 
-        let instruction = test.tree.get_mut(call_inst);
-        let mir::Instruction::Call { call, .. } = instruction else {
-            panic!("expected call instruction");
-        };
-
-        call.memory_effect = Some(mir::MemoryEffect::none());
-        call.argument_attributes = vec![arg0];
+        let call = mir::CallSite::Instruction(call_inst);
+        let metadata = test.tree.metadata.functions.call_mut(call);
+        metadata.memory = mir::MemoryEffect::none();
+        metadata.arguments = vec![arg0];
 
         test.run_pass(&DeadStoreEliminate);
         test.assert_output(expected);
@@ -930,7 +921,7 @@ b0:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 1int32
     store v0, v1
     v2: int32 = 2int32
@@ -943,7 +934,7 @@ b0:
         let expected = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 1int32
     v2: int32 = 2int32
     v3: int32 = 3int32
@@ -982,8 +973,8 @@ b0:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     v2: int32 = 1int32
     store v0, v2
     v3: int32 = 2int32
@@ -1009,7 +1000,7 @@ b0:
 external function readValue(ref<int32, raw>): int32
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 42int32
     store v0, v1
     v2: int32 = call readValue(v0): (ref<int32, raw>) -> int32
@@ -1031,7 +1022,7 @@ b0:
 external function sideEffect(): void
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     call sideEffect(): () -> void
     v1: int32 = 1int32
     store v0, v1
@@ -1044,7 +1035,7 @@ b0:
 external function sideEffect(): void
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     call sideEffect(): () -> void
     v1: int32 = 1int32
     v2: int32 = 2int32
@@ -1066,7 +1057,7 @@ b0:
         let input = r#"
 function test(): ref<int32, raw> {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 42int32
     store v0, v1
     return v0
@@ -1083,7 +1074,7 @@ b0:
         let input = r#"
 function test(): (ref<int32, raw>, int32) {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 42int32
     store v0, v1
     v2: int32 = 0int32
@@ -1126,7 +1117,7 @@ b0(v0: ref<Pair, raw>):
         let input = r#"
 function test(): ref<int64, raw> {
 b0:
-    v0: ref<int64, raw, space(stack)> = stack.alloc int64
+    v0: ref<int64, raw, space(frame)> = frame.alloc int64
     v1: int64 = 0int64
     store v0, v1
     v2: int32 = 1int32
@@ -1154,7 +1145,7 @@ b0:
         let input = r#"
 function test(): void {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int8 = 0int8
     v2: int64 = 4int64
     intrinsic.memory.raw.setBytes(v0, v1, v2)
@@ -1163,7 +1154,7 @@ b0:
         let expected = r#"
 function test(): void {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int8 = 0int8
     v2: int64 = 4int64
     return
@@ -1180,7 +1171,7 @@ b0:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int8 = 0int8
     v2: int64 = 4int64
     intrinsic.memory.raw.setBytes(v0, v1, v2)
@@ -1201,8 +1192,8 @@ b0:
         let input = r#"
 function test(): void {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     v2: int64 = 4int64
     intrinsic.memory.raw.copyBytes(v0, v1, v2)
     return
@@ -1210,8 +1201,8 @@ b0:
         let expected = r#"
 function test(): void {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     v2: int64 = 4int64
     return
 }"#;
@@ -1229,8 +1220,8 @@ b0:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     v2: int64 = 4int64
     intrinsic.memory.raw.copyBytes(v0, v1, v2)
     v3: int32 = load v0
@@ -1251,8 +1242,8 @@ b0:
         let input = r#"
 function test(): void {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     v2: int64 = 4int64
     intrinsic.memory.raw.moveBytes(v0, v1, v2)
     return
@@ -1260,8 +1251,8 @@ b0:
         let expected = r#"
 function test(): void {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     v2: int64 = 4int64
     return
 }"#;
@@ -1279,8 +1270,8 @@ b0:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     v2: int64 = 4int64
     intrinsic.memory.raw.moveBytes(v0, v1, v2)
     v3: int32 = load v0
@@ -1330,129 +1321,12 @@ b0(v0: ref<Point, raw>):
             mir::MemoryAccessKind::Write,
             mir::Value::new(0),
             None,
-            Vec::new(),
-            Vec::new(),
-            None,
         );
         test.insert_pointer_access(
             *second_store,
             mir::MemoryAccessKind::Write,
             mir::Value::new(0),
             None,
-            Vec::new(),
-            Vec::new(),
-            None,
-        );
-
-        // run dse
-        test.run_pass(&DeadStoreEliminate);
-        test.assert_output(expected);
-    }
-
-    /// Stores in disjoint alias scopes are not treated as clobbers.
-    #[test]
-    fn test_preserve_store_with_alias_scope_disjoint() {
-        // input test
-        let input = r#"
-function test(v0: ref<int32, raw>, v1: ref<int32, raw>): void {
-b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
-    v2: int32 = 1int32
-    store v0, v2
-    v3: int32 = 2int32
-    store v1, v3
-    return
-}"#;
-        let expected = input;
-
-        // create a scope for disambiguation
-        let mut test = TestProgram::new(input);
-        let scope = {
-            let scopes = &mut test.tree.metadata.memory.alias_scopes;
-            let domain = scopes.create_domain(None);
-            scopes.create_scope(domain, None)
-        };
-
-        // attach disjoint scope metadata to the stores
-        let function_id = test.entry_function_id();
-        let store_ids = test.store_instructions_in_entry(function_id);
-        let [first_store, second_store] = store_ids.as_slice() else {
-            panic!("expected two store instructions");
-        };
-
-        test.insert_pointer_access(
-            *first_store,
-            mir::MemoryAccessKind::Write,
-            mir::Value::new(0),
-            Some(4),
-            vec![scope],
-            Vec::new(),
-            None,
-        );
-        test.insert_pointer_access(
-            *second_store,
-            mir::MemoryAccessKind::Write,
-            mir::Value::new(1),
-            Some(4),
-            Vec::new(),
-            vec![scope],
-            None,
-        );
-
-        // run dse
-        test.run_pass(&DeadStoreEliminate);
-        test.assert_output(expected);
-    }
-
-    /// Stores with disjoint tbaa offsets are not treated as clobbers.
-    #[test]
-    fn test_preserve_store_with_tbaa_disjoint_offsets() {
-        // input test
-        let input = r#"
-function test(v0: ref<int32, raw>, v1: ref<int32, raw>): void {
-b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
-    v2: int32 = 1int32
-    store v0, v2
-    v3: int32 = 2int32
-    store v1, v3
-    return
-}"#;
-        let expected = input;
-
-        // create disjoint type-alias tags
-        let mut test = TestProgram::new(input);
-        let (tag_a, tag_b) = {
-            let type_alias = &mut test.tree.metadata.memory.type_alias;
-            let root = type_alias.create_node(None, None, false);
-            let access = type_alias.create_node(None, Some(root), false);
-            let tag_a = type_alias.create_tag(root, access, 0, 4, false);
-            let tag_b = type_alias.create_tag(root, access, 8, 4, false);
-            (tag_a, tag_b)
-        };
-
-        // attach disjoint tbaa metadata to the stores
-        let function_id = test.entry_function_id();
-        let store_ids = test.store_instructions_in_entry(function_id);
-        let [first_store, second_store] = store_ids.as_slice() else {
-            panic!("expected two store instructions");
-        };
-
-        test.insert_pointer_access(
-            *first_store,
-            mir::MemoryAccessKind::Write,
-            mir::Value::new(0),
-            Some(4),
-            Vec::new(),
-            Vec::new(),
-            Some(tag_a),
-        );
-        test.insert_pointer_access(
-            *second_store,
-            mir::MemoryAccessKind::Write,
-            mir::Value::new(1),
-            Some(4),
-            Vec::new(),
-            Vec::new(),
-            Some(tag_b),
         );
 
         // run dse
@@ -1469,7 +1343,7 @@ b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 1int32
     store v0, v1
     jump b1
@@ -1482,7 +1356,7 @@ b1:
         let expected = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 1int32
     jump b1
 b1:
@@ -1505,7 +1379,7 @@ b1:
         let input = r#"
 function test(v0: boolean): int32 {
 b0(v0: boolean):
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     v2: int32 = 1int32
     store v1, v2
     branch v0, b1, b2
@@ -1533,7 +1407,7 @@ b2:
         let input = r#"
 function test(v0: int32): void {
 b0(v0: int32):
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     v2: int32 = 42int32
     store v1, v2
     switch v0, b1(v1), 0 => b2

@@ -199,8 +199,8 @@ enum SignatureType {
         kind: mir::ReferenceKind,
         /// Escaping lifetime root.
         lifetime: mir::Lifetime,
-        /// Address space for the reference.
-        address_space: mir::AddressSpace,
+        /// Space for the reference.
+        space: mir::Space,
         /// Access for the reference.
         access: mir::Access,
         /// Pointee type signature.
@@ -225,8 +225,8 @@ enum SignatureType {
         lifetime: mir::Lifetime,
         /// Element type signature.
         element: Box<SignatureType>,
-        /// Address space for the slice base.
-        address_space: mir::AddressSpace,
+        /// Space for the slice base.
+        space: mir::Space,
         /// Access exposed by the slice.
         access: mir::Access,
         /// Nullability for the slice.
@@ -290,8 +290,8 @@ enum SignatureType {
         kind: mir::ReferenceKind,
         /// Escaping lifetime root.
         lifetime: mir::Lifetime,
-        /// Address space for the view.
-        address_space: mir::AddressSpace,
+        /// Space for the view.
+        space: mir::Space,
         /// Access for the view.
         access: mir::Access,
         /// Element type signature.
@@ -357,14 +357,14 @@ impl SignatureType {
             mir::Type::Reference {
                 kind,
                 lifetime,
-                address_space,
+                space,
                 access,
                 pointee,
                 nullability,
             } => SignatureType::Reference {
                 kind: *kind,
                 lifetime: lifetime.clone(),
-                address_space: address_space.clone(),
+                space: space.clone(),
                 access: *access,
                 pointee: Box::new(SignatureType::from_type(tree, pointee.ty()?)?),
                 nullability: *nullability,
@@ -382,14 +382,14 @@ impl SignatureType {
                 kind,
                 lifetime,
                 element,
-                address_space,
+                space,
                 access,
                 nullability,
             } => SignatureType::Slice {
                 kind: *kind,
                 lifetime: lifetime.clone(),
                 element: Box::new(SignatureType::from_type(tree, element.ty()?)?),
-                address_space: address_space.clone(),
+                space: space.clone(),
                 access: *access,
                 nullability: *nullability,
             },
@@ -467,7 +467,7 @@ impl SignatureType {
             mir::Type::TensorView {
                 kind,
                 lifetime,
-                address_space,
+                space,
                 access,
                 element,
                 shape,
@@ -476,7 +476,7 @@ impl SignatureType {
             } => SignatureType::TensorView {
                 kind: *kind,
                 lifetime: lifetime.clone(),
-                address_space: address_space.clone(),
+                space: space.clone(),
                 access: *access,
                 element: Box::new(SignatureType::from_type(tree, element.ty()?)?),
                 shape: shape.clone(),
@@ -1216,14 +1216,10 @@ impl SymbolCallSite {
         // resolve the dispatch kind
         let dispatch = instruction.call_dispatch_kind()?;
 
-        // resolve the declared target when present
-        let declared_target = instruction.call_declared_target();
-        let callee = declared_target.and_then(|target| {
-            let target = target.function()?;
-            symbols_by_function.get(&target).cloned()
-        });
-        let callee_linkage =
-            declared_target.and_then(|target| Some(tree.get(target.function()?).linkage));
+        // resolve the direct or analyzed target when present
+        let resolved_target = instruction_resolved_target(instruction_id, instruction, tree);
+        let callee = resolved_target.and_then(|target| symbols_by_function.get(&target).cloned());
+        let callee_linkage = resolved_target.map(|target| tree.get(target).linkage);
 
         // resolve the signature type
         let signature = instruction
@@ -1231,10 +1227,8 @@ impl SymbolCallSite {
             .and_then(|sig| sig.ty())
             .and_then(|sig| SignatureKey::from_function_type(tree, sig))
             .or_else(|| {
-                declared_target.and_then(|target| {
-                    let target = target.function()?;
-                    SignatureKey::from_function(tree, tree.get(target))
-                })
+                resolved_target
+                    .and_then(|target| SignatureKey::from_function(tree, tree.get(target)))
             });
 
         let is_precise = matches!(dispatch, mir::CallDispatchKind::Direct);
@@ -1293,18 +1287,14 @@ impl SymbolCallSite {
                 is_precise: false,
             }),
             mir::Terminator::CallClass { slot, call, .. } => {
-                let declared_target = terminator.call_declared_target();
-                let callee = declared_target
-                    .and_then(|target| target.function())
-                    .and_then(|target| symbols_by_function.get(&target).cloned());
-                let callee_linkage =
-                    declared_target.and_then(|target| Some(tree.get(target.function()?).linkage));
+                let resolved_target = terminator_resolved_target(block_id, terminator, tree);
+                let callee =
+                    resolved_target.and_then(|target| symbols_by_function.get(&target).cloned());
+                let callee_linkage = resolved_target.map(|target| tree.get(target).linkage);
                 let signature =
                     SignatureKey::from_function_type(tree, call.signature).or_else(|| {
-                        declared_target.and_then(|target| {
-                            let target = target.function()?;
-                            SignatureKey::from_function(tree, tree.get(target))
-                        })
+                        resolved_target
+                            .and_then(|target| SignatureKey::from_function(tree, tree.get(target)))
                     });
 
                 Some(Self {
@@ -1317,18 +1307,14 @@ impl SymbolCallSite {
                 })
             }
             mir::Terminator::CallInterface { slot, call, .. } => {
-                let declared_target = terminator.call_declared_target();
-                let callee = declared_target
-                    .and_then(|target| target.function())
-                    .and_then(|target| symbols_by_function.get(&target).cloned());
-                let callee_linkage =
-                    declared_target.and_then(|target| Some(tree.get(target.function()?).linkage));
+                let resolved_target = terminator_resolved_target(block_id, terminator, tree);
+                let callee =
+                    resolved_target.and_then(|target| symbols_by_function.get(&target).cloned());
+                let callee_linkage = resolved_target.map(|target| tree.get(target).linkage);
                 let signature =
                     SignatureKey::from_function_type(tree, call.signature).or_else(|| {
-                        declared_target.and_then(|target| {
-                            let target = target.function()?;
-                            SignatureKey::from_function(tree, tree.get(target))
-                        })
+                        resolved_target
+                            .and_then(|target| SignatureKey::from_function(tree, tree.get(target)))
                     });
 
                 Some(Self {
@@ -1369,18 +1355,14 @@ impl SymbolCallSite {
                 is_precise: false,
             }),
             mir::Terminator::TailCallClass { slot, call, .. } => {
-                let declared_target = terminator.call_declared_target();
-                let callee = declared_target
-                    .and_then(|target| target.function())
-                    .and_then(|target| symbols_by_function.get(&target).cloned());
-                let callee_linkage =
-                    declared_target.and_then(|target| Some(tree.get(target.function()?).linkage));
+                let resolved_target = terminator_resolved_target(block_id, terminator, tree);
+                let callee =
+                    resolved_target.and_then(|target| symbols_by_function.get(&target).cloned());
+                let callee_linkage = resolved_target.map(|target| tree.get(target).linkage);
                 let signature =
                     SignatureKey::from_function_type(tree, call.signature).or_else(|| {
-                        declared_target.and_then(|target| {
-                            let target = target.function()?;
-                            SignatureKey::from_function(tree, tree.get(target))
-                        })
+                        resolved_target
+                            .and_then(|target| SignatureKey::from_function(tree, tree.get(target)))
                     });
 
                 Some(Self {
@@ -1393,18 +1375,14 @@ impl SymbolCallSite {
                 })
             }
             mir::Terminator::TailCallInterface { slot, call, .. } => {
-                let declared_target = terminator.call_declared_target();
-                let callee = declared_target
-                    .and_then(|target| target.function())
-                    .and_then(|target| symbols_by_function.get(&target).cloned());
-                let callee_linkage =
-                    declared_target.and_then(|target| Some(tree.get(target.function()?).linkage));
+                let resolved_target = terminator_resolved_target(block_id, terminator, tree);
+                let callee =
+                    resolved_target.and_then(|target| symbols_by_function.get(&target).cloned());
+                let callee_linkage = resolved_target.map(|target| tree.get(target).linkage);
                 let signature =
                     SignatureKey::from_function_type(tree, call.signature).or_else(|| {
-                        declared_target.and_then(|target| {
-                            let target = target.function()?;
-                            SignatureKey::from_function(tree, tree.get(target))
-                        })
+                        resolved_target
+                            .and_then(|target| SignatureKey::from_function(tree, tree.get(target)))
                     });
 
                 Some(Self {
@@ -1419,6 +1397,40 @@ impl SymbolCallSite {
             _ => None,
         }
     }
+}
+
+/// Return the resolved function target for an instruction callsite.
+fn instruction_resolved_target(
+    instruction_id: mir::LocalNodeId<mir::Instruction>,
+    instruction: &mir::Instruction,
+    tree: &mir::Tree,
+) -> Option<mir::LocalNodeId<mir::Function>> {
+    instruction
+        .call_direct_target()
+        .and_then(|target| target.function())
+        .or_else(|| {
+            tree.metadata
+                .functions
+                .call(mir::CallSite::Instruction(instruction_id))
+                .and_then(|metadata| metadata.target)
+        })
+}
+
+/// Return the resolved function target for a terminator callsite.
+fn terminator_resolved_target(
+    block_id: mir::LocalNodeId<mir::Block>,
+    terminator: &mir::Terminator,
+    tree: &mir::Tree,
+) -> Option<mir::LocalNodeId<mir::Function>> {
+    terminator
+        .call_direct_target()
+        .and_then(|target| target.function())
+        .or_else(|| {
+            tree.metadata
+                .functions
+                .call(mir::CallSite::Terminator(block_id))
+                .and_then(|metadata| metadata.target)
+        })
 }
 
 /// Insert a symbol callsite into a graph.
@@ -1578,12 +1590,10 @@ impl CallSite {
         caller: mir::LocalNodeId<mir::Function>,
         instruction_id: mir::LocalNodeId<mir::Instruction>,
         instruction: &mir::Instruction,
-        _tree: &mir::Tree,
+        tree: &mir::Tree,
     ) -> Option<Self> {
         let dispatch = instruction.call_dispatch_kind()?;
-        let callee = instruction
-            .call_declared_target()
-            .and_then(|callee| callee.function());
+        let callee = instruction_resolved_target(instruction_id, instruction, tree);
         let is_precise = matches!(dispatch, mir::CallDispatchKind::Direct);
 
         Some(Self {
@@ -1600,7 +1610,7 @@ impl CallSite {
         caller: mir::LocalNodeId<mir::Function>,
         block_id: mir::LocalNodeId<mir::Block>,
         terminator: &mir::Terminator,
-        _tree: &mir::Tree,
+        tree: &mir::Tree,
     ) -> Option<Self> {
         let callsite = CallSiteRef::Terminator(block_id);
 
@@ -1623,18 +1633,14 @@ impl CallSite {
                 caller,
                 callsite,
                 dispatch: mir::CallDispatchKind::Class { slot: *slot },
-                callee: terminator
-                    .call_declared_target()
-                    .and_then(|callee| callee.function()),
+                callee: terminator_resolved_target(block_id, terminator, tree),
                 is_precise: false,
             }),
             mir::Terminator::CallInterface { slot, .. } => Some(Self {
                 caller,
                 callsite,
                 dispatch: mir::CallDispatchKind::Interface { slot: *slot },
-                callee: terminator
-                    .call_declared_target()
-                    .and_then(|callee| callee.function()),
+                callee: terminator_resolved_target(block_id, terminator, tree),
                 is_precise: false,
             }),
             mir::Terminator::TailCall { function, .. } => Some(Self {
@@ -1655,18 +1661,14 @@ impl CallSite {
                 caller,
                 callsite,
                 dispatch: mir::CallDispatchKind::Class { slot: *slot },
-                callee: terminator
-                    .call_declared_target()
-                    .and_then(|callee| callee.function()),
+                callee: terminator_resolved_target(block_id, terminator, tree),
                 is_precise: false,
             }),
             mir::Terminator::TailCallInterface { slot, .. } => Some(Self {
                 caller,
                 callsite,
                 dispatch: mir::CallDispatchKind::Interface { slot: *slot },
-                callee: terminator
-                    .call_declared_target()
-                    .and_then(|callee| callee.function()),
+                callee: terminator_resolved_target(block_id, terminator, tree),
                 is_precise: false,
             }),
             _ => None,
@@ -1911,7 +1913,7 @@ b0(v0: int32):
 b1(v1: int32):
     return v1
 b2(v2: ref<int32, managed, readonly>):
-    trap.panic v2
+    panic v2
 }"#,
         );
 
@@ -1967,14 +1969,11 @@ b0(v0: int32):
         }
         let call_id = call_id.expect("missing class call instruction");
 
-        let instruction = test.tree.get_mut(call_id);
-        let mir::Instruction::CallClass {
-            declared_target, ..
-        } = instruction
-        else {
-            panic!("expected class call instruction");
-        };
-        *declared_target = Some(callee_id.into());
+        test.tree
+            .metadata
+            .functions
+            .call_mut(mir::CallSite::Instruction(call_id))
+            .target = Some(callee_id);
 
         let analyses = ModuleAnalyses::new(&test.tree);
         let callgraph = analyses.get::<CallGraph>();
@@ -2006,7 +2005,7 @@ b0(v0: int32):
 b1(v1: int32):
     return v1
 b2(v2: ref<int32, managed, readonly>):
-    trap.panic v2
+    panic v2
 }"#,
         );
 
@@ -2015,15 +2014,11 @@ b2(v2: ref<int32, managed, readonly>):
         let function = test.tree.get(test_id);
         let block_id = *function.blocks.first().expect("missing entry block");
 
-        let terminator_id = test.tree.get(block_id).terminator;
-        let block = test.tree.get_mut(terminator_id);
-        let mir::Terminator::CallClass {
-            declared_target, ..
-        } = block
-        else {
-            panic!("expected virtual call terminator");
-        };
-        *declared_target = Some(callee_id.into());
+        test.tree
+            .metadata
+            .functions
+            .call_mut(mir::CallSite::Terminator(block_id))
+            .target = Some(callee_id);
 
         let analyses = ModuleAnalyses::new(&test.tree);
         let callgraph = analyses.get::<CallGraph>();

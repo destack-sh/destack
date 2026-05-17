@@ -182,7 +182,10 @@ pub fn build_signature_type(
 }
 
 /// Collect parameter indices that must be preserved by metadata.
-pub fn required_parameter_indices(function: &mir::Function) -> HashSet<usize> {
+pub fn required_parameter_indices(
+    function: &mir::Function,
+    metadata: Option<&mir::FunctionMetadata>,
+) -> HashSet<usize> {
     // gather required indices from metadata
     let mut required = HashSet::new();
 
@@ -192,7 +195,7 @@ pub fn required_parameter_indices(function: &mir::Function) -> HashSet<usize> {
     }
 
     // include allocation size indices
-    if let Some(allocation_size) = function.allocation_size {
+    if let Some(allocation_size) = metadata.and_then(|metadata| metadata.allocation_size) {
         required.insert(allocation_size.stride_index as usize);
         if let Some(count_index) = allocation_size.element_count_index {
             required.insert(count_index as usize);

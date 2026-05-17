@@ -505,7 +505,7 @@ b0:
 b1(v1: int32):
     return v1
 b2(v2: ref<int32, managed, readonly>):
-    trap.panic v2
+    panic v2
 }"#;
 
         let expected = r#"
@@ -521,7 +521,7 @@ b0:
 b1(v1: int32):
     return v1
 b2(v2: ref<int32, managed, readonly>):
-    trap.panic v2
+    panic v2
 }"#;
 
         let mut test = TestProgram::new(input);

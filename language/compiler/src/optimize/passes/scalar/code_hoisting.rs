@@ -57,7 +57,7 @@ declare_mir_pass! {
 }
 
 /// Maximum number of instructions to hoist per branch.
-const MAX_HOISTEI_INSTRUCTIONS: usize = 8;
+const MAX_HOISTED_INSTRUCTIONS: usize = 8;
 
 impl FunctionPass for CodeHoisting {
     fn run(
@@ -226,7 +226,7 @@ fn hoist_common_prefix(
 
     // hoist candidates while dependencies are available
     let mut progress = true;
-    while progress && hoisted_then_ids.len() < MAX_HOISTEI_INSTRUCTIONS {
+    while progress && hoisted_then_ids.len() < MAX_HOISTED_INSTRUCTIONS {
         // reset progress until a candidate is hoisted
         progress = false;
 
@@ -271,7 +271,7 @@ fn hoist_common_prefix(
         // process candidate pairs
         for candidate in candidates {
             // stop when the configured limit is reached
-            if hoisted_then_ids.len() >= MAX_HOISTEI_INSTRUCTIONS {
+            if hoisted_then_ids.len() >= MAX_HOISTED_INSTRUCTIONS {
                 break;
             }
 

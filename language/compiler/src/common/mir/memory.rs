@@ -9,7 +9,7 @@ use super::{TypeKey, ValueTypeMap};
 
 /// A memory location being accessed.
 ///
-/// Represents a specific region of memory with an optional known size and type.
+/// Represents a specific space of memory with an optional known size and type.
 /// This is the fundamental unit for alias queries: "do these two locations overlap?"
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct MemoryLocation {
@@ -21,8 +21,8 @@ pub struct MemoryLocation {
     pub access_type: Option<TypeKey>,
     /// Reference kind for the pointer, when known.
     pub pointer_kind: Option<mir::ReferenceKind>,
-    /// Address space for the pointer, when known.
-    pub pointer_address_space: Option<mir::AddressSpace>,
+    /// Space for the pointer, when known.
+    pub pointer_space: Option<mir::Space>,
 }
 
 /// Return true when a memory effect is trackable by optimizations.
@@ -37,7 +37,7 @@ pub fn effect_is_trackable(effect: &MemoryAccessEffect) -> bool {
 /// Return the stack allocation base for a derived pointer value.
 ///
 /// This walks through address computations to find the original stack alloc.
-pub fn stack_alloc_base(
+pub fn frame_alloc_base(
     value: mir::Value,
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     tree: &mir::Tree,
@@ -59,7 +59,7 @@ pub fn stack_alloc_base(
 
         // walk through address computations
         match instruction {
-            mir::Instruction::StackAlloc { destination, .. }
+            mir::Instruction::FrameAlloc { destination, .. }
                 if destination.value() == Some(current) =>
             {
                 return Some(current);
@@ -79,13 +79,13 @@ pub fn stack_alloc_base(
 }
 
 /// Collect stack allocations that do not escape the function.
-pub fn collect_non_escaping_stack_allocs(
+pub fn collect_non_escaping_frame_allocs(
     function: &mir::Function,
     tree: &mir::Tree,
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
 ) -> HashSet<mir::Value> {
     // collect stack allocation bases
-    let mut stack_allocs = HashSet::new();
+    let mut frame_allocs = HashSet::new();
 
     // scan blocks for stack allocations
     for &block_id in &function.blocks {
@@ -96,10 +96,10 @@ pub fn collect_non_escaping_stack_allocs(
         for &instruction_id in &block.instructions {
             // read the instruction
             let instruction = tree.get(instruction_id);
-            if let mir::Instruction::StackAlloc { destination, .. } = instruction
+            if let mir::Instruction::FrameAlloc { destination, .. } = instruction
                 && let Some(destination) = destination.value()
             {
-                stack_allocs.insert(destination);
+                frame_allocs.insert(destination);
             }
         }
     }
@@ -124,21 +124,25 @@ pub fn collect_non_escaping_stack_allocs(
                 | mir::Instruction::CallInterface { .. }
                 | mir::Instruction::CallIndirect { .. } => {
                     // capture call effects for escape checks
-                    let argument_attributes = instruction.call_argument_attributes();
+                    let argument_effects = tree
+                        .metadata
+                        .functions
+                        .call(mir::CallSite::Instruction(instruction_id))
+                        .map(|metadata| metadata.arguments.as_slice());
 
                     // mark stack pointers passed to calls as escaping
                     if let Some(arg_slice) = instruction.argument_slice() {
                         let arguments = tree.get_arguments(arg_slice);
 
                         for (index, arg) in arguments.iter().copied().enumerate() {
-                            if call_argument_escapes(argument_attributes, index) {
+                            if call_argument_escapes(argument_effects, index) {
                                 record_stack_escape_reference(
                                     arg,
                                     definitions,
                                     &local_defs,
                                     &param_defs,
                                     tree,
-                                    &stack_allocs,
+                                    &frame_allocs,
                                     &mut escaping,
                                 );
                             }
@@ -153,7 +157,7 @@ pub fn collect_non_escaping_stack_allocs(
                         &local_defs,
                         &param_defs,
                         tree,
-                        &stack_allocs,
+                        &frame_allocs,
                         &mut escaping,
                     );
                 }
@@ -172,7 +176,7 @@ pub fn collect_non_escaping_stack_allocs(
                     &local_defs,
                     &param_defs,
                     tree,
-                    &stack_allocs,
+                    &frame_allocs,
                     &mut escaping,
                 );
             }
@@ -184,7 +188,7 @@ pub fn collect_non_escaping_stack_allocs(
                         &local_defs,
                         &param_defs,
                         tree,
-                        &stack_allocs,
+                        &frame_allocs,
                         &mut escaping,
                     );
                 }
@@ -206,7 +210,7 @@ pub fn collect_non_escaping_stack_allocs(
                         &local_defs,
                         &param_defs,
                         tree,
-                        &stack_allocs,
+                        &frame_allocs,
                         &mut escaping,
                     );
                 }
@@ -226,7 +230,7 @@ pub fn collect_non_escaping_stack_allocs(
                         &local_defs,
                         &param_defs,
                         tree,
-                        &stack_allocs,
+                        &frame_allocs,
                         &mut escaping,
                     );
                 }
@@ -239,7 +243,7 @@ pub fn collect_non_escaping_stack_allocs(
                         &local_defs,
                         &param_defs,
                         tree,
-                        &stack_allocs,
+                        &frame_allocs,
                         &mut escaping,
                     );
                 }
@@ -251,7 +255,7 @@ pub fn collect_non_escaping_stack_allocs(
                             &local_defs,
                             &param_defs,
                             tree,
-                            &stack_allocs,
+                            &frame_allocs,
                             &mut escaping,
                         );
                     }
@@ -264,7 +268,7 @@ pub fn collect_non_escaping_stack_allocs(
                     &local_defs,
                     &param_defs,
                     tree,
-                    &stack_allocs,
+                    &frame_allocs,
                     &mut escaping,
                 );
                 for arg in resume.arguments.iter().copied() {
@@ -274,7 +278,7 @@ pub fn collect_non_escaping_stack_allocs(
                         &local_defs,
                         &param_defs,
                         tree,
-                        &stack_allocs,
+                        &frame_allocs,
                         &mut escaping,
                     );
                 }
@@ -292,7 +296,7 @@ pub fn collect_non_escaping_stack_allocs(
                         &local_defs,
                         &param_defs,
                         tree,
-                        &stack_allocs,
+                        &frame_allocs,
                         &mut escaping,
                     );
                 }
@@ -309,7 +313,7 @@ pub fn collect_non_escaping_stack_allocs(
                     &local_defs,
                     &param_defs,
                     tree,
-                    &stack_allocs,
+                    &frame_allocs,
                     &mut escaping,
                 );
                 for arg in call
@@ -324,7 +328,7 @@ pub fn collect_non_escaping_stack_allocs(
                         &local_defs,
                         &param_defs,
                         tree,
-                        &stack_allocs,
+                        &frame_allocs,
                         &mut escaping,
                     );
                 }
@@ -341,7 +345,7 @@ pub fn collect_non_escaping_stack_allocs(
                     &local_defs,
                     &param_defs,
                     tree,
-                    &stack_allocs,
+                    &frame_allocs,
                     &mut escaping,
                 );
                 for arg in call
@@ -356,7 +360,7 @@ pub fn collect_non_escaping_stack_allocs(
                         &local_defs,
                         &param_defs,
                         tree,
-                        &stack_allocs,
+                        &frame_allocs,
                         &mut escaping,
                     );
                 }
@@ -373,7 +377,7 @@ pub fn collect_non_escaping_stack_allocs(
                     &local_defs,
                     &param_defs,
                     tree,
-                    &stack_allocs,
+                    &frame_allocs,
                     &mut escaping,
                 );
                 for arg in call
@@ -388,12 +392,13 @@ pub fn collect_non_escaping_stack_allocs(
                         &local_defs,
                         &param_defs,
                         tree,
-                        &stack_allocs,
+                        &frame_allocs,
                         &mut escaping,
                     );
                 }
             }
-            mir::Terminator::Trap { payload, .. } => {
+            mir::Terminator::Trap { .. } => {}
+            mir::Terminator::Panic { payload } => {
                 if let Some(payload) = payload {
                     record_stack_escape_reference(
                         *payload,
@@ -401,11 +406,12 @@ pub fn collect_non_escaping_stack_allocs(
                         &local_defs,
                         &param_defs,
                         tree,
-                        &stack_allocs,
+                        &frame_allocs,
                         &mut escaping,
                     );
                 }
             }
+            mir::Terminator::ResumePanic => {}
             mir::Terminator::TailCall { call, .. }
             | mir::Terminator::TailCallClass { call, .. }
             | mir::Terminator::TailCallInterface { call, .. } => {
@@ -416,7 +422,7 @@ pub fn collect_non_escaping_stack_allocs(
                         &local_defs,
                         &param_defs,
                         tree,
-                        &stack_allocs,
+                        &frame_allocs,
                         &mut escaping,
                     );
                 }
@@ -428,7 +434,7 @@ pub fn collect_non_escaping_stack_allocs(
                     &local_defs,
                     &param_defs,
                     tree,
-                    &stack_allocs,
+                    &frame_allocs,
                     &mut escaping,
                 );
                 for arg in call.arguments.iter().copied() {
@@ -438,7 +444,7 @@ pub fn collect_non_escaping_stack_allocs(
                         &local_defs,
                         &param_defs,
                         tree,
-                        &stack_allocs,
+                        &frame_allocs,
                         &mut escaping,
                     );
                 }
@@ -448,32 +454,26 @@ pub fn collect_non_escaping_stack_allocs(
     }
 
     // retain only stack allocations that never escaped
-    stack_allocs
+    frame_allocs
         .difference(&escaping)
         .copied()
         .collect::<HashSet<_>>()
 }
 
 /// Report whether a call argument may escape.
-fn call_argument_escapes(
-    argument_attributes: Option<&[mir::ArgumentAttribute]>,
-    index: usize,
-) -> bool {
-    // default to escaping when argument attributes are missing
-    let Some(argument_attributes) = argument_attributes else {
+fn call_argument_escapes(arguments: Option<&[mir::CallArgumentEffect]>, index: usize) -> bool {
+    // default to escaping when argument metadata is missing
+    let Some(arguments) = arguments else {
         return true;
     };
 
-    // default to escaping when argument attributes are missing
-    let Some(argument_attribute) = argument_attributes.get(index) else {
+    // default to escaping when argument metadata is missing
+    let Some(argument) = arguments.get(index) else {
         return true;
     };
 
-    // treat no capture arguments as non escaping
-    !matches!(
-        argument_attribute.attributes.capture,
-        mir::CaptureKind::NoCapture
-    )
+    // treat non escaping arguments as local to the call
+    !matches!(argument.escape, mir::ArgumentEscape::None)
 }
 
 /// Record a stack escape by walking derived values.
@@ -483,7 +483,7 @@ fn record_stack_escape(
     local_defs: &HashMap<mir::LocalNodeId<mir::Local>, Vec<mir::Value>>,
     param_defs: &HashMap<mir::Value, Vec<mir::Value>>,
     tree: &mir::Tree,
-    stack_allocs: &HashSet<mir::Value>,
+    frame_allocs: &HashSet<mir::Value>,
     escaping: &mut HashSet<mir::Value>,
 ) {
     // record stack escapes by walking value definitions
@@ -494,7 +494,7 @@ fn record_stack_escape(
         local_defs,
         param_defs,
         tree,
-        stack_allocs,
+        frame_allocs,
         escaping,
         &mut visited,
     );
@@ -507,7 +507,7 @@ fn record_stack_escape_reference(
     local_defs: &HashMap<mir::LocalNodeId<mir::Local>, Vec<mir::Value>>,
     param_defs: &HashMap<mir::Value, Vec<mir::Value>>,
     tree: &mir::Tree,
-    stack_allocs: &HashSet<mir::Value>,
+    frame_allocs: &HashSet<mir::Value>,
     escaping: &mut HashSet<mir::Value>,
 ) {
     let Some(value) = value.value() else {
@@ -520,7 +520,7 @@ fn record_stack_escape_reference(
         local_defs,
         param_defs,
         tree,
-        stack_allocs,
+        frame_allocs,
         escaping,
     );
 }
@@ -533,18 +533,18 @@ fn record_stack_escape_value(
     local_defs: &HashMap<mir::LocalNodeId<mir::Local>, Vec<mir::Value>>,
     param_defs: &HashMap<mir::Value, Vec<mir::Value>>,
     tree: &mir::Tree,
-    stack_allocs: &HashSet<mir::Value>,
+    frame_allocs: &HashSet<mir::Value>,
     escaping: &mut HashSet<mir::Value>,
     visited: &mut HashSet<mir::Value>,
 ) {
     let mut bases = HashSet::new();
-    collect_stack_alloc_bases_for_value(
+    collect_frame_alloc_bases_for_value(
         value,
         definitions,
         local_defs,
         param_defs,
         tree,
-        stack_allocs,
+        frame_allocs,
         visited,
         &mut bases,
     );
@@ -649,13 +649,13 @@ fn add_param_defs(
 
 /// Collect stack allocation bases reachable from a value.
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn collect_stack_alloc_bases_for_value(
+pub(crate) fn collect_frame_alloc_bases_for_value(
     value: mir::Value,
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     local_defs: &HashMap<mir::LocalNodeId<mir::Local>, Vec<mir::Value>>,
     param_defs: &HashMap<mir::Value, Vec<mir::Value>>,
     tree: &mir::Tree,
-    stack_allocs: &HashSet<mir::Value>,
+    frame_allocs: &HashSet<mir::Value>,
     visited: &mut HashSet<mir::Value>,
     bases: &mut HashSet<mir::Value>,
 ) {
@@ -665,8 +665,8 @@ pub(crate) fn collect_stack_alloc_bases_for_value(
     }
 
     // resolve the stack base
-    if let Some(base) = stack_alloc_base(value, definitions, tree) {
-        if stack_allocs.contains(&base) {
+    if let Some(base) = frame_alloc_base(value, definitions, tree) {
+        if frame_allocs.contains(&base) {
             bases.insert(base);
         }
         return;
@@ -677,13 +677,13 @@ pub(crate) fn collect_stack_alloc_bases_for_value(
         // walk block parameter definitions when present
         if let Some(params) = param_defs.get(&value) {
             for &arg in params {
-                collect_stack_alloc_bases_for_value(
+                collect_frame_alloc_bases_for_value(
                     arg,
                     definitions,
                     local_defs,
                     param_defs,
                     tree,
-                    stack_allocs,
+                    frame_allocs,
                     visited,
                     bases,
                 );
@@ -697,13 +697,13 @@ pub(crate) fn collect_stack_alloc_bases_for_value(
         mir::Instruction::Struct { fields, .. } => {
             let args = tree.get_arguments(*fields);
             for arg in args.iter().copied().filter_map(|value| value.value()) {
-                collect_stack_alloc_bases_for_value(
+                collect_frame_alloc_bases_for_value(
                     arg,
                     definitions,
                     local_defs,
                     param_defs,
                     tree,
-                    stack_allocs,
+                    frame_allocs,
                     visited,
                     bases,
                 );
@@ -712,13 +712,13 @@ pub(crate) fn collect_stack_alloc_bases_for_value(
         mir::Instruction::Tuple { elements, .. } | mir::Instruction::Array { elements, .. } => {
             let args = tree.get_arguments(*elements);
             for arg in args.iter().copied().filter_map(|value| value.value()) {
-                collect_stack_alloc_bases_for_value(
+                collect_frame_alloc_bases_for_value(
                     arg,
                     definitions,
                     local_defs,
                     param_defs,
                     tree,
-                    stack_allocs,
+                    frame_allocs,
                     visited,
                     bases,
                 );
@@ -736,23 +736,23 @@ pub(crate) fn collect_stack_alloc_bases_for_value(
                 return;
             };
 
-            collect_stack_alloc_bases_for_value(
+            collect_frame_alloc_bases_for_value(
                 then_value,
                 definitions,
                 local_defs,
                 param_defs,
                 tree,
-                stack_allocs,
+                frame_allocs,
                 visited,
                 bases,
             );
-            collect_stack_alloc_bases_for_value(
+            collect_frame_alloc_bases_for_value(
                 else_value,
                 definitions,
                 local_defs,
                 param_defs,
                 tree,
-                stack_allocs,
+                frame_allocs,
                 visited,
                 bases,
             );
@@ -762,13 +762,13 @@ pub(crate) fn collect_stack_alloc_bases_for_value(
                 return;
             };
 
-            collect_stack_alloc_bases_for_value(
+            collect_frame_alloc_bases_for_value(
                 aggregate,
                 definitions,
                 local_defs,
                 param_defs,
                 tree,
-                stack_allocs,
+                frame_allocs,
                 visited,
                 bases,
             );
@@ -778,13 +778,13 @@ pub(crate) fn collect_stack_alloc_bases_for_value(
                 return;
             };
 
-            collect_stack_alloc_bases_for_value(
+            collect_frame_alloc_bases_for_value(
                 array,
                 definitions,
                 local_defs,
                 param_defs,
                 tree,
-                stack_allocs,
+                frame_allocs,
                 visited,
                 bases,
             );
@@ -796,13 +796,13 @@ pub(crate) fn collect_stack_alloc_bases_for_value(
 
             if let Some(values) = local_defs.get(&local) {
                 for &arg in values {
-                    collect_stack_alloc_bases_for_value(
+                    collect_frame_alloc_bases_for_value(
                         arg,
                         definitions,
                         local_defs,
                         param_defs,
                         tree,
-                        stack_allocs,
+                        frame_allocs,
                         visited,
                         bases,
                     );
@@ -821,7 +821,7 @@ impl MemoryLocation {
             size: None,
             access_type: None,
             pointer_kind: None,
-            pointer_address_space: None,
+            pointer_space: None,
         }
     }
 
@@ -832,23 +832,16 @@ impl MemoryLocation {
             size: Some(size),
             access_type: None,
             pointer_kind: None,
-            pointer_address_space: None,
+            pointer_space: None,
         }
     }
 
     /// Create a location with type information.
     pub fn with_type(ptr: mir::Value, access_type: TypeKey) -> Self {
-        let (pointer_kind, pointer_address_space) = match &access_type {
-            TypeKey::Reference {
-                kind,
-                address_space,
-                ..
+        let (pointer_kind, pointer_space) = match &access_type {
+            TypeKey::Reference { kind, space, .. } | TypeKey::TensorView { kind, space, .. } => {
+                (Some(*kind), Some(space.clone()))
             }
-            | TypeKey::TensorView {
-                kind,
-                address_space,
-                ..
-            } => (Some(*kind), Some(address_space.clone())),
             _ => (None, None),
         };
         Self {
@@ -856,7 +849,7 @@ impl MemoryLocation {
             size: None,
             access_type: Some(access_type),
             pointer_kind,
-            pointer_address_space,
+            pointer_space,
         }
     }
 
@@ -866,72 +859,26 @@ impl MemoryLocation {
         size: Option<u64>,
         access_type: Option<TypeKey>,
         pointer_kind: Option<mir::ReferenceKind>,
-        pointer_address_space: Option<mir::AddressSpace>,
+        pointer_space: Option<mir::Space>,
     ) -> Self {
         Self {
             ptr,
             size,
             access_type,
             pointer_kind,
-            pointer_address_space,
+            pointer_space,
         }
     }
 }
 
-/// Check whether alias scopes permit two accesses to alias.
-pub fn alias_scopes_may_alias(
-    alias_scopes_a: &[mir::MemoryAliasScopeId],
-    noalias_scopes_a: &[mir::MemoryAliasScopeId],
-    alias_scopes_b: &[mir::MemoryAliasScopeId],
-    noalias_scopes_b: &[mir::MemoryAliasScopeId],
-) -> bool {
-    // check noalias scopes from the first access
-    if scopes_intersect(noalias_scopes_a, alias_scopes_b) {
-        return false;
-    }
-
-    // check noalias scopes from the second access
-    if scopes_intersect(noalias_scopes_b, alias_scopes_a) {
-        return false;
-    }
-
-    // allow aliasing when no disambiguation applies
-    true
-}
-
 /// Check whether two memory access effects describe the same location.
 pub fn effects_match_location(
-    tree: &mir::Tree,
     alias: &AliasAnalysis,
     current: &MemoryAccessEffect,
     previous: &MemoryAccessEffect,
 ) -> bool {
-    // check alias scopes and noalias scopes
-    if !alias_scopes_may_alias(
-        &current.alias_scopes,
-        &current.noalias_scopes,
-        &previous.alias_scopes,
-        &previous.noalias_scopes,
-    ) {
-        return false;
-    }
-
     // check location sets
-    if !space_sets_may_alias(current.space_set, previous.space_set) {
-        return false;
-    }
-
-    // check address spaces
-    if !address_spaces_may_alias(&current.address_spaces, &previous.address_spaces) {
-        return false;
-    }
-
-    // check type-alias disambiguation
-    if !type_alias_tags_may_alias(
-        &tree.metadata.memory.type_alias,
-        current.type_alias_tag,
-        previous.type_alias_tag,
-    ) {
+    if !spaces_may_alias(current.space_set, previous.space_set) {
         return false;
     }
 
@@ -953,37 +900,12 @@ pub fn effects_match_location(
 
 /// Check whether two access effects may alias.
 pub fn effects_may_alias(
-    tree: &mir::Tree,
     alias: &AliasAnalysis,
     left: &MemoryAccessEffect,
     right: &MemoryAccessEffect,
 ) -> bool {
-    // check alias scopes and noalias scopes
-    if !alias_scopes_may_alias(
-        &left.alias_scopes,
-        &left.noalias_scopes,
-        &right.alias_scopes,
-        &right.noalias_scopes,
-    ) {
-        return false;
-    }
-
     // check location sets
-    if !space_sets_may_alias(left.space_set, right.space_set) {
-        return false;
-    }
-
-    // check address spaces
-    if !address_spaces_may_alias(&left.address_spaces, &right.address_spaces) {
-        return false;
-    }
-
-    // check type-alias disambiguation
-    if !type_alias_tags_may_alias(
-        &tree.metadata.memory.type_alias,
-        left.type_alias_tag,
-        right.type_alias_tag,
-    ) {
+    if !spaces_may_alias(left.space_set, right.space_set) {
         return false;
     }
 
@@ -1082,130 +1004,8 @@ pub fn memory_locations_compatible(a: &MemoryLocation, b: &MemoryLocation) -> bo
 }
 
 /// Check whether two location sets may alias.
-pub fn space_sets_may_alias(a: mir::MemorySpaceSet, b: mir::MemorySpaceSet) -> bool {
+pub fn spaces_may_alias(a: mir::SpaceSet, b: mir::SpaceSet) -> bool {
     !a.is_disjoint(b)
-}
-
-/// Check whether two address space sets may alias.
-pub fn address_spaces_may_alias(
-    a: &Option<mir::AddressSpaceSet>,
-    b: &Option<mir::AddressSpaceSet>,
-) -> bool {
-    match (a, b) {
-        (Some(a), Some(b)) => !a.is_disjoint(b),
-        _ => true,
-    }
-}
-
-/// Check whether two type-alias tags may alias.
-pub fn type_alias_tags_may_alias(
-    type_alias: &mir::TypeAliasTable,
-    tag_a: Option<mir::TypeAliasTagId>,
-    tag_b: Option<mir::TypeAliasTagId>,
-) -> bool {
-    // require both tags for disambiguation
-    let (Some(tag_a), Some(tag_b)) = (tag_a, tag_b) else {
-        return true;
-    };
-
-    // resolve tags to base and access nodes
-    let tag_a = type_alias.tag(tag_a);
-    let tag_b = type_alias.tag(tag_b);
-
-    // disjoint offsets within the same base access never alias
-    if tag_a.base == tag_b.base
-        && tag_a.access == tag_b.access
-        && tag_a.size != 0
-        && tag_b.size != 0
-        && ranges_disjoint(tag_a.offset, tag_a.size, tag_b.offset, tag_b.size)
-    {
-        return false;
-    }
-
-    // base nodes must be compatible
-    if !type_alias_nodes_may_alias(type_alias, tag_a.base, tag_b.base) {
-        return false;
-    }
-
-    // access nodes must be compatible
-    if !type_alias_nodes_may_alias(type_alias, tag_a.access, tag_b.access) {
-        return false;
-    }
-
-    true
-}
-
-/// Check whether two alias scope slices intersect.
-fn scopes_intersect(
-    scopes_a: &[mir::MemoryAliasScopeId],
-    scopes_b: &[mir::MemoryAliasScopeId],
-) -> bool {
-    // scan for any matching scope id
-    for scope_a in scopes_a {
-        // check for a matching id in the other list
-        if scopes_b.iter().any(|scope_b| scope_b == scope_a) {
-            return true;
-        }
-    }
-
-    false
-}
-
-/// Check if two half open byte ranges are disjoint.
-fn ranges_disjoint(offset_a: u64, size_a: u64, offset_b: u64, size_b: u64) -> bool {
-    // compute end offsets with saturation
-    let end_a = offset_a.saturating_add(size_a);
-    let end_b = offset_b.saturating_add(size_b);
-
-    end_a <= offset_b || end_b <= offset_a
-}
-
-/// Check whether two type-alias nodes may alias.
-fn type_alias_nodes_may_alias(
-    type_alias: &mir::TypeAliasTable,
-    node_a: mir::TypeAliasNodeId,
-    node_b: mir::TypeAliasNodeId,
-) -> bool {
-    // fast path for identical nodes
-    if node_a == node_b {
-        return true;
-    }
-
-    // allow aliasing when a is an ancestor of b
-    if type_alias_node_is_ancestor(type_alias, node_a, node_b) {
-        return true;
-    }
-
-    // allow aliasing when b is an ancestor of a
-    type_alias_node_is_ancestor(type_alias, node_b, node_a)
-}
-
-/// Check whether one type-alias node is an ancestor of another node.
-fn type_alias_node_is_ancestor(
-    type_alias: &mir::TypeAliasTable,
-    ancestor: mir::TypeAliasNodeId,
-    node: mir::TypeAliasNodeId,
-) -> bool {
-    // walk up the parent chain
-    let mut current = Some(node);
-    let mut visited = HashSet::new();
-
-    while let Some(node_id) = current {
-        // break on cycles
-        if !visited.insert(node_id) {
-            break;
-        }
-
-        // report when the ancestor is reached
-        if node_id == ancestor {
-            return true;
-        }
-
-        // climb to the parent node
-        current = type_alias.node(node_id).parent;
-    }
-
-    false
 }
 
 /// Resolve a pointer's pointee type when it is statically known.
@@ -1224,18 +1024,18 @@ pub fn resolve_pointer_pointee_type(
     }
 }
 
-/// Resolve a pointer's address space when it is statically known.
-pub fn resolve_pointer_address_space(
+/// Resolve a pointer's TS++ space when it is statically known.
+pub fn resolve_pointer_space(
     pointer: mir::Value,
     tree: &mir::Tree,
     value_types: &ValueTypeMap,
-) -> Option<mir::AddressSpace> {
-    // resolve the reference address space
+) -> Option<mir::Space> {
+    // resolve the reference TS++ space
     let ty_id = value_types.require_value_type(pointer);
     let ty = tree.get(ty_id);
     match ty {
-        mir::Type::Reference { address_space, .. } => Some(address_space.clone()),
-        mir::Type::TensorView { address_space, .. } => Some(address_space.clone()),
+        mir::Type::Reference { space, .. } => Some(space.clone()),
+        mir::Type::TensorView { space, .. } => Some(space.clone()),
         _ => None,
     }
 }
@@ -1263,7 +1063,7 @@ pub fn resolve_pointer_kind(
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum PointerBase {
     /// Stack allocation instruction.
-    StackAlloc(mir::LocalNodeId<mir::Instruction>),
+    FrameAlloc(mir::LocalNodeId<mir::Instruction>),
     /// Local slot address.
     Local(mir::LocalNodeId<mir::Local>),
     /// Heap allocation instruction.
@@ -1290,7 +1090,7 @@ impl PointerBase {
     pub fn is_identified(&self) -> bool {
         matches!(
             self,
-            PointerBase::StackAlloc(_)
+            PointerBase::FrameAlloc(_)
                 | PointerBase::Local(_)
                 | PointerBase::HeapAlloc(_)
                 | PointerBase::RawAlloc(_)
@@ -1307,7 +1107,7 @@ impl PointerBase {
     pub fn is_local_alloc(&self) -> bool {
         matches!(
             self,
-            PointerBase::StackAlloc(_)
+            PointerBase::FrameAlloc(_)
                 | PointerBase::Local(_)
                 | PointerBase::HeapAlloc(_)
                 | PointerBase::RawAlloc(_)
@@ -1451,10 +1251,10 @@ impl<'a> PointerDecomposer<'a> {
 
         match inst {
             // allocations are base objects
-            mir::Instruction::StackAlloc { destination, .. }
+            mir::Instruction::FrameAlloc { destination, .. }
                 if destination.value() == Some(ptr) =>
             {
-                DecomposedPointer::from_base(PointerBase::StackAlloc(instruction_id))
+                DecomposedPointer::from_base(PointerBase::FrameAlloc(instruction_id))
             }
             mir::Instruction::New { destination, .. } if destination.value() == Some(ptr) => {
                 DecomposedPointer::from_base(PointerBase::HeapAlloc(instruction_id))
@@ -1690,7 +1490,7 @@ mod tests {
     /// Pointer bases report identification status.
     #[test]
     fn test_pointer_base_is_identified() {
-        let stack = PointerBase::StackAlloc(mir::LocalNodeId::new(0));
+        let stack = PointerBase::FrameAlloc(mir::LocalNodeId::new(0));
         let param = PointerBase::Parameter {
             index: 0,
             noalias: false,
@@ -1706,7 +1506,7 @@ mod tests {
     #[test]
     fn test_decomposed_pointer_const_offset() {
         let mut ptr =
-            DecomposedPointer::from_base(PointerBase::StackAlloc(mir::LocalNodeId::new(0)));
+            DecomposedPointer::from_base(PointerBase::FrameAlloc(mir::LocalNodeId::new(0)));
         assert!(ptr.is_constant_offset());
 
         ptr.add_const_offset(16);
@@ -1756,7 +1556,7 @@ mod tests {
             index: 1,
             noalias: false,
         };
-        let stack = PointerBase::StackAlloc(mir::LocalNodeId::new(0));
+        let stack = PointerBase::FrameAlloc(mir::LocalNodeId::new(0));
 
         assert!(noalias_param.is_noalias_param());
         assert!(!regular_param.is_noalias_param());
@@ -1766,7 +1566,7 @@ mod tests {
     /// Local allocation bases are detected accurately.
     #[test]
     fn test_pointer_base_is_local_alloc() {
-        let stack = PointerBase::StackAlloc(mir::LocalNodeId::new(0));
+        let stack = PointerBase::FrameAlloc(mir::LocalNodeId::new(0));
         let heap = PointerBase::HeapAlloc(mir::LocalNodeId::new(1));
         let raw = PointerBase::RawAlloc(mir::LocalNodeId::new(2));
         let global = PointerBase::Global(mir::LocalNodeId::new(0));
@@ -1789,7 +1589,7 @@ mod tests {
     /// Identified pointer bases report the expected status.
     #[test]
     fn test_pointer_base_all_variants_identified() {
-        let stack = PointerBase::StackAlloc(mir::LocalNodeId::new(0));
+        let stack = PointerBase::FrameAlloc(mir::LocalNodeId::new(0));
         let heap = PointerBase::HeapAlloc(mir::LocalNodeId::new(1));
         let raw = PointerBase::RawAlloc(mir::LocalNodeId::new(2));
         let global = PointerBase::Global(mir::LocalNodeId::new(0));
@@ -1815,7 +1615,7 @@ mod tests {
     #[test]
     fn test_decomposed_pointer_field_path() {
         let mut ptr =
-            DecomposedPointer::from_base(PointerBase::StackAlloc(mir::LocalNodeId::new(0)));
+            DecomposedPointer::from_base(PointerBase::FrameAlloc(mir::LocalNodeId::new(0)));
         assert!(ptr.field_path.is_empty());
 
         ptr.add_field(0);
@@ -1859,7 +1659,7 @@ mod tests {
     #[test]
     fn test_decomposed_pointer_negative_offset() {
         let mut ptr =
-            DecomposedPointer::from_base(PointerBase::StackAlloc(mir::LocalNodeId::new(0)));
+            DecomposedPointer::from_base(PointerBase::FrameAlloc(mir::LocalNodeId::new(0)));
 
         ptr.add_const_offset(-8);
         assert_eq!(ptr.const_offset, -8);

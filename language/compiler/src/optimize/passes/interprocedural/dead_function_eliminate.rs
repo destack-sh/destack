@@ -212,7 +212,9 @@ fn unknown_call_constraints(
 
         for &instruction_id in &block.instructions {
             let instruction = tree.get(instruction_id);
-            if let Some(constraint) = call_constraint_from_instruction(tree, instruction) {
+            if let Some(constraint) =
+                call_constraint_from_instruction(tree, instruction_id, instruction)
+            {
                 constraints.push(constraint);
             }
         }
@@ -229,6 +231,7 @@ fn unknown_call_constraints(
 /// Resolve a call constraint from a call instruction.
 fn call_constraint_from_instruction(
     tree: &mir::Tree,
+    instruction_id: mir::LocalNodeId<mir::Instruction>,
     instruction: &mir::Instruction,
 ) -> Option<CallConstraint> {
     let dispatch = instruction.call_dispatch_kind()?;
@@ -237,18 +240,26 @@ fn call_constraint_from_instruction(
     }
 
     let signature = instruction.call_signature()?;
-    let declared_target = instruction.call_declared_target();
-    call_constraint_from_signature(tree, signature, declared_target)
+    let target = tree
+        .metadata
+        .functions
+        .call(mir::CallSite::Instruction(instruction_id))
+        .and_then(|metadata| metadata.target);
+    call_constraint_from_signature(tree, signature, target)
 }
 
 /// Resolve a call constraint from a call terminator.
 fn call_constraint_from_terminator(
     tree: &mir::Tree,
-    _block_id: mir::LocalNodeId<mir::Block>,
+    block_id: mir::LocalNodeId<mir::Block>,
     terminator: &mir::Terminator,
 ) -> Option<CallConstraint> {
-    // resolve declared target for dynamic call terminators
-    let declared_target = terminator.call_declared_target();
+    // resolve analyzed target for dynamic call terminators
+    let target = tree
+        .metadata
+        .functions
+        .call(mir::CallSite::Terminator(block_id))
+        .and_then(|metadata| metadata.target);
 
     // classify call terminators
     match terminator {
@@ -257,20 +268,20 @@ fn call_constraint_from_terminator(
             call_constraint_from_signature(tree, call.signature, None)
         }
         mir::Terminator::CallClass { call, .. } => {
-            call_constraint_from_signature(tree, call.signature, declared_target)
+            call_constraint_from_signature(tree, call.signature, target)
         }
         mir::Terminator::CallInterface { call, .. } => {
-            call_constraint_from_signature(tree, call.signature, declared_target)
+            call_constraint_from_signature(tree, call.signature, target)
         }
         mir::Terminator::TailCall { .. } => None,
         mir::Terminator::TailCallIndirect { call, .. } => {
             call_constraint_from_signature(tree, call.signature, None)
         }
         mir::Terminator::TailCallClass { call, .. } => {
-            call_constraint_from_signature(tree, call.signature, declared_target)
+            call_constraint_from_signature(tree, call.signature, target)
         }
         mir::Terminator::TailCallInterface { call, .. } => {
-            call_constraint_from_signature(tree, call.signature, declared_target)
+            call_constraint_from_signature(tree, call.signature, target)
         }
         _ => None,
     }
@@ -280,13 +291,13 @@ fn call_constraint_from_terminator(
 fn call_constraint_from_signature(
     tree: &mir::Tree,
     signature: mir::TypeReference,
-    declared_target: Option<mir::FunctionReference>,
+    target: Option<mir::LocalNodeId<mir::Function>>,
 ) -> Option<CallConstraint> {
     if let Some(signature) = SignatureKey::from_signature_type(tree, signature) {
         return Some(CallConstraint::Signature(signature));
     }
 
-    if let Some(target) = declared_target.and_then(|target| target.function()) {
+    if let Some(target) = target {
         let signature = SignatureKey::from_function(tree, tree.get(target));
         return signature.map(CallConstraint::Signature);
     }
@@ -298,13 +309,6 @@ fn call_constraint_from_signature(
 fn strip_function_body(function_id: mir::LocalNodeId<mir::Function>, tree: &mut mir::Tree) {
     // collect blocks and instructions before stripping the body
     let block_ids = tree.get(function_id).blocks.clone();
-    // read the function scope before clearing debug metadata
-    let function_scope = tree
-        .metadata
-        .debug
-        .function_scopes
-        .get(&function_id)
-        .copied();
 
     // convert the definition into an import declaration
     let function = tree.get_mut(function_id);
@@ -323,60 +327,6 @@ fn strip_function_body(function_id: mir::LocalNodeId<mir::Function>, tree: &mut 
                 .remove(&instruction_id);
         }
     }
-
-    tree.metadata
-        .debug
-        .locations
-        .retain(|point, _location| point.function != function_id);
-
-    // remove per block debug scopes
-    for block_id in block_ids {
-        tree.metadata.debug.block_scopes.remove(&block_id);
-    }
-
-    // clear debug variable values tied to the stripped function
-    if let Some(function_scope) = function_scope {
-        // rewrite debug values for variables in the function scope
-        for (index, binding) in tree.metadata.debug.bindings.iter().enumerate() {
-            // skip bindings outside the function scope
-            if !scope_in_function(binding.scope, function_scope, &tree.metadata.debug) {
-                continue;
-            }
-
-            // update binding values to unavailable
-            let binding_id = mir::DebugBindingId::new(index as u32);
-            if let Some(ranges) = tree.metadata.debug.binding_ranges.get_mut(&binding_id) {
-                for range in ranges {
-                    range.value = mir::DebugValue::Unavailable;
-                }
-            }
-        }
-    }
-
-    // remove the function scope entry
-    tree.metadata.debug.function_scopes.remove(&function_id);
-}
-
-/// Return true when a debug scope belongs to a function scope.
-fn scope_in_function(
-    scope: mir::DebugScopeId,
-    function_scope: mir::DebugScopeId,
-    debug_info: &mir::DebugMetadata,
-) -> bool {
-    // walk the scope chain to find the function scope
-    let mut current = Some(scope);
-
-    while let Some(scope_id) = current {
-        // stop once the function scope is found
-        if scope_id == function_scope {
-            return true;
-        }
-
-        // step to the parent scope
-        current = debug_info.scope(scope_id).parent;
-    }
-
-    false
 }
 
 #[cfg(test)]
@@ -505,7 +455,7 @@ b0(v0: (int32) -> int32, v1: int32):
 b1(v2: int32):
     return v2
 b2(v3: ref<int32, managed, readonly>):
-    trap.panic v3
+    panic v3
 }
 function keep(v0: int32): int32 {
 b0(v0: int32):
@@ -525,7 +475,7 @@ b0(v0: (int32) -> int32, v1: int32):
 b1(v2: int32):
     return v2
 b2(v3: ref<int32, managed, readonly>):
-    trap.panic v3
+    panic v3
 }
 function keep(v0: int32): int32 {
 b0(v0: int32):
@@ -556,100 +506,5 @@ b0:
         let mut test = TestProgram::new(input);
         test.run_module_pass(&DeadFunctionEliminate);
         test.assert_output(input);
-    }
-
-    /// Debug metadata for stripped functions is cleared.
-    #[test]
-    fn test_dead_function_eliminate_clears_debug_metadata() {
-        let input = r#"
-export function root(): void {
-b0:
-    call live(): () -> void
-    return
-}
-function live(): void {
-b0:
-    return
-}
-function dead(v0: int32): int32 {
-b0(v0: int32):
-    v1: int32 = 1int32
-    return v0
-}"#;
-
-        let expected = r#"
-export function root(): void {
-b0:
-    call live(): () -> void
-    return
-}
-function live(): void {
-b0:
-    return
-}
-external function dead(int32): int32"#;
-
-        let mut test = TestProgram::new(input);
-        let dead_id = test.function_id_by_name("dead");
-        let dead_block = test.entry_block_id(dead_id);
-        let dead_point = mir::DebugPoint::new(dead_id, dead_block, 0);
-        let dead_end = mir::DebugPoint::new(dead_id, dead_block, 1);
-        let function_scope = test.tree.metadata.debug.create_scope(None, None, None);
-        test.tree
-            .metadata
-            .debug
-            .function_scopes
-            .insert(dead_id, function_scope);
-        let parameter = test.tree.get(dead_id).parameters[0];
-        let binding_id = test.tree.metadata.debug.create_binding(
-            test.tree.get(dead_id).name,
-            parameter
-                .ty
-                .ty()
-                .expect("parameter type should be concrete"),
-            function_scope,
-            None,
-            mir::DebugBindingKind::Parameter,
-        );
-        test.tree.metadata.debug.binding_ranges.insert(
-            binding_id,
-            vec![mir::DebugBindingRange {
-                value: mir::DebugValue::Value(
-                    parameter
-                        .value
-                        .value()
-                        .expect("parameter value should be concrete"),
-                ),
-                range: mir::DebugRange::new(dead_point, dead_end),
-            }],
-        );
-        test.tree.metadata.debug.locations.insert(
-            dead_point,
-            mir::DebugLocation {
-                scope: function_scope,
-                provenance: None,
-                inline_frame: None,
-            },
-        );
-
-        test.run_module_pass(&DeadFunctionEliminate);
-        test.assert_output(expected);
-
-        assert!(
-            !test
-                .tree
-                .metadata
-                .debug
-                .function_scopes
-                .contains_key(&dead_id)
-        );
-        assert_eq!(
-            test.tree.metadata.debug.binding_ranges.get(&binding_id),
-            Some(&vec![mir::DebugBindingRange {
-                value: mir::DebugValue::Unavailable,
-                range: mir::DebugRange::new(dead_point, dead_end),
-            }])
-        );
-        assert!(!test.tree.metadata.debug.locations.contains_key(&dead_point));
     }
 }

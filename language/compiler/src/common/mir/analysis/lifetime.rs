@@ -303,7 +303,7 @@ b0(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>):
             r#"
 function getStatic(v0: int32): ref<int32, borrowed> {
 b0(v0: int32):
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     return v1
 }"#,
         );
@@ -362,7 +362,7 @@ b0:
         let borrowed_ref = program.tree.insert_type(mir::Type::Reference {
             kind: mir::ReferenceKind::Borrowed,
             lifetime: mir::Lifetime::empty(),
-            address_space: mir::AddressSpace::Local,
+            space: mir::Space::Local,
             access: mir::Access::Readonly,
             pointee: int_ty.into(),
             nullability: mir::Nullability::None,
@@ -395,7 +395,7 @@ b0:
         let borrowed_ref = program.tree.insert_type(mir::Type::Reference {
             kind: mir::ReferenceKind::Borrowed,
             lifetime: mir::Lifetime::empty(),
-            address_space: mir::AddressSpace::Local,
+            space: mir::Space::Local,
             access: mir::Access::Readonly,
             pointee: int_ty.into(),
             nullability: mir::Nullability::None,

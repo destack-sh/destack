@@ -8,10 +8,8 @@ use crate::common::mir::analysis::{
     MemoryAccessLocation, MemorySSA,
 };
 use crate::common::mir::{
-    ValueTypeMap, address_spaces_may_alias, alias_scopes_may_alias,
-    apply_substitutions_in_function, can_substitute_value, effect_is_trackable,
-    memory_locations_compatible, resolve_substitution_chains, space_sets_may_alias,
-    type_alias_tags_may_alias,
+    ValueTypeMap, apply_substitutions_in_function, can_substitute_value, effect_is_trackable,
+    memory_locations_compatible, resolve_substitution_chains, spaces_may_alias,
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext, TypeContext};
 
@@ -34,7 +32,7 @@ declare_mir_pass! {
     /// ```mir
     /// function before(): int32 {
     /// b0:
-    ///     v0 = stack.alloc int32
+    ///     v0 = frame.alloc int32
     ///     v1 = 42int32
     ///     store v0, v1
     ///     v2 = load v0       // forwarded from store
@@ -47,7 +45,7 @@ declare_mir_pass! {
     /// ```mir
     /// function after(): int32 {
     /// b0:
-    ///     v0 = stack.alloc int32
+    ///     v0 = frame.alloc int32
     ///     v1 = 42int32
     ///     store v0, v1
     ///     v4 = int.add v1, v1
@@ -68,16 +66,8 @@ struct MemoryEntry {
     location: MemoryAccessLocation,
     /// The available value.
     value: mir::Value,
-    /// The memory space set for the access.
-    space_set: mir::MemorySpaceSet,
-    /// The address spaces for the access.
-    address_spaces: Option<mir::AddressSpaceSet>,
-    /// Alias scopes applied to the access.
-    alias_scopes: Vec<mir::MemoryAliasScopeId>,
-    /// No alias scopes applied to the access.
-    noalias_scopes: Vec<mir::MemoryAliasScopeId>,
-    /// Optional type-alias tag for the access.
-    type_alias_tag: Option<mir::TypeAliasTagId>,
+    /// The backing memory spaces for the access.
+    space_set: mir::SpaceSet,
 }
 
 impl FunctionPass for LoadStoreForward {
@@ -230,7 +220,6 @@ impl AvailableMemory {
         clobber: MemoryAccessId,
         use_effect: &MemoryAccessEffect,
         aa: &AliasAnalysis,
-        tree: &mir::Tree,
     ) -> Option<mir::Value> {
         // skip untrackable effects
         if !effect_is_trackable(use_effect) {
@@ -248,29 +237,7 @@ impl AvailableMemory {
                     continue;
                 }
 
-                // disambiguate using alias scopes and tbaa tags
-                if !alias_scopes_may_alias(
-                    &entry.alias_scopes,
-                    &entry.noalias_scopes,
-                    &use_effect.alias_scopes,
-                    &use_effect.noalias_scopes,
-                ) {
-                    continue;
-                }
-
-                if !space_sets_may_alias(entry.space_set, use_effect.space_set) {
-                    continue;
-                }
-
-                if !address_spaces_may_alias(&entry.address_spaces, &use_effect.address_spaces) {
-                    continue;
-                }
-
-                if !type_alias_tags_may_alias(
-                    &tree.metadata.memory.type_alias,
-                    entry.type_alias_tag,
-                    use_effect.type_alias_tag,
-                ) {
+                if !spaces_may_alias(entry.space_set, use_effect.space_set) {
                     continue;
                 }
 
@@ -443,10 +410,6 @@ fn process_block(
                     location: def_access.effect.location.clone(),
                     value,
                     space_set: def_access.effect.space_set,
-                    address_spaces: def_access.effect.address_spaces.clone(),
-                    alias_scopes: def_access.effect.alias_scopes.clone(),
-                    noalias_scopes: def_access.effect.noalias_scopes.clone(),
-                    type_alias_tag: def_access.effect.type_alias_tag,
                 });
             }
 
@@ -477,7 +440,7 @@ fn process_block(
                 };
 
                 // forward from an existing value when possible
-                if let Some(existing) = available.get(clobber, &use_access.effect, aa, tree)
+                if let Some(existing) = available.get(clobber, &use_access.effect, aa)
                     && can_substitute_value(destination, existing, value_types, tree)
                 {
                     substitutions.insert(destination, existing);
@@ -488,10 +451,6 @@ fn process_block(
                         location: use_access.effect.location.clone(),
                         value: destination,
                         space_set: use_access.effect.space_set,
-                        address_spaces: use_access.effect.address_spaces.clone(),
-                        alias_scopes: use_access.effect.alias_scopes.clone(),
-                        noalias_scopes: use_access.effect.noalias_scopes.clone(),
-                        type_alias_tag: use_access.effect.type_alias_tag,
                     });
                 }
             }
@@ -523,7 +482,7 @@ fn process_block(
                 };
 
                 // forward from an existing value when possible
-                if let Some(existing) = available.get(clobber, &use_access.effect, aa, tree)
+                if let Some(existing) = available.get(clobber, &use_access.effect, aa)
                     && can_substitute_value(destination, existing, value_types, tree)
                 {
                     substitutions.insert(destination, existing);
@@ -534,10 +493,6 @@ fn process_block(
                         location: use_access.effect.location.clone(),
                         value: destination,
                         space_set: use_access.effect.space_set,
-                        address_spaces: use_access.effect.address_spaces.clone(),
-                        alias_scopes: use_access.effect.alias_scopes.clone(),
-                        noalias_scopes: use_access.effect.noalias_scopes.clone(),
-                        type_alias_tag: use_access.effect.type_alias_tag,
                     });
                 }
             }
@@ -634,7 +589,7 @@ mod tests {
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 42int32
     store v0, v1
     v2: int32 = load v0
@@ -643,7 +598,7 @@ b0:
         let expected = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 42int32
     store v0, v1
     return v1
@@ -660,8 +615,8 @@ b0:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     v2: int32 = 42int32
     store v0, v2
     v3: int32 = load v1
@@ -680,7 +635,7 @@ b0:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 42int32
     v2: int32 = 100int32
     store v0, v1
@@ -691,7 +646,7 @@ b0:
         let expected = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 42int32
     v2: int32 = 100int32
     store v0, v1
@@ -710,7 +665,7 @@ b0:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 42int32
     store v0, v1
     v2: int32 = load v0
@@ -721,7 +676,7 @@ b0:
         let expected = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 42int32
     store v0, v1
     v2: int32 = int.add v1, v1
@@ -739,7 +694,7 @@ b0:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 7int32
     v2: boolean = true
     store v0, v1
@@ -755,7 +710,7 @@ b3:
         let expected = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 7int32
     v2: boolean = true
     store v0, v1
@@ -779,7 +734,7 @@ b3:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 7int32
     v2: uint32 = 0uint32
     store v0, v1
@@ -797,7 +752,7 @@ b4:
         let expected = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 7int32
     v2: uint32 = 0uint32
     store v0, v1
@@ -823,8 +778,8 @@ b4:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     v2: int32 = 42int32
     v3: int32 = 100int32
     store v0, v2
@@ -835,8 +790,8 @@ b0:
         let expected = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     v2: int32 = 42int32
     v3: int32 = 100int32
     store v0, v2
@@ -859,7 +814,7 @@ type Point {
 }
 function test(): int32 {
 b0:
-    v0: ref<Point, raw, space(stack)> = stack.alloc Point
+    v0: ref<Point, raw, space(frame)> = frame.alloc Point
     v1: ref<int32, borrowed> = field.address v0, 0
     v2: int32 = 42int32
     store v1, v2
@@ -873,7 +828,7 @@ type Point {
 }
 function test(): int32 {
 b0:
-    v0: ref<Point, raw, space(stack)> = stack.alloc Point
+    v0: ref<Point, raw, space(frame)> = frame.alloc Point
     v1: ref<int32, borrowed> = field.address v0, 0
     v2: int32 = 42int32
     store v1, v2
@@ -895,7 +850,7 @@ type Point {
 }
 function test(): int32 {
 b0:
-    v0: ref<Point, raw, space(stack)> = stack.alloc Point
+    v0: ref<Point, raw, space(frame)> = frame.alloc Point
     v1: ref<int32, borrowed> = field.address v0, 0
     v2: ref<int32, borrowed> = field.address v0, 1
     v3: int32 = 10int32
@@ -914,7 +869,7 @@ type Point {
 }
 function test(): int32 {
 b0:
-    v0: ref<Point, raw, space(stack)> = stack.alloc Point
+    v0: ref<Point, raw, space(frame)> = frame.alloc Point
     v1: ref<int32, borrowed> = field.address v0, 0
     v2: ref<int32, borrowed> = field.address v0, 1
     v3: int32 = 10int32
@@ -988,7 +943,7 @@ b0(v0: ref<int32, raw>):
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 42int32
     store v0, v1
     jump b1
@@ -999,7 +954,7 @@ b1:
         let expected = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 42int32
     store v0, v1
     jump b1
@@ -1018,7 +973,7 @@ b1:
         let input = r#"
 function test(v0: boolean): int32 {
 b0(v0: boolean):
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     v2: int32 = 42int32
     store v1, v2
     branch v0, b1, b2
@@ -1034,7 +989,7 @@ b3(v5: int32):
         let expected = r#"
 function test(v0: boolean): int32 {
 b0(v0: boolean):
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     v2: int32 = 42int32
     store v1, v2
     branch v0, b1, b2
@@ -1082,7 +1037,7 @@ b3:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 42int32
     store v0, v1
     jump b1
@@ -1097,7 +1052,7 @@ b3:
         let expected = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 42int32
     store v0, v1
     jump b1
@@ -1149,7 +1104,7 @@ b1:
 external function external(ref<int32, raw>): void
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 42int32
     store v0, v1
     call external(v0): (ref<int32, raw>) -> void
@@ -1163,14 +1118,14 @@ b0:
         test.assert_output(expected);
     }
 
-    /// Readnone calls do not block forwarding.
+    /// No memory calls do not block forwarding.
     #[test]
-    fn test_forward_across_readnone_call() {
+    fn test_forward_across_no_memory_call() {
         let input = r#"
 external function external(ref<int32, raw>): void
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 42int32
     store v0, v1
     call external(v0): (ref<int32, raw>) -> void
@@ -1181,7 +1136,7 @@ b0:
 external function external(ref<int32, raw>): void
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 42int32
     store v0, v1
     call external(v0): (ref<int32, raw>) -> void
@@ -1193,11 +1148,8 @@ b0:
         let function_id = test.entry_function_id();
         let (call_inst, _callee) = test.first_call_in_entry(function_id);
 
-        let instruction = test.tree.get_mut(call_inst);
-        let Some(memory_effect) = instruction.call_memory_effect_mut() else {
-            panic!("expected call instruction");
-        };
-        *memory_effect = Some(mir::MemoryEffect::none());
+        let callsite = mir::CallSite::Instruction(call_inst);
+        test.tree.metadata.functions.call_mut(callsite).memory = mir::MemoryEffect::none();
 
         test.run_pass(&LoadStoreForward);
         test.assert_output(expected);
@@ -1210,7 +1162,7 @@ b0:
 external function external(ref<int32, raw>): void
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 42int32
     store v0, v1
     call external(v0): (ref<int32, raw>) -> void
@@ -1232,8 +1184,8 @@ b1:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     v2: int32 = 42int32
     store v0, v2
     v3: int32 = load v1
@@ -1244,8 +1196,8 @@ b0:
         let expected = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     v2: int32 = 42int32
     store v0, v2
     v3: int32 = load v1
@@ -1263,9 +1215,6 @@ b0:
             mir::MemoryAccessKind::Read,
             mir::Value::new(1),
             Some(4),
-            Vec::new(),
-            Vec::new(),
-            None,
             true,
             None,
         );
@@ -1279,8 +1228,8 @@ b0:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     v2: int32 = 42int32
     v3: int32 = 99int32
     store v0, v2
@@ -1291,8 +1240,8 @@ b0:
         let expected = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     v2: int32 = 42int32
     v3: int32 = 99int32
     store v0, v2
@@ -1310,9 +1259,6 @@ b0:
             mir::MemoryAccessKind::Write,
             mir::Value::new(1),
             Some(4),
-            Vec::new(),
-            Vec::new(),
-            None,
             true,
             None,
         );
@@ -1326,8 +1272,8 @@ b0:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     v2: int32 = 42int32
     store v0, v2
     v3: int32 = atomic.load v1, acquire, device, device, any
@@ -1348,8 +1294,8 @@ b0:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     v2: int32 = 42int32
     v3: int32 = 99int32
     store v0, v2
@@ -1370,7 +1316,7 @@ b0:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 42int32
     store v0, v1
     atomic.fence sequentiallyConsistent, device, device, any
@@ -1384,197 +1330,13 @@ b0:
         test.assert_output(expected);
     }
 
-    /// Scoped noalias metadata keeps stores from clobbering unrelated loads.
-    #[test]
-    fn test_forward_across_noalias_scope() {
-        let input = r#"
-function test(v0: ref<int32, raw>, v1: ref<int32, raw>): int32 {
-b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
-    v2: int32 = 1int32
-    store v0, v2
-    v3: int32 = 2int32
-    store v1, v3
-    v4: int32 = load v0
-    return v4
-}"#;
-        let expected = r#"
-function test(v0: ref<int32, raw>, v1: ref<int32, raw>): int32 {
-b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
-    v2: int32 = 1int32
-    store v0, v2
-    v3: int32 = 2int32
-    store v1, v3
-    return v2
-}"#;
-
-        let mut test = TestProgram::new(input);
-
-        // create alias scope metadata for the disjoint store
-        let scope = test.create_alias_scope();
-
-        // locate the relevant instructions
-        let function_id = test.first_function_id();
-        let instructions = test.entry_instructions(function_id);
-        let store_v1 = instructions[3];
-        let load_v0 = instructions[4];
-
-        // attach scoped metadata to disambiguate the store
-        test.insert_pointer_access(
-            store_v1,
-            mir::MemoryAccessKind::Write,
-            mir::Value::new(1),
-            Some(4),
-            vec![scope],
-            Vec::new(),
-            None,
-        );
-
-        test.insert_pointer_access(
-            load_v0,
-            mir::MemoryAccessKind::Read,
-            mir::Value::new(0),
-            Some(4),
-            Vec::new(),
-            vec![scope],
-            None,
-        );
-
-        test.run_pass(&LoadStoreForward);
-        test.assert_output(expected);
-    }
-
-    /// TBAA tags disambiguate unrelated accesses.
-    #[test]
-    fn test_forward_across_tbaa_disjoint() {
-        let input = r#"
-function test(v0: ref<int32, raw>, v1: ref<int32, raw>): int32 {
-b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
-    v2: int32 = 1int32
-    store v0, v2
-    v3: int32 = 2int32
-    store v1, v3
-    v4: int32 = load v0
-    return v4
-}"#;
-        let expected = r#"
-function test(v0: ref<int32, raw>, v1: ref<int32, raw>): int32 {
-b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
-    v2: int32 = 1int32
-    store v0, v2
-    v3: int32 = 2int32
-    store v1, v3
-    return v2
-}"#;
-
-        let mut test = TestProgram::new(input);
-
-        // create disjoint tbaa tags
-        let root = test.create_type_alias_node(None, false);
-        let int_node = test.create_type_alias_node(Some(root), false);
-        let float_node = test.create_type_alias_node(Some(root), false);
-        let int_tag = test.create_type_alias_tag(root, int_node, 0, 4, false);
-        let float_tag = test.create_type_alias_tag(root, float_node, 0, 4, false);
-
-        // locate the relevant instructions
-        let function_id = test.first_function_id();
-        let instructions = test.entry_instructions(function_id);
-        let store_v1 = instructions[3];
-        let load_v0 = instructions[4];
-
-        // attach disjoint tbaa tags to the store and load
-        test.insert_pointer_access(
-            store_v1,
-            mir::MemoryAccessKind::Write,
-            mir::Value::new(1),
-            Some(4),
-            Vec::new(),
-            Vec::new(),
-            Some(float_tag),
-        );
-
-        test.insert_pointer_access(
-            load_v0,
-            mir::MemoryAccessKind::Read,
-            mir::Value::new(0),
-            Some(4),
-            Vec::new(),
-            Vec::new(),
-            Some(int_tag),
-        );
-
-        test.run_pass(&LoadStoreForward);
-        test.assert_output(expected);
-    }
-
-    /// Disjoint TBAA offsets prevent clobbering stores from blocking forwarding.
-    #[test]
-    fn test_forward_across_tbaa_disjoint_offsets() {
-        let input = r#"
-function test(v0: ref<int32, raw>, v1: ref<int32, raw>): int32 {
-b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
-    v2: int32 = 1int32
-    store v0, v2
-    v3: int32 = 2int32
-    store v1, v3
-    v4: int32 = load v0
-    return v4
-}"#;
-        let expected = r#"
-function test(v0: ref<int32, raw>, v1: ref<int32, raw>): int32 {
-b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
-    v2: int32 = 1int32
-    store v0, v2
-    v3: int32 = 2int32
-    store v1, v3
-    return v2
-}"#;
-
-        let mut test = TestProgram::new(input);
-
-        // create tbaa tags with disjoint offsets
-        let root = test.create_type_alias_node(None, false);
-        let access = test.create_type_alias_node(Some(root), false);
-        let tag_a = test.create_type_alias_tag(root, access, 0, 4, false);
-        let tag_b = test.create_type_alias_tag(root, access, 8, 4, false);
-
-        // locate the relevant instructions
-        let function_id = test.first_function_id();
-        let instructions = test.entry_instructions(function_id);
-        let store_v1 = instructions[3];
-        let load_v0 = instructions[4];
-
-        // attach disjoint tbaa tags to the clobbering store and load
-        test.insert_pointer_access(
-            store_v1,
-            mir::MemoryAccessKind::Write,
-            mir::Value::new(1),
-            Some(4),
-            Vec::new(),
-            Vec::new(),
-            Some(tag_b),
-        );
-
-        test.insert_pointer_access(
-            load_v0,
-            mir::MemoryAccessKind::Read,
-            mir::Value::new(0),
-            Some(4),
-            Vec::new(),
-            Vec::new(),
-            Some(tag_a),
-        );
-
-        test.run_pass(&LoadStoreForward);
-        test.assert_output(expected);
-    }
-
     /// Size mismatches prevent forwarding from matching pointers.
     #[test]
     fn test_no_forward_size_mismatch() {
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 1int32
     store v0, v1
     v2: int32 = load v0
@@ -1596,9 +1358,6 @@ b0:
             mir::MemoryAccessKind::Write,
             mir::Value::new(0),
             Some(8),
-            Vec::new(),
-            Vec::new(),
-            None,
         );
 
         test.insert_pointer_access(
@@ -1606,9 +1365,6 @@ b0:
             mir::MemoryAccessKind::Read,
             mir::Value::new(0),
             Some(4),
-            Vec::new(),
-            Vec::new(),
-            None,
         );
 
         test.run_pass(&LoadStoreForward);
@@ -1621,7 +1377,7 @@ b0:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 42int32
     store v0, v1
     v2: int32 = load v0
@@ -1632,7 +1388,7 @@ b0:
         let expected = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 42int32
     store v0, v1
     v2: int32 = int.add v1, v1

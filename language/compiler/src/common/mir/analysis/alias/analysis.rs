@@ -121,7 +121,7 @@ impl AliasAnalysis {
         instruction_id: mir::LocalNodeId<mir::Instruction>,
         loc: &MemoryLocation,
     ) -> ModRefInfo {
-        self.get_mod_ref_info_with_metadata(instruction_id, loc, &[], &[], None)
+        self.get_mod_ref_info_with_metadata(instruction_id, loc)
     }
 
     /// Get mod ref info for an instruction relative to a memory location.
@@ -129,19 +129,11 @@ impl AliasAnalysis {
         &self,
         instruction_id: mir::LocalNodeId<mir::Instruction>,
         loc: &MemoryLocation,
-        alias_scopes: &[mir::MemoryAliasScopeId],
-        noalias_scopes: &[mir::MemoryAliasScopeId],
-        type_alias_tag: Option<mir::TypeAliasTagId>,
     ) -> ModRefInfo {
         // start with basic aa's assessment
-        let mut result = self.basic.get_mod_ref_info_with_metadata(
-            instruction_id,
-            loc,
-            alias_scopes,
-            noalias_scopes,
-            type_alias_tag,
-            &self.tree,
-        );
+        let mut result = self
+            .basic
+            .get_mod_ref_info_with_metadata(instruction_id, loc, &self.tree);
 
         // if basic aa says no mod ref, we're done
         if result.is_no_mod_ref() {
@@ -268,8 +260,8 @@ b0:
             r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     v2: int32 = 42int32
     store v0, v2
     v3: int32 = load v1
@@ -297,8 +289,8 @@ b0:
             r#"
 function test(): void {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     v2: int32 = 42int32
     store v0, v2
     return
@@ -333,7 +325,7 @@ function test(): void {
 b0:
     v0: ref<int32, raw, space(static)> = global.address g1
     v1: ref<int32, raw, space(static)> = global.address g2
-    v2: ref<int32, raw, space(stack)> = stack.alloc int32
+    v2: ref<int32, raw, space(frame)> = frame.alloc int32
     return
 }"#,
         );
@@ -356,8 +348,8 @@ b0:
             r#"
 function test(): void {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
-    v1: ref<float64, raw, space(stack)> = stack.alloc float64
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<float64, raw, space(frame)> = frame.alloc float64
     return
 }"#,
         );
@@ -381,7 +373,7 @@ b0:
     }
 
     #[test]
-    fn test_call_metadata_readnone_mod_ref() {
+    fn test_call_metadata_no_memory_mod_ref() {
         let mut program = TestProgram::new(
             r#"
 external function external(ref<int32, raw>): void
@@ -402,11 +394,8 @@ b0(v0: ref<int32, raw>):
         };
         let (call_inst, _callee) = program.first_call_in_entry(function_id);
 
-        let instruction = program.tree.get_mut(call_inst);
-        let Some(memory_effect) = instruction.call_memory_effect_mut() else {
-            panic!("expected call instruction");
-        };
-        *memory_effect = Some(mir::MemoryEffect::none());
+        let call = mir::CallSite::Instruction(call_inst);
+        program.tree.metadata.functions.call_mut(call).memory = mir::MemoryEffect::none();
 
         let function = program.tree.get(function_id);
         let analyses = program.function_analyses(function);
@@ -414,225 +403,5 @@ b0(v0: ref<int32, raw>):
         let loc = MemoryLocation::from_ptr(param_value);
 
         assert!(aa.get_mod_ref_info(call_inst, &loc).is_no_mod_ref());
-    }
-
-    #[test]
-    fn test_call_metadata_argmemonly_access() {
-        let mut program = TestProgram::new(
-            r#"
-external function external(ref<int32, raw>, ref<int32, raw>): void
-function test(): void {
-b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
-    call external(v0, v1): (ref<int32, raw>, ref<int32, raw>) -> void
-    return
-}"#,
-        );
-
-        let function_id = program.entry_function_id();
-        let (call_inst, _callee) = program.first_call_in_entry(function_id);
-
-        let arg0 = mir::ArgumentAttribute {
-            access: mir::ArgumentAccess::Read,
-            ..Default::default()
-        };
-        let arg1 = mir::ArgumentAttribute {
-            access: mir::ArgumentAccess::None,
-            ..Default::default()
-        };
-        let instruction = program.tree.get_mut(call_inst);
-        let mir::Instruction::Call { call, .. } = instruction else {
-            panic!("expected call instruction");
-        };
-
-        call.memory_effect =
-            Some(mir::MemoryEffect::read_only(mir::MemorySpaceSet::NONE).with_argmemonly());
-        call.argument_attributes = vec![arg0, arg1];
-
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
-        let aa = analyses.get::<AliasAnalysis>();
-
-        let arg_values = {
-            let call_inst = program.tree.get(call_inst);
-            let arg_slice = call_inst.argument_slice().expect("missing call args");
-            program.tree.get_arguments(arg_slice).to_vec()
-        };
-        let loc0 = MemoryLocation::from_ptr(
-            arg_values[0]
-                .value()
-                .expect("first argument value should be concrete"),
-        );
-        let loc1 = MemoryLocation::from_ptr(
-            arg_values[1]
-                .value()
-                .expect("second argument value should be concrete"),
-        );
-
-        assert!(aa.get_mod_ref_info(call_inst, &loc0).is_ref());
-        assert!(aa.get_mod_ref_info(call_inst, &loc1).is_no_mod_ref());
-    }
-
-    #[test]
-    fn test_metadata_alias_scopes_refine_mod_ref() {
-        let mut program = TestProgram::new(
-            r#"
-function test(v0: ref<int32, raw>, v1: ref<int32, raw>): void {
-b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
-    v2: int8 = 0int8
-    v3: int64 = 4int64
-    intrinsic.memory.raw.setBytes(v1, v2, v3)
-    return
-}"#,
-        );
-
-        let function_id = program.entry_function_id();
-        let memset_inst = program.first_intrinsic_in_entry(function_id, mir::Intrinsic::Memset);
-        let scope = program.create_alias_scope();
-
-        program.insert_pointer_access(
-            memset_inst,
-            mir::MemoryAccessKind::Write,
-            mir::Value::new(1),
-            Some(4),
-            Vec::new(),
-            vec![scope],
-            None,
-        );
-
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
-        let aa = analyses.get::<AliasAnalysis>();
-        let loc0 = MemoryLocation::from_ptr(mir::Value::new(0));
-
-        assert!(aa.get_mod_ref_info(memset_inst, &loc0).is_mod());
-
-        let mod_ref = aa.get_mod_ref_info_with_metadata(memset_inst, &loc0, &[scope], &[], None);
-
-        assert!(mod_ref.is_no_mod_ref());
-    }
-
-    #[test]
-    fn test_metadata_tbaa_refine_mod_ref() {
-        let mut program = TestProgram::new(
-            r#"
-function test(v0: ref<int32, raw>, v1: ref<int32, raw>): void {
-b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
-    v2: int8 = 0int8
-    v3: int64 = 4int64
-    intrinsic.memory.raw.setBytes(v1, v2, v3)
-    return
-}"#,
-        );
-
-        let function_id = program.entry_function_id();
-        let memset_inst = program.first_intrinsic_in_entry(function_id, mir::Intrinsic::Memset);
-        let int_node = program.create_type_alias_node(None, false);
-        let float_node = program.create_type_alias_node(None, false);
-        let int_tag = program.create_type_alias_tag(int_node, int_node, 0, 4, false);
-        let float_tag = program.create_type_alias_tag(float_node, float_node, 0, 4, false);
-
-        program.insert_pointer_access(
-            memset_inst,
-            mir::MemoryAccessKind::Write,
-            mir::Value::new(1),
-            Some(4),
-            Vec::new(),
-            Vec::new(),
-            Some(int_tag),
-        );
-
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
-        let aa = analyses.get::<AliasAnalysis>();
-        let loc0 = MemoryLocation::from_ptr(mir::Value::new(0));
-
-        assert!(aa.get_mod_ref_info(memset_inst, &loc0).is_mod());
-
-        let mod_ref =
-            aa.get_mod_ref_info_with_metadata(memset_inst, &loc0, &[], &[], Some(float_tag));
-
-        assert!(mod_ref.is_no_mod_ref());
-    }
-
-    #[test]
-    fn test_metadata_alias_scopes_reverse_direction() {
-        let mut program = TestProgram::new(
-            r#"
-function test(v0: ref<int32, raw>, v1: ref<int32, raw>): void {
-b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
-    v2: int8 = 0int8
-    v3: int64 = 4int64
-    intrinsic.memory.raw.setBytes(v1, v2, v3)
-    return
-}"#,
-        );
-
-        let function_id = program.entry_function_id();
-        let memset_inst = program.first_intrinsic_in_entry(function_id, mir::Intrinsic::Memset);
-        let scope = program.create_alias_scope();
-
-        program.insert_pointer_access(
-            memset_inst,
-            mir::MemoryAccessKind::Write,
-            mir::Value::new(1),
-            Some(4),
-            vec![scope],
-            Vec::new(),
-            None,
-        );
-
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
-        let aa = analyses.get::<AliasAnalysis>();
-        let loc0 = MemoryLocation::from_ptr(mir::Value::new(0));
-
-        assert!(aa.get_mod_ref_info(memset_inst, &loc0).is_mod());
-
-        let mod_ref = aa.get_mod_ref_info_with_metadata(memset_inst, &loc0, &[], &[scope], None);
-
-        assert!(mod_ref.is_no_mod_ref());
-    }
-
-    #[test]
-    fn test_metadata_tbaa_disjoint_offsets() {
-        let mut program = TestProgram::new(
-            r#"
-function test(v0: ref<int32, raw>, v1: ref<int32, raw>): void {
-b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
-    v2: int8 = 0int8
-    v3: int64 = 16int64
-    intrinsic.memory.raw.setBytes(v1, v2, v3)
-    return
-}"#,
-        );
-
-        let function_id = program.entry_function_id();
-        let memset_inst = program.first_intrinsic_in_entry(function_id, mir::Intrinsic::Memset);
-        let node = program.create_type_alias_node(None, false);
-        let tag_a = program.create_type_alias_tag(node, node, 0, 8, false);
-        let tag_b = program.create_type_alias_tag(node, node, 8, 8, false);
-
-        program.insert_pointer_access(
-            memset_inst,
-            mir::MemoryAccessKind::Write,
-            mir::Value::new(1),
-            Some(16),
-            Vec::new(),
-            Vec::new(),
-            Some(tag_a),
-        );
-
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
-        let aa = analyses.get::<AliasAnalysis>();
-        let loc0 = MemoryLocation::from_ptr(mir::Value::new(0));
-
-        assert!(aa.get_mod_ref_info(memset_inst, &loc0).is_mod());
-
-        let mod_ref = aa.get_mod_ref_info_with_metadata(memset_inst, &loc0, &[], &[], Some(tag_b));
-
-        assert!(mod_ref.is_no_mod_ref());
     }
 }

@@ -8,8 +8,7 @@ use crate::common::mir::analysis::{
     MemoryAccessId, MemoryAccessLocation, MemorySSA,
 };
 use crate::common::mir::{
-    ValueTypeMap, address_spaces_may_alias, alias_scopes_may_alias, can_substitute_value,
-    memory_locations_compatible, space_sets_may_alias, type_alias_tags_may_alias,
+    ValueTypeMap, can_substitute_value, memory_locations_compatible, spaces_may_alias,
 };
 use crate::optimize::{
     AnalysisPreservation, ExpressionKey, FunctionPass, PipelineContext, TypeContext,
@@ -195,16 +194,8 @@ struct MemoryEntry {
     location: MemoryAccessLocation,
     /// Value produced by the load.
     value: mir::Value,
-    /// The memory space set for the access.
-    space_set: mir::MemorySpaceSet,
-    /// The address spaces for the access.
-    address_spaces: Option<mir::AddressSpaceSet>,
-    /// Alias scopes applied to the access.
-    alias_scopes: Vec<mir::MemoryAliasScopeId>,
-    /// No alias scopes applied to the access.
-    noalias_scopes: Vec<mir::MemoryAliasScopeId>,
-    /// Optional type-alias tag for the access.
-    type_alias_tag: Option<mir::TypeAliasTagId>,
+    /// The backing memory spaces for the access.
+    space_set: mir::SpaceSet,
 }
 
 impl ScopedValueTable {
@@ -302,7 +293,6 @@ impl ScopedValueTable {
         clobber: MemoryAccessId,
         use_effect: &MemoryAccessEffect,
         alias: &AliasAnalysis,
-        tree: &mir::Tree,
     ) -> Option<mir::Value> {
         let location = &use_effect.location;
 
@@ -320,29 +310,7 @@ impl ScopedValueTable {
                     continue;
                 }
 
-                // disambiguate using alias scopes and tbaa tags
-                if !alias_scopes_may_alias(
-                    &entry.alias_scopes,
-                    &entry.noalias_scopes,
-                    &use_effect.alias_scopes,
-                    &use_effect.noalias_scopes,
-                ) {
-                    continue;
-                }
-
-                if !space_sets_may_alias(entry.space_set, use_effect.space_set) {
-                    continue;
-                }
-
-                if !address_spaces_may_alias(&entry.address_spaces, &use_effect.address_spaces) {
-                    continue;
-                }
-
-                if !type_alias_tags_may_alias(
-                    &tree.metadata.memory.type_alias,
-                    entry.type_alias_tag,
-                    use_effect.type_alias_tag,
-                ) {
+                if !spaces_may_alias(entry.space_set, use_effect.space_set) {
                     continue;
                 }
 
@@ -652,7 +620,7 @@ fn process_block(
             }
 
             // forward from an existing load when possible
-            if let Some(existing) = value_table.get_memory(clobber, &use_access.effect, alias, tree)
+            if let Some(existing) = value_table.get_memory(clobber, &use_access.effect, alias)
                 && can_substitute_value(destination, existing, value_types, tree)
             {
                 substitutions.insert(destination, existing);
@@ -663,10 +631,6 @@ fn process_block(
                     location: use_access.effect.location.clone(),
                     value: destination,
                     space_set: use_access.effect.space_set,
-                    address_spaces: use_access.effect.address_spaces.clone(),
-                    alias_scopes: use_access.effect.alias_scopes.clone(),
-                    noalias_scopes: use_access.effect.noalias_scopes.clone(),
-                    type_alias_tag: use_access.effect.type_alias_tag,
                 });
             }
             continue;
@@ -1276,7 +1240,7 @@ b1:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = load v0
     jump b1
 b1:
@@ -1287,7 +1251,7 @@ b1:
         let expected = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = load v0
     jump b1
 b1:
@@ -1306,7 +1270,7 @@ b1:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = load v0
     v2: int32 = 1int32
     store v0, v2
@@ -1319,136 +1283,6 @@ b1:
         let mut test = TestProgram::new(input);
         test.run_pass(&GlobalValueNumbering);
         test.assert_output(input);
-    }
-
-    /// Scoped noalias metadata keeps unrelated stores from blocking load GVN.
-    #[test]
-    fn test_forward_loads_across_noalias_scope() {
-        let input = r#"
-function test(v0: ref<int32, raw>, v1: ref<int32, raw>): int32 {
-b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
-    v2: int32 = load v0
-    v3: int32 = 2int32
-    store v1, v3
-    v4: int32 = load v0
-    v5: int32 = int.add v2, v4
-    return v5
-}"#;
-        let expected = r#"
-function test(v0: ref<int32, raw>, v1: ref<int32, raw>): int32 {
-b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
-    v2: int32 = load v0
-    v3: int32 = 2int32
-    store v1, v3
-    v4: int32 = int.add v2, v2
-    return v4
-}"#;
-
-        let mut test = TestProgram::new(input);
-
-        // create alias scope metadata for the disjoint store
-        let scope = test.create_alias_scope();
-
-        // locate the relevant instructions
-        let function_id = test.first_function_id();
-        let instructions = test.entry_instructions(function_id);
-        let store_v1 = instructions[2];
-        let load_v0 = instructions[3];
-
-        // attach scoped metadata to disambiguate the store and load
-        test.insert_pointer_access(
-            store_v1,
-            mir::MemoryAccessKind::Write,
-            mir::Value::new(1),
-            Some(4),
-            vec![scope],
-            Vec::new(),
-            None,
-        );
-
-        test.insert_pointer_access(
-            load_v0,
-            mir::MemoryAccessKind::Read,
-            mir::Value::new(0),
-            Some(4),
-            Vec::new(),
-            vec![scope],
-            None,
-        );
-
-        test.run_pass(&GlobalValueNumbering);
-        test.assert_output(expected);
-    }
-
-    /// Disjoint TBAA offsets allow loads to forward across unrelated stores.
-    #[test]
-    fn test_forward_loads_across_tbaa_disjoint_offsets() {
-        let input = r#"
-function test(v0: ref<int32, raw>, v1: ref<int32, raw>): int32 {
-b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
-    v2: int32 = load v0
-    v3: int32 = 2int32
-    store v1, v3
-    v4: int32 = load v0
-    v5: int32 = int.add v2, v4
-    return v5
-}"#;
-        let expected = r#"
-function test(v0: ref<int32, raw>, v1: ref<int32, raw>): int32 {
-b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
-    v2: int32 = load v0
-    v3: int32 = 2int32
-    store v1, v3
-    v4: int32 = int.add v2, v2
-    return v4
-}"#;
-
-        let mut test = TestProgram::new(input);
-
-        // create tbaa tags with disjoint offsets
-        let root = test.create_type_alias_node(None, false);
-        let access = test.create_type_alias_node(Some(root), false);
-        let tag_a = test.create_type_alias_tag(root, access, 0, 4, false);
-        let tag_b = test.create_type_alias_tag(root, access, 8, 4, false);
-
-        // locate the relevant instructions
-        let function_id = test.first_function_id();
-        let instructions = test.entry_instructions(function_id);
-        let load_v0 = instructions[0];
-        let store_v1 = instructions[2];
-        let load_v0_again = instructions[3];
-
-        // attach disjoint tbaa tags to the loads and store
-        test.insert_pointer_access(
-            load_v0,
-            mir::MemoryAccessKind::Read,
-            mir::Value::new(0),
-            Some(4),
-            Vec::new(),
-            Vec::new(),
-            Some(tag_a),
-        );
-        test.insert_pointer_access(
-            store_v1,
-            mir::MemoryAccessKind::Write,
-            mir::Value::new(1),
-            Some(4),
-            Vec::new(),
-            Vec::new(),
-            Some(tag_b),
-        );
-        test.insert_pointer_access(
-            load_v0_again,
-            mir::MemoryAccessKind::Read,
-            mir::Value::new(0),
-            Some(4),
-            Vec::new(),
-            Vec::new(),
-            Some(tag_a),
-        );
-
-        test.run_pass(&GlobalValueNumbering);
-        test.assert_output(expected);
     }
 
     /// Size mismatches prevent load forwarding.
@@ -1478,32 +1312,26 @@ b0(v0: ref<int32, raw>):
             mir::MemoryAccessKind::Read,
             mir::Value::new(0),
             Some(8),
-            Vec::new(),
-            Vec::new(),
-            None,
         );
         test.insert_pointer_access(
             load_second,
             mir::MemoryAccessKind::Read,
             mir::Value::new(0),
             Some(4),
-            Vec::new(),
-            Vec::new(),
-            None,
         );
 
         test.run_pass(&GlobalValueNumbering);
         test.assert_output(expected);
     }
 
-    /// Readnone calls do not block load value numbering.
+    /// No memory calls do not block load value numbering.
     #[test]
-    fn test_forward_loads_across_readnone_call() {
+    fn test_forward_loads_across_no_memory_call() {
         let input = r#"
 external function external(ref<int32, raw>): void
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = load v0
     call external(v0): (ref<int32, raw>) -> void
     v2: int32 = load v0
@@ -1514,7 +1342,7 @@ b0:
 external function external(ref<int32, raw>): void
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = load v0
     call external(v0): (ref<int32, raw>) -> void
     v2: int32 = int.add v1, v1
@@ -1526,11 +1354,8 @@ b0:
         let function_id = test.entry_function_id();
         let (call_inst, _callee) = test.first_call_in_entry(function_id);
 
-        let instruction = test.tree.get_mut(call_inst);
-        let Some(memory_effect) = instruction.call_memory_effect_mut() else {
-            panic!("expected call instruction");
-        };
-        *memory_effect = Some(mir::MemoryEffect::none());
+        let callsite = mir::CallSite::Instruction(call_inst);
+        test.tree.metadata.functions.call_mut(callsite).memory = mir::MemoryEffect::none();
 
         test.run_pass(&GlobalValueNumbering);
         test.assert_output(expected);

@@ -169,8 +169,6 @@ fn run_argument_specialize(tree: &mut mir::Tree, ctx: &PipelineContext<'_>) -> b
         HashMap::new();
     let mut specialization_counts: HashMap<mir::LocalNodeId<mir::Function>, usize> = HashMap::new();
     let mut total_specializations = 0usize;
-    let hotness_policy = ctx.specialize_hotness_policy();
-
     // process callsites for specialization
     for callsite in &call_data.callsites {
         // skip recursive callees
@@ -198,15 +196,19 @@ fn run_argument_specialize(tree: &mut mir::Tree, ctx: &PipelineContext<'_>) -> b
         let hotness = callsite_hotness(
             ctx.profile(),
             callsite.caller,
-            callsite.call_instruction,
-            hotness_policy,
+            mir::CallSite::Instruction(callsite.call_instruction),
         );
         if matches!(hotness, CallsiteHotness::Cold) {
             continue;
         }
 
         // compute removal indices for constant parameters
-        let removal_indices = removable_constant_parameters(tree.get(callsite.callee), &constants);
+        let removal_indices = removable_constant_parameters(
+            callsite.callee,
+            tree.get(callsite.callee),
+            &constants,
+            tree,
+        );
 
         // compute specialization key and check cache
         let key = specialization_key(callsite.callee, &constants);
@@ -516,8 +518,6 @@ fn clone_function(
 
     // insert the specialized function
     let new_function_id = tree.insert(new_function);
-    clone_function_debug_locations(function_id, new_function_id, &block_map, tree);
-
     // recompute value id state for the clone
     let mut cloned_function = tree.get(new_function_id).clone();
     cloned_function.recompute_next_value_id(tree);
@@ -525,45 +525,16 @@ fn clone_function(
     new_function_id
 }
 
-/// Clone debug locations from one function into its specialized clone.
-fn clone_function_debug_locations(
-    function_id: mir::LocalNodeId<mir::Function>,
-    new_function_id: mir::LocalNodeId<mir::Function>,
-    block_map: &HashMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
-    tree: &mut mir::Tree,
-) {
-    // collect locations before mutating the table
-    let locations = tree
-        .metadata
-        .debug
-        .locations
-        .iter()
-        .filter_map(|(point, location)| {
-            if point.function != function_id {
-                return None;
-            }
-
-            let new_block = block_map.get(&point.block).copied()?;
-            Some((
-                mir::DebugPoint::new(new_function_id, new_block, point.point),
-                location.clone(),
-            ))
-        })
-        .collect::<Vec<_>>();
-
-    // append cloned locations to the debug table
-    for (point, location) in locations {
-        tree.metadata.debug.locations.insert(point, location);
-    }
-}
-
 /// Identify constant parameters that can be removed.
 fn removable_constant_parameters(
+    function_id: mir::LocalNodeId<mir::Function>,
     function: &mir::Function,
     constants: &[Option<mir::Constant>],
+    tree: &mir::Tree,
 ) -> Vec<usize> {
     // collect required parameter indices
-    let required = required_parameter_indices(function);
+    let metadata = tree.metadata.functions.function(function_id);
+    let required = required_parameter_indices(function, metadata);
 
     // collect removable indices
     let mut removable = Vec::new();
@@ -594,13 +565,16 @@ fn apply_parameter_removals(
     let entry_id = {
         let function = tree.get_mut(function_id);
         function.parameters = remap.filter_by_index(&function.parameters);
-        function.parameter_attributes = remap.filter_by_index(&function.parameter_attributes);
         function.return_lifetime = remap
             .remap_return_lifetime(&function.return_lifetime)
             .expect("return lifetime parameter must be preserved");
-        function.allocation_size = remap.remap_allocation_size(function.allocation_size);
         function.entry.expect("defined function has entry block")
     };
+
+    // update function metadata
+    if let Some(metadata) = tree.metadata.functions.functions.get_mut(&function_id) {
+        metadata.allocation_size = remap.remap_allocation_size(metadata.allocation_size);
+    }
 
     // update entry block parameters to match the new signature
     let entry = tree.get_mut(entry_id);
@@ -640,9 +614,18 @@ fn update_callsite(
         Some(build_signature_type(new_callee, tree))
     };
 
+    let callsite_id = mir::CallSite::Instruction(callsite.call_instruction);
+    let mut metadata = tree
+        .metadata
+        .functions
+        .call(callsite_id)
+        .cloned()
+        .unwrap_or_default();
+    metadata.arguments = remap.filter_by_index(&metadata.arguments);
+    metadata.allocation_size = remap.remap_allocation_size(metadata.allocation_size);
+    metadata.target = Some(new_callee);
+
     let mut call = call;
-    call.argument_attributes = remap.filter_by_index(&call.argument_attributes);
-    call.allocation_size = remap.remap_allocation_size(call.allocation_size);
     call.arguments = new_slice;
     call.signature = signature_type.map(Into::into).unwrap_or(call.signature);
 
@@ -652,6 +635,7 @@ fn update_callsite(
         call,
     };
     tree.replace(callsite.call_instruction, updated);
+    *tree.metadata.functions.call_mut(callsite_id) = metadata;
 
     true
 }
@@ -745,17 +729,22 @@ entry0:
         let mut test = TestProgram::new(input);
         let root_id = test.function_id_by_name("root");
         let (call_id, _callee_id) = test.first_call_in_entry(root_id);
-        let instruction = test.tree.get_mut(call_id);
-        let mir::Instruction::Call { call, .. } = instruction else {
-            panic!("expected call instruction");
-        };
-        call.argument_attributes = vec![mir::ArgumentAttribute::default(); 2];
+        let callsite = mir::CallSite::Instruction(call_id);
+        test.tree.metadata.functions.call_mut(callsite).arguments =
+            vec![mir::CallArgumentEffect::default(); 2];
 
         test.run_module_pass(&ArgumentSpecialize);
         test.assert_output(expected);
 
         let (call_id, callee_id) = test.first_call_in_entry(root_id);
         let callee = test.tree.get(callee_id);
+        let callsite = mir::CallSite::Instruction(call_id);
+        let metadata = test
+            .tree
+            .metadata
+            .functions
+            .call(callsite)
+            .expect("missing call metadata");
         let instruction = test.tree.get(call_id);
         let signature = test.tree.get(
             instruction
@@ -769,12 +758,7 @@ entry0:
             borrow_obligations: Vec::new(),
         };
 
-        assert!(
-            instruction
-                .call_argument_attributes()
-                .expect("missing call argument attributes")
-                .is_empty()
-        );
+        assert!(metadata.arguments.is_empty());
         assert_eq!(signature, &expected_signature);
     }
 
@@ -825,9 +809,6 @@ b0:
             callee_load,
             mir::MemoryAccessKind::Read,
             callee_pointer,
-            None,
-            Vec::new(),
-            Vec::new(),
             None,
         );
 
@@ -900,8 +881,8 @@ b0:
         let root_id = test.function_id_by_name("root");
         let (call_id, _) = test.first_call_in_entry(root_id);
 
-        let mut profile = mir::ProfileTable::new(mir::ProfileSource::Instrumentation);
-        test.record_function_profile(&mut profile, root_id, 100);
+        let mut profile = mir::Profile::new();
+        test.record_function_count(&mut profile, root_id, 100);
         test.record_callsite_profile(&mut profile, call_id, 5);
 
         test.run_module_pass_with_profile(&ArgumentSpecialize, profile);
@@ -928,8 +909,8 @@ b0:
         let mut test = TestProgram::new(input);
         let root_id = test.function_id_by_name("root");
 
-        let mut profile = mir::ProfileTable::new(mir::ProfileSource::Instrumentation);
-        test.record_function_profile(&mut profile, root_id, 100);
+        let mut profile = mir::Profile::new();
+        test.record_function_count(&mut profile, root_id, 100);
 
         test.run_module_pass_with_profile(&ArgumentSpecialize, profile);
         test.assert_unchanged(input);
@@ -937,7 +918,7 @@ b0:
 
     /// Missing function profiles prevent specialization below the hot threshold.
     #[test]
-    fn test_argument_specialize_skips_missing_function_profile() {
+    fn test_argument_specialize_skips_missing_function_count() {
         let input = r#"
 function callee(v0: int32, v1: int32): int32 {
 b0(v0: int32, v1: int32):
@@ -956,7 +937,7 @@ b0:
         let root_id = test.function_id_by_name("root");
         let (call_id, _) = test.first_call_in_entry(root_id);
 
-        let mut profile = mir::ProfileTable::new(mir::ProfileSource::Instrumentation);
+        let mut profile = mir::Profile::new();
         test.record_callsite_profile(&mut profile, call_id, 5);
 
         test.run_module_pass_with_profile(&ArgumentSpecialize, profile);
@@ -1005,8 +986,8 @@ entry0:
         let root_id = test.function_id_by_name("root");
         let (call_id, _) = test.first_call_in_entry(root_id);
 
-        let mut profile = mir::ProfileTable::new(mir::ProfileSource::Instrumentation);
-        test.record_function_profile(&mut profile, root_id, 100);
+        let mut profile = mir::Profile::new();
+        test.record_function_count(&mut profile, root_id, 100);
         test.record_callsite_profile(&mut profile, call_id, 25);
 
         test.run_module_pass_with_profile(&ArgumentSpecialize, profile);
@@ -1049,7 +1030,11 @@ entry0(value0: int32):
 
         let mut test = TestProgram::new(input);
         let callee_id = test.function_id_by_name("callee");
-        test.tree.get_mut(callee_id).allocation_size = Some(mir::AllocationSize::new(0, None));
+        test.tree
+            .metadata
+            .functions
+            .function_mut(callee_id)
+            .allocation_size = Some(mir::AllocationSize::new(0, None));
 
         test.run_module_pass(&ArgumentSpecialize);
         test.assert_output(expected);

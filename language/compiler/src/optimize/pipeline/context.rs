@@ -10,8 +10,8 @@ use parking_lot::Mutex;
 
 use crate::common::mir::{MirAnalysisOptions, TypeContext};
 use crate::optimize::{
-    CallsiteHotnessPolicy, DiagnosticEmitter, FunctionAnalyses, ModuleAnalyses, ModuleWorkItem,
-    PackageAnalyses, PackageWorkset, PassMetadata, ProgramAnalyses, ProgramWorkset,
+    DiagnosticEmitter, FunctionAnalyses, ModuleAnalyses, ModuleWorkItem, PackageAnalyses,
+    PackageWorkset, PassMetadata, ProgramAnalyses, ProgramWorkset,
 };
 use crate::{DiagnosticAnchor, OptimizeError, OptimizeWarning};
 
@@ -109,10 +109,6 @@ pub struct PipelineOptions {
     pub type_context: TypeContext,
     /// Loop unroll threshold in instructions.
     pub unroll_threshold: usize,
-    /// Callsite hotness thresholds for inlining decisions.
-    pub inline_hotness_policy: CallsiteHotnessPolicy,
-    /// Callsite hotness thresholds for argument specialization.
-    pub specialize_hotness_policy: CallsiteHotnessPolicy,
     /// Inline budget scaling for this optimization level.
     pub inline_budget_scale_percent: u64,
     /// Enforce optimizable MIR metadata requirements.
@@ -127,8 +123,6 @@ impl Default for PipelineOptions {
             float_math: FloatMathPolicy::Strict,
             type_context: TypeContext::default(),
             unroll_threshold: 200,
-            inline_hotness_policy: CallsiteHotnessPolicy::inline_default(),
-            specialize_hotness_policy: CallsiteHotnessPolicy::specialize_default(),
             inline_budget_scale_percent: 100,
             require_optimized_metadata: false,
         }
@@ -144,16 +138,6 @@ impl PipelineOptions {
     /// Return the loop unroll threshold for this pipeline run.
     pub fn unroll_threshold(&self) -> usize {
         self.unroll_threshold
-    }
-
-    /// Return the callsite policy for inline decisions.
-    pub fn inline_hotness_policy(&self) -> &CallsiteHotnessPolicy {
-        &self.inline_hotness_policy
-    }
-
-    /// Return the callsite policy for specialization decisions.
-    pub fn specialize_hotness_policy(&self) -> &CallsiteHotnessPolicy {
-        &self.specialize_hotness_policy
     }
 
     /// Return the inline budget scale percent for this pipeline run.
@@ -186,7 +170,7 @@ pub struct PipelineContext<'a> {
     /// The MIR artifact being optimized.
     source_mir: Option<ArtifactVersion>,
     /// Optional profile guided optimization data.
-    profile: Option<Arc<mir::ProfileTable>>,
+    profile: Option<Arc<mir::Profile>>,
 
     /// Shared diagnostics state.
     diagnostics: Arc<PipelineDiagnostics>,
@@ -217,7 +201,7 @@ impl<'a> PipelineContext<'a> {
         module_id: ModuleId,
         profile_id: ProfileId,
         target_id: TargetId,
-        profile: Option<Arc<mir::ProfileTable>>,
+        profile: Option<Arc<mir::Profile>>,
     ) -> Self {
         Self::with_diagnostics(
             strings,
@@ -239,7 +223,7 @@ impl<'a> PipelineContext<'a> {
         profile_id: ProfileId,
         target_id: TargetId,
         source_mir: ArtifactVersion,
-        profile: Option<Arc<mir::ProfileTable>>,
+        profile: Option<Arc<mir::Profile>>,
     ) -> Self {
         Self::with_diagnostics(
             strings,
@@ -261,7 +245,7 @@ impl<'a> PipelineContext<'a> {
         profile_id: ProfileId,
         target_id: TargetId,
         source_mir: Option<ArtifactVersion>,
-        profile: Option<Arc<mir::ProfileTable>>,
+        profile: Option<Arc<mir::Profile>>,
         diagnostics: Arc<PipelineDiagnostics>,
     ) -> Self {
         Self {
@@ -301,7 +285,7 @@ impl<'a> PipelineContext<'a> {
     }
 
     /// Get profile data if available.
-    pub fn profile(&self) -> Option<&mir::ProfileTable> {
+    pub fn profile(&self) -> Option<&mir::Profile> {
         self.profile.as_deref()
     }
 
@@ -313,16 +297,6 @@ impl<'a> PipelineContext<'a> {
     /// Return the loop unroll threshold for this pipeline run.
     pub fn unroll_threshold(&self) -> usize {
         self.options.unroll_threshold()
-    }
-
-    /// Return the callsite policy for inline decisions.
-    pub fn inline_hotness_policy(&self) -> &CallsiteHotnessPolicy {
-        self.options.inline_hotness_policy()
-    }
-
-    /// Return the callsite policy for specialization decisions.
-    pub fn specialize_hotness_policy(&self) -> &CallsiteHotnessPolicy {
-        self.options.specialize_hotness_policy()
     }
 
     /// Return the inline budget scale percent for this pipeline run.

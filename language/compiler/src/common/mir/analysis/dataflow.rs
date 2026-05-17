@@ -488,7 +488,7 @@ b0(v0: int32):
             r#"
 function test(v0: ref<void, managed, readonly>): void {
 b0(v0: ref<void, managed, readonly>):
-    trap.panic v0
+    panic v0
 }"#,
         );
 

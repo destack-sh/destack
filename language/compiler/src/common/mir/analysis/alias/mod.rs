@@ -7,4 +7,4 @@ mod scoped;
 mod tbaa;
 
 pub use analysis::AliasAnalysis;
-pub use result::{AliasResult, FunctionModRefBehavior, ModRefInfo, ParameterAttributes};
+pub use result::{AliasResult, ModRefInfo};

@@ -25,7 +25,7 @@ declare_mir_pass! {
     /// ```mir
     /// function before(v0: boolean): int32 {
     /// b0(v0: boolean):
-    ///     v1 = stack.alloc int32 -> ref<int32, raw, space(stack)>
+    ///     v1 = frame.alloc int32 -> ref<int32, raw, space(frame)>
     ///     branch v0, b1, b2
     /// b1:
     ///     jump b3
@@ -40,7 +40,7 @@ declare_mir_pass! {
     /// ```mir
     /// function after(v0: boolean): int32 {
     /// b0(v0: boolean):
-    ///     v1 = stack.alloc int32 -> ref<int32, raw, space(stack)>
+    ///     v1 = frame.alloc int32 -> ref<int32, raw, space(frame)>
     ///     branch v0, b1, b2
     /// b1:
     ///     v4 = load v1 -> int32
@@ -554,7 +554,7 @@ mod tests {
         let input = r#"
 function test(v0: boolean): int32 {
 b0(v0: boolean):
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     branch v0, b1, b2
 b1:
     v2: int32 = 1int32
@@ -572,7 +572,7 @@ b3:
         let expected = r#"
 function test(v0: boolean): int32 {
 b0(v0: boolean):
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     branch v0, b1, b2
 b1:
     v2: int32 = 1int32
@@ -605,7 +605,7 @@ b1:
 b2:
     jump b3
 b3:
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     v2: int32 = load v1
     return v2
 }"#;
@@ -621,7 +621,7 @@ b3:
         let input = r#"
 function test(v0: boolean): int32 {
 b0(v0: boolean):
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     branch v0, b1, b2
 b1:
     jump b3
@@ -645,7 +645,7 @@ b3:
         let input = r#"
 function test(v0: boolean): int32 {
 b0(v0: boolean):
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     branch v0, b1, b2
 b1:
     v2: int32 = 1int32
@@ -665,7 +665,7 @@ external function readOnly(): void"#;
         let expected = r#"
 function test(v0: boolean): int32 {
 b0(v0: boolean):
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     branch v0, b1, b2
 b1:
     v2: int32 = 1int32
@@ -688,13 +688,10 @@ external function readOnly(): void"#;
         let function = test.tree.get(function_id);
         let join_block = function.blocks[3];
         let call_inst = test.instructions_in_block(join_block)[0];
-        let instruction = test.tree.get_mut(call_inst);
-        let mir::Instruction::Call { call, .. } = instruction else {
-            panic!("expected call instruction");
-        };
-
-        call.memory_effect = Some(mir::MemoryEffect::read_only(mir::MemorySpaceSet::ANY));
-        call.behavior = Some(mir::CallBehavior::none());
+        let callsite = mir::CallSite::Instruction(call_inst);
+        let metadata = test.tree.metadata.functions.call_mut(callsite);
+        metadata.memory = mir::MemoryEffect::read_only(mir::SpaceSet::ANY);
+        metadata.behavior = mir::FunctionBehavior::none();
 
         test.run_pass(&LoadPre);
         test.assert_output(expected);
@@ -706,7 +703,7 @@ external function readOnly(): void"#;
         let input = r#"
 function test(v0: boolean): int32 {
 b0(v0: boolean):
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     branch v0, b1, b2
 b1:
     jump b3
@@ -728,9 +725,6 @@ b3:
             mir::MemoryAccessKind::Read,
             mir::Value::new(1),
             Some(4),
-            Vec::new(),
-            Vec::new(),
-            None,
             true,
             None,
         );
@@ -745,7 +739,7 @@ b3:
         let input = r#"
 function test(v0: boolean): int32 {
 b0(v0: boolean):
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     branch v0, b1, b2
 b1:
     jump b3
@@ -773,10 +767,7 @@ b3:
             scope: None,
             memory_scope: None,
             flags: None,
-            address_space: None,
-            alias_scopes: Vec::new(),
-            noalias_scopes: Vec::new(),
-            type_alias_tag: None,
+            space: None,
         };
         test.insert_memory_accesses(load_inst, vec![access]);
 
@@ -790,7 +781,7 @@ b3:
         let input = r#"
 function test(v0: boolean): int32 {
 b0(v0: boolean):
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     branch v0, b1, b2
 b1:
     jump b3
@@ -814,7 +805,7 @@ b3:
         let input = r#"
 function test(v0: boolean, v1: boolean): int32 {
 b0(v0: boolean, v1: boolean):
-    v2: ref<int32, raw, space(stack)> = stack.alloc int32
+    v2: ref<int32, raw, space(frame)> = frame.alloc int32
     branch v0, b1, b2
 b1:
     v3: int32 = 1int32
@@ -834,7 +825,7 @@ b4:
         let expected = r#"
 function test(v0: boolean, v1: boolean): int32 {
 b0(v0: boolean, v1: boolean):
-    v2: ref<int32, raw, space(stack)> = stack.alloc int32
+    v2: ref<int32, raw, space(frame)> = frame.alloc int32
     branch v0, b1, b2
 b1:
     v3: int32 = 1int32
@@ -862,7 +853,7 @@ b4:
         let input = r#"
 function test(v0: boolean): int32 {
 b0(v0: boolean):
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     branch v0, b1, b2
 b1:
     v2: int32 = 1int32
@@ -882,7 +873,7 @@ b3:
         let expected = r#"
 function test(v0: boolean): int32 {
 b0(v0: boolean):
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     branch v0, b1, b2
 b1:
     v2: int32 = 1int32
@@ -911,7 +902,7 @@ b3(v6: int32):
         let input = r#"
 function test(v0: boolean, v1: boolean): int32 {
 b0(v0: boolean, v1: boolean):
-    v2: ref<int32, raw, space(stack)> = stack.alloc int32
+    v2: ref<int32, raw, space(frame)> = frame.alloc int32
     branch v0, b1, b2
 b1:
     v3: int32 = 1int32
@@ -932,7 +923,7 @@ b4:
         let expected = r#"
 function test(v0: boolean, v1: boolean): int32 {
 b0(v0: boolean, v1: boolean):
-    v2: ref<int32, raw, space(stack)> = stack.alloc int32
+    v2: ref<int32, raw, space(frame)> = frame.alloc int32
     branch v0, b1, b3
 b1:
     v3: int32 = 1int32

@@ -85,7 +85,7 @@ impl TestProgram {
     pub(crate) fn run_pass_with_profile<P: FunctionPass + ?Sized>(
         &mut self,
         pass: &P,
-        profile: mir::ProfileTable,
+        profile: mir::Profile,
     ) {
         self.run_pass_with_options_impl(pass, PipelineOptions::default(), Some(Arc::new(profile)));
     }
@@ -240,57 +240,13 @@ impl TestProgram {
         call_ids
     }
 
-    /// Create a new alias scope.
-    pub(crate) fn create_alias_scope(&mut self) -> mir::MemoryAliasScopeId {
-        // create a new domain for the scope
-        let domain = self.tree.metadata.memory.alias_scopes.create_domain(None);
-
-        // create the scope within the domain
-        self.tree
-            .metadata
-            .memory
-            .alias_scopes
-            .create_scope(domain, None)
-    }
-
-    /// Create a new type-alias node.
-    pub(crate) fn create_type_alias_node(
-        &mut self,
-        parent: Option<mir::TypeAliasNodeId>,
-        is_constant: bool,
-    ) -> mir::TypeAliasNodeId {
-        // insert a new node into the table
-        self.tree
-            .metadata
-            .memory
-            .type_alias
-            .create_node(None, parent, is_constant)
-    }
-
-    /// Create a new type-alias tag.
-    pub(crate) fn create_type_alias_tag(
-        &mut self,
-        base: mir::TypeAliasNodeId,
-        access: mir::TypeAliasNodeId,
-        offset: u64,
-        size: u64,
-        is_immutable: bool,
-    ) -> mir::TypeAliasTagId {
-        // insert a new tag into the table
-        self.tree
-            .metadata
-            .memory
-            .type_alias
-            .create_tag(base, access, offset, size, is_immutable)
-    }
-
     /// Return the destination of a stack allocation instruction.
-    pub(crate) fn stack_alloc_destination(
+    pub(crate) fn frame_alloc_destination(
         &self,
         instruction_id: mir::LocalNodeId<mir::Instruction>,
     ) -> mir::Value {
         // extract the destination value from the instruction
-        let mir::Instruction::StackAlloc { destination, .. } = self.tree.get(instruction_id) else {
+        let mir::Instruction::FrameAlloc { destination, .. } = self.tree.get(instruction_id) else {
             panic!("expected stack allocation");
         };
 
@@ -300,7 +256,7 @@ impl TestProgram {
     }
 
     /// Return stack allocation destinations from the entry block.
-    pub(crate) fn stack_alloc_destinations_in_entry(
+    pub(crate) fn frame_alloc_destinations_in_entry(
         &self,
         function_id: mir::LocalNodeId<mir::Function>,
     ) -> Vec<mir::Value> {
@@ -313,7 +269,7 @@ impl TestProgram {
             .instructions
             .iter()
             .filter_map(|instruction_id| {
-                if let mir::Instruction::StackAlloc { destination, .. } =
+                if let mir::Instruction::FrameAlloc { destination, .. } =
                     self.tree.get(*instruction_id)
                 {
                     Some(
@@ -358,21 +314,8 @@ impl TestProgram {
         kind: mir::MemoryAccessKind,
         pointer: mir::Value,
         size: Option<u64>,
-        alias_scopes: Vec<mir::MemoryAliasScopeId>,
-        noalias_scopes: Vec<mir::MemoryAliasScopeId>,
-        type_alias_tag: Option<mir::TypeAliasTagId>,
     ) {
-        self.insert_pointer_access_with_options(
-            instruction,
-            kind,
-            pointer,
-            size,
-            alias_scopes,
-            noalias_scopes,
-            type_alias_tag,
-            false,
-            None,
-        );
+        self.insert_pointer_access_with_options(instruction, kind, pointer, size, false, None);
     }
 
     /// Attach memory access metadata to an instruction.
@@ -396,9 +339,6 @@ impl TestProgram {
         kind: mir::MemoryAccessKind,
         pointer: mir::Value,
         size: Option<u64>,
-        alias_scopes: Vec<mir::MemoryAliasScopeId>,
-        noalias_scopes: Vec<mir::MemoryAliasScopeId>,
-        type_alias_tag: Option<mir::TypeAliasTagId>,
         is_volatile: bool,
         ordering: Option<mir::MemoryOrdering>,
     ) {
@@ -414,10 +354,7 @@ impl TestProgram {
             scope: None,
             memory_scope: None,
             flags: None,
-            address_space: None,
-            alias_scopes,
-            noalias_scopes,
-            type_alias_tag,
+            space: None,
         };
 
         // insert the metadata entry
@@ -490,7 +427,7 @@ impl TestProgram {
         &mut self,
         pass: &P,
         options: PipelineOptions,
-        profile: Option<Arc<mir::ProfileTable>>,
+        profile: Option<Arc<mir::Profile>>,
     ) {
         let context = PipelineContext::new(
             &self.strings_pool,
@@ -608,9 +545,9 @@ impl TestProgram {
     }
 
     /// Record a jump edge profile count.
-    pub(crate) fn record_jump_edge_profile(
+    pub(crate) fn record_jump_edge_count(
         &self,
-        profile: &mut mir::ProfileTable,
+        profile: &mut mir::Profile,
         source: mir::LocalNodeId<mir::Block>,
         target: mir::LocalNodeId<mir::Block>,
         count: u64,
@@ -618,48 +555,36 @@ impl TestProgram {
         // record the edge profile count
         profile.edges.insert(
             mir::EdgeKey::new(source, mir::EdgeKind::Jump, target),
-            mir::EdgeProfile {
-                count: mir::ProfileCount::new(count, mir::ProfileConfidence::Precise),
-            },
+            count,
         );
     }
 
     /// Record a function entry profile count.
-    pub(crate) fn record_function_profile(
+    pub(crate) fn record_function_count(
         &self,
-        profile: &mut mir::ProfileTable,
+        profile: &mut mir::Profile,
         function: mir::LocalNodeId<mir::Function>,
         count: u64,
     ) {
         // record the function entry count
-        profile.functions.insert(
-            function,
-            mir::FunctionProfile {
-                entry_count: mir::ProfileCount::new(count, mir::ProfileConfidence::Precise),
-            },
-        );
+        profile.functions.insert(function, count);
     }
 
     /// Record a block execution profile count.
-    pub(crate) fn record_block_profile(
+    pub(crate) fn record_block_count(
         &self,
-        profile: &mut mir::ProfileTable,
+        profile: &mut mir::Profile,
         block: mir::LocalNodeId<mir::Block>,
         count: u64,
     ) {
         // record the block execution count
-        profile.blocks.insert(
-            block,
-            mir::BlockProfile {
-                execution_count: mir::ProfileCount::new(count, mir::ProfileConfidence::Precise),
-            },
-        );
+        profile.blocks.insert(block, count);
     }
 
     /// Record a control flow edge profile count.
-    pub(crate) fn record_edge_profile(
+    pub(crate) fn record_edge_count(
         &self,
-        profile: &mut mir::ProfileTable,
+        profile: &mut mir::Profile,
         source: mir::LocalNodeId<mir::Block>,
         kind: mir::EdgeKind,
         target: mir::LocalNodeId<mir::Block>,
@@ -667,28 +592,23 @@ impl TestProgram {
     ) {
         // record the edge execution count
         let edge = mir::EdgeKey::new(source, kind, target);
-        profile.edges.insert(
-            edge,
-            mir::EdgeProfile {
-                count: mir::ProfileCount::new(count, mir::ProfileConfidence::Precise),
-            },
-        );
+        profile.edges.insert(edge, count);
     }
 
     /// Record a callsite profile count.
     pub(crate) fn record_callsite_profile(
         &self,
-        profile: &mut mir::ProfileTable,
+        profile: &mut mir::Profile,
         callsite: mir::LocalNodeId<mir::Instruction>,
         count: u64,
     ) {
         // record the callsite profile count
         profile.callsites.insert(
-            callsite,
+            mir::CallSite::Instruction(callsite),
             mir::CallSiteProfile {
-                total_count: mir::ProfileCount::new(count, mir::ProfileConfidence::Precise),
+                total_count: count,
                 targets: Vec::new(),
-                unknown_count: mir::ProfileCount::new(0, mir::ProfileConfidence::Precise),
+                unknown_count: 0,
             },
         );
     }
@@ -759,7 +679,7 @@ impl TestProgram {
     pub(crate) fn run_module_pass_with_profile<P: ModulePass + ?Sized>(
         &mut self,
         pass: &P,
-        profile: mir::ProfileTable,
+        profile: mir::Profile,
     ) {
         let context = PipelineContext::new(
             &self.strings_pool,
@@ -1028,7 +948,7 @@ b0:
     fn test_pipeline_context_profile_access() {
         // create context inputs
         let strings = StringPool::new();
-        let profile = Arc::new(mir::ProfileTable::new(mir::ProfileSource::Instrumentation));
+        let profile = Arc::new(mir::Profile::new());
 
         // build pipeline context
         let context = PipelineContext::new(
@@ -1389,7 +1309,7 @@ b0(v0: int32, v1: int32):
         let borrowed_ref = tree.insert_type(mir::Type::Reference {
             kind: mir::ReferenceKind::Borrowed,
             lifetime: mir::Lifetime::empty(),
-            address_space: mir::AddressSpace::Stack,
+            space: mir::Space::Frame,
             access: mir::Access::Mutable,
             pointee: pointee.into(),
             nullability: mir::Nullability::None,
@@ -1437,7 +1357,7 @@ b0(v0: int32, v1: int32):
         let raw_ref = tree.insert_type(mir::Type::Reference {
             kind: mir::ReferenceKind::Raw,
             lifetime: mir::Lifetime::empty(),
-            address_space: mir::AddressSpace::Stack,
+            space: mir::Space::Frame,
             access: mir::Access::Mutable,
             pointee: pointee.into(),
             nullability: mir::Nullability::None,
@@ -1445,7 +1365,7 @@ b0(v0: int32, v1: int32):
         let borrowed_ref = tree.insert_type(mir::Type::Reference {
             kind: mir::ReferenceKind::Borrowed,
             lifetime: mir::Lifetime::empty(),
-            address_space: mir::AddressSpace::Stack,
+            space: mir::Space::Frame,
             access: mir::Access::Mutable,
             pointee: pointee.into(),
             nullability: mir::Nullability::None,

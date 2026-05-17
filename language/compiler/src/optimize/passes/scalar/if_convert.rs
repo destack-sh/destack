@@ -62,7 +62,7 @@ const BASE_CONVERT_BUDGET: usize = 16;
 /// Larger budget when profile indicates balanced branches.
 const BALANCEI_CONVERT_BUDGET: usize = 48;
 /// Threshold for treating a branch as highly biased.
-const BIASEI_BRANCH_RATIO: f64 = 0.90;
+const BIASED_BRANCH_RATIO: f64 = 0.90;
 
 impl FunctionPass for IfConvert {
     /// Run if conversion on a function.
@@ -375,8 +375,8 @@ fn should_convert(
 
         let then_ratio = then_count as f64 / total_count as f64;
         let else_ratio = else_count as f64 / total_count as f64;
-        let is_balanced = ((1.0 - BIASEI_BRANCH_RATIO)..=BIASEI_BRANCH_RATIO).contains(&then_ratio)
-            && ((1.0 - BIASEI_BRANCH_RATIO)..=BIASEI_BRANCH_RATIO).contains(&else_ratio);
+        let is_balanced = ((1.0 - BIASED_BRANCH_RATIO)..=BIASED_BRANCH_RATIO).contains(&then_ratio)
+            && ((1.0 - BIASED_BRANCH_RATIO)..=BIASED_BRANCH_RATIO).contains(&else_ratio);
 
         if is_balanced {
             return total_cost <= BALANCEI_CONVERT_BUDGET;
@@ -407,7 +407,7 @@ fn block_instruction_cost(block: &mir::Block) -> usize {
 /// Read branch profile counts when available.
 fn branch_profile_counts(
     candidate: &IfConvertCandidate,
-    profile: Option<&mir::ProfileTable>,
+    profile: Option<&mir::Profile>,
 ) -> Option<(u64, u64)> {
     let profile = profile?;
     let then_edge = mir::EdgeKey::new(
@@ -421,8 +421,8 @@ fn branch_profile_counts(
         candidate.else_block,
     );
 
-    let then_count = profile.edge_count(&then_edge)?.value;
-    let else_count = profile.edge_count(&else_edge)?.value;
+    let then_count = profile.edge_count(&then_edge)?;
+    let else_count = profile.edge_count(&else_edge)?;
 
     Some((then_count, else_count))
 }
@@ -589,9 +589,6 @@ b3(v9: int32):
             mir::MemoryAccessKind::Read,
             then_param,
             Some(4),
-            Vec::new(),
-            Vec::new(),
-            None,
             false,
             None,
         );
@@ -600,9 +597,6 @@ b3(v9: int32):
             mir::MemoryAccessKind::Read,
             else_param,
             Some(4),
-            Vec::new(),
-            Vec::new(),
-            None,
             false,
             None,
         );

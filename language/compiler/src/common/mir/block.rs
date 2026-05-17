@@ -1369,6 +1369,11 @@ pub fn terminator_substitute_uses(
         mir::ValueReference::from(value)
     };
 
+    let target_with_values = |target: &mir::BlockTarget| mir::BlockTarget {
+        block: target.block,
+        arguments: target.arguments.iter().copied().map(&substitute).collect(),
+    };
+
     match terminator {
         mir::Terminator::Error => {
             panic!("recovered MIR terminator reached optimizer");
@@ -1537,6 +1542,7 @@ pub fn terminator_substitute_uses(
             function,
             call,
             target,
+            unwind,
         } => mir::Terminator::Call {
             function: *function,
             call: mir::Call {
@@ -1547,11 +1553,13 @@ pub fn terminator_substitute_uses(
                 block: target.block,
                 arguments: target.arguments.iter().copied().map(substitute).collect(),
             },
+            unwind: unwind.as_ref().map(&target_with_values),
         },
         mir::Terminator::CallIndirect {
             callee,
             call,
             target,
+            unwind,
         } => mir::Terminator::CallIndirect {
             callee: substitute(*callee),
             call: mir::Call {
@@ -1562,51 +1570,58 @@ pub fn terminator_substitute_uses(
                 block: target.block,
                 arguments: target.arguments.iter().copied().map(substitute).collect(),
             },
+            unwind: unwind.as_ref().map(&target_with_values),
         },
         mir::Terminator::CallClass {
             receiver,
             call,
-            declaring_type,
+            class,
             slot,
-            declared_target,
             target,
+            unwind,
         } => mir::Terminator::CallClass {
             receiver: substitute(*receiver),
             call: mir::Call {
                 arguments: call.arguments.iter().copied().map(substitute).collect(),
                 ..call.clone()
             },
-            declaring_type: *declaring_type,
+            class: *class,
             slot: *slot,
-            declared_target: *declared_target,
             target: mir::BlockTarget {
                 block: target.block,
                 arguments: target.arguments.iter().copied().map(substitute).collect(),
             },
+            unwind: unwind.as_ref().map(&target_with_values),
         },
         mir::Terminator::CallInterface {
             receiver,
             call,
-            declaring_type,
+            interface,
             slot,
             target,
+            unwind,
         } => mir::Terminator::CallInterface {
             receiver: substitute(*receiver),
             call: mir::Call {
                 arguments: call.arguments.iter().copied().map(substitute).collect(),
                 ..call.clone()
             },
-            declaring_type: *declaring_type,
+            interface: *interface,
             slot: *slot,
             target: mir::BlockTarget {
                 block: target.block,
                 arguments: target.arguments.iter().copied().map(substitute).collect(),
             },
+            unwind: unwind.as_ref().map(&target_with_values),
         },
         mir::Terminator::Trap { kind, payload } => mir::Terminator::Trap {
             kind: *kind,
             payload: payload.map(substitute),
         },
+        mir::Terminator::Panic { payload } => mir::Terminator::Panic {
+            payload: payload.map(substitute),
+        },
+        mir::Terminator::ResumePanic => mir::Terminator::ResumePanic,
         mir::Terminator::Unreachable => mir::Terminator::Unreachable,
         mir::Terminator::TailCall { function, call } => mir::Terminator::TailCall {
             function: *function,
@@ -1618,23 +1633,21 @@ pub fn terminator_substitute_uses(
         mir::Terminator::TailCallClass {
             receiver,
             call,
-            declaring_type,
+            class,
             slot,
-            declared_target,
         } => mir::Terminator::TailCallClass {
             receiver: substitute(*receiver),
             call: mir::Call {
                 arguments: call.arguments.iter().copied().map(substitute).collect(),
                 ..call.clone()
             },
-            declaring_type: *declaring_type,
+            class: *class,
             slot: *slot,
-            declared_target: *declared_target,
         },
         mir::Terminator::TailCallInterface {
             receiver,
             call,
-            declaring_type,
+            interface,
             slot,
         } => mir::Terminator::TailCallInterface {
             receiver: substitute(*receiver),
@@ -1642,7 +1655,7 @@ pub fn terminator_substitute_uses(
                 arguments: call.arguments.iter().copied().map(substitute).collect(),
                 ..call.clone()
             },
-            declaring_type: *declaring_type,
+            interface: *interface,
             slot: *slot,
         },
         mir::Terminator::TailCallIndirect { callee, call } => mir::Terminator::TailCallIndirect {

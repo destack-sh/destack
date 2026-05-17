@@ -137,7 +137,7 @@ Cross-function optimizations that require module-level analysis.
 | `constant-merge` | ConstantMerge | module | O2 | | — | Deduplicate identical constants across module |
 | `global-opt` | GlobalOpt | module | O2 | ✓ | — | Convert never-written globals to immutable and fold constant loads |
 | `ip-dce-cleanup` | InterproceduralDceCleanup | module | O2 | ✓ | callgraph, cfg | Prune dead globals and functions after IPO |
-| `function-attrs` | FunctionAttrs | module | O2 | ✓ | callgraph | Infer memory effects and call behavior for functions and callsites |
+| `function-attrs` | FunctionAttrs | module | O2 | ✓ | callgraph | Infer memory effects and function behavior for functions and callsites |
 | `hot-cold-split` | HotColdSplit | module | O3 | | callgraph, loops | Split functions into hot and cold regions for better code layout |
 | `pgo-inline` | ProfileGuidedInline | module | O2 | | callgraph, profile | Inline based on callsite hotness and value profiles |
 | `indirect-call-promotion` | IndirectCallPromotion | module | O3 | | callgraph, profile | Promote hot indirect calls to direct with fallback |

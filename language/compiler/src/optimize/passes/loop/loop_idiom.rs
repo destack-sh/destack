@@ -412,13 +412,11 @@ fn run_loop_idiom(
                 continue;
             };
 
-            let Some(dest_space) =
-                reference_address_space(pattern.dest_element_addr_type.into(), tree)
+            let Some(dest_space) = reference_space(pattern.dest_element_addr_type.into(), tree)
             else {
                 continue;
             };
-            let Some(src_space) =
-                reference_address_space(pattern.src_element_addr_type.into(), tree)
+            let Some(src_space) = reference_space(pattern.src_element_addr_type.into(), tree)
             else {
                 continue;
             };
@@ -823,15 +821,12 @@ fn arrays_are_value_types(
         && matches!(tree.get(src_ty), mir::Type::Array { .. })
 }
 
-/// Return the address space for a reference type.
-fn reference_address_space(
-    ty_id: mir::TypeReference,
-    tree: &mir::Tree,
-) -> Option<mir::AddressSpace> {
+/// Return the space for a reference type.
+fn reference_space(ty_id: mir::TypeReference, tree: &mir::Tree) -> Option<mir::Space> {
     let ty_id = ty_id.ty()?;
 
     match tree.get(ty_id) {
-        mir::Type::Reference { address_space, .. } => Some(address_space.clone()),
+        mir::Type::Reference { space, .. } => Some(space.clone()),
         _ => None,
     }
 }
@@ -1532,9 +1527,6 @@ b3:
             store_id,
             mir::MemoryAccessKind::Write,
             store_ptr,
-            None,
-            Vec::new(),
-            Vec::new(),
             None,
             true,
             None,

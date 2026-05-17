@@ -83,12 +83,12 @@ impl ModuleWorkItem {
     }
 
     /// Access the profile data for this module.
-    pub fn with_profile<T>(&self, f: impl FnOnce(Option<&mir::ProfileTable>) -> T) -> T {
+    pub fn with_profile<T>(&self, f: impl FnOnce(Option<&mir::Profile>) -> T) -> T {
         f(None)
     }
 
     /// Clone the profile data for this module.
-    pub fn clone_profile(&self) -> Option<Arc<mir::ProfileTable>> {
+    pub fn clone_profile(&self) -> Option<Arc<mir::Profile>> {
         None
     }
 

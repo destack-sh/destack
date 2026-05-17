@@ -8,10 +8,8 @@ use crate::common::mir::analysis::{
     MemoryAccessId, MemoryAccessLocation, MemoryDef, MemorySSA,
 };
 use crate::common::mir::{
-    ValueEquivalence, address_spaces_may_alias, alias_scopes_may_alias,
-    build_instruction_block_map, build_value_definition_map, effect_is_trackable,
-    effects_match_location, instruction_has_atomic_ordering, space_sets_may_alias,
-    type_alias_tags_may_alias,
+    ValueEquivalence, build_instruction_block_map, build_value_definition_map, effect_is_trackable,
+    effects_match_location, instruction_has_atomic_ordering, spaces_may_alias,
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
@@ -26,7 +24,7 @@ declare_mir_pass! {
     /// ```mir
     /// function before(): int32 {
     /// b0:
-    ///     v0 = stack.alloc int32
+    ///     v0 = frame.alloc int32
     ///     v1 = 7int32
     ///     store v0, v1
     ///     store v0, v1
@@ -38,7 +36,7 @@ declare_mir_pass! {
     /// ```mir
     /// function after(): int32 {
     /// b0:
-    ///     v0 = stack.alloc int32
+    ///     v0 = frame.alloc int32
     ///     v1 = 7int32
     ///     store v0, v1
     ///     v2 = load v0
@@ -347,7 +345,7 @@ fn candidate_is_redundant(
         }
 
         // confirm both defs touch the same location
-        if !effects_match_location(tree, alias, &candidate.effect, &clobber_def.effect) {
+        if !effects_match_location(alias, &candidate.effect, &clobber_def.effect) {
             return false;
         }
 
@@ -462,7 +460,7 @@ fn def_kinds_equivalent(
             // compute alias relationship between source and destination
             let allow_must_alias = matches!(candidate.kind, DefKind::Memmove { .. });
             let alias_result =
-                memop_alias_result(&candidate.effect, &candidate_source.effect, alias, tree);
+                memop_alias_result(&candidate.effect, &candidate_source.effect, alias);
 
             // allow memmove with identical source and destination
             if allow_must_alias && alias_result == AliasResult::MustAlias {
@@ -543,34 +541,9 @@ fn memop_alias_result(
     dest_effect: &MemoryAccessEffect,
     source_effect: &MemoryAccessEffect,
     alias: &AliasAnalysis,
-    tree: &mir::Tree,
 ) -> AliasResult {
-    // apply alias scopes
-    if !alias_scopes_may_alias(
-        &dest_effect.alias_scopes,
-        &dest_effect.noalias_scopes,
-        &source_effect.alias_scopes,
-        &source_effect.noalias_scopes,
-    ) {
-        return AliasResult::NoAlias;
-    }
-
     // apply location sets
-    if !space_sets_may_alias(dest_effect.space_set, source_effect.space_set) {
-        return AliasResult::NoAlias;
-    }
-
-    // apply address spaces
-    if !address_spaces_may_alias(&dest_effect.address_spaces, &source_effect.address_spaces) {
-        return AliasResult::NoAlias;
-    }
-
-    // apply type-alias metadata
-    if !type_alias_tags_may_alias(
-        &tree.metadata.memory.type_alias,
-        dest_effect.type_alias_tag,
-        source_effect.type_alias_tag,
-    ) {
+    if !spaces_may_alias(dest_effect.space_set, source_effect.space_set) {
         return AliasResult::NoAlias;
     }
 
@@ -594,7 +567,7 @@ mod tests {
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 7int32
     store v0, v1
     store v0, v1
@@ -604,7 +577,7 @@ b0:
         let expected = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 7int32
     store v0, v1
     v2: int32 = load v0
@@ -622,7 +595,7 @@ b0:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 7int32
     v2: int32 = 7int32
     store v0, v1
@@ -633,7 +606,7 @@ b0:
         let expected = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 7int32
     v2: int32 = 7int32
     store v0, v1
@@ -652,7 +625,7 @@ b0:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 2int32
     v2: int32 = 3int32
     v3: int32 = int.add v1, v2
@@ -665,7 +638,7 @@ b0:
         let expected = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 2int32
     v2: int32 = 3int32
     v3: int32 = int.add v1, v2
@@ -686,7 +659,7 @@ b0:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 2int32
     v2: int32 = 3int32
     v3: int32 = int.add v1, v2
@@ -699,7 +672,7 @@ b0:
         let expected = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 2int32
     v2: int32 = 3int32
     v3: int32 = int.add v1, v2
@@ -720,7 +693,7 @@ b0:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 2int32
     v2: int32 = 3int32
     v3: int32 = int.add v1, v2
@@ -733,7 +706,7 @@ b0:
         let expected = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 2int32
     v2: int32 = 3int32
     v3: int32 = int.add v1, v2
@@ -758,7 +731,7 @@ b0:
 }
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 7int32
     store v0, v1
     call callee(): () -> void
@@ -773,7 +746,7 @@ b0:
 }
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 7int32
     store v0, v1
     call callee(): () -> void
@@ -784,8 +757,8 @@ b0:
         let mut test = TestProgram::new(input);
         let function_id = test.function_id_by_name("test");
         let (_, callee) = test.first_call_in_entry(function_id);
-        test.tree.get_mut(callee).memory_effect =
-            mir::MemoryEffect::read_only(mir::MemorySpaceSet::ANY);
+        test.tree.metadata.functions.function_mut(callee).memory =
+            mir::MemoryEffect::read_only(mir::SpaceSet::ANY);
 
         test.run_pass(&MemCse);
         test.assert_output(expected);
@@ -801,7 +774,7 @@ b0:
 }
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 7int32
     store v0, v1
     call callee(): () -> void
@@ -813,8 +786,8 @@ b0:
         let mut test = TestProgram::new(input);
         let function_id = test.function_id_by_name("test");
         let (_, callee) = test.first_call_in_entry(function_id);
-        test.tree.get_mut(callee).memory_effect =
-            mir::MemoryEffect::read_write(mir::MemorySpaceSet::ANY);
+        test.tree.metadata.functions.function_mut(callee).memory =
+            mir::MemoryEffect::read_write(mir::SpaceSet::ANY);
 
         test.run_pass(&MemCse);
         test.assert_unchanged(input);
@@ -830,7 +803,7 @@ b0:
 }
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 7int32
     store v0, v1
     call callee(): () -> void
@@ -845,7 +818,7 @@ b0:
 }
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 7int32
     store v0, v1
     call callee(): () -> void
@@ -856,16 +829,16 @@ b0:
         let mut test = TestProgram::new(input);
         let function_id = test.function_id_by_name("test");
         let (_, callee) = test.first_call_in_entry(function_id);
-        test.tree.get_mut(callee).memory_effect =
-            mir::MemoryEffect::write_only(mir::MemorySpaceSet::RAW_HEAP);
+        test.tree.metadata.functions.function_mut(callee).memory =
+            mir::MemoryEffect::write_only(mir::SpaceSet::LOCAL);
 
         test.run_pass(&MemCse);
         test.assert_output(expected);
     }
 
-    /// Redundant store across disjoint address space call is removed.
+    /// Redundant store across disjoint heap call is removed.
     #[test]
-    fn test_remove_redundant_store_across_address_space_call() {
+    fn test_remove_redundant_store_across_space_call() {
         let input = r#"
 function callee(): void {
 b0:
@@ -873,7 +846,7 @@ b0:
 }
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 7int32
     store v0, v1
     call callee(): () -> void
@@ -888,7 +861,7 @@ b0:
 }
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 7int32
     store v0, v1
     call callee(): () -> void
@@ -899,9 +872,8 @@ b0:
         let mut test = TestProgram::new(input);
         let function_id = test.function_id_by_name("test");
         let (_, callee) = test.first_call_in_entry(function_id);
-        test.tree.get_mut(callee).memory_effect =
-            mir::MemoryEffect::write_only(mir::MemorySpaceSet::ANY)
-                .with_address_spaces(mir::AddressSpaceSet::new(vec![mir::AddressSpace::Shared]));
+        test.tree.metadata.functions.function_mut(callee).memory =
+            mir::MemoryEffect::write_only(mir::SpaceSet::SHARED);
 
         test.run_pass(&MemCse);
         test.assert_output(expected);
@@ -913,7 +885,7 @@ b0:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 7int32
     v2: int32 = 9int32
     store v0, v1
@@ -933,7 +905,7 @@ b0:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 1int32
     v2: int32 = 2int32
     store v0, v1
@@ -954,7 +926,7 @@ b0:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 7int32
     store v0, v1
     store v0, v1
@@ -967,7 +939,7 @@ b0:
         let function = test.tree.get(function_id);
         let block = test.tree.get(function.blocks[0]);
         let pointer = *test
-            .stack_alloc_destinations_in_entry(function_id)
+            .frame_alloc_destinations_in_entry(function_id)
             .first()
             .expect("missing stack allocation");
 
@@ -976,9 +948,6 @@ b0:
             volatile_store,
             mir::MemoryAccessKind::Write,
             pointer,
-            None,
-            Vec::new(),
-            Vec::new(),
             None,
             true,
             None,
@@ -994,7 +963,7 @@ b0:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 7int32
     store v0, v1
     store v0, v1
@@ -1007,7 +976,7 @@ b0:
         let function = test.tree.get(function_id);
         let block = test.tree.get(function.blocks[0]);
         let pointer = *test
-            .stack_alloc_destinations_in_entry(function_id)
+            .frame_alloc_destinations_in_entry(function_id)
             .first()
             .expect("missing stack allocation");
 
@@ -1016,9 +985,6 @@ b0:
             ordered_store,
             mir::MemoryAccessKind::Write,
             pointer,
-            None,
-            Vec::new(),
-            Vec::new(),
             None,
             false,
             Some(mir::MemoryOrdering::SequentiallyConsistent),
@@ -1034,7 +1000,7 @@ b0:
         let input = r#"
 function test(v0: boolean): int32 {
 b0(v0: boolean):
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     v2: int32 = 7int32
     branch v0, b1, b2
 b1:
@@ -1051,7 +1017,7 @@ b3:
         let expected = r#"
 function test(v0: boolean): int32 {
 b0(v0: boolean):
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     v2: int32 = 7int32
     branch v0, b1, b2
 b1:
@@ -1076,7 +1042,7 @@ b3:
         let input = r#"
 function test(v0: boolean): int32 {
 b0(v0: boolean):
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     v2: int32 = 7int32
     v3: int32 = 9int32
     branch v0, b1, b2
@@ -1131,7 +1097,7 @@ b0:
         let input = r#"
 function test(): void {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int8 = 0int8
     v2: int64 = 4int64
     intrinsic.memory.raw.setBytes(v0, v1, v2)
@@ -1141,7 +1107,7 @@ b0:
         let expected = r#"
 function test(): void {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int8 = 0int8
     v2: int64 = 4int64
     intrinsic.memory.raw.setBytes(v0, v1, v2)
@@ -1159,8 +1125,8 @@ b0:
         let input = r#"
 function test(): void {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     v2: int64 = 4int64
     intrinsic.memory.raw.copyBytes(v0, v1, v2)
     intrinsic.memory.raw.copyBytes(v0, v1, v2)
@@ -1169,8 +1135,8 @@ b0:
         let expected = r#"
 function test(): void {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     v2: int64 = 4int64
     intrinsic.memory.raw.copyBytes(v0, v1, v2)
     return
@@ -1187,8 +1153,8 @@ b0:
         let input = r#"
 function test(): void {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     v2: int64 = 4int64
     v3: int64 = 8int64
     intrinsic.memory.raw.copyBytes(v0, v1, v2)
@@ -1207,8 +1173,8 @@ b0:
         let input = r#"
 function test(): void {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     v2: int64 = 4int64
     v3: int32 = 7int32
     intrinsic.memory.raw.copyBytes(v0, v1, v2)
@@ -1228,8 +1194,8 @@ b0:
         let input = r#"
 function test(): void {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     v2: int64 = 4int64
     intrinsic.memory.raw.moveBytes(v0, v1, v2)
     intrinsic.memory.raw.moveBytes(v0, v1, v2)
@@ -1238,8 +1204,8 @@ b0:
         let expected = r#"
 function test(): void {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     v2: int64 = 4int64
     intrinsic.memory.raw.moveBytes(v0, v1, v2)
     return
@@ -1257,7 +1223,7 @@ b0:
 type Bytes = [int8; 12]
 function test(): void {
 b0:
-    v0: ref<Bytes, raw, space(stack)> = stack.alloc Bytes
+    v0: ref<Bytes, raw, space(frame)> = frame.alloc Bytes
     v1: int64 = 0int64
     v2: int64 = 4int64
     v3: ref<int8, borrowed> = element.address v0, v1
