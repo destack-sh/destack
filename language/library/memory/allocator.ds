@@ -85,11 +85,9 @@ export newtype Allocation<T = uint8, S: Space = "local"> = {
 /// Low-level allocator for raw memory in space `S`.
 export newtype interface Allocator<S: Space = "local"> {
     /// Allocate raw memory.
-    @unsafe
     allocate<T = uint8>(layout: AllocationLayout): Result<Allocation<T, S>, AllocationError>;
 
     /// Allocate zero-filled raw memory.
-    @unsafe
     allocateZeroed<T = uint8>(layout: AllocationLayout): Result<Allocation<T, S>, AllocationError>;
 
     /// Free raw memory.

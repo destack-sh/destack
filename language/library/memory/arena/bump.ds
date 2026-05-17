@@ -26,13 +26,11 @@ export extension<S: Space = "local"> of Bump<S> implements Allocator<S> {
     }
 
     /// Allocate raw memory.
-    @unsafe
     allocate<T = uint8>(layout: AllocationLayout): Result<Allocation<T, S>, AllocationError> {
         todo("Bump.allocate")
     }
 
     /// Allocate zero-filled raw memory.
-    @unsafe
     allocateZeroed<T = uint8>(layout: AllocationLayout): Result<Allocation<T, S>, AllocationError> {
         todo("Bump.allocateZeroed")
     }

@@ -794,14 +794,20 @@ define_language_items! {
             /// `@unsafe` marker
             Unsafe => (Newtype, "decorator/taint", "unsafe"),
 
+            /// `@safe` marker
+            Safe => (Newtype, "decorator/taint", "safe"),
+
             /// `@taint` marker
             Taint => (Newtype, "decorator/taint", "taint"),
+
+            /// `@source` marker
+            Source => (Newtype, "decorator/taint", "source"),
 
             /// `@sink` marker
             Sink => (Newtype, "decorator/taint", "sink"),
 
-            /// `@sanitizer` marker
-            Sanitizer => (Newtype, "decorator/taint", "sanitizer"),
+            /// `@untaint` marker
+            Untaint => (Newtype, "decorator/taint", "untaint"),
         }
     }
 }

@@ -1,36 +1,53 @@
-/// Marks data as belonging to a taint domain.
+/// Marks data as carrying one taint domain.
 ///
 /// ```ds
-/// @taint("url")
-/// const target = input;
+/// @taint("html")
+/// const rawComment = input;
 /// ```
 @languageItem("decorator.taint")
 export newtype taint = (string,) | ();
 
+/// Marks a declaration as removing one taint domain.
+///
+/// ```ds
+/// @untaint("html")
+/// function escapeHtml(value: string): string;
+/// ```
+@languageItem("decorator.untaint")
+export newtype untaint = (string,) | ();
+
+/// Marks a declaration as producing tainted data.
+///
+/// ```ds
+/// @source("html")
+/// function readComment(): string;
+/// ```
+@languageItem("decorator.source")
+export newtype source = (string,) | ();
+
 /// Marks a declaration as consuming tainted data.
 ///
 /// ```ds
-/// @sink("url")
-/// function redirect(value: string): void;
+/// @sink("html")
+/// function setInnerHtml(value: string): void;
 /// ```
 @languageItem("decorator.sink")
 export newtype sink = (string,) | ();
 
-/// Marks a declaration as sanitizing tainted data.
+/// Marks an API, expression, or block as crossing an unsafe boundary.
 ///
 /// ```ds
-/// @sanitizer("url")
-/// function sanitizeUrl(value: string): string;
+/// @unsafe
+/// declare function read<T>(pointer: *T): ^T;
 /// ```
-@languageItem("decorator.sanitizer")
-export newtype sanitizer = (string,) | ();
-
-/// Marks a declaration or expression as requiring unsafe authority.
 @languageItem("decorator.unsafe")
 export newtype unsafe = (string,) | ();
 
-/// Allows unsafe operations inside the annotated scope.
-export newtype allowUnsafe = (string,) | ();
-
-/// Marks a declaration as safely encapsulating unsafe implementation details.
-export newtype trusted = (string,) | ();
+/// Marks a declaration as containing unsafe implementation details behind a safe API.
+///
+/// ```ds
+/// @safe
+/// function get<T>(items: Slice<T>, index: usize): T;
+/// ```
+@languageItem("decorator.safe")
+export newtype safe = (string,) | ();
