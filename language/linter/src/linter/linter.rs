@@ -7,8 +7,8 @@ use destack_artifact::{
 };
 use destack_source::{FileId, ModuleId, PackageId};
 use destack_workspace::{
-    LintPreset, LinterOptions, Module, Profile, ProfileId, ProviderContext, ProviderError,
-    ProviderResult, Repository, Revision,
+    ArtifactReader, LintPreset, LinterOptions, Module, Profile, ProfileId, ProviderContext,
+    ProviderError, ProviderResult, Repository, Revision,
 };
 
 use crate::{LintLevel, LintReport, LintRunner};
@@ -193,31 +193,6 @@ impl Linter {
         self.package_linter_options(revision, module.package_id)
     }
 
-    /// Build the compiler artifact keys required for one module lint.
-    fn module_lint_dependency_keys(
-        &self,
-        revision: Revision,
-        module_id: ModuleId,
-        profile_id: ProfileId,
-    ) -> Result<Vec<ArtifactKey>, LinterError> {
-        let Some(module) = self.repository_module(revision, module_id) else {
-            return Ok(Vec::new());
-        };
-        let module = module.as_ref();
-
-        // only code modules carry source and checked DIR products
-        if !module.is_code() {
-            return Ok(Vec::new());
-        }
-
-        let artifact_keys = vec![
-            ArtifactKey::dir_parsed(module_id),
-            ArtifactKey::dir_checked(module_id, profile_id),
-        ];
-
-        Ok(artifact_keys)
-    }
-
     /// Lint one module and return fresh diagnostics.
     pub fn lint_module(
         &self,
@@ -226,18 +201,7 @@ impl Linter {
         module_id: ModuleId,
         profile: Profile,
     ) -> Result<(), LinterError> {
-        let profile_id = profile.id();
-
-        // validate the required compiler products up front
-        let dependency_keys = self.module_lint_dependency_keys(revision, module_id, profile_id)?;
-        let artifact_keys = self.missing_artifact_keys(revision, dependency_keys.iter().copied());
-        if !artifact_keys.is_empty() {
-            return Err(LinterError::Repository {
-                message: format!("lint module dependencies are not ready: {artifact_keys:?}"),
-            });
-        }
-
-        // skip non code modules after validation
+        // skip non code modules
         let Some(module) = self.repository_module(revision, module_id) else {
             return Ok(());
         };
@@ -377,12 +341,14 @@ impl Linter {
         profile_id: ProfileId,
     ) -> ProviderResult<ArtifactPayload> {
         let revision = context.revision();
-        let dependency_keys = self
-            .module_lint_dependency_keys(revision, module_id, profile_id)
-            .map_err(|error| ProviderError::internal(error.to_string()))?;
+        let artifacts = ArtifactReader::new(context, self.repository.artifact_store().clone());
 
-        for dependency_key in dependency_keys {
-            context.require(dependency_key)?;
+        // require checked source products for code modules
+        if self
+            .repository_module(revision, module_id)
+            .is_some_and(|module| module.is_code())
+        {
+            artifacts.require(ArtifactKey::dir_checked(module_id, profile_id))?;
         }
 
         let profile = self
@@ -414,10 +380,10 @@ impl Linter {
         let dependency_keys = self
             .package_lint_dependency_keys(revision, package_id)
             .map_err(|error| ProviderError::internal(error.to_string()))?;
+        let artifacts = ArtifactReader::new(context, self.repository.artifact_store().clone());
 
-        for dependency_key in dependency_keys {
-            context.require(dependency_key)?;
-        }
+        // require module lint products together
+        artifacts.require_all(&dependency_keys)?;
 
         self.lint_package(context, revision, package_id)
             .map_err(|error| ProviderError::internal(error.to_string()))?;
@@ -431,38 +397,15 @@ impl Linter {
         let dependency_keys = self
             .workspace_lint_dependency_keys(revision)
             .map_err(|error| ProviderError::internal(error.to_string()))?;
+        let artifacts = ArtifactReader::new(context, self.repository.artifact_store().clone());
 
-        for dependency_key in dependency_keys {
-            context.require(dependency_key)?;
-        }
+        // require package lint products together
+        artifacts.require_all(&dependency_keys)?;
 
         self.lint_workspace(context, revision)
             .map_err(|error| ProviderError::internal(error.to_string()))?;
 
         Ok(ArtifactPayload::WorkspaceLinted(WorkspaceLinted))
-    }
-
-    /// Return the missing artifact keys from one required key set.
-    fn missing_artifact_keys(
-        &self,
-        revision: Revision,
-        keys: impl IntoIterator<Item = ArtifactKey>,
-    ) -> Vec<ArtifactKey> {
-        let mut artifact_keys = Vec::new();
-
-        for artifact_key in keys {
-            let Ok(Some(version)) = self.repository.artifact_version(revision, &artifact_key)
-            else {
-                artifact_keys.push(artifact_key);
-                continue;
-            };
-
-            if !self.repository.artifact_store().has(&version) {
-                artifact_keys.push(artifact_key);
-            }
-        }
-
-        artifact_keys
     }
 
     /// Return the dependency keys for one package lint artifact.
