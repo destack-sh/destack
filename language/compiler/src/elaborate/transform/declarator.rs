@@ -110,7 +110,6 @@ impl Compiler {
                     binding_expression_id.into_any(),
                     scope,
                     None,
-                    Some(dir::ProvenanceReason::Elaborated),
                 );
 
                 let new_binding = match binding_kind {

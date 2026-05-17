@@ -248,7 +248,6 @@ impl Compiler {
                     callee_id.into_any(),
                     scope,
                     parent_id,
-                    Some(dir::ProvenanceReason::Elaborated),
                 );
 
                 let type_expression_id = state.tree.insert(
@@ -279,7 +278,6 @@ impl Compiler {
                     callee_id.into_any(),
                     scope,
                     parent_id,
-                    Some(dir::ProvenanceReason::Elaborated),
                 );
 
                 Some(state.tree.insert(

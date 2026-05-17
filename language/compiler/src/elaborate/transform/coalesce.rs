@@ -142,7 +142,6 @@ impl Compiler {
             original_expr_id.into_any(),
             scope,
             None,
-            Some(dir::ProvenanceReason::Elaborated),
         );
         let if_id: LocalNodeId<Expression> = state.tree.insert_as_owner(
             if_id,
@@ -467,7 +466,6 @@ impl Compiler {
             expression_id.into_any(),
             block_scope,
             None,
-            Some(dir::ProvenanceReason::Elaborated),
         );
         let if_id: LocalNodeId<Expression> = state.tree.insert_as_owner(
             if_id,
@@ -487,7 +485,6 @@ impl Compiler {
             expression_id.into_any(),
             block_scope,
             None,
-            Some(dir::ProvenanceReason::Elaborated),
         );
         let block_id = state.tree.insert_as_owner(
             block_id,

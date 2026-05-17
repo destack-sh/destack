@@ -19,7 +19,6 @@ impl Compiler {
             origin_id.into_any(),
             scope,
             None,
-            Some(dir::ProvenanceReason::Elaborated),
         );
         let expression_id = state.tree.insert_as_owner(
             literal_id,

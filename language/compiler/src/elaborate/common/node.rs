@@ -61,7 +61,6 @@ impl Compiler {
             origin_id.into_any(),
             scope,
             None,
-            Some(dir::ProvenanceReason::Elaborated),
         );
         let cloned_id = state.tree.insert_as_owner(cloned_id, expression.clone());
 
@@ -110,7 +109,6 @@ impl Compiler {
             origin_id,
             scope,
             Some(parent_id),
-            Some(dir::ProvenanceReason::Elaborated),
         );
 
         state.tree.insert_as_owner(
@@ -174,7 +172,6 @@ impl Compiler {
             origin_id,
             scope,
             None,
-            Some(dir::ProvenanceReason::Elaborated),
         );
         let reference_id: LocalNodeId<Expression> = state.tree.insert_as_owner(
             reference_id,
@@ -211,7 +208,6 @@ impl Compiler {
             origin_id.into_any(),
             scope,
             None,
-            Some(dir::ProvenanceReason::Elaborated),
         );
         let pattern_id: LocalNodeId<Pattern> = state.tree.insert_as_owner(
             pattern_id,
@@ -228,7 +224,6 @@ impl Compiler {
             origin_id.into_any(),
             scope,
             None,
-            Some(dir::ProvenanceReason::Elaborated),
         );
         let declarator_id: LocalNodeId<Declarator> = state.tree.insert_as_owner(
             declarator_id,
@@ -245,7 +240,6 @@ impl Compiler {
             origin_id.into_any(),
             scope,
             None,
-            Some(dir::ProvenanceReason::Elaborated),
         );
         let let_id: LocalNodeId<Expression> = state.tree.insert_as_owner(
             let_id,

@@ -161,7 +161,6 @@ impl Compiler {
                     match_id.into_any(),
                     scope,
                     None,
-                    Some(dir::ProvenanceReason::Elaborated),
                 );
                 let block_expr: LocalNodeId<Expression> = state
                     .tree
@@ -391,7 +390,6 @@ impl Compiler {
             match_id.into_any(),
             scope,
             None,
-            Some(dir::ProvenanceReason::Elaborated),
         );
 
         // insert the if expression
@@ -1422,7 +1420,6 @@ impl Compiler {
             match_id.into_any(),
             scope,
             None,
-            Some(dir::ProvenanceReason::Elaborated),
         );
         let index_expr: LocalNodeId<Expression> = state.tree.insert_as_owner(
             index_lit_id,
@@ -1443,7 +1440,6 @@ impl Compiler {
             match_id.into_any(),
             scope,
             None,
-            Some(dir::ProvenanceReason::Elaborated),
         );
         let expr_id = state.tree.insert_as_owner(
             idx_id,
@@ -1480,7 +1476,6 @@ impl Compiler {
             match_id.into_any(),
             scope,
             None,
-            Some(dir::ProvenanceReason::Elaborated),
         );
 
         // insert the member access expression
@@ -1710,7 +1705,6 @@ impl Compiler {
             match_id.into_any(),
             scope,
             None,
-            Some(dir::ProvenanceReason::Elaborated),
         );
         let block: LocalNodeId<Block> = state.tree.insert_as_owner(
             block_id,
@@ -1729,7 +1723,6 @@ impl Compiler {
             match_id.into_any(),
             scope,
             None,
-            Some(dir::ProvenanceReason::Elaborated),
         );
         let expr_id = state
             .tree
@@ -1777,7 +1770,6 @@ impl Compiler {
             origin_id.into_any(),
             scope,
             None,
-            Some(dir::ProvenanceReason::Elaborated),
         );
         let block: LocalNodeId<Block> = state.tree.insert_as_owner(
             block_id,
@@ -1796,7 +1788,6 @@ impl Compiler {
             origin_id.into_any(),
             scope,
             None,
-            Some(dir::ProvenanceReason::Elaborated),
         );
         let expr_id = state
             .tree

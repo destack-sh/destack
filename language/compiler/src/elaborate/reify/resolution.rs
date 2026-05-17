@@ -100,7 +100,6 @@ impl Compiler {
             expression_id.into_any(),
             scope,
             None,
-            Some(dir::ProvenanceReason::Reified),
         );
         let cloned_id = state.tree.insert_as_owner(cloned_id, cloned_expression);
         state.types_tail.copy_node_relations(
@@ -128,7 +127,6 @@ impl Compiler {
             argument_id.into_any(),
             scope,
             None,
-            Some(dir::ProvenanceReason::Reified),
         );
 
         let cloned_argument = match argument {
@@ -234,7 +232,6 @@ impl Compiler {
                 expression_id.into_any(),
                 scope,
                 None,
-                Some(dir::ProvenanceReason::Reified),
             );
             else_branch = state.tree.insert_as_owner(
                 if_id,
