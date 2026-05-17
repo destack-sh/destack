@@ -1,12 +1,10 @@
 use destack_dir as dir;
 use destack_dir::{Expression, GlobalNodeIdAny, GlobalSymbolId, Resolution};
-use destack_source::{ModuleId, ProfileId};
 use destack_workspace::{Repository, Revision};
 
 use super::{expression_symbol_target, is_type_symbol};
 use crate::core::{
-    DirQueryContext, NominalEntry, NominalRelation, query_context_for_profile,
-    with_query_context_for_module,
+    DirQueryContext, NominalEntry, NominalRelation, QueryContext, with_query_context_for_module,
 };
 
 /// Return the recorded symbol target for one member access.
@@ -59,16 +57,7 @@ pub(crate) fn resolve_nominal_symbol_from_type_expression(
 }
 
 /// Build nominal index entries for one module.
-pub(crate) fn build_nominal_relations_for_module(
-    repository: &Repository,
-    revision: Revision,
-    module_id: ModuleId,
-    profile_id: ProfileId,
-) -> Vec<NominalEntry> {
-    let Some(ctx) = query_context_for_profile(repository, revision, module_id, profile_id) else {
-        return Vec::new();
-    };
-
+pub(crate) fn build_nominal_relations_for_module(ctx: &QueryContext<'_>) -> Vec<NominalEntry> {
     let mut entries = Vec::new();
 
     // collect direct nominal edges from stored lineages

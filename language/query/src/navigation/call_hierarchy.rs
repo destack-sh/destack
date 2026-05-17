@@ -5,7 +5,10 @@ use destack_source::{FileId, Span, Uri};
 use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 
-use crate::core::{call_candidates_for_callee, call_candidates_for_caller, query_context};
+use crate::core::{
+    call_candidates_for_callee, call_candidates_for_caller, query_context,
+    query_context_for_profile,
+};
 use crate::dir::{
     find_symbol_at_offset, get_canonical_symbol, get_symbol_declaration_span,
     get_symbol_definition_span, resolve_symbol_name,
@@ -153,8 +156,13 @@ pub fn incoming_calls(
     item: &CallHierarchyItem,
 ) -> Vec<CallHierarchyIncomingCall> {
     let canonical_id = get_canonical_symbol(repository, revision, item.symbol_id);
+    let Some(profile_id) =
+        query_context(repository, revision, item.symbol_id.module_id).map(|ctx| ctx.profile_id())
+    else {
+        return Vec::new();
+    };
     let mut incoming_by_caller: HashMap<GlobalSymbolId, Vec<Span>> = HashMap::new();
-    for entry in call_candidates_for_callee(repository, revision, canonical_id) {
+    for entry in call_candidates_for_callee(repository, revision, profile_id, canonical_id) {
         let Some(caller_symbol) = entry.caller_symbol else {
             continue;
         };
@@ -168,7 +176,7 @@ pub fn incoming_calls(
     let mut incoming = Vec::new();
     for (caller_symbol, call_spans) in incoming_by_caller {
         if let Some(caller_item) =
-            call_hierarchy_item_from_symbol(repository, revision, caller_symbol)
+            call_hierarchy_item_from_symbol(repository, revision, profile_id, caller_symbol)
         {
             incoming.push(CallHierarchyIncomingCall {
                 from: caller_item,
@@ -196,8 +204,13 @@ pub fn outgoing_calls(
     item: &CallHierarchyItem,
 ) -> Vec<CallHierarchyOutgoingCall> {
     let canonical_id = get_canonical_symbol(repository, revision, item.symbol_id);
+    let Some(profile_id) =
+        query_context(repository, revision, item.symbol_id.module_id).map(|ctx| ctx.profile_id())
+    else {
+        return Vec::new();
+    };
     let mut calls_with_spans: HashMap<GlobalSymbolId, Vec<Span>> = HashMap::new();
-    for entry in call_candidates_for_caller(repository, revision, canonical_id) {
+    for entry in call_candidates_for_caller(repository, revision, profile_id, canonical_id) {
         let callee_symbol = get_canonical_symbol(repository, revision, entry.callee_symbol);
 
         calls_with_spans
@@ -210,7 +223,8 @@ pub fn outgoing_calls(
     let mut outgoing = Vec::new();
     for (target_symbol_id, call_spans) in calls_with_spans {
         // only include function calls
-        let Some(target_ctx) = query_context(repository, revision, target_symbol_id.module_id)
+        let Some(target_ctx) =
+            query_context_for_profile(repository, revision, target_symbol_id.module_id, profile_id)
         else {
             continue;
         };
@@ -224,7 +238,7 @@ pub fn outgoing_calls(
         }
 
         if let Some(target_item) =
-            call_hierarchy_item_from_symbol(repository, revision, target_symbol_id)
+            call_hierarchy_item_from_symbol(repository, revision, profile_id, target_symbol_id)
         {
             outgoing.push(CallHierarchyOutgoingCall {
                 to: target_item,
@@ -269,10 +283,11 @@ fn call_kind_rank(kind: CallHierarchyKind) -> u8 {
 fn call_hierarchy_item_from_symbol(
     repository: &Repository,
     revision: Revision,
+    profile_id: destack_source::ProfileId,
     symbol_id: GlobalSymbolId,
 ) -> Option<CallHierarchyItem> {
     let canonical_id = get_canonical_symbol(repository, revision, symbol_id);
-    let ctx = query_context(repository, revision, canonical_id.module_id)?;
+    let ctx = query_context_for_profile(repository, revision, canonical_id.module_id, profile_id)?;
     let name = {
         let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(canonical_id.local_id);

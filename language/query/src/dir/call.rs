@@ -2,12 +2,9 @@ use destack_dir as dir;
 use destack_dir::{
     Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, Resolution, SymbolForm,
 };
-use destack_source::{ModuleId, ProfileId};
 use destack_workspace::{Repository, Revision};
 
-use crate::core::{
-    CallEntry, DirQueryContext, QueryContext, query_context, query_context_for_profile,
-};
+use crate::core::{CallEntry, DirQueryContext, QueryContext, query_context};
 use crate::source::get_node_tree_span;
 
 use super::{
@@ -100,16 +97,11 @@ fn symbol_is_function(
 /// Build call index entries for one module.
 pub(crate) fn build_call_candidates_for_module(
     repository: &Repository,
-    revision: Revision,
-    module_id: ModuleId,
-    profile_id: ProfileId,
+    ctx: &QueryContext<'_>,
 ) -> Vec<CallEntry> {
-    let Some(ctx) = query_context_for_profile(repository, revision, module_id, profile_id) else {
-        return Vec::new();
-    };
-
     let mut entries = Vec::new();
     let dir_tree = ctx.dir().view();
+    let module_id = ctx.module_id();
 
     for (expression_id, expression) in dir_tree.iter_nodes_of_type::<Expression>() {
         let left_expression = match expression {
@@ -136,7 +128,7 @@ pub(crate) fn build_call_candidates_for_module(
 /// Return the canonical function symbols targeted by one call.
 fn call_target_symbols(
     repository: &Repository,
-    ctx: &QueryContext,
+    ctx: &QueryContext<'_>,
     expression_id: LocalNodeId<Expression>,
     left_expression_id: LocalNodeId<Expression>,
 ) -> Vec<GlobalSymbolId> {
@@ -185,7 +177,7 @@ fn call_target_symbols(
 
 /// Find the containing function symbol for one node.
 fn find_containing_function_symbol(
-    ctx: &QueryContext,
+    ctx: &QueryContext<'_>,
     node_id: dir::LocalNodeIdAny,
 ) -> Option<GlobalSymbolId> {
     let mut current = Some(node_id);

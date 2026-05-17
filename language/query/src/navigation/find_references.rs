@@ -2,7 +2,7 @@ use destack_source::{FileId, Span, Uri};
 use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 
-use crate::core::{modules_referencing_symbol, query_context};
+use crate::core::{modules_referencing_symbol, query_context, query_context_for_profile};
 use crate::dir::{
     ReferenceCollectionOptions, collect_symbol_references_in_context, find_symbol_at_offset,
     get_canonical_symbol, get_symbol_definition_span, get_symbol_local_definition_span,
@@ -70,6 +70,8 @@ pub fn find_references(
 ) -> Option<ReferencesResult> {
     // find the symbol at offset
     let symbol_at = find_symbol_at_offset(repository, revision, file, offset)?;
+    let profile_id =
+        query_context(repository, revision, symbol_at.symbol_id.module_id)?.profile_id();
 
     // preserve local import aliases as local reference targets
     let (target_symbol, declaration_span, target_name) = if let Some(local_alias_name) =
@@ -106,6 +108,7 @@ pub fn find_references(
     let references = find_references_to_symbol(
         repository,
         revision,
+        profile_id,
         target_symbol,
         declaration_span,
         target_name.as_deref(),
@@ -121,6 +124,7 @@ pub fn find_references(
 fn find_references_to_symbol(
     repository: &Repository,
     revision: Revision,
+    profile_id: destack_source::ProfileId,
     canonical_id: GlobalSymbolId,
     declaration_span: Option<Span>,
     target_name: Option<&str>,
@@ -142,8 +146,9 @@ fn find_references_to_symbol(
     };
 
     // collect references across candidate modules only
-    for module_id in modules_referencing_symbol(repository, revision, canonical_id) {
-        let Some(ctx) = query_context(repository, revision, module_id) else {
+    for module_id in modules_referencing_symbol(repository, revision, profile_id, canonical_id) {
+        let Some(ctx) = query_context_for_profile(repository, revision, module_id, profile_id)
+        else {
             continue;
         };
 

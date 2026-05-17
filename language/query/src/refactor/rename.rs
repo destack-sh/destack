@@ -1,12 +1,13 @@
 use destack_core::StringPool;
 use destack_dir as dir;
-use destack_source::{BatchEdit, Edit, FileEdit, FileId, Span, Uri};
+use destack_source::{BatchEdit, Edit, FileEdit, FileId, ProfileId, Span, Uri};
 use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::core::{
     NominalRelation, modules_referencing_symbol, nominal_relations_for_target, query_context,
+    query_context_for_profile,
 };
 use crate::dir::{
     ReferenceCollectionOptions, SymbolAtOffset, collect_default_import_alias_symbols_for_export,
@@ -130,7 +131,10 @@ pub fn rename(
     }
 
     // resolve the rename target at the cursor
-    let (_, canonical_id, old_name) = resolve_rename_target(repository, revision, file, offset)?;
+    let (symbol_at, canonical_id, old_name) =
+        resolve_rename_target(repository, revision, file, offset)?;
+    let profile_id =
+        query_context(repository, revision, symbol_at.symbol_id.module_id)?.profile_id();
     let interface_member_target =
         resolve_interface_member_target(repository, revision, canonical_id);
     let preserve_local_definition =
@@ -141,6 +145,7 @@ pub fn rename(
     let primary_spans = collect_symbol_rename_spans(
         repository,
         revision,
+        profile_id,
         canonical_id,
         &old_name,
         preserve_local_definition,
@@ -148,16 +153,26 @@ pub fn rename(
     extend_spans_by_file(&mut edits_by_file, primary_spans);
 
     // include default import aliases that bind this export in other modules
-    let default_import_alias_symbols =
-        collect_default_import_alias_symbols_for_export(repository, revision, canonical_id);
+    let default_import_alias_symbols = collect_default_import_alias_symbols_for_export(
+        repository,
+        revision,
+        profile_id,
+        canonical_id,
+    );
     for alias_symbol in default_import_alias_symbols {
         let Some(alias_name) = resolve_local_import_alias_name(repository, revision, alias_symbol)
         else {
             continue;
         };
 
-        let alias_spans =
-            collect_symbol_rename_spans(repository, revision, alias_symbol, &alias_name, true);
+        let alias_spans = collect_symbol_rename_spans(
+            repository,
+            revision,
+            profile_id,
+            alias_symbol,
+            &alias_name,
+            true,
+        );
         extend_spans_by_file(&mut edits_by_file, alias_spans);
     }
 
@@ -166,6 +181,7 @@ pub fn rename(
         let implementation_members = collect_interface_member_implementations(
             repository,
             revision,
+            profile_id,
             &interface_member_target,
             &old_name,
         );
@@ -175,8 +191,14 @@ pub fn rename(
                 continue;
             }
 
-            let spans =
-                collect_symbol_rename_spans(repository, revision, member_symbol, &old_name, false);
+            let spans = collect_symbol_rename_spans(
+                repository,
+                revision,
+                profile_id,
+                member_symbol,
+                &old_name,
+                false,
+            );
             extend_spans_by_file(&mut edits_by_file, spans);
         }
     }
@@ -253,6 +275,7 @@ fn rename_reference_options<'a>(target_name: &'a str) -> ReferenceCollectionOpti
 fn collect_symbol_rename_spans(
     repository: &Repository,
     revision: Revision,
+    profile_id: ProfileId,
     canonical_id: dir::GlobalSymbolId,
     target_name: &str,
     preserve_local_definition: bool,
@@ -274,6 +297,7 @@ fn collect_symbol_rename_spans(
     let reference_spans = collect_symbol_reference_spans_across_user_modules(
         repository,
         revision,
+        profile_id,
         canonical_id,
         reference_options,
     );
@@ -288,13 +312,15 @@ fn collect_symbol_rename_spans(
 fn collect_symbol_reference_spans_across_user_modules(
     repository: &Repository,
     revision: Revision,
+    profile_id: ProfileId,
     canonical_id: dir::GlobalSymbolId,
     options: ReferenceCollectionOptions<'_>,
 ) -> Vec<Span> {
     let mut spans = Vec::new();
 
-    for module_id in modules_referencing_symbol(repository, revision, canonical_id) {
-        let Some(ctx) = query_context(repository, revision, module_id) else {
+    for module_id in modules_referencing_symbol(repository, revision, profile_id, canonical_id) {
+        let Some(ctx) = query_context_for_profile(repository, revision, module_id, profile_id)
+        else {
             continue;
         };
 
@@ -561,13 +587,14 @@ fn resolve_interface_member_target(
 fn collect_interface_member_implementations(
     repository: &Repository,
     revision: Revision,
+    profile_id: ProfileId,
     target: &InterfaceMemberTarget,
     expected_name: &str,
 ) -> Vec<dir::GlobalSymbolId> {
     let mut members = Vec::new();
     let interface_symbol = get_canonical_symbol(repository, revision, target.interface_symbol);
     let implementing_symbols: Vec<dir::GlobalSymbolId> =
-        nominal_relations_for_target(repository, revision, interface_symbol)
+        nominal_relations_for_target(repository, revision, profile_id, interface_symbol)
             .into_iter()
             .filter(|entry| entry.relation == NominalRelation::Implements)
             .map(|entry| entry.source_symbol)
@@ -589,7 +616,8 @@ fn collect_interface_member_implementations(
             });
 
     for (module_id, implementing_symbols) in implementing_module_ids {
-        let Some(ctx) = query_context(repository, revision, module_id) else {
+        let Some(ctx) = query_context_for_profile(repository, revision, module_id, profile_id)
+        else {
             continue;
         };
 

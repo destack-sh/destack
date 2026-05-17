@@ -6,7 +6,9 @@ use destack_dir::TokenType;
 use destack_source::{BatchEdit, Edit, File, FileEdit, FileId, Span, Uri};
 use serde::{Deserialize, Serialize};
 
-use crate::core::{QueryContext, call_candidates_for_callee, query_context};
+use crate::core::{
+    QueryContext, call_candidates_for_callee, query_context, query_context_for_profile,
+};
 use crate::dir::{
     expression_symbol_target, find_symbol_at_offset, get_canonical_symbol,
     member_access_symbol_target,
@@ -75,6 +77,8 @@ pub fn change_signature(
     // resolve the function symbol at the cursor
     let _module = get_module_by_file_id(repository, revision, file)?;
     let symbol_at = find_symbol_at_offset(repository, revision, file, offset)?;
+    let profile_id =
+        query_context(repository, revision, symbol_at.symbol_id.module_id)?.profile_id();
     let canonical_id = get_canonical_symbol(repository, revision, symbol_at.symbol_id);
     let constructor_owner = constructor_owner_symbol(repository, revision, canonical_id);
     let old_param_positions = function_parameter_name_positions(repository, revision, canonical_id);
@@ -105,18 +109,19 @@ pub fn change_signature(
 
     // narrow the scan to modules that actually call the target
     let mut candidate_modules = HashSet::new();
-    for entry in call_candidates_for_callee(repository, revision, canonical_id) {
+    for entry in call_candidates_for_callee(repository, revision, profile_id, canonical_id) {
         candidate_modules.insert(entry.module_id);
     }
     if let Some(owner_symbol) = constructor_owner {
-        for entry in call_candidates_for_callee(repository, revision, owner_symbol) {
+        for entry in call_candidates_for_callee(repository, revision, profile_id, owner_symbol) {
             candidate_modules.insert(entry.module_id);
         }
     }
 
     // update call sites across candidate modules only
     for module_id in candidate_modules {
-        let Some(ctx) = query_context(repository, revision, module_id) else {
+        let Some(ctx) = query_context_for_profile(repository, revision, module_id, profile_id)
+        else {
             continue;
         };
         let dir_tree = ctx.dir().view();
@@ -240,7 +245,7 @@ fn constructor_owner_symbol(
 
 /// Return the symbol targeted by a call target expression.
 fn call_target_symbol(
-    ctx: &QueryContext,
+    ctx: &QueryContext<'_>,
     dir_tree: dir::View<'_>,
     call_left: dir::LocalNodeId<dir::Expression>,
 ) -> Option<dir::GlobalSymbolId> {
@@ -451,7 +456,7 @@ fn function_declaration_from_binding(
 }
 
 /// Find the inner span of the first parenthesis pair.
-fn find_parenthesis_inner_span(ctx: &QueryContext, span: Span) -> Option<Span> {
+fn find_parenthesis_inner_span(ctx: &QueryContext<'_>, span: Span) -> Option<Span> {
     // scan tokens for the first parenthesis pair within the span
     let mut depth = 0u32;
     let mut start = None;
@@ -613,7 +618,7 @@ fn parse_param_specs(raw: &str) -> Vec<ParamSpec> {
 /// Build the new argument list for a call expression.
 fn build_arguments_for_call(
     repository: &Repository,
-    ctx: &QueryContext,
+    ctx: &QueryContext<'_>,
     dir_tree: dir::View<'_>,
     expr_id: dir::LocalNodeId<dir::Expression>,
     params: &[ParamSpec],
@@ -748,7 +753,7 @@ fn build_arguments_for_call(
 /// Extract the argument value text without labels.
 fn argument_value_text(
     source_file: &File,
-    ctx: &QueryContext,
+    ctx: &QueryContext<'_>,
     dir_tree: dir::View<'_>,
     argument: &dir::Argument,
 ) -> String {

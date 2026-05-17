@@ -370,13 +370,13 @@ impl<'a> CompletionBuilder<'a> {
     }
 
     /// Build one query context for the focused file.
-    fn current_query_context(&self) -> Option<QueryContext> {
+    fn current_query_context(&self) -> Option<QueryContext<'_>> {
         let module = self.current_module()?;
         query_context(self.repository, self.revision, module.id)
     }
 
     /// Build one query context for one module id.
-    fn query_context_for_module(&self, module_id: ModuleId) -> Option<QueryContext> {
+    fn query_context_for_module(&self, module_id: ModuleId) -> Option<QueryContext<'_>> {
         query_context(self.repository, self.revision, module_id)
     }
 

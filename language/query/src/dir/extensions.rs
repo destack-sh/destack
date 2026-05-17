@@ -1,9 +1,9 @@
 use destack_dir::{Extension, ExtensionForm, GlobalSymbolId};
-use destack_source::{ModuleId, ProfileId};
+use destack_source::ModuleId;
 use destack_workspace::{Repository, Revision};
 
 use crate::core::{
-    DirQueryContext, ExtensionEntry, extension_candidates_for_target, query_context,
+    DirQueryContext, ExtensionEntry, QueryContext, extension_candidates_for_target, query_context,
     query_context_for_profile,
 };
 
@@ -21,10 +21,18 @@ pub(crate) fn for_each_visible_extension(
 ) {
     // normalize the target symbol across imports and re exports
     let canonical_target = get_canonical_symbol(repository, revision, target_symbol);
+    let Some(profile_id) =
+        query_context(repository, revision, current_module_id).map(|ctx| ctx.profile_id())
+    else {
+        return;
+    };
 
     // scan cached extensions for the canonical target
-    for entry in extension_candidates_for_target(repository, revision, canonical_target) {
-        let Some(ctx) = query_context(repository, revision, entry.module_id) else {
+    for entry in extension_candidates_for_target(repository, revision, profile_id, canonical_target)
+    {
+        let Some(ctx) =
+            query_context_for_profile(repository, revision, entry.module_id, profile_id)
+        else {
             continue;
         };
 
@@ -46,21 +54,16 @@ pub(crate) fn for_each_visible_extension(
 /// Build extension index entries for one module.
 pub(crate) fn build_extension_candidates_for_module(
     repository: &Repository,
-    revision: Revision,
-    module_id: ModuleId,
-    profile_id: ProfileId,
+    ctx: &QueryContext<'_>,
 ) -> Vec<ExtensionEntry> {
-    let Some(ctx) = query_context_for_profile(repository, revision, module_id, profile_id) else {
-        return Vec::new();
-    };
-
     let mut entries = Vec::new();
+    let module_id = ctx.module_id();
 
     for (extension_id, extension) in ctx.dir().types().iter_extensions() {
         entries.push(ExtensionEntry {
             module_id,
             extension_id,
-            target_symbol: get_canonical_symbol(repository, revision, extension.target),
+            target_symbol: get_canonical_symbol(repository, ctx.revision(), extension.target),
         });
     }
 

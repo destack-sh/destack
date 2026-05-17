@@ -334,7 +334,7 @@ fn parameter_infos_from_data(labels: &[String], data: &ParameterData) -> Vec<Par
 ///
 /// Counts how many arguments come before the cursor position.
 fn determine_active_parameter(
-    ctx: &QueryContext,
+    ctx: &QueryContext<'_>,
     dir_tree: dir::View<'_>,
     call_expression_id: dir::LocalNodeId<Expression>,
     arguments: &[dir::LocalNodeId<Argument>],

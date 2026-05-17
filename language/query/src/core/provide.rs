@@ -1,7 +1,7 @@
 use destack_artifact::{ArtifactKey, ArtifactPayload, ModuleQueryIndex, WorkspaceQueryIndex};
 use destack_qir::QueryIndex;
 use destack_source::{ModuleId, ProfileId};
-use destack_workspace::{ProviderContext, ProviderError, ProviderResult, Revision};
+use destack_workspace::{ArtifactReader, ProviderContext, ProviderError, ProviderResult, Revision};
 
 use crate::dir::{
     build_call_candidates_for_module, build_extension_candidates_for_module,
@@ -11,8 +11,8 @@ use crate::dir::{
 };
 
 use super::{
-    CallIndex, ExtensionIndex, ImportIndex, NominalIndex, Query, ReferenceEntry, ReferenceIndex,
-    SpecifierIndex, SymbolIndex,
+    CallIndex, ExtensionIndex, ImportIndex, NominalIndex, Query, QueryContext, ReferenceEntry,
+    ReferenceIndex, SpecifierIndex, SymbolIndex, query_context_for_profile,
 };
 
 impl Query {
@@ -41,17 +41,19 @@ impl Query {
         profile_id: ProfileId,
     ) -> ProviderResult<ArtifactPayload> {
         let revision = context.revision();
+        let artifacts = ArtifactReader::new(context, self.repository().artifact_store().clone());
 
-        // query indexes are built from the checked source model
-        context.require(ArtifactKey::dir_parsed(module_id))?;
-        context.require(ArtifactKey::dir_bound(module_id, profile_id))?;
-        context.require(ArtifactKey::dir_imported(module_id, profile_id))?;
-        context.require(ArtifactKey::dir_expanded(module_id, profile_id))?;
-        context.require(ArtifactKey::dir_exported(module_id, profile_id))?;
-        context.require(ArtifactKey::dir_checked(module_id, profile_id))?;
+        // require the checked source model used by the query context
+        artifacts.require(ArtifactKey::dir_checked(module_id, profile_id))?;
 
-        // build the module index payload
-        let index = self.build_module_query_index(revision, module_id, profile_id);
+        // build the module index from one checked query context
+        let context = query_context_for_profile(self.repository(), revision, module_id, profile_id)
+            .ok_or_else(|| {
+                ProviderError::internal(format!(
+                    "missing checked query context for module {module_id:?} profile {profile_id:?}"
+                ))
+            })?;
+        let index = self.build_module_query_index(&context);
         let payload = ModuleQueryIndex { index };
 
         Ok(ArtifactPayload::ModuleQueryIndex(payload))
@@ -65,6 +67,7 @@ impl Query {
     ) -> ProviderResult<ArtifactPayload> {
         let repository = self.repository();
         let revision = context.revision();
+        let artifacts = ArtifactReader::new(context, repository.artifact_store().clone());
 
         // collect modules in the requested profile
         let module_ids = repository
@@ -82,7 +85,7 @@ impl Query {
         }
 
         // require module indexes together so the executor can fan them out
-        let versions = context.require_all(&keys)?;
+        let versions = artifacts.require_all(&keys)?;
         // retain exact module index versions without duplicating index payloads
         let payload = WorkspaceQueryIndex { modules: versions };
 
@@ -105,48 +108,33 @@ impl Query {
     }
 
     /// Build one module-scoped query index.
-    fn build_module_query_index(
-        &self,
-        revision: Revision,
-        module_id: ModuleId,
-        profile_id: ProfileId,
-    ) -> QueryIndex {
+    fn build_module_query_index(&self, context: &QueryContext<'_>) -> QueryIndex {
         let repository = self.repository();
+        let module_id = context.module_id();
 
         // visible symbols and importable exports
-        let symbols = SymbolIndex::new(build_workspace_symbol_candidates_for_module(
-            repository, revision, module_id, profile_id,
-        ));
-        let imports = ImportIndex::new(build_import_candidates_for_module(
-            repository, revision, module_id, profile_id,
-        ));
+        let symbols = SymbolIndex::new(build_workspace_symbol_candidates_for_module(context));
+        let imports = ImportIndex::new(build_import_candidates_for_module(repository, context));
 
         // reference targets
-        let references =
-            build_reference_targets_for_module(repository, revision, module_id, profile_id)
-                .into_iter()
-                .map(|target_symbol| ReferenceEntry {
-                    target_symbol,
-                    module_id,
-                })
-                .collect();
+        let references = build_reference_targets_for_module(repository, context)
+            .into_iter()
+            .map(|target_symbol| ReferenceEntry {
+                target_symbol,
+                module_id,
+            })
+            .collect();
         let references = ReferenceIndex::new(references);
 
         // navigation relations
-        let calls = CallIndex::new(build_call_candidates_for_module(
-            repository, revision, module_id, profile_id,
-        ));
-        let nominal = NominalIndex::new(build_nominal_relations_for_module(
-            repository, revision, module_id, profile_id,
-        ));
-        let extensions = ExtensionIndex::new(build_extension_candidates_for_module(
-            repository, revision, module_id, profile_id,
-        ));
+        let calls = CallIndex::new(build_call_candidates_for_module(repository, context));
+        let nominal = NominalIndex::new(build_nominal_relations_for_module(context));
+        let extensions =
+            ExtensionIndex::new(build_extension_candidates_for_module(repository, context));
 
         // refactor targets
-        let specifiers = SpecifierIndex::new(build_specifier_candidates_for_module(
-            repository, revision, module_id, profile_id,
-        ));
+        let specifiers =
+            SpecifierIndex::new(build_specifier_candidates_for_module(repository, context));
 
         QueryIndex {
             symbols,

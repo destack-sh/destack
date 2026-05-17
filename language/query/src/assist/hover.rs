@@ -265,7 +265,7 @@ pub fn hover(
 /// Resolve a type string for a hover target when available.
 fn resolve_hover_type_text(
     repository: &Repository,
-    ctx: &QueryContext,
+    ctx: &QueryContext<'_>,
     symbols: &dir::BindingTable<'_>,
     hover_node_id: dir::LocalNodeIdAny,
     symbol_id: dir::GlobalSymbolId,
@@ -309,7 +309,11 @@ fn hover_location(repository: &Repository, revision: Revision, span: Span) -> Op
 }
 
 /// Resolve the visible hover range for a symbol.
-fn hover_range_for_symbol(ctx: &QueryContext, node_id: LocalNodeIdAny, default_span: Span) -> Span {
+fn hover_range_for_symbol(
+    ctx: &QueryContext<'_>,
+    node_id: LocalNodeIdAny,
+    default_span: Span,
+) -> Span {
     // preserve full declaration ranges for member declarations
     if node_id.ty == NodeType::Member {
         return get_node_tree_span(ctx.source(), ctx.dir().view(), node_id);

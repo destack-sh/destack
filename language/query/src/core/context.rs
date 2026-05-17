@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactKey, ArtifactPin, ArtifactVersion, DirBound, DirExpanded, DirExported, DirImported,
-    DirParsed, GlobalEnvironment,
+    ArtifactKey, ArtifactVersion, DirBound, DirExpanded, DirExported, DirImported, DirParsed,
+    GlobalEnvironment,
 };
 use destack_core::StringPool;
 use destack_dir as dir;
@@ -13,9 +13,7 @@ use crate::source::get_module_by_file_id;
 
 /// Query context for a module.
 #[derive(Debug)]
-pub(crate) struct QueryContext {
-    /// The exact artifact pins retained for this query.
-    _pins: Vec<ArtifactPin>,
+pub(crate) struct QueryContext<'a> {
     /// The source module DIR.
     dir_parsed: Arc<DirParsed>,
     /// The bound module DIR.
@@ -31,7 +29,7 @@ pub(crate) struct QueryContext {
     /// The checked type table.
     dir_types: dir::TypeTable<'static>,
     /// Shared repository strings.
-    strings: Arc<StringPool>,
+    strings: &'a StringPool,
     /// The revision used for this context.
     revision: Revision,
     /// The profile used for this context.
@@ -224,7 +222,7 @@ impl<'a> DirQueryContext<'a> {
     }
 }
 
-impl QueryContext {
+impl QueryContext<'_> {
     /// Return the profile id for this query context.
     pub(crate) fn profile_id(&self) -> ProfileId {
         self.profile_id
@@ -250,7 +248,7 @@ impl QueryContext {
         SourceQueryContext {
             file_id: self.file_id,
             dir: self.dir_parsed.as_ref(),
-            strings: self.strings.as_ref(),
+            strings: self.strings,
         }
     }
 
@@ -266,7 +264,7 @@ impl QueryContext {
             exported: self.dir_exported.as_ref(),
             symbols: &self.dir_bindings,
             types: &self.dir_types,
-            strings: self.strings.as_ref(),
+            strings: self.strings,
         }
     }
 
@@ -288,7 +286,7 @@ pub(crate) fn query_context_for_profile(
     revision: Revision,
     module_id: ModuleId,
     profile: ProfileId,
-) -> Option<QueryContext> {
+) -> Option<QueryContext<'_>> {
     let module = repository.module(revision, module_id).ok().flatten()?;
     let artifacts = repository.artifact_store().clone();
     let selected_profile = repository
@@ -297,7 +295,7 @@ pub(crate) fn query_context_for_profile(
         .flatten()?
         .id();
 
-    // resolve and retain the exact source artifacts
+    // resolve exact source artifacts
     let parsed_version =
         artifact_version(repository, revision, ArtifactKey::dir_parsed(module.id))?;
     let bound_version = artifact_version(
@@ -336,24 +334,7 @@ pub(crate) fn query_context_for_profile(
     let dir_bindings = dir_expanded.binding_table(&dir_bound);
     let dir_types = dir_checked.type_table(&dir_bound, &dir_expanded);
 
-    // artifact roots
-    let parsed_pin = artifacts.pin(&parsed_version)?;
-    let bound_pin = artifacts.pin(&bound_version)?;
-    let imported_pin = artifacts.pin(&imported_version)?;
-    let expanded_pin = artifacts.pin(&expanded_version)?;
-    let exported_pin = artifacts.pin(&exported_version)?;
-    let checked_pin = artifacts.pin(&checked_version)?;
-
-    // build query context
     Some(QueryContext {
-        _pins: vec![
-            parsed_pin,
-            bound_pin,
-            imported_pin,
-            expanded_pin,
-            exported_pin,
-            checked_pin,
-        ],
         dir_parsed,
         dir_bound,
         dir_imported,
@@ -361,7 +342,7 @@ pub(crate) fn query_context_for_profile(
         dir_exported,
         dir_bindings,
         dir_types,
-        strings: repository.string_pool().clone(),
+        strings: repository.string_pool().as_ref(),
         revision,
         profile_id: selected_profile,
         module_id: module.id,
@@ -374,7 +355,7 @@ pub(crate) fn query_context(
     repository: &Repository,
     revision: Revision,
     module_id: ModuleId,
-) -> Option<QueryContext> {
+) -> Option<QueryContext<'_>> {
     let profile = repository.module_profile(revision, module_id).ok()?.id();
 
     query_context_for_profile(repository, revision, module_id, profile)
@@ -385,7 +366,7 @@ pub(crate) fn with_query_context_for_file<T>(
     repository: &Repository,
     revision: Revision,
     file_id: FileId,
-    f: impl FnOnce(QueryContext) -> T,
+    f: impl FnOnce(QueryContext<'_>) -> T,
 ) -> Option<T> {
     let module = get_module_by_file_id(repository, revision, file_id)?;
     let ctx = query_context(repository, revision, module.id)?;
@@ -398,7 +379,7 @@ pub(crate) fn with_query_context_for_module<T>(
     repository: &Repository,
     revision: Revision,
     module_id: ModuleId,
-    f: impl FnOnce(QueryContext) -> T,
+    f: impl FnOnce(QueryContext<'_>) -> T,
 ) -> Option<T> {
     let ctx = query_context(repository, revision, module_id)?;
     Some(f(ctx))
