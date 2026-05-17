@@ -1,11 +1,7 @@
 use std::collections::BTreeMap;
-use std::hash::Hash;
 use std::path::{Path, PathBuf};
 
-use destack_artifact::{
-    EmitFormat, Host, Platform, Runtime, TargetAbi, TargetArch, TargetKey, TargetVendor,
-};
-use destack_core::StableHasher;
+use destack_artifact::{EmitFormat, Host, Platform, Runtime, TargetAbi, TargetArch, TargetVendor};
 use destack_source::TargetId;
 use serde::{Deserialize, Serialize};
 
@@ -21,8 +17,6 @@ use super::policy::*;
 
 /// Default output directory for targets.
 const DEFAULT_TARGET_OUT_DIR: &str = "dist";
-/// Stable hash domain for target configuration identity.
-const TARGET_CONFIGURATION_KEY_DOMAIN: &[u8] = b"destack.workspace.target-configuration.v1";
 
 /// A build target configuration.
 ///
@@ -446,15 +440,6 @@ impl Target {
     /// Return whether this target uses the native generation pipeline.
     pub fn uses_native_generate_pipeline(&self) -> bool {
         self.emit.is_native_family()
-    }
-
-    /// Return the artifact dependency key for this target configuration.
-    pub fn configuration_key(&self) -> TargetKey {
-        let mut hasher = StableHasher::new();
-        hasher.update_len_prefixed(TARGET_CONFIGURATION_KEY_DOMAIN);
-        self.hash(&mut hasher);
-
-        TargetKey::new(hasher.finish_u128())
     }
 
     /// Return whether this target assembles one target level output shape.

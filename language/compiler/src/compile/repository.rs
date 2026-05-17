@@ -1,7 +1,7 @@
 use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 
-use destack_artifact::ArtifactDependency;
+use destack_artifact::{ArtifactDependency, ArtifactPathState};
 use destack_source::{File, FileId, ModuleId, PackageId, ProfileId, TargetId};
 use destack_workspace::{
     DestackFile, Module, Package, Profile, ProviderContext, Revision, Target, TargetDiscoveryError,
@@ -86,24 +86,24 @@ impl Compiler {
             .unwrap_or_else(|error| panic!("failed to load file content id: {error}"))
             .unwrap_or_else(|| panic!("missing file content id for {file_id:?}"));
 
+        context.track(ArtifactDependency::path_state(
+            file_id,
+            ArtifactPathState::File,
+        ));
         context.track(ArtifactDependency::file_content(file_id, content_id));
     }
 
-    /// Return one target or built-in and record its configuration dependency.
+    /// Return one target or built-in and record its source config dependencies.
     pub(crate) fn target_or_builtin(
         &self,
         context: &dyn ProviderContext,
         target_id: TargetId,
     ) -> Option<Target> {
+        let _config = self.destack_for_package(context, target_id.package_id());
         let target = self
             .repository
             .target_or_builtin(context.revision(), target_id)
             .unwrap_or_else(|error| panic!("failed to load target: {error}"))?;
-
-        context.track(ArtifactDependency::target_configuration(
-            target_id,
-            target.configuration_key(),
-        ));
 
         Some(target)
     }
@@ -115,22 +115,19 @@ impl Compiler {
             .unwrap_or_else(|error| panic!("failed to load target name: {error}"))
     }
 
-    /// Return module ids selected by one target and record the target module dependency.
+    /// Return module ids selected by one target and record its source config dependencies.
     pub(crate) fn target_module_ids(
         &self,
         context: &dyn ProviderContext,
         target_id: &TargetId,
     ) -> Result<Vec<ModuleId>, TargetDiscoveryError> {
+        let _config = self.destack_for_package(context, target_id.package_id());
         let mut module_ids = self
             .repository
             .target_module_ids(context.revision(), *target_id)?;
 
         module_ids.sort_unstable();
         module_ids.dedup();
-        context.track(ArtifactDependency::target_modules(
-            *target_id,
-            module_ids.iter().copied(),
-        ));
 
         Ok(module_ids)
     }

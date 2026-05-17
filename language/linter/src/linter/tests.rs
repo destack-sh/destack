@@ -5,10 +5,10 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, LazyLock, Once};
 
 use destack_artifact::{
-    ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactOutcome, ArtifactPayload,
-    ArtifactProvider, ArtifactVersion, DiagnosticAnchor, DiagnosticContext, DiagnosticDisplay,
-    DiagnosticError, DirParsed, DirParsedFile, EmitFormat, Host, MemoryCacheStore, Platform,
-    ProfileFlags, ProfileKey, Runtime, ToDiagnostic,
+    ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactOutcome, ArtifactPathState,
+    ArtifactPayload, ArtifactProvider, ArtifactVersion, DiagnosticAnchor, DiagnosticContext,
+    DiagnosticDisplay, DiagnosticError, DirParsed, DirParsedFile, EmitFormat, Host,
+    MemoryCacheStore, Platform, ProfileFlags, ProfileKey, Runtime, ToDiagnostic,
 };
 use destack_compiler::Compiler;
 use destack_core::StringPool;
@@ -182,6 +182,10 @@ fn source_file(
         .unwrap_or_else(|error| panic!("failed to load source file: {error}"))
         .unwrap_or_else(|| panic!("missing source file for {file_id:?}"));
 
+    context.track(ArtifactDependency::path_state(
+        file_id,
+        ArtifactPathState::File,
+    ));
     context.track(ArtifactDependency::file_content(file_id, content_id));
 
     file
@@ -285,6 +289,10 @@ fn language_type_for_code_file(
             .file_content_id(context.revision(), file_id)
             .unwrap_or_else(|error| panic!("failed to load source content id: {error}"))
             .unwrap_or_else(|| panic!("missing source content id for {file_id:?}"));
+        context.track(ArtifactDependency::path_state(
+            file_id,
+            ArtifactPathState::File,
+        ));
         context.track(ArtifactDependency::file_content(file_id, content_id));
     }
 
