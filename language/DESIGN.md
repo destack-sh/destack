@@ -3,19 +3,20 @@
 The Destack language (`.ds`) and toolchain, colloquially "TypeScript++", are a superset of "strict modern" TypeScript with support for `.ts` and `.tsx` files, native AOT compilation and a fully integrated language toolchain, _and_ it can also compile nicely to standard JS/TS targets.
 We believe that the ideal way to build correct, optimal, integrated software systems is to build a fully integrated stack (Destack), and thus by "language" ("TypeScript++") we mean much more than "just" a syntax form: a language, a runtime, a toolchain, plugins, and ultimately, a way of programming.
 
-## Universalism
+## Universality
 
 We're very early in software, and we're still figuring out how to build optimal, correct, and integrated software systems.
 Over 50 years, we have grown more and more layers of software sediment and need ever _more_ tools to get any code out the door, and yet confidence and performance have plummeted.
+We can do better, but not by adding _more_ and more inscrutable pieces.
 
-We believe the best possible stack is the most integrated one, and it must truly span the entire lifecycle: the language itself, the toolchain with linters and formatters, a VM, compiler, runtime, and basically anything that touches the code.
-Only TypeScript is seriously close to being a universal software foundation, because it runs directly on the web, and the web is the most ubiquitous application platform.
+The best possible stack must be fully integrated across the language itself, the toolchain with linters and formatters, a VM, compiler, runtime, and basically anything that touches the code.
+Only TypeScript is close to being a universal software foundation, because it runs directly on the web, and the web is the most ubiquitous application platform.
 The TypeScript ecosystem has good - if not perfect - answers to all modern software needs, from great developer tools to rich interactive frontends to quite _decent_ and performant backends.
 
-If you remove all the JS baggage and dynamic prototype mess, modern TypeScript is surprisingly close to a fully AOT-compilable language (and most browsers retrofit compilation internally already based on these assumptions).
+Excluding legacy JavaScript baggage and dynamic prototype mess, modern TypeScript is surprisingly close to a fully AOT-compilable language (and most browsers retrofit compilation internally already based on these assumptions).
 Embracing TypeScript and "the web ecosystem" lets us build a new toolchain that truly covers the full stack, is immediately familiar to millions of developers, runs transparently on existing targets, and can be completely free of JS overhead and (some) historic baggage.
 
-## Incrementalism
+## Granularity
 
  <!-- TODO -->
 
