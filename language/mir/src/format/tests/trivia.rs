@@ -2,7 +2,7 @@ use super::{
     assert_format, assert_format_eq, assert_output_eq, format_tree_with_options, parse_fixture,
 };
 use crate::{
-    Access, AddressSpace, Function, Lifetime, MirFormatOptions, Nullability, ReferenceKind, Type,
+    Access, Function, Lifetime, MirFormatOptions, Nullability, ReferenceKind, Space, Type,
     TypeReference,
 };
 
@@ -122,7 +122,7 @@ entry0:
     let environment = tree.insert_type(Type::Reference {
         kind: ReferenceKind::Managed,
         lifetime: Lifetime::empty(),
-        address_space: AddressSpace::Local,
+        space: Space::Local,
         access: Access::Mutable,
         pointee: TypeReference::Type(int32),
         nullability: Nullability::None,

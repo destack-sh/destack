@@ -1,7 +1,7 @@
 use destack_core::StringId;
 use serde::{Deserialize, Serialize};
 
-use crate::{AddressSpace, Constant, FunctionReference, Mutability, Node, NodeType, TypeReference};
+use crate::{Constant, FunctionReference, Mutability, Node, NodeType, Space, TypeReference};
 
 /// Symbol linkage (visibility and definition location).
 ///
@@ -50,8 +50,8 @@ pub struct Global {
     pub ty: TypeReference,
     /// Whether this global is mutable.
     pub mutability: Mutability,
-    /// The address space that owns this global storage.
-    pub space: AddressSpace,
+    /// The space that owns this global storage.
+    pub space: Space,
     /// Linkage (local, export, or import).
     pub linkage: Linkage,
     /// Initial value. None for imported globals.
@@ -74,7 +74,7 @@ impl Global {
             name,
             ty,
             mutability,
-            space: AddressSpace::Local,
+            space: Space::Local,
             linkage: Linkage::Local,
             initializer: Some(init),
         }
@@ -96,7 +96,7 @@ impl Global {
             name,
             ty,
             mutability,
-            space: AddressSpace::Local,
+            space: Space::Local,
             linkage: Linkage::Import,
             initializer: None,
         }

@@ -5,8 +5,8 @@ use destack_fir::write;
 use super::attribute::{write_attributes, write_attributes_before_anchor};
 
 use crate::{
-    AddressSpace, Constant, FormatMirNode, Global, GlobalInitializer, Linkage, LocalNodeId,
-    MirFormatter, Mutability,
+    Constant, FormatMirNode, Global, GlobalInitializer, Linkage, LocalNodeId, MirFormatter,
+    Mutability, Space,
 };
 
 impl<'a> FormatMirNode<'a, Global> for Global {
@@ -54,7 +54,7 @@ impl<'a> FormatMirNode<'a, Global> for Global {
             [token("global"), space(), text(&name), token(":"), space()]
         )?;
         write!(f, [self.ty])?;
-        if self.space != AddressSpace::Local {
+        if self.space != Space::Local {
             write!(
                 f,
                 [

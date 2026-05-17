@@ -1,7 +1,7 @@
 use crate::build::FunctionBuilder;
 use crate::{
-    Block, BlockTarget, Call, CheckConstraint, DispatchSlot, Function, LocalNodeId, Terminator,
-    TrapKind, Type, Value,
+    Block, BlockTarget, Call, CallSite, CheckConstraint, DispatchSlot, Function, LocalNodeId,
+    Terminator, TrapKind, Type, Value,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -96,16 +96,24 @@ impl<'a> FunctionBuilder<'a> {
         };
     }
 
-    /// Panic with a runtime payload.
-    pub fn trap_panic(&mut self, payload: Value) {
+    /// Panic with a language payload.
+    pub fn panic(&mut self, payload: Option<Value>) {
         let block = self.current_block();
         let terminator_id = self.tree.get(block).terminator;
         let terminator = self.tree.get_mut(terminator_id);
 
-        *terminator = Terminator::Trap {
-            kind: TrapKind::Panic,
-            payload: Some(payload.into()),
+        *terminator = Terminator::Panic {
+            payload: payload.map(Into::into),
         };
+    }
+
+    /// Resume the active panic after cleanup.
+    pub fn resume_panic(&mut self) {
+        let block = self.current_block();
+        let terminator_id = self.tree.get(block).terminator;
+        let terminator = self.tree.get_mut(terminator_id);
+
+        *terminator = Terminator::ResumePanic;
     }
 
     /// Call a function with an explicit continuation.
@@ -136,6 +144,7 @@ impl<'a> FunctionBuilder<'a> {
                 block: target_block.into(),
                 arguments: target_arguments.into_iter().map(Into::into).collect(),
             },
+            unwind: None,
         };
     }
 
@@ -167,6 +176,7 @@ impl<'a> FunctionBuilder<'a> {
                 block: target_block.into(),
                 arguments: target_arguments.into_iter().map(Into::into).collect(),
             },
+            unwind: None,
         };
     }
 
@@ -174,9 +184,9 @@ impl<'a> FunctionBuilder<'a> {
     pub fn call_class_branch(
         &mut self,
         receiver: Value,
-        declaring_type: LocalNodeId<Type>,
+        class: LocalNodeId<Type>,
         slot: DispatchSlot,
-        declared_target: Option<LocalNodeId<Function>>,
+        target: Option<LocalNodeId<Function>>,
         signature: LocalNodeId<Type>,
         argument_values: Vec<Value>,
         target_block: LocalNodeId<Block>,
@@ -190,9 +200,8 @@ impl<'a> FunctionBuilder<'a> {
 
         *terminator = Terminator::CallClass {
             receiver: receiver.into(),
-            declaring_type: declaring_type.into(),
+            class: class.into(),
             slot,
-            declared_target: declared_target.map(Into::into),
             call: Call::new(
                 argument_values
                     .into_iter()
@@ -204,14 +213,22 @@ impl<'a> FunctionBuilder<'a> {
                 block: target_block.into(),
                 arguments: target_arguments.into_iter().map(Into::into).collect(),
             },
+            unwind: None,
         };
+        if let Some(target) = target {
+            self.tree
+                .metadata
+                .functions
+                .call_mut(CallSite::Terminator(block_id))
+                .target = Some(target);
+        }
     }
 
     /// Call an interface method with an explicit continuation.
     pub fn call_interface_branch(
         &mut self,
         receiver: Value,
-        declaring_type: LocalNodeId<Type>,
+        interface: LocalNodeId<Type>,
         slot: DispatchSlot,
         signature: LocalNodeId<Type>,
         argument_values: Vec<Value>,
@@ -226,7 +243,7 @@ impl<'a> FunctionBuilder<'a> {
 
         *terminator = Terminator::CallInterface {
             receiver: receiver.into(),
-            declaring_type: declaring_type.into(),
+            interface: interface.into(),
             slot,
             call: Call::new(
                 argument_values
@@ -239,6 +256,7 @@ impl<'a> FunctionBuilder<'a> {
                 block: target_block.into(),
                 arguments: target_arguments.into_iter().map(Into::into).collect(),
             },
+            unwind: None,
         };
     }
 
@@ -273,9 +291,9 @@ impl<'a> FunctionBuilder<'a> {
     pub fn tail_call_class(
         &mut self,
         receiver: Value,
-        declaring_type: LocalNodeId<Type>,
+        class: LocalNodeId<Type>,
         slot: DispatchSlot,
-        declared_target: Option<LocalNodeId<Function>>,
+        target: Option<LocalNodeId<Function>>,
         signature: LocalNodeId<Type>,
         argument_values: Vec<Value>,
     ) {
@@ -285,9 +303,8 @@ impl<'a> FunctionBuilder<'a> {
 
         *terminator = Terminator::TailCallClass {
             receiver: receiver.into(),
-            declaring_type: declaring_type.into(),
+            class: class.into(),
             slot,
-            declared_target: declared_target.map(Into::into),
             call: Call::new(
                 argument_values
                     .into_iter()
@@ -296,6 +313,13 @@ impl<'a> FunctionBuilder<'a> {
                 signature.into(),
             ),
         };
+        if let Some(target) = target {
+            self.tree
+                .metadata
+                .functions
+                .call_mut(CallSite::Terminator(block_id))
+                .target = Some(target);
+        }
     }
 
     /// Tail call through an interface dispatch slot.
@@ -304,7 +328,7 @@ impl<'a> FunctionBuilder<'a> {
     pub fn tail_call_interface(
         &mut self,
         receiver: Value,
-        declaring_type: LocalNodeId<Type>,
+        interface: LocalNodeId<Type>,
         slot: DispatchSlot,
         signature: LocalNodeId<Type>,
         argument_values: Vec<Value>,
@@ -315,7 +339,7 @@ impl<'a> FunctionBuilder<'a> {
 
         *terminator = Terminator::TailCallInterface {
             receiver: receiver.into(),
-            declaring_type: declaring_type.into(),
+            interface: interface.into(),
             slot,
             call: Call::new(
                 argument_values

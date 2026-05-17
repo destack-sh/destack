@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 use crate::{LocalNodeId, Type};
 
 use super::{
-    DataLayout, DebugMetadata, DispatchMetadata, DropMetadata, LayoutMetadata, MemoryMetadata,
-    ProvenanceMetadata, TypeMetadata,
+    DataLayout, DispatchMetadata, DropMetadata, FunctionMetadataTable, LayoutMetadata,
+    MemoryMetadata, Profile, TypeMetadata,
 };
 
 /// Structured MIR metadata domains.
@@ -20,10 +20,10 @@ pub struct Metadata {
     pub dispatch: DispatchMetadata,
     /// Canonical drop metadata.
     pub drop: DropMetadata,
-    /// Provenance and source tracking metadata.
-    pub provenance: ProvenanceMetadata,
-    /// Debug metadata.
-    pub debug: DebugMetadata,
+    /// Derived function and call metadata.
+    pub functions: FunctionMetadataTable,
+    /// Profile metadata.
+    pub profile: Option<Profile>,
     /// Memory and alias metadata.
     pub memory: MemoryMetadata,
 }

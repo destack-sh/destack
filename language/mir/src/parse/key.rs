@@ -1,8 +1,8 @@
 use destack_core::StringId;
 
 use crate::{
-    Access, AddressSpace, Attribute, BorrowObligation, Copy, Field, FloatType, Lifetime,
-    LocalNodeId, Nullability, ReferenceKind, TensorDimension, TensorLayout, TensorViewLayout, Type,
+    Access, Attribute, BorrowObligation, Copy, Field, FloatType, Lifetime, LocalNodeId,
+    Nullability, ReferenceKind, Space, TensorDimension, TensorLayout, TensorViewLayout, Type,
     TypeReference, VariantCase,
 };
 
@@ -57,7 +57,7 @@ pub(super) enum TypeKey {
     Reference {
         kind: ReferenceKind,
         lifetime: Lifetime,
-        address_space: AddressSpace,
+        space: Space,
         access: Access,
         pointee: TypeReference,
         nullability: Nullability,
@@ -73,7 +73,7 @@ pub(super) enum TypeKey {
         kind: ReferenceKind,
         lifetime: Lifetime,
         element: TypeReference,
-        address_space: AddressSpace,
+        space: Space,
         access: Access,
         nullability: Nullability,
     },
@@ -113,7 +113,7 @@ pub(super) enum TypeKey {
     TensorView {
         kind: ReferenceKind,
         lifetime: Lifetime,
-        address_space: AddressSpace,
+        space: Space,
         access: Access,
         element: TypeReference,
         shape: Vec<TensorDimension>,
@@ -155,14 +155,14 @@ impl TypeKey {
             Type::Reference {
                 kind,
                 lifetime,
-                address_space,
+                space,
                 access,
                 pointee,
                 nullability,
             } => TypeKey::Reference {
                 kind: *kind,
                 lifetime: lifetime.clone(),
-                address_space: address_space.clone(),
+                space: space.clone(),
                 access: *access,
                 pointee: *pointee,
                 nullability: *nullability,
@@ -181,14 +181,14 @@ impl TypeKey {
                 kind,
                 lifetime,
                 element,
-                address_space,
+                space,
                 access,
                 nullability,
             } => TypeKey::Slice {
                 kind: *kind,
                 lifetime: lifetime.clone(),
                 element: *element,
-                address_space: address_space.clone(),
+                space: space.clone(),
                 access: *access,
                 nullability: *nullability,
             },
@@ -240,7 +240,7 @@ impl TypeKey {
             Type::TensorView {
                 kind,
                 lifetime,
-                address_space,
+                space,
                 access,
                 element,
                 shape,
@@ -249,7 +249,7 @@ impl TypeKey {
             } => TypeKey::TensorView {
                 kind: *kind,
                 lifetime: lifetime.clone(),
-                address_space: address_space.clone(),
+                space: space.clone(),
                 access: *access,
                 element: *element,
                 shape: shape.clone(),

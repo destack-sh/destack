@@ -2,9 +2,8 @@ use destack_core::StringId;
 
 use crate::build::ModuleBuilder;
 use crate::{
-    Access, AddressSpace, Constant, Copy, Field, FloatType, Lifetime, LocalNodeId, Nullability,
-    ReferenceKind, TensorDimension, TensorLayout, TensorViewLayout, Type, TypeReference,
-    VariantCase,
+    Access, Constant, Copy, Field, FloatType, Lifetime, LocalNodeId, Nullability, ReferenceKind,
+    Space, TensorDimension, TensorLayout, TensorViewLayout, Type, TypeReference, VariantCase,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -101,7 +100,7 @@ impl ModuleBuilder {
         kind: ReferenceKind,
         pointee: LocalNodeId<Type>,
         access: Access,
-        address_space: AddressSpace,
+        space: Space,
         nullability: Nullability,
     ) -> LocalNodeId<Type> {
         self.type_reference_with_lifetime(
@@ -109,7 +108,7 @@ impl ModuleBuilder {
             Lifetime::empty(),
             pointee,
             access,
-            address_space,
+            space,
             nullability,
         )
     }
@@ -121,13 +120,13 @@ impl ModuleBuilder {
         lifetime: Lifetime,
         pointee: LocalNodeId<Type>,
         access: Access,
-        address_space: AddressSpace,
+        space: Space,
         nullability: Nullability,
     ) -> LocalNodeId<Type> {
         self.tree.insert_type(Type::Reference {
             kind,
             lifetime,
-            address_space,
+            space,
             access,
             pointee: pointee.into(),
             nullability,
@@ -144,7 +143,7 @@ impl ModuleBuilder {
             ReferenceKind::Borrowed,
             pointee,
             access,
-            AddressSpace::Local,
+            Space::Local,
             Nullability::None,
         )
     }
@@ -164,7 +163,7 @@ impl ModuleBuilder {
             ReferenceKind::Raw,
             pointee,
             access,
-            AddressSpace::Local,
+            Space::Local,
             Nullability::None,
         )
     }
@@ -189,7 +188,7 @@ impl ModuleBuilder {
             ReferenceKind::Managed,
             pointee,
             access,
-            AddressSpace::Local,
+            Space::Local,
             Nullability::None,
         )
     }
@@ -220,7 +219,7 @@ impl ModuleBuilder {
             ReferenceKind::Managed,
             pointee,
             access,
-            AddressSpace::Local,
+            Space::Local,
             Nullability::Null,
         )
     }
@@ -248,7 +247,7 @@ impl ModuleBuilder {
             ReferenceKind::Unique,
             pointee,
             access,
-            AddressSpace::Local,
+            Space::Local,
             Nullability::None,
         )
     }
@@ -289,7 +288,7 @@ impl ModuleBuilder {
         kind: ReferenceKind,
         element: LocalNodeId<Type>,
         access: Access,
-        address_space: AddressSpace,
+        space: Space,
         shape: Vec<TensorDimension>,
         layout: TensorViewLayout,
         nullability: Nullability,
@@ -297,7 +296,7 @@ impl ModuleBuilder {
         self.tree.insert_type(Type::TensorView {
             kind,
             lifetime: Lifetime::empty(),
-            address_space,
+            space,
             access,
             element: element.into(),
             shape,
@@ -326,9 +325,9 @@ impl ModuleBuilder {
         kind: ReferenceKind,
         element: LocalNodeId<Type>,
         access: Access,
-        address_space: AddressSpace,
+        space: Space,
     ) -> LocalNodeId<Type> {
-        self.type_slice_with_lifetime(kind, element, Lifetime::empty(), access, address_space)
+        self.type_slice_with_lifetime(kind, element, Lifetime::empty(), access, space)
     }
 
     /// Create a slice type with explicit storage semantics and lifetime.
@@ -338,13 +337,13 @@ impl ModuleBuilder {
         element: LocalNodeId<Type>,
         lifetime: Lifetime,
         access: Access,
-        address_space: AddressSpace,
+        space: Space,
     ) -> LocalNodeId<Type> {
         self.tree.insert_type(Type::Slice {
             kind,
             lifetime,
             element: element.into(),
-            address_space,
+            space,
             access,
             nullability: Nullability::None,
         })
@@ -356,7 +355,7 @@ impl ModuleBuilder {
             ReferenceKind::Managed,
             element,
             Access::Mutable,
-            AddressSpace::Local,
+            Space::Local,
         )
     }
 

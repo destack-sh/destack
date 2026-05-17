@@ -3,10 +3,9 @@ use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 use crate::source::{Token, TokenType};
 use crate::{
     AllocationMode, Attribute, AttributeArgs, AttributeValue, Block, BlockTarget, Call,
-    CallBehavior, CheckConstraint, Function, FunctionHeaderSpans, Instruction, IntegerReference,
-    Linkage, Local, LocalNodeId, LocalReference, MemoryEffect, Mutability, Ownership, Parameter,
-    PointerAttribute, SwitchCase, Terminator, TrapKind, TypeReference, TypedValueSpan, Value,
-    ValueReference,
+    CheckConstraint, Function, FunctionHeaderSpans, Instruction, IntegerReference, Linkage, Local,
+    LocalNodeId, LocalReference, Mutability, Ownership, Parameter, SwitchCase, Terminator,
+    TrapKind, TypeReference, TypedValueSpan, Value, ValueReference,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -169,11 +168,6 @@ impl Parser {
         function.value_types = value_types;
         function.return_type = return_type;
         function.linkage = linkage;
-        function.memory_effect = MemoryEffect::unknown();
-        function.call_behavior = CallBehavior::unknown();
-        function.allocation_size = None;
-        function.parameter_attributes = vec![PointerAttribute::default(); parameters.len()];
-        function.return_attribute = PointerAttribute::default();
         function.environment = environment_type;
         self.tree.infer_and_set_function_return_lifetime(id);
 
@@ -454,6 +448,8 @@ impl Parser {
                 || self.peek_token(TokenType::Check)
                 || self.peek_token(TokenType::Switch)
                 || self.peek_token(TokenType::Yield)
+                || self.peek_token(TokenType::Panic)
+                || self.peek_token(TokenType::ResumePanic)
                 || self.peek_token(TokenType::Trap)
                 || self.peek_token(TokenType::Unreachable)
                 || self.peek_token(TokenType::TailCall)
@@ -806,6 +802,7 @@ impl Parser {
                     function,
                     call: Call::new(arguments, signature),
                     target,
+                    unwind: None,
                 })
             }
             TokenType::Jump => {
@@ -907,19 +904,20 @@ impl Parser {
                     });
                 }
 
-                // panic carries a payload
-                if self.tree.source_text(token.span) == "trap.panic" {
-                    let payload = self.parse_value()?;
-                    return Ok(Terminator::Trap {
-                        kind: TrapKind::Panic,
-                        payload: Some(payload),
-                    });
-                }
-
-                Err(ParseError::invalid(
-                    "expected `trap.abort` or `trap.panic`",
-                    token.start,
-                ))
+                Err(ParseError::invalid("expected `trap.abort`", token.start))
+            }
+            TokenType::Panic => {
+                self.bump();
+                let payload = if self.is_value_reference_start() {
+                    Some(self.parse_value()?)
+                } else {
+                    None
+                };
+                Ok(Terminator::Panic { payload })
+            }
+            TokenType::ResumePanic => {
+                self.bump();
+                Ok(Terminator::ResumePanic)
             }
             TokenType::Unreachable => {
                 self.bump();
@@ -949,56 +947,57 @@ impl Parser {
                     callee,
                     call: Call::new(arguments, signature),
                     target,
+                    unwind: None,
                 })
             }
             TokenType::TailCallClass => {
                 self.bump();
-                let (receiver, declaring_type, slot, arguments, signature) =
+                let (receiver, class, slot, arguments, signature) =
                     self.parse_class_call_target()?;
                 Ok(Terminator::TailCallClass {
                     receiver,
-                    declaring_type,
+                    class,
                     slot,
-                    declared_target: None,
                     call: Call::new(arguments, signature),
                 })
             }
             TokenType::CallClass => {
                 self.bump();
-                let (receiver, declaring_type, slot, arguments, signature) =
+                let (receiver, class, slot, arguments, signature) =
                     self.parse_class_call_target()?;
                 let target = self.parse_call_continuation()?;
                 Ok(Terminator::CallClass {
                     receiver,
-                    declaring_type,
+                    class,
                     slot,
-                    declared_target: None,
                     call: Call::new(arguments, signature),
                     target,
+                    unwind: None,
                 })
             }
             TokenType::TailCallInterface => {
                 self.bump();
-                let (receiver, declaring_type, slot, arguments, signature) =
+                let (receiver, interface, slot, arguments, signature) =
                     self.parse_interface_call_target()?;
                 Ok(Terminator::TailCallInterface {
                     receiver,
-                    declaring_type,
+                    interface,
                     slot,
                     call: Call::new(arguments, signature),
                 })
             }
             TokenType::CallInterface => {
                 self.bump();
-                let (receiver, declaring_type, slot, arguments, signature) =
+                let (receiver, interface, slot, arguments, signature) =
                     self.parse_interface_call_target()?;
                 let target = self.parse_call_continuation()?;
                 Ok(Terminator::CallInterface {
                     receiver,
-                    declaring_type,
+                    interface,
                     slot,
                     call: Call::new(arguments, signature),
                     target,
+                    unwind: None,
                 })
             }
             _ => Err(ParseError::unexpected(

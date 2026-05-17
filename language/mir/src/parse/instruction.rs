@@ -6,7 +6,7 @@ use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 use crate::{
     ArgumentSlice, AtomicAccess, AtomicRmwOperator, BinaryOperator, Call, CastOperator,
     CompareExchangeAccess, DispatchSlot, FenceAccess, FunctionReference, Instruction, LocalNodeId,
-    MemoryFlags, MemoryOrdering, MemoryScope, MemorySpaceSet, Place, PlaceOrigin, PlaceProjection,
+    MemoryFlags, MemoryOrdering, MemoryScope, Place, PlaceOrigin, PlaceProjection, SpaceSet,
     SyncScope, TensorConvertMode, TensorConvolutionDimensionNumbers, TensorConvolutionWindow,
     TensorDotDimensionNumbers, TensorGatherDimensionNumbers, TensorIndexReduceOperator,
     TensorIndexTieBreak, TensorReduceOperator, TensorScatterDimensionNumbers, TensorScatterMode,
@@ -210,26 +210,25 @@ impl Parser {
                 }
             }
             "call.class" => {
-                let (receiver, declaring_type, slot, arguments, signature) =
+                let (receiver, class, slot, arguments, signature) =
                     self.parse_class_call_target_segments(&mut segment_spans)?;
                 let arguments = self.tree.add_arguments(&arguments);
                 Instruction::CallClass {
                     destination,
                     receiver,
-                    declaring_type,
+                    class,
                     slot,
-                    declared_target: None,
                     call: Call::new(arguments, signature),
                 }
             }
             "call.interface" => {
-                let (receiver, declaring_type, slot, arguments, signature) =
+                let (receiver, interface, slot, arguments, signature) =
                     self.parse_interface_call_target_segments(&mut segment_spans)?;
                 let arguments = self.tree.add_arguments(&arguments);
                 Instruction::CallInterface {
                     destination,
                     receiver,
-                    declaring_type,
+                    interface,
                     slot,
                     call: Call::new(arguments, signature),
                 }
@@ -953,9 +952,9 @@ impl Parser {
                             result_type: destination_type.into(),
                         }
                     }
-                    "stack.alloc" => {
+                    "frame.alloc" => {
                         let layout = self.parse_type()?;
-                        Instruction::StackAlloc {
+                        Instruction::FrameAlloc {
                             destination,
                             layout: layout.into(),
                             result_type: destination_type.into(),
@@ -1855,7 +1854,7 @@ impl Parser {
     )> {
         let receiver = self.parse_value_segment(segment_spans)?;
         self.eat_token(TokenType::Comma)?;
-        let declaring_type = self.parse_type_segment(segment_spans)?;
+        let class = self.parse_type_segment(segment_spans)?;
         self.eat_token(TokenType::Comma)?;
         let slot = self.parse_int_segment(segment_spans)?;
         let slot = u32::try_from(slot)
@@ -1864,7 +1863,7 @@ impl Parser {
         let arguments = self.parse_call_argument_segments(segment_spans)?;
         let signature = self.parse_required_call_signature_segment(segment_spans)?;
 
-        Ok((receiver, declaring_type.into(), slot, arguments, signature))
+        Ok((receiver, class.into(), slot, arguments, signature))
     }
 
     /// Parse one interface call target and signature.
@@ -1894,7 +1893,7 @@ impl Parser {
     )> {
         let receiver = self.parse_value_segment(segment_spans)?;
         self.eat_token(TokenType::Comma)?;
-        let declaring_type = self.parse_type_segment(segment_spans)?;
+        let interface = self.parse_type_segment(segment_spans)?;
         self.eat_token(TokenType::Comma)?;
         let slot = self.parse_int_segment(segment_spans)?;
         let slot =
@@ -1903,7 +1902,7 @@ impl Parser {
         let arguments = self.parse_call_argument_segments(segment_spans)?;
         let signature = self.parse_required_call_signature_segment(segment_spans)?;
 
-        Ok((receiver, declaring_type.into(), slot, arguments, signature))
+        Ok((receiver, interface.into(), slot, arguments, signature))
     }
 
     /// Parse one indirect call target and signature.
@@ -2096,7 +2095,7 @@ impl Parser {
     /// Parse memory flags for one fence.
     fn parse_memory_flags(&mut self) -> ParseResult<MemoryFlags> {
         // flags state
-        let mut spaces = MemorySpaceSet::NONE;
+        let mut spaces = SpaceSet::NONE;
         let mut has_space = false;
         let mut is_space_locked = false;
         let mut makes_available = false;
@@ -2133,7 +2132,7 @@ impl Parser {
                 }
                 _ => {
                     let space = self.parse_memory_space(&token_text, token_start)?;
-                    if space == MemorySpaceSet::ANY || space == MemorySpaceSet::NONE {
+                    if space == SpaceSet::ANY || space == SpaceSet::NONE {
                         if has_space && !is_space_locked {
                             return Err(ParseError::new(
                                 "memory flags cannot mix any/none with other spaces",
@@ -2153,7 +2152,7 @@ impl Parser {
                         }
 
                         if !has_space {
-                            spaces = MemorySpaceSet::NONE;
+                            spaces = SpaceSet::NONE;
                             has_space = true;
                         }
 
@@ -2180,7 +2179,7 @@ impl Parser {
 
         // default the space set when omitted
         if !has_space {
-            spaces = MemorySpaceSet::ANY;
+            spaces = SpaceSet::ANY;
         }
 
         Ok(MemoryFlags::with_flags(

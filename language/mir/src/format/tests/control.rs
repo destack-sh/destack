@@ -68,7 +68,7 @@ fn test_format_trap() {
         r#"
 function trapper(value0: ref<void, managed, readonly>): void {
 entry0(value0: ref<void, managed, readonly>):
-    trap.panic value0
+    panic value0
 }
 "#,
     );

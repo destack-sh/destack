@@ -122,7 +122,11 @@ pub enum TokenType {
     Switch,
     /// `yield`
     Yield,
-    /// `trap.abort` or `trap.panic`
+    /// `panic`
+    Panic,
+    /// `panic.resume`
+    ResumePanic,
+    /// `trap.abort`
     Trap,
     /// `unreachable`
     Unreachable,
@@ -155,7 +159,7 @@ pub enum TokenType {
     /// `tensorView`
     TensorView,
     /// `space`
-    AddressSpace,
+    Space,
     /// `struct`
     Struct,
     /// `newtype`
@@ -197,7 +201,9 @@ impl TokenType {
             "check" => Self::Check,
             "switch" => Self::Switch,
             "yield" => Self::Yield,
-            "trap.abort" | "trap.panic" => Self::Trap,
+            "panic" => Self::Panic,
+            "panic.resume" => Self::ResumePanic,
+            "trap.abort" => Self::Trap,
             "unreachable" => Self::Unreachable,
             "tailCall" => Self::TailCall,
             "call" => Self::Call,
@@ -213,7 +219,7 @@ impl TokenType {
             "vector" => Self::Vector,
             "tensor" => Self::Tensor,
             "tensorView" => Self::TensorView,
-            "space" => Self::AddressSpace,
+            "space" => Self::Space,
             "struct" => Self::Struct,
             "newtype" => Self::Newtype,
             "true" | "false" => Self::BooleanLiteral,

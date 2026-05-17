@@ -2,10 +2,9 @@ use crate::source::TokenType;
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use crate::{
-    AllocationMode, Attribute, AttributeArgs, AttributeIdentifier, CallBehavior, Copy, Function,
-    Global, GlobalInitializer, Lifetime, Linkage, LocalNodeId, MemoryEffect, Mutability,
-    PlaceTable, PointerAttribute, Type, TypeAlias, TypeDeclarationSpans, TypeReference, Value,
-    ValueReference,
+    AllocationMode, Attribute, AttributeArgs, AttributeIdentifier, Copy, Function, Global,
+    GlobalInitializer, Lifetime, Linkage, LocalNodeId, Mutability, PlaceTable, Type, TypeAlias,
+    TypeDeclarationSpans, TypeReference, Value, ValueReference,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -143,11 +142,6 @@ impl Parser {
                         return_type: TypeReference::Type(void_type),
                         return_lifetime: Lifetime::empty(),
                         borrow_obligations: Vec::new(),
-                        memory_effect: MemoryEffect::unknown(),
-                        call_behavior: CallBehavior::unknown(),
-                        allocation_size: None,
-                        parameter_attributes: Vec::new(),
-                        return_attribute: PointerAttribute::default(),
                         linkage: Linkage::Local,
                         allocation: AllocationMode::Any,
                         suspension: None,
@@ -530,17 +524,23 @@ impl Parser {
         let (ty, type_span) = self.parse_type_reference_after(colon_token, "global type");
 
         // trailing qualifiers
-        let mut space = crate::AddressSpace::Local;
+        let mut space = crate::Space::Local;
         while self.eat_token_maybe(TokenType::Comma) {
-            if self.eat_token_maybe(TokenType::AddressSpace) {
+            if self.eat_token_maybe(TokenType::Space) {
                 self.eat_token(TokenType::OpenParenthesis)?;
                 let token = self
                     .peek()
                     .ok_or_else(|| ParseError::unexpected_end("global space", self.pos()))?;
-                let text = self.tree.source_text(token.span).to_string();
                 space = match self.token_type(token) {
                     TokenType::Identifier | TokenType::Local => {
-                        crate::AddressSpace::from_name(&text)
+                        let text = self.tree.source_text(token.span);
+                        crate::Space::from_name(text).ok_or_else(|| {
+                            ParseError::invalid_at_span(
+                                "global space",
+                                token.start,
+                                token.span.end.saturating_sub(token.span.start) as usize,
+                            )
+                        })?
                     }
                     _ => {
                         return Err(ParseError::unexpected(

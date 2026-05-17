@@ -1,7 +1,7 @@
 use crate::build::FunctionBuilder;
 use crate::{
-    Call, DispatchSlot, Function, FunctionReference, Instruction, LocalNodeId, Type, TypeReference,
-    Value, ValueReference,
+    Call, CallSite, DispatchSlot, Function, FunctionReference, Instruction, LocalNodeId, Type,
+    TypeReference, Value, ValueReference,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -54,23 +54,29 @@ impl<'a> FunctionBuilder<'a> {
     pub fn call_class(
         &mut self,
         receiver: Value,
-        declaring_type: LocalNodeId<Type>,
+        class: LocalNodeId<Type>,
         slot: DispatchSlot,
-        declared_target: Option<LocalNodeId<Function>>,
+        target: Option<LocalNodeId<Function>>,
         signature: LocalNodeId<Type>,
         argument_values: Vec<Value>,
     ) -> Option<Value> {
         let destination = self.allocate_value();
         let result_type = self.signature_result_type(signature);
         let arguments = self.add_call_arguments(argument_values);
-        self.insert_instruction(Instruction::CallClass {
+        let instruction = self.insert_instruction(Instruction::CallClass {
             destination: Some(destination.into()),
             receiver: receiver.into(),
-            declaring_type: declaring_type.into(),
+            class: class.into(),
             slot,
-            declared_target: declared_target.map(FunctionReference::Function),
             call: Call::new(arguments, TypeReference::Type(signature)),
         });
+        if let Some(target) = target {
+            self.tree
+                .metadata
+                .functions
+                .call_mut(CallSite::Instruction(instruction))
+                .target = Some(target);
+        }
         self.define_value(destination, result_type);
         Some(destination)
     }
@@ -79,28 +85,34 @@ impl<'a> FunctionBuilder<'a> {
     pub fn call_class_void(
         &mut self,
         receiver: Value,
-        declaring_type: LocalNodeId<Type>,
+        class: LocalNodeId<Type>,
         slot: DispatchSlot,
-        declared_target: Option<LocalNodeId<Function>>,
+        target: Option<LocalNodeId<Function>>,
         signature: LocalNodeId<Type>,
         argument_values: Vec<Value>,
     ) {
         let arguments = self.add_call_arguments(argument_values);
-        self.insert_instruction(Instruction::CallClass {
+        let instruction = self.insert_instruction(Instruction::CallClass {
             destination: None,
             receiver: receiver.into(),
-            declaring_type: declaring_type.into(),
+            class: class.into(),
             slot,
-            declared_target: declared_target.map(FunctionReference::Function),
             call: Call::new(arguments, TypeReference::Type(signature)),
         });
+        if let Some(target) = target {
+            self.tree
+                .metadata
+                .functions
+                .call_mut(CallSite::Instruction(instruction))
+                .target = Some(target);
+        }
     }
 
     /// Call an interface method through an interface table slot.
     pub fn call_interface(
         &mut self,
         receiver: Value,
-        declaring_type: LocalNodeId<Type>,
+        interface: LocalNodeId<Type>,
         slot: DispatchSlot,
         signature: LocalNodeId<Type>,
         argument_values: Vec<Value>,
@@ -111,7 +123,7 @@ impl<'a> FunctionBuilder<'a> {
         self.insert_instruction(Instruction::CallInterface {
             destination: Some(destination.into()),
             receiver: receiver.into(),
-            declaring_type: declaring_type.into(),
+            interface: interface.into(),
             slot,
             call: Call::new(arguments, TypeReference::Type(signature)),
         });
@@ -123,7 +135,7 @@ impl<'a> FunctionBuilder<'a> {
     pub fn call_interface_void(
         &mut self,
         receiver: Value,
-        declaring_type: LocalNodeId<Type>,
+        interface: LocalNodeId<Type>,
         slot: DispatchSlot,
         signature: LocalNodeId<Type>,
         argument_values: Vec<Value>,
@@ -132,7 +144,7 @@ impl<'a> FunctionBuilder<'a> {
         self.insert_instruction(Instruction::CallInterface {
             destination: None,
             receiver: receiver.into(),
-            declaring_type: declaring_type.into(),
+            interface: interface.into(),
             slot,
             call: Call::new(arguments, TypeReference::Type(signature)),
         });

@@ -267,10 +267,7 @@ pub enum InterfaceSlot {
 
 /// Slot index inside a dispatch table.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct DispatchSlot(
-    /// Raw index into the dispatch table.
-    pub u32,
-);
+pub struct DispatchSlot(pub u32);
 
 impl DispatchSlot {
     /// Create a dispatch slot from a raw index.

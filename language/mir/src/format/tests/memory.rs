@@ -5,13 +5,13 @@ use super::{assert_format, assert_format_eq};
 fn test_format_allocation_family() {
     assert_format(
         r#"
-function allocFamily(value0: int64): ref<int32, raw, space(stack)> {
+function allocFamily(value0: int64): ref<int32, raw, space(frame)> {
 entry0(value0: int64):
     value1: ref<int32, managed> = new int32
     value2: slice<int32, managed> = new.slice int32, value0
     value3: ref<int32, raw> = raw.alloc int32
     raw.free value3
-    value4: ref<int32, raw, space(stack)> = stack.alloc int32
+    value4: ref<int32, raw, space(frame)> = frame.alloc int32
     return value4
 }
 "#,
