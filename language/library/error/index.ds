@@ -6,3 +6,4 @@ export * from "./panic.ds";
 export * from "./report.ds";
 export * from "./result.ds";
 export * from "./stack.ds";
+export * from "./unwind.ds";

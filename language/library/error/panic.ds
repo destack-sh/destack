@@ -1,7 +1,60 @@
+import { Send } from "destack:memory";
+import { SourceLocation, StackTrace } from "./stack.ds";
+
+/// Opaque panic value caught during unwinding.
+@languageItem("error.Panic")
+export newtype Panic = intrinsic;
+
+/// Marker for values that are safe to observe after unwinding.
+@languageItem("error.UnwindSafe")
+export newtype interface UnwindSafe { }
+
+/// Marker for shared references that are safe to observe after unwinding.
+@languageItem("error.RefUnwindSafe")
+export newtype interface RefUnwindSafe { }
+
+/// Marker for values that can be carried by a panic.
+@languageItem("error.PanicPayload")
+export newtype interface PanicPayload extends Send, UnwindSafe { }
+
+/// Runtime context passed to a panic hook.
+@languageItem("error.PanicContext")
+export struct PanicContext {
+    /// Panic value carried by the unwind.
+    panic: Panic;
+
+    /// Human-readable message when the payload is textual.
+    message?: string;
+
+    /// Source location where the panic began.
+    location?: SourceLocation;
+
+    /// Captured stack trace when available.
+    stack?: StackTrace;
+}
+
+/// Runtime hook invoked before a panic starts unwinding.
+export type PanicHook = (context: PanicContext) => void;
+
 /// Stop execution with a language panic.
 @languageItem("error.panic")
 @intrinsic("error.panic")
 export declare function panic(message: string): never;
+
+/// Stop execution with an arbitrary panic value.
+@languageItem("error.panicAny")
+@intrinsic("error.panicAny")
+export declare function panicAny<T: PanicPayload>(payload: T): never;
+
+/// Install the runtime panic hook.
+@languageItem("error.setPanicHook")
+@intrinsic("error.setPanicHook")
+export declare function setPanicHook(hook: PanicHook): void;
+
+/// Remove the runtime panic hook and return the previous hook.
+@languageItem("error.takePanicHook")
+@intrinsic("error.takePanicHook")
+export declare function takePanicHook(): PanicHook;
 
 /// Stop execution with a low-level runtime trap.
 @intrinsic("error.trap")
