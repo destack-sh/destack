@@ -5,7 +5,7 @@ use std::str::FromStr;
 use crate::lower::LowerState;
 use crate::{Compiler, CompilerError, CompilerResult, LowerError, LowerResult, ModuleLowerer};
 
-use destack_artifact::{ArtifactKey, ArtifactPayload, EmitFormat, MirLowered, TargetArch};
+use destack_artifact::{ArtifactPayload, EmitFormat, MirLowered, TargetArch};
 use destack_source::{ModuleId, TargetId};
 use destack_workspace::Target;
 use destack_workspace::workspace::ProfileId;
@@ -91,7 +91,7 @@ impl Compiler {
                 module.as_ref(),
                 profile,
                 &parsed.tree,
-                &bound.roots,
+                &elaborated.roots,
                 self.repository.string_pool().as_ref(),
                 bound.module_node,
                 &bindings,
@@ -139,13 +139,8 @@ impl Compiler {
             .into());
         }
 
-        context
-            .require(ArtifactKey::dir_elaborated(module_id, profile))
-            .map_err(CompilerError::from)?;
-
         // lowering depends on the selected library surface for language item layouts
-        context
-            .require(ArtifactKey::global_environment(profile))
+        self.global_environment(context, profile)
             .map_err(CompilerError::from)?;
 
         // resolve target configuration

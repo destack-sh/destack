@@ -26,15 +26,6 @@ impl Compiler {
     ) -> CompilerResult<ArtifactPayload> {
         let state = OptimizeState::new(module, profile, target, context);
 
-        state
-            .context
-            .require(ArtifactKey::mir_verified(
-                state.module,
-                state.profile,
-                state.target,
-            ))
-            .map_err(CompilerError::from)?;
-
         // optimize the module
         let payload =
             self.optimize_module(state.module, state.profile, &state.target, state.context)?;
@@ -80,7 +71,9 @@ impl Compiler {
             .require(ArtifactKey::mir_verified(module, profile, *target))
             .map_err(CompilerError::from)?;
         let verified = self
-            .mir_verified(context, module, profile, target)
+            .require_artifact(&source_mir, |artifacts, version| {
+                artifacts.mir_verified(version)
+            })
             .map_err(CompilerError::from)?;
         let mut tree = verified.patch.tree.clone();
         let strings = self.repository.string_pool().clone();
