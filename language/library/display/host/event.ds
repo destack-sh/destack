@@ -1,5 +1,5 @@
 import { ResourceId } from "destack:runtime/resource";
-import { Array, PackedArray } from "destack:collections";
+import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
 import { DisplayBackendKind, DisplayBackend
 /// Handle for one display event subscription.
@@ -438,4 +438,4 @@ export declare function readDisplayEvents(
     events: DisplayEventHandle,
     maxEvents: uint32,
     timeoutNs?: uint64,
-): Result<PackedArray<DisplayEvent>, HostError>;
+): Result<Array<DisplayEvent>, HostError>;

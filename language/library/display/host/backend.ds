@@ -1,4 +1,4 @@
-import { Array, PackedArray } from "destack:collections";
+import { Array } from "destack:collections";
 import { HostBackendStatus } from "destack:runtime/binding";
 import { HostError } from "destack:error/host";
 
@@ -92,4 +92,4 @@ export struct DisplayBackend {
     simulation: true,
     affinity: "worker",
 })
-export declare function listDisplayBackends(): Result<PackedArray<DisplayBackend>, HostError>;
+export declare function listDisplayBackends(): Result<Array<DisplayBackend>, HostError>;

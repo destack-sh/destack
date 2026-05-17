@@ -1,4 +1,4 @@
-import { PackedArray } from "destack:collections";
+import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
 import { Label, LabelSelector } from "./entity.ds";
 import { WorldHandle } from "./world.ds";
@@ -79,7 +79,7 @@ export struct Image {
 /// Branch list page.
 export struct BranchPage {
     /// Branch records in this page.
-    branches: PackedArray<Branch>;
+    branches: Array<Branch>;
     /// Next branch cursor when more records exist.
     next?: BranchId;
 }
@@ -87,7 +87,7 @@ export struct BranchPage {
 /// Revision list page.
 export struct RevisionPage {
     /// Revision records in this page.
-    revisions: PackedArray<Revision>;
+    revisions: Array<Revision>;
     /// Next revision cursor when more records exist.
     next?: RevisionId;
 }
@@ -95,7 +95,7 @@ export struct RevisionPage {
 /// Checkpoint list page.
 export struct CheckpointPage {
     /// Checkpoint records in this page.
-    checkpoints: PackedArray<Checkpoint>;
+    checkpoints: Array<Checkpoint>;
     /// Next checkpoint cursor when more records exist.
     next?: CheckpointId;
 }
@@ -103,7 +103,7 @@ export struct CheckpointPage {
 /// Image list page.
 export struct ImagePage {
     /// Image records in this page.
-    images: PackedArray<Image>;
+    images: Array<Image>;
     /// Next image cursor when more records exist.
     next?: ImageId;
 }

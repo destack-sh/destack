@@ -1,4 +1,4 @@
-import { Array, PackedArray } from "destack:collections";
+import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
 import { AudioBackendKind, AudioBackendSelection } from "./backend.ds";
 
@@ -161,7 +161,7 @@ export struct AudioDevice {
 })
 export declare function listAudioDevices(
     query: &readonly AudioDeviceQuery,
-): Result<PackedArray<AudioDevice>, HostError>;
+): Result<Array<AudioDevice>, HostError>;
 
 /// Return the default device identifier for one direction.
 @binding("destack.audio.device.default", {

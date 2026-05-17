@@ -1,4 +1,4 @@
-import { Array, PackedArray } from "destack:collections";
+import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
 import { Path } from "destack:fs/host";
 
@@ -113,7 +113,7 @@ export declare function hasClipboardText(): Result<boolean, HostError>;
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function listClipboardItems(): Result<PackedArray<ClipboardItem>, HostError>;
+export declare function listClipboardItems(): Result<Array<ClipboardItem>, HostError>;
 
 /// Read one text clipboard payload.
 @binding("destack.input.clipboard.text.read", {
@@ -146,7 +146,7 @@ export declare function readClipboardItemText(
 export declare function readClipboardItemBytes(
     itemIndex: uint32,
     representationIndex: uint32,
-): Result<PackedArray<uint8>, HostError>;
+): Result<Array<uint8>, HostError>;
 
 /// Read one clipboard item representation as a filesystem path.
 @binding("destack.input.clipboard.item.path.read", {

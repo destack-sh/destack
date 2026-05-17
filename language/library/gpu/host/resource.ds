@@ -1,5 +1,5 @@
 import { ResourceId } from "destack:runtime/resource";
-import { Array, PackedArray } from "destack:collections";
+import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
 
 /// Handle for one GPU adapter endpoint.
@@ -780,7 +780,7 @@ export declare function readBuffer(
     buffer: GpuBufferHandle,
     offset: uint64,
     length: uint64,
-): Result<PackedArray<uint8>, HostError>;
+): Result<Array<uint8>, HostError>;
 
 /// Map a buffer range.
 @binding("destack.gpu.resource.buffer.map", {

@@ -1,4 +1,4 @@
-import { Array, PackedArray } from "destack:collections";
+import { Array } from "destack:collections";
 import { HostBackendStatus } from "destack:runtime/binding";
 import { HostError } from "destack:error/host";
 
@@ -96,4 +96,4 @@ export struct AudioBackend {
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function listAudioBackends(): Result<PackedArray<AudioBackend>, HostError>;
+export declare function listAudioBackends(): Result<Array<AudioBackend>, HostError>;

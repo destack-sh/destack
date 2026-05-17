@@ -1,4 +1,4 @@
-import { Array, PackedArray } from "destack:collections";
+import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
 import { InputDeviceHandle } from "destack:input/host";
 
@@ -43,7 +43,7 @@ export struct HapticParameters {
 })
 export declare function listHapticEffects(
     device: InputDeviceHandle,
-): Result<PackedArray<HapticEffect>, HostError>;
+): Result<Array<HapticEffect>, HostError>;
 
 /// Play one haptic effect.
 @binding("destack.input.haptics.play", {

@@ -1,4 +1,4 @@
-import { Array, PackedArray } from "destack:collections";
+import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
 import { IpAddress, IpEndpoint, SocketAddress, SocketFamily } from "./address.ds";
 import { SocketProtocol, SocketType } from "./socket.ds";
@@ -285,7 +285,7 @@ export struct ReverseAddressLookupResult {
 })
 export declare function lookupAddress(
     query: &readonly AddressLookupQuery,
-): Result<PackedArray<AddressLookupResult>, HostError>;
+): Result<Array<AddressLookupResult>, HostError>;
 
 /// Resolve DNS records.
 @binding("destack.net.resolve.record", {
@@ -296,7 +296,7 @@ export declare function lookupAddress(
 })
 export declare function resolveRecord(
     query: &readonly DnsQuery,
-): Result<PackedArray<DnsRecord>, HostError>;
+): Result<Array<DnsRecord>, HostError>;
 
 /// Reverse lookup a socket address into host and service names.
 @binding("destack.net.resolve.reverseLookup", {
@@ -308,4 +308,4 @@ export declare function resolveRecord(
 export declare function reverseLookup(
     address: &readonly SocketAddress,
     flags: ReverseAddressLookupFlags,
-): Result<PackedArray<ReverseAddressLookupResult>, HostError>;
+): Result<Array<ReverseAddressLookupResult>, HostError>;

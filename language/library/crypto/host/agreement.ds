@@ -1,4 +1,4 @@
-import { Array, PackedArray } from "destack:collections";
+import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
 import { CryptoDigestAlgorithm, CryptoKeyAgreementAlgorithm } from "./algorithm.ds";
 import { CryptoDerivedKey } from "./key.ds";
@@ -89,7 +89,7 @@ export declare function deriveSharedSecret(
     privateKey: CryptoKeyHandle,
     peerPublicKey: CryptoKeyHandle,
     algorithm: CryptoKeyAgreementAlgorithm,
-): Result<PackedArray<uint8>, HostError>;
+): Result<Array<uint8>, HostError>;
 
 /// Derive raw bytes from one local private key and one peer public key.
 @binding("destack.crypto.agreement.deriveBits", {
@@ -103,7 +103,7 @@ export declare function deriveAgreementBits(
     privateKey: CryptoKeyHandle,
     peerPublicKey: CryptoKeyHandle,
     request: &readonly CryptoAgreementBits,
-): Result<PackedArray<uint8>, HostError>;
+): Result<Array<uint8>, HostError>;
 
 /// Derive one key from one local private key and one peer public key.
 @binding("destack.crypto.agreement.deriveKey", {

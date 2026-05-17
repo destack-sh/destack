@@ -1,4 +1,4 @@
-import { Array, PackedArray } from "destack:collections";
+import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
 
 /// Environment variable.
@@ -35,7 +35,7 @@ export declare function getEnvironment(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function listEnvironment(): Result<PackedArray<EnvironmentVariable>, HostError>;
+export declare function listEnvironment(): Result<Array<EnvironmentVariable>, HostError>;
 
 /// Set an environment variable.
 @binding("destack.process.environment.set", {
@@ -67,7 +67,7 @@ export declare function removeEnvironment(name: &readonly string): Result<void, 
 })
 export declare function getRawEnvironment(
     name: &readonly [uint8],
-): Result<PackedArray<uint8> | undefined, HostError>;
+): Result<Array<uint8> | undefined, HostError>;
 
 /// List raw Unix environment variables.
 @binding("destack.process.environment.listRaw", {
@@ -77,7 +77,7 @@ export declare function getRawEnvironment(
     simulation: true,
 })
 export declare function listRawEnvironment(): Result<
-    PackedArray<RawEnvironmentVariable>,
+    Array<RawEnvironmentVariable>,
     HostError
 >;
 

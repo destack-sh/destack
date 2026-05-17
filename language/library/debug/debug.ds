@@ -1,4 +1,4 @@
-import { PackedArray } from "destack:collections";
+import { Array } from "destack:collections";
 import { Result } from "destack:error";
 import { HostError } from "destack:error/host";
 import { SourceLocation } from "destack:error/stack";
@@ -164,7 +164,7 @@ export newtype Value =
 /// Debug scope list page.
 export struct ScopePage {
     /// Scope records in this page.
-    scopes: PackedArray<Scope>;
+    scopes: Array<Scope>;
     /// Next scope cursor when more records exist.
     next?: ScopeId;
 }
@@ -172,7 +172,7 @@ export struct ScopePage {
 /// Debug binding list page.
 export struct BindingPage {
     /// Binding records in this page.
-    bindings: PackedArray<Binding>;
+    bindings: Array<Binding>;
     /// Next binding cursor when more records exist.
     next?: BindingId;
 }

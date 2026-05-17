@@ -1,4 +1,4 @@
-import { PackedArray } from "destack:collections";
+import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
 import { Action } from "./binding.ds";
 import {
@@ -604,7 +604,7 @@ export struct ScenarioFilter {
 /// Runtime scenario page.
 export struct ScenarioPage {
     /// Scenario records in this page.
-    scenarios: PackedArray<Scenario>;
+    scenarios: Array<Scenario>;
     /// Next scenario cursor when more records exist.
     next?: ScenarioCursor;
 }
@@ -612,7 +612,7 @@ export struct ScenarioPage {
 /// Runtime scenario rule page.
 export struct ScenarioRulePage {
     /// Scenario rule records in this page.
-    rules: PackedArray<ScenarioRule>;
+    rules: Array<ScenarioRule>;
     /// Next rule cursor when more records exist.
     next?: ScenarioRuleCursor;
 }

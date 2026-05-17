@@ -1,4 +1,4 @@
-import { PackedArray } from "destack:collections";
+import { Array } from "destack:collections";
 import { ResourceId } from "destack:runtime/resource";
 import { HostError } from "destack:error/host";
 import { AccessibilityNodeId } from "./node.ds";
@@ -432,4 +432,4 @@ export declare function readAccessibilityActions(
     actions: AccessibilityActionHandle,
     maxActions: uint32,
     timeoutNs?: uint64,
-): Result<PackedArray<AccessibilityAction>, HostError>;
+): Result<Array<AccessibilityAction>, HostError>;

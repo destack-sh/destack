@@ -1,4 +1,4 @@
-import { PackedArray } from "destack:collections";
+import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
 import { WorldViewHandle, WorkerId } from "./world.ds";
 
@@ -33,7 +33,7 @@ export struct Frame {
 /// Frame list page.
 export struct FramePage {
     /// Frame records in this page.
-    frames: PackedArray<Frame>;
+    frames: Array<Frame>;
     /// Next frame cursor when more records exist.
     next?: FrameId;
 }
@@ -54,7 +54,7 @@ export struct FrameSlot {
 /// Frame slot list page.
 export struct FrameSlotPage {
     /// Frame slot records in this page.
-    slots: PackedArray<FrameSlot>;
+    slots: Array<FrameSlot>;
     /// Next slot cursor when more records exist.
     next?: FrameSlotId;
 }
@@ -112,4 +112,4 @@ export declare function readFrameValues(
     view: WorldViewHandle,
     frame: FrameId,
     slots: &readonly [FrameSlotId],
-): Result<PackedArray<FrameValue>, HostError>;
+): Result<Array<FrameValue>, HostError>;
