@@ -36,7 +36,6 @@ impl Compiler {
             origin_id.into_any(),
             scope,
             None,
-            Some(dir::ProvenanceReason::Elaborated),
         );
         state.tree.insert_as_owner(cloned_id, cloned_argument)
     }
@@ -91,7 +90,6 @@ impl Compiler {
             origin_id.into_any(),
             scope,
             None,
-            Some(dir::ProvenanceReason::Elaborated),
         );
         let cloned_id = state.tree.insert_as_owner(cloned_id, cloned_expression);
         state.types_tail.copy_node_relations(
@@ -150,7 +148,6 @@ impl Compiler {
             origin_id.into_any(),
             scope,
             None,
-            Some(dir::ProvenanceReason::Elaborated),
         );
         state.tree.insert_as_owner(expression_id, expression)
     }
@@ -169,7 +166,6 @@ impl Compiler {
             origin_id.into_any(),
             scope,
             None,
-            Some(dir::ProvenanceReason::Elaborated),
         );
         let literal_id = state.tree.insert_as_owner(
             literal_id,
@@ -205,7 +201,6 @@ impl Compiler {
             origin_id.into_any(),
             scope,
             None,
-            Some(dir::ProvenanceReason::Elaborated),
         );
         let expression_id = state.tree.insert_as_owner(
             expression_id,
@@ -236,7 +231,6 @@ impl Compiler {
             origin_id.into_any(),
             scope,
             None,
-            Some(dir::ProvenanceReason::Elaborated),
         );
         let expression_id = state
             .tree

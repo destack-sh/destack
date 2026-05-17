@@ -153,7 +153,6 @@ impl Compiler {
             if_id.into_any(),
             scope,
             None,
-            Some(dir::ProvenanceReason::Elaborated),
         );
         state.tree.insert_as_owner(pattern_id, Pattern::Wildcard)
     }
@@ -174,7 +173,6 @@ impl Compiler {
             if_id.into_any(),
             scope,
             None,
-            Some(dir::ProvenanceReason::Elaborated),
         );
         state.tree.insert_as_owner(
             case_id,
@@ -202,7 +200,6 @@ impl Compiler {
             if_id.into_any(),
             scope,
             None,
-            Some(dir::ProvenanceReason::Elaborated),
         );
         let block: LocalNodeId<Block> = state.tree.insert_as_owner(
             block_id,
@@ -221,7 +218,6 @@ impl Compiler {
             if_id.into_any(),
             scope,
             None,
-            Some(dir::ProvenanceReason::Elaborated),
         );
         let block_expr_id = state
             .tree

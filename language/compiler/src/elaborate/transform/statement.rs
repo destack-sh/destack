@@ -469,7 +469,6 @@ impl Compiler {
             declarator_id.into_any(),
             scope,
             None,
-            Some(dir::ProvenanceReason::Elaborated),
         );
         let new_if: LocalNodeId<Expression> = state.tree.insert_as_owner(
             new_if_id,
@@ -522,7 +521,6 @@ impl Compiler {
             declarator_id.into_any(),
             scope,
             None,
-            Some(dir::ProvenanceReason::Elaborated),
         );
         let new_declarator: LocalNodeId<Declarator> = state.tree.insert_as_owner(
             new_declarator_id,
@@ -538,7 +536,6 @@ impl Compiler {
             original_let_id.into_any(),
             scope,
             None,
-            Some(dir::ProvenanceReason::Elaborated),
         );
         let new_let: LocalNodeId<Expression> = state.tree.insert_as_owner(
             new_let_id,
@@ -584,7 +581,6 @@ impl Compiler {
             declarator_id.into_any(),
             scope,
             None,
-            Some(dir::ProvenanceReason::Elaborated),
         );
         let uninit_declarator: LocalNodeId<Declarator> = state.tree.insert_as_owner(
             uninit_declarator_id,
@@ -601,7 +597,6 @@ impl Compiler {
             declarator_id.into_any(),
             scope,
             None,
-            Some(dir::ProvenanceReason::Elaborated),
         );
         let uninit_let: LocalNodeId<Expression> = state.tree.insert_as_owner(
             uninit_let_id,
@@ -633,7 +628,6 @@ impl Compiler {
             declarator_id.into_any(),
             scope,
             None,
-            Some(dir::ProvenanceReason::Elaborated),
         );
         let block_expr: LocalNodeId<Expression> = state
             .tree
@@ -881,7 +875,6 @@ impl Compiler {
             origin_id.into_any(),
             scope,
             None,
-            Some(dir::ProvenanceReason::Elaborated),
         );
         let block: LocalNodeId<Block> = state.tree.insert_as_owner(
             block_id,
@@ -900,7 +893,6 @@ impl Compiler {
             origin_id.into_any(),
             scope,
             None,
-            Some(dir::ProvenanceReason::Elaborated),
         );
         let block_expr_id = state
             .tree
