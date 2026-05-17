@@ -1,9 +1,9 @@
 import { todo } from "destack:error";
-import { From } from "destack:convert";
+import { As, Borrow, From, ToOwned } from "destack:convert";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
-import { Default, MaybeUninit, Unique } from "destack:memory";
+import { Access, Clone, Default, MaybeUninit, Unique, WithAccess } from "destack:memory";
 import { Index, IndexSet } from "destack:ops";
-import { PackedArray } from "./packed-array.ds";
+import { Slice } from "./slice.ds";
 
 /// Readonly view of a dynamic array.
 @languageItem("collections.ReadonlyArray")
@@ -13,29 +13,17 @@ export type ReadonlyArray<T> = readonly T[];
 @languageItem("collections.FixedArray")
 export type FixedArray<T, comptime N: number> = [T; N];
 
-/// One stable array segment.
-struct ArraySegment<T> {
-    /// The segment storage.
+/// A growable compact array.
+@languageItem("collections.Array")
+export class Array<T> {
+    /// The contiguous storage.
     storage: Unique<[MaybeUninit<T>]>;
 
     /// The number of initialized elements.
-    length: usize = 0;
+    count: usize = 0;
 
     /// The allocated element count.
     capacity: usize = 0;
-}
-
-/// A growable borrow-stable array.
-@languageItem("collections.Array")
-export class Array<T> {
-    /// The segment table.
-    segments: Unique<[MaybeUninit<ArraySegment<T>>]>;
-
-    /// The number of initialized segments.
-    segmentCount: usize = 0;
-
-    /// The number of initialized elements.
-    elementCount: usize = 0;
 }
 
 extension<T> of Array<T> implements
@@ -47,9 +35,8 @@ extension<T> of Array<T> implements
     Iterable<&exclusive T>,
     From<Iterable<T>>,
     FromIterator<T>,
-    Extend<T>,
-    Default,
-    From<PackedArray<T>>
+    Extend<T, "exclusive">,
+    Default
 {
     /// The indexed output type.
     type Output = T;
@@ -89,24 +76,19 @@ extension<T> of Array<T> implements
         Array.new()
     }
 
-    /// Create an array from a packed array.
-    static from(value: PackedArray<T>): Array<T> {
-        todo("Array.fromPackedArray")
-    }
-
     /// Return the number of elements.
     get length(): number {
-        this.elementCount as number
+        this.count as number
     }
 
     /// Return the number of elements.
     get size(): usize {
-        this.elementCount
+        this.count
     }
 
     /// Return whether this array has no elements.
     get isEmpty(): boolean {
-        this.elementCount == 0
+        this.count == 0
     }
 
     /// Return the element at `index` by value.
@@ -180,17 +162,17 @@ extension<T> of Array<T> implements
     }
 
     /// Append `value`.
-    push(this: &Array<T>, value: T): void {
+    push(this: &exclusive Array<T>, value: T): void {
         todo("Array.push")
     }
 
     /// Append `values`.
-    push(this: &Array<T>, ...values: T[]): number {
+    push(this: &exclusive Array<T>, ...values: T[]): number {
         todo("Array.push")
     }
 
     /// Append all `values`.
-    extend(this: &Array<T>, values: Iterable<T>): void {
+    extend(this: &exclusive Array<T>, values: Iterable<T>): void {
         todo("Array.extend")
     }
 
@@ -217,6 +199,11 @@ extension<T> of Array<T> implements
     /// Remove and return the element at `index`.
     removeAt(this: &exclusive Array<T>, index: usize): T {
         todo("Array.removeAt")
+    }
+
+    /// Swap-remove the element at `index`.
+    swapRemove(this: &exclusive Array<T>, index: usize): T {
+        todo("Array.swapRemove")
     }
 
     /// Remove all elements.
@@ -250,13 +237,13 @@ extension<T> of Array<T> implements
     }
 
     /// Reserve room for at least `additional` more elements.
-    reserve(this: &Array<T>, additional: usize): void {
+    reserve(this: &exclusive Array<T>, additional: usize): void {
         todo("Array.reserve")
     }
 
-    /// Release unused segments.
-    compact(this: &exclusive Array<T>): void {
-        todo("Array.compact")
+    /// Shrink capacity to fit the current length.
+    shrinkToFit(this: &exclusive Array<T>): void {
+        todo("Array.shrinkToFit")
     }
 
     /// Return a copy of the selected range.
@@ -314,12 +301,7 @@ extension<T> of Array<T> implements
         todo("Array.every")
     }
 
-    /// Call `f` for each element.
-    forEach(f: (value: T, index: number) => void): void {
-        todo("Array.forEach")
-    }
-
-    /// Return whether this array includes `value`.
+    /// Return whether `value` exists.
     includes(value: T, fromIndex?: number): boolean {
         todo("Array.includes")
     }
@@ -334,7 +316,7 @@ extension<T> of Array<T> implements
         todo("Array.lastIndexOf")
     }
 
-    /// Join all elements into a string.
+    /// Join stringified elements with `separator`.
     join(separator?: string): string {
         todo("Array.join")
     }
@@ -427,5 +409,33 @@ extension<T> of Array<T> implements
     /// Consume this array into owned values.
     iterator(this: ^Array<T>): Iterator<T> {
         todo("Array.iterator")
+    }
+
+    /// Call `f` for each element.
+    forEach(f: (value: T, index: number, array: Array<T>) => void): void {
+        todo("Array.forEach")
+    }
+}
+
+extension<T, A: Access = "readonly"> of Array<T> implements As<Slice<T>, A>, Borrow<Slice<T>, A> {
+    /// Borrow the initialized storage as a slice.
+    as(this: WithAccess<&Array<T>, A>): WithAccess<&Slice<T>, A> {
+        todo("Array.as")
+    }
+
+    /// Borrow the initialized storage as a slice.
+    borrow(this: WithAccess<&Array<T>, A>): WithAccess<&Slice<T>, A> {
+        this.as()
+    }
+}
+
+extension<T> of Slice<T> implements ToOwned
+where T implements Clone {
+    /// The owned value type.
+    type Owned = Array<T>;
+
+    /// Copy this slice into owned array storage.
+    toOwned(this: &readonly Slice<T>): Array<T> {
+        todo("Slice.toOwned")
     }
 }

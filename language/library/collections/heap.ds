@@ -3,12 +3,12 @@ import { From } from "destack:convert";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
 import { Default } from "destack:memory";
 import { Compare } from "destack:ops";
-import { PackedArray } from "./packed-array.ds";
+import { Array } from "./array.ds";
 
-/// A packed binary max-heap.
+/// A binary max-heap.
 export struct BinaryHeap<T> {
     /// The heap storage.
-    storage: PackedArray<T>;
+    storage: Array<T>;
 }
 
 extension<T> of BinaryHeap<T> implements Default {
@@ -110,8 +110,8 @@ extension<T: Compare<T>> of BinaryHeap<T> implements
         todo("BinaryHeap.shrinkToFit")
     }
 
-    /// Convert this heap into a sorted packed array.
-    intoSortedArray(this: ^BinaryHeap<T>): PackedArray<T> {
+    /// Convert this heap into a sorted array.
+    intoSortedArray(this: ^BinaryHeap<T>): Array<T> {
         todo("BinaryHeap.intoSortedArray")
     }
 

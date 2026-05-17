@@ -25,7 +25,7 @@ struct LinkedListNode<T> {
     isOccupied: boolean = true;
 }
 
-/// A borrow-stable linked list.
+/// A linked list.
 export class LinkedList<T> {
     /// The first node key.
     head: LinkedListNodeKey | undefined = undefined;
@@ -40,7 +40,7 @@ export class LinkedList<T> {
     firstFree: LinkedListNodeKey | undefined = undefined;
 
     /// The number of nodes.
-    elementCount: usize = 0;
+    count: usize = 0;
 }
 
 extension<T> of LinkedList<T> implements
@@ -50,7 +50,7 @@ extension<T> of LinkedList<T> implements
     Iterable<&exclusive T>,
     From<Iterable<T>>,
     FromIterator<T>,
-    Extend<T>,
+    Extend<T, "exclusive">,
     Default
 {
     /// Create an empty list.
@@ -80,31 +80,31 @@ extension<T> of LinkedList<T> implements
 
     /// Return the number of elements.
     get length(): number {
-        this.elementCount as number
+        this.count as number
     }
 
     /// Return the number of elements.
     get size(): usize {
-        this.elementCount
+        this.count
     }
 
     /// Return whether this list has no elements.
     get isEmpty(): boolean {
-        this.elementCount == 0
+        this.count == 0
     }
 
     /// Push `value` to the back.
-    pushBack(this: &LinkedList<T>, value: T): void {
+    pushBack(this: &exclusive LinkedList<T>, value: T): void {
         todo("LinkedList.pushBack")
     }
 
     /// Push `value` to the front.
-    pushFront(this: &LinkedList<T>, value: T): void {
+    pushFront(this: &exclusive LinkedList<T>, value: T): void {
         todo("LinkedList.pushFront")
     }
 
     /// Append all `values` to the back.
-    extend(this: &LinkedList<T>, values: Iterable<T>): void {
+    extend(this: &exclusive LinkedList<T>, values: Iterable<T>): void {
         todo("LinkedList.extend")
     }
 
@@ -169,13 +169,13 @@ extension<T> of LinkedList<T> implements
     }
 
     /// Reserve room for at least `additional` more nodes.
-    reserve(this: &LinkedList<T>, additional: usize): void {
+    reserve(this: &exclusive LinkedList<T>, additional: usize): void {
         todo("LinkedList.reserve")
     }
 
-    /// Release tombstone nodes.
-    compact(this: &exclusive LinkedList<T>): void {
-        todo("LinkedList.compact")
+    /// Shrink node storage to fit the current length.
+    shrinkToFit(this: &exclusive LinkedList<T>): void {
+        todo("LinkedList.shrinkToFit")
     }
 
     /// Return an iterator over copied values.

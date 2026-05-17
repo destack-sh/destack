@@ -3,7 +3,7 @@ import { From } from "destack:convert";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
 import { Default, MaybeUninit } from "destack:memory";
 import { Index, IndexSet } from "destack:ops";
-import { PackedArray } from "./packed-array.ds";
+import { Array } from "./array.ds";
 
 /// Key for one live slab entry.
 export newtype SlabKey = {
@@ -32,13 +32,13 @@ struct SlabSlot<T> {
 /// A generational slab with stable keys and reusable slots.
 export struct Slab<T> {
     /// The slot storage.
-    slots: PackedArray<SlabSlot<T>>;
+    slots: Array<SlabSlot<T>>;
 
     /// The first free slot index.
     firstFree: uint32 | undefined = undefined;
 
     /// The number of live entries.
-    entryCount: usize = 0;
+    count: usize = 0;
 }
 
 extension<T> of Slab<T> implements
@@ -83,7 +83,7 @@ extension<T> of Slab<T> implements
 
     /// Return the number of live entries.
     get size(): number {
-        this.entryCount as number
+        this.count as number
     }
 
     /// Return the allocated slot count.
@@ -93,7 +93,7 @@ extension<T> of Slab<T> implements
 
     /// Return whether this slab has no live entries.
     get isEmpty(): boolean {
-        this.entryCount == 0
+        this.count == 0
     }
 
     /// Insert `value` and return its key.

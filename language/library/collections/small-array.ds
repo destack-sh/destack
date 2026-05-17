@@ -5,7 +5,6 @@ import { Access, Copy, Default, MaybeUninit, Unique, WithAccess } from "destack:
 import { Index, IndexSet } from "destack:ops";
 import { Bound, RangeBounds } from "destack:range";
 import { Array, FixedArray } from "./array.ds";
-import { PackedArray } from "./packed-array.ds";
 import { Slice } from "./slice.ds";
 
 /// A growable contiguous array with inline storage.
@@ -17,7 +16,7 @@ export struct SmallArray<T, comptime N: number> {
     spillStorage: Unique<[MaybeUninit<T>]> | undefined = undefined;
 
     /// The number of initialized elements.
-    elementCount: usize = 0;
+    count: usize = 0;
 
     /// The allocated spill element count.
     spillCapacity: usize = 0;
@@ -35,7 +34,6 @@ extension<T, comptime N: number> of SmallArray<T, N> implements
     Extend<T, "exclusive">,
     Default,
     From<Array<T>>,
-    From<PackedArray<T>>,
     From<FixedArray<T, N>>
 {
     /// The indexed output type.
@@ -66,14 +64,9 @@ extension<T, comptime N: number> of SmallArray<T, N> implements
         SmallArray.new()
     }
 
-    /// Create a small array from a stable array.
+    /// Create a small array from an array.
     static from(value: Array<T>): SmallArray<T, N> {
         todo("SmallArray.fromArray")
-    }
-
-    /// Create a small array from a packed array.
-    static from(value: PackedArray<T>): SmallArray<T, N> {
-        todo("SmallArray.fromPackedArray")
     }
 
     /// Create a small array from a fixed array.
@@ -83,12 +76,12 @@ extension<T, comptime N: number> of SmallArray<T, N> implements
 
     /// Return the number of elements.
     get length(): number {
-        this.elementCount as number
+        this.count as number
     }
 
     /// Return the number of elements.
     get size(): usize {
-        this.elementCount
+        this.count
     }
 
     /// Return the allocated element count.
@@ -108,7 +101,7 @@ extension<T, comptime N: number> of SmallArray<T, N> implements
 
     /// Return whether this array has no elements.
     get isEmpty(): boolean {
-        this.elementCount == 0
+        this.count == 0
     }
 
     /// Return the element at `index` by value.
@@ -366,15 +359,8 @@ where T implements Copy {
 }
 
 extension<T, comptime N: number> of Array<T> implements From<SmallArray<T, N>> {
-    /// Create a stable array from a small array.
+    /// Create an array from a small array.
     static from(value: SmallArray<T, N>): Array<T> {
         todo("Array.fromSmallArray")
-    }
-}
-
-extension<T, comptime N: number> of PackedArray<T> implements From<SmallArray<T, N>> {
-    /// Create a packed array from a small array.
-    static from(value: SmallArray<T, N>): PackedArray<T> {
-        todo("PackedArray.fromSmallArray")
     }
 }
