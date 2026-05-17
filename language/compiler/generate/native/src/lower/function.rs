@@ -973,14 +973,14 @@ impl<'a> FunctionLowerer<'a> {
                 ));
             }
 
-            // stack_allocate: create_sized_stack_slot + stack_addr (alloca equivalent)
-            mir::Instruction::StackAlloc {
+            // frame_allocate: create_sized_stack_slot + stack_addr (alloca equivalent)
+            mir::Instruction::FrameAlloc {
                 destination,
                 layout,
                 ..
             } => {
-                let destination = self.value_id(*destination, "stack alloc destination")?;
-                let layout = self.type_id(*layout, "stack alloc layout")?;
+                let destination = self.value_id(*destination, "frame alloc destination")?;
+                let layout = self.type_id(*layout, "frame alloc layout")?;
                 let ty = lower_type(self.tree, layout, self.pointer_bytes)?;
                 let size = ty.bytes();
 
@@ -1353,15 +1353,17 @@ impl<'a> FunctionLowerer<'a> {
                 });
             }
 
-            // abort trap lowers to a backend trap, panic still needs runtime support
+            // panic still needs runtime support
+            mir::Terminator::Panic { .. } | mir::Terminator::ResumePanic => {
+                return Err(CodegenCraneliftError::Internal {
+                    message: "panic unwinding requires native runtime lowering".into(),
+                });
+            }
+
+            // abort trap lowers to a backend trap
             mir::Terminator::Trap { kind, .. } => match kind {
                 mir::TrapKind::Abort => {
                     builder.ins().trap(trap::UNREACHABLE);
-                }
-                mir::TrapKind::Panic => {
-                    return Err(CodegenCraneliftError::Internal {
-                        message: "trap.panic is not supported in native codegen yet".into(),
-                    });
                 }
             },
 
