@@ -6343,11 +6343,6 @@
       "description": "Check failure behavior.",
       "oneOf": [
         {
-          "description": "Trap immediately on a failed check.",
-          "type": "string",
-          "const": "trap"
-        },
-        {
           "description": "Trigger a panic on a failed check.",
           "type": "string",
           "const": "panic"

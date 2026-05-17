@@ -107,8 +107,6 @@ impl RuntimeChecks {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
 pub enum CheckFailurePolicy {
-    /// Trap immediately on a failed check.
-    Trap,
     /// Trigger a panic on a failed check.
     #[default]
     Panic,
@@ -121,7 +119,6 @@ impl std::str::FromStr for CheckFailurePolicy {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().replace('-', "_").as_str() {
-            "trap" => Ok(Self::Trap),
             "panic" => Ok(Self::Panic),
             "abort" => Ok(Self::Abort),
             _ => Err(()),

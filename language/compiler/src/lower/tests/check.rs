@@ -217,9 +217,9 @@ block4:
     test.assert_mir(module_id, "native", &expected);
 }
 
-/// Emit division checks with trap failure policy.
+/// Emit division checks with abort failure policy.
 #[test]
-fn test_lower_division_checks_trap() {
+fn test_lower_division_checks_abort() {
     let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
@@ -232,7 +232,7 @@ function quotient(a: int32, b: int32): int32 {
 
     test.configure_target(module_id, "native", |target| {
         target.checks.division = CheckPolicy::Always;
-        target.checks.failure = CheckFailurePolicy::Trap;
+        target.checks.failure = CheckFailurePolicy::Abort;
     });
     test.lower_module(module_id, "native");
     test.compile_check_clean();
@@ -474,9 +474,9 @@ block2:
     test.assert_mir(module_id, "native", &expected);
 }
 
-/// Emit bounds checks with trap failure policy.
+/// Emit bounds checks with abort failure policy.
 #[test]
-fn test_lower_bounds_checks_trap() {
+fn test_lower_bounds_checks_abort() {
     let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
@@ -489,7 +489,7 @@ function element(values: [int32; 4], index: int32): int32 {
 
     test.configure_target(module_id, "native", |target| {
         target.checks.bounds = CheckPolicy::Always;
-        target.checks.failure = CheckFailurePolicy::Trap;
+        target.checks.failure = CheckFailurePolicy::Abort;
     });
     test.lower_module(module_id, "native");
     test.compile_check_clean();

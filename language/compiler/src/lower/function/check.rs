@@ -203,7 +203,7 @@ impl FunctionLowerer<'_> {
 
         // emit the configured failure behavior
         match self.context.checks.failure {
-            CheckFailurePolicy::Trap | CheckFailurePolicy::Abort => {
+            CheckFailurePolicy::Abort => {
                 self.state.builder.trap_abort();
             }
             CheckFailurePolicy::Panic => {
