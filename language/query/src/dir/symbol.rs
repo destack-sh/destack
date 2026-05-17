@@ -3,7 +3,7 @@ use std::collections::HashSet;
 
 use destack_core::StringPool;
 use destack_dir::{GlobalSymbolId, LocalNodeIdAny, LocalSymbolId, Member, NodeType, SymbolSpace};
-use destack_source::{ModuleId, ProfileId, Span};
+use destack_source::{ModuleId, Span};
 use destack_workspace::{Repository, Revision};
 
 use super::{
@@ -12,7 +12,6 @@ use super::{
 };
 use crate::core::{
     DirQueryContext, QueryContext, SourceQueryContext, SymbolEntry, SymbolEntryKind, query_context,
-    query_context_for_profile,
 };
 use crate::source::{get_node_tree_main_span, get_node_tree_span, try_span_for_dir_node};
 
@@ -137,17 +136,11 @@ pub(crate) fn resolve_symbol_name(
 
 /// Build symbol index entries for one module.
 pub(crate) fn build_workspace_symbol_candidates_for_module(
-    repository: &Repository,
-    revision: Revision,
-    module_id: ModuleId,
-    profile_id: ProfileId,
+    ctx: &QueryContext<'_>,
 ) -> Vec<SymbolEntry> {
-    let Some(ctx) = query_context_for_profile(repository, revision, module_id, profile_id) else {
-        return Vec::new();
-    };
-
     let dir_tree = ctx.dir().view();
     let mut entries = Vec::new();
+    let module_id = ctx.module_id();
 
     // declarations, members, enum fields
     for (declaration_id, declaration) in dir_tree.iter_nodes_of_type::<dir::Declaration>() {
@@ -334,7 +327,7 @@ fn symbol_index_kind_for_declaration(declaration: &dir::Declaration) -> SymbolEn
 
 /// Convert one member to one symbol index entry.
 fn member_to_symbol_index_entry(
-    ctx: &QueryContext,
+    ctx: &QueryContext<'_>,
     dir_tree: dir::View<'_>,
     member_id: dir::LocalNodeId<dir::Member>,
     container_name: &str,
@@ -368,7 +361,7 @@ fn member_to_symbol_index_entry(
 
 /// Convert one type member to one symbol index entry.
 fn type_member_to_symbol_index_entry(
-    ctx: &QueryContext,
+    ctx: &QueryContext<'_>,
     dir_tree: dir::View<'_>,
     member_id: dir::LocalNodeId<dir::TypeMember>,
     container_name: &str,
@@ -398,7 +391,7 @@ fn type_member_to_symbol_index_entry(
 
 /// Convert one enum field to one symbol index entry.
 fn enum_field_to_symbol_index_entry(
-    ctx: &QueryContext,
+    ctx: &QueryContext<'_>,
     dir_tree: dir::View<'_>,
     field_id: dir::LocalNodeId<dir::EnumField>,
     container_name: &str,
@@ -444,7 +437,11 @@ fn symbol_index_kind_for_type_member(member: &dir::TypeMember) -> Option<SymbolE
 }
 
 /// Resolve one symbol index range without failing the whole query on bad source ids.
-fn symbol_index_range(ctx: &QueryContext, dir_tree: dir::View<'_>, node_id: u32) -> Option<Span> {
+fn symbol_index_range(
+    ctx: &QueryContext<'_>,
+    dir_tree: dir::View<'_>,
+    node_id: u32,
+) -> Option<Span> {
     let node_id = LocalNodeIdAny::new(node_id, dir_tree.get_node_type(node_id));
     try_span_for_dir_node(ctx.source(), dir_tree, node_id)
 }
@@ -489,7 +486,7 @@ fn with_symbol_context<T>(
     repository: &Repository,
     revision: Revision,
     module_id: ModuleId,
-    f: impl FnOnce(QueryContext) -> T,
+    f: impl FnOnce(QueryContext<'_>) -> T,
 ) -> Option<T> {
     let ctx = query_context(repository, revision, module_id)?;
 

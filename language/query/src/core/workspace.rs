@@ -10,24 +10,43 @@ use destack_qir::{
 use destack_source::{ModuleId, ProfileId};
 use destack_workspace::{Repository, Revision};
 
+/// Runtime view over one workspace query index.
+#[derive(Debug)]
+struct WorkspaceQueryView {
+    /// The module indexes referenced by the workspace artifact.
+    modules: Vec<Arc<ModuleQueryIndex>>,
+}
+
+impl WorkspaceQueryView {
+    /// Read one complete workspace query view.
+    fn read(repository: &Repository, revision: Revision, profile_id: ProfileId) -> Option<Self> {
+        let workspace = workspace_query_index(repository, revision, profile_id)?;
+        let modules = module_query_indexes(repository, &workspace)?;
+
+        Some(Self { modules })
+    }
+
+    /// Return the module indexes in this view.
+    fn modules(&self) -> &[Arc<ModuleQueryIndex>] {
+        &self.modules
+    }
+}
+
 /// Search import candidates for the current workspace root.
 pub(crate) fn search_import_candidates(
     repository: &Repository,
     revision: Revision,
+    profile_id: ProfileId,
     query: &str,
     exclude_module: Option<ModuleId>,
 ) -> Vec<ImportEntry> {
     let mut entries = Vec::new();
 
-    let indexes = if let Some(index) =
-        workspace_query_index_for_module(repository, revision, exclude_module)
-    {
-        module_query_indexes(repository, &index)
-    } else {
-        all_module_query_indexes(repository, revision)
+    let Some(view) = WorkspaceQueryView::read(repository, revision, profile_id) else {
+        return Vec::new();
     };
 
-    for index in indexes {
+    for index in view.modules() {
         extend_unique(
             &mut entries,
             index.index.imports.search(query, exclude_module),
@@ -42,12 +61,19 @@ pub(crate) fn search_import_candidates(
 pub(crate) fn search_workspace_symbol_candidates(
     repository: &Repository,
     revision: Revision,
+    profile_ids: &[ProfileId],
     query: &str,
 ) -> Vec<SymbolEntry> {
     let mut entries = Vec::new();
 
-    for index in all_module_query_indexes(repository, revision) {
-        entries.extend(index.index.symbols.search(query));
+    for profile_id in profile_ids {
+        let Some(view) = WorkspaceQueryView::read(repository, revision, *profile_id) else {
+            continue;
+        };
+
+        for index in view.modules() {
+            entries.extend(index.index.symbols.search(query));
+        }
     }
 
     entries.sort_by(|left, right| symbol_entry_key(left).cmp(&symbol_entry_key(right)));
@@ -60,11 +86,16 @@ pub(crate) fn search_workspace_symbol_candidates(
 pub(crate) fn nominal_relations_for_target(
     repository: &Repository,
     revision: Revision,
+    profile_id: ProfileId,
     target_symbol: GlobalSymbolId,
 ) -> Vec<NominalEntry> {
     let mut entries = Vec::new();
 
-    for index in all_module_query_indexes(repository, revision) {
+    let Some(view) = WorkspaceQueryView::read(repository, revision, profile_id) else {
+        return entries;
+    };
+
+    for index in view.modules() {
         extend_unique(&mut entries, index.index.nominal.to(target_symbol));
     }
     entries.sort();
@@ -77,11 +108,16 @@ pub(crate) fn nominal_relations_for_target(
 pub(crate) fn extension_candidates_for_target(
     repository: &Repository,
     revision: Revision,
+    profile_id: ProfileId,
     target_symbol: GlobalSymbolId,
 ) -> Vec<ExtensionEntry> {
     let mut entries = Vec::new();
 
-    for index in all_module_query_indexes(repository, revision) {
+    let Some(view) = WorkspaceQueryView::read(repository, revision, profile_id) else {
+        return entries;
+    };
+
+    for index in view.modules() {
         extend_unique(&mut entries, index.index.extensions.to(target_symbol));
     }
     entries.sort();
@@ -94,11 +130,16 @@ pub(crate) fn extension_candidates_for_target(
 pub(crate) fn modules_referencing_symbol(
     repository: &Repository,
     revision: Revision,
+    profile_id: ProfileId,
     target_symbol: GlobalSymbolId,
 ) -> Vec<ModuleId> {
     let mut module_ids = Vec::new();
 
-    for index in all_module_query_indexes(repository, revision) {
+    let Some(view) = WorkspaceQueryView::read(repository, revision, profile_id) else {
+        return module_ids;
+    };
+
+    for index in view.modules() {
         module_ids.extend(index.index.references.modules(target_symbol));
     }
 
@@ -112,11 +153,16 @@ pub(crate) fn modules_referencing_symbol(
 pub(crate) fn call_candidates_for_callee(
     repository: &Repository,
     revision: Revision,
+    profile_id: ProfileId,
     callee_symbol: GlobalSymbolId,
 ) -> Vec<CallEntry> {
     let mut entries = Vec::new();
 
-    for index in all_module_query_indexes(repository, revision) {
+    let Some(view) = WorkspaceQueryView::read(repository, revision, profile_id) else {
+        return entries;
+    };
+
+    for index in view.modules() {
         extend_unique(&mut entries, index.index.calls.to(callee_symbol));
     }
     sort_call_entries(&mut entries);
@@ -128,11 +174,16 @@ pub(crate) fn call_candidates_for_callee(
 pub(crate) fn call_candidates_for_caller(
     repository: &Repository,
     revision: Revision,
+    profile_id: ProfileId,
     caller_symbol: GlobalSymbolId,
 ) -> Vec<CallEntry> {
     let mut entries = Vec::new();
 
-    for index in all_module_query_indexes(repository, revision) {
+    let Some(view) = WorkspaceQueryView::read(repository, revision, profile_id) else {
+        return entries;
+    };
+
+    for index in view.modules() {
         extend_unique(&mut entries, index.index.calls.from(caller_symbol));
     }
     sort_call_entries(&mut entries);
@@ -144,6 +195,7 @@ pub(crate) fn call_candidates_for_caller(
 pub(crate) fn specifier_candidates_for_rename_paths<I>(
     repository: &Repository,
     revision: Revision,
+    profile_ids: &[ProfileId],
     old_paths: I,
 ) -> Vec<SpecifierEntry>
 where
@@ -152,27 +204,21 @@ where
     let old_paths = old_paths.into_iter().collect::<HashSet<_>>();
     let mut entries = Vec::new();
 
-    for index in all_module_query_indexes(repository, revision) {
-        extend_unique(
-            &mut entries,
-            index.index.specifiers.renaming(&old_paths).cloned(),
-        );
+    for profile_id in profile_ids {
+        let Some(view) = WorkspaceQueryView::read(repository, revision, *profile_id) else {
+            continue;
+        };
+
+        for index in view.modules() {
+            extend_unique(
+                &mut entries,
+                index.index.specifiers.renaming(&old_paths).cloned(),
+            );
+        }
     }
     sort_specifier_entries(&mut entries);
 
     entries
-}
-
-/// Return the workspace query index for one module's profile.
-fn workspace_query_index_for_module(
-    repository: &Repository,
-    revision: Revision,
-    module_id: Option<ModuleId>,
-) -> Option<Arc<WorkspaceQueryIndex>> {
-    let module_id = module_id?;
-    let profile_id = repository.module_profile(revision, module_id).ok()?.id();
-
-    workspace_query_index(repository, revision, profile_id)
 }
 
 /// Return one ready workspace query index artifact.
@@ -187,55 +233,20 @@ fn workspace_query_index(
     repository.artifact_store().workspace_query_index(&version)
 }
 
-/// Return all module query indexes referenced by all ready workspace indexes.
-fn all_module_query_indexes(
-    repository: &Repository,
-    revision: Revision,
-) -> Vec<Arc<ModuleQueryIndex>> {
-    let mut indexes = Vec::new();
-
-    for workspace in workspace_query_indexes(repository, revision) {
-        indexes.extend(module_query_indexes(repository, &workspace));
-    }
-
-    indexes
-}
-
 /// Return all module query indexes referenced by one workspace index.
 fn module_query_indexes(
     repository: &Repository,
     workspace: &WorkspaceQueryIndex,
-) -> Vec<Arc<ModuleQueryIndex>> {
+) -> Option<Vec<Arc<ModuleQueryIndex>>> {
     let mut indexes = Vec::with_capacity(workspace.modules.len());
 
     for version in &workspace.modules {
-        let Some(index) = repository.artifact_store().module_query_index(version) else {
-            continue;
-        };
+        let index = repository.artifact_store().module_query_index(version)?;
 
         indexes.push(index);
     }
 
-    indexes
-}
-
-/// Return all ready workspace query index artifacts.
-fn workspace_query_indexes(
-    repository: &Repository,
-    revision: Revision,
-) -> Vec<Arc<WorkspaceQueryIndex>> {
-    let profile_ids = repository.profile_ids(revision).unwrap_or_default();
-    let mut indexes = Vec::new();
-
-    for profile_id in profile_ids {
-        let Some(index) = workspace_query_index(repository, revision, profile_id) else {
-            continue;
-        };
-
-        indexes.push(index);
-    }
-
-    indexes
+    Some(indexes)
 }
 
 /// Extend one vector without adding duplicate entries.

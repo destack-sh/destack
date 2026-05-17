@@ -104,8 +104,13 @@ pub fn rename_files(
     let mut edits_by_file: HashMap<FileId, Vec<Edit>> = HashMap::new();
 
     // collect candidate specifier entries from the workspace index
-    let specifier_entries =
-        specifier_candidates_for_rename_paths(repository, revision, rename_map.keys().cloned());
+    let profile_ids = repository.profile_ids(revision).unwrap_or_default();
+    let specifier_entries = specifier_candidates_for_rename_paths(
+        repository,
+        revision,
+        &profile_ids,
+        rename_map.keys().cloned(),
+    );
     let mut entries_by_module: HashMap<ModuleId, Vec<SpecifierEntry>> = HashMap::new();
     for entry in specifier_entries {
         entries_by_module

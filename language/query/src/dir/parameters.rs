@@ -93,7 +93,7 @@ pub(crate) fn parameter_data_for_symbol(
 /// Collect parameter names and docs from one ready query context.
 fn parameter_data_for_symbol_with_context(
     repository: &Repository,
-    ctx: QueryContext,
+    ctx: QueryContext<'_>,
     symbol_id: GlobalSymbolId,
 ) -> Option<ParameterData> {
     // read the symbol declaration

@@ -9,7 +9,10 @@ use destack_source::{Edit, FileId, PathExt, Span};
 
 use super::{dependency_symbol_target, get_canonical_symbol};
 use crate::core::path::{normalize_separators, relative_path};
-use crate::core::{DirQueryContext, SourceQueryContext, modules_referencing_symbol, query_context};
+use crate::core::{
+    DirQueryContext, SourceQueryContext, modules_referencing_symbol, query_context,
+    query_context_for_profile,
+};
 use crate::format::ImportGroup;
 use crate::source::get_module_by_file_id;
 use destack_dir as dir;
@@ -145,12 +148,14 @@ pub(crate) fn resolve_local_import_alias_name(
 pub(crate) fn collect_default_import_alias_symbols_for_export(
     repository: &Repository,
     revision: Revision,
+    profile_id: destack_source::ProfileId,
     canonical_id: dir::GlobalSymbolId,
 ) -> Vec<dir::GlobalSymbolId> {
     let mut symbols = Vec::new();
 
-    for module_id in modules_referencing_symbol(repository, revision, canonical_id) {
-        let Some(ctx) = query_context(repository, revision, module_id) else {
+    for module_id in modules_referencing_symbol(repository, revision, profile_id, canonical_id) {
+        let Some(ctx) = query_context_for_profile(repository, revision, module_id, profile_id)
+        else {
             continue;
         };
         let dir = ctx.dir();

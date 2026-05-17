@@ -190,12 +190,17 @@ pub fn subtypes(
     item: &TypeHierarchyItem,
 ) -> Vec<TypeHierarchyItem> {
     let canonical_id = get_canonical_symbol(repository, revision, item.symbol_id);
+    let Some(profile_id) =
+        query_context(repository, revision, item.symbol_id.module_id).map(|ctx| ctx.profile_id())
+    else {
+        return Vec::new();
+    };
 
     // collect all subtype symbol ids first, then convert
     let mut subtype_ids: Vec<GlobalSymbolId> = Vec::new();
 
     // search cached direct nominal edges across the repository
-    let entries = nominal_relations_for_target(repository, revision, canonical_id);
+    let entries = nominal_relations_for_target(repository, revision, profile_id, canonical_id);
 
     for entry in entries {
         let matches = entry.target_symbol == canonical_id

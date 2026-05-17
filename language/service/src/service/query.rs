@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 
-use destack_artifact::ArtifactKey;
+use destack_artifact::{ArtifactKey, ArtifactVersion};
 use destack_query as query;
 use destack_query::QueryScope;
 use destack_session::{Session, SessionError};
@@ -83,7 +83,7 @@ impl LanguageService {
         let query_scope = QueryScope::Module {
             uri: Uri::from_file_path(path),
         };
-        let artifact_keys = file_query_index_keys(&query_scope, module_id, profile_id);
+        let artifact_keys = file_query_artifact_keys(&query_scope, module_id, profile_id);
 
         session.provide(revision, &artifact_keys).map_err(|error| {
             LanguageServiceError::QueryNotReady {
@@ -1014,18 +1014,21 @@ impl LanguageService {
                     detail: format!("missing query profile for module {module_id:?}: {error}"),
                 }
             })?;
-        let artifact_keys = file_query_index_keys(scope, module_id, profile_id);
+        let artifact_keys = file_query_artifact_keys(scope, module_id, profile_id);
 
-        // require preparation to have bound the query indexes
+        // require preparation to have published the requested artifacts
         for artifact_key in &artifact_keys {
-            if repository
-                .artifact_version(revision, artifact_key)?
-                .is_none()
-            {
-                return Err(LanguageServiceError::QueryNotReady {
-                    detail: format!("missing query index {artifact_key:?}"),
-                });
+            let version = repository.artifact_version(revision, artifact_key)?;
+            let is_ready = version
+                .is_some_and(|version| query_artifact_is_ready(repository, artifact_key, &version));
+
+            if is_ready {
+                continue;
             }
+
+            return Err(LanguageServiceError::QueryNotReady {
+                detail: format!("missing query artifact {artifact_key:?}"),
+            });
         }
 
         Ok(file_id)
@@ -1038,7 +1041,7 @@ impl LanguageService {
         root: &Path,
         request: &query::QueryRequest,
     ) -> Result<(), LanguageServiceError> {
-        // skip queries that do not need query indexes
+        // skip queries that do not need prepared artifacts
         let Some(scope) = request.scope() else {
             return Ok(());
         };
@@ -1089,9 +1092,9 @@ impl LanguageService {
                 .map_err(|error| LanguageServiceError::QueryNotReady {
                     detail: format!("query preparation failed for {}: {error}", path.display()),
                 })?;
-        let artifact_keys = file_query_index_keys(&scope, module_id, profile_id);
+        let artifact_keys = file_query_artifact_keys(&scope, module_id, profile_id);
 
-        // provide exactly the requested query indexes
+        // provide exactly the requested query artifacts
         session.provide(revision, &artifact_keys).map_err(|error| {
             LanguageServiceError::QueryNotReady {
                 detail: format!("query preparation failed for {}: {error}", path.display()),
@@ -1110,6 +1113,37 @@ impl LanguageService {
     }
 }
 
+/// Return whether one prepared query artifact is ready.
+fn query_artifact_is_ready(
+    repository: &Repository,
+    artifact_key: &ArtifactKey,
+    version: &ArtifactVersion,
+) -> bool {
+    match artifact_key {
+        ArtifactKey::DirChecked { .. } => {
+            repository.artifact_store().dir_checked(version).is_some()
+        }
+        ArtifactKey::WorkspaceQueryIndex { .. } => {
+            workspace_query_index_is_ready(repository, version)
+        }
+        _ => false,
+    }
+}
+
+/// Return whether one workspace query index and its module indexes are ready.
+fn workspace_query_index_is_ready(repository: &Repository, version: &ArtifactVersion) -> bool {
+    let Some(index) = repository.artifact_store().workspace_query_index(version) else {
+        return false;
+    };
+
+    index.modules.iter().all(|version| {
+        repository
+            .artifact_store()
+            .module_query_index(version)
+            .is_some()
+    })
+}
+
 /// Return the default profile id for one module.
 fn default_profile_id_for_module(
     repository: &Repository,
@@ -1121,19 +1155,19 @@ fn default_profile_id_for_module(
     Ok(profile.id())
 }
 
-/// Return the query index keys needed for one file-backed query.
-fn file_query_index_keys(
+/// Return the artifact keys needed for one file-backed query.
+fn file_query_artifact_keys(
     scope: &QueryScope,
     module_id: ModuleId,
     profile_id: ProfileId,
 ) -> Vec<ArtifactKey> {
     match scope {
         QueryScope::Module { .. } => {
-            vec![ArtifactKey::module_query_index(module_id, profile_id)]
+            vec![ArtifactKey::dir_checked(module_id, profile_id)]
         }
         QueryScope::ModuleAndWorkspace { .. } => {
             vec![
-                ArtifactKey::module_query_index(module_id, profile_id),
+                ArtifactKey::dir_checked(module_id, profile_id),
                 ArtifactKey::workspace_query_index(profile_id),
             ]
         }

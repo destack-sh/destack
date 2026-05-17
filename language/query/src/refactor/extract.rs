@@ -20,7 +20,7 @@ pub(crate) fn is_extractable_expression(expression: &dir::Expression) -> bool {
 
 /// Resolve the extractable expression at a selection span.
 pub(crate) fn resolve_extract_expression(
-    ctx: &QueryContext,
+    ctx: &QueryContext<'_>,
     selection: Span,
 ) -> Option<(dir::LocalNodeId<dir::Expression>, Span)> {
     // scan expressions for the smallest span that contains the selection
@@ -50,7 +50,7 @@ pub(crate) fn resolve_extract_expression(
 
 /// Resolve the statement span that owns an expression.
 pub(crate) fn statement_span_for_expression(
-    ctx: &QueryContext,
+    ctx: &QueryContext<'_>,
     expr_id: dir::LocalNodeId<dir::Expression>,
     fallback: Span,
 ) -> Span {

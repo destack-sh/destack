@@ -394,7 +394,7 @@ fn overload_declaration_span_for_signature(
 
 /// Resolve declared parameter type ids for a declaration or method member.
 fn declaration_parameter_type_ids(
-    ctx: &QueryContext,
+    ctx: &QueryContext<'_>,
     declaration_id: dir::LocalNodeIdAny,
 ) -> Option<Vec<dir::LocalTypeId>> {
     let dir_tree = ctx.dir().view();

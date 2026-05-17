@@ -135,7 +135,7 @@ struct OutputSymbol {
 /// Extract a single expression into a new function.
 fn extract_expression(
     repository: &Repository,
-    ctx: &QueryContext,
+    ctx: &QueryContext<'_>,
     source_file: &destack_source::File,
     source: &str,
     expr_id: dir::LocalNodeId<dir::Expression>,
@@ -218,7 +218,7 @@ fn extract_expression(
 /// Extract a statement block into a new function.
 fn extract_statement_block(
     repository: &Repository,
-    ctx: &QueryContext,
+    ctx: &QueryContext<'_>,
     source_file: &destack_source::File,
     source: &str,
     selection: &StatementSelection,
@@ -312,7 +312,10 @@ fn extract_statement_block(
 }
 
 /// Resolve a statement selection from a span.
-fn resolve_statement_selection(ctx: &QueryContext, selection: Span) -> Option<StatementSelection> {
+fn resolve_statement_selection(
+    ctx: &QueryContext<'_>,
+    selection: Span,
+) -> Option<StatementSelection> {
     // resolve the tightest block containing the selection
     let dir_tree = ctx.dir().view();
     let mut best_block: Option<(dir::LocalNodeId<dir::Block>, Span, u32)> = None;
@@ -391,7 +394,7 @@ fn resolve_statement_selection(ctx: &QueryContext, selection: Span) -> Option<St
 }
 
 /// Check whether a selection contains control flow that blocks extraction.
-fn selection_contains_control_flow(ctx: &QueryContext, selection: &StatementSelection) -> bool {
+fn selection_contains_control_flow(ctx: &QueryContext<'_>, selection: &StatementSelection) -> bool {
     // scan the selection for control flow that cannot be safely extracted
     let dir_tree = ctx.dir().view();
     let raw_tree = dir_tree.tree();
@@ -410,7 +413,7 @@ fn selection_contains_control_flow(ctx: &QueryContext, selection: &StatementSele
 }
 
 /// Check whether a selection contains await expressions.
-fn selection_contains_await(ctx: &QueryContext, selection: &StatementSelection) -> bool {
+fn selection_contains_await(ctx: &QueryContext<'_>, selection: &StatementSelection) -> bool {
     // scan the selection for await expressions
     let dir_tree = ctx.dir().view();
     let raw_tree = dir_tree.tree();
@@ -430,7 +433,7 @@ fn selection_contains_await(ctx: &QueryContext, selection: &StatementSelection) 
 
 /// Check whether an expression subtree contains await.
 fn expression_contains_await(
-    ctx: &QueryContext,
+    ctx: &QueryContext<'_>,
     expr_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     // scan the expression for await usage
@@ -445,7 +448,7 @@ fn expression_contains_await(
 /// Collect output symbols produced in a selection.
 fn collect_output_symbols(
     repository: &Repository,
-    ctx: &QueryContext,
+    ctx: &QueryContext<'_>,
     selection: &StatementSelection,
 ) -> Vec<OutputSymbol> {
     // collect symbols referenced after the selection in the same container
@@ -642,7 +645,7 @@ struct FreeVariable {
 /// Collect free variables within a selection.
 fn collect_free_variables(
     repository: &Repository,
-    ctx: &QueryContext,
+    ctx: &QueryContext<'_>,
     selection: Span,
 ) -> Vec<FreeVariable> {
     // collect free variables in order of appearance
@@ -725,7 +728,7 @@ fn symbol_mutability(
 /// Resolve type text for a symbol when possible.
 fn declaration_form_text(
     repository: &Repository,
-    ctx: &QueryContext,
+    ctx: &QueryContext<'_>,
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<String> {
     // prefer the current query context when possible

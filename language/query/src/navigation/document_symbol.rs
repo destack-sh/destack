@@ -224,7 +224,7 @@ fn document_symbols_with_parsed(
 fn member_to_document_symbol(
     dir_tree: dir::View<'_>,
     member_id: LocalNodeId<Member>,
-    ctx: &QueryContext,
+    ctx: &QueryContext<'_>,
 ) -> Option<DocumentSymbol> {
     let member = dir_tree.get::<Member>(member_id);
     let range = span_for_dir_node(ctx.source(), dir_tree, member_id.into());
@@ -264,7 +264,7 @@ fn member_to_document_symbol(
 fn type_member_to_document_symbol(
     dir_tree: dir::View<'_>,
     member_id: LocalNodeId<TypeMember>,
-    ctx: &QueryContext,
+    ctx: &QueryContext<'_>,
 ) -> Option<DocumentSymbol> {
     let member = dir_tree.get::<TypeMember>(member_id);
     let range = span_for_dir_node(ctx.source(), dir_tree, member_id.into());
@@ -289,7 +289,7 @@ fn type_member_to_document_symbol(
 fn enum_field_to_document_symbol(
     dir_tree: dir::View<'_>,
     field_id: LocalNodeId<EnumField>,
-    ctx: &QueryContext,
+    ctx: &QueryContext<'_>,
 ) -> Option<DocumentSymbol> {
     let field = dir_tree.get::<EnumField>(field_id);
 

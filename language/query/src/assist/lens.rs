@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::core::{
     NominalRelation, SourceQueryContext, modules_referencing_symbol, nominal_relations_for_target,
-    query_context,
+    query_context, query_context_for_profile,
 };
 use crate::dir::{
     ReferenceCollectionOptions, collect_symbol_references_in_context, get_canonical_symbol,
@@ -262,6 +262,11 @@ fn count_references(
     symbol_id: GlobalSymbolId,
 ) -> usize {
     let canonical_id = get_canonical_symbol(repository, revision, symbol_id);
+    let Some(profile_id) =
+        query_context(repository, revision, symbol_id.module_id).map(|ctx| ctx.profile_id())
+    else {
+        return 0;
+    };
     let reference_name = resolve_symbol_name(repository, revision, canonical_id);
 
     let reference_options = ReferenceCollectionOptions {
@@ -277,8 +282,9 @@ fn count_references(
     };
 
     let mut count = 0;
-    for module_id in modules_referencing_symbol(repository, revision, canonical_id) {
-        let Some(ctx) = query_context(repository, revision, module_id) else {
+    for module_id in modules_referencing_symbol(repository, revision, profile_id, canonical_id) {
+        let Some(ctx) = query_context_for_profile(repository, revision, module_id, profile_id)
+        else {
             continue;
         };
 
@@ -302,7 +308,13 @@ fn count_implementations(
     symbol_id: GlobalSymbolId,
 ) -> usize {
     let canonical_id = get_canonical_symbol(repository, revision, symbol_id);
-    nominal_relations_for_target(repository, revision, canonical_id)
+    let Some(profile_id) =
+        query_context(repository, revision, symbol_id.module_id).map(|ctx| ctx.profile_id())
+    else {
+        return 0;
+    };
+
+    nominal_relations_for_target(repository, revision, profile_id, canonical_id)
         .into_iter()
         .filter(|entry| entry.relation == NominalRelation::Implements)
         .count()
@@ -315,7 +327,13 @@ fn count_subclasses(
     symbol_id: GlobalSymbolId,
 ) -> usize {
     let canonical_id = get_canonical_symbol(repository, revision, symbol_id);
-    nominal_relations_for_target(repository, revision, canonical_id)
+    let Some(profile_id) =
+        query_context(repository, revision, symbol_id.module_id).map(|ctx| ctx.profile_id())
+    else {
+        return 0;
+    };
+
+    nominal_relations_for_target(repository, revision, profile_id, canonical_id)
         .into_iter()
         .filter(|entry| entry.relation == NominalRelation::Extends)
         .count()

@@ -5,7 +5,7 @@ use destack_dir::{
     DependencyBinding, DependencyForm, DependencyItem, Expression, GlobalSymbolId, NodeType,
     Resolution,
 };
-use destack_source::{FileId, ModuleId, NodeSpanRegion, NodeSpanType, ProfileId, Span};
+use destack_source::{FileId, ModuleId, NodeSpanRegion, NodeSpanType, Span};
 use destack_workspace::{Repository, Revision};
 
 use super::import::is_dependency_alias_for_target;
@@ -16,7 +16,7 @@ use super::{
     get_canonical_symbol, get_member_access_name_span, get_path_segment_span,
     namespace_receiver_symbol_target, symbol_matches_reference_target,
 };
-use crate::core::{DirQueryContext, SourceQueryContext, query_context_for_profile};
+use crate::core::{DirQueryContext, QueryContext, SourceQueryContext};
 use crate::source::{get_node_tree_main_span, get_node_tree_span};
 
 /// Options for collecting symbol references.
@@ -45,14 +45,8 @@ pub(crate) struct ReferenceCollectionOptions<'a> {
 /// Build reference index target keys for one module.
 pub(crate) fn build_reference_targets_for_module(
     repository: &Repository,
-    revision: Revision,
-    module_id: ModuleId,
-    profile_id: ProfileId,
+    ctx: &QueryContext<'_>,
 ) -> Vec<GlobalSymbolId> {
-    let Some(ctx) = query_context_for_profile(repository, revision, module_id, profile_id) else {
-        return Vec::new();
-    };
-
     let mut targets = HashSet::new();
     let dir = ctx.dir();
     let dir_tree = dir.view();

@@ -53,9 +53,10 @@ pub fn workspace_symbols(
 
     // normalize query input
     let query = query.trim();
+    let profile_ids = repository.profile_ids(revision).unwrap_or_default();
 
     // collect matching entries from the workspace symbol index
-    for entry in search_workspace_symbol_candidates(repository, revision, query) {
+    for entry in search_workspace_symbol_candidates(repository, revision, &profile_ids, query) {
         let Some(relevance) = symbol_relevance(&entry, query) else {
             continue;
         };

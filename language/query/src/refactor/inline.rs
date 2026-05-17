@@ -6,7 +6,9 @@ use destack_source::{BatchEdit, Edit, FileEdit, FileId, ModuleId, Span, Uri};
 use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 
-use crate::core::{QueryContext, modules_referencing_symbol, query_context};
+use crate::core::{
+    QueryContext, modules_referencing_symbol, query_context, query_context_for_profile,
+};
 use crate::dir::{
     ReferenceCollectionOptions, collect_symbol_references_in_context, expression_symbol_target,
     find_symbol_at_offset, get_canonical_symbol, get_member_access_name_span,
@@ -152,8 +154,10 @@ pub fn inline_symbol(
         require_target_name_match: false,
         limit_to_file: None,
     };
-    for module_id in modules_referencing_symbol(repository, revision, canonical_id) {
-        let Some(ctx) = query_context(repository, ctx.revision(), module_id) else {
+    let profile_id = ctx.profile_id();
+    for module_id in modules_referencing_symbol(repository, revision, profile_id, canonical_id) {
+        let Some(ctx) = query_context_for_profile(repository, revision, module_id, profile_id)
+        else {
             continue;
         };
         let spans = collect_symbol_references_in_context(
@@ -270,7 +274,7 @@ enum AccessSegment {
 /// Collect reference entries for the inline target symbol.
 fn collect_inline_reference_entries(
     repository: &Repository,
-    ctx: &QueryContext,
+    ctx: &QueryContext<'_>,
     canonical_id: dir::GlobalSymbolId,
     file: FileId,
     reference_name: Option<String>,
@@ -376,7 +380,7 @@ fn collect_inline_reference_entries(
 
 /// Count the number of bindings in a pattern.
 fn count_pattern_bindings(
-    ctx: &QueryContext,
+    ctx: &QueryContext<'_>,
     dir_tree: dir::View<'_>,
     pattern_id: dir::LocalNodeId<dir::Pattern>,
 ) -> usize {
@@ -387,7 +391,7 @@ fn count_pattern_bindings(
 
 /// Collect binding symbols from a pattern.
 fn collect_pattern_bindings(
-    ctx: &QueryContext,
+    ctx: &QueryContext<'_>,
     dir_tree: dir::View<'_>,
     pattern_id: dir::LocalNodeId<dir::Pattern>,
     bindings: &mut HashSet<dir::LocalSymbolId>,
@@ -434,7 +438,7 @@ fn collect_pattern_bindings(
 
 /// Collect binding symbols from a pattern field.
 fn collect_pattern_bindings_field(
-    ctx: &QueryContext,
+    ctx: &QueryContext<'_>,
     dir_tree: dir::View<'_>,
     field_id: dir::LocalNodeId<dir::PatternField>,
     bindings: &mut HashSet<dir::LocalSymbolId>,
@@ -467,7 +471,7 @@ fn collect_pattern_bindings_field(
 
 /// Resolve the access path for a destructured binding.
 fn pattern_access_path(
-    ctx: &QueryContext,
+    ctx: &QueryContext<'_>,
     strings: &StringPool,
     dir_tree: dir::View<'_>,
     pattern_id: dir::LocalNodeId<dir::Pattern>,
@@ -523,7 +527,7 @@ fn pattern_access_path(
 
 /// Resolve access paths for object fields.
 fn pattern_access_path_object_fields(
-    ctx: &QueryContext,
+    ctx: &QueryContext<'_>,
     strings: &StringPool,
     dir_tree: dir::View<'_>,
     fields: &[dir::LocalNodeId<dir::PatternField>],
@@ -567,7 +571,7 @@ fn pattern_access_path_object_fields(
 
 /// Resolve access paths for tuple and array fields.
 fn pattern_access_path_indexed(
-    ctx: &QueryContext,
+    ctx: &QueryContext<'_>,
     strings: &StringPool,
     dir_tree: dir::View<'_>,
     fields: &[dir::LocalNodeId<dir::PatternField>],
@@ -693,7 +697,7 @@ fn key_name_key(key: &dir::Key) -> Option<dir::StaticKey> {
 
 /// Resolve the precise span for a reference expression.
 fn reference_span_for_expression(
-    ctx: &QueryContext,
+    ctx: &QueryContext<'_>,
     dir_tree: dir::View<'_>,
     expr_id: dir::LocalNodeId<dir::Expression>,
 ) -> Span {
@@ -741,7 +745,7 @@ fn reference_span_for_expression(
 /// Collect captured symbols referenced inside the inline value.
 fn collect_captured_symbols(
     repository: &Repository,
-    ctx: &QueryContext,
+    ctx: &QueryContext<'_>,
     dir_tree: dir::View<'_>,
     value_id: dir::LocalNodeId<dir::Expression>,
     inline_symbol: dir::GlobalSymbolId,
@@ -783,7 +787,7 @@ fn collect_captured_symbols(
 /// Check whether inlining would introduce shadowing.
 fn inline_shadow_safe(
     repository: &Repository,
-    ctx: &QueryContext,
+    ctx: &QueryContext<'_>,
     _dir_tree: dir::View<'_>,
     reference_entries: &[ReferenceEntry],
     captured_symbols: &[CapturedSymbol],
@@ -898,7 +902,7 @@ fn declarator_value(
 
 /// Resolve declarator spans for a let statement.
 fn statement_declarator_spans(
-    ctx: &QueryContext,
+    ctx: &QueryContext<'_>,
     dir_tree: dir::View<'_>,
     statement_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<Vec<(dir::LocalNodeId<dir::Declarator>, Span)>> {
@@ -1043,7 +1047,7 @@ fn expression_has_side_effects(
 }
 
 /// Detect whether a symbol is assigned within a scope.
-fn symbol_is_assigned(ctx: &QueryContext, symbol_id: dir::GlobalSymbolId) -> bool {
+fn symbol_is_assigned(ctx: &QueryContext<'_>, symbol_id: dir::GlobalSymbolId) -> bool {
     // scan for assignments to this symbol
     let dir_tree = ctx.dir().view();
     for (_expr_id, expr) in dir_tree.iter_nodes_of_type::<dir::Expression>() {
@@ -1062,7 +1066,7 @@ fn symbol_is_assigned(ctx: &QueryContext, symbol_id: dir::GlobalSymbolId) -> boo
 
 /// Return the target symbol for one direct expression assignment target.
 fn expression_target_symbol(
-    ctx: &QueryContext,
+    ctx: &QueryContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<dir::GlobalSymbolId> {
     expression_symbol_target(ctx.dir(), expression_id)
@@ -1070,7 +1074,7 @@ fn expression_target_symbol(
 
 /// Return the target symbol for one assign pattern when it is a simple reference.
 fn assign_pattern_target_symbol(
-    ctx: &QueryContext,
+    ctx: &QueryContext<'_>,
     assign_pattern_id: dir::LocalNodeId<dir::AssignPattern>,
 ) -> Option<dir::GlobalSymbolId> {
     let dir_tree = ctx.dir().view();

@@ -115,6 +115,7 @@ pub fn goto_implementation(
     let Some(ctx) = query_context(repository, revision, canonical_id.module_id) else {
         return Some(ImplementationResult::empty());
     };
+    let profile_id = ctx.profile_id();
 
     // resolve the target symbol metadata
     let (is_interface, is_class) = {
@@ -136,7 +137,7 @@ pub fn goto_implementation(
 
     // match cached direct edges against the target symbol set
     for target_symbol in target_symbols {
-        let entries = nominal_relations_for_target(repository, revision, target_symbol);
+        let entries = nominal_relations_for_target(repository, revision, profile_id, target_symbol);
 
         for entry in entries {
             let matches = if is_interface {
