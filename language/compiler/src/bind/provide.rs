@@ -1,4 +1,4 @@
-use destack_artifact::{ArtifactKey, ArtifactPayload, DirBound, DirParsed};
+use destack_artifact::{ArtifactPayload, DirBound, DirParsed};
 use destack_dir as dir;
 use destack_source::{ModuleId, ProfileId};
 use destack_workspace::{ConditionSet, Module, ProviderContext};
@@ -16,11 +16,6 @@ impl Compiler {
         profile: ProfileId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
-        // require parsed source tree
-        context
-            .require(ArtifactKey::dir_parsed(module))
-            .map_err(CompilerError::from)?;
-
         // load provider inputs
         let parsed = self
             .dir_parsed(context, module)

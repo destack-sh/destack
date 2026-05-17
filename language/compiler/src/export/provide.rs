@@ -1,4 +1,4 @@
-use destack_artifact::{ArtifactKey, ArtifactPayload};
+use destack_artifact::ArtifactPayload;
 use destack_dir as dir;
 use destack_source::ModuleId;
 use destack_workspace::{ProfileId, ProviderContext};
@@ -14,11 +14,6 @@ impl Compiler {
         profile: ProfileId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
-        // require expanded source view
-        context
-            .require(ArtifactKey::dir_expanded(module, profile))
-            .map_err(CompilerError::from)?;
-
         // load provider inputs
         let parsed = self
             .dir_parsed(context, module)

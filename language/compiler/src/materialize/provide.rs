@@ -1,8 +1,11 @@
-use destack_artifact::ArtifactPayload;
+use std::sync::Arc;
+
+use destack_artifact::{ArtifactPayload, DirMaterialized};
+use destack_dir as dir;
 use destack_source::ModuleId;
 use destack_workspace::{ProfileId, ProviderContext};
 
-use crate::{Compiler, CompilerResult};
+use crate::{Compiler, CompilerError, CompilerResult};
 
 impl Compiler {
     /// Build materialized DIR for one module.
@@ -12,13 +15,27 @@ impl Compiler {
         profile: ProfileId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
-        let _ = self;
+        // load provider inputs
+        let parsed = self
+            .dir_parsed(context, module)
+            .map_err(CompilerError::from)?;
+        let expanded = self
+            .dir_expanded(context, module, profile)
+            .map_err(CompilerError::from)?;
+        let checked = self
+            .dir_checked(context, module, profile)
+            .map_err(CompilerError::from)?;
 
-        todo!(
-            "DIR materialization provider is unavailable for {:?} module {:?} profile {:?}",
-            context.artifact_key(),
-            module,
-            profile,
-        )
+        // FUGU #Incomplete: implement proper materialization
+        let materialized = DirMaterialized {
+            patch: dir::Patch::new(&parsed.tree, "materialize"),
+            bindings: Arc::new(dir::BindingSegment::from_base(&expanded.bindings)),
+            types: Arc::new(dir::TypeSegment::from_base(&checked.types)),
+            captures: Arc::new(dir::CaptureSegment::new()),
+            layouts: Arc::new(dir::LayoutSegment::new(module)),
+            roots: expanded.roots.clone(),
+        };
+
+        Ok(ArtifactPayload::DirMaterialized(materialized))
     }
 }

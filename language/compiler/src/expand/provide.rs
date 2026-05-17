@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactKey, ArtifactPayload, DirExpanded};
+use destack_artifact::{ArtifactPayload, DirExpanded};
 use destack_dir as dir;
 use destack_source::ModuleId;
 use destack_workspace::{ProfileId, ProviderContext};
@@ -15,12 +15,10 @@ impl Compiler {
         profile: ProfileId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
-        // require imported dependency edges
-        context
-            .require(ArtifactKey::dir_imported(module, profile))
-            .map_err(CompilerError::from)?;
-
         // load provider inputs
+        let _imported = self
+            .dir_imported(context, module, profile)
+            .map_err(CompilerError::from)?;
         let parsed = self
             .dir_parsed(context, module)
             .map_err(CompilerError::from)?;

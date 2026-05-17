@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use destack_artifact::{ArtifactKey, ArtifactPayload, GlobalEnvironment};
+use destack_artifact::{ArtifactPayload, GlobalEnvironment};
 use destack_dir as dir;
 use destack_source::ModuleId;
 use destack_workspace::{ProfileId, ProviderContext};
@@ -44,11 +44,6 @@ impl Compiler {
         profile: ProfileId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
-        // require bound source tree and binding table
-        context
-            .require(ArtifactKey::dir_bound(module, profile))
-            .map_err(CompilerError::from)?;
-
         // load provider inputs
         let parsed = self
             .dir_parsed(context, module)

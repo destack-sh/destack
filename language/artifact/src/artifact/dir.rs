@@ -258,6 +258,8 @@ pub struct DirElaborated {
     pub captures: Arc<dir::CaptureSegment>,
     /// New layouts.
     pub layouts: Arc<dir::LayoutSegment>,
+    /// Top-level expressions.
+    pub roots: Vec<dir::LocalNodeId<dir::Expression>>,
     /// New guards.
     pub guards: dir::GuardTable,
 }
