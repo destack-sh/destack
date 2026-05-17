@@ -49,8 +49,8 @@ name satisfies shared &readonly string;
 
 ### shared managed values cannot be borrowed exclusively
 
-
 Exclusive borrowed access cannot be proven from a shared managed handle (ever, unfortunately).
+
 ```ds
 class Counter {
     value: int32 = 0;
@@ -60,6 +60,32 @@ let counter: shared Counter = new Counter();
 let write = &exclusive counter;
 
 write.value = 1;
+```
+
+- contains: shared managed
+
+### shared managed arrays cannot grow directly
+
+Growing an array requires exclusive access, which shared managed handles cannot provide.
+
+```ds
+let items: shared Array<int32> = Array.from([1, 2, 3]);
+
+items.push(4);
+```
+
+- contains: shared managed
+
+### shared managed maps cannot insert directly
+
+Inserting into a map requires exclusive access, which shared managed handles cannot provide.
+
+```ds
+let scores: shared Map<string, int32> = Map.from([
+    ["ada", 1],
+]);
+
+scores.insert("grace", 2);
 ```
 
 - contains: shared managed
@@ -382,30 +408,30 @@ value satisfies int32;
 borrowed satisfies &readonly int32;
 ```
 
-### element writes can overlap readonly borrows
+### field writes can overlap readonly borrows
 
-Writing an existing element does not invalidate an element borrow.
+Writing through ordinary mutable access does not invalidate a field borrow.
 
 ```ds
-class Bucket<T> {
-    items: T[] = [];
+class Cell<T> {
+    value: T;
 }
 
-extension of Bucket<T> {
-    at(this: &readonly Bucket<T>, index: uint): &readonly T {
-        return &readonly this.items[index];
+extension of Cell<T> {
+    get(this: &readonly Cell<T>): &readonly T {
+        return &readonly this.value;
     }
 
-    set(this: &Bucket<T>, index: uint, value: T): void {
-        this.items[index] = value;
+    set(this: &Cell<T>, value: T): void {
+        this.value = value;
     }
 }
 
-let bucket = new Bucket<int32>();
-let item = bucket.at(0);
+let cell = new Cell<int32>();
+let value = cell.get();
 
-bucket.set(0, 1);
-item satisfies &readonly int32;
+cell.set(1);
+value satisfies &readonly int32;
 ```
 
 ### custom collections can exclude unstable growth
@@ -436,9 +462,9 @@ item satisfies &readonly int32;
 
 - contains: cannot borrow as exclusive
 
-### array push preserves element borrows
+### array growth excludes element borrows
 
-Default arrays preserve existing element storage when they grow.
+Growing an array can move element storage.
 
 ```ds
 let items: Array<int32> = [1, 2, 3];
@@ -448,9 +474,11 @@ items.push(4);
 item satisfies &readonly int32;
 ```
 
-### returned element borrows survive stable array growth
+- contains: cannot borrow as exclusive
 
-Returning an element borrow does not prevent borrow-stable growth.
+### returned element borrows exclude array growth
+
+Returning an element borrow keeps that element path live.
 
 ```ds
 function second<T>(items: Array<T>): &readonly T {
@@ -463,6 +491,8 @@ let item = second(items);
 items.push(4);
 item satisfies &readonly int32;
 ```
+
+- contains: cannot borrow as exclusive
 
 ### array removal excludes element borrows
 
@@ -478,29 +508,15 @@ item satisfies &readonly int32;
 
 - contains: cannot borrow as exclusive
 
-### array compaction excludes element borrows
+### array shrink excludes element borrows
 
-Compaction can move backing segments.
+Shrinking capacity can move element storage.
 
 ```ds
 let items: Array<int32> = [1, 2, 3];
 let item = &readonly items[1];
 
-items.compact();
-item satisfies &readonly int32;
-```
-
-- contains: cannot borrow as exclusive
-
-### packed array growth excludes element borrows
-
-Packed arrays use compact storage, so growth needs exclusive access.
-
-```ds
-let items: PackedArray<int32> = PackedArray.from([1, 2, 3]);
-let item = &readonly items[1];
-
-items.push(4);
+items.shrinkToFit();
 item satisfies &readonly int32;
 ```
 
@@ -532,21 +548,21 @@ item satisfies &readonly int32;
 bucket.push(1);
 ```
 
-### packed array growth is allowed after last use
+### array growth is allowed after last use
 
-Packed arrays can grow after the element borrow ends.
+Arrays can grow after the element borrow ends.
 
 ```ds
-let items: PackedArray<int32> = PackedArray.from([1, 2, 3]);
+let items: Array<int32> = Array.from([1, 2, 3]);
 let item = &readonly items[1];
 
 item satisfies &readonly int32;
 items.push(4);
 ```
 
-### array element writes can overlap element borrows
+### array element replacement excludes element borrows
 
-Writing an existing element does not relocate the backing storage.
+Replacing an array element requires exclusive access to the array.
 
 ```ds
 let items: Array<int32> = [1, 2, 3];
@@ -556,9 +572,11 @@ items[1] = 4;
 item satisfies &readonly int32;
 ```
 
-### map insert preserves value borrows
+- contains: cannot borrow as exclusive
 
-Default maps preserve existing entry storage when inserting an absent key.
+### map insert excludes value borrows
+
+Inserting into a map can move entry storage.
 
 ```ds
 let scores: Map<string, int32> = Map.from([
@@ -570,6 +588,8 @@ let score: &int32 | undefined = scores.get("ada");
 scores.insert("grace", 2);
 score satisfies &int32 | undefined;
 ```
+
+- contains: cannot borrow as exclusive
 
 ### map removal excludes value borrows
 
@@ -583,23 +603,6 @@ let scores: Map<string, int32> = Map.from([
 let score: &int32 | undefined = scores.get("ada");
 
 scores.remove("ada");
-score satisfies &int32 | undefined;
-```
-
-- contains: cannot borrow as exclusive
-
-### packed map insert excludes value borrows
-
-Packed maps use open-addressed storage, so insertion needs exclusive access.
-
-```ds
-let scores: PackedMap<string, int32> = PackedMap.from([
-    ["ada", 1],
-]);
-
-let score: &int32 | undefined = scores.get("ada");
-
-scores.insert("grace", 2);
 score satisfies &int32 | undefined;
 ```
 

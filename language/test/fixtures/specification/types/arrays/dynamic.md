@@ -22,38 +22,6 @@ let target: string[] = source;
 
 - contains: not assignable
 
-### packed arrays are explicit
-
-Packed arrays use a separate compact storage type.
-
-```ds
-let values: PackedArray<int32> = PackedArray.from([1, 2, 3]);
-
-values satisfies PackedArray<int32>;
-```
-
-### dynamic arrays convert to packed arrays explicitly
-
-Stable and packed arrays convert through `Into`.
-
-```ds
-let stable: Array<int32> = [1, 2, 3];
-let packed: PackedArray<int32> = stable.into();
-
-packed satisfies PackedArray<int32>;
-```
-
-### packed arrays convert to dynamic arrays explicitly
-
-Packed arrays can be copied back into stable arrays.
-
-```ds
-let packed: PackedArray<int32> = PackedArray.from([1, 2, 3]);
-let stable: Array<int32> = packed.into();
-
-stable satisfies Array<int32>;
-```
-
 ### accessors preserve receiver access
 
 Array accessors return the form requested by the receiver.
