@@ -9,13 +9,13 @@ use crate::{
     Arena, Argument, AssignPattern, AssignPatternField, Block, Catch, Comment, Declaration,
     Declarator, Decorator, DependencyItem, EnumField, Expression, GenericArgument,
     GenericParameter, IfCondition, LocalNodeId, LocalNodeIdAny, MatchCase, Member, Node, NodeType,
-    NodeVisitor, NodeVisitorOptions, Parameter, Pattern, PatternField, Property, ProvenanceId,
-    ProvenanceMetadata, ProvenanceReason, TupleElement, TypeExpression, TypeMappedParameter,
-    TypeMember, WhereClause, walk_argument, walk_block, walk_catch, walk_declaration,
-    walk_declarator, walk_decorator, walk_dependency_item, walk_enum_field, walk_expression,
-    walk_generic_argument, walk_generic_parameter, walk_match_case, walk_member, walk_parameter,
-    walk_pattern, walk_pattern_field, walk_property, walk_tuple_element, walk_type_expression,
-    walk_type_mapped_parameter, walk_type_member, walk_where_clause,
+    NodeVisitor, NodeVisitorOptions, Parameter, Pattern, PatternField, Property, TupleElement,
+    TypeExpression, TypeMappedParameter, TypeMember, WhereClause, walk_argument, walk_block,
+    walk_catch, walk_declaration, walk_declarator, walk_decorator, walk_dependency_item,
+    walk_enum_field, walk_expression, walk_generic_argument, walk_generic_parameter,
+    walk_match_case, walk_member, walk_parameter, walk_pattern, walk_pattern_field, walk_property,
+    walk_tuple_element, walk_type_expression, walk_type_mapped_parameter, walk_type_member,
+    walk_where_clause,
 };
 
 /// Normalized documentation attached to one DIR node.
@@ -208,8 +208,8 @@ pub struct Tree {
     /// The parent node id by node id. Index is the global node id.
     /// Parents are indexed directly because the parsed tree already has the source shape.
     parent_id_by_node_id: Vec<Option<u32>>,
-    /// Provenance metadata for all nodes.
-    provenance: ProvenanceMetadata,
+    /// The source node id by DIR node id.
+    source_id_by_node_id: Vec<u32>,
     /// The alias node id by source node id.
     alias_node_id_by_source_id: BTreeMap<u32, u32>,
     /// The alias node id by DIR node id.
@@ -275,10 +275,7 @@ impl Tree {
             decorators: Arena::new(),
 
             parent_id_by_node_id: Vec::with_capacity(capacity),
-            provenance: ProvenanceMetadata {
-                provenance_by_node_id: Vec::with_capacity(capacity),
-                ..ProvenanceMetadata::default()
-            },
+            source_id_by_node_id: Vec::with_capacity(capacity),
             alias_node_id_by_source_id: BTreeMap::new(),
             alias_node_id_by_node_id: BTreeMap::new(),
             decorators_by_node_id: BTreeMap::new(),
@@ -340,8 +337,7 @@ impl Tree {
         self.node_index_by_node_id
             .push(NodeIndexEntry::new(local_id, T::TYPE));
         self.parent_id_by_node_id.push(None);
-        let provenance_id = self.provenance.create_source(global_id);
-        self.provenance.provenance_by_node_id.push(provenance_id);
+        self.source_id_by_node_id.push(global_id);
         self.source_span_by_node_id.push(Some(span));
         self.source_map.append_during_parse(span);
 
@@ -388,8 +384,7 @@ impl Tree {
             .truncate(mark.next_global_id as usize);
         self.parent_id_by_node_id
             .truncate(mark.next_global_id as usize);
-        self.provenance
-            .provenance_by_node_id
+        self.source_id_by_node_id
             .truncate(mark.next_global_id as usize);
         self.source_span_by_node_id
             .truncate(mark.next_global_id as usize);
@@ -480,8 +475,7 @@ impl Tree {
             .push(NodeIndexEntry::placeholder(node_type));
         self.parent_id_by_node_id
             .push(parent_id.map(|parent_id| parent_id.id));
-        let provenance_id = self.provenance.create_source(source_node_id);
-        self.provenance.provenance_by_node_id.push(provenance_id);
+        self.source_id_by_node_id.push(source_node_id);
         self.source_span_by_node_id.push(None);
         self.alias_node_id_by_source_id
             .insert(source_node_id, global_id);
@@ -495,7 +489,6 @@ impl Tree {
         node_type: NodeType,
         dir_node_id: LocalNodeIdAny,
         parent_id: Option<LocalNodeIdAny>,
-        reason: Option<ProvenanceReason>,
     ) -> LocalNodeIdAny {
         let global_id = self.next_global_id;
         self.next_global_id = global_id + 1;
@@ -505,12 +498,8 @@ impl Tree {
         self.parent_id_by_node_id
             .push(parent_id.map(|parent_id| parent_id.id));
         let parent_index = self.node_index(dir_node_id.id);
-        let parent_provenance = self.provenance.provenance_by_node_id[parent_index];
-        let source_id = self.provenance.source_id(parent_provenance);
-        let provenance_id = self
-            .provenance
-            .create_derived(source_id, parent_provenance, reason);
-        self.provenance.provenance_by_node_id.push(provenance_id);
+        let source_id = self.source_id_by_node_id[parent_index];
+        self.source_id_by_node_id.push(source_id);
         self.source_span_by_node_id
             .push(self.source_span_by_node_id[parent_index]);
         self.alias_node_id_by_node_id
@@ -638,7 +627,7 @@ impl Tree {
         let original = self.get(id).clone();
 
         // preserve original at a detached id
-        let preserved_id = self.reserve_from(T::TYPE, id.into_any(), None, None);
+        let preserved_id = self.reserve_from(T::TYPE, id.into_any(), None);
         let preserved_id: LocalNodeId<T> = self.insert_reserved(preserved_id, original);
 
         // hide preserved originals from structural traversal
@@ -1476,8 +1465,7 @@ impl Tree {
     /// Get the source id of a node by its DIR node id.
     #[inline]
     pub fn get_source(&self, node_id: u32) -> u32 {
-        let provenance_id = self.provenance.provenance_by_node_id[self.node_index(node_id)];
-        self.provenance.source_id(provenance_id)
+        self.source_id_by_node_id[self.node_index(node_id)]
     }
 
     /// Return the enclosing source span for one parsed node.
@@ -1634,12 +1622,6 @@ impl Tree {
     #[inline]
     pub fn build_position_index(&mut self) {
         self.source_map.build_position_index();
-    }
-
-    /// Get the provenance id of one node by its DIR node id.
-    #[inline]
-    pub fn get_provenance(&self, node_id: u32) -> ProvenanceId {
-        self.provenance.provenance_by_node_id[self.node_index(node_id)]
     }
 
     /// Return true when the node id exists in this tree.

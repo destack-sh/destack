@@ -406,7 +406,7 @@ impl From<GlobalNodeIdAny> for LocalNodeIdAny {
     }
 }
 
-/// Anchored global node id with profile provenance.
+/// Anchored global node id with profile identity.
 ///
 /// Base DIR nodes have no profile.
 /// Profile-scoped patch nodes carry the profile that produced them.
