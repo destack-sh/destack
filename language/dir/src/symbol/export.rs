@@ -19,9 +19,9 @@ impl ExportKey {
         Self::Named(key)
     }
 
-    /// Build one default export key.
+    /// Build the default export key.
     #[inline]
-    pub fn default() -> Self {
+    pub fn default_key() -> Self {
         Self::Default
     }
 

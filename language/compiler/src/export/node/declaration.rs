@@ -43,7 +43,7 @@ impl Compiler {
 
         // resolve visible export name
         let name = match symbol.export_kind? {
-            dir::ExportKind::Default => dir::ExportKey::default(),
+            dir::ExportKind::Default => dir::ExportKey::default_key(),
             dir::ExportKind::Named => dir::ExportKey::named(symbol.key?),
         };
 
