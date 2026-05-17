@@ -1,7 +1,7 @@
 use crate::build::ModuleBuilder;
 use crate::{
-    Access, AddressSpace, Copy, FenceAccess, Lifetime, MemoryFlags, MemoryOrdering, MemoryScope,
-    MirFormatOptions, Mutability, Nullability, ReferenceKind, SyncScope, Type, format_mir,
+    Access, Copy, FenceAccess, Lifetime, MemoryFlags, MemoryOrdering, MemoryScope,
+    MirFormatOptions, Mutability, Nullability, ReferenceKind, Space, SyncScope, Type, format_mir,
 };
 
 /// Empty function with void return.
@@ -204,7 +204,7 @@ block1(value1: int32):
     assert_eq!(output, expected);
 }
 
-/// Trap terminators format as explicit control exits.
+/// Panic terminators format as explicit control exits.
 #[test]
 fn test_build_function_with_trap_terminator() {
     // setup
@@ -218,7 +218,7 @@ fn test_build_function_with_trap_terminator() {
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
     let payload = builder.null(string_type);
-    builder.trap_panic(payload);
+    builder.panic(Some(payload.into()));
     builder.seal_block(entry_block);
     builder.finish();
 
@@ -229,7 +229,7 @@ fn test_build_function_with_trap_terminator() {
 function trapper(): void {
 entry0:
     value0: ref<int32, managed, readonly> = null
-    trap.panic value0
+    panic value0
 }";
     assert_eq!(output, expected);
 }
@@ -839,7 +839,7 @@ fn test_build_slice_descriptor() {
         i32_type,
         Lifetime::parameter(0),
         Access::Mutable,
-        AddressSpace::Local,
+        Space::Local,
     );
 
     // build function with slice
@@ -904,26 +904,26 @@ entry0:
     assert_eq!(output, expected);
 }
 
-/// Allocation instruction: stack.alloc.
+/// Allocation instruction: frame.alloc.
 #[test]
-fn test_build_stack_alloc() {
+fn test_build_frame_alloc() {
     // setup
     let mut module = ModuleBuilder::new();
     let i32_type = module.type_i32();
     let raw_ref_type = module.tree_mut().insert_type(Type::Reference {
         kind: ReferenceKind::Raw,
         lifetime: Lifetime::empty(),
-        address_space: AddressSpace::Stack,
+        space: Space::Frame,
         access: Access::Readonly,
         pointee: i32_type.into(),
         nullability: Nullability::None,
     });
 
-    // build function with stack.alloc
+    // build function with frame.alloc
     let mut builder = module.function("stackAllocTest", &[], raw_ref_type);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
-    let allocated_value = builder.stack_alloc(i32_type, raw_ref_type);
+    let allocated_value = builder.frame_alloc(i32_type, raw_ref_type);
     builder.return_(Some(allocated_value));
     builder.seal_block(entry_block);
     builder.finish();
@@ -932,9 +932,9 @@ fn test_build_stack_alloc() {
     let (tree, strings) = module.finish();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-function stackAllocTest(): ref<int32, raw, readonly, space(stack)> {
+function stackAllocTest(): ref<int32, raw, readonly, space(frame)> {
 entry0:
-    value0: ref<int32, raw, readonly, space(stack)> = stack.alloc int32
+    value0: ref<int32, raw, readonly, space(frame)> = frame.alloc int32
     return value0
 }";
     assert_eq!(output, expected);

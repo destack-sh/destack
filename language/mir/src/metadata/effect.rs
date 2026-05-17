@@ -1,42 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{AddressSpace, MemorySpaceSet};
-
-/// Set of address spaces that an operation may access.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub struct AddressSpaceSet {
-    /// Address spaces included in the set.
-    pub spaces: Vec<AddressSpace>,
-}
-
-impl AddressSpaceSet {
-    /// Create an address space set from the provided entries.
-    pub fn new(spaces: Vec<AddressSpace>) -> Self {
-        Self { spaces }
-    }
-
-    /// Check whether the set contains the target address space.
-    pub fn contains(&self, space: AddressSpace) -> bool {
-        self.spaces.contains(&space)
-    }
-
-    /// Check whether the set is empty.
-    pub fn is_empty(&self) -> bool {
-        self.spaces.is_empty()
-    }
-
-    /// Check whether two address space sets intersect.
-    pub fn intersects(&self, other: &Self) -> bool {
-        self.spaces
-            .iter()
-            .any(|space| other.contains(space.clone()))
-    }
-
-    /// Check whether two address space sets are disjoint.
-    pub fn is_disjoint(&self, other: &Self) -> bool {
-        !self.intersects(other)
-    }
-}
+use crate::SpaceSet;
 
 /// Memory effect summary for a call or operation.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -46,15 +10,7 @@ pub struct MemoryEffect {
     /// Whether the operation may write memory.
     pub writes: bool,
     /// The memory spaces that may be accessed.
-    pub spaces: MemorySpaceSet,
-    /// Optional address space restriction for the access set.
-    pub address_spaces: Option<AddressSpaceSet>,
-    /// True when the operation only touches memory reachable from arguments.
-    pub argmemonly: bool,
-    /// True when the operation only touches inaccessible memory.
-    pub inaccessible_mem_only: bool,
-    /// True when the operation does not synchronize or use atomics.
-    pub nosync: bool,
+    pub spaces: SpaceSet,
 }
 
 impl MemoryEffect {
@@ -63,50 +19,34 @@ impl MemoryEffect {
         Self {
             reads: false,
             writes: false,
-            spaces: MemorySpaceSet::NONE,
-            address_spaces: None,
-            argmemonly: false,
-            inaccessible_mem_only: false,
-            nosync: false,
+            spaces: SpaceSet::NONE,
         }
     }
 
     /// Create a read only effect over the provided spaces.
-    pub const fn read_only(spaces: MemorySpaceSet) -> Self {
+    pub const fn read_only(spaces: SpaceSet) -> Self {
         Self {
             reads: true,
             writes: false,
             spaces,
-            address_spaces: None,
-            argmemonly: false,
-            inaccessible_mem_only: false,
-            nosync: false,
         }
     }
 
     /// Create a write only effect over the provided spaces.
-    pub const fn write_only(spaces: MemorySpaceSet) -> Self {
+    pub const fn write_only(spaces: SpaceSet) -> Self {
         Self {
             reads: false,
             writes: true,
             spaces,
-            address_spaces: None,
-            argmemonly: false,
-            inaccessible_mem_only: false,
-            nosync: false,
         }
     }
 
     /// Create a read write effect over the provided spaces.
-    pub const fn read_write(spaces: MemorySpaceSet) -> Self {
+    pub const fn read_write(spaces: SpaceSet) -> Self {
         Self {
             reads: true,
             writes: true,
             spaces,
-            address_spaces: None,
-            argmemonly: false,
-            inaccessible_mem_only: false,
-            nosync: false,
         }
     }
 
@@ -115,36 +55,8 @@ impl MemoryEffect {
         Self {
             reads: true,
             writes: true,
-            spaces: MemorySpaceSet::ANY,
-            address_spaces: None,
-            argmemonly: false,
-            inaccessible_mem_only: false,
-            nosync: false,
+            spaces: SpaceSet::ANY,
         }
-    }
-
-    /// Return this effect with a refined address space set.
-    pub fn with_address_spaces(mut self, address_spaces: AddressSpaceSet) -> Self {
-        self.address_spaces = Some(address_spaces);
-        self
-    }
-
-    /// Return this effect with the argmemonly flag enabled.
-    pub const fn with_argmemonly(mut self) -> Self {
-        self.argmemonly = true;
-        self
-    }
-
-    /// Return this effect with the inaccessible memory only flag enabled.
-    pub const fn with_inaccessible_mem_only(mut self) -> Self {
-        self.inaccessible_mem_only = true;
-        self
-    }
-
-    /// Return this effect with the nosync flag enabled.
-    pub const fn with_nosync(mut self) -> Self {
-        self.nosync = true;
-        self
     }
 }
 
@@ -154,26 +66,19 @@ impl Default for MemoryEffect {
     }
 }
 
-/// Effect class for an operation.
+/// Determinism for a call or function.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum EffectClass {
-    /// Pure operation with no observable side effects.
-    Pure,
-    /// Deterministic operation with observable effects.
+pub enum Determinism {
+    /// The operation is deterministic for the same inputs and runtime state.
     Deterministic,
-    /// Non-deterministic operation with observable effects.
+    /// The operation may observe entropy, time, scheduling, or host state.
     NonDeterministic,
 }
 
-impl EffectClass {
-    /// Return true when the operation is pure.
-    pub fn is_pure(self) -> bool {
-        matches!(self, Self::Pure)
-    }
-
+impl Determinism {
     /// Return true when the operation is deterministic.
     pub fn is_deterministic(self) -> bool {
-        !matches!(self, Self::NonDeterministic)
+        matches!(self, Self::Deterministic)
     }
 }
 
@@ -216,104 +121,90 @@ impl ReturnBehavior {
     }
 }
 
-/// Memory-space and address-space scope for one allocation side effect.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct AllocationAccess {
-    /// The memory spaces that may be touched.
-    pub spaces: MemorySpaceSet,
-    /// The address spaces that may be touched.
-    pub address_spaces: Option<AddressSpaceSet>,
+/// Panic behavior for a call or function.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum PanicBehavior {
+    /// The operation cannot panic.
+    CannotPanic,
+    /// The operation may panic and unwind cleanup.
+    MayPanic,
 }
 
-impl AllocationAccess {
-    /// Create one unconstrained access summary.
-    pub const fn unknown() -> Self {
-        Self {
-            spaces: MemorySpaceSet::ANY,
-            address_spaces: None,
-        }
-    }
-}
-
-/// Allocation and free behavior for a call or function.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct AllocationEffect {
-    /// Allocation behavior when the operation may allocate.
-    pub allocate: Option<AllocationAccess>,
-    /// Free behavior when the operation may free.
-    pub free: Option<AllocationAccess>,
-}
-
-impl AllocationEffect {
-    /// Create one behavior with no allocation side effects.
-    pub const fn none() -> Self {
-        Self {
-            allocate: None,
-            free: None,
-        }
-    }
-
-    /// Create one conservative unknown allocation behavior.
-    pub const fn unknown() -> Self {
-        Self {
-            allocate: Some(AllocationAccess::unknown()),
-            free: Some(AllocationAccess::unknown()),
-        }
+impl PanicBehavior {
+    /// Return true when the operation may panic.
+    pub fn may_panic(self) -> bool {
+        matches!(self, Self::MayPanic)
     }
 }
 
 /// Behavioral effects for calls and functions.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct CallBehavior {
-    /// Effect class for this operation.
-    pub effect_class: EffectClass,
+pub struct FunctionBehavior {
+    /// Determinism for this operation.
+    pub determinism: Determinism,
     /// Whether this operation may suspend execution.
     pub suspend: SuspendBehavior,
+    /// Panic behavior for this operation.
+    pub panic: PanicBehavior,
     /// Return behavior for this operation.
     pub return_behavior: ReturnBehavior,
     /// Whether optimization must not duplicate this operation.
     pub must_not_duplicate: bool,
-    /// Allocation and free behavior for this operation.
-    pub allocation: AllocationEffect,
+    /// Whether this operation may allocate storage.
+    pub allocates: bool,
+    /// Whether this operation may free storage.
+    pub frees: bool,
 }
 
-impl CallBehavior {
+impl FunctionBehavior {
     /// Create a behavior with no special effects.
     pub const fn none() -> Self {
         Self {
-            effect_class: EffectClass::Deterministic,
+            determinism: Determinism::Deterministic,
             suspend: SuspendBehavior::CannotSuspend,
+            panic: PanicBehavior::CannotPanic,
             return_behavior: ReturnBehavior::MayReturn,
             must_not_duplicate: false,
-            allocation: AllocationEffect::none(),
+            allocates: false,
+            frees: false,
         }
     }
 
     /// Create a conservative unknown behavior.
     pub const fn unknown() -> Self {
         Self {
-            effect_class: EffectClass::NonDeterministic,
+            determinism: Determinism::NonDeterministic,
             suspend: SuspendBehavior::CannotSuspend,
+            panic: PanicBehavior::MayPanic,
             return_behavior: ReturnBehavior::MayReturn,
             must_not_duplicate: false,
-            allocation: AllocationEffect::unknown(),
+            allocates: true,
+            frees: true,
         }
     }
 
     /// Create a pure behavior summary.
     pub const fn pure() -> Self {
         Self {
-            effect_class: EffectClass::Pure,
+            determinism: Determinism::Deterministic,
             suspend: SuspendBehavior::CannotSuspend,
+            panic: PanicBehavior::CannotPanic,
             return_behavior: ReturnBehavior::WillReturn,
             must_not_duplicate: false,
-            allocation: AllocationEffect::none(),
+            allocates: false,
+            frees: false,
         }
     }
 
     /// Return this behavior with the may-suspend flag enabled.
     pub const fn with_suspend(mut self) -> Self {
         self.suspend = SuspendBehavior::MaySuspend;
+        self
+    }
+
+    /// Return this behavior with the may-panic flag enabled.
+    pub const fn with_panic(mut self) -> Self {
+        self.panic = PanicBehavior::MayPanic;
         self
     }
 
@@ -334,9 +225,21 @@ impl CallBehavior {
         self.must_not_duplicate = true;
         self
     }
+
+    /// Return this behavior with allocation enabled.
+    pub const fn with_allocates(mut self) -> Self {
+        self.allocates = true;
+        self
+    }
+
+    /// Return this behavior with free enabled.
+    pub const fn with_frees(mut self) -> Self {
+        self.frees = true;
+        self
+    }
 }
 
-impl Default for CallBehavior {
+impl Default for FunctionBehavior {
     fn default() -> Self {
         Self::unknown()
     }

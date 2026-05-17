@@ -3,9 +3,9 @@ use indexmap::{IndexMap, IndexSet};
 
 use crate::build::Variable;
 use crate::{
-    AllocationMode, AllocationSize, Block, CallBehavior, Function, Instruction, Lifetime, Linkage,
-    LocalNodeId, MemoryEffect, Parameter, Place, PlaceId, PlaceProjection, PlaceTable,
-    PointerAttribute, Tree, Type, TypeReference, Value, ValueReference, finalize_function_names,
+    AllocationMode, AllocationSize, Block, Function, FunctionBehavior, Instruction, Lifetime,
+    Linkage, LocalNodeId, MemoryEffect, Parameter, Place, PlaceId, PlaceProjection, PlaceTable,
+    Tree, Type, TypeReference, Value, ValueReference, finalize_function_names,
 };
 
 /// Builder for constructing a single MIR function with automatic SSA construction.
@@ -102,11 +102,6 @@ impl<'a> FunctionBuilder<'a> {
             return_type: TypeReference::Type(return_type),
             return_lifetime: Lifetime::empty(),
             borrow_obligations: Vec::new(),
-            memory_effect: MemoryEffect::unknown(),
-            call_behavior: CallBehavior::unknown(),
-            allocation_size: None,
-            parameter_attributes: vec![PointerAttribute::default(); parameter_types.len()],
-            return_attribute: PointerAttribute::default(),
             linkage: Linkage::Local,
             allocation: AllocationMode::Any,
             suspension: None,
@@ -180,58 +175,29 @@ impl<'a> FunctionBuilder<'a> {
 
     /// Set the memory effect for the function.
     pub fn set_memory_effect(&mut self, effect: MemoryEffect) {
-        // update the function memory effect
-        let function = self.tree.get_mut(self.function_id);
-        function.memory_effect = effect;
+        self.tree
+            .metadata
+            .functions
+            .function_mut(self.function_id)
+            .memory = effect;
     }
 
     /// Set behavioral effects for the function.
-    pub fn set_call_behavior(&mut self, behavior: CallBehavior) {
-        // update the function call behavior
-        let function = self.tree.get_mut(self.function_id);
-        function.call_behavior = behavior;
+    pub fn set_function_behavior(&mut self, behavior: FunctionBehavior) {
+        self.tree
+            .metadata
+            .functions
+            .function_mut(self.function_id)
+            .behavior = behavior;
     }
 
     /// Set allocation size metadata for the function.
     pub fn set_allocation_size(&mut self, allocation_size: AllocationSize) {
-        // update the allocation size metadata
-        let function = self.tree.get_mut(self.function_id);
-        function.allocation_size = Some(allocation_size);
-    }
-
-    /// Set pointer attributes for all parameters.
-    pub fn set_parameter_attributes(&mut self, attributes: Vec<PointerAttribute>) {
-        // validate the parameter count
-        let parameter_count = self.tree.get(self.function_id).parameters.len();
-        assert_eq!(
-            parameter_count,
-            attributes.len(),
-            "parameter attribute count does not match parameters"
-        );
-
-        // update parameter attributes
-        let function = self.tree.get_mut(self.function_id);
-        function.parameter_attributes = attributes;
-    }
-
-    /// Set pointer attributes for a single parameter.
-    pub fn set_parameter_attribute(&mut self, index: usize, attributes: PointerAttribute) {
-        // access the parameter attributes
-        let function = self.tree.get_mut(self.function_id);
-        let parameter_attributes = &mut function.parameter_attributes;
-
-        // update the requested parameter
-        let Some(target) = parameter_attributes.get_mut(index) else {
-            panic!("parameter index out of range");
-        };
-        *target = attributes;
-    }
-
-    /// Set the pointer attribute for the return value.
-    pub fn set_return_attribute(&mut self, attribute: PointerAttribute) {
-        // update the return attribute
-        let function = self.tree.get_mut(self.function_id);
-        function.return_attribute = attribute;
+        self.tree
+            .metadata
+            .functions
+            .function_mut(self.function_id)
+            .allocation_size = Some(allocation_size);
     }
 
     /// Set allocation mode for this function.

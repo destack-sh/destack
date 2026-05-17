@@ -7,9 +7,9 @@ use super::r#type::format_borrow_obligations;
 use crate::{
     AtomicAccess, CompareExchangeAccess, FenceAccess, FormatMirNode, FunctionReference,
     GlobalReference, Instruction, LocalNodeId, LocalReference, MemoryFlags, MemoryScope,
-    MemorySpaceSet, MirFormatter, SyncScope, TensorConvolutionDimensionNumbers,
-    TensorConvolutionWindow, TensorDotDimensionNumbers, TensorGatherDimensionNumbers,
-    TensorScatterDimensionNumbers, TypeReference, ValueReference,
+    MirFormatter, SpaceSet, SyncScope, TensorConvolutionDimensionNumbers, TensorConvolutionWindow,
+    TensorDotDimensionNumbers, TensorGatherDimensionNumbers, TensorScatterDimensionNumbers,
+    TypeReference, ValueReference,
 };
 
 impl<'a> FormatMirNode<'a, Instruction> for Instruction {
@@ -1330,7 +1330,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 destination,
                 receiver,
                 call,
-                declaring_type,
+                class,
                 slot,
                 ..
             } => {
@@ -1346,7 +1346,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         receiver,
                         token(","),
                         space(),
-                        declaring_type,
+                        class,
                         token(","),
                         space(),
                         text(&slot.0.to_string())
@@ -1361,7 +1361,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 destination,
                 receiver,
                 call,
-                declaring_type,
+                interface,
                 slot,
                 ..
             } => {
@@ -1377,7 +1377,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         receiver,
                         token(","),
                         space(),
-                        declaring_type,
+                        interface,
                         token(","),
                         space(),
                         text(&slot.0.to_string())
@@ -1462,7 +1462,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 write!(f, [token("raw.free"), space(), pointer])
             }
 
-            Instruction::StackAlloc {
+            Instruction::FrameAlloc {
                 destination,
                 layout,
                 ..
@@ -1474,7 +1474,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space(),
                         token("="),
                         space(),
-                        token("stack.alloc"),
+                        token("frame.alloc"),
                         space(),
                         layout
                     ]
@@ -2137,26 +2137,22 @@ fn collect_memory_flag_names(flags: MemoryFlags) -> Vec<&'static str> {
 }
 
 /// Collect named memory spaces in formatting order.
-fn collect_effect_space_names(spaces: MemorySpaceSet) -> Vec<&'static str> {
+fn collect_effect_space_names(spaces: SpaceSet) -> Vec<&'static str> {
     // special cases for named sets
-    if spaces == MemorySpaceSet::NONE {
+    if spaces == SpaceSet::NONE {
         return vec!["none"];
     }
-    if spaces == MemorySpaceSet::ANY {
+    if spaces == SpaceSet::ANY {
         return vec!["any"];
     }
 
     // collect named spaces in canonical order
     let mut names = Vec::new();
     let ordered = [
-        ("heap", MemorySpaceSet::HEAP),
-        ("rawHeap", MemorySpaceSet::RAW_HEAP),
-        ("stack", MemorySpaceSet::STACK),
-        ("static", MemorySpaceSet::STATIC),
-        ("shared", MemorySpaceSet::SHARED),
-        ("local", MemorySpaceSet::LOCAL),
-        ("constant", MemorySpaceSet::CONSTANT),
-        ("io", MemorySpaceSet::IO),
+        ("local", SpaceSet::LOCAL),
+        ("shared", SpaceSet::SHARED),
+        ("frame", SpaceSet::FRAME),
+        ("static", SpaceSet::STATIC),
     ];
     for (name, set) in ordered {
         if spaces.contains(set) {

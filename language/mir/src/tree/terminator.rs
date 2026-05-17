@@ -15,13 +15,11 @@ pub struct BlockTarget {
     pub arguments: Vec<ValueReference>,
 }
 
-/// Unrecoverable runtime termination kind.
+/// Unrecoverable runtime trap kind.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TrapKind {
-    /// Abort execution immediately without a payload.
+    /// Abort execution immediately.
     Abort,
-    /// Panic with a runtime payload.
-    Panic,
 }
 
 /// Semantic constraint for a runtime check.
@@ -197,6 +195,8 @@ pub enum Terminator {
         call: Call<Vec<ValueReference>>,
         /// The continuation block.
         target: BlockTarget,
+        /// The cleanup block when this call panics.
+        unwind: Option<BlockTarget>,
     },
     /// Indirect call with an explicit continuation.
     CallIndirect {
@@ -206,35 +206,46 @@ pub enum Terminator {
         call: Call<Vec<ValueReference>>,
         /// The continuation block.
         target: BlockTarget,
+        /// The cleanup block when this call panics.
+        unwind: Option<BlockTarget>,
     },
     /// Class call with an explicit continuation.
     CallClass {
         /// The receiver value for dispatch.
         receiver: ValueReference,
-        /// The declaring type for this class call.
-        declaring_type: TypeReference,
+        /// The class type declaring this dispatch slot.
+        class: TypeReference,
         /// The dispatch slot for the method.
         slot: DispatchSlot,
-        /// The declared method target when known.
-        declared_target: Option<FunctionReference>,
         /// The shared call payload.
         call: Call<Vec<ValueReference>>,
         /// The continuation block.
         target: BlockTarget,
+        /// The cleanup block when this call panics.
+        unwind: Option<BlockTarget>,
     },
     /// Interface call with an explicit continuation.
     CallInterface {
         /// The receiver value for dispatch.
         receiver: ValueReference,
-        /// The declaring interface type for this call.
-        declaring_type: TypeReference,
+        /// The interface type declaring this dispatch slot.
+        interface: TypeReference,
         /// The dispatch slot for the method.
         slot: DispatchSlot,
         /// The shared call payload.
         call: Call<Vec<ValueReference>>,
         /// The continuation block.
         target: BlockTarget,
+        /// The cleanup block when this call panics.
+        unwind: Option<BlockTarget>,
     },
+    /// Start language panic unwinding.
+    Panic {
+        /// Optional panic payload.
+        payload: Option<ValueReference>,
+    },
+    /// Resume the active language panic after cleanup.
+    ResumePanic,
     /// Unrecoverable runtime termination.
     Trap {
         /// The trap kind.
@@ -262,12 +273,10 @@ pub enum Terminator {
     TailCallClass {
         /// The receiver value for dispatch.
         receiver: ValueReference,
-        /// The declaring type for this class call.
-        declaring_type: TypeReference,
+        /// The class type declaring this dispatch slot.
+        class: TypeReference,
         /// The dispatch slot for the method.
         slot: DispatchSlot,
-        /// The declared method target when known.
-        declared_target: Option<FunctionReference>,
         /// The shared call payload.
         call: Call<Vec<ValueReference>>,
     },
@@ -275,8 +284,8 @@ pub enum Terminator {
     TailCallInterface {
         /// The receiver value for dispatch.
         receiver: ValueReference,
-        /// The declaring interface type for this call.
-        declaring_type: TypeReference,
+        /// The interface type declaring this dispatch slot.
+        interface: TypeReference,
         /// The dispatch slot for the method.
         slot: DispatchSlot,
         /// The shared call payload.
@@ -323,19 +332,13 @@ impl Terminator {
         }
     }
 
-    /// Return the declared target when this terminator performs a call.
-    pub fn call_declared_target(&self) -> Option<FunctionReference> {
+    /// Return the direct target when this terminator performs a call.
+    pub fn call_direct_target(&self) -> Option<FunctionReference> {
         match self {
             Terminator::Error => None,
             Terminator::Call { function, .. } | Terminator::TailCall { function, .. } => {
                 Some(*function)
             }
-            Terminator::CallClass {
-                declared_target, ..
-            }
-            | Terminator::TailCallClass {
-                declared_target, ..
-            } => *declared_target,
             _ => None,
         }
     }
@@ -360,10 +363,18 @@ impl Terminator {
                 successors
             }
             Terminator::Yield { resume, .. } => smallvec![resume.block],
-            Terminator::Call { target, .. }
-            | Terminator::CallIndirect { target, .. }
-            | Terminator::CallClass { target, .. }
-            | Terminator::CallInterface { target, .. } => smallvec![target.block],
+            Terminator::Call { target, unwind, .. }
+            | Terminator::CallIndirect { target, unwind, .. }
+            | Terminator::CallClass { target, unwind, .. }
+            | Terminator::CallInterface { target, unwind, .. } => {
+                let mut successors = smallvec![target.block];
+                if let Some(unwind) = unwind {
+                    successors.push(unwind.block);
+                }
+                successors
+            }
+            Terminator::Panic { .. } => smallvec![],
+            Terminator::ResumePanic => smallvec![],
             Terminator::Trap { .. } => smallvec![],
             Terminator::Unreachable => smallvec![],
             Terminator::TailCall { .. } => smallvec![],
@@ -421,48 +432,70 @@ impl Terminator {
                 uses.extend(resume.arguments.iter().copied());
                 uses
             }
-            Terminator::Call { call, target, .. } => {
+            Terminator::Call {
+                call,
+                target,
+                unwind,
+                ..
+            } => {
                 let mut uses = call
                     .arguments
                     .iter()
                     .copied()
                     .collect::<SmallVec<[ValueReference; 8]>>();
                 uses.extend(target.arguments.iter().copied());
+                if let Some(unwind) = unwind {
+                    uses.extend(unwind.arguments.iter().copied());
+                }
                 uses
             }
             Terminator::CallIndirect {
                 callee,
                 call,
                 target,
+                unwind,
                 ..
             } => {
                 let mut uses = smallvec![*callee];
                 uses.extend(call.arguments.iter().copied());
                 uses.extend(target.arguments.iter().copied());
+                if let Some(unwind) = unwind {
+                    uses.extend(unwind.arguments.iter().copied());
+                }
                 uses
             }
             Terminator::CallClass {
                 receiver,
                 call,
                 target,
+                unwind,
                 ..
             } => {
                 let mut uses = smallvec![*receiver];
                 uses.extend(call.arguments.iter().copied());
                 uses.extend(target.arguments.iter().copied());
+                if let Some(unwind) = unwind {
+                    uses.extend(unwind.arguments.iter().copied());
+                }
                 uses
             }
             Terminator::CallInterface {
                 receiver,
                 call,
                 target,
+                unwind,
                 ..
             } => {
                 let mut uses = smallvec![*receiver];
                 uses.extend(call.arguments.iter().copied());
                 uses.extend(target.arguments.iter().copied());
+                if let Some(unwind) = unwind {
+                    uses.extend(unwind.arguments.iter().copied());
+                }
                 uses
             }
+            Terminator::Panic { payload } => payload.iter().copied().collect(),
+            Terminator::ResumePanic => smallvec![],
             Terminator::Trap { payload, .. } => payload.iter().copied().collect(),
             Terminator::Unreachable => smallvec![],
             Terminator::TailCall { call, .. } => call.arguments.iter().copied().collect(),

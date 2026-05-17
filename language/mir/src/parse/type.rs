@@ -2,8 +2,8 @@ use crate::source::{Token, TokenType};
 use destack_source::Span;
 
 use crate::{
-    Access, AddressSpace, Attribute, BorrowObligation, Copy, Field, FieldSpan, Lifetime,
-    LifetimeOrigin, LocalNodeId, Nullability, ReferenceKind, TensorDimension, TensorDimensionOrder,
+    Access, Attribute, BorrowObligation, Copy, Field, FieldSpan, Lifetime, LifetimeOrigin,
+    LocalNodeId, Nullability, ReferenceKind, Space, TensorDimension, TensorDimensionOrder,
     TensorLayout, TensorViewLayout, Type, TypeDeclarationSpans, TypeReference, VariantCase,
 };
 
@@ -18,8 +18,8 @@ struct ReferenceQualifiers {
     kind: Option<ReferenceKind>,
     /// The explicit borrowed lifetime.
     lifetime: Lifetime,
-    /// The referenced address space.
-    address_space: AddressSpace,
+    /// The referenced space.
+    space: Space,
     /// The exposed access mode.
     access: Access,
     /// The accepted nullish values.
@@ -32,7 +32,7 @@ impl ReferenceQualifiers {
         Self {
             kind: None,
             lifetime: Lifetime::empty(),
-            address_space: AddressSpace::Local,
+            space: Space::Local,
             access: Access::Mutable,
             nullability,
         }
@@ -55,7 +55,7 @@ impl ReferenceQualifiers {
         Ok(ResolvedReferenceQualifiers {
             kind,
             lifetime: self.lifetime,
-            address_space: self.address_space,
+            space: self.space,
             access: self.access,
             nullability: self.nullability,
         })
@@ -69,8 +69,8 @@ struct ResolvedReferenceQualifiers {
     kind: ReferenceKind,
     /// The explicit borrowed lifetime.
     lifetime: Lifetime,
-    /// The referenced address space.
-    address_space: AddressSpace,
+    /// The referenced space.
+    space: Space,
     /// The exposed access mode.
     access: Access,
     /// The accepted nullish values.
@@ -338,14 +338,14 @@ impl Parser {
         self.bump();
         self.eat_token(TokenType::LessThan)?;
         let element = self.parse_type()?;
-        let (kind, lifetime, address_space, access, nullability) = self.parse_slice_qualifiers()?;
+        let (kind, lifetime, space, access, nullability) = self.parse_slice_qualifiers()?;
         self.eat_token(TokenType::GreaterThan)?;
 
         Ok(Type::Slice {
             kind,
             lifetime,
             element: element.into(),
-            address_space,
+            space,
             access,
             nullability,
         })
@@ -619,7 +619,7 @@ impl Parser {
         Ok(Type::Reference {
             kind: qualifiers.kind,
             lifetime: qualifiers.lifetime,
-            address_space: qualifiers.address_space,
+            space: qualifiers.space,
             access: qualifiers.access,
             pointee: pointee.into(),
             nullability: qualifiers.nullability,
@@ -643,7 +643,7 @@ impl Parser {
         Ok(Type::TensorView {
             kind: qualifiers.kind,
             lifetime: qualifiers.lifetime,
-            address_space: qualifiers.address_space,
+            space: qualifiers.space,
             access: qualifiers.access,
             element: element.into(),
             shape,
@@ -736,7 +736,7 @@ impl Parser {
     /// Parse optional trailing qualifiers for one slice type.
     fn parse_slice_qualifiers(
         &mut self,
-    ) -> ParseResult<(ReferenceKind, Lifetime, AddressSpace, Access, Nullability)> {
+    ) -> ParseResult<(ReferenceKind, Lifetime, Space, Access, Nullability)> {
         let mut qualifiers = ReferenceQualifiers::new(Nullability::None);
 
         while self.peek_token(TokenType::Comma) {
@@ -756,7 +756,7 @@ impl Parser {
         Ok((
             qualifiers.kind,
             qualifiers.lifetime,
-            qualifiers.address_space,
+            qualifiers.space,
             qualifiers.access,
             qualifiers.nullability,
         ))
@@ -792,8 +792,8 @@ impl Parser {
             return Ok(());
         }
 
-        if self.eat_token_maybe(TokenType::AddressSpace) {
-            qualifiers.address_space = self.parse_address_space_group()?;
+        if self.eat_token_maybe(TokenType::Space) {
+            qualifiers.space = self.parse_space_group()?;
             return Ok(());
         }
 
@@ -845,20 +845,26 @@ impl Parser {
     }
 
     /// Parse one address-space qualifier group.
-    fn parse_address_space_group(&mut self) -> ParseResult<AddressSpace> {
+    fn parse_space_group(&mut self) -> ParseResult<Space> {
         self.eat_token(TokenType::OpenParenthesis)?;
 
         let token = self
             .peek()
-            .ok_or_else(|| ParseError::unexpected_end("address space", self.pos()))?;
-        let address_space = match self.token_type(token) {
+            .ok_or_else(|| ParseError::unexpected_end("space", self.pos()))?;
+        let space = match self.token_type(token) {
             TokenType::Identifier | TokenType::Local => {
-                let text = self.tree.source_text(token.span).to_string();
-                AddressSpace::from_name(&text)
+                let text = self.tree.source_text(token.span);
+                Space::from_name(text).ok_or_else(|| {
+                    ParseError::invalid_at_span(
+                        "space",
+                        token.start,
+                        token.span.end.saturating_sub(token.span.start) as usize,
+                    )
+                })?
             }
             _ => {
                 return Err(ParseError::unexpected(
-                    "address space",
+                    "space",
                     self.token_type(token),
                     token.start,
                 ));
@@ -867,7 +873,7 @@ impl Parser {
         self.bump();
         self.eat_token(TokenType::CloseParenthesis)?;
 
-        Ok(address_space)
+        Ok(space)
     }
 
     /// Parse a lifetime qualifier group.

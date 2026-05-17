@@ -2,11 +2,9 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use destack_core::StringId;
-
 use crate::{
-    AddressSpace, Global, Instruction, Local, LocalNodeId, MemoryFlags, MemoryOrdering,
-    MemoryScope, SyncScope, Value,
+    Global, Instruction, Local, LocalNodeId, MemoryFlags, MemoryOrdering, MemoryScope, Space,
+    SyncScope, Value,
 };
 
 /// Table of memory metadata entries.
@@ -15,10 +13,6 @@ pub struct MemoryMetadata {
     /// Memory access metadata keyed by instruction id.
     pub memory_accesses_by_instruction_id:
         HashMap<LocalNodeId<Instruction>, Vec<MemoryAccessMetadata>>,
-    /// Alias scopes and domains used in metadata.
-    pub alias_scopes: MemoryAliasTable,
-    /// Type-alias nodes and tags used in metadata.
-    pub type_alias: TypeAliasTable,
 }
 
 impl MemoryMetadata {
@@ -87,14 +81,8 @@ pub struct MemoryAccessMetadata {
     pub memory_scope: Option<MemoryScope>,
     /// Memory flags for fences.
     pub flags: Option<MemoryFlags>,
-    /// Address space override for the access.
-    pub address_space: Option<AddressSpace>,
-    /// Alias scopes that the access participates in.
-    pub alias_scopes: Vec<MemoryAliasScopeId>,
-    /// No alias scopes that the access participates in.
-    pub noalias_scopes: Vec<MemoryAliasScopeId>,
-    /// Optional type-alias tag for the access.
-    pub type_alias_tag: Option<TypeAliasTagId>,
+    /// Space override for the access.
+    pub space: Option<Space>,
 }
 
 /// The kind of memory access represented by metadata.
@@ -129,231 +117,13 @@ pub enum MemoryAccessTarget {
     Unknown,
 }
 
-/// Table of alias scopes and domains.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct MemoryAliasTable {
-    /// Registered alias domains.
-    pub domains: Vec<MemoryAliasDomain>,
-    /// Registered alias scopes.
-    pub scopes: Vec<MemoryAliasScope>,
-}
-
-impl MemoryAliasTable {
-    /// Create a new empty alias scope table.
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Create a new alias domain.
-    pub fn create_domain(&mut self, name: Option<StringId>) -> MemoryAliasDomainId {
-        let id = MemoryAliasDomainId::new(self.domains.len() as u32);
-        self.domains.push(MemoryAliasDomain { name });
-        id
-    }
-
-    /// Create a new alias scope within a domain.
-    pub fn create_scope(
-        &mut self,
-        domain: MemoryAliasDomainId,
-        name: Option<StringId>,
-    ) -> MemoryAliasScopeId {
-        let id = MemoryAliasScopeId::new(self.scopes.len() as u32);
-        self.scopes.push(MemoryAliasScope { domain, name });
-        id
-    }
-
-    /// Return the alias domain for an id.
-    pub fn domain(&self, id: MemoryAliasDomainId) -> &MemoryAliasDomain {
-        &self.domains[id.index()]
-    }
-
-    /// Return the alias scope for an id.
-    pub fn scope(&self, id: MemoryAliasScopeId) -> &MemoryAliasScope {
-        &self.scopes[id.index()]
-    }
-}
-
-/// Identifier for a memory alias domain.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct MemoryAliasDomainId(u32);
-
-impl MemoryAliasDomainId {
-    /// Create a domain id from a raw index.
-    pub fn new(index: u32) -> Self {
-        Self(index)
-    }
-
-    /// Get the raw index for this id.
-    pub fn index(self) -> usize {
-        self.0 as usize
-    }
-}
-
-/// Identifier for a memory alias scope.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct MemoryAliasScopeId(u32);
-
-impl MemoryAliasScopeId {
-    /// Create a scope id from a raw index.
-    pub fn new(index: u32) -> Self {
-        Self(index)
-    }
-
-    /// Get the raw index for this id.
-    pub fn index(self) -> usize {
-        self.0 as usize
-    }
-}
-
-/// Alias analysis domain for grouping alias scopes.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct MemoryAliasDomain {
-    /// Optional name for diagnostics or debugging.
-    pub name: Option<StringId>,
-}
-
-/// Alias scope for noalias or scoped aliasing metadata.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct MemoryAliasScope {
-    /// The domain this scope belongs to.
-    pub domain: MemoryAliasDomainId,
-    /// Optional name for diagnostics or debugging.
-    pub name: Option<StringId>,
-}
-
-/// Table of type-alias nodes and tags.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct TypeAliasTable {
-    /// Registered type-alias nodes.
-    pub nodes: Vec<TypeAliasNode>,
-    /// Registered type-alias tags.
-    pub tags: Vec<TypeAliasTag>,
-}
-
-impl TypeAliasTable {
-    /// Create a new empty type-alias table.
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Create a new type-alias node.
-    pub fn create_node(
-        &mut self,
-        name: Option<StringId>,
-        parent: Option<TypeAliasNodeId>,
-        is_constant: bool,
-    ) -> TypeAliasNodeId {
-        let id = TypeAliasNodeId::new(self.nodes.len() as u32);
-        self.nodes.push(TypeAliasNode {
-            name,
-            parent,
-            is_constant,
-        });
-        id
-    }
-
-    /// Create a new type-alias tag.
-    pub fn create_tag(
-        &mut self,
-        base: TypeAliasNodeId,
-        access: TypeAliasNodeId,
-        offset: u64,
-        size: u64,
-        is_immutable: bool,
-    ) -> TypeAliasTagId {
-        let id = TypeAliasTagId::new(self.tags.len() as u32);
-        self.tags.push(TypeAliasTag {
-            base,
-            access,
-            offset,
-            size,
-            is_immutable,
-        });
-        id
-    }
-
-    /// Return the type-alias node for an id.
-    pub fn node(&self, id: TypeAliasNodeId) -> &TypeAliasNode {
-        &self.nodes[id.index()]
-    }
-
-    /// Return the type-alias tag for an id.
-    pub fn tag(&self, id: TypeAliasTagId) -> &TypeAliasTag {
-        &self.tags[id.index()]
-    }
-}
-
-/// Identifier for a type-alias node.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct TypeAliasNodeId(u32);
-
-impl TypeAliasNodeId {
-    /// Create a node id from a raw index.
-    pub fn new(index: u32) -> Self {
-        Self(index)
-    }
-
-    /// Get the raw index for this id.
-    pub fn index(self) -> usize {
-        self.0 as usize
-    }
-}
-
-/// Identifier for a type-alias tag.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct TypeAliasTagId(u32);
-
-impl TypeAliasTagId {
-    /// Create a tag id from a raw index.
-    pub fn new(index: u32) -> Self {
-        Self(index)
-    }
-
-    /// Get the raw index for this id.
-    pub fn index(self) -> usize {
-        self.0 as usize
-    }
-}
-
-/// Type-alias node describing one class in the alias tree.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct TypeAliasNode {
-    /// Optional name for diagnostics or debugging.
-    pub name: Option<StringId>,
-    /// Parent node in the type-alias tree.
-    pub parent: Option<TypeAliasNodeId>,
-    /// Whether this node represents immutable memory.
-    pub is_constant: bool,
-}
-
-/// Type-alias tag describing one access in the alias tree.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct TypeAliasTag {
-    /// Base type node for the access.
-    pub base: TypeAliasNodeId,
-    /// Access type node for the access.
-    pub access: TypeAliasNodeId,
-    /// Byte offset within the base type.
-    pub offset: u64,
-    /// Size of the access in bytes.
-    pub size: u64,
-    /// Whether this access is to immutable memory.
-    pub is_immutable: bool,
-}
-
-/// Attributes describing how a call argument may be accessed.
+/// Memory behavior for one call argument.
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
-pub struct ArgumentAttribute {
-    /// Pointer specific attributes for this argument.
-    pub attributes: PointerAttribute,
+pub struct CallArgumentEffect {
     /// Access mode for this argument.
     pub access: ArgumentAccess,
-    /// Alias scopes applied to this argument.
-    pub alias_scopes: Vec<MemoryAliasScopeId>,
-    /// No alias scopes applied to this argument.
-    pub noalias_scopes: Vec<MemoryAliasScopeId>,
-    /// Optional type-alias tag for this argument.
-    pub type_alias_tag: Option<TypeAliasTagId>,
+    /// Escape behavior for this argument.
+    pub escape: ArgumentEscape,
 }
 
 /// Access mode for a pointer argument.
@@ -370,40 +140,13 @@ pub enum ArgumentAccess {
     ReadWrite,
 }
 
-/// Attributes that refine pointer aliasing and memory access behavior.
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
-pub struct PointerAttribute {
-    /// The pointer is guaranteed to be non null.
-    pub nonnull: bool,
-    /// The pointer refers to a unique non aliasing allocation.
-    pub noalias: bool,
-    /// The capture behavior for this pointer.
-    pub capture: CaptureKind,
-    /// The pointee is only read through this pointer.
-    pub readonly: bool,
-    /// The pointee is only written through this pointer.
-    pub writeonly: bool,
-    /// The pointer value is fully defined.
-    pub noundef: bool,
-    /// The number of bytes guaranteed to be dereferenceable.
-    pub dereferenceable_bytes: Option<u64>,
-    /// The number of bytes dereferenceable when non null.
-    pub dereferenceable_or_null_bytes: Option<u64>,
-    /// The alignment guarantee for the pointer.
-    pub alignment: Option<u32>,
-    /// Return value aliases this parameter.
-    pub returned: bool,
-}
-
-/// Capture behavior for a pointer argument.
+/// Escape behavior for a call argument.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub enum CaptureKind {
+pub enum ArgumentEscape {
     /// The argument does not escape the callee.
-    NoCapture,
+    None,
     /// The argument only escapes through the return value.
-    ReturnOnly,
-    /// The argument is stored somewhere reachable from the caller.
-    Store,
+    Return,
     /// The argument may escape in an unknown way.
     #[default]
     Escape,

@@ -2,9 +2,8 @@ use destack_core::StringId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    AllocationSize, Block, CallBehavior, Lifetime, Linkage, Local, LocalNodeId, MemoryEffect, Node,
-    NodeType, Parameter, Place, PlaceId, PlaceTable, PointerAttribute, Tree, Type, TypeReference,
-    Value, ValueReference,
+    Block, Lifetime, Linkage, Local, LocalNodeId, Node, NodeType, Parameter, Place, PlaceId,
+    PlaceTable, Tree, Type, TypeReference, Value, ValueReference,
 };
 
 /// Memory allocation restrictions for a function.
@@ -16,10 +15,10 @@ pub enum AllocationMode {
     #[default]
     Any,
     /// Managed allocation forbidden.
-    /// Unique, raw, and stack allocation are still allowed.
+    /// Unique, raw, and frame allocation are still allowed.
     NoManaged,
     /// No heap allocation.
-    /// Only `StackAlloc` is allowed.
+    /// Only `FrameAlloc` is allowed.
     NoHeap,
 }
 
@@ -92,8 +91,6 @@ pub struct Function {
     pub parameters: Vec<Parameter>,
     /// Optional parameter names for diagnostics.
     pub parameter_names: Vec<Option<StringId>>,
-    /// Pointer attributes for parameters, indexed by parameter position.
-    pub parameter_attributes: Vec<PointerAttribute>,
 
     /// Optional explicit SSA value names keyed by value id.
     pub value_names: Vec<Option<StringId>>,
@@ -110,9 +107,6 @@ pub struct Function {
     pub return_lifetime: Lifetime,
     /// Borrow obligations required by this function body.
     pub borrow_obligations: Vec<BorrowObligation>,
-    /// Pointer attribute for the return value.
-    pub return_attribute: PointerAttribute,
-
     /// The hidden environment type for this function when present.
     pub environment: Option<TypeReference>,
     /// Local variables (stack-allocated slots for mutable bindings).
@@ -122,12 +116,6 @@ pub struct Function {
     /// The entry block (execution starts here).
     pub entry: Option<LocalNodeId<Block>>,
 
-    /// Memory effect for this function.
-    pub memory_effect: MemoryEffect,
-    /// Behavioral effects for this function.
-    pub call_behavior: CallBehavior,
-    /// Allocation size metadata for allocator-like functions.
-    pub allocation_size: Option<AllocationSize>,
     /// Memory allocation restrictions for this function.
     pub allocation: AllocationMode,
     /// The suspension kind when this function can suspend.
@@ -198,7 +186,6 @@ impl Function {
         entry: Option<LocalNodeId<Block>>,
     ) -> Self {
         // seed parameter-derived state
-        let parameter_attributes = vec![PointerAttribute::default(); parameters.len()];
         let parameter_names = vec![None; parameters.len()];
         let (next_value_id, value_types) = Self::parameter_state(&parameters);
 
@@ -213,11 +200,6 @@ impl Function {
             return_type,
             return_lifetime: Lifetime::empty(),
             borrow_obligations: Vec::new(),
-            memory_effect: MemoryEffect::unknown(),
-            call_behavior: CallBehavior::unknown(),
-            allocation_size: None,
-            parameter_attributes,
-            return_attribute: PointerAttribute::default(),
             linkage,
             allocation: AllocationMode::Any,
             suspension: None,

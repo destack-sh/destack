@@ -1,7 +1,7 @@
 use crate::build::FunctionBuilder;
 use crate::{
-    Access, AddressSpace, Global, Instruction, Lifetime, Local, LocalNodeId, Mutability,
-    Nullability, Ownership, Place, ReferenceKind, Type, TypeReference, Value, callable_signature,
+    Access, Global, Instruction, Lifetime, Local, LocalNodeId, Mutability, Nullability, Ownership,
+    Place, ReferenceKind, Space, Type, TypeReference, Value, callable_signature,
     function_signature_parts,
 };
 
@@ -23,13 +23,13 @@ impl<'a> FunctionBuilder<'a> {
         kind: ReferenceKind,
         pointee: LocalNodeId<Type>,
         access: Access,
-        address_space: AddressSpace,
+        space: Space,
         nullability: Nullability,
     ) -> LocalNodeId<Type> {
         self.tree.insert_type(Type::Reference {
             kind,
             lifetime: Lifetime::empty(),
-            address_space,
+            space,
             access,
             pointee: pointee.into(),
             nullability,
@@ -302,13 +302,13 @@ impl<'a> FunctionBuilder<'a> {
 
     /// Allocate on the stack (lives until function returns).
     /// Returns a raw stack reference type.
-    pub fn stack_alloc(
+    pub fn frame_alloc(
         &mut self,
         layout: LocalNodeId<Type>,
         result_type: LocalNodeId<Type>,
     ) -> Value {
         let destination = self.allocate_value();
-        self.insert_instruction(Instruction::StackAlloc {
+        self.insert_instruction(Instruction::FrameAlloc {
             destination: destination.into(),
             layout: layout.into(),
             result_type: result_type.into(),

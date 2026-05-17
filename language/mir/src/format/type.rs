@@ -5,9 +5,9 @@ use destack_fir::write;
 use super::attribute::{write_attributes, write_attributes_before_anchor, write_inline_attributes};
 
 use crate::{
-    Access, AddressSpace, Attribute, AttributeIdentifier, BorrowObligation, Copy, Field, FieldSpan,
+    Access, Attribute, AttributeIdentifier, BorrowObligation, Copy, Field, FieldSpan,
     FormatMirNode, Lifetime, LifetimeOrigin, LocalNodeId, MirFormatContext, MirFormatter,
-    Nullability, ReferenceKind, TensorDimension, TensorDimensionOrder, TensorLayout,
+    Nullability, ReferenceKind, Space, TensorDimension, TensorDimensionOrder, TensorLayout,
     TensorViewLayout, Type, TypeAlias, TypeDeclarationSpans, TypeReference, write_comments_before,
 };
 
@@ -251,7 +251,7 @@ fn format_type_inner<'a>(
         Type::Reference {
             kind,
             lifetime,
-            address_space,
+            space: memory_space,
             access,
             pointee,
             nullability,
@@ -260,7 +260,7 @@ fn format_type_inner<'a>(
             format_view_header(
                 *kind,
                 lifetime,
-                address_space.clone(),
+                memory_space.clone(),
                 *access,
                 *nullability,
                 *pointee,
@@ -289,19 +289,12 @@ fn format_type_inner<'a>(
             kind,
             lifetime,
             element,
-            address_space,
+            space,
             access,
             nullability,
         } => {
             write!(f, [token("slice"), token("<"), element])?;
-            format_reference_qualifiers(
-                *kind,
-                lifetime,
-                address_space.clone(),
-                *access,
-                *nullability,
-                f,
-            )?;
+            format_reference_qualifiers(*kind, lifetime, space.clone(), *access, *nullability, f)?;
             write!(f, [token(">")])
         }
         Type::Tuple { elements, copy: _ } => {
@@ -412,7 +405,7 @@ fn format_type_inner<'a>(
         Type::TensorView {
             kind,
             lifetime,
-            address_space,
+            space: memory_space,
             access,
             element,
             shape,
@@ -423,7 +416,7 @@ fn format_type_inner<'a>(
             format_view_header(
                 *kind,
                 lifetime,
-                address_space.clone(),
+                memory_space.clone(),
                 *access,
                 *nullability,
                 *element,
@@ -557,20 +550,20 @@ fn format_tensor_view_layout<'a>(
 fn format_view_header<'a>(
     kind: ReferenceKind,
     lifetime: &Lifetime,
-    address_space: AddressSpace,
+    memory_space: Space,
     access: Access,
     nullability: Nullability,
     element: TypeReference,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
     write!(f, [element])?;
-    format_reference_qualifiers(kind, lifetime, address_space, access, nullability, f)
+    format_reference_qualifiers(kind, lifetime, memory_space, access, nullability, f)
 }
 
 fn format_reference_qualifiers<'a>(
     kind: ReferenceKind,
     lifetime: &Lifetime,
-    address_space: AddressSpace,
+    memory_space: Space,
     access: Access,
     nullability: Nullability,
     f: &mut MirFormatter<'a, '_>,
@@ -586,7 +579,7 @@ fn format_reference_qualifiers<'a>(
     format_lifetime(lifetime, f)?;
     format_access(access, f)?;
     format_nullability(nullability, f)?;
-    if !address_space.is_local() {
+    if !memory_space.is_local() {
         write!(
             f,
             [
@@ -594,7 +587,7 @@ fn format_reference_qualifiers<'a>(
                 space(),
                 token("space"),
                 token("("),
-                text(address_space.label()),
+                text(memory_space.label()),
                 token(")")
             ]
         )?;

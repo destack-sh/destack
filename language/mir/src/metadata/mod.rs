@@ -1,23 +1,21 @@
 mod data;
-mod debug;
 mod dispatch;
 mod drop;
 mod effect;
+mod function;
 mod layout;
 mod memory;
 mod metadata;
 mod profile;
-mod provenance;
 mod r#type;
 
 pub use data::*;
-pub use debug::*;
 pub use dispatch::*;
 pub use drop::*;
 pub use effect::*;
+pub use function::*;
 pub use layout::*;
 pub use memory::*;
 pub use metadata::*;
 pub use profile::*;
-pub use provenance::*;
 pub use r#type::*;

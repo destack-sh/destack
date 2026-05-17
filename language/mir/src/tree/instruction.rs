@@ -5,14 +5,12 @@ use serde::{Deserialize, Serialize};
 use smallvec::{SmallVec, smallvec};
 
 use crate::{
-    AllocationSize, ArgumentAttribute, AtomicAccess, AtomicRmwOperator, BinaryOperator, Call,
-    CallBehavior, CompareExchangeAccess, Constant, DispatchSlot, FenceAccess, FunctionReference,
-    GlobalReference, Intrinsic, LocalReference, MemoryEffect, Node, NodeType, Place,
-    PointerAttribute, TensorConvertMode, TensorConvolutionDimensionNumbers,
-    TensorConvolutionWindow, TensorDotDimensionNumbers, TensorGatherDimensionNumbers,
-    TensorIndexReduceOperator, TensorIndexTieBreak, TensorReduceOperator,
-    TensorScatterDimensionNumbers, TensorScatterMode, TypeReference, UnaryOperator, ValueReference,
-    VectorConvertMode, VectorReduceOperator,
+    AtomicAccess, AtomicRmwOperator, BinaryOperator, Call, CompareExchangeAccess, Constant,
+    DispatchSlot, FenceAccess, FunctionReference, GlobalReference, Intrinsic, LocalReference, Node,
+    NodeType, Place, TensorConvertMode, TensorConvolutionDimensionNumbers, TensorConvolutionWindow,
+    TensorDotDimensionNumbers, TensorGatherDimensionNumbers, TensorIndexReduceOperator,
+    TensorIndexTieBreak, TensorReduceOperator, TensorScatterDimensionNumbers, TensorScatterMode,
+    TypeReference, UnaryOperator, ValueReference, VectorConvertMode, VectorReduceOperator,
 };
 
 /// Compact representation of an argument slice stored in an external buffer.
@@ -681,12 +679,10 @@ pub enum Instruction {
         destination: Option<ValueReference>,
         /// The receiver value for dispatch.
         receiver: ValueReference,
-        /// The declaring type for this class call.
-        declaring_type: TypeReference,
+        /// The class type declaring this dispatch slot.
+        class: TypeReference,
         /// The dispatch slot for the method.
         slot: DispatchSlot,
-        /// The declared method target when known.
-        declared_target: Option<FunctionReference>,
         /// The shared call payload.
         call: Call<ArgumentSlice>,
     },
@@ -696,8 +692,8 @@ pub enum Instruction {
         destination: Option<ValueReference>,
         /// The receiver value for dispatch.
         receiver: ValueReference,
-        /// The declaring interface type for this call.
-        declaring_type: TypeReference,
+        /// The interface type declaring this dispatch slot.
+        interface: TypeReference,
         /// The dispatch slot for the method.
         slot: DispatchSlot,
         /// The shared call payload.
@@ -766,12 +762,12 @@ pub enum Instruction {
         value: ValueReference,
     },
 
-    // stack allocation
-    /// Allocate frame-scoped stack storage (`stack.alloc`).
+    // frame allocation
+    /// Allocate frame-scoped storage (`frame.alloc`).
     ///
     /// The storage is released when the frame exits.
-    StackAlloc {
-        /// The SSA value to define with the stack pointer.
+    FrameAlloc {
+        /// The SSA value to define with the frame allocation pointer.
         destination: ValueReference,
         /// The type of the value to allocate.
         layout: TypeReference,
@@ -972,7 +968,7 @@ impl Instruction {
             Instruction::Pin { destination, .. } => Some(*destination),
             Instruction::Unpin { .. } => None,
             Instruction::BarrierWrite { .. } => None,
-            Instruction::StackAlloc { destination, .. } => Some(*destination),
+            Instruction::FrameAlloc { destination, .. } => Some(*destination),
             Instruction::AtomicLoad { destination, .. } => Some(*destination),
             Instruction::AtomicStore { .. } => None,
             Instruction::AtomicCompareExchange { destination, .. } => Some(*destination),
@@ -1103,7 +1099,7 @@ impl Instruction {
                 offset,
                 byte_len,
             } => smallvec![*object, *offset, *byte_len],
-            Instruction::StackAlloc { .. } => smallvec![],
+            Instruction::FrameAlloc { .. } => smallvec![],
             Instruction::AtomicLoad { pointer, .. } => smallvec![*pointer],
             Instruction::AtomicStore { pointer, value, .. } => smallvec![*pointer, *value],
             Instruction::AtomicCompareExchange {
@@ -1171,123 +1167,10 @@ impl Instruction {
         }
     }
 
-    /// Return the declared target for call instructions, when known.
-    pub fn call_declared_target(&self) -> Option<FunctionReference> {
+    /// Return the direct target for call instructions.
+    pub fn call_direct_target(&self) -> Option<FunctionReference> {
         match self {
             Instruction::Call { function, .. } => Some(*function),
-            Instruction::CallClass {
-                declared_target, ..
-            } => *declared_target,
-            _ => None,
-        }
-    }
-
-    /// Return the memory effect for call instructions, when present.
-    pub fn call_memory_effect(&self) -> Option<&MemoryEffect> {
-        match self {
-            Instruction::Call { call, .. }
-            | Instruction::CallClass { call, .. }
-            | Instruction::CallInterface { call, .. }
-            | Instruction::CallIndirect { call, .. } => call.memory_effect.as_ref(),
-            _ => None,
-        }
-    }
-
-    /// Return mutable memory effect storage for call instructions.
-    pub fn call_memory_effect_mut(&mut self) -> Option<&mut Option<MemoryEffect>> {
-        match self {
-            Instruction::Call { call, .. }
-            | Instruction::CallClass { call, .. }
-            | Instruction::CallInterface { call, .. }
-            | Instruction::CallIndirect { call, .. } => Some(&mut call.memory_effect),
-            _ => None,
-        }
-    }
-
-    /// Return the call behavior for call instructions, when present.
-    pub fn call_behavior(&self) -> Option<&CallBehavior> {
-        match self {
-            Instruction::Call { call, .. }
-            | Instruction::CallClass { call, .. }
-            | Instruction::CallInterface { call, .. }
-            | Instruction::CallIndirect { call, .. } => call.behavior.as_ref(),
-            _ => None,
-        }
-    }
-
-    /// Return mutable call behavior storage for call instructions.
-    pub fn call_behavior_mut(&mut self) -> Option<&mut Option<CallBehavior>> {
-        match self {
-            Instruction::Call { call, .. }
-            | Instruction::CallClass { call, .. }
-            | Instruction::CallInterface { call, .. }
-            | Instruction::CallIndirect { call, .. } => Some(&mut call.behavior),
-            _ => None,
-        }
-    }
-
-    /// Return the allocation size metadata for call instructions, when present.
-    pub fn call_allocation_size(&self) -> Option<AllocationSize> {
-        match self {
-            Instruction::Call { call, .. }
-            | Instruction::CallClass { call, .. }
-            | Instruction::CallInterface { call, .. }
-            | Instruction::CallIndirect { call, .. } => call.allocation_size,
-            _ => None,
-        }
-    }
-
-    /// Return mutable allocation size storage for call instructions.
-    pub fn call_allocation_size_mut(&mut self) -> Option<&mut Option<AllocationSize>> {
-        match self {
-            Instruction::Call { call, .. }
-            | Instruction::CallClass { call, .. }
-            | Instruction::CallInterface { call, .. }
-            | Instruction::CallIndirect { call, .. } => Some(&mut call.allocation_size),
-            _ => None,
-        }
-    }
-
-    /// Return argument attributes for call instructions.
-    pub fn call_argument_attributes(&self) -> Option<&[ArgumentAttribute]> {
-        match self {
-            Instruction::Call { call, .. }
-            | Instruction::CallClass { call, .. }
-            | Instruction::CallInterface { call, .. }
-            | Instruction::CallIndirect { call, .. } => Some(&call.argument_attributes),
-            _ => None,
-        }
-    }
-
-    /// Return mutable argument attributes for call instructions.
-    pub fn call_argument_attributes_mut(&mut self) -> Option<&mut Vec<ArgumentAttribute>> {
-        match self {
-            Instruction::Call { call, .. }
-            | Instruction::CallClass { call, .. }
-            | Instruction::CallInterface { call, .. }
-            | Instruction::CallIndirect { call, .. } => Some(&mut call.argument_attributes),
-            _ => None,
-        }
-    }
-
-    /// Return the return attribute for call instructions.
-    pub fn call_return_attribute(&self) -> Option<&PointerAttribute> {
-        match self {
-            Instruction::Call { call, .. }
-            | Instruction::CallClass { call, .. }
-            | Instruction::CallInterface { call, .. }
-            | Instruction::CallIndirect { call, .. } => Some(&call.return_attribute),
-            _ => None,
-        }
-    }
-
-    /// Return mutable return attribute storage for call instructions.
-    pub fn call_return_attribute_mut(&mut self) -> Option<&mut PointerAttribute> {
-        match self {
-            Instruction::Call { call, .. }
-            | Instruction::CallClass { call, .. }
-            | Instruction::CallInterface { call, .. }
-            | Instruction::CallIndirect { call, .. } => Some(&mut call.return_attribute),
             _ => None,
         }
     }

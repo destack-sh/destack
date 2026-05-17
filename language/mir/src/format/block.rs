@@ -185,31 +185,34 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             function,
             call,
             target,
+            unwind,
         } => {
             write!(f, [token("call"), space(), function])?;
             format_value_list(&call.arguments, f)?;
             format_call_signature_suffix(call.signature, f)?;
-            format_call_continuation(target, f)
+            format_call_continuation(target, unwind.as_ref(), f)
         }
 
         Terminator::CallIndirect {
             callee,
             call,
             target,
+            unwind,
             ..
         } => {
             write!(f, [token("call.indirect"), space(), callee])?;
             format_value_list(&call.arguments, f)?;
             format_call_signature_suffix(call.signature, f)?;
-            format_call_continuation(target, f)
+            format_call_continuation(target, unwind.as_ref(), f)
         }
 
         Terminator::CallClass {
             receiver,
             call,
-            declaring_type,
+            class,
             slot,
             target,
+            unwind,
             ..
         } => {
             write!(
@@ -220,7 +223,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
                     receiver,
                     token(","),
                     space(),
-                    declaring_type,
+                    class,
                     token(","),
                     space(),
                     text(&slot.0.to_string())
@@ -228,15 +231,16 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             )?;
             format_value_list(&call.arguments, f)?;
             format_call_signature_suffix(call.signature, f)?;
-            format_call_continuation(target, f)
+            format_call_continuation(target, unwind.as_ref(), f)
         }
 
         Terminator::CallInterface {
             receiver,
             call,
-            declaring_type,
+            interface,
             slot,
             target,
+            unwind,
             ..
         } => {
             write!(
@@ -247,7 +251,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
                     receiver,
                     token(","),
                     space(),
-                    declaring_type,
+                    interface,
                     token(","),
                     space(),
                     text(&slot.0.to_string())
@@ -255,16 +259,23 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             )?;
             format_value_list(&call.arguments, f)?;
             format_call_signature_suffix(call.signature, f)?;
-            format_call_continuation(target, f)
+            format_call_continuation(target, unwind.as_ref(), f)
         }
 
-        Terminator::Trap { kind, payload } => {
-            let trap_opcode = match kind {
-                TrapKind::Abort => "trap.abort",
-                TrapKind::Panic => "trap.panic",
-            };
+        Terminator::Panic { payload } => {
+            write!(f, [token("panic")])?;
+            if let Some(payload) = payload {
+                write!(f, [space(), payload])?;
+            }
+            Ok(())
+        }
 
-            write!(f, [token(trap_opcode)])?;
+        Terminator::ResumePanic => write!(f, [token("panic.resume")]),
+
+        Terminator::Trap { kind, payload } => {
+            match kind {
+                TrapKind::Abort => write!(f, [token("trap.abort")])?,
+            }
 
             if let Some(payload) = payload {
                 write!(f, [space(), payload])?;
@@ -288,7 +299,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
         Terminator::TailCallClass {
             receiver,
             call,
-            declaring_type,
+            class,
             slot,
             ..
         } => {
@@ -300,7 +311,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
                     receiver,
                     token(","),
                     space(),
-                    declaring_type,
+                    class,
                     token(","),
                     space(),
                     text(&slot.0.to_string())
@@ -313,7 +324,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
         Terminator::TailCallInterface {
             receiver,
             call,
-            declaring_type,
+            interface,
             slot,
             ..
         } => {
@@ -325,7 +336,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
                     receiver,
                     token(","),
                     space(),
-                    declaring_type,
+                    interface,
                     token(","),
                     space(),
                     text(&slot.0.to_string())
@@ -339,10 +350,16 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
 
 fn format_call_continuation<'a>(
     target: &BlockTarget,
+    unwind: Option<&BlockTarget>,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
     write!(f, [space(), token("->"), space()])?;
     format_block_target(target, f)?;
+
+    if let Some(unwind) = unwind {
+        write!(f, [token(","), space(), token("unwind"), space()])?;
+        format_block_target(unwind, f)?;
+    }
 
     Ok(())
 }

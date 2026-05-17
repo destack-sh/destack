@@ -356,10 +356,10 @@ impl From<GlobalNodeIdAny> for LocalNodeIdAny {
     }
 }
 
-/// Anchored global node id with target provenance.
+/// Anchored global node id with target identity.
 ///
 /// MIR is always generated per-target, so every MIR node has an associated target.
-/// This type tracks the provenance so diagnostics can find the correct source location.
+/// This type carries the target needed to resolve module-local ids.
 #[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct AnchoredGlobalNodeId {
     /// The global node id.

@@ -3,43 +3,26 @@ use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
-/// Set of memory spaces that an operation may access.
+/// Set of backing memory spaces that an operation may access.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct MemorySpaceSet(
+pub struct SpaceSet(
     /// Bitset describing accessible memory spaces.
     u16,
 );
 
-impl MemorySpaceSet {
+impl SpaceSet {
     /// No memory spaces.
     pub const NONE: Self = Self(0);
-    /// Heap allocated memory.
-    pub const HEAP: Self = Self(1 << 0);
-    /// Raw manually managed heap memory.
-    pub const RAW_HEAP: Self = Self(1 << 1);
-    /// Stack memory.
-    pub const STACK: Self = Self(1 << 2);
-    /// Static image memory.
+    /// Local storage.
+    pub const LOCAL: Self = Self(1 << 0);
+    /// Shared storage.
+    pub const SHARED: Self = Self(1 << 1);
+    /// Frame storage.
+    pub const FRAME: Self = Self(1 << 2);
+    /// Static storage.
     pub const STATIC: Self = Self(1 << 3);
-    /// Shared or workgroup memory.
-    pub const SHARED: Self = Self(1 << 4);
-    /// Target local or thread local memory.
-    pub const LOCAL: Self = Self(1 << 5);
-    /// Target constant or read only memory.
-    pub const CONSTANT: Self = Self(1 << 6);
-    /// Memory mapped IO or other side channel memory.
-    pub const IO: Self = Self(1 << 7);
     /// All memory spaces.
-    pub const ANY: Self = Self(
-        Self::HEAP.0
-            | Self::RAW_HEAP.0
-            | Self::STACK.0
-            | Self::STATIC.0
-            | Self::SHARED.0
-            | Self::LOCAL.0
-            | Self::CONSTANT.0
-            | Self::IO.0,
-    );
+    pub const ANY: Self = Self(Self::LOCAL.0 | Self::SHARED.0 | Self::FRAME.0 | Self::STATIC.0);
 
     /// Check if the set is empty.
     pub fn is_empty(self) -> bool {
@@ -56,43 +39,39 @@ impl MemorySpaceSet {
         self.0 |= other.0;
     }
 
-    /// Return the intersection of two memory-space sets.
+    /// Return the intersection of two memory space sets.
     pub fn intersection(self, other: Self) -> Self {
         Self(self.0 & other.0)
     }
 
-    /// Check whether two memory-space sets intersect.
+    /// Check whether two memory space sets intersect.
     pub fn intersects(self, other: Self) -> bool {
         self.0 & other.0 != 0
     }
 
-    /// Check whether two memory-space sets are disjoint.
+    /// Check whether two memory space sets are disjoint.
     pub fn is_disjoint(self, other: Self) -> bool {
         self.0 & other.0 == 0
     }
 }
 
-impl Default for MemorySpaceSet {
+impl Default for SpaceSet {
     fn default() -> Self {
         Self::ANY
     }
 }
 
-impl TryFrom<&str> for MemorySpaceSet {
+impl TryFrom<&str> for SpaceSet {
     type Error = ();
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         match value {
-            "None" => Ok(MemorySpaceSet::NONE),
-            "Heap" => Ok(MemorySpaceSet::HEAP),
-            "RawHeap" => Ok(MemorySpaceSet::RAW_HEAP),
-            "Stack" => Ok(MemorySpaceSet::STACK),
-            "Static" => Ok(MemorySpaceSet::STATIC),
-            "Shared" => Ok(MemorySpaceSet::SHARED),
-            "Local" => Ok(MemorySpaceSet::LOCAL),
-            "Constant" => Ok(MemorySpaceSet::CONSTANT),
-            "Io" => Ok(MemorySpaceSet::IO),
-            "Any" => Ok(MemorySpaceSet::ANY),
+            "none" => Ok(SpaceSet::NONE),
+            "local" => Ok(SpaceSet::LOCAL),
+            "shared" => Ok(SpaceSet::SHARED),
+            "frame" => Ok(SpaceSet::FRAME),
+            "static" => Ok(SpaceSet::STATIC),
+            "any" => Ok(SpaceSet::ANY),
             _ => Err(()),
         }
     }
@@ -383,7 +362,7 @@ impl TryFrom<&str> for MemoryScope {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct MemoryFlags {
     /// The memory spaces affected by the fence.
-    pub spaces: MemorySpaceSet,
+    pub spaces: SpaceSet,
     /// Whether this makes writes available to other scopes.
     pub makes_available: bool,
     /// Whether this makes writes visible to other scopes.
@@ -393,13 +372,13 @@ pub struct MemoryFlags {
 impl MemoryFlags {
     /// Default memory flags.
     pub const DEFAULT: Self = Self {
-        spaces: MemorySpaceSet::ANY,
+        spaces: SpaceSet::ANY,
         makes_available: false,
         makes_visible: false,
     };
 
     /// Create flags for the provided spaces.
-    pub fn new(spaces: MemorySpaceSet) -> Self {
+    pub fn new(spaces: SpaceSet) -> Self {
         Self {
             spaces,
             makes_available: false,
@@ -408,7 +387,7 @@ impl MemoryFlags {
     }
 
     /// Create flags with explicit predicates.
-    pub fn with_flags(spaces: MemorySpaceSet, makes_available: bool, makes_visible: bool) -> Self {
+    pub fn with_flags(spaces: SpaceSet, makes_available: bool, makes_visible: bool) -> Self {
         Self {
             spaces,
             makes_available,

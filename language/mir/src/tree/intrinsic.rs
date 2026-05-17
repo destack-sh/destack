@@ -106,9 +106,9 @@ pub enum Intrinsic {
     /// Reinterpret bytes as a different type (no conversion, just reinterpret).
     /// `(T) -> U`
     Transmute,
-    /// Cast between address spaces without changing the representation.
+    /// Cast between spaces without changing the representation.
     /// `(T) -> U`
-    AddressSpaceCast,
+    SpaceCast,
     /// Compute byte offset between two pointers.
     /// `(ptr, ptr) -> isize`
     PointerOffsetFrom,
@@ -251,7 +251,7 @@ impl Intrinsic {
 
             // type punning and pointer ops
             Intrinsic::Transmute => "memory.raw.transmute",
-            Intrinsic::AddressSpaceCast => "space.cast",
+            Intrinsic::SpaceCast => "space.cast",
             Intrinsic::PointerOffsetFrom => "memory.ptr.byteOffsetFrom",
             Intrinsic::RawEq => "memory.raw.eq",
 
@@ -325,7 +325,7 @@ impl Intrinsic {
                 | Intrinsic::SatAdd
                 | Intrinsic::SatSub
                 | Intrinsic::Transmute
-                | Intrinsic::AddressSpaceCast
+                | Intrinsic::SpaceCast
                 | Intrinsic::PointerOffsetFrom
                 | Intrinsic::RawEq
                 | Intrinsic::Sqrt
@@ -410,7 +410,7 @@ impl FromStr for Intrinsic {
             "memory.raw.prefetchRead" => Ok(Intrinsic::PrefetchRead),
             "memory.raw.prefetchWrite" => Ok(Intrinsic::PrefetchWrite),
             "memory.raw.transmute" => Ok(Intrinsic::Transmute),
-            "space.cast" => Ok(Intrinsic::AddressSpaceCast),
+            "space.cast" => Ok(Intrinsic::SpaceCast),
             "memory.ptr.byteOffsetFrom" => Ok(Intrinsic::PointerOffsetFrom),
             "memory.raw.eq" => Ok(Intrinsic::RawEq),
             "math.float.sqrt" => Ok(Intrinsic::Sqrt),
@@ -542,7 +542,7 @@ impl Intrinsic {
             Intrinsic::PrefetchRead | Intrinsic::PrefetchWrite => IntrinsicSignature::Prefetch,
 
             // type punning and pointer ops
-            Intrinsic::Transmute | Intrinsic::AddressSpaceCast => IntrinsicSignature::Transmute,
+            Intrinsic::Transmute | Intrinsic::SpaceCast => IntrinsicSignature::Transmute,
             Intrinsic::PointerOffsetFrom => IntrinsicSignature::PointerDiff,
             Intrinsic::RawEq => IntrinsicSignature::Comparison,
 
@@ -666,7 +666,7 @@ impl Intrinsic {
             Intrinsic::Expect => IntrinsicResultType::Boolean,
 
             // transmute and space cast: explicit target type
-            Intrinsic::Transmute | Intrinsic::AddressSpaceCast => IntrinsicResultType::Explicit,
+            Intrinsic::Transmute | Intrinsic::SpaceCast => IntrinsicResultType::Explicit,
 
             // everything else: result type = first argument type
             _ => IntrinsicResultType::SameAsArgument(0),
@@ -679,7 +679,7 @@ impl Intrinsic {
     /// Transmute and space.cast consume their input to produce a reinterpreted output.
     pub fn consumed_arguments(self) -> &'static [u8] {
         match self {
-            Intrinsic::Transmute | Intrinsic::AddressSpaceCast => &[0],
+            Intrinsic::Transmute | Intrinsic::SpaceCast => &[0],
             _ => &[],
         }
     }

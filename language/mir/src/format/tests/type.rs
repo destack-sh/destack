@@ -31,13 +31,13 @@ entry0(value0: ref<int32, managed, nullable>, value1: ref<int32, unique, readonl
     );
 }
 
-/// Formats raw address spaces canonically.
+/// Formats raw spaces canonically.
 #[test]
-fn test_format_raw_address_spaces() {
+fn test_format_raw_spaces() {
     assert_format(
         r#"
-function rawSpaces(value0: ref<int32, raw, space(shared)>, value1: ref<int32, raw, space(gpu)>): ref<int32, raw, space(shared)> {
-entry0(value0: ref<int32, raw, space(shared)>, value1: ref<int32, raw, space(gpu)>):
+function rawSpaces(value0: ref<int32, raw, space(shared)>, value1: ref<int32, raw, space(static)>): ref<int32, raw, space(shared)> {
+entry0(value0: ref<int32, raw, space(shared)>, value1: ref<int32, raw, space(static)>):
     return value0
 }
 "#,

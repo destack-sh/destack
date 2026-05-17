@@ -7,12 +7,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::source::{Token, TokenType};
 use crate::{
-    Access, AddressSpace, ArgumentSlice, Attribute, Block, CommentSpan, Field, FieldSpan, Function,
+    Access, ArgumentSlice, Attribute, Block, CommentSpan, Field, FieldSpan, Function,
     FunctionHeaderSpans, Global, Instruction, InterfaceShape, InterfaceTable, Layout, LayoutId,
     Lifetime, Local, LocalNodeId, Metadata, Node, NodeType, PlaceProjection, PlaceTable,
-    ProvenanceId, ProvenanceReason, ReferenceKind, Terminator, Type, TypeAlias,
-    TypeDeclarationSpans, TypeLineage, TypeMetadata, TypeReference, TypedValueSpan, ValueReference,
-    Vtable,
+    ReferenceKind, Space, Terminator, Type, TypeAlias, TypeDeclarationSpans, TypeLineage,
+    TypeMetadata, TypeReference, TypedValueSpan, ValueReference, Vtable,
 };
 
 #[inline]
@@ -99,6 +98,8 @@ pub struct Tree {
     pub(crate) node_index_by_node_id: Vec<NodeIndexEntry>,
     /// Maps global node id → attached attributes.
     pub(crate) attributes_by_node_id: HashMap<u32, Vec<Attribute>>,
+    /// DIR source id keyed by MIR node id.
+    pub(crate) source_id_by_node_id: Vec<Option<u32>>,
 
     /// Source spans for parsed MIR node ownership.
     pub source_map: NodeSourceMap,
@@ -180,6 +181,7 @@ impl Tree {
             next_global_id: 0,
             node_index_by_node_id: Vec::with_capacity(capacity),
             attributes_by_node_id: HashMap::with_capacity(capacity),
+            source_id_by_node_id: Vec::with_capacity(capacity),
             source_map: NodeSourceMap::with_capacity(capacity),
             source_text: None,
             tokens: Vec::new(),
@@ -438,7 +440,7 @@ impl Tree {
             Instruction::New { destination, .. }
             | Instruction::NewSlice { destination, .. }
             | Instruction::RawAlloc { destination, .. }
-            | Instruction::StackAlloc { destination, .. }
+            | Instruction::FrameAlloc { destination, .. }
             | Instruction::CallableEnvironment { destination } => {
                 if let Some(value) = destination.value() {
                     places.set_value(value, *destination);
@@ -563,8 +565,8 @@ impl Tree {
         let local_id = <Self as TreeImpl<T>>::allocate(self, node);
         self.node_index_by_node_id
             .push(NodeIndexEntry::new(local_id, T::TYPE));
+        self.source_id_by_node_id.push(None);
         self.source_map.append(empty_source_span());
-        self.metadata.provenance.provenance_by_node_id.push(None);
 
         LocalNodeId::new(global_id)
     }
@@ -581,13 +583,8 @@ impl Tree {
         let local_id = <Self as TreeImpl<T>>::allocate(self, node);
         self.node_index_by_node_id
             .push(NodeIndexEntry::new(local_id, T::TYPE));
+        self.source_id_by_node_id.push(Some(source_dir_id));
         self.source_map.append(empty_source_span());
-        let origin_id = self.create_direct_provenance(source_dir_id);
-
-        self.metadata
-            .provenance
-            .provenance_by_node_id
-            .push(Some(origin_id));
 
         LocalNodeId::new(global_id)
     }
@@ -815,7 +812,7 @@ impl Tree {
                 ty,
                 Type::Reference {
                     kind: ReferenceKind::Managed,
-                    address_space: AddressSpace::Local,
+                    space: Space::Local,
                     access: Access::Mutable,
                     pointee,
                     nullability: crate::Nullability::Null,
@@ -846,7 +843,7 @@ impl Tree {
                 ty,
                 Type::Reference {
                     kind: ReferenceKind::Managed,
-                    address_space: AddressSpace::Local,
+                    space: Space::Local,
                     access: Access::Mutable,
                     pointee,
                     nullability: crate::Nullability::Null,
@@ -861,7 +858,7 @@ impl Tree {
         self.insert_type(Type::Reference {
             kind: ReferenceKind::Managed,
             lifetime: Lifetime::empty(),
-            address_space: AddressSpace::Local,
+            space: Space::Local,
             access: Access::Mutable,
             pointee: TypeReference::Type(void_type),
             nullability: crate::Nullability::Null,
@@ -987,88 +984,14 @@ impl Tree {
     /// Returns None for synthesized nodes that don't correspond to source.
     #[inline]
     pub fn get_source(&self, id: u32) -> Option<u32> {
-        let origin_id = self.metadata.provenance.provenance_by_node_id[self.node_index(id)]?;
-        let record = self.metadata.provenance.record(origin_id);
-
-        record.primary_dir_source_id()
-    }
-
-    /// Get the origin record id for a MIR node, if available.
-    #[inline]
-    pub fn get_provenance(&self, id: u32) -> Option<ProvenanceId> {
-        self.metadata.provenance.provenance_by_node_id[self.node_index(id)]
-    }
-
-    /// Set the origin record id for a MIR node.
-    #[inline]
-    pub fn set_provenance(&mut self, id: u32, origin_id: ProvenanceId) {
-        let index = self.node_index(id);
-        self.metadata.provenance.provenance_by_node_id[index] = Some(origin_id);
+        self.source_id_by_node_id[self.node_index(id)]
     }
 
     /// Set the direct DIR origin for a MIR node.
     #[inline]
     pub fn set_source(&mut self, id: u32, source_dir_id: u32) {
-        let origin_id = self.create_direct_provenance(source_dir_id);
-
-        self.set_provenance(id, origin_id);
-    }
-
-    /// Create one direct DIR-local origin record.
-    #[inline]
-    pub fn create_direct_provenance(&mut self, source_dir_id: u32) -> ProvenanceId {
-        self.metadata.provenance.direct_dir_local(source_dir_id)
-    }
-
-    /// Create one synthetic origin record.
-    #[inline]
-    pub fn create_synthetic_provenance(
-        &mut self,
-        reason: Option<ProvenanceReason>,
-        parents: Vec<ProvenanceId>,
-    ) -> ProvenanceId {
-        self.metadata.provenance.synthetic(reason, parents)
-    }
-
-    /// Create one derived origin record.
-    #[inline]
-    pub fn create_derived_provenance(
-        &mut self,
-        reason: Option<ProvenanceReason>,
-        origins: Vec<u32>,
-        parents: Vec<ProvenanceId>,
-    ) -> ProvenanceId {
-        self.metadata.provenance.derived(reason, origins, parents)
-    }
-
-    /// Create one merged origin record.
-    #[inline]
-    pub fn create_merged_provenance(
-        &mut self,
-        origins: Vec<u32>,
-        parents: Vec<ProvenanceId>,
-    ) -> ProvenanceId {
-        self.metadata.provenance.merged(origins, parents)
-    }
-
-    /// Create one inlined origin record.
-    #[inline]
-    pub fn create_inlined_provenance(
-        &mut self,
-        origins: Vec<u32>,
-        parents: Vec<ProvenanceId>,
-    ) -> ProvenanceId {
-        self.metadata.provenance.inlined(origins, parents)
-    }
-
-    /// Create one optimized origin record.
-    #[inline]
-    pub fn create_optimized_provenance(
-        &mut self,
-        origins: Vec<u32>,
-        parents: Vec<ProvenanceId>,
-    ) -> ProvenanceId {
-        self.metadata.provenance.optimized(origins, parents)
+        let index = self.node_index(id);
+        self.source_id_by_node_id[index] = Some(source_dir_id);
     }
 
     /// Get the attributes for a node.
@@ -1114,17 +1037,15 @@ impl Tree {
     where
         T: Node,
     {
-        let provenance_id = self.get_provenance(id.id)?;
-
-        self.metadata.provenance.span(provenance_id)
+        self.get_span_by_id(id.id)
     }
 
     /// Get the span for a node by raw id.
     #[inline]
     pub fn get_span_by_id(&self, id: u32) -> Option<Span> {
-        let provenance_id = self.get_provenance(id)?;
+        let span = self.source_map.get(self.node_index(id) as u32);
 
-        self.metadata.provenance.span(provenance_id)
+        (span.end > span.start).then_some(span)
     }
 
     /// Set the span for a node.
@@ -1139,15 +1060,6 @@ impl Tree {
     /// Set the span for a node by raw id.
     #[inline]
     pub fn set_span_by_id(&mut self, id: u32, span: Span) {
-        let provenance_id = if let Some(provenance_id) = self.get_provenance(id) {
-            provenance_id
-        } else {
-            let provenance_id = self.create_synthetic_provenance(None, Vec::new());
-            self.set_provenance(id, provenance_id);
-            provenance_id
-        };
-
-        self.metadata.provenance.set_span(provenance_id, span);
         self.source_map.set(self.node_index(id) as u32, span);
     }
 
@@ -1157,15 +1069,6 @@ impl Tree {
     where
         T: Node,
     {
-        let provenance_id = if let Some(provenance_id) = self.get_provenance(id.id) {
-            provenance_id
-        } else {
-            let provenance_id = self.metadata.provenance.text(span);
-            self.set_provenance(id.id, provenance_id);
-            provenance_id
-        };
-
-        self.metadata.provenance.set_span(provenance_id, span);
         self.source_map.set(self.node_index(id.id) as u32, span);
     }
 
@@ -1495,16 +1398,16 @@ impl Tree {
         T: Node + Clone,
         Self: TreeImpl<T>,
     {
-        // get original node and its origin
+        // get original node and source
         let original = self.get(id).clone();
-        let origin = self.metadata.provenance.provenance_by_node_id[self.node_index(id.id)];
+        let source_id = self.get_source(id.id);
 
         // preserve original at new ID
         let preserved_id = self.insert(original);
 
-        // preserve origin on the preserved copy
-        if let Some(origin_id) = origin {
-            self.set_provenance(preserved_id.id, origin_id);
+        // preserve source on the preserved copy
+        if let Some(source_id) = source_id {
+            self.set_source(preserved_id.id, source_id);
         }
 
         // replace in-place

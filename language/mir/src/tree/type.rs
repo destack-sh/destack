@@ -37,51 +37,44 @@ impl Access {
     }
 }
 
-/// Address space for a reference.
+/// Space for a reference.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub enum AddressSpace {
+pub enum Space {
     /// Local runtime storage.
     #[default]
     Local,
     /// Shared runtime storage.
     Shared,
-    /// Stack or function-local memory.
-    Stack,
     /// Frame-slot storage inside one activation.
     Frame,
     /// Static memory.
     Static,
-    /// Named backend-specific storage space.
-    Named(String),
 }
 
-impl AddressSpace {
+impl Space {
     /// Check if this is the local runtime storage space.
     pub fn is_local(&self) -> bool {
-        matches!(self, AddressSpace::Local)
+        matches!(self, Space::Local)
     }
 
-    /// Parse a named address space.
-    pub fn from_name(name: &str) -> Self {
-        match name {
-            "local" => AddressSpace::Local,
-            "shared" => AddressSpace::Shared,
-            "stack" => AddressSpace::Stack,
-            "frame" => AddressSpace::Frame,
-            "static" => AddressSpace::Static,
-            _ => AddressSpace::Named(name.to_string()),
-        }
+    /// Parse a canonical space name.
+    pub fn from_name(name: &str) -> Option<Self> {
+        Some(match name {
+            "local" => Space::Local,
+            "shared" => Space::Shared,
+            "frame" => Space::Frame,
+            "static" => Space::Static,
+            _ => return None,
+        })
     }
 
-    /// Return the canonical source name for this address space.
+    /// Return the canonical source name for this space.
     pub fn label(&self) -> &str {
         match self {
-            AddressSpace::Local => "local",
-            AddressSpace::Shared => "shared",
-            AddressSpace::Stack => "stack",
-            AddressSpace::Frame => "frame",
-            AddressSpace::Static => "static",
-            AddressSpace::Named(name) => name.as_str(),
+            Space::Local => "local",
+            Space::Shared => "shared",
+            Space::Frame => "frame",
+            Space::Static => "static",
         }
     }
 }
@@ -269,8 +262,8 @@ pub enum Type {
         kind: ReferenceKind,
         /// Lifetime roots for borrowed references.
         lifetime: Lifetime,
-        /// The address space for this reference.
-        address_space: AddressSpace,
+        /// The space for this reference.
+        space: Space,
         /// The access exposed through this reference.
         access: Access,
         /// The referenced type.
@@ -286,8 +279,8 @@ pub enum Type {
         lifetime: Lifetime,
         /// The element type of the slice.
         element: TypeReference,
-        /// The address space of the slice base.
-        address_space: AddressSpace,
+        /// The space of the slice base.
+        space: Space,
         /// The element access exposed by the slice.
         access: Access,
         /// The nullish values allowed by this slice descriptor.
@@ -362,8 +355,8 @@ pub enum Type {
         kind: ReferenceKind,
         /// Lifetime roots for borrowed tensor views.
         lifetime: Lifetime,
-        /// The address space for this view.
-        address_space: AddressSpace,
+        /// The space for this view.
+        space: Space,
         /// The access exposed through this view.
         access: Access,
         /// The element type.
@@ -669,12 +662,12 @@ pub fn slice_header_types(
     kind: ReferenceKind,
     element: TypeReference,
     access: Access,
-    address_space: AddressSpace,
+    space: Space,
 ) -> (Type, Type) {
     let data = Type::Reference {
         kind,
         lifetime: Lifetime::empty(),
-        address_space,
+        space,
         access,
         pointee: element,
         nullability: Nullability::None,

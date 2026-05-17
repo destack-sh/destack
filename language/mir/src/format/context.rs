@@ -630,39 +630,24 @@ fn collect_type_uses(tree: &Tree) -> HashMap<LocalNodeId<Type>, u32> {
         match terminator {
             Terminator::Call { call, .. }
             | Terminator::CallIndirect { call, .. }
-            | Terminator::CallClass {
-                declaring_type: _,
-                call,
-                ..
-            }
-            | Terminator::CallInterface {
-                declaring_type: _,
-                call,
-                ..
-            }
+            | Terminator::CallClass { call, .. }
+            | Terminator::CallInterface { call, .. }
             | Terminator::TailCall { call, .. }
             | Terminator::TailCallIndirect { call, .. }
-            | Terminator::TailCallClass {
-                declaring_type: _,
-                call,
-                ..
-            }
-            | Terminator::TailCallInterface {
-                declaring_type: _,
-                call,
-                ..
-            } => {
+            | Terminator::TailCallClass { call, .. }
+            | Terminator::TailCallInterface { call, .. } => {
                 record_type_use(tree, call.signature, &mut counts);
             }
             _ => {}
         }
 
         match terminator {
-            Terminator::CallClass { declaring_type, .. }
-            | Terminator::CallInterface { declaring_type, .. }
-            | Terminator::TailCallClass { declaring_type, .. }
-            | Terminator::TailCallInterface { declaring_type, .. } => {
-                record_type_use(tree, *declaring_type, &mut counts);
+            Terminator::CallClass { class, .. } | Terminator::TailCallClass { class, .. } => {
+                record_type_use(tree, *class, &mut counts);
+            }
+            Terminator::CallInterface { interface, .. }
+            | Terminator::TailCallInterface { interface, .. } => {
+                record_type_use(tree, *interface, &mut counts);
             }
             _ => {}
         }
@@ -704,20 +689,14 @@ fn collect_type_uses(tree: &Tree) -> HashMap<LocalNodeId<Type>, u32> {
             Instruction::Call { call, .. } => {
                 record_type_use(tree, call.signature, &mut counts);
             }
-            Instruction::CallClass {
-                declaring_type,
-                call,
-                ..
-            } => {
-                record_type_use(tree, *declaring_type, &mut counts);
+            Instruction::CallClass { class, call, .. } => {
+                record_type_use(tree, *class, &mut counts);
                 record_type_use(tree, call.signature, &mut counts);
             }
             Instruction::CallInterface {
-                declaring_type,
-                call,
-                ..
+                interface, call, ..
             } => {
-                record_type_use(tree, *declaring_type, &mut counts);
+                record_type_use(tree, *interface, &mut counts);
                 record_type_use(tree, call.signature, &mut counts);
             }
             Instruction::CallIndirect { call, .. } => {
@@ -747,7 +726,7 @@ fn collect_type_uses(tree: &Tree) -> HashMap<LocalNodeId<Type>, u32> {
                 record_type_use(tree, *layout, &mut counts);
                 record_type_use(tree, *result_type, &mut counts);
             }
-            Instruction::StackAlloc {
+            Instruction::FrameAlloc {
                 layout,
                 result_type,
                 ..

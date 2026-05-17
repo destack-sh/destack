@@ -1,7 +1,7 @@
 use crate::source::TokenType;
 use destack_source::Span;
 
-use crate::{Constant, Intrinsic, LocalNodeId, MemorySpaceSet, Type};
+use crate::{Constant, Intrinsic, LocalNodeId, SpaceSet, Type};
 
 use super::error::{ParseError, ParseResult};
 use super::parser::Parser;
@@ -321,22 +321,14 @@ impl Parser {
     }
 
     /// Parse a memory space keyword into a space set.
-    pub(super) fn parse_memory_space(
-        &self,
-        text: &str,
-        start: usize,
-    ) -> ParseResult<MemorySpaceSet> {
+    pub(super) fn parse_memory_space(&self, text: &str, start: usize) -> ParseResult<SpaceSet> {
         let location = match text {
-            "none" => MemorySpaceSet::NONE,
-            "any" => MemorySpaceSet::ANY,
-            "heap" => MemorySpaceSet::HEAP,
-            "rawHeap" => MemorySpaceSet::RAW_HEAP,
-            "stack" => MemorySpaceSet::STACK,
-            "static" => MemorySpaceSet::STATIC,
-            "shared" => MemorySpaceSet::SHARED,
-            "local" => MemorySpaceSet::LOCAL,
-            "constant" => MemorySpaceSet::CONSTANT,
-            "io" => MemorySpaceSet::IO,
+            "none" => SpaceSet::NONE,
+            "any" => SpaceSet::ANY,
+            "local" => SpaceSet::LOCAL,
+            "shared" => SpaceSet::SHARED,
+            "frame" => SpaceSet::FRAME,
+            "static" => SpaceSet::STATIC,
             _ => {
                 return Err(ParseError::invalid(
                     &format!("memory space '{text}'"),

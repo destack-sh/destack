@@ -72,7 +72,7 @@ impl<'a> FunctionBuilder<'a> {
                 | Instruction::FunctionAddr { .. }
                 | Instruction::New { .. }
                 | Instruction::RawAlloc { .. }
-                | Instruction::StackAlloc { .. } => {}
+                | Instruction::FrameAlloc { .. } => {}
                 Instruction::CallableBind { environment, .. } => {
                     Self::replace_value_in_slot(environment, from, to);
                 }
@@ -392,45 +392,67 @@ impl<'a> FunctionBuilder<'a> {
                 Self::replace_value_in_slot(value, from, to);
                 Self::replace_values_in_slice(&mut resume.arguments, from, to);
             }
-            Terminator::Call { call, target, .. } => {
+            Terminator::Call {
+                call,
+                target,
+                unwind,
+                ..
+            } => {
                 Self::replace_values_in_slice(&mut call.arguments, from, to);
                 Self::replace_values_in_slice(&mut target.arguments, from, to);
+                if let Some(unwind) = unwind {
+                    Self::replace_values_in_slice(&mut unwind.arguments, from, to);
+                }
             }
             Terminator::CallIndirect {
                 callee,
                 call,
                 target,
+                unwind,
                 ..
             } => {
                 Self::replace_value_in_slot(callee, from, to);
                 Self::replace_values_in_slice(&mut call.arguments, from, to);
                 Self::replace_values_in_slice(&mut target.arguments, from, to);
+                if let Some(unwind) = unwind {
+                    Self::replace_values_in_slice(&mut unwind.arguments, from, to);
+                }
             }
             Terminator::CallClass {
                 receiver,
                 call,
                 target,
+                unwind,
                 ..
             } => {
                 Self::replace_value_in_slot(receiver, from, to);
                 Self::replace_values_in_slice(&mut call.arguments, from, to);
                 Self::replace_values_in_slice(&mut target.arguments, from, to);
+                if let Some(unwind) = unwind {
+                    Self::replace_values_in_slice(&mut unwind.arguments, from, to);
+                }
             }
             Terminator::CallInterface {
                 receiver,
                 call,
                 target,
+                unwind,
                 ..
             } => {
                 Self::replace_value_in_slot(receiver, from, to);
                 Self::replace_values_in_slice(&mut call.arguments, from, to);
                 Self::replace_values_in_slice(&mut target.arguments, from, to);
+                if let Some(unwind) = unwind {
+                    Self::replace_values_in_slice(&mut unwind.arguments, from, to);
+                }
             }
-            Terminator::Trap { payload, .. } => {
+            Terminator::Panic { payload } => {
                 if let Some(payload) = payload {
                     Self::replace_value_in_slot(payload, from, to);
                 }
             }
+            Terminator::ResumePanic => {}
+            Terminator::Trap { .. } => {}
             Terminator::Unreachable => {}
             Terminator::TailCall { call, .. } => {
                 Self::replace_values_in_slice(&mut call.arguments, from, to);
