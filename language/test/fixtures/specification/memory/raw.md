@@ -28,27 +28,29 @@ import { read, write } from "destack:memory";
 declare function source(): *int32;
 declare function destination(): *int32;
 
-@allowUnsafe
-function copyOne(): ^int32 {
+@unsafe
+function copyOne(): int32 {
     let value = read(source());
     write(destination(), value);
     return read(destination());
 }
 
-let copied = copyOne();
+@unsafe
+function run(): void {
+    let copied = copyOne();
 
-copied satisfies ^int32;
+    copied satisfies int32;
+}
 ```
 
-### trusted wrappers hide unsafe implementations
+### safe wrappers hide unsafe implementations
 
 The wrapper keeps the unsafe boundary local and exposes an ordinary safe API.
 
 ```ds
 import { asReadonlyReference } from "destack:memory";
 
-@trusted
-@allowUnsafe
+@safe
 function at(pointer: *int32): &readonly int32 {
     return asReadonlyReference(pointer);
 }

@@ -58,7 +58,6 @@ function run(): void {
 
 ```ds:main.ds
 @noHeap
-@allowUnsafe
 function run(): void {
     let allocator = defaultAllocator();
     let layout = AllocationLayout.new(64, 8);
