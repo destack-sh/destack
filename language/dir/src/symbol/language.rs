@@ -560,8 +560,32 @@ define_language_items! {
 
         /// `destack:error/panic`.
         panic {
+            /// Opaque panic value.
+            PanicValue => (Newtype, "error/panic", "Panic"),
+
+            /// Unwind safety marker.
+            UnwindSafe => (NewtypeInterface, "error/panic", "UnwindSafe"),
+
+            /// Shared unwind safety marker.
+            RefUnwindSafe => (NewtypeInterface, "error/panic", "RefUnwindSafe"),
+
+            /// Panic payload marker.
+            PanicPayload => (NewtypeInterface, "error/panic", "PanicPayload"),
+
+            /// Panic hook context.
+            PanicContext => (Struct, "error/panic", "PanicContext"),
+
             /// Panic diagnostic function.
             Panic => (Function, "error/panic", "panic"),
+
+            /// Panic with an arbitrary value.
+            PanicAny => (Function, "error/panic", "panicAny"),
+
+            /// Install the panic hook.
+            SetPanicHook => (Function, "error/panic", "setPanicHook"),
+
+            /// Remove the panic hook.
+            TakePanicHook => (Function, "error/panic", "takePanicHook"),
 
             /// Immediate abort function.
             Abort => (Function, "error/panic", "abort"),
@@ -571,6 +595,15 @@ define_language_items! {
 
             /// Unreachable-code trap function.
             Unreachable => (Function, "error/panic", "unreachable"),
+        }
+
+        /// `destack:error/unwind`.
+        unwind {
+            /// Catch an unwinding panic.
+            CatchUnwind => (Function, "error/unwind", "catchUnwind"),
+
+            /// Resume an unwinding panic.
+            ResumePanic => (Function, "error/unwind", "resumePanic"),
         }
     }
 
