@@ -74,7 +74,6 @@ impl Compiler {
                 anchor_id,
                 scope,
                 Some(parent_id),
-                Some(dir::ProvenanceReason::Evaluated),
             );
             let expression = dir::TypeExpression::Literal {
                 value: value.clone(),
@@ -129,14 +128,12 @@ impl Compiler {
                         anchor_id,
                         scope,
                         Some(parent_id),
-                        Some(dir::ProvenanceReason::Evaluated),
                     );
                     let value_any = tree.reserve_from(
                         dir::NodeType::Expression,
                         anchor_id,
                         scope,
                         Some(argument_any),
-                        Some(dir::ProvenanceReason::Evaluated),
                     );
                     let value_expression = self.static_expression_to_expression(
                         tree, types, module_id, profile_id, anchor_id, value_any, scope, element,
@@ -160,14 +157,12 @@ impl Compiler {
                         anchor_id,
                         scope,
                         Some(parent_id),
-                        Some(dir::ProvenanceReason::Evaluated),
                     );
                     let value_any = tree.reserve_from(
                         dir::NodeType::Expression,
                         anchor_id,
                         scope,
                         Some(argument_any),
-                        Some(dir::ProvenanceReason::Evaluated),
                     );
                     let value_expression = self.static_expression_to_expression(
                         tree, types, module_id, profile_id, anchor_id, value_any, scope, element,
@@ -191,7 +186,6 @@ impl Compiler {
                         anchor_id,
                         scope,
                         Some(parent_id),
-                        Some(dir::ProvenanceReason::Evaluated),
                     );
                     let property = self.static_property_to_property(
                         tree,
@@ -239,7 +233,6 @@ impl Compiler {
                     anchor_id,
                     scope,
                     Some(parent_id),
-                    Some(dir::ProvenanceReason::Evaluated),
                 );
                 let value_expression = self.static_expression_to_expression(
                     tree, types, module_id, profile_id, anchor_id, value_any, scope, value,
@@ -265,7 +258,6 @@ impl Compiler {
                     anchor_id,
                     scope,
                     Some(parent_id),
-                    Some(dir::ProvenanceReason::Evaluated),
                 );
                 let body_expression = self.static_expression_to_expression(
                     tree, types, module_id, profile_id, anchor_id, body_any, scope, body,
@@ -286,7 +278,6 @@ impl Compiler {
                     anchor_id,
                     scope,
                     Some(parent_id),
-                    Some(dir::ProvenanceReason::Evaluated),
                 );
                 let value_expression = self.static_expression_to_expression(
                     tree, types, module_id, profile_id, anchor_id, value_any, scope, value,

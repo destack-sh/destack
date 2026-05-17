@@ -184,7 +184,8 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         successor: mir::LocalNodeId<mir::Block>,
         mut flow: FlowState,
     ) -> FlowState {
-        let predecessor = self.tree.get(predecessor);
+        let predecessor_id = predecessor;
+        let predecessor = self.tree.get(predecessor_id);
         let terminator = self.tree.get(predecessor.terminator);
         let arguments = terminator_arguments_for_successor(terminator, successor);
         let successor_block = self.tree.get(successor);
@@ -205,7 +206,9 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
 
         // bind the implicit call result when the continuation receives one
         if successor_block.parameters.len() == arguments.len() + 1 {
-            if let Some(sources) = self.call_terminator_result_sources(terminator, &flow) {
+            if let Some(sources) =
+                self.call_terminator_result_sources(predecessor_id, terminator, &flow)
+            {
                 let parameter = successor_block
                     .parameters
                     .last()
@@ -243,7 +246,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         }
 
         // apply terminator returns, branches, and consumes
-        self.transfer_terminator(block.terminator, self.tree.get(block.terminator));
+        self.transfer_terminator(block_id, block.terminator, self.tree.get(block.terminator));
 
         self.flow.clone()
     }
@@ -409,7 +412,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
             } => {
                 self.propagate_sources(*pointer, *destination);
             }
-            mir::Instruction::StackAlloc { destination, .. }
+            mir::Instruction::FrameAlloc { destination, .. }
             | mir::Instruction::New { destination, .. }
             | mir::Instruction::NewSlice { destination, .. }
             | mir::Instruction::RawAlloc { destination, .. } => {
@@ -434,14 +437,9 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
                     &arguments,
                 );
             }
-            mir::Instruction::CallClass {
-                receiver,
-                declared_target,
-                call,
-                ..
-            } => {
+            mir::Instruction::CallClass { receiver, call, .. } => {
                 let arguments = self.call_arguments_with_receiver(*receiver, call.arguments);
-                let function = declared_target.and_then(mir::FunctionReference::function);
+                let function = self.resolved_instruction_target(instruction_id, instruction);
                 self.check_call_obligations(function, call.signature, arguments.clone(), anchor);
                 self.define_call_result_sources(
                     instruction.destination(),
@@ -485,6 +483,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
     /// Transfer one terminator into the current flow state.
     fn transfer_terminator(
         &mut self,
+        block_id: mir::LocalNodeId<mir::Block>,
         terminator_id: mir::LocalNodeId<mir::Terminator>,
         terminator: &mir::Terminator,
     ) {
@@ -501,10 +500,10 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         }
 
         // check callee borrow obligations at the call site
-        self.check_terminator_call_obligations(terminator, anchor);
+        self.check_terminator_call_obligations(block_id, terminator, anchor);
 
         // check tail-call result borrows against the function return lifetime
-        self.check_tail_call_return(terminator, anchor);
+        self.check_tail_call_return(block_id, terminator, anchor);
 
         // reject exclusive loans across reentrant suspension
         if matches!(terminator, mir::Terminator::Yield { .. }) {
@@ -869,6 +868,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
     /// Check tail-call result borrows against the function return lifetime.
     fn check_tail_call_return(
         &mut self,
+        block_id: mir::LocalNodeId<mir::Block>,
         terminator: &mir::Terminator,
         anchor: mir::LocalNodeIdAny,
     ) {
@@ -879,14 +879,9 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
                 &call.arguments,
                 &self.flow,
             ),
-            mir::Terminator::TailCallClass {
-                receiver,
-                declared_target,
-                call,
-                ..
-            } => {
+            mir::Terminator::TailCallClass { receiver, call, .. } => {
                 let arguments = self.call_arguments_with_receiver_vec(*receiver, &call.arguments);
-                let function = declared_target.and_then(mir::FunctionReference::function);
+                let function = self.resolved_terminator_target(block_id, terminator);
                 self.sources_for_call_result(function, call.signature, &arguments, &self.flow)
             }
             mir::Terminator::TailCallInterface { receiver, call, .. } => {
@@ -1000,6 +995,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
     /// Check call-site borrow obligations for one terminator.
     fn check_terminator_call_obligations(
         &mut self,
+        block_id: mir::LocalNodeId<mir::Block>,
         terminator: &mir::Terminator,
         anchor: mir::LocalNodeIdAny,
     ) {
@@ -1013,20 +1009,10 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
                     anchor,
                 );
             }
-            mir::Terminator::CallClass {
-                receiver,
-                declared_target,
-                call,
-                ..
-            }
-            | mir::Terminator::TailCallClass {
-                receiver,
-                declared_target,
-                call,
-                ..
-            } => {
+            mir::Terminator::CallClass { receiver, call, .. }
+            | mir::Terminator::TailCallClass { receiver, call, .. } => {
                 let arguments = self.call_arguments_with_receiver_vec(*receiver, &call.arguments);
-                let function = declared_target.and_then(mir::FunctionReference::function);
+                let function = self.resolved_terminator_target(block_id, terminator);
                 self.check_call_obligations(function, call.signature, arguments, anchor);
             }
             mir::Terminator::CallInterface { receiver, call, .. }
@@ -1042,9 +1028,46 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         }
     }
 
+    /// Return the resolved function target for one instruction callsite.
+    fn resolved_instruction_target(
+        &self,
+        instruction_id: mir::LocalNodeId<mir::Instruction>,
+        instruction: &mir::Instruction,
+    ) -> Option<mir::LocalNodeId<mir::Function>> {
+        instruction
+            .call_direct_target()
+            .and_then(|target| target.function())
+            .or_else(|| {
+                self.tree
+                    .metadata
+                    .functions
+                    .call(mir::CallSite::Instruction(instruction_id))
+                    .and_then(|metadata| metadata.target)
+            })
+    }
+
+    /// Return the resolved function target for one terminator callsite.
+    fn resolved_terminator_target(
+        &self,
+        block_id: mir::LocalNodeId<mir::Block>,
+        terminator: &mir::Terminator,
+    ) -> Option<mir::LocalNodeId<mir::Function>> {
+        terminator
+            .call_direct_target()
+            .and_then(|target| target.function())
+            .or_else(|| {
+                self.tree
+                    .metadata
+                    .functions
+                    .call(mir::CallSite::Terminator(block_id))
+                    .and_then(|metadata| metadata.target)
+            })
+    }
+
     /// Return borrow sources for one call terminator result.
     fn call_terminator_result_sources(
         &self,
+        block_id: mir::LocalNodeId<mir::Block>,
         terminator: &mir::Terminator,
         flow: &FlowState,
     ) -> Option<BorrowSources> {
@@ -1055,14 +1078,9 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
                 &call.arguments,
                 flow,
             )),
-            mir::Terminator::CallClass {
-                receiver,
-                declared_target,
-                call,
-                ..
-            } => {
+            mir::Terminator::CallClass { receiver, call, .. } => {
                 let arguments = self.call_arguments_with_receiver_vec(*receiver, &call.arguments);
-                let function = declared_target.and_then(mir::FunctionReference::function);
+                let function = self.resolved_terminator_target(block_id, terminator);
                 Some(self.sources_for_call_result(function, call.signature, &arguments, flow))
             }
             mir::Terminator::CallInterface { receiver, call, .. } => {
@@ -1713,19 +1731,19 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
 
     /// Return a managed borrow source for one type.
     fn managed_source_for_type(&self, ty: &mir::Type, parameter: Option<u32>) -> BorrowSources {
-        let Some(space) = Self::reference_address_space(ty).cloned() else {
+        let Some(space) = Self::reference_space(ty).cloned() else {
             return BorrowSources::none();
         };
 
         BorrowSources::one(BorrowSource::Managed { space, parameter })
     }
 
-    /// Return the address space for a reference-like type.
-    fn reference_address_space(ty: &mir::Type) -> Option<&mir::AddressSpace> {
+    /// Return the space for a reference-like type.
+    fn reference_space(ty: &mir::Type) -> Option<&mir::Space> {
         match ty {
-            mir::Type::Reference { address_space, .. }
-            | mir::Type::Slice { address_space, .. }
-            | mir::Type::TensorView { address_space, .. } => Some(address_space),
+            mir::Type::Reference { space, .. }
+            | mir::Type::Slice { space, .. }
+            | mir::Type::TensorView { space, .. } => Some(space),
             _ => None,
         }
     }

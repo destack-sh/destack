@@ -8,8 +8,8 @@ use crate::lower::{FunctionLowerer, InterfaceEntry, MethodKey};
 pub(crate) enum DispatchTarget {
     /// The interface dispatch target details.
     Interface {
-        /// The declaring interface type id.
-        declaring_type: mir::LocalNodeId<mir::Type>,
+        /// The interface type declaring the dispatch slot.
+        interface: mir::LocalNodeId<mir::Type>,
         /// The dispatch slot for the method.
         slot: mir::DispatchSlot,
         /// The interface method signature.
@@ -17,8 +17,8 @@ pub(crate) enum DispatchTarget {
     },
     /// Class dispatch target details.
     Class {
-        /// The declaring class type id.
-        declaring_type: mir::LocalNodeId<mir::Type>,
+        /// The class type declaring the dispatch slot.
+        class: mir::LocalNodeId<mir::Type>,
         /// The dispatch slot for the method.
         slot: mir::DispatchSlot,
         /// The declared target function id for the method.
@@ -50,9 +50,9 @@ impl FunctionLowerer<'_> {
             let slot = self.interface_method_slot(expression_id, interface_symbol, method_key)?;
             let signature =
                 self.interface_method_signature(expression_id, interface_symbol, method_key)?;
-            let declaring_type = self.interface_declaring_type(expression_id, interface_symbol)?;
+            let interface = self.interface_type(expression_id, interface_symbol)?;
             return Ok(Some(DispatchTarget::Interface {
-                declaring_type,
+                interface,
                 slot,
                 signature,
             }));
@@ -73,10 +73,9 @@ impl FunctionLowerer<'_> {
                 }
                 .into());
             };
-            let declaring_type =
-                self.declaring_type_for_class_call(expression_id, receiver_type_id)?;
+            let class = self.class_type_for_call(expression_id, receiver_type_id)?;
             return Ok(Some(DispatchTarget::Class {
-                declaring_type,
+                class,
                 slot: mir::DispatchSlot::new(slot),
                 function_id,
             }));
@@ -216,25 +215,25 @@ impl FunctionLowerer<'_> {
         .into())
     }
 
-    /// Resolve the declaring interface type id for dispatch.
-    fn interface_declaring_type(
+    /// Resolve the interface MIR type for dispatch.
+    fn interface_type(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         interface_symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
-        // resolve the declaring interface type id
+        // resolve the interface instance type
         let interface_type_id =
             self.instance_type_id_for_symbol_or_error(expression_id.into_any(), interface_symbol)?;
 
-        // resolve the declaring mir type
-        let declaring_type = self
+        // resolve the MIR type
+        let interface = self
             .context
             .type_lowerer
             .cached_type(interface_type_id)
             .ok_or_else(|| self.missing_type_error(expression_id))
             .map_err(CompilerError::from)?;
 
-        Ok(declaring_type)
+        Ok(interface)
     }
 
     /// Resolve a class dispatch key for a symbol.
@@ -380,13 +379,13 @@ impl FunctionLowerer<'_> {
             .copied()
     }
 
-    /// Resolve the declaring MIR type for a class call.
-    fn declaring_type_for_class_call(
+    /// Resolve the class MIR type for dispatch.
+    fn class_type_for_call(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         receiver_type_id: dir::LocalTypeId,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
-        // resolve the declaring class symbol
+        // resolve the class symbol
         let class_symbol = self
             .class_symbol_for_type(receiver_type_id)
             .ok_or_else(|| LowerError::UnsupportedConstruct {
@@ -403,14 +402,14 @@ impl FunctionLowerer<'_> {
         let instance_type_id =
             self.instance_type_id_for_symbol_or_error(expression_id.into_any(), class_symbol)?;
 
-        // resolve the declaring mir type
-        let mir_type = self
+        // resolve the MIR type
+        let class = self
             .context
             .type_lowerer
             .cached_type(instance_type_id)
             .ok_or_else(|| self.missing_type_error(expression_id))
             .map_err(CompilerError::from)?;
 
-        Ok(mir_type)
+        Ok(class)
     }
 }

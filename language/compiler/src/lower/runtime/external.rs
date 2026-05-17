@@ -184,7 +184,7 @@ impl ModuleLowerer<'_> {
                     mir::ReferenceKind::Raw,
                     binding_info.ok_mir_type,
                     mir::Access::Mutable,
-                    mir::AddressSpace::Stack,
+                    mir::Space::Frame,
                     mir::Nullability::None,
                 );
                 abi_parameters.push(out_pointer);

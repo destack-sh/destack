@@ -208,7 +208,7 @@ impl FunctionLowerer<'_> {
             }
             CheckFailurePolicy::Panic => {
                 let (message_value, _) = self.string_literal_value(message)?;
-                self.state.builder.trap_panic(message_value);
+                self.state.builder.panic(Some(message_value));
             }
         }
 

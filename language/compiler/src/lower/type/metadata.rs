@@ -14,7 +14,7 @@ impl ModuleLowerer<'_> {
         self.layout_metadata_for_mir_type_with_source(Some(type_id), ty, anchor)
     }
 
-    /// Return layout metadata for one MIR type regardless of DIR provenance.
+    /// Return layout metadata for one MIR type regardless of DIR source.
     pub(crate) fn layout_metadata_for_mir_type(
         &mut self,
         ty: mir::LocalNodeId<mir::Type>,

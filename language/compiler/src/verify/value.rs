@@ -143,12 +143,9 @@ pub(super) fn terminator_consumes(terminator: &mir::Terminator) -> Vec<mir::Valu
     let mut values = Vec::new();
 
     match terminator {
-        mir::Terminator::Return { value: Some(value) }
-        | mir::Terminator::Yield { value, .. }
-        | mir::Terminator::Trap {
-            payload: Some(value),
-            ..
-        } => values.push(*value),
+        mir::Terminator::Return { value: Some(value) } | mir::Terminator::Yield { value, .. } => {
+            values.push(*value)
+        }
         mir::Terminator::Call { call, .. } | mir::Terminator::TailCall { call, .. } => {
             push_arguments(&mut values, &call.arguments);
         }

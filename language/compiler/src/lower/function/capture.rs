@@ -62,7 +62,7 @@ impl FunctionLowerer<'_> {
                     mir::ReferenceKind::Managed,
                     field.ty,
                     mir::Access::Mutable,
-                    mir::AddressSpace::Local,
+                    mir::Space::Local,
                     mir::Nullability::None,
                 );
                 let field_addr =
@@ -112,7 +112,7 @@ impl FunctionLowerer<'_> {
             mir::ReferenceKind::Managed,
             field.ty,
             mir::Access::Mutable,
-            mir::AddressSpace::Local,
+            mir::Space::Local,
             mir::Nullability::None,
         );
         let addr = self
@@ -205,7 +205,7 @@ impl FunctionLowerer<'_> {
             mir::ReferenceKind::Managed,
             field.ty,
             access,
-            mir::AddressSpace::Local,
+            mir::Space::Local,
             mir::Nullability::None,
         );
         let value = if field_addr_type == result_type {

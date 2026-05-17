@@ -8,8 +8,8 @@ use crate::lower::module::string_literal_global_name_for_content;
 /// Interface call information extracted from MIR.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct InterfaceCall {
-    /// The declaring interface type.
-    pub(crate) declaring_type: mir::LocalNodeId<mir::Type>,
+    /// The interface type.
+    pub(crate) interface: mir::LocalNodeId<mir::Type>,
     /// The dispatch slot.
     pub(crate) slot: mir::DispatchSlot,
 }
@@ -17,8 +17,8 @@ pub(crate) struct InterfaceCall {
 /// Class call information extracted from MIR.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct ClassCall {
-    /// The declaring type for dispatch.
-    pub(crate) declaring_type: mir::LocalNodeId<mir::Type>,
+    /// The class type.
+    pub(crate) class: mir::LocalNodeId<mir::Type>,
     /// The dispatch slot.
     pub(crate) slot: mir::DispatchSlot,
 }
@@ -515,15 +515,15 @@ type String {
             let block = tree.get(*block_id);
             for instruction_id in &block.instructions {
                 if let mir::Instruction::CallInterface {
-                    declaring_type,
+                    interface,
                     slot,
                     ..
                 } = tree.get(*instruction_id)
                 {
                     return Some(InterfaceCall {
-                        declaring_type: declaring_type
+                        interface: interface
                             .ty()
-                            .expect("interface call should name a concrete declaring type"),
+                            .expect("interface call should name a concrete interface type"),
                         slot: *slot,
                     });
                 }
@@ -545,15 +545,15 @@ type String {
             let block = tree.get(*block_id);
             for instruction_id in &block.instructions {
                 if let mir::Instruction::CallClass {
-                    declaring_type,
+                    class,
                     slot,
                     ..
                 } = tree.get(*instruction_id)
                 {
                     return Some(ClassCall {
-                        declaring_type: declaring_type
+                        class: class
                             .ty()
-                            .expect("class call should name a concrete declaring type"),
+                            .expect("class call should name a concrete class type"),
                         slot: *slot,
                     });
                 }

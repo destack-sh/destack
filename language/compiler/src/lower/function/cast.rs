@@ -266,19 +266,19 @@ impl FunctionLowerer<'_> {
             self.state.builder.tree().get(ty),
             mir::Type::Reference {
                 kind: mir::ReferenceKind::Managed,
-                address_space: mir::AddressSpace::Local | mir::AddressSpace::Shared,
+                space: mir::Space::Local | mir::Space::Shared,
                 ..
             } | mir::Type::Reference {
                 kind: mir::ReferenceKind::Borrowed,
-                address_space: mir::AddressSpace::Local | mir::AddressSpace::Shared,
+                space: mir::Space::Local | mir::Space::Shared,
                 ..
             } | mir::Type::TensorView {
                 kind: mir::ReferenceKind::Managed,
-                address_space: mir::AddressSpace::Local | mir::AddressSpace::Shared,
+                space: mir::Space::Local | mir::Space::Shared,
                 ..
             } | mir::Type::TensorView {
                 kind: mir::ReferenceKind::Borrowed,
-                address_space: mir::AddressSpace::Local | mir::AddressSpace::Shared,
+                space: mir::Space::Local | mir::Space::Shared,
                 ..
             }
         )
@@ -614,7 +614,7 @@ impl FunctionLowerer<'_> {
                         mir::ReferenceKind::Managed,
                         target_mir_type,
                         mir::Access::Readonly,
-                        mir::AddressSpace::Local,
+                        mir::Space::Local,
                         mir::Nullability::None,
                     );
                     let casted = self.state.builder.bitcast(value_ptr, reference_type);
@@ -829,7 +829,7 @@ impl FunctionLowerer<'_> {
                     mir::ReferenceKind::Managed,
                     target_mir_type,
                     mir::Access::Readonly,
-                    mir::AddressSpace::Local,
+                    mir::Space::Local,
                     mir::Nullability::None,
                 );
                 let casted = self.state.builder.bitcast(payload_value, reference_type);
@@ -1196,7 +1196,7 @@ impl FunctionLowerer<'_> {
             mir::ReferenceKind::Managed,
             value_type,
             mir::Access::Readonly,
-            mir::AddressSpace::Local,
+            mir::Space::Local,
             mir::Nullability::None,
         );
 

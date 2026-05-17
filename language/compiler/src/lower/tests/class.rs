@@ -511,7 +511,7 @@ entry0(this0: ref<FileLogger, managed, readonly>):
 
         let call_logger_info = test.class_call_info_by_name(tree, strings, "callLogger");
         assert_eq!(call_logger_info.slot, mir::DispatchSlot::new(2));
-        assert_eq!(call_logger_info.declaring_type, base_type);
+        assert_eq!(call_logger_info.class, base_type);
     });
 }
 

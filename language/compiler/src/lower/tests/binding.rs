@@ -252,7 +252,7 @@ entry0(value0: [int32; 4]):
 block1:
     value3: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${bounds_check_failed}
     value4: ref<String, managed, readonly> = load value3
-    trap.panic value4
+    panic value4
 block2:
     value5: ref<int32, borrowed, space(frame)> = element.address value0, value1
     return value5
@@ -329,7 +329,7 @@ entry0(value0: ref<[int32; 4], borrowed>):
 block1:
     value3: ref<ref<String, managed, readonly>, raw, readonly> = global.address ${bounds_check_failed}
     value4: ref<String, managed, readonly> = load value3
-    trap.panic value4
+    panic value4
 block2:
     value5: ref<int32, borrowed, space(frame)> = element.address value0, value1
     return value5

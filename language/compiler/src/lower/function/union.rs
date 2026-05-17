@@ -71,13 +71,13 @@ impl FunctionLowerer<'_> {
             mir::ReferenceKind::Raw,
             payload_type,
             mir::Access::Mutable,
-            mir::AddressSpace::Stack,
+            mir::Space::Frame,
             mir::Nullability::None,
         );
         let payload_ptr = self
             .state
             .builder
-            .stack_alloc(payload_type, payload_ref_type);
+            .frame_alloc(payload_type, payload_ref_type);
 
         // zero initialize the payload storage
         let payload_zero = self.inline_union_payload_zero_value(payload_type, node)?;
@@ -88,7 +88,7 @@ impl FunctionLowerer<'_> {
             mir::ReferenceKind::Raw,
             value_type,
             mir::Access::Mutable,
-            mir::AddressSpace::Stack,
+            mir::Space::Frame,
             mir::Nullability::None,
         );
         let value_ptr = self.state.builder.bitcast(payload_ptr, value_ref_type);
@@ -111,13 +111,13 @@ impl FunctionLowerer<'_> {
             mir::ReferenceKind::Raw,
             payload_type,
             mir::Access::Mutable,
-            mir::AddressSpace::Stack,
+            mir::Space::Frame,
             mir::Nullability::None,
         );
         let payload_ptr = self
             .state
             .builder
-            .stack_alloc(payload_type, payload_ref_type);
+            .frame_alloc(payload_type, payload_ref_type);
 
         // store the payload into the scratch memory
         self.state.builder.store(payload_ptr, payload_value);
@@ -127,7 +127,7 @@ impl FunctionLowerer<'_> {
             mir::ReferenceKind::Raw,
             target_type,
             mir::Access::Mutable,
-            mir::AddressSpace::Stack,
+            mir::Space::Frame,
             mir::Nullability::None,
         );
         let target_ptr = self.state.builder.bitcast(payload_ptr, target_ref_type);

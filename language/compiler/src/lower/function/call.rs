@@ -358,14 +358,14 @@ impl FunctionLowerer<'_> {
             if let Some((dispatch_target, _receiver_type_id, receiver_value)) = dispatch_target {
                 match dispatch_target {
                     DispatchTarget::Interface {
-                        declaring_type,
+                        interface,
                         slot,
                         signature: _,
                     } => {
                         if returns_void {
                             self.state.builder.call_interface_void(
                                 receiver_value,
-                                declaring_type,
+                                interface,
                                 slot,
                                 signature,
                                 argument_values,
@@ -374,7 +374,7 @@ impl FunctionLowerer<'_> {
                         } else {
                             self.state.builder.call_interface(
                                 receiver_value,
-                                declaring_type,
+                                interface,
                                 slot,
                                 signature,
                                 argument_values,
@@ -382,14 +382,14 @@ impl FunctionLowerer<'_> {
                         }
                     }
                     DispatchTarget::Class {
-                        declaring_type,
+                        class,
                         slot,
                         function_id,
                     } => {
                         if returns_void {
                             self.state.builder.call_class_void(
                                 receiver_value,
-                                declaring_type,
+                                class,
                                 slot,
                                 Some(function_id),
                                 signature,
@@ -399,7 +399,7 @@ impl FunctionLowerer<'_> {
                         } else {
                             self.state.builder.call_class(
                                 receiver_value,
-                                declaring_type,
+                                class,
                                 slot,
                                 Some(function_id),
                                 signature,
@@ -666,13 +666,13 @@ impl FunctionLowerer<'_> {
                 mir::ReferenceKind::Raw,
                 ok_value_mir_type,
                 mir::Access::Mutable,
-                mir::AddressSpace::Stack,
+                mir::Space::Frame,
                 mir::Nullability::None,
             );
             let out_ptr = self
                 .state
                 .builder
-                .stack_alloc(ok_value_mir_type, out_ptr_type);
+                .frame_alloc(ok_value_mir_type, out_ptr_type);
             call_args.push(out_ptr);
             Some(out_ptr)
         };
@@ -764,13 +764,13 @@ impl FunctionLowerer<'_> {
             mir::ReferenceKind::Raw,
             err_value_mir_type,
             mir::Access::Mutable,
-            mir::AddressSpace::Stack,
+            mir::Space::Frame,
             mir::Nullability::None,
         );
         let error_out_ptr = self
             .state
             .builder
-            .stack_alloc(err_value_mir_type, error_out_ptr_type);
+            .frame_alloc(err_value_mir_type, error_out_ptr_type);
         let _ = self
             .state
             .builder

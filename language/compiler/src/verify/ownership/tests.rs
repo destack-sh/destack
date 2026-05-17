@@ -671,7 +671,7 @@ type Box {
 
 function test(): ref<int32, borrowed> {
 b0:
-    v0: ref<Box, raw, space(stack)> = stack.alloc Box
+    v0: ref<Box, raw, space(frame)> = frame.alloc Box
     v1: ref<int32, borrowed> = field.address v0, 0
     return v1
 }"#,
