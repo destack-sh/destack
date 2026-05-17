@@ -40,7 +40,7 @@ export class ConcurrentMap<K, V> {
     shards: Array<RwLock<Map<K, V>>>;
 
     /// The number of live entries.
-    entryCount: Atomic<usize>;
+    count: Atomic<usize>;
 }
 
 extension<K: Hash, V> of ConcurrentMapRead<K, V>
@@ -182,12 +182,12 @@ extension<K: Hash, V> of ConcurrentMap<K, V> implements
 
     /// Return the number of entries.
     get size(): number {
-        this.entryCount.load() as number
+        this.count.load() as number
     }
 
     /// Return whether this map has no entries.
     get isEmpty(): boolean {
-        this.entryCount.load() == 0
+        this.count.load() == 0
     }
 
     /// Clone and return a value by key.

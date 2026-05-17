@@ -3,33 +3,20 @@ import { From } from "destack:convert";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
 import { Default, MaybeUninit, Unique } from "destack:memory";
 import { Index, IndexSet } from "destack:ops";
-import { PackedDeque } from "./packed-deque.ds";
 
-/// One stable deque segment.
-struct DequeSegment<T> {
-    /// The segment storage.
+/// A compact double-ended queue.
+export class Deque<T> {
+    /// The ring storage.
     storage: Unique<[MaybeUninit<T>]>;
 
     /// The first initialized slot.
     start: usize = 0;
 
-    /// The number of initialized slots.
-    length: usize = 0;
-}
-
-/// A borrow-stable double-ended queue.
-export class Deque<T> {
-    /// The segment table.
-    segments: Unique<[MaybeUninit<DequeSegment<T>>]>;
-
-    /// The first live segment.
-    firstSegment: usize = 0;
-
-    /// The number of live segments.
-    segmentCount: usize = 0;
+    /// The allocated element count.
+    capacity: usize = 0;
 
     /// The number of elements.
-    elementCount: usize = 0;
+    count: usize = 0;
 }
 
 extension<T> of Deque<T> implements
@@ -41,9 +28,8 @@ extension<T> of Deque<T> implements
     Iterable<&exclusive T>,
     From<Iterable<T>>,
     FromIterator<T>,
-    Extend<T>,
-    Default,
-    From<PackedDeque<T>>
+    Extend<T, "exclusive">,
+    Default
 {
     /// The indexed output type.
     type Output = T;
@@ -73,24 +59,19 @@ extension<T> of Deque<T> implements
         Deque.new()
     }
 
-    /// Create a deque from a packed deque.
-    static from(value: PackedDeque<T>): Deque<T> {
-        todo("Deque.fromPackedDeque")
-    }
-
     /// Return the number of elements.
     get length(): number {
-        this.elementCount as number
+        this.count as number
     }
 
     /// Return the number of elements.
     get size(): usize {
-        this.elementCount
+        this.count
     }
 
     /// Return whether this deque has no elements.
     get isEmpty(): boolean {
-        this.elementCount == 0
+        this.count == 0
     }
 
     /// Return the element at `index` by value.
@@ -119,17 +100,17 @@ extension<T> of Deque<T> implements
     }
 
     /// Push `value` to the back.
-    pushBack(this: &Deque<T>, value: T): void {
+    pushBack(this: &exclusive Deque<T>, value: T): void {
         todo("Deque.pushBack")
     }
 
     /// Push `value` to the front.
-    pushFront(this: &Deque<T>, value: T): void {
+    pushFront(this: &exclusive Deque<T>, value: T): void {
         todo("Deque.pushFront")
     }
 
     /// Append all `values` to the back.
-    extend(this: &Deque<T>, values: Iterable<T>): void {
+    extend(this: &exclusive Deque<T>, values: Iterable<T>): void {
         todo("Deque.extend")
     }
 
@@ -194,13 +175,13 @@ extension<T> of Deque<T> implements
     }
 
     /// Reserve room for at least `additional` more elements.
-    reserve(this: &Deque<T>, additional: usize): void {
+    reserve(this: &exclusive Deque<T>, additional: usize): void {
         todo("Deque.reserve")
     }
 
-    /// Release empty segments.
-    compact(this: &exclusive Deque<T>): void {
-        todo("Deque.compact")
+    /// Shrink capacity to fit the current length.
+    shrinkToFit(this: &exclusive Deque<T>): void {
+        todo("Deque.shrinkToFit")
     }
 
     /// Return an iterator over copied values.

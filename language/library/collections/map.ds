@@ -4,9 +4,8 @@ import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
 import { Default, MaybeUninit, Unique } from "destack:memory";
 import { Equal, Hash, Index, IndexSet } from "destack:ops";
 import { Array } from "./array.ds";
-import { PackedMap } from "./packed-map.ds";
 
-/// One stable map entry.
+/// One map entry.
 export struct MapEntry<K, V> {
     /// The entry key.
     key: K;
@@ -24,7 +23,7 @@ export struct MapEntryHandle<K, V> {
     private entryKey: K;
 }
 
-/// One stable map slot.
+/// One map slot.
 struct MapSlot<K, V> {
     /// The cached key hash.
     hash: uint64;
@@ -33,29 +32,20 @@ struct MapSlot<K, V> {
     entry: MapEntry<K, V>;
 }
 
-/// One stable map entry segment.
-struct MapSlotSegment<K, V> {
-    /// The entry storage.
-    slots: Unique<[MaybeUninit<MapSlot<K, V>>]>;
-
-    /// The number of initialized entries.
-    length: usize = 0;
-
-    /// The allocated entry count.
-    capacity: usize = 0;
-}
-
-/// A borrow-stable hash map.
+/// A compact hash map.
 @languageItem("collections.Map")
 export class Map<K, V> {
-    /// The entry segments.
-    segments: Array<MapSlotSegment<K, V>>;
+    /// The entry storage.
+    entries: Unique<[MaybeUninit<MapSlot<K, V>>]>;
 
     /// The hash index.
     index: Unique<[uint32]>;
 
     /// The number of live entries.
-    entryCount: usize = 0;
+    count: usize = 0;
+
+    /// The allocated entry count.
+    capacity: usize = 0;
 }
 
 extension<K: Hash, V> of MapEntryHandle<K, V>
@@ -122,8 +112,7 @@ extension<K: Hash, V> of Map<K, V> implements
     Iterable<MapEntry<&readonly K, &exclusive V>>,
     From<Iterable<(K, V)>>,
     FromIterator<(K, V)>,
-    Extend<(K, V)>,
-    From<PackedMap<K, V>>
+    Extend<(K, V), "exclusive">
 where K implements Equal<K> {
     /// The indexed output type.
     type Output = V | undefined;
@@ -143,19 +132,14 @@ where K implements Equal<K> {
         todo("Map.fromIterator")
     }
 
-    /// Create a map from a packed map.
-    static from(value: PackedMap<K, V>): Map<K, V> {
-        todo("Map.fromPackedMap")
-    }
-
     /// Return the number of entries.
     get size(): number {
-        this.entryCount as number
+        this.count as number
     }
 
     /// Return whether this map has no entries.
     get isEmpty(): boolean {
-        this.entryCount == 0
+        this.count == 0
     }
 
     /// Return a value by key.
@@ -222,17 +206,17 @@ where K implements Equal<K> {
     }
 
     /// Insert a key-value pair only when `key` is absent.
-    insert(this: &Map<K, V>, key: K, value: V): boolean {
+    insert(this: &exclusive Map<K, V>, key: K, value: V): boolean {
         todo("Map.insert")
     }
 
     /// Return the existing value or insert a new value.
-    getOrInsert(this: &Map<K, V>, key: K, value: V): &V {
+    getOrInsert(this: &exclusive Map<K, V>, key: K, value: V): &V {
         todo("Map.getOrInsert")
     }
 
     /// Return the existing value or insert a value produced by `makeValue`.
-    getOrInsertWith(this: &Map<K, V>, key: K, makeValue: () => V): &V {
+    getOrInsertWith(this: &exclusive Map<K, V>, key: K, makeValue: () => V): &V {
         todo("Map.getOrInsertWith")
     }
 
@@ -276,13 +260,13 @@ where K implements Equal<K> {
     }
 
     /// Reserve room for at least `additional` more entries.
-    reserve(this: &Map<K, V>, additional: usize): void {
+    reserve(this: &exclusive Map<K, V>, additional: usize): void {
         todo("Map.reserve")
     }
 
-    /// Release tombstones.
-    compact(this: &exclusive Map<K, V>): void {
-        todo("Map.compact")
+    /// Shrink storage to fit the current entries.
+    shrinkToFit(this: &exclusive Map<K, V>): void {
+        todo("Map.shrinkToFit")
     }
 
     /// Return all keys.

@@ -4,9 +4,8 @@ import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
 import { Default } from "destack:memory";
 import { Equal, Hash } from "destack:ops";
 import { Map } from "./map.ds";
-import { PackedSet } from "./packed-set.ds";
 
-/// A borrow-stable hash set.
+/// A compact hash set.
 @languageItem("collections.Set")
 export class Set<T> {
     /// The backing map.
@@ -35,8 +34,7 @@ extension<T: Hash> of Set<T> implements
     Iterable<&readonly T>,
     From<Iterable<T>>,
     FromIterator<T>,
-    Extend<T>,
-    From<PackedSet<T>>
+    Extend<T, "exclusive">
 where T implements Equal<T> {
     /// Create a set from values.
     static from(values: Iterable<T>): Set<T> {
@@ -46,11 +44,6 @@ where T implements Equal<T> {
     /// Create a set from `values`.
     static fromIterator(values: Iterator<T>): Set<T> {
         todo("Set.fromIterator")
-    }
-
-    /// Create a set from a packed set.
-    static from(value: PackedSet<T>): Set<T> {
-        todo("Set.fromPackedSet")
     }
 
     /// Return the number of elements.
@@ -76,12 +69,12 @@ where T implements Equal<T> {
     }
 
     /// Add `value` when absent.
-    add(this: &Set<T>, value: T): boolean {
+    add(this: &exclusive Set<T>, value: T): boolean {
         todo("Set.add")
     }
 
     /// Add all `values`.
-    extend(this: &Set<T>, values: Iterable<T>): void {
+    extend(this: &exclusive Set<T>, values: Iterable<T>): void {
         todo("Set.extend")
     }
 
@@ -112,13 +105,13 @@ where T implements Equal<T> {
     }
 
     /// Reserve room for at least `additional` more elements.
-    reserve(this: &Set<T>, additional: usize): void {
+    reserve(this: &exclusive Set<T>, additional: usize): void {
         todo("Set.reserve")
     }
 
-    /// Release tombstones.
-    compact(this: &exclusive Set<T>): void {
-        todo("Set.compact")
+    /// Shrink storage to fit the current values.
+    shrinkToFit(this: &exclusive Set<T>): void {
+        todo("Set.shrinkToFit")
     }
 
     /// Return the union of two sets.
