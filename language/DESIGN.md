@@ -16,10 +16,6 @@ The TypeScript ecosystem has good - if not perfect - answers to all modern softw
 Excluding legacy JavaScript baggage and dynamic prototype mess, modern TypeScript is surprisingly close to a fully AOT-compilable language (and most browsers retrofit compilation internally already based on these assumptions).
 Embracing TypeScript and "the web ecosystem" lets us build a new toolchain that truly covers the full stack, is immediately familiar to millions of developers, runs transparently on existing targets, and can be completely free of JS overhead and (some) historic baggage.
 
-## Granularity
-
- <!-- TODO -->
-
 ## Compatibility
 
 **Destack is a superset of the "modern strict" subset of TypeScript**.
@@ -215,8 +211,8 @@ const raw = id as number;
 
 ### Newtype Interfaces
 
-Newtype aliases add nominality to any type, and Destack thus also supports **nominal interfaces** using the `newtype` modifier on `interface` declarations as a convenience.
-This makes newtype interfaces behave essentially like traits in other languages.
+Newtype aliases add nominality to any type, and Destack also supports **nominal interfaces** using the `newtype` modifier on `interface` declarations.
+(This makes newtype interfaces behave essentially like traits in other languages, no weird "branding tricks" required.)
 
 ```ds
 // structural interface (standard TypeScript behavior)
