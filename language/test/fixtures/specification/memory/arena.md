@@ -56,12 +56,13 @@ declare function bump(): Bump;
 let allocator = bump();
 let layout = AllocationLayout.new(64, 8);
 
-@allowUnsafe
 function allocate(): Result<Allocation<uint8, "local">, AllocationError> {
     return allocator.allocate(layout);
 }
 
-let allocation = allocate()?;
+function run(): void {
+    let allocation = allocate()?;
 
-allocation satisfies Allocation<uint8, "local">;
+    allocation satisfies Allocation<uint8, "local">;
+}
 ```
