@@ -370,14 +370,14 @@ impl<'a> TypeTable<'a> {
         (0..end).map(LocalTypeId::new)
     }
 
-    /// Return provenance for a type id.
+    /// Return the origin for a type id.
     pub fn type_origin(&self, type_id: LocalTypeId) -> TypeOrigin {
-        self.type_provenance(type_id).origin
+        self.type_source(type_id).origin
     }
 
     /// Get the source id for a type.
     pub fn get_type_source(&self, type_id: LocalTypeId) -> LocalNodeIdAny {
-        self.type_provenance(type_id).source_id
+        self.type_source(type_id).source_id
     }
 
     /// Return true when a type originated from an imported module.
@@ -449,15 +449,15 @@ impl<'a> TypeTable<'a> {
         None
     }
 
-    /// Return provenance for a type id.
-    fn type_provenance(&self, type_id: LocalTypeId) -> TypeProvenance {
+    /// Return the source for a type id.
+    fn type_source(&self, type_id: LocalTypeId) -> TypeSource {
         for segment in self.segments.iter() {
             if segment.contains_type_id(type_id) {
-                return segment.type_provenance(type_id);
+                return segment.type_source(type_id);
             }
         }
 
-        panic!("missing type provenance for type id {type_id:?}");
+        panic!("missing type source for type id {type_id:?}");
     }
 }
 
@@ -477,8 +477,8 @@ pub struct TypeSegment {
     /// Canonical type entries.
     pub(crate) types: Arena<Type>,
 
-    /// The provenance for each type id.
-    pub(crate) provenances: Arena<TypeProvenance>,
+    /// The source for each type id.
+    pub(crate) sources: Arena<TypeSource>,
     /// Type attachments keyed by DIR node.
     pub(crate) nodes: IndexMap<GlobalNodeIdAny, NodeEntry>,
     /// Type attachments keyed by DIR symbol.
@@ -506,7 +506,7 @@ impl TypeSegment {
             first_lineage_id: 0,
             first_extension_id: 0,
             types: Arena::new(),
-            provenances: Arena::new(),
+            sources: Arena::new(),
             nodes: IndexMap::new(),
             symbols: IndexMap::new(),
             instantiations: Arena::new(),
@@ -525,7 +525,7 @@ impl TypeSegment {
             first_lineage_id: base.lineage_count(),
             first_extension_id: base.extension_count(),
             types: Arena::new(),
-            provenances: Arena::new(),
+            sources: Arena::new(),
             nodes: IndexMap::new(),
             symbols: IndexMap::new(),
             instantiations: Arena::new(),
@@ -547,8 +547,7 @@ impl TypeSegment {
         let type_id = LocalTypeId::new(self.type_count());
 
         self.types.allocate(ty);
-        self.provenances
-            .allocate(TypeProvenance { source_id, origin });
+        self.sources.allocate(TypeSource { source_id, origin });
         self.assert_type_table_invariants_debug("allocate_type:end");
 
         type_id
@@ -1112,14 +1111,14 @@ impl TypeSegment {
         self.types.get_mut(type_id.0 - self.first_type_id)
     }
 
-    /// Return provenance for a type id.
-    fn type_provenance(&self, type_id: LocalTypeId) -> TypeProvenance {
+    /// Return the source for a type id.
+    fn type_source(&self, type_id: LocalTypeId) -> TypeSource {
         if self.contains_type_id(type_id) {
             let slot = type_id.0 - self.first_type_id;
-            return *self.provenances.get(slot);
+            return *self.sources.get(slot);
         }
 
-        panic!("missing type provenance for type id {type_id:?}");
+        panic!("missing type source for type id {type_id:?}");
     }
 
     /// Update a type in place.
@@ -1131,12 +1130,12 @@ impl TypeSegment {
 
     /// Get the source id for a type.
     pub fn get_type_source(&self, type_id: LocalTypeId) -> LocalNodeIdAny {
-        self.type_provenance(type_id).source_id
+        self.type_source(type_id).source_id
     }
 
-    /// Get the provenance for a type.
+    /// Return the origin for a type.
     pub fn type_origin(&self, type_id: LocalTypeId) -> TypeOrigin {
-        self.type_provenance(type_id).origin
+        self.type_source(type_id).origin
     }
 
     /// Return true when a type originated from an imported module.
@@ -1260,11 +1259,11 @@ impl TypeSegment {
     #[cfg(debug_assertions)]
     fn assert_type_table_invariants(&self, context: &str) {
         let type_slot_count = self.types.len();
-        let provenance_slot_count = self.provenances.len();
+        let source_slot_count = self.sources.len();
 
         assert_eq!(
-            provenance_slot_count, type_slot_count,
-            "type provenance slot mismatch in {context}: provenance={provenance_slot_count}, types={type_slot_count}",
+            source_slot_count, type_slot_count,
+            "type source slot mismatch in {context}: source={source_slot_count}, types={type_slot_count}",
         );
     }
 }
@@ -1340,7 +1339,7 @@ pub struct SymbolEntry {
     pub extension_id: Option<LocalExtensionId>,
 }
 
-/// The provenance of one type slot in the table.
+/// The origin of one type slot in the table.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TypeOrigin {
     /// The type was produced in the local module.
@@ -1349,11 +1348,11 @@ pub enum TypeOrigin {
     Imported,
 }
 
-/// The provenance stored for one type id.
+/// The source stored for one type id.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub struct TypeProvenance {
+pub struct TypeSource {
     /// The source node id that produced this type slot.
     pub source_id: LocalNodeIdAny,
-    /// The provenance of this type slot.
+    /// The origin of this type slot.
     pub origin: TypeOrigin,
 }
