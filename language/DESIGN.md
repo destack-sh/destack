@@ -1530,9 +1530,9 @@ module {
 ```
 
 
-### Annotations and Decorators
+### Decorators
 
-Like TypeScript, Destack uses `@` for decorator-like constructs, but Destack distinguishes between "annotations" and "decorators", and also many more constructs can be targeted by decorators.
+Like TypeScript, Destack uses `@` for decorator-like constructs, but Destack supports both "annotations" and "decorators", and also many more constructs can be annotated / decorated.
 The syntax for both data annotations and behavior decorators is unified, the target - the thing pointed to in `@<expr>` - decides:
  - **Annotations** are _values_ like `newtype`s. They add typed metadata to the target, but don't directly change the target's behavior.
  - **Decorators** are _logic_ following some protocol that contribute code or change the analyzed shape in some bounded way.
@@ -1552,6 +1552,27 @@ function oldAPI() {
 struct User {
     id: UserId;
     name: string;
+}
+```
+
+#### Taint
+
+Destack systematises the idea of "taints", "source", and "unsafe" modifiers on expressions and declarations using its annotation system:
+ - `@taint("tag")` marks a value as carrying some domain, `@untaint("tag")` unmarks it as no longer carrying that domain.
+ - `@source("domain")` marks an operation that produces some domain, `@sink("domain")` marks an operation that receives some domain.
+ - `@unsafe` marks an operation that is unsafe to call, `@safe` marks an operation that is safe to call.
+
+```ds
+@unsafe
+declare function read<T>(pointer: *T): ^T;
+
+@safe
+function get<T>(items: Slice<T>, index: usize): T {
+    if index >= items.length {
+        panic("index out of bounds");
+    }
+
+    return items.unsafeGet(index);
 }
 ```
 
@@ -1973,28 +1994,12 @@ function interruptHandler(input: &[Sample]): Frame {
 }
 ```
 
-### Safety, Safety and Safety
-
-The borrow checker tracks where a borrow came from, because validity depends on the source, not only on the lifetime name.
-`Lifetime` says which external value must outlive a borrow, while the borrow source says whether that value is owned, managed, local, shared, static, or frame storage.
-
-This matters most around suspension: owned and static storage can keep a non-exclusive borrow valid while an async frame or generator frame is suspended.
-Local managed storage cannot: another local task may still reach the same managed object after suspension, so an interior borrow into it is only valid for the current turn.
-Shared managed storage can be borrowed non-exclusively, because that preserves aliasing safety.
-It cannot produce `&exclusive T`, because a shared managed handle cannot prove uniqueness across Workers.
-
-This gives us the useful local ergonomics we want without runtime checks:
-local managed values can satisfy short `&T`, `&readonly T`, and even `&exclusive T` access, but only while the borrow stays within the current non-suspending turn.
-shared managed values can satisfy `&T` and `&readonly T`, but not `&exclusive T`.
-For borrowed parameters, a suspending function records a source obligation: the caller must prove that the lifetime being carried across suspension is rooted in owned or static storage.
-
 ### Conversions
 
 The rules for converting references follow from three basic rules:
 - References must always be valid (the referent must never be deallocated while the reference is live),
 - Shared memory must not point into local memory (directly or indirectly).
 - Exclusive references must be truly exclusive (no possibly overlapping loan is live).
-(Raw pointers are your own dirty unchecked business.)
 
 | From | To | Allow | Explanation |
 |------|----|-------|-------------|
@@ -2020,7 +2025,7 @@ let userBorrow: &User = &user;
 let userPointer: *User = &user;
 ```
 
-As in Rust, just converting a borrow `&T` to a raw pointer `*T` by itself is perfectly safe, it's only dereferncing and manipulating raw pointers that becomes `@unsafe`.
+As in Rust, just converting a borrow `&T` to a raw pointer `*T` by itself is perfectly safe; only dereferencing and manipulating raw pointers becomes `@unsafe`.
 
 ### Borrowing
 
@@ -2081,6 +2086,35 @@ readX satisfies &readonly int32;
 let exclusiveX = &exclusive point.x;
 *exclusiveX = 4;
 ```
+
+### Unsafe
+
+Safe Destack code can create and carry raw pointers, because there is nothing directly unsafe about just looking at pointers.
+Raw pointers are inert: they do not keep storage alive, do not participate in borrow checking, and do not prove exclusivity.
+
+Converting a borrow to a raw pointer is still safe because it does not touch the pointed-to memory:
+
+```ds
+let user = new User();
+
+let borrow: &User = &user;
+let pointer: *User = borrow; // ok: this only creates a raw pointer value
+```
+
+Unsafe begins when code claims something about the memory behind the pointer that the compiler cannot prove:
+
+| Operation | Example | Safe? | Why |
+|-----------|---------|-------|-----|
+| create or carry raw pointer values | `let pointer: *User = &user`, `pointer == other` | yes | does not touch memory |
+| reinterpret raw pointer values | `pointer as *uint8`, `0x1000 as *uint8` | yes | makes no validity claim |
+| wrapping address arithmetic | `wrappingOffset(pointer, 4)` | yes | makes no allocation claim |
+| allocation-relative pointer math | `offset(pointer, 4)`, `offsetFrom(pointer, origin)` | no | claims same live allocation |
+| access memory through a pointer | `asReference(pointer)`, `read(pointer)`, `write(pointer, value)` | no | bypasses borrow checking |
+| build typed views from raw storage | `Slice.fromRaw(pointer, length)` | no | claims a valid region of `T` |
+| raw bytes and layout tricks | `copyBytes(dst, src, n)`, `readVolatile(pointer)`, `transmute<T, U>(value)` | no | touches or reinterprets unchecked memory |
+| raw allocation lifecycle | `allocator.allocate(layout)`, `allocator.deallocate(allocation)` | allocate yes, free no | allocation returns an inert token; free must match allocator and layout |
+
+The compiler rejects unsafe operations, like raw pointer stuff, outside the `@unsafe` and `@safe` contexts.
 
 ### Lifetimes
 

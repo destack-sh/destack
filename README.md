@@ -29,11 +29,8 @@ instead of wrangling many disparate languages, tools, libraries, approaches, run
 
 - [**Destack Language**](language/README.md): TypeScript(++) toolchain, VM, AOT compiler, runtime.
 - [**Destack Library**](library/README.md): Rich standard library for most things most software needs.
-- [**Destack Services**](service/README.md): First-party services for most things most software needs.
-- [**Destack Apps**](app/README.md): First-party applications and programmer tools.
 - [**Destack Templates**](template/README.md): Ready-to-clone starter kits for common use cases.
 - [**Destack Bridge**](bridge/README.md): Two-way bridges for integrating the Destack universe.
-- [**Destack Platform**](platform/README.md): First-party site, apps, and services (hosting the above).
 
 The whole point of Destack is to make software systems - including itself - fully [homoiconic](https://en.wikipedia.org/wiki/Homoiconicity) and hackable with [incrementally granular](https://caseymuratori.com/blog_0016) building blocks.
 The architecture is modeled around "do-it-yourself software" over "ready-to-wear software", providing a sort of meta-stack for developing correct, optimal, integrated software stacks.
