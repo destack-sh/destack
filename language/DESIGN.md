@@ -235,8 +235,6 @@ Newtype interfaces are used for explicit behavioral traits like operator interfa
 ### Any
 
 All type constraints - structural and nominal `interface`s, `type`s, whatever - are represented internally as _static_ value constraints by default, and thus any bare `T` of an `interface` or `type` becomes an implicit generic parameter that is monomorphized on application (similar to Rust's `impl T`).
-When explicit _runtime_ indirection is desired, Destack also provides an intrinsic `Any<T>` wrapper as the explicit erased runtime value satisfying some `T`.
-
 For example, consider the following representation-equivalent `Writer` interfaces:
 
 ```ds
@@ -276,7 +274,7 @@ function write<T: Writer>(writer: T, bytes: [uint8]): Result<uint, Error> {
 ```
 
 This is generally great for performance in a `type`-heavy language like TypeScript, and it works extra well because we always compile statically from source.
-Sometimes we still want to trade runtime overhead for code size or just have a fixed layout for some other reason:
+When explicit _runtime_ indirection is desired, Destack also provides an intrinsic `Any<T>` wrapper as the explicit erased runtime value satisfying some `T`:
 
 ```ds
 // just like the function, this Logger is implicitly generic over Writer
@@ -295,11 +293,9 @@ struct LoggerFor {
 }
 ```
 
-In general `Any` behaves just like one would expect, and `Any<type {}>` is the empty erased type matching any value, akin to Go's `interface{}`.
-
 ### Extensions
 
-It is sometimes convenient to attach additional logic and data to the (nominal identity of) a type.
+It is sometimes convenient to attach additional logic and data directly to a type, even and especially when the type is not defined locally.
 Rust supports this with `impl` blocks (and only `impl` blocks, actually), and Destack supports _additional_ `extension`s to add instance and static members to any _nominal_ type:
 
 ```ds
@@ -313,6 +309,7 @@ class Vector2 {
     }
 }
 
+// extension may be in a different file or package alltogether
 extension of Vector2 {
     static ZERO = new Vector2(0.0, 0.0);
 
@@ -325,7 +322,7 @@ extension of Vector2 {
 Extensions can be added to any **nominal type**, including `struct`, `class`, `enum`, and `newtype`, whether defined locally or in a foreign / imported module.
 Plain type aliases (`type X = ...`) and structural types (`{ x: number }`) cannot receive extensions because it would be unclear when they should apply.
 
-Extensions can also be named for explicit exports and imports:
+Extensions can also be named for and then referenced explicitly for export and import:
 
 ```ds
 import { User } from "@/model/user";
@@ -337,14 +334,14 @@ export extension UserUtils of User {
 }
 ```
 
-The visibility of extension members is straightforward:
+The visibility of extension members follows from their placement:
 - **Same file as type**: Extensions are automatically visible wherever the type is used.
 - **Anonymous on foreign type**: Only visible in the file where declared (`extension of int32 { ... }`).
 - **Named on foreign type**: Must be explicitly imported to use (`export extension DateUtils of Date { ... }`).
 
 ### Enums
 
-Enums are nominal aliases to a set of constants, just like in TypeScript, except that Destack's enums do not implicitly cast to their backing type and explicit conversions are required for the backing value type.
+Enums are nominal aliases to a set of constants, just like in TypeScript, but in Destack, enums do _not_ implicitly cast to their backing type and explicit conversions are required for the backing value type.
 Like other nominal types, enums can carry instance and static members, and of course can also receive extensions.
 
 ```ds
@@ -368,7 +365,7 @@ enum Priority {
 ### Tagged Unions
 
 Discriminated unions are very convenient and fit well into existing TypeScript, but by themselves lack nominal containers (and items) to attach behavior to.
-Using Destack's nominality `newtype` and the builtin `Tagged` `derive`, the well known discriminated unions become pretty presentable sum types:
+Using Destack's nominality via `newtype` and the builtin `Tagged` `derive`, TypeScript's well worn discriminated unions become even more ergonomic sum types:
 
 ```ds
 @derive(Tagged)
@@ -392,7 +389,7 @@ const rectangle = Shape.Rectangle({ width: 10, height: 20 });
 const circle = Shape.Circle({ radius: 5 });
 ```
 
-The discriminant field is inferred from the union: it must be the unique common field whose variants carry distinct literal values.
+The discriminant field is inferred from the union via a regular userland `Tagged` macro from the unique common field whose variants carry distinct literal values.
 By default, string discriminants are exposed as `UpperCamelCase` constructor names - the other supported naming policies are:
 
 | Tagged Casing | Example |
@@ -416,7 +413,7 @@ const circle = Shape.circle( /* ... */ );
 ### Structs
 
 Structs are nominal value types for data with a fixed shape, but without reference identity, constructors, or inheritance.
-Basically, structs are just values with a name, much like structs in other "systems languages": an alias to the struct's components.
+Basically, structs are just values with a name, much like structs in other "systems languages": an alias to the struct's components (with a certain layout and padding).
 Structs are created via the usual `T { .. }` constructor form to distinguish them from regular objects (no constructors).
 
 ```ds
@@ -431,7 +428,7 @@ let x: Point = { x, y };        // ERROR: plain object is not Point
 
 ### Classes
 
-Classes remain the TypeScript-shaped model for managed objects with identity, except of course without a prototype chain or any dynamic class shenanigans.
+Classes follow the TypeScript-shaped model for managed objects with identity, except of course without a prototype chain or any dynamic class shenanigans.
 Also, class fields require every instance field to be initialized by its declaration, a parameter property, or every constructor path.
 (Optional fields do not need eager initialization, they default to `undefined`.)
 
@@ -453,7 +450,8 @@ const counter: Counter = new Counter(1);
 counter.increment() satisfies int32;
 ```
 
-Class methods are concrete by default and must be `virtual` to enable virtual dispatch for an instance method in a subclass, and `abstract` to require an override before the class can be constructed.
+Class methods are concrete by default and must be declared as `virtual` to enable _virtual_ dispatch of instances methods in subclasses.
+Similarly, class methods are marked as `abstract` to require an override before the class can be constructed.
 
 ```ds
 abstract class Logger {
@@ -473,7 +471,7 @@ final class PacketHeader {
 
 ### Arrays, Slices and Tuples
 
-Destack supports richer sequence forms beyond the classic dynamic arrays - `T[]` / `Array<T>` with explicit slice, fixed array, and tuple forms.
+Destack supports richer sequence forms beyond TypeScript's dynamic arrays - `T[]` / `Array<T>` with explicit slices, fixed arrays, and tuples.
 Unfortunately, not much syntax was left here, so we had to adopt the slightly non-TS-y syntax forms of `[T]` and `[T; N]` for slices and fixed arrays, respectively.
 (This is also why `.ds` does not support `.ts`-style array tuples `[A, B]` and tuples in `.ds` must always be explicit `(A, B)`)
 
@@ -484,9 +482,9 @@ Unfortunately, not much syntax was left here, so we had to adopt the slightly no
 | `[T; N]`, `FixedArray<T, N>` | Inline array | Exactly `N` elements stored in the value |
 | `(A, B)` | Inline product | Heterogeneous sequence of owned values |
 
-Dynamic arrays are managed objects with identity, while slices, fixed arrays, and tuples are semantically `struct`s (value/view forms).
-Unlike Rust, Destack's `[T]` is sized and a first-class slice _value_, more akin to Go's slice header than Rust's unsized slice.
-Also, unlike JavaScript, Destack does not permit holes in arrays or any other sequences, and indexing into `T[]` therefore returns `T`, not `T | undefined` (out-of-bounds indexing traps or errors depending on compiler options).
+Dynamic arrays are regular managed objects with identity, while slices, fixed arrays, and tuples are value types (`struct`s, basically).
+However, Destack does not permit holes in arrays or any other sequences, and indexing into `T[]` therefore always returns `T`.
+Unlike in Rust, and somewhat more like in Go, Destack's `[T]` is sized and a first-class slice _value_.
 
 ```ds
 let x: int32[] = [1, 2, 3]; // dynamic array of int32
@@ -547,7 +545,7 @@ const empty: () = ();
 
 ### Readonly
 
-TypeScript already has `readonly`, but it is shallow, so in `.ds`, `readonly T` becomes a real _deep_ read-only view of `T`.
+TypeScript's `readonly` is shallow, while in `.ds`, `readonly T` is always a _deep_ read-only view of `T`.
 That is, `readonly T` forbids _any_ mutation through its `T`, and `readonly T` cannot be assigned to `T`, including via nested members.
 
 ```ds
