@@ -5,6 +5,7 @@ mod function;
 mod loan;
 mod r#move;
 mod pass;
+mod solve;
 
 #[cfg(test)]
 mod tests;

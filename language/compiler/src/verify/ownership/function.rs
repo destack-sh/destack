@@ -12,9 +12,9 @@ use super::flow::FlowState;
 use super::loan::Loan;
 use super::r#move::{MoveState, MoveUse};
 
-/// Ownership summary inferred for one function.
+/// Borrow contract inferred for one function.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) struct FunctionSummary {
+pub(super) struct FunctionBorrowContract {
     /// Borrow obligations required by this function body.
     pub(super) borrow_obligations: Vec<mir::BorrowObligation>,
     /// Actual lifetime roots returned by this function body.
@@ -66,8 +66,8 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         }
     }
 
-    /// Create a function verifier for summary solving.
-    pub(super) fn new_silent(
+    /// Create a function verifier for contract solving.
+    pub(super) fn for_contract(
         function: &'a mir::Function,
         tree: &'a mir::Tree,
         context: &'a mut VerifyState<'b>,
@@ -79,13 +79,13 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
     }
 
     /// Verify one function.
-    pub(super) fn check(mut self) -> FunctionSummary {
+    pub(super) fn check(mut self) -> FunctionBorrowContract {
         let entries = self.solve_entries();
 
         // replay blocks with fixed entry states
         self.replay_blocks(entries);
 
-        FunctionSummary {
+        FunctionBorrowContract {
             borrow_obligations: self.borrow_obligations,
             return_lifetime: self.return_sources.lifetime(),
         }
