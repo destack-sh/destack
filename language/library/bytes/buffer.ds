@@ -1,5 +1,5 @@
 import { todo } from "destack:error";
-import { MaybeUninit, Unique } from "destack:memory";
+import { Access, MaybeUninit, Unique, WithAccess } from "destack:memory";
 import { Bytes } from "./bytes.ds";
 
 /// Growable byte buffer.
@@ -79,13 +79,8 @@ export class ByteBuffer {
     }
 
     /// Borrow initialized bytes.
-    asBytes(this: &readonly ByteBuffer): &readonly [uint8] {
+    asBytes<A: Access = "readonly">(this: WithAccess<&ByteBuffer, A>): WithAccess<&[uint8], A> {
         todo("ByteBuffer.asBytes")
-    }
-
-    /// Borrow initialized bytes with exclusive access.
-    asExclusiveBytes(this: &exclusive ByteBuffer): &exclusive [uint8] {
-        todo("ByteBuffer.asExclusiveBytes")
     }
 
     /// Clone initialized bytes into immutable storage.

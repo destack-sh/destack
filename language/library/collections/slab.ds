@@ -1,7 +1,7 @@
 import { todo } from "destack:error";
 import { From } from "destack:convert";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
-import { Default, MaybeUninit } from "destack:memory";
+import { Access, Default, MaybeUninit, WithAccess } from "destack:memory";
 import { Index, IndexSet } from "destack:ops";
 import { Array } from "./array.ds";
 
@@ -122,17 +122,7 @@ extension<T> of Slab<T> implements
     }
 
     /// Borrow the value for `key`.
-    get(this: &Slab<T>, key: SlabKey): &T | undefined {
-        todo("Slab.get")
-    }
-
-    /// Borrow the value for `key` with readonly access.
-    get(this: &readonly Slab<T>, key: SlabKey): &readonly T | undefined {
-        todo("Slab.get")
-    }
-
-    /// Borrow the value for `key` with exclusive access.
-    get(this: &exclusive Slab<T>, key: SlabKey): &exclusive T | undefined {
+    get<A: Access = "readonly">(this: WithAccess<&Slab<T>, A>, key: SlabKey): WithAccess<&T, A> | undefined {
         todo("Slab.get")
     }
 
@@ -189,33 +179,13 @@ extension<T> of Slab<T> implements
         todo("Slab.keys")
     }
 
-    /// Return all live values.
-    values(this: &Slab<T>): Iterator<&T> {
-        todo("Slab.values")
-    }
-
-    /// Return all live values with readonly access.
-    values(this: &readonly Slab<T>): Iterator<&readonly T> {
-        todo("Slab.values")
-    }
-
-    /// Return all live values with exclusive access.
-    values(this: &exclusive Slab<T>): Iterator<&exclusive T> {
+    /// Return all live borrowed values.
+    values<A: Access = "readonly">(this: WithAccess<&Slab<T>, A>): Iterator<WithAccess<&T, A>> {
         todo("Slab.values")
     }
 
     /// Return all live entries.
-    entries(this: &Slab<T>): Iterator<(SlabKey, &T)> {
-        todo("Slab.entries")
-    }
-
-    /// Return all live entries with readonly access.
-    entries(this: &readonly Slab<T>): Iterator<(SlabKey, &readonly T)> {
-        todo("Slab.entries")
-    }
-
-    /// Return all live entries with exclusive access.
-    entries(this: &exclusive Slab<T>): Iterator<(SlabKey, &exclusive T)> {
+    entries<A: Access = "readonly">(this: WithAccess<&Slab<T>, A>): Iterator<(SlabKey, WithAccess<&T, A>)> {
         todo("Slab.entries")
     }
 
@@ -225,17 +195,7 @@ extension<T> of Slab<T> implements
     }
 
     /// Return an iterator over borrowed values.
-    iterator(this: &Slab<T>): Iterator<&T> {
-        todo("Slab.iterator")
-    }
-
-    /// Return an iterator over readonly borrowed values.
-    iterator(this: &readonly Slab<T>): Iterator<&readonly T> {
-        todo("Slab.iterator")
-    }
-
-    /// Return an iterator over exclusive borrowed values.
-    iterator(this: &exclusive Slab<T>): Iterator<&exclusive T> {
+    iterator<A: Access = "readonly">(this: WithAccess<&Slab<T>, A>): Iterator<WithAccess<&T, A>> {
         todo("Slab.iterator")
     }
 

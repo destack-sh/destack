@@ -102,17 +102,7 @@ extension<T> of Array<T> implements
     }
 
     /// Borrow the element at `index`.
-    index(this: &Array<T>, index: number): &T {
-        todo("Array.index")
-    }
-
-    /// Borrow the element at `index` with readonly access.
-    index(this: &readonly Array<T>, index: number): &readonly T {
-        todo("Array.index")
-    }
-
-    /// Borrow the element at `index` with exclusive access.
-    index(this: &exclusive Array<T>, index: number): &exclusive T {
+    index<A: Access = "readonly">(this: WithAccess<&Array<T>, A>, index: number): WithAccess<&T, A> {
         todo("Array.index")
     }
 
@@ -127,17 +117,7 @@ extension<T> of Array<T> implements
     }
 
     /// Borrow the first element.
-    first(this: &Array<T>): &T | undefined {
-        todo("Array.first")
-    }
-
-    /// Borrow the first element with readonly access.
-    first(this: &readonly Array<T>): &readonly T | undefined {
-        todo("Array.first")
-    }
-
-    /// Borrow the first element with exclusive access.
-    first(this: &exclusive Array<T>): &exclusive T | undefined {
+    first<A: Access = "readonly">(this: WithAccess<&Array<T>, A>): WithAccess<&T, A> | undefined {
         todo("Array.first")
     }
 
@@ -147,17 +127,7 @@ extension<T> of Array<T> implements
     }
 
     /// Borrow the last element.
-    last(this: &Array<T>): &T | undefined {
-        todo("Array.last")
-    }
-
-    /// Borrow the last element with readonly access.
-    last(this: &readonly Array<T>): &readonly T | undefined {
-        todo("Array.last")
-    }
-
-    /// Borrow the last element with exclusive access.
-    last(this: &exclusive Array<T>): &exclusive T | undefined {
+    last<A: Access = "readonly">(this: WithAccess<&Array<T>, A>): WithAccess<&T, A> | undefined {
         todo("Array.last")
     }
 
@@ -392,17 +362,7 @@ extension<T> of Array<T> implements
     }
 
     /// Return an iterator over borrowed values.
-    iterator(this: &Array<T>): Iterator<&T> {
-        todo("Array.iterator")
-    }
-
-    /// Return an iterator over readonly borrowed values.
-    iterator(this: &readonly Array<T>): Iterator<&readonly T> {
-        todo("Array.iterator")
-    }
-
-    /// Return an iterator over exclusive borrowed values.
-    iterator(this: &exclusive Array<T>): Iterator<&exclusive T> {
+    iterator<A: Access = "readonly">(this: WithAccess<&Array<T>, A>): Iterator<WithAccess<&T, A>> {
         todo("Array.iterator")
     }
 
