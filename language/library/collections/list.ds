@@ -1,7 +1,7 @@
 import { todo } from "destack:error";
 import { From } from "destack:convert";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
-import { Default, MaybeUninit } from "destack:memory";
+import { Access, Default, MaybeUninit, WithAccess } from "destack:memory";
 import { Array } from "./array.ds";
 
 /// Key for one linked list node.
@@ -119,32 +119,12 @@ extension<T> of LinkedList<T> implements
     }
 
     /// Borrow the front element.
-    front(this: &LinkedList<T>): &T | undefined {
-        todo("LinkedList.front")
-    }
-
-    /// Borrow the front element with readonly access.
-    front(this: &readonly LinkedList<T>): &readonly T | undefined {
-        todo("LinkedList.front")
-    }
-
-    /// Borrow the front element with exclusive access.
-    front(this: &exclusive LinkedList<T>): &exclusive T | undefined {
+    front<A: Access = "readonly">(this: WithAccess<&LinkedList<T>, A>): WithAccess<&T, A> | undefined {
         todo("LinkedList.front")
     }
 
     /// Borrow the back element.
-    back(this: &LinkedList<T>): &T | undefined {
-        todo("LinkedList.back")
-    }
-
-    /// Borrow the back element with readonly access.
-    back(this: &readonly LinkedList<T>): &readonly T | undefined {
-        todo("LinkedList.back")
-    }
-
-    /// Borrow the back element with exclusive access.
-    back(this: &exclusive LinkedList<T>): &exclusive T | undefined {
+    back<A: Access = "readonly">(this: WithAccess<&LinkedList<T>, A>): WithAccess<&T, A> | undefined {
         todo("LinkedList.back")
     }
 
@@ -184,17 +164,7 @@ extension<T> of LinkedList<T> implements
     }
 
     /// Return an iterator over borrowed values.
-    iterator(this: &LinkedList<T>): Iterator<&T> {
-        todo("LinkedList.iterator")
-    }
-
-    /// Return an iterator over readonly borrowed values.
-    iterator(this: &readonly LinkedList<T>): Iterator<&readonly T> {
-        todo("LinkedList.iterator")
-    }
-
-    /// Return an iterator over exclusive borrowed values.
-    iterator(this: &exclusive LinkedList<T>): Iterator<&exclusive T> {
+    iterator<A: Access = "readonly">(this: WithAccess<&LinkedList<T>, A>): Iterator<WithAccess<&T, A>> {
         todo("LinkedList.iterator")
     }
 

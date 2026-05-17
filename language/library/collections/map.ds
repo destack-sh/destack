@@ -1,7 +1,7 @@
 import { todo } from "destack:error";
 import { Borrow, From } from "destack:convert";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
-import { Default, MaybeUninit, Unique } from "destack:memory";
+import { Access, Default, MaybeUninit, Unique, WithAccess } from "destack:memory";
 import { Equal, Hash, Index, IndexSet } from "destack:ops";
 import { Array } from "./array.ds";
 
@@ -149,37 +149,19 @@ where K implements Equal<K> {
     }
 
     /// Borrow a value by key.
-    get<Q: Hash>(this: &Map<K, V>, key: &readonly Q): &V | undefined
-    where K implements Borrow<Q>, Q implements Equal<Q> {
-        todo("Map.get")
-    }
-
-    /// Borrow a value by key with readonly access.
-    get<Q: Hash>(this: &readonly Map<K, V>, key: &readonly Q): &readonly V | undefined
-    where K implements Borrow<Q>, Q implements Equal<Q> {
-        todo("Map.get")
-    }
-
-    /// Borrow a value by key with exclusive access.
-    get<Q: Hash>(this: &exclusive Map<K, V>, key: &readonly Q): &exclusive V | undefined
+    get<Q: Hash, A: Access = "readonly">(
+        this: WithAccess<&Map<K, V>, A>,
+        key: &readonly Q,
+    ): WithAccess<&V, A> | undefined
     where K implements Borrow<Q>, Q implements Equal<Q> {
         todo("Map.get")
     }
 
     /// Return a borrowed entry by key.
-    getEntry<Q: Hash>(this: &Map<K, V>, key: &readonly Q): MapEntry<&readonly K, &V> | undefined
-    where K implements Borrow<Q>, Q implements Equal<Q> {
-        todo("Map.getEntry")
-    }
-
-    /// Return a borrowed entry by key with readonly access.
-    getEntry<Q: Hash>(this: &readonly Map<K, V>, key: &readonly Q): MapEntry<&readonly K, &readonly V> | undefined
-    where K implements Borrow<Q>, Q implements Equal<Q> {
-        todo("Map.getEntry")
-    }
-
-    /// Return a borrowed entry by key with exclusive value access.
-    getEntry<Q: Hash>(this: &exclusive Map<K, V>, key: &readonly Q): MapEntry<&readonly K, &exclusive V> | undefined
+    getEntry<Q: Hash, A: Access = "readonly">(
+        this: WithAccess<&Map<K, V>, A>,
+        key: &readonly Q,
+    ): MapEntry<&readonly K, WithAccess<&V, A>> | undefined
     where K implements Borrow<Q>, Q implements Equal<Q> {
         todo("Map.getEntry")
     }
@@ -279,8 +261,8 @@ where K implements Equal<K> {
         todo("Map.keys")
     }
 
-    /// Return all values.
-    values(this: &Map<K, V>): Iterator<&V> {
+    /// Return all borrowed values.
+    values<A: Access = "readonly">(this: WithAccess<&Map<K, V>, A>): Iterator<WithAccess<&V, A>> {
         todo("Map.values")
     }
 
@@ -289,33 +271,15 @@ where K implements Equal<K> {
         todo("Map.values")
     }
 
-    /// Return all values with readonly access.
-    values(this: &readonly Map<K, V>): Iterator<&readonly V> {
-        todo("Map.values")
-    }
-
-    /// Return all values with exclusive access.
-    values(this: &exclusive Map<K, V>): Iterator<&exclusive V> {
-        todo("Map.values")
-    }
-
-    /// Return all entries.
-    entries(this: &Map<K, V>): Iterator<MapEntry<&readonly K, &V>> {
+    /// Return all borrowed entries.
+    entries<A: Access = "readonly">(
+        this: WithAccess<&Map<K, V>, A>,
+    ): Iterator<MapEntry<&readonly K, WithAccess<&V, A>>> {
         todo("Map.entries")
     }
 
     /// Return copied entries.
     entries(): Iterator<(K, V)> {
-        todo("Map.entries")
-    }
-
-    /// Return all entries with readonly access.
-    entries(this: &readonly Map<K, V>): Iterator<MapEntry<&readonly K, &readonly V>> {
-        todo("Map.entries")
-    }
-
-    /// Return all entries with exclusive value access.
-    entries(this: &exclusive Map<K, V>): Iterator<MapEntry<&readonly K, &exclusive V>> {
         todo("Map.entries")
     }
 
@@ -325,17 +289,9 @@ where K implements Equal<K> {
     }
 
     /// Return an iterator over borrowed entries.
-    iterator(this: &Map<K, V>): Iterator<MapEntry<&readonly K, &V>> {
-        todo("Map.iterator")
-    }
-
-    /// Return an iterator over readonly borrowed entries.
-    iterator(this: &readonly Map<K, V>): Iterator<MapEntry<&readonly K, &readonly V>> {
-        todo("Map.iterator")
-    }
-
-    /// Return an iterator over entries with exclusive value access.
-    iterator(this: &exclusive Map<K, V>): Iterator<MapEntry<&readonly K, &exclusive V>> {
+    iterator<A: Access = "readonly">(
+        this: WithAccess<&Map<K, V>, A>,
+    ): Iterator<MapEntry<&readonly K, WithAccess<&V, A>>> {
         todo("Map.iterator")
     }
 

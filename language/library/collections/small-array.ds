@@ -110,17 +110,7 @@ extension<T, comptime N: number> of SmallArray<T, N> implements
     }
 
     /// Borrow the element at `index`.
-    index(this: &SmallArray<T, N>, index: number): &T {
-        todo("SmallArray.index")
-    }
-
-    /// Borrow the element at `index` with readonly access.
-    index(this: &readonly SmallArray<T, N>, index: number): &readonly T {
-        todo("SmallArray.index")
-    }
-
-    /// Borrow the element at `index` with exclusive access.
-    index(this: &exclusive SmallArray<T, N>, index: number): &exclusive T {
+    index<A: Access = "readonly">(this: WithAccess<&SmallArray<T, N>, A>, index: number): WithAccess<&T, A> {
         todo("SmallArray.index")
     }
 
@@ -135,17 +125,7 @@ extension<T, comptime N: number> of SmallArray<T, N> implements
     }
 
     /// Borrow the first element.
-    first(this: &SmallArray<T, N>): &T | undefined {
-        todo("SmallArray.first")
-    }
-
-    /// Borrow the first element with readonly access.
-    first(this: &readonly SmallArray<T, N>): &readonly T | undefined {
-        todo("SmallArray.first")
-    }
-
-    /// Borrow the first element with exclusive access.
-    first(this: &exclusive SmallArray<T, N>): &exclusive T | undefined {
+    first<A: Access = "readonly">(this: WithAccess<&SmallArray<T, N>, A>): WithAccess<&T, A> | undefined {
         todo("SmallArray.first")
     }
 
@@ -155,17 +135,7 @@ extension<T, comptime N: number> of SmallArray<T, N> implements
     }
 
     /// Borrow the last element.
-    last(this: &SmallArray<T, N>): &T | undefined {
-        todo("SmallArray.last")
-    }
-
-    /// Borrow the last element with readonly access.
-    last(this: &readonly SmallArray<T, N>): &readonly T | undefined {
-        todo("SmallArray.last")
-    }
-
-    /// Borrow the last element with exclusive access.
-    last(this: &exclusive SmallArray<T, N>): &exclusive T | undefined {
+    last<A: Access = "readonly">(this: WithAccess<&SmallArray<T, N>, A>): WithAccess<&T, A> | undefined {
         todo("SmallArray.last")
     }
 
@@ -264,17 +234,7 @@ extension<T, comptime N: number> of SmallArray<T, N> implements
     }
 
     /// Return an iterator over borrowed values.
-    iterator(this: &SmallArray<T, N>): Iterator<&T> {
-        todo("SmallArray.iterator")
-    }
-
-    /// Return an iterator over readonly borrowed values.
-    iterator(this: &readonly SmallArray<T, N>): Iterator<&readonly T> {
-        todo("SmallArray.iterator")
-    }
-
-    /// Return an iterator over exclusive borrowed values.
-    iterator(this: &exclusive SmallArray<T, N>): Iterator<&exclusive T> {
+    iterator<A: Access = "readonly">(this: WithAccess<&SmallArray<T, N>, A>): Iterator<WithAccess<&T, A>> {
         todo("SmallArray.iterator")
     }
 
@@ -327,17 +287,7 @@ extension<T, comptime N: number, R: RangeBounds<usize>> of SmallArray<T, N> impl
     }
 
     /// Borrow the selected range.
-    index(this: &SmallArray<T, N>, range: R): &Slice<T> {
-        todo("SmallArray.indexRange")
-    }
-
-    /// Borrow the selected range with readonly access.
-    index(this: &readonly SmallArray<T, N>, range: R): &readonly Slice<T> {
-        todo("SmallArray.indexRange")
-    }
-
-    /// Borrow the selected range with exclusive access.
-    index(this: &exclusive SmallArray<T, N>, range: R): &exclusive Slice<T> {
+    index<A: Access = "readonly">(this: WithAccess<&SmallArray<T, N>, A>, range: R): WithAccess<&Slice<T>, A> {
         todo("SmallArray.indexRange")
     }
 }

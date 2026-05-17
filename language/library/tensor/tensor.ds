@@ -16,6 +16,7 @@ import {
     Index,
     IndexSet,
 } from "destack:ops";
+import { Access, WithAccess } from "destack:memory";
 import { Layout } from "./layout.ds";
 import { TensorCreateOptions, TensorOutputOptions } from "./options.ds";
 import { Coordinate, Shape } from "./shape.ds";
@@ -191,18 +192,8 @@ extension<T, comptime Rank: int> of Tensor<T, Rank> implements
     /// The indexed output type.
     type Output = T;
 
-    /// Return a mutable view of this tensor.
-    view(this: &Tensor<T, Rank>): TensorView<T, Rank, "mutable"> {
-        todo("Tensor.view")
-    }
-
-    /// Return a readonly view of this tensor.
-    view(this: &readonly Tensor<T, Rank>): TensorView<T, Rank, "readonly"> {
-        todo("Tensor.view")
-    }
-
-    /// Return an exclusive view of this tensor.
-    view(this: &exclusive Tensor<T, Rank>): TensorView<T, Rank, "exclusive"> {
+    /// Return a view of this tensor.
+    view<A: Access = "readonly">(this: WithAccess<&Tensor<T, Rank>, A>): TensorView<T, Rank, A> {
         todo("Tensor.view")
     }
 
@@ -227,12 +218,10 @@ extension<T, comptime Rank: int> of Tensor<T, Rank> implements
     }
 
     /// Borrow the element at `coordinate`.
-    index(this: &Tensor<T, Rank>, coordinate: Coordinate<Rank>): &T {
-        todo("Tensor.index")
-    }
-
-    /// Borrow the element at `coordinate` with readonly access.
-    index(this: &readonly Tensor<T, Rank>, coordinate: Coordinate<Rank>): &readonly T {
+    index<A: Access = "readonly">(
+        this: WithAccess<&Tensor<T, Rank>, A>,
+        coordinate: Coordinate<Rank>,
+    ): WithAccess<&T, A> {
         todo("Tensor.index")
     }
 

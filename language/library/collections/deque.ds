@@ -1,7 +1,7 @@
 import { todo } from "destack:error";
 import { From } from "destack:convert";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
-import { Default, MaybeUninit, Unique } from "destack:memory";
+import { Access, Default, MaybeUninit, Unique, WithAccess } from "destack:memory";
 import { Index, IndexSet } from "destack:ops";
 
 /// A compact double-ended queue.
@@ -80,17 +80,7 @@ extension<T> of Deque<T> implements
     }
 
     /// Borrow the element at `index`.
-    index(this: &Deque<T>, index: number): &T {
-        todo("Deque.index")
-    }
-
-    /// Borrow the element at `index` with readonly access.
-    index(this: &readonly Deque<T>, index: number): &readonly T {
-        todo("Deque.index")
-    }
-
-    /// Borrow the element at `index` with exclusive access.
-    index(this: &exclusive Deque<T>, index: number): &exclusive T {
+    index<A: Access = "readonly">(this: WithAccess<&Deque<T>, A>, index: number): WithAccess<&T, A> {
         todo("Deque.index")
     }
 
@@ -125,32 +115,12 @@ extension<T> of Deque<T> implements
     }
 
     /// Borrow the front element.
-    front(this: &Deque<T>): &T | undefined {
-        todo("Deque.front")
-    }
-
-    /// Borrow the front element with readonly access.
-    front(this: &readonly Deque<T>): &readonly T | undefined {
-        todo("Deque.front")
-    }
-
-    /// Borrow the front element with exclusive access.
-    front(this: &exclusive Deque<T>): &exclusive T | undefined {
+    front<A: Access = "readonly">(this: WithAccess<&Deque<T>, A>): WithAccess<&T, A> | undefined {
         todo("Deque.front")
     }
 
     /// Borrow the back element.
-    back(this: &Deque<T>): &T | undefined {
-        todo("Deque.back")
-    }
-
-    /// Borrow the back element with readonly access.
-    back(this: &readonly Deque<T>): &readonly T | undefined {
-        todo("Deque.back")
-    }
-
-    /// Borrow the back element with exclusive access.
-    back(this: &exclusive Deque<T>): &exclusive T | undefined {
+    back<A: Access = "readonly">(this: WithAccess<&Deque<T>, A>): WithAccess<&T, A> | undefined {
         todo("Deque.back")
     }
 
@@ -190,17 +160,7 @@ extension<T> of Deque<T> implements
     }
 
     /// Return an iterator over borrowed values.
-    iterator(this: &Deque<T>): Iterator<&T> {
-        todo("Deque.iterator")
-    }
-
-    /// Return an iterator over readonly borrowed values.
-    iterator(this: &readonly Deque<T>): Iterator<&readonly T> {
-        todo("Deque.iterator")
-    }
-
-    /// Return an iterator over exclusive borrowed values.
-    iterator(this: &exclusive Deque<T>): Iterator<&exclusive T> {
+    iterator<A: Access = "readonly">(this: WithAccess<&Deque<T>, A>): Iterator<WithAccess<&T, A>> {
         todo("Deque.iterator")
     }
 
