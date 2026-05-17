@@ -1,8 +1,8 @@
-use crate::verify::tests::VerifyProgram;
+use crate::tests::TestProgram;
 
 #[test]
 fn test_insert_drop_after_last_owned_use() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 function test(v0: ref<int32, unique>): int32 {
 b0(v0: ref<int32, unique>):
@@ -25,7 +25,7 @@ entry0(value0: ref<int32, unique>):
 
 #[test]
 fn test_insert_drop_before_later_unrelated_work() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 function later(): void {
 b0:
@@ -60,7 +60,7 @@ entry0(value0: ref<int32, unique>):
 
 #[test]
 fn test_insert_drop_for_unused_owned_parameter() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 function test(v0: ref<int32, unique>): void {
 b0(v0: ref<int32, unique>):
@@ -81,7 +81,7 @@ entry0(value0: ref<int32, unique>):
 
 #[test]
 fn test_skip_drop_for_managed_parameter() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 function test(v0: ref<int32, managed>): void {
 b0(v0: ref<int32, managed>):
@@ -100,7 +100,7 @@ entry0(value0: ref<int32, managed>):
 
 #[test]
 fn test_skip_drop_for_managed_allocation() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 function test(): void {
 b0:
@@ -121,7 +121,7 @@ entry0:
 
 #[test]
 fn test_skip_drop_for_managed_slice_allocation() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 function test(): void {
 b0:
@@ -144,7 +144,7 @@ entry0:
 
 #[test]
 fn test_skip_drop_for_borrow_into_managed_field() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 type User {
     int32;
@@ -175,7 +175,7 @@ entry0(value0: ref<User, managed>):
 
 #[test]
 fn test_skip_drop_for_borrow_into_managed_slice() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 function test(v0: slice<int32, managed>): int32 {
 b0(v0: slice<int32, managed>):
@@ -200,7 +200,7 @@ entry0(value0: slice<int32, managed>):
 
 #[test]
 fn test_insert_drop_for_unique_slice_allocation() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 function test(): void {
 b0:
@@ -225,7 +225,7 @@ entry0:
 
 #[test]
 fn test_insert_drop_on_unconsumed_branch() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 function consume(v0: ref<int32, unique>): void {
 b0(v0: ref<int32, unique>):
@@ -270,7 +270,7 @@ block2(value3: ref<int32, unique>):
 
 #[test]
 fn test_insert_drop_on_branch_path_without_owned_use() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 function consume(v0: ref<int32, unique>): void {
 b0(v0: ref<int32, unique>):
@@ -315,7 +315,7 @@ block2:
 
 #[test]
 fn test_skip_drop_after_owned_return() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 function test(v0: ref<int32, unique>): ref<int32, unique> {
 b0(v0: ref<int32, unique>):
@@ -334,7 +334,7 @@ entry0(value0: ref<int32, unique>):
 
 #[test]
 fn test_skip_drop_after_owned_call() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 function consume(v0: ref<int32, unique>): void {
 b0(v0: ref<int32, unique>):
@@ -367,7 +367,7 @@ entry0(value0: ref<int32, unique>):
 
 #[test]
 fn test_insert_drop_for_owned_aggregate() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 @moveOnly
 type Box {
@@ -399,7 +399,7 @@ entry0(value0: ref<int32, unique>):
 
 #[test]
 fn test_insert_drop_for_remaining_aggregate_field() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 @moveOnly
 type Pair {
@@ -449,7 +449,7 @@ entry0(value0: ref<int32, unique>, value1: ref<int32, unique>):
 
 #[test]
 fn test_union_payload_move_consumes_union() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 @moveOnly
 	type Value = variant<uint8, ref<int32, unique>> { 0uint8 = ref<int32, unique>; 1uint8 = int32; };

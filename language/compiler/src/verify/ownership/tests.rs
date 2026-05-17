@@ -1,160 +1,191 @@
 use crate::DiagnosticAnchor;
-use crate::verify::tests::VerifyProgram;
+use crate::tests::TestProgram;
 use crate::verify::{BorrowObligationRecord, VerifyError};
 use destack_mir as mir;
 
-/// Return the only verify error.
-fn one_error(errors: &[VerifyError]) -> &VerifyError {
-    assert_eq!(errors.len(), 1, "{errors:#?}");
+impl TestProgram {
+    /// Return the only ownership error.
+    fn one_ownership_error<'a>(&self, errors: &'a [VerifyError]) -> &'a VerifyError {
+        assert_eq!(errors.len(), 1, "{errors:#?}");
 
-    &errors[0]
-}
+        &errors[0]
+    }
 
-/// Return the byte start for one diagnostic anchor.
-fn anchor_start(anchor: &DiagnosticAnchor) -> u32 {
-    let DiagnosticAnchor::Span(span) = anchor else {
-        panic!("expected span anchor, got {anchor:#?}");
-    };
+    /// Return the byte start for one diagnostic anchor.
+    fn anchor_start(&self, anchor: &DiagnosticAnchor) -> u32 {
+        let DiagnosticAnchor::Span(span) = anchor else {
+            panic!("expected span anchor, got {anchor:#?}");
+        };
 
-    span.start
-}
+        span.start
+    }
 
-/// Assert that `first` points before `second`.
-fn assert_anchor_before(first: &DiagnosticAnchor, second: &DiagnosticAnchor) {
-    assert!(
-        anchor_start(first) < anchor_start(second),
-        "expected {first:#?} before {second:#?}",
-    );
-}
+    /// Assert that `first` points before `second`.
+    fn assert_anchor_before(&self, first: &DiagnosticAnchor, second: &DiagnosticAnchor) {
+        assert!(
+            self.anchor_start(first) < self.anchor_start(second),
+            "expected {first:#?} before {second:#?}",
+        );
+    }
 
-/// Assert one definite use after move.
-fn assert_use_after_move(errors: &[VerifyError]) {
-    let VerifyError::UseAfterMove { anchor, moved_at } = one_error(errors) else {
-        panic!("{errors:#?}");
-    };
+    /// Assert no ownership errors.
+    fn assert_no_ownership_errors(&mut self) {
+        let errors = self.run_ownership();
 
-    assert_anchor_before(moved_at, anchor);
-}
+        assert!(errors.is_empty(), "{errors:#?}");
+    }
 
-/// Assert one maybe use after move.
-fn assert_maybe_use_after_move(errors: &[VerifyError]) {
-    let VerifyError::MaybeUseAfterMove { anchor, moved_at } = one_error(errors) else {
-        panic!("{errors:#?}");
-    };
+    /// Assert one definite use after move.
+    fn assert_use_after_move(&mut self) {
+        let errors = self.run_ownership();
+        let VerifyError::UseAfterMove { anchor, moved_at } = self.one_ownership_error(&errors)
+        else {
+            panic!("{errors:#?}");
+        };
 
-    assert_anchor_before(moved_at, anchor);
-}
+        self.assert_anchor_before(moved_at, anchor);
+    }
 
-/// Assert one conflicting borrow.
-fn assert_borrow_conflict(errors: &[VerifyError]) {
-    let VerifyError::BorrowConflict {
-        anchor,
-        active_borrow,
-    } = one_error(errors)
-    else {
-        panic!("{errors:#?}");
-    };
+    /// Assert one maybe use after move.
+    fn assert_maybe_use_after_move(&mut self) {
+        let errors = self.run_ownership();
+        let VerifyError::MaybeUseAfterMove { anchor, moved_at } = self.one_ownership_error(&errors)
+        else {
+            panic!("{errors:#?}");
+        };
 
-    assert_anchor_before(active_borrow, anchor);
-}
+        self.assert_anchor_before(moved_at, anchor);
+    }
 
-/// Assert one borrowed-place change.
-fn assert_change_of_borrowed_place(errors: &[VerifyError]) {
-    let VerifyError::ChangeOfBorrowedPlace {
-        anchor,
-        borrowed_at,
-    } = one_error(errors)
-    else {
-        panic!("{errors:#?}");
-    };
+    /// Assert one conflicting borrow.
+    fn assert_borrow_conflict(&mut self) {
+        let errors = self.run_ownership();
+        let VerifyError::BorrowConflict {
+            anchor,
+            active_borrow,
+        } = self.one_ownership_error(&errors)
+        else {
+            panic!("{errors:#?}");
+        };
 
-    assert_anchor_before(borrowed_at, anchor);
-}
+        self.assert_anchor_before(active_borrow, anchor);
+    }
 
-/// Assert one readonly write.
-fn assert_readonly_write(errors: &[VerifyError]) {
-    let VerifyError::ReadonlyWrite { anchor } = one_error(errors) else {
-        panic!("{errors:#?}");
-    };
+    /// Assert one borrowed-place change.
+    fn assert_change_of_borrowed_place(&mut self) {
+        let errors = self.run_ownership();
+        let VerifyError::ChangeOfBorrowedPlace {
+            anchor,
+            borrowed_at,
+        } = self.one_ownership_error(&errors)
+        else {
+            panic!("{errors:#?}");
+        };
 
-    assert!(matches!(anchor, DiagnosticAnchor::Span(_)), "{anchor:#?}");
-}
+        self.assert_anchor_before(borrowed_at, anchor);
+    }
 
-/// Assert one exclusive borrow crossing suspension.
-fn assert_exclusive_borrow_across_suspension(errors: &[VerifyError]) {
-    let VerifyError::ExclusiveBorrowAcrossSuspension {
-        anchor,
-        borrowed_at,
-    } = one_error(errors)
-    else {
-        panic!("{errors:#?}");
-    };
+    /// Assert one readonly write.
+    fn assert_readonly_write(&mut self) {
+        let errors = self.run_ownership();
+        let VerifyError::ReadonlyWrite { anchor } = self.one_ownership_error(&errors) else {
+            panic!("{errors:#?}");
+        };
 
-    assert_anchor_before(borrowed_at, anchor);
-}
+        assert!(matches!(anchor, DiagnosticAnchor::Span(_)), "{anchor:#?}");
+    }
 
-/// Assert one rejected exclusive shared managed borrow.
-fn assert_exclusive_borrow_from_shared_managed(errors: &[VerifyError]) {
-    let VerifyError::ExclusiveBorrowFromSharedManaged { anchor } = one_error(errors) else {
-        panic!("{errors:#?}");
-    };
+    /// Assert one exclusive borrow crossing suspension.
+    fn assert_exclusive_borrow_across_suspension(&mut self) {
+        let errors = self.run_ownership();
+        let VerifyError::ExclusiveBorrowAcrossSuspension {
+            anchor,
+            borrowed_at,
+        } = self.one_ownership_error(&errors)
+        else {
+            panic!("{errors:#?}");
+        };
 
-    assert!(matches!(anchor, DiagnosticAnchor::Span(_)), "{anchor:#?}");
-}
+        self.assert_anchor_before(borrowed_at, anchor);
+    }
 
-/// Assert one borrow crossing suspension without requiring distinct anchors.
-fn assert_borrow_across_suspension_error(errors: &[VerifyError]) {
-    let VerifyError::BorrowAcrossSuspension {
-        anchor,
-        borrowed_at,
-    } = one_error(errors)
-    else {
-        panic!("{errors:#?}");
-    };
+    /// Assert one rejected exclusive shared managed borrow.
+    fn assert_exclusive_borrow_from_shared_managed(&mut self) {
+        let errors = self.run_ownership();
+        let VerifyError::ExclusiveBorrowFromSharedManaged { anchor } =
+            self.one_ownership_error(&errors)
+        else {
+            panic!("{errors:#?}");
+        };
 
-    assert!(matches!(anchor, DiagnosticAnchor::Span(_)), "{anchor:#?}");
-    assert!(
-        matches!(borrowed_at, DiagnosticAnchor::Span(_)),
-        "{borrowed_at:#?}"
-    );
-}
+        assert!(matches!(anchor, DiagnosticAnchor::Span(_)), "{anchor:#?}");
+    }
 
-/// Assert one escaping borrow.
-fn assert_borrow_outlives_origin(errors: &[VerifyError]) {
-    let VerifyError::BorrowOutlivesOrigin { anchor } = one_error(errors) else {
-        panic!("{errors:#?}");
-    };
+    /// Assert one borrow crossing suspension.
+    fn assert_borrow_across_suspension(&mut self) {
+        let errors = self.run_ownership();
+        let VerifyError::BorrowAcrossSuspension {
+            anchor,
+            borrowed_at,
+        } = self.one_ownership_error(&errors)
+        else {
+            panic!("{errors:#?}");
+        };
 
-    assert!(matches!(anchor, DiagnosticAnchor::Span(_)), "{anchor:#?}");
-}
+        assert!(matches!(anchor, DiagnosticAnchor::Span(_)), "{anchor:#?}");
+        assert!(
+            matches!(borrowed_at, DiagnosticAnchor::Span(_)),
+            "{borrowed_at:#?}"
+        );
+    }
 
-/// Assert one rejected partial move of a custom drop type.
-fn assert_partial_move_of_custom_drop(errors: &[VerifyError]) {
-    let VerifyError::PartialMoveOfCustomDrop { anchor } = one_error(errors) else {
-        panic!("{errors:#?}");
-    };
+    /// Assert one escaping borrow.
+    fn assert_borrow_outlives_origin(&mut self) {
+        let errors = self.run_ownership();
+        let VerifyError::BorrowOutlivesOrigin { anchor } = self.one_ownership_error(&errors) else {
+            panic!("{errors:#?}");
+        };
 
-    assert!(matches!(anchor, DiagnosticAnchor::Span(_)), "{anchor:#?}");
-}
+        assert!(matches!(anchor, DiagnosticAnchor::Span(_)), "{anchor:#?}");
+    }
 
-/// Assert no verify errors.
-fn assert_no_errors(errors: &[VerifyError]) {
-    assert!(errors.is_empty(), "{errors:#?}");
-}
+    /// Assert one rejected partial move of a custom drop type.
+    fn assert_partial_move_of_custom_drop(&mut self) {
+        let errors = self.run_ownership();
+        let VerifyError::PartialMoveOfCustomDrop { anchor } = self.one_ownership_error(&errors)
+        else {
+            panic!("{errors:#?}");
+        };
 
-/// Assert one suspension-stable borrow obligation.
-fn assert_suspension_stable_obligation(obligations: &[BorrowObligationRecord], parameter: u32) {
-    assert_eq!(obligations.len(), 1, "{obligations:#?}");
+        assert!(matches!(anchor, DiagnosticAnchor::Span(_)), "{anchor:#?}");
+    }
 
-    let BorrowObligationRecord { obligation, anchor } = &obligations[0];
-    let mir::BorrowObligation::SuspensionStable { lifetime } = obligation;
-    assert!(lifetime.includes_parameter(parameter), "{lifetime:#?}");
-    assert!(matches!(anchor, DiagnosticAnchor::Span(_)), "{anchor:#?}");
+    /// Assert one suspension-stable borrow obligation.
+    fn assert_suspension_stable_obligation(&mut self, parameter: u32) {
+        let (errors, obligations) = self.run_ownership_obligations();
+
+        assert!(errors.is_empty(), "{errors:#?}");
+        assert_eq!(obligations.len(), 1, "{obligations:#?}");
+
+        let BorrowObligationRecord { obligation, anchor } = &obligations[0];
+        let mir::BorrowObligation::SuspensionStable { lifetime } = obligation;
+        assert!(lifetime.includes_parameter(parameter), "{lifetime:#?}");
+        assert!(matches!(anchor, DiagnosticAnchor::Span(_)), "{anchor:#?}");
+    }
+
+    /// Assert no ownership errors and return borrow obligations.
+    fn assert_ownership_obligations(&mut self) -> Vec<BorrowObligationRecord> {
+        let (errors, obligations) = self.run_ownership_obligations();
+
+        assert!(errors.is_empty(), "{errors:#?}");
+
+        obligations
+    }
 }
 
 #[test]
 fn test_reject_exclusive_overlap() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 type Box {
     int32;
@@ -170,14 +201,12 @@ b0(v0: ref<Box, borrowed>):
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_borrow_conflict(&errors);
+    program.assert_borrow_conflict();
 }
 
 #[test]
 fn test_allow_aliasable_mutable_overlap() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 type Box {
     int32;
@@ -193,14 +222,12 @@ b0(v0: ref<Box, borrowed>):
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_no_errors(&errors);
+    program.assert_no_ownership_errors();
 }
 
 #[test]
 fn test_allow_exclusive_disjoint_fields() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 type Pair {
     int32;
@@ -217,14 +244,12 @@ b0(v0: ref<Pair, borrowed>):
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_no_errors(&errors);
+    program.assert_no_ownership_errors();
 }
 
 #[test]
 fn test_reject_exclusive_dynamic_element_overlap() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 function test(v0: [int32; 4], v1: usize, v2: usize): void {
 b0(v0: [int32; 4], v1: usize, v2: usize):
@@ -236,14 +261,12 @@ b0(v0: [int32; 4], v1: usize, v2: usize):
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_borrow_conflict(&errors);
+    program.assert_borrow_conflict();
 }
 
 #[test]
 fn test_allow_exclusive_constant_element_disjoint() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 function test(v0: [int32; 4]): void {
 b0(v0: [int32; 4]):
@@ -257,14 +280,12 @@ b0(v0: [int32; 4]):
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_no_errors(&errors);
+    program.assert_no_ownership_errors();
 }
 
 #[test]
 fn test_reject_exclusive_borrowed_slice_element_overlap() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 function test(v0: slice<int32, borrowed>, v1: usize, v2: usize): void {
 b0(v0: slice<int32, borrowed>, v1: usize, v2: usize):
@@ -276,14 +297,12 @@ b0(v0: slice<int32, borrowed>, v1: usize, v2: usize):
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_borrow_conflict(&errors);
+    program.assert_borrow_conflict();
 }
 
 #[test]
 fn test_allow_exclusive_disjoint_slice_ranges() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 function test(v0: slice<int32, borrowed>): void {
 b0(v0: slice<int32, borrowed>):
@@ -299,14 +318,12 @@ b0(v0: slice<int32, borrowed>):
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_no_errors(&errors);
+    program.assert_no_ownership_errors();
 }
 
 #[test]
 fn test_reject_exclusive_overlapping_slice_ranges() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 function test(v0: slice<int32, borrowed>): void {
 b0(v0: slice<int32, borrowed>):
@@ -323,14 +340,12 @@ b0(v0: slice<int32, borrowed>):
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_borrow_conflict(&errors);
+    program.assert_borrow_conflict();
 }
 
 #[test]
 fn test_reject_exclusive_after_readonly_overlap() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 type Box {
     int32;
@@ -346,14 +361,12 @@ b0(v0: ref<Box, borrowed>):
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_borrow_conflict(&errors);
+    program.assert_borrow_conflict();
 }
 
 #[test]
 fn test_allow_exclusive_after_last_borrow_use() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 type Box {
     int32;
@@ -369,14 +382,12 @@ b0(v0: ref<Box, borrowed>):
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_no_errors(&errors);
+    program.assert_no_ownership_errors();
 }
 
 #[test]
 fn test_reject_move_while_borrowed() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 type Box {
     int32;
@@ -396,14 +407,12 @@ b0(v0: ref<Box, unique>):
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_change_of_borrowed_place(&errors);
+    program.assert_change_of_borrowed_place();
 }
 
 #[test]
 fn test_reject_projected_move_use_after_move() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 type Pair {
     ref<int32, unique>;
@@ -419,14 +428,12 @@ b0(v0: ref<int32, unique>, v1: ref<int32, unique>):
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_use_after_move(&errors);
+    program.assert_use_after_move();
 }
 
 #[test]
 fn test_allow_disjoint_field_use_after_projected_move() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 type Pair {
     ref<int32, unique>;
@@ -442,14 +449,12 @@ b0(v0: ref<int32, unique>, v1: ref<int32, unique>):
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_no_errors(&errors);
+    program.assert_no_ownership_errors();
 }
 
 #[test]
 fn test_reject_union_use_after_payload_move() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 type Value = variant<uint8, ref<int32, unique>> { 0uint8 = ref<int32, unique>; 1uint8 = int32; }
 
@@ -461,14 +466,12 @@ b0(v0: Value):
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_use_after_move(&errors);
+    program.assert_use_after_move();
 }
 
 #[test]
 fn test_reject_partial_move_of_custom_drop() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 type Row {
     ref<int32, unique>;
@@ -484,14 +487,12 @@ b0(v0: ref<int32, unique>, v1: ref<int32, unique>):
     );
     program.mark_dynamic_drop("Row");
 
-    let errors = program.run_ownership();
-
-    assert_partial_move_of_custom_drop(&errors);
+    program.assert_partial_move_of_custom_drop();
 }
 
 #[test]
 fn test_reject_move_while_borrowed_through_block_parameter() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 type Box {
     int32;
@@ -515,14 +516,12 @@ b2:
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_change_of_borrowed_place(&errors);
+    program.assert_change_of_borrowed_place();
 }
 
 #[test]
 fn test_reject_local_set_while_borrowed() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 function test(v0: int32, v1: int32): void {
     local local0: int32, owned
@@ -535,14 +534,12 @@ b0(v0: int32, v1: int32):
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_change_of_borrowed_place(&errors);
+    program.assert_change_of_borrowed_place();
 }
 
 #[test]
 fn test_reject_store_through_readonly_borrow() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 function test(v0: ref<int32, borrowed, readonly>, v1: int32): void {
 b0(v0: ref<int32, borrowed, readonly>, v1: int32):
@@ -551,14 +548,12 @@ b0(v0: ref<int32, borrowed, readonly>, v1: int32):
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_readonly_write(&errors);
+    program.assert_readonly_write();
 }
 
 #[test]
 fn test_reject_store_while_exclusive_borrow_is_live() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 type Box {
     int32;
@@ -574,14 +569,12 @@ b0(v0: ref<Box, borrowed>, v1: int32):
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_change_of_borrowed_place(&errors);
+    program.assert_change_of_borrowed_place();
 }
 
 #[test]
 fn test_allow_store_through_own_exclusive_borrow() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 type Box {
     int32;
@@ -596,14 +589,12 @@ b0(v0: ref<Box, borrowed>, v1: int32):
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_no_errors(&errors);
+    program.assert_no_ownership_errors();
 }
 
 #[test]
 fn test_allow_store_through_live_borrow() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 function test(v0: ref<int32, borrowed>, v1: int32): void {
 b0(v0: ref<int32, borrowed>, v1: int32):
@@ -613,14 +604,12 @@ b0(v0: ref<int32, borrowed>, v1: int32):
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_no_errors(&errors);
+    program.assert_no_ownership_errors();
 }
 
 #[test]
 fn test_reject_use_after_call_move() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 function consume(v0: ref<int32, unique>): void {
 b0(v0: ref<int32, unique>):
@@ -635,14 +624,12 @@ b0(v0: ref<int32, unique>):
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_use_after_move(&errors);
+    program.assert_use_after_move();
 }
 
 #[test]
 fn test_reject_use_after_struct_move() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 type Box {
     ref<int32, unique>;
@@ -656,14 +643,12 @@ b0(v0: ref<int32, unique>):
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_use_after_move(&errors);
+    program.assert_use_after_move();
 }
 
 #[test]
 fn test_ignore_raw_free_for_moves() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 function test(v0: ref<int32, raw>): void {
 b0(v0: ref<int32, raw>):
@@ -673,14 +658,12 @@ b0(v0: ref<int32, raw>):
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_no_errors(&errors);
+    program.assert_no_ownership_errors();
 }
 
 #[test]
 fn test_reject_frame_return() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 type Box {
     int32;
@@ -694,14 +677,12 @@ b0:
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_borrow_outlives_origin(&errors);
+    program.assert_borrow_outlives_origin();
 }
 
 #[test]
 fn test_allow_parameter_return_when_declared() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 function test(v0: ref<int32, borrowed>): ref<int32, borrowed, lifetime(0)> {
 b0(v0: ref<int32, borrowed>):
@@ -709,14 +690,12 @@ b0(v0: ref<int32, borrowed>):
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_no_errors(&errors);
+    program.assert_no_ownership_errors();
 }
 
 #[test]
 fn test_infer_parameter_return_lifetime() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 function test(v0: ref<int32, borrowed>): ref<int32, borrowed> {
 b0(v0: ref<int32, borrowed>):
@@ -724,14 +703,12 @@ b0(v0: ref<int32, borrowed>):
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_no_errors(&errors);
+    program.assert_no_ownership_errors();
 }
 
 #[test]
 fn test_infer_managed_return_lifetime() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 type User {
     int32;
@@ -744,14 +721,12 @@ b0(v0: ref<User, managed>):
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_no_errors(&errors);
+    program.assert_no_ownership_errors();
 }
 
 #[test]
 fn test_infer_managed_slice_return_lifetime() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 function test(v0: slice<int32, managed>): ref<int32, borrowed, readonly> {
 b0(v0: slice<int32, managed>):
@@ -761,14 +736,12 @@ b0(v0: slice<int32, managed>):
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_no_errors(&errors);
+    program.assert_no_ownership_errors();
 }
 
 #[test]
 fn test_allow_managed_borrow_through_block_parameter() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 type User {
     int32;
@@ -785,14 +758,12 @@ b2(v4: ref<int32, borrowed, readonly>):
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_no_errors(&errors);
+    program.assert_no_ownership_errors();
 }
 
 #[test]
 fn test_allow_managed_slice_borrow_through_block_parameter() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 function test(v0: slice<int32, managed>, v1: boolean): ref<int32, borrowed, readonly> {
 b0(v0: slice<int32, managed>, v1: boolean):
@@ -806,14 +777,12 @@ b2(v5: ref<int32, borrowed, readonly>):
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_no_errors(&errors);
+    program.assert_no_ownership_errors();
 }
 
 #[test]
 fn test_reject_managed_borrow_across_yield() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 type User {
     int32;
@@ -830,14 +799,12 @@ b1(v3: ref<User, managed>, v4: ref<int32, borrowed, readonly>):
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_borrow_across_suspension_error(&errors);
+    program.assert_borrow_across_suspension();
 }
 
 #[test]
 fn test_reject_managed_borrow_yield_value() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 type User {
     int32;
@@ -853,14 +820,12 @@ b1(v2: ref<User, managed>):
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_borrow_across_suspension_error(&errors);
+    program.assert_borrow_across_suspension();
 }
 
 #[test]
 fn test_allow_shared_managed_readonly_borrow() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 type User {
     int32;
@@ -874,14 +839,12 @@ b0(v0: ref<User, managed, space(shared)>):
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_no_errors(&errors);
+    program.assert_no_ownership_errors();
 }
 
 #[test]
 fn test_reject_shared_managed_exclusive_borrow() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 type User {
     int32;
@@ -895,14 +858,12 @@ b0(v0: ref<User, managed, space(shared)>):
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_exclusive_borrow_from_shared_managed(&errors);
+    program.assert_exclusive_borrow_from_shared_managed();
 }
 
 #[test]
 fn test_reject_shared_managed_borrow_across_yield() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 type User {
     int32;
@@ -919,14 +880,12 @@ b1(v3: ref<User, managed, space(shared)>, v4: ref<int32, borrowed, readonly, spa
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_borrow_across_suspension_error(&errors);
+    program.assert_borrow_across_suspension();
 }
 
 #[test]
 fn test_allow_shared_unique_borrow_across_yield() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 type User {
     int32;
@@ -943,14 +902,12 @@ b1(v3: ref<User, unique, space(shared)>, v4: ref<int32, borrowed, readonly, spac
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_no_errors(&errors);
+    program.assert_no_ownership_errors();
 }
 
 #[test]
 fn test_reject_unique_slice_borrow_return() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 function test(v0: slice<int32, unique>): ref<int32, borrowed> {
 b0(v0: slice<int32, unique>):
@@ -960,14 +917,12 @@ b0(v0: slice<int32, unique>):
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_borrow_outlives_origin(&errors);
+    program.assert_borrow_outlives_origin();
 }
 
 #[test]
 fn test_reject_unique_borrow_return() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 type User {
     int32;
@@ -980,14 +935,12 @@ b0(v0: ref<User, unique>):
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_borrow_outlives_origin(&errors);
+    program.assert_borrow_outlives_origin();
 }
 
 #[test]
 fn test_reject_wrong_managed_parameter_lifetime_return() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 type User {
     int32;
@@ -1000,14 +953,12 @@ b0(v0: ref<User, managed>, v1: ref<User, managed>):
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_borrow_outlives_origin(&errors);
+    program.assert_borrow_outlives_origin();
 }
 
 #[test]
 fn test_reject_managed_return_as_static() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 type User {
     int32;
@@ -1020,14 +971,12 @@ b0(v0: ref<User, managed>):
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_borrow_outlives_origin(&errors);
+    program.assert_borrow_outlives_origin();
 }
 
 #[test]
 fn test_reject_aggregate_borrow_return_as_static() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 type Box {
     ref<int32, borrowed>;
@@ -1040,14 +989,12 @@ b0(v0: Box):
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_borrow_outlives_origin(&errors);
+    program.assert_borrow_outlives_origin();
 }
 
 #[test]
 fn test_reject_union_borrow_return_as_static() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 type Value = variant<uint8, ref<int32, borrowed>> { 0uint8 = ref<int32, borrowed>; 1uint8 = int32; }
 
@@ -1058,14 +1005,12 @@ b0(v0: Value):
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_borrow_outlives_origin(&errors);
+    program.assert_borrow_outlives_origin();
 }
 
 #[test]
 fn test_allow_frame_borrow_across_yield() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 function test(v0: int32): int32 {
     local local0: int32, owned
@@ -1079,14 +1024,12 @@ block1(v2: int32, v3: ref<int32, borrowed, space(frame)>):
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_no_errors(&errors);
+    program.assert_no_ownership_errors();
 }
 
 #[test]
 fn test_require_mutable_parameter_borrow_source_across_yield() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 function test(v0: ref<int32, borrowed>): int32 {
 entry0(v0: ref<int32, borrowed>):
@@ -1097,15 +1040,12 @@ block1(v1: ref<int32, borrowed>):
 }"#,
     );
 
-    let (errors, obligations) = program.run_ownership_obligations();
-
-    assert_no_errors(&errors);
-    assert_suspension_stable_obligation(&obligations, 0);
+    program.assert_suspension_stable_obligation(0);
 }
 
 #[test]
 fn test_require_readonly_parameter_borrow_source_across_yield() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 function test(v0: ref<int32, borrowed, readonly>): int32 {
 entry0(v0: ref<int32, borrowed, readonly>):
@@ -1116,15 +1056,12 @@ block1(v1: ref<int32, borrowed, readonly>):
 }"#,
     );
 
-    let (errors, obligations) = program.run_ownership_obligations();
-
-    assert_no_errors(&errors);
-    assert_suspension_stable_obligation(&obligations, 0);
+    program.assert_suspension_stable_obligation(0);
 }
 
 #[test]
 fn test_allow_static_borrow_across_yield() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 function test(v0: ref<int32, borrowed, readonly, lifetime(static)>): int32 {
 entry0(v0: ref<int32, borrowed, readonly, lifetime(static)>):
@@ -1135,14 +1072,12 @@ block1(v1: ref<int32, borrowed, readonly, lifetime(static)>):
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_no_errors(&errors);
+    program.assert_no_ownership_errors();
 }
 
 #[test]
 fn test_reject_call_obligation_from_managed_borrow() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 type User {
     int32;
@@ -1165,14 +1100,12 @@ b2(v0: ref<User, managed>):
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_borrow_across_suspension_error(&errors);
+    program.assert_borrow_across_suspension();
 }
 
 #[test]
 fn test_reject_call_result_borrow_from_managed_across_yield() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 type User {
     int32;
@@ -1195,14 +1128,12 @@ b2(v3: ref<User, managed>, v4: ref<int32, borrowed, readonly>):
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_borrow_across_suspension_error(&errors);
+    program.assert_borrow_across_suspension();
 }
 
 #[test]
 fn test_reject_tail_call_result_borrow_from_managed_across_yield() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 type User {
     int32;
@@ -1230,14 +1161,12 @@ b3(v3: ref<User, managed>, v4: ref<int32, borrowed, readonly>):
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_borrow_across_suspension_error(&errors);
+    program.assert_borrow_across_suspension();
 }
 
 #[test]
 fn test_propagate_call_obligation_from_borrowed_parameter() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 function callee(v0: ref<int32, borrowed, readonly>): int32 {
 b0(v0: ref<int32, borrowed, readonly>):
@@ -1255,9 +1184,7 @@ b2(v0: ref<int32, borrowed, readonly>):
 }"#,
     );
 
-    let (errors, obligations) = program.run_ownership_obligations();
-
-    assert_no_errors(&errors);
+    let obligations = program.assert_ownership_obligations();
     assert_eq!(obligations.len(), 2, "{obligations:#?}");
 
     // require the same source proof from callee and caller
@@ -1270,7 +1197,7 @@ b2(v0: ref<int32, borrowed, readonly>):
 
 #[test]
 fn test_reject_indirect_call_obligation_from_managed_borrow() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 type User {
     int32;
@@ -1284,14 +1211,12 @@ b0(v0: (ref<int32, borrowed, readonly>) -> int32 @suspensionSafe(0), v1: ref<Use
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_borrow_across_suspension_error(&errors);
+    program.assert_borrow_across_suspension();
 }
 
 #[test]
 fn test_propagate_indirect_call_obligation_from_borrowed_parameter() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 function caller(v0: (ref<int32, borrowed, readonly>) -> int32 @suspensionSafe(0), v1: ref<int32, borrowed, readonly>): int32 {
 b0(v0: (ref<int32, borrowed, readonly>) -> int32 @suspensionSafe(0), v1: ref<int32, borrowed, readonly>):
@@ -1300,15 +1225,12 @@ b0(v0: (ref<int32, borrowed, readonly>) -> int32 @suspensionSafe(0), v1: ref<int
 }"#,
     );
 
-    let (errors, obligations) = program.run_ownership_obligations();
-
-    assert_no_errors(&errors);
-    assert_suspension_stable_obligation(&obligations, 1);
+    program.assert_suspension_stable_obligation(1);
 }
 
 #[test]
 fn test_require_call_result_borrow_source_across_yield() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 function callee(v0: ref<int32, borrowed, readonly>): ref<int32, borrowed, readonly> {
 b0(v0: ref<int32, borrowed, readonly>):
@@ -1326,15 +1248,12 @@ b2(v3: ref<int32, borrowed, readonly>):
 }"#,
     );
 
-    let (errors, obligations) = program.run_ownership_obligations();
-
-    assert_no_errors(&errors);
-    assert_suspension_stable_obligation(&obligations, 0);
+    program.assert_suspension_stable_obligation(0);
 }
 
 #[test]
 fn test_reject_exclusive_borrow_across_yield() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 function test(v0: int32): int32 {
     local local0: int32, owned
@@ -1348,14 +1267,12 @@ block1(v2: int32, v3: ref<int32, borrowed, exclusive, space(frame)>):
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_exclusive_borrow_across_suspension(&errors);
+    program.assert_exclusive_borrow_across_suspension();
 }
 
 #[test]
 fn test_reject_exclusive_parameter_across_yield() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 function test(v0: ref<int32, borrowed, exclusive>): int32 {
 entry0(v0: ref<int32, borrowed, exclusive>):
@@ -1366,14 +1283,12 @@ block1(v1: ref<int32, borrowed, exclusive>):
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_exclusive_borrow_across_suspension(&errors);
+    program.assert_exclusive_borrow_across_suspension();
 }
 
 #[test]
 fn test_allow_borrow_before_yield() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 function test(v0: int32): int32 {
     local local0: int32, owned
@@ -1387,14 +1302,12 @@ block1(v3: int32, v4: int32):
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_no_errors(&errors);
+    program.assert_no_ownership_errors();
 }
 
 #[test]
 fn test_allow_static_borrow_return() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 readonly global value: int32 = 1int32
 function test(): ref<int32, borrowed, lifetime(static)> {
@@ -1405,14 +1318,12 @@ b0:
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_no_errors(&errors);
+    program.assert_no_ownership_errors();
 }
 
 #[test]
 fn test_reject_wrong_parameter_lifetime_return() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 function test(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>): ref<int32, borrowed, lifetime(0)> {
 b0(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>):
@@ -1420,14 +1331,12 @@ b0(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>):
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_borrow_outlives_origin(&errors);
+    program.assert_borrow_outlives_origin();
 }
 
 #[test]
 fn test_reject_maybe_moved_after_join() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 function consume(v0: ref<int32, unique>): void {
 b0(v0: ref<int32, unique>):
@@ -1448,14 +1357,12 @@ b3:
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_maybe_use_after_move(&errors);
+    program.assert_maybe_use_after_move();
 }
 
 #[test]
 fn test_carry_lifetime_through_block_parameter() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 function test(v0: ref<int32, borrowed>, v1: boolean): ref<int32, borrowed, lifetime(0)> {
 b0(v0: ref<int32, borrowed>, v1: boolean):
@@ -1467,14 +1374,12 @@ b2(v3: ref<int32, borrowed>):
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_no_errors(&errors);
+    program.assert_no_ownership_errors();
 }
 
 #[test]
 fn test_merge_lifetimes_at_join() {
-    let mut program = VerifyProgram::new(
+    let mut program = TestProgram::mir(
         r#"
 function test(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>, v2: boolean): ref<int32, borrowed, lifetime(0)> {
 b0(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>, v2: boolean):
@@ -1488,7 +1393,5 @@ b3(v3: ref<int32, borrowed>):
 }"#,
     );
 
-    let errors = program.run_ownership();
-
-    assert_borrow_outlives_origin(&errors);
+    program.assert_borrow_outlives_origin();
 }
