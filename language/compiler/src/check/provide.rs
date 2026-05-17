@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactPayload, DirChecked};
+use destack_artifact::{ArtifactKey, ArtifactPayload, DirChecked};
 use destack_dir as dir;
 use destack_source::ModuleId;
 use destack_workspace::{ProfileId, ProviderContext};
@@ -15,12 +15,16 @@ impl Compiler {
         profile: ProfileId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
-        // load provider inputs
-        let _exported = self
-            .dir_exported(context, module, profile)
+        let artifacts = self.artifact_reader(context);
+
+        // require prior phase completion
+        artifacts
+            .require(ArtifactKey::dir_exported(module, profile))
             .map_err(CompilerError::from)?;
-        let expanded = self
-            .dir_expanded(context, module, profile)
+
+        // load provider inputs
+        let expanded = artifacts
+            .dir_expanded(module, profile)
             .map_err(CompilerError::from)?;
 
         // FUGU #Incomplete: implement proper type checking

@@ -16,14 +16,13 @@ impl Compiler {
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
         // load provider inputs
-        let parsed = self
-            .dir_parsed(context, module)
+        let artifacts = self.artifact_reader(context);
+        let parsed = artifacts.dir_parsed(module).map_err(CompilerError::from)?;
+        let expanded = artifacts
+            .dir_expanded(module, profile)
             .map_err(CompilerError::from)?;
-        let expanded = self
-            .dir_expanded(context, module, profile)
-            .map_err(CompilerError::from)?;
-        let checked = self
-            .dir_checked(context, module, profile)
+        let checked = artifacts
+            .dir_checked(module, profile)
             .map_err(CompilerError::from)?;
 
         // FUGU #Incomplete: implement proper materialization

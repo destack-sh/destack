@@ -86,11 +86,12 @@ impl<'a> ScriptLinker<'a> {
 
     /// Require the artifacts needed to collect html rooted modules.
     fn require_html_root_artifacts(&self, root_modules: &[ModuleId]) -> CompilerResult<()> {
+        let artifacts = self.compiler.artifact_reader(self.context);
         let mut blocked = Vec::new();
 
-        // html root discovery reads parsed payloads directly
+        // prepare html root discovery inputs
         for module_id in root_modules {
-            match self.context.require(ArtifactKey::dir_parsed(*module_id)) {
+            match artifacts.require(ArtifactKey::dir_parsed(*module_id)) {
                 Ok(_) => {}
                 Err(ProviderError::Blocked { keys }) => blocked.extend(keys),
                 Err(error) => return Err(CompilerError::from(error)),
@@ -100,10 +101,7 @@ impl<'a> ScriptLinker<'a> {
         // html edge resolution needs each entry published into its resolved graph
         for module_id in root_modules {
             let profile_id = self.profile_id_for_module(*module_id)?;
-            match self
-                .context
-                .require(ArtifactKey::dir_exported(*module_id, profile_id))
-            {
+            match artifacts.require(ArtifactKey::dir_exported(*module_id, profile_id)) {
                 Ok(_) => {}
                 Err(ProviderError::Blocked { keys }) => blocked.extend(keys),
                 Err(error) => return Err(CompilerError::from(error)),

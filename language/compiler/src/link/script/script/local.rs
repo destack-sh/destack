@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 
-use destack_artifact::ArtifactKey;
 use destack_core::{StringId, StringPool};
 use destack_source::{ModuleId, PackageId, TargetId};
 use destack_workspace::{ProviderContext, Target};
@@ -312,8 +311,9 @@ impl Compiler {
         package_id: PackageId,
         context: &dyn ProviderContext,
     ) -> LinkResult<(dir::GlobalSymbolId, String)> {
-        let source_bound = self
-            .dir_bound(context, module_id, profile_id)
+        let artifacts = self.artifact_reader(context);
+        let source_bound = artifacts
+            .dir_bound(module_id, profile_id)
             .map_err(|error| LinkError::Internal {
                 anchor: (package_id).into(),
                 package: package_id,
@@ -322,16 +322,16 @@ impl Compiler {
                     module_id,
                 ),
             })?;
-        let source_expanded = self.dir_expanded(context, module_id, profile_id).map_err(
-            |error| LinkError::Internal {
+        let source_expanded = artifacts
+            .dir_expanded(module_id, profile_id)
+            .map_err(|error| LinkError::Internal {
                 anchor: (package_id).into(),
                 package: package_id,
                 message: format!(
                     "missing expanded DIR for same-output import rewrite module {:?}: {error:?}",
                     module_id,
                 ),
-            },
-        )?;
+            })?;
         let origin = module
             .tree
             .get_origin(item_id.id)
@@ -349,7 +349,7 @@ impl Compiler {
             {
                 symbol.into_global(module_id)
             } else {
-                let checked = self.dir_checked(context, module_id, profile_id).map_err(|error| {
+                let checked = artifacts.dir_checked(module_id, profile_id).map_err(|error| {
                     LinkError::Internal {
                         anchor: (package_id).into(),
                         package: package_id,
@@ -389,8 +389,9 @@ impl Compiler {
         context: &dyn ProviderContext,
     ) -> LinkResult<(dir::GlobalSymbolId, String)> {
         // load the source module for the exported symbol
-        let source_bound = self
-            .dir_bound(context, symbol_id.module_id, profile_id)
+        let artifacts = self.artifact_reader(context);
+        let source_bound = artifacts
+            .dir_bound(symbol_id.module_id, profile_id)
             .map_err(|error| LinkError::Internal {
                 anchor: (package_id).into(),
                 package: package_id,
@@ -399,8 +400,8 @@ impl Compiler {
                     symbol_id
                 ),
             })?;
-        let source_expanded = self
-            .dir_expanded(context, symbol_id.module_id, profile_id)
+        let source_expanded = artifacts
+            .dir_expanded(symbol_id.module_id, profile_id)
             .map_err(|error| LinkError::Internal {
                 anchor: (package_id).into(),
                 package: package_id,
@@ -580,18 +581,9 @@ impl Compiler {
         package_id: PackageId,
         context: &dyn ProviderContext,
     ) -> LinkResult<js::LocalNodeId<js::Expression>> {
-        context
-            .require(ArtifactKey::dir_exported(target_module, profile_id))
-            .map_err(|error| LinkError::Internal {
-                anchor: (package_id).into(),
-                package: package_id,
-                message: format!(
-                    "missing resolved dir for same-output namespace import target {:?}: {error:?}",
-                    target_module,
-                ),
-            })?;
         let target_directory = self
-            .dir_exported(context, target_module, profile_id)
+            .artifact_reader(context)
+            .dir_exported(target_module, profile_id)
             .map_err(|error| LinkError::Internal {
                 anchor: (package_id).into(),
                 package: package_id,

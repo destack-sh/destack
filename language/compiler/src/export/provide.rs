@@ -15,17 +15,16 @@ impl Compiler {
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
         // load provider inputs
-        let parsed = self
-            .dir_parsed(context, module)
+        let artifacts = self.artifact_reader(context);
+        let parsed = artifacts.dir_parsed(module).map_err(CompilerError::from)?;
+        let bound = artifacts
+            .dir_bound(module, profile)
             .map_err(CompilerError::from)?;
-        let bound = self
-            .dir_bound(context, module, profile)
+        let imported = artifacts
+            .dir_imported(module, profile)
             .map_err(CompilerError::from)?;
-        let imported = self
-            .dir_imported(context, module, profile)
-            .map_err(CompilerError::from)?;
-        let expanded = self
-            .dir_expanded(context, module, profile)
+        let expanded = artifacts
+            .dir_expanded(module, profile)
             .map_err(CompilerError::from)?;
 
         // build expanded export inputs

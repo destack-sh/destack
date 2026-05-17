@@ -177,9 +177,12 @@ impl Compiler {
         context: &dyn ProviderContext,
     ) -> Result<PrintedScriptModule, String> {
         // source artifacts
-        let parsed = self.dir_parsed(context, module_id).map_err(|error| {
-            format!("missing committed parsed DIR artifact for module {module_id:?}: {error:?}")
-        })?;
+        let parsed = self
+            .artifact_reader(context)
+            .dir_parsed(module_id)
+            .map_err(|error| {
+                format!("missing committed parsed DIR artifact for module {module_id:?}: {error:?}")
+            })?;
         let source_module = self.module(context.revision(), module_id);
         let source_file = self.file(context, source_module.file_id);
         let options = if target.should_minify_bundle_output() {

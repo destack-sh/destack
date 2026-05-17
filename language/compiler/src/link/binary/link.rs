@@ -64,10 +64,8 @@ impl<'a> BinaryLinker<'a> {
                     message: format!("profile not found for target '{}'", self.target_name()),
                 })?;
             let _ = profile_id;
-            match self
-                .context
-                .require(ArtifactKey::module_output(module_id, *self.target_id))
-            {
+            let artifacts = self.compiler.artifact_reader(self.context);
+            match artifacts.require(ArtifactKey::module_output(module_id, *self.target_id)) {
                 Ok(_) => {}
                 Err(ProviderError::Blocked { keys }) => blocked.extend(keys),
                 Err(error) => return Err(CompilerError::from(error)),
@@ -94,7 +92,8 @@ impl<'a> BinaryLinker<'a> {
         for module_id in module_ids {
             let artifact = self
                 .compiler
-                .module_output(self.context, *module_id, self.target_id)
+                .artifact_reader(self.context)
+                .module_output(*module_id, *self.target_id)
                 .map_err(|error| LinkError::Internal {
                     anchor: (self.package_id).into(),
                     package: self.package_id,

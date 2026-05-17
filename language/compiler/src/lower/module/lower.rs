@@ -248,17 +248,18 @@ impl<'a> ModuleLowerer<'a> {
         context: &dyn ProviderContext,
         profile: ProfileId,
     ) -> CompilerResult<Option<LanguageIntrinsics>> {
-        let environment = compiler
-            .global_environment(context, profile)
+        let artifacts = compiler.artifact_reader(context);
+        let environment = artifacts
+            .global_environment(profile)
             .map_err(CompilerError::from)?;
 
         let mut intrinsics = LanguageIntrinsics::new();
         for module_id in &environment.modules {
-            let parsed = compiler
-                .dir_parsed(context, *module_id)
+            let parsed = artifacts
+                .dir_parsed(*module_id)
                 .map_err(CompilerError::from)?;
-            let bound = compiler
-                .dir_bound(context, *module_id, profile)
+            let bound = artifacts
+                .dir_bound(*module_id, profile)
                 .map_err(CompilerError::from)?;
             Self::collect_intrinsic_bindings(
                 *module_id,
@@ -275,7 +276,8 @@ impl<'a> ModuleLowerer<'a> {
     /// Read the global environment used by this lowerer.
     pub(crate) fn global_environment(&self) -> CompilerResult<Arc<GlobalEnvironment>> {
         self.compiler
-            .global_environment(self.context, self.profile)
+            .artifact_reader(self.context)
+            .global_environment(self.profile)
             .map_err(CompilerError::from)
     }
 
@@ -307,7 +309,8 @@ impl<'a> ModuleLowerer<'a> {
         symbol: dir::LanguageItem,
     ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
         let environment = compiler
-            .global_environment(context, profile)
+            .artifact_reader(context)
+            .global_environment(profile)
             .map_err(CompilerError::from)?;
 
         Ok(environment.language.item(symbol))
@@ -452,13 +455,17 @@ impl<'a> ModuleLowerer<'a> {
     /// Read one committed bound DIR snapshot for a module when available.
     pub(crate) fn dir_bound_if_present(&self, module_id: ModuleId) -> Option<Arc<DirBound>> {
         self.compiler
-            .dir_bound(self.context, module_id, self.profile)
+            .artifact_reader(self.context)
+            .dir_bound(module_id, self.profile)
             .ok()
     }
 
     /// Read one committed parsed DIR snapshot for a module when available.
     pub(crate) fn dir_parsed_if_present(&self, module_id: ModuleId) -> Option<Arc<DirParsed>> {
-        self.compiler.dir_parsed(self.context, module_id).ok()
+        self.compiler
+            .artifact_reader(self.context)
+            .dir_parsed(module_id)
+            .ok()
     }
 
     /// Resolve the target configuration for a module.

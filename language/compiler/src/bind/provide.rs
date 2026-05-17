@@ -17,9 +17,8 @@ impl Compiler {
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
         // load provider inputs
-        let parsed = self
-            .dir_parsed(context, module)
-            .map_err(CompilerError::from)?;
+        let artifacts = self.artifact_reader(context);
+        let parsed = artifacts.dir_parsed(module).map_err(CompilerError::from)?;
         let module = self.module(context.revision(), module);
         let profile = self.profile(context.revision(), profile);
 

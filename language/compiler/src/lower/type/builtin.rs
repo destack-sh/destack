@@ -1,5 +1,5 @@
 use destack_artifact::{
-    ArtifactKey, DiagnosticAnchor, DirBound, DirChecked, DirExpanded, DirParsed, GlobalEnvironment,
+    DiagnosticAnchor, DirBound, DirChecked, DirExpanded, DirParsed, GlobalEnvironment,
 };
 use destack_core::StringPool;
 use destack_source::ModuleId;
@@ -53,7 +53,8 @@ impl<'a, 'b> BuiltinTypeLayouts<'a, 'b> {
     fn require_checked_dir_data(&self, module_id: ModuleId) -> CompilerResult<Arc<DirChecked>> {
         let snapshot = self
             .compiler
-            .dir_checked(self.context, module_id, self.profile);
+            .artifact_reader(self.context)
+            .dir_checked(module_id, self.profile);
 
         match snapshot {
             Ok(snapshot) => Ok(snapshot),
@@ -65,7 +66,8 @@ impl<'a, 'b> BuiltinTypeLayouts<'a, 'b> {
     fn require_bound_dir(&self, module_id: ModuleId) -> CompilerResult<Arc<DirBound>> {
         let snapshot = self
             .compiler
-            .dir_bound(self.context, module_id, self.profile);
+            .artifact_reader(self.context)
+            .dir_bound(module_id, self.profile);
 
         match snapshot {
             Ok(snapshot) => Ok(snapshot),
@@ -77,7 +79,8 @@ impl<'a, 'b> BuiltinTypeLayouts<'a, 'b> {
     fn require_expanded_dir(&self, module_id: ModuleId) -> CompilerResult<Arc<DirExpanded>> {
         let snapshot = self
             .compiler
-            .dir_expanded(self.context, module_id, self.profile);
+            .artifact_reader(self.context)
+            .dir_expanded(module_id, self.profile);
 
         match snapshot {
             Ok(snapshot) => Ok(snapshot),
@@ -87,7 +90,10 @@ impl<'a, 'b> BuiltinTypeLayouts<'a, 'b> {
 
     /// Read one committed parsed DIR snapshot for a module.
     fn require_parsed_dir(&self, module_id: ModuleId) -> CompilerResult<Arc<DirParsed>> {
-        let snapshot = self.compiler.dir_parsed(self.context, module_id);
+        let snapshot = self
+            .compiler
+            .artifact_reader(self.context)
+            .dir_parsed(module_id);
 
         match snapshot {
             Ok(snapshot) => Ok(snapshot),
@@ -146,7 +152,8 @@ impl<'a, 'b> BuiltinTypeLayouts<'a, 'b> {
     /// Read the global environment used by builtin layout lowering.
     fn global_environment(&self) -> CompilerResult<Arc<GlobalEnvironment>> {
         self.compiler
-            .global_environment(self.context, self.profile)
+            .artifact_reader(self.context)
+            .global_environment(self.profile)
             .map_err(CompilerError::from)
     }
 
@@ -154,8 +161,9 @@ impl<'a, 'b> BuiltinTypeLayouts<'a, 'b> {
     fn require_checked_module(&self, module_id: ModuleId) -> CompilerResult<()> {
         // request checked DIR for the target module
         let result = self
-            .context
-            .require(ArtifactKey::dir_checked(module_id, self.profile));
+            .compiler
+            .artifact_reader(self.context)
+            .dir_checked(module_id, self.profile);
         let Err(error) = result else {
             return Ok(());
         };
@@ -328,13 +336,15 @@ impl<'a, 'b> BuiltinTypeLayouts<'a, 'b> {
         // resolve the module symbol name
         let Ok(dir) = self
             .compiler
-            .dir_bound(self.context, symbol.module_id, self.profile)
+            .artifact_reader(self.context)
+            .dir_bound(symbol.module_id, self.profile)
         else {
             return;
         };
         let Ok(expanded) = self
             .compiler
-            .dir_expanded(self.context, symbol.module_id, self.profile)
+            .artifact_reader(self.context)
+            .dir_expanded(symbol.module_id, self.profile)
         else {
             return;
         };

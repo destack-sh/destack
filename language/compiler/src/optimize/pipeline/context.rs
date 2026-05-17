@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use destack_artifact::{ArtifactVersion, DiagnosticBuilder};
+use destack_artifact::DiagnosticBuilder;
 use destack_core::StringPool;
 use destack_mir as mir;
 use destack_source::{ModuleId, PackageId, ProfileId, TargetId};
@@ -167,8 +167,6 @@ pub struct PipelineContext<'a> {
     profile_id: ProfileId,
     /// The target being optimized.
     target_id: TargetId,
-    /// The MIR artifact being optimized.
-    source_mir: Option<ArtifactVersion>,
     /// Optional profile guided optimization data.
     profile: Option<Arc<mir::Profile>>,
 
@@ -184,7 +182,6 @@ impl std::fmt::Debug for PipelineContext<'_> {
             .field("module_id", &self.module_id)
             .field("profile_id", &self.profile_id)
             .field("target_id", &self.target_id)
-            .field("has_source_mir", &self.source_mir.is_some())
             .field("has_profile", &self.profile.is_some())
             .field("errors", &self.diagnostics.errors.lock().len())
             .field("warnings", &self.diagnostics.warnings.lock().len())
@@ -209,29 +206,6 @@ impl<'a> PipelineContext<'a> {
             module_id,
             profile_id,
             target_id,
-            None,
-            profile,
-            Arc::new(PipelineDiagnostics::default()),
-        )
-    }
-
-    /// Create a new pipeline context from one MIR artifact.
-    pub fn with_source_mir(
-        strings: &'a StringPool,
-        options: PipelineOptions,
-        module_id: ModuleId,
-        profile_id: ProfileId,
-        target_id: TargetId,
-        source_mir: ArtifactVersion,
-        profile: Option<Arc<mir::Profile>>,
-    ) -> Self {
-        Self::with_diagnostics(
-            strings,
-            options,
-            module_id,
-            profile_id,
-            target_id,
-            Some(source_mir),
             profile,
             Arc::new(PipelineDiagnostics::default()),
         )
@@ -244,7 +218,6 @@ impl<'a> PipelineContext<'a> {
         module_id: ModuleId,
         profile_id: ProfileId,
         target_id: TargetId,
-        source_mir: Option<ArtifactVersion>,
         profile: Option<Arc<mir::Profile>>,
         diagnostics: Arc<PipelineDiagnostics>,
     ) -> Self {
@@ -254,7 +227,6 @@ impl<'a> PipelineContext<'a> {
             module_id,
             profile_id,
             target_id,
-            source_mir,
             profile,
             diagnostics,
         }
@@ -273,15 +245,6 @@ impl<'a> PipelineContext<'a> {
     /// Get the target id.
     pub fn target_id(&self) -> &TargetId {
         &self.target_id
-    }
-
-    /// Return the MIR artifact being optimized.
-    pub fn source_mir(&self) -> ArtifactVersion {
-        let Some(source_mir) = self.source_mir else {
-            panic!("pipeline pass requires a source MIR artifact");
-        };
-
-        source_mir
     }
 
     /// Get profile data if available.
@@ -485,7 +448,6 @@ impl PackagePipelineContext {
                 module.module_id(),
                 module.profile_id(),
                 *module.target_id(),
-                None,
                 profile,
                 self.diagnostics.clone(),
             );

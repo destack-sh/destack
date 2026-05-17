@@ -201,10 +201,8 @@ impl<'a> ScriptLinker<'a> {
 
             // resource modules are linked directly from patched module state
             if !module.is_code() {
-                match self
-                    .context
-                    .require(ArtifactKey::dir_checked(module_id, profile_id))
-                {
+                let artifacts = self.compiler.artifact_reader(self.context);
+                match artifacts.require(ArtifactKey::dir_checked(module_id, profile_id)) {
                     Ok(_) => {}
                     Err(ProviderError::Blocked { keys }) => blocked.extend(keys),
                     Err(error) => return Err(CompilerError::from(error)),
@@ -213,10 +211,8 @@ impl<'a> ScriptLinker<'a> {
                 continue;
             }
 
-            match self
-                .context
-                .require(ArtifactKey::module_output(module_id, *self.target_id))
-            {
+            let artifacts = self.compiler.artifact_reader(self.context);
+            match artifacts.require(ArtifactKey::module_output(module_id, *self.target_id)) {
                 Ok(_) => {}
                 Err(ProviderError::Blocked { keys }) => blocked.extend(keys),
                 Err(error) => return Err(CompilerError::from(error)),
@@ -224,10 +220,8 @@ impl<'a> ScriptLinker<'a> {
 
             // linked output rewriting and identifier minification still consult
             // the patched dir for source backed code modules
-            match self
-                .context
-                .require(ArtifactKey::dir_checked(module_id, profile_id))
-            {
+            let artifacts = self.compiler.artifact_reader(self.context);
+            match artifacts.require(ArtifactKey::dir_checked(module_id, profile_id)) {
                 Ok(_) => {}
                 Err(ProviderError::Blocked { keys }) => blocked.extend(keys),
                 Err(error) => return Err(CompilerError::from(error)),
@@ -238,7 +232,8 @@ impl<'a> ScriptLinker<'a> {
             // only traverse bundled dependencies after the generated output exists
             if self
                 .compiler
-                .module_output(self.context, module_id, self.target_id)
+                .artifact_reader(self.context)
+                .require(ArtifactKey::module_output(module_id, *self.target_id))
                 .is_err()
             {
                 continue;

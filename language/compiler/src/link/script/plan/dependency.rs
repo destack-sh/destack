@@ -23,7 +23,8 @@ impl Compiler {
         context: &dyn ProviderContext,
     ) -> LinkResult<Option<ScriptOutput>> {
         let artifact = self
-            .module_output(context, module_id, target_id)
+            .artifact_reader(context)
+            .module_output(module_id, *target_id)
             .map_err(CompilerError::from)
             .map_err(|error| LinkError::Internal {
                 anchor: (package_id).into(),
