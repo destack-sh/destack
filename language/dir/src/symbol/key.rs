@@ -69,10 +69,10 @@ impl StaticKey {
     pub fn debug_string(&self, strings: &StringPool) -> String {
         match self {
             StaticKey::Name(name) => {
-                format!("'{}'", &*strings.get(*name))
+                format!("'{}'", strings.get(*name))
             }
             StaticKey::Number(name) => {
-                format!("'{}'", &*strings.get(*name))
+                format!("'{}'", strings.get(*name))
             }
             StaticKey::Symbol(symbol) => symbol.debug_string(strings),
         }
@@ -85,7 +85,7 @@ impl SymbolKey {
         match self {
             SymbolKey::Unique(_) => "<unique symbol>".to_string(),
             SymbolKey::Registry(name) => {
-                let name = &*strings.get(*name);
+                let name = strings.get(*name);
                 format!("'Symbol.for(\"{name}\")'")
             }
         }

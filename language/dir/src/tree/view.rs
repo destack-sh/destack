@@ -270,7 +270,8 @@ impl<'a> View<'a> {
     {
         self.iter_node_ids()
             .into_iter()
-            .filter_map(|node_id| (node_id.ty == T::TYPE).then(|| LocalNodeId::new(node_id.id)))
+            .filter(|node_id| node_id.ty == T::TYPE)
+            .map(|node_id| LocalNodeId::new(node_id.id))
             .collect()
     }
 
