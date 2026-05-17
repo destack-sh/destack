@@ -133,7 +133,8 @@ impl<'a> TypeLowerer<'a> {
         } else {
             let bound = self
                 .compiler
-                .dir_bound(self.context, symbol.module_id, self.profile)
+                .artifact_reader(self.context)
+                .dir_bound(symbol.module_id, self.profile)
                 .ok()?;
 
             Some(bound.bindings.get_symbol(symbol.local_id).clone())
@@ -739,44 +740,35 @@ impl<'a> TypeLowerer<'a> {
             .into());
         }
 
-        let bound = match self
-            .compiler
-            .dir_bound(self.context, symbol.module_id, self.profile)
-        {
+        let artifacts = self.compiler.artifact_reader(self.context);
+        let bound = match artifacts.dir_bound(symbol.module_id, self.profile) {
             Ok(bound) => bound,
             Err(_) => {
                 self.remote_nominal_layouts_in_progress.remove(&symbol);
                 return Ok(None);
             }
         };
-        let parsed = match self.compiler.dir_parsed(self.context, symbol.module_id) {
+        let parsed = match artifacts.dir_parsed(symbol.module_id) {
             Ok(parsed) => parsed,
             Err(_) => {
                 self.remote_nominal_layouts_in_progress.remove(&symbol);
                 return Ok(None);
             }
         };
-        let checked = match self
-            .compiler
-            .dir_checked(self.context, symbol.module_id, self.profile)
-        {
+        let checked = match artifacts.dir_checked(symbol.module_id, self.profile) {
             Ok(checked) => checked,
             Err(_) => {
                 self.remote_nominal_layouts_in_progress.remove(&symbol);
                 return Ok(None);
             }
         };
-        let expanded =
-            match self
-                .compiler
-                .dir_expanded(self.context, symbol.module_id, self.profile)
-            {
-                Ok(expanded) => expanded,
-                Err(_) => {
-                    self.remote_nominal_layouts_in_progress.remove(&symbol);
-                    return Ok(None);
-                }
-            };
+        let expanded = match artifacts.dir_expanded(symbol.module_id, self.profile) {
+            Ok(expanded) => expanded,
+            Err(_) => {
+                self.remote_nominal_layouts_in_progress.remove(&symbol);
+                return Ok(None);
+            }
+        };
         let bindings = expanded.binding_table(&bound);
         let types = checked.type_table(&bound, &expanded);
         let Some(members) = self.struct_members_for_symbol(symbol, &bindings, &parsed.tree) else {
@@ -1270,11 +1262,13 @@ impl<'a> TypeLowerer<'a> {
     fn symbol_name(&self, symbol: dir::GlobalSymbolId) -> Option<dir::StringId> {
         let dir = self
             .compiler
-            .dir_bound(self.context, symbol.module_id, self.profile)
+            .artifact_reader(self.context)
+            .dir_bound(symbol.module_id, self.profile)
             .ok()?;
         let expanded = self
             .compiler
-            .dir_expanded(self.context, symbol.module_id, self.profile)
+            .artifact_reader(self.context)
+            .dir_expanded(symbol.module_id, self.profile)
             .ok()?;
         let bindings = expanded.binding_table(&dir);
 

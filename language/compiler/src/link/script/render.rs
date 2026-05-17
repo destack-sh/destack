@@ -19,7 +19,8 @@ impl<'a> ScriptLinker<'a> {
     pub(crate) fn script_output(&self, module_id: ModuleId) -> LinkResult<ScriptOutput> {
         let artifact = self
             .compiler
-            .module_output(self.context, module_id, self.target_id)
+            .artifact_reader(self.context)
+            .module_output(module_id, *self.target_id)
             .map_err(|error| LinkError::Internal {
                 anchor: (self.package_id).into(),
                 package: self.package_id,

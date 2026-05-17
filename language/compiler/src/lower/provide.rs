@@ -58,23 +58,24 @@ impl Compiler {
         }
 
         // load DIR artifacts
-        let parsed = self
-            .dir_parsed(context, module_id)
+        let artifacts = self.artifact_reader(context);
+        let parsed = artifacts
+            .dir_parsed(module_id)
             .map_err(CompilerError::from)?;
-        let bound = self
-            .dir_bound(context, module_id, profile)
+        let bound = artifacts
+            .dir_bound(module_id, profile)
             .map_err(CompilerError::from)?;
-        let expanded = self
-            .dir_expanded(context, module_id, profile)
+        let expanded = artifacts
+            .dir_expanded(module_id, profile)
             .map_err(CompilerError::from)?;
-        let checked = self
-            .dir_checked(context, module_id, profile)
+        let checked = artifacts
+            .dir_checked(module_id, profile)
             .map_err(CompilerError::from)?;
-        let materialized = self
-            .dir_materialized(context, module_id, profile)
+        let materialized = artifacts
+            .dir_materialized(module_id, profile)
             .map_err(CompilerError::from)?;
-        let elaborated = self
-            .dir_elaborated(context, module_id, profile)
+        let elaborated = artifacts
+            .dir_elaborated(module_id, profile)
             .map_err(CompilerError::from)?;
 
         // lower the module
@@ -140,7 +141,8 @@ impl Compiler {
         }
 
         // lowering depends on the selected library surface for language item layouts
-        self.global_environment(context, profile)
+        self.artifact_reader(context)
+            .global_environment(profile)
             .map_err(CompilerError::from)?;
 
         // resolve target configuration

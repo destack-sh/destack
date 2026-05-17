@@ -1,4 +1,3 @@
-mod artifact;
 mod compiler;
 mod diagnostic;
 mod error;

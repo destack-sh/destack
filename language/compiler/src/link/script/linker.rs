@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactKey, Data, DirExported, DirImported, ModuleOutput};
+use destack_artifact::{Data, DirExported, DirImported, ModuleOutput};
 use destack_dir as dir;
 use destack_source::{
     File, FileId, FileType, ModuleId, PackageId, ProfileId, Span, StringId, TargetId,
@@ -87,7 +87,8 @@ impl<'a> ScriptLinker<'a> {
     /// Return one generated module output for this target.
     pub(crate) fn module_output(&self, module_id: ModuleId) -> LinkResult<Arc<ModuleOutput>> {
         self.compiler
-            .module_output(self.context, module_id, self.target_id)
+            .artifact_reader(self.context)
+            .module_output(module_id, *self.target_id)
             .map_err(|error| LinkError::Internal {
                 anchor: (self.package_id).into(),
                 package: self.package_id,
@@ -123,31 +124,16 @@ impl<'a> ScriptLinker<'a> {
         module_id: ModuleId,
     ) -> LinkResult<Vec<ModuleEdge>> {
         let profile_id = self.profile_id_for_module(module_id)?;
-        self.context
-            .require(ArtifactKey::dir_imported(module_id, profile_id))
+        let artifacts = self.compiler.artifact_reader(self.context);
+        let imported = artifacts
+            .dir_imported(module_id, profile_id)
             .map_err(|error| LinkError::Internal {
                 anchor: (self.package_id).into(),
                 package: self.package_id,
                 message: format!("module imports are not ready: {error:?}"),
             })?;
-        let imported = self
-            .compiler
-            .dir_imported(self.context, module_id, profile_id)
-            .map_err(|error| LinkError::Internal {
-                anchor: (self.package_id).into(),
-                package: self.package_id,
-                message: format!("module imports are not ready: {error:?}"),
-            })?;
-        self.context
-            .require(ArtifactKey::dir_exported(module_id, profile_id))
-            .map_err(|error| LinkError::Internal {
-                anchor: (self.package_id).into(),
-                package: self.package_id,
-                message: format!("module exports are not ready: {error:?}"),
-            })?;
-        let exported = self
-            .compiler
-            .dir_exported(self.context, module_id, profile_id)
+        let exported = artifacts
+            .dir_exported(module_id, profile_id)
             .map_err(|error| LinkError::Internal {
                 anchor: (self.package_id).into(),
                 package: self.package_id,
@@ -163,7 +149,8 @@ impl<'a> ScriptLinker<'a> {
     /// Return the parsed data payload for one linked module.
     pub(crate) fn data(&self, module_id: ModuleId) -> LinkResult<Arc<Data>> {
         self.compiler
-            .data(self.context, module_id)
+            .artifact_reader(self.context)
+            .data(module_id)
             .map_err(|error| LinkError::Internal {
                 anchor: (self.package_id).into(),
                 package: self.package_id,

@@ -17,7 +17,8 @@ impl Compiler {
         let mut state = VerifyState::new(module, profile, target, context);
 
         let lowered = self
-            .mir_lowered(state.context, state.module, state.profile, &state.target)
+            .artifact_reader(state.context)
+            .mir_lowered(state.module, state.profile, state.target)
             .map_err(CompilerError::from)?;
         let mut tree = lowered.tree.clone();
 

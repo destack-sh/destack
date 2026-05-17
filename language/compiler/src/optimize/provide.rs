@@ -3,7 +3,7 @@ use destack_workspace::ProviderContext;
 use std::mem;
 use std::str::FromStr;
 
-use destack_artifact::{ArtifactKey, ArtifactPayload, EmitFormat, MirOptimized, TargetArch};
+use destack_artifact::{ArtifactPayload, EmitFormat, MirOptimized, TargetArch};
 use destack_mir as mir;
 use destack_source::{ModuleId, TargetId};
 use destack_workspace::{Module, OptimizeLevel as WorkspaceOptimizeLevel, ProfileId, Target};
@@ -67,13 +67,9 @@ impl Compiler {
         let pipeline = default_pipeline(level, target_config.uses_native_generate_pipeline());
 
         // read verified MIR artifact truth
-        let source_mir = context
-            .require(ArtifactKey::mir_verified(module, profile, *target))
-            .map_err(CompilerError::from)?;
         let verified = self
-            .require_artifact(&source_mir, |artifacts, version| {
-                artifacts.mir_verified(version)
-            })
+            .artifact_reader(context)
+            .mir_verified(module, profile, *target)
             .map_err(CompilerError::from)?;
         let mut tree = verified.patch.tree.clone();
         let strings = self.repository.string_pool().clone();
@@ -84,9 +80,8 @@ impl Compiler {
             self.pipeline_options_for_module(module_ref.as_ref(), &target_config, level, context);
 
         // run the pipeline
-        let mut pipeline_context = PipelineContext::with_source_mir(
-            &strings, options, module, profile, *target, source_mir, None,
-        );
+        let mut pipeline_context =
+            PipelineContext::new(&strings, options, module, profile, *target, None);
         pipeline.run(&mut tree, &mut pipeline_context);
 
         // collect accumulated diagnostics from verification passes

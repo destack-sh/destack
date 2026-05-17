@@ -117,7 +117,8 @@ impl FunctionLoweringContext<'_> {
         } else {
             let bound = self
                 .compiler
-                .dir_bound(self.provider, symbol_id.module_id, self.profile)
+                .artifact_reader(self.provider)
+                .dir_bound(symbol_id.module_id, self.profile)
                 .ok()?;
 
             Some(bound.bindings.get_symbol(symbol_id.local_id).clone())
@@ -270,7 +271,8 @@ impl<'a> FunctionLowerer<'a> {
     pub(crate) fn dir_bound_if_present(&self, module_id: ModuleId) -> Option<Arc<DirBound>> {
         self.context
             .compiler
-            .dir_bound(self.context.provider, module_id, self.context.profile)
+            .artifact_reader(self.context.provider)
+            .dir_bound(module_id, self.context.profile)
             .ok()
     }
 
@@ -278,7 +280,8 @@ impl<'a> FunctionLowerer<'a> {
     pub(crate) fn dir_parsed_if_present(&self, module_id: ModuleId) -> Option<Arc<DirParsed>> {
         self.context
             .compiler
-            .dir_parsed(self.context.provider, module_id)
+            .artifact_reader(self.context.provider)
+            .dir_parsed(module_id)
             .ok()
     }
 
@@ -287,11 +290,11 @@ impl<'a> FunctionLowerer<'a> {
         &self,
         module_id: ModuleId,
     ) -> CompilerResult<Arc<DirChecked>> {
-        let snapshot = self.context.compiler.dir_checked(
-            self.context.provider,
-            module_id,
-            self.context.profile,
-        );
+        let snapshot = self
+            .context
+            .compiler
+            .artifact_reader(self.context.provider)
+            .dir_checked(module_id, self.context.profile);
 
         match snapshot {
             Ok(snapshot) => Ok(snapshot),

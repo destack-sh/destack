@@ -45,11 +45,10 @@ impl Compiler {
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
         // load provider inputs
-        let parsed = self
-            .dir_parsed(context, module)
-            .map_err(CompilerError::from)?;
-        let bound = self
-            .dir_bound(context, module, profile)
+        let artifacts = self.artifact_reader(context);
+        let parsed = artifacts.dir_parsed(module).map_err(CompilerError::from)?;
+        let bound = artifacts
+            .dir_bound(module, profile)
             .map_err(CompilerError::from)?;
         let module = self.module(context.revision(), module);
 

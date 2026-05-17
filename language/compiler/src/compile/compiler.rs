@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_artifact::{ArtifactStore, DiagnosticBuilder, DiagnosticLike};
 use destack_core::StringPool;
-use destack_workspace::{ProviderContext, Repository, Target};
+use destack_workspace::{ArtifactReader, ProviderContext, Repository, Target};
 
 use crate::CompilerResult;
 
@@ -44,6 +44,14 @@ impl Compiler {
     /// Return the shared string pool.
     pub(crate) fn strings(&self) -> &StringPool {
         self.repository.string_pool().as_ref()
+    }
+
+    /// Return a provider-scoped artifact reader.
+    pub(crate) fn artifact_reader<'a>(
+        &'a self,
+        context: &'a dyn ProviderContext,
+    ) -> ArtifactReader<'a> {
+        ArtifactReader::new(context, Arc::clone(&self.artifacts))
     }
 
     /// Add one diagnostic produced during a provider attempt.

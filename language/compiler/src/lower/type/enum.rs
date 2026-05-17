@@ -23,17 +23,18 @@ pub(crate) fn enum_field_value_for_symbol(
     anchor: DiagnosticAnchor,
 ) -> CompilerResult<Option<EnumFieldValueDescriptor>> {
     // load the bound and checked DIR artifacts for this symbol
-    let bound = compiler.dir_bound(context, member_symbol.module_id, profile);
+    let artifacts = compiler.artifact_reader(context);
+    let bound = artifacts.dir_bound(member_symbol.module_id, profile);
     let bound = match bound {
         Ok(snapshot) => snapshot,
         Err(error) => return Err(error.into()),
     };
-    let checked = compiler.dir_checked(context, member_symbol.module_id, profile);
+    let checked = artifacts.dir_checked(member_symbol.module_id, profile);
     let checked = match checked {
         Ok(snapshot) => snapshot,
         Err(error) => return Err(error.into()),
     };
-    let expanded = compiler.dir_expanded(context, member_symbol.module_id, profile);
+    let expanded = artifacts.dir_expanded(member_symbol.module_id, profile);
     let expanded = match expanded {
         Ok(snapshot) => snapshot,
         Err(error) => return Err(error.into()),

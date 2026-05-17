@@ -1,5 +1,5 @@
 use crate::{Compiler, CompilerError, CompilerResult, GenerateError, GenerateWarning};
-use destack_artifact::{ArtifactKey, ModuleOutput};
+use destack_artifact::ModuleOutput;
 use destack_codegen_js::{CodegenJsError, CodegenJsWarning};
 use destack_dir as dir;
 use destack_source::ModuleId;
@@ -16,24 +16,20 @@ impl Compiler {
         profile: ProfileId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ModuleOutput> {
-        // require the script module state
-        context
-            .require(ArtifactKey::dir_checked(module_id, profile))
-            .map_err(CompilerError::from)?;
-
         // snapshot module for this generate pass
+        let artifacts = self.artifact_reader(context);
         let module = self.module(context.revision(), module_id);
-        let parsed = self
-            .dir_parsed(context, module_id)
+        let parsed = artifacts
+            .dir_parsed(module_id)
             .map_err(CompilerError::from)?;
-        let bound = self
-            .dir_bound(context, module_id, profile)
+        let bound = artifacts
+            .dir_bound(module_id, profile)
             .map_err(CompilerError::from)?;
-        let expanded = self
-            .dir_expanded(context, module_id, profile)
+        let expanded = artifacts
+            .dir_expanded(module_id, profile)
             .map_err(CompilerError::from)?;
-        let checked = self
-            .dir_checked(context, module_id, profile)
+        let checked = artifacts
+            .dir_checked(module_id, profile)
             .map_err(CompilerError::from)?;
 
         // generate one script output through the current backend

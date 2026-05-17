@@ -70,10 +70,8 @@ impl<'a> ScriptLinker<'a> {
                 .into());
             }
 
-            match self
-                .context
-                .require(ArtifactKey::dir_exported(module_id, profile_id))
-            {
+            let artifacts = self.compiler.artifact_reader(self.context);
+            match artifacts.require(ArtifactKey::dir_exported(module_id, profile_id)) {
                 Ok(_) => {}
                 Err(ProviderError::Blocked { keys }) => blocked.extend(keys),
                 Err(error) => return Err(CompilerError::from(error)),
