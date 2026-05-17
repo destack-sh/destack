@@ -1,4 +1,4 @@
-import { Array, PackedArray } from "destack:collections";
+import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
 
 /// Return the process argument vector.
@@ -8,4 +8,4 @@ import { HostError } from "destack:error/host";
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function listArguments(): Result<PackedArray<^string>, HostError>;
+export declare function listArguments(): Result<Array<^string>, HostError>;

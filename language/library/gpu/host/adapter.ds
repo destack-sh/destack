@@ -1,4 +1,4 @@
-import { Array, PackedArray } from "destack:collections";
+import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
 import { GpuTextureFormat, GpuTextureUsage } from "./resource.ds";
 import { GpuAdapterHandle, GpuSurfaceHandle } from "destack:gpu/host";
@@ -413,7 +413,7 @@ export struct GpuAdapterFormatCapabilities {
 })
 export declare function listAdapters(
     request: &readonly GpuAdapterRequest,
-): Result<PackedArray<GpuAdapter>, HostError>;
+): Result<Array<GpuAdapter>, HostError>;
 
 /// Open a GPU adapter.
 @binding("destack.gpu.adapter.open", {
@@ -442,7 +442,7 @@ export declare function readAdapter(adapter: GpuAdapterHandle): Result<GpuAdapte
 })
 export declare function readAdapterFeatures(
     adapter: GpuAdapterHandle,
-): Result<PackedArray<GpuFeatureId>, HostError>;
+): Result<Array<GpuFeatureId>, HostError>;
 
 /// Read an adapter limits snapshot.
 @binding("destack.gpu.adapter.limits.read", {

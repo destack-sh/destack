@@ -1,4 +1,4 @@
-import { PackedArray } from "destack:collections";
+import { Array } from "destack:collections";
 import { ResourceId } from "destack:runtime/resource";
 import { HostError } from "destack:error/host";
 
@@ -102,7 +102,7 @@ export struct MidiBackend {
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function listMidiBackends(): Result<PackedArray<MidiBackend>, HostError>;
+export declare function listMidiBackends(): Result<Array<MidiBackend>, HostError>;
 
 /// MIDI port direction flags.
 export newtype MidiDirectionFlags = uint32;
@@ -348,7 +348,7 @@ export struct MidiInputRecord {
 })
 export declare function listMidiInputs(
     options: &readonly MidiListOptions,
-): Result<PackedArray<MidiPort>, HostError>;
+): Result<Array<MidiPort>, HostError>;
 
 /// Open a MIDI input port.
 @binding("destack.device.midi.input.open", {
@@ -427,7 +427,7 @@ export struct MidiOutputRecord {
 })
 export declare function listMidiOutputs(
     options: &readonly MidiListOptions,
-): Result<PackedArray<MidiPort>, HostError>;
+): Result<Array<MidiPort>, HostError>;
 
 /// Open a MIDI output port.
 @binding("destack.device.midi.output.open", {

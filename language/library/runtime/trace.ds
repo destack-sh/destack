@@ -1,4 +1,4 @@
-import { PackedArray } from "destack:collections";
+import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
 import { BranchId, CheckpointId, RevisionId, TraceSequence } from "./lineage.ds";
 import { ResourceId } from "./resource.ds";
@@ -46,7 +46,7 @@ export struct TraceRecord {
 /// Trace record page.
 export struct TraceRecordPage {
     /// Trace records in this page.
-    records: PackedArray<TraceRecord>;
+    records: Array<TraceRecord>;
     /// Next trace sequence when more records exist.
     next?: TraceSequence;
 }

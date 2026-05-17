@@ -1,5 +1,5 @@
 import { ResourceId } from "destack:runtime/resource";
-import { Array, PackedArray } from "destack:collections";
+import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
 import { Path } from "destack:fs/host";
 
@@ -104,7 +104,7 @@ export struct HidReport {
 })
 export declare function listHidDevices(
     query: &readonly HidDeviceQuery,
-): Result<PackedArray<HidDevice>, HostError>;
+): Result<Array<HidDevice>, HostError>;
 
 /// Open one HID device.
 @binding("destack.device.hid.open", {
@@ -133,7 +133,7 @@ export declare function closeHidDevice(device: HidDeviceHandle): Result<void, Ho
 })
 export declare function readHidDescriptor(
     device: HidDeviceHandle,
-): Result<PackedArray<uint8>, HostError>;
+): Result<Array<uint8>, HostError>;
 
 /// Read one HID input report.
 @binding("destack.device.hid.report.read", {
@@ -172,7 +172,7 @@ export declare function readHidFeature(
     device: HidDeviceHandle,
     reportId: uint8,
     maxBytes: uint32,
-): Result<PackedArray<uint8>, HostError>;
+): Result<Array<uint8>, HostError>;
 
 /// Write one HID feature report.
 @binding("destack.device.hid.feature.write", {

@@ -1,4 +1,4 @@
-import { Array, PackedArray } from "destack:collections";
+import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
 import { IpAddress } from "./address.ds";
 
@@ -51,7 +51,7 @@ export struct NetworkInterface {
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function listNetworkInterfaces(): Result<PackedArray<NetworkInterface>, HostError>;
+export declare function listNetworkInterfaces(): Result<Array<NetworkInterface>, HostError>;
 
 /// Resolve an interface name to an index.
 @binding("destack.net.interface.index", {

@@ -1,4 +1,4 @@
-import { Array, PackedArray } from "destack:collections";
+import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
 import { GpuAdapterLimits, GpuBackend, GpuFeatureId } from "./adapter.ds";
 import { GpuAdapterHandle, GpuDeviceHandle, GpuQueueHandle } from "destack:gpu/host";
@@ -148,7 +148,7 @@ export declare function readDevice(device: GpuDeviceHandle): Result<GpuDevice, H
 })
 export declare function readDeviceFeatures(
     device: GpuDeviceHandle,
-): Result<PackedArray<GpuFeatureId>, HostError>;
+): Result<Array<GpuFeatureId>, HostError>;
 
 /// Read a device limits snapshot.
 @binding("destack.gpu.device.limits.read", {

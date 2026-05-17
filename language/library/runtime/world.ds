@@ -1,4 +1,4 @@
-import { PackedArray } from "destack:collections";
+import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
 import { Label, LabelSelector } from "./entity.ds";
 import { BranchId, RevisionId } from "./lineage.ds";
@@ -149,7 +149,7 @@ export class Worker {
 /// Runtime list page.
 export struct RuntimePage {
     /// Runtime records in this page.
-    runtimes: PackedArray<Runtime>;
+    runtimes: Array<Runtime>;
     /// Next runtime cursor when more records exist.
     next?: RuntimeId;
 }
@@ -157,7 +157,7 @@ export struct RuntimePage {
 /// Worker list page.
 export struct WorkerPage {
     /// Worker records in this page.
-    workers: PackedArray<Worker>;
+    workers: Array<Worker>;
     /// Next worker cursor when more records exist.
     next?: WorkerId;
 }

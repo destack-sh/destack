@@ -1,4 +1,4 @@
-import { PackedArray } from "destack:collections";
+import { Array } from "destack:collections";
 import { ResourceId } from "destack:runtime/resource";
 import { HostError } from "destack:error/host";
 
@@ -250,7 +250,7 @@ export newtype UsbWatchEvent =
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function listUsbDevices(): Result<PackedArray<UsbDevice>, HostError>;
+export declare function listUsbDevices(): Result<Array<UsbDevice>, HostError>;
 
 /// Open a USB topology watch.
 @binding("destack.device.usb.watch.open", {
@@ -322,7 +322,7 @@ export declare function describeUsbDevice(
 })
 export declare function listUsbConfigurations(
     device: UsbDeviceHandle,
-): Result<PackedArray<UsbConfiguration>, HostError>;
+): Result<Array<UsbConfiguration>, HostError>;
 
 /// Read the active USB configuration.
 @binding("destack.device.usb.configuration.get", {
@@ -357,7 +357,7 @@ export declare function setUsbConfiguration(
 export declare function listUsbInterfaces(
     device: UsbDeviceHandle,
     configuration: uint8,
-): Result<PackedArray<UsbInterface>, HostError>;
+): Result<Array<UsbInterface>, HostError>;
 
 /// Claim a USB interface.
 @binding("destack.device.usb.interface.claim", {
@@ -407,7 +407,7 @@ export declare function listUsbEndpoints(
     device: UsbDeviceHandle,
     interfaceNumber: uint8,
     alternateSetting: uint8,
-): Result<PackedArray<UsbEndpoint>, HostError>;
+): Result<Array<UsbEndpoint>, HostError>;
 
 /// Clear one halted USB endpoint.
 @binding("destack.device.usb.endpoint.clearHalt", {

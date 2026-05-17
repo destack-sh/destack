@@ -1,4 +1,4 @@
-import { Array, PackedArray } from "destack:collections";
+import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
 import { CryptoDigestAlgorithm } from "./algorithm.ds";
 import { CryptoDerivedKey } from "./key.ds";
@@ -162,7 +162,7 @@ export struct CryptoKdfBits {
 })
 export declare function deriveKdfBits(
     request: &readonly CryptoKdfBits,
-): Result<PackedArray<uint8>, HostError>;
+): Result<Array<uint8>, HostError>;
 
 /// Derive one key.
 @binding("destack.crypto.kdf.deriveKey", {

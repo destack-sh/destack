@@ -1,5 +1,5 @@
 import { ResourceId } from "destack:runtime/resource";
-import { Array, PackedArray } from "destack:collections";
+import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
 import { CryptoDigestAlgorithm } from "./algorithm.ds";
 
@@ -17,7 +17,7 @@ export newtype CryptoDigestHandle = ResourceId;
 export declare function computeDigest(
     algorithm: CryptoDigestAlgorithm,
     payload: &readonly [uint8],
-): Result<PackedArray<uint8>, HostError>;
+): Result<Array<uint8>, HostError>;
 
 /// Open one streaming digest context.
 @binding("destack.crypto.digest.open", {
@@ -54,7 +54,7 @@ export declare function updateDigest(
 })
 export declare function finishDigest(
     digest: CryptoDigestHandle,
-): Result<PackedArray<uint8>, HostError>;
+): Result<Array<uint8>, HostError>;
 
 /// Close one streaming digest context.
 @binding("destack.crypto.digest.close", {

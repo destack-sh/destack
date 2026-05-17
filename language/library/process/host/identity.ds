@@ -1,4 +1,4 @@
-import { Array, PackedArray } from "destack:collections";
+import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
 
 /// Process identifier.
@@ -163,7 +163,7 @@ export declare function setGroupIds(ids: ProcessGroupIds): Result<void, HostErro
     families: ["unix"],
     simulation: true,
 })
-export declare function listSupplementaryGroups(): Result<PackedArray<GroupId>, HostError>;
+export declare function listSupplementaryGroups(): Result<Array<GroupId>, HostError>;
 
 /// Set supplementary group identifiers.
 @binding("destack.process.identity.setGroups", {

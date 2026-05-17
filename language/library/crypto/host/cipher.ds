@@ -1,5 +1,5 @@
 import { ResourceId } from "destack:runtime/resource";
-import { Array, PackedArray } from "destack:collections";
+import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
 import { CryptoCipherAlgorithm } from "./algorithm.ds";
 import { CryptoKeyHandle } from "destack:crypto/host";
@@ -63,7 +63,7 @@ export declare function decryptCipher(
     key: CryptoKeyHandle,
     parameters: &readonly CryptoCipherParameters,
     payload: &readonly [uint8],
-): Result<PackedArray<uint8>, HostError>;
+): Result<Array<uint8>, HostError>;
 
 /// Open one streaming cipher context.
 @binding("destack.crypto.cipher.open", {
@@ -103,7 +103,7 @@ export declare function updateCipherAdditionalData(
 export declare function updateCipher(
     cipher: CryptoCipherHandle,
     payload: &readonly [uint8],
-): Result<PackedArray<uint8>, HostError>;
+): Result<Array<uint8>, HostError>;
 
 /// Finalize one streaming cipher context.
 @binding("destack.crypto.cipher.finish", {

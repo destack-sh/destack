@@ -1,4 +1,4 @@
-import { Array, PackedArray } from "destack:collections";
+import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
 import { InputDeviceHandle } from "destack:input/host";
 
@@ -97,7 +97,7 @@ export struct SensorStreamState {
 })
 export declare function listSensors(
     device: InputDeviceHandle,
-): Result<PackedArray<Sensor>, HostError>;
+): Result<Array<Sensor>, HostError>;
 
 /// Set one sensor stream state.
 @binding("destack.input.sensor.stream.set", {

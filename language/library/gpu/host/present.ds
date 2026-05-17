@@ -1,4 +1,4 @@
-import { Array, PackedArray } from "destack:collections";
+import { Array } from "destack:collections";
 import { DisplayColorSpace, DisplayHdrMode, WindowHandle } from "destack:display/host";
 import { HostError } from "destack:error/host";
 import { GpuTextureFormat, GpuTextureUsage } from "./resource.ds";
@@ -359,4 +359,4 @@ export declare function readPresentationEvents(
     events: GpuPresentationHandle,
     maxEvents: uint32,
     timeoutNs?: uint64,
-): Result<PackedArray<GpuPresentationEvent>, HostError>;
+): Result<Array<GpuPresentationEvent>, HostError>;

@@ -1,5 +1,5 @@
 import { ResourceId } from "destack:runtime/resource";
-import { Array, PackedArray } from "destack:collections";
+import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
 import { DisplayDragTransfer, WindowHandle } from "destack:display/host";
 import { ClipboardItem } from "./clipboard.ds";
@@ -343,4 +343,4 @@ export declare function readTextEvents(
     session: InputTextSessionHandle,
     maxEvents: uint32,
     timeoutNs?: uint64,
-): Result<PackedArray<TextSessionEvent>, HostError>;
+): Result<Array<TextSessionEvent>, HostError>;

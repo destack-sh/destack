@@ -1,4 +1,4 @@
-import { Array, PackedArray } from "destack:collections";
+import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
 import { IpAddress, SocketFamily } from "./address.ds";
 
@@ -49,7 +49,7 @@ export struct NetworkRouteEntry {
 })
 export declare function listNetworkRoutes(
     family: SocketFamily,
-): Result<PackedArray<NetworkRouteEntry>, HostError>;
+): Result<Array<NetworkRouteEntry>, HostError>;
 
 /// Add a route table entry.
 @binding("destack.net.route.add", {

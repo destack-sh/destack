@@ -1,4 +1,4 @@
-import { PackedArray } from "destack:collections";
+import { Array } from "destack:collections";
 /// Runtime entity identifier.
 export newtype EntityId = string;
 
@@ -130,7 +130,7 @@ export struct Entity {
 /// Entity list page.
 export struct EntityPage {
     /// Entity records in this page.
-    entities: PackedArray<Entity>;
+    entities: Array<Entity>;
     /// Next entity cursor when more records exist.
     next?: EntityId;
 }
@@ -152,7 +152,7 @@ export struct Edge {
 /// Edge list page.
 export struct EdgePage {
     /// Edge records in this page.
-    edges: PackedArray<Edge>;
+    edges: Array<Edge>;
     /// Next edge cursor when more records exist.
     next?: EdgeId;
 }

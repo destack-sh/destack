@@ -1,5 +1,5 @@
 import { ResourceId } from "destack:runtime/resource";
-import { Array, PackedArray } from "destack:collections";
+import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
 import {
     CryptoAsymmetricEncryptionAlgorithm,
@@ -242,7 +242,7 @@ export declare function importKey(
 export declare function exportPublicKey(
     key: CryptoKeyHandle,
     format: CryptoKeyFormat,
-): Result<PackedArray<uint8>, HostError>;
+): Result<Array<uint8>, HostError>;
 
 /// Export one private key.
 @binding("destack.crypto.key.private.export", {
@@ -255,7 +255,7 @@ export declare function exportPublicKey(
 export declare function exportPrivateKey(
     key: CryptoKeyHandle,
     request: &readonly CryptoPrivateKeyExport,
-): Result<PackedArray<uint8>, HostError>;
+): Result<Array<uint8>, HostError>;
 
 /// Export one secret key.
 @binding("destack.crypto.key.secret.export", {
@@ -268,7 +268,7 @@ export declare function exportPrivateKey(
 export declare function exportSecretKey(
     key: CryptoKeyHandle,
     format: CryptoKeyFormat,
-): Result<PackedArray<uint8>, HostError>;
+): Result<Array<uint8>, HostError>;
 
 /// Describe one key.
 @binding("destack.crypto.key.describe", {
@@ -294,7 +294,7 @@ export declare function signWithKey(
     key: CryptoKeyHandle,
     parameters: &readonly CryptoSignatureParameters,
     payload: &readonly [uint8],
-): Result<PackedArray<uint8>, HostError>;
+): Result<Array<uint8>, HostError>;
 
 /// Verify one signature.
 @binding("destack.crypto.key.verify", {
@@ -323,7 +323,7 @@ export declare function encryptWithKey(
     key: CryptoKeyHandle,
     parameters: &readonly CryptoAsymmetricEncryptionParameters,
     payload: &readonly [uint8],
-): Result<PackedArray<uint8>, HostError>;
+): Result<Array<uint8>, HostError>;
 
 /// Decrypt one payload with one asymmetric key.
 @binding("destack.crypto.key.decrypt", {
@@ -337,7 +337,7 @@ export declare function decryptWithKey(
     key: CryptoKeyHandle,
     parameters: &readonly CryptoAsymmetricEncryptionParameters,
     payload: &readonly [uint8],
-): Result<PackedArray<uint8>, HostError>;
+): Result<Array<uint8>, HostError>;
 
 /// Wrap one key.
 @binding("destack.crypto.key.wrap", {
@@ -352,7 +352,7 @@ export declare function wrapKey(
     keyToWrap: CryptoKeyHandle,
     format: CryptoKeyFormat,
     parameters: &readonly CryptoKeyWrapParameters,
-): Result<PackedArray<uint8>, HostError>;
+): Result<Array<uint8>, HostError>;
 
 /// Unwrap one key.
 @binding("destack.crypto.key.unwrap", {

@@ -1,4 +1,4 @@
-import { PackedArray } from "destack:collections";
+import { Array } from "destack:collections";
 import { ResourceId } from "destack:runtime/resource";
 import { HostError } from "destack:error/host";
 import { Path } from "destack:fs/host";
@@ -295,7 +295,7 @@ export newtype SerialEvent =
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function listSerialPorts(): Result<PackedArray<SerialPort>, HostError>;
+export declare function listSerialPorts(): Result<Array<SerialPort>, HostError>;
 
 /// Open a serial topology watch.
 @binding("destack.device.serial.watch.open", {

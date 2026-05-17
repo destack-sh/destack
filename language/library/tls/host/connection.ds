@@ -1,5 +1,5 @@
 import { ResourceId } from "destack:runtime/resource";
-import { Array, PackedArray } from "destack:collections";
+import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
 import { SocketHandle } from "destack:net/host";
 import { TlsContextHandle } from "destack:tls/host";
@@ -104,7 +104,7 @@ export declare function closeTlsConnection(
 })
 export declare function readTlsAlpn(
     connection: TlsConnectionHandle,
-): Result<PackedArray<uint8>, HostError>;
+): Result<Array<uint8>, HostError>;
 
 /// Read the peer certificate chain in PEM encoding.
 @binding("destack.tls.connection.peerCertificates.pem.read", {
@@ -115,7 +115,7 @@ export declare function readTlsAlpn(
 })
 export declare function readTlsPeerCertificatesPem(
     connection: TlsConnectionHandle,
-): Result<PackedArray<uint8>, HostError>;
+): Result<Array<uint8>, HostError>;
 
 /// Export keying material bytes for one TLS connection.
 @binding("destack.tls.connection.keyingMaterial.export", {
@@ -129,7 +129,7 @@ export declare function exportTlsKeyingMaterial(
     label: &readonly string,
     context: &readonly [uint8],
     length: uint32,
-): Result<PackedArray<uint8>, HostError>;
+): Result<Array<uint8>, HostError>;
 
 /// Return whether one connection resumed from cached state or ticket.
 @binding("destack.tls.connection.resumption.read", {
