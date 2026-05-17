@@ -5,11 +5,10 @@ use destack_mir as mir;
 
 use crate::common::mir::analysis::{ControlFlowGraph, DominatorTree};
 use crate::common::mir::{
-    CallsiteHotness, CallsiteHotnessPolicy, EdgeSplitPolicy, block_execution_counts,
-    block_hotness_from_counts, block_parameters_used_outside_block,
-    block_uses_available_in_predecessor, build_use_def_maps, clone_instruction_metadata,
-    collect_reachable_blocks, ensure_edge_block, instruction_is_speculatable, instruction_map,
-    scaled_profile_count, terminator_edges, terminator_substitute_uses,
+    CallsiteHotness, EdgeSplitPolicy, block_execution_counts, block_hotness_from_counts,
+    block_parameters_used_outside_block, block_uses_available_in_predecessor, build_use_def_maps,
+    clone_instruction_metadata, collect_reachable_blocks, ensure_edge_block,
+    instruction_is_speculatable, instruction_map, terminator_edges, terminator_substitute_uses,
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
@@ -88,13 +87,13 @@ impl FunctionPass for CfgLayout {
 }
 
 /// Maximum instructions to duplicate on hot edges.
-const MAX_HOT_EIGE_DUP_INSTRUCTIONS: usize = 6;
+const MAX_HOT_EDGE_DUP_INSTRUCTIONS: usize = 6;
 /// Maximum predecessors to duplicate per hot block.
-const MAX_HOT_EIGE_DUP_PREIECESSORS: usize = 4;
+const MAX_HOT_EDGE_DUP_PREDECESSORS: usize = 4;
 /// Ratio of total edge count required to duplicate all hot edges.
-const HOT_EIGE_DUP_RATIO: f64 = 0.70;
+const HOT_EDGE_DUP_RATIO: f64 = 0.70;
 /// Ratio of total edge count required to duplicate the hottest edge.
-const HOT_EIGE_DUP_MIN_RATIO: f64 = 0.20;
+const HOT_EDGE_DUP_MIN_RATIO: f64 = 0.20;
 
 /// Predecessor edge data for hot edge duplication.
 #[derive(Debug, Clone)]
@@ -114,18 +113,17 @@ fn run_cfg_layout(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     entry: mir::LocalNodeId<mir::Block>,
-    profile: &mir::ProfileTable,
+    profile: &mir::Profile,
     ctx: &PipelineContext<'_>,
 ) -> bool {
     // derive block counts and hotness
-    let hotness_policy = ctx.inline_hotness_policy();
-    let mut block_counts = block_execution_counts(function, tree, Some(profile), hotness_policy);
+    let mut block_counts = block_execution_counts(function, tree, Some(profile));
     if block_counts.is_empty() {
         return false;
     }
 
     let entry_count = block_counts.get(&entry).copied().unwrap_or(0);
-    let mut cold_blocks = classify_cold_blocks(&block_counts, entry_count, hotness_policy);
+    let mut cold_blocks = classify_cold_blocks(&block_counts, entry_count);
     cold_blocks.remove(&entry);
 
     // fetch required analyses
@@ -133,14 +131,7 @@ fn run_cfg_layout(
     let domtree = analyses.get::<DominatorTree>().clone();
 
     // duplicate hot edges into small blocks
-    let duplicated = duplicate_hot_edges(
-        function,
-        tree,
-        &domtree,
-        profile,
-        hotness_policy,
-        &mut block_counts,
-    );
+    let duplicated = duplicate_hot_edges(function, tree, &domtree, profile, &mut block_counts);
 
     // rebuild cfg after duplication for cold edge outlining
     let cfg = ControlFlowGraph::build(function, tree);
@@ -153,7 +144,7 @@ fn run_cfg_layout(
     let reachable_set: HashSet<_> = reachable.iter().copied().collect();
 
     // compute edge weights
-    let edge_weights = compute_edge_weights(function, tree, profile, hotness_policy, &block_counts);
+    let edge_weights = compute_edge_weights(function, tree, profile, &block_counts);
 
     // build a hot trace layout
     let mut placed = HashSet::new();
@@ -243,14 +234,13 @@ fn run_cfg_layout(
 fn classify_cold_blocks(
     block_counts: &HashMap<mir::LocalNodeId<mir::Block>, u64>,
     entry_count: u64,
-    policy: &CallsiteHotnessPolicy,
 ) -> HashSet<mir::LocalNodeId<mir::Block>> {
     // collect blocks classified as cold
     let mut cold = HashSet::new();
     for (&block, &count) in block_counts {
         // record blocks below cold thresholds
         if matches!(
-            block_hotness_from_counts(count, entry_count, policy),
+            block_hotness_from_counts(count, entry_count),
             CallsiteHotness::Cold
         ) {
             cold.insert(block);
@@ -325,8 +315,7 @@ fn duplicate_hot_edges(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     domtree: &DominatorTree,
-    profile: &mir::ProfileTable,
-    policy: &CallsiteHotnessPolicy,
+    profile: &mir::Profile,
     block_counts: &mut HashMap<mir::LocalNodeId<mir::Block>, u64>,
 ) -> bool {
     // build definition metadata
@@ -336,7 +325,6 @@ fn duplicate_hot_edges(
     // collect edge predecessors keyed by target
     let mut predecessors: HashMap<mir::LocalNodeId<mir::Block>, Vec<EdgePredecessor>> =
         HashMap::new();
-    let scale = policy.scaling_policy();
     for &block_id in &function.blocks {
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
@@ -349,10 +337,7 @@ fn duplicate_hot_edges(
             };
 
             let edge = mir::EdgeKey::new(block_id, edge_kind, target_block);
-            let count = profile
-                .edge_profile(&edge)
-                .map(|edge| scaled_profile_count(edge.count, profile.source, &scale))
-                .unwrap_or(0);
+            let count = profile.edge_count(&edge).unwrap_or(0);
 
             predecessors
                 .entry(target_block)
@@ -415,7 +400,7 @@ fn duplicate_hot_edges(
         }
 
         // skip blocks with too many instructions
-        if block.instructions.len() > MAX_HOT_EIGE_DUP_INSTRUCTIONS {
+        if block.instructions.len() > MAX_HOT_EDGE_DUP_INSTRUCTIONS {
             continue;
         }
 
@@ -475,7 +460,7 @@ fn duplicate_hot_edges(
             continue;
         }
 
-        if safe_candidates.len() > MAX_HOT_EIGE_DUP_PREIECESSORS {
+        if safe_candidates.len() > MAX_HOT_EDGE_DUP_PREDECESSORS {
             continue;
         }
 
@@ -567,7 +552,7 @@ fn select_hot_edge_predecessors(predecessors: &[EdgePredecessor]) -> Vec<EdgePre
     let mut hot_preds = Vec::new();
     for pred in predecessors {
         let ratio = pred.count as f64 / total_count as f64;
-        if ratio >= HOT_EIGE_DUP_RATIO {
+        if ratio >= HOT_EDGE_DUP_RATIO {
             hot_preds.push(pred.pred);
         }
     }
@@ -592,7 +577,7 @@ fn select_hot_edge_predecessors(predecessors: &[EdgePredecessor]) -> Vec<EdgePre
         return Vec::new();
     };
     let ratio = hottest_count as f64 / total_count as f64;
-    if ratio < HOT_EIGE_DUP_MIN_RATIO {
+    if ratio < HOT_EDGE_DUP_MIN_RATIO {
         return Vec::new();
     }
 
@@ -798,12 +783,9 @@ fn sort_blocks_by_hotness(
 fn compute_edge_weights(
     function: &mir::Function,
     tree: &mir::Tree,
-    profile: &mir::ProfileTable,
-    policy: &CallsiteHotnessPolicy,
+    profile: &mir::Profile,
     block_counts: &HashMap<mir::LocalNodeId<mir::Block>, u64>,
 ) -> HashMap<(mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>), u64> {
-    // derive edge scaling parameters
-    let scale = policy.scaling_policy();
     let mut weights = HashMap::new();
 
     // compute a weight per edge using profile data when possible
@@ -813,8 +795,8 @@ fn compute_edge_weights(
         let terminator = tree.get(block.terminator);
         for (edge_key, target) in terminator_edges(block_id, terminator) {
             // prefer explicit edge profiles
-            let edge_weight = if let Some(edge_profile) = profile.edge_profile(&edge_key) {
-                scaled_profile_count(edge_profile.count, profile.source, &scale)
+            let edge_weight = if let Some(count) = profile.edge_count(&edge_key) {
+                count
             } else {
                 block_counts.get(&target).copied().unwrap_or(0)
             };
@@ -860,16 +842,16 @@ b2:
 }"#;
 
         let mut test = TestProgram::new(input);
-        let mut profile = mir::ProfileTable::new(mir::ProfileSource::Instrumentation);
+        let mut profile = mir::Profile::new();
         let function_id = test.entry_function_id();
         let function = test.tree.get(function_id);
         let entry = function.entry.unwrap();
         let block1 = function.blocks[2];
         let block2 = function.blocks[1];
 
-        test.record_block_profile(&mut profile, entry, 100);
-        test.record_block_profile(&mut profile, block1, 90);
-        test.record_block_profile(&mut profile, block2, 10);
+        test.record_block_count(&mut profile, entry, 100);
+        test.record_block_count(&mut profile, block1, 90);
+        test.record_block_count(&mut profile, block2, 10);
 
         test.run_pass_with_profile(&CfgLayout, profile);
         test.assert_output(expected);
@@ -927,16 +909,16 @@ b3:
 }"#;
 
         let mut test = TestProgram::new(input);
-        let mut profile = mir::ProfileTable::new(mir::ProfileSource::Instrumentation);
+        let mut profile = mir::Profile::new();
         let function_id = test.entry_function_id();
         let function = test.tree.get(function_id);
         let entry = function.entry.unwrap();
         let block1 = function.blocks[2];
         let block2 = function.blocks[1];
 
-        test.record_block_profile(&mut profile, entry, 100);
-        test.record_block_profile(&mut profile, block1, 80);
-        test.record_block_profile(&mut profile, block2, 1);
+        test.record_block_count(&mut profile, entry, 100);
+        test.record_block_count(&mut profile, block1, 80);
+        test.record_block_count(&mut profile, block2, 1);
 
         test.run_pass_with_profile(&CfgLayout, profile);
         test.assert_output(expected);
@@ -972,16 +954,16 @@ b3:
 }"#;
 
         let mut test = TestProgram::new(input);
-        let mut profile = mir::ProfileTable::new(mir::ProfileSource::Instrumentation);
+        let mut profile = mir::Profile::new();
         let function_id = test.entry_function_id();
         let function = test.tree.get(function_id);
         let entry = function.entry.unwrap();
         let block2 = function.blocks[1];
         let block1 = function.blocks[2];
 
-        test.record_block_profile(&mut profile, entry, 100);
-        test.record_block_profile(&mut profile, block1, 90);
-        test.record_block_profile(&mut profile, block2, 5);
+        test.record_block_count(&mut profile, entry, 100);
+        test.record_block_count(&mut profile, block1, 90);
+        test.record_block_count(&mut profile, block2, 5);
 
         test.run_pass_with_profile(&CfgLayout, profile);
         test.assert_output(expected);
@@ -1021,16 +1003,16 @@ b3:
 }"#;
 
         let mut test = TestProgram::new(input);
-        let mut profile = mir::ProfileTable::new(mir::ProfileSource::Instrumentation);
+        let mut profile = mir::Profile::new();
         let function_id = test.entry_function_id();
         let function = test.tree.get(function_id);
         let entry = function.entry.unwrap();
         let block2 = function.blocks[1];
         let block1 = function.blocks[2];
 
-        test.record_block_profile(&mut profile, entry, 100);
-        test.record_block_profile(&mut profile, block1, 90);
-        test.record_block_profile(&mut profile, block2, 2);
+        test.record_block_count(&mut profile, entry, 100);
+        test.record_block_count(&mut profile, block1, 90);
+        test.record_block_count(&mut profile, block2, 2);
 
         test.run_pass_with_profile(&CfgLayout, profile);
         test.assert_output(expected);
@@ -1064,19 +1046,19 @@ b2:
 }"#;
 
         let mut test = TestProgram::new(input);
-        let mut profile = mir::ProfileTable::new(mir::ProfileSource::Instrumentation);
+        let mut profile = mir::Profile::new();
         let function_id = test.entry_function_id();
         let function = test.tree.get(function_id);
         let entry = function.entry.unwrap();
         let block1 = function.blocks[1];
         let block2 = function.blocks[2];
 
-        test.record_block_profile(&mut profile, entry, 100);
-        test.record_block_profile(&mut profile, block1, 90);
-        test.record_block_profile(&mut profile, block2, 10);
+        test.record_block_count(&mut profile, entry, 100);
+        test.record_block_count(&mut profile, block1, 90);
+        test.record_block_count(&mut profile, block2, 10);
 
-        test.record_edge_profile(&mut profile, entry, mir::EdgeKind::BranchThen, block1, 20);
-        test.record_edge_profile(&mut profile, entry, mir::EdgeKind::BranchElse, block2, 80);
+        test.record_edge_count(&mut profile, entry, mir::EdgeKind::BranchThen, block1, 20);
+        test.record_edge_count(&mut profile, entry, mir::EdgeKind::BranchElse, block2, 80);
 
         test.run_pass_with_profile(&CfgLayout, profile);
         test.assert_output(expected);
@@ -1111,19 +1093,19 @@ b3:
 }"#;
 
         let mut test = TestProgram::new(input);
-        let mut profile = mir::ProfileTable::new(mir::ProfileSource::Instrumentation);
+        let mut profile = mir::Profile::new();
         let function_id = test.entry_function_id();
         let function = test.tree.get(function_id);
         let entry = function.entry.unwrap();
         let block1 = function.blocks[1];
         let block2 = function.blocks[2];
 
-        test.record_block_profile(&mut profile, entry, 100);
-        test.record_block_profile(&mut profile, block1, 20);
-        test.record_block_profile(&mut profile, block2, 40);
-        test.record_edge_profile(&mut profile, entry, mir::EdgeKind::BranchThen, block2, 80);
-        test.record_edge_profile(&mut profile, entry, mir::EdgeKind::BranchElse, block1, 20);
-        test.record_edge_profile(&mut profile, block1, mir::EdgeKind::Jump, block2, 20);
+        test.record_block_count(&mut profile, entry, 100);
+        test.record_block_count(&mut profile, block1, 20);
+        test.record_block_count(&mut profile, block2, 40);
+        test.record_edge_count(&mut profile, entry, mir::EdgeKind::BranchThen, block2, 80);
+        test.record_edge_count(&mut profile, entry, mir::EdgeKind::BranchElse, block1, 20);
+        test.record_edge_count(&mut profile, block1, mir::EdgeKind::Jump, block2, 20);
 
         test.run_pass_with_profile(&CfgLayout, profile);
         test.assert_output(expected);
@@ -1163,7 +1145,7 @@ b3:
 }"#;
 
         let mut test = TestProgram::new(input);
-        let mut profile = mir::ProfileTable::new(mir::ProfileSource::Instrumentation);
+        let mut profile = mir::Profile::new();
         let function_id = test.entry_function_id();
         let function = test.tree.get(function_id);
         let entry = function.entry.unwrap();
@@ -1171,10 +1153,10 @@ b3:
         let block3 = function.blocks[2];
         let block2 = function.blocks[3];
 
-        test.record_block_profile(&mut profile, entry, 100);
-        test.record_block_profile(&mut profile, block1, 90);
-        test.record_block_profile(&mut profile, block2, 10);
-        test.record_block_profile(&mut profile, block3, 1);
+        test.record_block_count(&mut profile, entry, 100);
+        test.record_block_count(&mut profile, block1, 90);
+        test.record_block_count(&mut profile, block2, 10);
+        test.record_block_count(&mut profile, block3, 1);
 
         test.run_pass_with_profile(&CfgLayout, profile);
         test.assert_output(expected);

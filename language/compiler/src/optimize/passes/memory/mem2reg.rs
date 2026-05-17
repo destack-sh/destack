@@ -633,6 +633,17 @@ fn update_terminator_arguments(
     value_stacks: &HashMap<mir::LocalNodeId<mir::Local>, Vec<mir::Value>>,
     substitutions: &HashMap<mir::Value, mir::Value>,
 ) -> mir::Terminator {
+    let extend_target = |target: &mir::BlockTarget| mir::BlockTarget {
+        block: target.block,
+        arguments: extend_arguments(
+            target.block,
+            &target.arguments,
+            block_params,
+            value_stacks,
+            substitutions,
+        ),
+    };
+
     match terminator {
         mir::Terminator::Error => {
             panic!("recovered MIR terminator reached optimizer");
@@ -841,6 +852,7 @@ fn update_terminator_arguments(
             function,
             call,
             target,
+            unwind,
         } => mir::Terminator::Call {
             function: *function,
             call: mir::Call {
@@ -861,11 +873,13 @@ fn update_terminator_arguments(
                     substitutions,
                 ),
             },
+            unwind: unwind.as_ref().map(|target| extend_target(target)),
         },
         mir::Terminator::CallIndirect {
             callee,
             call,
             target,
+            unwind,
         } => mir::Terminator::CallIndirect {
             callee: remap_value_reference(*callee, substitutions),
             call: mir::Call {
@@ -886,14 +900,15 @@ fn update_terminator_arguments(
                     substitutions,
                 ),
             },
+            unwind: unwind.as_ref().map(|target| extend_target(target)),
         },
         mir::Terminator::CallClass {
             receiver,
             call,
-            declaring_type,
+            class,
             slot,
-            declared_target,
             target,
+            unwind,
         } => mir::Terminator::CallClass {
             receiver: remap_value_reference(*receiver, substitutions),
             call: mir::Call {
@@ -904,9 +919,8 @@ fn update_terminator_arguments(
                     .collect(),
                 ..call.clone()
             },
-            declaring_type: *declaring_type,
+            class: *class,
             slot: *slot,
-            declared_target: *declared_target,
             target: mir::BlockTarget {
                 block: target.block,
                 arguments: extend_arguments(
@@ -917,13 +931,15 @@ fn update_terminator_arguments(
                     substitutions,
                 ),
             },
+            unwind: unwind.as_ref().map(|target| extend_target(target)),
         },
         mir::Terminator::CallInterface {
             receiver,
             call,
-            declaring_type,
+            interface,
             slot,
             target,
+            unwind,
         } => mir::Terminator::CallInterface {
             receiver: remap_value_reference(*receiver, substitutions),
             call: mir::Call {
@@ -934,7 +950,7 @@ fn update_terminator_arguments(
                     .collect(),
                 ..call.clone()
             },
-            declaring_type: *declaring_type,
+            interface: *interface,
             slot: *slot,
             target: mir::BlockTarget {
                 block: target.block,
@@ -946,6 +962,7 @@ fn update_terminator_arguments(
                     substitutions,
                 ),
             },
+            unwind: unwind.as_ref().map(|target| extend_target(target)),
         },
         mir::Terminator::Return { value } => mir::Terminator::Return {
             value: value.map(|value| remap_value_reference(value, substitutions)),
@@ -954,6 +971,10 @@ fn update_terminator_arguments(
             kind: *kind,
             payload: payload.map(|value| remap_value_reference(value, substitutions)),
         },
+        mir::Terminator::Panic { payload } => mir::Terminator::Panic {
+            payload: payload.map(|value| remap_value_reference(value, substitutions)),
+        },
+        mir::Terminator::ResumePanic => mir::Terminator::ResumePanic,
         mir::Terminator::Unreachable => mir::Terminator::Unreachable,
         mir::Terminator::TailCall { function, call } => mir::Terminator::TailCall {
             function: *function,
@@ -969,9 +990,8 @@ fn update_terminator_arguments(
         mir::Terminator::TailCallClass {
             receiver,
             call,
-            declaring_type,
+            class,
             slot,
-            declared_target,
         } => mir::Terminator::TailCallClass {
             receiver: remap_value_reference(*receiver, substitutions),
             call: mir::Call {
@@ -982,14 +1002,13 @@ fn update_terminator_arguments(
                     .collect(),
                 ..call.clone()
             },
-            declaring_type: *declaring_type,
+            class: *class,
             slot: *slot,
-            declared_target: *declared_target,
         },
         mir::Terminator::TailCallInterface {
             receiver,
             call,
-            declaring_type,
+            interface,
             slot,
         } => mir::Terminator::TailCallInterface {
             receiver: remap_value_reference(*receiver, substitutions),
@@ -1001,7 +1020,7 @@ fn update_terminator_arguments(
                     .collect(),
                 ..call.clone()
             },
-            declaring_type: *declaring_type,
+            interface: *interface,
             slot: *slot,
         },
         mir::Terminator::TailCallIndirect { callee, call } => mir::Terminator::TailCallIndirect {

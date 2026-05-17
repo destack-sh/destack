@@ -413,6 +413,16 @@ fn remap_terminator_blocks(
         mir::LocalNodeId<mir::Block>,
     >,
 ) -> mir::Terminator {
+    let clone_target = |target: &mir::BlockTarget| mir::BlockTarget {
+        block: target
+            .block
+            .block()
+            .and_then(|block| block_map.get(&block).copied())
+            .map(mir::BlockReference::from)
+            .unwrap_or(target.block),
+        arguments: target.arguments.clone(),
+    };
+
     match terminator {
         mir::Terminator::Error => {
             panic!("recovered MIR terminator reached optimizer");
@@ -514,83 +524,59 @@ fn remap_terminator_blocks(
             function,
             call,
             target,
+            unwind,
         } => mir::Terminator::Call {
             function: *function,
             call: call.clone(),
-            target: mir::BlockTarget {
-                block: target
-                    .block
-                    .block()
-                    .and_then(|block| block_map.get(&block).copied())
-                    .map(mir::BlockReference::from)
-                    .unwrap_or(target.block),
-                arguments: target.arguments.clone(),
-            },
+            target: clone_target(target),
+            unwind: unwind.as_ref().map(|target| clone_target(target)),
         },
         mir::Terminator::CallIndirect {
             callee,
             call,
             target,
+            unwind,
         } => mir::Terminator::CallIndirect {
             callee: *callee,
             call: call.clone(),
-            target: mir::BlockTarget {
-                block: target
-                    .block
-                    .block()
-                    .and_then(|block| block_map.get(&block).copied())
-                    .map(mir::BlockReference::from)
-                    .unwrap_or(target.block),
-                arguments: target.arguments.clone(),
-            },
+            target: clone_target(target),
+            unwind: unwind.as_ref().map(|target| clone_target(target)),
         },
         mir::Terminator::CallClass {
             receiver,
             call,
-            declaring_type,
+            class,
             slot,
-            declared_target,
             target,
+            unwind,
         } => mir::Terminator::CallClass {
             receiver: *receiver,
             call: call.clone(),
-            declaring_type: *declaring_type,
+            class: *class,
             slot: *slot,
-            declared_target: *declared_target,
-            target: mir::BlockTarget {
-                block: target
-                    .block
-                    .block()
-                    .and_then(|block| block_map.get(&block).copied())
-                    .map(mir::BlockReference::from)
-                    .unwrap_or(target.block),
-                arguments: target.arguments.clone(),
-            },
+            target: clone_target(target),
+            unwind: unwind.as_ref().map(|target| clone_target(target)),
         },
         mir::Terminator::CallInterface {
             receiver,
             call,
-            declaring_type,
+            interface,
             slot,
             target,
+            unwind,
         } => mir::Terminator::CallInterface {
             receiver: *receiver,
             call: call.clone(),
-            declaring_type: *declaring_type,
+            interface: *interface,
             slot: *slot,
-            target: mir::BlockTarget {
-                block: target
-                    .block
-                    .block()
-                    .and_then(|block| block_map.get(&block).copied())
-                    .map(mir::BlockReference::from)
-                    .unwrap_or(target.block),
-                arguments: target.arguments.clone(),
-            },
+            target: clone_target(target),
+            unwind: unwind.as_ref().map(|target| clone_target(target)),
         },
         // return, unreachable, tailcall don't reference blocks that need remapping
         mir::Terminator::Return { .. }
         | mir::Terminator::Trap { .. }
+        | mir::Terminator::Panic { .. }
+        | mir::Terminator::ResumePanic
         | mir::Terminator::Unreachable
         | mir::Terminator::TailCall { .. }
         | mir::Terminator::TailCallClass { .. }

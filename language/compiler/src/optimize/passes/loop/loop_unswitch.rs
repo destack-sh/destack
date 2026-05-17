@@ -7,10 +7,10 @@ use crate::common::mir::analysis::{
     ControlFlowGraph, DominatorTree, Loop, LoopAnalysis, RangeAnalysis,
 };
 use crate::common::mir::{
-    CallsiteHotness, CallsiteHotnessPolicy, SuccessorArguments, block_execution_counts,
-    block_hotness_from_counts, bool_from_range, build_value_definition_map,
-    clone_instruction_metadata, clone_loop_blocks, instruction_is_speculatable,
-    instruction_map_with_locals, terminator_arguments_for_successor_checked, terminator_remap,
+    CallsiteHotness, SuccessorArguments, block_execution_counts, block_hotness_from_counts,
+    bool_from_range, build_value_definition_map, clone_instruction_metadata, clone_loop_blocks,
+    instruction_is_speculatable, instruction_map_with_locals,
+    terminator_arguments_for_successor_checked, terminator_remap,
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
@@ -133,8 +133,7 @@ fn run_loop_unswitch(
         };
 
         // compute profile driven heuristics
-        let heuristics =
-            UnswitchHeuristics::new(function, tree, ctx.profile(), ctx.inline_hotness_policy());
+        let heuristics = UnswitchHeuristics::new(function, tree, ctx.profile());
 
         // stop when there are no loops to process
         if loops.num_loops() == 0 {
@@ -249,25 +248,18 @@ struct HoistedCondition {
 }
 
 /// Profile driven heuristics for unswitch selection.
-struct UnswitchHeuristics<'a> {
+struct UnswitchHeuristics {
     /// Execution counts for blocks in the function.
     block_counts: HashMap<mir::LocalNodeId<mir::Block>, u64>,
     /// Entry count for the function.
     entry_count: u64,
-    /// Hotness thresholds to apply.
-    hotness_policy: &'a CallsiteHotnessPolicy,
 }
 
-impl<'a> UnswitchHeuristics<'a> {
+impl UnswitchHeuristics {
     /// Create heuristics from profile data.
-    fn new(
-        function: &mir::Function,
-        tree: &mir::Tree,
-        profile: Option<&mir::ProfileTable>,
-        hotness_policy: &'a CallsiteHotnessPolicy,
-    ) -> Self {
+    fn new(function: &mir::Function, tree: &mir::Tree, profile: Option<&mir::Profile>) -> Self {
         // compute block counts from profile data
-        let block_counts = block_execution_counts(function, tree, profile, hotness_policy);
+        let block_counts = block_execution_counts(function, tree, profile);
         let entry_count = function
             .entry
             .and_then(|entry| block_counts.get(&entry).copied())
@@ -276,7 +268,6 @@ impl<'a> UnswitchHeuristics<'a> {
         Self {
             block_counts,
             entry_count,
-            hotness_policy,
         }
     }
 
@@ -291,7 +282,7 @@ impl<'a> UnswitchHeuristics<'a> {
             return CallsiteHotness::Unknown;
         };
 
-        block_hotness_from_counts(count, self.entry_count, self.hotness_policy)
+        block_hotness_from_counts(count, self.entry_count)
     }
 
     /// Return the loop size limit for a header block.
@@ -327,7 +318,7 @@ fn find_unswitchable_loop(
     cfg: &ControlFlowGraph,
     domtree: &DominatorTree,
     ranges: &RangeAnalysis,
-    heuristics: &UnswitchHeuristics<'_>,
+    heuristics: &UnswitchHeuristics,
 ) -> Option<UnswitchCandidate> {
     // need a preheader
     let preheader = domtree.immediate_dominator(lp.header)?;
@@ -1311,19 +1302,9 @@ b3:
             _ => panic!("missing loop header jump"),
         };
 
-        let mut profile = mir::ProfileTable::new(mir::ProfileSource::Instrumentation);
-        profile.blocks.insert(
-            entry_block,
-            mir::BlockProfile {
-                execution_count: mir::ProfileCount::new(100, mir::ProfileConfidence::Precise),
-            },
-        );
-        profile.blocks.insert(
-            header_block,
-            mir::BlockProfile {
-                execution_count: mir::ProfileCount::new(1, mir::ProfileConfidence::Precise),
-            },
-        );
+        let mut profile = mir::Profile::new();
+        profile.blocks.insert(entry_block, 100);
+        profile.blocks.insert(header_block, 1);
 
         test.run_pass_with_profile(&LoopUnswitch, profile);
         test.assert_output(input);

@@ -528,7 +528,7 @@ b1:
         let input = r#"
 function test(v0: boolean): int32 {
 b0(v0: boolean):
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     v2: int32 = load v1
     branch v0, b1, b2
 b1:
@@ -556,9 +556,6 @@ b2:
             mir::MemoryAccessKind::Read,
             mir::Value::new(1),
             Some(4),
-            Vec::new(),
-            Vec::new(),
-            None,
             true,
             None,
         );

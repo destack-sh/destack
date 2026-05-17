@@ -5,11 +5,10 @@ use destack_mir as mir;
 
 use crate::common::mir::analysis::CallGraphScc;
 use crate::common::mir::{
-    CallsiteHotness, CallsiteHotnessPolicy, ValueTypeMap, block_execution_counts,
-    block_hotness_from_counts, build_value_definition_map, callsite_hotness,
-    clone_instruction_metadata, constant_for_value, instruction_map_with_locals,
-    instruction_substitute_uses_in_tree, remap_instruction_memory_accesses, scaled_profile_count,
-    terminator_remap, terminator_substitute_uses,
+    CallsiteHotness, ValueTypeMap, block_execution_counts, block_hotness_from_counts,
+    build_value_definition_map, callsite_hotness, clone_instruction_metadata, constant_for_value,
+    instruction_map_with_locals, instruction_substitute_uses_in_tree,
+    remap_instruction_memory_accesses, terminator_remap, terminator_substitute_uses,
 };
 use crate::optimize::{AnalysisPreservation, ModuleAnalyses, ModulePass, PipelineContext};
 
@@ -148,21 +147,11 @@ fn run_inline(tree: &mut mir::Tree, ctx: &PipelineContext<'_>) -> bool {
     // build analysis summaries for inlining
     let analyses = ModuleAnalyses::new(tree);
     let scc_map = analyses.get::<CallGraphScc>();
-    let hotness_policy = ctx.inline_hotness_policy();
     let inline_budget_scale_percent = ctx.inline_budget_scale_percent();
-    let mut module_budget = inline_budget_for_module(
-        tree,
-        ctx.profile(),
-        hotness_policy,
-        inline_budget_scale_percent,
-    );
-    let mut scc_budgets = inline_scc_budgets(
-        tree,
-        &scc_map,
-        ctx.profile(),
-        hotness_policy,
-        inline_budget_scale_percent,
-    );
+    let mut module_budget =
+        inline_budget_for_module(tree, ctx.profile(), inline_budget_scale_percent);
+    let mut scc_budgets =
+        inline_scc_budgets(tree, &scc_map, ctx.profile(), inline_budget_scale_percent);
 
     // collect function ids for stable iteration
     let function_ids: Vec<_> = tree
@@ -187,17 +176,13 @@ fn run_inline(tree: &mut mir::Tree, ctx: &PipelineContext<'_>) -> bool {
 
         // inline until no sites remain or budget is exhausted
         let mut inline_count = 0usize;
-        let mut inline_budget = inline_budget_for_function(
-            function_id,
-            ctx.profile(),
-            hotness_policy,
-            inline_budget_scale_percent,
-        );
+        let mut inline_budget =
+            inline_budget_for_function(function_id, ctx.profile(), inline_budget_scale_percent);
         let scc_id = scc_map.scc_id(function_id);
         let mut scc_budget = scc_id
             .and_then(|id| scc_budgets.get(&id).copied())
             .unwrap_or(INLINE_SCC_BUDGET_BASE);
-        let block_counts = block_execution_counts(&function, tree, ctx.profile(), hotness_policy);
+        let block_counts = block_execution_counts(&function, tree, ctx.profile());
 
         // iterate inline sites until the budget is exhausted
         loop {
@@ -222,7 +207,6 @@ fn run_inline(tree: &mut mir::Tree, ctx: &PipelineContext<'_>) -> bool {
                 tree,
                 &scc_map,
                 ctx.profile(),
-                hotness_policy,
                 inline_budget_scale_percent,
                 &value_definitions,
                 &block_counts,
@@ -233,7 +217,7 @@ fn run_inline(tree: &mut mir::Tree, ctx: &PipelineContext<'_>) -> bool {
             };
 
             // attempt to inline the selected callsite
-            let did_inline = inline_callsite(function_id, &mut function, tree, &site.site);
+            let did_inline = inline_callsite(&mut function, tree, &site.site);
             if !did_inline {
                 break;
             }
@@ -298,8 +282,7 @@ fn find_inline_site(
     function: &mir::Function,
     tree: &mir::Tree,
     scc_map: &CallGraphScc,
-    profile: Option<&mir::ProfileTable>,
-    hotness_policy: &CallsiteHotnessPolicy,
+    profile: Option<&mir::Profile>,
     inline_budget_scale_percent: u64,
     value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     block_counts: &HashMap<mir::LocalNodeId<mir::Block>, u64>,
@@ -330,7 +313,6 @@ fn find_inline_site(
                 arguments.len(),
                 *instruction_id,
                 profile,
-                hotness_policy,
                 inline_budget_scale_percent,
                 value_definitions,
                 block_counts,
@@ -373,8 +355,7 @@ fn inline_candidate(
     scc_map: &CallGraphScc,
     argument_count: usize,
     callsite_id: mir::LocalNodeId<mir::Instruction>,
-    profile: Option<&mir::ProfileTable>,
-    hotness_policy: &CallsiteHotnessPolicy,
+    profile: Option<&mir::Profile>,
     inline_budget_scale_percent: u64,
     value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     block_counts: &HashMap<mir::LocalNodeId<mir::Block>, u64>,
@@ -389,7 +370,6 @@ fn inline_candidate(
         argument_count,
         callsite_id,
         profile,
-        hotness_policy,
         inline_budget_scale_percent,
         value_definitions,
         block_count,
@@ -435,42 +415,28 @@ fn inline_score(
     scc_map: &CallGraphScc,
     argument_count: usize,
     callsite_id: mir::LocalNodeId<mir::Instruction>,
-    profile: Option<&mir::ProfileTable>,
-    hotness_policy: &CallsiteHotnessPolicy,
+    profile: Option<&mir::Profile>,
     inline_budget_scale_percent: u64,
     value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     block_count: u64,
     arguments: &[mir::Value],
 ) -> Option<InlineScore> {
-    let callsite_profile = profile.and_then(|profile| profile.callsite_profile(callsite_id));
-    let mut hotness = callsite_hotness(profile, caller_id, callsite_id, hotness_policy);
+    let callsite = mir::CallSite::Instruction(callsite_id);
+    let callsite_profile = profile.and_then(|profile| profile.callsite_profile(callsite));
+    let mut hotness = callsite_hotness(profile, caller_id, callsite);
     let entry_count = profile
-        .and_then(|profile| {
-            profile.function_profile(caller_id).map(|function_profile| {
-                scaled_profile_count(
-                    function_profile.entry_count,
-                    profile.source,
-                    &hotness_policy.scaling_policy(),
-                )
-            })
-        })
+        .and_then(|profile| profile.function_count(caller_id))
         .unwrap_or(0);
 
     if profile.is_some() {
         if callsite_profile.is_none() {
-            let block_hotness = block_hotness_from_counts(block_count, entry_count, hotness_policy);
+            let block_hotness = block_hotness_from_counts(block_count, entry_count);
             hotness = match block_hotness {
-                CallsiteHotness::Unknown => {
-                    if hotness_policy.missing_callsite_is_cold {
-                        CallsiteHotness::Cold
-                    } else {
-                        CallsiteHotness::Unknown
-                    }
-                }
+                CallsiteHotness::Unknown => CallsiteHotness::Cold,
                 _ => block_hotness,
             };
         } else if matches!(hotness, CallsiteHotness::Unknown) {
-            hotness = block_hotness_from_counts(block_count, entry_count, hotness_policy);
+            hotness = block_hotness_from_counts(block_count, entry_count);
         }
     }
 
@@ -507,7 +473,6 @@ fn inline_score(
     let benefit = inline_benefit(
         profile,
         callsite_id,
-        hotness_policy,
         hotness,
         arguments,
         value_definitions,
@@ -649,12 +614,7 @@ fn should_inline(
 }
 
 /// Inline a direct callsite into the caller.
-fn inline_callsite(
-    caller_id: mir::LocalNodeId<mir::Function>,
-    caller: &mut mir::Function,
-    tree: &mut mir::Tree,
-    site: &InlineSite,
-) -> bool {
+fn inline_callsite(caller: &mut mir::Function, tree: &mut mir::Tree, site: &InlineSite) -> bool {
     // load the callee and entry block
     let callee = tree.get(site.callee_id).clone();
     let Some(entry_block) = callee.entry else {
@@ -729,15 +689,14 @@ fn inline_callsite(
     }
 
     // remap the inlined blocks and rewrite returns
-    let call_provenance = tree.get_provenance(site.call_instruction_id.id);
+    let call_source = tree.get_source(site.call_instruction_id.id);
     remap_inline_blocks(
         tree,
-        caller_id,
         &callee,
         &block_map,
         &value_map,
         &local_map,
-        call_provenance,
+        call_source,
     );
     rewrite_inlined_returns(
         tree,
@@ -750,12 +709,6 @@ fn inline_callsite(
     tree.metadata
         .memory
         .remove_memory_accesses(site.call_instruction_id);
-    tree.metadata.debug.locations.remove(&mir::DebugPoint::new(
-        caller_id,
-        site.block_id,
-        site.call_index as u32,
-    ));
-
     true
 }
 
@@ -967,12 +920,11 @@ fn substitute_value_in_function(
 /// Remap values and locals in inlined blocks.
 fn remap_inline_blocks(
     tree: &mut mir::Tree,
-    caller_id: mir::LocalNodeId<mir::Function>,
     callee: &mir::Function,
     block_map: &HashMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
     value_map: &HashMap<mir::Value, mir::Value>,
     local_map: &HashMap<mir::LocalNodeId<mir::Local>, mir::LocalNodeId<mir::Local>>,
-    call_provenance: Option<mir::ProvenanceId>,
+    call_source: Option<u32>,
 ) {
     // clone instruction bodies and remap terminators for each block
     for block_id in &callee.blocks {
@@ -994,20 +946,11 @@ fn remap_inline_blocks(
             // clone memory access metadata onto the new instruction
             clone_instruction_metadata(tree, instruction_id, new_id, value_map);
 
-            // inlined instruction provenance
-            if let (Some(call_provenance), Some(instruction_provenance)) =
-                (call_provenance, tree.get_provenance(instruction_id.id))
+            // use call source when the callee instruction has no source
+            if tree.get_source(new_id.id).is_none()
+                && let Some(call_source) = call_source
             {
-                let provenance_id = tree.metadata.provenance.create(
-                    mir::ProvenanceAnchor::Mir(call_provenance),
-                    None,
-                    vec![
-                        mir::ProvenanceKey::Mir(call_provenance),
-                        mir::ProvenanceKey::Mir(instruction_provenance),
-                    ],
-                    Some(mir::ProvenanceReason::Inlined),
-                );
-                tree.set_provenance(new_id.id, provenance_id);
+                tree.set_source(new_id.id, call_source);
             }
 
             new_instructions.push(new_id);
@@ -1022,40 +965,6 @@ fn remap_inline_blocks(
         tree.replace(new_block.terminator, remapped_terminator);
 
         tree.replace(new_block_id, new_block);
-    }
-
-    clone_inlined_debug_locations(caller_id, callee, block_map, tree);
-}
-
-/// Clone callee debug locations onto the caller's inlined blocks.
-fn clone_inlined_debug_locations(
-    caller_id: mir::LocalNodeId<mir::Function>,
-    callee: &mir::Function,
-    block_map: &HashMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
-    tree: &mut mir::Tree,
-) {
-    // collect locations before mutating the table
-    let locations = tree
-        .metadata
-        .debug
-        .locations
-        .iter()
-        .filter_map(|(point, location)| {
-            if !callee.blocks.contains(&point.block) {
-                return None;
-            }
-
-            let new_block = block_map.get(&point.block).copied()?;
-            Some((
-                mir::DebugPoint::new(caller_id, new_block, point.point),
-                location.clone(),
-            ))
-        })
-        .collect::<Vec<_>>();
-
-    // append cloned locations to the debug table
-    for (point, location) in locations {
-        tree.metadata.debug.locations.insert(point, location);
     }
 }
 
@@ -1211,8 +1120,7 @@ fn scale_inline_budget(budget: u64, scale_percent: u64, max_budget: u64) -> u64 
 /// Compute the inline budget for a caller.
 fn inline_budget_for_function(
     function_id: mir::LocalNodeId<mir::Function>,
-    profile: Option<&mir::ProfileTable>,
-    policy: &CallsiteHotnessPolicy,
+    profile: Option<&mir::Profile>,
     inline_budget_scale_percent: u64,
 ) -> u64 {
     let Some(profile) = profile else {
@@ -1222,7 +1130,7 @@ fn inline_budget_for_function(
             INLINE_BUDGET_MAX,
         );
     };
-    let Some(function_profile) = profile.function_profile(function_id) else {
+    let Some(entry_count) = profile.function_count(function_id) else {
         return scale_inline_budget(
             INLINE_BUDGET_BASE,
             inline_budget_scale_percent,
@@ -1230,11 +1138,6 @@ fn inline_budget_for_function(
         );
     };
 
-    let entry_count = scaled_profile_count(
-        function_profile.entry_count,
-        profile.source,
-        &policy.scaling_policy(),
-    );
     if entry_count == 0 {
         return scale_inline_budget(
             INLINE_BUDGET_BASE,
@@ -1254,9 +1157,8 @@ fn inline_budget_for_function(
 // allow many arguments to keep the inline heuristics explicit
 #[allow(clippy::too_many_arguments)]
 fn inline_benefit(
-    profile: Option<&mir::ProfileTable>,
+    profile: Option<&mir::Profile>,
     callsite_id: mir::LocalNodeId<mir::Instruction>,
-    policy: &CallsiteHotnessPolicy,
     hotness: CallsiteHotness,
     arguments: &[mir::Value],
     value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
@@ -1283,14 +1185,8 @@ fn inline_benefit(
     let callsite_count = profile
         .and_then(|profile| {
             profile
-                .callsite_profile(callsite_id)
-                .map(|callsite_profile| {
-                    scaled_profile_count(
-                        callsite_profile.total_count,
-                        profile.source,
-                        &policy.scaling_policy(),
-                    )
-                })
+                .callsite_profile(mir::CallSite::Instruction(callsite_id))
+                .map(|callsite_profile| callsite_profile.total_count)
         })
         .unwrap_or(0);
     let callsite_count = if callsite_count == 0 {
@@ -1324,8 +1220,7 @@ fn inline_benefit(
 /// Compute the inline budget for a module.
 fn inline_budget_for_module(
     tree: &mir::Tree,
-    profile: Option<&mir::ProfileTable>,
-    policy: &CallsiteHotnessPolicy,
+    profile: Option<&mir::Profile>,
     inline_budget_scale_percent: u64,
 ) -> u64 {
     let Some(profile) = profile else {
@@ -1338,14 +1233,10 @@ fn inline_budget_for_module(
 
     let mut total_entry = 0u64;
     for (function_id, _) in tree.iter_nodes::<mir::Function>() {
-        let Some(function_profile) = profile.function_profile(function_id) else {
+        let Some(entry_count) = profile.function_count(function_id) else {
             continue;
         };
-        total_entry = total_entry.saturating_add(scaled_profile_count(
-            function_profile.entry_count,
-            profile.source,
-            &policy.scaling_policy(),
-        ));
+        total_entry = total_entry.saturating_add(entry_count);
     }
 
     let bonus = total_entry / INLINE_MODULE_BUDGET_ENTRY_DIVISOR;
@@ -1363,8 +1254,7 @@ fn inline_budget_for_module(
 fn inline_scc_budgets(
     tree: &mir::Tree,
     scc_map: &CallGraphScc,
-    profile: Option<&mir::ProfileTable>,
-    policy: &CallsiteHotnessPolicy,
+    profile: Option<&mir::Profile>,
     inline_budget_scale_percent: u64,
 ) -> HashMap<usize, u64> {
     let mut scc_entry_counts: HashMap<usize, u64> = HashMap::new();
@@ -1377,17 +1267,7 @@ fn inline_scc_budgets(
         scc_ids.insert(scc_id);
 
         let entry = profile
-            .and_then(|profile| {
-                profile
-                    .function_profile(function_id)
-                    .map(|function_profile| {
-                        scaled_profile_count(
-                            function_profile.entry_count,
-                            profile.source,
-                            &policy.scaling_policy(),
-                        )
-                    })
-            })
+            .and_then(|profile| profile.function_count(function_id))
             .unwrap_or(0);
         let total = scc_entry_counts.entry(scc_id).or_insert(0);
         *total = total.saturating_add(entry);
@@ -1495,7 +1375,7 @@ fn instruction_cost(instruction: &mir::Instruction, tree: &mir::Tree) -> u64 {
         | mir::Instruction::Pin { .. }
         | mir::Instruction::Unpin { .. }
         | mir::Instruction::Drop { .. }
-        | mir::Instruction::StackAlloc { .. } => INLINE_COST_ALLOC,
+        | mir::Instruction::FrameAlloc { .. } => INLINE_COST_ALLOC,
         mir::Instruction::Intrinsic { intrinsic, .. } => {
             if intrinsic.has_memory_effects() {
                 INLINE_COST_MEMORY + 2
@@ -1513,6 +1393,7 @@ fn terminator_cost(terminator: &mir::Terminator) -> u64 {
             panic!("recovered MIR terminator reached optimizer");
         }
         mir::Terminator::Return { .. } => INLINE_COST_SIMPLE,
+        mir::Terminator::Panic { .. } | mir::Terminator::ResumePanic => INLINE_COST_SIMPLE + 1,
         mir::Terminator::Trap { .. } => INLINE_COST_SIMPLE + 1,
         mir::Terminator::Jump { .. } => INLINE_COST_SIMPLE,
         mir::Terminator::Branch { .. }
@@ -1698,9 +1579,6 @@ b0:
             mir::MemoryAccessKind::Read,
             callee_pointer,
             None,
-            Vec::new(),
-            Vec::new(),
-            None,
         );
 
         test.run_module_pass(&Inline);
@@ -1831,8 +1709,8 @@ b0(v0: int32):
         let caller_id = test.function_id_by_name("caller");
         let (call_id, _) = test.first_call_in_entry(caller_id);
 
-        let mut profile = mir::ProfileTable::new(mir::ProfileSource::Instrumentation);
-        test.record_function_profile(&mut profile, caller_id, 100);
+        let mut profile = mir::Profile::new();
+        test.record_function_count(&mut profile, caller_id, 100);
         test.record_callsite_profile(&mut profile, call_id, 5);
 
         test.run_module_pass_with_profile(&Inline, profile);
@@ -1913,8 +1791,8 @@ b2(v7: int32):
         let callee_id = test.function_id_by_name("callee");
         let (call_id, _) = test.first_call_in_entry(caller_id);
 
-        let mut profile = mir::ProfileTable::new(mir::ProfileSource::Instrumentation);
-        test.record_function_profile(&mut profile, caller_id, 100);
+        let mut profile = mir::Profile::new();
+        test.record_function_count(&mut profile, caller_id, 100);
         test.record_callsite_profile(&mut profile, call_id, 200);
         for call_id in test.call_instructions_in_function(callee_id) {
             test.record_callsite_profile(&mut profile, call_id, 1);
@@ -1927,18 +1805,12 @@ b2(v7: int32):
     /// Inline budgets scale with profile entry counts.
     #[test]
     fn test_inline_budget_scales_with_profile() {
-        let policy = CallsiteHotnessPolicy::inline_default();
         let function_id = mir::LocalNodeId::<mir::Function>::new(1);
-        let mut profile = mir::ProfileTable::new(mir::ProfileSource::Instrumentation);
-        profile.functions.insert(
-            function_id,
-            mir::FunctionProfile {
-                entry_count: mir::ProfileCount::new(500, mir::ProfileConfidence::Precise),
-            },
-        );
+        let mut profile = mir::Profile::new();
+        profile.functions.insert(function_id, 500);
 
-        let base = inline_budget_for_function(function_id, None, &policy, 100);
-        let scaled = inline_budget_for_function(function_id, Some(&profile), &policy, 100);
+        let base = inline_budget_for_function(function_id, None, 100);
+        let scaled = inline_budget_for_function(function_id, Some(&profile), 100);
 
         assert!(scaled > base);
         assert!(scaled <= INLINE_BUDGET_MAX);
@@ -1946,10 +1818,9 @@ b2(v7: int32):
 
     /// Block profiles can classify hotness for missing callsite data.
     #[test]
-    fn test_inline_hotness_from_block_profile() {
-        let policy = CallsiteHotnessPolicy::inline_default();
-        let hot = block_hotness_from_counts(100, 100, &policy);
-        let cold = block_hotness_from_counts(1, 100, &policy);
+    fn test_inline_hotness_from_block_count() {
+        let hot = block_hotness_from_counts(100, 100);
+        let cold = block_hotness_from_counts(1, 100);
 
         assert_eq!(hot, CallsiteHotness::Hot);
         assert_eq!(cold, CallsiteHotness::Cold);
@@ -1958,7 +1829,6 @@ b2(v7: int32):
     /// Block execution counts fall back to edge profiles when missing.
     #[test]
     fn test_inline_block_counts_use_edges() {
-        let policy = CallsiteHotnessPolicy::inline_default();
         let input = r#"
 function test(): void {
 b0:
@@ -1975,11 +1845,11 @@ b1:
             *function.blocks.get(1).expect("missing block1")
         };
 
-        let mut profile = mir::ProfileTable::new(mir::ProfileSource::Instrumentation);
-        test.record_jump_edge_profile(&mut profile, block0, block1, 42);
+        let mut profile = mir::Profile::new();
+        test.record_jump_edge_count(&mut profile, block0, block1, 42);
 
         let function = test.tree.get(function_id);
-        let counts = block_execution_counts(function, &test.tree, Some(&profile), &policy);
+        let counts = block_execution_counts(function, &test.tree, Some(&profile));
 
         assert_eq!(counts.get(&block1), Some(&42));
     }

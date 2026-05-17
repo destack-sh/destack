@@ -108,7 +108,8 @@ fn enforce_call_effects(
                 continue;
             }
 
-            if instruction.call_memory_effect().is_none() {
+            let callsite = mir::CallSite::Instruction(*instruction_id);
+            if tree.metadata.functions.call(callsite).is_none() {
                 emit_missing_requirement(
                     ctx,
                     metadata,
@@ -116,11 +117,6 @@ fn enforce_call_effects(
                     *instruction_id,
                     "call memory effects",
                 );
-                ok = false;
-            }
-
-            if instruction.call_behavior().is_none() {
-                emit_missing_requirement(ctx, metadata, tree, *instruction_id, "call behavior");
                 ok = false;
             }
         }
@@ -175,13 +171,13 @@ fn enforce_memory_metadata(
                     ok = false;
                 }
 
-                if access.address_space.is_none() {
+                if access.space.is_none() {
                     emit_missing_requirement(
                         ctx,
                         metadata,
                         tree,
                         *instruction_id,
-                        "memory access address space",
+                        "memory access space",
                     );
                     ok = false;
                 }

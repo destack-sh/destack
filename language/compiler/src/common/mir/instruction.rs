@@ -154,7 +154,7 @@ pub fn instruction_is_pure(instruction: &mir::Instruction) -> bool {
         mir::Instruction::New { .. }
         | mir::Instruction::NewSlice { .. }
         | mir::Instruction::RawAlloc { .. }
-        | mir::Instruction::StackAlloc { .. } => false,
+        | mir::Instruction::FrameAlloc { .. } => false,
 
         // deallocation has side effects
         mir::Instruction::RawFree { .. } | mir::Instruction::Free { .. } => false,
@@ -321,7 +321,7 @@ pub fn instruction_has_side_effects(instruction: &mir::Instruction) -> bool {
         mir::Instruction::New { .. }
         | mir::Instruction::NewSlice { .. }
         | mir::Instruction::RawAlloc { .. }
-        | mir::Instruction::StackAlloc { .. } => true,
+        | mir::Instruction::FrameAlloc { .. } => true,
 
         // deallocation has side effects
         mir::Instruction::RawFree { .. } | mir::Instruction::Free { .. } => true,
@@ -384,7 +384,7 @@ pub fn instruction_may_affect_memory(instruction: &mir::Instruction) -> bool {
             | mir::Instruction::Pin { .. }
             | mir::Instruction::Unpin { .. }
             | mir::Instruction::Drop { .. }
-            | mir::Instruction::StackAlloc { .. }
+            | mir::Instruction::FrameAlloc { .. }
     )
 }
 
@@ -422,9 +422,9 @@ pub fn instruction_is_read_only_access(
 
 /// Check if a read only instruction can be moved before other memory operations.
 pub fn instruction_allows_read_only_motion(
-    _instruction_id: mir::LocalNodeId<mir::Instruction>,
+    instruction_id: mir::LocalNodeId<mir::Instruction>,
     instruction: &mir::Instruction,
-    _tree: &mir::Tree,
+    tree: &mir::Tree,
 ) -> bool {
     // accept non call instructions
     let is_call = matches!(
@@ -439,13 +439,14 @@ pub fn instruction_allows_read_only_motion(
     }
 
     // require call metadata to be present
-    let Some(behavior) = instruction.call_behavior() else {
+    let callsite = mir::CallSite::Instruction(instruction_id);
+    let Some(metadata) = tree.metadata.functions.call(callsite) else {
         return false;
     };
-    if behavior.must_not_duplicate
-        || behavior.return_behavior.is_no_return()
-        || behavior.allocation.allocate.is_some()
-        || behavior.allocation.free.is_some()
+    if metadata.behavior.must_not_duplicate
+        || metadata.behavior.return_behavior.is_no_return()
+        || metadata.behavior.allocates
+        || metadata.behavior.frees
     {
         return false;
     }
@@ -1075,28 +1076,26 @@ pub fn instruction_substitute_uses(
             destination,
             receiver,
             call,
-            declaring_type,
+            class,
             slot,
-            declared_target,
         } => mir::Instruction::CallClass {
             destination: *destination,
             receiver: substitute(receiver),
             call: call.clone(),
-            declaring_type: *declaring_type,
+            class: *class,
             slot: *slot,
-            declared_target: *declared_target,
         },
         mir::Instruction::CallInterface {
             destination,
             receiver,
             call,
-            declaring_type,
+            interface,
             slot,
         } => mir::Instruction::CallInterface {
             destination: *destination,
             receiver: substitute(receiver),
             call: call.clone(),
-            declaring_type: *declaring_type,
+            interface: *interface,
             slot: *slot,
         },
         mir::Instruction::CallIndirect {
@@ -1136,7 +1135,7 @@ pub fn instruction_substitute_uses(
         | mir::Instruction::CallableEnvironment { .. }
         | mir::Instruction::New { .. }
         | mir::Instruction::RawAlloc { .. }
-        | mir::Instruction::StackAlloc { .. }
+        | mir::Instruction::FrameAlloc { .. }
         | mir::Instruction::Intrinsic { .. } => instruction.clone(),
     }
 }
@@ -1547,28 +1546,26 @@ pub fn instruction_substitute_uses_in_tree(
             destination,
             receiver,
             call,
-            declaring_type,
+            class,
             slot,
-            declared_target,
         } => mir::Instruction::CallClass {
             destination: *destination,
             receiver: substitute(*receiver),
             call: clone_call_with_arguments(call, substitute_arguments(call.arguments)),
-            declaring_type: *declaring_type,
+            class: *class,
             slot: *slot,
-            declared_target: *declared_target,
         },
         mir::Instruction::CallInterface {
             destination,
             receiver,
             call,
-            declaring_type,
+            interface,
             slot,
         } => mir::Instruction::CallInterface {
             destination: *destination,
             receiver: substitute(*receiver),
             call: clone_call_with_arguments(call, substitute_arguments(call.arguments)),
-            declaring_type: *declaring_type,
+            interface: *interface,
             slot: *slot,
         },
         mir::Instruction::CallIndirect {
@@ -1855,9 +1852,9 @@ pub fn clone_instruction_metadata(
     cloned: mir::LocalNodeId<mir::Instruction>,
     value_map: &HashMap<mir::Value, mir::Value>,
 ) {
-    // preserve instruction provenance by default
-    if let Some(provenance_id) = tree.get_provenance(original.id) {
-        tree.set_provenance(cloned.id, provenance_id);
+    // preserve instruction source by default
+    if let Some(source_id) = tree.get_source(original.id) {
+        tree.set_source(cloned.id, source_id);
     }
 
     // clone memory access metadata
@@ -2644,28 +2641,26 @@ pub fn instruction_map(
             destination,
             receiver,
             call,
-            declaring_type,
+            class,
             slot,
-            declared_target,
         } => mir::Instruction::CallClass {
             destination: destination.map(remap),
             receiver: remap(*receiver),
             call: clone_call_with_arguments(call, remap_arguments(call.arguments)),
-            declaring_type: *declaring_type,
+            class: *class,
             slot: *slot,
-            declared_target: *declared_target,
         },
         mir::Instruction::CallInterface {
             destination,
             receiver,
             call,
-            declaring_type,
+            interface,
             slot,
         } => mir::Instruction::CallInterface {
             destination: destination.map(remap),
             receiver: remap(*receiver),
             call: clone_call_with_arguments(call, remap_arguments(call.arguments)),
-            declaring_type: *declaring_type,
+            interface: *interface,
             slot: *slot,
         },
         mir::Instruction::CallIndirect {
@@ -2709,11 +2704,11 @@ pub fn instruction_map(
         mir::Instruction::RawFree { pointer } => mir::Instruction::RawFree {
             pointer: remap(*pointer),
         },
-        mir::Instruction::StackAlloc {
+        mir::Instruction::FrameAlloc {
             destination,
             layout,
             result_type,
-        } => mir::Instruction::StackAlloc {
+        } => mir::Instruction::FrameAlloc {
             destination: remap(*destination),
             layout: *layout,
             result_type: *result_type,
@@ -3419,11 +3414,11 @@ pub fn instruction_map_with_locals(
         mir::Instruction::Drop { place } => mir::Instruction::Drop {
             place: place_map_values_and_locals(place, value_map, local_map),
         },
-        mir::Instruction::StackAlloc {
+        mir::Instruction::FrameAlloc {
             destination,
             layout,
             result_type,
-        } => mir::Instruction::StackAlloc {
+        } => mir::Instruction::FrameAlloc {
             destination: remap(*destination),
             layout: *layout,
             result_type: *result_type,
@@ -3441,28 +3436,26 @@ pub fn instruction_map_with_locals(
             destination,
             receiver,
             call,
-            declaring_type,
+            class,
             slot,
-            declared_target,
         } => mir::Instruction::CallClass {
             destination: destination.map(remap),
             receiver: remap(*receiver),
             call: clone_call_with_arguments(call, remap_arguments(call.arguments)),
-            declaring_type: *declaring_type,
+            class: *class,
             slot: *slot,
-            declared_target: *declared_target,
         },
         mir::Instruction::CallInterface {
             destination,
             receiver,
             call,
-            declaring_type,
+            interface,
             slot,
         } => mir::Instruction::CallInterface {
             destination: destination.map(remap),
             receiver: remap(*receiver),
             call: clone_call_with_arguments(call, remap_arguments(call.arguments)),
-            declaring_type: *declaring_type,
+            interface: *interface,
             slot: *slot,
         },
         mir::Instruction::CallIndirect {
@@ -3677,49 +3670,75 @@ pub fn terminator_remap(
             remap_target(resume);
             remap_args(&mut resume.arguments);
         }
-        mir::Terminator::Call { call, target, .. } => {
+        mir::Terminator::Call {
+            call,
+            target,
+            unwind,
+            ..
+        } => {
             remap_args(&mut call.arguments);
             remap_target(target);
             remap_args(&mut target.arguments);
+            if let Some(unwind) = unwind {
+                remap_target(unwind);
+                remap_args(&mut unwind.arguments);
+            }
         }
         mir::Terminator::CallIndirect {
             callee,
             call,
             target,
+            unwind,
             ..
         } => {
             remap_value(callee);
             remap_args(&mut call.arguments);
             remap_target(target);
             remap_args(&mut target.arguments);
+            if let Some(unwind) = unwind {
+                remap_target(unwind);
+                remap_args(&mut unwind.arguments);
+            }
         }
         mir::Terminator::CallClass {
             receiver,
             call,
             target,
+            unwind,
             ..
         } => {
             remap_value(receiver);
             remap_args(&mut call.arguments);
             remap_target(target);
             remap_args(&mut target.arguments);
+            if let Some(unwind) = unwind {
+                remap_target(unwind);
+                remap_args(&mut unwind.arguments);
+            }
         }
         mir::Terminator::CallInterface {
             receiver,
             call,
             target,
+            unwind,
             ..
         } => {
             remap_value(receiver);
             remap_args(&mut call.arguments);
             remap_target(target);
             remap_args(&mut target.arguments);
+            if let Some(unwind) = unwind {
+                remap_target(unwind);
+                remap_args(&mut unwind.arguments);
+            }
         }
-        mir::Terminator::Trap { payload, .. } => {
+        mir::Terminator::Panic { payload } => {
             if let Some(payload) = payload {
                 remap_value(payload);
             }
         }
+        mir::Terminator::ResumePanic => {}
+        mir::Terminator::Trap { .. } => {}
         mir::Terminator::Unreachable => {}
         mir::Terminator::TailCall {
             function: _, call, ..

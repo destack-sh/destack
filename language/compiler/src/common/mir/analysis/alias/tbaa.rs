@@ -30,10 +30,9 @@ impl TypeBasedAA {
             (loc_a.pointer_kind, loc_b.pointer_kind),
             (Some(mir::ReferenceKind::Raw), _) | (_, Some(mir::ReferenceKind::Raw))
         ) {
-            if let (Some(space_a), Some(space_b)) = (
-                loc_a.pointer_address_space.clone(),
-                loc_b.pointer_address_space.clone(),
-            ) && space_a != space_b
+            if let (Some(space_a), Some(space_b)) =
+                (loc_a.pointer_space.clone(), loc_b.pointer_space.clone())
+                && space_a != space_b
             {
                 return AliasResult::NoAlias;
             }
@@ -61,8 +60,7 @@ impl TypeBasedAA {
     /// - Different aggregate types (struct vs tuple)
     /// - Scalars vs aggregates
     fn types_cannot_alias(&self, ty_a: &TypeKey, ty_b: &TypeKey) -> bool {
-        if let (Some(space_a), Some(space_b)) =
-            (Self::address_space_of(ty_a), Self::address_space_of(ty_b))
+        if let (Some(space_a), Some(space_b)) = (Self::space_of(ty_a), Self::space_of(ty_b))
             && space_a != space_b
         {
             return true;
@@ -138,15 +136,15 @@ impl TypeBasedAA {
                 },
             ) => self.types_cannot_alias(e1, e2),
 
-            // references with different address spaces or pointee types
+            // references with different spaces or pointee types
             (
                 TypeKey::Reference {
-                    address_space: a1,
+                    space: a1,
                     pointee: p1,
                     ..
                 },
                 TypeKey::Reference {
-                    address_space: a2,
+                    space: a2,
                     pointee: p2,
                     ..
                 },
@@ -181,11 +179,11 @@ impl TypeBasedAA {
         }
     }
 
-    /// Return the address space for reference-like types.
-    fn address_space_of(ty: &TypeKey) -> Option<mir::AddressSpace> {
+    /// Return the space for reference-like types.
+    fn space_of(ty: &TypeKey) -> Option<mir::Space> {
         match ty {
-            TypeKey::Reference { address_space, .. } => Some(address_space.clone()),
-            TypeKey::TensorView { address_space, .. } => Some(address_space.clone()),
+            TypeKey::Reference { space, .. } => Some(space.clone()),
+            TypeKey::TensorView { space, .. } => Some(space.clone()),
             _ => None,
         }
     }
@@ -459,7 +457,7 @@ mod tests {
         let ref_i32 = TypeKey::Reference {
             kind: mir::ReferenceKind::Raw,
             lifetime: mir::Lifetime::empty(),
-            address_space: mir::AddressSpace::Local,
+            space: mir::Space::Local,
             access: mir::Access::Mutable,
             pointee: Box::new(TypeKey::Int {
                 width: 32,
@@ -470,7 +468,7 @@ mod tests {
         let ref_f64 = TypeKey::Reference {
             kind: mir::ReferenceKind::Raw,
             lifetime: mir::Lifetime::empty(),
-            address_space: mir::AddressSpace::Local,
+            space: mir::Space::Local,
             access: mir::Access::Mutable,
             pointee: Box::new(TypeKey::Float { width: 64 }),
             nullability: mir::Nullability::None,
@@ -517,7 +515,7 @@ mod tests {
         let ref_ty = TypeKey::Reference {
             kind: mir::ReferenceKind::Raw,
             lifetime: mir::Lifetime::empty(),
-            address_space: mir::AddressSpace::Local,
+            space: mir::Space::Local,
             access: mir::Access::Mutable,
             pointee: Box::new(TypeKey::Int {
                 width: 32,
@@ -544,7 +542,7 @@ mod tests {
         let ref_ty = TypeKey::Reference {
             kind: mir::ReferenceKind::Raw,
             lifetime: mir::Lifetime::empty(),
-            address_space: mir::AddressSpace::Local,
+            space: mir::Space::Local,
             access: mir::Access::Mutable,
             pointee: Box::new(TypeKey::Int {
                 width: 32,
@@ -560,15 +558,15 @@ mod tests {
         assert_eq!(tbaa.alias(&loc1, &loc2), AliasResult::MayAlias);
     }
 
-    /// References in different address spaces do not alias.
+    /// References in different spaces do not alias.
     #[test]
-    fn test_references_different_address_spaces_no_alias() {
+    fn test_references_different_spaces_no_alias() {
         let tbaa = TypeBasedAA::new();
 
         let ref_generic = TypeKey::Reference {
             kind: mir::ReferenceKind::Raw,
             lifetime: mir::Lifetime::empty(),
-            address_space: mir::AddressSpace::Local,
+            space: mir::Space::Local,
             access: mir::Access::Mutable,
             pointee: Box::new(TypeKey::Int {
                 width: 32,
@@ -579,7 +577,7 @@ mod tests {
         let ref_shared = TypeKey::Reference {
             kind: mir::ReferenceKind::Raw,
             lifetime: mir::Lifetime::empty(),
-            address_space: mir::AddressSpace::Shared,
+            space: mir::Space::Shared,
             access: mir::Access::Mutable,
             pointee: Box::new(TypeKey::Int {
                 width: 32,
@@ -591,7 +589,7 @@ mod tests {
         let loc1 = make_loc_with_type(0, ref_generic);
         let loc2 = make_loc_with_type(1, ref_shared);
 
-        // distinct address spaces cannot alias
+        // distinct spaces cannot alias
         assert_eq!(tbaa.alias(&loc1, &loc2), AliasResult::NoAlias);
     }
 

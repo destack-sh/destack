@@ -240,7 +240,7 @@ b0(v0: ref<int32, borrowed>, v1: ref<int32, borrowed, readonly>):
             r#"
 function test(v0: ref<int32, borrowed>): void {
 b0(v0: ref<int32, borrowed>):
-    v1: ref<int32, raw, space(stack)> = stack.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc int32
     v2: int32 = 1int32
     store v0, v2
     store v1, v2

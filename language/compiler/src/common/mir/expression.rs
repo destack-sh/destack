@@ -615,7 +615,7 @@ pub fn expression_key_from_instruction(
         | mir::Instruction::Pin { .. }
         | mir::Instruction::Unpin { .. }
         | mir::Instruction::Drop { .. }
-        | mir::Instruction::StackAlloc { .. }
+        | mir::Instruction::FrameAlloc { .. }
         | mir::Instruction::Struct { .. }
         | mir::Instruction::Tuple { .. }
         | mir::Instruction::Array { .. }

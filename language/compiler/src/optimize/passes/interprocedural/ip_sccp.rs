@@ -720,16 +720,16 @@ fn call_is_pure(
     call_instruction: mir::LocalNodeId<mir::Instruction>,
     callee: mir::LocalNodeId<mir::Function>,
 ) -> bool {
-    let instruction = tree.get(call_instruction);
     // resolve callsite effects when present
-    let effects = instruction
-        .call_memory_effect()
-        .cloned()
-        .or_else(|| Some(tree.get(callee).memory_effect.clone()));
-    let behavior = instruction
-        .call_behavior()
-        .cloned()
-        .or_else(|| Some(tree.get(callee).call_behavior.clone()));
+    let callsite = mir::CallSite::Instruction(call_instruction);
+    let call_metadata = tree.metadata.functions.call(callsite);
+    let function_metadata = tree.metadata.functions.function(callee);
+    let effects = call_metadata
+        .map(|metadata| metadata.memory.clone())
+        .or_else(|| function_metadata.map(|metadata| metadata.memory.clone()));
+    let behavior = call_metadata
+        .map(|metadata| metadata.behavior.clone())
+        .or_else(|| function_metadata.map(|metadata| metadata.behavior.clone()));
 
     // reject calls with no effect metadata
     let Some(effects) = effects else {
@@ -747,8 +747,8 @@ fn call_is_pure(
     // reject calls with non local behavior
     if behavior.return_behavior.is_no_return()
         || behavior.must_not_duplicate
-        || behavior.allocation.allocate.is_some()
-        || behavior.allocation.free.is_some()
+        || behavior.allocates
+        || behavior.frees
     {
         return false;
     }
@@ -823,8 +823,9 @@ b0:
 
         let mut test = TestProgram::new(input);
         let callee_id = test.function_id_by_name("pure");
-        test.tree.get_mut(callee_id).memory_effect = mir::MemoryEffect::none();
-        test.tree.get_mut(callee_id).call_behavior = mir::CallBehavior::none();
+        let metadata = test.tree.metadata.functions.function_mut(callee_id);
+        metadata.memory = mir::MemoryEffect::none();
+        metadata.behavior = mir::FunctionBehavior::none();
 
         test.run_module_pass(&InterproceduralSccp);
         test.assert_output(expected);
@@ -923,7 +924,7 @@ b0:
 b1(v1: int32):
     return v1
 b2(v2: ref<int32, managed, readonly>):
-    trap.panic v2
+    panic v2
 }"#;
 
         let expected = r#"
@@ -939,7 +940,7 @@ b0:
 b1(v1: int32):
     return v1
 b2(v2: ref<int32, managed, readonly>):
-    trap.panic v2
+    panic v2
 }"#;
 
         let mut test = TestProgram::new(input);

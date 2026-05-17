@@ -333,7 +333,7 @@ fn collect_written_globals(
                 if let mir::Instruction::Call { call, .. }
                 | mir::Instruction::CallClass { call, .. }
                 | mir::Instruction::CallInterface { call, .. } = instruction
-                    && call_writes_memory(tree, instruction)
+                    && call_writes_memory(tree, instruction_id, instruction)
                     && any_argument_global(&call.arguments, &definitions, addr_info, tree)
                 {
                     written.extend(globals_from_arguments(
@@ -346,7 +346,7 @@ fn collect_written_globals(
                 }
 
                 if let mir::Instruction::CallIndirect { call, .. } = instruction
-                    && call_writes_memory(tree, instruction)
+                    && call_writes_memory(tree, instruction_id, instruction)
                 {
                     if any_argument_global(&call.arguments, &definitions, addr_info, tree) {
                         written.extend(globals_from_arguments(
@@ -473,7 +473,7 @@ fn global_addr_base(
             } => {
                 if matches!(
                     intrinsic,
-                    mir::Intrinsic::AddressSpaceCast | mir::Intrinsic::Transmute
+                    mir::Intrinsic::SpaceCast | mir::Intrinsic::Transmute
                 ) {
                     let argument = tree.get_arguments(*arguments).first()?;
                     current = argument.value()?;
@@ -496,20 +496,24 @@ fn intrinsic_writes_memory(intrinsic: mir::Intrinsic) -> bool {
 }
 
 /// Return true when a callsite may write memory.
-fn call_writes_memory(tree: &mir::Tree, instruction: &mir::Instruction) -> bool {
-    let Some(effects) = instruction.call_memory_effect() else {
-        let Some(function) = instruction.call_declared_target() else {
-            return true;
-        };
+fn call_writes_memory(
+    tree: &mir::Tree,
+    instruction_id: mir::LocalNodeId<mir::Instruction>,
+    instruction: &mir::Instruction,
+) -> bool {
+    let callsite = mir::CallSite::Instruction(instruction_id);
+    if let Some(metadata) = tree.metadata.functions.call(callsite) {
+        return metadata.memory.writes;
+    }
 
-        let Some(function) = function.function() else {
-            return true;
-        };
-
-        return function_memory_writes_from_tree(tree, function);
+    let Some(function) = instruction
+        .call_direct_target()
+        .and_then(|target| target.function())
+    else {
+        return true;
     };
 
-    effects.writes
+    function_memory_writes_from_tree(tree, function)
 }
 
 /// Return terminator arguments when the terminator may write memory.
@@ -528,12 +532,13 @@ fn terminator_write_arguments(
         | mir::Terminator::CallInterface { receiver, call, .. }
         | mir::Terminator::TailCallClass { receiver, call, .. }
         | mir::Terminator::TailCallInterface { receiver, call, .. } => {
-            let block = tree.get(block_id);
-            let terminator = tree.get(block.terminator);
-            let declared_target = terminator.call_declared_target();
+            let target = tree
+                .metadata
+                .functions
+                .call(mir::CallSite::Terminator(block_id))
+                .and_then(|metadata| metadata.target);
 
-            let may_write = declared_target
-                .and_then(|function| function.function())
+            let may_write = target
                 .map(|function| function_memory_writes_from_tree(tree, function))
                 .unwrap_or(true);
 
@@ -559,7 +564,11 @@ fn function_memory_writes_from_tree(
     tree: &mir::Tree,
     function: mir::LocalNodeId<mir::Function>,
 ) -> bool {
-    tree.get(function).memory_effect.writes
+    tree.metadata
+        .functions
+        .function(function)
+        .map(|metadata| metadata.memory.writes)
+        .unwrap_or(true)
 }
 
 #[cfg(test)]
@@ -664,7 +673,7 @@ b0(v0: ref<void, managed, readonly>):
 b1:
     return
 b2(v2: ref<void, managed, readonly>):
-    trap.panic v2
+    panic v2
 }"#;
 
         let mut test = TestProgram::new(input);

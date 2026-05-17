@@ -7,11 +7,10 @@ use crate::common::mir::analysis::{
     ControlFlowGraph, DominatorTree, Loop, LoopAnalysis, ScalarEvolution, Scev,
 };
 use crate::common::mir::{
-    BlockParamForwarding, CallsiteHotness, CallsiteHotnessPolicy, ValueTypeMap,
-    block_execution_counts, block_hotness_from_counts, build_use_def_maps,
-    build_value_definition_map, clone_instruction_metadata, clone_loop_blocks,
-    instruction_is_speculatable, instruction_map, terminator_arguments_for_successor,
-    terminator_remap,
+    BlockParamForwarding, CallsiteHotness, ValueTypeMap, block_execution_counts,
+    block_hotness_from_counts, build_use_def_maps, build_value_definition_map,
+    clone_instruction_metadata, clone_loop_blocks, instruction_is_speculatable, instruction_map,
+    terminator_arguments_for_successor, terminator_remap,
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
@@ -363,9 +362,8 @@ fn run_loop_unroll(
     }
 
     // collect profile data for hotness decisions
-    let hotness_policy = ctx.inline_hotness_policy();
     let block_counts = match ctx.profile() {
-        Some(profile) => block_execution_counts(function, tree, Some(profile), hotness_policy),
+        Some(profile) => block_execution_counts(function, tree, Some(profile)),
         None => HashMap::new(),
     };
     let entry_count = function
@@ -409,13 +407,9 @@ fn run_loop_unroll(
                 continue;
             }
 
-            let Some(limits) = unroll_limits_for_loop(
-                lp.header,
-                &block_counts,
-                entry_count,
-                hotness_policy,
-                unroll_threshold,
-            ) else {
+            let Some(limits) =
+                unroll_limits_for_loop(lp.header, &block_counts, entry_count, unroll_threshold)
+            else {
                 continue;
             };
 
@@ -476,9 +470,8 @@ fn run_loop_unroll_and_jam(
     }
 
     // collect profile data for hotness decisions
-    let hotness_policy = ctx.inline_hotness_policy();
     let block_counts = match ctx.profile() {
-        Some(profile) => block_execution_counts(function, tree, Some(profile), hotness_policy),
+        Some(profile) => block_execution_counts(function, tree, Some(profile)),
         None => HashMap::new(),
     };
     let entry_count = function
@@ -532,13 +525,9 @@ fn run_loop_unroll_and_jam(
             };
             let inner = &loops.loops()[inner_index];
 
-            let Some(limits) = unroll_limits_for_loop(
-                outer.header,
-                &block_counts,
-                entry_count,
-                hotness_policy,
-                unroll_threshold,
-            ) else {
+            let Some(limits) =
+                unroll_limits_for_loop(outer.header, &block_counts, entry_count, unroll_threshold)
+            else {
                 continue;
             };
 
@@ -2055,7 +2044,6 @@ fn unroll_limits_for_loop(
     header: mir::LocalNodeId<mir::Block>,
     block_counts: &HashMap<mir::LocalNodeId<mir::Block>, u64>,
     entry_count: u64,
-    policy: &CallsiteHotnessPolicy,
     unroll_threshold: usize,
 ) -> Option<UnrollLimits> {
     // default to base limits when no profile data exists
@@ -2070,7 +2058,7 @@ fn unroll_limits_for_loop(
 
     // classify loop hotness from the header count
     let header_count = block_counts.get(&header).copied().unwrap_or(0);
-    let hotness = block_hotness_from_counts(header_count, entry_count, policy);
+    let hotness = block_hotness_from_counts(header_count, entry_count);
     if matches!(hotness, CallsiteHotness::Cold) {
         return None;
     }
@@ -3241,9 +3229,9 @@ b3(v7: int32):
         let entry = function.entry.unwrap();
         let header = function.blocks[1];
 
-        let mut profile = mir::ProfileTable::new(mir::ProfileSource::Instrumentation);
-        test.record_block_profile(&mut profile, entry, 100);
-        test.record_block_profile(&mut profile, header, 1);
+        let mut profile = mir::Profile::new();
+        test.record_block_count(&mut profile, entry, 100);
+        test.record_block_count(&mut profile, header, 1);
 
         test.run_pass_with_profile(&LoopUnroll, profile);
         test.assert_output(input);

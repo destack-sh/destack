@@ -156,18 +156,28 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::Tree) -> boo
                         .push((block_id, resume.arguments.clone()));
                 }
             }
-            mir::Terminator::Call { target, .. }
-            | mir::Terminator::CallIndirect { target, .. }
-            | mir::Terminator::CallClass { target, .. }
-            | mir::Terminator::CallInterface { target, .. } => {
+            mir::Terminator::Call { target, unwind, .. }
+            | mir::Terminator::CallIndirect { target, unwind, .. }
+            | mir::Terminator::CallClass { target, unwind, .. }
+            | mir::Terminator::CallInterface { target, unwind, .. } => {
                 if let Some(target_block) = target.block.block() {
                     predecessors
                         .get_mut(&target_block)
                         .unwrap()
                         .push((block_id, target.arguments.clone()));
                 }
+                if let Some(unwind) = unwind
+                    && let Some(target_block) = unwind.block.block()
+                {
+                    predecessors
+                        .get_mut(&target_block)
+                        .unwrap()
+                        .push((block_id, unwind.arguments.clone()));
+                }
             }
             mir::Terminator::Return { .. }
+            | mir::Terminator::Panic { .. }
+            | mir::Terminator::ResumePanic
             | mir::Terminator::Trap { .. }
             | mir::Terminator::Unreachable
             | mir::Terminator::TailCall { .. }

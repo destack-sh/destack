@@ -30,11 +30,11 @@ struct ReturnBlockInfo {
 /// Maximum instructions to duplicate during tail duplication.
 const MAX_TAIL_DUP_INSTRUCTIONS: usize = 6;
 /// Maximum predecessors to duplicate per block.
-const MAX_TAIL_DUP_PREIECESSORS: usize = 4;
+const MAX_TAIL_DUP_PREDECESSORS: usize = 4;
 /// Ratio of total edge count required to duplicate all hot edges.
-const TAIL_DUP_HOT_EIGE_RATIO: f64 = 0.70;
+const TAIL_DUP_HOT_EDGE_RATIO: f64 = 0.70;
 /// Ratio of total edge count required to duplicate the hottest edge.
-const TAIL_DUP_MIN_EIGE_RATIO: f64 = 0.20;
+const TAIL_DUP_MIN_EDGE_RATIO: f64 = 0.20;
 /// Maximum rounds of CFG simplification before reanalysis.
 const MAX_SIMPLIFY_CFG_ITERATIONS: usize = 8;
 
@@ -129,7 +129,7 @@ impl FunctionPass for SimplifyCfg {
 fn run_simplify_cfg(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    profile: Option<&mir::ProfileTable>,
+    profile: Option<&mir::Profile>,
     ctx: &PipelineContext<'_>,
 ) -> bool {
     // track whether any changes were made
@@ -2039,7 +2039,7 @@ struct JumpPredecessor {
 fn tail_duplicate_blocks(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    profile: Option<&mir::ProfileTable>,
+    profile: Option<&mir::Profile>,
     domtree: &DominatorTree,
     profiled_targets: &mut HashSet<mir::LocalNodeId<mir::Block>>,
 ) -> bool {
@@ -2164,7 +2164,7 @@ fn tail_duplicate_blocks(
             continue;
         }
 
-        if safe_candidates.len() > MAX_TAIL_DUP_PREIECESSORS {
+        if safe_candidates.len() > MAX_TAIL_DUP_PREDECESSORS {
             continue;
         }
 
@@ -2278,7 +2278,7 @@ fn values_available_in_block(
 fn select_tail_dup_predecessors(
     block_id: mir::LocalNodeId<mir::Block>,
     jump_predecessors: &[JumpPredecessor],
-    profile: Option<&mir::ProfileTable>,
+    profile: Option<&mir::Profile>,
 ) -> Vec<JumpPredecessor> {
     // fall back to all predecessors when profile data is missing
     let Some(profile) = profile else {
@@ -2290,7 +2290,7 @@ fn select_tail_dup_predecessors(
     let mut counts: HashMap<mir::LocalNodeId<mir::Block>, u64> = HashMap::new();
     for pred in jump_predecessors {
         let edge = mir::EdgeKey::new(pred.pred, mir::EdgeKind::Jump, block_id);
-        let count = profile.edge_count(&edge).map(|c| c.value).unwrap_or(0);
+        let count = profile.edge_count(&edge).unwrap_or(0);
         total_count = total_count.saturating_add(count);
         counts.insert(pred.pred, count);
     }
@@ -2305,7 +2305,7 @@ fn select_tail_dup_predecessors(
     for pred in jump_predecessors {
         let count = counts.get(&pred.pred).copied().unwrap_or(0);
         let ratio = count as f64 / total_count as f64;
-        if ratio >= TAIL_DUP_HOT_EIGE_RATIO {
+        if ratio >= TAIL_DUP_HOT_EDGE_RATIO {
             hot_preds.push(pred.pred);
         }
     }
@@ -2331,7 +2331,7 @@ fn select_tail_dup_predecessors(
         return Vec::new();
     };
     let ratio = hottest_count as f64 / total_count as f64;
-    if ratio < TAIL_DUP_MIN_EIGE_RATIO {
+    if ratio < TAIL_DUP_MIN_EDGE_RATIO {
         return Vec::new();
     }
 
@@ -3213,9 +3213,9 @@ b3(v3: int32):
         test.assert_unchanged(input);
     }
 
-    /// Multiple disconnected unreachable regions are all eliminated.
+    /// Multiple disconnected unreachable spaces are all eliminated.
     #[test]
-    fn test_eliminate_multiple_unreachable_regions() {
+    fn test_eliminate_multiple_unreachable_spaces() {
         let input = r#"
 function test(): int32 {
 b0:
@@ -3697,9 +3697,9 @@ b4(v6: int32):
         let domtree = analyses.get::<DominatorTree>().clone();
 
         // build the profile table for jump edges
-        let mut profile = mir::ProfileTable::new(mir::ProfileSource::Instrumentation);
-        test.record_jump_edge_profile(&mut profile, hot_pred, tail_block, 100);
-        test.record_jump_edge_profile(&mut profile, cold_pred, tail_block, 1);
+        let mut profile = mir::Profile::new();
+        test.record_jump_edge_count(&mut profile, hot_pred, tail_block, 100);
+        test.record_jump_edge_count(&mut profile, cold_pred, tail_block, 1);
 
         // run tail duplication with the profile data
         function.recompute_next_value_id(&test.tree);
@@ -4301,6 +4301,8 @@ b0:
                 mir::Terminator::Error => {}
                 mir::Terminator::Return { .. }
                 | mir::Terminator::Unreachable
+                | mir::Terminator::Panic { .. }
+                | mir::Terminator::ResumePanic
                 | mir::Terminator::Trap { .. }
                 | mir::Terminator::TailCall { .. }
                 | mir::Terminator::TailCallClass { .. }
@@ -4492,7 +4494,9 @@ b0:
                 mir::Terminator::Call { .. }
                 | mir::Terminator::CallIndirect { .. }
                 | mir::Terminator::CallClass { .. }
-                | mir::Terminator::CallInterface { .. } => {
+                | mir::Terminator::CallInterface { .. }
+                | mir::Terminator::Panic { .. }
+                | mir::Terminator::Trap { .. } => {
                     for value in terminator.uses().iter().filter_map(|value| value.value()) {
                         if !defined_values.contains(&value) {
                             undefined.push(format!(
@@ -4503,7 +4507,7 @@ b0:
                     }
                 }
                 mir::Terminator::Unreachable
-                | mir::Terminator::Trap { .. }
+                | mir::Terminator::ResumePanic
                 | mir::Terminator::TailCall { .. }
                 | mir::Terminator::TailCallClass { .. }
                 | mir::Terminator::TailCallInterface { .. }
