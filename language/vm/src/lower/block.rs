@@ -97,15 +97,22 @@ impl BlockOrder {
                         }
                     })?);
                 }
-                mir::Terminator::Call { target, .. }
-                | mir::Terminator::CallIndirect { target, .. }
-                | mir::Terminator::CallClass { target, .. }
-                | mir::Terminator::CallInterface { target, .. } => {
+                mir::Terminator::Call { target, unwind, .. }
+                | mir::Terminator::CallIndirect { target, unwind, .. }
+                | mir::Terminator::CallClass { target, unwind, .. }
+                | mir::Terminator::CallInterface { target, unwind, .. } => {
                     queue.push((target.block).block().ok_or_else(|| {
                         Error::MissingRepresentation {
                             context: "call target".to_string(),
                         }
                     })?);
+                    if let Some(unwind) = unwind {
+                        queue.push((unwind.block).block().ok_or_else(|| {
+                            Error::MissingRepresentation {
+                                context: "call unwind target".to_string(),
+                            }
+                        })?);
+                    }
                 }
                 mir::Terminator::Error => {
                     return Err(Error::MissingRepresentation {
@@ -113,6 +120,8 @@ impl BlockOrder {
                     });
                 }
                 mir::Terminator::Return { .. }
+                | mir::Terminator::Panic { .. }
+                | mir::Terminator::ResumePanic
                 | mir::Terminator::Trap { .. }
                 | mir::Terminator::Unreachable
                 | mir::Terminator::TailCall { .. }

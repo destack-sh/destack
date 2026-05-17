@@ -625,7 +625,7 @@ pub(crate) struct TensorCopy {
 pub(crate) struct TensorViewCast {
     /// The destination tensor view.
     pub(crate) dest_offset: u32,
-    /// The source pointer word.
+    /// The MIR pointer word.
     pub(crate) pointer_offset: u32,
     /// The tensor view layout.
     pub(crate) view_layout: TensorLayoutId,

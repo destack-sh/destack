@@ -270,11 +270,11 @@ impl<'a> BlockLowerer<'a> {
 
             mir::Instruction::RawFree { pointer } => self.lower_raw_free(*pointer)?,
 
-            mir::Instruction::StackAlloc {
+            mir::Instruction::FrameAlloc {
                 destination,
                 layout,
                 ..
-            } => self.lower_stack_alloc(*destination, *layout)?,
+            } => self.lower_frame_alloc(*destination, *layout)?,
 
             mir::Instruction::Intrinsic {
                 destination,

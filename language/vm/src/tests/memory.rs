@@ -843,13 +843,13 @@ b0:
     assert_runtime_error_matches!(result, Error::InvalidRawPointer);
 }
 
-/// Stack allocation creates frame-local memory.
+/// Frame allocation creates frame-local memory.
 #[test]
-fn test_stack_allocate() {
+fn test_frame_allocate() {
     let mir = r#"
 function stackAlloc(): int32 {
 b0:
-    v0: ref<int32, raw, readonly, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, readonly, space(frame)> = frame.alloc int32
     v1: int32 = 99int32
     store v0, v1
     v2: int32 = load v0
@@ -858,15 +858,15 @@ b0:
     run_mir_expect(mir, "stackAlloc", &[], Value::int32(99));
 }
 
-/// Stack allocation with field access.
+/// Frame allocation with field access.
 #[test]
-fn test_stack_allocate_struct() {
+fn test_frame_allocate_struct() {
     let mir = r#"
 function stackStruct(): int32 {
 b0:
-    v0: ref<(int32, int32), raw, readonly, space(stack)> = stack.alloc (int32, int32)
+    v0: ref<(int32, int32), raw, readonly, space(frame)> = frame.alloc (int32, int32)
     v1: int32 = 10int32
-    v2: ref<int32, borrowed, readonly, space(stack)> = field.address v0, 0
+    v2: ref<int32, borrowed, readonly, space(frame)> = field.address v0, 0
     store v2, v1
     v3: int32 = load v2
     return v3
@@ -874,9 +874,9 @@ b0:
     run_mir_expect(mir, "stackStruct", &[], Value::int32(10));
 }
 
-/// Stack allocation rejects heap-reference fields narrower than the host heap.
+/// Frame allocation rejects heap-reference fields narrower than the host heap.
 #[test]
-fn test_stack_allocate_pointer32_heap_reference_field() {
+fn test_frame_allocate_pointer32_heap_reference_field() {
     let mir = r#"
 type Packed {
     first: uint8;
@@ -888,8 +888,8 @@ b0:
     v0: ref<int32, managed, readonly> = new int32
     v1: int32 = 77int32
     store v0, v1
-    v2: ref<Packed, raw, readonly, space(stack)> = stack.alloc Packed
-    v3: ref<ref<int32, managed, readonly>, borrowed, readonly, space(stack)> = field.address v2, 1
+    v2: ref<Packed, raw, readonly, space(frame)> = frame.alloc Packed
+    v3: ref<ref<int32, managed, readonly>, borrowed, readonly, space(frame)> = field.address v2, 1
     store v3, v0
     v4: ref<int32, managed, readonly> = load v3
     v5: int32 = load v4

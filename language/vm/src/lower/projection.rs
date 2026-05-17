@@ -116,7 +116,7 @@ pub(super) fn slice_projection(
     let mir::Type::Slice {
         element,
         kind,
-        address_space,
+        space,
         access: _,
         ..
     } = tree.get(repr_type(tree, slice_type))
@@ -131,7 +131,7 @@ pub(super) fn slice_projection(
 
     let element_layout = layouts.get(&element_type)?;
     let element_word_layout = access_word_layout(tree, layouts, element_type);
-    let data_pointer_class = pointer_class_from_reference(address_space.clone(), *kind);
+    let data_pointer_class = pointer_class_from_reference(space.clone(), *kind);
     let data_word_layout = word_layout_from_pointer_class(data_pointer_class)?;
     let pointer_bytes = tree.pointer_bytes() as usize;
     let data_byte_len = data_word_layout.byte_len(pointer_bytes);
@@ -158,16 +158,11 @@ pub(super) fn slice_element_pointer_class(
     tree: &mir::Tree,
     slice_type: mir::LocalNodeId<mir::Type>,
 ) -> Option<PointerClass> {
-    let mir::Type::Slice {
-        kind,
-        address_space,
-        ..
-    } = tree.get(repr_type(tree, slice_type))
-    else {
+    let mir::Type::Slice { kind, space, .. } = tree.get(repr_type(tree, slice_type)) else {
         return None;
     };
 
-    Some(pointer_class_from_reference(address_space.clone(), *kind))
+    Some(pointer_class_from_reference(space.clone(), *kind))
 }
 
 /// Build one pointee projection from one compiled layout.
@@ -214,11 +209,9 @@ pub(super) fn tensor_view_pointer_class(
 ) -> Option<PointerClass> {
     match tree.get(repr_type(tree, ty)) {
         mir::Type::Tensor { .. } => Some(PointerClass::Heap),
-        mir::Type::TensorView {
-            kind,
-            address_space,
-            ..
-        } => Some(pointer_class_from_reference(address_space.clone(), *kind)),
+        mir::Type::TensorView { kind, space, .. } => {
+            Some(pointer_class_from_reference(space.clone(), *kind))
+        }
         _ => None,
     }
 }

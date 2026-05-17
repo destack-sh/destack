@@ -246,11 +246,11 @@ pub(super) fn heap_pointee_type_for_value(
                 kind @ (mir::ReferenceKind::Managed
                 | mir::ReferenceKind::Unique
                 | mir::ReferenceKind::Borrowed),
-            address_space,
+            space,
             pointee,
             ..
         } if matches!(
-            pointer_class_from_reference(address_space.clone(), *kind),
+            pointer_class_from_reference(space.clone(), *kind),
             PointerClass::Heap
                 | PointerClass::SharedHeap
                 | PointerClass::HeapAddress
@@ -274,11 +274,11 @@ pub(super) fn raw_pointee_type_for_value(
     match tree.get(ty) {
         mir::Type::Reference {
             kind,
-            address_space,
+            space,
             pointee,
             ..
         } if matches!(
-            pointer_class_from_reference(address_space.clone(), *kind),
+            pointer_class_from_reference(space.clone(), *kind),
             PointerClass::Raw | PointerClass::Stack | PointerClass::Frame
         ) =>
         {
@@ -377,14 +377,19 @@ fn propagate_block_parameter_layouts(
             mir::Terminator::Yield { resume, .. } => {
                 is_changed |= propagate_target_edge(tree, value_layout_map, resume);
             }
-            mir::Terminator::Call { target, .. }
-            | mir::Terminator::CallIndirect { target, .. }
-            | mir::Terminator::CallClass { target, .. }
-            | mir::Terminator::CallInterface { target, .. } => {
+            mir::Terminator::Call { target, unwind, .. }
+            | mir::Terminator::CallIndirect { target, unwind, .. }
+            | mir::Terminator::CallClass { target, unwind, .. }
+            | mir::Terminator::CallInterface { target, unwind, .. } => {
                 is_changed |= propagate_target_edge(tree, value_layout_map, target);
+                if let Some(unwind) = unwind {
+                    is_changed |= propagate_target_edge(tree, value_layout_map, unwind);
+                }
             }
             mir::Terminator::Error => {}
             mir::Terminator::Return { .. }
+            | mir::Terminator::Panic { .. }
+            | mir::Terminator::ResumePanic
             | mir::Terminator::Trap { .. }
             | mir::Terminator::Unreachable
             | mir::Terminator::TailCall { .. }
@@ -662,10 +667,17 @@ fn infer_instruction_layout(
         | mir::Instruction::TensorCompare { .. }
         | mir::Instruction::TensorSelect { .. }
         | mir::Instruction::TensorConvert { .. } => None,
+        mir::Instruction::FrameAlloc { result_type, .. } => {
+            let mut layout = value_layout_from_type(tree, result_type.ty()?);
+            let ValueLayout::Pointer { pointer_class, .. } = &mut layout else {
+                return None;
+            };
+            *pointer_class = PointerClass::Stack;
+            Some(layout)
+        }
         mir::Instruction::New { result_type, .. }
         | mir::Instruction::NewSlice { result_type, .. }
         | mir::Instruction::RawAlloc { result_type, .. }
-        | mir::Instruction::StackAlloc { result_type, .. }
         | mir::Instruction::AtomicLoad { result_type, .. } => {
             Some(value_layout_from_type(tree, result_type.ty()?))
         }
@@ -796,7 +808,7 @@ fn layout_from_element(tree: &mir::Tree, layout: ValueLayout) -> Option<ValueLay
     }
 }
 
-/// Rebuild one address-producing result layout from the source pointer class.
+/// Rebuild one address-producing result layout from the MIR pointer class.
 fn pointer_result_layout_from_source(
     tree: &mir::Tree,
     result_type: mir::LocalNodeId<mir::Type>,

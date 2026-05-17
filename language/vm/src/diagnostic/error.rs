@@ -140,8 +140,8 @@ pub enum Error {
     /// Attempted to resume with an invalid continuation.
     InvalidContinuation = 30,
 
-    /// Reference address space does not match the pointer value.
-    InvalidAddressSpace { expected: String, actual: String } = 33,
+    /// Reference space does not match the pointer value.
+    InvalidSpace { expected: String, actual: String } = 33,
 
     /// Unsupported zero initialization for a MIR type.
     UnsupportedZeroValue { ty: String } = 34,
@@ -210,7 +210,7 @@ impl Error {
             Self::ResumeWithoutYield => 29,
             Self::InvalidContinuation => 30,
             Self::BindingCallForbidden { .. } => 32,
-            Self::InvalidAddressSpace { .. } => 33,
+            Self::InvalidSpace { .. } => 33,
             Self::UnsupportedZeroValue { .. } => 34,
             Self::Panic { .. } => 35,
             Self::BadConversionToInteger => 36,
@@ -300,8 +300,8 @@ impl Error {
             Self::InvalidContinuation => {
                 "attempted to resume with an invalid continuation".to_string()
             }
-            Self::InvalidAddressSpace { expected, actual } => {
-                format!("invalid address space: expected {expected}, got {actual}")
+            Self::InvalidSpace { expected, actual } => {
+                format!("invalid space: expected {expected}, got {actual}")
             }
             Self::UnsupportedZeroValue { ty } => {
                 format!("unsupported zero initialization for type {ty}")

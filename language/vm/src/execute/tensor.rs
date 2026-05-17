@@ -1830,7 +1830,7 @@ fn offset_tensor_view_pointer(
     }
 }
 
-/// Fill a tensor view through one concrete address space.
+/// Fill a tensor view through one concrete pointer space.
 fn fill_tensor_view<O, S>(
     machine: &mut Machine<'_, '_>,
     base_pointer: Word,
@@ -1885,7 +1885,7 @@ where
 fn copy_tensor_view<TO, SO, L, S>(
     machine: &mut Machine<'_, '_>,
     target_pointer: Word,
-    source_pointer: Word,
+    mir_pointer: Word,
     target_layout: &TensorLayout,
     source_layout: &TensorLayout,
     target_strides: &[u64],
@@ -1928,18 +1928,14 @@ where
             }
         };
 
-        let source_pointer = match source_offset(
-            source_pointer,
-            source_element,
-            source_index,
-            source_span_len,
-        ) {
-            Ok(pointer) => pointer,
-            Err(current_error) => {
-                error = Some(current_error);
-                return;
-            }
-        };
+        let mir_pointer =
+            match source_offset(mir_pointer, source_element, source_index, source_span_len) {
+                Ok(pointer) => pointer,
+                Err(current_error) => {
+                    error = Some(current_error);
+                    return;
+                }
+            };
         let target_pointer = match target_offset(
             target_pointer,
             target_element,
@@ -1952,7 +1948,7 @@ where
                 return;
             }
         };
-        let value = match load_element(machine, source_pointer, source_element) {
+        let value = match load_element(machine, mir_pointer, source_element) {
             Ok(value) => value,
             Err(current_error) => {
                 error = Some(current_error);
@@ -2188,15 +2184,15 @@ pub(crate) fn execute_tensor_copy(
     let target_strides = load_tensor_view_strides(machine, *target_frame_offset, target_layout)?;
     let source_strides = load_tensor_view_strides(machine, *source_frame_offset, source_layout)?;
     let target_pointer = load_tensor_view_pointer(machine, *target_frame_offset);
-    let source_pointer = load_tensor_view_pointer(machine, *source_frame_offset);
+    let mir_pointer = load_tensor_view_pointer(machine, *source_frame_offset);
     let source_element = machine.projection(*source_element);
     let target_element = machine.projection(*target_element);
 
-    // copy through the selected address spaces
+    // copy through the selected pointer spaces
     copy_tensor_view(
         machine,
         target_pointer,
-        source_pointer,
+        mir_pointer,
         target_layout,
         source_layout,
         &target_strides,

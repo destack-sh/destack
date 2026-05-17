@@ -44,8 +44,8 @@ impl ResumeTable {
 pub(crate) struct ResumeState {
     /// The lowered VM program point.
     pub(crate) point: ProgramPoint,
-    /// The source-level MIR debug point.
-    pub(crate) debug_point: mir::DebugPoint,
+    /// The source MIR point within the lowered block.
+    pub(crate) mir_point: u32,
     /// Entry recipe for block-entry states.
     pub(crate) entry: Option<FrameEntry>,
     /// Caller return destination for post-call states.

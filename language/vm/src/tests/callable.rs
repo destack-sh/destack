@@ -68,20 +68,20 @@ b0(v0: ref<Env, managed>):
 #[test]
 fn test_call_indirect_environment() {
     let mir = r#"
-@environment(ref<int32, raw, readonly, space(stack)>)
+@environment(ref<int32, raw, readonly, space(frame)>)
 function readEnv(): int32 {
 b0:
-    v0: ref<int32, raw, readonly, space(stack)> = callable.environment
+    v0: ref<int32, raw, readonly, space(frame)> = callable.environment
     v1: int32 = load v0
     return v1
 }
 
 function caller(): int32 {
 b0:
-    v0: ref<int32, raw, space(stack)> = stack.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc int32
     v1: int32 = 41int32
     store v0, v1
-    v2: ref<int32, raw, readonly, space(stack)> = cast.bit v0 -> ref<int32, raw, readonly, space(stack)>
+    v2: ref<int32, raw, readonly, space(frame)> = cast.bit v0 -> ref<int32, raw, readonly, space(frame)>
     v3: () => int32 = callable.bind readEnv, v2
     v4: int32 = call.indirect v3(): () -> int32
     return v4
@@ -393,19 +393,19 @@ b0(v0: int32):
     run_mir_expect(mir, "caller", &[Value::int32(21)], Value::int32(42));
 }
 
-/// Raw callable environments can carry stack allocated structs.
+/// Raw callable environments can carry frame allocated structs.
 #[test]
 fn test_environment_raw_struct_on_stack() {
     let mir = r#"
 type Env { value: int32, extra: int32 }
 
-@environment(ref<Env, raw, readonly, space(stack)>)
+@environment(ref<Env, raw, readonly, space(frame)>)
 function readEnv(): int32 {
 b0:
-    v0: ref<Env, raw, readonly, space(stack)> = callable.environment
-    v1: ref<int32, raw, readonly, space(stack)> = field.address v0, 0
+    v0: ref<Env, raw, readonly, space(frame)> = callable.environment
+    v1: ref<int32, raw, readonly, space(frame)> = field.address v0, 0
     v2: int32 = load v1
-    v3: ref<int32, raw, readonly, space(stack)> = field.address v0, 1
+    v3: ref<int32, raw, readonly, space(frame)> = field.address v0, 1
     v4: int32 = load v3
     v5: int32 = int.add v2, v4
     return v5
@@ -413,14 +413,14 @@ b0:
 
 function caller(): int32 {
 b0:
-    v0: ref<Env, raw, space(stack)> = stack.alloc Env
-    v1: ref<int32, raw, readonly, space(stack)> = field.address v0, 0
-    v2: ref<int32, raw, readonly, space(stack)> = field.address v0, 1
+    v0: ref<Env, raw, space(frame)> = frame.alloc Env
+    v1: ref<int32, raw, readonly, space(frame)> = field.address v0, 0
+    v2: ref<int32, raw, readonly, space(frame)> = field.address v0, 1
     v3: int32 = 20int32
     v4: int32 = 22int32
     store v1, v3
     store v2, v4
-    v5: ref<Env, raw, readonly, space(stack)> = cast.bit v0 -> ref<Env, raw, readonly, space(stack)>
+    v5: ref<Env, raw, readonly, space(frame)> = cast.bit v0 -> ref<Env, raw, readonly, space(frame)>
     v6: () => int32 = callable.bind readEnv, v5
     v7: int32 = call.indirect v6(): () -> int32
     return v7

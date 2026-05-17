@@ -882,8 +882,12 @@ pub(crate) enum Op {
     YieldAddress,
     /// Abort execution.
     Abort,
-    /// Panic with a runtime payload.
+    /// Panic without a runtime payload.
     Panic,
+    /// Panic with a runtime payload.
+    PanicValue,
+    /// Resume an active panic.
+    ResumePanic,
     /// Mark unreachable execution.
     Unreachable,
 

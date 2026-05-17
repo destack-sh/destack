@@ -266,10 +266,10 @@ impl Frame {
             })
         })?;
         program
-            .debug_point_for_frame_state(frame_state)
+            .mir_point_for_frame_state(frame_state)
             .ok_or_else(|| {
                 RuntimeError::new(Error::InvariantViolation {
-                    context: format!("missing debug point for frame state: {frame_state:?}"),
+                    context: format!("missing MIR point for frame state: {frame_state:?}"),
                 })
             })?;
 

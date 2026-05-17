@@ -2,8 +2,8 @@ use crate::Word;
 use crate::diagnostic::Error;
 use crate::interpreter::Machine;
 use crate::program::{
-    BoundsCheck, Check, CheckId, Edge, EdgeId, Instruction, MoveRange, NarrowCheck, OverflowCheck,
-    ShiftRangeCheck, SwitchCasesId, SwitchTableId, Transfer, VariantCheck,
+    BoundsCheck, Check, CheckId, Edge, EdgeId, Instruction, MoveRange, NarrowCheck, Op,
+    OverflowCheck, ShiftRangeCheck, SwitchCasesId, SwitchTableId, Transfer, VariantCheck,
 };
 use {destack_engine as engine, destack_mir as mir};
 
@@ -961,6 +961,18 @@ pub(crate) fn execute_abort(
 
 /// Execute panic.
 pub(crate) fn execute_panic(machine: &mut Machine<'_, '_>, instruction: &Instruction) -> Transfer {
+    if instruction.op == Op::Panic {
+        return Transfer::Error(Error::Panic {
+            message: "panic".to_string(),
+        });
+    }
+
+    if instruction.op == Op::ResumePanic {
+        return Transfer::Error(Error::Panic {
+            message: "panic resumed".to_string(),
+        });
+    }
+
     let payload = machine.load_word_at(instruction.a);
     let message = format!("panic payload: {payload:?}");
 

@@ -5,8 +5,8 @@ const INTEGER_SIGN_BIT: u32 = 1 << 8;
 const WIDE_SOURCE_SIGN_BIT: u32 = 1 << 8;
 const WIDE_DEST_SIGN_BIT: u32 = 1 << 9;
 
-const WORD_LAYOUT_HEAP_REFERENCE: u32 = 1;
-const WORD_LAYOUT_SHARED_HEAP_REFERENCE: u32 = 2;
+const WORD_LAYOUT_LOCAL_REFERENCE: u32 = 1;
+const WORD_LAYOUT_SHARED_REFERENCE: u32 = 2;
 const WORD_LAYOUT_RAW_POINTER: u32 = 3;
 const WORD_LAYOUT_SHARED_RAW_POINTER: u32 = 4;
 const WORD_LAYOUT_STACK_POINTER: u32 = 5;
@@ -65,8 +65,8 @@ impl PointerCast {
     /// Encode one pointer-shaped word layout.
     pub(crate) fn new(layout: WordLayout) -> Result<Self> {
         let field = match layout {
-            WordLayout::HeapReference => WORD_LAYOUT_HEAP_REFERENCE,
-            WordLayout::SharedHeapReference => WORD_LAYOUT_SHARED_HEAP_REFERENCE,
+            WordLayout::HeapReference => WORD_LAYOUT_LOCAL_REFERENCE,
+            WordLayout::SharedHeapReference => WORD_LAYOUT_SHARED_REFERENCE,
             WordLayout::RawPointer => WORD_LAYOUT_RAW_POINTER,
             WordLayout::SharedRawPointer => WORD_LAYOUT_SHARED_RAW_POINTER,
             WordLayout::StackPointer => WORD_LAYOUT_STACK_POINTER,
@@ -94,8 +94,8 @@ impl PointerCast {
     /// Decode the pointer-shaped word layout.
     pub(crate) fn decode(self) -> Result<WordLayout> {
         match self.field {
-            WORD_LAYOUT_HEAP_REFERENCE => Ok(WordLayout::HeapReference),
-            WORD_LAYOUT_SHARED_HEAP_REFERENCE => Ok(WordLayout::SharedHeapReference),
+            WORD_LAYOUT_LOCAL_REFERENCE => Ok(WordLayout::HeapReference),
+            WORD_LAYOUT_SHARED_REFERENCE => Ok(WordLayout::SharedHeapReference),
             WORD_LAYOUT_RAW_POINTER => Ok(WordLayout::RawPointer),
             WORD_LAYOUT_SHARED_RAW_POINTER => Ok(WordLayout::SharedRawPointer),
             WORD_LAYOUT_STACK_POINTER => Ok(WordLayout::StackPointer),

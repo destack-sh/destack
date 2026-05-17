@@ -334,9 +334,9 @@ b0(v0: int32):
     assert_eq!(output, Value::int32(200));
 }
 
-/// Self tail calls release stack allocations before re-entering.
+/// Self tail calls release frame allocations before re-entering.
 #[test]
-fn test_tail_call_self_releases_stack_allocations() {
+fn test_tail_call_self_releases_frame_allocations() {
     let mir = r#"
 function countdown(v0: int32): int32 {
 b0(v0: int32):
@@ -345,7 +345,7 @@ b0(v0: int32):
     branch v2, b2, b1
 b1:
     v3: int32 = 1int32
-    v4: ref<[int32; 512], raw, space(stack)> = stack.alloc [int32; 512]
+    v4: ref<[int32; 512], raw, space(frame)> = frame.alloc [int32; 512]
     v5: int32 = int.sub v0, v3
     tailCall countdown(v5): (int32) -> int32
 b2:
