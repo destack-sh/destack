@@ -1,7 +1,7 @@
 mod error;
-mod node;
 mod provide;
 mod state;
+mod walk;
 mod warning;
 
 pub use error::*;
