@@ -1,3 +1,4 @@
+use destack_dir as dir;
 use destack_source::{FileId, ModuleId, Span};
 use serde::{Deserialize, Serialize};
 
@@ -20,7 +21,7 @@ impl SymbolIndex {
     /// Sort and deduplicate this index.
     pub fn finish(&mut self) {
         self.entries
-            .sort_by(|left, right| symbol_entry_key(left).cmp(&symbol_entry_key(right)));
+            .sort_by(|left, right| left.order().cmp(&right.order()));
         self.entries.dedup();
     }
 
@@ -54,8 +55,23 @@ pub struct SymbolEntry {
     pub file_id: FileId,
     /// The source range.
     pub range: Span,
+    /// The indexed symbol when known.
+    pub symbol_id: Option<dir::GlobalSymbolId>,
     /// The containing symbol display name.
     pub container_name: Option<String>,
+}
+
+impl SymbolEntry {
+    /// Return the stable index order for this symbol.
+    fn order(&self) -> (&str, ModuleId, FileId, u32, u32) {
+        (
+            self.name.as_str(),
+            self.module_id,
+            self.file_id,
+            self.range.start,
+            self.range.end,
+        )
+    }
 }
 
 /// Searchable workspace symbol kind.
@@ -85,15 +101,4 @@ pub enum SymbolKind {
     Struct,
     /// Type parameter symbol.
     TypeParameter,
-}
-
-/// Return the stable ordering key for one symbol entry.
-fn symbol_entry_key(entry: &SymbolEntry) -> (&str, ModuleId, FileId, u32, u32) {
-    (
-        entry.name.as_str(),
-        entry.module_id,
-        entry.file_id,
-        entry.range.start,
-        entry.range.end,
-    )
 }
