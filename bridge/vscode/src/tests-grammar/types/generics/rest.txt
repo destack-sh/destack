@@ -2,6 +2,7 @@
 
 // types / generics / rest / partial application preserves tail tuple order
 declare function partial<T: readonly unknown[], U: readonly unknown[], R>(
+// <- keyword.declaration.type.ds
     fn: (...args: [...T, ...U]) => R,
     ...head: T
 ): (...tail: U) => R;

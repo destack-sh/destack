@@ -2,6 +2,7 @@
 
 // expressions / macros / materialization / memoize wraps a function body
 newtype memoize = {
+// <- keyword.declaration.type.ds
     capacity?: uint;
 };
 

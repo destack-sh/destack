@@ -2,6 +2,7 @@
 
 // expressions / assignment / bindings / reads require prior assignment
 let value: string;
+// <- keyword.declaration.type.ds
 value satisfies string;
 
 // expressions / assignment / bindings / writes make locals readable

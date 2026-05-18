@@ -2,6 +2,7 @@
 
 // types / classes / interfaces / implementations assign to interfaces
 interface Printable {
+// <- keyword.declaration.type.ds
     print(): void;
 }
 

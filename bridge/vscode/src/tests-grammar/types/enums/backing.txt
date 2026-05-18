@@ -2,6 +2,7 @@
 
 // types / enums / backing / integer enums do not coerce to integers
 enum Status {
+// <- keyword.declaration.type.ds
     Active = 1,
     Inactive = 2,
 }

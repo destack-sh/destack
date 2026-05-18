@@ -9,6 +9,7 @@
 
 // types / primitives / integers / intN accepts in-range literals
 let small: int3 = 3;
+// <- keyword.declaration.type.ds
 
 // types / primitives / integers / intN rejects out-of-range literals
 let tooLarge: int3 = 4;

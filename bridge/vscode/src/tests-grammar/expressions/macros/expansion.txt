@@ -2,6 +2,7 @@
 
 // expressions / macros / expansion / add creates a sibling declaration
 newtype exposeMetrics = ();
+// <- keyword.declaration.type.ds
 
 extension of exposeMetrics implements Macro<ClassDeclaration> {
     static expand(target: ClassDeclaration, context: ExpansionContext, config: this): void {

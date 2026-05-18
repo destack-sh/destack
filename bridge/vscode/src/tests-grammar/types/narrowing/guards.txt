@@ -2,6 +2,7 @@
 
 // types / narrowing / guards / typeof narrows primitives
 const value: string | number = 0;
+// <- keyword.declaration.type.ds
 if (typeof value == "string") {
     value satisfies string;
 } else {

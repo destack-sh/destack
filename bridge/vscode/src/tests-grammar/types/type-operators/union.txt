@@ -2,6 +2,7 @@
 
 // types / type operators / union / unions accept any member
 let x: string | number = "hello";
+// <- keyword.declaration.type.ds
 x = 42;
 
 // types / type operators / union / members assign to unions

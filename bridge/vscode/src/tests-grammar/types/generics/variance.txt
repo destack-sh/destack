@@ -2,6 +2,7 @@
 
 // types / generics / variance / declarations accept variance modifiers
 interface Sink<in T> {
+// <- keyword.declaration.type.ds
     set(value: T): void;
 }
 

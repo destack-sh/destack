@@ -2,6 +2,7 @@
 
 // expressions / dispatch / unions / member access returns the shared field type
 struct User {
+// <- keyword.declaration.type.ds
     name: string;
 }
 

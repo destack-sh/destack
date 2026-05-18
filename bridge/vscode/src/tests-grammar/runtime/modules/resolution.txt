@@ -2,6 +2,7 @@
 
 // runtime / modules / resolution / resolves ds module without extension
 import { value } from "./mod";
+// <- keyword.declaration.import.ds
 
 value satisfies int32;
 

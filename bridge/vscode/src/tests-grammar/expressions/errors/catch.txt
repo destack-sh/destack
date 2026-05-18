@@ -2,6 +2,7 @@
 
 // expressions / errors / catch / catch sees result errors
 declare function readConfig(): Result<int, string>;
+// <- keyword.declaration.type.ds
 
 const value = try {
     readConfig()?;

@@ -2,6 +2,7 @@
 
 // expressions / trees / elements / tree elements are expressions
 declare const A: unknown;
+// <- keyword.declaration.type.ds
 
 let node = <A />;
 node;

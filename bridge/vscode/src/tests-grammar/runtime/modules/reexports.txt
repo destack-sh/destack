@@ -2,6 +2,7 @@
 
 // runtime / modules / reexports / named reexports keep value shapes
 export const value = { ok: true };
+// <- keyword.declaration.import.ds
 
 // runtime / modules / reexports / named reexports keep value shapes
 export { value } from "./a.ds";

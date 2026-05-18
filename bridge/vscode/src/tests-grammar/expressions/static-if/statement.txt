@@ -2,6 +2,7 @@
 
 // expressions / static if / statement / when false, @if removes module statements
 @if(false)
+// <- meta.decorator.call.ds
 missingSymbol;
 
 const value = 1;

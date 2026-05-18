@@ -2,6 +2,7 @@
 
 // types / convert / try / TryFrom returns Result
 struct ParseIdError {
+// <- keyword.declaration.type.ds
     message: string;
 }
 

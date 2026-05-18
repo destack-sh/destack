@@ -2,6 +2,7 @@
 
 // expressions / switch / flow / switch breaks target the innermost switch
 function invalidSwitchBreakValueInLoop(value: int32): int32 {
+// <- keyword.declaration.type.ds
     loop {
         switch (value) {
             case 0:

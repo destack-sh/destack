@@ -2,6 +2,7 @@
 
 // types / literals / precision / let scalar literals widen
 let value = 1;
+// <- keyword.declaration.type.ds
 
 value satisfies number;
 

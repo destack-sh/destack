@@ -2,6 +2,7 @@
 
 // types / objects / symbol keys / keyof preserves symbol index signatures
 interface SymbolBag {
+// <- keyword.declaration.type.ds
     [key: symbol]: int32;
 }
 

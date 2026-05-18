@@ -2,6 +2,7 @@
 
 // runtime / modules / settings / module block tightens memory policy
 module {
+// <- keyword.declaration.type.ds
     noManaged: true,
     noHeap: true,
 };

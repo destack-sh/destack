@@ -2,6 +2,7 @@
 
 // types / utilities / parameters / parameters extracts argument types
 type Args = Parameters<(name: string, count: number) => boolean>;
+// <- keyword.declaration.type.ds
 
 const ok: Args = ("Ada", 1);
 ok satisfies (string, number);

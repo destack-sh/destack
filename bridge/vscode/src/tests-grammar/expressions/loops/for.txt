@@ -2,6 +2,7 @@
 
 // expressions / loops / for / for yields void
 let value: void = for (let i = 0; i < 1; i++) {
+// <- keyword.declaration.type.ds
     i;
 };
 

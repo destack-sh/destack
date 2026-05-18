@@ -2,6 +2,7 @@
 
 // expressions / comptime / constants / comptime values initialize const declarations
 const scale = comptime 3;
+// <- keyword.declaration.type.ds
 
 function apply(value: int32): int32 {
     value * scale

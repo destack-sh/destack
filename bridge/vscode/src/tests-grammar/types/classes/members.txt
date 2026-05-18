@@ -2,6 +2,7 @@
 
 // types / classes / members / instance fields keep declared types
 class Counter {
+// <- keyword.declaration.type.ds
     value: int32 = 0;
 }
 

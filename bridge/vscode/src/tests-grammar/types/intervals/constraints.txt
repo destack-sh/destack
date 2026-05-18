@@ -2,6 +2,7 @@
 
 // types / intervals / constraints / interval constraints accept in-bounds static arguments
 struct InlineBuffer<T, comptime N: 0..=4096> {
+// <- keyword.declaration.type.ds
     storage: [T; N];
 }
 

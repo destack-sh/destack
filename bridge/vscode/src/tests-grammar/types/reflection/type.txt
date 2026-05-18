@@ -2,6 +2,7 @@
 
 // types / reflection / type / type expressions coerce to reflected types
 struct User {
+// <- keyword.declaration.type.ds
     name: string;
 }
 

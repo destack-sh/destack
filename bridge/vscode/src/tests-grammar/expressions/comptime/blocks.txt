@@ -2,6 +2,7 @@
 
 // expressions / comptime / blocks / module comptime blocks assert static terms
 const size = comptime 4;
+// <- keyword.declaration.type.ds
 
 comptime {
     assert(size == 4);

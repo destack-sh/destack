@@ -2,6 +2,7 @@
 
 // expressions / operators / logical and / logical and yields boolean for booleans
 let value: boolean = true && false;
+// <- keyword.declaration.type.ds
 
 // expressions / operators / logical and / logical and assignment preserves assignable values
 type Value = { ok: true };

@@ -2,6 +2,7 @@
 
 // memory / algebra / Managed can name value types
 struct Point {
+// <- keyword.declaration.type.ds
     x: int32;
 }
 

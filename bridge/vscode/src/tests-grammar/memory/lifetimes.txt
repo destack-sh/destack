@@ -2,6 +2,7 @@
 
 // memory / lifetimes / returning a local borrow is rejected
 struct Point {
+// <- keyword.declaration.type.ds
     x: int32;
     y: int32;
 }

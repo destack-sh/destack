@@ -2,6 +2,7 @@
 
 // types / type operators / intersection / intersection type combines object fields
 type A = { a: number };
+// <- keyword.declaration.type.ds
 type B = { b: string };
 type C = A & B;
 

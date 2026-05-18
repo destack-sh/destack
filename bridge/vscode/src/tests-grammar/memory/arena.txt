@@ -2,6 +2,7 @@
 
 // memory / arena / arena allocations share a lifetime
 import { Arena, Bump } from "destack:memory/arena";
+// <- keyword.declaration.import.ds
 
 struct Node {
     value: int32;

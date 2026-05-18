@@ -2,6 +2,7 @@
 
 // types / extensions / calls / extension methods return primitives
 struct Point {
+// <- keyword.declaration.type.ds
     x: number;
     y: number;
 }

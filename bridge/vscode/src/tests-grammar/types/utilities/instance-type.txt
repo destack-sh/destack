@@ -2,6 +2,7 @@
 
 // types / utilities / instance type / InstanceType extracts class instances
 class User {
+// <- keyword.declaration.type.ds
     name: string = "";
 }
 

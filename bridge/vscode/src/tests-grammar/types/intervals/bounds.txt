@@ -2,6 +2,7 @@
 
 // types / intervals / bounds / half-open intervals include the start and exclude the end
 type Window = 0..10;
+// <- keyword.declaration.type.ds
 
 let value: Window = 5;
 value satisfies Window;

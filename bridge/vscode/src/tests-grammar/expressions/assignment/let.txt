@@ -31,3 +31,10 @@ left = 3;
 right = 4;
 left satisfies number;
 right satisfies number;
+
+// TextMate comments scope coverage
+value = 1 // trailing comment
+//          ^^^^^^^^^^^^^^^^^ comment.line.double-slash.ds
+
+/* block comment */
+// <- comment.block.ds

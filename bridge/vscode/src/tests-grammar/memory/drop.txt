@@ -2,6 +2,7 @@
 
 // memory / drop / drop consumes owned values
 class File {
+// <- keyword.declaration.type.ds
     handle: int32 = 0;
 }
 

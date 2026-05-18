@@ -2,6 +2,7 @@
 
 // types / primitives / scalars / number accepts numeric literals
 const value: number = 42;
+// <- keyword.declaration.type.ds
 value satisfies number;
 
 // types / primitives / scalars / const numeric literals keep exact values

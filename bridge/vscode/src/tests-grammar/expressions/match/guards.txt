@@ -2,6 +2,7 @@
 
 // expressions / match / guards / is guards narrow the arm
 struct Foo {
+// <- keyword.declaration.type.ds
     x: int32;
 }
 

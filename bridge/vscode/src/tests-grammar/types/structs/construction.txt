@@ -2,6 +2,7 @@
 
 // types / structs / construction / tagged literals construct structs
 struct Counter {
+// <- keyword.declaration.type.ds
     value: int32;
 
     increment(): Counter {

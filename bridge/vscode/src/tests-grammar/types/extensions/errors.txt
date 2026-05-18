@@ -2,6 +2,7 @@
 
 // types / extensions / errors / calling nonexistent extension method
 struct Point {
+// <- keyword.declaration.type.ds
     x: number;
     y: number;
 }

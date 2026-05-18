@@ -2,6 +2,7 @@
 
 // expressions / literals / bigint / bigint literal
 const x: bigint = 42n;
+// <- keyword.declaration.type.ds
 
 // expressions / literals / bigint / BigInt parses strings
 const value = BigInt.parse("42");

@@ -2,6 +2,7 @@
 
 // expressions / annotations / capture / borrow keeps the original binding
 struct Packet {
+// <- keyword.declaration.type.ds
     sequence: int32;
 }
 

@@ -2,6 +2,7 @@
 
 // expressions / functions / generator / yield values satisfy the declared yield type
 function* gen(): Generator<int32, unknown, unknown> {
+// <- keyword.declaration.type.ds
     yield 1;
 }
 

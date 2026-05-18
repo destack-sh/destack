@@ -2,6 +2,7 @@
 
 // types / convert / from / From converts into the implementing type
 newtype UserId = string;
+// <- keyword.declaration.type.ds
 
 extension of UserId implements From<string> {
     static from(value: string): UserId {

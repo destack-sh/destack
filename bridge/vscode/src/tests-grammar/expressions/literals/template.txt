@@ -2,6 +2,7 @@
 
 // expressions / literals / template / template literal yields string
 let name = "Ada";
+// <- keyword.declaration.type.ds
 let greeting = `hello ${name}`;
 
 // expressions / literals / template / template literal is assignable to string

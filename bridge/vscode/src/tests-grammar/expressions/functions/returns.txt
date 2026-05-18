@@ -2,6 +2,7 @@
 
 // expressions / functions / returns / block bodies reject missing returns
 function example(value: number): number {
+// <- keyword.declaration.type.ds
     if (value > 0) {
         return value;
     }

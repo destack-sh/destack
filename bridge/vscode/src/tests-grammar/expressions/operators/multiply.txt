@@ -2,6 +2,7 @@
 
 // expressions / operators / multiply / number times number
 const value = 2 * 3;
+// <- keyword.declaration.type.ds
 value satisfies 6;
 value satisfies int;
 value satisfies float64;

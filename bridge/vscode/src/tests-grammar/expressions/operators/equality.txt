@@ -2,6 +2,7 @@
 
 // expressions / operators / equality / number equals number
 const value = 1 == 1;
+// <- keyword.declaration.type.ds
 value satisfies boolean;
 
 // expressions / operators / equality / string equals string

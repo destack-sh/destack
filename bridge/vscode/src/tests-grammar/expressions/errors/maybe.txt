@@ -2,6 +2,7 @@
 
 // expressions / errors / maybe / ? opens Try success
 declare function read(): Result<int, Error>;
+// <- keyword.declaration.type.ds
 
 function main(): Result<int, Error> {
     const value = read()?;

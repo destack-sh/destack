@@ -262,7 +262,7 @@
         "package": "bun x vsce package --no-dependencies",
         "publish:live": "bun x vsce publish",
         "check:grammar": "node scripts/check-grammar.mjs",
-        "test:grammar": "node scripts/check-grammar.mjs && bun x vscode-tmgrammar-test --grammar destack.tmLanguage.json \"src/tests-grammar/*.txt\" && bun x vscode-tmgrammar-test --grammar destack-mir.tmLanguage.json \"src/tests-grammar-mir/*.txt\"",
+        "test:grammar": "node scripts/check-grammar.mjs && bun x vscode-tmgrammar-test --grammar destack.tmLanguage.json \"src/tests-grammar/**/*.txt\" && bun x vscode-tmgrammar-test --grammar destack-mir.tmLanguage.json \"src/tests-grammar-mir/*.txt\"",
         "test:bridge:build": "node -e \"require('fs').rmSync('out-tests',{recursive:true,force:true})\" && bun run bundle && bun x tsc -p tsconfig.tests.json",
         "test:bridge": "bun run test:bridge:build && node out-tests/tests-bridge/run.js"
     },

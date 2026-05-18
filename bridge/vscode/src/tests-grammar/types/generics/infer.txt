@@ -2,6 +2,7 @@
 
 // types / generics / infer / infer from type reference patterns
 type Box<T> = { value: T };
+// <- keyword.declaration.type.ds
 
 type Inner<T> = T extends Box<infer U> ? U : never;
 

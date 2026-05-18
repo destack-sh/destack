@@ -2,6 +2,7 @@
 
 // types / classes / constructors / required fields need initialization
 class Counter {
+// <- keyword.declaration.type.ds
     value: number;
 }
 

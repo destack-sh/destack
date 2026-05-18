@@ -2,6 +2,7 @@
 
 // types / generics / extensions / extension type parameters
 struct Box<T> {
+// <- keyword.declaration.type.ds
     value: T;
 }
 

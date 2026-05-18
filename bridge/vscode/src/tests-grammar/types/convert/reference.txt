@@ -2,6 +2,7 @@
 
 // types / convert / reference / As defaults to readonly access
 class Buffer {
+// <- keyword.declaration.type.ds
     bytes: uint8[];
 }
 

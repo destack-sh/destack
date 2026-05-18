@@ -2,6 +2,7 @@
 
 // types / primitives / floats / float32 accepts literals
 let value: float32 = 1.5;
+// <- keyword.declaration.type.ds
 
 // types / primitives / floats / float32 widens to float64
 let small: float32 = 1.5;

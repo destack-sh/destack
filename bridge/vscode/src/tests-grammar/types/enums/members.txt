@@ -2,6 +2,7 @@
 
 // types / enums / members / enum instances expose methods
 enum Status {
+// <- keyword.declaration.type.ds
     Active = 1,
     Inactive = 2,
 

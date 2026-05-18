@@ -2,6 +2,7 @@
 
 // expressions / literals / tuple / tuple of literals
 const x = (1, "two", true);
+// <- keyword.declaration.type.ds
 x satisfies (number, string, boolean);
 
 // expressions / literals / tuple / tuple literals widen element types

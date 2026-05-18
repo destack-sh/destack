@@ -2,6 +2,7 @@
 
 // types / generics / aliases / aliases accept explicit type arguments
 type Box<T> = { value: T };
+// <- keyword.declaration.type.ds
 
 declare function makeBox(): Box<number>;
 

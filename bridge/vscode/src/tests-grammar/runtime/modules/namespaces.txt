@@ -2,6 +2,7 @@
 
 // runtime / modules / namespaces / export star namespace exposes type aliases
 export type Segment<T: string> = T extends `id:${infer U}` ? U : never;
+// <- keyword.declaration.import.ds
 
 // runtime / modules / namespaces / export star namespace exposes type aliases
 export * as api from "./types.ds";

@@ -2,6 +2,7 @@
 
 // expressions / patterns / wildcard / wildcard binding discards a value
 let _ = 1;
+// <- keyword.declaration.type.ds
 
 // expressions / patterns / wildcard / wildcard does not introduce a binding
 let _ = 1;

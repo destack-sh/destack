@@ -2,6 +2,7 @@
 
 // expressions / operators / negate / negate dispatches to Negate
 struct Signed {
+// <- keyword.declaration.type.ds
     value: int;
 }
 

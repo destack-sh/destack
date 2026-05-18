@@ -2,6 +2,7 @@
 
 // expressions / ranges / iteration / start-bounded ranges iterate
 declare const range: Range<int>;
+// <- keyword.declaration.type.ds
 
 range satisfies Iterable<int>;
 

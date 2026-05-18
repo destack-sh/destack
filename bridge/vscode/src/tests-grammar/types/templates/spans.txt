@@ -2,6 +2,7 @@
 
 // types / templates / spans / repeated parts must be the same
 declare function parse_repeat<T: string>(value: `${T}-${T}`): T;
+// <- keyword.declaration.type.ds
 
 const segment = parse_repeat("row-row");
 segment satisfies "row";

@@ -2,6 +2,7 @@
 
 // memory / new / new follows managed destinations
 class Widget {
+// <- keyword.declaration.type.ds
     value: int32 = 0;
 }
 

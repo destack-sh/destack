@@ -2,6 +2,7 @@
 
 // expressions / ranges / subscript / range indexing returns a slice view
 declare const values: Slice<int32>;
+// <- keyword.declaration.type.ds
 
 const middle = values[1..4];
 middle satisfies Slice<int32>;

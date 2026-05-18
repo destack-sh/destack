@@ -2,6 +2,7 @@
 
 // expressions / match / patterns / match tuple patterns bind tuple elements
 declare const pair: (int32, int32);
+// <- keyword.declaration.type.ds
 
 match (pair) {
     (left, right) => {

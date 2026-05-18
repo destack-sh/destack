@@ -2,6 +2,7 @@
 
 // types / newtypes / assignability / backing values do not satisfy newtypes
 newtype UserId = int64;
+// <- keyword.declaration.type.ds
 
 const id: UserId = 42;
 

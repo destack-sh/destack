@@ -2,6 +2,7 @@
 
 // expressions / literals / regex / regex literal yields RegExp
 let value: RegExp = /abc/;
+// <- keyword.declaration.type.ds
 
 // expressions / literals / regex / regex literals are not strings
 let value: string = /abc/;

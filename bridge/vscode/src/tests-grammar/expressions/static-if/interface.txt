@@ -2,6 +2,7 @@
 
 // expressions / static if / interface / when false, @if removes interface members
 interface Box {
+// <- keyword.declaration.type.ds
     @if(false)
     missing: MissingType;
     @if(false)

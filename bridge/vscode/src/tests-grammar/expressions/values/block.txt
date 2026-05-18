@@ -2,6 +2,7 @@
 
 // expressions / values / block / if blocks yield branch values
 const enabled = true;
+// <- keyword.declaration.type.ds
 const value = if (enabled) {
     1
 } else {

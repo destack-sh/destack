@@ -2,6 +2,7 @@
 
 // expressions / ranges / precedence / negative starts bind as prefix expressions
 const range = -3..3;
+// <- keyword.declaration.type.ds
 
 range satisfies Range<int>;
 

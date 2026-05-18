@@ -2,6 +2,7 @@
 
 // expressions / operators / plus / number plus number
 const value = 1 + 2;
+// <- keyword.declaration.type.ds
 value satisfies 3;
 value satisfies int;
 value satisfies float64;

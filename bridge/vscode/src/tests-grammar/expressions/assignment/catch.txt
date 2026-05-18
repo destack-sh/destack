@@ -2,6 +2,7 @@
 
 // expressions / assignment / catch / catch bindings are mutable
 declare function fail(): Result<void, string>;
+// <- keyword.declaration.type.ds
 
 try {
     fail()?;

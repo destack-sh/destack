@@ -2,6 +2,7 @@
 
 // expressions / values / do / do blocks yield the last expression
 let value: number = do {
+// <- keyword.declaration.type.ds
     let base = 1;
     base + 2
 };

@@ -2,6 +2,7 @@
 
 // expressions / annotations / derive / derive applies to structs
 @derive(Clone)
+// <- meta.decorator.call.ds
 struct User {
     id: int64;
 }

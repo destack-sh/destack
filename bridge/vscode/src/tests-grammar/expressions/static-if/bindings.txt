@@ -2,6 +2,7 @@
 
 // expressions / static if / bindings / when false, @if removes const declarations
 @if(false)
+// <- meta.decorator.call.ds
 const hidden = missingSymbol;
 
 const visible = 1;

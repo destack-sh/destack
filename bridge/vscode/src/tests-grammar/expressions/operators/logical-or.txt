@@ -2,6 +2,7 @@
 
 // expressions / operators / logical or / logical or yields boolean for booleans
 let value: boolean = true || false;
+// <- keyword.declaration.type.ds
 
 // expressions / operators / logical or / logical or assignment accepts assignable values
 let value: string | undefined = undefined;

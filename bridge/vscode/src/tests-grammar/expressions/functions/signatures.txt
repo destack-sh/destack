@@ -2,6 +2,7 @@
 
 // expressions / functions / signatures / functions can have no parameters
 function f(): void {}
+// <- keyword.declaration.type.ds
 
 // expressions / functions / signatures / functions can have parameters
 function add(a: number, b: number): void {

@@ -2,6 +2,7 @@
 
 // expressions / operators / power / number power number
 const value = 2 ** 3;
+// <- keyword.declaration.type.ds
 value satisfies 8;
 value satisfies int;
 value satisfies float64;

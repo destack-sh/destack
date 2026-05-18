@@ -2,6 +2,7 @@
 
 // expressions / match / results / const arrays keep literal elements
 const pair = [1, 2] as const;
+// <- keyword.declaration.type.ds
 
 match (pair) {
     [first, second] => {

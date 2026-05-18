@@ -2,6 +2,7 @@
 
 // expressions / comptime / try / comptime try catch joins branch types
 const value = comptime {
+// <- keyword.declaration.type.ds
     try {
         1
     } catch (error) {

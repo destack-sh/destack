@@ -2,6 +2,7 @@
 
 // expressions / static if / types / when false, @if removes type aliases
 @if(false)
+// <- meta.decorator.call.ds
 type Hidden = MissingType;
 
 type Visible = number;

@@ -2,6 +2,7 @@
 
 // runtime / modules / binary / binary files import as byte arrays
 import icon from "./icon.png.ds";
+// <- keyword.declaration.import.ds
 
 icon satisfies uint8[];
 

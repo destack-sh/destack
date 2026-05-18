@@ -2,6 +2,7 @@
 
 // types / primitives / never / never to number
 function fail(): never {
+// <- keyword.declaration.type.ds
     panic("error");
 }
 const x: number = fail();

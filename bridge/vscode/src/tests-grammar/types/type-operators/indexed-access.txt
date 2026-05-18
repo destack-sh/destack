@@ -2,6 +2,7 @@
 
 // types / type operators / indexed access / indexed access reads property types
 type User = { name: string; age: number };
+// <- keyword.declaration.type.ds
 type Name = User["name"];
 
 const value: Name = "Ada";

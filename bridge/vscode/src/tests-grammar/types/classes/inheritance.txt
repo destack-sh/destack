@@ -2,6 +2,7 @@
 
 // types / classes / inheritance / children assign to parents
 class Animal {
+// <- keyword.declaration.type.ds
     name: string = "";
 }
 

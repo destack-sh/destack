@@ -2,6 +2,7 @@
 
 // expressions / patterns / ranges / half-open range pattern
 function label(value: int32): string {
+// <- keyword.declaration.type.ds
     match (value) {
         0..10 => {
             value satisfies 0..10;

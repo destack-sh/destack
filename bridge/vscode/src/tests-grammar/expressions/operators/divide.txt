@@ -2,6 +2,7 @@
 
 // expressions / operators / divide / number divided by number
 const value = 10 / 2;
+// <- keyword.declaration.type.ds
 value satisfies 5;
 value satisfies int;
 value satisfies float64;

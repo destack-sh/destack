@@ -2,6 +2,7 @@
 
 // types / static / arrays / static parameters size arrays
 type Lane<comptime N: uint> = [uint8; N * 2];
+// <- keyword.declaration.type.ds
 
 declare const lane: Lane<4>;
 lane satisfies [uint8; 8];

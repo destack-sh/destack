@@ -2,6 +2,7 @@
 
 // expressions / operators / remainder / number remainder number
 const value = 10 % 3;
+// <- keyword.declaration.type.ds
 value satisfies 1;
 value satisfies int;
 value satisfies float64;

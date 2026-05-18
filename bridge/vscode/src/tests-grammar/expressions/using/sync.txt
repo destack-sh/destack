@@ -2,6 +2,7 @@
 
 // expressions / using / sync / using binding introduces a resource name
 class File implements Dispose {
+// <- keyword.declaration.type.ds
     dispose(): void {}
 }
 

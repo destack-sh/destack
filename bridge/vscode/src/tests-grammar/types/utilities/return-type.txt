@@ -2,6 +2,7 @@
 
 // types / utilities / return type / ReturnType extracts return values
 type Value = ReturnType<() => string>;
+// <- keyword.declaration.type.ds
 
 const ok: Value = "ready";
 ok satisfies string;

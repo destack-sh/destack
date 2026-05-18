@@ -2,6 +2,7 @@
 
 // expressions / static if / struct / when false, @if removes struct members
 struct Point {
+// <- keyword.declaration.type.ds
     @if(false)
     missing: MissingType;
 

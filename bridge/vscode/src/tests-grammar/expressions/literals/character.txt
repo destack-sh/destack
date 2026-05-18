@@ -2,6 +2,7 @@
 
 // expressions / literals / character / character literal yields character type
 const value = 'a';
+// <- keyword.declaration.type.ds
 value satisfies char;
 
 // expressions / literals / character / character literal does not widen to string

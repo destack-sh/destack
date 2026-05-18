@@ -2,6 +2,7 @@
 
 // expressions / functions / async / await unwraps promise value type
 declare const value: Promise<number>;
+// <- keyword.declaration.type.ds
 
 async function read(): Promise<number> {
     const inner = await value;

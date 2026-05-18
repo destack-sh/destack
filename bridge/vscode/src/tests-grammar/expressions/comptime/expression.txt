@@ -2,6 +2,7 @@
 
 // expressions / comptime / expression / comptime expressions yield value types
 const value: int32 = comptime 1 + 2;
+// <- keyword.declaration.type.ds
 value satisfies int32;
 
 // expressions / comptime / expression / comptime expressions keep exact values

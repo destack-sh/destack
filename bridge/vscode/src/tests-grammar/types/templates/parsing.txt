@@ -2,6 +2,7 @@
 
 // types / templates / parsing / template literal infers constrained number literal
 declare function parse<T: number>(value: `${T}`): T;
+// <- keyword.declaration.type.ds
 
 let ok = parse("42");
 ok satisfies 42;

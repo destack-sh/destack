@@ -2,6 +2,7 @@
 
 // expressions / operators / dereference / readonly dereference
 struct Ref<T> {
+// <- keyword.declaration.type.ds
     value: T;
 }
 

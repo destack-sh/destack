@@ -2,6 +2,7 @@
 
 // types / type operators / typeof / typeof returns value types for locals
 const value = 42;
+// <- keyword.declaration.type.ds
 
 type ValueType = typeof value;
 

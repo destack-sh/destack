@@ -2,6 +2,7 @@
 
 // expressions / operators / bitwise / bitwise and yields the left numeric type
 const value = 5 & 3;
+// <- keyword.declaration.type.ds
 value satisfies int32;
 
 // expressions / operators / bitwise / bitwise or yields the left numeric type

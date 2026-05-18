@@ -2,6 +2,7 @@
 
 // expressions / operators / as / as preserves the asserted type
 const value = "ok" as string;
+// <- keyword.declaration.type.ds
 value satisfies string;
 
 // expressions / operators / as / as can narrow unions

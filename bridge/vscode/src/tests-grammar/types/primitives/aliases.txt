@@ -2,6 +2,7 @@
 
 // types / primitives / aliases / int uses int64
 declare const value: int64;
+// <- keyword.declaration.type.ds
 let alias: int = value;
 let back: int64 = alias;
 alias satisfies int64;

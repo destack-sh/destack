@@ -2,6 +2,7 @@
 
 // types / templates / associated / associated aliases can use outer generic arguments
 class Topic<T: string> {
+// <- keyword.declaration.type.ds
     type Channel = `topic:${T}`;
 }
 

@@ -2,6 +2,7 @@
 
 // types / utilities / lowercase / lowercase converts literals
 type Value = Lowercase<"HELLO">;
+// <- keyword.declaration.type.ds
 
 const ok: Value = "hello";
 

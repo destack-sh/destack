@@ -2,6 +2,7 @@
 
 // memory / rc / Rc can create weak handles
 import * as rc from "destack:memory/rc";
+// <- keyword.declaration.import.ds
 
 struct User {
     name: string;

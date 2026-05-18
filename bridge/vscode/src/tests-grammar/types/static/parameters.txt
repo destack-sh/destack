@@ -2,6 +2,7 @@
 
 // types / static / parameters / static value parameters require comptime modifiers
 type Buffer<N: uint> = [uint8; N];
+// <- keyword.declaration.type.ds
 
 declare let value: Buffer<4>;
 

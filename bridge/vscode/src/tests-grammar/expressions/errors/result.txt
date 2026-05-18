@@ -2,6 +2,7 @@
 
 // expressions / errors / result / constructors return Result
 const ok: Result<int, string> = Result.ok(1);
+// <- keyword.declaration.type.ds
 const err: Result<int, string> = Result.err("no");
 
 ok satisfies Result<int, string>;

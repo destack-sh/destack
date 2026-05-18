@@ -2,6 +2,7 @@
 
 // memory / restrictions / noManaged rejects managed allocations
 class Widget {
+// <- keyword.declaration.type.ds
     value: number = 0;
 }
 

@@ -2,6 +2,7 @@
 
 // expressions / loops / while / while yields void
 let value: void = while (true) {
+// <- keyword.declaration.type.ds
     break;
 };
 

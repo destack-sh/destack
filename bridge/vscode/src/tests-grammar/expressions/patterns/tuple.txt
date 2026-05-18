@@ -2,6 +2,7 @@
 
 // expressions / patterns / tuple / tuple patterns destructure values
 let (left, right) = (1, 2);
+// <- keyword.declaration.type.ds
 left satisfies number;
 right satisfies number;
 

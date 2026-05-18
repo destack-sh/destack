@@ -2,6 +2,7 @@
 
 // types / intervals / scalars / char intervals use Unicode scalar order
 type LowerAscii = 'a'..='z';
+// <- keyword.declaration.type.ds
 
 let value: LowerAscii = 'm';
 value satisfies LowerAscii;

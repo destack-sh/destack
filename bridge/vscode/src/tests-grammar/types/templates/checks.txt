@@ -2,6 +2,7 @@
 
 // types / templates / checks / nullish checks preserve template literal constraints
 type Route = `api:${string}`;
+// <- keyword.declaration.type.ds
 
 declare const route: Route | undefined;
 

@@ -2,6 +2,7 @@
 
 // types / utilities / uppercase / uppercase converts literals
 type Value = Uppercase<"hello">;
+// <- keyword.declaration.type.ds
 
 const ok: Value = "HELLO";
 

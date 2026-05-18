@@ -2,6 +2,7 @@
 
 // types / type operators / keys / keyof builds literal key unions
 interface Person {
+// <- keyword.declaration.type.ds
     name: string;
     age: number;
 }

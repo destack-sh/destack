@@ -2,6 +2,7 @@
 
 // expressions / match / newtypes / scalar newtype patterns bind values
 newtype UserId = int64;
+// <- keyword.declaration.type.ds
 
 function nextId(id: UserId): int64 {
     match (id) {

@@ -2,6 +2,7 @@
 
 // expressions / operators / shift / shift left yields the left numeric type
 const value = 1 << 2;
+// <- keyword.declaration.type.ds
 value satisfies int32;
 
 // expressions / operators / shift / shift right yields the left numeric type

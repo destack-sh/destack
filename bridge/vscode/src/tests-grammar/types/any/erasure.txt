@@ -2,6 +2,7 @@
 
 // types / any / erasure / interface parameters specialize by default
 newtype interface Writer {
+// <- keyword.declaration.type.ds
     write(bytes: [uint8]): uint;
 }
 

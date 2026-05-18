@@ -2,6 +2,7 @@
 
 // types / associated / requirement / implementations inherit type defaults
 interface Stream<T> {
+// <- keyword.declaration.type.ds
     type Item = T;
     next(): this.Item;
 }
