@@ -194,7 +194,7 @@ fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
     let targets: Vec<(String, Target)> = config
         .targets
         .iter()
-        .map(|(name, opts)| (name.clone(), opts.to_target(name)))
+        .map(|(name, target)| (name.clone(), target.clone()))
         .collect();
     if targets.is_empty() {
         return CaseResult::Failed {
