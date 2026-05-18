@@ -5,6 +5,10 @@ const user = decode(raw)?;
 //           ^^^^^^ entity.name.function.call.ds
 //                      ^ keyword.operator.postfix.ds
 
+JSON.stringify(value)? satisfies string;
+//                   ^ keyword.operator.postfix.ds
+//                     ^^^^^^^^^ keyword.operator.type.binary.ds
+
 const value = maybe ?? fallback;
 //                  ^^ keyword.operator.boolean.ds
 

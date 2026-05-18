@@ -18,3 +18,9 @@ class ConsoleLogger extends Logger {
 // <- keyword.declaration.type.ds
     override write(message: string): void {}
 }
+
+class BufferedLogger extends Logger {
+// <- keyword.declaration.type.ds
+    virtual write(message: string): void {}
+//  ^^^^^^^ keyword.other.modifier.ds
+}

@@ -15,3 +15,5 @@ type IsDrawable = Point implements Drawable;
 value satisfies Drawable;
 //    ^^^^^^^^^ keyword.operator.type.binary.ds
 
+result satisfies { kind?: "ok"; value: string } | { kind: "err"; error: string };
+//     ^^^^^^^^^ keyword.operator.type.binary.ds
