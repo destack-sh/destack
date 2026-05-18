@@ -2,7 +2,7 @@ use destack_core::stable_hash_key_value_128;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    EmitFormat, Host, HostEnvironmentKey, Platform, Runtime, TargetAbi, TargetArch, TargetVendor,
+    EmitFormat, EnvironmentKey, Host, Platform, Runtime, TargetAbi, TargetArch, TargetVendor,
     normalize_profile_keys,
 };
 
@@ -61,7 +61,7 @@ pub struct ProfileKey {
     /// Active product for the profile.
     pub product: Option<String>,
     /// Compile-time environment identity for `import.meta.env`.
-    pub env: HostEnvironmentKey,
+    pub env: EnvironmentKey,
     /// Flags that affect semantic behavior.
     pub flags: ProfileFlags,
 }
@@ -86,7 +86,7 @@ impl ProfileKey {
         tags: Vec<String>,
         target: Option<String>,
         product: Option<String>,
-        env: HostEnvironmentKey,
+        env: EnvironmentKey,
         flags: ProfileFlags,
     ) -> Self {
         let globals = normalize_profile_keys(globals);

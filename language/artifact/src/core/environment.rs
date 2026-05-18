@@ -1,16 +1,16 @@
 use destack_core::StableHasher;
 use serde::{Deserialize, Serialize};
 
-/// Stable identity for host environment variables read by one profile.
+/// Stable identity for environment variables read by one profile.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
-pub enum HostEnvironmentKey {
+pub enum EnvironmentKey {
     /// All captured environment variables by key and hash.
     All { keys: Vec<String>, hash: u128 },
     /// Whitelisted environment variables by key and hash.
     Whitelist { keys: Vec<String>, hash: u128 },
 }
 
-impl HostEnvironmentKey {
+impl EnvironmentKey {
     /// Build one key from all provided environment variables.
     pub fn all(entries: Vec<(String, String)>) -> Self {
         let mut entries = entries;
