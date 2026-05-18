@@ -30,7 +30,7 @@ Labeled loops can be exited with a matching break.
 
 ```ds
 let value: void = outer: loop {
-    break :outer;
+    break outer;
 };
 ```
 
@@ -40,7 +40,7 @@ Loop expressions use break values to determine their result type.
 
 ```ds
 let value: number = loop {
-    break 1;
+    break (1);
 };
 ```
 
@@ -50,7 +50,7 @@ Loop break values must satisfy the expected type.
 
 ```ds
 let value: string = loop {
-    break 1;
+    break (1);
 };
 ```
 
@@ -63,7 +63,7 @@ Breaks without values contribute void to the loop result.
 ```ds
 let value: number | void = loop {
     if (true) {
-        break 1;
+        break (1);
     }
     break;
 };

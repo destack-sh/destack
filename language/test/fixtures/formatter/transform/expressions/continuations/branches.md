@@ -16,14 +16,38 @@ break;
 
 ### labeled break
 
-Destack uses colon prefix for labels: `break :label`.
+Break labels use TypeScript label names.
 
 ```ds
-break :outer
+break outer
 ```
 
 ```ds expected
-break :outer;
+break outer;
+```
+
+### break value
+
+Unlabeled break values use parentheses.
+
+```ds
+break (value)
+```
+
+```ds expected
+break (value);
+```
+
+### labeled break value
+
+Labeled break values use a colon before the value.
+
+```ds
+break outer: value
+```
+
+```ds expected
+break outer: value;
 ```
 
 ### continue statement
@@ -40,12 +64,12 @@ continue;
 
 ### labeled continue
 
-Labeled continue uses the same colon prefix syntax.
+Continue labels use TypeScript label names.
 
 ```ds
-continue :outer
+continue outer
 ```
 
 ```ds expected
-continue :outer;
+continue outer;
 ```

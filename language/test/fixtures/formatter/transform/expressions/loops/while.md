@@ -63,13 +63,13 @@ loop {
 Break values stay statement-like inside loop bodies.
 
 ```ds
-function first(items: Array<number>): number { loop { break items[0] } }
+function first(items: Array<number>): number { loop { break (items[0]) } }
 ```
 
 ```ds expected
 function first(items: Array<number>): number {
     loop {
-        break items[0];
+        break (items[0]);
     }
 }
 ```

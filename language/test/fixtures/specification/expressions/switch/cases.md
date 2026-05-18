@@ -53,7 +53,7 @@ Switch breaks cannot carry a value.
 function invalidBreak(day: int32): int32 {
     switch (day) {
         case 0:
-            break 1;
+            break (1);
         default:
             break;
     }

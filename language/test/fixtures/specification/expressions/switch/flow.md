@@ -11,7 +11,7 @@ function invalidSwitchBreakValueInLoop(value: int32): int32 {
     loop {
         switch (value) {
             case 0:
-                break 1;
+                break (1);
             default:
                 break;
         }
@@ -33,7 +33,7 @@ function labeledBreakSwitch(value: int32): int32 {
     outer: switch (value) {
         case 0:
             count = 1;
-            break :outer;
+            break outer;
         default:
             count = 2;
             break;
@@ -53,7 +53,7 @@ function labeledBreakLoopFromSwitch(value: int32): int32 {
         switch (value) {
             case 0:
                 count = 1;
-                break :outer;
+                break outer;
             default:
                 count = 2;
                 break;
@@ -117,7 +117,7 @@ function labeledContinueLoopFromSwitch(value: int32): int32 {
         switch (value) {
             case 0:
                 count = count + 1;
-                continue :outer;
+                continue outer;
             default:
                 break;
         }
@@ -135,7 +135,7 @@ Continue requires a loop label, even when a switch is labeled.
 function invalidLabeledContinueSwitch(value: int32): int32 {
     outer: switch (value) {
         case 0:
-            continue :outer;
+            continue outer;
         default:
             break;
     }
