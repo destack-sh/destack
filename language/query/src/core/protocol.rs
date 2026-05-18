@@ -1,17 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::method::QueryMethodId;
-use super::scope::QueryScope;
 use crate::{assist, navigation, refactor};
-
-/// Query execution mode used for precondition handling.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum QueryExecutionMode {
-    /// Read-only query that does not produce edits.
-    Read,
-    /// Query that produces refactor edits.
-    Write,
-}
 
 /// Query request payload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -58,21 +48,23 @@ pub enum QueryRequest {
     GotoImplementation(navigation::GotoImplementationRequest),
     /// Find references request payload.
     FindReferences(navigation::FindReferencesRequest),
-    /// Call hierarchy prepare request payload.
-    PrepareCallHierarchy(navigation::PrepareCallHierarchyRequest),
+    /// Call hierarchy item request payload.
+    CallHierarchyItem(navigation::CallHierarchyItemRequest),
     /// Incoming call hierarchy request payload.
     CallHierarchyIncoming(navigation::CallHierarchyIncomingRequest),
     /// Outgoing call hierarchy request payload.
     CallHierarchyOutgoing(navigation::CallHierarchyOutgoingRequest),
-    /// Type hierarchy prepare request payload.
-    PrepareTypeHierarchy(navigation::PrepareTypeHierarchyRequest),
+    /// Type hierarchy item request payload.
+    TypeHierarchyItem(navigation::TypeHierarchyItemRequest),
     /// Type hierarchy supertypes request payload.
     TypeHierarchySupertypes(navigation::TypeHierarchySupertypesRequest),
     /// Type hierarchy subtypes request payload.
     TypeHierarchySubtypes(navigation::TypeHierarchySubtypesRequest),
+    /// Annotation request payload.
+    Annotations(navigation::AnnotationsRequest),
 
-    /// Prepare rename request payload.
-    PrepareRename(refactor::PrepareRenameRequest),
+    /// Rename target request payload.
+    RenameTarget(refactor::RenameTargetRequest),
     /// Rename request payload.
     Rename(refactor::RenameRequest),
     /// Rename files request payload.
@@ -113,13 +105,14 @@ impl QueryRequest {
             Self::GotoTypeDefinition(_) => QueryMethodId::GotoTypeDefinition,
             Self::GotoImplementation(_) => QueryMethodId::GotoImplementation,
             Self::FindReferences(_) => QueryMethodId::FindReferences,
-            Self::PrepareCallHierarchy(_) => QueryMethodId::PrepareCallHierarchy,
+            Self::CallHierarchyItem(_) => QueryMethodId::CallHierarchyItem,
             Self::CallHierarchyIncoming(_) => QueryMethodId::CallHierarchyIncoming,
             Self::CallHierarchyOutgoing(_) => QueryMethodId::CallHierarchyOutgoing,
-            Self::PrepareTypeHierarchy(_) => QueryMethodId::PrepareTypeHierarchy,
+            Self::TypeHierarchyItem(_) => QueryMethodId::TypeHierarchyItem,
             Self::TypeHierarchySupertypes(_) => QueryMethodId::TypeHierarchySupertypes,
             Self::TypeHierarchySubtypes(_) => QueryMethodId::TypeHierarchySubtypes,
-            Self::PrepareRename(_) => QueryMethodId::PrepareRename,
+            Self::Annotations(_) => QueryMethodId::Annotations,
+            Self::RenameTarget(_) => QueryMethodId::RenameTarget,
             Self::Rename(_) => QueryMethodId::Rename,
             Self::RenameFiles(_) => QueryMethodId::RenameFiles,
             Self::ExtractFunction(_) => QueryMethodId::ExtractFunction,
@@ -128,84 +121,6 @@ impl QueryRequest {
             Self::ChangeSignature(_) => QueryMethodId::ChangeSignature,
             Self::CodeActions(_) => QueryMethodId::CodeActions,
         }
-    }
-
-    /// Return the execution mode for this query.
-    pub fn execution_mode(&self) -> QueryExecutionMode {
-        self.method_id().execution_mode()
-    }
-
-    /// Return the query index scope needed before this query can run.
-    pub fn scope(&self) -> Option<QueryScope> {
-        let uri = match self {
-            Self::Completion(params) => {
-                if params.include_imports {
-                    return Some(QueryScope::ModuleAndWorkspace {
-                        uri: params.uri.clone(),
-                    });
-                }
-
-                &params.uri
-            }
-            Self::Hover(params) => &params.uri,
-            Self::SignatureHelp(params) => &params.uri,
-            Self::InlayHints(params) => &params.uri,
-            Self::CodeLenses(params) => {
-                return Some(QueryScope::ModuleAndWorkspace {
-                    uri: params.uri.clone(),
-                });
-            }
-            Self::FoldingRanges(params) => &params.uri,
-            Self::SemanticTokens(params) => &params.uri,
-            Self::SemanticTokensRange(params) => &params.uri,
-            Self::DocumentSymbols(params) => &params.uri,
-            Self::DocumentLinks(params) => &params.uri,
-            Self::DocumentHighlight(params) => &params.uri,
-            Self::SelectionRanges(params) => &params.uri,
-            Self::GotoDefinition(params) => &params.uri,
-            Self::GotoDeclaration(params) => &params.uri,
-            Self::GotoTypeDefinition(params) => &params.uri,
-            Self::GotoImplementation(params) => {
-                return Some(QueryScope::ModuleAndWorkspace {
-                    uri: params.uri.clone(),
-                });
-            }
-            Self::FindReferences(params) => {
-                return Some(QueryScope::ModuleAndWorkspace {
-                    uri: params.uri.clone(),
-                });
-            }
-            Self::PrepareCallHierarchy(params) => &params.uri,
-            Self::PrepareTypeHierarchy(params) => &params.uri,
-            Self::PrepareRename(params) => &params.uri,
-            Self::Rename(params) => {
-                return Some(QueryScope::ModuleAndWorkspace {
-                    uri: params.uri.clone(),
-                });
-            }
-            Self::ExtractFunction(params) => &params.uri,
-            Self::ExtractVariable(params) => &params.uri,
-            Self::Inline(params) => {
-                return Some(QueryScope::ModuleAndWorkspace {
-                    uri: params.uri.clone(),
-                });
-            }
-            Self::ChangeSignature(params) => {
-                return Some(QueryScope::ModuleAndWorkspace {
-                    uri: params.uri.clone(),
-                });
-            }
-            Self::CodeActions(params) => &params.uri,
-            Self::WorkspaceSymbols(_)
-            | Self::CallHierarchyIncoming(_)
-            | Self::CallHierarchyOutgoing(_)
-            | Self::TypeHierarchySupertypes(_)
-            | Self::TypeHierarchySubtypes(_)
-            | Self::RenameFiles(_) => return Some(QueryScope::Workspace),
-            Self::ResolveCodeLens(_) | Self::ResolveDocumentLink(_) => return None,
-        };
-
-        Some(QueryScope::Module { uri: uri.clone() })
     }
 }
 
@@ -254,21 +169,23 @@ pub enum QueryResponse {
     GotoImplementation(navigation::GotoImplementationResponse),
     /// Find references response payload.
     FindReferences(navigation::FindReferencesResponse),
-    /// Call hierarchy prepare response payload.
-    PrepareCallHierarchy(navigation::PrepareCallHierarchyResponse),
+    /// Call hierarchy item response payload.
+    CallHierarchyItem(navigation::CallHierarchyItemResponse),
     /// Incoming call hierarchy response payload.
     CallHierarchyIncoming(navigation::CallHierarchyIncomingResponse),
     /// Outgoing call hierarchy response payload.
     CallHierarchyOutgoing(navigation::CallHierarchyOutgoingResponse),
-    /// Type hierarchy prepare response payload.
-    PrepareTypeHierarchy(navigation::PrepareTypeHierarchyResponse),
+    /// Type hierarchy item response payload.
+    TypeHierarchyItem(navigation::TypeHierarchyItemResponse),
     /// Type hierarchy supertypes response payload.
     TypeHierarchySupertypes(navigation::TypeHierarchySupertypesResponse),
     /// Type hierarchy subtypes response payload.
     TypeHierarchySubtypes(navigation::TypeHierarchySubtypesResponse),
+    /// Annotation response payload.
+    Annotations(navigation::AnnotationsResponse),
 
-    /// Prepare rename response payload.
-    PrepareRename(refactor::PrepareRenameResponse),
+    /// Rename target response payload.
+    RenameTarget(refactor::RenameTargetResponse),
     /// Rename response payload.
     Rename(refactor::RenameResponse),
     /// Rename files response payload.
@@ -309,13 +226,14 @@ impl QueryResponse {
             Self::GotoTypeDefinition(_) => QueryMethodId::GotoTypeDefinition,
             Self::GotoImplementation(_) => QueryMethodId::GotoImplementation,
             Self::FindReferences(_) => QueryMethodId::FindReferences,
-            Self::PrepareCallHierarchy(_) => QueryMethodId::PrepareCallHierarchy,
+            Self::CallHierarchyItem(_) => QueryMethodId::CallHierarchyItem,
             Self::CallHierarchyIncoming(_) => QueryMethodId::CallHierarchyIncoming,
             Self::CallHierarchyOutgoing(_) => QueryMethodId::CallHierarchyOutgoing,
-            Self::PrepareTypeHierarchy(_) => QueryMethodId::PrepareTypeHierarchy,
+            Self::TypeHierarchyItem(_) => QueryMethodId::TypeHierarchyItem,
             Self::TypeHierarchySupertypes(_) => QueryMethodId::TypeHierarchySupertypes,
             Self::TypeHierarchySubtypes(_) => QueryMethodId::TypeHierarchySubtypes,
-            Self::PrepareRename(_) => QueryMethodId::PrepareRename,
+            Self::Annotations(_) => QueryMethodId::Annotations,
+            Self::RenameTarget(_) => QueryMethodId::RenameTarget,
             Self::Rename(_) => QueryMethodId::Rename,
             Self::RenameFiles(_) => QueryMethodId::RenameFiles,
             Self::ExtractFunction(_) => QueryMethodId::ExtractFunction,

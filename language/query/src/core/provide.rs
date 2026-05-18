@@ -4,15 +4,16 @@ use destack_source::{ModuleId, ProfileId};
 use destack_workspace::{ArtifactReader, ProviderContext, ProviderError, ProviderResult, Revision};
 
 use crate::dir::{
-    build_call_candidates_for_module, build_extension_candidates_for_module,
-    build_import_candidates_for_module, build_nominal_relations_for_module,
-    build_reference_targets_for_module, build_specifier_candidates_for_module,
-    build_workspace_symbol_candidates_for_module,
+    build_annotation_candidates_for_module, build_call_candidates_for_module,
+    build_extension_candidates_for_module, build_import_candidates_for_module,
+    build_nominal_relations_for_module, build_reference_targets_for_module,
+    build_specifier_candidates_for_module, build_workspace_symbol_candidates_for_module,
 };
 
 use super::{
-    CallIndex, ExtensionIndex, ImportIndex, NominalIndex, Query, QueryContext, ReferenceEntry,
-    ReferenceIndex, SpecifierIndex, SymbolIndex, query_context_for_profile,
+    AnnotationIndex, CallIndex, ExtensionIndex, ImportIndex, ModuleQueryContext, NominalIndex,
+    Query, ReferenceEntry, ReferenceIndex, SpecifierIndex, SymbolIndex,
+    require_module_query_context,
 };
 
 impl Query {
@@ -43,16 +44,14 @@ impl Query {
         let revision = context.revision();
         let artifacts = ArtifactReader::new(context, self.repository().artifact_store().clone());
 
-        // require the checked source model used by the query context
-        artifacts.require(ArtifactKey::dir_checked(module_id, profile_id))?;
-
         // build the module index from one checked query context
-        let context = query_context_for_profile(self.repository(), revision, module_id, profile_id)
-            .ok_or_else(|| {
-                ProviderError::internal(format!(
-                    "missing checked query context for module {module_id:?} profile {profile_id:?}"
-                ))
-            })?;
+        let context = require_module_query_context(
+            self.repository(),
+            revision,
+            module_id,
+            profile_id,
+            &artifacts,
+        )?;
         let index = self.build_module_query_index(&context);
         let payload = ModuleQueryIndex { index };
 
@@ -108,16 +107,15 @@ impl Query {
     }
 
     /// Build one module-scoped query index.
-    fn build_module_query_index(&self, context: &QueryContext<'_>) -> QueryIndex {
-        let repository = self.repository();
+    fn build_module_query_index(&self, context: &ModuleQueryContext<'_>) -> QueryIndex {
         let module_id = context.module_id();
 
         // visible symbols and importable exports
         let symbols = SymbolIndex::new(build_workspace_symbol_candidates_for_module(context));
-        let imports = ImportIndex::new(build_import_candidates_for_module(repository, context));
+        let imports = ImportIndex::new(build_import_candidates_for_module(context));
 
         // reference targets
-        let references = build_reference_targets_for_module(repository, context)
+        let references = build_reference_targets_for_module(context)
             .into_iter()
             .map(|target_symbol| ReferenceEntry {
                 target_symbol,
@@ -127,14 +125,13 @@ impl Query {
         let references = ReferenceIndex::new(references);
 
         // navigation relations
-        let calls = CallIndex::new(build_call_candidates_for_module(repository, context));
+        let calls = CallIndex::new(build_call_candidates_for_module(context));
         let nominal = NominalIndex::new(build_nominal_relations_for_module(context));
-        let extensions =
-            ExtensionIndex::new(build_extension_candidates_for_module(repository, context));
+        let extensions = ExtensionIndex::new(build_extension_candidates_for_module(context));
 
         // refactor targets
-        let specifiers =
-            SpecifierIndex::new(build_specifier_candidates_for_module(repository, context));
+        let specifiers = SpecifierIndex::new(build_specifier_candidates_for_module(context));
+        let annotations = AnnotationIndex::new(build_annotation_candidates_for_module(context));
 
         QueryIndex {
             symbols,
@@ -144,6 +141,7 @@ impl Query {
             nominal,
             extensions,
             specifiers,
+            annotations,
         }
     }
 }

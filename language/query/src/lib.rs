@@ -8,11 +8,12 @@ mod source;
 
 pub use assist::*;
 pub use core::{
-    Query, QueryCategory, QueryExecutionMode, QueryMethod, QueryMethodId, QueryRequest,
-    QueryRequestParseError, QueryResponse, QueryScope, parse_query_request, query_method,
-    query_methods,
+    ModuleQueryContext, Query, QueryCategory, QueryMethod, QueryMethodId, QueryModule,
+    QueryPosition, QueryRange, QueryRequest, QueryRequestParseError, QueryResponse, QueryTarget,
+    QueryText, WorkspaceQueryContext, module_query_context, module_query_context_from_checked,
+    parse_query_request, query_method, query_methods, workspace_query_context,
 };
-pub use dir::{SymbolKind, resolve_global_symbol_id};
+pub use dir::SymbolKind;
 pub use format::*;
 pub use navigation::*;
 pub use refactor::*;
