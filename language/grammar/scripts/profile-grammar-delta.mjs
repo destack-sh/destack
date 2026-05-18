@@ -7,6 +7,13 @@ import { spawnSync } from "node:child_process";
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const grammarRoot = path.resolve(scriptDir, "..");
 const forkRoot = path.resolve(grammarRoot, "destack");
+const generatedPaths = [
+    "src/grammar.json",
+    "src/node-types.json",
+    "src/parser.c",
+    "src/tree_sitter/array.h",
+    "src/tree_sitter/parser.h",
+];
 
 function parseArgs(argv) {
     const defaults = {
@@ -14,6 +21,8 @@ function parseArgs(argv) {
         baseline: "tsx",
         top: 30,
         json: "",
+        maxParserSizeRatio: 2,
+        maxStateRatio: 1.5,
     };
 
     const options = { ...defaults };
@@ -45,6 +54,18 @@ function parseArgs(argv) {
             continue;
         }
 
+        if (token === "--max-parser-size-ratio" && argv[i + 1]) {
+            options.maxParserSizeRatio = Number.parseFloat(argv[i + 1]);
+            i += 1;
+            continue;
+        }
+
+        if (token === "--max-state-ratio" && argv[i + 1]) {
+            options.maxStateRatio = Number.parseFloat(argv[i + 1]);
+            i += 1;
+            continue;
+        }
+
         if (token === "--help" || token === "-h") {
             printHelp();
             process.exit(0);
@@ -53,6 +74,14 @@ function parseArgs(argv) {
 
     if (!Number.isFinite(options.top) || options.top <= 0) {
         throw new Error(`invalid --top value: ${options.top}`);
+    }
+
+    if (!Number.isFinite(options.maxParserSizeRatio) || options.maxParserSizeRatio <= 0) {
+        throw new Error(`invalid --max-parser-size-ratio value: ${options.maxParserSizeRatio}`);
+    }
+
+    if (!Number.isFinite(options.maxStateRatio) || options.maxStateRatio <= 0) {
+        throw new Error(`invalid --max-state-ratio value: ${options.maxStateRatio}`);
     }
 
     return options;
@@ -69,6 +98,10 @@ function printHelp() {
     console.log("  --baseline <name>    baseline grammar dialect (default: tsx)");
     console.log("  --top <n>            number of top rows to print (default: 30)");
     console.log("  --json <path>        optional output path for machine-readable JSON");
+    console.log("  --max-parser-size-ratio <n>");
+    console.log("                       fail if target parser.c exceeds this baseline multiple");
+    console.log("  --max-state-ratio <n>");
+    console.log("                       fail if target state count exceeds this baseline multiple");
 }
 
 function resolveDialectDir(name) {
@@ -87,41 +120,66 @@ function resolveDialectDir(name) {
 }
 
 function runReport(dialect, directory) {
-    // tree-sitter report output comes from stderr, so merge stdout and stderr
-    const start = process.hrtime.bigint();
-    const result = spawnSync(
-        "npx",
-        ["tree-sitter", "generate", "--report-states-for-rule", "-"],
-        {
-            cwd: directory,
-            encoding: "utf8",
-            stdio: ["ignore", "pipe", "pipe"],
-        },
-    );
-    const end = process.hrtime.bigint();
+    const snapshot = snapshotGeneratedFiles(directory);
 
-    if (result.error) {
-        throw result.error;
-    }
-
-    if (result.status !== 0) {
-        throw new Error(
-            `tree-sitter generate failed for ${dialect} (${directory})\n${result.stdout}\n${result.stderr}`,
+    try {
+        const start = process.hrtime.bigint();
+        const result = spawnSync(
+            "bunx",
+            ["tree-sitter-cli@0.24.4", "generate", "--report-states-for-rule", "-"],
+            {
+                cwd: directory,
+                encoding: "utf8",
+                stdio: ["ignore", "pipe", "pipe"],
+            },
         );
+        const end = process.hrtime.bigint();
+
+        if (result.error) {
+            throw result.error;
+        }
+
+        if (result.status !== 0) {
+            throw new Error(
+                `tree-sitter generate failed for ${dialect} (${directory})\n${result.stdout}\n${result.stderr}`,
+            );
+        }
+
+        const combined = `${result.stdout}\n${result.stderr}`;
+        const rules = parseRuleStates(combined);
+        const parserMetrics = parseParserMetrics(path.resolve(directory, "src", "parser.c"));
+        const seconds = Number(end - start) / 1_000_000_000;
+
+        return {
+            dialect,
+            directory,
+            seconds,
+            rules,
+            parserMetrics,
+        };
+    } finally {
+        restoreGeneratedFiles(snapshot);
     }
+}
 
-    const combined = `${result.stdout}\n${result.stderr}`;
-    const rules = parseRuleStates(combined);
-    const parserMetrics = parseParserMetrics(path.resolve(directory, "src", "parser.c"));
-    const seconds = Number(end - start) / 1_000_000_000;
+function snapshotGeneratedFiles(directory) {
+    return generatedPaths.map((relativePath) => {
+        const filePath = path.resolve(directory, relativePath);
+        const content = fs.existsSync(filePath) ? fs.readFileSync(filePath) : null;
 
-    return {
-        dialect,
-        directory,
-        seconds,
-        rules,
-        parserMetrics,
-    };
+        return { filePath, content };
+    });
+}
+
+function restoreGeneratedFiles(snapshot) {
+    for (const entry of snapshot) {
+        if (entry.content === null) {
+            fs.rmSync(entry.filePath, { force: true });
+        } else {
+            fs.mkdirSync(path.dirname(entry.filePath), { recursive: true });
+            fs.writeFileSync(entry.filePath, entry.content);
+        }
+    }
 }
 
 function parseRuleStates(source) {
@@ -301,6 +359,30 @@ function maybeWriteJson(pathValue, payload) {
     console.log(`json report written: ${outputPath}`);
 }
 
+function assertBudget(targetReport, baselineReport, options) {
+    const parserSizeRatio =
+        targetReport.parserMetrics.PARSER_C_SIZE / baselineReport.parserMetrics.PARSER_C_SIZE;
+    const stateRatio =
+        targetReport.parserMetrics.STATE_COUNT / baselineReport.parserMetrics.STATE_COUNT;
+    const failures = [];
+
+    if (parserSizeRatio > options.maxParserSizeRatio) {
+        failures.push(
+            `parser_c_size ratio ${parserSizeRatio.toFixed(2)}x exceeds ${options.maxParserSizeRatio.toFixed(2)}x`,
+        );
+    }
+
+    if (stateRatio > options.maxStateRatio) {
+        failures.push(
+            `state_count ratio ${stateRatio.toFixed(2)}x exceeds ${options.maxStateRatio.toFixed(2)}x`,
+        );
+    }
+
+    if (failures.length > 0) {
+        throw new Error(`grammar budget exceeded: ${failures.join("; ")}`);
+    }
+}
+
 function main() {
     const options = parseArgs(process.argv.slice(2));
     const targetDir = resolveDialectDir(options.target);
@@ -355,6 +437,8 @@ function main() {
             rows: delta.sortedByDelta,
         },
     });
+
+    assertBudget(targetReport, baselineReport, options);
 }
 
 main();
