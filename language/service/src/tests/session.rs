@@ -1,8 +1,9 @@
 use std::path::Path;
 
+use crate::service::QueryRevision;
 use crate::tests::harness::TestLanguageService;
 use destack_query as query;
-use destack_source::{ModuleId, ProfileId, TargetId};
+use destack_source::{FileId, ModuleId, ProfileId, TargetId};
 use destack_workspace::{Repository, RepositoryError, Revision};
 
 /// Route file queries across multiple workspace roots.
@@ -18,29 +19,28 @@ fn test_route_queries_across_roots() {
 
     let _ = test.apply_text(&path_a, source);
     let _ = test.apply_text(&path_b, source);
-    let profile_a = query_profile(&test, &path_a);
-    let profile_b = query_profile(&test, &path_b);
-
+    let (module_a, _, revision_a) = query_file(&test, &path_a);
+    let (module_b, _, revision_b) = query_file(&test, &path_b);
     let response_a = test
         .service
-        .read_file_query(&path_a, profile_a, |module, _, _| {
-            Ok(Some(query::QueryRequest::DocumentSymbols(
-                query::DocumentSymbolsRequest { module },
-            )))
-        })
-        .expect("expected root a query response")
-        .expect("expected root a query response")
-        .2;
+        .query(
+            &path_a,
+            query::QueryRequest::DocumentSymbols(query::DocumentSymbolsRequest {
+                module: module_a,
+            }),
+            QueryRevision::Exact(revision_a),
+        )
+        .expect("expected root a query response");
     let response_b = test
         .service
-        .read_file_query(&path_b, profile_b, |module, _, _| {
-            Ok(Some(query::QueryRequest::DocumentSymbols(
-                query::DocumentSymbolsRequest { module },
-            )))
-        })
-        .expect("expected root b query response")
-        .expect("expected root b query response")
-        .2;
+        .query(
+            &path_b,
+            query::QueryRequest::DocumentSymbols(query::DocumentSymbolsRequest {
+                module: module_b,
+            }),
+            QueryRevision::Exact(revision_b),
+        )
+        .expect("expected root b query response");
 
     assert_ne!(
         response_a.revision,
@@ -65,22 +65,19 @@ fn test_close_root_removes_workspace_symbol_entries() {
 
     let _ = test.apply_text(&path_a, source_a);
     let _ = test.apply_text(&path_b, source_b);
-    let profile_b = query_profile(&test, &path_b);
-
+    let (module_b, _, revision_b) = query_file(&test, &path_b);
     let response_before = test
         .service
-        .read_file_query(&path_b, profile_b, |module, _, _| {
-            Ok(Some(query::QueryRequest::WorkspaceSymbols(
-                query::WorkspaceSymbolsRequest {
-                    query: "alphaRootOnly".to_string(),
-                    profile_ids: vec![module.profile_id],
-                    max_results: 20,
-                },
-            )))
-        })
-        .expect("expected workspace symbol response before close")
-        .expect("expected workspace symbol response before close")
-        .2;
+        .query(
+            &path_b,
+            query::QueryRequest::WorkspaceSymbols(query::WorkspaceSymbolsRequest {
+                query: "alphaRootOnly".to_string(),
+                profile_ids: vec![module_b.profile_id],
+                max_results: 20,
+            }),
+            QueryRevision::Exact(revision_b),
+        )
+        .expect("expected workspace symbol response before close");
     let query::QueryResponse::WorkspaceSymbols(before_symbols) = response_before.response else {
         panic!("expected workspace symbol response before close")
     };
@@ -99,18 +96,16 @@ fn test_close_root_removes_workspace_symbol_entries() {
 
     let response_after = test
         .service
-        .read_file_query(&path_b, profile_b, |module, _, _| {
-            Ok(Some(query::QueryRequest::WorkspaceSymbols(
-                query::WorkspaceSymbolsRequest {
-                    query: "alphaRootOnly".to_string(),
-                    profile_ids: vec![module.profile_id],
-                    max_results: 20,
-                },
-            )))
-        })
-        .expect("expected workspace symbol response after close")
-        .expect("expected workspace symbol response after close")
-        .2;
+        .query(
+            &path_b,
+            query::QueryRequest::WorkspaceSymbols(query::WorkspaceSymbolsRequest {
+                query: "alphaRootOnly".to_string(),
+                profile_ids: vec![module_b.profile_id],
+                max_results: 20,
+            }),
+            QueryRevision::Exact(revision_b),
+        )
+        .expect("expected workspace symbol response after close");
     let query::QueryResponse::WorkspaceSymbols(after_symbols) = response_after.response else {
         panic!("expected workspace symbol response after close")
     };
@@ -139,26 +134,23 @@ fn test_close_root_removes_auto_import_entries() {
 
     let _ = test.apply_text(&path_a, source_a);
     let _ = test.apply_text(&path_b, source_b);
-    let profile_b = query_profile(&test, &path_b);
-
+    let (module_b, file_b, revision_b) = query_file(&test, &path_b);
     let response_before = test
         .service
-        .read_file_query(&path_b, profile_b, |module, file_id, _| {
-            Ok(Some(query::QueryRequest::Completion(
-                query::CompletionRequest {
-                    position: query::QueryPosition {
-                        module,
-                        file_id,
-                        offset: offset_b,
-                    },
-                    trigger: query::CompletionTrigger::Invoked,
-                    include_imports: true,
+        .query(
+            &path_b,
+            query::QueryRequest::Completion(query::CompletionRequest {
+                position: query::QueryPosition {
+                    module: module_b,
+                    file_id: file_b,
+                    offset: offset_b,
                 },
-            )))
-        })
-        .expect("expected completion response before close")
-        .expect("expected completion response before close")
-        .2;
+                trigger: query::CompletionTrigger::Invoked,
+                include_imports: true,
+            }),
+            QueryRevision::Exact(revision_b),
+        )
+        .expect("expected completion response before close");
     let query::QueryResponse::Completion(before_completion) = response_before.response else {
         panic!("expected completion response before close")
     };
@@ -177,22 +169,20 @@ fn test_close_root_removes_auto_import_entries() {
 
     let response_after = test
         .service
-        .read_file_query(&path_b, profile_b, |module, file_id, _| {
-            Ok(Some(query::QueryRequest::Completion(
-                query::CompletionRequest {
-                    position: query::QueryPosition {
-                        module,
-                        file_id,
-                        offset: offset_b,
-                    },
-                    trigger: query::CompletionTrigger::Invoked,
-                    include_imports: true,
+        .query(
+            &path_b,
+            query::QueryRequest::Completion(query::CompletionRequest {
+                position: query::QueryPosition {
+                    module: module_b,
+                    file_id: file_b,
+                    offset: offset_b,
                 },
-            )))
-        })
-        .expect("expected completion response after close")
-        .expect("expected completion response after close")
-        .2;
+                trigger: query::CompletionTrigger::Invoked,
+                include_imports: true,
+            }),
+            QueryRevision::Exact(revision_b),
+        )
+        .expect("expected completion response after close");
     let query::QueryResponse::Completion(after_completion) = response_after.response else {
         panic!("expected completion response after close")
     };
@@ -206,17 +196,27 @@ fn test_close_root_removes_auto_import_entries() {
     );
 }
 
-/// Return the explicit query profile used by service session tests.
-fn query_profile(test: &TestLanguageService, path: &Path) -> ProfileId {
-    test.service
-        .read_file(path, |repository, file_id, _file, revision| {
-            let Some(module_id) = repository.module_id_for_file(revision, file_id)? else {
-                panic!("expected module for query file");
-            };
+/// Return the explicit query module and file id used by service session tests.
+fn query_file(test: &TestLanguageService, path: &Path) -> (query::QueryModule, FileId, Revision) {
+    let file_view = test
+        .service
+        .file_view(path)
+        .expect("expected query file view");
+    let repository = file_view.repository();
+    let Some(module_id) = repository
+        .module_id_for_file(file_view.revision(), file_view.file_id)
+        .expect("expected module lookup")
+    else {
+        panic!("expected module for query file");
+    };
+    let profile_id = query_profile_for_module(repository, file_view.revision(), module_id)
+        .expect("expected query profile");
+    let module = query::QueryModule {
+        module_id,
+        profile_id,
+    };
 
-            query_profile_for_module(repository, revision, module_id)
-        })
-        .expect("expected query profile")
+    (module, file_view.file_id, file_view.revision())
 }
 
 /// Return the explicit built-in target profile for a module.

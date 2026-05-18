@@ -6,12 +6,12 @@ use destack_workspace::{Repository, Revision};
 
 use super::LanguageServiceError;
 
-/// Diagnostic snapshot for one file.
+/// Diagnostic view for one file.
 #[derive(Debug, Clone)]
-pub struct DiagnosticSnapshot {
+pub struct DiagnosticView {
     /// The current file image used for range conversion.
     pub file: Arc<File>,
-    /// Diagnostic uri for this snapshot.
+    /// Diagnostic uri for this view.
     pub diagnostic_uri: Uri,
     /// Protocol file version for diagnostics when the file is open.
     pub diagnostic_version: Option<i32>,

@@ -7,12 +7,14 @@ mod query;
 mod service;
 mod session;
 mod update;
+mod view;
 
 pub use destack_session::{FileChange, FileUpdateKind};
 pub use destack_source::{TextChange, TextPosition, TextRange};
-pub use diagnostic::DiagnosticSnapshot;
+pub use diagnostic::DiagnosticView;
 pub use error::LanguageServiceError;
 pub use file::{FileImage, FileUpdate};
 pub use message::{LanguageServiceMessage, LanguageServiceMessageKind, LanguageServiceResult};
-pub use query::QueryResult;
+pub use query::{QueryResult, QueryRevision};
 pub use service::LanguageService;
+pub use view::{FileView, SessionRevisionView};
