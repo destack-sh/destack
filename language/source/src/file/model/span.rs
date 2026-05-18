@@ -90,6 +90,12 @@ impl Span {
         position >= self.start && position < self.end
     }
 
+    /// Check whether this Span fully contains another Span from the same file.
+    #[inline]
+    pub fn contains_span(self, other: Self) -> bool {
+        self.file == other.file && self.start <= other.start && self.end >= other.end
+    }
+
     /// Check whether the two spans overlap (on the same file).
     #[inline]
     pub fn intersects(self, other: Self) -> bool {
