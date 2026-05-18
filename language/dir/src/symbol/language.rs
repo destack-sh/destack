@@ -178,7 +178,7 @@ define_language_items! {
             String => (Class, "string/string", "String"),
 
             /// Borrowed UTF-8 string slice.
-            StringSlice => (Newtype, "string/string", "StringSlice"),
+            StringSlice => (Newtype, "string/slice", "StringSlice"),
         }
     }
 

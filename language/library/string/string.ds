@@ -1,9 +1,11 @@
 import { todo } from "destack:error";
-import { Borrow, ToOwned } from "destack:convert";
 import { Slice } from "destack:collections";
+import { As, Borrow, From } from "destack:convert";
 import { Iterator } from "destack:iter";
 import { Default, Unique } from "destack:memory";
 import { RegExp, RegExpMatch } from "destack:regexp";
+import { StringSlice } from "./slice.ds";
+import { StringBuilder } from "./builder.ds";
 
 /// Raw template string parts.
 export type StringRawParts = {
@@ -17,10 +19,6 @@ export type StringMatch = RegExpMatch | readonly string[];
 /// Replacement value used by `String.replace` and `String.replaceAll`.
 export type StringReplacement = string | ((match: string, ...captures: (string | undefined)[]) => string);
 
-/// Borrowed UTF-8 string slice.
-@languageItem("string.StringSlice")
-export newtype StringSlice = Slice<uint8>;
-
 /// Immutable UTF-8 string.
 @languageItem("string.String")
 export class String {
@@ -28,7 +26,7 @@ export class String {
     bytes: Unique<[uint8]>;
 }
 
-extension of String implements Default {
+extension of String implements Default, From<&readonly StringSlice>, From<^StringBuilder> {
     /// Create an empty string.
     static new(): string {
         todo("String.new")
@@ -52,6 +50,16 @@ extension of String implements Default {
     /// Create a string from raw template parts.
     static raw(parts: StringRawParts, ...substitutions: unknown[]): string {
         todo("String.raw")
+    }
+
+    /// Copy a string slice into owned storage.
+    static from(value: &readonly StringSlice): string {
+        todo("String.from")
+    }
+
+    /// Consume a string builder into owned storage.
+    static from(value: ^StringBuilder): string {
+        value.intoString()
     }
 
     /// The length in UTF-16 code units.
@@ -251,19 +259,19 @@ extension of String implements Default {
     }
 }
 
-extension of String implements Borrow<StringSlice> {
+extension of String implements As<StringSlice>, Borrow<StringSlice> {
+    /// Borrow this string as UTF-8 text.
+    as(this: &readonly string): &readonly StringSlice {
+        todo("String.as")
+    }
+
     /// Borrow this string as UTF-8 text.
     borrow(this: &readonly string): &readonly StringSlice {
-        todo("String.borrow")
+        this.as()
     }
-}
 
-extension of StringSlice implements ToOwned {
-    /// The owned value type.
-    type Owned = string;
-
-    /// Copy this slice into an owned string.
-    toOwned(this: &readonly StringSlice): string {
-        todo("StringSlice.toOwned")
+    /// Borrow this string as readonly bytes.
+    asBytes(this: &readonly string): &readonly Slice<uint8> {
+        todo("String.asBytes")
     }
 }
