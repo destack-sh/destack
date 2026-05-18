@@ -1859,6 +1859,10 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
             let right_pattern = tree.get(*right);
             visitor.visit_pattern(tree, *right, right_pattern);
         }
+        Pattern::DereferenceOf { right } => {
+            let right_pattern = tree.get(*right);
+            visitor.visit_pattern(tree, *right, right_pattern);
+        }
         Pattern::Binding { name: _, pattern } => {
             if let Some(pattern_id) = pattern {
                 let pattern_node = tree.get(*pattern_id);

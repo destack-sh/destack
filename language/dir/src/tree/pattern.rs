@@ -13,6 +13,7 @@ use crate::{Expression, LocalNodeId, Mutability, Name, Node, NodeType, RangeEnd,
 /// x
 /// 1
 /// &MyEnum.A
+/// *Point { x, y }
 /// 2 | 3
 /// (x, 0, ...)
 /// Success(_)
@@ -41,6 +42,8 @@ pub enum Pattern {
         mutability: Option<Mutability>,
         right: LocalNodeId<Pattern>,
     },
+    /// Dereference pattern (like `*x`).
+    DereferenceOf { right: LocalNodeId<Pattern> },
     /// Binding pattern (basically a PatternField, like `x`, `x: 4`, or `x: int32`).
     Binding {
         name: StringId,
