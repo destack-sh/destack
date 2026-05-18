@@ -61,55 +61,24 @@ fn conditions_from_key(key: &ProfileKey) -> ConditionSet {
 }
 
 impl Repository {
-    /// Get the effective profile for one module.
-    pub fn module_profile(
+    /// Get the profile selected by one explicit target.
+    pub fn target_profile(
         &self,
         revision: Revision,
-        module_id: ModuleId,
-    ) -> Result<Arc<Profile>, RepositoryError> {
+        target_id: TargetId,
+    ) -> Result<Option<Arc<Profile>>, RepositoryError> {
         let revision_state = self.revision(revision)?;
-        let Some(module) = self.module(revision, module_id)? else {
-            return Err(RepositoryError::MissingModule { module: module_id });
+        let package_id = target_id.package_id();
+
+        // explicit or built-in target
+        let Some(target) = self.target_or_builtin(revision, target_id)? else {
+            return Ok(None);
         };
+        let target_name = self.target_name(revision, target_id)?;
 
-        // package profile inputs
-        let (config, compiler_options) =
-            self.package_config_and_compiler_options(revision, module.package_id)?;
-        let (target_name, target) = self.package_profile_target(revision, module.package_id)?;
-        let product = self.package_default_product(revision, module.package_id)?;
-        let product_role = self.product_role_for_target(
-            revision,
-            module.package_id,
-            product.as_deref(),
-            &target_name,
-        )?;
-
-        // profile identity
-        let profile = self.profile_from_target(
-            &target_name,
-            &target,
-            &compiler_options,
-            config.as_deref().map(|config| &config.destack),
-            &revision_state.host,
-            product.as_deref(),
-            product_role.as_deref(),
-        );
-
-        Ok(profile)
-    }
-
-    /// Get the effective profile for one package.
-    pub fn package_profile(
-        &self,
-        revision: Revision,
-        package_id: PackageId,
-    ) -> Result<Arc<Profile>, RepositoryError> {
-        let revision_state = self.revision(revision)?;
-
-        // package profile inputs
+        // target profile inputs
         let (config, compiler_options) =
             self.package_config_and_compiler_options(revision, package_id)?;
-        let (target_name, target) = self.package_profile_target(revision, package_id)?;
         let product = self.package_default_product(revision, package_id)?;
         let product_role =
             self.product_role_for_target(revision, package_id, product.as_deref(), &target_name)?;
@@ -125,17 +94,16 @@ impl Repository {
             product_role.as_deref(),
         );
 
-        Ok(profile)
+        Ok(Some(profile))
     }
 
-    /// Get the profile selected by one module target.
+    /// Get the profile selected by one explicit module target.
     pub fn module_target_profile(
         &self,
         revision: Revision,
         module_id: ModuleId,
         target_id: TargetId,
     ) -> Result<Option<Arc<Profile>>, RepositoryError> {
-        let revision_state = self.revision(revision)?;
         let Some(module) = self.module(revision, module_id)? else {
             return Err(RepositoryError::MissingModule { module: module_id });
         };
@@ -145,35 +113,7 @@ impl Repository {
             return Ok(None);
         }
 
-        // explicit or built-in target
-        let Some(target) = self.target_or_builtin(revision, target_id)? else {
-            return Ok(None);
-        };
-        let target_name = self.target_name(revision, target_id)?;
-
-        // target profile inputs
-        let (config, compiler_options) =
-            self.package_config_and_compiler_options(revision, module.package_id)?;
-        let product = self.package_default_product(revision, module.package_id)?;
-        let product_role = self.product_role_for_target(
-            revision,
-            module.package_id,
-            product.as_deref(),
-            &target_name,
-        )?;
-
-        // profile identity
-        let profile = self.profile_from_target(
-            &target_name,
-            &target,
-            &compiler_options,
-            config.as_deref().map(|config| &config.destack),
-            &revision_state.host,
-            product.as_deref(),
-            product_role.as_deref(),
-        );
-
-        Ok(Some(profile))
+        self.target_profile(revision, target_id)
     }
 
     /// Return the exact profiles present in one pinned revision.
@@ -190,32 +130,12 @@ impl Repository {
 
         let mut profiles = OrdMap::new();
 
-        // package profiles
+        // explicit and built-in target profiles
         for package_id in self.package_ids(revision)? {
-            let profile = self.package_profile(revision, package_id)?;
-            profiles.insert(profile.id(), profile);
-        }
+            let target_ids = self.profile_target_ids(revision, package_id)?;
 
-        // module profiles
-        for module_id in self.module_ids(revision)? {
-            let profile = self.module_profile(revision, module_id)?;
-            profiles.insert(profile.id(), profile);
-        }
-
-        // target profiles
-        for module_id in self.module_ids(revision)? {
-            let Some(module) = self.module(revision, module_id)? else {
-                continue;
-            };
-            let Some(package) = self.package(revision, module.package_id)? else {
-                return Err(RepositoryError::MissingPackage {
-                    package: module.package_id,
-                });
-            };
-
-            for target_id in package.targets.keys() {
-                let Some(profile) = self.module_target_profile(revision, module_id, *target_id)?
-                else {
+            for target_id in target_ids {
+                let Some(profile) = self.target_profile(revision, target_id)? else {
                     continue;
                 };
 
@@ -240,8 +160,11 @@ impl Repository {
         Ok(profiles.get(&profile_id).cloned())
     }
 
-    /// Return all exact profile ids present in one revision.
-    pub fn profile_ids(&self, revision: Revision) -> Result<Vec<ProfileId>, RepositoryError> {
+    /// Return target profile ids addressable in one revision.
+    pub fn target_profile_ids(
+        &self,
+        revision: Revision,
+    ) -> Result<Vec<ProfileId>, RepositoryError> {
         let profiles = self.profiles(revision)?;
 
         Ok(profiles.keys().copied().collect())
@@ -265,22 +188,13 @@ impl Repository {
         module_id: ModuleId,
         profile_id: ProfileId,
     ) -> Result<Option<Arc<Profile>>, RepositoryError> {
-        let default_profile = self.module_profile(revision, module_id)?;
-        if default_profile.id() == profile_id {
-            return Ok(Some(default_profile));
-        }
-
         let Some(module) = self.module(revision, module_id)? else {
             return Err(RepositoryError::MissingModule { module: module_id });
         };
-        let Some(package) = self.package(revision, module.package_id)? else {
-            return Err(RepositoryError::MissingPackage {
-                package: module.package_id,
-            });
-        };
+        let target_ids = self.profile_target_ids(revision, module.package_id)?;
 
-        for target_id in package.targets.keys() {
-            let Some(profile) = self.module_target_profile(revision, module_id, *target_id)? else {
+        for target_id in target_ids {
+            let Some(profile) = self.target_profile(revision, target_id)? else {
                 continue;
             };
 
@@ -290,6 +204,31 @@ impl Repository {
         }
 
         Ok(None)
+    }
+
+    /// Return target ids with addressable profile keys for one package.
+    fn profile_target_ids(
+        &self,
+        revision: Revision,
+        package_id: PackageId,
+    ) -> Result<Vec<TargetId>, RepositoryError> {
+        let Some(package) = self.package(revision, package_id)? else {
+            return Err(RepositoryError::MissingPackage {
+                package: package_id,
+            });
+        };
+        let mut target_ids = package.targets.keys().copied().collect::<Vec<_>>();
+
+        // built-in target names are explicit profile addresses
+        for target_name in Target::builtin_target_names() {
+            let target_id = TargetId::new(package_id, target_name);
+
+            if !target_ids.contains(&target_id) {
+                target_ids.push(target_id);
+            }
+        }
+
+        Ok(target_ids)
     }
 
     /// Return package config and compiler options.
@@ -331,21 +270,6 @@ impl Repository {
         );
 
         Arc::new(Profile::from_key(key, environment))
-    }
-
-    /// Return the package profile target or the built-in default target.
-    fn package_profile_target(
-        &self,
-        revision: Revision,
-        package_id: PackageId,
-    ) -> Result<(String, Target), RepositoryError> {
-        if let Some((target_id, target)) = self.package_default_target(revision, package_id)? {
-            let target_name = self.target_name(revision, target_id)?;
-
-            return Ok((target_name, target));
-        }
-
-        Ok(("default".to_string(), Target::default()))
     }
 
     /// Return the active product role when the target belongs to the selected product.
