@@ -817,6 +817,16 @@ if (let (x, y) = point) {
 }
 ```
 
+`do { ... }` turns a block into an expression when braces would otherwise be ambiguous with an object expression or statement block.
+The final expression without a trailing semicolon becomes the block value.
+
+```ds
+const user = do {
+    const record = loadUser(id)?;
+    User.fromRecord(record)
+};
+```
+
 ### Closures
 
 Closures generally work like TypeScript closures, capturing the surrounding lexical environment and preserving lexical `this`.
@@ -1880,7 +1890,7 @@ Destack supports explicit, optional modifiers for controlling memory ownership a
 - **Ownership** - who "owns" the value: managed (`T`), owned (`^T`), borrowed (`&T`, `&readonly T`, `&exclusive T`), or raw (`*T`).
 - **Placement** - where the value is located: ambient by default, explicitly `local` to one Worker, `shared` across Workers, `static` for static storage, or `frame` for activation storage.
 
-Plain `T` still behaves as the type's default representation, exactly like we're used to from TypeScript: value types are values, object types are managed references.
+Plain `T` behaves as the type's default representation, exactly like we're used to from TypeScript: value types are values, object types are managed references, both can be aliased and mutated freely (locally).
 The two axes of ownership and placement compose and commute freely, e.g. `shared ^T` and `^shared T` both mean an owned handle to a value in shared space, and `shared &T` is a borrow of a shared value.
 
 ### Ownership
@@ -2114,7 +2124,7 @@ Unsafe begins when code claims something about the memory behind the pointer tha
 | raw bytes and layout tricks | `copyBytes(dst, src, n)`, `readVolatile(pointer)`, `transmute<T, U>(value)` | no | touches or reinterprets unchecked memory |
 | raw allocation lifecycle | `allocator.allocate(layout)`, `allocator.deallocate(allocation)` | allocate yes, free no | allocation returns an inert token; free must match allocator and layout |
 
-The compiler rejects unsafe operations, like raw pointer stuff, outside the `@unsafe` and `@safe` contexts.
+The compiler rejects unsafe operations, like raw pointer stuff, outside explicit `@unsafe` / `@safe` contexts.
 
 ### Lifetimes
 
@@ -2207,71 +2217,56 @@ Low-level code can of course still control finalization explicitly:
 
 ### Algebra
 
-Type "algebra" is just a fancy way of saying that Destack supports querying and manipulating ownership and placement in its TypeScript-based type system, because _they_ are part of the type system.
-Qualified surface forms like `readonly T`, `^T`, `&T`, `*T`, `local T`, and `shared T` are sugar over a single normalized `Form`.
-Plain `T` may remain unqualified, but algebra operators treat it as managed, mutable, and ambient when they need a default.
-Unlike `Place`, `Access` is always concrete: plain `T` has access `"mutable"`, not some ambient access.
+Destack's "memory algebra" is a fancy way of saying that the axes of ownership, access, lifetime, and placement are ordinary type-level information that we can perform TypeScript-style algebra over.
+Code can inspect a type's memory form and build a derived form because all the qualified surface forms like `readonly T`, `^T`, `&T`, `*T`, `local T`, and `shared T` correspond to builtin intrinsic types:
 
 ```ds
-newtype Form<
-    T,
-    O: Ownership = "managed",
-    P: Place = "ambient",
-    L: Lifetime = never,
-    A: Access = "mutable",
-> = intrinsic;
+/// Automatically managed T, owned by the runtime.
+newtype Managed<T> = intrinsic;
+/// Owned T (`^T`).
+newtype Owned<T> = intrinsic;
+/// Borrowed T (`&T`).
+newtype Borrowed<T, L: Lifetime, A: Access = "mutable"> = intrinsic;
+/// Raw T (`*T`).
+newtype Raw<T> = intrinsic;
+/// Placed T (`local T` or `shared T`).
+newtype Placed<T, P: Place> = intrinsic;
+/// Readonly T (`readonly T`).
+newtype Readonly<T> = intrinsic;
 ```
 
-All `Form`s are based on the common static evaluation machinery, and code can be generic over `Form<T, O, P, L, A>`, `WithSpace<T, S>`, or `PlaceIn<T, S>` without choosing a final address space, ownership, or access mode.
+Specifically, all surface sigils and keywords are just compact syntax for those intrinsic forms that commute the way they read:
 
 ```ds
-User            // unqualified, defaults to managed ambient
-readonly User   // Form<User, "managed", "ambient", never, "readonly">
-^User           // Form<User, "owned", "ambient">
-^readonly User  // Form<User, "owned", "ambient", never, "readonly">
-&readonly User  // Form<User, "borrowed", "ambient", L, "readonly">
-&User           // Form<User, "borrowed", "ambient", L, "mutable">
-&exclusive User // Form<User, "borrowed", "ambient", L, "exclusive">
-*User           // Form<User, "raw", "ambient">
-local User      // Form<User, "managed", "local">
-shared User     // Form<User, "managed", "shared">
-local ^User     // Form<User, "owned", "local">
-shared ^User    // Form<User, "owned", "shared">
-^shared User    // Form<User, "owned", "shared">
+User            // unqualified, normal default representation
+readonly User   // Readonly<User>
+^User           // Owned<User>
+&readonly User  // Borrowed<User, L, "readonly">
+&User           // Borrowed<User, L, "mutable">
+&exclusive User // Borrowed<User, L, "exclusive">
+*User           // Raw<User>
+local User      // Placed<User, "local">
+shared User     // Placed<User, "shared">
+local ^User     // Placed<Owned<User>, "local">
+shared ^User    // Placed<Owned<User>, "shared">
+^shared User    // Owned<Placed<User, "shared">>
 ```
 
-The helpers are the same few operations applied to each axis.
-Constructors build a form from a base type:
+It follows that because forms compose, owning a borrow is different from borrowing an owner:
 
 ```ds
-Managed<User> satisfies Form<User, "managed", "ambient">;
-Owned<User> satisfies Form<User, "owned", "ambient">;
-Raw<User> satisfies Form<User, "raw", "ambient">;
-
-local User satisfies WithSpace<User, "local">;
-shared User satisfies WithSpace<User, "shared">;
-local ^User satisfies WithSpace<^User, "local">;
-shared ^User satisfies WithSpace<^User, "shared">;
-^shared User satisfies WithSpace<^User, "shared">;
-
-Shared<^User> satisfies Form<User, "owned", "shared">;
-Local<User> satisfies WithSpace<User, "local">;
-Ambient<shared User> satisfies Form<User, "managed", "ambient">;
+Owned<Borrowed<User, L>> // owns a borrow value
+Borrowed<Owned<User>, L> // borrows an owned value
 ```
 
-Borrowed forms additionally carry a lifetime:
+Destack also provides builtin accessors to inspect composed forms, e.g., `PayloadOf<T>` removes one outer form, while `BaseOf<T>` removes all transparent memory forms:
 
-```ds
-type UserBorrow<L: Lifetime> = Borrowed<User, L>;
-type UserReadonlyBorrow<L: Lifetime> = ReadonlyBorrowed<User, L>;
-type UserExclusiveBorrow<L: Lifetime> = ExclusiveBorrowed<User, L>;
-```
-
-We provide builtin accessors to pull the axes back out of `Form`.
-`AccessOf<T>` and `OwnershipOr<T, ..>` always return concrete values, while placement keeps the ambient distinction:
 ```ds
 BaseOf<shared ^User> satisfies User;
+PayloadOf<Owned<Borrowed<User, L>>> satisfies Borrowed<User, L>;
 OwnershipOf<^User> satisfies "owned";
+OwnershipOf<Owned<Borrowed<User, L>>> satisfies "owned";
+OwnershipOf<Borrowed<Owned<User>, L>> satisfies "borrowed";
 OwnershipOr<User, "managed"> satisfies "managed";
 AccessOf<User> satisfies "mutable";
 AccessOf<readonly User> satisfies "readonly";
@@ -2300,6 +2295,7 @@ PlaceIn<User | local User | shared User, "shared"> satisfies "local" | "shared";
 ```
 
 Predicates with `Is*` are convenience wrappers around those same accessors:
+
 ```ds
 IsOwned<^User> satisfies true;
 IsBorrowed<&User> satisfies true;
@@ -2308,17 +2304,18 @@ IsShared<^User> satisfies false;
 IsSharedIn<^User, "shared"> satisfies true;
 ```
 
-Rewriting one axis leaves the others alone:
+Rewriting helpers preserve the rest of the type instead of rebuilding from a stripped base type:
+
 ```ds
-WithSpace<^User, "shared"> satisfies Form<User, "owned", "shared">;
-WithOwnership<shared User, "owned"> satisfies Form<User, "owned", "shared">;
-WithPlace<shared User, "ambient"> satisfies Form<User, "managed", "ambient">;
+WithSpace<^User, "shared"> satisfies Placed<^User, "shared">;
+WithOwnership<shared User, "owned"> satisfies Owned<shared User>;
+WithPlace<shared User, "ambient"> satisfies Placed<User, "ambient">;
 WithAccess<User, "readonly"> satisfies readonly User;
 WithAccess<^User, "readonly"> satisfies ^readonly User;
 WithAccess<&User, "exclusive"> satisfies &exclusive User;
 ```
 
-Except for the intrinsic `Form`, all the rest is just regular TypeScript-shaped type algebra.
+Except for the intrinsic form constructors, all the rest is just regular TypeScript-shaped type algebra.
 That makes memory qualification just ordinary type-level computation: userland code can introspect and rewrite ownership and placement using the same type system for any other type.
 Inside a type declaration, `this` in type or static position also carries the current instantiated form of that type to query against with the `*Of` and `Is*` family. 
 
@@ -2342,7 +2339,7 @@ PlaceOf<typeof sharedBuffer> satisfies "shared";
 
 ### Polymorphism
 
-Since ownership, access, lifetime, and placement are all reified as `Form` _types_, contracts and implementors get to be polymorphic and (somewhat) conditional over their ownership, space, and access, even on the receiver type.
+Since ownership, access, lifetime, and placement are all reified as memory form types, contracts and implementors get to be polymorphic and (somewhat) conditional over their ownership, space, and access, even on the receiver type.
 That lets types expose one natural operation when only the projected form changes, and separate operations when the semantics actually differ.
 The caller chooses the level of control by writing the expression / providing the type they mean:
 
@@ -2408,9 +2405,9 @@ The full details are documented in the library, but the basics should be familia
 
 | Primitive | Contract |
 |-----------|----------|
-| `Box<T>` | unique heap ownership for `T`, with deterministic drop when `T: Drop` |
-| `Rc<T>` | local shared ownership, non-atomic refcount, not transferable across Workers |
-| `Arc<T>` | shared ownership, atomic refcount, transferable when `T` satisfies the required `Send` / `Sync` bounds |
+| `Box<T>` | unique heap ownership for `Owned<T>`, with deterministic drop when `T: Drop` |
+| `Rc<T>` | local shared ownership of `Owned<T>`, non-atomic refcount, not transferable across Workers |
+| `Arc<T>` | shared ownership of `Owned<T>`, atomic refcount, transferable when `T` satisfies the required `Send` / `Sync` bounds |
 | `Cell<T>` | local interior mutation by value, for small `Copy`-like state |
 | `RefCell<T>` | local runtime borrow checking for cases static borrowing cannot express cleanly |
 | `Atomic<T>` | lock-free scalar storage with explicit ordering and scope |
