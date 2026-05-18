@@ -1,38 +1,61 @@
-/// Marks data as carrying one taint domain.
+/// Taint label carried by a value.
+export type TaintTag = string;
+
+/// Boundary domain where tainted data enters or leaves.
+export type TaintDomain = string;
+
+/// Options for source boundaries.
+export type SourceOptions = {
+    /// Taints created by the source.
+    taints: TaintTag[];
+};
+
+/// Options for untaint boundaries.
+export type UntaintOptions = {
+    /// Taints removed for the boundary domain.
+    removes: TaintTag[];
+};
+
+/// Options for sink boundaries.
+export type SinkOptions = {
+    /// Taints rejected by the sink.
+    rejects: TaintTag[];
+};
+
+/// Marks data as carrying one taint.
 ///
 /// ```ds
-/// @taint("html")
-/// const rawComment = input;
+/// function input(): @taint("untrusted") string;
 /// ```
 @languageItem("decorator.taint")
-export newtype taint = (string,) | ();
+export newtype taint = (TaintTag,) | ();
 
-/// Marks a declaration as removing one taint domain.
+/// Marks a declaration as removing taints for one boundary domain.
 ///
 /// ```ds
-/// @untaint("html")
+/// @untaint("html", { removes: ["untrusted"] })
 /// function escapeHtml(value: string): string;
 /// ```
 @languageItem("decorator.untaint")
-export newtype untaint = (string,) | ();
+export newtype untaint = (TaintDomain, UntaintOptions,) | (TaintDomain,) | ();
 
-/// Marks a declaration as producing tainted data.
+/// Marks a declaration as a boundary where tainted data enters.
 ///
 /// ```ds
-/// @source("html")
-/// function readComment(): string;
+/// @source("http.request", { taints: ["untrusted"] })
+/// function body(request: Request): string;
 /// ```
 @languageItem("decorator.source")
-export newtype source = (string,) | ();
+export newtype source = (TaintDomain, SourceOptions,) | (TaintDomain,) | ();
 
-/// Marks a declaration as consuming tainted data.
+/// Marks a declaration as a boundary where tainted data leaves.
 ///
 /// ```ds
-/// @sink("html")
+/// @sink("html", { rejects: ["untrusted"] })
 /// function setInnerHtml(value: string): void;
 /// ```
 @languageItem("decorator.sink")
-export newtype sink = (string,) | ();
+export newtype sink = (TaintDomain, SinkOptions,) | (TaintDomain,) | ();
 
 /// Marks an API, expression, or block as crossing an unsafe boundary.
 ///
