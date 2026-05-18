@@ -3,26 +3,32 @@ use std::fmt;
 
 use serde_json::Value;
 
-use super::protocol::{QueryExecutionMode, QueryRequest};
+use super::protocol::QueryRequest;
 
 /// Category for query methods.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum QueryCategory {
-    /// Read only queries.
-    Query,
-    /// Assistance queries (hover, completion, etc).
+    /// Navigation queries.
+    Navigation,
+    /// Symbol search and outline queries.
+    Symbol,
+    /// Hierarchy queries.
+    Hierarchy,
+    /// Assistance queries.
     Assist,
-    /// Refactor queries that return edits.
-    Refactor,
+    /// Edit-producing queries.
+    Edit,
 }
 
 impl QueryCategory {
     /// Return the category label.
     pub const fn as_str(self) -> &'static str {
         match self {
-            Self::Query => "query",
+            Self::Navigation => "navigation",
+            Self::Symbol => "symbol",
+            Self::Hierarchy => "hierarchy",
             Self::Assist => "assist",
-            Self::Refactor => "refactor",
+            Self::Edit => "edit",
         }
     }
 }
@@ -70,20 +76,22 @@ pub enum QueryMethodId {
     GotoImplementation,
     /// Find references query.
     FindReferences,
-    /// Call hierarchy prepare query.
-    PrepareCallHierarchy,
+    /// Call hierarchy item query.
+    CallHierarchyItem,
     /// Incoming call hierarchy query.
     CallHierarchyIncoming,
     /// Outgoing call hierarchy query.
     CallHierarchyOutgoing,
-    /// Type hierarchy prepare query.
-    PrepareTypeHierarchy,
+    /// Type hierarchy item query.
+    TypeHierarchyItem,
     /// Type hierarchy supertypes query.
     TypeHierarchySupertypes,
     /// Type hierarchy subtypes query.
     TypeHierarchySubtypes,
-    /// Prepare rename query.
-    PrepareRename,
+    /// Annotation query.
+    Annotations,
+    /// Rename target query.
+    RenameTarget,
     /// Rename query.
     Rename,
     /// Rename files query.
@@ -98,21 +106,6 @@ pub enum QueryMethodId {
     ChangeSignature,
     /// Code actions query.
     CodeActions,
-}
-
-impl QueryMethodId {
-    /// Return the execution mode for this query method.
-    pub fn execution_mode(self) -> QueryExecutionMode {
-        match self {
-            Self::Rename
-            | Self::RenameFiles
-            | Self::ExtractFunction
-            | Self::ExtractVariable
-            | Self::Inline
-            | Self::ChangeSignature => QueryExecutionMode::Write,
-            _ => QueryExecutionMode::Read,
-        }
-    }
 }
 
 /// Metadata for a query method.
@@ -264,7 +257,7 @@ static QUERY_METHODS: &[QueryMethod] = &[
         id: QueryMethodId::DocumentSymbols,
         name: "document_symbols",
         aliases: &["documentsymbol", "textdocument/documentsymbol"],
-        category: QueryCategory::Query,
+        category: QueryCategory::Symbol,
         summary: "list document symbols for a document",
         params_type: "DocumentSymbolsRequest",
         result_type: "DocumentSymbolsResponse",
@@ -273,7 +266,7 @@ static QUERY_METHODS: &[QueryMethod] = &[
         id: QueryMethodId::WorkspaceSymbols,
         name: "workspace_symbols",
         aliases: &["workspacesymbol", "workspace/symbol"],
-        category: QueryCategory::Query,
+        category: QueryCategory::Symbol,
         summary: "search workspace symbols",
         params_type: "WorkspaceSymbolsRequest",
         result_type: "WorkspaceSymbolsResponse",
@@ -282,7 +275,7 @@ static QUERY_METHODS: &[QueryMethod] = &[
         id: QueryMethodId::DocumentLinks,
         name: "document_links",
         aliases: &["documentlink", "textdocument/documentlink"],
-        category: QueryCategory::Query,
+        category: QueryCategory::Navigation,
         summary: "list document links for a document",
         params_type: "DocumentLinksRequest",
         result_type: "DocumentLinksResponse",
@@ -291,7 +284,7 @@ static QUERY_METHODS: &[QueryMethod] = &[
         id: QueryMethodId::ResolveDocumentLink,
         name: "resolve_document_link",
         aliases: &["documentlink/resolve", "textdocument/documentlink/resolve"],
-        category: QueryCategory::Query,
+        category: QueryCategory::Navigation,
         summary: "resolve a document link",
         params_type: "ResolveDocumentLinkRequest",
         result_type: "ResolveDocumentLinkResponse",
@@ -300,7 +293,7 @@ static QUERY_METHODS: &[QueryMethod] = &[
         id: QueryMethodId::DocumentHighlight,
         name: "document_highlight",
         aliases: &["documenthighlight", "textdocument/documenthighlight"],
-        category: QueryCategory::Query,
+        category: QueryCategory::Navigation,
         summary: "list highlights at a position",
         params_type: "DocumentHighlightRequest",
         result_type: "DocumentHighlightResponse",
@@ -309,7 +302,7 @@ static QUERY_METHODS: &[QueryMethod] = &[
         id: QueryMethodId::SelectionRanges,
         name: "selection_ranges",
         aliases: &["selectionrange", "textdocument/selectionrange"],
-        category: QueryCategory::Query,
+        category: QueryCategory::Navigation,
         summary: "list selection ranges for positions",
         params_type: "SelectionRangesRequest",
         result_type: "SelectionRangesResponse",
@@ -318,7 +311,7 @@ static QUERY_METHODS: &[QueryMethod] = &[
         id: QueryMethodId::GotoDefinition,
         name: "definition",
         aliases: &["gotodefinition", "textdocument/definition"],
-        category: QueryCategory::Query,
+        category: QueryCategory::Navigation,
         summary: "find definition locations",
         params_type: "GotoDefinitionRequest",
         result_type: "GotoDefinitionResponse",
@@ -327,7 +320,7 @@ static QUERY_METHODS: &[QueryMethod] = &[
         id: QueryMethodId::GotoDeclaration,
         name: "declaration",
         aliases: &["gotodeclaration", "textdocument/declaration"],
-        category: QueryCategory::Query,
+        category: QueryCategory::Navigation,
         summary: "find declaration locations",
         params_type: "GotoDeclarationRequest",
         result_type: "GotoDeclarationResponse",
@@ -336,7 +329,7 @@ static QUERY_METHODS: &[QueryMethod] = &[
         id: QueryMethodId::GotoTypeDefinition,
         name: "type_definition",
         aliases: &["gototypedefinition", "textdocument/typedefinition"],
-        category: QueryCategory::Query,
+        category: QueryCategory::Navigation,
         summary: "find type definition locations",
         params_type: "GotoTypeDefinitionRequest",
         result_type: "GotoTypeDefinitionResponse",
@@ -345,7 +338,7 @@ static QUERY_METHODS: &[QueryMethod] = &[
         id: QueryMethodId::GotoImplementation,
         name: "implementation",
         aliases: &["gotoimplementation", "textdocument/implementation"],
-        category: QueryCategory::Query,
+        category: QueryCategory::Navigation,
         summary: "find implementation locations",
         params_type: "GotoImplementationRequest",
         result_type: "GotoImplementationResponse",
@@ -354,25 +347,25 @@ static QUERY_METHODS: &[QueryMethod] = &[
         id: QueryMethodId::FindReferences,
         name: "references",
         aliases: &["findreferences", "textdocument/references"],
-        category: QueryCategory::Query,
+        category: QueryCategory::Navigation,
         summary: "find symbol references",
         params_type: "FindReferencesRequest",
         result_type: "FindReferencesResponse",
     },
     QueryMethod {
-        id: QueryMethodId::PrepareCallHierarchy,
-        name: "prepare_call_hierarchy",
+        id: QueryMethodId::CallHierarchyItem,
+        name: "call_hierarchy_item",
         aliases: &["preparecallhierarchy", "textdocument/preparecallhierarchy"],
-        category: QueryCategory::Query,
-        summary: "prepare a call hierarchy item",
-        params_type: "PrepareCallHierarchyRequest",
-        result_type: "PrepareCallHierarchyResponse",
+        category: QueryCategory::Hierarchy,
+        summary: "return the call hierarchy item at a position",
+        params_type: "CallHierarchyItemRequest",
+        result_type: "CallHierarchyItemResponse",
     },
     QueryMethod {
         id: QueryMethodId::CallHierarchyIncoming,
         name: "call_hierarchy_incoming",
         aliases: &["callhierarchy/incomingcalls", "callhierarchy/incoming"],
-        category: QueryCategory::Query,
+        category: QueryCategory::Hierarchy,
         summary: "list incoming call hierarchy edges",
         params_type: "CallHierarchyIncomingRequest",
         result_type: "CallHierarchyIncomingResponse",
@@ -381,25 +374,25 @@ static QUERY_METHODS: &[QueryMethod] = &[
         id: QueryMethodId::CallHierarchyOutgoing,
         name: "call_hierarchy_outgoing",
         aliases: &["callhierarchy/outgoingcalls", "callhierarchy/outgoing"],
-        category: QueryCategory::Query,
+        category: QueryCategory::Hierarchy,
         summary: "list outgoing call hierarchy edges",
         params_type: "CallHierarchyOutgoingRequest",
         result_type: "CallHierarchyOutgoingResponse",
     },
     QueryMethod {
-        id: QueryMethodId::PrepareTypeHierarchy,
-        name: "prepare_type_hierarchy",
+        id: QueryMethodId::TypeHierarchyItem,
+        name: "type_hierarchy_item",
         aliases: &["preparetypehierarchy", "textdocument/preparetypehierarchy"],
-        category: QueryCategory::Query,
-        summary: "prepare a type hierarchy item",
-        params_type: "PrepareTypeHierarchyRequest",
-        result_type: "PrepareTypeHierarchyResponse",
+        category: QueryCategory::Hierarchy,
+        summary: "return the type hierarchy item at a position",
+        params_type: "TypeHierarchyItemRequest",
+        result_type: "TypeHierarchyItemResponse",
     },
     QueryMethod {
         id: QueryMethodId::TypeHierarchySupertypes,
         name: "type_hierarchy_supertypes",
         aliases: &["typehierarchy/supertypes"],
-        category: QueryCategory::Query,
+        category: QueryCategory::Hierarchy,
         summary: "list type hierarchy supertypes",
         params_type: "TypeHierarchySupertypesRequest",
         result_type: "TypeHierarchySupertypesResponse",
@@ -408,25 +401,34 @@ static QUERY_METHODS: &[QueryMethod] = &[
         id: QueryMethodId::TypeHierarchySubtypes,
         name: "type_hierarchy_subtypes",
         aliases: &["typehierarchy/subtypes"],
-        category: QueryCategory::Query,
+        category: QueryCategory::Hierarchy,
         summary: "list type hierarchy subtypes",
         params_type: "TypeHierarchySubtypesRequest",
         result_type: "TypeHierarchySubtypesResponse",
     },
     QueryMethod {
-        id: QueryMethodId::PrepareRename,
-        name: "prepare_rename",
+        id: QueryMethodId::Annotations,
+        name: "annotations",
+        aliases: &["decorators"],
+        category: QueryCategory::Navigation,
+        summary: "list annotations and decorators",
+        params_type: "AnnotationsRequest",
+        result_type: "AnnotationsResponse",
+    },
+    QueryMethod {
+        id: QueryMethodId::RenameTarget,
+        name: "rename_target",
         aliases: &["preparerename", "textdocument/preparerename"],
-        category: QueryCategory::Refactor,
-        summary: "prepare rename at a position",
-        params_type: "PrepareRenameRequest",
-        result_type: "PrepareRenameResponse",
+        category: QueryCategory::Edit,
+        summary: "return the rename target at a position",
+        params_type: "RenameTargetRequest",
+        result_type: "RenameTargetResponse",
     },
     QueryMethod {
         id: QueryMethodId::Rename,
         name: "rename",
         aliases: &["textdocument/rename"],
-        category: QueryCategory::Refactor,
+        category: QueryCategory::Edit,
         summary: "rename a symbol",
         params_type: "RenameRequest",
         result_type: "RenameResponse",
@@ -435,7 +437,7 @@ static QUERY_METHODS: &[QueryMethod] = &[
         id: QueryMethodId::RenameFiles,
         name: "rename_files",
         aliases: &["renamefiles", "workspace/willrenamefiles"],
-        category: QueryCategory::Refactor,
+        category: QueryCategory::Edit,
         summary: "rename file imports across the workspace",
         params_type: "RenameFilesRequest",
         result_type: "RenameFilesResponse",
@@ -444,7 +446,7 @@ static QUERY_METHODS: &[QueryMethod] = &[
         id: QueryMethodId::ExtractFunction,
         name: "extract_function",
         aliases: &["extractfunction", "refactor/extract_function"],
-        category: QueryCategory::Refactor,
+        category: QueryCategory::Edit,
         summary: "extract a selection into a new function",
         params_type: "ExtractFunctionRequest",
         result_type: "ExtractFunctionResponse",
@@ -453,7 +455,7 @@ static QUERY_METHODS: &[QueryMethod] = &[
         id: QueryMethodId::ExtractVariable,
         name: "extract_variable",
         aliases: &["extractvariable", "refactor/extract_variable"],
-        category: QueryCategory::Refactor,
+        category: QueryCategory::Edit,
         summary: "extract a selection into a const binding",
         params_type: "ExtractVariableRequest",
         result_type: "ExtractVariableResponse",
@@ -462,7 +464,7 @@ static QUERY_METHODS: &[QueryMethod] = &[
         id: QueryMethodId::Inline,
         name: "inline",
         aliases: &["inlinevalue", "refactor/inline"],
-        category: QueryCategory::Refactor,
+        category: QueryCategory::Edit,
         summary: "inline a symbol at a position",
         params_type: "InlineRequest",
         result_type: "InlineResponse",
@@ -476,7 +478,7 @@ static QUERY_METHODS: &[QueryMethod] = &[
             "change_signature_preview",
             "refactor/change_signature_preview",
         ],
-        category: QueryCategory::Refactor,
+        category: QueryCategory::Edit,
         summary: "change a function signature and update call sites",
         params_type: "ChangeSignatureRequest",
         result_type: "ChangeSignatureResponse",
@@ -485,7 +487,7 @@ static QUERY_METHODS: &[QueryMethod] = &[
         id: QueryMethodId::CodeActions,
         name: "code_actions",
         aliases: &["codeaction", "textdocument/codeaction"],
-        category: QueryCategory::Refactor,
+        category: QueryCategory::Edit,
         summary: "list code actions for a range",
         params_type: "CodeActionsRequest",
         result_type: "CodeActionsResponse",
@@ -567,8 +569,8 @@ pub fn parse_query_request(
         QueryMethodId::FindReferences => {
             QueryRequest::FindReferences(parse_params(method, params)?)
         }
-        QueryMethodId::PrepareCallHierarchy => {
-            QueryRequest::PrepareCallHierarchy(parse_params(method, params)?)
+        QueryMethodId::CallHierarchyItem => {
+            QueryRequest::CallHierarchyItem(parse_params(method, params)?)
         }
         QueryMethodId::CallHierarchyIncoming => {
             QueryRequest::CallHierarchyIncoming(parse_params(method, params)?)
@@ -576,8 +578,8 @@ pub fn parse_query_request(
         QueryMethodId::CallHierarchyOutgoing => {
             QueryRequest::CallHierarchyOutgoing(parse_params(method, params)?)
         }
-        QueryMethodId::PrepareTypeHierarchy => {
-            QueryRequest::PrepareTypeHierarchy(parse_params(method, params)?)
+        QueryMethodId::TypeHierarchyItem => {
+            QueryRequest::TypeHierarchyItem(parse_params(method, params)?)
         }
         QueryMethodId::TypeHierarchySupertypes => {
             QueryRequest::TypeHierarchySupertypes(parse_params(method, params)?)
@@ -585,7 +587,8 @@ pub fn parse_query_request(
         QueryMethodId::TypeHierarchySubtypes => {
             QueryRequest::TypeHierarchySubtypes(parse_params(method, params)?)
         }
-        QueryMethodId::PrepareRename => QueryRequest::PrepareRename(parse_params(method, params)?),
+        QueryMethodId::Annotations => QueryRequest::Annotations(parse_params(method, params)?),
+        QueryMethodId::RenameTarget => QueryRequest::RenameTarget(parse_params(method, params)?),
         QueryMethodId::Rename => QueryRequest::Rename(parse_params(method, params)?),
         QueryMethodId::RenameFiles => QueryRequest::RenameFiles(parse_params(method, params)?),
         QueryMethodId::ExtractFunction => {

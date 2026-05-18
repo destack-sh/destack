@@ -2,8 +2,8 @@ use std::path::Path;
 
 use destack_dir::SymbolSpace;
 use destack_qir::{
-    ImportPathRelevance, ImportRelevance, fallback_import_path_relevance, import_package_rank,
-    import_path_relevance, import_relevance,
+    ImportPathRelevance, ImportRelevance, import_package_rank, import_path_relevance,
+    import_relevance, package_import_path_relevance,
 };
 use destack_source::{FileId, ModuleId, PackageId};
 use destack_workspace::{Repository, Revision};
@@ -47,7 +47,7 @@ fn path_relevance(
     let Some(module) = repository.module(revision, target_module_id).ok().flatten() else {
         let package_rank = import_package_rank(current_package_id, None);
 
-        return fallback_import_path_relevance(package_rank);
+        return package_import_path_relevance(package_rank);
     };
     let target_package_id = module.package_id;
 
@@ -55,12 +55,12 @@ fn path_relevance(
     let Some(source_file) = repository.file(revision, file_id).ok().flatten() else {
         let package_rank = import_package_rank(current_package_id, Some(target_package_id));
 
-        return fallback_import_path_relevance(package_rank);
+        return package_import_path_relevance(package_rank);
     };
     let Some(source_path) = source_file.path.as_ref() else {
         let package_rank = import_package_rank(current_package_id, Some(target_package_id));
 
-        return fallback_import_path_relevance(package_rank);
+        return package_import_path_relevance(package_rank);
     };
 
     import_path_relevance(
