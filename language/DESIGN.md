@@ -31,6 +31,8 @@ Some JS/TS syntax and legacy behavior is either ambiguous, obsolete, or just not
 - **Type-only imports / exports**: `.ds` accepts `import type` and `export type` for TypeScript compatibility, but they mean the same thing as `import` and `export`, and the type-less form is preferred.
 - **CommonJS**: Destack source does not support `require`, `module.exports`, mutable `exports`, require-cache monkeypatching, `export =`, or `import x = require("x")`.
 - **String module declarations**: Destack source does not support TypeScript-style `declare module "specifier" { ... }`; provide a real module instead.
+- **Namespace declarations**: Destack source does not support TypeScript-style `namespace Name { ... }` internal modules.
+  Use real modules with namespace imports or re-exports instead.
 - **Ambiguous generic arrow**: `<T>() => ...` is ambiguous in `.tsx` because it might be a TSX tree, and `.ds` inherits this since we support TSX syntax natively.
   To disambiguate, use `<T,>() => ...`.
 - **Sequence expressions**: `(A, B, C)` is - confusingly - a "sequence expression" in JS, which nobody ever really types out by hand, and `.ds` instead claims `(A, B, C)` for explicit tuples.
@@ -62,6 +64,7 @@ Dynamic shapes and unsound types are incompatible with a strict sound compilatio
 - **Class index signatures**: TypeScript permits structural index signatures inside classes, but Destack classes have fixed declared members.
   Put index signatures on structural object types or interfaces instead.
 - **Array holes**: Destack does not permit "holes" in arrays like `[1,,3]`.
+- **Generic argument ambiguity**: Destack generic arguments can be types or static values, so object-shaped type arguments require an explicit `type` marker like `Foo<type { value: string }>` to distinguish them from static object value arguments like `Foo<{ value: 2 }>`.
 - **Circular inference**: Destack does not support circular inference _across_ modules.
   Modules may export types they can establish from local declarations _and_ imports, and downstream modules may build on those exports, but downstream uses do not refine upstream declarations.
 - **Enum coercion**: `enum Level { A = 1, B = 2, C = 3 }` is _just_ an alias in TypeScript, but Destack does _not_ coerce `Level.A` to `number` without an explicit cast for better soundness.
@@ -1652,8 +1655,8 @@ struct Buffer<T, comptime Mode: "inline" | "external"> {
 
 ### Module
 
-Destack modules can contain (up to) one static `module { ... }` directive block for source-level configuration that needs to be specific to a module.
-Usually, we would configure this with the compiler / target / profile options, but sometimes it's helpful to override these options locally:
+Destack modules can contain (up to) one static `module { ... }` declaration block for source-level configuration that needs to be specific to a module.
+Usually, we would configure via the compiler / target / profile options, but sometimes it's helpful to override some of these options locally:
 
 ```ds
 import { HtmlTree } from "destack:ui/html";

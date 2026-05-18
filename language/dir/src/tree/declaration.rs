@@ -15,7 +15,7 @@ pub struct GlobalDeclaration {
     pub is_ambient: bool,
 }
 
-/// A module directive block.
+/// A module declaration block.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ModuleDeclaration {
     /// The expressions inside the module body.
@@ -193,7 +193,7 @@ pub struct FunctionDeclaration {
 pub enum Declaration {
     /// Global declaration block.
     Global(GlobalDeclaration),
-    /// Module directive block.
+    /// Module declaration block.
     Module(ModuleDeclaration),
     /// Type declaration.
     Type(TypeDeclaration),
