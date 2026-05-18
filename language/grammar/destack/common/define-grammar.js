@@ -126,16 +126,20 @@ module.exports = function defineGrammar(dialect) {
       [$.type, $.pointer_type],
       [$.type, $.borrow_type],
       [$.type, $.managed_type],
-      [$.extends_type_clause, $.generic_type],
       [$.primary_expression, $.associated_type_projection],
       [$.if_statement, $.primary_expression],
       [$.if_statement, $.parenthesized_expression],
       [$.expression, $.borrow_expression],
-        [$.expression, $.managed_expression],
-        [$.primary_expression, $.borrow_expression],
-        [$.primary_expression, $.managed_expression],
-        [$.primary_expression, $.static_value_argument],
-        [$.primary_expression, $.comptime_type_argument],
+      [$.expression, $.managed_expression],
+      [$.primary_expression, $.borrow_expression],
+      [$.primary_expression, $.managed_expression],
+      [$.primary_expression, $._range_expression_atom],
+      [$.primary_expression, $._range_expression_atom, $.static_value_argument],
+      [$._range_expression_atom, $.literal_type],
+      [$.primary_expression, $._range_expression_atom, $.literal_type],
+      ...(dialect === 'destack' ? [[$.range_expression, $.interval_type]] : []),
+      [$._range_expression_bound],
+      [$.primary_expression, $.comptime_type_argument],
     ]).concat(
       dialect === 'destack' ? [
         [$.comptime_block_statement, $.comptime_expression],
@@ -149,6 +153,9 @@ module.exports = function defineGrammar(dialect) {
         [$.readonly_type, $.intersection_type],
         [$.readonly_type, $.union_type],
         [$.pattern, $.try_propagation_expression],
+        [$.call_expression, $.match_arm_expression_statement],
+        [$.subscript_expression, $.match_arm_expression_statement],
+        [$.binary_expression, $.match_arm_expression_statement],
       ] : [],
     ).concat(
       dialect === 'typescript' ? [
@@ -293,6 +300,7 @@ module.exports = function defineGrammar(dialect) {
       },
 
       using_assignment_expression: $ => prec.right('assign', seq(
+        optional('await'),
         'using',
         field('left', choice(
           $.identifier,
@@ -336,7 +344,6 @@ module.exports = function defineGrammar(dialect) {
           $.borrow_expression,
           $.dereference_expression,
           $.comptime_expression,
-          $.using_assignment_expression,
         ] : []),
         previous,
         $.non_null_expression,
@@ -355,6 +362,10 @@ module.exports = function defineGrammar(dialect) {
           $.satisfies_expression,
           $.instantiation_expression,
         ];
+
+        if (dialect === 'destack') {
+          choices.push($.range_expression);
+        }
 
         if (dialect !== 'destack') {
           choices.push($.internal_module);
@@ -399,6 +410,35 @@ module.exports = function defineGrammar(dialect) {
         ),
       )),
 
+      range_expression: $ => prec.left('binary_relation', seq(
+        field('left', optional($._range_expression_bound)),
+        field('operator', choice('..', '..=')),
+        field('right', optional($._range_expression_bound)),
+      )),
+
+      _range_expression_bound: $ => choice(
+        $._range_expression_atom,
+        prec.left('unary', seq(
+          '-',
+          $._range_expression_atom,
+        )),
+        prec.left('binary_plus', seq(
+          $._range_expression_atom,
+          choice('+', '-'),
+          $._range_expression_atom,
+        )),
+        prec.left('binary_times', seq(
+          $._range_expression_atom,
+          choice('*', '/', '%'),
+          $._range_expression_atom,
+        )),
+      ),
+
+      _range_expression_atom: $ => choice(
+        $.number,
+        $.identifier,
+      ),
+
       statement: ($, previous) => {
         if (dialect !== 'destack') {
           return choice(previous);
@@ -409,10 +449,16 @@ module.exports = function defineGrammar(dialect) {
           $.destack_static_if_statement,
           $.comptime_block_statement,
           $.destack_for_in_statement,
+          $.using_assignment_statement,
           $.match_statement,
           previous,
         );
       },
+
+      using_assignment_statement: $ => seq(
+        field('expression', $.using_assignment_expression),
+        $._semicolon,
+      ),
 
       if_statement: ($, previous) => {
         if (dialect !== 'destack') {
@@ -451,6 +497,50 @@ module.exports = function defineGrammar(dialect) {
             optional(field('alternative', $.else_clause)),
           )),
           previous,
+        );
+      },
+
+      _for_header: ($, previous) => {
+        if (dialect !== 'destack') {
+          return previous;
+        }
+
+        return seq(
+          '(',
+          choice(
+            field('left', choice(
+              $._lhs_expression,
+              $.parenthesized_expression,
+            )),
+            seq(
+              field('kind', 'var'),
+              field('left', choice(
+                $.identifier,
+                $._destructuring_pattern,
+              )),
+              optional($._initializer),
+            ),
+            seq(
+              field('kind', choice('let', 'const')),
+              field('left', choice(
+                $.identifier,
+                $._destructuring_pattern,
+              )),
+              optional($._automatic_semicolon),
+            ),
+            seq(
+              field('kind', seq(optional('await'), 'using')),
+              field('left', choice(
+                $.identifier,
+                $._destructuring_pattern,
+                $.tuple_pattern,
+                $.struct_pattern,
+              )),
+            ),
+          ),
+          field('operator', choice('in', 'of')),
+          field('right', $._expressions),
+          ')',
         );
       },
 
@@ -494,7 +584,6 @@ module.exports = function defineGrammar(dialect) {
         optional(seq('if', field('guard', $.expression))),
         '=>',
         field('body', choice($.match_arm_statement, alias($.match_arm_expression_statement, $.expression_statement))),
-        optional(choice(',', $._semicolon)),
       ),
 
       match_arm_statement: $ => choice(
@@ -506,9 +595,9 @@ module.exports = function defineGrammar(dialect) {
         $.empty_statement,
       ),
 
-      match_arm_expression_statement: $ => prec.right('if_let_right', seq(
+      match_arm_expression_statement: $ => prec.dynamic(1, seq(
         $.expression,
-        optional($._semicolon),
+        optional(choice(',', $._semicolon, $._automatic_semicolon)),
       )),
 
       match_pattern: $ => prec(1, choice(
@@ -581,7 +670,6 @@ module.exports = function defineGrammar(dialect) {
 
       try_propagation_expression: $ => prec.left('unary', seq(
         field('argument', choice(
-          $.identifier,
           $.parenthesized_expression,
           $.member_expression,
           $.subscript_expression,
@@ -1302,11 +1390,6 @@ module.exports = function defineGrammar(dialect) {
           )),
           prec.left('binary_relation', seq(
             field('left', $.expression),
-            field('operator', choice('..', '..=')),
-            field('right', $.expression),
-          )),
-          prec.left('binary_relation', seq(
-            field('left', $.expression),
             field('operator', 'extends'),
             field('right', $.expression),
           )),
@@ -1689,6 +1772,7 @@ module.exports = function defineGrammar(dialect) {
         dialect === 'destack' ?
           seq('=', field('value', choice(
             $.expression,
+            $.using_assignment_expression,
             $.switch_statement,
             $.labeled_loop_initializer,
           ))) :
@@ -2376,20 +2460,4 @@ function sepBy(sep, rule) {
  */
 function sepBy1(sep, rule) {
   return seq(rule, repeat(seq(sep, rule)));
-}
-
-/**
- * Check whether a conflict is exactly the given sequence of rule names.
- *
- * @param {Rule[]} conflict
- * @param {string[]} ruleNames
- *
- * @returns {boolean}
- */
-function conflictHasRuleNames(conflict, ruleNames) {
-  if (conflict.length !== ruleNames.length) {
-    return false;
-  }
-
-  return conflict.every((entry, index) => entry?.name === ruleNames[index]);
 }
