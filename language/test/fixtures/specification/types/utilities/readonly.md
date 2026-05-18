@@ -1,6 +1,6 @@
 # Readonly
 
-`Readonly<T>` is the named utility alias for deep `readonly T`.
+`Readonly<T>` is the named utility form for `readonly T`.
 
 ## properties
 

@@ -3,12 +3,14 @@ import { As, Borrow } from "destack:convert";
 import { Dereference } from "destack:ops";
 import { AllocationError } from "../allocator.ds";
 import { Clone, Default, Unpin, Zeroable } from "../capability.ds";
+import { Owned } from "../form.ds";
 import { MaybeUninit } from "../init.ds";
 import { Pin } from "../pin.ds";
 import { Weak } from "./weak.ds";
 
-/// Reference-counted allocation for one worker.
-export struct RcAllocation<T> {
+/// Reference-counted heap block for one worker.
+@languageItem("memory.rc.RcInner")
+export struct RcInner<T> {
     /// The strong reference count.
     strong: usize;
 
@@ -22,9 +24,10 @@ export struct RcAllocation<T> {
 extension<T> of Rc<T> implements Unpin {}
 
 /// Local reference-counted ownership.
+@languageItem("memory.rc.Rc")
 export struct Rc<T> {
-    /// The allocation.
-    allocation: *RcAllocation<T>;
+    /// The inner block.
+    inner: *RcInner<Owned<T>>;
 }
 
 extension<T> of Rc<T> implements Clone, Dereference, As<T>, Borrow<T> {
@@ -89,7 +92,7 @@ extension<T> of Rc<T> implements Clone, Dereference, As<T>, Borrow<T> {
         todo("Rc.clone")
     }
 
-    /// Create a weak handle to the same allocation.
+    /// Create a weak handle to the same block.
     downgrade(): Weak<T> {
         todo("Rc.downgrade")
     }
@@ -99,7 +102,7 @@ extension<T> of Rc<T> implements Clone, Dereference, As<T>, Borrow<T> {
         todo("Rc.isUnique")
     }
 
-    /// Return whether this handle points to the same allocation as `other`.
+    /// Return whether this handle points to the same block as `other`.
     ptrEq(other: Rc<T>): boolean {
         todo("Rc.ptrEq")
     }

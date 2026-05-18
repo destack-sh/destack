@@ -57,7 +57,7 @@ export extension<T> of RefCell<T> {
     }
 
     /// Move out the stored value.
-    intoInner(this: ^RefCell<T>): ^T {
+    intoInner(this: ^RefCell<T>): T {
         todo("RefCell.intoInner")
     }
 }
