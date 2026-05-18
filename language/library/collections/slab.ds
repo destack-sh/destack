@@ -200,7 +200,7 @@ extension<T> of Slab<T> implements
     }
 
     /// Consume this slab into owned values.
-    iterator(this: ^Slab<T>): Iterator<T> {
+    iterator(this: Slab<T>): Iterator<T> {
         todo("Slab.iterator")
     }
 }

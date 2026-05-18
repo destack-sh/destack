@@ -10,29 +10,24 @@ export class ConcurrentQueue<T> {
     state: Atomic<uint64>;
 }
 
-extension<T> of ConcurrentQueue<T> implements
-    Default,
-    From<Iterable<T>>,
-    FromIterator<T>,
-    Extend<T>
-{
+extension<T> of ConcurrentQueue<T> implements Extend<T> {
     /// Create an empty concurrent queue.
-    static new(): ConcurrentQueue<T> {
+    static new(): ^ConcurrentQueue<T> {
         todo("ConcurrentQueue.new")
     }
 
     /// Create a concurrent queue from values.
-    static from(values: Iterable<T>): ConcurrentQueue<T> {
+    static from(values: Iterable<T>): ^ConcurrentQueue<T> {
         todo("ConcurrentQueue.from")
     }
 
     /// Create a concurrent queue from `values`.
-    static fromIterator(values: Iterator<T>): ConcurrentQueue<T> {
+    static fromIterator(values: Iterator<T>): ^ConcurrentQueue<T> {
         todo("ConcurrentQueue.fromIterator")
     }
 
     /// Create the default concurrent queue.
-    static default(): ConcurrentQueue<T> {
+    static default(): ^ConcurrentQueue<T> {
         ConcurrentQueue.new()
     }
 
@@ -60,5 +55,22 @@ extension<T> of ConcurrentQueue<T> implements
     /// Remove and return the front value.
     pop(this: &ConcurrentQueue<T>): T | undefined {
         todo("ConcurrentQueue.pop")
+    }
+}
+
+extension<T> of ^ConcurrentQueue<T> implements Default, From<Iterable<T>>, FromIterator<T> {
+    /// Create the default owned concurrent queue.
+    static default(): ^ConcurrentQueue<T> {
+        ConcurrentQueue.default()
+    }
+
+    /// Create an owned concurrent queue from values.
+    static from(values: Iterable<T>): ^ConcurrentQueue<T> {
+        ConcurrentQueue.from(values)
+    }
+
+    /// Create an owned concurrent queue from values.
+    static fromIterator(values: Iterator<T>): ^ConcurrentQueue<T> {
+        ConcurrentQueue.fromIterator(values)
     }
 }

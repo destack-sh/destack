@@ -60,7 +60,7 @@ extension of AsyncSemaphorePermit implements Dispose {
     }
 
     /// Consume this permit without releasing it.
-    forget(this: ^AsyncSemaphorePermit): void {
+    forget(this: AsyncSemaphorePermit): void {
         todo("AsyncSemaphorePermit.forget")
     }
 }

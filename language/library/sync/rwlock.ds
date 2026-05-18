@@ -96,7 +96,7 @@ extension<T> of RwLockWriteGuard<T> implements Dispose, Dereference<"exclusive">
     }
 
     /// Downgrade this write guard to a read guard.
-    downgrade(this: ^RwLockWriteGuard<T>): RwLockReadGuard<T> {
+    downgrade(this: RwLockWriteGuard<T>): RwLockReadGuard<T> {
         todo("RwLockWriteGuard.downgrade")
     }
 }

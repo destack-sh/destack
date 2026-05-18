@@ -30,7 +30,7 @@ export class JSON {
         value: Json,
         replacer?: JsonReplacer | readonly string[],
         space?: string | int32,
-    ): Result<string, JsonError> {
+    ): Result<^string, JsonError> {
         todo("JSON.stringify")
     }
 }
@@ -45,6 +45,6 @@ export function stringify(
     value: Json,
     replacer?: JsonReplacer | readonly string[],
     space?: string | int32,
-): Result<string, JsonError> {
+): Result<^string, JsonError> {
     JSON.stringify(value, replacer, space)
 }

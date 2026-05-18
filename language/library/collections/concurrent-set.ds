@@ -38,35 +38,38 @@ extension<T: Hash> of ConcurrentSetRead<T>
     }
 }
 
-extension<T> of ConcurrentSet<T> implements Default {
+extension<T> of ConcurrentSet<T> {
     /// Create an empty concurrent set.
-    static new(): ConcurrentSet<T> {
+    static new(): ^ConcurrentSet<T> {
         todo("ConcurrentSet.new")
     }
 
     /// Create a concurrent set with room for at least `capacity` values.
-    static withCapacity(capacity: usize): ConcurrentSet<T> {
+    static withCapacity(capacity: usize): ^ConcurrentSet<T> {
         todo("ConcurrentSet.withCapacity")
     }
 
     /// Create the default concurrent set.
-    static default(): ConcurrentSet<T> {
+    static default(): ^ConcurrentSet<T> {
         ConcurrentSet.new()
     }
 }
 
-extension<T: Hash> of ConcurrentSet<T> implements
-    From<Iterable<T>>,
-    FromIterator<T>,
-    Extend<T>
-{
+extension<T> of ^ConcurrentSet<T> implements Default {
+    /// Create the default owned concurrent set.
+    static default(): ^ConcurrentSet<T> {
+        ConcurrentSet.default()
+    }
+}
+
+extension<T: Hash> of ConcurrentSet<T> implements Extend<T> {
     /// Create a concurrent set from values.
-    static from(values: Iterable<T>): ConcurrentSet<T> {
+    static from(values: Iterable<T>): ^ConcurrentSet<T> {
         todo("ConcurrentSet.from")
     }
 
     /// Create a concurrent set from `values`.
-    static fromIterator(values: Iterator<T>): ConcurrentSet<T> {
+    static fromIterator(values: Iterator<T>): ^ConcurrentSet<T> {
         todo("ConcurrentSet.fromIterator")
     }
 
@@ -142,5 +145,18 @@ extension<T: Hash> of ConcurrentSet<T> implements
     /// Remove all values.
     clear(this: &ConcurrentSet<T>): void {
         todo("ConcurrentSet.clear")
+    }
+}
+
+extension<T: Hash> of ^ConcurrentSet<T> implements From<Iterable<T>>, FromIterator<T>
+where T implements Equal<T> {
+    /// Create an owned concurrent set from values.
+    static from(values: Iterable<T>): ^ConcurrentSet<T> {
+        ConcurrentSet.from(values)
+    }
+
+    /// Create an owned concurrent set from values.
+    static fromIterator(values: Iterator<T>): ^ConcurrentSet<T> {
+        ConcurrentSet.fromIterator(values)
     }
 }

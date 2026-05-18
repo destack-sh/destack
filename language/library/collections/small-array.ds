@@ -239,7 +239,7 @@ extension<T, comptime N: number> of SmallArray<T, N> implements
     }
 
     /// Consume this array into owned values.
-    iterator(this: ^SmallArray<T, N>): Iterator<T> {
+    iterator(this: SmallArray<T, N>): Iterator<T> {
         todo("SmallArray.iterator")
     }
 }
@@ -308,9 +308,9 @@ where T implements Copy {
     }
 }
 
-extension<T, comptime N: number> of Array<T> implements From<SmallArray<T, N>> {
+extension<T, comptime N: number> of ^Array<T> implements From<SmallArray<T, N>> {
     /// Create an array from a small array.
-    static from(value: SmallArray<T, N>): Array<T> {
+    static from(value: SmallArray<T, N>): ^Array<T> {
         todo("Array.fromSmallArray")
     }
 }

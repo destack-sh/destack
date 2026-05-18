@@ -111,7 +111,7 @@ extension<T: Compare<T>> of BinaryHeap<T> implements
     }
 
     /// Convert this heap into a sorted array.
-    intoSortedArray(this: ^BinaryHeap<T>): Array<T> {
+    intoSortedArray(this: BinaryHeap<T>): ^Array<T> {
         todo("BinaryHeap.intoSortedArray")
     }
 
@@ -126,7 +126,7 @@ extension<T: Compare<T>> of BinaryHeap<T> implements
     }
 
     /// Consume this heap into owned values.
-    iterator(this: ^BinaryHeap<T>): Iterator<T> {
+    iterator(this: BinaryHeap<T>): Iterator<T> {
         todo("BinaryHeap.iterator")
     }
 }

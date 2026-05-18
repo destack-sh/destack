@@ -14,17 +14,17 @@ export class ByteBuffer {
     allocatedCapacity: usize = 0;
 
     /// Create an empty byte buffer.
-    static new(): ByteBuffer {
+    static new(): ^ByteBuffer {
         todo("ByteBuffer.new")
     }
 
     /// Create a byte buffer with room for at least `capacity` bytes.
-    static withCapacity(capacity: usize): ByteBuffer {
+    static withCapacity(capacity: usize): ^ByteBuffer {
         todo("ByteBuffer.withCapacity")
     }
 
     /// Create a byte buffer containing `bytes`.
-    static from(bytes: &readonly [uint8]): ByteBuffer {
+    static from(bytes: &readonly [uint8]): ^ByteBuffer {
         todo("ByteBuffer.from")
     }
 

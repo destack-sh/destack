@@ -28,11 +28,11 @@ export function decode<T: JsonDeserialize>(text: string): Result<T, JsonError> {
 }
 
 /// Encode a typed value as JSON text.
-export function encode<T: JsonSerialize>(value: T): Result<string, JsonError> {
+export function encode<T: JsonSerialize>(value: T): Result<^string, JsonError> {
     todo("json.encode")
 }
 
 /// Serialize an already materialized JSON value.
-export function encodeJson(value: Json): Result<string, JsonError> {
+export function encodeJson(value: Json): Result<^string, JsonError> {
     JSON.stringify(value)
 }

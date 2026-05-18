@@ -15,24 +15,24 @@ export class StringBuilder {
     capacity: usize = 0;
 }
 
-extension of StringBuilder implements Default, From<string>, From<&readonly StringSlice> {
+extension of StringBuilder {
     /// Create an empty string builder.
-    static new(): StringBuilder {
+    static new(): ^StringBuilder {
         todo("StringBuilder.new")
     }
 
     /// Create the default string builder.
-    static default(): StringBuilder {
+    static default(): ^StringBuilder {
         StringBuilder.new()
     }
 
     /// Create a string builder from owned text.
-    static from(value: string): StringBuilder {
+    static from(value: string): ^StringBuilder {
         StringBuilder.from(value.borrow())
     }
 
     /// Create a string builder from borrowed text.
-    static from(value: &readonly StringSlice): StringBuilder {
+    static from(value: &readonly StringSlice): ^StringBuilder {
         todo("StringBuilder.from")
     }
 
@@ -61,12 +61,7 @@ extension of StringBuilder implements Default, From<string>, From<&readonly Stri
         todo("StringBuilder.reserveExact")
     }
 
-    /// Append owned text.
-    append(this: &exclusive StringBuilder, value: string): void {
-        this.append(value.borrow())
-    }
-
-    /// Append borrowed text.
+    /// Append text.
     append(this: &exclusive StringBuilder, value: &readonly StringSlice): void {
         todo("StringBuilder.append")
     }
@@ -82,12 +77,29 @@ extension of StringBuilder implements Default, From<string>, From<&readonly Stri
     }
 
     /// Return the current text without consuming the builder.
-    toString(this: &readonly StringBuilder): string {
+    toString(this: &readonly StringBuilder): ^string {
         todo("StringBuilder.toString")
     }
 
     /// Consume the builder and return its string.
-    intoString(this: ^StringBuilder): string {
+    intoString(this: ^StringBuilder): ^string {
         todo("StringBuilder.intoString")
+    }
+}
+
+extension of ^StringBuilder implements Default, From<string>, From<&readonly StringSlice> {
+    /// Create the default owned string builder.
+    static default(): ^StringBuilder {
+        StringBuilder.default()
+    }
+
+    /// Create an owned string builder from owned text.
+    static from(value: string): ^StringBuilder {
+        StringBuilder.from(value)
+    }
+
+    /// Create an owned string builder from borrowed text.
+    static from(value: &readonly StringSlice): ^StringBuilder {
+        StringBuilder.from(value)
     }
 }

@@ -85,7 +85,7 @@ export class Device {
     readonly name: string;
 
     /// Return all available devices matching `query`.
-    static available(query?: DeviceQuery): Array<Device> {
+    static available(query?: DeviceQuery): ^Array<Device> {
         todo("Device.available")
     }
 

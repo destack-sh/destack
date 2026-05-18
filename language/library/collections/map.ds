@@ -86,20 +86,27 @@ where K implements Equal<K> {
     }
 }
 
-extension<K, V> of Map<K, V> implements Default {
+extension<K, V> of Map<K, V> {
     /// Create an empty map.
-    static new(): Map<K, V> {
+    static new(): ^Map<K, V> {
         todo("Map.new")
     }
 
     /// Create a map with room for at least `capacity` entries.
-    static withCapacity(capacity: usize): Map<K, V> {
+    static withCapacity(capacity: usize): ^Map<K, V> {
         todo("Map.withCapacity")
     }
 
     /// Create the default map.
-    static default(): Map<K, V> {
+    static default(): ^Map<K, V> {
         Map.new()
+    }
+}
+
+extension<K, V> of ^Map<K, V> implements Default {
+    /// Create the default owned map.
+    static default(): ^Map<K, V> {
+        Map.default()
     }
 }
 
@@ -110,25 +117,23 @@ extension<K: Hash, V> of Map<K, V> implements
     Iterable<MapEntry<&readonly K, &V>>,
     Iterable<MapEntry<&readonly K, &readonly V>>,
     Iterable<MapEntry<&readonly K, &exclusive V>>,
-    From<Iterable<(K, V)>>,
-    FromIterator<(K, V)>,
     Extend<(K, V), "exclusive">
 where K implements Equal<K> {
     /// The indexed output type.
     type Output = V | undefined;
 
     /// Create a map from entries.
-    static from(entries: Iterable<(K, V)>): Map<K, V> {
+    static from(entries: Iterable<(K, V)>): ^Map<K, V> {
         todo("Map.from")
     }
 
     /// Group `values` by a computed key.
-    static groupBy<T>(values: Iterable<T>, key: (value: T, index: number) => K): Map<K, Array<T>> {
+    static groupBy<T>(values: Iterable<T>, key: (value: T, index: number) => K): ^Map<K, ^Array<T>> {
         todo("Map.groupBy")
     }
 
     /// Create a map from entries.
-    static fromIterator(entries: Iterator<(K, V)>): Map<K, V> {
+    static fromIterator(entries: Iterator<(K, V)>): ^Map<K, V> {
         todo("Map.fromIterator")
     }
 
@@ -303,5 +308,18 @@ where K implements Equal<K> {
     /// Call `f` for each entry.
     forEach(f: (value: V, key: K, map: Map<K, V>) => void): void {
         todo("Map.forEach")
+    }
+}
+
+extension<K: Hash, V> of ^Map<K, V> implements From<Iterable<(K, V)>>, FromIterator<(K, V)>
+where K implements Equal<K> {
+    /// Create an owned map from entries.
+    static from(entries: Iterable<(K, V)>): ^Map<K, V> {
+        Map.from(entries)
+    }
+
+    /// Create an owned map from entries.
+    static fromIterator(entries: Iterator<(K, V)>): ^Map<K, V> {
+        Map.fromIterator(entries)
     }
 }

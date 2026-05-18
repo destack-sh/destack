@@ -85,7 +85,7 @@ extension<K: Hash, V> of ConcurrentMapWrite<K, V>
     }
 
     /// Remove this entry.
-    remove(this: ^ConcurrentMapWrite<K, V>): V {
+    remove(this: ConcurrentMapWrite<K, V>): V {
         todo("ConcurrentMapWrite.remove")
     }
 
@@ -138,7 +138,7 @@ extension<K: Hash, V> of ConcurrentMapEntry<K, V>
     }
 
     /// Remove this entry.
-    remove(this: ^ConcurrentMapEntry<K, V>): V | undefined {
+    remove(this: ConcurrentMapEntry<K, V>): V | undefined {
         todo("ConcurrentMapEntry.remove")
     }
 
@@ -148,35 +148,38 @@ extension<K: Hash, V> of ConcurrentMapEntry<K, V>
     }
 }
 
-extension<K, V> of ConcurrentMap<K, V> implements Default {
+extension<K, V> of ConcurrentMap<K, V> {
     /// Create an empty concurrent map.
-    static new(): ConcurrentMap<K, V> {
+    static new(): ^ConcurrentMap<K, V> {
         todo("ConcurrentMap.new")
     }
 
     /// Create a concurrent map with room for at least `capacity` entries.
-    static withCapacity(capacity: usize): ConcurrentMap<K, V> {
+    static withCapacity(capacity: usize): ^ConcurrentMap<K, V> {
         todo("ConcurrentMap.withCapacity")
     }
 
     /// Create the default concurrent map.
-    static default(): ConcurrentMap<K, V> {
+    static default(): ^ConcurrentMap<K, V> {
         ConcurrentMap.new()
     }
 }
 
-extension<K: Hash, V> of ConcurrentMap<K, V> implements
-    From<Iterable<(K, V)>>,
-    FromIterator<(K, V)>,
-    Extend<(K, V)>
-{
+extension<K, V> of ^ConcurrentMap<K, V> implements Default {
+    /// Create the default owned concurrent map.
+    static default(): ^ConcurrentMap<K, V> {
+        ConcurrentMap.default()
+    }
+}
+
+extension<K: Hash, V> of ConcurrentMap<K, V> implements Extend<(K, V)> {
     /// Create a concurrent map from entries.
-    static from(entries: Iterable<(K, V)>): ConcurrentMap<K, V> {
+    static from(entries: Iterable<(K, V)>): ^ConcurrentMap<K, V> {
         todo("ConcurrentMap.from")
     }
 
     /// Create a concurrent map from `entries`.
-    static fromIterator(entries: Iterator<(K, V)>): ConcurrentMap<K, V> {
+    static fromIterator(entries: Iterator<(K, V)>): ^ConcurrentMap<K, V> {
         todo("ConcurrentMap.fromIterator")
     }
 
@@ -300,5 +303,17 @@ extension<K: Hash, V> of ConcurrentMap<K, V> implements
     /// Remove all entries.
     clear(this: &ConcurrentMap<K, V>): void {
         todo("ConcurrentMap.clear")
+    }
+}
+
+extension<K: Hash, V> of ^ConcurrentMap<K, V> implements From<Iterable<(K, V)>>, FromIterator<(K, V)> {
+    /// Create an owned concurrent map from entries.
+    static from(entries: Iterable<(K, V)>): ^ConcurrentMap<K, V> {
+        ConcurrentMap.from(entries)
+    }
+
+    /// Create an owned concurrent map from entries.
+    static fromIterator(entries: Iterator<(K, V)>): ^ConcurrentMap<K, V> {
+        ConcurrentMap.fromIterator(entries)
     }
 }

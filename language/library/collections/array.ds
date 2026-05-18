@@ -33,46 +33,43 @@ extension<T> of Array<T> implements
     Iterable<&T>,
     Iterable<&readonly T>,
     Iterable<&exclusive T>,
-    From<Iterable<T>>,
-    FromIterator<T>,
-    Extend<T, "exclusive">,
-    Default
+    Extend<T, "exclusive">
 {
     /// The indexed output type.
     type Output = T;
 
     /// Create an empty array.
-    static new(): Array<T> {
+    static new(): ^Array<T> {
         todo("Array.new")
     }
 
     /// Create an array with room for at least `capacity` elements.
-    static withCapacity(capacity: usize): Array<T> {
+    static withCapacity(capacity: usize): ^Array<T> {
         todo("Array.withCapacity")
     }
 
     /// Create an array from `values`.
-    static from(values: Iterable<T>): Array<T> {
+    static from(values: Iterable<T>): ^Array<T> {
         todo("Array.from")
     }
 
     /// Create an array from `values` and map each value.
-    static from<U>(values: Iterable<U>, map: (value: U, index: number) => T): Array<T> {
+    static from<U>(values: Iterable<U>, map: (value: U, index: number) => T): ^Array<T> {
         todo("Array.from")
     }
 
     /// Create an array from `values`.
-    static fromIterator(values: Iterator<T>): Array<T> {
+    static fromIterator(values: Iterator<T>): ^Array<T> {
         todo("Array.fromIterator")
     }
 
     /// Create an array from `items`.
-    static of(...items: T[]): Array<T> {
+    static of(...items: T[]): ^Array<T> {
         todo("Array.of")
     }
 
     /// Create the default array.
-    static default(): Array<T> {
+    static default(): ^Array<T> {
         Array.new()
     }
 
@@ -217,22 +214,22 @@ extension<T> of Array<T> implements
     }
 
     /// Return a copy of the selected range.
-    slice(start?: number, end?: number): Array<T> {
+    slice(start?: number, end?: number): ^Array<T> {
         todo("Array.slice")
     }
 
     /// Concatenate arrays.
-    concat(...items: Array<T>[]): Array<T> {
+    concat(...items: Array<T>[]): ^Array<T> {
         todo("Array.concat")
     }
 
     /// Map each element to a new array.
-    map<U>(f: (value: T, index: number) => U): Array<U> {
+    map<U>(f: (value: T, index: number) => U): ^Array<U> {
         todo("Array.map")
     }
 
     /// Filter elements into a new array.
-    filter(predicate: (value: T, index: number) => boolean): Array<T> {
+    filter(predicate: (value: T, index: number) => boolean): ^Array<T> {
         todo("Array.filter")
     }
 
@@ -287,7 +284,7 @@ extension<T> of Array<T> implements
     }
 
     /// Join stringified elements with `separator`.
-    join(separator?: string): string {
+    join(separator?: string): ^string {
         todo("Array.join")
     }
 
@@ -297,7 +294,7 @@ extension<T> of Array<T> implements
     }
 
     /// Return a reversed copy.
-    toReversed(): Array<T> {
+    toReversed(): ^Array<T> {
         todo("Array.toReversed")
     }
 
@@ -307,7 +304,7 @@ extension<T> of Array<T> implements
     }
 
     /// Return a sorted copy.
-    toSorted(compare?: (a: &readonly T, b: &readonly T) => number): Array<T> {
+    toSorted(compare?: (a: &readonly T, b: &readonly T) => number): ^Array<T> {
         todo("Array.toSorted")
     }
 
@@ -317,27 +314,27 @@ extension<T> of Array<T> implements
         start: number,
         deleteCount?: number,
         ...items: T[]
-    ): Array<T> {
+    ): ^Array<T> {
         todo("Array.splice")
     }
 
     /// Return a spliced copy.
-    toSpliced(start: number, deleteCount?: number, ...items: T[]): Array<T> {
+    toSpliced(start: number, deleteCount?: number, ...items: T[]): ^Array<T> {
         todo("Array.toSpliced")
     }
 
     /// Return a copy with `value` at `index`.
-    with(index: number, value: T): Array<T> {
+    with(index: number, value: T): ^Array<T> {
         todo("Array.with")
     }
 
     /// Flatten nested arrays.
-    flat<U>(this: Array<ReadonlyArray<U>>, depth?: number): Array<U> {
+    flat<U>(this: Array<ReadonlyArray<U>>, depth?: number): ^Array<U> {
         todo("Array.flat")
     }
 
     /// Map and flatten nested arrays.
-    flatMap<U>(f: (value: T, index: number) => U | ReadonlyArray<U>): Array<U> {
+    flatMap<U>(f: (value: T, index: number) => U | ReadonlyArray<U>): ^Array<U> {
         todo("Array.flatMap")
     }
 
@@ -392,10 +389,27 @@ extension<T, A: Access = "readonly"> of Array<T> implements As<Slice<T>, A>, Bor
 extension<T> of Slice<T> implements ToOwned
 where T implements Clone {
     /// The owned value type.
-    type Owned = Array<T>;
+    type Owned = ^Array<T>;
 
     /// Copy this slice into owned array storage.
-    toOwned(this: &readonly Slice<T>): Array<T> {
+    toOwned(this: &readonly Slice<T>): ^Array<T> {
         todo("Slice.toOwned")
+    }
+}
+
+extension<T> of ^Array<T> implements Default, From<Iterable<T>>, FromIterator<T> {
+    /// Create the default owned array.
+    static default(): ^Array<T> {
+        Array.default()
+    }
+
+    /// Create an owned array from `values`.
+    static from(values: Iterable<T>): ^Array<T> {
+        Array.from(values)
+    }
+
+    /// Create an owned array from `values`.
+    static fromIterator(values: Iterator<T>): ^Array<T> {
+        Array.fromIterator(values)
     }
 }

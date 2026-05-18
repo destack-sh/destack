@@ -7,13 +7,13 @@ export class Condvar {
     constructor() {}
 
     /// Wait and reacquire the mutex before returning.
-    wait<T>(guard: ^MutexGuard<T>): MutexGuard<T> {
+    wait<T>(guard: MutexGuard<T>): MutexGuard<T> {
         todo("Condvar.wait")
     }
 
     /// Wait while `condition` returns true.
     waitWhile<T>(
-        guard: ^MutexGuard<T>,
+        guard: MutexGuard<T>,
         condition: (value: &readonly T) => boolean,
     ): MutexGuard<T> {
         todo("Condvar.waitWhile")
