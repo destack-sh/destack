@@ -40,6 +40,15 @@ const ok: NumericFlags = { 1: "one", 2: "two" };
 ok satisfies NumericFlags;
 ```
 
+### record supports string and number keys
+
+```ds
+type Lookup = Record<string | number, string>;
+
+const ok: Lookup = { name: "Ada", 1: "one" };
+ok satisfies Lookup;
+```
+
 ### record supports symbol keys
 
 ```ds
