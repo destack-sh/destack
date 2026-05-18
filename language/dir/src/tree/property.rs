@@ -154,6 +154,7 @@ pub enum Member {
         mutability: Option<Mutability>,
         visibility: Option<Visibility>,
         is_optional: bool,
+        is_definite: bool,
         is_readonly: bool,
         is_ambient: bool,
         is_abstract: bool,

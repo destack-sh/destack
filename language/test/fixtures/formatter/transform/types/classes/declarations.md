@@ -247,6 +247,22 @@ class Foo {
 }
 ```
 
+### TypeScript field suffixes
+
+Optional and definite field suffixes stay attached to the field name.
+
+```ts:main.ts
+class Foo { ready!: boolean; maybe?: string; accessor value!: number }
+```
+
+```ts expected
+class Foo {
+    ready!: boolean;
+    maybe?: string;
+    accessor value!: number;
+}
+```
+
 ### TypeScript accessor field
 
 Accessor fields keep the `accessor` keyword and use semicolons.
