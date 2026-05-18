@@ -69,6 +69,15 @@ impl Parser {
                     self.get_span_from(&start),
                 )
             }
+            // dereference
+            else if self.language.is_destack() && self.peek_is(TokenType::Multiply) {
+                self.bump(); // eat *
+                let right_id = self.eat_pattern().for_node_type(NodeType::Pattern)?;
+                self.insert_node(
+                    Pattern::DereferenceOf { right: right_id },
+                    self.get_span_from(&start),
+                )
+            }
             // tuple (without type, no struct tuples)
             else if self.peek_is(TokenType::OpenParenthesis) {
                 self.bump(); // eat open parenthesis
@@ -970,6 +979,201 @@ mod tests {
                 assert_string!(parser, *name, "x");
             });
         });
+    }
+
+    #[test]
+    fn test_parse_pattern_dereference_binding() {
+        let mut test = TestParser::new("*value");
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+
+        assert_node!(parser.tree, pattern_id, Pattern::DereferenceOf { right } => {
+            assert_node!(parser.tree, *right, Pattern::Binding { name, pattern: None } => {
+                assert_string!(parser, *name, "value");
+            });
+        });
+        test.assert_no_errors(&parser);
+    }
+
+    #[test]
+    fn test_parse_pattern_dereference_wildcard() {
+        let mut test = TestParser::new("*_");
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+
+        assert_node!(parser.tree, pattern_id, Pattern::DereferenceOf { right } => {
+            assert_node!(parser.tree, *right, Pattern::Wildcard);
+        });
+        test.assert_no_errors(&parser);
+    }
+
+    #[test]
+    fn test_parse_pattern_dereference_literal() {
+        let mut test = TestParser::new("*42");
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+
+        assert_node!(parser.tree, pattern_id, Pattern::DereferenceOf { right } => {
+            assert_node!(parser.tree, *right, Pattern::Expression { value } => {
+                assert_integer_expression(&parser.tree, *value, 42);
+            });
+        });
+        test.assert_no_errors(&parser);
+    }
+
+    #[test]
+    fn test_parse_pattern_dereference_range() {
+        let mut test = TestParser::new("*0..10");
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+
+        assert_node!(parser.tree, pattern_id, Pattern::DereferenceOf { right } => {
+            assert_node!(parser.tree, *right, Pattern::Range { start: Some(start), end: Some(end), end_kind } => {
+                assert_eq!(*end_kind, RangeEnd::Open);
+                assert_integer_expression(&parser.tree, *start, 0);
+                assert_integer_expression(&parser.tree, *end, 10);
+            });
+        });
+        test.assert_no_errors(&parser);
+    }
+
+    #[test]
+    fn test_parse_pattern_dereference_tuple() {
+        let mut test = TestParser::new("*(x, y)");
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+
+        assert_node!(parser.tree, pattern_id, Pattern::DereferenceOf { right } => {
+            assert_node!(parser.tree, *right, Pattern::Tuple { fields } => {
+                assert_eq!(fields.len(), 2);
+                assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: None, is_shorthand: true } => {
+                    assert_name!(parser, *name, "x");
+                });
+                assert_node!(parser.tree, fields[1], PatternField::Named { name, pattern: None, is_shorthand: true } => {
+                    assert_name!(parser, *name, "y");
+                });
+            });
+        });
+        test.assert_no_errors(&parser);
+    }
+
+    #[test]
+    fn test_parse_pattern_dereference_sequence() {
+        let mut test = TestParser::new("*[head, ...tail]");
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+
+        assert_node!(parser.tree, pattern_id, Pattern::DereferenceOf { right } => {
+            assert_node!(parser.tree, *right, Pattern::Sequence { fields } => {
+                assert_eq!(fields.len(), 2);
+                assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: None, is_shorthand: true } => {
+                    assert_name!(parser, *name, "head");
+                });
+                assert_node!(parser.tree, fields[1], PatternField::Spread { pattern: Some(pattern) } => {
+                    assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: None } => {
+                        assert_string!(parser, *name, "tail");
+                    });
+                });
+            });
+        });
+        test.assert_no_errors(&parser);
+    }
+
+    #[test]
+    fn test_parse_pattern_dereference_object() {
+        let mut test = TestParser::new("*{ x, y }");
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+
+        assert_node!(parser.tree, pattern_id, Pattern::DereferenceOf { right } => {
+            assert_node!(parser.tree, *right, Pattern::Object { fields } => {
+                assert_eq!(fields.len(), 2);
+                assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: None, is_shorthand: true } => {
+                    assert_name!(parser, *name, "x");
+                });
+                assert_node!(parser.tree, fields[1], PatternField::Named { name, pattern: None, is_shorthand: true } => {
+                    assert_name!(parser, *name, "y");
+                });
+            });
+        });
+        test.assert_no_errors(&parser);
+    }
+
+    #[test]
+    fn test_parse_pattern_dereference_tagged_tuple() {
+        let mut test = TestParser::new("*Result.Ok(value)");
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+
+        assert_node!(parser.tree, pattern_id, Pattern::DereferenceOf { right } => {
+            assert_node!(parser.tree, *right, Pattern::TaggedTuple { ty, fields } => {
+                assert_node!(parser.tree, *ty, TypeExpression::Reference { path, generic_arguments: _ } => {
+                    assert_path!(parser, *path, "Result.Ok");
+                });
+                assert_eq!(fields.len(), 1);
+                assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: None, is_shorthand: true } => {
+                    assert_name!(parser, *name, "value");
+                });
+            });
+        });
+        test.assert_no_errors(&parser);
+    }
+
+    #[test]
+    fn test_parse_pattern_dereference_tagged_object() {
+        let mut test = TestParser::new("*Point { x, y }");
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+
+        assert_node!(parser.tree, pattern_id, Pattern::DereferenceOf { right } => {
+            assert_node!(parser.tree, *right, Pattern::TaggedObject { ty, fields } => {
+                assert_node!(parser.tree, *ty, TypeExpression::Reference { path, generic_arguments: _ } => {
+                    assert_path!(parser, *path, "Point");
+                });
+                assert_eq!(fields.len(), 2);
+                assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: None, is_shorthand: true } => {
+                    assert_name!(parser, *name, "x");
+                });
+                assert_node!(parser.tree, fields[1], PatternField::Named { name, pattern: None, is_shorthand: true } => {
+                    assert_name!(parser, *name, "y");
+                });
+            });
+        });
+        test.assert_no_errors(&parser);
+    }
+
+    #[test]
+    fn test_parse_pattern_dereference_before_borrow() {
+        let mut test = TestParser::new("*&readonly inner");
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+
+        assert_node!(parser.tree, pattern_id, Pattern::DereferenceOf { right } => {
+            assert_node!(parser.tree, *right, Pattern::BorrowOf { mutability: Some(mutability), right } => {
+                assert_eq!(*mutability, Mutability::Immutable);
+                assert_node!(parser.tree, *right, Pattern::Binding { name, pattern: None } => {
+                    assert_string!(parser, *name, "inner");
+                });
+            });
+        });
+        test.assert_no_errors(&parser);
+    }
+
+    #[test]
+    fn test_parse_pattern_dereference_before_move() {
+        let mut test = TestParser::new("*^exclusive item");
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+
+        assert_node!(parser.tree, pattern_id, Pattern::DereferenceOf { right } => {
+            assert_node!(parser.tree, *right, Pattern::MoveOf { mutability: Some(mutability), right } => {
+                assert_eq!(*mutability, Mutability::Exclusive);
+                assert_node!(parser.tree, *right, Pattern::Binding { name, pattern: None } => {
+                    assert_string!(parser, *name, "item");
+                });
+            });
+        });
+        test.assert_no_errors(&parser);
     }
 
     #[test]
