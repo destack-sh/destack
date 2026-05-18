@@ -344,6 +344,7 @@ module.exports = function defineGrammar(dialect) {
           $.borrow_expression,
           $.dereference_expression,
           $.comptime_expression,
+          $.do_expression,
         ] : []),
         previous,
         $.non_null_expression,
@@ -449,10 +450,28 @@ module.exports = function defineGrammar(dialect) {
           $.destack_static_if_statement,
           $.comptime_block_statement,
           $.destack_for_in_statement,
+          $.let_else_statement,
           $.using_assignment_statement,
           $.match_statement,
           previous,
         );
+      },
+
+      let_else_statement: $ => {
+        if (dialect !== 'destack') {
+          return $.identifier;
+        }
+
+        return prec.right('declaration', seq(
+          field('kind', choice('let', 'const')),
+          field('left', $.match_constructor_pattern),
+          field('type', optional($.type_annotation)),
+          '=',
+          field('right', $.expression),
+          'else',
+          field('alternative', $.statement_block),
+          $._semicolon,
+        ));
       },
 
       using_assignment_statement: $ => seq(
@@ -601,29 +620,103 @@ module.exports = function defineGrammar(dialect) {
       )),
 
       match_pattern: $ => prec(1, choice(
-        $.match_variant_pattern,
-        $.identifier,
-        $.number,
-        $.string,
-        $.true,
-        $.false,
-        $.null,
-        $.undefined,
-        $.this,
-        $.super,
-        $.member_expression,
-        $.call_expression,
-        $.binary_expression,
-        $.struct_literal_expression,
+        $.union_pattern,
+        $.must_pattern,
+        $.managed_pattern,
+        $.borrow_pattern,
+        $.dereference_pattern,
+        $.default_pattern,
+        $.range_pattern,
+        $.match_constructor_pattern,
+        $.match_struct_pattern,
+        $.match_member_pattern,
         $.tuple_pattern,
         $.rest_pattern,
         $.array_pattern,
-        $.object_pattern,
+        $.match_object_pattern,
+        $.literal_type,
+        $.identifier,
       )),
 
-      match_variant_pattern: $ => prec(2, seq(
+      match_object_pattern: $ => seq(
+        '{',
+        optional(seq(
+          commaSep1($.match_object_pattern_property),
+          optional(','),
+        )),
+        '}',
+      ),
+
+      match_object_pattern_property: $ => choice(
+        $.rest_pattern,
+        seq(
+          field('name', $._property_name),
+          optional(seq(':', field('value', $.match_pattern))),
+        ),
+      ),
+
+      default_pattern: $ => prec.right('assign', seq(
+        field('left', $.match_pattern),
+        '=',
+        field('right', choice($.literal_type, $.identifier)),
+      )),
+
+      union_pattern: $ => prec.left('binary_relation', seq(
+        field('left', $.match_pattern),
+        '|',
+        field('right', $.match_pattern),
+      )),
+
+      must_pattern: $ => prec.left('unary', seq(
+        field('argument', $.match_pattern),
+        '!',
+      )),
+
+      managed_pattern: $ => prec.left('unary', seq(
+        '^',
+        optional('readonly'),
+        field('argument', $.match_pattern),
+      )),
+
+      borrow_pattern: $ => prec.left('unary', seq(
+        '&',
+        optional(choice('readonly', 'exclusive')),
+        field('argument', $.match_pattern),
+      )),
+
+      dereference_pattern: $ => prec.left('unary', seq(
+        '*',
+        field('argument', $.match_pattern),
+      )),
+
+      range_pattern: $ => prec(2, seq(
+        field('left', optional($._range_pattern_bound)),
+        field('operator', choice('..', '..=')),
+        field('right', optional($._range_pattern_bound)),
+      )),
+
+      _range_pattern_bound: $ => choice(
+        $.literal_type,
+        $.identifier,
+      ),
+
+      match_member_pattern: $ => prec(2, seq(
+        field('object', $.identifier),
+        '.',
+        field('property', $.identifier),
+      )),
+
+      match_constructor_pattern: $ => prec(2, seq(
         field('name', $.identifier),
-        field('argument', $.identifier),
+        '(',
+        commaSep1($.match_pattern),
+        optional(','),
+        ')',
+      )),
+
+      match_struct_pattern: $ => prec(2, seq(
+        field('name', $.identifier),
+        field('pattern', $.match_object_pattern),
       )),
 
       tuple_pattern: $ => seq(
@@ -657,10 +750,10 @@ module.exports = function defineGrammar(dialect) {
         field('body', $.statement_block),
       ),
 
-      do_expression: $ => seq(
+      do_expression: $ => prec.right(seq(
         'do',
         field('body', $.statement_block),
-      ),
+      )),
 
       while_expression: $ => prec.right(1, alias($.while_statement, $.while_expression)),
 
@@ -692,11 +785,17 @@ module.exports = function defineGrammar(dialect) {
           return previous;
         }
 
-        return seq(
+        return prec(1, seq(
           'break',
-          optional($.expression),
+          optional(choice(
+            seq(
+              field('label', alias($.identifier, $.statement_identifier)),
+              optional(seq(':', field('value', $.expression))),
+            ),
+            field('value', $.expression),
+          )),
           $._semicolon,
-        );
+        ));
       },
 
       managed_expression: $ => prec.left('unary', seq(
@@ -1687,7 +1786,7 @@ module.exports = function defineGrammar(dialect) {
         field('name', $._type_identifier),
         field('type_parameters', optional($.type_parameters)),
         '=',
-        field('value', $.type),
+        field('value', dialect === 'destack' ? choice($.implements_type, $.type) : $.type),
         $._semicolon,
       ),
 
@@ -1731,6 +1830,7 @@ module.exports = function defineGrammar(dialect) {
       _parameter_name: $ => {
         const commonPrefix = [
           repeat(field('decorator', $.decorator)),
+          ...(dialect === 'destack' ? [optional($.accessibility_modifier), optional('readonly')] : []),
           ...(dialect === 'destack' ? [optional('comptime')] : []),
         ];
 
@@ -1960,6 +2060,12 @@ module.exports = function defineGrammar(dialect) {
         field('consequence', $.type),
         ':',
         field('alternative', $.type),
+      )),
+
+      implements_type: $ => prec.left('binary_relation', seq(
+        field('left', $.type),
+        'implements',
+        field('right', $.type),
       )),
 
       generic_type: $ => prec('call', seq(

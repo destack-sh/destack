@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
-const keywordPath = path.resolve(scriptDir, "..", "..", "ast", "src", "tree", "keyword.rs");
+const keywordPath = path.resolve(scriptDir, "..", "..", "dir", "src", "source", "keyword.rs");
 const overlayPath = path.resolve(scriptDir, "..", "queries", "destack_overlay.scm");
 const forkTreeSitterPath = path.resolve(scriptDir, "..", "destack", "tree-sitter.json");
 const forkDestackGrammarPath = path.resolve(scriptDir, "..", "destack", "destack", "grammar.js");
@@ -69,7 +69,7 @@ function main() {
         process.exit(1);
     }
 
-    if (!forkDestackGrammarSource.includes("defineGrammar('destack')")) {
+    if (!/\bname:\s*['"]destack['"]/.test(forkDestackGrammarSource)) {
         console.error("fork destack grammar.js is not configured as the destack dialect");
         process.exit(1);
     }
