@@ -39,6 +39,19 @@ fn test_format_pattern_tuple_with_path() {
 }
 
 #[test]
+fn test_format_newtype_object_pattern() {
+    assert_format!(
+        "Shape.Line({ start: Point { x, y }, end })",
+        r#"Shape.Line({
+    start: Point { x, y },
+    end,
+})"#,
+        |p| p.eat_pattern(),
+        DestackFormatOptions::default_with_line_width(30)
+    );
+}
+
+#[test]
 fn test_format_pattern_slice() {
     assert_format!("[1, 2, ...]", "[1, 2, ...]", |p| p.eat_pattern());
 }

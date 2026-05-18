@@ -145,6 +145,37 @@ fn format_pattern_field_list<'ast>(
     Ok(())
 }
 
+/// Return the single positional object payload in a newtype pattern.
+fn newtype_object_payload(
+    tree: &Tree,
+    fields: &[LocalNodeId<PatternField>],
+) -> Option<LocalNodeId<Pattern>> {
+    let [field_id] = fields else {
+        return None;
+    };
+
+    let PatternField::Positional { pattern } = tree.get(*field_id) else {
+        return None;
+    };
+
+    if matches!(tree.get(*pattern), Pattern::Object { .. }) {
+        return Some(*pattern);
+    }
+
+    None
+}
+
+/// Format one object-backed newtype pattern.
+fn format_newtype_object_pattern<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    ty: LocalNodeId<TypeExpression>,
+    payload: LocalNodeId<Pattern>,
+) -> FormatResult<()> {
+    write!(f, [ty, token("("), payload, token(")")])?;
+
+    Ok(())
+}
+
 /// Return whether trailing separators are invalid for the current assign-pattern field list.
 fn assign_pattern_fields_disallow_trailing_separator(
     tree: &Tree,
@@ -838,8 +869,12 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
             }
 
             Pattern::TaggedTuple { ty, fields } => {
-                write!(f, [ty])?;
-                format_pattern_field_list(f, node_id, "(", ")", fields, false)?;
+                if let Some(payload) = newtype_object_payload(f.context().tree, fields) {
+                    format_newtype_object_pattern(f, *ty, payload)?;
+                } else {
+                    write!(f, [ty])?;
+                    format_pattern_field_list(f, node_id, "(", ")", fields, false)?;
+                }
             }
 
             Pattern::Sequence { fields } => {

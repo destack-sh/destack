@@ -1206,15 +1206,21 @@ pub(crate) fn format_break_expression<'ast>(
     write!(f, [Keyword::Break])?;
 
     if let Some(label) = label {
-        if f.context().options.language_type.is_destack() {
-            write!(f, [space(), token(":"), label])?;
-        } else {
-            write!(f, [space(), label])?;
-        }
+        write!(f, [space(), label])?;
     }
 
     if let Some(value) = value {
-        write!(f, [space(), value])?;
+        if label.is_some() {
+            write!(f, [token(":")])?;
+            write!(f, [space(), value])?;
+        } else if matches!(
+            f.context().tree.get(*value),
+            Expression::Parenthesized { .. }
+        ) {
+            write!(f, [space(), value])?;
+        } else {
+            write!(f, [space(), token("("), value, token(")")])?;
+        }
     }
 
     Ok(())
@@ -1229,11 +1235,7 @@ pub(crate) fn format_continue_expression<'ast>(
     write!(f, [Keyword::Continue])?;
 
     if let Some(label) = label {
-        if f.context().options.language_type.is_destack() {
-            write!(f, [space(), token(":"), label])?;
-        } else {
-            write!(f, [space(), label])?;
-        }
+        write!(f, [space(), label])?;
     }
 
     Ok(())
