@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 
 use destack_dir as dir;
+use destack_source::ModuleId;
 
 use super::DirSnapshotBuilder;
 
@@ -60,14 +61,11 @@ pub(super) fn resolution_label(
 /// Return one dependency target field.
 pub(super) fn dependency_target_field(
     builder: &DirSnapshotBuilder<'_>,
-    target: dir::DependencyTarget,
+    target: Option<ModuleId>,
 ) -> (&'static str, String) {
     match target {
-        dir::DependencyTarget::Module(module_id) => ("module", builder.module_path(module_id)),
-        dir::DependencyTarget::External(specifier) => {
-            ("external", builder.strings.get(specifier).to_string())
-        }
-        dir::DependencyTarget::Unresolved => ("target", "<unresolved>".to_string()),
+        Some(module_id) => ("module", builder.module_path(module_id)),
+        None => ("target", "<unresolved>".to_string()),
     }
 }
 

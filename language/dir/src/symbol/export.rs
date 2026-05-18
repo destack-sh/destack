@@ -1,7 +1,8 @@
 use destack_core::{StringId, StringPool};
+use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
-use crate::{DependencyItem, DependencyTarget, LocalNodeId, LocalSymbolId, Name, StaticKey};
+use crate::{DependencyItem, LocalNodeId, LocalSymbolId, Name, StaticKey};
 
 /// The exported name in one module record.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -82,7 +83,7 @@ pub struct IndirectExportEntry {
     /// The dependency item that declared the export.
     pub item: LocalNodeId<DependencyItem>,
     /// The target module selected by the export.
-    pub target: DependencyTarget,
+    pub target: Option<ModuleId>,
     /// The export selected from the target module.
     pub imported: ExportSelector,
 }
@@ -113,5 +114,5 @@ pub struct StarExportEntry {
     /// The dependency item that declared the star export.
     pub item: LocalNodeId<DependencyItem>,
     /// The target module selected by the export.
-    pub target: DependencyTarget,
+    pub target: Option<ModuleId>,
 }

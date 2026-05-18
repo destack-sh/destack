@@ -1,12 +1,15 @@
 use std::sync::Arc;
 
+use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
-use crate::{DependencyEdge, DependencyRelation, DependencyTarget, GlobalNodeIdAny, SegmentView};
+use crate::{DependencyEdge, DependencyRelation, GlobalNodeIdAny, SegmentView};
 
 /// Cumulative module dependency edges for one profile-scoped DIR module.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct DependencyTable<'a> {
+    /// The module id of the dependency table.
+    pub module_id: ModuleId,
     /// The ordered dependency table segments.
     segments: SegmentView<'a, DependencySegment>,
 }
@@ -14,9 +17,9 @@ pub struct DependencyTable<'a> {
 impl DependencyTable<'static> {
     /// Create a dependency table from ordered segments.
     pub fn from_segments(segments: Vec<Arc<DependencySegment>>) -> Self {
-        Self {
-            segments: SegmentView::from_segments(segments),
-        }
+        let segments = SegmentView::from_segments(segments);
+
+        Self::from_view(segments)
     }
 
     /// Create a dependency table from one segment.
@@ -28,7 +31,23 @@ impl DependencyTable<'static> {
 impl<'a> DependencyTable<'a> {
     /// Create a dependency table from a segment view.
     pub fn from_view(segments: SegmentView<'a, DependencySegment>) -> Self {
-        Self { segments }
+        let first = segments
+            .first()
+            .unwrap_or_else(|| panic!("dependency table needs at least one segment"));
+        let module_id = first.module_id;
+
+        // require a single module owner
+        for segment in segments.iter() {
+            assert_eq!(
+                segment.module_id, module_id,
+                "dependency table segment belongs to a different module"
+            );
+        }
+
+        Self {
+            module_id,
+            segments,
+        }
     }
 
     /// Create a dependency table by appending a borrowed tail segment.
@@ -46,41 +65,56 @@ impl<'a> DependencyTable<'a> {
         self.segments.iter().all(|segment| segment.is_empty())
     }
 
-    /// Return the latest target for one dependency source and relation.
-    pub fn target_for_source(
+    /// Return the latest edge for one dependency source and relation.
+    pub fn edge_for_source(
         &self,
         source: GlobalNodeIdAny,
         relation: DependencyRelation,
-    ) -> Option<DependencyTarget> {
+    ) -> Option<&DependencyEdge> {
         // search later table segments first
         for segment in self.segments.iter().rev() {
             for edge in segment.edges.iter().rev() {
                 if edge.source == source && edge.relation == relation {
-                    return Some(edge.target);
+                    return Some(edge);
                 }
             }
         }
 
         None
     }
+
+    /// Return the latest resolved module for one dependency source and relation.
+    pub fn target_for_source(
+        &self,
+        source: GlobalNodeIdAny,
+        relation: DependencyRelation,
+    ) -> Option<ModuleId> {
+        self.edge_for_source(source, relation)
+            .and_then(|edge| edge.target)
+    }
 }
 
 /// Module dependency edges added by one DIR phase.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DependencySegment {
+    /// The module id of the dependency segment.
+    pub module_id: ModuleId,
     /// Locally resolved dependency edges.
     pub edges: Vec<DependencyEdge>,
 }
 
 impl DependencySegment {
     /// Create an empty dependency segment.
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(module_id: ModuleId) -> Self {
+        Self {
+            module_id,
+            edges: Vec::new(),
+        }
     }
 
     /// Create a dependency segment from resolved edges.
-    pub fn from_edges(edges: Vec<DependencyEdge>) -> Self {
-        Self { edges }
+    pub fn from_edges(module_id: ModuleId, edges: Vec<DependencyEdge>) -> Self {
+        Self { module_id, edges }
     }
 
     /// Return locally resolved dependency edges.

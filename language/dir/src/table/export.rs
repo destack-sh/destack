@@ -1,11 +1,14 @@
+use destack_source::ModuleId;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{ExportEntry, ExportKey, StarExportEntry};
 
 /// Resolved module exports for one module.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExportTable {
+    /// The module id of the export table.
+    pub module_id: ModuleId,
     /// Local and indirect exports keyed by exported name.
     pub export_by_key: IndexMap<ExportKey, ExportEntry>,
     /// Star exports declared by the module.
@@ -14,8 +17,12 @@ pub struct ExportTable {
 
 impl ExportTable {
     /// Create an empty export table.
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(module_id: ModuleId) -> Self {
+        Self {
+            module_id,
+            export_by_key: IndexMap::new(),
+            star_exports: Vec::new(),
+        }
     }
 
     /// Return true when the module exposes no exports.

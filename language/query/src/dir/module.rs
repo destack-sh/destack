@@ -157,7 +157,7 @@ pub(crate) fn build_specifier_candidates_for_module(
                 dir.types()
                     .dependency_resolution(node_id)
                     .and_then(|resolution| match resolution {
-                        dir::DependencyResolution::Module(target) => Some(target),
+                        dir::DependencyResolution::Module(target) => Some(*target),
                         dir::DependencyResolution::Symbol(_) => None,
                     })
             }
@@ -168,7 +168,7 @@ pub(crate) fn build_specifier_candidates_for_module(
         };
 
         let source_id = dir_tree.get_source(expression_id);
-        dir_targets.insert(source_id, target_module.module_id());
+        dir_targets.insert(source_id, target_module);
     }
 
     let mut entries = Vec::new();
@@ -181,7 +181,7 @@ pub(crate) fn build_specifier_candidates_for_module(
         };
 
         let specifier = dir.strings().get(target).to_string();
-        let target_module_id = dir_targets.get(&expression_id.id).copied().flatten();
+        let target_module_id = dir_targets.get(&expression_id.id).copied();
         let target_path = target_module_id.and_then(|target_module_id| {
             let target_module = repository
                 .module(revision, target_module_id)

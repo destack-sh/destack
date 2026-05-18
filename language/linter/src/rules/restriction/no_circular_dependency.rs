@@ -239,7 +239,7 @@ fn build_adjacency(
 fn collect_imported_module_dependencies(imported: &DirImported, dependencies: &mut Vec<ModuleId>) {
     // collect import edges for both value and type space
     for dependency in imported.dependencies.iter() {
-        if let Some(module_id) = dependency.target.module_id() {
+        if let Some(module_id) = dependency.target {
             dependencies.push(module_id);
         }
     }
@@ -249,7 +249,7 @@ fn collect_imported_module_dependencies(imported: &DirImported, dependencies: &m
 fn collect_exported_module_dependencies(exported: &DirExported, dependencies: &mut Vec<ModuleId>) {
     // collect star export edges
     for export in exported.exports.star_exports() {
-        if let Some(module_id) = export.target.module_id() {
+        if let Some(module_id) = export.target {
             dependencies.push(module_id);
         }
     }

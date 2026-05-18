@@ -1,6 +1,7 @@
 use destack_artifact::{DiagnosticAnchor, DirExported};
 use destack_core::StringPool;
 use destack_dir as dir;
+use destack_source::ModuleId;
 
 use crate::{ExportError, ExportResult};
 
@@ -37,7 +38,7 @@ impl<'a> ExportState<'a> {
             dependencies,
             namespace_scope,
             strings,
-            exports: dir::ExportTable::new(),
+            exports: dir::ExportTable::new(view.tree().module_id),
             diagnostics: Vec::new(),
         }
     }
@@ -81,10 +82,11 @@ impl<'a> ExportState<'a> {
     pub(in crate::export) fn reexport_target(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-    ) -> ExportResult<dir::DependencyTarget> {
+    ) -> ExportResult<Option<ModuleId>> {
         let node_id = expression_id.into_global_any(self.view.tree().module_id);
         self.dependencies
-            .target_for_source(node_id, dir::DependencyRelation::ReExport)
+            .edge_for_source(node_id, dir::DependencyRelation::ReExport)
+            .map(|edge| edge.target)
             .ok_or_else(|| ExportError::Internal {
                 anchor: self.module_anchor(),
                 module: self.view.tree().module_id,

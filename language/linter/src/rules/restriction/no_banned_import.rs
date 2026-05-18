@@ -1,4 +1,5 @@
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression};
+use destack_source::ModuleId;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{expression_import_target_specifier, glob_matches};
@@ -179,8 +180,6 @@ enum TargetSurface {
     ResolvedModulePath,
     /// The resolved module file name.
     ResolvedModuleName,
-    /// The resolved external import specifier.
-    ResolvedExternalSpecifier,
 }
 
 impl TargetSurface {
@@ -190,7 +189,6 @@ impl TargetSurface {
             Self::Specifier => "import specifier",
             Self::ResolvedModulePath => "resolved module path",
             Self::ResolvedModuleName => "resolved module file name",
-            Self::ResolvedExternalSpecifier => "resolved external specifier",
         }
     }
 }
@@ -200,7 +198,7 @@ fn expression_target_module(
     ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
     expression: &dir::Expression,
-) -> Option<dir::DependencyTarget> {
+) -> Option<ModuleId> {
     if !matches!(
         expression,
         dir::Expression::Import { .. }
@@ -248,44 +246,29 @@ fn matching_target(
 
     // resolve target module
     let target_module = expression_target_module(ctx, expression_id, expression)?;
-    match target_module {
-        dir::DependencyTarget::Module(module_id) => {
-            let module = ctx.repository_module(module_id)?;
-            let module = module.as_ref();
+    let module = ctx.repository_module(target_module)?;
+    let module = module.as_ref();
 
-            // check resolved module path next
-            if let Some(path) = module.path.as_ref() {
-                let path_text = path.to_string_lossy().to_string();
-                if let Some(pattern) = matching_pattern(&path_text, patterns) {
-                    return Some(MatchedTarget {
-                        pattern,
-                        target: path_text,
-                        surface: TargetSurface::ResolvedModulePath,
-                    });
-                }
-            }
+    // check resolved module path next
+    if let Some(path) = module.path.as_ref() {
+        let path_text = path.to_string_lossy().to_string();
+        if let Some(pattern) = matching_pattern(&path_text, patterns) {
+            return Some(MatchedTarget {
+                pattern,
+                target: path_text,
+                surface: TargetSurface::ResolvedModulePath,
+            });
+        }
+    }
 
-            // check resolved file name as a fallback
-            let file = ctx.repository_file(module.file_id)?;
-            if let Some(pattern) = matching_pattern(&file.name, patterns) {
-                return Some(MatchedTarget {
-                    pattern,
-                    target: file.name.clone(),
-                    surface: TargetSurface::ResolvedModuleName,
-                });
-            }
-        }
-        dir::DependencyTarget::External(specifier) => {
-            let specifier_text = ctx.strings.get(specifier);
-            if let Some(pattern) = matching_pattern(specifier_text, patterns) {
-                return Some(MatchedTarget {
-                    pattern,
-                    target: specifier_text.to_string(),
-                    surface: TargetSurface::ResolvedExternalSpecifier,
-                });
-            }
-        }
-        dir::DependencyTarget::Unresolved => {}
+    // check resolved file name as a fallback
+    let file = ctx.repository_file(module.file_id)?;
+    if let Some(pattern) = matching_pattern(&file.name, patterns) {
+        return Some(MatchedTarget {
+            pattern,
+            target: file.name.clone(),
+            surface: TargetSurface::ResolvedModuleName,
+        });
     }
 
     None

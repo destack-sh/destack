@@ -1,4 +1,5 @@
 use destack_dir as dir;
+use destack_source::ModuleId;
 
 use crate::export::state::ExportState;
 use crate::{Compiler, ExportError, ExportResult};
@@ -106,7 +107,7 @@ impl Compiler {
         &self,
         state: &ExportState<'_>,
         item_id: dir::LocalNodeId<dir::DependencyItem>,
-        target: dir::DependencyTarget,
+        target: Option<ModuleId>,
     ) -> ExportResult<Option<dir::ExportEntry>> {
         let item = state.view.get(item_id);
 

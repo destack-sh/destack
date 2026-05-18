@@ -31,7 +31,7 @@ impl Compiler {
         let checked = DirChecked {
             types: Arc::new(dir::TypeSegment::from_base(&expanded.types)),
             layouts: Arc::new(dir::LayoutSegment::new(module)),
-            captures: Arc::new(dir::CaptureSegment::new()),
+            captures: Arc::new(dir::CaptureSegment::new(module)),
         };
 
         Ok(ArtifactPayload::DirChecked(checked))

@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{DependencyTarget, GlobalSymbolId, LocalInstantiationId, LocalTypeId, StaticArgument};
+use destack_source::ModuleId;
+
+use crate::{GlobalSymbolId, LocalInstantiationId, LocalTypeId, StaticArgument};
 
 /// Resolved target selected for one DIR node.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -19,7 +21,7 @@ pub enum Resolution {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DependencyResolution {
     /// A module import target.
-    Module(DependencyTarget),
+    Module(ModuleId),
     /// A resolved exported or imported binding.
     Symbol(GlobalSymbolId),
 }

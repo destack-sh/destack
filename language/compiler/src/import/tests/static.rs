@@ -87,7 +87,7 @@ let value = 1;
 }
 
 #[test]
-fn test_import_records_external_edge() {
+fn test_import_reports_protocol_specifier() {
     let compiler = TestCompiler::new()
         .module(
             "main.ds",
@@ -97,13 +97,14 @@ import { value } from "host:runtime";
         )
         .build();
 
+    compiler
+        .provide_dir_imported("main.ds")
+        .expect("artifact should be provided with diagnostics");
     assert_snapshot(
-        compiler.dir_snapshot("main.ds", DirSnapshotSet::none().with_dependency()),
+        compiler.diagnostic_snapshot(compiler.dir_imported_key("main.ds")),
         r#"
-import { value } from "host:runtime";
-/// @dependency.edge relation=import specifier=host:runtime external=host:runtime
-
-/// @dependency.summary edges=1
+/// @diagnostic.error code=EI204 message="unsupported module specifier 'host:runtime'"
+/// @diagnostic.label line=2 column=1 source="import { value } from \"host:runtime\";"
 "#,
     );
 }

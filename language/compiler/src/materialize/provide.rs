@@ -30,7 +30,7 @@ impl Compiler {
             patch: dir::Patch::new(&parsed.tree, "materialize"),
             bindings: Arc::new(dir::BindingSegment::from_base(&expanded.bindings)),
             types: Arc::new(dir::TypeSegment::from_base(&checked.types)),
-            captures: Arc::new(dir::CaptureSegment::new()),
+            captures: Arc::new(dir::CaptureSegment::new(module)),
             layouts: Arc::new(dir::LayoutSegment::new(module)),
             roots: expanded.roots.clone(),
         };

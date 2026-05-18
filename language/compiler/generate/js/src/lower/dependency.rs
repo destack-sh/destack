@@ -20,12 +20,7 @@ impl ModuleLowerer<'_> {
             return None;
         };
 
-        // external targets are preserved as bare specifiers for the linker
-        let dir::DependencyTarget::Module(module_id) = target else {
-            return None;
-        };
-
-        Some(*module_id)
+        Some(*target)
     }
 
     /// Lower a dependency form from DIR into JS AST.
