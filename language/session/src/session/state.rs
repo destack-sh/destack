@@ -6,7 +6,6 @@ use destack_compiler::Compiler;
 use destack_linter::Linter;
 use destack_query::Query;
 use destack_workspace::Repository;
-use parking_lot::{Mutex, MutexGuard};
 
 use crate::SessionError;
 use crate::executor::{RunId, Task};
@@ -23,8 +22,6 @@ pub(crate) struct SessionState {
     linter: Arc<Linter>,
     /// Query provider for this root.
     query: Arc<Query>,
-    /// Serialize moves of the session head ref.
-    head_lock: Mutex<()>,
     /// Optional outer session event handler.
     event_handler: Option<SessionEventHandler>,
     /// Monotonic ids for session runs.
@@ -59,15 +56,9 @@ impl SessionState {
             compiler,
             linter,
             query,
-            head_lock: Mutex::new(()),
             event_handler,
             next_run_id: AtomicU32::new(1),
         }
-    }
-
-    /// Lock updates to the session head ref.
-    pub(crate) fn lock_head(&self) -> MutexGuard<'_, ()> {
-        self.head_lock.lock()
     }
 
     /// Return the repository for this session.

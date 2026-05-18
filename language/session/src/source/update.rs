@@ -14,18 +14,25 @@ impl Session {
         path: &Path,
         update: FileChange,
     ) -> Result<Vec<FileUpdate>, SessionError> {
-        let _head_guard = self.lock_head();
         let repository = self.repository();
-        let before = self.revision(reference)?;
         let edit = Self::edit_for_file(repository.as_ref(), path, update);
         let change = RepositoryChange::from_edit(edit);
         let file_ids = change.file_ids().to_vec();
+        let before = self.revision(reference)?;
         let revision = repository.commit_change(before, change)?;
-        let files = self.project_file_updates(before, revision, file_ids)?;
+        let _revision_pin = repository.pin(revision)?;
 
-        self.set_ref(reference, revision)?;
+        // publish when the ref still points at the edited base
+        let was_published = repository.advance_ref(reference, before, revision)?;
+        if !was_published {
+            return Err(SessionError::StaleRevision {
+                reference: reference.clone(),
+                expected: before,
+                current: self.revision(reference)?,
+            });
+        }
 
-        Ok(files)
+        self.project_file_updates(before, revision, file_ids)
     }
 
     /// Build source edits from one file change.

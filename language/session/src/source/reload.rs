@@ -29,7 +29,6 @@ pub(crate) fn is_reload_path(path: &Path) -> bool {
 impl Session {
     /// Reload filesystem source files into one ref.
     pub fn reload_from_fs(&self, reference: &Ref) -> Result<Vec<FileUpdate>, SessionError> {
-        let _head_guard = self.lock_head();
         let repository = self.repository();
         let before = self.revision(reference)?;
 
@@ -42,13 +41,19 @@ impl Session {
         let change = source.poll(repository.as_ref(), before, RepositorySourceFilter::All)?;
         let file_ids = change.file_ids().to_vec();
         let revision = repository.commit_change(before, change)?;
+        let _revision_pin = repository.pin(revision)?;
 
-        // project repository changes for callers
-        let files = self.project_file_updates(before, revision, file_ids)?;
+        // publish when the ref still points at the scanned base
+        let was_published = repository.advance_ref(reference, before, revision)?;
+        if !was_published {
+            return Err(SessionError::StaleRevision {
+                reference: reference.clone(),
+                expected: before,
+                current: self.revision(reference)?,
+            });
+        }
 
-        self.set_ref(reference, revision)?;
-
-        Ok(files)
+        self.project_file_updates(before, revision, file_ids)
     }
 
     /// Read one filesystem path as a file update.

@@ -7,7 +7,6 @@ use destack_linter::Linter;
 use destack_query::Query;
 use destack_source::ModuleId;
 use destack_workspace::{Ref, Repository, Revision};
-use parking_lot::MutexGuard;
 
 use crate::executor::Executor;
 use crate::{FileSystemSource, RepositorySource, RepositorySourceFilter, SessionError};
@@ -118,11 +117,6 @@ impl Session {
         &self.cwd
     }
 
-    /// Lock updates to the session head ref.
-    pub fn lock_head(&self) -> MutexGuard<'_, ()> {
-        self.state.lock_head()
-    }
-
     /// Return the repository for this session.
     pub fn repository(&self) -> Arc<Repository> {
         self.state.repository()
@@ -156,25 +150,12 @@ impl Session {
         self.state.query()
     }
 
-    /// Set one ref to an existing revision.
-    pub(crate) fn set_ref(
-        &self,
-        reference: &Ref,
-        revision: Revision,
-    ) -> Result<Revision, SessionError> {
-        self.state
-            .repository()
-            .set_ref(reference, revision)
-            .map_err(SessionError::from)
-    }
-
     /// Load one filesystem module path into one ref when needed.
     pub fn load_module_from_fs(
         &self,
         reference: &Ref,
         path: &Path,
     ) -> Result<ModuleId, SessionError> {
-        let _head_guard = self.lock_head();
         let repository = self.repository();
         let revision = self.revision(reference)?;
 
@@ -200,10 +181,11 @@ impl Session {
             revision,
             RepositorySourceFilter::files([file]),
         )?;
-        let revision = repository.commit_change(revision, change)?;
+        let next_revision = repository.commit_change(revision, change)?;
+        let _next_revision_pin = repository.pin(next_revision)?;
 
         // require the applied file to produce a module
-        let module_id = repository.module_id_for_path(revision, path)?;
+        let module_id = repository.module_id_for_path(next_revision, path)?;
         let Some(module_id) = module_id else {
             return Err(SessionError::ModulePathNotLoadable {
                 path: path.to_path_buf(),
@@ -211,8 +193,20 @@ impl Session {
             });
         };
 
-        // publish the new revision only after validation
-        self.set_ref(reference, revision)?;
+        // publish when the ref still points at the loaded base
+        let was_published = repository.advance_ref(reference, revision, next_revision)?;
+        if !was_published {
+            let current = self.revision(reference)?;
+            if let Some(module_id) = repository.module_id_for_path(current, path)? {
+                return Ok(module_id);
+            }
+
+            return Err(SessionError::StaleRevision {
+                reference: reference.clone(),
+                expected: revision,
+                current,
+            });
+        }
 
         Ok(module_id)
     }
