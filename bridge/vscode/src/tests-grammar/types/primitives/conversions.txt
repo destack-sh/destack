@@ -1,0 +1,51 @@
+// SYNTAX TEST "source.ds"
+
+// types / primitives / conversions / int8 to int16
+function takeInt16(value: int16): void {}
+declare const smallInteger: int8;
+takeInt16(smallInteger);
+
+// types / primitives / conversions / int32 to int64
+function takeInt64(value: int64): void {}
+declare const mediumInteger: int32;
+takeInt64(mediumInteger);
+
+// types / primitives / conversions / int16 to int8 rejects narrowing
+function takeInt8(value: int8): void {}
+declare const mediumInteger: int16;
+takeInt8(mediumInteger);
+
+// types / primitives / conversions / uint8 to int16
+function takeInt16(value: int16): void {}
+declare const smallUnsigned: uint8;
+takeInt16(smallUnsigned);
+
+// types / primitives / conversions / int8 to uint8 rejects sign changes
+function takeUint8(value: uint8): void {}
+declare const signedInteger: int8;
+takeUint8(signedInteger);
+
+// types / primitives / conversions / float32 to float64
+function takeFloat64(value: float64): void {}
+declare const smallFloat: float32;
+takeFloat64(smallFloat);
+
+// types / primitives / conversions / float64 to float32 rejects narrowing
+function takeFloat32(value: float32): void {}
+declare const largeFloat: float64;
+takeFloat32(largeFloat);
+
+// types / primitives / conversions / int32 to float64
+function takeFloat64(value: float64): void {}
+declare const integer: int32;
+takeFloat64(integer);
+
+// types / primitives / conversions / int32 to number
+function takeNumber(value: number): void {}
+declare const integer: int32;
+takeNumber(integer);
+
+// types / primitives / conversions / float64 to number
+function takeNumber(value: number): void {}
+declare const floatValue: float64;
+takeNumber(floatValue);

@@ -1,0 +1,33 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / assignment / let / let bindings allow assignment
+let value: number = 1;
+value = 2;
+value satisfies number;
+
+// expressions / assignment / let / let bindings allow compound assignment
+let value: number = 1;
+value += 2;
+value satisfies number;
+
+// expressions / assignment / let / let destructuring allows assignment
+let { count }: { count: number } = { count: 0 };
+count = 1;
+count satisfies number;
+
+// expressions / assignment / let / let bindings reject incompatible assignment
+let value: number = 1;
+value = "no";
+
+// expressions / assignment / let / let bindings allow update expressions
+let value: number = 1;
+value++;
+value--;
+value satisfies number;
+
+// expressions / assignment / let / let tuple destructuring stays mutable
+let (left, right): (number, number) = (1, 2);
+left = 3;
+right = 4;
+left satisfies number;
+right satisfies number;

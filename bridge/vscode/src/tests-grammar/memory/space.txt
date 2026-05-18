@@ -1,0 +1,75 @@
+// SYNTAX TEST "source.ds"
+
+// memory / space / shared borrow reads shared storage
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+function kernel(data: shared (&Point)): int32 {
+    data.x
+}
+
+// memory / space / local places values in local space
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+let point: local Point = Point { x: 1, y: 2 };
+point satisfies WithSpace<Point, "local">;
+
+// memory / space / Local places values in local space
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+let point: Local<Point> = Point { x: 1, y: 2 };
+point satisfies local Point;
+
+// memory / space / shared places values in shared space
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+let point: shared Point = Point { x: 1, y: 2 };
+point satisfies shared Point;
+
+// memory / space / local values can hold shared values
+class Registry {}
+
+const registry: shared Registry = new Registry();
+const local = { registry };
+
+local.registry satisfies shared Registry;
+
+// memory / space / ambient fields inherit shared placement
+struct Header {
+    id: int32;
+}
+
+struct Payload {
+    value: int32;
+}
+
+struct Request<T> {
+    header: Header;
+    body: T;
+}
+
+let request: shared Request<Payload>;
+request.header satisfies shared Header;
+request.body satisfies shared Payload;
+
+// memory / space / shared values reject explicit local fields
+struct Payload {
+    value: int32;
+}
+
+struct Request {
+    body: WithSpace<Payload, "local">;
+}
+
+let request: shared Request;

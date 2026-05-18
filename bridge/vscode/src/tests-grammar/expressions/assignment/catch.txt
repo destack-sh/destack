@@ -1,0 +1,39 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / assignment / catch / catch bindings are mutable
+declare function fail(): Result<void, string>;
+
+try {
+    fail()?;
+} catch (e) {
+    e = "fix";
+}
+
+// expressions / assignment / catch / catch bindings stay mutable after narrowing
+declare function fail(): Result<void, string>;
+
+try {
+    fail()?;
+} catch (e) {
+    if (typeof e === "string") {
+        e = e.toUpperCase();
+    }
+}
+
+// expressions / assignment / catch / catch annotations allow unknown
+declare function fail(): Result<void, string>;
+
+try {
+    fail()?;
+} catch (e: unknown) {
+    e = "fix";
+}
+
+// expressions / assignment / catch / catch annotations reject concrete types
+declare function fail(): Result<void, string>;
+
+try {
+    fail()?;
+} catch (e: string) {
+    e = "fix";
+}

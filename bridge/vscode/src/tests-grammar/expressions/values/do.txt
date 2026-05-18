@@ -1,0 +1,37 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / values / do / do blocks yield the last expression
+let value: number = do {
+    let base = 1;
+    base + 2
+};
+
+// expressions / values / do / do blocks yield void without a tail expression
+let value: number = do {
+    let base = 1;
+};
+
+// expressions / values / do / do blocks use nested conditional tails
+let value: number = do {
+    let base = 1;
+    if (base == 1) {
+        10
+    } else {
+        20
+    }
+};
+
+// expressions / values / do / do block local bindings do not escape block scope
+const value = do {
+    let scoped = 2;
+    scoped
+};
+
+scoped satisfies int32;
+
+// expressions / values / do / do blocks can produce tuple values from tail expressions
+let value: (int32, int32) = do {
+    let left: int32 = 1;
+    let right: int32 = 2;
+    (left, right)
+};

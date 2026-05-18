@@ -1,0 +1,88 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / operators / subscript / index access dispatches to Index
+struct Bag {
+    value: int;
+}
+
+extension of Bag implements Index<int> {
+    type Output = int;
+
+    index(key: int): this.Output {
+        return key;
+    }
+}
+
+declare function getBag(): Bag;
+
+const bag = getBag();
+const value = bag[1];
+value satisfies int;
+
+// expressions / operators / subscript / index assignment dispatches to IndexSet
+struct Bag {
+    value: int;
+}
+
+extension of Bag implements IndexSet<int, int> {
+    indexSet(key: int, value: int): void {}
+}
+
+declare function getBag(): Bag;
+
+const bag = getBag();
+bag[1] = 2;
+
+// expressions / operators / subscript / index assignment checks value type
+struct Bag {
+    value: int;
+}
+
+extension of Bag implements IndexSet<int, int> {
+    indexSet(key: int, value: int): void {}
+}
+
+declare function getBag(): Bag;
+
+const bag = getBag();
+bag[1] = "nope";
+
+// expressions / operators / subscript / index access rejects missing Index
+struct Bag {
+    value: int;
+}
+
+declare function getBag(): Bag;
+
+const bag = getBag();
+const value = bag[1];
+value satisfies int;
+
+// expressions / operators / subscript / index assignment rejects missing IndexSet
+struct Bag {
+    value: int;
+}
+
+declare function getBag(): Bag;
+
+const bag = getBag();
+bag[1] = 2;
+
+// expressions / operators / subscript / index access checks key type rules
+struct Bag {
+    value: int;
+}
+
+extension of Bag implements Index<int> {
+    type Output = int;
+
+    index(key: int): this.Output {
+        return key;
+    }
+}
+
+declare function getBag(): Bag;
+
+const bag = getBag();
+const value = bag["one"];
+value satisfies int;

@@ -1,0 +1,115 @@
+// SYNTAX TEST "source.ds"
+
+// types / classes / visibility / private fields reject outside access
+class Counter {
+    private value: int32 = 0;
+
+    get(): int32 {
+        this.value
+    }
+}
+
+const counter = new Counter();
+const out = counter.value;
+
+// types / classes / visibility / private shorthand fields reject outside access
+class Counter {
+    #value: int32 = 0;
+
+    get(): int32 {
+        this.#value
+    }
+}
+
+const counter = new Counter();
+const out = counter.#value;
+
+// types / classes / visibility / private shorthand fields allow class access
+class Counter {
+    #value: int32 = 0;
+
+    get(): int32 {
+        this.#value
+    }
+}
+
+const counter = new Counter();
+const out = counter.get();
+
+// types / classes / visibility / private shorthand fields reject subclass access
+class Base {
+    #value: int32 = 0;
+}
+
+class Child extends Base {
+    get(): int32 {
+        this.#value
+    }
+}
+
+// types / classes / visibility / private shorthand methods allow class access
+class Counter {
+    #next(): int32 {
+        1
+    }
+
+    get(): int32 {
+        this.#next()
+    }
+}
+
+const counter = new Counter();
+const out = counter.get();
+
+// types / classes / visibility / private shorthand methods reject outside access
+class Counter {
+    #next(): int32 {
+        1
+    }
+}
+
+const counter = new Counter();
+const out = counter.#next();
+
+// types / classes / visibility / static private fields allow class access
+class Counter {
+    static #value: int32 = 1;
+
+    static get(): int32 {
+        Counter.#value
+    }
+}
+
+Counter.get() satisfies int32;
+
+// types / classes / visibility / static private fields reject outside access
+class Counter {
+    static #value: int32 = 1;
+}
+
+Counter.#value;
+
+// types / classes / visibility / protected fields allow subclass access
+class Base {
+    protected value: int32 = 0;
+}
+
+class Child extends Base {
+    get(): int32 {
+        return this.value;
+    }
+}
+
+// types / classes / visibility / protected fields reject outside access
+class Base {
+    protected value: int32 = 0;
+}
+
+class Child extends Base {
+    get(): int32 {
+        return this.value;
+    }
+}
+
+const child = new Child();
+const out = child.value;

@@ -1,0 +1,40 @@
+// SYNTAX TEST "source.ds"
+
+// types / primitives / aliases / int uses int64
+declare const value: int64;
+let alias: int = value;
+let back: int64 = alias;
+alias satisfies int64;
+
+// types / primitives / aliases / uint uses uint64
+declare const value: uint64;
+let alias: uint = value;
+let back: uint64 = alias;
+alias satisfies uint64;
+
+// types / primitives / aliases / int rejects uint64
+declare const value: uint64;
+let alias: int = value;
+
+// types / primitives / aliases / uint rejects int64
+declare const value: int64;
+let alias: uint = value;
+
+// types / primitives / aliases / float uses float64
+declare const value: float64;
+let alias: float = value;
+let back: float64 = alias;
+alias satisfies float64;
+
+// types / primitives / aliases / number uses float
+declare const value: float;
+let alias: number = value;
+let back: float = alias;
+alias satisfies float;
+alias satisfies float64;
+
+// types / primitives / aliases / number accepts precise numerics
+declare const precise: int32;
+declare const value: number;
+let widen: number = precise;
+let narrow: int32 = value;

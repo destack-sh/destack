@@ -1,0 +1,230 @@
+// SYNTAX TEST "source.ds"
+
+// types / literals / context / arrays widen element literals in let bindings
+let values = [1, 2];
+
+values[0] satisfies number;
+
+// types / literals / context / arrays do not preserve literal element types in let bindings
+let values = [1, 2];
+
+let union: 1 | 2 = values[0];
+
+// types / literals / context / arrays widen object literal members in let bindings
+let values = [{ kind: "a" }, { kind: "b" }];
+
+values[0].kind satisfies string;
+
+// types / literals / context / arrays do not keep object literal members as literals in let bindings
+let values = [{ kind: "a" }, { kind: "b" }];
+
+values[0].kind satisfies "a";
+
+// types / literals / context / const arrays still widen elements without const assertions
+const values = [1, 2];
+
+values[0] satisfies number;
+
+// types / literals / context / const arrays do not preserve literal element types without const assertions
+const values = [1, 2];
+
+let union: 1 | 2 = values[0];
+
+// types / literals / context / contextual arrays preserve union element types
+const values: (1 | 2)[] = [1, 2];
+
+values[0] satisfies 1 | 2;
+
+// types / literals / context / contextual arrays do not narrow to a single literal
+const values: (1 | 2)[] = [1, 2];
+
+values[0] satisfies 1;
+
+// types / literals / context / let conditionals widen to widened types
+let value = true ? 1 : 2;
+
+value satisfies number;
+
+// types / literals / context / let conditionals do not preserve literal unions
+let value = true ? 1 : 2;
+
+let union: 1 | 2 = value;
+
+// types / literals / context / let conditionals widen object literal members
+let value = true ? { mode: "dev" } : { mode: "prod" };
+
+value.mode satisfies string;
+
+// types / literals / context / let conditionals do not keep object members as literals
+let value = true ? { mode: "dev" } : { mode: "prod" };
+
+value.mode satisfies "dev";
+
+// types / literals / context / const conditionals preserve literal unions
+const value = true ? 1 : 2;
+
+value satisfies 1 | 2;
+
+// types / literals / context / annotations constrain object literal fields
+type Mode = "dev" | "prod";
+
+const config: { mode: Mode } = { mode: "dev" };
+
+config.mode satisfies Mode;
+
+// types / literals / context / annotations do not narrow object literal fields to a single literal
+type Mode = "dev" | "prod";
+
+const config: { mode: Mode } = { mode: "dev" };
+
+config.mode satisfies "dev";
+
+// types / literals / context / contextual arrays preserve object literal unions
+const values: { kind: "a" | "b" }[] = [{ kind: "a" }, { kind: "b" }];
+
+values[0].kind satisfies "a" | "b";
+
+// types / literals / context / contextual arrays do not narrow object literal unions
+const values: { kind: "a" | "b" }[] = [{ kind: "a" }, { kind: "b" }];
+
+values[0].kind satisfies "a";
+
+// types / literals / context / function bodies do not inherit outer const contexts
+const make = () => ({ mode: "dev" });
+
+make().mode satisfies string;
+
+// types / literals / context / function bodies do not preserve literal members by default
+const make = () => ({ mode: "dev" });
+
+make().mode satisfies "dev";
+
+// types / literals / context / contextual return types constrain object literal members
+type Mode = "dev" | "prod";
+
+const make = (): { mode: Mode } => ({ mode: "dev" });
+
+make().mode satisfies Mode;
+
+// types / literals / context / contextual return types do not narrow to a single literal
+type Mode = "dev" | "prod";
+
+const make = (): { mode: Mode } => ({ mode: "dev" });
+
+make().mode satisfies "dev";
+
+// types / literals / context / fresh object literals enforce excess checks at typed bindings
+type Named = { name: string };
+
+const value: Named = { name: "Ada", extra: true };
+
+// types / literals / context / non-fresh objects skip excess checks at later bindings
+type Named = { name: string };
+
+const source = { name: "Ada", extra: true };
+const value: Named = source;
+
+// types / literals / context / explicit generic unions constrain object literal members
+function wrap<T>(value: T): { value: T } {
+    return { value };
+}
+
+const result = wrap<"dev" | "prod">("dev");
+
+result.value satisfies "dev" | "prod";
+
+// types / literals / context / explicit generic unions do not narrow to a single literal
+function wrap<T>(value: T): { value: T } {
+    return { value };
+}
+
+const result = wrap<"dev" | "prod">("dev");
+
+result.value satisfies "dev";
+
+// types / literals / context / method calls keep explicit generic unions
+type Wrapper = {
+    wrap<T>(value: T): { value: T };
+};
+
+declare const wrapper: Wrapper;
+
+const result = wrapper.wrap<"dev" | "prod">("dev");
+
+result.value satisfies "dev" | "prod";
+
+// types / literals / context / explicit generic unions on methods do not narrow
+type Wrapper = {
+    wrap<T>(value: T): { value: T };
+};
+
+declare const wrapper: Wrapper;
+
+const result = wrapper.wrap<"dev" | "prod">("dev");
+
+result.value satisfies "dev";
+
+// types / literals / context / return type annotations keep union members
+type Mode = "dev" | "prod";
+
+function make(mode: Mode): { mode: Mode } {
+    return { mode };
+}
+
+const config = make("dev");
+
+config.mode satisfies Mode;
+
+// types / literals / context / nested return annotations preserve unions
+type Mode = "dev" | "prod";
+
+function make(mode: Mode): { inner: { mode: Mode } } {
+    return { inner: { mode } };
+}
+
+const config = make("dev");
+
+config.inner.mode satisfies Mode;
+
+// types / literals / context / nested return annotations do not narrow to a single literal
+type Mode = "dev" | "prod";
+
+function make(mode: Mode): { inner: { mode: Mode } } {
+    return { inner: { mode } };
+}
+
+const config = make("dev");
+
+config.inner.mode satisfies "dev";
+
+// types / literals / context / return type annotations do not narrow to a single literal
+type Mode = "dev" | "prod";
+
+function make(mode: Mode): { mode: Mode } {
+    return { mode };
+}
+
+const config = make("dev");
+
+config.mode satisfies "dev";
+
+// types / literals / context / contextual tuples preserve literal element types
+const pair: (1, 2) = (1, 2);
+
+pair[0] satisfies 1;
+pair[1] satisfies 2;
+
+// types / literals / context / contextual tuples do not narrow to a single literal when widened
+const pair: (number, number) = (1, 2);
+
+pair[0] satisfies 1;
+
+// types / literals / context / arrays widen mixed literals to a common union
+let values = [1, "a"];
+
+values[0] satisfies number | string;
+
+// types / literals / context / arrays do not narrow mixed literals to a single literal
+let values = [1, "a"];
+
+values[0] satisfies 1;

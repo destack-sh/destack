@@ -1,0 +1,37 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / operators / negate / negate dispatches to Negate
+struct Signed {
+    value: int;
+}
+
+extension of Signed implements Negate {
+    type Output = Signed;
+
+    negate(): this.Output {
+        return this;
+    }
+}
+
+declare function getSigned(): Signed;
+
+const value = -getSigned();
+value satisfies Signed;
+
+// expressions / operators / negate / negate requires Negate
+struct Signed {
+    value: int;
+}
+
+extension of Signed implements Plus {
+    type Output = Signed;
+
+    plus(): this.Output {
+        return this;
+    }
+}
+
+declare function getSigned(): Signed;
+
+const value = -getSigned();
+value satisfies Signed;

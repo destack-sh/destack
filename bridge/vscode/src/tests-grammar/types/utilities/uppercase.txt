@@ -1,0 +1,17 @@
+// SYNTAX TEST "source.ds"
+
+// types / utilities / uppercase / uppercase converts literals
+type Value = Uppercase<"hello">;
+
+const ok: Value = "HELLO";
+
+// types / utilities / uppercase / uppercase distributes over unions
+type Value = Uppercase<"yes" | "no">;
+
+const ok: Value = "YES";
+const ok2: Value = "NO";
+
+// types / utilities / uppercase / uppercase rejects original casing
+type Value = Uppercase<"hello">;
+
+const bad: Value = "hello";

@@ -1,0 +1,173 @@
+// SYNTAX TEST "source.ds"
+
+// types / generics / variance / declarations accept variance modifiers
+interface Sink<in T> {
+    set(value: T): void;
+}
+
+interface Source<out T> {
+    get(): T;
+}
+
+type Adapter<in T, out U> = (value: T) => U;
+
+const source: Source<string> = {
+    get: () => "ok",
+};
+
+source.get() satisfies string;
+
+// types / generics / variance / classes and functions accept variance modifiers
+declare class Box<out T> {
+    value: T;
+    constructor(value: T);
+}
+
+declare function map<in T, out U>(value: T, f: (value: T) => U): U;
+
+type Boxed = Box<string>;
+type Mapper = typeof map;
+
+// types / generics / variance / variance modifiers work with defaults
+interface Box<out T = string> {
+    value: T;
+}
+
+const boxed: Box = { value: "ok" };
+boxed.value satisfies string;
+
+// types / generics / variance / variance in method type parameters
+interface Mapper {
+    map<in T, out U>(value: T, f: (value: T) => U): U;
+}
+
+declare const mapper: Mapper;
+
+// types / generics / variance / declarations accept variance modifiers in ds sources
+interface Sink<in T> {
+    set(value: T): void;
+}
+
+interface Source<out T> {
+    get(): T;
+}
+
+type Adapter<in T, out U> = (value: T) => U;
+
+const source: Source<string> = {
+    get: () => "ok",
+};
+
+source.get() satisfies string;
+
+// types / generics / variance / variance modifiers work with constraints
+interface Sink<in T: string> {
+    set(value: T): void;
+}
+
+interface Source<out T: string> {
+    get(): T;
+}
+
+type Adapter<in T: string, out U: int32> = (value: T) => U;
+
+let sink: Sink<string>;
+let source: Source<string>;
+let adapter: Adapter<string, int32>;
+
+// types / generics / variance / variance modifiers work with ds defaults
+interface Box<out T: string = string> {
+    value: T;
+}
+
+declare let boxed: Box;
+boxed.value satisfies string;
+
+// types / generics / variance / variance with defaults on in parameters
+interface Sink<in T = string> {
+    set(value: T): void;
+}
+
+declare let sink: Sink;
+sink.set("ok");
+
+// types / generics / variance / variance keywords in value parameters
+function echo(out: string): string {
+    return out;
+}
+
+echo("ok") satisfies string;
+
+// types / generics / variance / declaration files accept variance modifiers
+export interface Sink<in T> {
+    set(value: T): void;
+}
+
+export interface Source<out T> {
+    get(): T;
+}
+
+export declare class Box<out T> {
+    value: T;
+    constructor(value: T);
+}
+
+export declare function map<in T, out U>(value: T, f: (value: T) => U): U;
+
+export type Adapter<in T, out U> = (value: T) => U;
+
+export declare const sink: Sink<string>;
+export declare const source: Source<string>;
+export declare const box: Box<string>;
+export declare const adapt: Adapter<string, number>;
+
+// types / generics / variance / declaration files apply variance defaults
+export interface Box<out T = string> {
+    value: T;
+}
+
+export declare const boxed: Box;
+
+// types / generics / variance / declaration files apply contravariant defaults
+export interface Sink<in T = string> {
+    set(value: T): void;
+}
+
+export declare const sink: Sink;
+
+// types / generics / variance / covariance allows widening
+interface Source<out T> {
+    get(): T;
+}
+
+declare const source_string: Source<string>;
+const widened: Source<string | number> = source_string;
+widened.get() satisfies string | number;
+
+// types / generics / variance / covariance rejects narrowing
+interface Source<out T> {
+    get(): T;
+}
+
+declare const source_union: Source<string | number>;
+const narrowed: Source<string> = source_union;
+
+// types / generics / variance / contravariance allows narrowing
+interface Sink<in T> {
+    set(value: T): void;
+}
+
+declare const sink_union: Sink<string | number>;
+const narrowed: Sink<string> = sink_union;
+
+declare const sink_string: Sink<string>;
+narrowed.set("ok");
+sink_string.set("ok");
+
+// types / generics / variance / contravariance rejects widening
+interface Sink<in T> {
+    set(value: T): void;
+}
+
+declare const sink_string: Sink<string>;
+const widened: Sink<string | number> = sink_string;

@@ -1,0 +1,169 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / if / patterns / if (let ...) tuple patterns bind elements
+declare const pair: (int32, int32);
+
+if (let (left, right) = pair) {
+    left satisfies int32;
+    right satisfies int32;
+}
+
+// expressions / if / patterns / if (let ...) fixed array patterns bind elements
+declare const pair: [int32; 2];
+
+if (let [left, right] = pair) {
+    left satisfies int32;
+    right satisfies int32;
+}
+
+// expressions / if / patterns / if (let ...) tuple rest binds tails
+declare const values: (int32, int32, int32);
+
+if (let (first, ...rest) = values) {
+    first satisfies int32;
+    rest satisfies (int32, int32);
+}
+
+// expressions / if / patterns / if (let ...) fixed array rest binds tails
+declare const values: [int32; 3];
+
+if (let [first, ...rest] = values) {
+    first satisfies int32;
+    rest satisfies [int32; 2];
+}
+
+// expressions / if / patterns / if (let ...) object rest binds tails
+type Config = { enabled: boolean; retries: int32 };
+
+declare const config: Config;
+
+if (let { enabled, ...rest } = config) {
+    enabled satisfies boolean;
+    rest satisfies { retries: int32 };
+}
+
+// expressions / if / patterns / if (let ...) must patterns bind non-nullish values
+declare const value: int32 | null;
+
+if (let x! = value) {
+    x satisfies int32;
+} else {
+    value satisfies null;
+}
+
+// expressions / if / patterns / if (let ...) owned patterns bind owned views
+declare const value: ^int32;
+
+if (let ^x = value) {
+    x satisfies ^int32;
+}
+
+// expressions / if / patterns / if (let ...) borrow patterns bind borrowed views
+declare const value: &int32;
+
+if (let &x = value) {
+    x satisfies &int32;
+}
+
+// expressions / if / patterns / if (let ...) scalar newtype patterns bind values
+newtype UserId = int64;
+
+declare const id: UserId;
+
+if (let UserId(value) = id) {
+    value satisfies int64;
+}
+
+// expressions / if / patterns / if (let ...) tuple newtype patterns bind fields
+newtype Point = (float32, float32);
+
+declare const point: Point;
+
+if (let Point(x, y) = point) {
+    x satisfies float32;
+    y satisfies float32;
+}
+
+// expressions / if / patterns / if (let ...) scalar newtype patterns bind defaults
+newtype UserId = int64;
+
+declare const id: UserId;
+
+if (let UserId(value = 1) = id) {
+    value satisfies int64;
+}
+
+// expressions / if / patterns / if (let ...) newtype defaults are expressions
+newtype UserId = int64;
+
+declare const id: UserId;
+
+if (let UserId(value = missing_default) = id) {
+    value;
+}
+
+// expressions / if / patterns / if (let ...) object newtype patterns need tags
+newtype Config = { debug: boolean };
+
+declare const config: Config;
+
+if (let Config { debug } = config) {
+    debug satisfies boolean;
+}
+
+// expressions / if / patterns / if (let ...) object newtype patterns reject bare objects
+newtype Config = { debug: boolean };
+
+declare const config: Config;
+
+if (let { debug } = config) {
+    debug
+}
+
+// expressions / if / patterns / if (let ...) struct patterns need tags
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+declare const point: Point;
+
+if (let Point { x, y } = point) {
+    x satisfies int32;
+    y satisfies int32;
+}
+
+// expressions / if / patterns / if (let ...) struct patterns reject bare objects
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+declare const point: Point;
+
+if (let { x, y } = point) {
+    x
+}
+
+// expressions / if / patterns / if (let ...) enum patterns narrow variants
+enum State {
+    Ready,
+    Failed,
+}
+
+declare const state: State;
+
+if (let State.Ready = state) {
+    state satisfies State.Ready;
+} else {
+    state satisfies State.Failed;
+}
+
+// expressions / if / patterns / if (let ...) union patterns narrow covered literals
+declare const value: 1 | 2 | 3;
+
+if (let 1 | 2 = value) {
+    value satisfies 1 | 2;
+} else {
+    value satisfies 3;
+}

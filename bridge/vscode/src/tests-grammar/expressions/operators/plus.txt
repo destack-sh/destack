@@ -1,0 +1,120 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / operators / plus / number plus number
+const value = 1 + 2;
+value satisfies 3;
+value satisfies int;
+value satisfies float64;
+value satisfies number;
+
+// expressions / operators / plus / plus rejects incompatible operands
+const value = 1 + "two";
+
+// expressions / operators / plus / arrays concatenate with plus
+declare const left: int32[];
+declare const right: int32[];
+
+const combined = left + right;
+combined satisfies int32[];
+
+// expressions / operators / plus / unary plus dispatches to Plus
+struct Signed {
+    value: int;
+}
+
+extension of Signed implements Plus {
+    type Output = Signed;
+
+    plus(): this.Output {
+        return this;
+    }
+}
+
+declare function getSigned(): Signed;
+
+const value = +getSigned();
+value satisfies Signed;
+
+// expressions / operators / plus / unary plus requires Plus
+struct Signed {
+    value: int;
+}
+
+extension of Signed implements Negate {
+    type Output = Signed;
+
+    negate(): this.Output {
+        return this;
+    }
+}
+
+declare function getSigned(): Signed;
+
+const value = +getSigned();
+value satisfies Signed;
+
+// expressions / operators / plus / plus dispatches to Add
+struct Vector2 {
+    x: number;
+    y: number;
+}
+
+extension of Vector2 implements Add<Vector2> {
+    type Output = Vector2;
+
+    add(other: Vector2): this.Output {
+        return Vector2 { x: 0, y: 0 };
+    }
+}
+
+declare function getVector(): Vector2;
+
+const left = getVector();
+const right = getVector();
+
+const sum = left + right;
+sum satisfies Vector2;
+
+// expressions / operators / plus / plus requires Add
+struct Vector2 {
+    x: number;
+    y: number;
+}
+
+extension of Vector2 {
+    add(other: Vector2): Vector2 {
+        return Vector2 { x: 0, y: 0 };
+    }
+}
+
+declare function getVector(): Vector2;
+
+const left = getVector();
+const right = getVector();
+
+left + right;
+
+// expressions / operators / plus / plus requires the right operand type
+struct Scalar {
+    value: int;
+}
+struct Other {
+    value: int;
+}
+
+extension of Scalar implements Add<Scalar> {
+    type Output = Scalar;
+
+    add(other: Scalar): this.Output {
+        return this;
+    }
+}
+
+declare function getScalar(): Scalar;
+declare function getOther(): Other;
+
+const left = getScalar();
+const right = getOther();
+
+const sum = left + right;
+sum satisfies Scalar;

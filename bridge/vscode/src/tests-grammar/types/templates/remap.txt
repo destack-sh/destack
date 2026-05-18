@@ -1,0 +1,66 @@
+// SYNTAX TEST "source.ds"
+
+// types / templates / remap / mapped keys can use templates
+type HandlerMap<T> = {
+    [K in keyof T as `on-${K}`]: T[K];
+};
+
+interface Events {
+    ready: boolean;
+    message: string;
+}
+
+const handlers: HandlerMap<Events> = {
+    "on-ready": true,
+    "on-message": "ok",
+};
+
+// types / templates / remap / mapped keys keep value types
+type HandlerMap<T> = {
+    [K in keyof T as `on-${K}`]: T[K];
+};
+
+interface Events {
+    ready: boolean;
+}
+
+const handlers: HandlerMap<Events> = {
+    "on-ready": "bad",
+};
+
+// types / templates / remap / indexed access can use generated keys
+type HandlerMap<T> = {
+    [K in keyof T as `on-${K}`]: T[K];
+};
+
+type Value = HandlerMap<{ name: string }>["on-name"];
+
+declare const value: Value;
+value satisfies string;
+
+// types / templates / remap / remapped keys can use inferred parts
+type PayloadName<E> = E extends `evt:${infer Name}` ? Name : never;
+
+type PayloadMap<E: string> = {
+    [K in E as `payload:${K}`]: PayloadName<K>;
+};
+
+type Names = PayloadMap<"evt:user" | "evt:order">;
+
+declare const user: Names["payload:evt:user"];
+declare const order: Names["payload:evt:order"];
+
+user satisfies "user";
+order satisfies "order";
+
+// types / templates / remap / satisfies checks remapped keys
+type HandlerMap<T> = {
+    [K in keyof T as `on-${K}`]: T[K];
+};
+
+const handlers = {
+    "on-open": true,
+    "on-close": false,
+} satisfies HandlerMap<{ open: boolean; close: boolean }>;
+
+handlers["on-open"] satisfies boolean;

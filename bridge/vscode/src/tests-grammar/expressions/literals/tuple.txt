@@ -1,0 +1,48 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / literals / tuple / tuple of literals
+const x = (1, "two", true);
+x satisfies (number, string, boolean);
+
+// expressions / literals / tuple / tuple literals widen element types
+let pair = (1, 2);
+pair satisfies (number, number);
+
+// expressions / literals / tuple / tuple literals do not preserve literal elements
+let pair = (1, 2);
+pair satisfies (1, 2);
+
+// expressions / literals / tuple / const tuples still widen without const assertions
+const pair = (1, 2);
+pair satisfies (number, number);
+
+// expressions / literals / tuple / const tuples do not preserve literal elements without const assertions
+const pair = (1, 2);
+pair satisfies (1, 2);
+
+// expressions / literals / tuple / nested tuple
+const x = (1, (2, 3));
+x satisfies (number, (number, number));
+
+// expressions / literals / tuple / tuple with const assertion
+const x = (1, "two", true) as const;
+x satisfies readonly (1, "two", true);
+
+// expressions / literals / tuple / nested tuple with const assertion
+const nested = (1, (2, 3)) as const;
+nested satisfies readonly (1, readonly (2, 3));
+
+// expressions / literals / tuple / contextual tuple literal
+const pair: (number, string) = (1, "hi");
+pair satisfies (number, string);
+
+// expressions / literals / tuple / contextual tuple literal unions
+const pair: (1 | 2, "a" | "b") = (1, "a");
+pair satisfies (1 | 2, "a" | "b");
+
+// expressions / literals / tuple / contextual tuple literal unions do not narrow to literals
+const pair: (1 | 2, "a" | "b") = (1, "a");
+pair satisfies (1, "a");
+
+// expressions / literals / tuple / contextual tuple literal mismatch
+const pair: (number, string) = (1, 2);

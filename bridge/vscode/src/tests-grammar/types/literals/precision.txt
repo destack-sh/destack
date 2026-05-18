@@ -1,0 +1,227 @@
+// SYNTAX TEST "source.ds"
+
+// types / literals / precision / let scalar literals widen
+let value = 1;
+
+value satisfies number;
+
+// types / literals / precision / let scalar literals are not kept as literals
+let value = 1;
+
+value satisfies 1;
+
+// types / literals / precision / const scalar literals keep literal types
+const value = 1;
+
+value satisfies 1;
+
+// types / literals / precision / const object members widen without const context
+const config = { version: 1 };
+
+config.version satisfies number;
+
+// types / literals / precision / const object members are not kept as literals by default
+const config = { version: 1 };
+
+config.version satisfies 1;
+
+// types / literals / precision / const assertions suppress widening for object members
+const config = { version: 1 } as const;
+
+config.version satisfies 1;
+
+// types / literals / precision / const assertions preserve nested object members
+const config = { nested: { mode: "dev" } } as const;
+
+config.nested.mode satisfies "dev";
+
+// types / literals / precision / const assertions suppress widening for tuples
+const pair = (1, 2) as const;
+
+pair[0] satisfies 1;
+pair[1] satisfies 2;
+
+// types / literals / precision / const assertions preserve object literal array members
+const values = [{ kind: "a" }, { kind: "b" }] as const;
+
+values[0].kind satisfies "a";
+values[1].kind satisfies "b";
+
+// types / literals / precision / const assertions preserve nested array members
+const grid = [[1, 2]] as const;
+
+grid[0][0] satisfies 1;
+grid[0][1] satisfies 2;
+
+// types / literals / precision / const assertions reject non literal conditional expressions
+const value = (true ? 1 : 2) as const;
+
+// types / literals / precision / const arrays widen without const assertions
+const pair = [1, 2];
+
+pair[0] satisfies number;
+
+// types / literals / precision / const arrays do not keep literal elements by default
+const pair = [1, 2];
+
+pair[0] satisfies 1;
+
+// types / literals / precision / annotations prevent widening but do not keep literal types
+let value: 1 | 2 = 1;
+
+value satisfies 1 | 2;
+value satisfies 1;
+
+// types / literals / precision / exported const literals keep literal types across modules
+export const version = 1;
+
+// types / literals / precision / exported const literals keep literal types across modules
+import { version } from "./values.ds";
+
+version satisfies 1;
+
+// types / literals / precision / exported let literals widen across modules
+export let counter = 1;
+
+// types / literals / precision / exported let literals widen across modules
+import { counter } from "./values.ds";
+
+counter satisfies 1;
+
+// types / literals / precision / exported let literals still satisfy primitive types
+export let counter = 1;
+
+// types / literals / precision / exported let literals still satisfy primitive types
+import { counter } from "./values.ds";
+
+counter satisfies number;
+
+// types / literals / precision / exported const assertions preserve literal members across modules
+export const config = { version: 1 } as const;
+
+// types / literals / precision / exported const assertions preserve literal members across modules
+import { config } from "./values.ds";
+
+config.version satisfies 1;
+
+// types / literals / precision / exported const objects still widen members without const assertions
+export const config = { version: 1 };
+
+// types / literals / precision / exported const objects still widen members without const assertions
+import { config } from "./values.ds";
+
+config.version satisfies 1;
+
+// types / literals / precision / renamed re-export const literals keep literal types across modules
+export const version = 1;
+
+// types / literals / precision / renamed re-export const literals keep literal types across modules
+export { version as publicVersion } from "./values.ds";
+
+// types / literals / precision / renamed re-export const literals keep literal types across modules
+import { publicVersion } from "./index.ds";
+
+publicVersion satisfies 1;
+
+// types / literals / precision / export-star forwarded let literals still widen across modules
+export let counter = 1;
+
+// types / literals / precision / export-star forwarded let literals still widen across modules
+export * from "./values.ds";
+
+// types / literals / precision / export-star forwarded let literals still widen across modules
+import { counter } from "./index.ds";
+
+counter satisfies number;
+
+// types / literals / precision / namespace imports preserve const assertion literal members
+export const config = { version: 1 } as const;
+
+// types / literals / precision / namespace imports preserve const assertion literal members
+import * as values from "./values.ds";
+
+values.config.version satisfies 1;
+
+// types / literals / precision / assigning const scalar literals into let bindings widens
+const seed = 1;
+let value = seed;
+
+value satisfies number;
+
+// types / literals / precision / assigning const scalar literals into let bindings does not keep literal
+const seed = 1;
+let value = seed;
+
+value satisfies 1;
+
+// types / literals / precision / assigning widened let scalars into const bindings keeps widened type
+let seed = "ready";
+const value = seed;
+
+value satisfies string;
+
+// types / literals / precision / parameter defaults widen literal initializers
+function readMode(mode = "dev") {
+    mode satisfies string;
+}
+
+// types / literals / precision / parameter defaults do not keep literal initializers
+function readMode(mode = "dev") {
+    mode satisfies "dev";
+}
+
+// types / literals / precision / function return inference widens literal returns
+function makeMode() {
+    return "dev";
+}
+
+const mode = makeMode();
+mode satisfies string;
+
+// types / literals / precision / function return inference does not keep literal returns
+function makeMode() {
+    return "dev";
+}
+
+const mode = makeMode();
+mode satisfies "dev";
+
+// types / literals / precision / nested function return inference widens literal returns
+function outer() {
+    function inner() {
+        return "dev";
+    }
+
+    const mode = inner();
+    mode satisfies string;
+}
+
+// types / literals / precision / nested function return inference does not keep literal returns
+function outer() {
+    function inner() {
+        return "dev";
+    }
+
+    const mode = inner();
+    mode satisfies "dev";
+}
+
+// types / literals / precision / nested const to let binding still widens after inner usage
+const seed = "ready";
+
+function observe() {
+    seed satisfies "ready";
+}
+
+let widened = seed;
+widened satisfies string;
+
+// types / literals / precision / nested const to let binding does not keep literal after inner usage
+const seed = "ready";
+
+function observe() {
+    seed satisfies "ready";
+}
+
+let widened = seed;
+widened satisfies "ready";

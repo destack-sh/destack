@@ -1,0 +1,22 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / assignment / const / const bindings reject assignment
+const value: number = 1;
+value = 2;
+
+// expressions / assignment / const / const bindings reject compound assignment
+const value: number = 1;
+value += 1;
+
+// expressions / assignment / const / const destructuring rejects assignment
+const { count }: { count: number } = { count: 0 };
+count = 1;
+
+// expressions / assignment / const / const bindings allow member assignment
+const state: { count: number } = { count: 0 };
+state.count = 1;
+state.count satisfies number;
+
+// expressions / assignment / const / const bindings respect readonly properties
+const state: { readonly count: number } = { count: 0 };
+state.count = 1;

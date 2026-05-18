@@ -1,0 +1,285 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / match / exhaustiveness / enum matches need full coverage
+enum State {
+    Ready,
+    Loading,
+    Error,
+}
+
+function label(state: State): string {
+    match (state) {
+        Ready => "go"
+        Loading => "wait"
+    }
+}
+
+// expressions / match / exhaustiveness / enum matches cover every field
+enum State {
+    Ready,
+    Loading,
+    Error,
+}
+
+function label(state: State): string {
+    match (state) {
+        Ready => "go"
+        Loading => "wait"
+        Error => "error"
+    }
+}
+
+// expressions / match / exhaustiveness / fallback arms cover enums
+enum State {
+    Ready,
+    Loading,
+    Error,
+}
+
+function label(state: State): string {
+    match (state) {
+        Ready => "go"
+        Loading => "wait"
+        _ => "error"
+    }
+}
+
+// expressions / match / exhaustiveness / literal unions need full coverage
+type Status = "ready" | "loading" | "error";
+
+function label(status: Status): string {
+    match (status) {
+        "ready" => "go"
+        "loading" => "wait"
+    }
+}
+
+// expressions / match / exhaustiveness / boolean matches cover true and false
+function label(value: boolean): int32 {
+    match (value) {
+        true => 1
+        false => 0
+    }
+}
+
+// expressions / match / exhaustiveness / boolean unions keep other literals
+type Status = boolean | "pending";
+
+function label(status: Status): number {
+    match (status) {
+        true => 1
+        false => 0
+        "pending" => 2
+    }
+}
+
+// expressions / match / exhaustiveness / string literal unions cover every member
+type Mode = "open" | "closed";
+
+function label(mode: Mode): string {
+    match (mode) {
+        "open" => "open"
+        "closed" => "closed"
+    }
+}
+
+// expressions / match / exhaustiveness / number literal unions cover every member
+type Level = 1 | 2 | 3;
+
+function label(level: Level): string {
+    match (level) {
+        1 => "low"
+        2 => "mid"
+        3 => "high"
+    }
+}
+
+// expressions / match / exhaustiveness / bigint literal unions cover every member
+type Bits = 1n | 2n;
+
+function label(bits: Bits): int32 {
+    match (bits) {
+        1n => 1
+        2n => 2
+    }
+}
+
+// expressions / match / exhaustiveness / nullish unions cover null and undefined
+type Maybe = null | undefined;
+
+function label(value: Maybe): string {
+    match (value) {
+        null => "null"
+        undefined => "undefined"
+    }
+}
+
+// expressions / match / exhaustiveness / fallback arms cover literal unions
+type Status = "ready" | "loading" | "error";
+
+function label(status: Status): string {
+    match (status) {
+        "ready" => "go"
+        "loading" => "wait"
+        _ => "error"
+    }
+}
+
+// expressions / match / exhaustiveness / union patterns cover multiple literals
+type Status = 1 | 2 | 3;
+
+function label(status: Status): int32 {
+    match (status) {
+        1 | 2 => 0
+        3 => 1
+    }
+}
+
+// expressions / match / exhaustiveness / tuple discriminants cover tuple unions
+type Pair = (1, string) | (2, string);
+
+function normalize(pair: Pair): int32 {
+    match (pair) {
+        (1, value) => {
+            value satisfies string;
+            1
+        }
+        (2, value) => {
+            value satisfies string;
+            2
+        }
+    }
+}
+
+// expressions / match / exhaustiveness / tuple union patterns cover multiple discriminants
+type Pair = (1, string) | (2, string) | (3, string);
+
+function normalize(pair: Pair): int32 {
+    match (pair) {
+        (1 | 2, _) => {
+            1
+        }
+        (3, _) => 2
+    }
+}
+
+// expressions / match / exhaustiveness / open unions need fallback arms
+type Mixed = string | number;
+
+function label(value: Mixed): string {
+    match (value) {
+        "ready" => "ok"
+        1 => "one"
+    }
+}
+
+// expressions / match / exhaustiveness / missing tuple discriminants are non-exhaustive
+type Pair = (1, string) | (2, string);
+
+function normalize(pair: Pair): int32 {
+    match (pair) {
+        (1, value) => {
+            value satisfies string;
+            1
+        }
+    }
+}
+
+// expressions / match / exhaustiveness / guarded tuple arms need fallback arms
+type Pair = (1, string) | (2, string);
+
+function normalize(pair: Pair): int32 {
+    match (pair) {
+        (1, _) if (true) => {
+            1
+        }
+        (2, _) => 2
+    }
+}
+
+// expressions / match / exhaustiveness / discriminated unions need full coverage
+type Shape = { kind: "circle"; radius: int32 } | { kind: "square"; size: int32 };
+
+function area(shape: Shape): int32 {
+    match (shape) {
+        { kind: "circle" } => 0
+    }
+}
+
+// expressions / match / exhaustiveness / discriminated unions cover every tag
+type Shape = { kind: "circle"; radius: int32 } | { kind: "square"; size: int32 };
+
+function area(shape: Shape): int32 {
+    match (shape) {
+        { kind: "circle" } => 0
+        { kind: "square" } => 1
+    }
+}
+
+// expressions / match / exhaustiveness / union tag patterns cover multiple variants
+type Shape =
+    | { kind: "circle"; radius: int32 }
+    | { kind: "square"; size: int32 }
+    | { kind: "triangle"; side: int32 };
+
+function area(shape: Shape): int32 {
+    match (shape) {
+        { kind: "circle" | "square" } => 0
+        { kind: "triangle" } => 1
+    }
+}
+
+// expressions / match / exhaustiveness / fallback arms cover discriminated unions
+type Shape = { kind: "circle"; radius: int32 } | { kind: "square"; size: int32 };
+
+function area(shape: Shape): int32 {
+    match (shape) {
+        { kind: "circle" } => 0
+        _ => 1
+    }
+}
+
+// expressions / match / exhaustiveness / nested discriminants still need full coverage
+type Envelope =
+    | { kind: "text"; data: { tag: 1; value: string } }
+    | { kind: "code"; data: { tag: 2; value: int32 } };
+
+function label(envelope: Envelope): int32 {
+    match (envelope) {
+        {
+            kind: "text",
+            data: { tag: 1, value: _ },
+        } => 1
+    }
+}
+
+// expressions / match / exhaustiveness / wildcard tags cover remaining variants
+type Envelope = { kind: "text"; payload: string } | { kind: "code"; payload: int32 };
+
+function label(envelope: Envelope): int32 {
+    match (envelope) {
+        { kind: "text", payload: _ } => 1
+        { kind: _ } => 2
+    }
+}
+
+// expressions / match / exhaustiveness / irrefutable bindings cover the value
+function identity(value: number): number {
+    return match (value) {
+        v => v
+    };
+}
+
+// expressions / match / exhaustiveness / guarded arms need fallback arms
+function pick(value: int32): int32 {
+    match (value) {
+        x if (x > 0) => x
+    }
+}
+
+// expressions / match / exhaustiveness / open array patterns need fallback arms
+function firstTwo(values: number[]): number {
+    return match (values) {
+        [first, second] => first + second
+    };
+}

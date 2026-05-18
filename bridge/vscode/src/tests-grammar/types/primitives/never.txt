@@ -1,0 +1,30 @@
+// SYNTAX TEST "source.ds"
+
+// types / primitives / never / never to number
+function fail(): never {
+    panic("error");
+}
+const x: number = fail();
+
+// types / primitives / never / never to string
+function fail(): never {
+    panic("error");
+}
+const x: string = fail();
+
+// types / primitives / never / number to never is rejected
+const x: never = 1;
+
+// types / primitives / never / string to never is rejected
+const x: never = "no";
+
+// types / primitives / never / union with never simplifies to the other member
+type Value = never | string;
+
+const x: Value = "ok";
+x satisfies string;
+
+// types / primitives / never / intersection with never rejects all concrete values
+type Value = never & string;
+
+const x: Value = "ok";

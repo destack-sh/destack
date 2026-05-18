@@ -1,0 +1,47 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / functions / callbacks / contextual parameters flow into callbacks
+declare function drive(callback: (value: string) => void): void;
+
+drive((value) => {
+    value satisfies string;
+});
+
+// expressions / functions / callbacks / nested callbacks preserve contextual parameter types
+declare function drive<T>(value: T, callback: (value: T) => void): void;
+declare function wrap(callback: (value: string) => string): string;
+
+const result = wrap((value) => {
+    drive(value, (current) => {
+        current satisfies string;
+    });
+
+    return value;
+});
+
+result satisfies string;
+
+// expressions / functions / callbacks / contextual callbacks select overloads in declaration order
+declare function choose(value: string): "string";
+declare function choose(value: number): "number";
+declare function drive(callback: (value: string) => "string"): "ok";
+
+const result = drive((value) => choose(value));
+result satisfies "ok";
+
+// expressions / functions / callbacks / contextual callbacks do not select later overloads
+declare function choose(value: string): "string";
+declare function choose(value: number): "number";
+declare function drive(callback: (value: string) => "string"): "ok";
+
+const result = drive((value) => choose(value));
+result satisfies "number";
+
+// expressions / functions / callbacks / mutable callback inputs widen
+declare function drive<T>(value: T, callback: (value: T) => void): void;
+
+let input = "ready";
+
+drive(input, (value) => {
+    value satisfies "ready";
+});

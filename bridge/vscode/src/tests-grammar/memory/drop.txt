@@ -1,0 +1,117 @@
+// SYNTAX TEST "source.ds"
+
+// memory / drop / drop consumes owned values
+class File {
+    handle: int32 = 0;
+}
+
+let file: ^File = new File();
+drop(file);
+
+// memory / drop / dropped values cannot be used
+class File {
+    handle: int32 = 0;
+}
+
+let file: ^File = new File();
+drop(file);
+file.handle;
+
+// memory / drop / owned values drop after last use
+class Buffer implements Drop {
+    drop(): void {}
+}
+
+declare function openBuffer(): ^Buffer;
+declare function read(buffer: &Buffer): void;
+declare function unrelated(): void;
+
+function run(): void {
+    let buffer = openBuffer();
+
+    read(&buffer);
+    unrelated();
+}
+
+// memory / drop / drop before last borrow use is rejected
+struct Point {
+    x: int32;
+}
+
+let point = ^Point { x: 1 };
+let x = &point.x;
+
+drop(point);
+
+x satisfies &int32;
+
+// memory / drop / drop after last borrow use is allowed
+struct Point {
+    x: int32;
+}
+
+let point = ^Point { x: 1 };
+let x = &point.x;
+
+x satisfies &int32;
+
+drop(point);
+
+// memory / drop / partial moves drop remaining fields
+class File {}
+
+struct Row {
+    first: ^File;
+    second: ^File;
+}
+
+declare function openFile(path: string): ^File;
+declare function take(file: ^File): void;
+
+function run(): void {
+    let row = ^Row {
+        first: openFile("first.txt"),
+        second: openFile("second.txt"),
+    };
+
+    take(row.first);
+}
+
+// memory / drop / drop types reject partial moves
+class File {}
+
+struct Row implements Drop {
+    first: ^File;
+    second: ^File;
+
+    drop(): void {
+        drop(this.first);
+        drop(this.second);
+    }
+}
+
+declare function openFile(path: string): ^File;
+declare function take(file: ^File): void;
+
+function run(): void {
+    let row = ^Row {
+        first: openFile("first.txt"),
+        second: openFile("second.txt"),
+    };
+
+    take(row.first);
+}
+
+// memory / drop / branch drops follow initialized paths
+class File {}
+
+declare function openFile(path: string): ^File;
+declare function take(file: ^File): void;
+
+function run(flag: boolean): void {
+    let file = openFile("log.txt");
+
+    if (flag) {
+        take(file);
+    }
+}

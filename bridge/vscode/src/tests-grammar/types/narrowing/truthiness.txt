@@ -1,0 +1,156 @@
+// SYNTAX TEST "source.ds"
+
+// types / narrowing / truthiness / and guard narrows to non nullish
+const value: string | null | undefined = null;
+if (value !== null && value !== undefined) {
+    value satisfies string;
+} else {
+    value satisfies null | undefined;
+}
+
+// types / narrowing / truthiness / and guard narrows mixed nullish symbols
+const left: string | null = null;
+const right: string | undefined = undefined;
+if (left !== null && right !== undefined) {
+    left satisfies string;
+    right satisfies string;
+} else {
+    left satisfies string | null;
+    right satisfies string | undefined;
+}
+
+// types / narrowing / truthiness / and guard narrows the right side
+const value: string | null = null;
+const accepts_string = (input: string): boolean => true;
+if (value !== null && accepts_string(value)) {
+    value satisfies string;
+}
+
+// types / narrowing / truthiness / and guard narrows with symbol on right
+const value: string | null | undefined = null;
+if (null !== value && undefined !== value) {
+    value satisfies string;
+} else {
+    value satisfies string | null | undefined;
+}
+
+// types / narrowing / truthiness / and guard narrows with parentheses
+const value: string | null | undefined = null;
+if (value !== null && value !== undefined) {
+    value satisfies string;
+} else {
+    value satisfies null | undefined;
+}
+
+// types / narrowing / truthiness / or guard narrows to nullish
+const value: string | null | undefined = null;
+if (value === null || value === undefined) {
+    value satisfies null | undefined;
+} else {
+    value satisfies string;
+}
+
+// types / narrowing / truthiness / or guard narrows both symbols in the else branch
+const left: string | null = null;
+const right: string | null = null;
+if (left === null || right === null) {
+    left satisfies string | null;
+    right satisfies string | null;
+} else {
+    left satisfies string;
+    right satisfies string;
+}
+
+// types / narrowing / truthiness / or guard narrows the right side
+const value: string | null = null;
+const accepts_string = (input: string): boolean => true;
+if (value === null || accepts_string(value)) {
+    value satisfies string | null;
+} else {
+    value satisfies string;
+}
+
+// types / narrowing / truthiness / or guard narrows with symbol on right
+const value: string | null | undefined = null;
+if (null === value || undefined === value) {
+    value satisfies null | undefined;
+} else {
+    value satisfies string;
+}
+
+// types / narrowing / truthiness / or guard narrows chained symbols in the else branch
+const left: string | null = null;
+const middle: string | null = null;
+const right: string | null = null;
+if (left === null || middle === null || right === null) {
+    left satisfies string | null;
+    middle satisfies string | null;
+    right satisfies string | null;
+} else {
+    left satisfies string;
+    middle satisfies string;
+    right satisfies string;
+}
+
+// types / narrowing / truthiness / not guard inverts narrowing
+const value: string | null | undefined = null;
+if (!(value === null)) {
+    value satisfies string | undefined;
+} else {
+    value satisfies null;
+}
+
+// types / narrowing / truthiness / not guard narrows an and expression
+const left: string | null = null;
+const right: string | null = null;
+if (!(left !== null && right !== null)) {
+    left satisfies string | null;
+    right satisfies string | null;
+} else {
+    left satisfies string;
+    right satisfies string;
+}
+
+// types / narrowing / truthiness / not guard narrows an or expression
+const left: string | null = null;
+const right: string | null = null;
+if (!(left === null || right === null)) {
+    left satisfies string;
+    right satisfies string;
+} else {
+    left satisfies string | null;
+    right satisfies string | null;
+}
+
+// types / narrowing / truthiness / not guard narrows a non strict nullish guard
+const value: string | null | undefined = null;
+if (!(value != null)) {
+    value satisfies null | undefined;
+} else {
+    value satisfies string;
+}
+
+// types / narrowing / truthiness / and guard narrows multiple symbols
+const left: string | null | undefined = null;
+const right: string | null | undefined = null;
+if (left !== null && right !== null) {
+    left satisfies string | undefined;
+    right satisfies string | undefined;
+} else {
+    left satisfies string | null | undefined;
+    right satisfies string | null | undefined;
+}
+
+// types / narrowing / truthiness / and guard narrows chained symbols
+const left: string | null = null;
+const middle: string | undefined = undefined;
+const right: string | null = null;
+if (left !== null && middle !== undefined && right !== null) {
+    left satisfies string;
+    middle satisfies string;
+    right satisfies string;
+} else {
+    left satisfies string | null;
+    middle satisfies string | undefined;
+    right satisfies string | null;
+}

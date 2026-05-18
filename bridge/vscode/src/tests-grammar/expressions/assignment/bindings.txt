@@ -1,0 +1,14 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / assignment / bindings / reads require prior assignment
+let value: string;
+value satisfies string;
+
+// expressions / assignment / bindings / writes make locals readable
+let value: string;
+value = "ready";
+value satisfies string;
+
+// expressions / assignment / bindings / writes check declared types
+let value: string;
+value = 1;

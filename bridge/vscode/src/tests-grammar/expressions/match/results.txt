@@ -1,0 +1,72 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / match / results / const arrays keep literal elements
+const pair = [1, 2] as const;
+
+match (pair) {
+    [first, second] => {
+        first satisfies 1;
+        second satisfies 2;
+    }
+}
+
+// expressions / match / results / plain arrays widen elements
+const pair = [1, 2];
+
+match (pair) {
+    [first, second] => {
+        first satisfies number;
+        second satisfies number;
+    }
+    _ => {}
+}
+
+// expressions / match / results / fixed arrays are exhaustive by length
+declare const pair: [int32; 2];
+
+match (pair) {
+    [first, second] => {
+        first satisfies int32;
+        second satisfies int32;
+    }
+}
+
+// expressions / match / results / let bindings widen match results
+let value = match (1) {
+    1 => 1
+    _ => 2
+};
+
+value satisfies number;
+
+// expressions / match / results / literal scrutinees still use binding widening
+let value = match (1) {
+    1 => 1
+};
+
+value satisfies number;
+
+// expressions / match / results / fresh literal results widen in let bindings
+let value = match (1) {
+    1 => 1
+    _ => 2
+};
+
+value satisfies 1;
+
+// expressions / match / results / result annotations check arms
+function choose(value: int32): string {
+    const result: string = match (value) {
+        0 => "zero"
+        _ => 1
+    };
+    result
+}
+
+// expressions / match / results / const bindings keep literal unions
+const value = match (1) {
+    1 => 1
+    _ => 2
+};
+
+value satisfies 1 | 2;

@@ -1,0 +1,19 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / literals / regex / regex literal yields RegExp
+let value: RegExp = /abc/;
+
+// expressions / literals / regex / regex literals are not strings
+let value: string = /abc/;
+
+// expressions / literals / regex / regex literals expose RegExp members
+const value = /abc/;
+const text = value.toString();
+text satisfies string;
+
+// expressions / literals / regex / regex literals work with RegExp unions
+let value: RegExp | int32 = /abc/;
+value satisfies RegExp | int32;
+
+// expressions / literals / regex / regex literals reject boolean contexts
+let value: boolean = /abc/;

@@ -1,0 +1,60 @@
+// SYNTAX TEST "source.ds"
+
+// runtime / modules / conditions / active condition files share the base module
+export const base = "user";
+
+// runtime / modules / conditions / active condition files share the base module
+export const previewName = `${base}.preview`;
+
+// runtime / modules / conditions / active condition files share the base module
+export const serverName = `${base}.server`;
+
+// runtime / modules / conditions / active condition files share the base module
+export const checkoutName = `${base}.checkout`;
+
+// runtime / modules / conditions / active condition files share the base module
+export const internalName = `${base}.internal`;
+
+// runtime / modules / conditions / active condition files share the base module
+import { base, checkoutName, internalName, previewName, serverName } from "./user";
+
+base satisfies "user";
+previewName satisfies "user.preview";
+serverName satisfies "user.server";
+checkoutName satisfies "user.checkout";
+internalName satisfies "user.internal";
+
+// runtime / modules / conditions / inactive condition files are ignored
+export const base = "user";
+
+// runtime / modules / conditions / inactive condition files are ignored
+export const checkoutName = `${base}.checkout`;
+
+// runtime / modules / conditions / inactive condition files are ignored
+import { base } from "./user";
+
+base satisfies "user";
+
+// runtime / modules / conditions / explicit aliases can target profile gates
+export const base = "user";
+
+// runtime / modules / conditions / explicit aliases can target profile gates
+export const browserName = `${base}.browser`;
+
+// runtime / modules / conditions / explicit aliases can target profile gates
+import { base, browserName } from "./user";
+
+base satisfies "user";
+browserName satisfies "user.browser";
+
+// runtime / modules / conditions / chained aliases require every gate
+export const base = "user";
+
+// runtime / modules / conditions / chained aliases require every gate
+export const browserTestName = `${base}.test.browser`;
+
+// runtime / modules / conditions / chained aliases require every gate
+import { base, browserTestName } from "./user";
+
+base satisfies "user";
+browserTestName satisfies "user.test.browser";

@@ -1,0 +1,11 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / ranges / iteration / start-bounded ranges iterate
+declare const range: Range<int>;
+
+range satisfies Iterable<int>;
+
+// expressions / ranges / iteration / startless ranges do not iterate
+declare const range: RangeTo<int>;
+
+range satisfies Iterable<int>;

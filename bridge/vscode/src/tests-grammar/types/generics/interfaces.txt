@@ -1,0 +1,59 @@
+// SYNTAX TEST "source.ds"
+
+// types / generics / interfaces / interfaces accept explicit type arguments
+interface Box<T> {
+    value: T;
+}
+
+declare function makeBox(): Box<number>;
+
+let value: Box<number> = makeBox();
+value satisfies Box<number>;
+
+// types / generics / interfaces / interfaces reject type argument mismatches
+interface Box<T: number> {
+    value: T;
+}
+
+declare function makeBox(): Box<number>;
+
+let value: Box<string> = makeBox();
+
+// types / generics / interfaces / interfaces accept static value arguments
+interface Buffer<T, comptime N: number> {
+    value: T;
+}
+
+declare function makeBuffer(): Buffer<string, 4>;
+
+let buffer: Buffer<string, 4> = makeBuffer();
+buffer satisfies Buffer<string, 4>;
+
+// types / generics / interfaces / interfaces reject static value argument mismatches
+interface Buffer<T, comptime N: number> {
+    value: T;
+}
+
+declare function makeBuffer(): Buffer<string, 4>;
+
+let buffer: Buffer<string, true> = makeBuffer();
+
+// types / generics / interfaces / interfaces accept default type parameters
+interface Box<T = number> {
+    value: T;
+}
+
+declare function makeBox(): Box;
+
+let value: Box = makeBox();
+value satisfies Box<number>;
+
+// types / generics / interfaces / interfaces accept default static values
+interface Buffer<T, comptime N: number = 4> {
+    value: T;
+}
+
+declare function makeBuffer(): Buffer<string>;
+
+let buffer: Buffer<string> = makeBuffer();
+buffer satisfies Buffer<string, 4>;

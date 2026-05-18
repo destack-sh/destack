@@ -1,0 +1,23 @@
+// SYNTAX TEST "source.ds"
+
+// types / type operators / union / unions accept any member
+let x: string | number = "hello";
+x = 42;
+
+// types / type operators / union / members assign to unions
+const x: string | number = "hello";
+
+// types / type operators / union / declared members assign to unions
+const x: string = "hello";
+const y: string | number = x;
+
+// types / type operators / union / union flattening through aliases
+type A = { a: number } | { b: string };
+type B = A | { c: boolean };
+const value: B = { c: true };
+value satisfies { a: number } | { b: string } | { c: boolean };
+
+// types / type operators / union / union removes never
+type A = never | string;
+const value: A = "hello";
+value satisfies string;

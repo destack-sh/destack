@@ -1,0 +1,12 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / functions / implicit / parameters require types
+function handle(value) {}
+
+// expressions / functions / implicit / parameter defaults infer parameter types
+function handle(value = 1) {
+    value satisfies number;
+}
+
+// expressions / functions / implicit / uninitialized bindings require annotations
+let pending;

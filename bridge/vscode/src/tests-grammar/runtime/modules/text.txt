@@ -1,0 +1,11 @@
+// SYNTAX TEST "source.ds"
+
+// runtime / modules / text / text files import as strings
+import content from "./readme.txt.ds";
+
+content satisfies string;
+
+// runtime / modules / text / text import attributes override data defaults
+import content from "./data.json.ds" with { type: "text" };
+
+content satisfies string;

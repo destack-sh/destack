@@ -1,0 +1,184 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / match / patterns / match tuple patterns bind tuple elements
+declare const pair: (int32, int32);
+
+match (pair) {
+    (left, right) => {
+        left satisfies int32;
+        right satisfies int32;
+    }
+}
+
+// expressions / match / patterns / match nested tuple patterns bind nested tuple elements
+declare const pair: ((int32, int32), int32);
+
+match (pair) {
+    ((left, right), tail) => {
+        left satisfies int32;
+        right satisfies int32;
+        tail satisfies int32;
+    }
+}
+
+// expressions / match / patterns / match fixed array patterns bind elements
+declare const pair: [int32; 2];
+
+match (pair) {
+    [left, right] => {
+        left satisfies int32;
+        right satisfies int32;
+    }
+}
+
+// expressions / match / patterns / match slice patterns bind heads
+declare const values: [int32];
+
+match (values) {
+    [first, ...rest] => {
+        first satisfies int32;
+        rest satisfies [int32];
+    }
+    _ => {}
+}
+
+// expressions / match / patterns / match object patterns bind named fields
+type Config = { enabled: boolean; retries: int32 };
+
+declare const config: Config;
+
+match (config) {
+    { enabled, retries } => {
+        enabled satisfies boolean;
+        retries satisfies int32;
+    }
+}
+
+// expressions / match / patterns / match nested object patterns bind nested fields
+type Config = { runtime: { retries: int32 }; enabled: boolean };
+
+declare const config: Config;
+
+match (config) {
+    {
+        runtime: { retries },
+        enabled,
+    } => {
+        retries satisfies int32;
+        enabled satisfies boolean;
+    }
+}
+
+// expressions / match / patterns / match wildcards ignore object fields
+type Config =
+    | { kind: "a"; retries: int32; enabled: boolean }
+    | { kind: "b"; retries: int32; enabled: boolean };
+
+declare const config: Config;
+
+match (config) {
+    { kind: _, retries } => {
+        retries satisfies int32;
+    }
+}
+
+// expressions / match / patterns / match struct patterns bind fields
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+function sum(value: Point): int32 {
+    match (value) {
+        Point { x, y } => x + y
+    }
+}
+
+// expressions / match / patterns / match struct patterns reject bare object patterns
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+function sum(value: Point): int32 {
+    match (value) {
+        { x, y } => x + y
+        _ => 0
+    }
+}
+
+// expressions / match / patterns / match tuple rest binds tails
+declare const values: (int32, int32, int32);
+
+match (values) {
+    (first, ...rest) => {
+        first satisfies int32;
+        rest satisfies (int32, int32);
+    }
+}
+
+// expressions / match / patterns / match fixed array rest binds tails
+declare const values: [int32; 3];
+
+match (values) {
+    [first, ...rest] => {
+        first satisfies int32;
+        rest satisfies [int32; 2];
+    }
+}
+
+// expressions / match / patterns / match object rest binds tails
+type Config = { enabled: boolean; retries: int32 };
+
+declare const config: Config;
+
+match (config) {
+    { enabled, ...rest } => {
+        enabled satisfies boolean;
+        rest satisfies { retries: int32 };
+    }
+}
+
+// expressions / match / patterns / match must patterns bind non-nullish values
+declare const value: int32 | null;
+
+match (value) {
+    x! => {
+        x satisfies int32;
+    }
+    _ => {}
+}
+
+// expressions / match / patterns / match value patterns bind owned values
+declare const value: ^int32;
+
+match (value) {
+    ^x => {
+        x satisfies ^int32;
+    }
+}
+
+// expressions / match / patterns / match reference patterns bind references
+declare const value: &int32;
+
+match (value) {
+    &x => {
+        x satisfies &int32;
+    }
+}
+
+// expressions / match / patterns / match union patterns cover multiple literals
+declare const value: 1 | 2 | 3;
+
+match (value) {
+    1 | 2 => "low"
+    3 => "high"
+}
+
+// expressions / match / patterns / literal patterns must fit the matched type
+function invalidMatchPattern(value: int32): int32 {
+    match (value) {
+        "hi" => 1
+        _ => 2
+    }
+}

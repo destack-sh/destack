@@ -1,0 +1,20 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / ranges / precedence / negative starts bind as prefix expressions
+const range = -3..3;
+
+range satisfies Range<int>;
+
+// expressions / ranges / precedence / arithmetic binds inside endpoints
+const start = 1;
+const end = 4;
+const range = start + 1..end * 2;
+
+range satisfies Range<int>;
+
+// expressions / ranges / precedence / newline ends an open-ended range
+const from = 1..
+const to = ..10;
+
+from satisfies RangeFrom<int>;
+to satisfies RangeTo<int>;

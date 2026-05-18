@@ -1,0 +1,28 @@
+// SYNTAX TEST "source.ds"
+
+// types / arrays / tuples / parenthesized tuple positions carry declared element types
+const pair: (int32, string) = (1, "hello");
+
+// types / arrays / tuples / parenthesized tuple arity is enforced on assignment
+const pair: (int32, string) = (1,);
+
+// types / arrays / tuples / parenthesized tuple positional element types are enforced
+const pair: (int32, string) = ("one", 2);
+
+// types / arrays / tuples / bracket tuple syntax is rejected in ds sources
+const pair: [int32, string] = [1, "hello"];
+
+// types / arrays / tuples / nested tuples preserve nested element types
+const value: (int32, (string, boolean)) = (1, ("hello", true));
+
+// types / arrays / tuples / parenthesized tuples are assignable to dynamic arrays when elements are compatible
+const pair: (int32, int32) = (1, 2);
+const values: int32[] = pair;
+
+// types / arrays / tuples / tuples reject assignment to incompatible dynamic arrays
+const pair: (int32, int32) = (1, 2);
+const values: string[] = pair;
+
+// types / arrays / tuples / dynamic arrays are not assignable to fixed tuples
+const values: int32[] = [1, 2];
+const pair: (int32, int32) = values;

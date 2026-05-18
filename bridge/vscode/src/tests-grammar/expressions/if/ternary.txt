@@ -1,0 +1,151 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / if / ternary / ternary yields union of branch types
+const value = true ? 1 : "hi";
+value satisfies int | string;
+
+// expressions / if / ternary / ternary respects contextual type
+const value: int = true ? 1 : 2;
+value satisfies int;
+
+// expressions / if / ternary / ternary rejects incompatible branch
+const value: int = true ? 1 : "hi";
+
+// expressions / if / ternary / let ternary literal unions widen
+let value = true ? "api" : "admin";
+
+value satisfies string;
+
+// expressions / if / ternary / let ternary literal unions do not keep literal unions
+let value = true ? "api" : "admin";
+
+value satisfies "api" | "admin";
+
+// expressions / if / ternary / exported const ternary values preserve literal unions across modules
+export const route = true ? "api" : "admin";
+
+// expressions / if / ternary / exported const ternary values preserve literal unions across modules
+import { route } from "./values.ds";
+
+route satisfies "api" | "admin";
+
+// expressions / if / ternary / exported let ternary values widen across modules
+export let route = true ? "api" : "admin";
+
+// expressions / if / ternary / exported let ternary values widen across modules
+import { route } from "./values.ds";
+
+route satisfies string;
+
+// expressions / if / ternary / exported let ternary values do not keep literal unions across modules
+export let route = true ? "api" : "admin";
+
+// expressions / if / ternary / exported let ternary values do not keep literal unions across modules
+import { route } from "./values.ds";
+
+route satisfies "api" | "admin";
+
+// expressions / if / ternary / const ternary literal unions preserve literal unions
+const value = true ? "api" : "admin";
+
+value satisfies "api" | "admin";
+
+// expressions / if / ternary / const ternary object members widen without const context
+const route = true ? { kind: "api" } : { kind: "admin" };
+
+route.kind satisfies string;
+
+// expressions / if / ternary / const ternary object members do not keep member literal unions
+const route = true ? { kind: "api" } : { kind: "admin" };
+
+route.kind satisfies "api" | "admin";
+
+// expressions / if / ternary / contextual ternary unions reject narrowed expectations
+const value: "api" | "admin" = true ? "api" : "admin";
+
+value satisfies "api";
+
+// expressions / if / ternary / let ternary object members widen without const context
+let route = true ? { kind: "api" } : { kind: "admin" };
+
+route.kind satisfies string;
+
+// expressions / if / ternary / let ternary object members do not keep member literals
+let route = true ? { kind: "api" } : { kind: "admin" };
+
+route.kind satisfies "api" | "admin";
+
+// expressions / if / ternary / exported const ternary object members widen across modules
+export const route = true ? { kind: "api" } : { kind: "admin" };
+
+// expressions / if / ternary / exported const ternary object members widen across modules
+import { route } from "./values.ds";
+
+route.kind satisfies string;
+
+// expressions / if / ternary / exported const ternary object members do not keep literal unions across modules
+export const route = true ? { kind: "api" } : { kind: "admin" };
+
+// expressions / if / ternary / exported const ternary object members do not keep literal unions across modules
+import { route } from "./values.ds";
+
+route.kind satisfies "api" | "admin";
+
+// expressions / if / ternary / branch const assertions preserve ternary object member literal unions
+const route = true ? ({ kind: "api" } as const) : ({ kind: "admin" } as const);
+
+route.kind satisfies "api" | "admin";
+
+// expressions / if / ternary / branch const assertions preserve ternary object member literal unions across modules
+export const route = true ? ({ kind: "api" } as const) : ({ kind: "admin" } as const);
+
+// expressions / if / ternary / branch const assertions preserve ternary object member literal unions across modules
+import { route } from "./values.ds";
+
+route.kind satisfies "api" | "admin";
+
+// expressions / if / ternary / explicit export annotations anchor ternary literal unions across modules
+export const route: "api" | "admin" = true ? "api" : "admin";
+
+// expressions / if / ternary / explicit export annotations anchor ternary literal unions across modules
+import { route } from "./values.ds";
+
+route satisfies "api" | "admin";
+
+// expressions / if / ternary / const ternary unions preserve literal precision in generic inference
+declare function identity<T>(value: T): T;
+
+const value = true ? "api" : "admin";
+const result = identity(value);
+
+result satisfies "api" | "admin";
+
+// expressions / if / ternary / let ternary unions widen before generic inference
+declare function identity<T>(value: T): T;
+
+let value = true ? "api" : "admin";
+const result = identity(value);
+
+result satisfies string;
+
+// expressions / if / ternary / let ternary unions do not keep literal precision in generic inference
+declare function identity<T>(value: T): T;
+
+let value = true ? "api" : "admin";
+const result = identity(value);
+
+result satisfies "api" | "admin";
+
+// expressions / if / ternary / const ternary templates preserve span unions in generic template inference
+declare function parse<T: string>(value: `id:${T}`): T;
+
+const route = true ? "id:users" : "id:posts";
+const span = parse(route);
+
+span satisfies "users" | "posts";
+
+// expressions / if / ternary / let ternary templates are rejected by narrow template argument shapes
+declare function parse<T: string>(value: `id:${T}`): T;
+
+let route = true ? "id:users" : "id:posts";
+parse(route);

@@ -1,0 +1,6 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / static if / annotations / multiple @if annotations combine
+@if(import.meta.runtime == "js")
+@if(import.meta.runtime == "destack")
+const combined = missingSymbol;

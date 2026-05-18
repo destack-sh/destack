@@ -1,0 +1,123 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / switch / flow / switch breaks target the innermost switch
+function invalidSwitchBreakValueInLoop(value: int32): int32 {
+    loop {
+        switch (value) {
+            case 0:
+                break 1;
+            default:
+                break;
+        }
+        break;
+    }
+    0
+}
+
+// expressions / switch / flow / labeled break can target a switch
+function labeledBreakSwitch(value: int32): int32 {
+    let count: int32 = 0;
+    outer: switch (value) {
+        case 0:
+            count = 1;
+            break :outer;
+        default:
+            count = 2;
+            break;
+    }
+    count
+}
+
+// expressions / switch / flow / labeled break can target a loop
+function labeledBreakLoopFromSwitch(value: int32): int32 {
+    let count: int32 = 0;
+    outer: loop {
+        switch (value) {
+            case 0:
+                count = 1;
+                break :outer;
+            default:
+                count = 2;
+                break;
+        }
+        count = count + 1;
+        break;
+    }
+    count
+}
+
+// expressions / switch / flow / switch does not allow continue
+function invalidSwitchContinue(value: int32): int32 {
+    switch (value) {
+        case 0:
+            continue;
+        default:
+            break;
+    }
+    0
+}
+
+// expressions / switch / flow / continue inside switch targets the loop
+function continueInSwitch(value: int32): int32 {
+    let count: int32 = 0;
+    loop {
+        switch (value) {
+            case 0:
+                count = count + 1;
+                continue;
+            default:
+                break;
+        }
+        break;
+    }
+    count
+}
+
+// expressions / switch / flow / labeled continue can target a loop
+function labeledContinueLoopFromSwitch(value: int32): int32 {
+    let count: int32 = 0;
+    outer: loop {
+        switch (value) {
+            case 0:
+                count = count + 1;
+                continue :outer;
+            default:
+                break;
+        }
+        break;
+    }
+    count
+}
+
+// expressions / switch / flow / labeled continue cannot target a switch
+function invalidLabeledContinueSwitch(value: int32): int32 {
+    outer: switch (value) {
+        case 0:
+            continue :outer;
+        default:
+            break;
+    }
+    0
+}
+
+// expressions / switch / flow / switch rejects guards
+function invalidSwitchGuard(value: int32): int32 {
+    switch (value) {
+        case 0 if (value > 0):
+            break;
+        default:
+            break;
+    }
+    0
+}
+
+// expressions / switch / flow / switch does not yield a value
+function invalidSwitchExpression(value: int32): int32 {
+    const result: int32 = switch (value) {
+        case 0:
+            break;
+        default:
+            break;
+    };
+    result
+}

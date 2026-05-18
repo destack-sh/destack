@@ -1,0 +1,11 @@
+// SYNTAX TEST "source.ds"
+
+// runtime / modules / binary / binary files import as byte arrays
+import icon from "./icon.png.ds";
+
+icon satisfies uint8[];
+
+// runtime / modules / binary / binary import attributes override text defaults
+import bytes from "./file.txt.ds" with { type: "binary" };
+
+bytes satisfies uint8[];

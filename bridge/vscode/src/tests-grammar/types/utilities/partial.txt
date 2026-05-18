@@ -1,0 +1,45 @@
+// SYNTAX TEST "source.ds"
+
+// types / utilities / partial / partial allows missing fields
+interface Person {
+    name: string;
+    age: number;
+}
+
+type OptionalPerson = Partial<Person>;
+
+const ok: OptionalPerson = {};
+ok satisfies OptionalPerson;
+const ok2 = { name: "Ada" };
+ok2 satisfies OptionalPerson;
+
+// types / utilities / partial / partial rejects extra fields
+interface Person {
+    name: string;
+    age: number;
+}
+
+type OptionalPerson = Partial<Person>;
+
+const bad: OptionalPerson = { name: "Ada", extra: true };
+
+// types / utilities / partial / partial rejects incompatible field types
+interface Person {
+    name: string;
+    age: number;
+}
+
+type OptionalPerson = Partial<Person>;
+
+const bad: OptionalPerson = { name: "Ada", age: "no" };
+
+// types / utilities / partial / partial preserves readonly fields
+interface Person {
+    readonly name: string;
+    age: number;
+}
+
+type OptionalPerson = Partial<Person>;
+
+const person: OptionalPerson = { name: "Ada" };
+person.name = "Grace";

@@ -1,0 +1,77 @@
+// SYNTAX TEST "source.ds"
+
+// types / generics / classes / classes accept explicit type arguments
+class Box<T> {
+    value?: T;
+}
+
+declare function makeBox(): Box<number>;
+
+let value: Box<number> = makeBox();
+value satisfies Box<number>;
+
+// types / generics / classes / classes reject type argument mismatches
+class Box<T: number> {
+    value?: T;
+}
+
+declare function makeBox(): Box<number>;
+
+let value: Box<string> = makeBox();
+
+// types / generics / classes / classes accept static value arguments
+class Buffer<T, comptime N: number> {
+    value?: T;
+}
+
+declare function makeBuffer(): Buffer<string, 4>;
+
+let buffer: Buffer<string, 4> = makeBuffer();
+buffer satisfies Buffer<string, 4>;
+
+// types / generics / classes / classes reject static value argument mismatches
+class Buffer<T, comptime N: number> {
+    value?: T;
+}
+
+declare function makeBuffer(): Buffer<string, 4>;
+
+let buffer: Buffer<string, true> = makeBuffer();
+
+// types / generics / classes / classes accept default type parameters
+class Box<T = number> {
+    value?: T;
+}
+
+declare function makeBox(): Box;
+
+let value: Box = makeBox();
+value satisfies Box<number>;
+
+// types / generics / classes / classes accept default static values
+class Buffer<T, comptime N: number = 4> {
+    value?: T;
+}
+
+declare function makeBuffer(): Buffer<string>;
+
+let buffer: Buffer<string> = makeBuffer();
+buffer satisfies Buffer<string, 4>;
+
+// types / generics / classes / type arguments affect class assignability
+class Box<T> {
+    value?: T;
+}
+
+declare let numberBox: Box<number>;
+
+let stringBox: Box<string> = numberBox;
+
+// types / generics / classes / static value arguments affect class assignability
+class Buffer<T, comptime N: number> {
+    value?: T;
+}
+
+declare let buffer4: Buffer<string, 4>;
+
+let buffer8: Buffer<string, 8> = buffer4;

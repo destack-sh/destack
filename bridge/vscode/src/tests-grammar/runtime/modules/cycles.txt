@@ -1,0 +1,107 @@
+// SYNTAX TEST "source.ds"
+
+// runtime / modules / cycles / unannotated cycles require type annotations
+import { y } from "./b.ds";
+
+export const x = y;
+
+// runtime / modules / cycles / unannotated cycles require type annotations
+import { x } from "./a.ds";
+
+export const y = x;
+
+// runtime / modules / cycles / partially annotated cycles still require local annotations
+import { y } from "./b.ds";
+
+export const x: number = y;
+
+// runtime / modules / cycles / partially annotated cycles still require local annotations
+import { x } from "./a.ds";
+
+export const y = x;
+
+// runtime / modules / cycles / fully annotated cycles are allowed
+import { y } from "./b.ds";
+
+export const x: number = y;
+
+// runtime / modules / cycles / fully annotated cycles are allowed
+import { x } from "./a.ds";
+
+export const y: number = x;
+
+// runtime / modules / cycles / unannotated three-module cycles require type annotations
+import { y } from "./b.ds";
+
+export const x = y;
+
+// runtime / modules / cycles / unannotated three-module cycles require type annotations
+import { z } from "./c.ds";
+
+export const y = z;
+
+// runtime / modules / cycles / unannotated three-module cycles require type annotations
+import { x } from "./a.ds";
+
+export const z = x;
+
+// runtime / modules / cycles / three-module cycles need all inferred exports annotated
+import { y } from "./b.ds";
+
+export const x: number = y;
+
+// runtime / modules / cycles / three-module cycles need all inferred exports annotated
+import { z } from "./c.ds";
+
+export const y = z;
+
+// runtime / modules / cycles / three-module cycles need all inferred exports annotated
+import { x } from "./a.ds";
+
+export const z = x;
+
+// runtime / modules / cycles / namespace cycles require type annotations
+import * as b from "./b.ds";
+
+export const x = b.y;
+
+// runtime / modules / cycles / namespace cycles require type annotations
+import * as a from "./a.ds";
+
+export const y = a.x;
+
+// runtime / modules / cycles / namespace cycles need all inferred exports annotated
+import * as b from "./b.ds";
+
+export const x: number = b.y;
+
+// runtime / modules / cycles / namespace cycles need all inferred exports annotated
+import * as a from "./a.ds";
+
+export const y = a.x;
+
+// runtime / modules / cycles / reexported cycles require type annotations
+import { y } from "./forward.ds";
+
+export const x = y;
+
+// runtime / modules / cycles / reexported cycles require type annotations
+export { y } from "./b.ds";
+
+// runtime / modules / cycles / reexported cycles require type annotations
+import { x } from "./a.ds";
+
+export const y = x;
+
+// runtime / modules / cycles / reexported cycles need all inferred exports annotated
+import { y } from "./forward.ds";
+
+export const x: number = y;
+
+// runtime / modules / cycles / reexported cycles need all inferred exports annotated
+export { y } from "./b.ds";
+
+// runtime / modules / cycles / reexported cycles need all inferred exports annotated
+import { x } from "./a.ds";
+
+export const y = x;

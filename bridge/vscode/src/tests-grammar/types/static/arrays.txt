@@ -1,0 +1,45 @@
+// SYNTAX TEST "source.ds"
+
+// types / static / arrays / static parameters size arrays
+type Lane<comptime N: uint> = [uint8; N * 2];
+
+declare const lane: Lane<4>;
+lane satisfies [uint8; 8];
+
+// types / static / arrays / associated constants size arrays
+class Segment<Row> {
+    comptime const Width: uint = Row extends string ? 8 : 4;
+    type Lane = [uint8; this.Width];
+}
+
+declare const lane: Segment<string>.Lane;
+lane satisfies [uint8; 8];
+
+// types / static / arrays / imported constants size arrays
+declare function length<T, comptime N: uint>(xs: [T; N]): N;
+
+export const RGB: [uint8; 3] = [255, 128, 0];
+export const N = length(RGB);
+
+N satisfies 3;
+
+// types / static / arrays / imported constants size arrays
+import { N } from "./a.ds";
+
+type Lane<comptime N: uint> = [uint8; N * 2];
+
+declare const lane: Lane<N>;
+lane satisfies [uint8; 6];
+
+// types / static / arrays / imported associated constants size arrays
+export class Segment<Row> {
+    comptime const Width: uint = Row extends string ? 8 : 4;
+}
+
+// types / static / arrays / imported associated constants size arrays
+import { Segment } from "./layout.ds";
+
+type Lane = [uint8; Segment<string>.Width];
+
+declare const lane: Lane;
+lane satisfies [uint8; 8];

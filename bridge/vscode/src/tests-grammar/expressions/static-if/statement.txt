@@ -1,0 +1,59 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / static if / statement / when false, @if removes module statements
+@if(false)
+missingSymbol;
+
+const value = 1;
+
+// expressions / static if / statement / when true, @if includes module statements
+@if(true)
+const value = 1;
+
+value satisfies number;
+
+// expressions / static if / statement / when false, @if removes block statements
+function demo(): number {
+    @if(false)
+    missingSymbol;
+
+    return 1;
+}
+
+// expressions / static if / statement / when true, @if includes block statements
+function demo(): number {
+    let value: number = 0;
+
+    @if(true)
+    value = 1;
+
+    return value;
+}
+
+// expressions / static if / statement / when false, @if removes block declarations
+function compute(): number {
+    @if(false)
+    const hidden = missingSymbol;
+
+    return 1;
+}
+
+// expressions / static if / statement / returns can be gated by static parameters
+function size<comptime Wide: bool>(): Wide extends true ? 8 : 4 {
+    @if(Wide)
+    return 8;
+
+    @if(Wide == false)
+    return 4;
+}
+
+size<true>() satisfies 8;
+size<false>() satisfies 4;
+
+// expressions / static if / statement / @if bindings stay local
+function demo<comptime Enabled: bool>(): void {
+    @if(Enabled)
+    const value = 1;
+
+    value;
+}

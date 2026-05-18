@@ -1,0 +1,12 @@
+// SYNTAX TEST "source.ds"
+
+// types / utilities / noinfer / NoInfer keeps inference from earlier arguments
+declare function choose<C: string>(values: C[], fallback?: NoInfer<C>): C;
+
+const ok = choose(["red", "blue"], "red");
+ok satisfies "red" | "blue";
+
+// types / utilities / noinfer / NoInfer rejects unrelated later arguments
+declare function choose<C: string>(values: C[], fallback?: NoInfer<C>): C;
+
+choose(["red", "blue"], "green");

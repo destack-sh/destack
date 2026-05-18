@@ -1,0 +1,117 @@
+// SYNTAX TEST "source.ds"
+
+// types / extensions / implements / extension implements interface
+interface Describable {
+    describe(): string;
+}
+
+struct Point {
+    x: number;
+    y: number;
+}
+
+extension of Point implements Describable {
+    describe(): string {
+        return "";
+    }
+}
+
+declare function getPoint(): Point;
+
+const point = getPoint();
+point satisfies Describable;
+point.describe() satisfies string;
+
+// types / extensions / implements / extension implements multiple interfaces
+interface Printable {
+    print(): void;
+}
+
+interface Serializable {
+    serialize(): string;
+}
+
+struct Document {
+    content: string;
+}
+
+extension of Document implements Printable, Serializable {
+    print(): void {}
+    serialize(): string {
+        return "";
+    }
+}
+
+declare function getDocument(): Document;
+
+const document = getDocument();
+document satisfies Printable;
+document satisfies Serializable;
+document.print();
+document.serialize() satisfies string;
+
+// types / extensions / implements / extension rejects missing interface members
+interface Printable {
+    print(): void;
+}
+
+interface Serializable {
+    serialize(): string;
+}
+
+struct Document {
+    content: string;
+}
+
+extension of Document implements Printable, Serializable {
+    print(): void {}
+}
+
+// types / extensions / implements / extension can implement imported interfaces across modules
+export interface Printable {
+    print(): string;
+}
+
+// types / extensions / implements / extension can implement imported interfaces across modules
+export struct Document {
+    content: string;
+}
+
+// types / extensions / implements / extension can implement imported interfaces across modules
+import { Printable } from "./contracts.ds";
+import { Document } from "./model.ds";
+
+extension of Document implements Printable {
+    print(): string {
+        return this.content;
+    }
+}
+
+declare function getDocument(): Document;
+
+const document = getDocument();
+document.print() satisfies string;
+
+// types / extensions / implements / extension implementing imported contracts rejects missing members
+export interface Printable {
+    print(): string;
+}
+
+export interface Serializable {
+    serialize(): string;
+}
+
+// types / extensions / implements / extension implementing imported contracts rejects missing members
+export struct Document {
+    content: string;
+}
+
+// types / extensions / implements / extension implementing imported contracts rejects missing members
+import { Printable, Serializable } from "./contracts.ds";
+import { Document } from "./model.ds";
+
+extension of Document implements Printable, Serializable {
+    print(): string {
+        return this.content;
+    }
+}

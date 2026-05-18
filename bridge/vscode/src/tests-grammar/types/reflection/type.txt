@@ -1,0 +1,54 @@
+// SYNTAX TEST "source.ds"
+
+// types / reflection / type / type expressions coerce to reflected types
+struct User {
+    name: string;
+}
+
+const type: Type<User> = User;
+(type) satisfies Type<User>;
+
+// types / reflection / type / Type.of creates reflected types
+struct User {
+    name: string;
+}
+
+const type = Type.of<User>();
+(type) satisfies Type<User>;
+type.id satisfies TypeId;
+
+// types / reflection / type / reflected types are static values
+declare function parseWithType<comptime T: Type>(raw: string): T;
+
+function parse<comptime T: Type>(raw: string): T {
+    parseWithType<T>(raw)
+}
+
+struct User {
+    name: string;
+}
+
+const user = parse<User>("{}");
+user satisfies User;
+
+// types / reflection / type / layout queries return target-sized values
+struct Header {
+    id: uint32;
+}
+
+const size = comptime sizeOf<Header>();
+const alignment = comptime alignOf<Header>();
+const stride = comptime strideOf<Header>();
+
+size satisfies usize;
+alignment satisfies usize;
+stride satisfies usize;
+
+// types / reflection / type / layoutOf returns field layouts
+struct Header {
+    id: uint32;
+}
+
+const layout = comptime layoutOf<Header>();
+layout satisfies Layout;
+layout.fields satisfies readonly LayoutField[];

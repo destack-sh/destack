@@ -1,0 +1,246 @@
+// SYNTAX TEST "source.ds"
+
+// types / templates / calls / template literal infers from call arguments
+declare function take<T>(value: `${T}`): T;
+
+let value = take("hello");
+value satisfies "hello";
+
+// types / templates / calls / template literal infers from template literal arguments
+declare function take<T: string>(value: `prefix-${T}`): T;
+
+declare let value: `prefix-${"a" | "b"}`;
+let result = take(value);
+result satisfies "a" | "b";
+
+// types / templates / calls / template literal infers from template literal arguments rejects narrowed result
+declare function take<T: string>(value: `prefix-${T}`): T;
+
+declare let value: `prefix-${"a" | "b"}`;
+let result = take(value);
+let bad: "a" = result;
+
+// types / templates / calls / template literal infers constrained spans from call arguments
+declare function take<T: "a" | "b">(value: `prefix-${T}`): T;
+
+let ok = take("prefix-a");
+ok satisfies "a";
+
+// types / templates / calls / template literal rejects call arguments outside constraint
+declare function take<T: "a" | "b">(value: `prefix-${T}`): T;
+
+let bad = take("prefix-c");
+
+// types / templates / calls / template literal infers from template literal parameters
+declare function takeAny<T: string>(value: `${T}`): T;
+
+declare let value: `prefix-${"a"}`;
+let result = takeAny(value);
+result satisfies `prefix-${"a"}`;
+
+// types / templates / calls / template literal infers from template literal parameters rejects narrowed result
+declare function takeAny<T: string>(value: `${T}`): T;
+
+declare let value: `prefix-${"a"}`;
+let result = takeAny(value);
+let bad: "a" = result;
+
+// types / templates / calls / template literal infers empty span with literal boundary
+declare function take<T>(value: `a${T}`): T;
+
+let ok = take("a");
+ok satisfies "";
+
+// types / templates / calls / template literal argument inference keeps const literal precision
+declare function parse<T: string>(value: `id:${T}`): T;
+
+const value = "id:users";
+const result = parse(value);
+
+result satisfies "users";
+
+// types / templates / calls / imported template parser keeps const literal precision
+export function parse<T: string>(value: `id:${T}`): T {
+    return "users" as T;
+}
+
+// types / templates / calls / imported template parser keeps const literal precision
+import { parse } from "./helper.ds";
+
+const value = "id:users";
+const result = parse(value);
+
+result satisfies "users";
+
+// types / templates / calls / imported template parser rejects widened let scalar inputs
+export function parse<T: string>(value: `id:${T}`): T {
+    return "users" as T;
+}
+
+// types / templates / calls / imported template parser rejects widened let scalar inputs
+import { parse } from "./helper.ds";
+
+let value = "id:users";
+parse(value);
+
+// types / templates / calls / imported generic ${T} parser keeps const scalar precision
+export function identitySpan<T: string>(value: `${T}`): T {
+    return "users" as T;
+}
+
+// types / templates / calls / imported generic ${T} parser keeps const scalar precision
+import { identitySpan } from "./helper.ds";
+
+const value = "users";
+const result = identitySpan(value);
+
+result satisfies "users";
+
+// types / templates / calls / template literal argument inference keeps contextual template union precision
+declare function parse<T: string>(value: `id:${T}`): T;
+
+const value: `id:${"users" | "posts"}` = true ? "id:users" : "id:posts";
+const result = parse(value);
+
+result satisfies "users" | "posts";
+
+// types / templates / calls / template literal argument inference rejects widened let scalar inputs
+declare function parse<T: string>(value: `id:${T}`): T;
+
+let value = "id:users";
+parse(value);
+
+// types / templates / calls / template literal argument inference accepts widened let scalar inputs for ${T}
+declare function identitySpan<T: string>(value: `${T}`): T;
+
+let value = "users";
+const result = identitySpan(value);
+
+result satisfies string;
+
+// types / templates / calls / template literal argument inference keeps const scalar inputs for ${T}
+declare function identitySpan<T: string>(value: `${T}`): T;
+
+const value = "users";
+const result = identitySpan(value);
+
+result satisfies "users";
+
+// types / templates / calls / template literal argument inference preserves const ternary unions for ${T}
+declare function identitySpan<T: string>(value: `${T}`): T;
+
+const value = true ? "users" : "posts";
+const result = identitySpan(value);
+
+result satisfies "users" | "posts";
+
+// types / templates / calls / renamed re-export template parser keeps const literal precision
+export function parse<T: string>(value: `id:${T}`): T {
+    return "users" as T;
+}
+
+// types / templates / calls / renamed re-export template parser keeps const literal precision
+export { parse as parseId } from "./helper.ds";
+
+// types / templates / calls / renamed re-export template parser keeps const literal precision
+import { parseId } from "./index.ds";
+
+const value = "id:users";
+const result = parseId(value);
+
+result satisfies "users";
+
+// types / templates / calls / export-star template parser rejects widened let scalar inputs
+export function parse<T: string>(value: `id:${T}`): T {
+    return "users" as T;
+}
+
+// types / templates / calls / export-star template parser rejects widened let scalar inputs
+export * from "./helper.ds";
+
+// types / templates / calls / export-star template parser rejects widened let scalar inputs
+import { parse } from "./index.ds";
+
+let value = "id:users";
+parse(value);
+
+// types / templates / calls / namespace import generic ${T} parser keeps const scalar precision
+export function identitySpan<T: string>(value: `${T}`): T {
+    return "users" as T;
+}
+
+// types / templates / calls / namespace import generic ${T} parser keeps const scalar precision
+import * as api from "./helper.ds";
+
+const value = "users";
+const result = api.identitySpan(value);
+
+result satisfies "users";
+
+// types / templates / calls / template literal parser infers union spans from const ternary arguments
+declare function parse<T: string>(value: `id:${T}`): T;
+
+const value = true ? "id:users" : "id:posts";
+const result = parse(value);
+
+result satisfies "users" | "posts";
+
+// types / templates / calls / template literal parser rejects mutable ternary arguments for narrow templates
+declare function parse<T: string>(value: `id:${T}`): T;
+
+let value = true ? "id:users" : "id:posts";
+parse(value);
+
+// types / templates / calls / renamed re-export generic ${T} parser keeps const precision
+export function identitySpan<T: string>(value: `${T}`): T {
+    return "users" as T;
+}
+
+// types / templates / calls / renamed re-export generic ${T} parser keeps const precision
+export { identitySpan as span } from "./helper.ds";
+
+// types / templates / calls / renamed re-export generic ${T} parser keeps const precision
+import { span } from "./index.ds";
+
+const value = "users";
+const result = span(value);
+
+result satisfies "users";
+
+// types / templates / calls / export star generic ${T} parser widens mutable scalar inputs
+export function identitySpan<T: string>(value: `${T}`): T {
+    return "users" as T;
+}
+
+// types / templates / calls / export star generic ${T} parser widens mutable scalar inputs
+export * from "./helper.ds";
+
+// types / templates / calls / export star generic ${T} parser widens mutable scalar inputs
+import { identitySpan } from "./index.ds";
+
+let value = "users";
+const result = identitySpan(value);
+
+result satisfies string;
+
+// types / templates / calls / template inference keeps const object member literal precision
+declare function identitySpan<T: string>(value: `${T}`): T;
+
+const config = { id: "users" } as const;
+const result = identitySpan(config.id);
+
+result satisfies "users";
+
+// types / templates / calls / template inference widens mutable object member literals
+declare function identitySpan<T: string>(value: `${T}`): T;
+
+let config = { id: "users" };
+const result = identitySpan(config.id);
+
+result satisfies string;
+
+// types / templates / calls / template inference rejects widened mutable object members for narrow templates
+declare function parse<T: string>(value: `id:${T}`): T;
+
+let config = { id: "id:users" };
+parse(config.id);

@@ -1,0 +1,12 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / functions / arrows / arrows can have no parameters
+const f = (): void => {};
+f satisfies () => void;
+
+// expressions / functions / arrows / arrows can have parameters
+const add = (a: number, b: number): number => a + b;
+add satisfies (a: number, b: number) => number;
+
+// expressions / functions / arrows / arrows cannot declare explicit this parameters
+let f = (this: string) => {};

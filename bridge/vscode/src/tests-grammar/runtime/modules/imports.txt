@@ -1,0 +1,107 @@
+// SYNTAX TEST "source.ds"
+
+// runtime / modules / imports / type-only imports cannot mix default and named bindings
+import type Foo, { Bar } from "./mod.ds";
+
+// runtime / modules / imports / type-only imports cannot mix default and named bindings
+export default class Foo {}
+export type Bar = string;
+
+// runtime / modules / imports / type-only imports cannot be used as values
+import type { Foo } from "./mod.ds";
+
+Foo;
+
+// runtime / modules / imports / type-only imports cannot be used as values
+export type Foo = { name: string };
+
+// runtime / modules / imports / named type-only imports are allowed
+import { type Foo } from "./mod.ds";
+
+type Alias = Foo;
+const value: Alias = { name: "Ada" };
+value.name satisfies string;
+
+// runtime / modules / imports / named type-only imports are allowed
+export type Foo = { name: string };
+
+// runtime / modules / imports / named type-only imports cannot be used as values
+import { type Foo } from "./mod.ds";
+
+Foo;
+
+// runtime / modules / imports / named type-only imports cannot be used as values
+export type Foo = { name: string };
+
+// runtime / modules / imports / default type-only imports are allowed
+import type Foo from "./mod.ds";
+
+type Alias = Foo;
+const value: Alias = { name: "Ada" };
+value.name satisfies string;
+
+// runtime / modules / imports / default type-only imports are allowed
+export default interface Foo {
+    name: string;
+}
+
+// runtime / modules / imports / default type-only imports cannot be used as values
+import type Foo from "./mod.ds";
+
+Foo;
+
+// runtime / modules / imports / default type-only imports cannot be used as values
+export default interface Foo {
+    name: string;
+}
+
+// runtime / modules / imports / namespace type-only imports are allowed
+import type * as Types from "./mod.ds";
+
+type Alias = Types.User;
+const value: Alias = { name: "Ada" };
+value.name satisfies string;
+
+// runtime / modules / imports / namespace type-only imports are allowed
+export interface User {
+    name: string;
+}
+
+// runtime / modules / imports / namespace type-only imports are not runtime values
+import type * as Types from "./mod.ds";
+
+Types;
+
+// runtime / modules / imports / namespace type-only imports are not runtime values
+export interface User {
+    name: string;
+}
+
+// runtime / modules / imports / value imports allow type-only exports in type positions
+import { Foo } from "./mod.ds";
+
+type Alias = Foo;
+const value: Alias = { name: "Ada" };
+value.name satisfies string;
+
+// runtime / modules / imports / value imports allow type-only exports in type positions
+export type Foo = { name: string };
+
+// runtime / modules / imports / value imports of type-only exports are not runtime values
+import { Foo } from "./mod.ds";
+
+Foo;
+
+// runtime / modules / imports / value imports of type-only exports are not runtime values
+export type Foo = { name: string };
+
+// runtime / modules / imports / imported generic constraints are enforced at call sites
+export function readName<T: { name: string }>(value: T): string {
+    return value.name;
+}
+
+// runtime / modules / imports / imported generic constraints are enforced at call sites
+import { readName } from "./lib.ds";
+
+readName({ name: "ok" });
+readName({ name: 1 });

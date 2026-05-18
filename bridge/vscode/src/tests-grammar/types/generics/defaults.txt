@@ -1,0 +1,42 @@
+// SYNTAX TEST "source.ds"
+
+// types / generics / defaults / trailing defaults use inferred prefixes
+declare function triple<T, U = T, V = readonly U[]>(first: T, second?: U, third?: V): (T, U, V);
+
+const value = triple(1);
+value[0] satisfies number;
+value[1] satisfies number;
+value[2][0] satisfies number;
+
+// types / generics / defaults / provided middle arguments override default chains
+declare function triple<T, U = T, V = readonly U[]>(first: T, second?: U, third?: V): (T, U, V);
+
+const value = triple(1, "ok");
+value[0] satisfies number;
+value[1] satisfies string;
+value[2][0] satisfies string;
+
+// types / generics / defaults / explicit trailing arguments must satisfy chained defaults
+declare function triple<T, U = T, V = readonly U[]>(first: T, second?: U, third?: V): (T, U, V);
+
+triple(1, "ok", [1]);
+
+// types / generics / defaults / keyof defaults apply from inferred object parameters
+declare function read<T: { a: number; b: string }, K: keyof T = keyof T>(value: T, key?: K): T[K];
+
+const value = read({ a: 1, b: "x" });
+value satisfies number | string;
+
+// types / generics / defaults / provided keys narrow defaulted keyed reads
+declare function read<T: { a: number; b: string }, K: keyof T = keyof T>(value: T, key?: K): T[K];
+
+const value = read({ a: 1, b: "x" }, "a");
+value satisfies number;
+
+// types / generics / defaults / explicit generic prefixes still allow trailing default inference
+declare function choose<T, U = T, V = U>(value: T, next?: U, last?: V): (T, U, V);
+
+const value = choose<number>(1);
+value[0] satisfies number;
+value[1] satisfies number;
+value[2] satisfies number;

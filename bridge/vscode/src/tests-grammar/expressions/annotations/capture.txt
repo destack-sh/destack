@@ -1,0 +1,133 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / annotations / capture / borrow keeps the original binding
+struct Packet {
+    sequence: int32;
+}
+
+function run(): void {
+    let packet = Packet { sequence: 1 };
+
+    // `read` captures a borrowed reference to `packet`
+    @capture("borrow")
+    const read = () => packet.sequence;
+
+    // `packet` is still owned after the closure is called
+    packet.sequence satisfies int32;
+
+    // `read` returns the value via the borrowed reference
+    read() satisfies int32;
+}
+
+// expressions / annotations / capture / borrow keeps a borrow active
+struct Packet {
+    sequence: int32;
+}
+
+function consume(packet: Packet): void {
+    packet.sequence;
+}
+
+function run(): void {
+    let packet = Packet { sequence: 1 };
+
+    // the closure borrow keeps `packet` live
+    @capture("borrow")
+    const read = () => packet.sequence;
+
+    // moving `packet` while `read` can still run is rejected
+    consume(packet);
+    read();
+}
+
+// expressions / annotations / capture / copy snapshots the binding value
+let count: int32 = 1;
+
+@capture("copy")
+const read = () => count;
+
+// copy leaves the original binding usable
+count satisfies int32;
+read() satisfies int32;
+
+// expressions / annotations / capture / copy requires Copy
+struct Socket {
+    fd: int32;
+}
+
+function run(): void {
+    let socket = Socket { fd: 1 };
+
+    @capture("copy")
+    const read = () => socket.fd;
+
+    read();
+}
+
+// expressions / annotations / capture / move transfers ownership into the closure
+struct Packet {
+    sequence: int32;
+}
+
+function run(): () => int32 {
+    let packet = Packet { sequence: 1 };
+
+    // move captures the plain struct value, not `^Packet`
+    @capture("move")
+    return () => packet.sequence;
+}
+
+// expressions / annotations / capture / move can capture explicit owned values
+struct Packet {
+    sequence: int32;
+}
+
+function run(): () => int32 {
+    let packet = ^Packet { sequence: 1 };
+
+    // explicit owned values move the same way
+    @capture("move")
+    return () => packet.sequence;
+}
+
+// expressions / annotations / capture / move consumes the original binding
+struct Packet {
+    sequence: int32;
+}
+
+function run(): void {
+    let packet = Packet { sequence: 1 };
+
+    // `packet` is consumed by the move capture
+    @capture("move")
+    const read = () => packet.sequence;
+
+    // `packet` is unavailable after the move capture
+    packet.sequence;
+    read();
+}
+
+// expressions / annotations / capture / object directives configure individual bindings
+struct Socket {
+    fd: int32;
+}
+
+function run(): () => int32 {
+    let prefix: int32 = 10;
+    let socket = Socket { fd: 1 };
+
+    // copy `prefix`, move `socket`
+    @capture({
+        default: "copy",
+        socket: "move",
+    })
+    return () => prefix + socket.fd;
+}
+
+// expressions / annotations / capture / static directives are allowed
+const policy: CaptureDirective = "copy";
+
+@capture(policy)
+const read = () => "ready";
+
+read satisfies () => string;

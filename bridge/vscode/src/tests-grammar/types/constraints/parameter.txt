@@ -1,0 +1,70 @@
+// SYNTAX TEST "source.ds"
+
+// types / constraints / parameter / type parameters accept matching arguments
+interface Readable {
+    read(): void;
+}
+
+function clone<T: Readable>(value: T): T {
+    return value;
+}
+
+const value: Readable = {
+    read() {},
+};
+clone<Readable>(value);
+
+// types / constraints / parameter / type parameters reject mismatched arguments
+interface Readable {
+    read(): void;
+}
+
+interface NotReadable {}
+
+function clone<T: Readable>(value: T): T {
+    return value;
+}
+
+const value: NotReadable = {};
+clone<NotReadable>(value);
+
+// types / constraints / parameter / inferred arguments must satisfy constraints
+interface Readable {
+    read(): void;
+}
+
+function clone<T: Readable>(value: T): T {
+    return value;
+}
+
+clone({
+    read() {},
+});
+
+// types / constraints / parameter / inferred arguments reject unmet constraints
+interface Readable {
+    read(): void;
+}
+
+function clone<T: Readable>(value: T): T {
+    return value;
+}
+
+clone({
+    merge() {},
+});
+
+// types / constraints / parameter / static value parameters accept matching arguments
+function take<comptime N: uint>(value: [uint8; N]): [uint8; N] {
+    return value;
+}
+
+const bytes = take<4>([1, 2, 3, 4]);
+bytes satisfies [uint8; 4];
+
+// types / constraints / parameter / static value parameters reject mismatched arguments
+function take<comptime N: uint>(value: [uint8; N]): [uint8; N] {
+    return value;
+}
+
+take<"four">([1, 2, 3, 4]);

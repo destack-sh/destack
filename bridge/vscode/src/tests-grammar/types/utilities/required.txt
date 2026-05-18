@@ -1,0 +1,42 @@
+// SYNTAX TEST "source.ds"
+
+// types / utilities / required / required removes optionality
+interface Person {
+    name?: string;
+    age?: number;
+}
+
+type FullPerson = Required<Person>;
+
+const ok: FullPerson = { name: "Ada", age: 42 };
+ok satisfies FullPerson;
+
+// types / utilities / required / required rejects missing fields
+interface Person {
+    name?: string;
+    age?: number;
+}
+
+type FullPerson = Required<Person>;
+
+const bad: FullPerson = { name: "Ada" };
+
+// types / utilities / required / required keeps undefined in property types
+interface Person {
+    name?: string | undefined;
+}
+
+type FullPerson = Required<Person>;
+
+const ok: FullPerson = { name: undefined };
+ok satisfies FullPerson;
+
+// types / utilities / required / required preserves readonly fields
+interface Person {
+    readonly name?: string;
+}
+
+type FullPerson = Required<Person>;
+
+const person: FullPerson = { name: "Ada" };
+person.name = "Grace";

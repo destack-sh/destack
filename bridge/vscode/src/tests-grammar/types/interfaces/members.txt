@@ -1,0 +1,85 @@
+// SYNTAX TEST "source.ds"
+
+// types / interfaces / members / interface properties declare types
+interface Config {
+    value: number;
+}
+
+// types / interfaces / members / interface optional properties are allowed
+interface Config {
+    value?: number;
+}
+
+// types / interfaces / members / interface readonly properties are allowed
+interface Config {
+    readonly value: number;
+}
+
+// types / interfaces / members / interface properties can use keyword names
+interface Config {
+    readonly private: boolean;
+    readonly static: boolean;
+}
+
+// types / interfaces / members / interface methods declare signatures
+interface Config {
+    getValue(name: string): number;
+}
+
+// types / interfaces / members / interface call signatures are allowed
+interface Fn {
+    (value: string): number;
+}
+
+declare const fn: Fn;
+fn("ok") satisfies number;
+
+// types / interfaces / members / interface construct signatures are allowed
+interface Factory {
+    new (value: string): object;
+}
+
+declare const Factory: Factory;
+const obj = new Factory("ok");
+obj satisfies object;
+
+// types / interfaces / members / interface accessors are allowed
+interface Config {
+    get value(): string;
+    set value(value: string);
+}
+
+// types / interfaces / members / interface index signatures are allowed
+interface Config {
+    [key: string]: number;
+}
+
+// types / interfaces / members / interface members cannot use static modifiers
+interface Config {
+    static value: number;
+}
+
+// types / interfaces / members / interface getters cannot take parameters
+interface Config {
+    get value(this: Config): string;
+}
+
+// types / interfaces / members / interface getters cannot be generic
+interface Config {
+    get value<T>(): T;
+}
+
+// types / interfaces / members / interface setters require one parameter
+interface Config {
+    set value();
+}
+
+// types / interfaces / members / interface setters cannot be optional
+interface Config {
+    set value(value?: string);
+}
+
+// types / interfaces / members / interface setter return type must be void
+interface Config {
+    set value(v: string): string;
+}

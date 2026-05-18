@@ -1,0 +1,74 @@
+// SYNTAX TEST "source.ds"
+
+// types / type operators / typeof / typeof returns value types for locals
+const value = 42;
+
+type ValueType = typeof value;
+
+let ok: ValueType = 42;
+
+// types / type operators / typeof / typeof rejects incompatible locals
+const value = 42;
+
+type ValueType = typeof value;
+
+let bad: ValueType = "no";
+
+// types / type operators / typeof / typeof returns constructor types for classes
+class Counter {
+    static version: int32;
+    value: int32;
+
+    constructor(value: int32) {
+        this.value = value;
+    }
+}
+
+type CounterCtor = typeof Counter;
+
+declare function takesCounter(ctor: { new (value: int32): Counter }): void;
+
+takesCounter(Counter);
+
+let okVersion: CounterCtor["version"] = 1;
+
+// types / type operators / typeof / typeof rejects incompatible static fields
+class Counter {
+    static version: int32;
+    value: int32;
+
+    constructor(value: int32) {
+        this.value = value;
+    }
+}
+
+type CounterCtor = typeof Counter;
+
+let badVersion: CounterCtor["version"] = "no";
+
+// types / type operators / typeof / typeof includes static methods
+class Counter {
+    static next(value: int32): int32 {
+        return value + 1;
+    }
+}
+
+type CounterCtor = typeof Counter;
+type CounterNext = (typeof Counter)["next"];
+
+let ctor: CounterCtor = Counter;
+let okNext: int32 = ctor.next(1);
+
+let okFn: CounterNext = Counter.next;
+
+// types / type operators / typeof / typeof rejects static method call assignability
+class Counter {
+    static next(value: int32): int32 {
+        return value + 1;
+    }
+}
+
+type CounterCtor = typeof Counter;
+
+let ctor: CounterCtor = Counter;
+let badNext: string = ctor.next(1);

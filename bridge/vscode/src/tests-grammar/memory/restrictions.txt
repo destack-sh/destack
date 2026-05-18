@@ -1,0 +1,60 @@
+// SYNTAX TEST "source.ds"
+
+// memory / restrictions / noManaged rejects managed allocations
+class Widget {
+    value: number = 0;
+}
+
+@noManaged
+function run(): void {
+    let value = new Widget();
+}
+
+// memory / restrictions / noManaged allows owned values
+struct Data {
+    value: int32;
+}
+
+@noManaged
+function run(): void {
+    let value = ^Data { value: 1 };
+    value.value;
+}
+
+// memory / restrictions / noHeap rejects managed allocations
+class Widget {
+    value: number = 0;
+}
+
+@noHeap
+function run(): void {
+    let value = new Widget();
+}
+
+// memory / restrictions / noHeap rejects allocator use
+@noHeap
+@allowUnsafe
+function run(): void {
+    let allocator = defaultAllocator();
+    let layout = AllocationLayout.new(64, 8);
+    let value = allocator.allocate(layout)?;
+}
+
+// memory / restrictions / noManaged rejects managed parameters
+class Widget {
+    value: number = 0;
+}
+
+@noManaged
+function take(value: Widget): void {
+}
+
+// memory / restrictions / noManaged rejects managed returns
+class Widget {
+    value: number = 0;
+}
+
+@noManaged
+function make(): Widget {
+    return new Widget();
+}

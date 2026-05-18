@@ -1,0 +1,148 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / match / narrowing / discriminants narrow each arm
+type Shape = { kind: "circle"; radius: number } | { kind: "square"; size: number };
+
+declare let shape: Shape;
+
+match (shape) {
+    { kind: "circle", radius } => {
+        radius satisfies number;
+        shape.kind satisfies "circle";
+    }
+    { kind: "square", size } => {
+        size satisfies number;
+        shape.kind satisfies "square";
+    }
+}
+
+// expressions / match / narrowing / literals narrow each arm
+type Status = "ready" | "loading";
+
+declare let status: Status;
+
+match (status) {
+    "ready" => {
+        status satisfies "ready";
+    }
+    "loading" => {
+        status satisfies "loading";
+    }
+}
+
+// expressions / match / narrowing / union literal patterns narrow covered values
+type Status = 1 | 2 | 3;
+
+declare let status: Status;
+
+match (status) {
+    1 | 2 => {
+        status satisfies 1 | 2;
+    }
+    3 => {
+        status satisfies 3;
+    }
+}
+
+// expressions / match / narrowing / tuple discriminants narrow unions
+type Pair = (1, string) | (2, string);
+
+declare let pair: Pair;
+
+match (pair) {
+    (1, value) => {
+        value satisfies string;
+    }
+    (2, value) => {
+        value satisfies string;
+    }
+}
+
+// expressions / match / narrowing / tuple discriminants narrow payloads
+type Pair = (1, string) | (2, int32);
+
+declare let pair: Pair;
+
+match (pair) {
+    (1, value) => {
+        value satisfies string;
+    }
+    (2, value) => {
+        value satisfies int32;
+    }
+}
+
+// expressions / match / narrowing / tuple discriminants narrow nested objects
+type Event = (1, { kind: "text"; value: string }) | (2, { kind: "code"; value: int32 });
+
+declare let event: Event;
+
+match (event) {
+    (1, { kind: "text", value }) => {
+        value satisfies string;
+    }
+    (2, { kind: "code", value }) => {
+        value satisfies int32;
+    }
+}
+
+// expressions / match / narrowing / object payloads narrow nested tuples
+type Envelope = { kind: "text"; payload: (1, string) } | { kind: "code"; payload: (2, int32) };
+
+declare let envelope: Envelope;
+
+match (envelope) {
+    {
+        payload: (1, value),
+    } => {
+        value satisfies string;
+    }
+    {
+        payload: (2, value),
+    } => {
+        value satisfies int32;
+    }
+}
+
+// expressions / match / narrowing / wildcard fields leave payload unions intact
+type Envelope = { kind: "text"; payload: string } | { kind: "code"; payload: int32 };
+
+declare let envelope: Envelope;
+
+match (envelope) {
+    { kind: _, payload } => {
+        payload satisfies string | int32;
+    }
+}
+
+// expressions / match / narrowing / nested discriminants narrow payloads
+type Envelope =
+    | { kind: "text"; data: { tag: 1; value: string } }
+    | { kind: "code"; data: { tag: 2; value: int32 } };
+
+declare let envelope: Envelope;
+
+match (envelope) {
+    {
+        data: { tag: 1, value },
+    } => {
+        value satisfies string;
+    }
+    {
+        data: { tag: 2, value },
+    } => {
+        value satisfies int32;
+    }
+}
+
+// expressions / match / narrowing / match results join arm bodies
+type Shape = { kind: "circle"; radius: number } | { kind: "square"; size: number };
+
+declare let shape: Shape;
+
+const area = match (shape) {
+    { kind: "circle", radius } => radius
+    { kind: "square", size } => size
+};
+
+area satisfies number;

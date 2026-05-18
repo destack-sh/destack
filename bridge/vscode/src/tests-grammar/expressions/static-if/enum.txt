@@ -1,0 +1,49 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / static if / enum / when false, @if removes enum fields
+enum Status {
+    @if(false)
+    Missing = missingSymbol,
+    Visible = 1,
+}
+
+// expressions / static if / enum / when true, @if includes enum fields
+enum Status {
+    @if(true)
+    Active = 1,
+    Inactive = 2,
+}
+
+const active = Status.Active;
+active satisfies Status;
+
+// expressions / static if / enum / when false, @if hides enum fields
+enum Status {
+    @if(false)
+    Missing = 0,
+    Visible = 1,
+}
+
+const value = Status.Missing;
+value satisfies Status;
+
+// expressions / static if / enum / when false, @if leaves other enum fields alone
+enum Status {
+    @if(false)
+    Missing = 0,
+    Ready = 1,
+    Done = 2,
+}
+
+const ready = Status.Ready;
+ready satisfies Status;
+
+// expressions / static if / enum / when true, @if keeps enum fields available
+enum Status {
+    @if(true)
+    Ready = 1,
+    Done = 2,
+}
+
+const ready = Status.Ready;
+ready satisfies Status;

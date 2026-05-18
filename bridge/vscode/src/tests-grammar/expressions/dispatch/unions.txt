@@ -1,0 +1,253 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / dispatch / unions / member access returns the shared field type
+struct User {
+    name: string;
+}
+
+struct Admin {
+    name: string;
+}
+
+declare function getPerson(): User | Admin;
+
+const name = getPerson().name;
+name satisfies string;
+
+// expressions / dispatch / unions / aliases preserve union member access
+struct User {
+    id: int32;
+}
+
+struct Guest {
+    id: string;
+}
+
+type Person = User | Guest;
+
+declare function getPerson(): Person;
+
+const id = getPerson().id;
+id satisfies int32 | string;
+
+// expressions / dispatch / unions / missing members are rejected
+struct User {
+    name: string;
+}
+
+struct Guest {
+    id: string;
+}
+
+type Person = User | Guest;
+
+declare function getPerson(): Person;
+
+getPerson().name;
+
+// expressions / dispatch / unions / nullable variants reject member access
+struct User {
+    name: string;
+}
+
+type Person = User | null;
+
+declare function getPerson(): Person;
+
+getPerson().name;
+
+// expressions / dispatch / unions / optional members stay optional
+struct User {
+    nickname?: string;
+}
+
+struct Admin {
+    nickname?: string;
+}
+
+declare function getPerson(): User | Admin;
+
+const nickname = getPerson().nickname;
+nickname satisfies string | undefined;
+
+// expressions / dispatch / unions / nested access still checks every variant
+struct User {
+    profile: { displayName: string };
+}
+
+struct Guest {
+    profile: { id: int32 };
+}
+
+declare function getPerson(): User | Guest;
+
+getPerson().profile.displayName;
+
+// expressions / dispatch / unions / union method calls select compatible overloads
+struct Cat {
+    speak(volume: string): string {
+        volume
+    }
+
+    speak(volume: int32): int32 {
+        volume
+    }
+}
+
+struct Dog {
+    speak(volume: string): int32 {
+        1
+    }
+
+    speak(volume: int32): string {
+        "woof"
+    }
+}
+
+declare function getPet(): Cat | Dog;
+
+const sound = getPet().speak("loud");
+sound satisfies string | int32;
+
+// expressions / dispatch / unions / union method calls honor overload order
+struct Cat {
+    speak(volume: string): string {
+        volume
+    }
+
+    speak(volume: "loud"): int32 {
+        1
+    }
+}
+
+struct Dog {
+    speak(volume: string): string {
+        volume
+    }
+}
+
+declare function getPet(): Cat | Dog;
+
+const sound = getPet().speak("loud");
+sound satisfies string;
+
+// expressions / dispatch / unions / union method calls include extension members
+struct Cat {
+    speak(): string {
+        "meow"
+    }
+}
+
+struct Dog {
+    name: string;
+}
+
+extension of Dog {
+    speak(): string {
+        "woof"
+    }
+}
+
+declare function getPet(): Cat | Dog;
+
+const sound = getPet().speak();
+sound satisfies string;
+
+// expressions / dispatch / unions / union method calls reject unmatched union arguments
+struct Cat {
+    speak(volume: string): string {
+        volume
+    }
+
+    speak(volume: int32): int32 {
+        volume
+    }
+}
+
+struct Dog {
+    speak(volume: string): string {
+        "woof"
+    }
+
+    speak(volume: int32): string {
+        "woof"
+    }
+}
+
+declare function getPet(): Cat | Dog;
+
+const volume: string | int32 = "loud";
+
+getPet().speak(volume);
+
+// expressions / dispatch / unions / union method calls do not distribute arguments
+struct Cat {
+    speak(volume: string): string {
+        volume
+    }
+
+    speak(volume: int32): string {
+        "meow"
+    }
+}
+
+struct Dog {
+    speak(volume: string): int32 {
+        1
+    }
+
+    speak(volume: int32): int32 {
+        2
+    }
+}
+
+declare function getPet(): Cat | Dog;
+
+const volume: string | int32 = "loud";
+
+getPet().speak(volume);
+
+// expressions / dispatch / unions / union method calls accept union overloads
+struct Cat {
+    speak(volume: string | int32): string {
+        "meow"
+    }
+}
+
+struct Dog {
+    speak(volume: string | int32): int32 {
+        1
+    }
+}
+
+declare function getPet(): Cat | Dog;
+
+const volume: string | int32 = "loud";
+
+const sound = getPet().speak(volume);
+sound satisfies string | int32;
+
+// expressions / dispatch / unions / extension methods return unions
+struct Cat {
+    name: string;
+}
+struct Dog {
+    name: string;
+}
+
+extension of Cat {
+    speak(): string {
+        "meow"
+    }
+}
+
+extension of Dog {
+    speak(): int32 {
+        1
+    }
+}
+
+declare function getPet(): Cat | Dog;
+
+const sound = getPet().speak();
+sound satisfies string | int32;

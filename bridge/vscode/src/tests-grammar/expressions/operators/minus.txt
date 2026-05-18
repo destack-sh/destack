@@ -1,0 +1,52 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / operators / minus / number minus number
+const value = 5 - 3;
+value satisfies 2;
+value satisfies int;
+value satisfies float64;
+value satisfies number;
+
+// expressions / operators / minus / minus rejects boolean operands
+const value = true - 2;
+
+// expressions / operators / minus / minus dispatches to Subtract
+struct Scalar {
+    value: int;
+}
+
+extension of Scalar implements Subtract<Scalar> {
+    type Output = Scalar;
+
+    subtract(other: Scalar): this.Output {
+        return this;
+    }
+}
+
+declare function getScalar(): Scalar;
+
+const left = getScalar();
+const right = getScalar();
+
+const value = left - right;
+value satisfies Scalar;
+
+// expressions / operators / minus / minus requires Subtract
+struct Scalar {
+    value: int;
+}
+
+extension of Scalar implements Add<Scalar> {
+    type Output = Scalar;
+
+    add(other: Scalar): this.Output {
+        return this;
+    }
+}
+
+declare function getScalar(): Scalar;
+
+const left = getScalar();
+const right = getScalar();
+
+left - right;
