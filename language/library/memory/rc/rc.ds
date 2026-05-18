@@ -102,9 +102,9 @@ extension<T> of Rc<T> implements Clone, Dereference, As<T>, Borrow<T> {
         todo("Rc.isUnique")
     }
 
-    /// Return whether this handle points to the same block as `other`.
-    ptrEq(other: Rc<T>): boolean {
-        todo("Rc.ptrEq")
+    /// Return whether this handle points to the same allocation as `other`.
+    pointerEquals(other: Rc<T>): boolean {
+        todo("Rc.pointerEquals")
     }
 
     /// Return the strong reference count.

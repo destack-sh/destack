@@ -1,4 +1,4 @@
-export { String, StringRawParts, StringMatch, StringReplacement, StringView } from "./string.ds";
+export { String, StringRawParts, StringMatch, StringReplacement, StringSlice } from "./string.ds";
 export { StringBuilder } from "./builder.ds";
 export * from "destack:regexp";
 export * from "./utf8.ds";
