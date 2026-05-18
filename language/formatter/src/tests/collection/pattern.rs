@@ -6,10 +6,54 @@ fn test_format_pattern_wildcard() {
 }
 
 #[test]
-fn test_format_pattern_reference() {
+fn test_format_pattern_reference_wildcard() {
     assert_format!("&_", "&_", |p| p.eat_pattern());
+}
 
+#[test]
+fn test_format_pattern_reference_literal() {
     assert_format!("&1", "&1", |p| p.eat_pattern());
+}
+
+#[test]
+fn test_format_pattern_dereference_binding() {
+    assert_format!("*value", "*value", |p| p.eat_pattern());
+}
+
+#[test]
+fn test_format_pattern_dereference_range() {
+    assert_format!("*0..10", "*0..10", |p| p.eat_pattern());
+}
+
+#[test]
+fn test_format_pattern_dereference_tuple() {
+    assert_format!("*(x, y)", "*(x, y)", |p| p.eat_pattern());
+}
+
+#[test]
+fn test_format_pattern_dereference_sequence() {
+    assert_format!("*[head, ...tail]", "*[head, ...tail]", |p| {
+        p.eat_pattern()
+    });
+}
+
+#[test]
+fn test_format_pattern_dereference_tagged_object() {
+    assert_format!("*Point { x, y }", "*Point { x, y }", |p| {
+        p.eat_pattern()
+    });
+}
+
+#[test]
+fn test_format_pattern_dereference_before_borrow() {
+    assert_format!("*&readonly inner", "*&readonly inner", |p| {
+        p.eat_pattern()
+    });
+}
+
+#[test]
+fn test_format_pattern_borrow_before_dereference() {
+    assert_format!("&*inner", "&*inner", |p| p.eat_pattern());
 }
 
 #[test]

@@ -645,6 +645,9 @@ fn declarator_pattern_has_default_assignment(
         | Pattern::MoveOf {
             right: inner_pattern_id,
             ..
+        }
+        | Pattern::DereferenceOf {
+            right: inner_pattern_id,
         } => declarator_pattern_has_default_assignment(context, *inner_pattern_id),
 
         // binding wrapper
@@ -718,6 +721,9 @@ fn declarator_pattern_is_complex_destructuring(
         | Pattern::MoveOf {
             right: inner_pattern_id,
             ..
+        }
+        | Pattern::DereferenceOf {
+            right: inner_pattern_id,
         } => declarator_pattern_is_complex_destructuring(context, *inner_pattern_id),
 
         // wide object destructuring
