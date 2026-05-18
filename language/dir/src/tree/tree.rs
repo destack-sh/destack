@@ -11,11 +11,10 @@ use crate::{
     GenericParameter, IfCondition, LocalNodeId, LocalNodeIdAny, MatchCase, Member, Node, NodeType,
     NodeVisitor, NodeVisitorOptions, Parameter, Pattern, PatternField, Property, TupleElement,
     TypeExpression, TypeMappedParameter, TypeMember, WhereClause, walk_argument, walk_block,
-    walk_catch, walk_declaration, walk_declarator, walk_decorator, walk_dependency_item,
-    walk_enum_field, walk_expression, walk_generic_argument, walk_generic_parameter,
-    walk_match_case, walk_member, walk_parameter, walk_pattern, walk_pattern_field, walk_property,
-    walk_tuple_element, walk_type_expression, walk_type_mapped_parameter, walk_type_member,
-    walk_where_clause,
+    walk_declaration, walk_declarator, walk_decorator, walk_dependency_item, walk_enum_field,
+    walk_expression, walk_generic_argument, walk_generic_parameter, walk_match_case, walk_member,
+    walk_parameter, walk_pattern, walk_pattern_field, walk_property, walk_tuple_element,
+    walk_type_expression, walk_type_member, walk_where_clause,
 };
 
 /// Normalized documentation attached to one DIR node.
@@ -1180,7 +1179,7 @@ impl Tree {
                 walk_type_expression
             );
             validate_visit!(visit_block, Block, NodeType::Block, walk_block);
-            validate_visit!(visit_catch, Catch, NodeType::Catch, walk_catch);
+            validate_visit!(visit_catch, Catch, NodeType::Catch, crate::walk_catch);
             validate_visit!(
                 visit_declaration,
                 Declaration,
@@ -1204,7 +1203,7 @@ impl Tree {
                 visit_type_mapped_parameter,
                 TypeMappedParameter,
                 NodeType::TypeMappedParameter,
-                walk_type_mapped_parameter
+                crate::walk_type_mapped_parameter
             );
             validate_visit!(visit_member, Member, NodeType::Member, walk_member);
             validate_visit!(
