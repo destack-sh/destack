@@ -30,12 +30,12 @@ impl SpecifierIndex {
     /// Sort and deduplicate this index.
     pub fn finish(&mut self) {
         self.by_target_path.sort_by(|left, right| {
-            resolved_specifier_key(left).cmp(&resolved_specifier_key(right))
+            resolved_specifier_order(left).cmp(&resolved_specifier_order(right))
         });
         self.by_target_path.dedup();
 
         self.unresolved
-            .sort_by(|left, right| specifier_entry_key(left).cmp(&specifier_entry_key(right)));
+            .sort_by(|left, right| left.order().cmp(&right.order()));
         self.unresolved.dedup();
     }
 
@@ -51,7 +51,7 @@ impl SpecifierIndex {
         }
 
         entries.extend(self.unresolved.iter());
-        entries.sort_by(|left, right| specifier_entry_key(left).cmp(&specifier_entry_key(right)));
+        entries.sort_by(|left, right| left.order().cmp(&right.order()));
         entries.dedup();
 
         entries.into_iter()
@@ -110,18 +110,20 @@ pub struct SpecifierEntry {
     pub target_path: Option<PathBuf>,
 }
 
-/// Return the stable ordering key for one specifier entry.
-fn specifier_entry_key(entry: &SpecifierEntry) -> (ModuleId, FileId, u32, &str) {
-    (
-        entry.module_id,
-        entry.file_id,
-        entry.source_node_id,
-        entry.specifier.as_str(),
-    )
+impl SpecifierEntry {
+    /// Return the stable index order for this specifier.
+    fn order(&self) -> (ModuleId, FileId, u32, &str) {
+        (
+            self.module_id,
+            self.file_id,
+            self.source_node_id,
+            self.specifier.as_str(),
+        )
+    }
 }
 
-/// Return the stable ordering key for one resolved specifier entry.
-fn resolved_specifier_key(
+/// Return the stable index order for one resolved specifier entry.
+fn resolved_specifier_order(
     entry: &(PathBuf, SpecifierEntry),
 ) -> (&PathBuf, ModuleId, FileId, u32, &str) {
     (

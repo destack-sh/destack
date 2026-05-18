@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use super::{
-    CallIndex, ExtensionIndex, ImportIndex, NominalIndex, ReferenceIndex, SpecifierIndex,
-    SymbolIndex,
+    AnnotationIndex, CallIndex, ExtensionIndex, ImportIndex, NominalIndex, ReferenceIndex,
+    SpecifierIndex, SymbolIndex,
 };
 
 /// Durable query index payload for one artifact scope.
@@ -22,6 +22,8 @@ pub struct QueryIndex {
     pub extensions: ExtensionIndex,
     /// Import specifier rewrite candidates.
     pub specifiers: SpecifierIndex,
+    /// Annotation and decorator entries.
+    pub annotations: AnnotationIndex,
 }
 
 impl QueryIndex {
@@ -34,5 +36,6 @@ impl QueryIndex {
         self.nominal.finish();
         self.extensions.finish();
         self.specifiers.finish();
+        self.annotations.finish();
     }
 }

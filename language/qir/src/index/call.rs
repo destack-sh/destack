@@ -33,14 +33,14 @@ impl CallIndex {
     }
 
     /// Return calls that target one callee symbol.
-    pub fn to(&self, callee_symbol: GlobalSymbolId) -> Vec<CallEntry> {
+    pub fn for_callee(&self, callee_symbol: GlobalSymbolId) -> Vec<CallEntry> {
         let range = self.callee_range(callee_symbol);
 
         self.by_callee[range].to_vec()
     }
 
     /// Return calls that originate from one caller symbol.
-    pub fn from(&self, caller_symbol: GlobalSymbolId) -> Vec<CallEntry> {
+    pub fn for_caller(&self, caller_symbol: GlobalSymbolId) -> Vec<CallEntry> {
         let range = self.caller_range(caller_symbol);
 
         self.by_caller[range].to_vec()

@@ -138,7 +138,7 @@ where
     let Some(source_dir) = source_path.parent() else {
         let package_rank = import_package_rank(current_package, target_package);
 
-        return fallback_import_path_relevance(package_rank);
+        return package_import_path_relevance(package_rank);
     };
 
     // score the relative path shape
@@ -156,8 +156,8 @@ where
     }
 }
 
-/// Return the fallback import path relevance for incomplete context.
-pub fn fallback_import_path_relevance(package_rank: u8) -> ImportPathRelevance {
+/// Return import path relevance when only package relationship is known.
+pub fn package_import_path_relevance(package_rank: u8) -> ImportPathRelevance {
     ImportPathRelevance {
         directory_rank: 2,
         package_rank,

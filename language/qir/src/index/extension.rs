@@ -25,7 +25,7 @@ impl ExtensionIndex {
     }
 
     /// Return extensions that target one symbol.
-    pub fn to(&self, target_symbol: GlobalSymbolId) -> Vec<ExtensionEntry> {
+    pub fn for_target(&self, target_symbol: GlobalSymbolId) -> Vec<ExtensionEntry> {
         let range = self.target_range(target_symbol);
 
         self.by_target[range].to_vec()

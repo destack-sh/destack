@@ -1,3 +1,4 @@
+mod annotation;
 mod call;
 mod extension;
 mod import;
@@ -7,6 +8,7 @@ mod reference;
 mod specifier;
 mod symbol;
 
+pub use annotation::*;
 pub use call::*;
 pub use extension::*;
 pub use import::*;
