@@ -2,6 +2,7 @@
 
 // types / templates / infer / template literal infer extracts span from string literal
 type Segment<T> = T extends `/${infer Name}` ? Name : never;
+// <- keyword.declaration.type.ds
 
 let ok: Segment<"/api"> = "api";
 

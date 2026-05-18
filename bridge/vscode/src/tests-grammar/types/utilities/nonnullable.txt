@@ -2,6 +2,7 @@
 
 // types / utilities / nonnullable / NonNullable removes nullish
 type MaybeName = string | null | undefined;
+// <- keyword.declaration.type.ds
 type Name = NonNullable<MaybeName>;
 
 const ok: Name = "Ada";

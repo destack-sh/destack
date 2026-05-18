@@ -2,6 +2,7 @@
 
 // expressions / operators / optional / optional property access returns undefined for nullish bases
 type User = { name: string };
+// <- keyword.declaration.type.ds
 
 declare const user: User | null;
 

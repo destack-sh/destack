@@ -2,6 +2,7 @@
 
 // runtime / modules / import meta / runtime is a known union
 const runtime = import.meta.runtime;
+// <- keyword.declaration.type.ds
 runtime satisfies "destack" | "js";
 
 // runtime / modules / import meta / platform is a known union

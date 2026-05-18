@@ -2,6 +2,7 @@
 
 // expressions / if / branches / if (let ...) joins branches
 declare const value: int32;
+// <- keyword.declaration.type.ds
 
 const result = if (let 1 = value) {
     "one"

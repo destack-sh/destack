@@ -5,8 +5,8 @@ import { fileURLToPath } from "node:url";
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, "..", "..", "..");
 
-const keywordPath = path.join(repoRoot, "language", "ast", "src", "tree", "keyword.rs");
-const tokenPath = path.join(repoRoot, "language", "ast", "src", "token", "print.rs");
+const keywordPath = path.join(repoRoot, "language", "dir", "src", "source", "keyword.rs");
+const tokenPath = path.join(repoRoot, "language", "dir", "src", "source", "token.rs");
 const grammarPath = path.join(repoRoot, "bridge", "vscode", "destack.tmLanguage.json");
 
 function readFileOrThrow(filePath) {
@@ -23,13 +23,16 @@ function collectKeywordStrings(source) {
 }
 
 function collectTokenStrings(source) {
-    const matches = [...source.matchAll(/TokenType::[A-Za-z0-9_]+\s*=>\s*"([^"]*)"/g)];
-    const values = matches.map((match) => match[1]);
+    const matches = [...source.matchAll(/TokenType::[A-Za-z0-9_]+\s*=>\s*write!\(f,\s*"([^"]*)"\)/g)];
+    const values = matches.map((match) => match[1].replaceAll("{{", "{").replaceAll("}}", "}"));
     return [...new Set(values)];
 }
 
 function isOperatorToken(value) {
     if (!value) return false;
+    if (value == "//" || value == "///" || value == "/*" || value == "/**") {
+        return false;
+    }
     if (value == "." || value == "," || value == ":" || value == ";" || value == "@" || value == "#") {
         return false;
     }
@@ -104,6 +107,21 @@ function collectGrammarPatterns(grammar, keys) {
     return patterns;
 }
 
+function patternCoversOperator(pattern, operator) {
+    const escaped = escapeRegexLiteral(operator);
+    if (pattern.includes(escaped) || pattern.includes(operator)) {
+        return true;
+    }
+
+    if (operator.endsWith("=")) {
+        const withoutEquals = operator.slice(0, -1);
+        const escapedWithoutEquals = escapeRegexLiteral(withoutEquals);
+        return pattern.includes(`${escapedWithoutEquals}(?:=)?`);
+    }
+
+    return false;
+}
+
 function main() {
     const keywordSource = readFileOrThrow(keywordPath);
     const tokenSource = readFileOrThrow(tokenPath);
@@ -122,10 +140,9 @@ function main() {
 
     const missingKeywords = keywords.filter((kw) => !keywordTokens.has(kw));
 
-    const operatorPatterns = collectGrammarPatterns(grammar, ["operator"]);
+    const operatorPatterns = collectGrammarPatterns(grammar, ["operator", "operator-range"]);
     const missingOperators = operatorTokens.filter((op) => {
-        const escaped = escapeRegexLiteral(op);
-        return !operatorPatterns.some((pattern) => pattern.includes(escaped) || pattern.includes(op));
+        return !operatorPatterns.some((pattern) => patternCoversOperator(pattern, op));
     });
 
     if (missingKeywords.length == 0 && missingOperators.length == 0) {

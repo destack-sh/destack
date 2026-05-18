@@ -2,6 +2,7 @@
 
 // expressions / if / patterns / if (let ...) tuple patterns bind elements
 declare const pair: (int32, int32);
+// <- keyword.declaration.type.ds
 
 if (let (left, right) = pair) {
     left satisfies int32;

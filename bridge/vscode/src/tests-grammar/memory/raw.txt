@@ -2,6 +2,7 @@
 
 // memory / raw / raw pointers are non-null
 declare function pointer(): *int32;
+// <- keyword.declaration.type.ds
 declare function optionalPointer(): *int32 | undefined;
 
 let value = pointer();

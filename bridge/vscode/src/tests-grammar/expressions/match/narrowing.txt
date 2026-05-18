@@ -2,6 +2,7 @@
 
 // expressions / match / narrowing / discriminants narrow each arm
 type Shape = { kind: "circle"; radius: number } | { kind: "square"; size: number };
+// <- keyword.declaration.type.ds
 
 declare let shape: Shape;
 

@@ -2,6 +2,7 @@
 
 // expressions / static if / extension / when false, @if removes extension members
 struct Box {
+// <- keyword.declaration.type.ds
     value: number;
 }
 

@@ -2,6 +2,7 @@
 
 // types / primitives / unknown / values assign to unknown
 const value: unknown = 42;
+// <- keyword.declaration.type.ds
 value satisfies unknown;
 
 // types / primitives / unknown / unknown rejects arbitrary member access

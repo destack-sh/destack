@@ -2,6 +2,7 @@
 
 // expressions / functions / this / functions reject implicit this
 function counter() {
+// <- keyword.declaration.type.ds
     this;
 }
 

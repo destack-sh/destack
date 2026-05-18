@@ -2,6 +2,7 @@
 
 // expressions / static if / class / when false, @if removes class members
 class Box {
+// <- keyword.declaration.type.ds
     @if(false)
     missing: MissingType;
 

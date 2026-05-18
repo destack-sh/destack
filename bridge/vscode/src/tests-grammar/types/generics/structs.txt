@@ -2,6 +2,7 @@
 
 // types / generics / structs / structs accept explicit type arguments
 struct Box<T> {
+// <- keyword.declaration.type.ds
     value: T;
 }
 

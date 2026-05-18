@@ -2,6 +2,7 @@
 
 // types / generics / mapped / mapped types build object fields
 type Flags<T> = { [K in keyof T]: boolean };
+// <- keyword.declaration.type.ds
 
 interface Person {
     name: string;

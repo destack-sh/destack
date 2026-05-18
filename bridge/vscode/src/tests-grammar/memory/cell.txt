@@ -2,6 +2,7 @@
 
 // memory / cell / cell supports interior mutation
 import { Cell } from "destack:memory/cell";
+// <- keyword.declaration.import.ds
 
 let cell = Cell.new(1);
 let shared = &readonly cell;

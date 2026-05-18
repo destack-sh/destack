@@ -2,6 +2,7 @@
 
 // expressions / functions / callable / function values satisfy callable interfaces
 interface Fn {
+// <- keyword.declaration.type.ds
     (value: string): number;
 }
 

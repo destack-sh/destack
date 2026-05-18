@@ -2,6 +2,7 @@
 
 // types / type operators / relations / extends accepts assignable types
 type IsNumber = int32 extends number;
+// <- keyword.declaration.type.ds
 
 const ok: IsNumber = true;
 

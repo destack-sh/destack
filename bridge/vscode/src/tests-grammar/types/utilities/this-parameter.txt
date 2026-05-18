@@ -2,6 +2,7 @@
 
 // types / utilities / this parameter / ThisParameterType extracts explicit this
 type Receiver = ThisParameterType<(this: { id: string }, value: number) => void>;
+// <- keyword.declaration.type.ds
 
 const ok: Receiver = { id: "u1" };
 ok.id satisfies string;

@@ -2,6 +2,7 @@
 
 // types / static / imports / imports cannot refine exports
 export declare const N: uint;
+// <- keyword.declaration.import.ds
 
 // types / static / imports / imports cannot refine exports
 import { N } from "./a.ds";

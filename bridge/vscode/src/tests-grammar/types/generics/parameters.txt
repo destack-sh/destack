@@ -2,6 +2,7 @@
 
 // types / generics / parameters / const modifiers are not allowed on type aliases
 type Bad<const T> = T;
+// <- keyword.declaration.type.ds
 
 // types / generics / parameters / in modifiers are allowed on type aliases
 type Sink<in T> = (value: T) => void;

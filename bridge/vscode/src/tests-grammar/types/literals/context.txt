@@ -2,6 +2,7 @@
 
 // types / literals / context / arrays widen element literals in let bindings
 let values = [1, 2];
+// <- keyword.declaration.type.ds
 
 values[0] satisfies number;
 

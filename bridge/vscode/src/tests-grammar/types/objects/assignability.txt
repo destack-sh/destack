@@ -2,6 +2,7 @@
 
 // types / objects / assignability / object literal satisfies interface
 interface Person {
+// <- keyword.declaration.type.ds
     name: string;
 }
 

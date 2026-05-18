@@ -2,6 +2,7 @@
 
 // types / classes / super / super calls accept base constructor parameters
 class Base {
+// <- keyword.declaration.type.ds
     constructor(value: int32) {}
 }
 

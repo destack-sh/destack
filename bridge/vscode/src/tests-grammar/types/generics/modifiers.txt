@@ -2,6 +2,7 @@
 
 // types / generics / modifiers / mapped modifiers can remove readonly and optional markers
 interface Person {
+// <- keyword.declaration.type.ds
     readonly name: string;
     age?: number;
 }

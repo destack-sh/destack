@@ -2,6 +2,7 @@
 
 // types / interfaces / members / interface properties declare types
 interface Config {
+// <- keyword.declaration.type.ds
     value: number;
 }
 

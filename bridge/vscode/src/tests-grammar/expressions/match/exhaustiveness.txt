@@ -2,6 +2,7 @@
 
 // expressions / match / exhaustiveness / enum matches need full coverage
 enum State {
+// <- keyword.declaration.type.ds
     Ready,
     Loading,
     Error,

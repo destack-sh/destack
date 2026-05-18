@@ -2,6 +2,7 @@
 
 // types / objects / index signatures / string index signature accepts matching fields
 interface Bag {
+// <- keyword.declaration.type.ds
     [key: string]: number;
 }
 

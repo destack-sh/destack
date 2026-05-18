@@ -2,6 +2,7 @@
 
 // expressions / patterns / let / let else matches literal patterns
 function parse(value: "ok" | "bad"): int32 {
+// <- keyword.declaration.type.ds
     let "ok" = value else {
         return 0;
     };

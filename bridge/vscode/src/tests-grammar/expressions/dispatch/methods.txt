@@ -2,6 +2,7 @@
 
 // expressions / dispatch / methods / methods use declaration order
 class Parser {
+// <- keyword.declaration.type.ds
     parse(value: number): "broad" {
         return "broad";
     }

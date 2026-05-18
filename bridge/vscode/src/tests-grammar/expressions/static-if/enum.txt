@@ -2,6 +2,7 @@
 
 // expressions / static if / enum / when false, @if removes enum fields
 enum Status {
+// <- keyword.declaration.type.ds
     @if(false)
     Missing = missingSymbol,
     Visible = 1,

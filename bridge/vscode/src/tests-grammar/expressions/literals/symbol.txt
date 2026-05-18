@@ -2,6 +2,7 @@
 
 // expressions / literals / symbol / symbol constructor
 const x: symbol = Symbol("id");
+// <- keyword.declaration.type.ds
 
 // expressions / literals / symbol / symbol toString resolves
 const value: symbol = Symbol("id");

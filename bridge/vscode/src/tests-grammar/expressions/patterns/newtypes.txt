@@ -2,6 +2,7 @@
 
 // expressions / patterns / newtypes / scalar newtype patterns bind values
 newtype UserId = int64;
+// <- keyword.declaration.type.ds
 
 let UserId(value) = UserId(42);
 value satisfies int64;

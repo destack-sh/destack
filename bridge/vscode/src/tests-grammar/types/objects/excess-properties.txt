@@ -2,6 +2,7 @@
 
 // types / objects / excess properties / union rejects extra fields
 interface Named {
+// <- keyword.declaration.type.ds
     name: string;
 }
 

@@ -2,6 +2,7 @@
 
 // expressions / macros / decorators / route decorator adds a route definition
 newtype route = (string,);
+// <- keyword.declaration.type.ds
 
 extension of route implements Macro<FunctionDeclaration> {
     static expand(target: FunctionDeclaration, context: ExpansionContext, config: this): void {

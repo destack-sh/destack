@@ -2,6 +2,7 @@
 
 // expressions / errors / flow / try expressions require catch or finally
 const value = try { 1 };
+// <- keyword.declaration.type.ds
 value satisfies int;
 
 // expressions / errors / flow / try finally returns the body type

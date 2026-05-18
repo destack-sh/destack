@@ -2,6 +2,7 @@
 
 // types / type operators / mapped / mapped types use instantiated keys
 type Flags<T: { a: number }> = { [K in keyof T]: boolean };
+// <- keyword.declaration.type.ds
 
 type Actual = Flags<{ a: number; b: string }>;
 

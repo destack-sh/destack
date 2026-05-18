@@ -2,6 +2,7 @@
 
 // types / utilities / constructor parameters / ConstructorParameters extracts constructor arguments
 class User {
+// <- keyword.declaration.type.ds
     constructor(name: string, age: number) {}
 }
 

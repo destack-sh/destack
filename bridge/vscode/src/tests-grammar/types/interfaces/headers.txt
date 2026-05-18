@@ -2,6 +2,7 @@
 
 // types / interfaces / headers / default export interfaces must be named
 export default interface {
+// <- keyword.declaration.import.ds
     value: number;
 }
 

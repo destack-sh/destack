@@ -2,6 +2,7 @@
 
 // types / generics / classes / classes accept explicit type arguments
 class Box<T> {
+// <- keyword.declaration.type.ds
     value?: T;
 }
 

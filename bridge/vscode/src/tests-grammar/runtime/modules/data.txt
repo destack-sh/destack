@@ -2,6 +2,7 @@
 
 // runtime / modules / data / JSON object imports resolve
 import data from "./data.json.ds";
+// <- keyword.declaration.import.ds
 
 data;
 

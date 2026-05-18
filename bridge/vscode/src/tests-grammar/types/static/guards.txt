@@ -2,6 +2,7 @@
 
 // types / static / guards / fields can be gated by static parameters
 struct InlineIndex {}
+// <- keyword.declaration.type.ds
 struct ExternalIndex {}
 
 struct Buffer<T, comptime Mode: "inline" | "external"> {

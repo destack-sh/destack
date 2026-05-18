@@ -2,6 +2,7 @@
 
 // types / narrowing / discriminant / discriminant guard narrows to matching variant
 type Result = { kind: "ok"; value: string } | { kind: "err"; error: string };
+// <- keyword.declaration.type.ds
 
 const result: Result = { kind: "ok", value: "done" };
 if (result.kind == "ok") {

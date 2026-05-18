@@ -2,6 +2,7 @@
 
 // expressions / functions / generics / explicit type arguments
 function identity<T>(value: T): T {
+// <- keyword.declaration.type.ds
     return value;
 }
 const as_number = identity<number>;

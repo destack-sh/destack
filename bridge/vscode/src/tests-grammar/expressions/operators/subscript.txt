@@ -2,6 +2,7 @@
 
 // expressions / operators / subscript / index access dispatches to Index
 struct Bag {
+// <- keyword.declaration.type.ds
     value: int;
 }
 

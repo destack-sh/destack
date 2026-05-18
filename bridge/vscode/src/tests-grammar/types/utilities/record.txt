@@ -2,6 +2,7 @@
 
 // types / utilities / record / record builds required properties
 type Flags = Record<"a" | "b", boolean>;
+// <- keyword.declaration.type.ds
 
 const ok: Flags = { a: true, b: false };
 ok satisfies Flags;

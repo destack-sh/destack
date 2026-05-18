@@ -2,6 +2,7 @@
 
 // types / utilities / omit this / OmitThisParameter removes explicit this
 type Fn = OmitThisParameter<(this: { id: string }, value: number) => string>;
+// <- keyword.declaration.type.ds
 
 const fn: Fn = (value) => String(value);
 fn(1) satisfies string;

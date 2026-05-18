@@ -2,6 +2,7 @@
 
 // types / newtypes / tagged / tagged constructors insert discriminants
 @derive(Tagged)
+// <- meta.decorator.call.ds
 newtype Shape =
     | { kind: "rectangle"; width: int32; height: int32 }
     | { kind: "circle"; radius: int32 };

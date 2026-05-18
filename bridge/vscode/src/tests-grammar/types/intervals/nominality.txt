@@ -2,6 +2,7 @@
 
 // types / intervals / nominality / newtypes can use interval backing types
 newtype Port = 1..=65535;
+// <- keyword.declaration.type.ds
 
 let port = Port(443);
 port satisfies Port;

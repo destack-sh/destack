@@ -2,6 +2,7 @@
 
 // types / primitives / object / object to object
 const x: object = {} as object;
+// <- keyword.declaration.type.ds
 
 // types / primitives / object / object literal to object
 const x: object = { a: 1, b: "hello" };

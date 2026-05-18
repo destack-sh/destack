@@ -2,6 +2,7 @@
 
 // types / newtypes / constructors / scalar newtypes use one argument
 newtype UserId = int64;
+// <- keyword.declaration.type.ds
 
 const id = UserId(42);
 id satisfies UserId;

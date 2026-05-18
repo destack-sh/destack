@@ -2,6 +2,7 @@
 
 // types / arrays / dynamic / dynamic arrays accept compatible element types
 let source: int32[] = [1, 2, 3];
+// <- keyword.declaration.type.ds
 let target: int32[] = source;
 
 // types / arrays / dynamic / dynamic arrays reject incompatible element types

@@ -2,6 +2,7 @@
 
 // expressions / match / flow / match does not allow break
 function invalidMatchBreak(value: int32): int32 {
+// <- keyword.declaration.type.ds
     const result = match (value) {
         0 => break
         _ => 1

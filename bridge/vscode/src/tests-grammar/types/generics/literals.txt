@@ -2,6 +2,7 @@
 
 // types / generics / literals / generic inference preserves const literal precision
 declare function id<T>(value: T): T;
+// <- keyword.declaration.type.ds
 
 const value = "ready";
 const result = id(value);

@@ -2,6 +2,7 @@
 
 // types / arrays / fixed / fixed arrays are assignable to dynamic arrays
 let fixed: [int32; 3] = [1, 2, 3];
+// <- keyword.declaration.type.ds
 let dynamic: int32[] = fixed;
 
 // types / arrays / fixed / dynamic arrays are not assignable to fixed arrays

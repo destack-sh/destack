@@ -2,6 +2,7 @@
 
 // types / newtypes / interfaces / structural matches do not satisfy nominal interfaces
 newtype interface Add<T> {
+// <- keyword.declaration.type.ds
     type Output;
 
     add(other: T): this.Output;

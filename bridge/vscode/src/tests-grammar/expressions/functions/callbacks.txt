@@ -2,6 +2,7 @@
 
 // expressions / functions / callbacks / contextual parameters flow into callbacks
 declare function drive(callback: (value: string) => void): void;
+// <- keyword.declaration.type.ds
 
 drive((value) => {
     value satisfies string;

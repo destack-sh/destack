@@ -2,6 +2,7 @@
 
 // types / arrays / tuples / parenthesized tuple positions carry declared element types
 const pair: (int32, string) = (1, "hello");
+// <- keyword.declaration.type.ds
 
 // types / arrays / tuples / parenthesized tuple arity is enforced on assignment
 const pair: (int32, string) = (1,);

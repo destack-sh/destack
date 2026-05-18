@@ -2,6 +2,7 @@
 
 // types / type operators / intrinsic / intrinsic types cannot be indexed
 type Bad = intrinsic["foo"];
+// <- keyword.declaration.type.ds
 
 // types / type operators / intrinsic / intrinsic types cannot appear in value annotations
 const value: intrinsic = "x";

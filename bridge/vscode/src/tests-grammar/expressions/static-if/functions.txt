@@ -2,6 +2,7 @@
 
 // expressions / static if / functions / when false, @if removes function declarations
 @if(false)
+// <- meta.decorator.call.ds
 function hidden(): MissingType {
     return missingSymbol;
 }

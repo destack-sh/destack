@@ -2,6 +2,7 @@
 
 // expressions / literals / string / string literal
 const x: string = "hello";
+// <- keyword.declaration.type.ds
 
 // expressions / literals / string / empty string
 const x: string = "";

@@ -2,6 +2,7 @@
 
 // types / classes / overrides / overrides require override
 class Base {
+// <- keyword.declaration.type.ds
     greet(): void {}
 }
 

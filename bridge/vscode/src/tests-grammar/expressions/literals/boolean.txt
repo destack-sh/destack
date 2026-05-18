@@ -2,6 +2,7 @@
 
 // expressions / literals / boolean / true literal
 const x: boolean = true;
+// <- keyword.declaration.type.ds
 
 // expressions / literals / boolean / false literal
 const x: boolean = false;

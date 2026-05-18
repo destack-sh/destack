@@ -2,6 +2,7 @@
 
 // types / generics / interfaces / interfaces accept explicit type arguments
 interface Box<T> {
+// <- keyword.declaration.type.ds
     value: T;
 }
 

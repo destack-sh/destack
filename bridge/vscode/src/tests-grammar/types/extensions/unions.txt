@@ -2,6 +2,7 @@
 
 // types / extensions / unions / inherent extensions resolve on unions
 export struct Cat {
+// <- keyword.declaration.import.ds
     name: string;
 }
 export struct Dog {

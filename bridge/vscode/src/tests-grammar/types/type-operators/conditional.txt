@@ -2,6 +2,7 @@
 
 // types / type operators / conditional / matching types choose the true branch
 type Select<T> = T extends string ? string : int32;
+// <- keyword.declaration.type.ds
 
 let ok: Select<string> = "ok";
 

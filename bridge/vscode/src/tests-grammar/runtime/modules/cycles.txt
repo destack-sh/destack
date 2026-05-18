@@ -2,6 +2,7 @@
 
 // runtime / modules / cycles / unannotated cycles require type annotations
 import { y } from "./b.ds";
+// <- keyword.declaration.import.ds
 
 export const x = y;
 

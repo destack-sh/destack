@@ -2,6 +2,7 @@
 
 // types / constraints / parameter / type parameters accept matching arguments
 interface Readable {
+// <- keyword.declaration.type.ds
     read(): void;
 }
 

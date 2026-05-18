@@ -2,6 +2,7 @@
 
 // runtime / modules / conditions / active condition files share the base module
 export const base = "user";
+// <- keyword.declaration.import.ds
 
 // runtime / modules / conditions / active condition files share the base module
 export const previewName = `${base}.preview`;

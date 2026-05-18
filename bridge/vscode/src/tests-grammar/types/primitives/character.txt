@@ -2,6 +2,7 @@
 
 // types / primitives / character / character literals satisfy character
 let value: char = 'a';
+// <- keyword.declaration.type.ds
 
 // types / primitives / character / character does not widen to string
 let value: string = 'a';

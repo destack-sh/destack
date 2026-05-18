@@ -2,6 +2,7 @@
 
 // types / narrowing / nullish / not equal null narrows to non nullish
 const value: string | null | undefined = null;
+// <- keyword.declaration.type.ds
 if (value != null) {
     value satisfies string;
 } else {

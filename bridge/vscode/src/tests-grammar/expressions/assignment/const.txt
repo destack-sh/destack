@@ -2,6 +2,7 @@
 
 // expressions / assignment / const / const bindings reject assignment
 const value: number = 1;
+// <- keyword.declaration.type.ds
 value = 2;
 
 // expressions / assignment / const / const bindings reject compound assignment

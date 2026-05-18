@@ -2,6 +2,7 @@
 
 // memory / capabilities / copy requires capability
 function duplicate<T: Copy>(value: T): (T, T) {
+// <- keyword.declaration.type.ds
     return (value, value);
 }
 

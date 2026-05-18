@@ -2,6 +2,7 @@
 
 // types / utilities / omit / omit removes selected keys
 interface Person {
+// <- keyword.declaration.type.ds
     name: string;
     age: number;
 }

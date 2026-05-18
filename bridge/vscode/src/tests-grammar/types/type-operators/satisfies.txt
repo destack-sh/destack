@@ -2,6 +2,7 @@
 
 // types / type operators / satisfies / satisfies provides contextual typing for lambdas
 type Handler = { run: (value: number) => number };
+// <- keyword.declaration.type.ds
 
 const handler = {
     run: (value) => value + 1,

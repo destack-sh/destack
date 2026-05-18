@@ -2,3 +2,4 @@
 
 // expressions / operators / logical not / logical not yields boolean
 let value: boolean = !true;
+// <- keyword.declaration.type.ds

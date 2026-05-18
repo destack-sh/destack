@@ -2,6 +2,7 @@
 
 // types / templates / calls / template literal infers from call arguments
 declare function take<T>(value: `${T}`): T;
+// <- keyword.declaration.type.ds
 
 let value = take("hello");
 value satisfies "hello";

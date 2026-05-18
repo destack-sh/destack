@@ -2,6 +2,7 @@
 
 // types / literals / bindings / const assertions keep nested literals through satisfies
 const value = { env: { mode: "dev" } } as const satisfies { env: { mode: string } };
+// <- keyword.declaration.type.ds
 
 value.env.mode satisfies "dev";
 

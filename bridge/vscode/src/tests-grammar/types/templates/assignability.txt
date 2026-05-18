@@ -2,6 +2,7 @@
 
 // types / templates / assignability / template literal type assigns to broader template
 type Loose = `${string}-id`;
+// <- keyword.declaration.type.ds
 type Tight = `user-${string}-id`;
 
 declare let tight: Tight;

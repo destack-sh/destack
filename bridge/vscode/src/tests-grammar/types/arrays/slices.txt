@@ -2,6 +2,7 @@
 
 // types / arrays / slices / bracket slice syntax names slice types
 declare const values: [int32];
+// <- keyword.declaration.type.ds
 values satisfies Slice<int32>;
 
 // types / arrays / slices / slice alias matches bracket syntax

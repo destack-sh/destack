@@ -2,6 +2,7 @@
 
 // types / generics / defaults / trailing defaults use inferred prefixes
 declare function triple<T, U = T, V = readonly U[]>(first: T, second?: U, third?: V): (T, U, V);
+// <- keyword.declaration.type.ds
 
 const value = triple(1);
 value[0] satisfies number;

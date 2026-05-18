@@ -2,6 +2,7 @@
 
 // types / generics / newtypes / newtypes accept explicit type arguments
 newtype Box<T> = { value: T };
+// <- keyword.declaration.type.ds
 
 declare function makeBox(): Box<number>;
 

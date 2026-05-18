@@ -2,6 +2,7 @@
 
 // types / constraints / where / where accepts one constraint
 interface Readable {
+// <- keyword.declaration.type.ds
     read(): void;
 }
 

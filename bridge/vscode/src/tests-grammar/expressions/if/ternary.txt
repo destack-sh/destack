@@ -2,6 +2,7 @@
 
 // expressions / if / ternary / ternary yields union of branch types
 const value = true ? 1 : "hi";
+// <- keyword.declaration.type.ds
 value satisfies int | string;
 
 // expressions / if / ternary / ternary respects contextual type

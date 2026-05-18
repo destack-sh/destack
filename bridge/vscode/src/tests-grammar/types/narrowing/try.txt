@@ -2,6 +2,7 @@
 
 // types / narrowing / try / catch assignments widen post-try variable types
 let value: string | int32 = "ok";
+// <- keyword.declaration.type.ds
 
 try {
     value = "next";

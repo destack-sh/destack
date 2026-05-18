@@ -2,6 +2,7 @@
 
 // memory / owned / owned expression yields owned value
 struct Point {
+// <- keyword.declaration.type.ds
     x: int32;
 }
 

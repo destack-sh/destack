@@ -2,6 +2,7 @@
 
 // types / utilities / uncapitalize / uncapitalize converts first character
 type Value = Uncapitalize<"Hello">;
+// <- keyword.declaration.type.ds
 
 const ok: Value = "hello";
 

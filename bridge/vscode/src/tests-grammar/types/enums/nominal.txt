@@ -2,6 +2,7 @@
 
 // types / enums / nominal / imported enums with matching members remain distinct
 export enum Status {
+// <- keyword.declaration.import.ds
     Active = 1,
     Inactive = 2,
 }

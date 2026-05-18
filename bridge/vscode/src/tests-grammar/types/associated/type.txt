@@ -2,6 +2,7 @@
 
 // types / associated / type / type members can use enclosing type generics
 struct Box<T> {
+// <- keyword.declaration.type.ds
     type Item = T;
     value: T;
 }

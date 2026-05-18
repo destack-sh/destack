@@ -2,6 +2,7 @@
 
 // types / generics / variadic / variadic tuple tail extraction preserves literal heads
 type Head<T: readonly unknown[]> = T extends readonly (infer H, ...unknown[]) ? H : never;
+// <- keyword.declaration.type.ds
 
 declare const value: Head<readonly ("a", "b", "c")>;
 value satisfies "a";

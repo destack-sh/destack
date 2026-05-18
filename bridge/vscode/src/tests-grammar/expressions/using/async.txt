@@ -2,6 +2,7 @@
 
 // expressions / using / async / await using accepts async resources
 class Connection implements AsyncDispose {
+// <- keyword.declaration.type.ds
     asyncDispose(): Promise<void> {
         Promise.resolve()
     }

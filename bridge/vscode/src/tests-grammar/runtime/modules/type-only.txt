@@ -2,6 +2,7 @@
 
 // runtime / modules / type only / type-only reexports stay type-only
 export type Options = { strict: boolean };
+// <- keyword.declaration.import.ds
 
 // runtime / modules / type only / type-only reexports stay type-only
 export { type Options } from "./types.ds";

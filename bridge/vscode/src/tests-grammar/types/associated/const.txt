@@ -2,6 +2,7 @@
 
 // types / associated / const / constants can use enclosing type generics
 class Segment<Row> {
+// <- keyword.declaration.type.ds
     comptime const Width: uint = Row extends string ? 4 : 2;
 }
 

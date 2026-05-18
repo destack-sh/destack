@@ -2,6 +2,7 @@
 
 // expressions / literals / number / integer literal
 const x: number = 42;
+// <- keyword.declaration.type.ds
 
 // expressions / literals / number / negative integer
 const x: number = -42;

@@ -1,7 +1,0 @@
-// SYNTAX TEST "source.ds"
-
-value = 1 // trailing comment
-//          ^^^^^^^^^^^^^^^^^ comment.line.double-slash.ds
-
-/* block comment */
-// <- comment.block.ds

@@ -2,6 +2,7 @@
 
 // expressions / functions / inference / default values infer parameters
 function greet(name = "hi") {
+// <- keyword.declaration.type.ds
     return name;
 }
 greet satisfies (name: string) => string;

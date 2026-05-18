@@ -2,6 +2,7 @@
 
 // expressions / dispatch / operators / binary operators use the left receiver
 struct Left {}
+// <- keyword.declaration.type.ds
 struct Right {}
 
 extension of Right implements Add<Left> {

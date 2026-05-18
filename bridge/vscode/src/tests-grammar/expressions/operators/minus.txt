@@ -2,6 +2,7 @@
 
 // expressions / operators / minus / number minus number
 const value = 5 - 3;
+// <- keyword.declaration.type.ds
 value satisfies 2;
 value satisfies int;
 value satisfies float64;

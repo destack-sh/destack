@@ -2,6 +2,7 @@
 
 // expressions / errors / match / catch match binds errors
 declare function read(): Result<int, string>;
+// <- keyword.declaration.type.ds
 
 const value = try {
     read()?;

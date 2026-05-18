@@ -2,6 +2,7 @@
 
 // memory / moves / use after move is rejected
 struct Data {
+// <- keyword.declaration.type.ds
     value: int32;
 }
 

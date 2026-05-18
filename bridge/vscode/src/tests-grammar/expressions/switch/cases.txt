@@ -2,6 +2,7 @@
 
 // expressions / switch / cases / switch selects a matching case
 function describe(day: int32): string {
+// <- keyword.declaration.type.ds
     let label: string = "unknown";
     switch (day) {
         case 0:

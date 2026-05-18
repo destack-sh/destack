@@ -2,6 +2,7 @@
 
 // expressions / using / loops / for of accepts using resources
 class File implements Dispose {
+// <- keyword.declaration.type.ds
     dispose(): void {}
 }
 

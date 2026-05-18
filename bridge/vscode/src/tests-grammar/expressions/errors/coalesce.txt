@@ -2,6 +2,7 @@
 
 // expressions / errors / coalesce / fallback preserves opened success type
 declare function getResult(): Result<int, Error>;
+// <- keyword.declaration.type.ds
 
 const value = getResult() ?? 0;
 value satisfies int;

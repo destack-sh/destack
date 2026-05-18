@@ -2,6 +2,7 @@
 
 // types / objects / freshness / direct object literals preserve discriminant freshness for excess checks
 type Ready = { kind: "ready"; payload: string };
+// <- keyword.declaration.type.ds
 
 declare const use_ready: (value: Ready) => void;
 

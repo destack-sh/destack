@@ -2,6 +2,7 @@
 
 // types / extensions / implements / extension implements interface
 interface Describable {
+// <- keyword.declaration.type.ds
     describe(): string;
 }
 

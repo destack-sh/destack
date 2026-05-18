@@ -2,6 +2,7 @@
 
 // types / utilities / capitalize / capitalize converts first character
 type Value = Capitalize<"hello">;
+// <- keyword.declaration.type.ds
 
 const ok: Value = "Hello";
 

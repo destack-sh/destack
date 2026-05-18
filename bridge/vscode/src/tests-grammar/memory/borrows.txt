@@ -2,6 +2,7 @@
 
 // memory / borrows / managed fields can be borrowed
 class User {
+// <- keyword.declaration.type.ds
     name: string = "";
 }
 

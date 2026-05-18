@@ -2,6 +2,7 @@
 
 // expressions / patterns / array / array patterns bind elements
 let [first, second] = [1, 2];
+// <- keyword.declaration.type.ds
 first satisfies number;
 second satisfies number;
 

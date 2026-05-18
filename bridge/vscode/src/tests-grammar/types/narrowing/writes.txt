@@ -2,6 +2,7 @@
 
 // types / narrowing / writes / assignment invalidates a prior null check narrow
 let value: string | null = "ok";
+// <- keyword.declaration.type.ds
 
 if (value != null) {
     value satisfies string;

@@ -2,6 +2,7 @@
 
 // expressions / comptime / conditions / comptime conditions keep joined branch types
 const value = if (comptime true) { 1 } else { 2 };
+// <- keyword.declaration.type.ds
 value satisfies 1 | 2;
 
 // expressions / comptime / conditions / comptime conditions check both branches

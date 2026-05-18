@@ -2,6 +2,7 @@
 
 // types / type operators / readonly / readonly objects reject field writes
 type User = {
+// <- keyword.declaration.type.ds
     name: string;
 };
 

@@ -2,6 +2,7 @@
 
 // types / static / associated / associated types pass through aliases
 class Segment<Row> {
+// <- keyword.declaration.type.ds
     type Lane = Row extends string ? [uint8; 8] : [uint8; 4];
 }
 

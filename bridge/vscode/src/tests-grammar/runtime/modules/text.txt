@@ -2,6 +2,7 @@
 
 // runtime / modules / text / text files import as strings
 import content from "./readme.txt.ds";
+// <- keyword.declaration.import.ds
 
 content satisfies string;
 

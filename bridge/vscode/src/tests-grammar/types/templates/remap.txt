@@ -2,6 +2,7 @@
 
 // types / templates / remap / mapped keys can use templates
 type HandlerMap<T> = {
+// <- keyword.declaration.type.ds
     [K in keyof T as `on-${K}`]: T[K];
 };
 

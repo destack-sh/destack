@@ -2,6 +2,7 @@
 
 // runtime / modules / exports / declared return types cross module boundaries
 export type Api = { do: () => string };
+// <- keyword.declaration.import.ds
 
 export declare function foo(): Api;
 

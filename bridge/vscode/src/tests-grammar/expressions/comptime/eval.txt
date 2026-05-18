@@ -2,6 +2,7 @@
 
 // expressions / comptime / eval / eval requires an expected type
 const source = comptime "1 + 1";
+// <- keyword.declaration.type.ds
 const value = comptime eval<int32>(source);
 
 value satisfies int32;

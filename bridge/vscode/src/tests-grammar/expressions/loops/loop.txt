@@ -2,6 +2,7 @@
 
 // expressions / loops / loop / loop yields void
 let value: void = loop {
+// <- keyword.declaration.type.ds
     break;
 };
 

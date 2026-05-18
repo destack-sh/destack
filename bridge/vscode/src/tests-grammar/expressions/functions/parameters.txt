@@ -2,6 +2,7 @@
 
 // expressions / functions / parameters / positional arguments map to parameters
 function sum(a: number, b: number): number {
+// <- keyword.declaration.type.ds
     return a + b;
 }
 

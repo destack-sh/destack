@@ -2,6 +2,7 @@
 
 // types / narrowing / flow / nested function writes invalidate prior local narrows
 let value: string | null = "ok";
+// <- keyword.declaration.type.ds
 
 if (value !== null) {
     const clear = () => {

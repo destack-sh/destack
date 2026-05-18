@@ -2,6 +2,7 @@
 
 // runtime / modules / global / imported global blocks contribute values
 global {
+// <- keyword.declaration.type.ds
     answer: (int32 = 42),
 };
 

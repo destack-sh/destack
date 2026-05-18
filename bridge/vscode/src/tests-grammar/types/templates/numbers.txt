@@ -2,6 +2,7 @@
 
 // types / templates / numbers / template literal type accepts bigint strings
 type Big = `${bigint}`;
+// <- keyword.declaration.type.ds
 
 let ok: Big = "900";
 let ok2: Big = "-1";

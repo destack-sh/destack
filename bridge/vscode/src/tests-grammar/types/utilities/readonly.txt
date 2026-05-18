@@ -2,6 +2,7 @@
 
 // types / utilities / readonly / readonly keeps field types
 interface Person {
+// <- keyword.declaration.type.ds
     name: string;
     age: number;
 }

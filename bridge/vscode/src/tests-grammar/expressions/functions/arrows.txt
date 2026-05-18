@@ -2,6 +2,7 @@
 
 // expressions / functions / arrows / arrows can have no parameters
 const f = (): void => {};
+// <- keyword.declaration.type.ds
 f satisfies () => void;
 
 // expressions / functions / arrows / arrows can have parameters

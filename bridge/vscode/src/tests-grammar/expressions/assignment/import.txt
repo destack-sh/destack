@@ -2,6 +2,7 @@
 
 // expressions / assignment / import / imported bindings are immutable
 export let counter: number = 0;
+// <- keyword.declaration.import.ds
 
 // expressions / assignment / import / imported bindings are immutable
 import { counter } from "./counter.ds";

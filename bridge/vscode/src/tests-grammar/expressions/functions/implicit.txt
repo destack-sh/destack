@@ -2,6 +2,7 @@
 
 // expressions / functions / implicit / parameters require types
 function handle(value) {}
+// <- keyword.declaration.type.ds
 
 // expressions / functions / implicit / parameter defaults infer parameter types
 function handle(value = 1) {

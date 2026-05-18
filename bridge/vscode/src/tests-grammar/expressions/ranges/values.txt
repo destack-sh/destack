@@ -2,6 +2,7 @@
 
 // expressions / ranges / values / half-open ranges
 const range = 0..10;
+// <- keyword.declaration.type.ds
 range satisfies Range<int>;
 
 // expressions / ranges / values / inclusive ranges

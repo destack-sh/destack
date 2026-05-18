@@ -2,6 +2,7 @@
 
 // memory / statics / shared const places the binding cell in shared space
 class Registry {}
+// <- keyword.declaration.type.ds
 
 shared const registry: Registry = new Registry();
 registry satisfies shared Registry;

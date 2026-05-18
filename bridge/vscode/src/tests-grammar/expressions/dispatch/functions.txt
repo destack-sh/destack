@@ -2,6 +2,7 @@
 
 // expressions / dispatch / functions / functions can overload
 function parse(value: string): string {
+// <- keyword.declaration.type.ds
     return value;
 }
 

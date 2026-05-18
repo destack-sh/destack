@@ -2,6 +2,7 @@
 
 // runtime / modules / imports / type-only imports cannot mix default and named bindings
 import type Foo, { Bar } from "./mod.ds";
+// <- keyword.declaration.import.ds
 
 // runtime / modules / imports / type-only imports cannot mix default and named bindings
 export default class Foo {}

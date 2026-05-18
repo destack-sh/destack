@@ -2,6 +2,7 @@
 
 // types / classes / visibility / private fields reject outside access
 class Counter {
+// <- keyword.declaration.type.ds
     private value: int32 = 0;
 
     get(): int32 {

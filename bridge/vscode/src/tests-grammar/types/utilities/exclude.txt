@@ -2,6 +2,7 @@
 
 // types / utilities / exclude / exclude distributes over unions
 type Letters = "a" | "b" | "c";
+// <- keyword.declaration.type.ds
 type Only = Exclude<Letters, "b">;
 
 const ok: Only = "a";

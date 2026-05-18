@@ -2,6 +2,7 @@
 
 // expressions / literals / object / object with properties
 const x = { a: 1, b: "two" };
+// <- keyword.declaration.type.ds
 x satisfies { a: number; b: string };
 
 // expressions / literals / object / object with shorthand properties

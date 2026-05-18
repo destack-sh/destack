@@ -2,6 +2,7 @@
 
 // types / templates / matching / template literal type accepts matching string literal
 type Id = `user-${number}`;
+// <- keyword.declaration.type.ds
 
 let ok: Id = "user-42";
 
