@@ -161,7 +161,11 @@ pub(crate) fn format_scalar_literal<'ast>(
             }
             let content = f.context().strings.get(*string_id);
             let preferred_quote = quote_style.char_for(content);
-            let quote_char = minimized_quote_char(content, preferred_quote);
+            let quote_char = if f.context().options.language_type.is_destack() {
+                '"'
+            } else {
+                minimized_quote_char(content, preferred_quote)
+            };
             let escaped_content = escape_string_literal_content(content, quote_char);
 
             if is_tree_text {
