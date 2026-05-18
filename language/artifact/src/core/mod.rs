@@ -1,16 +1,16 @@
 mod dependency;
+mod environment;
 mod failure;
 mod fingerprint;
-mod host;
 mod key;
 mod profile;
 mod target;
 mod version;
 
 pub use dependency::*;
+pub use environment::*;
 pub use failure::*;
 pub use fingerprint::*;
-pub use host::*;
 pub use key::*;
 pub use profile::*;
 pub use target::*;
