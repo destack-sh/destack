@@ -1,10 +1,5 @@
 [
   {
-    "type": "memory_keyword",
-    "named": true,
-    "fields": {}
-  },
-  {
     "type": "source_file",
     "named": true,
     "root": true,
@@ -26,6 +21,14 @@
           "named": true
         },
         {
+          "type": "declaration_keyword",
+          "named": true
+        },
+        {
+          "type": "function_identifier",
+          "named": true
+        },
+        {
           "type": "function_keyword",
           "named": true
         },
@@ -35,6 +38,10 @@
         },
         {
           "type": "line_comment",
+          "named": true
+        },
+        {
+          "type": "local_identifier",
           "named": true
         },
         {
@@ -70,16 +77,15 @@
           "named": true
         },
         {
+          "type": "type_keyword",
+          "named": true
+        },
+        {
           "type": "unknown",
           "named": true
         }
       ]
     }
-  },
-  {
-    "type": "terminator_keyword",
-    "named": true,
-    "fields": {}
   },
   {
     "type": "arrow",
@@ -94,16 +100,12 @@
     "named": true
   },
   {
-    "type": "borrowed",
-    "named": false
+    "type": "declaration_keyword",
+    "named": true
   },
   {
-    "type": "branch",
-    "named": false
-  },
-  {
-    "type": "check",
-    "named": false
+    "type": "function_identifier",
+    "named": true
   },
   {
     "type": "function_keyword",
@@ -114,16 +116,16 @@
     "named": true
   },
   {
-    "type": "jump",
-    "named": false
-  },
-  {
     "type": "line_comment",
     "named": true
   },
   {
-    "type": "managed",
-    "named": false
+    "type": "local_identifier",
+    "named": true
+  },
+  {
+    "type": "memory_keyword",
+    "named": true
   },
   {
     "type": "number_literal",
@@ -134,20 +136,8 @@
     "named": true
   },
   {
-    "type": "owned",
-    "named": false
-  },
-  {
     "type": "punctuation",
     "named": true
-  },
-  {
-    "type": "raw",
-    "named": false
-  },
-  {
-    "type": "return",
-    "named": false
   },
   {
     "type": "ssa_identifier",
@@ -158,23 +148,19 @@
     "named": true
   },
   {
-    "type": "switch",
-    "named": false
+    "type": "symbol_identifier",
+    "named": true
   },
   {
-    "type": "symbol_identifier",
+    "type": "terminator_keyword",
+    "named": true
+  },
+  {
+    "type": "type_keyword",
     "named": true
   },
   {
     "type": "unknown",
     "named": true
-  },
-  {
-    "type": "unreachable",
-    "named": false
-  },
-  {
-    "type": "yield",
-    "named": false
   }
 ]

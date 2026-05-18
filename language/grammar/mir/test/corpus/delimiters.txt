@@ -1,0 +1,72 @@
+==================================
+Brackets and delimiters
+==================================
+
+function @brackets(v0: i64) -> void {
+block0:
+    v1: tuple<i64, i64> = struct { v0, v0 }
+    v2: array<i64, 4> = array [v0, v0, v0, v0]
+    call @print(v1, v2);
+    return
+}
+
+
+---
+
+(source_file
+  (function_keyword)
+  (symbol_identifier)
+  (punctuation)
+  (ssa_identifier)
+  (punctuation)
+  (type_keyword)
+  (punctuation)
+  (arrow)
+  (type_keyword)
+  (punctuation)
+  (block_identifier)
+  (punctuation)
+  (ssa_identifier)
+  (punctuation)
+  (identifier)
+  (operator)
+  (type_keyword)
+  (punctuation)
+  (type_keyword)
+  (operator)
+  (operator)
+  (type_keyword)
+  (punctuation)
+  (ssa_identifier)
+  (punctuation)
+  (ssa_identifier)
+  (punctuation)
+  (ssa_identifier)
+  (punctuation)
+  (identifier)
+  (operator)
+  (type_keyword)
+  (punctuation)
+  (number_literal)
+  (operator)
+  (operator)
+  (identifier)
+  (punctuation)
+  (ssa_identifier)
+  (punctuation)
+  (ssa_identifier)
+  (punctuation)
+  (ssa_identifier)
+  (punctuation)
+  (ssa_identifier)
+  (punctuation)
+  (terminator_keyword)
+  (symbol_identifier)
+  (punctuation)
+  (ssa_identifier)
+  (punctuation)
+  (ssa_identifier)
+  (punctuation)
+  (punctuation)
+  (terminator_keyword)
+  (punctuation))

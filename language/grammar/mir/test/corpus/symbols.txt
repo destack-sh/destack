@@ -1,0 +1,65 @@
+==================================
+Comments, globals, and dotted symbols
+==================================
+
+// header comment
+/* block comment */
+function @misc.foo_bar(v0: bool) -> void {
+block0(v0: bool):
+    intrinsic.memset(v0, v0)
+    local.set v0, v0
+    local.get v0
+    local.address v0
+    function.address @misc.foo_bar
+    callable.environment
+    global.address @G0
+    global.address @G1
+    return
+}
+
+
+---
+
+(source_file
+  (line_comment)
+  (block_comment)
+  (function_keyword)
+  (symbol_identifier)
+  (punctuation)
+  (ssa_identifier)
+  (punctuation)
+  (identifier)
+  (punctuation)
+  (arrow)
+  (type_keyword)
+  (punctuation)
+  (block_identifier)
+  (punctuation)
+  (ssa_identifier)
+  (punctuation)
+  (identifier)
+  (punctuation)
+  (punctuation)
+  (identifier)
+  (punctuation)
+  (ssa_identifier)
+  (punctuation)
+  (ssa_identifier)
+  (punctuation)
+  (identifier)
+  (ssa_identifier)
+  (punctuation)
+  (ssa_identifier)
+  (identifier)
+  (ssa_identifier)
+  (identifier)
+  (ssa_identifier)
+  (identifier)
+  (symbol_identifier)
+  (identifier)
+  (identifier)
+  (symbol_identifier)
+  (identifier)
+  (symbol_identifier)
+  (terminator_keyword)
+  (punctuation))
