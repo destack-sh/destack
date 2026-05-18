@@ -4,59 +4,12 @@ Ambient declarations
 ==================================
 
 declare class Error {
-  constructor: Function
+  constructor(message: string);
 }
 
-declare var foo: number;
-
-declare const bar = "baz";
+declare const version: string;
 
 declare function greet(greeting: string): void;
-
-declare namespace myLib {
-    function makeGreeting(s: string): string;
-    let numberOfGreetings: number;
-
-    interface LogOptions {
-      verbose?: boolean;
-    }
-    interface AlertOptions {
-      modal: boolean;
-      title?: string;
-      color?: string;
-    }
-}
-
-declare class Greeter {
-  constructor(greeting: string);
-
-  greeting: string;
-  showGreeting(): void;
-}
-
-declare module Foo.Bar { export var foo; };
-
-declare module Foo {
-  break;
-  continue;
-  debugger;
-  do { } while (true);
-  for (x in null) { }
-  for (;;) { }
-  if (true) { } else { }
-  1;
-  return;
-  switch (x) {
-      case 1:
-          break;
-      default:
-          break;
-  }
-  throw "hello";
-  try { }
-  catch (e) { }
-  finally { }
-}
 
 ---
 
@@ -65,22 +18,19 @@ declare module Foo {
     (class_declaration
       name: (type_identifier)
       body: (class_body
-        (public_field_definition
+        (method_signature
           name: (property_identifier)
-          type: (type_annotation
-            (type_identifier))))))
-  (ambient_declaration
-    (variable_declaration
-      (variable_declarator
-        name: (identifier)
-        type: (type_annotation
-          (predefined_type)))))
+          parameters: (formal_parameters
+            (required_parameter
+              pattern: (identifier)
+              type: (type_annotation
+                (predefined_type))))))))
   (ambient_declaration
     (lexical_declaration
       (variable_declarator
         name: (identifier)
-        value: (string
-          (string_fragment)))))
+        type: (type_annotation
+          (predefined_type)))))
   (destack_declare_function_signature
     name: (identifier)
     parameters: (formal_parameters
@@ -89,124 +39,7 @@ declare module Foo {
         type: (type_annotation
           (predefined_type))))
     return_type: (type_annotation
-      (predefined_type)))
-  (ambient_declaration
-    (internal_module
-      name: (identifier)
-      body: (statement_block
-        (function_signature
-          name: (identifier)
-          parameters: (formal_parameters
-            (required_parameter
-              pattern: (identifier)
-              type: (type_annotation
-                (predefined_type))))
-          return_type: (type_annotation
-            (predefined_type)))
-        (lexical_declaration
-          (variable_declarator
-            name: (identifier)
-            type: (type_annotation
-              (predefined_type))))
-        (interface_declaration
-          name: (type_identifier)
-          body: (interface_body
-            (property_signature
-              name: (property_identifier)
-              type: (type_annotation
-                (predefined_type)))))
-        (interface_declaration
-          name: (type_identifier)
-          body: (interface_body
-            (property_signature
-              name: (property_identifier)
-              type: (type_annotation
-                (predefined_type)))
-            (property_signature
-              name: (property_identifier)
-              type: (type_annotation
-                (predefined_type)))
-            (property_signature
-              name: (property_identifier)
-              type: (type_annotation
-                (predefined_type))))))))
-  (ambient_declaration
-    (class_declaration
-      name: (type_identifier)
-      body: (class_body
-        (method_signature
-          name: (property_identifier)
-          parameters: (formal_parameters
-            (required_parameter
-              pattern: (identifier)
-              type: (type_annotation
-                (predefined_type)))))
-        (public_field_definition
-          name: (property_identifier)
-          type: (type_annotation
-            (predefined_type)))
-        (method_signature
-          name: (property_identifier)
-          parameters: (formal_parameters)
-          return_type: (type_annotation
-            (predefined_type))))))
-  (ambient_declaration
-    (internal_module
-      name: (nested_identifier
-        object: (identifier)
-        property: (property_identifier))
-      body: (statement_block
-        (export_statement
-          declaration: (variable_declaration
-            (variable_declarator
-              name: (identifier)))))))
-  (empty_statement)
-  (ambient_declaration
-    (internal_module
-      name: (identifier)
-      body: (statement_block
-        (break_statement)
-        (continue_statement)
-        (debugger_statement)
-        (do_statement
-          body: (statement_block)
-          condition: (parenthesized_expression
-            (true)))
-        (for_in_statement
-          left: (identifier)
-          right: (null)
-          body: (statement_block))
-        (for_statement
-          initializer: (empty_statement)
-          condition: (empty_statement)
-          body: (statement_block))
-        (if_statement
-          condition: (true)
-          consequence: (statement_block)
-          alternative: (else_clause
-            (statement_block)))
-        (expression_statement
-          (number))
-        (return_statement)
-        (switch_statement
-          value: (parenthesized_expression
-            (identifier))
-          body: (switch_body
-            (switch_case
-              value: (number)
-              body: (break_statement))
-            (switch_default
-              body: (break_statement))))
-        (throw_statement
-          (string
-            (string_fragment)))
-        (try_statement
-          body: (statement_block)
-          handler: (catch_clause
-            parameter: (identifier)
-            body: (statement_block))
-          finalizer: (finally_clause
-            body: (statement_block)))))))
+      (predefined_type))))
 
 ==================================
 Ambient type declarations

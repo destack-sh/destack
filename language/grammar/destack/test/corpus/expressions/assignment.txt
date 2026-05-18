@@ -1,10 +1,10 @@
 ==================================
-Definite assignment assertions
+Typed variable declarations
 :language(destack)
 ==================================
 
-var a!: b;
-let a!: b;
+var a: b;
+let c: d;
 
 ---
 
@@ -95,3 +95,17 @@ using file = open();
       (call_expression
         (identifier)
         (arguments)))))
+
+================================
+Dereference assignment statement
+:language(destack)
+================================
+
+*value = 1;
+
+---
+
+(program
+  (dereference_assignment_statement
+    (identifier)
+    (number)))

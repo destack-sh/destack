@@ -1,101 +1,45 @@
-=================================
-Ambient type alias declarations in namespaces
+==========================
+Module metadata declaration
 :language(destack)
-=================================
+==========================
 
-declare namespace moment {
-  type formatFunction = () => string;
-
-  export var x: string;
-  export class foo {
-
-  }
-  export function utc(): Moment;
-  export const enum Blah { Blaz, Bloz, Bleez }
+module {
+    const role = "server";
+    const labels = {
+        feature: ["search", "billing"],
+    };
 }
+
+import.meta.role satisfies "server";
 
 ---
 
 (program
-  (ambient_declaration
-    (internal_module
-      (identifier)
-      (statement_block
-        (type_alias_declaration
-          (type_identifier)
-          (function_type
-            (formal_parameters)
-            (predefined_type)))
-        (export_statement
-          (variable_declaration
-            (variable_declarator
-              (identifier)
-              (type_annotation
-                (predefined_type)))))
-        (export_statement
-          (class_declaration
-            (type_identifier)
-            (class_body)))
-        (export_statement
-          (function_signature
-            (identifier)
-            (formal_parameters)
-            (type_annotation
-              (type_identifier))))
-        (export_statement
-          (enum_declaration
-            (identifier)
-            (enum_body
-              (property_identifier)
-              (property_identifier)
-              (property_identifier))))))))
-
-=================================
-Export interfaces in namespaces
-:language(destack)
-=================================
-
-declare namespace Foo {
-  export interface Bar {
-  }
-}
-
----
-
-(program
-  (ambient_declaration
-    (internal_module
-      (identifier)
-      (statement_block
-        (export_statement
-          (interface_declaration
-            (type_identifier)
-            (interface_body)))))))
-
-=================================
-Namespaces as internal modules
-:language(destack)
-=================================
-
-namespace Foo {
-}
-
-namespace Bar {
-  var x;
-}
-
----
-
-(program
-  (internal_module
-    (identifier)
-    (statement_block))
-  (internal_module
-    (identifier)
+  (module_declaration
     (statement_block
-      (variable_declaration
+      (lexical_declaration
         (variable_declarator
-          (identifier))))))
+          (identifier)
+          (string
+            (string_fragment))))
+      (lexical_declaration
+        (variable_declarator
+          (identifier)
+          (object
+            (pair
+              (property_identifier)
+              (array
+                (string
+                  (string_fragment))
+                (string
+                  (string_fragment)))))))))
+  (value_satisfies_statement
+    (member_expression
+      (meta_property)
+      (property_identifier))
+    (literal_type
+      (string
+        (string_fragment)))))
 
 ====================================
 Top-level exports
@@ -231,11 +175,11 @@ type Foo = import('node:fs').ReadStream & {
           (formal_parameters))))))
 
 =========================
-Import assert
+Import attributes
 :language(destack)
 =========================
 
-import something from 'foo.css' assert { type: 'css' }
+import something from "./foo.css" with { type: "css" }
 
 ---
 
@@ -251,3 +195,22 @@ import something from 'foo.css' assert { type: 'css' }
           (property_identifier)
           (string
             (string_fragment)))))))
+
+==========================
+Module declaration keyword
+:language(destack)
+==========================
+
+module {
+    const value = 1;
+}
+
+---
+
+(program
+  (module_declaration
+    (statement_block
+      (lexical_declaration
+        (variable_declarator
+          (identifier)
+          (number))))))
