@@ -35,6 +35,13 @@ const string = ready ? "left" : right;
 const template = ready ? `left` : right;
 //                     ^ keyword.operator.ternary.ds
 
+const generic = ready ? build<Result, Error>() : fallback;
+//                    ^ keyword.operator.ternary.ds
+
+const typed = ready ? value satisfies Record<string, number> : fallback;
+//                  ^ keyword.operator.ternary.ds
+//                          ^^^^^^^^^ keyword.operator.type.binary.ds
+
 const nested = ready ? left ? inner : middle : right;
 //                   ^ keyword.operator.ternary.ds
 //                          ^ keyword.operator.ternary.ds

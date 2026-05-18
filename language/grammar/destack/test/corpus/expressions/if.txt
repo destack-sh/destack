@@ -85,6 +85,51 @@ ok ? `left` : right;
       (identifier))))
 
 ==================================
+Ternary expression with generic bodies
+:language(destack)
+==================================
+
+ok ? build<Result, Error>() : fallback;
+ok ? value satisfies Record<string, number> : fallback;
+ok ? value as Record<string, number> : fallback;
+
+---
+
+(program
+  (expression_statement
+    (ternary_expression
+      (identifier)
+      (call_expression
+        (identifier)
+        (type_arguments
+          (type_identifier)
+          (type_identifier))
+        (arguments))
+      (identifier)))
+  (expression_statement
+    (ternary_expression
+      (identifier)
+      (satisfies_expression
+        (identifier)
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (predefined_type)
+            (predefined_type))))
+      (identifier)))
+  (expression_statement
+    (ternary_expression
+      (identifier)
+      (as_expression
+        (identifier)
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (predefined_type)
+            (predefined_type))))
+      (identifier))))
+
+==================================
 Nested ternary expression
 :language(destack)
 ==================================
