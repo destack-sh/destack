@@ -13,12 +13,12 @@ use destack_lsp_server::{Client, LanguageServer, UriExt, jsonrpc};
 use destack_service::{
     FileChange, LanguageService, LanguageServiceError, LanguageServiceMessage,
     LanguageServiceMessageKind as ProtocolMessageKind, LanguageServiceResult, QueryResult,
-    TextChange, TextPosition, TextRange,
+    QueryRevision, TextChange, TextPosition, TextRange,
 };
 use destack_session::{Session, open_repository_from_fs};
 use destack_source::{
-    BatchEdit, File, FileId, FileSystem, FileWatchEvent, FileWatchEventKind, OverlayFileSystem,
-    PhysicalFileSystem, ProfileId, Span, TargetId,
+    BatchEdit, File, FileId, FileSystem, FileWatchEvent, FileWatchEventKind, ModuleId,
+    OverlayFileSystem, PhysicalFileSystem, ProfileId, Span, TargetId,
 };
 use destack_workspace::{HostEnvironment, Repository, Revision};
 use serde::{Deserialize, Serialize};
@@ -30,10 +30,10 @@ use crate::query::assist::{code_lens_to_lsp, inlay_hint_to_lsp};
 use crate::query::common::{byte_span_to_range, position_to_byte, span_to_location};
 use crate::query::diagnostic::{code_action_to_lsp, diagnostic_to_lsp_diagnostic};
 use crate::query::navigation::{
-    call_hierarchy_item_to_lsp, document_highlight_to_lsp, document_link_to_lsp,
-    document_symbol_to_lsp, incoming_call_to_lsp, navigation_target_to_location,
-    navigation_targets_to_locations, outgoing_call_to_lsp, query_call_hierarchy_item_from_lsp,
-    query_type_hierarchy_item_from_lsp, selection_range_to_lsp, type_hierarchy_item_to_lsp,
+    call_hierarchy_item_to_lsp, call_hierarchy_query_item_from_lsp, document_highlight_to_lsp,
+    document_link_to_lsp, document_symbol_to_lsp, incoming_call_to_lsp,
+    navigation_target_to_location, navigation_targets_to_locations, outgoing_call_to_lsp,
+    selection_range_to_lsp, type_hierarchy_item_to_lsp, type_hierarchy_query_item_from_lsp,
     workspace_symbol_to_lsp,
 };
 use crate::query::refactor::batch_edit_to_workspace_edit;
@@ -112,6 +112,20 @@ fn query_range(
         module,
         span: Span::new(file_id, range_start, range_end),
     }
+}
+
+/// File state used by one LSP query request.
+struct QueryFile {
+    /// The local file path.
+    path: PathBuf,
+    /// The exact revision used for the query.
+    revision: Revision,
+    /// The query module.
+    module: query::QueryModule,
+    /// The source file id.
+    file_id: FileId,
+    /// The coherent file contents.
+    file: Arc<File>,
 }
 
 /// Additional information used when resolving completion items.
@@ -486,9 +500,14 @@ impl DestackLanguageServer {
         self.cancelled_progress_tokens.remove(token);
     }
 
-    /// Execute one read query through the language service.
-    fn execute_read_query(&self, path: &Path, request: query::QueryRequest) -> Option<QueryResult> {
-        let result = self.language_service().read_query(path, request);
+    /// Execute one query through the language service.
+    fn execute_query(
+        &self,
+        path: &Path,
+        request: query::QueryRequest,
+        revision: QueryRevision,
+    ) -> Option<QueryResult> {
+        let result = self.language_service().query(path, request, revision);
 
         match result {
             Ok(response) => Some(response),
@@ -499,20 +518,18 @@ impl DestackLanguageServer {
         }
     }
 
-    /// Return the selected query profile for one request path.
-    fn selected_query_profile(&self, path: &Path) -> Option<ProfileId> {
+    /// Return the selected query profile for one exact revision.
+    fn query_profile(
+        &self,
+        path: &Path,
+        revision: Revision,
+        module_id: Option<ModuleId>,
+    ) -> Option<ProfileId> {
         let target_name = self.query_target()?;
-        let root = self.language_service().root_at(path).ok()?;
-        let revision = self.revision_at(&root)?;
         let repository = self.repository();
-        let file_id = repository.file_id(path);
 
         // prefer the module package when the file is tracked
-        let package_id = if let Some(module_id) = repository
-            .module_id_for_file(revision, file_id)
-            .ok()
-            .flatten()
-        {
+        let package_id = if let Some(module_id) = module_id {
             repository
                 .module(revision, module_id)
                 .ok()
@@ -535,69 +552,35 @@ impl DestackLanguageServer {
         Some(profile.id())
     }
 
-    /// Execute one write query through the language service.
-    fn execute_write_query(
-        &self,
-        path: &Path,
-        expected_revision: Revision,
-        request: query::QueryRequest,
-    ) -> Option<QueryResult> {
-        let result = self
-            .language_service()
-            .write_query(path, expected_revision, request);
-
-        match result {
-            Ok(response) => Some(response),
-            Err(error) => {
-                tracing::debug!(?error, path = ?path, "lsp.query.failed");
-                None
-            }
-        }
-    }
-
-    /// Execute one query through the service for an lsp uri.
-    async fn read_query_for_uri(
-        &self,
-        uri: &lsp::Uri,
-        request: query::QueryRequest,
-    ) -> Option<QueryResult> {
+    /// Return the exact file state for one LSP query uri.
+    fn query_file_for_uri(&self, uri: &lsp::Uri) -> Option<QueryFile> {
         let path = uri.to_file_path().map(|path| path.into_owned())?;
+        let view = self.language_service().file_view(&path).ok()?;
+        let repository = view.repository();
+        let revision = view.revision();
+        let file_id = view.file_id;
+        let module_id = repository
+            .module_id_for_file(revision, file_id)
+            .ok()
+            .flatten()?;
+        let profile_id = self.query_profile(&path, revision, Some(module_id))?;
+        let module = query::QueryModule {
+            module_id,
+            profile_id,
+        };
 
-        self.execute_read_query(&path, request)
+        Some(QueryFile {
+            path,
+            revision,
+            module,
+            file_id,
+            file: Arc::clone(&view.file),
+        })
     }
 
-    /// Execute one query through the service using the root.
-    async fn read_query_for_root(&self, request: query::QueryRequest) -> Option<QueryResult> {
-        let root = self.repository().workspace_root().to_path_buf();
-
-        self.execute_read_query(&root, request)
-    }
-
-    /// Execute one coherent file-backed read query for an lsp uri.
-    async fn read_file_query_for_uri<F>(
-        &self,
-        uri: &lsp::Uri,
-        build_request: F,
-    ) -> Option<(FileId, Arc<File>, QueryResult)>
-    where
-        F: FnOnce(query::QueryModule, FileId, &File) -> Option<query::QueryRequest>,
-    {
-        let path = uri.to_file_path().map(|path| path.into_owned())?;
-        let profile_id = self.selected_query_profile(&path)?;
-        let result =
-            self.language_service()
-                .read_file_query(&path, profile_id, |module, file_id, file| {
-                    Ok(build_request(module, file_id, file))
-                });
-
-        match result {
-            Ok(Some(result)) => Some(result),
-            Ok(None) => None,
-            Err(error) => {
-                tracing::debug!(?error, path = ?path, "lsp.query.failed");
-                None
-            }
-        }
+    /// Execute one query against an exact file revision.
+    fn query_file(&self, file: &QueryFile, request: query::QueryRequest) -> Option<QueryResult> {
+        self.execute_query(&file.path, request, QueryRevision::Exact(file.revision))
     }
 
     /// Resolve the current semantic revision for the root that owns a path.
@@ -1508,14 +1491,18 @@ impl LanguageServer for DestackLanguageServer {
         };
 
         // build workspace edits for import specifiers
-        let Some(profile_id) = self.selected_query_profile(&query_root) else {
+        let Some(profile_id) = self.query_profile(&query_root, expected_revision, None) else {
             return Ok(None);
         };
         let request = query::QueryRequest::RenameFiles(query::RenameFilesRequest {
             profile_ids: vec![profile_id],
             renames,
         });
-        let response = self.execute_write_query(&query_root, expected_revision, request);
+        let response = self.execute_query(
+            &query_root,
+            request,
+            QueryRevision::Current(expected_revision),
+        );
         let Some(response) = response else {
             return Ok(None);
         };
@@ -1983,18 +1970,19 @@ impl LanguageServer for DestackLanguageServer {
     ) -> jsonrpc::Result<Option<lsp::GotoDefinitionResponse>> {
         let repository = self.repository();
         let uri = &params.text_document_position_params.text_document.uri;
-        let Some((_, _, response)) = self
-            .read_file_query_for_uri(uri, |module, file_id, file| {
-                let offset =
-                    position_to_byte(file, &params.text_document_position_params.position)?;
-                let position = query_position(module, file_id, offset);
-
-                Some(query::QueryRequest::GotoDefinition(
-                    query::GotoDefinitionRequest { position },
-                ))
-            })
-            .await
-        else {
+        let Some(query_file) = self.query_file_for_uri(uri) else {
+            return Ok(None);
+        };
+        let Some(offset) = position_to_byte(
+            &query_file.file,
+            &params.text_document_position_params.position,
+        ) else {
+            return Ok(None);
+        };
+        let position = query_position(query_file.module, query_file.file_id, offset);
+        let request =
+            query::QueryRequest::GotoDefinition(query::GotoDefinitionRequest { position });
+        let Some(response) = self.query_file(&query_file, request) else {
             return Ok(None);
         };
         let revision = response.revision;
@@ -2016,18 +2004,19 @@ impl LanguageServer for DestackLanguageServer {
     ) -> jsonrpc::Result<Option<lsp::request::GotoDeclarationResponse>> {
         let repository = self.repository();
         let uri = &params.text_document_position_params.text_document.uri;
-        let Some((_, _, response)) = self
-            .read_file_query_for_uri(uri, |module, file_id, file| {
-                let offset =
-                    position_to_byte(file, &params.text_document_position_params.position)?;
-                let position = query_position(module, file_id, offset);
-
-                Some(query::QueryRequest::GotoDeclaration(
-                    query::GotoDeclarationRequest { position },
-                ))
-            })
-            .await
-        else {
+        let Some(query_file) = self.query_file_for_uri(uri) else {
+            return Ok(None);
+        };
+        let Some(offset) = position_to_byte(
+            &query_file.file,
+            &params.text_document_position_params.position,
+        ) else {
+            return Ok(None);
+        };
+        let position = query_position(query_file.module, query_file.file_id, offset);
+        let request =
+            query::QueryRequest::GotoDeclaration(query::GotoDeclarationRequest { position });
+        let Some(response) = self.query_file(&query_file, request) else {
             return Ok(None);
         };
         let revision = response.revision;
@@ -2048,18 +2037,19 @@ impl LanguageServer for DestackLanguageServer {
     ) -> jsonrpc::Result<Option<lsp::request::GotoTypeDefinitionResponse>> {
         let repository = self.repository();
         let uri = &params.text_document_position_params.text_document.uri;
-        let Some((_, _, response)) = self
-            .read_file_query_for_uri(uri, |module, file_id, file| {
-                let offset =
-                    position_to_byte(file, &params.text_document_position_params.position)?;
-                let position = query_position(module, file_id, offset);
-
-                Some(query::QueryRequest::GotoTypeDefinition(
-                    query::GotoTypeDefinitionRequest { position },
-                ))
-            })
-            .await
-        else {
+        let Some(query_file) = self.query_file_for_uri(uri) else {
+            return Ok(None);
+        };
+        let Some(offset) = position_to_byte(
+            &query_file.file,
+            &params.text_document_position_params.position,
+        ) else {
+            return Ok(None);
+        };
+        let position = query_position(query_file.module, query_file.file_id, offset);
+        let request =
+            query::QueryRequest::GotoTypeDefinition(query::GotoTypeDefinitionRequest { position });
+        let Some(response) = self.query_file(&query_file, request) else {
             return Ok(None);
         };
         let revision = response.revision;
@@ -2080,20 +2070,20 @@ impl LanguageServer for DestackLanguageServer {
     ) -> jsonrpc::Result<Option<Vec<lsp::Location>>> {
         let repository = self.repository();
         let uri = &params.text_document_position.text_document.uri;
-        let Some((_, _, response)) = self
-            .read_file_query_for_uri(uri, |module, file_id, file| {
-                let offset = position_to_byte(file, &params.text_document_position.position)?;
-                let position = query_position(module, file_id, offset);
-
-                Some(query::QueryRequest::FindReferences(
-                    query::FindReferencesRequest {
-                        position,
-                        include_declaration: params.context.include_declaration,
-                    },
-                ))
-            })
-            .await
+        let Some(query_file) = self.query_file_for_uri(uri) else {
+            return Ok(None);
+        };
+        let Some(offset) =
+            position_to_byte(&query_file.file, &params.text_document_position.position)
         else {
+            return Ok(None);
+        };
+        let position = query_position(query_file.module, query_file.file_id, offset);
+        let request = query::QueryRequest::FindReferences(query::FindReferencesRequest {
+            position,
+            include_declaration: params.context.include_declaration,
+        });
+        let Some(response) = self.query_file(&query_file, request) else {
             return Ok(None);
         };
         let revision = response.revision;
@@ -2173,14 +2163,13 @@ impl LanguageServer for DestackLanguageServer {
         &self,
         params: lsp::DocumentSymbolParams,
     ) -> jsonrpc::Result<Option<lsp::DocumentSymbolResponse>> {
-        let Some((_, file, response)) = self
-            .read_file_query_for_uri(&params.text_document.uri, |module, _, _| {
-                Some(query::QueryRequest::DocumentSymbols(
-                    query::DocumentSymbolsRequest { module },
-                ))
-            })
-            .await
-        else {
+        let Some(query_file) = self.query_file_for_uri(&params.text_document.uri) else {
+            return Ok(None);
+        };
+        let request = query::QueryRequest::DocumentSymbols(query::DocumentSymbolsRequest {
+            module: query_file.module,
+        });
+        let Some(response) = self.query_file(&query_file, request) else {
             return Ok(None);
         };
         let query::QueryResponse::DocumentSymbols(response) = response.response else {
@@ -2205,7 +2194,7 @@ impl LanguageServer for DestackLanguageServer {
         let mut partial_symbols = Vec::new();
         let mut processed = 0usize;
         for symbol in symbols.iter() {
-            let Some(lsp_symbol) = document_symbol_to_lsp(&file, symbol) else {
+            let Some(lsp_symbol) = document_symbol_to_lsp(&query_file.file, symbol) else {
                 continue;
             };
             if let Some(token) = partial_token.as_ref() {
@@ -2262,7 +2251,10 @@ impl LanguageServer for DestackLanguageServer {
 
         // query workspace symbols
         let root = self.repository().workspace_root();
-        let Some(profile_id) = self.selected_query_profile(root) else {
+        let Some(revision) = self.revision_at(root) else {
+            return Ok(None);
+        };
+        let Some(profile_id) = self.query_profile(root, revision, None) else {
             return Ok(None);
         };
         let request = query::QueryRequest::WorkspaceSymbols(query::WorkspaceSymbolsRequest {
@@ -2270,7 +2262,8 @@ impl LanguageServer for DestackLanguageServer {
             profile_ids: vec![profile_id],
             max_results: 100,
         });
-        let Some(response) = self.read_query_for_root(request).await else {
+        let Some(response) = self.execute_query(root, request, QueryRevision::Exact(revision))
+        else {
             return Ok(None);
         };
         let revision = response.revision;
@@ -2346,18 +2339,19 @@ impl LanguageServer for DestackLanguageServer {
         params: lsp::DocumentHighlightParams,
     ) -> jsonrpc::Result<Option<Vec<lsp::DocumentHighlight>>> {
         let uri = &params.text_document_position_params.text_document.uri;
-        let Some((_, file, response)) = self
-            .read_file_query_for_uri(uri, |module, file_id, file| {
-                let offset =
-                    position_to_byte(file, &params.text_document_position_params.position)?;
-                let position = query_position(module, file_id, offset);
-
-                Some(query::QueryRequest::DocumentHighlight(
-                    query::DocumentHighlightRequest { position },
-                ))
-            })
-            .await
-        else {
+        let Some(query_file) = self.query_file_for_uri(uri) else {
+            return Ok(None);
+        };
+        let Some(offset) = position_to_byte(
+            &query_file.file,
+            &params.text_document_position_params.position,
+        ) else {
+            return Ok(None);
+        };
+        let position = query_position(query_file.module, query_file.file_id, offset);
+        let request =
+            query::QueryRequest::DocumentHighlight(query::DocumentHighlightRequest { position });
+        let Some(response) = self.query_file(&query_file, request) else {
             return Ok(None);
         };
         let query::QueryResponse::DocumentHighlight(response) = response.response else {
@@ -2382,7 +2376,7 @@ impl LanguageServer for DestackLanguageServer {
         let mut partial_highlights = Vec::new();
         let mut processed = 0usize;
         for highlight in highlights.iter() {
-            let Some(lsp_highlight) = document_highlight_to_lsp(&file, highlight) else {
+            let Some(lsp_highlight) = document_highlight_to_lsp(&query_file.file, highlight) else {
                 continue;
             };
             if let Some(token) = partial_token.as_ref() {
@@ -2436,16 +2430,18 @@ impl LanguageServer for DestackLanguageServer {
 
     async fn hover(&self, params: lsp::HoverParams) -> jsonrpc::Result<Option<lsp::Hover>> {
         let uri = &params.text_document_position_params.text_document.uri;
-        let Some((_, file, response)) = self
-            .read_file_query_for_uri(uri, |module, file_id, file| {
-                let offset =
-                    position_to_byte(file, &params.text_document_position_params.position)?;
-                let position = query_position(module, file_id, offset);
-
-                Some(query::QueryRequest::Hover(query::HoverRequest { position }))
-            })
-            .await
-        else {
+        let Some(query_file) = self.query_file_for_uri(uri) else {
+            return Ok(None);
+        };
+        let Some(offset) = position_to_byte(
+            &query_file.file,
+            &params.text_document_position_params.position,
+        ) else {
+            return Ok(None);
+        };
+        let position = query_position(query_file.module, query_file.file_id, offset);
+        let request = query::QueryRequest::Hover(query::HoverRequest { position });
+        let Some(response) = self.query_file(&query_file, request) else {
             return Ok(None);
         };
         let query::QueryResponse::Hover(response) = response.response else {
@@ -2455,7 +2451,9 @@ impl LanguageServer for DestackLanguageServer {
             return Ok(None);
         };
 
-        let range = hover_info.range.map(|span| byte_span_to_range(&file, span));
+        let range = hover_info
+            .range
+            .map(|span| byte_span_to_range(&query_file.file, span));
 
         Ok(Some(lsp::Hover {
             contents: lsp::HoverContents::Markup(lsp::MarkupContent {
@@ -2488,19 +2486,21 @@ impl LanguageServer for DestackLanguageServer {
         };
 
         let uri = &params.text_document_position.text_document.uri;
-        let Some((file_id, file, response)) = self
-            .read_file_query_for_uri(uri, |module, file_id, file| {
-                let offset = position_to_byte(file, &params.text_document_position.position)?;
-                let position = query_position(module, file_id, offset);
-
-                Some(query::QueryRequest::Completion(query::CompletionRequest {
-                    position,
-                    trigger,
-                    include_imports: true,
-                }))
-            })
-            .await
+        let Some(query_file) = self.query_file_for_uri(uri) else {
+            return Ok(None);
+        };
+        let Some(offset) =
+            position_to_byte(&query_file.file, &params.text_document_position.position)
         else {
+            return Ok(None);
+        };
+        let position = query_position(query_file.module, query_file.file_id, offset);
+        let request = query::QueryRequest::Completion(query::CompletionRequest {
+            position,
+            trigger,
+            include_imports: true,
+        });
+        let Some(response) = self.query_file(&query_file, request) else {
             return Ok(None);
         };
         let query::QueryResponse::Completion(response) = response.response else {
@@ -2540,12 +2540,12 @@ impl LanguageServer for DestackLanguageServer {
                         c.additional_text_edits
                             .iter()
                             .filter_map(|edit| {
-                                // for now, only handle edits to the same file
-                                if edit.span.file != file_id {
+                                // keep same file completion edits
+                                if edit.span.file != query_file.file_id {
                                     return None;
                                 }
                                 Some(lsp::TextEdit {
-                                    range: byte_span_to_range(&file, edit.span),
+                                    range: byte_span_to_range(&query_file.file, edit.span),
                                     new_text: edit.new_text.clone(),
                                 })
                             })
@@ -2652,18 +2652,18 @@ impl LanguageServer for DestackLanguageServer {
         params: lsp::SignatureHelpParams,
     ) -> jsonrpc::Result<Option<lsp::SignatureHelp>> {
         let uri = &params.text_document_position_params.text_document.uri;
-        let Some((_, _, response)) = self
-            .read_file_query_for_uri(uri, |module, file_id, file| {
-                let offset =
-                    position_to_byte(file, &params.text_document_position_params.position)?;
-                let position = query_position(module, file_id, offset);
-
-                Some(query::QueryRequest::SignatureHelp(
-                    query::SignatureHelpRequest { position },
-                ))
-            })
-            .await
-        else {
+        let Some(query_file) = self.query_file_for_uri(uri) else {
+            return Ok(None);
+        };
+        let Some(offset) = position_to_byte(
+            &query_file.file,
+            &params.text_document_position_params.position,
+        ) else {
+            return Ok(None);
+        };
+        let position = query_position(query_file.module, query_file.file_id, offset);
+        let request = query::QueryRequest::SignatureHelp(query::SignatureHelpRequest { position });
+        let Some(response) = self.query_file(&query_file, request) else {
             return Ok(None);
         };
         let query::QueryResponse::SignatureHelp(response) = response.response else {
@@ -2720,14 +2720,13 @@ impl LanguageServer for DestackLanguageServer {
         params: lsp::SemanticTokensParams,
     ) -> jsonrpc::Result<Option<lsp::SemanticTokensResult>> {
         let uri_str = params.text_document.uri.to_string();
-        let Some((_, file, response)) = self
-            .read_file_query_for_uri(&params.text_document.uri, |module, _, _| {
-                Some(query::QueryRequest::SemanticTokens(
-                    query::SemanticTokensRequest { module },
-                ))
-            })
-            .await
-        else {
+        let Some(query_file) = self.query_file_for_uri(&params.text_document.uri) else {
+            return Ok(None);
+        };
+        let request = query::QueryRequest::SemanticTokens(query::SemanticTokensRequest {
+            module: query_file.module,
+        });
+        let Some(response) = self.query_file(&query_file, request) else {
             return Ok(None);
         };
         let query::QueryResponse::SemanticTokens(response) = response.response else {
@@ -2736,7 +2735,7 @@ impl LanguageServer for DestackLanguageServer {
         let tokens = response.tokens;
 
         // convert to LSP
-        let lsp_tokens = semantic::tokens_to_lsp(&file, &tokens);
+        let lsp_tokens = semantic::tokens_to_lsp(&query_file.file, &tokens);
         let tokens_hash = Self::semantic_tokens_hash(&lsp_tokens);
         let mut result_id = self.next_semantic_tokens_result_id();
         if let Some(cache) = self.semantic_tokens_cache.get(&uri_str)
@@ -2766,14 +2765,13 @@ impl LanguageServer for DestackLanguageServer {
         params: lsp::SemanticTokensDeltaParams,
     ) -> jsonrpc::Result<Option<lsp::SemanticTokensFullDeltaResult>> {
         let uri_str = params.text_document.uri.to_string();
-        let Some((_, file, response)) = self
-            .read_file_query_for_uri(&params.text_document.uri, |module, _, _| {
-                Some(query::QueryRequest::SemanticTokens(
-                    query::SemanticTokensRequest { module },
-                ))
-            })
-            .await
-        else {
+        let Some(query_file) = self.query_file_for_uri(&params.text_document.uri) else {
+            return Ok(None);
+        };
+        let request = query::QueryRequest::SemanticTokens(query::SemanticTokensRequest {
+            module: query_file.module,
+        });
+        let Some(response) = self.query_file(&query_file, request) else {
             return Ok(None);
         };
         let query::QueryResponse::SemanticTokens(response) = response.response else {
@@ -2782,7 +2780,7 @@ impl LanguageServer for DestackLanguageServer {
         let tokens = response.tokens;
 
         // convert to LSP
-        let lsp_tokens = semantic::tokens_to_lsp(&file, &tokens);
+        let lsp_tokens = semantic::tokens_to_lsp(&query_file.file, &tokens);
         let tokens_hash = Self::semantic_tokens_hash(&lsp_tokens);
 
         let mut result_id = self.next_semantic_tokens_result_id();
@@ -2827,18 +2825,19 @@ impl LanguageServer for DestackLanguageServer {
         &self,
         params: lsp::SemanticTokensRangeParams,
     ) -> jsonrpc::Result<Option<lsp::SemanticTokensRangeResult>> {
-        let Some((_, file, response)) = self
-            .read_file_query_for_uri(&params.text_document.uri, |module, file_id, file| {
-                let start = position_to_byte(file, &params.range.start)?;
-                let end = position_to_byte(file, &params.range.end)?;
-                let range = query_range(module, file_id, start, end);
-
-                Some(query::QueryRequest::SemanticTokensRange(
-                    query::SemanticTokensRangeRequest { range },
-                ))
-            })
-            .await
-        else {
+        let Some(query_file) = self.query_file_for_uri(&params.text_document.uri) else {
+            return Ok(None);
+        };
+        let Some(start) = position_to_byte(&query_file.file, &params.range.start) else {
+            return Ok(None);
+        };
+        let Some(end) = position_to_byte(&query_file.file, &params.range.end) else {
+            return Ok(None);
+        };
+        let range = query_range(query_file.module, query_file.file_id, start, end);
+        let request =
+            query::QueryRequest::SemanticTokensRange(query::SemanticTokensRangeRequest { range });
+        let Some(response) = self.query_file(&query_file, request) else {
             return Ok(None);
         };
         let query::QueryResponse::SemanticTokensRange(response) = response.response else {
@@ -2847,7 +2846,7 @@ impl LanguageServer for DestackLanguageServer {
         let tokens = response.tokens;
 
         // convert to LSP
-        let lsp_tokens = semantic::tokens_to_lsp(&file, &tokens);
+        let lsp_tokens = semantic::tokens_to_lsp(&query_file.file, &tokens);
 
         Ok(Some(lsp::SemanticTokensRangeResult::Tokens(
             lsp::SemanticTokens {
@@ -2879,14 +2878,13 @@ impl LanguageServer for DestackLanguageServer {
         }
 
         // query for folding ranges
-        let Some((_, _, response)) = self
-            .read_file_query_for_uri(&params.text_document.uri, |module, _, _| {
-                Some(query::QueryRequest::FoldingRanges(
-                    query::FoldingRangesRequest { module },
-                ))
-            })
-            .await
-        else {
+        let Some(query_file) = self.query_file_for_uri(&params.text_document.uri) else {
+            return Ok(None);
+        };
+        let request = query::QueryRequest::FoldingRanges(query::FoldingRangesRequest {
+            module: query_file.module,
+        });
+        let Some(response) = self.query_file(&query_file, request) else {
             return Ok(None);
         };
         let query::QueryResponse::FoldingRanges(response) = response.response else {
@@ -2976,7 +2974,6 @@ impl LanguageServer for DestackLanguageServer {
         &self,
         params: lsp::DocumentFormattingParams,
     ) -> jsonrpc::Result<Option<Vec<lsp::TextEdit>>> {
-        let repository = self.repository().clone();
         let Some(path) = params
             .text_document
             .uri
@@ -2988,14 +2985,18 @@ impl LanguageServer for DestackLanguageServer {
         let path_for_query = path.clone();
         let result = self
             .run_service(move |service| {
-                service.read_file(&path_for_query, |_repository, file_id, file, revision| {
-                    let formatter = super::file::formatting_options_for_path(
-                        repository.as_ref(),
-                        revision,
-                        &path,
-                    );
+                let file_view = service.file_view(&path_for_query)?;
+                let repository = file_view.repository();
+                let revision = file_view.revision();
+                let file_id = file_view.file_id;
+                let file = file_view.file.clone();
+
+                // format the exact file view
+                {
+                    let formatter =
+                        super::file::formatting_options_for_path(repository, revision, &path);
                     let Some(formatted) =
-                        format_file(repository.as_ref(), revision, file_id, &file, formatter)
+                        format_file(repository, revision, file_id, &file, formatter)
                     else {
                         return Err(LanguageServiceError::Internal {
                             detail: format!("formatting failed for {}", path.display()),
@@ -3003,7 +3004,7 @@ impl LanguageServer for DestackLanguageServer {
                     };
 
                     Ok((formatted, file))
-                })
+                }
             })
             .await;
         let Ok((formatted, file)) = result else {
@@ -3048,20 +3049,26 @@ impl LanguageServer for DestackLanguageServer {
         let path_for_query = path.clone();
         let result = self
             .run_service(move |service| {
-                service.read_file(&path_for_query, |repository, _file_id, file, revision| {
+                let file_view = service.file_view(&path_for_query)?;
+                let repository = file_view.repository();
+                let revision = file_view.revision();
+                let file = file_view.file.clone();
+
+                // format the exact file range
+                {
                     let formatter =
                         super::file::formatting_options_for_path(repository, revision, &path);
                     let Some(start_offset) = position_to_byte(&file, &params.range.start) else {
                         return Err(LanguageServiceError::Internal {
                             detail:
-                                "range formatting start position is outside the coherent file snapshot"
+                                "range formatting start position is outside the coherent file view"
                                     .to_string(),
                         });
                     };
                     let Some(end_offset) = position_to_byte(&file, &params.range.end) else {
                         return Err(LanguageServiceError::Internal {
                             detail:
-                                "range formatting end position is outside the coherent file snapshot"
+                                "range formatting end position is outside the coherent file view"
                                     .to_string(),
                         });
                     };
@@ -3074,7 +3081,7 @@ impl LanguageServer for DestackLanguageServer {
                     };
 
                     Ok((formatted, edit_range, file))
-                })
+                }
             })
             .await;
         let Ok((formatted, edit_range, file)) = result else {
@@ -3106,16 +3113,21 @@ impl LanguageServer for DestackLanguageServer {
         let path_for_query = path.clone();
         let result = self
             .run_service(move |service| {
-                service.read_file(&path_for_query, |repository, _file_id, file, revision| {
+                let file_view = service.file_view(&path_for_query)?;
+                let repository = file_view.repository();
+                let revision = file_view.revision();
+                let file = file_view.file.clone();
+
+                // format the exact trigger position
+                {
                     let formatter =
                         super::file::formatting_options_for_path(repository, revision, &path);
                     let Some(end_offset) =
                         position_to_byte(&file, &params.text_document_position.position)
                     else {
                         return Err(LanguageServiceError::Internal {
-                            detail:
-                                "on-type formatting position is outside the coherent file snapshot"
-                                    .to_string(),
+                            detail: "on-type formatting position is outside the coherent file view"
+                                .to_string(),
                         });
                     };
                     let trigger_width = params.ch.len() as u32;
@@ -3129,7 +3141,7 @@ impl LanguageServer for DestackLanguageServer {
                     };
 
                     Ok((formatted, edit_range, file))
-                })
+                }
             })
             .await;
         let Ok((formatted, edit_range, file)) = result else {
@@ -3153,23 +3165,19 @@ impl LanguageServer for DestackLanguageServer {
         &self,
         params: lsp::SelectionRangeParams,
     ) -> jsonrpc::Result<Option<Vec<lsp::SelectionRange>>> {
-        let Some((_, file, response)) = self
-            .read_file_query_for_uri(&params.text_document.uri, |module, _, file| {
-                let positions: Vec<u32> = params
-                    .positions
-                    .iter()
-                    .filter_map(|position| position_to_byte(file, position))
-                    .collect();
-
-                Some(query::QueryRequest::SelectionRanges(
-                    query::SelectionRangesRequest {
-                        module,
-                        offsets: positions,
-                    },
-                ))
-            })
-            .await
-        else {
+        let Some(query_file) = self.query_file_for_uri(&params.text_document.uri) else {
+            return Ok(None);
+        };
+        let positions: Vec<u32> = params
+            .positions
+            .iter()
+            .filter_map(|position| position_to_byte(&query_file.file, position))
+            .collect();
+        let request = query::QueryRequest::SelectionRanges(query::SelectionRangesRequest {
+            module: query_file.module,
+            offsets: positions,
+        });
+        let Some(response) = self.query_file(&query_file, request) else {
             return Ok(None);
         };
         let query::QueryResponse::SelectionRanges(response) = response.response else {
@@ -3191,7 +3199,7 @@ impl LanguageServer for DestackLanguageServer {
         let mut partial_ranges = Vec::new();
         let mut processed = 0usize;
         for range in ranges {
-            let lsp_range = selection_range_to_lsp(&file, range);
+            let lsp_range = selection_range_to_lsp(&query_file.file, range);
             if let Some(token) = partial_token.as_ref() {
                 partial_ranges.push(lsp_range.clone());
                 if partial_ranges.len() >= PARTIAL_RESULT_CHUNK_SIZE {
@@ -3238,18 +3246,19 @@ impl LanguageServer for DestackLanguageServer {
     ) -> jsonrpc::Result<Option<lsp::request::GotoImplementationResponse>> {
         let repository = self.repository();
         let uri = &params.text_document_position_params.text_document.uri;
-        let Some((_, _, response)) = self
-            .read_file_query_for_uri(uri, |module, file_id, file| {
-                let offset =
-                    position_to_byte(file, &params.text_document_position_params.position)?;
-                let position = query_position(module, file_id, offset);
-
-                Some(query::QueryRequest::GotoImplementation(
-                    query::GotoImplementationRequest { position },
-                ))
-            })
-            .await
-        else {
+        let Some(query_file) = self.query_file_for_uri(uri) else {
+            return Ok(None);
+        };
+        let Some(offset) = position_to_byte(
+            &query_file.file,
+            &params.text_document_position_params.position,
+        ) else {
+            return Ok(None);
+        };
+        let position = query_position(query_file.module, query_file.file_id, offset);
+        let request =
+            query::QueryRequest::GotoImplementation(query::GotoImplementationRequest { position });
+        let Some(response) = self.query_file(&query_file, request) else {
             return Ok(None);
         };
         let revision = response.revision;
@@ -3274,14 +3283,13 @@ impl LanguageServer for DestackLanguageServer {
         &self,
         params: lsp::DocumentLinkParams,
     ) -> jsonrpc::Result<Option<Vec<lsp::DocumentLink>>> {
-        let Some((_, file, response)) = self
-            .read_file_query_for_uri(&params.text_document.uri, |module, _, _| {
-                Some(query::QueryRequest::DocumentLinks(
-                    query::DocumentLinksRequest { module },
-                ))
-            })
-            .await
-        else {
+        let Some(query_file) = self.query_file_for_uri(&params.text_document.uri) else {
+            return Ok(None);
+        };
+        let request = query::QueryRequest::DocumentLinks(query::DocumentLinksRequest {
+            module: query_file.module,
+        });
+        let Some(response) = self.query_file(&query_file, request) else {
             return Ok(None);
         };
         let query::QueryResponse::DocumentLinks(response) = response.response else {
@@ -3306,7 +3314,7 @@ impl LanguageServer for DestackLanguageServer {
         let mut partial_links = Vec::new();
         let mut processed = 0usize;
         for link in links.iter() {
-            let Some(lsp_link) = document_link_to_lsp(&file, link) else {
+            let Some(lsp_link) = document_link_to_lsp(&query_file.file, link) else {
                 continue;
             };
             if let Some(token) = partial_token.as_ref() {
@@ -3379,18 +3387,19 @@ impl LanguageServer for DestackLanguageServer {
             return Ok(None);
         }
 
-        let Some((_, _, response)) = self
-            .read_file_query_for_uri(&params.text_document.uri, |module, file_id, file| {
-                let start = position_to_byte(file, &params.range.start)?;
-                let end = position_to_byte(file, &params.range.end)?;
-                let range = query_range(module, file_id, start, end);
-
-                Some(query::QueryRequest::CodeActions(
-                    query::CodeActionsRequest { range, context },
-                ))
-            })
-            .await
-        else {
+        let Some(query_file) = self.query_file_for_uri(&params.text_document.uri) else {
+            return Ok(None);
+        };
+        let Some(start) = position_to_byte(&query_file.file, &params.range.start) else {
+            return Ok(None);
+        };
+        let Some(end) = position_to_byte(&query_file.file, &params.range.end) else {
+            return Ok(None);
+        };
+        let range = query_range(query_file.module, query_file.file_id, start, end);
+        let request =
+            query::QueryRequest::CodeActions(query::CodeActionsRequest { range, context });
+        let Some(response) = self.query_file(&query_file, request) else {
             return Ok(None);
         };
         let revision = response.revision;
@@ -3532,14 +3541,13 @@ impl LanguageServer for DestackLanguageServer {
         &self,
         params: lsp::CodeLensParams,
     ) -> jsonrpc::Result<Option<Vec<lsp::CodeLens>>> {
-        let Some((_, file, response)) = self
-            .read_file_query_for_uri(&params.text_document.uri, |module, _, _| {
-                Some(query::QueryRequest::CodeLenses(query::CodeLensesRequest {
-                    module,
-                }))
-            })
-            .await
-        else {
+        let Some(query_file) = self.query_file_for_uri(&params.text_document.uri) else {
+            return Ok(None);
+        };
+        let request = query::QueryRequest::CodeLenses(query::CodeLensesRequest {
+            module: query_file.module,
+        });
+        let Some(response) = self.query_file(&query_file, request) else {
             return Ok(None);
         };
         let query::QueryResponse::CodeLenses(response) = response.response else {
@@ -3561,7 +3569,7 @@ impl LanguageServer for DestackLanguageServer {
         let mut partial_lenses = Vec::new();
         let mut processed = 0usize;
         for lens in lenses.iter() {
-            let lsp_lens = code_lens_to_lsp(&file, lens);
+            let lsp_lens = code_lens_to_lsp(&query_file.file, lens);
             if let Some(token) = partial_token.as_ref() {
                 partial_lenses.push(lsp_lens.clone());
                 if partial_lenses.len() >= PARTIAL_RESULT_CHUNK_SIZE {
@@ -3611,18 +3619,18 @@ impl LanguageServer for DestackLanguageServer {
         &self,
         params: lsp::InlayHintParams,
     ) -> jsonrpc::Result<Option<Vec<lsp::InlayHint>>> {
-        let Some((_, file, response)) = self
-            .read_file_query_for_uri(&params.text_document.uri, |module, file_id, file| {
-                let start = position_to_byte(file, &params.range.start)?;
-                let end = position_to_byte(file, &params.range.end)?;
-                let range = query_range(module, file_id, start, end);
-
-                Some(query::QueryRequest::InlayHints(query::InlayHintsRequest {
-                    range,
-                }))
-            })
-            .await
-        else {
+        let Some(query_file) = self.query_file_for_uri(&params.text_document.uri) else {
+            return Ok(None);
+        };
+        let Some(start) = position_to_byte(&query_file.file, &params.range.start) else {
+            return Ok(None);
+        };
+        let Some(end) = position_to_byte(&query_file.file, &params.range.end) else {
+            return Ok(None);
+        };
+        let range = query_range(query_file.module, query_file.file_id, start, end);
+        let request = query::QueryRequest::InlayHints(query::InlayHintsRequest { range });
+        let Some(response) = self.query_file(&query_file, request) else {
             return Ok(None);
         };
         let query::QueryResponse::InlayHints(response) = response.response else {
@@ -3639,7 +3647,7 @@ impl LanguageServer for DestackLanguageServer {
                 query::InlayHintKind::Parameter => parameter_hints_enabled,
                 query::InlayHintKind::Type => type_hints_enabled,
             })
-            .filter_map(|h| inlay_hint_to_lsp(&file, h))
+            .filter_map(|h| inlay_hint_to_lsp(&query_file.file, h))
             .collect();
 
         Ok(Some(lsp_hints))
@@ -3653,17 +3661,15 @@ impl LanguageServer for DestackLanguageServer {
         &self,
         params: lsp::TextDocumentPositionParams,
     ) -> jsonrpc::Result<Option<lsp::PrepareRenameResponse>> {
-        let Some((_, file, response)) = self
-            .read_file_query_for_uri(&params.text_document.uri, |module, file_id, file| {
-                let offset = position_to_byte(file, &params.position)?;
-                let position = query_position(module, file_id, offset);
-
-                Some(query::QueryRequest::RenameTarget(
-                    query::RenameTargetRequest { position },
-                ))
-            })
-            .await
-        else {
+        let Some(query_file) = self.query_file_for_uri(&params.text_document.uri) else {
+            return Ok(None);
+        };
+        let Some(offset) = position_to_byte(&query_file.file, &params.position) else {
+            return Ok(None);
+        };
+        let position = query_position(query_file.module, query_file.file_id, offset);
+        let request = query::QueryRequest::RenameTarget(query::RenameTargetRequest { position });
+        let Some(response) = self.query_file(&query_file, request) else {
             return Ok(None);
         };
         let query::QueryResponse::RenameTarget(response) = response.response else {
@@ -3674,7 +3680,7 @@ impl LanguageServer for DestackLanguageServer {
         };
 
         // convert to LSP
-        let range = byte_span_to_range(&file, result.range);
+        let range = byte_span_to_range(&query_file.file, result.range);
         Ok(Some(lsp::PrepareRenameResponse::RangeWithPlaceholder {
             range,
             placeholder: result.placeholder,
@@ -3695,49 +3701,26 @@ impl LanguageServer for DestackLanguageServer {
         else {
             return Ok(None);
         };
-        let query_path_for_read = query_path.clone();
-        let Some(profile_id) = self.selected_query_profile(&query_path) else {
+        let Some(query_file) =
+            self.query_file_for_uri(&params.text_document_position.text_document.uri)
+        else {
             return Ok(None);
         };
-        let result = self
-            .run_service(move |service| {
-                service.read_file(
-                    &query_path_for_read,
-                    |repository, file_id, file, revision| {
-                        let Some(offset) =
-                            position_to_byte(&file, &params.text_document_position.position)
-                        else {
-                            return Err(LanguageServiceError::Internal {
-                                detail: "rename position is outside the coherent file snapshot"
-                                    .to_string(),
-                            });
-                        };
-                        let Some(module_id) = repository.module_id_for_file(revision, file_id)?
-                        else {
-                            return Err(LanguageServiceError::Internal {
-                                detail: format!("missing module for file {file_id:?}"),
-                            });
-                        };
-                        let module = query::QueryModule {
-                            module_id,
-                            profile_id,
-                        };
-                        let position = query_position(module, file_id, offset);
-
-                        Ok((position, revision))
-                    },
-                )
-            })
-            .await;
-        let Ok((position, expected_revision)) = result else {
+        let Some(offset) =
+            position_to_byte(&query_file.file, &params.text_document_position.position)
+        else {
             return Ok(None);
         };
+        let position = query_position(query_file.module, query_file.file_id, offset);
         let request = query::QueryRequest::Rename(query::RenameRequest {
             position,
             new_name: params.new_name.clone(),
         });
-        let Some(response) = self.execute_write_query(&query_path, expected_revision, request)
-        else {
+        let Some(response) = self.execute_query(
+            &query_path,
+            request,
+            QueryRevision::Current(query_file.revision),
+        ) else {
             return Ok(None);
         };
         let revision = response.revision;
@@ -3763,18 +3746,19 @@ impl LanguageServer for DestackLanguageServer {
     ) -> jsonrpc::Result<Option<Vec<lsp::CallHierarchyItem>>> {
         let repository = self.repository();
         let uri = &params.text_document_position_params.text_document.uri;
-        let Some((_, _, response)) = self
-            .read_file_query_for_uri(uri, |module, file_id, file| {
-                let offset =
-                    position_to_byte(file, &params.text_document_position_params.position)?;
-                let position = query_position(module, file_id, offset);
-
-                Some(query::QueryRequest::CallHierarchyItem(
-                    query::CallHierarchyItemRequest { position },
-                ))
-            })
-            .await
-        else {
+        let Some(query_file) = self.query_file_for_uri(uri) else {
+            return Ok(None);
+        };
+        let Some(offset) = position_to_byte(
+            &query_file.file,
+            &params.text_document_position_params.position,
+        ) else {
+            return Ok(None);
+        };
+        let position = query_position(query_file.module, query_file.file_id, offset);
+        let request =
+            query::QueryRequest::CallHierarchyItem(query::CallHierarchyItemRequest { position });
+        let Some(response) = self.query_file(&query_file, request) else {
             return Ok(None);
         };
         let revision = response.revision;
@@ -3799,7 +3783,10 @@ impl LanguageServer for DestackLanguageServer {
     ) -> jsonrpc::Result<Option<Vec<lsp::CallHierarchyIncomingCall>>> {
         // extract query item from lsp data
         let repository = self.repository();
-        let Some(item) = query_call_hierarchy_item_from_lsp(&params.item) else {
+        let Some((revision, item)) = call_hierarchy_query_item_from_lsp(&params.item) else {
+            return Ok(Some(vec![]));
+        };
+        let Some(path) = params.item.uri.to_file_path().map(|path| path.into_owned()) else {
             return Ok(Some(vec![]));
         };
 
@@ -3808,7 +3795,8 @@ impl LanguageServer for DestackLanguageServer {
             query::QueryRequest::CallHierarchyIncoming(query::CallHierarchyIncomingRequest {
                 item,
             });
-        let Some(response) = self.read_query_for_uri(&params.item.uri, request).await else {
+        let Some(response) = self.execute_query(&path, request, QueryRevision::Exact(revision))
+        else {
             return Ok(Some(vec![]));
         };
         let revision = response.revision;
@@ -3832,7 +3820,10 @@ impl LanguageServer for DestackLanguageServer {
     ) -> jsonrpc::Result<Option<Vec<lsp::CallHierarchyOutgoingCall>>> {
         // extract query item from lsp data
         let repository = self.repository();
-        let Some(item) = query_call_hierarchy_item_from_lsp(&params.item) else {
+        let Some((revision, item)) = call_hierarchy_query_item_from_lsp(&params.item) else {
+            return Ok(Some(vec![]));
+        };
+        let Some(path) = params.item.uri.to_file_path().map(|path| path.into_owned()) else {
             return Ok(Some(vec![]));
         };
 
@@ -3841,7 +3832,8 @@ impl LanguageServer for DestackLanguageServer {
             query::QueryRequest::CallHierarchyOutgoing(query::CallHierarchyOutgoingRequest {
                 item,
             });
-        let Some(response) = self.read_query_for_uri(&params.item.uri, request).await else {
+        let Some(response) = self.execute_query(&path, request, QueryRevision::Exact(revision))
+        else {
             return Ok(Some(vec![]));
         };
         let revision = response.revision;
@@ -3869,18 +3861,19 @@ impl LanguageServer for DestackLanguageServer {
     ) -> jsonrpc::Result<Option<Vec<lsp::TypeHierarchyItem>>> {
         let repository = self.repository();
         let uri = &params.text_document_position_params.text_document.uri;
-        let Some((_, _, response)) = self
-            .read_file_query_for_uri(uri, |module, file_id, file| {
-                let offset =
-                    position_to_byte(file, &params.text_document_position_params.position)?;
-                let position = query_position(module, file_id, offset);
-
-                Some(query::QueryRequest::TypeHierarchyItem(
-                    query::TypeHierarchyItemRequest { position },
-                ))
-            })
-            .await
-        else {
+        let Some(query_file) = self.query_file_for_uri(uri) else {
+            return Ok(None);
+        };
+        let Some(offset) = position_to_byte(
+            &query_file.file,
+            &params.text_document_position_params.position,
+        ) else {
+            return Ok(None);
+        };
+        let position = query_position(query_file.module, query_file.file_id, offset);
+        let request =
+            query::QueryRequest::TypeHierarchyItem(query::TypeHierarchyItemRequest { position });
+        let Some(response) = self.query_file(&query_file, request) else {
             return Ok(None);
         };
         let revision = response.revision;
@@ -3904,7 +3897,10 @@ impl LanguageServer for DestackLanguageServer {
     ) -> jsonrpc::Result<Option<Vec<lsp::TypeHierarchyItem>>> {
         // extract query item from lsp data
         let repository = self.repository();
-        let Some(item) = query_type_hierarchy_item_from_lsp(&params.item) else {
+        let Some((revision, item)) = type_hierarchy_query_item_from_lsp(&params.item) else {
+            return Ok(Some(vec![]));
+        };
+        let Some(path) = params.item.uri.to_file_path().map(|path| path.into_owned()) else {
             return Ok(Some(vec![]));
         };
 
@@ -3913,7 +3909,8 @@ impl LanguageServer for DestackLanguageServer {
             query::QueryRequest::TypeHierarchySupertypes(query::TypeHierarchySupertypesRequest {
                 item,
             });
-        let Some(response) = self.read_query_for_uri(&params.item.uri, request).await else {
+        let Some(response) = self.execute_query(&path, request, QueryRevision::Exact(revision))
+        else {
             return Ok(Some(vec![]));
         };
         let revision = response.revision;
@@ -3937,7 +3934,10 @@ impl LanguageServer for DestackLanguageServer {
     ) -> jsonrpc::Result<Option<Vec<lsp::TypeHierarchyItem>>> {
         // extract query item from lsp data
         let repository = self.repository();
-        let Some(item) = query_type_hierarchy_item_from_lsp(&params.item) else {
+        let Some((revision, item)) = type_hierarchy_query_item_from_lsp(&params.item) else {
+            return Ok(Some(vec![]));
+        };
+        let Some(path) = params.item.uri.to_file_path().map(|path| path.into_owned()) else {
             return Ok(Some(vec![]));
         };
 
@@ -3946,7 +3946,8 @@ impl LanguageServer for DestackLanguageServer {
             query::QueryRequest::TypeHierarchySubtypes(query::TypeHierarchySubtypesRequest {
                 item,
             });
-        let Some(response) = self.read_query_for_uri(&params.item.uri, request).await else {
+        let Some(response) = self.execute_query(&path, request, QueryRevision::Exact(revision))
+        else {
             return Ok(Some(vec![]));
         };
         let revision = response.revision;

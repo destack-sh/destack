@@ -4,7 +4,9 @@ use std::sync::Arc;
 use destack_artifact::DiskCacheStore;
 use destack_dir::{GlobalSymbolId, LocalSymbolId};
 use destack_query as query;
-use destack_source::{FileId, FileSystem, ModuleId, PackageId, PhysicalFileSystem, Span};
+use destack_source::{
+    FileId, FileSystem, ModuleId, PackageId, PhysicalFileSystem, ProfileId, Span,
+};
 use destack_workspace::{Edit as RepositoryEdit, HostEnvironment, Ref, Repository, Revision};
 
 use crate::query::navigation::{outgoing_call_to_lsp, workspace_symbol_to_lsp};
@@ -18,6 +20,17 @@ fn test_symbol_id() -> GlobalSymbolId {
         ),
         LocalSymbolId::new(1),
     )
+}
+
+/// Build a placeholder query module for conversion tests.
+fn test_query_module() -> query::QueryModule {
+    query::QueryModule {
+        module_id: ModuleId::from_relative_path(
+            PackageId::from_path(Path::new("lsp-navigation")),
+            Path::new("main.ds"),
+        ),
+        profile_id: ProfileId::new(0),
+    }
 }
 
 /// Return a logical missing file id for conversion tests.
@@ -63,8 +76,7 @@ fn test_workspace_symbol_to_lsp_returns_none_for_unknown_file() {
     let symbol = query::WorkspaceSymbol {
         name: "foo".to_string(),
         kind: query::SymbolKind::Function,
-        file: missing_file_id(),
-        range: Span::new(missing_file_id(), 0, 0),
+        target: query::QueryTarget::span(test_query_module(), Span::new(missing_file_id(), 0, 0)),
         container: None,
     };
 
@@ -97,10 +109,9 @@ fn test_outgoing_call_to_lsp_skips_missing_from_ranges() {
         name: "foo".to_string(),
         kind: query::CallHierarchyKind::Function,
         detail: None,
-        file: file_id,
-        range: Span::new(file_id, 0, 20),
-        selection_range: Span::new(file_id, 16, 19),
-        symbol_id: test_symbol_id(),
+        target: query::QueryTarget::span(test_query_module(), Span::new(file_id, 0, 20))
+            .with_selection_span(Span::new(file_id, 16, 19))
+            .with_symbol(test_symbol_id()),
     };
     let call = query::CallHierarchyOutgoingCall {
         to: item,

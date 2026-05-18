@@ -3,10 +3,10 @@ use std::time::Duration;
 
 use destack_lsp_server::UriExt;
 use destack_lsp_server::jsonrpc::{ErrorCode, Response};
-use destack_service::{FileChange, LanguageService};
+use destack_service::{FileChange, LanguageService, QueryRevision};
 use destack_session::open_repository_from_fs;
 use destack_source::{
-    FileSystem, OverlayFileSystem, PhysicalFileSystem, TemporaryPhysicalFileSystem, Uri,
+    FileSystem, OverlayFileSystem, PhysicalFileSystem, Span, TargetId, TemporaryPhysicalFileSystem,
 };
 use destack_workspace::HostEnvironment;
 use {destack_lsp_types as lsp, destack_query as query};
@@ -127,8 +127,6 @@ const msg = greet("World", "Hello");
     let path = fs
         .write_text("main.ds", source_a)
         .expect("failed to write main.ds");
-    let uri = Uri::from_file_path(path.clone());
-
     let _ = language_service
         .apply_file(
             &path,
@@ -145,15 +143,38 @@ const msg = greet("World", "Hello");
             },
         )
         .expect("expected second update");
+    let view = language_service
+        .file_view(&path)
+        .expect("expected query file view");
+    let repository = view.repository();
+    let module_id = repository
+        .module_id_for_file(view.revision(), view.file_id)
+        .expect("expected module lookup")
+        .expect("expected query module");
+    let module_entry = repository
+        .module(view.revision(), module_id)
+        .expect("expected module entry lookup")
+        .expect("expected query module entry");
+    let target_id = TargetId::new(module_entry.package_id, "native");
+    let profile = repository
+        .module_target_profile(view.revision(), module_id, target_id)
+        .expect("expected module target profile lookup")
+        .expect("expected module target profile");
+    let module = query::QueryModule {
+        module_id,
+        profile_id: profile.id(),
+    };
 
     let response = language_service
-        .read_query(
+        .query(
             &path,
             query::QueryRequest::InlayHints(query::InlayHintsRequest {
-                uri,
-                start: 0,
-                end: source_b.len() as u32,
+                range: query::QueryRange {
+                    module,
+                    span: Span::new(view.file_id, 0, source_b.len() as u32),
+                },
             }),
+            QueryRevision::Exact(view.revision()),
         )
         .expect("expected inlay hints query response");
     let query::QueryResponse::InlayHints(query::InlayHintsResponse { hints }) = response.response

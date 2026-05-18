@@ -139,6 +139,7 @@ pub fn call_hierarchy_item_to_lsp(
 
     let query_item = to_value(item).ok()?;
     let data = Some(json!({
+        "revision": revision,
         "query_item": query_item,
     }));
 
@@ -154,13 +155,17 @@ pub fn call_hierarchy_item_to_lsp(
     })
 }
 
-/// Extract a query call hierarchy item from lsp item data.
-pub fn query_call_hierarchy_item_from_lsp(
+/// Extract a query call hierarchy item and revision from lsp item data.
+pub fn call_hierarchy_query_item_from_lsp(
     item: &lsp::CallHierarchyItem,
-) -> Option<query::CallHierarchyItem> {
+) -> Option<(Revision, query::CallHierarchyItem)> {
     let data = item.data.as_ref()?;
+    let revision = data.get("revision")?.clone();
+    let revision = from_value(revision).ok()?;
     let query_item = data.get("query_item")?.clone();
-    from_value(query_item).ok()
+    let query_item = from_value(query_item).ok()?;
+
+    Some((revision, query_item))
 }
 
 /// Convert an incoming call to LSP format.
@@ -230,6 +235,7 @@ pub fn type_hierarchy_item_to_lsp(
 
     let query_item = to_value(item).ok()?;
     let data = Some(json!({
+        "revision": revision,
         "query_item": query_item,
     }));
 
@@ -245,13 +251,17 @@ pub fn type_hierarchy_item_to_lsp(
     })
 }
 
-/// Extract a query type hierarchy item from lsp item data.
-pub fn query_type_hierarchy_item_from_lsp(
+/// Extract a query type hierarchy item and revision from lsp item data.
+pub fn type_hierarchy_query_item_from_lsp(
     item: &lsp::TypeHierarchyItem,
-) -> Option<query::TypeHierarchyItem> {
+) -> Option<(Revision, query::TypeHierarchyItem)> {
     let data = item.data.as_ref()?;
+    let revision = data.get("revision")?.clone();
+    let revision = from_value(revision).ok()?;
     let query_item = data.get("query_item")?.clone();
-    from_value(query_item).ok()
+    let query_item = from_value(query_item).ok()?;
+
+    Some((revision, query_item))
 }
 
 /// Convert a workspace symbol to an LSP workspace symbol.
