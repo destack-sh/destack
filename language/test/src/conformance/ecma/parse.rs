@@ -14,7 +14,7 @@ use destack_source::{
 use destack_workspace::{HostEnvironment, Repository, Revision};
 
 use crate::core::{
-    default_profile_id_for_module, module_artifact_diagnostics, module_id_for_path,
+    module_artifact_diagnostics, module_id_for_path, profile_id_for_builtin_default_target,
     provide_workspace_artifacts, write_workspace_file, write_workspace_text_file,
 };
 
@@ -328,7 +328,7 @@ fn parse_file_with_compiler(
     let compiler = Arc::new(Compiler::new(repository.clone()));
 
     // run up to check
-    let profile = default_profile_id_for_module(&program, revision, module_id);
+    let profile = profile_id_for_builtin_default_target(&program, revision, module_id);
     let artifact_keys = vec![ArtifactKey::DirChecked {
         module: module_id,
         profile,

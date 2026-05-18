@@ -252,20 +252,23 @@ pub fn write_workspace_text_file(repository: &Repository, path: &Path, content: 
     )
 }
 
-/// Return the default profile id for one module.
-pub fn default_profile_id_for_module(
+/// Return the explicit built-in default target profile id for one module.
+pub fn profile_id_for_builtin_default_target(
     repository: &Repository,
     revision: Revision,
     module_id: ModuleId,
 ) -> ProfileId {
-    repository
-        .module_profile(revision, module_id)
-        .unwrap_or_else(|error| panic!("failed to resolve default profile: {error}"))
-        .id()
+    let module = repository
+        .module(revision, module_id)
+        .unwrap_or_else(|error| panic!("failed to resolve module: {error}"))
+        .unwrap_or_else(|| panic!("missing module {module_id:?}"));
+    let target_id = TargetId::new(module.package_id, "default");
+
+    profile_id_for_target(repository, revision, module_id, &target_id)
 }
 
-/// Return the target profile id for one module, or the default profile.
-pub fn profile_id_for_target_or_default(
+/// Return the explicit target profile id for one module.
+pub fn profile_id_for_target(
     repository: &Repository,
     revision: Revision,
     module_id: ModuleId,
@@ -278,7 +281,7 @@ pub fn profile_id_for_target_or_default(
         return profile.id();
     }
 
-    default_profile_id_for_module(repository, revision, module_id)
+    panic!("missing profile for module {module_id:?} target {target_id:?}")
 }
 
 /// Return diagnostics for one module compile slice.

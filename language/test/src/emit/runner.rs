@@ -4,10 +4,10 @@ use std::sync::Arc;
 
 use crate::core::{
     Case, CaseResult, RunContext, RunOptions, Runner, Suite, current_workspace_revision,
-    default_profile_id_for_module, fixtures_dir, module_artifact_diagnostics, module_id_for_path,
-    module_target_artifact_diagnostics, profile_id_for_target_or_default,
-    provide_workspace_artifacts, render_unexpected_repository_diagnostic_collection,
-    test_output_dir,
+    fixtures_dir, module_artifact_diagnostics, module_id_for_path,
+    module_target_artifact_diagnostics, profile_id_for_builtin_default_target,
+    profile_id_for_target, provide_workspace_artifacts,
+    render_unexpected_repository_diagnostic_collection, test_output_dir,
 };
 use destack_artifact::{ArtifactKey, MemoryCacheStore, OutputContent, OutputFile};
 use destack_compiler::Compiler;
@@ -340,7 +340,7 @@ fn collect_emit_diagnostics(
 
     // module level diagnostics
     for module_id in module_ids {
-        let profile_id = default_profile_id_for_module(repository, revision, *module_id);
+        let profile_id = profile_id_for_builtin_default_target(repository, revision, *module_id);
         let artifact_diagnostics =
             module_artifact_diagnostics(repository, revision, *module_id, profile_id);
         diagnostics.merge_from(&artifact_diagnostics);
@@ -351,8 +351,7 @@ fn collect_emit_diagnostics(
         let target_id = TargetId::new(package_id, target_name);
 
         for module_id in module_ids {
-            let profile_id =
-                profile_id_for_target_or_default(repository, revision, *module_id, &target_id);
+            let profile_id = profile_id_for_target(repository, revision, *module_id, &target_id);
             let artifact_diagnostics = module_target_artifact_diagnostics(
                 repository, revision, *module_id, profile_id, target_id,
             );

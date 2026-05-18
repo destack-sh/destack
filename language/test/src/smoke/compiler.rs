@@ -5,9 +5,9 @@ use destack_compiler::Compiler;
 
 use crate::core::{
     Case, CaseResult, RunContext, RunOptions, Runner, SharedMemoryWorkspace, Suite,
-    check_repository_diagnostic_collection, current_workspace_revision,
-    default_profile_id_for_module, discover_file_cases, fixtures_dir, module_artifact_diagnostics,
-    module_id_for_path, provide_workspace_artifacts, write_workspace_text_file,
+    check_repository_diagnostic_collection, current_workspace_revision, discover_file_cases,
+    fixtures_dir, module_artifact_diagnostics, module_id_for_path,
+    profile_id_for_builtin_default_target, provide_workspace_artifacts, write_workspace_text_file,
 };
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -56,7 +56,7 @@ fn run_compiler_case(test: &Case) -> CaseResult {
     let compiler = Arc::new(Compiler::new(repository.clone()));
     let revision = current_workspace_revision(&repository);
     let module_id = module_id_for_path(&repository, revision, &test.path);
-    let profile = default_profile_id_for_module(&repository, revision, module_id);
+    let profile = profile_id_for_builtin_default_target(&repository, revision, module_id);
     let artifact_keys = vec![ArtifactKey::DirChecked {
         module: module_id,
         profile,

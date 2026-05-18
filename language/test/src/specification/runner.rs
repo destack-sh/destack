@@ -16,7 +16,7 @@ use crate::core::print::color;
 use crate::core::{
     Case, CaseResult, RunContext, RunOptions, Suite, current_workspace_revision, fixtures_dir,
     format_diagnostics, module_artifact_diagnostics, module_target_artifact_diagnostics,
-    profile_id_for_target_or_default, provide_workspace_artifacts, save_expected_failures,
+    profile_id_for_target, provide_workspace_artifacts, save_expected_failures,
     write_workspace_text_file,
 };
 use crate::mdtest::{
@@ -211,7 +211,7 @@ fn run_specification_test(test: &MdTestCase) -> CaseResult {
                 .map(|(target_id, _)| target_id)
                 .unwrap_or_else(|| TargetId::new(module.package_id, "default"));
             let next_profile =
-                profile_id_for_target_or_default(&repository, revision, module_id, &next_target);
+                profile_id_for_target(&repository, revision, module_id, &next_target);
             diagnostic_target = Some(next_target);
             diagnostic_profile = Some(next_profile);
             artifact_keys.push(ArtifactKey::MirOptimized {

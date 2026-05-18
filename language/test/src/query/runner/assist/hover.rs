@@ -1,5 +1,5 @@
 use destack_query as query;
-use destack_query::HoverInfo;
+use destack_query::Hover;
 use destack_source::Span;
 
 use crate::core::CaseResult;
@@ -108,7 +108,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
 /// Validate hover invariants.
 fn validate_hover_invariants(
     session: &QueryTestSession,
-    hover: &HoverInfo,
+    hover: &Hover,
     offset: u32,
 ) -> Result<(), String> {
     let mut errors = Vec::new();
@@ -167,7 +167,7 @@ fn validate_span_bounds(label: &str, span: Span, source_len: u32, errors: &mut V
 }
 
 /// Format hover info as a protocol shaped snapshot.
-fn format_hover_snapshot(session: &QueryTestSession, hover: &HoverInfo) -> String {
+fn format_hover_snapshot(session: &QueryTestSession, hover: &Hover) -> String {
     // render the hover range as a span when available
     let range_text = hover
         .range

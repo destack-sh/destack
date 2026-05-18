@@ -7,8 +7,8 @@ use destack_source::{FileSystem, PhysicalFileSystem};
 
 use crate::core::{
     Case, CaseResult, RunContext, RunOptions, Suite, current_workspace_revision,
-    default_profile_id_for_module, discover_file_cases, fixtures_dir, module_id_for_path,
-    open_repository_with_options, provide_workspace_artifacts,
+    discover_file_cases, fixtures_dir, module_id_for_path, open_repository_with_options,
+    profile_id_for_builtin_default_target, provide_workspace_artifacts,
 };
 
 /// Stress test suite for the type checker.
@@ -74,7 +74,7 @@ fn run_checker_stress(test: &Case) -> CaseResult {
     let module_id = module_id_for_path(&repository, revision, &test.path);
 
     // check schedules import, bind, and export automatically
-    let profile = default_profile_id_for_module(&program, revision, module_id);
+    let profile = profile_id_for_builtin_default_target(&program, revision, module_id);
     let artifact_keys = vec![ArtifactKey::DirChecked {
         module: module_id,
         profile,
