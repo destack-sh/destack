@@ -5,7 +5,7 @@ use destack_runtime::runtime::World;
 use destack_runtime::runtime::engine::Entry;
 use destack_source::{ModuleId, ProfileId, TargetId};
 use destack_vm::{Isolate, IsolateId, IsolateOptions, Value};
-use destack_workspace::{Profile, Repository, Revision, RuntimeOptionsJson};
+use destack_workspace::{Profile, Repository, Revision};
 use serde::{Deserialize, Serialize};
 
 use super::CommandResult;
@@ -111,7 +111,6 @@ impl CommandContext<'_> {
             &entry_name,
             &options.args,
             options.run_mode,
-            self.common.runtime_overrides.as_ref(),
             self.output,
         ) {
             Ok(result) => result,
@@ -180,7 +179,6 @@ fn run_entry_module(
     entry_name: &str,
     args: &[String],
     run_mode: CommandRunMode,
-    runtime_overrides: Option<&RuntimeOptionsJson>,
     output: &mut CommandOutputBuffer,
 ) -> CommandResult<RunResult> {
     // profile facts
@@ -188,11 +186,6 @@ fn run_entry_module(
     let profile = target_profile(repository, revision, entry_module, target_id)?;
     let mut runtime_options = target.target.runtime_options.clone();
     runtime_options.conditions = profile.conditions.clone();
-
-    // command overrides
-    if let Some(runtime_overrides) = runtime_overrides {
-        runtime_overrides.apply_to(&mut runtime_options);
-    }
 
     // vm isolate
     let isolate = create_isolate(
@@ -401,13 +394,8 @@ fn target_profile(
     let profile = repository
         .module_target_profile(revision, module_id, target_id)
         .map_err(|error| format!("failed to resolve target profile: {error}"))?;
-    let profile = if let Some(profile) = profile {
-        profile
-    } else {
-        repository
-            .module_profile(revision, module_id)
-            .map_err(|error| format!("failed to resolve module profile: {error}"))?
-    };
+    let profile = profile
+        .ok_or_else(|| format!("target {target_id:?} is not available for {module_id:?}"))?;
 
     Ok(profile)
 }

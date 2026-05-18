@@ -3,9 +3,9 @@ use serde::{Deserialize, Serialize};
 use super::super::handshake::{HandshakeRequest, HandshakeResponse};
 use super::{
     CloseRootRequest, CommandRequest, CommandResponse, DaemonNotification, DaemonQuery,
-    DaemonQueryResponse, FileUpdateRequest, FileUpdateResponse, OpenRootRequest,
-    PrepareQueryRequest, PrepareQueryResponse, ReloadRootRequest, RootClosedResponse,
-    RootOpenedResponse, RootReloadResponse, WatchBatchRequest, WatchBatchResponse,
+    DaemonQueryResponse, FileUpdateRequest, FileUpdateResponse, OpenRootRequest, ReloadRootRequest,
+    RootClosedResponse, RootOpenedResponse, RootReloadResponse, WatchBatchRequest,
+    WatchBatchResponse,
 };
 
 /// Unique identifier for protocol requests.
@@ -197,8 +197,6 @@ pub enum DaemonRequest {
     ReloadRoot(ReloadRootRequest),
     /// Apply a file update to a root.
     ApplyFileUpdate(FileUpdateRequest),
-    /// Prepare query artifacts for a root path.
-    PrepareQuery(PrepareQueryRequest),
     /// Apply a watch batch to a root.
     ApplyWatchBatch(WatchBatchRequest),
     /// Perform a command pipeline action.
@@ -227,8 +225,6 @@ pub enum DaemonResponse {
     RootReloaded(RootReloadResponse),
     /// File update response.
     FileUpdated(FileUpdateResponse),
-    /// Prepare-query response.
-    QueryPrepared(PrepareQueryResponse),
     /// Watch batch response.
     WatchBatchApplied(WatchBatchResponse),
     /// Command response.

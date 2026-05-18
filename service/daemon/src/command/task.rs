@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use destack_source::DiagnosticCollection;
-use destack_workspace::{DestackDeclaration, Repository, Revision, Workspace};
+use destack_workspace::{DestackFile, Repository, Revision, Workspace};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -251,7 +251,7 @@ impl CommandContext<'_> {
 
         let root_options = self
             .repository
-            .destack_config_for_workspace(revision)
+            .destack_for_workspace(revision)
             .map_err(|error| format!("failed to derive workspace options: {error}"))?;
         let selected_names = resolve_task_project_selection_names(
             root_options.as_deref(),
@@ -336,7 +336,7 @@ fn load_task_project(
     let destack_config_path = exact_destack_config_path(repository, revision, project_path);
     let declaration = if let Some(destack_config_path) = destack_config_path.as_ref() {
         repository
-            .inherited_destack_config_for_path(revision, destack_config_path)
+            .inherited_destack_for_path(revision, destack_config_path)
             .map_err(|error| error.to_string())?
     } else {
         None
@@ -493,7 +493,7 @@ fn relative_project_path(project_path: &Path, workspace_root: &Path) -> String {
 
 /// Resolve selected project names from explicit projects and groups.
 fn resolve_task_project_selection_names(
-    root_options: Option<&DestackDeclaration>,
+    root_options: Option<&DestackFile>,
     projects: &[TaskProject],
     selected_projects: &[String],
     selected_groups: &[String],
@@ -515,10 +515,18 @@ fn resolve_task_project_selection_names(
         return Err(format!("workspace groups are not available: {names}").into());
     };
 
+    let Some(groups) = root_options.workspace_groups() else {
+        if selected_groups.is_empty() {
+            return Ok(selected_names);
+        }
+
+        let names = selected_groups.join(", ");
+        return Err(format!("workspace groups are not available: {names}").into());
+    };
+
     // expand named workspace groups into project names
     for group_name in selected_groups {
-        let members = root_options
-            .workspace_groups
+        let members = groups
             .get(group_name)
             .ok_or_else(|| unknown_group_error(group_name, root_options))?;
 
@@ -615,12 +623,11 @@ fn ambiguous_project_error(selector: &str, projects: &[&TaskProject]) -> String 
 }
 
 /// Build one unknown workspace group error with suggestions.
-fn unknown_group_error(group_name: &str, root_options: &DestackDeclaration) -> String {
+fn unknown_group_error(group_name: &str, root_options: &DestackFile) -> String {
     let groups: Vec<&str> = root_options
-        .workspace_groups
-        .keys()
-        .map(String::as_str)
-        .collect();
+        .workspace_groups()
+        .map(|groups| groups.keys().map(String::as_str).collect())
+        .unwrap_or_default();
     let suggestion = closest_group_name(group_name, &groups);
 
     if let Some(suggestion) = suggestion {

@@ -9,7 +9,7 @@ use destack_query::Query;
 use destack_session::{FileChange, Session};
 use destack_source::{FileType, ModuleId, ProfileId, TargetId, glob};
 use destack_workspace::{
-    ConfigPatch, DestackDeclaration, Edit, OptimizeLevel, Ref, Repository, Revision, Target,
+    ConfigPatch, DestackFile, Edit, OptimizeLevel, Ref, Repository, Revision, Target,
     TargetDiscovery, apply_config_patches_to_json, parse_jsonc_text,
 };
 use serde_json::{Map, Value};
@@ -102,8 +102,6 @@ impl<'a> CommandContext<'a> {
         repository: &Repository,
         patches: &[ConfigPatch],
     ) -> CommandResult<()> {
-        let _mutation_guard = session.enter_mutation();
-
         if patches.is_empty() {
             return Ok(());
         }
@@ -140,13 +138,18 @@ impl<'a> CommandContext<'a> {
         let revision = repository.fork_with_edits(before, edits).map_err(|error| {
             DaemonCommandError::internal(format!("failed to apply command config edits: {error}"))
         })?;
-        repository
-            .set_ref(session.head(), revision)
+        let did_advance = repository
+            .advance_ref(session.head(), before, revision)
             .map_err(|error| {
                 DaemonCommandError::internal(format!(
                     "failed to publish command config revision: {error}"
                 ))
             })?;
+        if !did_advance {
+            return Err(DaemonCommandError::internal(
+                "command config revision base changed before publish",
+            ));
+        }
 
         Ok(())
     }
@@ -305,8 +308,8 @@ impl<'a> CommandContext<'a> {
         Ok(module_id)
     }
 
-    /// Return the unique default profile count for the provided modules.
-    pub(super) fn default_profile_count(
+    /// Return the unique selected profile count for the provided modules.
+    pub(super) fn selected_profile_count(
         &self,
         revision: Revision,
         modules: &[ModuleId],
@@ -314,25 +317,22 @@ impl<'a> CommandContext<'a> {
         let mut profiles = HashSet::new();
 
         for module_id in modules {
-            let profile_id = self.module_profile_id(revision, *module_id)?;
+            let profile_id = self.selected_profile_id(revision, *module_id)?;
             profiles.insert(profile_id);
         }
 
         Ok(profiles.len())
     }
 
-    /// Return the default profile id for one module.
-    pub(super) fn module_profile_id(
+    /// Return the profile id selected for one module.
+    pub(super) fn selected_profile_id(
         &self,
         revision: Revision,
         module_id: ModuleId,
     ) -> CommandResult<ProfileId> {
-        let profile = self
-            .repository
-            .module_profile(revision, module_id)
-            .map_err(|error| format!("failed to resolve module profile: {error}"))?;
+        let target = self.resolve_target_for_module(revision, module_id, None)?;
 
-        Ok(profile.id())
+        self.target_profile_id(revision, module_id, target.id)
     }
 
     /// Return the profile id selected for one module target.
@@ -346,13 +346,8 @@ impl<'a> CommandContext<'a> {
             .repository
             .module_target_profile(revision, module_id, target_id)
             .map_err(|error| format!("failed to resolve target profile: {error}"))?;
-        let profile = if let Some(profile) = profile {
-            profile
-        } else {
-            self.repository
-                .module_profile(revision, module_id)
-                .map_err(|error| format!("failed to resolve module profile: {error}"))?
-        };
+        let profile = profile
+            .ok_or_else(|| format!("target {target_id:?} is not available for {module_id:?}"))?;
 
         Ok(profile.id())
     }
@@ -464,7 +459,7 @@ impl<'a> CommandContext<'a> {
     }
 
     /// Load one `destack.json` config for a path.
-    pub(super) fn load_destack_config(&self, path: &Path) -> CommandResult<DestackDeclaration> {
+    pub(super) fn load_destack_config(&self, path: &Path) -> CommandResult<DestackFile> {
         let revision = self.revision()?;
 
         load_destack_config(&self.repository, revision, path)
@@ -481,7 +476,7 @@ impl<'a> CommandContext<'a> {
     pub(super) fn load_workspace_configs(
         &self,
         revision: Revision,
-    ) -> CommandResult<Vec<DestackDeclaration>> {
+    ) -> CommandResult<Vec<DestackFile>> {
         load_workspace_configs(&self.repository, revision)
     }
 }
@@ -548,9 +543,9 @@ fn load_destack_config(
     repository: &Repository,
     revision: Revision,
     path: &Path,
-) -> CommandResult<DestackDeclaration> {
+) -> CommandResult<DestackFile> {
     repository
-        .inherited_destack_config_for_path(revision, path)
+        .inherited_destack_for_path(revision, path)
         .map_err(|error| error.to_string())?
         .ok_or_else(|| format!("destack.json not found: {}", path.display()).into())
 }
@@ -587,7 +582,7 @@ fn find_destack_config(repository: &Repository, revision: Revision, cwd: &Path) 
 fn load_workspace_configs(
     repository: &Repository,
     revision: Revision,
-) -> CommandResult<Vec<DestackDeclaration>> {
+) -> CommandResult<Vec<DestackFile>> {
     let mut configs = BTreeMap::new();
     for package_path in repository
         .package_roots(revision)
@@ -607,7 +602,7 @@ fn load_workspace_configs(
 }
 
 fn collect_sources_from_destack_config(
-    config: &DestackDeclaration,
+    config: &DestackFile,
     target_name: Option<&str>,
 ) -> Vec<PathBuf> {
     let options = config;

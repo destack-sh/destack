@@ -8,7 +8,7 @@ use super::{BinaryPayload, DiagnosticBatch, RootHandleId};
 /// Request payload for one query.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct QueryRequestBody {
-    /// Expected workspace semantic revision for mutating requests.
+    /// Expected workspace semantic revision.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub expected_revision: Option<Revision>,
     /// Query request.
@@ -234,8 +234,7 @@ pub enum DaemonQueryResponse {
 mod tests {
     use super::*;
 
-    use destack_query::{HoverRequest, HoverResponse, QueryRequest, QueryResponse};
-    use destack_source::Uri;
+    use destack_query::{HoverResponse, QueryRequest, QueryResponse, WorkspaceSymbolsRequest};
 
     /// Preserves query requests across payload encoding and decoding.
     #[test]
@@ -243,9 +242,10 @@ mod tests {
         // build a representative query request
         let request = QueryRequestBody {
             expected_revision: Some(Revision::from_test_value(7)),
-            request: QueryRequest::Hover(HoverRequest {
-                uri: Uri::from_string("/root/main.ds"),
-                offset: 42,
+            request: QueryRequest::WorkspaceSymbols(WorkspaceSymbolsRequest {
+                profile_ids: Vec::new(),
+                query: "main".to_string(),
+                max_results: 16,
             }),
         };
 

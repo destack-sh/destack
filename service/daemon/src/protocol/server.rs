@@ -4,11 +4,11 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
-use destack_service::FileChange;
+use destack_service as service;
+use destack_service::{FileChange, QueryRevision};
 use destack_source::FileType;
 use destack_workspace::Repository;
 use parking_lot::Mutex;
-use {destack_query as query, destack_service as service};
 
 use crate::{Daemon, DaemonError, WatchBatch as DaemonWatchBatch};
 
@@ -405,7 +405,6 @@ impl ProtocolServer {
             DaemonRequest::CloseRoot(request) => self.handle_close_root(request),
             DaemonRequest::ReloadRoot(request) => self.handle_reload_root(request),
             DaemonRequest::ApplyFileUpdate(request) => self.handle_file_update(request),
-            DaemonRequest::PrepareQuery(request) => self.handle_prepare_query(request),
             DaemonRequest::ApplyWatchBatch(request) => self.handle_watch_batch(request),
             DaemonRequest::Command(request) => self.handle_command(*request),
             DaemonRequest::Query(query) => self.handle_query(query),
@@ -425,7 +424,7 @@ impl ProtocolServer {
 
     /// Handle notifications sent from the client.
     fn handle_notification(&self, _notification: super::ProtocolNotification) {
-        // ignore client notifications for now
+        // ignore client notifications
     }
 
     /// Check if the server is shutting down.
@@ -575,38 +574,6 @@ impl ProtocolServer {
         }))
     }
 
-    /// Handle a prepare-query request.
-    fn handle_prepare_query(
-        &self,
-        request: super::PrepareQueryRequest,
-    ) -> Result<DaemonResponse, ProtocolError> {
-        self.require_session()?;
-        let root = self.root_for_handle(request.handle)?;
-        if !self.path_within_root(&request.path, &root) {
-            return Err(self.protocol_error(ProtocolErrorCode::Forbidden, "path is outside root"));
-        }
-
-        let outcome = (|| {
-            self.daemon
-                .language_service
-                .prepare_query(&request.path)
-                .map_err(crate::DaemonError::from)
-        })();
-        let (query_ready, detail) = match outcome {
-            Ok(()) => (true, None),
-            Err(crate::DaemonError::Service {
-                error: service::LanguageServiceError::QueryNotReady { detail },
-            }) => (false, Some(detail)),
-            Err(error) => return Err(self.protocol_error_from_daemon(error)),
-        };
-
-        Ok(DaemonResponse::QueryPrepared(super::PrepareQueryResponse {
-            handle: request.handle,
-            query_ready,
-            detail,
-        }))
-    }
-
     /// Handle a watch batch request.
     fn handle_watch_batch(
         &self,
@@ -736,38 +703,19 @@ impl ProtocolServer {
         // capture request kind before dispatch
         let request_method_id = request.request.method_id();
 
-        // execute the query through the language service
-        let response = match request.request.execution_mode() {
-            query::QueryExecutionMode::Read => {
-                if let Some(expected_revision) = request.expected_revision {
-                    return Err(self.protocol_error(
-                        ProtocolErrorCode::InvalidRequest,
-                        &format!(
-                            "read query must not carry expected revision: {expected_revision}"
-                        ),
-                    ));
-                }
-
-                self.daemon
-                    .language_service
-                    .read_query_for_root(root, request.request)
-            }
-            query::QueryExecutionMode::Write => {
-                let expected_revision = request.expected_revision.ok_or_else(|| {
-                    self.protocol_error(
-                        ProtocolErrorCode::InvalidRequest,
-                        "missing expected revision for mutating query",
-                    )
-                })?;
-
-                self.daemon.language_service.write_query_for_root(
-                    root,
-                    expected_revision,
-                    request.request,
-                )
-            }
-        }
-        .map_err(|error| self.protocol_error_from_service("query", error))?;
+        // require callers to choose one coherent revision
+        let revision = request.expected_revision.ok_or_else(|| {
+            self.protocol_error(
+                ProtocolErrorCode::InvalidRequest,
+                "missing expected revision for query",
+            )
+        })?;
+        let revision = QueryRevision::Current(revision);
+        let response = self
+            .daemon
+            .language_service
+            .query_root(root, request.request, revision)
+            .map_err(|error| self.protocol_error_from_service("query", error))?;
 
         // keep query response variants aligned with query request variants
         if response.response.method_id() != request_method_id {
@@ -919,12 +867,10 @@ impl ProtocolServer {
             service::LanguageServiceError::FileMissing { .. }
             | service::LanguageServiceError::PathNotInRoot { .. } => ProtocolErrorCode::NotFound,
             service::LanguageServiceError::StaleOpenFile { .. } => ProtocolErrorCode::Conflict,
-            service::LanguageServiceError::InvalidTextChange { .. }
-            | service::LanguageServiceError::QueryModeMismatch { .. } => {
+            service::LanguageServiceError::InvalidTextChange { .. } => {
                 ProtocolErrorCode::InvalidRequest
             }
             service::LanguageServiceError::StaleRevision { .. } => ProtocolErrorCode::Conflict,
-            service::LanguageServiceError::QueryNotReady { .. } => ProtocolErrorCode::NotReady,
             service::LanguageServiceError::Repository(_)
             | service::LanguageServiceError::Session(_)
             | service::LanguageServiceError::Io { .. }
