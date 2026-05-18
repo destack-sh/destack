@@ -4,7 +4,8 @@ use destack_source::FileType;
 
 use super::parse::{ParseOptions, ParseOutcome, TestArea, parse_file};
 use crate::conformance::{
-    Case, CaseOutcome, ConformanceDriver, ConformanceSuiteResult, ecma, run_conformance_driver,
+    Case, CaseOutcome, ConformanceDriver, ConformanceSuiteResult, run_conformance_driver,
+    suite_fixtures_dir, suite_tests_dir,
 };
 use crate::core::RunOptions;
 
@@ -23,8 +24,8 @@ pub struct Test262Suite {
 impl Test262Suite {
     /// Create suite with default paths.
     pub fn new() -> Self {
-        let suite_dir = ecma::suite_fixtures_dir("ecma", "test262");
-        let tests_dir = ecma::suite_tests_dir("ecma", "test262");
+        let suite_dir = suite_fixtures_dir("ecma", "test262");
+        let tests_dir = suite_tests_dir("ecma", "test262");
         Self {
             tests_dir,
             suite_dir,
@@ -34,7 +35,7 @@ impl Test262Suite {
     /// Create suite with custom tests_dir.
     pub fn with_tests_dir(tests_dir: impl Into<PathBuf>) -> Self {
         let tests_dir = tests_dir.into();
-        let suite_dir = ecma::suite_fixtures_dir("ecma", "test262");
+        let suite_dir = suite_fixtures_dir("ecma", "test262");
         Self {
             tests_dir,
             suite_dir,

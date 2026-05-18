@@ -59,7 +59,7 @@ harness = false
 
 [[test]]
 name = "conformance-ecma"
-path = "src/conformance/ecma/main.rs"
+path = "src/conformance/bin/ecma.rs"
 harness = false
 
 [[test]]

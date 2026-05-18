@@ -4,7 +4,8 @@ use destack_source::FileType;
 
 use super::parse::{ParseOptions, ParseOutcome, TestArea, parse_file};
 use crate::conformance::{
-    Case, CaseOutcome, ConformanceDriver, ConformanceSuiteResult, ecma, run_conformance_driver,
+    Case, CaseOutcome, ConformanceDriver, ConformanceSuiteResult, run_conformance_driver,
+    suite_fixtures_dir, suite_tests_dir,
 };
 use crate::core::RunOptions;
 
@@ -22,8 +23,8 @@ pub struct SwcSuite {
 impl SwcSuite {
     /// Create one SWC conformance suite.
     pub fn new() -> Self {
-        let suite_dir = ecma::suite_fixtures_dir("ecma", "swc");
-        let tests_dir = ecma::suite_tests_dir("ecma", "swc");
+        let suite_dir = suite_fixtures_dir("ecma", "swc");
+        let tests_dir = suite_tests_dir("ecma", "swc");
         Self {
             tests_dir,
             suite_dir,
