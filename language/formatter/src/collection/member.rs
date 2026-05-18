@@ -341,6 +341,7 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                     is_override,
                     is_static,
                     is_accessor,
+                    is_definite,
                     ..
                 } => {
                     let force_quote_keys = class_member_should_force_quote_keys(f, node_id);
@@ -359,6 +360,7 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                         *mutability,
                         *is_accessor,
                         *is_optional,
+                        *is_definite,
                         *default,
                         force_quote_keys,
                     )?;

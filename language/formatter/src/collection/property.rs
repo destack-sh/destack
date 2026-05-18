@@ -367,6 +367,19 @@ fn write_optional_suffix<'ast>(
     Ok(())
 }
 
+/// Write one definite suffix.
+fn write_definite_suffix<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    is_definite: bool,
+) -> FormatResult<()> {
+    // definite
+    if is_definite {
+        write!(f, [token("!")])?;
+    }
+
+    Ok(())
+}
+
 /// Return whether one property container should quote all eligible keys.
 fn property_should_force_quote_keys<'ast>(
     f: &DestackFormatter<'ast, '_>,
@@ -429,6 +442,7 @@ fn format_object_property_value<'ast>(
         false,
         false,
         None,
+        false,
         false,
         false,
         force_quote_keys,
@@ -500,6 +514,7 @@ fn write_field_like_left<'ast, T>(
     mutability: Option<Mutability>,
     is_accessor: bool,
     is_optional: bool,
+    is_definite: bool,
     force_quote_keys: bool,
 ) -> FormatResult<()>
 where
@@ -534,6 +549,7 @@ where
 
     // key suffixes
     write_optional_suffix(f, is_optional)?;
+    write_definite_suffix(f, is_definite)?;
 
     // value
     if let Some(value) = value {
@@ -584,6 +600,7 @@ pub(crate) fn format_field_like<'ast, T>(
     mutability: Option<Mutability>,
     is_accessor: bool,
     is_optional: bool,
+    is_definite: bool,
     default: Option<LocalNodeId<Expression>>,
     force_quote_keys: bool,
 ) -> FormatResult<()>
@@ -607,6 +624,7 @@ where
             mutability,
             is_accessor,
             is_optional,
+            is_definite,
             force_quote_keys,
         )?;
         return Ok(());
@@ -628,6 +646,7 @@ where
         mutability,
         is_accessor,
         is_optional,
+        is_definite,
         force_quote_keys,
     )?;
     let left_nodes = buffer.into_vec();

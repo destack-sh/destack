@@ -261,8 +261,8 @@ impl Parser {
             return Err(ParseError::unexpected(self.peek()?.span));
         }
 
-        // reject definite assignment assertions
-        if modifiers.is_some_and(|modifiers| modifiers.is_definite) {
+        // reject impossible optional and definite fields
+        if modifiers.is_some_and(|modifiers| modifiers.is_optional && modifiers.is_definite) {
             let error_span = self
                 .prev()
                 .map(|token| token.span)
@@ -983,6 +983,15 @@ impl Parser {
         // modifiers without a key or call signature are invalid
         if key.is_none() && modifiers.is_some() && !is_method {
             return Err(ParseError::unexpected(self.peek()?.span));
+        }
+
+        // reject definite assertions on plain properties
+        if modifiers.is_some_and(|modifiers| modifiers.is_definite) {
+            let error_span = self
+                .prev()
+                .map(|token| token.span)
+                .unwrap_or(self.peek()?.span);
+            return Err(ParseError::unexpected(error_span));
         }
 
         // unkeyed field separators are invalid
@@ -1902,6 +1911,7 @@ impl Parser {
                     default,
                     mutability: None,
                     is_optional: modifiers.is_some_and(|modifiers| modifiers.is_optional),
+                    is_definite: modifiers.is_some_and(|modifiers| modifiers.is_definite),
                     is_readonly: modifiers.is_some_and(|modifiers| modifiers.is_readonly),
                     visibility: modifiers.and_then(|modifiers| modifiers.visibility),
                     is_ambient: self.is_ambient_for_modifiers(modifiers.as_ref()),
@@ -2018,21 +2028,69 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_member_diagnoses_definite_assignment() {
+    fn test_parse_typescript_member_definite_field() {
         let mut test = TestParser::new_with_language("prop!: Foo", LanguageType::TypeScript);
         let mut parser = test.prepare();
 
-        let error = parser.eat_member().unwrap_err();
-        assert_eq!(parser.get_span_str(error.leaf_span()), "!");
+        let member = parser.eat_member().unwrap();
+        test.assert_no_errors(&parser);
+
+        assert_node!(parser.tree, member, Member::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(value), is_definite, .. } => {
+            assert_string!(parser, *name, "prop");
+            assert!(*is_definite);
+            assert_expression_path!(parser, parser.tree.get(*value), "Foo");
+        });
     }
 
     #[test]
-    fn test_parse_member_accessor_diagnoses_definite_assignment() {
+    fn test_parse_typescript_member_definite_accessor() {
         let mut test = TestParser::new_with_language("accessor a!: any", LanguageType::TypeScript);
         let mut parser = test.prepare();
 
-        let error = parser.eat_member().unwrap_err();
-        assert_eq!(parser.get_span_str(error.leaf_span()), "!");
+        let member = parser.eat_member().unwrap();
+        test.assert_no_errors(&parser);
+
+        assert_node!(parser.tree, member, Member::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(value), is_accessor, is_definite, .. } => {
+            assert_string!(parser, *name, "a");
+            assert!(*is_accessor);
+            assert!(*is_definite);
+            assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+                assert_eq!(*value, TypeLiteral::Any);
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_destack_member_definite_field() {
+        let mut test = TestParser::new("prop!: Foo");
+        let mut parser = test.prepare();
+
+        let member = parser.eat_member().unwrap();
+        test.assert_no_errors(&parser);
+
+        assert_node!(parser.tree, member, Member::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(value), is_definite, .. } => {
+            assert_string!(parser, *name, "prop");
+            assert!(*is_definite);
+            assert_expression_path!(parser, parser.tree.get(*value), "Foo");
+        });
+    }
+
+    #[test]
+    fn test_parse_destack_member_definite_accessor() {
+        let mut test = TestParser::new("accessor a!: any");
+        let mut parser = test.prepare();
+
+        let member = parser.eat_member().unwrap();
+        test.assert_no_errors(&parser);
+
+        assert_node!(parser.tree, member, Member::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(value), is_accessor, is_definite, .. } => {
+            assert_string!(parser, *name, "a");
+            assert!(*is_accessor);
+            assert!(*is_definite);
+            assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+                assert_eq!(*value, TypeLiteral::Any);
+            });
+        });
     }
 
     #[test]
@@ -2060,7 +2118,8 @@ mod tests {
         let mut test = TestParser::new_with_language("prop!?: Foo", LanguageType::TypeScript);
         let mut parser = test.prepare();
 
-        assert!(parser.eat_member().is_err());
+        let error = parser.eat_member().unwrap_err();
+        assert_eq!(parser.get_span_str(error.leaf_span()), "?");
     }
 
     #[test]
