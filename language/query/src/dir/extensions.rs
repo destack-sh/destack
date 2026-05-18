@@ -1,51 +1,39 @@
 use destack_dir::{Extension, ExtensionForm, GlobalSymbolId};
 use destack_source::ModuleId;
-use destack_workspace::{Repository, Revision};
 
 use crate::core::{
-    DirQueryContext, ExtensionEntry, QueryContext, extension_candidates_for_target, query_context,
-    query_context_for_profile,
+    DirQueryContext, ExtensionEntry, ModuleQueryContext, WorkspaceQueryContext,
+    extension_candidates_for_target,
 };
-
-use super::get_canonical_symbol;
 
 /// Visit each visible extension that targets the given symbol.
 ///
 /// Returns early when the visitor returns true.
 pub(crate) fn for_each_visible_extension(
-    repository: &Repository,
-    revision: Revision,
+    ctx: &ModuleQueryContext<'_>,
+    workspace: &WorkspaceQueryContext<'_>,
     target_symbol: GlobalSymbolId,
-    current_module_id: ModuleId,
     mut visit: impl FnMut(DirQueryContext<'_>, &Extension) -> bool,
 ) {
     // normalize the target symbol across imports and re exports
-    let canonical_target = get_canonical_symbol(repository, revision, target_symbol);
-    let Some(profile_id) =
-        query_context(repository, revision, current_module_id).map(|ctx| ctx.profile_id())
-    else {
-        return;
-    };
+    let canonical_target = ctx.canonical_symbol(target_symbol);
 
     // scan cached extensions for the canonical target
-    for entry in extension_candidates_for_target(repository, revision, profile_id, canonical_target)
-    {
-        let Some(ctx) =
-            query_context_for_profile(repository, revision, entry.module_id, profile_id)
-        else {
+    for entry in extension_candidates_for_target(workspace, canonical_target) {
+        let Some(module_ctx) = ctx.module_context(entry.module_id) else {
             continue;
         };
 
-        let types = ctx.dir().types();
+        let types = module_ctx.dir().types();
         let extension = types.get_extension(entry.extension_id);
 
         // filter out not visible extensions
-        if !extension_is_visible(extension, current_module_id) {
+        if !extension_is_visible(extension, ctx.module_id()) {
             continue;
         }
 
         // stop scanning once the visitor is satisfied
-        if visit(ctx.dir(), extension) {
+        if visit(module_ctx.dir(), extension) {
             return;
         }
     }
@@ -53,8 +41,7 @@ pub(crate) fn for_each_visible_extension(
 
 /// Build extension index entries for one module.
 pub(crate) fn build_extension_candidates_for_module(
-    repository: &Repository,
-    ctx: &QueryContext<'_>,
+    ctx: &ModuleQueryContext<'_>,
 ) -> Vec<ExtensionEntry> {
     let mut entries = Vec::new();
     let module_id = ctx.module_id();
@@ -63,7 +50,7 @@ pub(crate) fn build_extension_candidates_for_module(
         entries.push(ExtensionEntry {
             module_id,
             extension_id,
-            target_symbol: get_canonical_symbol(repository, ctx.revision(), extension.target),
+            target_symbol: ctx.canonical_symbol(extension.target),
         });
     }
 

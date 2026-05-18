@@ -1,13 +1,11 @@
 use destack_dir::{GlobalSymbolId, SymbolForm};
-use destack_source::{FileId, Span, Uri};
-use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 
-use crate::core::{NominalRelation, nominal_relations_for_target, query_context};
-use crate::dir::{
-    find_symbol_at_offset, get_canonical_symbol, get_symbol_declaration_span,
-    get_symbol_definition_span, resolve_symbol_name,
+use crate::core::{
+    ModuleQueryContext, NominalRelation, QueryPosition, QueryTarget, WorkspaceQueryContext,
+    nominal_relations_for_target,
 };
+use crate::dir::{find_symbol_at_offset, symbol_declaration_span, symbol_definition_span};
 
 /// An item in the type hierarchy.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -18,23 +16,22 @@ pub struct TypeHierarchyItem {
     pub kind: TypeHierarchyKind,
     /// Detail (e.g., generic parameters).
     pub detail: Option<String>,
-    /// The file containing this type.
-    pub file: FileId,
-    /// The full range of the type declaration.
-    pub range: Span,
-    /// The range of the type's name.
-    pub selection_range: Span,
-    /// The symbol ID (internal use for follow-up queries).
-    pub symbol_id: GlobalSymbolId,
+    /// The target source and resolved identity.
+    pub target: QueryTarget,
 }
 
 /// Kind of type hierarchy item.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TypeHierarchyKind {
+    /// Class type.
     Class,
+    /// Interface type.
     Interface,
+    /// Struct type.
     Struct,
+    /// Enum type.
     Enum,
+    /// Type alias.
     TypeAlias,
 }
 
@@ -52,18 +49,16 @@ impl TypeHierarchyKind {
     }
 }
 
-/// Request prepare type hierarchy at a cursor position.
+/// Request the type hierarchy item at a cursor position.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct PrepareTypeHierarchyRequest {
-    /// The document URI.
-    pub uri: Uri,
-    /// The byte offset in the document.
-    pub offset: u32,
+pub struct TypeHierarchyItemRequest {
+    /// The queried position.
+    pub position: QueryPosition,
 }
 
-/// Response payload for prepare type hierarchy queries.
+/// Response payload for type hierarchy item queries.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct PrepareTypeHierarchyResponse {
+pub struct TypeHierarchyItemResponse {
     /// Type hierarchy item, if available.
     pub item: Option<TypeHierarchyItem>,
 }
@@ -96,45 +91,12 @@ pub struct TypeHierarchySubtypesResponse {
     pub items: Vec<TypeHierarchyItem>,
 }
 
-/// Prepare a type hierarchy item at the given position.
-///
-/// Returns the item if the position is on a type.
-pub fn prepare_type_hierarchy(
-    repository: &Repository,
-    revision: Revision,
-    file: FileId,
-    offset: u32,
-) -> Option<TypeHierarchyItem> {
+/// Return a type hierarchy item at the given position.
+pub fn type_hierarchy_item(ctx: &ModuleQueryContext<'_>, offset: u32) -> Option<TypeHierarchyItem> {
     // find the symbol at offset
-    let symbol_at = find_symbol_at_offset(repository, revision, file, offset)?;
-    let canonical_id = get_canonical_symbol(repository, revision, symbol_at.symbol_id);
+    let symbol_at = find_symbol_at_offset(ctx, offset)?;
 
-    // check if it's a type
-    let ctx = query_context(repository, revision, canonical_id.module_id)?;
-    let (kind, name) = {
-        let symbols = ctx.dir().symbols();
-        let symbol = symbols.get_symbol(canonical_id.local_id);
-        let kind = TypeHierarchyKind::from_symbol_form(symbol.form)?;
-        let name = resolve_symbol_name(repository, revision, canonical_id)?;
-        Some((kind, name))
-    }?;
-
-    // resolve the selection range at the symbol name
-    let selection_range = get_symbol_definition_span(repository, revision, canonical_id)?;
-
-    // resolve the full declaration range, fall back to the selection range
-    let range =
-        get_symbol_declaration_span(repository, revision, canonical_id).unwrap_or(selection_range);
-
-    Some(TypeHierarchyItem {
-        name,
-        kind,
-        detail: None,
-        file: selection_range.file,
-        range,
-        selection_range,
-        symbol_id: canonical_id,
-    })
+    type_hierarchy_item_from_symbol(ctx, symbol_at.symbol_id)
 }
 
 /// Get supertypes of a type hierarchy item.
@@ -143,18 +105,24 @@ pub fn prepare_type_hierarchy(
 /// For interfaces: extended interfaces.
 /// For structs: implemented interfaces.
 pub fn supertypes(
-    repository: &Repository,
-    revision: Revision,
+    ctx: &WorkspaceQueryContext<'_>,
     item: &TypeHierarchyItem,
 ) -> Vec<TypeHierarchyItem> {
-    let canonical_id = get_canonical_symbol(repository, revision, item.symbol_id);
+    let Some(symbol_id) = item.target.symbol_id else {
+        return Vec::new();
+    };
+    let profile_id = item.target.module.profile_id;
+    let Some(module_ctx) = ctx.module_context(symbol_id.module_id, profile_id) else {
+        return Vec::new();
+    };
+    let canonical_id = module_ctx.canonical_symbol(symbol_id);
 
     // get the lineage for this type
-    let Some(ctx) = query_context(repository, revision, canonical_id.module_id) else {
+    let Some(canonical_ctx) = module_ctx.module_context(canonical_id.module_id) else {
         return Vec::new();
     };
     let supertype_ids: Vec<GlobalSymbolId> = {
-        let types = ctx.dir().types();
+        let types = canonical_ctx.dir().types();
         let Some(lineage) = types.symbol_lineage(canonical_id) else {
             return Vec::new();
         };
@@ -176,7 +144,7 @@ pub fn supertypes(
     // convert to TypeHierarchyItems
     supertype_ids
         .into_iter()
-        .filter_map(|symbol_id| type_hierarchy_item_from_symbol(repository, revision, symbol_id))
+        .filter_map(|symbol_id| type_hierarchy_item_from_symbol(&module_ctx, symbol_id))
         .collect()
 }
 
@@ -185,22 +153,23 @@ pub fn supertypes(
 /// For classes: subclasses.
 /// For interfaces: implementing types and extending interfaces.
 pub fn subtypes(
-    repository: &Repository,
-    revision: Revision,
+    ctx: &WorkspaceQueryContext<'_>,
     item: &TypeHierarchyItem,
 ) -> Vec<TypeHierarchyItem> {
-    let canonical_id = get_canonical_symbol(repository, revision, item.symbol_id);
-    let Some(profile_id) =
-        query_context(repository, revision, item.symbol_id.module_id).map(|ctx| ctx.profile_id())
-    else {
+    let Some(symbol_id) = item.target.symbol_id else {
         return Vec::new();
     };
+    let profile_id = item.target.module.profile_id;
+    let Some(module_ctx) = ctx.module_context(symbol_id.module_id, profile_id) else {
+        return Vec::new();
+    };
+    let canonical_id = module_ctx.canonical_symbol(symbol_id);
 
     // collect all subtype symbol ids first, then convert
     let mut subtype_ids: Vec<GlobalSymbolId> = Vec::new();
 
     // search cached direct nominal edges across the repository
-    let entries = nominal_relations_for_target(repository, revision, profile_id, canonical_id);
+    let entries = nominal_relations_for_target(ctx, canonical_id);
 
     for entry in entries {
         let matches = entry.target_symbol == canonical_id
@@ -217,40 +186,39 @@ pub fn subtypes(
     // convert to TypeHierarchyItems
     subtype_ids
         .into_iter()
-        .filter_map(|symbol_id| type_hierarchy_item_from_symbol(repository, revision, symbol_id))
+        .filter_map(|symbol_id| type_hierarchy_item_from_symbol(&module_ctx, symbol_id))
         .collect()
 }
 
 /// Convert a symbol ID to a TypeHierarchyItem.
 fn type_hierarchy_item_from_symbol(
-    repository: &Repository,
-    revision: Revision,
+    ctx: &ModuleQueryContext<'_>,
     symbol_id: GlobalSymbolId,
 ) -> Option<TypeHierarchyItem> {
-    let canonical_id = get_canonical_symbol(repository, revision, symbol_id);
-    let ctx = query_context(repository, revision, canonical_id.module_id)?;
+    let canonical_id = ctx.canonical_symbol(symbol_id);
+    let canonical_ctx = ctx.module_context(canonical_id.module_id)?;
     let (kind, name) = {
-        let symbols = ctx.dir().symbols();
+        let symbols = canonical_ctx.dir().symbols();
         let symbol = symbols.get_symbol(canonical_id.local_id);
         let kind = TypeHierarchyKind::from_symbol_form(symbol.form)?;
-        let name = resolve_symbol_name(repository, revision, canonical_id)?;
+        let name = canonical_ctx.symbol_name(canonical_id)?;
         Some((kind, name))
     }?;
 
     // resolve the selection range at the symbol name
-    let selection_range = get_symbol_definition_span(repository, revision, canonical_id)?;
+    let selection_range = symbol_definition_span(&canonical_ctx, canonical_id)?;
 
-    // resolve the full declaration range, fall back to the selection range
-    let range =
-        get_symbol_declaration_span(repository, revision, canonical_id).unwrap_or(selection_range);
+    // use the selection range when no declaration range is recorded
+    let range = symbol_declaration_span(&canonical_ctx, canonical_id).unwrap_or(selection_range);
+
+    let target = QueryTarget::span(canonical_ctx.query_module(), range)
+        .with_selection_span(selection_range)
+        .with_symbol(canonical_id);
 
     Some(TypeHierarchyItem {
         name,
         kind,
         detail: None,
-        file: selection_range.file,
-        range,
-        selection_range,
-        symbol_id: canonical_id,
+        target,
     })
 }

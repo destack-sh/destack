@@ -1,13 +1,11 @@
 use destack_dir as dir;
-use destack_source::{FileId, NodeSpanType, Span, Uri};
-use destack_workspace::{Repository, Revision};
+use destack_source::{NodeSpanType, Span};
 use serde::{Deserialize, Serialize};
 
-use crate::core::query_context;
+use crate::core::{ModuleQueryContext, QueryModule, QueryRange};
 use crate::dir::{
     declaration_export, declaration_is_abstract, dependency_symbol_target, expression_symbol_target,
 };
-use crate::source::get_module_by_file_id;
 
 /// Semantic token type for LSP semantic highlighting.
 ///
@@ -103,19 +101,15 @@ impl SemanticToken {
 /// Request semantic tokens for a document.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SemanticTokensRequest {
-    /// The document URI.
-    pub uri: Uri,
+    /// The queried module.
+    pub module: QueryModule,
 }
 
 /// Request semantic tokens for a document range.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SemanticTokensRangeRequest {
-    /// The document URI.
-    pub uri: Uri,
-    /// The start byte offset in the document.
-    pub start: u32,
-    /// The end byte offset in the document.
-    pub end: u32,
+    /// The queried range.
+    pub range: QueryRange,
 }
 
 /// Response payload for semantic tokens queries.
@@ -125,22 +119,11 @@ pub struct SemanticTokensResponse {
     pub tokens: Vec<SemanticToken>,
 }
 
-/// Get semantic tokens for a file.
+/// Get semantic tokens for a query context file.
 ///
 /// Returns tokens suitable for LSP textDocument/semanticTokens/full.
 /// Tokens are in source order (not delta-encoded; the LSP layer handles that).
-pub fn semantic_tokens(
-    repository: &Repository,
-    revision: Revision,
-    file: FileId,
-) -> Vec<SemanticToken> {
-    let Some(module) = get_module_by_file_id(repository, revision, file) else {
-        return Vec::new();
-    };
-    let Some(ctx) = query_context(repository, revision, module.id) else {
-        return Vec::new();
-    };
-
+pub fn semantic_tokens(ctx: &ModuleQueryContext<'_>) -> Vec<SemanticToken> {
     let mut tokens = Vec::new();
     let dir_tree = ctx.dir().view();
 
@@ -149,7 +132,7 @@ pub fn semantic_tokens(
         // get the main span (identifier) for the declaration
         let source_node_id = dir_tree.get_source(decl_id);
         let Some(main_span) = ctx
-            .source()
+            .dir()
             .tree()
             .get_side_span_by_id(source_node_id, NodeSpanType::Main)
         else {
@@ -191,13 +174,13 @@ pub fn semantic_tokens(
     // collect parameter tokens
     for (parameter_id, parameter) in dir_tree.iter_nodes_of_type::<dir::Parameter>() {
         let source_node_id = dir_tree.get_source(parameter_id);
-        let Some(span) = ctx.source().tree().get_span_by_id(source_node_id) else {
+        let Some(span) = ctx.dir().tree().get_span_by_id(source_node_id) else {
             continue;
         };
 
         // for parameters, try to get just the name span if available
         let name_span = ctx
-            .source()
+            .dir()
             .tree()
             .get_side_span_by_id(source_node_id, NodeSpanType::Main)
             .unwrap_or(span);
@@ -221,7 +204,7 @@ pub fn semantic_tokens(
             saw_pattern_bindings = true;
             let source_node_id = dir_tree.get_source(pattern_id);
             let Some(main_span) = ctx
-                .source()
+                .dir()
                 .tree()
                 .get_side_span_by_id(source_node_id, NodeSpanType::Main)
             else {
@@ -247,7 +230,7 @@ pub fn semantic_tokens(
 
             let source_node_id = dir_tree.get_source(declarator.pattern);
             let Some(main_span) = ctx
-                .source()
+                .dir()
                 .tree()
                 .get_side_span_by_id(source_node_id, NodeSpanType::Main)
             else {
@@ -267,7 +250,7 @@ pub fn semantic_tokens(
     for (field_id, field) in dir_tree.iter_nodes_of_type::<dir::PatternField>() {
         let source_node_id = dir_tree.get_source(field_id);
         let Some(main_span) = ctx
-            .source()
+            .dir()
             .tree()
             .get_side_span_by_id(source_node_id, NodeSpanType::Main)
         else {
@@ -290,7 +273,7 @@ pub fn semantic_tokens(
     // collect expression tokens (references, literals, etc.)
     for (expression_id, expression) in dir_tree.iter_nodes_of_type::<dir::Expression>() {
         let source_node_id = dir_tree.get_source(expression_id);
-        let Some(span) = ctx.source().tree().get_span_by_id(source_node_id) else {
+        let Some(span) = ctx.dir().tree().get_span_by_id(source_node_id) else {
             continue;
         };
 
@@ -300,8 +283,7 @@ pub fn semantic_tokens(
                 let Some(target_symbol) = expression_symbol_target(ctx.dir(), expression_id) else {
                     continue;
                 };
-                let Some(target_ctx) = query_context(repository, revision, target_symbol.module_id)
-                else {
+                let Some(target_ctx) = ctx.module_context(target_symbol.module_id) else {
                     continue;
                 };
                 let target_symbols = target_ctx.dir().symbols();
@@ -314,7 +296,7 @@ pub fn semantic_tokens(
             // labelled statement - the label itself
             dir::Expression::Label { .. } => {
                 if let Some(main_span) = ctx
-                    .source()
+                    .dir()
                     .tree()
                     .get_side_span_by_id(source_node_id, NodeSpanType::Main)
                 {
@@ -350,7 +332,7 @@ pub fn semantic_tokens(
             dir::Expression::Member { .. } => {
                 // try to get just the member name span
                 if let Some(main_span) = ctx
-                    .source()
+                    .dir()
                     .tree()
                     .get_side_span_by_id(source_node_id, NodeSpanType::Main)
                 {
@@ -368,7 +350,7 @@ pub fn semantic_tokens(
 
         // try to get the name span
         let Some(main_span) = ctx
-            .source()
+            .dir()
             .tree()
             .get_side_span_by_id(source_node_id, NodeSpanType::Main)
         else {
@@ -425,7 +407,7 @@ pub fn semantic_tokens(
         let source_node_id = dir_tree.get_source(field_id);
 
         if let Some(main_span) = ctx
-            .source()
+            .dir()
             .tree()
             .get_side_span_by_id(source_node_id, NodeSpanType::Main)
         {
@@ -442,7 +424,7 @@ pub fn semantic_tokens(
             for &parameter_id in generic_parameters {
                 let source_node_id = dir_tree.get_source(parameter_id);
                 if let Some(main_span) = ctx
-                    .source()
+                    .dir()
                     .tree()
                     .get_side_span_by_id(source_node_id, NodeSpanType::Main)
                 {
@@ -458,13 +440,13 @@ pub fn semantic_tokens(
     // collect decorator tokens
     for (decorator_id, _decorator) in dir_tree.iter_nodes_of_type::<dir::Decorator>() {
         let source_node_id = dir_tree.get_source(decorator_id);
-        let Some(span) = ctx.source().tree().get_span_by_id(source_node_id) else {
+        let Some(span) = ctx.dir().tree().get_span_by_id(source_node_id) else {
             continue;
         };
 
         // for decorators, highlight the whole thing or just the name
         if let Some(main_span) = ctx
-            .source()
+            .dir()
             .tree()
             .get_side_span_by_id(source_node_id, NodeSpanType::Main)
         {
@@ -475,10 +457,15 @@ pub fn semantic_tokens(
     }
 
     // collect documentation comment tokens
-    let Some(file) = repository.file(revision, ctx.file_id()).ok().flatten() else {
+    let Some(file) = ctx
+        .repository()
+        .file(ctx.revision(), ctx.file_id())
+        .ok()
+        .flatten()
+    else {
         return tokens;
     };
-    for comment in ctx.source().tree().comments().iter().copied() {
+    for comment in ctx.dir().tree().comments().iter().copied() {
         let raw_text = file.span_str(comment.span);
         let raw_text = raw_text.trim_start();
         if !raw_text.starts_with("///") && !raw_text.starts_with("/**") {
@@ -497,7 +484,7 @@ pub fn semantic_tokens(
 
         // get the local binding name span
         let Some(main_span) = ctx
-            .source()
+            .dir()
             .tree()
             .get_side_span_by_id(source_node_id, NodeSpanType::Main)
         else {
@@ -505,20 +492,15 @@ pub fn semantic_tokens(
         };
 
         // determine token type based on what we're importing
-        let token_type = match dependency_symbol_target(ctx.dir(), item_id) {
-            Some(target_symbol) => {
-                if let Some(target_ctx) =
-                    query_context(repository, revision, target_symbol.module_id)
-                {
-                    let target_symbols = target_ctx.dir().symbols();
-                    let symbol = target_symbols.get_symbol(target_symbol.local_id);
-                    symbol_form_to_token_type(symbol.form)
-                } else {
-                    SemanticTokenType::Variable
-                }
-            }
-            // unresolved items default to variable
-            _ => SemanticTokenType::Variable,
+        let token_type = if let Some(target_symbol) = dependency_symbol_target(ctx.dir(), item_id) {
+            let Some(target_ctx) = ctx.module_context(target_symbol.module_id) else {
+                continue;
+            };
+            let target_symbols = target_ctx.dir().symbols();
+            let symbol = target_symbols.get_symbol(target_symbol.local_id);
+            symbol_form_to_token_type(symbol.form)
+        } else {
+            SemanticTokenType::Variable
         };
 
         tokens.push(
@@ -539,16 +521,11 @@ pub fn semantic_tokens(
     tokens
 }
 
-/// Get semantic tokens for a range in a file.
+/// Get semantic tokens for a range in a query context file.
 ///
 /// Returns tokens suitable for LSP textDocument/semanticTokens/range.
-pub fn semantic_tokens_range(
-    repository: &Repository,
-    revision: Revision,
-    file: FileId,
-    range: Span,
-) -> Vec<SemanticToken> {
-    semantic_tokens(repository, revision, file)
+pub fn semantic_tokens_range(ctx: &ModuleQueryContext<'_>, range: Span) -> Vec<SemanticToken> {
+    semantic_tokens(ctx)
         .into_iter()
         .filter(|token| token.span.start >= range.start && token.span.end <= range.end)
         .collect()

@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use destack_source::{EnclosingSpan, Span};
 
-use super::{SourceQueryContext, span_owns_cursor};
+use super::{DirQueryContext, span_owns_cursor};
 
 /// The cursor's statement relationship to one block.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -68,16 +68,16 @@ fn cursor_is_on_statement_main_span(
 
 /// Resolve the cursor's statement position inside one block.
 pub(crate) fn block_statement_position(
-    parsed: SourceQueryContext<'_>,
+    ctx: DirQueryContext<'_>,
     enc: &EnclosingSpan,
     offset: u32,
 ) -> Option<BlockStatementPosition> {
     // only block spans can expose statement positions
-    if parsed.tree().get_node_type(enc.idx) != dir::NodeType::Block {
+    if ctx.tree().get_node_type(enc.idx) != dir::NodeType::Block {
         return None;
     }
 
-    let parsed_tree = parsed.tree();
+    let parsed_tree = ctx.tree();
     let block_id = dir::LocalNodeId::<dir::Block>::new(enc.idx);
     let block = parsed_tree.get(block_id);
 

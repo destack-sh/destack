@@ -1,3 +1,4 @@
+mod annotation;
 mod call_hierarchy;
 mod definition;
 mod document_link;
@@ -6,10 +7,10 @@ mod find_references;
 mod highlight;
 mod implementation;
 mod selection_range;
-mod specifier;
 mod type_hierarchy;
 mod workspace_symbol;
 
+pub use annotation::*;
 pub use call_hierarchy::*;
 pub use definition::*;
 pub use document_link::*;

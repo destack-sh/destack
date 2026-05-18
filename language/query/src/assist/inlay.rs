@@ -1,13 +1,12 @@
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_dir::{Argument, Declarator, Expression, GlobalSymbolId, Pattern, TemplateLiteral};
-use destack_source::{FileId, Span, Uri};
-use destack_workspace::{Repository, Revision};
+use destack_source::Span;
 use serde::{Deserialize, Serialize};
 
-use crate::core::with_query_context_for_file;
+use crate::core::{ModuleQueryContext, QueryRange};
 use crate::dir::{call_target, parameter_names_for_symbol};
-use crate::format::format_type_for_inlay_hint;
+use crate::format::format_inlay_type;
 
 /// Kind of inlay hint.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -62,12 +61,8 @@ impl InlayHint {
 /// Request inlay hints for a range in a document.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InlayHintsRequest {
-    /// The document URI.
-    pub uri: Uri,
-    /// The start byte offset in the document.
-    pub start: u32,
-    /// The end byte offset in the document.
-    pub end: u32,
+    /// The queried range.
+    pub range: QueryRange,
 }
 
 /// Response payload for inlay hints queries.
@@ -78,165 +73,111 @@ pub struct InlayHintsResponse {
 }
 
 /// Get inlay hints for a range in a file.
-pub fn inlay_hints(
-    repository: &Repository,
-    revision: Revision,
-    file: FileId,
-    range: Span,
-) -> Vec<InlayHint> {
-    // resolve hints within the query context
-    with_query_context_for_file(repository, revision, file, |ctx| {
-        // resolve shared dir data for hint generation
-        let dir_tree = ctx.dir().view();
-        let types = ctx.dir().types();
+pub fn inlay_hints(ctx: &ModuleQueryContext<'_>, range: Span) -> Vec<InlayHint> {
+    let dir_tree = ctx.dir().view();
+    let types = ctx.dir().types();
+    let mut hints = Vec::new();
 
-        // collect parameter and type hints
-        let mut hints = Vec::new();
+    // collect parameter hints
+    for (expression_id, expression) in dir_tree.iter_nodes_of_type::<Expression>() {
+        let Expression::Call {
+            left, arguments, ..
+        } = expression
+        else {
+            continue;
+        };
+        if arguments.is_empty() {
+            continue;
+        }
 
-        // iterate through all call expressions for parameter hints
-        for (expression_id, expression) in dir_tree.iter_nodes_of_type::<Expression>() {
-            // check if this is a call expression
-            let Expression::Call {
-                left, arguments, ..
-            } = expression
-            else {
+        let source_node_id = dir_tree.get_source(expression_id);
+        let call_span = ctx.dir().tree().source_map.get(source_node_id);
+        if call_span.end < range.start || call_span.start > range.end {
+            continue;
+        }
+
+        let call_target = call_target(ctx.dir(), *left);
+        let param_names = get_parameter_names(ctx, call_target.symbol);
+        if param_names.is_empty() {
+            continue;
+        }
+
+        for (index, argument_id) in arguments.iter().enumerate() {
+            let argument = dir_tree.get::<Argument>(*argument_id);
+            let Some(param_name) = param_names.get(index) else {
                 continue;
             };
-
-            // skip if no arguments
-            if arguments.is_empty() {
+            let Some(argument_value) = argument.value() else {
+                continue;
+            };
+            let argument_is_literal = argument_is_literal(dir_tree, argument_value);
+            if should_skip_parameter_hint(
+                ctx.dir().strings(),
+                dir_tree,
+                argument,
+                param_name,
+                argument_is_literal,
+            ) {
                 continue;
             }
 
-            // get the span of this call expression
-            let source_node_id = dir_tree.get_source(expression_id);
-            let call_span = ctx.source().tree().source_map.get(source_node_id);
+            let argument_source_node_id = dir_tree.get_source(argument_value);
+            let arg_span = ctx.dir().tree().source_map.get(argument_source_node_id);
+            hints.push(InlayHint::parameter_hint(arg_span.start, param_name));
+        }
+    }
 
-            // skip if outside the requested range
-            if call_span.end < range.start || call_span.start > range.end {
-                continue;
-            }
-
-            // read the target symbol for this call
-            let call_target = call_target(repository, ctx.dir(), *left);
-            let target_symbol = call_target.symbol;
-
-            // get actual parameter names for this function
-            let param_names = get_parameter_names(repository, revision, target_symbol);
-
-            // skip parameter hints when we do not have names
-            if param_names.is_empty() {
-                continue;
-            }
-
-            // add parameter hints for each argument
-            for (index, argument_id) in arguments.iter().enumerate() {
-                // resolve the argument and parameter name
-                let argument = dir_tree.get::<Argument>(*argument_id);
-                let param_name = match param_names.get(index) {
-                    Some(name) => name.as_str(),
-                    None => continue,
-                };
-                let Some(argument_value) = argument.value() else {
-                    continue;
-                };
-                let argument_is_literal = argument_is_literal(dir_tree, argument_value);
-
-                // skip hints for arguments that already carry labels or match the name
-                if should_skip_parameter_hint(
-                    ctx.dir().strings(),
-                    dir_tree,
-                    argument,
-                    param_name,
-                    argument_is_literal,
-                ) {
-                    continue;
-                }
-
-                // get the span of the argument expression
-                let argument_source_node_id = dir_tree.get_source(argument_value);
-                let arg_span = ctx.source().tree().source_map.get(argument_source_node_id);
-
-                // add a parameter hint at the start of the argument
-                hints.push(InlayHint::parameter_hint(arg_span.start, param_name));
-            }
+    // collect inferred type hints
+    for (_declarator_id, declarator) in dir_tree.iter_nodes_of_type::<Declarator>() {
+        if declarator.ty.is_some() {
+            continue;
         }
 
-        // iterate through all declarators for type hints
-        for (_declarator_id, declarator) in dir_tree.iter_nodes_of_type::<Declarator>() {
-            // skip if already has explicit type annotation
-            if declarator.ty.is_some() {
-                continue;
-            }
-
-            // get the pattern to find its span and symbol
-            let pattern = dir_tree.get::<Pattern>(declarator.pattern);
-
-            // only emit hints for binding patterns
-            if let Pattern::Binding { .. } = pattern {
-                // get the span of the binding name
-                let source_node_id = dir_tree.get_source(declarator.pattern);
-                let Some(name_span) = ctx.source().tree().source_map.get_main(source_node_id)
-                else {
-                    continue;
-                };
-
-                // skip if outside the requested range
-                if name_span.end < range.start || name_span.start > range.end {
-                    continue;
-                }
-
-                // try to get the value type for this symbol
-                let Some(local_symbol) = ctx.dir().symbol_for_node(declarator.pattern.into())
-                else {
-                    continue;
-                };
-                let global_symbol_id = GlobalSymbolId::new(ctx.module_id(), local_symbol);
-
-                // resolve the inferred type when available
-                if let Some(type_id) = types.get_value_type_id(global_symbol_id) {
-                    // resolve the inferred type for the binding
-                    let ty = types.get_type(type_id);
-
-                    // format a widened display type for literal values
-                    let type_str = format_type_for_inlay_hint(
-                        ty,
-                        types,
-                        repository,
-                        revision,
-                        ctx.dir().strings(),
-                    );
-
-                    // add type hint after the binding name
-                    hints.push(InlayHint::type_hint(name_span.end, type_str));
-                }
-            }
+        let pattern = dir_tree.get::<Pattern>(declarator.pattern);
+        if !matches!(pattern, Pattern::Binding { .. }) {
+            continue;
         }
 
-        // sort hints by position, kind, and label
-        hints.sort_by(|left, right| {
-            let left_key = (
-                left.position,
-                hint_kind_rank(left.kind),
-                left.label.as_str(),
-            );
-            let right_key = (
-                right.position,
-                hint_kind_rank(right.kind),
-                right.label.as_str(),
-            );
-            left_key.cmp(&right_key)
-        });
+        let source_node_id = dir_tree.get_source(declarator.pattern);
+        let Some(name_span) = ctx.dir().tree().source_map.get_main(source_node_id) else {
+            continue;
+        };
+        if name_span.end < range.start || name_span.start > range.end {
+            continue;
+        }
 
-        // drop duplicate hints
-        hints.dedup_by(|left, right| {
-            left.position == right.position && left.kind == right.kind && left.label == right.label
-        });
+        let Some(local_symbol) = ctx.dir().symbol_for_node(declarator.pattern.into()) else {
+            continue;
+        };
+        let global_symbol_id = GlobalSymbolId::new(ctx.module_id(), local_symbol);
+        let Some(type_id) = types.get_value_type_id(global_symbol_id) else {
+            continue;
+        };
 
-        // return the collected hints
-        hints
-    })
-    .unwrap_or_default()
+        let ty = types.get_type(type_id);
+        let type_str = format_inlay_type(ty, types, ctx);
+        hints.push(InlayHint::type_hint(name_span.end, type_str));
+    }
+
+    // order and deduplicate hints
+    hints.sort_by(|left, right| {
+        let left_key = (
+            left.position,
+            hint_kind_rank(left.kind),
+            left.label.as_str(),
+        );
+        let right_key = (
+            right.position,
+            hint_kind_rank(right.kind),
+            right.label.as_str(),
+        );
+        left_key.cmp(&right_key)
+    });
+    hints.dedup_by(|left, right| {
+        left.position == right.position && left.kind == right.kind && left.label == right.label
+    });
+
+    hints
 }
 
 /// Rank inlay hint kinds for stable sorting.
@@ -253,8 +194,7 @@ fn hint_kind_rank(kind: InlayHintKind) -> u8 {
 /// If the target symbol points to a function declaration, extracts actual parameter names.
 /// Returns an empty vec if not available (caller will skip parameter hints).
 fn get_parameter_names(
-    repository: &Repository,
-    revision: Revision,
+    ctx: &ModuleQueryContext<'_>,
     target_symbol: Option<GlobalSymbolId>,
 ) -> Vec<String> {
     // require a resolved target symbol for parameter extraction
@@ -263,7 +203,7 @@ fn get_parameter_names(
     };
 
     // resolve parameter names from the DIR
-    parameter_names_for_symbol(repository, revision, symbol_id).unwrap_or_default()
+    parameter_names_for_symbol(ctx, symbol_id).unwrap_or_default()
 }
 
 /// Decide whether a parameter hint should be skipped for an argument.

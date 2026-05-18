@@ -1,20 +1,15 @@
-use destack_workspace::Revision;
 use std::collections::{HashMap, HashSet};
 
 use destack_dir as dir;
 use destack_dir::TokenType;
-use destack_source::{BatchEdit, Edit, File, FileEdit, FileId, Span, Uri};
+use destack_source::{BatchEdit, Edit, File, FileEdit, FileId, Span};
 use serde::{Deserialize, Serialize};
 
 use crate::core::{
-    QueryContext, call_candidates_for_callee, query_context, query_context_for_profile,
+    ModuleQueryContext, QueryPosition, WorkspaceQueryContext, call_candidates_for_callee,
 };
-use crate::dir::{
-    expression_symbol_target, find_symbol_at_offset, get_canonical_symbol,
-    member_access_symbol_target,
-};
-use crate::source::{get_module_by_file_id, span_for_dir_node};
-use destack_workspace::Repository;
+use crate::dir::{expression_symbol_target, find_symbol_at_offset, member_access_symbol_target};
+use crate::source::span_for_dir_node;
 
 /// Placeholder argument text inserted for newly required parameters.
 const MISSING_ARGUMENT_PLACEHOLDER: &str = "undefined";
@@ -22,10 +17,8 @@ const MISSING_ARGUMENT_PLACEHOLDER: &str = "undefined";
 /// Request payload for change signature queries.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ChangeSignatureRequest {
-    /// The document URI.
-    pub uri: Uri,
-    /// The byte offset in the document.
-    pub offset: u32,
+    /// The queried position.
+    pub position: QueryPosition,
     /// The new parameter list, comma-separated.
     pub new_parameters: String,
     /// The new argument list, comma-separated.
@@ -35,53 +28,23 @@ pub struct ChangeSignatureRequest {
 /// Response payload for change signature queries.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ChangeSignatureResponse {
-    /// Change signature result, if available.
-    pub result: Option<ChangeSignatureResult>,
-}
-
-/// Result of a change signature query.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ChangeSignatureResult {
-    /// All edits to apply.
-    pub edits: BatchEdit,
-}
-
-impl ChangeSignatureResult {
-    /// Create an empty change signature result.
-    pub fn empty() -> Self {
-        Self {
-            edits: BatchEdit::new(),
-        }
-    }
-
-    /// Create a result from a batch edit.
-    pub fn from_edits(edits: BatchEdit) -> Self {
-        Self { edits }
-    }
-
-    /// Whether there are any edits.
-    pub fn is_empty(&self) -> bool {
-        self.edits.is_empty()
-    }
+    /// Change signature edit, if available.
+    pub edit: Option<BatchEdit>,
 }
 
 /// Change the signature of a function and update all call sites.
 pub fn change_signature(
-    repository: &Repository,
-    revision: Revision,
-    file: FileId,
+    ctx: &ModuleQueryContext<'_>,
+    workspace: &WorkspaceQueryContext<'_>,
     offset: u32,
     new_parameters: &str,
     new_arguments: &str,
-) -> Option<ChangeSignatureResult> {
+) -> Option<BatchEdit> {
     // resolve the function symbol at the cursor
-    let _module = get_module_by_file_id(repository, revision, file)?;
-    let symbol_at = find_symbol_at_offset(repository, revision, file, offset)?;
-    let profile_id =
-        query_context(repository, revision, symbol_at.symbol_id.module_id)?.profile_id();
-    let canonical_id = get_canonical_symbol(repository, revision, symbol_at.symbol_id);
-    let constructor_owner = constructor_owner_symbol(repository, revision, canonical_id);
-    let old_param_positions = function_parameter_name_positions(repository, revision, canonical_id);
+    let symbol_at = find_symbol_at_offset(ctx, offset)?;
+    let canonical_id = ctx.canonical_symbol(symbol_at.symbol_id);
+    let constructor_owner = constructor_owner_symbol(ctx, canonical_id);
+    let old_param_positions = function_parameter_name_positions(ctx, canonical_id);
 
     // format the new parameter/argument lists
     let param_specs = parse_param_specs(new_parameters);
@@ -94,7 +57,7 @@ pub fn change_signature(
     let new_args_override = format_comma_list(new_arguments, false);
 
     // resolve parameter spans for the symbol and overloads
-    let param_spans = function_parameter_spans(repository, revision, canonical_id);
+    let param_spans = function_parameter_spans(ctx, canonical_id);
     if param_spans.is_empty() {
         return None;
     }
@@ -109,22 +72,21 @@ pub fn change_signature(
 
     // narrow the scan to modules that actually call the target
     let mut candidate_modules = HashSet::new();
-    for entry in call_candidates_for_callee(repository, revision, profile_id, canonical_id) {
+    for entry in call_candidates_for_callee(workspace, canonical_id) {
         candidate_modules.insert(entry.module_id);
     }
     if let Some(owner_symbol) = constructor_owner {
-        for entry in call_candidates_for_callee(repository, revision, profile_id, owner_symbol) {
+        for entry in call_candidates_for_callee(workspace, owner_symbol) {
             candidate_modules.insert(entry.module_id);
         }
     }
 
     // update call sites across candidate modules only
     for module_id in candidate_modules {
-        let Some(ctx) = query_context_for_profile(repository, revision, module_id, profile_id)
-        else {
+        let Some(module_ctx) = ctx.module_context(module_id) else {
             continue;
         };
-        let dir_tree = ctx.dir().view();
+        let dir_tree = module_ctx.dir().view();
 
         for (expr_id, expr) in dir_tree.iter_nodes_of_type::<dir::Expression>() {
             let left_expression = match expr {
@@ -136,10 +98,11 @@ pub fn change_signature(
                 continue;
             };
 
-            let Some(target_symbol) = call_target_symbol(&ctx, dir_tree, left_expression) else {
+            let Some(target_symbol) = call_target_symbol(&module_ctx, dir_tree, left_expression)
+            else {
                 continue;
             };
-            let target_symbol = get_canonical_symbol(repository, revision, target_symbol);
+            let target_symbol = module_ctx.canonical_symbol(target_symbol);
             let mut matches = target_symbol == canonical_id;
             if !matches && let Some(owner_symbol) = constructor_owner {
                 matches = target_symbol == owner_symbol;
@@ -148,14 +111,13 @@ pub fn change_signature(
                 continue;
             }
 
-            let expr_span = span_for_dir_node(ctx.source(), dir_tree, expr_id.into());
-            let Some(arg_span) = find_parenthesis_inner_span(&ctx, expr_span) else {
+            let expr_span = span_for_dir_node(module_ctx.dir(), dir_tree, expr_id.into());
+            let Some(arg_span) = find_parenthesis_inner_span(&module_ctx, expr_span) else {
                 continue;
             };
             let argument_text = if new_args_override.is_empty() {
                 let Some(argument_text) = build_arguments_for_call(
-                    repository,
-                    &ctx,
+                    &module_ctx,
                     dir_tree,
                     expr_id,
                     &param_specs,
@@ -187,17 +149,16 @@ pub fn change_signature(
         batch_edit.push(file_edit);
     }
 
-    Some(ChangeSignatureResult::from_edits(batch_edit))
+    Some(batch_edit)
 }
 
 /// Resolve the owning type symbol for a constructor member symbol.
 fn constructor_owner_symbol(
-    repository: &Repository,
-    revision: Revision,
+    ctx: &ModuleQueryContext<'_>,
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<dir::GlobalSymbolId> {
     // resolve the module and query context
-    let ctx = query_context(repository, revision, symbol_id.module_id)?;
+    let ctx = ctx.module_context(symbol_id.module_id)?;
 
     // resolve the declaration node
     let declaration = {
@@ -236,16 +197,12 @@ fn constructor_owner_symbol(
         _ => return None,
     };
 
-    Some(get_canonical_symbol(
-        repository,
-        revision,
-        dir::GlobalSymbolId::new(ctx.module_id(), owner_symbol),
-    ))
+    Some(ctx.canonical_symbol(dir::GlobalSymbolId::new(ctx.module_id(), owner_symbol)))
 }
 
 /// Return the symbol targeted by a call target expression.
 fn call_target_symbol(
-    ctx: &QueryContext<'_>,
+    ctx: &ModuleQueryContext<'_>,
     dir_tree: dir::View<'_>,
     call_left: dir::LocalNodeId<dir::Expression>,
 ) -> Option<dir::GlobalSymbolId> {
@@ -283,12 +240,11 @@ fn call_target_symbol(
 
 /// Return the parameter span for a symbol declaration.
 fn function_parameter_span(
-    repository: &Repository,
-    revision: Revision,
+    root_ctx: &ModuleQueryContext<'_>,
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<Span> {
     // read the module query context
-    let ctx = query_context(repository, revision, symbol_id.module_id)?;
+    let ctx = root_ctx.module_context(symbol_id.module_id)?;
 
     // resolve the declaration node
     let declaration = {
@@ -306,7 +262,7 @@ fn function_parameter_span(
             };
             function_signature_for_node(dir_tree, local_id)?;
             let source_id = dir_tree.get_source(decl_id);
-            ctx.source().source_map().get(source_id)
+            ctx.dir().source_map().get(source_id)
         }
         dir::NodeType::Member => {
             let Ok(member_id) = local_id.try_into_typed::<dir::Member>() else {
@@ -314,12 +270,12 @@ fn function_parameter_span(
             };
             function_signature_for_node(dir_tree, local_id)?;
             let source_id = dir_tree.get_source(member_id);
-            ctx.source().source_map().get(source_id)
+            ctx.dir().source_map().get(source_id)
         }
         dir::NodeType::Declarator | dir::NodeType::Pattern => {
             let declaration_id = function_declaration_from_binding(dir_tree, local_id)?;
             let source_id = dir_tree.get_source(declaration_id);
-            ctx.source().source_map().get(source_id)
+            ctx.dir().source_map().get(source_id)
         }
         _ => return None,
     };
@@ -330,14 +286,13 @@ fn function_parameter_span(
 
 /// Return parameter spans for a symbol.
 fn function_parameter_spans(
-    repository: &Repository,
-    revision: Revision,
+    ctx: &ModuleQueryContext<'_>,
     symbol_id: dir::GlobalSymbolId,
 ) -> Vec<Span> {
     let mut spans = Vec::new();
 
     // collect the declaration span
-    if let Some(span) = function_parameter_span(repository, revision, symbol_id) {
+    if let Some(span) = function_parameter_span(ctx, symbol_id) {
         spans.push(span);
     }
 
@@ -348,12 +303,11 @@ fn function_parameter_spans(
 
 /// Collect parameter positions by name for a function symbol.
 fn function_parameter_name_positions(
-    repository: &Repository,
-    revision: Revision,
+    root_ctx: &ModuleQueryContext<'_>,
     symbol_id: dir::GlobalSymbolId,
 ) -> HashMap<String, usize> {
     // resolve the module and query context for the symbol
-    let Some(ctx) = query_context(repository, revision, symbol_id.module_id) else {
+    let Some(ctx) = root_ctx.module_context(symbol_id.module_id) else {
         return HashMap::new();
     };
 
@@ -456,12 +410,12 @@ fn function_declaration_from_binding(
 }
 
 /// Find the inner span of the first parenthesis pair.
-fn find_parenthesis_inner_span(ctx: &QueryContext<'_>, span: Span) -> Option<Span> {
+fn find_parenthesis_inner_span(ctx: &ModuleQueryContext<'_>, span: Span) -> Option<Span> {
     // scan tokens for the first parenthesis pair within the span
     let mut depth = 0u32;
     let mut start = None;
 
-    for token in ctx.source().tokens() {
+    for token in ctx.dir().tokens() {
         if token.span.file != ctx.file_id() {
             continue;
         }
@@ -617,8 +571,7 @@ fn parse_param_specs(raw: &str) -> Vec<ParamSpec> {
 
 /// Build the new argument list for a call expression.
 fn build_arguments_for_call(
-    repository: &Repository,
-    ctx: &QueryContext<'_>,
+    ctx: &ModuleQueryContext<'_>,
     dir_tree: dir::View<'_>,
     expr_id: dir::LocalNodeId<dir::Expression>,
     params: &[ParamSpec],
@@ -633,7 +586,8 @@ fn build_arguments_for_call(
         _ => return None,
     };
 
-    let source_file = repository
+    let source_file = ctx
+        .repository()
         .file(ctx.revision(), ctx.file_id())
         .ok()
         .flatten()?;
@@ -642,7 +596,7 @@ fn build_arguments_for_call(
 
     for argument_id in arguments.iter() {
         let argument = dir_tree.get::<dir::Argument>(*argument_id);
-        let arg_span = span_for_dir_node(ctx.source(), dir_tree, (*argument_id).into());
+        let arg_span = span_for_dir_node(ctx.dir(), dir_tree, (*argument_id).into());
         let arg_text = source_file.span_str(arg_span).trim().to_string();
 
         match argument {
@@ -753,7 +707,7 @@ fn build_arguments_for_call(
 /// Extract the argument value text without labels.
 fn argument_value_text(
     source_file: &File,
-    ctx: &QueryContext<'_>,
+    ctx: &ModuleQueryContext<'_>,
     dir_tree: dir::View<'_>,
     argument: &dir::Argument,
 ) -> String {
@@ -761,6 +715,6 @@ fn argument_value_text(
     let Some(value_id) = argument.value() else {
         return String::new();
     };
-    let value_span = span_for_dir_node(ctx.source(), dir_tree, value_id.into());
+    let value_span = span_for_dir_node(ctx.dir(), dir_tree, value_id.into());
     source_file.span_str(value_span).trim().to_string()
 }

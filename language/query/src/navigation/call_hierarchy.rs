@@ -1,19 +1,16 @@
 use std::collections::HashMap;
 
 use destack_dir::{GlobalSymbolId, SymbolForm};
-use destack_source::{FileId, Span, Uri};
-use destack_workspace::{Repository, Revision};
+use destack_source::Span;
 use serde::{Deserialize, Serialize};
 
 use crate::core::{
-    call_candidates_for_callee, call_candidates_for_caller, query_context,
-    query_context_for_profile,
+    ModuleQueryContext, QueryPosition, QueryTarget, WorkspaceQueryContext,
+    call_candidates_for_callee, call_candidates_for_caller,
 };
-use crate::dir::{
-    find_symbol_at_offset, get_canonical_symbol, get_symbol_declaration_span,
-    get_symbol_definition_span, resolve_symbol_name,
-};
+use crate::dir::{find_symbol_at_offset, symbol_declaration_span, symbol_definition_span};
 use crate::source::sort_and_dedup_spans;
+
 /// An item in the call hierarchy.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CallHierarchyItem {
@@ -23,21 +20,18 @@ pub struct CallHierarchyItem {
     pub kind: CallHierarchyKind,
     /// Detail (e.g., signature).
     pub detail: Option<String>,
-    /// The file containing this item.
-    pub file: FileId,
-    /// The full range of the item.
-    pub range: Span,
-    /// The range of the item's name.
-    pub selection_range: Span,
-    /// The symbol ID (internal use for follow-up queries).
-    pub symbol_id: GlobalSymbolId,
+    /// The target source and resolved identity.
+    pub target: QueryTarget,
 }
 
 /// Kind of call hierarchy item.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CallHierarchyKind {
+    /// A function.
     Function,
+    /// A method.
     Method,
+    /// A constructor.
     Constructor,
 }
 
@@ -59,18 +53,16 @@ pub struct CallHierarchyOutgoingCall {
     pub from_ranges: Vec<Span>,
 }
 
-/// Request prepare call hierarchy at a cursor position.
+/// Request the call hierarchy item at a cursor position.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct PrepareCallHierarchyRequest {
-    /// The document URI.
-    pub uri: Uri,
-    /// The byte offset in the document.
-    pub offset: u32,
+pub struct CallHierarchyItemRequest {
+    /// The queried position.
+    pub position: QueryPosition,
 }
 
-/// Response payload for prepare call hierarchy queries.
+/// Response payload for call hierarchy item queries.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct PrepareCallHierarchyResponse {
+pub struct CallHierarchyItemResponse {
     /// Call hierarchy item, if available.
     pub item: Option<CallHierarchyItem>,
 }
@@ -103,66 +95,31 @@ pub struct CallHierarchyOutgoingResponse {
     pub calls: Vec<CallHierarchyOutgoingCall>,
 }
 
-/// Prepare a call hierarchy item at the given position.
-///
-/// Returns the item if the position is on a callable (function, method).
-pub fn prepare_call_hierarchy(
-    repository: &Repository,
-    revision: Revision,
-    file: FileId,
-    offset: u32,
-) -> Option<CallHierarchyItem> {
+/// Return a call hierarchy item at the given position.
+pub fn call_hierarchy_item(ctx: &ModuleQueryContext<'_>, offset: u32) -> Option<CallHierarchyItem> {
     // find the symbol at offset
-    let symbol_at = find_symbol_at_offset(repository, revision, file, offset)?;
-    let canonical_id = get_canonical_symbol(repository, revision, symbol_at.symbol_id);
-    let ctx = query_context(repository, revision, canonical_id.module_id)?;
-    let name = {
-        let symbols = ctx.dir().symbols();
-        let symbol = symbols.get_symbol(canonical_id.local_id);
+    let symbol_at = find_symbol_at_offset(ctx, offset)?;
 
-        // check if it's a function
-        if symbol.form != SymbolForm::Function {
-            return None;
-        }
-
-        // get the name
-        resolve_symbol_name(repository, revision, canonical_id)?
-    };
-
-    // resolve the selection range at the symbol name
-    let selection_range = get_symbol_definition_span(repository, revision, canonical_id)?;
-
-    // resolve the full declaration range, fall back to the selection range
-    let range =
-        get_symbol_declaration_span(repository, revision, canonical_id).unwrap_or(selection_range);
-
-    Some(CallHierarchyItem {
-        name,
-        kind: CallHierarchyKind::Function,
-        detail: None,
-        file: selection_range.file,
-        range,
-        selection_range,
-        symbol_id: canonical_id,
-    })
+    call_hierarchy_item_from_symbol(ctx, symbol_at.symbol_id)
 }
 
 /// Get incoming calls to a call hierarchy item.
 ///
 /// "Who calls this function?"
 pub fn incoming_calls(
-    repository: &Repository,
-    revision: Revision,
+    ctx: &WorkspaceQueryContext<'_>,
     item: &CallHierarchyItem,
 ) -> Vec<CallHierarchyIncomingCall> {
-    let canonical_id = get_canonical_symbol(repository, revision, item.symbol_id);
-    let Some(profile_id) =
-        query_context(repository, revision, item.symbol_id.module_id).map(|ctx| ctx.profile_id())
-    else {
+    let Some(symbol_id) = item.target.symbol_id else {
         return Vec::new();
     };
+    let profile_id = item.target.module.profile_id;
+    let Some(module_ctx) = ctx.module_context(symbol_id.module_id, profile_id) else {
+        return Vec::new();
+    };
+    let canonical_id = module_ctx.canonical_symbol(symbol_id);
     let mut incoming_by_caller: HashMap<GlobalSymbolId, Vec<Span>> = HashMap::new();
-    for entry in call_candidates_for_callee(repository, revision, profile_id, canonical_id) {
+    for entry in call_candidates_for_callee(ctx, canonical_id) {
         let Some(caller_symbol) = entry.caller_symbol else {
             continue;
         };
@@ -175,9 +132,7 @@ pub fn incoming_calls(
 
     let mut incoming = Vec::new();
     for (caller_symbol, call_spans) in incoming_by_caller {
-        if let Some(caller_item) =
-            call_hierarchy_item_from_symbol(repository, revision, profile_id, caller_symbol)
-        {
+        if let Some(caller_item) = call_hierarchy_item_from_symbol(&module_ctx, caller_symbol) {
             incoming.push(CallHierarchyIncomingCall {
                 from: caller_item,
                 from_ranges: call_spans,
@@ -199,19 +154,20 @@ pub fn incoming_calls(
 ///
 /// "What does this function call?"
 pub fn outgoing_calls(
-    repository: &Repository,
-    revision: Revision,
+    ctx: &WorkspaceQueryContext<'_>,
     item: &CallHierarchyItem,
 ) -> Vec<CallHierarchyOutgoingCall> {
-    let canonical_id = get_canonical_symbol(repository, revision, item.symbol_id);
-    let Some(profile_id) =
-        query_context(repository, revision, item.symbol_id.module_id).map(|ctx| ctx.profile_id())
-    else {
+    let Some(symbol_id) = item.target.symbol_id else {
         return Vec::new();
     };
+    let profile_id = item.target.module.profile_id;
+    let Some(module_ctx) = ctx.module_context(symbol_id.module_id, profile_id) else {
+        return Vec::new();
+    };
+    let canonical_id = module_ctx.canonical_symbol(symbol_id);
     let mut calls_with_spans: HashMap<GlobalSymbolId, Vec<Span>> = HashMap::new();
-    for entry in call_candidates_for_caller(repository, revision, profile_id, canonical_id) {
-        let callee_symbol = get_canonical_symbol(repository, revision, entry.callee_symbol);
+    for entry in call_candidates_for_caller(ctx, canonical_id) {
+        let callee_symbol = module_ctx.canonical_symbol(entry.callee_symbol);
 
         calls_with_spans
             .entry(callee_symbol)
@@ -223,9 +179,7 @@ pub fn outgoing_calls(
     let mut outgoing = Vec::new();
     for (target_symbol_id, call_spans) in calls_with_spans {
         // only include function calls
-        let Some(target_ctx) =
-            query_context_for_profile(repository, revision, target_symbol_id.module_id, profile_id)
-        else {
+        let Some(target_ctx) = module_ctx.module_context(target_symbol_id.module_id) else {
             continue;
         };
         let is_function = {
@@ -237,9 +191,7 @@ pub fn outgoing_calls(
             continue;
         }
 
-        if let Some(target_item) =
-            call_hierarchy_item_from_symbol(repository, revision, profile_id, target_symbol_id)
-        {
+        if let Some(target_item) = call_hierarchy_item_from_symbol(&target_ctx, target_symbol_id) {
             outgoing.push(CallHierarchyOutgoingCall {
                 to: target_item,
                 from_ranges: call_spans,
@@ -259,12 +211,14 @@ pub fn outgoing_calls(
 
 /// Build a stable ordering key for a call hierarchy item.
 fn call_item_key(item: &CallHierarchyItem) -> (u128, u32, u32, u32, u32, u8, &str) {
+    let selection_span = item.target.selection_span.unwrap_or(item.target.span);
+
     (
-        item.file.0,
-        item.range.start,
-        item.range.end,
-        item.selection_range.start,
-        item.selection_range.end,
+        item.target.span.file.0,
+        item.target.span.start,
+        item.target.span.end,
+        selection_span.start,
+        selection_span.end,
         call_kind_rank(item.kind),
         item.name.as_str(),
     )
@@ -281,36 +235,34 @@ fn call_kind_rank(kind: CallHierarchyKind) -> u8 {
 
 /// Convert a symbol ID to a CallHierarchyItem.
 fn call_hierarchy_item_from_symbol(
-    repository: &Repository,
-    revision: Revision,
-    profile_id: destack_source::ProfileId,
+    ctx: &ModuleQueryContext<'_>,
     symbol_id: GlobalSymbolId,
 ) -> Option<CallHierarchyItem> {
-    let canonical_id = get_canonical_symbol(repository, revision, symbol_id);
-    let ctx = query_context_for_profile(repository, revision, canonical_id.module_id, profile_id)?;
+    let canonical_id = ctx.canonical_symbol(symbol_id);
+    let canonical_ctx = ctx.module_context(canonical_id.module_id)?;
     let name = {
-        let symbols = ctx.dir().symbols();
+        let symbols = canonical_ctx.dir().symbols();
         let symbol = symbols.get_symbol(canonical_id.local_id);
         if symbol.form != SymbolForm::Function {
             return None;
         }
-        resolve_symbol_name(repository, revision, canonical_id)?
+        canonical_ctx.symbol_name(canonical_id)?
     };
 
     // resolve the selection range at the symbol name
-    let selection_range = get_symbol_definition_span(repository, revision, canonical_id)?;
+    let selection_range = symbol_definition_span(&canonical_ctx, canonical_id)?;
 
-    // resolve the full declaration range, fall back to the selection range
-    let range =
-        get_symbol_declaration_span(repository, revision, canonical_id).unwrap_or(selection_range);
+    // use the selection range when no declaration range is recorded
+    let range = symbol_declaration_span(&canonical_ctx, canonical_id).unwrap_or(selection_range);
+
+    let target = QueryTarget::span(canonical_ctx.query_module(), range)
+        .with_selection_span(selection_range)
+        .with_symbol(canonical_id);
 
     Some(CallHierarchyItem {
         name,
         kind: CallHierarchyKind::Function,
         detail: None,
-        file: selection_range.file,
-        range,
-        selection_range,
-        symbol_id: canonical_id,
+        target,
     })
 }

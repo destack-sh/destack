@@ -2,15 +2,11 @@ use destack_dir as dir;
 use destack_dir::{
     Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, Resolution, SymbolForm,
 };
-use destack_workspace::{Repository, Revision};
 
-use crate::core::{CallEntry, DirQueryContext, QueryContext, query_context};
+use crate::core::{CallEntry, DirQueryContext, ModuleQueryContext};
 use crate::source::get_node_tree_span;
 
-use super::{
-    expression_symbol_target, get_canonical_symbol, member_access_symbol_target,
-    resolve_symbol_name,
-};
+use super::{expression_symbol_target, member_access_symbol_target};
 /// Information about a call target.
 #[derive(Debug, Clone)]
 pub(crate) struct CallTarget {
@@ -29,7 +25,6 @@ impl CallTarget {
 
 /// Return the call target name and symbol for a call expression.
 pub(crate) fn call_target(
-    repository: &Repository,
     dir: DirQueryContext<'_>,
     left_expression_id: LocalNodeId<Expression>,
 ) -> CallTarget {
@@ -43,7 +38,7 @@ pub(crate) fn call_target(
             // read the referenced symbol and name
             let symbol = expression_symbol_target(dir, left_expression_id);
             let name = symbol
-                .and_then(|symbol| resolve_symbol_name(repository, dir.revision(), symbol))
+                .and_then(|symbol| dir.symbol_name(symbol))
                 .or_else(|| {
                     path.last_segment()
                         .map(|name_id| dir.strings().get(name_id).to_string())
@@ -51,13 +46,11 @@ pub(crate) fn call_target(
 
             // prefer the canonical function symbol when possible
             let function_symbol = symbol.and_then(|symbol| {
-                let canonical_symbol = get_canonical_symbol(repository, dir.revision(), symbol);
+                let canonical_symbol = dir.canonical_symbol(symbol);
 
-                symbol_is_function(repository, dir.revision(), canonical_symbol)
+                symbol_is_function(dir, canonical_symbol)
                     .then_some(canonical_symbol)
-                    .or_else(|| {
-                        symbol_is_function(repository, dir.revision(), symbol).then_some(symbol)
-                    })
+                    .or_else(|| symbol_is_function(dir, symbol).then_some(symbol))
             });
 
             CallTarget::new(name, function_symbol)
@@ -80,12 +73,8 @@ pub(crate) fn call_target(
 }
 
 /// Check whether a symbol id refers to a function declaration.
-fn symbol_is_function(
-    repository: &Repository,
-    revision: Revision,
-    symbol_id: GlobalSymbolId,
-) -> bool {
-    let Some(ctx) = query_context(repository, revision, symbol_id.module_id) else {
+fn symbol_is_function(dir: DirQueryContext<'_>, symbol_id: GlobalSymbolId) -> bool {
+    let Some(ctx) = dir.module_context(symbol_id.module_id) else {
         return false;
     };
 
@@ -95,10 +84,7 @@ fn symbol_is_function(
 }
 
 /// Build call index entries for one module.
-pub(crate) fn build_call_candidates_for_module(
-    repository: &Repository,
-    ctx: &QueryContext<'_>,
-) -> Vec<CallEntry> {
+pub(crate) fn build_call_candidates_for_module(ctx: &ModuleQueryContext<'_>) -> Vec<CallEntry> {
     let mut entries = Vec::new();
     let dir_tree = ctx.dir().view();
     let module_id = ctx.module_id();
@@ -109,9 +95,9 @@ pub(crate) fn build_call_candidates_for_module(
             _ => continue,
         };
 
-        let call_span = get_node_tree_span(ctx.source(), ctx.dir().view(), expression_id.into());
-        let caller_symbol = find_containing_function_symbol(&ctx, expression_id.into());
-        let callee_symbols = call_target_symbols(repository, &ctx, expression_id, left_expression);
+        let call_span = get_node_tree_span(ctx.dir(), ctx.dir().view(), expression_id.into());
+        let caller_symbol = find_containing_function_symbol(ctx, expression_id.into());
+        let callee_symbols = call_target_symbols(ctx.dir(), expression_id, left_expression);
         for callee_symbol in callee_symbols {
             entries.push(CallEntry {
                 module_id,
@@ -127,27 +113,22 @@ pub(crate) fn build_call_candidates_for_module(
 
 /// Return the canonical function symbols targeted by one call.
 fn call_target_symbols(
-    repository: &Repository,
-    ctx: &QueryContext<'_>,
+    dir: DirQueryContext<'_>,
     expression_id: LocalNodeId<Expression>,
     left_expression_id: LocalNodeId<Expression>,
 ) -> Vec<GlobalSymbolId> {
     let mut targets = Vec::new();
 
-    if let Some(target_symbol) = expression_symbol_target(ctx.dir(), left_expression_id) {
+    if let Some(target_symbol) = expression_symbol_target(dir, left_expression_id) {
         targets.push(target_symbol);
-        targets.push(get_canonical_symbol(
-            repository,
-            ctx.revision(),
-            target_symbol,
-        ));
+        targets.push(dir.canonical_symbol(target_symbol));
     }
 
     let node_id = GlobalNodeIdAny {
-        module_id: ctx.module_id(),
+        module_id: dir.module_id(),
         local_id: expression_id.into(),
     };
-    let Some(resolution) = ctx.dir().types().resolution(node_id) else {
+    let Some(resolution) = dir.types().resolution(node_id) else {
         return targets;
     };
 
@@ -163,11 +144,7 @@ fn call_target_symbols(
 
     for candidate in candidates {
         targets.push(candidate.symbol);
-        targets.push(get_canonical_symbol(
-            repository,
-            ctx.revision(),
-            candidate.symbol,
-        ));
+        targets.push(dir.canonical_symbol(candidate.symbol));
     }
 
     targets.sort();
@@ -177,7 +154,7 @@ fn call_target_symbols(
 
 /// Find the containing function symbol for one node.
 fn find_containing_function_symbol(
-    ctx: &QueryContext<'_>,
+    ctx: &ModuleQueryContext<'_>,
     node_id: dir::LocalNodeIdAny,
 ) -> Option<GlobalSymbolId> {
     let mut current = Some(node_id);

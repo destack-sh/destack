@@ -2,20 +2,18 @@ use std::collections::HashMap;
 
 use destack_dir as dir;
 use destack_dir::normalize_comment_payload;
-use destack_workspace::{Repository, Revision};
 
-use crate::core::{SourceQueryContext, query_context};
+use crate::core::{DirQueryContext, ModuleQueryContext};
 
 /// Collect documentation strings attached to a node.
 pub(crate) fn doc_strings_for_node(
-    parsed: SourceQueryContext<'_>,
+    ctx: DirQueryContext<'_>,
     source: &str,
     node_id: u32,
 ) -> Vec<String> {
-    let node_span = parsed.source_map().get_main_or_enclosing(node_id);
+    let node_span = ctx.source_map().get_main_or_enclosing(node_id);
 
-    parsed
-        .tree()
+    ctx.tree()
         .comments()
         .iter()
         .copied()
@@ -35,18 +33,18 @@ pub(crate) fn doc_strings_for_node(
         .collect()
 }
 
-/// Collect documentation strings attached to a node or immediate line docs.
-pub(crate) fn doc_strings_for_node_with_fallback(
-    parsed: SourceQueryContext<'_>,
+/// Collect documentation strings attached to a node or adjacent line docs.
+pub(crate) fn doc_strings_for_node_or_line(
+    ctx: DirQueryContext<'_>,
     source: &str,
     node_id: u32,
 ) -> Vec<String> {
     // collect doc strings from source DIR
-    let mut doc_strings = doc_strings_for_node(parsed, source, node_id);
+    let mut doc_strings = doc_strings_for_node(ctx, source, node_id);
 
-    // fall back to line docs when source docs are missing
+    // collect adjacent line docs when source docs are missing
     if doc_strings.is_empty() {
-        let span = parsed.source_map().get_main_or_enclosing(node_id);
+        let span = ctx.source_map().get_main_or_enclosing(node_id);
         doc_strings = line_doc_strings_before_span(source, span.start);
     }
 
@@ -56,17 +54,17 @@ pub(crate) fn doc_strings_for_node_with_fallback(
 
 /// Collect documentation strings from a node or enclosing nodes.
 pub(crate) fn doc_strings_for_node_or_enclosing(
-    parsed: SourceQueryContext<'_>,
+    ctx: DirQueryContext<'_>,
     source: &str,
     node_id: u32,
 ) -> Vec<String> {
     // gather docs on the node or enclosing nodes
-    let mut doc_strings = doc_strings_for_node(parsed, source, node_id);
+    let mut doc_strings = doc_strings_for_node(ctx, source, node_id);
 
-    // fall back to enclosing nodes when no docs are attached
+    // collect docs from enclosing nodes when no docs are attached
     if doc_strings.is_empty() {
-        let span = parsed.source_map().get_main_or_enclosing(node_id);
-        let mut enclosing = parsed
+        let span = ctx.source_map().get_main_or_enclosing(node_id);
+        let mut enclosing = ctx
             .source_map()
             .get_enclosing_spans(span.start, span.end.saturating_sub(1));
 
@@ -76,16 +74,16 @@ pub(crate) fn doc_strings_for_node_or_enclosing(
             if entry.idx == node_id {
                 continue;
             }
-            doc_strings = doc_strings_for_node(parsed, source, entry.idx);
+            doc_strings = doc_strings_for_node(ctx, source, entry.idx);
             if !doc_strings.is_empty() {
                 break;
             }
         }
     }
 
-    // fall back to line docs from source when source docs are missing
+    // collect adjacent line docs when source docs are missing
     if doc_strings.is_empty() {
-        let span = parsed.source_map().get_main_or_enclosing(node_id);
+        let span = ctx.source_map().get_main_or_enclosing(node_id);
         doc_strings = line_doc_strings_before_span(source, span.start);
     }
 
@@ -100,12 +98,11 @@ fn is_doc_comment(raw_comment: &str) -> bool {
 
 /// Join documentation strings for a symbol declaration or enclosing declaration nodes.
 pub(crate) fn doc_text_for_symbol(
-    repository: &Repository,
-    revision: Revision,
+    ctx: &ModuleQueryContext<'_>,
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<String> {
     // read the module query context
-    let ctx = query_context(repository, revision, symbol_id.module_id)?;
+    let ctx = ctx.module_context(symbol_id.module_id)?;
 
     // read the symbol declaration
     let declaration = {
@@ -122,11 +119,15 @@ pub(crate) fn doc_text_for_symbol(
 
     // resolve the source node for the declaration
     let source_node_id = dir_tree.get_source_any(declaration.local_id);
-    let source_file = repository.file(revision, ctx.file_id()).ok().flatten()?;
+    let source_file = ctx
+        .repository()
+        .file(ctx.revision(), ctx.file_id())
+        .ok()
+        .flatten()?;
     let source = source_file.text();
 
     // collect docs from the declaration or its enclosing wrapper nodes
-    let doc_strings = doc_strings_for_node_or_enclosing(ctx.source(), source, source_node_id);
+    let doc_strings = doc_strings_for_node_or_enclosing(ctx.dir(), source, source_node_id);
     if doc_strings.is_empty() {
         return None;
     }
@@ -136,13 +137,13 @@ pub(crate) fn doc_text_for_symbol(
 
 /// Join documentation strings with tag lines removed.
 pub(crate) fn doc_text_for_node_without_tags(
-    parsed: SourceQueryContext<'_>,
+    ctx: DirQueryContext<'_>,
     source: &str,
     node_id: u32,
     tags: &[&str],
 ) -> Option<String> {
-    // collect doc strings with fallback handling
-    let doc_strings = doc_strings_for_node_with_fallback(parsed, source, node_id);
+    // collect doc strings from node comments or adjacent line docs
+    let doc_strings = doc_strings_for_node_or_line(ctx, source, node_id);
 
     // return the filtered doc text
     doc_text_without_tags(doc_strings, tags)

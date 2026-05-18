@@ -3,15 +3,12 @@
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_source::ModuleId;
-use destack_workspace::{Repository, Revision};
 
 use super::types::format_local_type;
-use crate::core::query_context_for_profile;
+use crate::core::ModuleQueryContext;
 use crate::dir::{
     declaration_display_name, declaration_export, declaration_is_abstract, declaration_is_ambient,
 };
-use destack_source::ProfileId;
-use destack_workspace::Module;
 
 /// Formatted declaration signature.
 #[derive(Debug, Clone)]
@@ -32,23 +29,15 @@ pub struct FormattedCallSignature {
 }
 
 /// Format a declaration's signature with full type information.
-///
-/// # Panics
-/// Panics if the module's DIR for the profile is not available.
 pub fn format_declaration_signature(
     declaration: &dir::Declaration,
-    module: &Module,
-    repository: &Repository,
-    revision: Revision,
-    strings: &StringPool,
-    profile: ProfileId,
+    ctx: &ModuleQueryContext<'_>,
 ) -> FormattedSignature {
     // resolve dir data for formatting
-    let ctx = query_context_for_profile(repository, revision, module.id, profile)
-        .unwrap_or_else(|| panic!("no query context for profile {profile:?}"));
     let dir_tree = ctx.dir().view();
     let types = ctx.dir().types();
-    let module_id = module.id;
+    let module_id = ctx.module_id();
+    let strings = ctx.dir().strings();
 
     // resolve declaration metadata
     let kind = declaration.kind_name();
@@ -66,9 +55,7 @@ pub fn format_declaration_signature(
             module_id,
             dir_tree,
             types,
-            repository,
-            revision,
-            strings,
+            ctx,
         ),
         dir::Declaration::Global(_) => format!("{declaration_prefix}global"),
         dir::Declaration::Module(_) => format!("{declaration_prefix}module"),
@@ -78,9 +65,7 @@ pub fn format_declaration_signature(
                 module_id,
                 dir_tree,
                 types,
-                repository,
-                revision,
-                strings,
+                ctx,
             );
             format!("{declaration_prefix}struct {name}{generics_text}")
         }
@@ -90,9 +75,7 @@ pub fn format_declaration_signature(
                 module_id,
                 dir_tree,
                 types,
-                repository,
-                revision,
-                strings,
+                ctx,
             );
             format!("{declaration_prefix}class {name}{generics_text}")
         }
@@ -102,9 +85,7 @@ pub fn format_declaration_signature(
                 module_id,
                 dir_tree,
                 types,
-                repository,
-                revision,
-                strings,
+                ctx,
             );
             format!("{declaration_prefix}interface {name}{generics_text}")
         }
@@ -131,9 +112,7 @@ fn format_function(
     module_id: ModuleId,
     dir_tree: dir::View<'_>,
     types: &dir::TypeTable<'_>,
-    repository: &Repository,
-    revision: Revision,
-    strings: &StringPool,
+    ctx: &ModuleQueryContext<'_>,
 ) -> String {
     // resolve the async prefix
     let async_prefix = match signature.asynchrony {
@@ -147,9 +126,7 @@ fn format_function(
         module_id,
         dir_tree,
         types,
-        repository,
-        revision,
-        strings,
+        ctx,
     );
 
     // format parameters
@@ -159,9 +136,7 @@ fn format_function(
         module_id,
         dir_tree,
         types,
-        repository,
-        revision,
-        strings,
+        ctx,
     );
 
     // format return type
@@ -174,12 +149,7 @@ fn format_function(
             };
             types.get_declared_or_inferred_type_id(node_id)
         })
-        .map(|type_id| {
-            format!(
-                ": {}",
-                format_local_type(type_id, types, repository, revision, strings)
-            )
-        })
+        .map(|type_id| format!(": {}", format_local_type(type_id, types, ctx)))
         .unwrap_or_default();
 
     // return the formatted function signature
@@ -218,9 +188,7 @@ pub fn format_call_signature(
     module_id: ModuleId,
     dir_tree: dir::View<'_>,
     types: &dir::TypeTable<'_>,
-    repository: &Repository,
-    revision: Revision,
-    strings: &StringPool,
+    ctx: &ModuleQueryContext<'_>,
     include_this: bool,
 ) -> FormattedCallSignature {
     // resolve the async prefix
@@ -235,9 +203,7 @@ pub fn format_call_signature(
         module_id,
         dir_tree,
         types,
-        repository,
-        revision,
-        strings,
+        ctx,
     );
 
     // choose parameters
@@ -254,9 +220,7 @@ pub fn format_call_signature(
         module_id,
         dir_tree,
         types,
-        repository,
-        revision,
-        strings,
+        ctx,
     );
     let parameters_text = parameter_labels.join(", ");
 
@@ -270,12 +234,7 @@ pub fn format_call_signature(
             };
             types.get_declared_or_inferred_type_id(node_id)
         })
-        .map(|type_id| {
-            format!(
-                ": {}",
-                format_local_type(type_id, types, repository, revision, strings)
-            )
-        })
+        .map(|type_id| format!(": {}", format_local_type(type_id, types, ctx)))
         .unwrap_or_default();
 
     // build the call signature label
@@ -294,10 +253,10 @@ fn format_generics(
     module_id: ModuleId,
     dir_tree: dir::View<'_>,
     types: &dir::TypeTable<'_>,
-    repository: &Repository,
-    revision: Revision,
-    strings: &StringPool,
+    ctx: &ModuleQueryContext<'_>,
 ) -> String {
+    let strings = ctx.dir().strings();
+
     // skip empty generic lists
     if generics.is_empty() {
         return String::new();
@@ -307,15 +266,7 @@ fn format_generics(
     let formatted: Vec<_> = generics
         .iter()
         .map(|parameter_id| {
-            format_generic_parameter(
-                *parameter_id,
-                module_id,
-                dir_tree,
-                types,
-                repository,
-                revision,
-                strings,
-            )
+            format_generic_parameter(*parameter_id, module_id, dir_tree, types, strings)
         })
         .collect();
 
@@ -329,8 +280,6 @@ fn format_generic_parameter(
     _module_id: ModuleId,
     dir_tree: dir::View<'_>,
     _types: &dir::TypeTable<'_>,
-    _repository: &Repository,
-    _revision: Revision,
     strings: &StringPool,
 ) -> String {
     let parameter = dir_tree.get::<dir::GenericParameter>(parameter_id);
@@ -350,21 +299,11 @@ fn format_parameters(
     module_id: ModuleId,
     dir_tree: dir::View<'_>,
     types: &dir::TypeTable<'_>,
-    repository: &Repository,
-    revision: Revision,
-    strings: &StringPool,
+    ctx: &ModuleQueryContext<'_>,
 ) -> String {
     // format labels for parameters
-    let formatted = format_parameter_labels(
-        this_parameter,
-        parameters,
-        module_id,
-        dir_tree,
-        types,
-        repository,
-        revision,
-        strings,
-    );
+    let formatted =
+        format_parameter_labels(this_parameter, parameters, module_id, dir_tree, types, ctx);
 
     // return the joined parameter labels
     formatted.join(", ")
@@ -377,39 +316,23 @@ fn format_parameter_labels(
     module_id: ModuleId,
     dir_tree: dir::View<'_>,
     types: &dir::TypeTable<'_>,
-    repository: &Repository,
-    revision: Revision,
-    strings: &StringPool,
+    ctx: &ModuleQueryContext<'_>,
 ) -> Vec<String> {
     // collect formatted parameter labels
     let mut formatted: Vec<String> = Vec::new();
 
     // add the explicit this parameter when present
     if let Some(this_parameter) = this_parameter {
-        let this_text = format_parameter(
-            this_parameter,
-            module_id,
-            dir_tree,
-            types,
-            repository,
-            revision,
-            strings,
-        );
+        let this_text = format_parameter(this_parameter, module_id, dir_tree, types, ctx);
         formatted.push(format!("this: {this_text}"));
     }
 
     // add remaining parameters in order
-    formatted.extend(parameters.iter().map(|parameter_id| {
-        format_parameter(
-            *parameter_id,
-            module_id,
-            dir_tree,
-            types,
-            repository,
-            revision,
-            strings,
-        )
-    }));
+    formatted.extend(
+        parameters
+            .iter()
+            .map(|parameter_id| format_parameter(*parameter_id, module_id, dir_tree, types, ctx)),
+    );
 
     // return the formatted labels
     formatted
@@ -421,10 +344,10 @@ fn format_parameter(
     module_id: ModuleId,
     dir_tree: dir::View<'_>,
     types: &dir::TypeTable<'_>,
-    repository: &Repository,
-    revision: Revision,
-    strings: &StringPool,
+    ctx: &ModuleQueryContext<'_>,
 ) -> String {
+    let strings = ctx.dir().strings();
+
     // read the parameter node
     let parameter = dir_tree.get::<dir::Parameter>(parameter_id);
 
@@ -446,7 +369,7 @@ fn format_parameter(
     };
 
     if let Some(type_id) = types.get_declared_or_inferred_type_id(node_id) {
-        let type_text = format_local_type(type_id, types, repository, revision, strings);
+        let type_text = format_local_type(type_id, types, ctx);
         format!("{name}: {type_text}")
     } else {
         name
@@ -455,14 +378,11 @@ fn format_parameter(
 
 /// Format a symbol's signature for hover display.
 pub fn format_symbol_signature(
+    root_ctx: &ModuleQueryContext<'_>,
     symbol_id: dir::GlobalSymbolId,
-    repository: &Repository,
-    revision: Revision,
-    strings: &StringPool,
-    profile: ProfileId,
 ) -> Option<FormattedSignature> {
     // resolve module dir data
-    let ctx = query_context_for_profile(repository, revision, symbol_id.module_id, profile)?;
+    let ctx = root_ctx.module_context(symbol_id.module_id)?;
     let declaration_ref = {
         let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(symbol_id.into_local());
@@ -477,18 +397,14 @@ pub fn format_symbol_signature(
     // resolve type table and metadata
     let types = ctx.dir().types();
     let kind = declaration.kind_name();
+    let strings = ctx.dir().strings();
     let name = declaration_display_name(strings, declaration);
 
     // resolve the declaration prefix
     let declaration_prefix = format_declaration_prefix(declaration);
 
     // resolve the module id for global ids
-    let module_id = repository
-        .module(revision, symbol_id.module_id)
-        .ok()
-        .flatten()?
-        .id;
-
+    let module_id = ctx.module_id();
     // format the signature text by declaration kind
     let text = match declaration {
         dir::Declaration::Function(declaration) => format_function(
@@ -498,9 +414,7 @@ pub fn format_symbol_signature(
             module_id,
             dir_tree,
             types,
-            repository,
-            revision,
-            strings,
+            &ctx,
         ),
         dir::Declaration::Global(_) => format!("{declaration_prefix}global"),
         dir::Declaration::Module(_) => format!("{declaration_prefix}module"),
@@ -510,9 +424,7 @@ pub fn format_symbol_signature(
                 module_id,
                 dir_tree,
                 types,
-                repository,
-                revision,
-                strings,
+                &ctx,
             );
             format!("{declaration_prefix}struct {name}{generics_text}")
         }
@@ -522,9 +434,7 @@ pub fn format_symbol_signature(
                 module_id,
                 dir_tree,
                 types,
-                repository,
-                revision,
-                strings,
+                &ctx,
             );
             format!("{declaration_prefix}class {name}{generics_text}")
         }
@@ -534,9 +444,7 @@ pub fn format_symbol_signature(
                 module_id,
                 dir_tree,
                 types,
-                repository,
-                revision,
-                strings,
+                &ctx,
             );
             format!("{declaration_prefix}interface {name}{generics_text}")
         }

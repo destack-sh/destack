@@ -1,8 +1,8 @@
 use destack_dir as dir;
 use destack_source::Span;
 
-use crate::core::QueryContext;
-use crate::source::{line_start_for_offset, span_contains_span, span_for_dir_node};
+use crate::core::ModuleQueryContext;
+use crate::source::{line_start_for_offset, span_for_dir_node};
 
 /// Check whether an expression can be extracted into a refactor target.
 pub(crate) fn is_extractable_expression(expression: &dir::Expression) -> bool {
@@ -20,7 +20,7 @@ pub(crate) fn is_extractable_expression(expression: &dir::Expression) -> bool {
 
 /// Resolve the extractable expression at a selection span.
 pub(crate) fn resolve_extract_expression(
-    ctx: &QueryContext<'_>,
+    ctx: &ModuleQueryContext<'_>,
     selection: Span,
 ) -> Option<(dir::LocalNodeId<dir::Expression>, Span)> {
     // scan expressions for the smallest span that contains the selection
@@ -29,8 +29,8 @@ pub(crate) fn resolve_extract_expression(
     let mut best_len = u32::MAX;
 
     for (expr_id, expression) in dir_tree.iter_nodes_of_type::<dir::Expression>() {
-        let span = span_for_dir_node(ctx.source(), dir_tree, expr_id.into());
-        if !span_contains_span(span, selection) {
+        let span = span_for_dir_node(ctx.dir(), dir_tree, expr_id.into());
+        if !span.contains_span(selection) {
             continue;
         }
 
@@ -50,9 +50,9 @@ pub(crate) fn resolve_extract_expression(
 
 /// Resolve the statement span that owns an expression.
 pub(crate) fn statement_span_for_expression(
-    ctx: &QueryContext<'_>,
+    ctx: &ModuleQueryContext<'_>,
     expr_id: dir::LocalNodeId<dir::Expression>,
-    fallback: Span,
+    expression_span: Span,
 ) -> Span {
     // walk parent expressions until we find a statement boundary
     let dir_tree = ctx.dir().view();
@@ -72,14 +72,14 @@ pub(crate) fn statement_span_for_expression(
                     | dir::Expression::Using { .. }
                     | dir::Expression::Declaration { .. }
             ) {
-                return span_for_dir_node(ctx.source(), dir_tree, parent);
+                return span_for_dir_node(ctx.dir(), dir_tree, parent);
             }
         }
 
         current = parent;
     }
 
-    fallback
+    expression_span
 }
 
 /// Resolve the line start offset and indentation for a source position.
@@ -100,8 +100,8 @@ pub(crate) fn line_start_and_indent(source: &str, offset: u32) -> (u32, String) 
     (line_start as u32, indent)
 }
 
-/// Clean expression text for insertion in generated code.
-pub(crate) fn clean_expression_text(text: &str) -> String {
+/// Return expression source text that can be embedded in generated code.
+pub(crate) fn expression_text_for_insert(text: &str) -> String {
     // trim whitespace and trailing semicolons
     let trimmed = text.trim();
     let trimmed = trimmed.strip_suffix(';').unwrap_or(trimmed).trim_end();

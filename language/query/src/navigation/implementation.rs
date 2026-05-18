@@ -1,54 +1,31 @@
 use std::collections::HashSet;
 
 use destack_dir::{Expression, GlobalSymbolId, LocalNodeIdAny, NodeType, SymbolForm};
-use destack_source::{FileId, Span, Uri};
-use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 
 use crate::core::{
-    NominalRelation, nominal_relations_for_target, query_context, with_query_context_for_file,
+    ModuleQueryContext, NominalRelation, QueryPosition, WorkspaceQueryContext,
+    nominal_relations_for_target,
 };
 use crate::dir::{
-    dependency_symbol_target, find_symbol_at_offset, get_canonical_symbol,
-    get_symbol_definition_span, resolve_nominal_symbol_from_type_expression,
+    dependency_symbol_target, find_symbol_at_offset, resolve_nominal_symbol_from_type_expression,
+    symbol_definition_span,
 };
-use crate::source::{get_node_tree_main_span, sort_and_dedup_spans};
-
-/// Result of a goto implementation query.
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
-pub struct ImplementationResult {
-    /// Implementation locations.
-    pub locations: Vec<Span>,
-}
-
-impl ImplementationResult {
-    /// Create an empty result.
-    pub fn empty() -> Self {
-        Self {
-            locations: Vec::new(),
-        }
-    }
-
-    /// Whether any implementations were found.
-    pub fn is_empty(&self) -> bool {
-        self.locations.is_empty()
-    }
-}
+use crate::navigation::{NavigationRelation, NavigationTarget};
+use crate::source::get_node_tree_main_span;
 
 /// Request goto implementation at a cursor position.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GotoImplementationRequest {
-    /// The document URI.
-    pub uri: Uri,
-    /// The byte offset in the document.
-    pub offset: u32,
+    /// The queried position.
+    pub position: QueryPosition,
 }
 
 /// Response payload for goto implementation queries.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GotoImplementationResponse {
-    /// Implementation locations, if any.
-    pub result: Option<ImplementationResult>,
+    /// Implementation targets.
+    pub targets: Vec<NavigationTarget>,
 }
 
 /// Find implementations of the symbol at the given position.
@@ -57,28 +34,21 @@ pub struct GotoImplementationResponse {
 /// For abstract methods: finds concrete implementations.
 /// For classes: finds subclasses.
 pub fn goto_implementation(
-    repository: &Repository,
-    revision: Revision,
-    file: FileId,
+    ctx: &ModuleQueryContext<'_>,
+    workspace: &WorkspaceQueryContext<'_>,
     offset: u32,
-) -> Option<ImplementationResult> {
+) -> Vec<NavigationTarget> {
     // find the symbol at the cursor position
-    let symbol_at = find_symbol_at_offset(repository, revision, file, offset);
+    let symbol_at = find_symbol_at_offset(ctx, offset);
 
     // prefer type symbols when the cursor is on a type annotation
     let target_symbol_id = if let Some(symbol_at) = symbol_at {
         let mut symbol_id = symbol_at.symbol_id;
-        if !symbol_is_implementable(repository, revision, symbol_id) {
-            let node_type_symbol =
-                resolve_type_symbol_from_node(repository, revision, file, symbol_at.node_id);
-            let expression_type_symbol = resolve_type_symbol_from_expression_node(
-                repository,
-                revision,
-                file,
-                symbol_at.node_id,
-            );
-            let offset_type_symbol =
-                resolve_type_symbol_at_offset(repository, revision, file, offset);
+        if !symbol_is_implementable(ctx, symbol_id) {
+            let node_type_symbol = resolve_type_symbol_from_node(ctx, symbol_at.node_id);
+            let expression_type_symbol =
+                resolve_type_symbol_from_expression_node(ctx, symbol_at.node_id);
+            let offset_type_symbol = resolve_type_symbol_at_offset(ctx, offset);
 
             if let Some(type_symbol_id) = node_type_symbol {
                 symbol_id = type_symbol_id;
@@ -90,36 +60,33 @@ pub fn goto_implementation(
         }
 
         symbol_id
-    } else if let Some(type_symbol_id) =
-        resolve_type_symbol_at_offset(repository, revision, file, offset)
-    {
+    } else if let Some(type_symbol_id) = resolve_type_symbol_at_offset(ctx, offset) {
         type_symbol_id
     } else {
-        return Some(ImplementationResult::empty());
+        return Vec::new();
     };
 
     // collect canonical targets reachable from the cursor symbol
-    let target_symbols = collect_target_symbols(repository, revision, target_symbol_id);
+    let target_symbols = collect_target_symbols(ctx, target_symbol_id);
 
     // select an implementable symbol from the target set
     let canonical_id = target_symbols
         .iter()
         .copied()
-        .find(|symbol_id| symbol_is_implementable(repository, revision, *symbol_id));
+        .find(|symbol_id| symbol_is_implementable(ctx, *symbol_id));
 
     let Some(canonical_id) = canonical_id else {
-        return Some(ImplementationResult::empty());
+        return Vec::new();
     };
 
     // resolve the target symbol type information
-    let Some(ctx) = query_context(repository, revision, canonical_id.module_id) else {
-        return Some(ImplementationResult::empty());
+    let Some(target_ctx) = ctx.module_context(canonical_id.module_id) else {
+        return Vec::new();
     };
-    let profile_id = ctx.profile_id();
 
     // resolve the target symbol metadata
     let (is_interface, is_class) = {
-        let symbols = ctx.dir().symbols();
+        let symbols = target_ctx.dir().symbols();
         let symbol = symbols.get_symbol(canonical_id.local_id);
         (
             symbol.form == SymbolForm::Interface,
@@ -129,15 +96,15 @@ pub fn goto_implementation(
 
     // bail out for symbols that cannot be implemented
     if !is_interface && !is_class {
-        return Some(ImplementationResult::empty());
+        return Vec::new();
     }
 
     // initialize the result spans
-    let mut locations = Vec::new();
+    let mut targets = Vec::new();
 
     // match cached direct edges against the target symbol set
     for target_symbol in target_symbols {
-        let entries = nominal_relations_for_target(repository, revision, profile_id, target_symbol);
+        let entries = nominal_relations_for_target(workspace, target_symbol);
 
         for entry in entries {
             let matches = if is_interface {
@@ -147,72 +114,70 @@ pub fn goto_implementation(
             };
 
             if matches
-                && let Some(span) =
-                    get_symbol_definition_span(repository, revision, entry.source_symbol)
+                && let Some(source_ctx) = ctx.module_context(entry.source_symbol.module_id)
+                && let Some(span) = symbol_definition_span(&source_ctx, entry.source_symbol)
             {
-                locations.push(span);
+                let target =
+                    NavigationTarget::span(&source_ctx, span, NavigationRelation::Implementation)
+                        .with_symbol(entry.source_symbol);
+                targets.push(target);
             }
         }
     }
 
     // normalize spans for stable ordering and deduplication
-    sort_and_dedup_spans(&mut locations);
+    targets.sort_by_key(|target| {
+        (
+            target.target.span.file,
+            target.target.span.start,
+            target.target.span.end,
+        )
+    });
+    targets.dedup();
 
-    Some(ImplementationResult { locations })
+    targets
 }
 
 /// Resolve a type symbol at the given offset when the cursor is on a type annotation.
 fn resolve_type_symbol_at_offset(
-    repository: &Repository,
-    revision: Revision,
-    file: FileId,
+    ctx: &ModuleQueryContext<'_>,
     offset: u32,
 ) -> Option<GlobalSymbolId> {
-    with_query_context_for_file(repository, revision, file, |ctx| {
-        // scan expression nodes to find a type reference under the cursor
-        let dir_tree = ctx.dir().view();
-        for (expression_id, _expression) in dir_tree.iter_nodes_of_type::<Expression>() {
-            let span =
-                get_node_tree_main_span(ctx.source(), ctx.dir().view(), expression_id.into());
+    // scan expression nodes to find a type reference under the cursor
+    let dir_tree = ctx.dir().view();
+    for (expression_id, _expression) in dir_tree.iter_nodes_of_type::<Expression>() {
+        let span = get_node_tree_main_span(ctx.dir(), ctx.dir().view(), expression_id.into());
 
-            if offset < span.start || offset > span.end {
-                continue;
-            }
-
-            if let Some(symbol_id) =
-                resolve_nominal_symbol_from_type_expression(repository, ctx.dir(), expression_id)
-            {
-                return Some(symbol_id);
-            }
+        if offset < span.start || offset > span.end {
+            continue;
         }
 
-        None
-    })
-    .unwrap_or(None)
+        if let Some(symbol_id) =
+            resolve_nominal_symbol_from_type_expression(ctx.dir(), expression_id)
+        {
+            return Some(symbol_id);
+        }
+    }
+
+    None
 }
 
 /// Resolve a nominal type symbol from a node's declared or inferred type.
 fn resolve_type_symbol_from_node(
-    repository: &Repository,
-    revision: Revision,
-    file: FileId,
+    ctx: &ModuleQueryContext<'_>,
     node_id: LocalNodeIdAny,
 ) -> Option<GlobalSymbolId> {
-    with_query_context_for_file(repository, revision, file, |ctx| {
-        let global_node_id = node_id.into_global(ctx.module_id());
-        let types = ctx.dir().types();
-        let type_id = types.get_declared_or_inferred_type_id(global_node_id)?;
-        let ty = types.get_type(type_id);
-        ty.symbol()
-    })
-    .unwrap_or(None)
+    let global_node_id = node_id.into_global(ctx.module_id());
+    let types = ctx.dir().types();
+    let type_id = types.get_declared_or_inferred_type_id(global_node_id)?;
+    let ty = types.get_type(type_id);
+
+    ty.symbol()
 }
 
 /// Resolve a type symbol from an expression node when available.
 fn resolve_type_symbol_from_expression_node(
-    repository: &Repository,
-    revision: Revision,
-    file: FileId,
+    ctx: &ModuleQueryContext<'_>,
     node_id: LocalNodeIdAny,
 ) -> Option<GlobalSymbolId> {
     if node_id.ty != NodeType::Expression {
@@ -223,16 +188,12 @@ fn resolve_type_symbol_from_expression_node(
         return None;
     };
 
-    with_query_context_for_file(repository, revision, file, |ctx| {
-        resolve_nominal_symbol_from_type_expression(repository, ctx.dir(), expr_id)
-    })
-    .unwrap_or(None)
+    resolve_nominal_symbol_from_type_expression(ctx.dir(), expr_id)
 }
 
 /// Collect canonical symbols reachable from a query target.
 fn collect_target_symbols(
-    repository: &Repository,
-    revision: Revision,
+    ctx: &ModuleQueryContext<'_>,
     symbol_id: GlobalSymbolId,
 ) -> HashSet<GlobalSymbolId> {
     // seed the search with the initial symbol
@@ -242,18 +203,18 @@ fn collect_target_symbols(
     // walk canonical and dependency chains
     while let Some(current) = pending.pop() {
         // canonicalize the current symbol
-        let canonical_id = get_canonical_symbol(repository, revision, current);
+        let canonical_id = ctx.canonical_symbol(current);
         if !visited.insert(canonical_id) {
             continue;
         }
 
         // resolve the module and query context for the canonical symbol
-        let Some(ctx) = query_context(repository, revision, canonical_id.module_id) else {
+        let Some(canonical_ctx) = ctx.module_context(canonical_id.module_id) else {
             continue;
         };
 
         // resolve the next target symbol from symbol metadata or dependency items
-        let symbols = ctx.dir().symbols();
+        let symbols = canonical_ctx.dir().symbols();
         let symbol = symbols.get_symbol(canonical_id.local_id);
 
         let target_symbol = symbol.declaration.and_then(|declaration| {
@@ -262,7 +223,7 @@ fn collect_target_symbols(
             }
 
             let item_id = declaration.local_id.try_into().ok()?;
-            dependency_symbol_target(ctx.dir(), item_id)
+            dependency_symbol_target(canonical_ctx.dir(), item_id)
         });
 
         // continue walking when a dependency target exists
@@ -276,13 +237,9 @@ fn collect_target_symbols(
 }
 
 /// Check whether a symbol is an interface or class.
-fn symbol_is_implementable(
-    repository: &Repository,
-    revision: Revision,
-    symbol_id: GlobalSymbolId,
-) -> bool {
+fn symbol_is_implementable(ctx: &ModuleQueryContext<'_>, symbol_id: GlobalSymbolId) -> bool {
     // resolve the module and query context for the symbol
-    let Some(ctx) = query_context(repository, revision, symbol_id.module_id) else {
+    let Some(ctx) = ctx.module_context(symbol_id.module_id) else {
         return false;
     };
 

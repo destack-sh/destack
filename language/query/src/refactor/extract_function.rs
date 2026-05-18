@@ -2,32 +2,23 @@ use destack_dir as dir;
 use std::collections::{HashMap, HashSet};
 
 use destack_dir::NodeVisitor;
-use destack_source::{BatchEdit, Edit, FileEdit, FileId, ModuleId, Span, Uri};
-use destack_workspace::{Repository, Revision};
+use destack_source::{BatchEdit, Edit, FileEdit, ModuleId, Span};
 use serde::{Deserialize, Serialize};
 
 use super::extract::{
-    clean_expression_text, line_start_and_indent, resolve_extract_expression,
+    expression_text_for_insert, line_start_and_indent, resolve_extract_expression,
     statement_span_for_expression,
 };
-use crate::core::{QueryContext, query_context};
-use crate::dir::{
-    expression_symbol_target, get_canonical_symbol, get_symbol_definition_span, resolve_symbol_name,
-};
-use crate::format::{format_local_type, format_type_for_inlay_hint};
-use crate::source::{
-    get_module_by_file_id, is_simple_identifier, span_contains_span, span_for_dir_node,
-};
+use crate::core::{ModuleQueryContext, QueryRange};
+use crate::dir::{expression_symbol_target, symbol_definition_span};
+use crate::format::{format_inlay_type, format_local_type};
+use crate::source::{is_simple_identifier, span_for_dir_node};
 
 /// Request payload for extract function queries.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ExtractFunctionRequest {
-    /// The document URI.
-    pub uri: Uri,
-    /// The start byte offset of the selection.
-    pub start: u32,
-    /// The end byte offset of the selection.
-    pub end: u32,
+    /// The selected source range.
+    pub range: QueryRange,
     /// The name for the extracted function.
     pub new_name: String,
 }
@@ -35,77 +26,41 @@ pub struct ExtractFunctionRequest {
 /// Response payload for extract function queries.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ExtractFunctionResponse {
-    /// Extract function result, if available.
-    pub result: Option<ExtractFunctionResult>,
-}
-
-/// Result of an extract function query.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ExtractFunctionResult {
-    /// All edits to apply.
-    pub edits: BatchEdit,
-}
-
-impl ExtractFunctionResult {
-    /// Create an empty extract function result.
-    pub fn empty() -> Self {
-        Self {
-            edits: BatchEdit::new(),
-        }
-    }
-
-    /// Create a result from a batch edit.
-    pub fn from_edits(edits: BatchEdit) -> Self {
-        Self { edits }
-    }
-
-    /// Whether there are any edits.
-    pub fn is_empty(&self) -> bool {
-        self.edits.is_empty()
-    }
+    /// Extract function edit, if available.
+    pub edit: Option<BatchEdit>,
 }
 
 /// Extract a selection into a new function.
 pub fn extract_function(
-    repository: &Repository,
-    revision: Revision,
-    file: FileId,
+    ctx: &ModuleQueryContext<'_>,
     selection: Span,
     new_name: &str,
-) -> Option<ExtractFunctionResult> {
+) -> Option<BatchEdit> {
     // validate the function name
     if !is_simple_identifier(new_name) {
         return None;
     }
 
-    // resolve the module and query context
-    let module = get_module_by_file_id(repository, revision, file)?;
-    let ctx = query_context(repository, revision, module.id)?;
-
     // resolve source text for edits
-    let source_file = repository.file(revision, file).ok().flatten()?;
+    let source_file = ctx
+        .repository()
+        .file(ctx.revision(), ctx.file_id())
+        .ok()
+        .flatten()?;
     let source = source_file.text();
 
     // extract single expressions when possible
-    if let Some((expr_id, expr_span)) = resolve_extract_expression(&ctx, selection) {
-        return extract_expression(
-            repository,
-            &ctx,
-            &source_file,
-            source,
-            expr_id,
-            expr_span,
-            new_name,
-        );
+    if let Some((expr_id, expr_span)) = resolve_extract_expression(ctx, selection) {
+        return extract_expression(ctx, &source_file, source, expr_id, expr_span, new_name);
     }
 
     // extract contiguous statement blocks when expressions are not eligible
-    let selection = resolve_statement_selection(&ctx, selection)?;
-    if selection_contains_control_flow(&ctx, &selection) {
+    let selection = resolve_statement_selection(ctx, selection)?;
+    if selection_contains_control_flow(ctx, &selection) {
         return None;
     }
 
-    extract_statement_block(repository, &ctx, &source_file, source, &selection, new_name)
+    extract_statement_block(ctx, &source_file, source, &selection, new_name)
 }
 
 /// Selection metadata for extracting statements.
@@ -134,17 +89,16 @@ struct OutputSymbol {
 
 /// Extract a single expression into a new function.
 fn extract_expression(
-    repository: &Repository,
-    ctx: &QueryContext<'_>,
+    ctx: &ModuleQueryContext<'_>,
     source_file: &destack_source::File,
     source: &str,
     expr_id: dir::LocalNodeId<dir::Expression>,
     expr_span: Span,
     new_name: &str,
-) -> Option<ExtractFunctionResult> {
+) -> Option<BatchEdit> {
     // resolve source text for edits
     let expr_text = source_file.span_str(expr_span);
-    let expr_text = clean_expression_text(expr_text);
+    let expr_text = expression_text_for_insert(expr_text);
     if expr_text.is_empty() {
         return None;
     }
@@ -160,7 +114,7 @@ fn extract_expression(
     }
 
     // collect free variables for parameter list
-    let free_variables = collect_free_variables(repository, ctx, expr_span);
+    let free_variables = collect_free_variables(ctx, expr_span);
     let parameter_text = format_parameters(&free_variables);
     let call_arguments = format_call_arguments(&free_variables);
     let requires_async = expression_contains_await(ctx, expr_id);
@@ -169,7 +123,7 @@ fn extract_expression(
     let return_type = ctx.dir().expression_type_id(expr_id.into()).map(|type_id| {
         let types = ctx.dir().types();
         let ty = types.get_type(type_id);
-        format_type_for_inlay_hint(ty, types, repository, ctx.revision(), ctx.dir().strings())
+        format_inlay_type(ty, types, ctx)
     });
     let return_type = filter_inferred_type(return_type);
     let return_type = async_return_type(return_type, requires_async)
@@ -212,18 +166,17 @@ fn extract_expression(
     let mut batch_edit = BatchEdit::new();
     batch_edit.push(file_edit);
 
-    Some(ExtractFunctionResult::from_edits(batch_edit))
+    Some(batch_edit)
 }
 
 /// Extract a statement block into a new function.
 fn extract_statement_block(
-    repository: &Repository,
-    ctx: &QueryContext<'_>,
+    ctx: &ModuleQueryContext<'_>,
     source_file: &destack_source::File,
     source: &str,
     selection: &StatementSelection,
     new_name: &str,
-) -> Option<ExtractFunctionResult> {
+) -> Option<BatchEdit> {
     // resolve source text for edits
     let selection_text = source_file.span_str(selection.extraction_span);
     if selection_text.trim().is_empty() {
@@ -231,13 +184,13 @@ fn extract_statement_block(
     }
 
     // collect free variables for parameter list
-    let free_variables = collect_free_variables(repository, ctx, selection.extraction_span);
+    let free_variables = collect_free_variables(ctx, selection.extraction_span);
     let parameter_text = format_parameters(&free_variables);
     let call_arguments = format_call_arguments(&free_variables);
     let requires_async = selection_contains_await(ctx, selection);
 
     // collect symbols that must be returned from the extracted function
-    let outputs = collect_output_symbols(repository, ctx, selection);
+    let outputs = collect_output_symbols(ctx, selection);
 
     // resolve return type from output symbols when possible
     let return_type = async_return_type(
@@ -308,12 +261,12 @@ fn extract_statement_block(
     let mut batch_edit = BatchEdit::new();
     batch_edit.push(file_edit);
 
-    Some(ExtractFunctionResult::from_edits(batch_edit))
+    Some(batch_edit)
 }
 
 /// Resolve a statement selection from a span.
 fn resolve_statement_selection(
-    ctx: &QueryContext<'_>,
+    ctx: &ModuleQueryContext<'_>,
     selection: Span,
 ) -> Option<StatementSelection> {
     // resolve the tightest block containing the selection
@@ -321,8 +274,8 @@ fn resolve_statement_selection(
     let mut best_block: Option<(dir::LocalNodeId<dir::Block>, Span, u32)> = None;
 
     for (block_id, _block) in dir_tree.iter_nodes_of_type::<dir::Block>() {
-        let span = span_for_dir_node(ctx.source(), dir_tree, block_id.into());
-        if !span_contains_span(span, selection) {
+        let span = span_for_dir_node(ctx.dir(), dir_tree, block_id.into());
+        if !span.contains_span(selection) {
             continue;
         }
 
@@ -353,13 +306,13 @@ fn resolve_statement_selection(
     let mut has_partial = false;
 
     for (idx, expr_id) in container_expressions.iter().enumerate() {
-        let span = span_for_dir_node(ctx.source(), dir_tree, (*expr_id).into());
+        let span = span_for_dir_node(ctx.dir(), dir_tree, (*expr_id).into());
         let intersects = span.start < selection.end && span.end > selection.start;
         if !intersects {
             continue;
         }
 
-        if !span_contains_span(selection, span) {
+        if !selection.contains_span(span) {
             has_partial = true;
             break;
         }
@@ -394,7 +347,10 @@ fn resolve_statement_selection(
 }
 
 /// Check whether a selection contains control flow that blocks extraction.
-fn selection_contains_control_flow(ctx: &QueryContext<'_>, selection: &StatementSelection) -> bool {
+fn selection_contains_control_flow(
+    ctx: &ModuleQueryContext<'_>,
+    selection: &StatementSelection,
+) -> bool {
     // scan the selection for control flow that cannot be safely extracted
     let dir_tree = ctx.dir().view();
     let raw_tree = dir_tree.tree();
@@ -413,7 +369,7 @@ fn selection_contains_control_flow(ctx: &QueryContext<'_>, selection: &Statement
 }
 
 /// Check whether a selection contains await expressions.
-fn selection_contains_await(ctx: &QueryContext<'_>, selection: &StatementSelection) -> bool {
+fn selection_contains_await(ctx: &ModuleQueryContext<'_>, selection: &StatementSelection) -> bool {
     // scan the selection for await expressions
     let dir_tree = ctx.dir().view();
     let raw_tree = dir_tree.tree();
@@ -433,7 +389,7 @@ fn selection_contains_await(ctx: &QueryContext<'_>, selection: &StatementSelecti
 
 /// Check whether an expression subtree contains await.
 fn expression_contains_await(
-    ctx: &QueryContext<'_>,
+    ctx: &ModuleQueryContext<'_>,
     expr_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     // scan the expression for await usage
@@ -447,8 +403,7 @@ fn expression_contains_await(
 
 /// Collect output symbols produced in a selection.
 fn collect_output_symbols(
-    repository: &Repository,
-    ctx: &QueryContext<'_>,
+    ctx: &ModuleQueryContext<'_>,
     selection: &StatementSelection,
 ) -> Vec<OutputSymbol> {
     // collect symbols referenced after the selection in the same container
@@ -468,43 +423,35 @@ fn collect_output_symbols(
 
     let mut outputs = Vec::new();
     for (symbol_id, reference_id) in referenced_after {
-        let canonical = get_canonical_symbol(repository, ctx.revision(), symbol_id);
-        let Some(definition_span) =
-            get_symbol_definition_span(repository, ctx.revision(), canonical)
-        else {
+        let canonical = ctx.canonical_symbol(symbol_id);
+        let Some(definition_span) = symbol_definition_span(ctx, canonical) else {
             continue;
         };
         if definition_span.file != ctx.file_id() {
             continue;
         }
-        if !span_contains_span(selection.extraction_span, definition_span) {
+        if !selection.extraction_span.contains_span(definition_span) {
             continue;
         }
 
-        let Some(name) = resolve_symbol_name(repository, ctx.revision(), canonical) else {
+        let Some(name) = ctx.symbol_name(canonical) else {
             continue;
         };
         if !is_simple_identifier(&name) {
             continue;
         }
 
-        let mutability = symbol_mutability(repository, ctx.revision(), canonical);
+        let mutability = symbol_mutability(ctx, canonical);
         let ty_text = ctx
             .dir()
             .expression_type_id(reference_id.into())
             .map(|type_id| {
                 let types = ctx.dir().types();
                 let ty = types.get_type(type_id);
-                format_type_for_inlay_hint(
-                    ty,
-                    types,
-                    repository,
-                    ctx.revision(),
-                    ctx.dir().strings(),
-                )
+                format_inlay_type(ty, types, ctx)
             })
             .filter(|ty| !ty.is_empty())
-            .or_else(|| declaration_form_text(repository, ctx, canonical));
+            .or_else(|| declaration_form_text(ctx, canonical));
         outputs.push(OutputSymbol {
             name,
             ty_text,
@@ -643,19 +590,15 @@ struct FreeVariable {
 }
 
 /// Collect free variables within a selection.
-fn collect_free_variables(
-    repository: &Repository,
-    ctx: &QueryContext<'_>,
-    selection: Span,
-) -> Vec<FreeVariable> {
+fn collect_free_variables(ctx: &ModuleQueryContext<'_>, selection: Span) -> Vec<FreeVariable> {
     // collect free variables in order of appearance
     let dir_tree = ctx.dir().view();
     let mut seen = HashSet::new();
     let mut vars: Vec<(u32, FreeVariable)> = Vec::new();
 
     for (expr_id, _) in dir_tree.iter_nodes_of_type::<dir::Expression>() {
-        let span = span_for_dir_node(ctx.source(), dir_tree, expr_id.into());
-        if !span_contains_span(selection, span) {
+        let span = span_for_dir_node(ctx.dir(), dir_tree, expr_id.into());
+        if !selection.contains_span(span) {
             continue;
         }
 
@@ -664,25 +607,23 @@ fn collect_free_variables(
             continue;
         };
 
-        let canonical = get_canonical_symbol(repository, ctx.revision(), target_symbol);
+        let canonical = ctx.canonical_symbol(target_symbol);
         if !seen.insert(canonical) {
             continue;
         }
 
-        let Some(definition_span) =
-            get_symbol_definition_span(repository, ctx.revision(), canonical)
-        else {
+        let Some(definition_span) = symbol_definition_span(ctx, canonical) else {
             continue;
         };
 
         if definition_span.file != ctx.file_id() {
             continue;
         }
-        if span_contains_span(selection, definition_span) {
+        if selection.contains_span(definition_span) {
             continue;
         }
 
-        let Some(name) = resolve_symbol_name(repository, ctx.revision(), canonical) else {
+        let Some(name) = ctx.symbol_name(canonical) else {
             continue;
         };
         if !is_simple_identifier(&name) {
@@ -695,16 +636,10 @@ fn collect_free_variables(
             .map(|type_id| {
                 let types = ctx.dir().types();
                 let ty = types.get_type(type_id);
-                format_type_for_inlay_hint(
-                    ty,
-                    types,
-                    repository,
-                    ctx.revision(),
-                    ctx.dir().strings(),
-                )
+                format_inlay_type(ty, types, ctx)
             })
             .filter(|ty| !ty.is_empty())
-            .or_else(|| declaration_form_text(repository, ctx, canonical));
+            .or_else(|| declaration_form_text(ctx, canonical));
         vars.push((span.start, FreeVariable { name, ty_text }));
     }
 
@@ -714,12 +649,11 @@ fn collect_free_variables(
 
 /// Resolve the mutability for a symbol.
 fn symbol_mutability(
-    repository: &Repository,
-    revision: Revision,
+    ctx: &ModuleQueryContext<'_>,
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<dir::Mutability> {
     // resolve the mutability for the symbol
-    let ctx = query_context(repository, revision, symbol_id.module_id)?;
+    let ctx = ctx.module_context(symbol_id.module_id)?;
     let symbols = ctx.dir().symbols();
     let symbol = symbols.get_symbol(symbol_id.local_id);
     symbol.binding_mutability
@@ -727,8 +661,7 @@ fn symbol_mutability(
 
 /// Resolve type text for a symbol when possible.
 fn declaration_form_text(
-    repository: &Repository,
-    ctx: &QueryContext<'_>,
+    ctx: &ModuleQueryContext<'_>,
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<String> {
     // prefer the current query context when possible
@@ -740,13 +673,7 @@ fn declaration_form_text(
         };
 
         let type_id = ctx.dir().node_type_id(declaration.local_id)?;
-        let type_text = format_local_type(
-            type_id,
-            ctx.dir().types(),
-            repository,
-            ctx.revision(),
-            ctx.dir().strings(),
-        );
+        let type_text = format_local_type(type_id, ctx.dir().types(), ctx);
         if type_text.is_empty() {
             return None;
         }
@@ -755,7 +682,7 @@ fn declaration_form_text(
     }
 
     // resolve the declaration node for the symbol in its module
-    let ctx = query_context(repository, ctx.revision(), symbol_id.module_id)?;
+    let ctx = ctx.module_context(symbol_id.module_id)?;
     let declaration = {
         let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(symbol_id.local_id);
@@ -763,13 +690,7 @@ fn declaration_form_text(
     };
 
     let type_id = ctx.dir().node_type_id(declaration.local_id)?;
-    let type_text = format_local_type(
-        type_id,
-        ctx.dir().types(),
-        repository,
-        ctx.revision(),
-        ctx.dir().strings(),
-    );
+    let type_text = format_local_type(type_id, ctx.dir().types(), &ctx);
     if type_text.is_empty() {
         None
     } else {

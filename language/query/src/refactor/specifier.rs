@@ -86,7 +86,7 @@ pub(super) fn match_specifier_rename(
         return None;
     }
 
-    // otherwise fall back to specifier shaped policy
+    // otherwise use specifier shaped policy
     if let Some((old_path, new_path)) =
         match_relative_rename_entry(policy, source_path, rename_map, specifier)
     {

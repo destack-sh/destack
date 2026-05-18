@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use crate::core::{DirQueryContext, SourceQueryContext};
+use crate::core::DirQueryContext;
 use crate::dir::expression_symbol_target;
 use crate::source::{
     member_access_dot_before_offset, receiver_token_before_member_access_dot,
@@ -11,26 +11,25 @@ use super::{CompletionContext, CursorToken};
 
 /// Detect member access context near the cursor.
 pub(super) fn detect_member_access_context(
-    parsed: SourceQueryContext<'_>,
-    dir: DirQueryContext<'_>,
+    ctx: DirQueryContext<'_>,
     token: &Option<CursorToken>,
     offset: u32,
 ) -> Option<CompletionContext> {
     let cursor_position = offset.saturating_sub(1);
 
     // detect member access inside an existing member name token
-    if let Some(context) = member_access_context_from_member_name(parsed, dir, cursor_position) {
+    if let Some(context) = member_access_context_from_member_name(ctx, cursor_position) {
         return Some(context);
     }
 
     // resolve member access context when immediately after one dot boundary
-    if let Some(context) = member_access_context_from_dot(parsed, dir, offset) {
+    if let Some(context) = member_access_context_from_dot(ctx, offset) {
         return Some(context);
     }
 
     // resolve member access when the cursor is inside a member name
     if let Some(token_at_cursor) = token.as_ref()
-        && let Some(context) = member_access_context_from_dot(parsed, dir, token_at_cursor.start)
+        && let Some(context) = member_access_context_from_dot(ctx, token_at_cursor.start)
     {
         return Some(context);
     }
@@ -40,23 +39,22 @@ pub(super) fn detect_member_access_context(
 
 /// Detect member access from an existing member name token.
 fn member_access_context_from_member_name(
-    parsed: SourceQueryContext<'_>,
-    dir: DirQueryContext<'_>,
+    ctx: DirQueryContext<'_>,
     cursor_position: u32,
 ) -> Option<CompletionContext> {
-    let token_at_cursor = token_span_at_cursor_offset(parsed, cursor_position)?;
+    let token_at_cursor = token_span_at_cursor_offset(ctx, cursor_position)?;
     if token_at_cursor.token.ty != dir::TokenType::Identifier {
         return None;
     }
 
-    let dir_tree = dir.view();
+    let dir_tree = ctx.view();
 
     // resolve enclosing spans from innermost to outermost
-    let enclosing = sorted_enclosing_spans(parsed, cursor_position, cursor_position);
+    let enclosing = sorted_enclosing_spans(ctx, cursor_position, cursor_position);
 
     // scan enclosing spans for one member expression at the cursor
     for enc in &enclosing {
-        let main_span = parsed.tree().source_map.get_main(enc.idx);
+        let main_span = ctx.tree().source_map.get_main(enc.idx);
         let is_in_member_name = main_span
             .map(|span| span.contains(cursor_position))
             .unwrap_or(true);
@@ -82,9 +80,9 @@ fn member_access_context_from_member_name(
         };
 
         let receiver_local: dir::LocalNodeIdAny = (*left).into();
-        let receiver_global = receiver_local.into_global(dir.module_id());
-        let receiver_symbol = get_expression_symbol(dir, *left);
-        let receiver_type = get_receiver_type(dir, receiver_global, receiver_symbol);
+        let receiver_global = receiver_local.into_global(ctx.module_id());
+        let receiver_symbol = get_expression_symbol(ctx, *left);
+        let receiver_type = get_receiver_type(ctx, receiver_global, receiver_symbol);
 
         return Some(CompletionContext::MemberAccess {
             receiver_node: receiver_local,
@@ -120,15 +118,15 @@ fn concrete_type_id(
 
 /// Get the type of a receiver expression.
 ///
-/// Prefer the compiler recorded member lookup type and fall back to existing type tables.
+/// Prefer the compiler recorded member lookup type before existing type tables.
 fn get_receiver_type(
-    dir: DirQueryContext<'_>,
+    ctx: DirQueryContext<'_>,
     receiver_global: dir::GlobalNodeIdAny,
     receiver_symbol: Option<dir::GlobalSymbolId>,
 ) -> Option<dir::LocalTypeId> {
-    let types = dir.types();
+    let types = ctx.types();
     let symbol_type_id = receiver_symbol
-        .and_then(|receiver_symbol| types.symbol_type_id(dir.symbols(), receiver_symbol));
+        .and_then(|receiver_symbol| types.symbol_type_id(ctx.symbols(), receiver_symbol));
 
     concrete_type_id(
         types,
@@ -141,12 +139,11 @@ fn get_receiver_type(
 
 /// Resolve member access context for a receiver position.
 fn member_access_context_at_offset(
-    parsed: SourceQueryContext<'_>,
-    dir: DirQueryContext<'_>,
+    ctx: DirQueryContext<'_>,
     receiver_position: u32,
 ) -> Option<CompletionContext> {
-    let enclosing = sorted_enclosing_spans(parsed, receiver_position, receiver_position);
-    let dir_tree = dir.view();
+    let enclosing = sorted_enclosing_spans(ctx, receiver_position, receiver_position);
+    let dir_tree = ctx.view();
     let mut partial_context = None;
 
     // scan for the nearest enclosing expression
@@ -166,8 +163,8 @@ fn member_access_context_at_offset(
         // prefer the member left operand as the receiver
         if let dir::Expression::Member { left, .. } = expr {
             let receiver_local: dir::LocalNodeIdAny = (*left).into();
-            let receiver_global = receiver_local.into_global(dir.module_id());
-            let receiver_symbol = get_expression_symbol(dir, *left);
+            let receiver_global = receiver_local.into_global(ctx.module_id());
+            let receiver_symbol = get_expression_symbol(ctx, *left);
             if receiver_symbol.is_none() {
                 if partial_context.is_none() {
                     partial_context = Some(CompletionContext::MemberAccess {
@@ -179,7 +176,7 @@ fn member_access_context_at_offset(
                 continue;
             }
 
-            let receiver_type = get_receiver_type(dir, receiver_global, receiver_symbol);
+            let receiver_type = get_receiver_type(ctx, receiver_global, receiver_symbol);
 
             return Some(CompletionContext::MemberAccess {
                 receiver_node: receiver_local,
@@ -189,7 +186,7 @@ fn member_access_context_at_offset(
         }
 
         // otherwise treat the expression itself as the receiver
-        let receiver_symbol = expression_symbol_target(dir, expr_id);
+        let receiver_symbol = expression_symbol_target(ctx, expr_id);
         if receiver_symbol.is_none() {
             if partial_context.is_none() {
                 partial_context = Some(CompletionContext::MemberAccess {
@@ -201,8 +198,8 @@ fn member_access_context_at_offset(
             continue;
         }
 
-        let receiver_global = dir_node_id.into_global(dir.module_id());
-        let receiver_type = get_receiver_type(dir, receiver_global, receiver_symbol);
+        let receiver_global = dir_node_id.into_global(ctx.module_id());
+        let receiver_type = get_receiver_type(ctx, receiver_global, receiver_symbol);
 
         return Some(CompletionContext::MemberAccess {
             receiver_node: dir_node_id,
@@ -216,13 +213,12 @@ fn member_access_context_at_offset(
 
 /// Resolve member access context from one dot owned cursor.
 fn member_access_context_from_dot(
-    parsed: SourceQueryContext<'_>,
-    dir: DirQueryContext<'_>,
+    ctx: DirQueryContext<'_>,
     offset: u32,
 ) -> Option<CompletionContext> {
-    let dot = member_access_dot_before_offset(parsed, offset)?;
-    let receiver_token = receiver_token_before_member_access_dot(parsed, dot)?;
+    let dot = member_access_dot_before_offset(ctx, offset)?;
+    let receiver_token = receiver_token_before_member_access_dot(ctx, dot)?;
     let receiver_offset = receiver_token.span.end.saturating_sub(1);
 
-    member_access_context_at_offset(parsed, dir, receiver_offset)
+    member_access_context_at_offset(ctx, receiver_offset)
 }

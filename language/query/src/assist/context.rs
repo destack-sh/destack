@@ -1,8 +1,7 @@
 use destack_dir as dir;
-use destack_source::{EnclosingSpan, FileId, ModuleId};
-use destack_workspace::{Repository, Revision};
+use destack_source::{EnclosingSpan, ModuleId};
 
-use crate::core::{DirQueryContext, SourceQueryContext, query_context};
+use crate::core::{DirQueryContext, ModuleQueryContext};
 use crate::dir::{
     ExpectedParameterHint, ObjectLiteralCursorContext, ScopeAtOffset,
     is_inside_object_literal_expression, object_literal_cursor_context, scope_at_offset,
@@ -10,9 +9,9 @@ use crate::dir::{
 };
 use crate::source::{
     ExpressionSlotPosition, block_statement_position, enclosing_missing_expression,
-    enclosing_spans_with_previous, expression_slot_position, get_module_by_file_id,
-    missing_declarator_value_at_cursor, offset_is_in_source_type_side_span,
-    previous_significant_token, token_span_at_cursor_offset, token_text,
+    enclosing_spans_with_previous, expression_slot_position, missing_declarator_value_at_cursor,
+    offset_is_in_source_type_side_span, previous_significant_token, token_span_at_cursor_offset,
+    token_text,
 };
 
 use super::call::{detect_call_argument_context, detect_new_expression_context};
@@ -126,19 +125,14 @@ pub(crate) struct CompletionInput {
     pub(crate) token: Option<CursorToken>,
 }
 
-/// Build a fallback completion input from raw source text only.
-fn fallback_completion_input(source: &str, offset: u32) -> CompletionInput {
-    let token = detect_partial_identifier_from_source(source, offset);
-    let context = if token.is_some() {
-        CompletionContext::ValuePosition {
-            scope_id: None,
-            scope_mark: None,
+impl CompletionInput {
+    /// Create an unknown completion input.
+    pub(crate) fn unknown() -> Self {
+        Self {
+            context: CompletionContext::Unknown,
+            token: None,
         }
-    } else {
-        CompletionContext::Unknown
-    };
-
-    CompletionInput { context, token }
+    }
 }
 
 /// Build a value position context from an optional scope.
@@ -174,7 +168,7 @@ fn context_from_expression_slot_position(
 
 /// Detect whether completion should stay suppressed at the cursor.
 fn is_suppressed_completion_position(
-    parsed: SourceQueryContext<'_>,
+    ctx: DirQueryContext<'_>,
     source: &str,
     token: &Option<CursorToken>,
     offset: u32,
@@ -183,44 +177,36 @@ fn is_suppressed_completion_position(
         return false;
     }
 
-    enclosing_missing_expression(parsed, offset).is_some()
-        && expression_slot_position(parsed, source, offset).is_none()
+    enclosing_missing_expression(ctx, offset).is_some()
+        && expression_slot_position(ctx, source, offset).is_none()
 }
 
 /// Detect the completion context at a given offset.
 pub(crate) fn completion_input_at_offset(
-    repository: &Repository,
-    revision: Revision,
-    file_id: FileId,
+    ctx: &ModuleQueryContext<'_>,
     offset: u32,
 ) -> CompletionInput {
-    let Some(source_file) = repository.file(revision, file_id).ok().flatten() else {
-        return fallback_completion_input("", offset);
+    let Some(source_file) = ctx
+        .repository()
+        .file(ctx.revision(), ctx.file_id())
+        .ok()
+        .flatten()
+    else {
+        return CompletionInput::unknown();
     };
     let source = source_file.text();
-
-    // resolve the module for this file
-    let Some(module) = get_module_by_file_id(repository, revision, file_id) else {
-        return fallback_completion_input(source, offset);
-    };
-
-    // resolve the query context from the module
-    let Some(ctx) = query_context(repository, revision, module.id) else {
-        return fallback_completion_input(source, offset);
-    };
-    let parsed = ctx.source();
     let dir = ctx.dir();
 
     // resolve token prefix at the cursor
-    let token = detect_partial_identifier(parsed, source, offset);
+    let token = detect_partial_identifier(dir, source, offset);
 
     // member access stays first because it is the most specific value-position context
-    if let Some(context) = detect_member_access_context(parsed, dir, &token, offset) {
+    if let Some(context) = detect_member_access_context(dir, &token, offset) {
         return CompletionInput { context, token };
     }
 
     // check object literal context before type position to avoid comma misclassification
-    if let Some(object_context) = object_literal_cursor_context(parsed, dir, offset, repository) {
+    if let Some(object_context) = object_literal_cursor_context(dir, offset) {
         let context = match object_context {
             ObjectLiteralCursorContext::Key(object_context) => CompletionContext::ObjectLiteral {
                 object_node: object_context.object_node,
@@ -239,7 +225,7 @@ pub(crate) fn completion_input_at_offset(
     }
 
     // check for explicit constructor typing before call arguments
-    if let Some(new_context) = detect_new_expression_context(parsed, dir, offset) {
+    if let Some(new_context) = detect_new_expression_context(dir, offset) {
         return CompletionInput {
             context: new_context,
             token,
@@ -247,7 +233,7 @@ pub(crate) fn completion_input_at_offset(
     }
 
     // check for call argument context
-    if let Some(call_context) = detect_call_argument_context(repository, parsed, dir, offset) {
+    if let Some(call_context) = detect_call_argument_context(dir, offset) {
         return CompletionInput {
             context: call_context,
             token,
@@ -255,7 +241,7 @@ pub(crate) fn completion_input_at_offset(
     }
 
     // check for import context
-    if let Some(import_context) = detect_import_context(repository, parsed, dir, source, offset) {
+    if let Some(import_context) = detect_import_context(dir, source, offset) {
         return CompletionInput {
             context: import_context,
             token,
@@ -263,8 +249,8 @@ pub(crate) fn completion_input_at_offset(
     }
 
     // check for type position via source spans
-    if detect_type_position(parsed, source, offset) {
-        let scope = scope_at_offset(parsed, dir, offset);
+    if detect_type_position(dir, source, offset) {
+        let scope = scope_at_offset(dir, offset);
         return CompletionInput {
             context: type_context_from_scope(scope),
             token,
@@ -272,15 +258,15 @@ pub(crate) fn completion_input_at_offset(
     }
 
     // treat structurally classified missing expression slots as real completion positions
-    if let Some(position) = expression_slot_position(parsed, source, offset) {
-        let scope = scope_at_offset(parsed, dir, offset);
+    if let Some(position) = expression_slot_position(dir, source, offset) {
+        let scope = scope_at_offset(dir, offset);
         let context = context_from_expression_slot_position(position, scope);
 
         return CompletionInput { context, token };
     }
 
     // check for statement position
-    if let Some(statement_context) = detect_statement_position(parsed, dir, source, offset) {
+    if let Some(statement_context) = detect_statement_position(dir, source, offset) {
         return CompletionInput {
             context: statement_context,
             token,
@@ -288,14 +274,14 @@ pub(crate) fn completion_input_at_offset(
     }
 
     // suppress unclaimed missing expression slots
-    if is_suppressed_completion_position(parsed, source, &token, offset) {
+    if is_suppressed_completion_position(dir, source, &token, offset) {
         return CompletionInput {
             context: CompletionContext::Suppressed,
             token,
         };
     }
 
-    let scope = scope_at_offset(parsed, dir, offset);
+    let scope = scope_at_offset(dir, offset);
     CompletionInput {
         context: value_context_from_scope(scope),
         token,
@@ -304,15 +290,15 @@ pub(crate) fn completion_input_at_offset(
 
 /// Detect partial identifier at the cursor position.
 fn detect_partial_identifier(
-    parsed: SourceQueryContext<'_>,
+    ctx: DirQueryContext<'_>,
     source: &str,
     offset: u32,
 ) -> Option<CursorToken> {
     // find the token under the cursor or immediately before it
-    let token = match token_span_at_cursor_offset(parsed, offset) {
+    let token = match token_span_at_cursor_offset(ctx, offset) {
         Some(token) if token.token.ty == dir::TokenType::Identifier => token,
         _ => {
-            let token = previous_significant_token(parsed, offset)?;
+            let token = previous_significant_token(ctx, offset)?;
             if token.token.ty != dir::TokenType::Identifier {
                 return None;
             }
@@ -339,79 +325,40 @@ fn detect_partial_identifier(
     })
 }
 
-/// Detect one partial identifier directly from raw source text.
-fn detect_partial_identifier_from_source(source: &str, offset: u32) -> Option<CursorToken> {
-    let offset = usize::try_from(offset).ok()?.min(source.len());
-    if !source.is_char_boundary(offset) {
-        return None;
-    }
-
-    let start = source[..offset]
-        .char_indices()
-        .rev()
-        .find_map(|(index, character)| {
-            (!is_identifier_character(character)).then_some(index + character.len_utf8())
-        })
-        .unwrap_or(0);
-    let text = &source[start..offset];
-    if text.is_empty() {
-        return None;
-    }
-
-    let first = text.chars().next()?;
-    if !(first == '_' || first.is_alphabetic()) {
-        return None;
-    }
-    if !text.chars().all(is_identifier_character) {
-        return None;
-    }
-
-    Some(CursorToken {
-        text: text.to_string(),
-        start: u32::try_from(start).ok()?,
-    })
-}
-
-/// Return true when one character can appear in an identifier.
-fn is_identifier_character(character: char) -> bool {
-    character == '_' || character.is_alphanumeric()
-}
-
 // ================================================================================
 // statement contexts
 // ================================================================================
 
 /// Detect whether the cursor is at a statement position.
 fn detect_statement_position(
-    parsed: SourceQueryContext<'_>,
-    dir: DirQueryContext<'_>,
+    ctx: DirQueryContext<'_>,
     source: &str,
     offset: u32,
 ) -> Option<CompletionContext> {
     // treat the start of the file as a statement position
     if offset == 0 {
-        let scope = scope_at_offset(parsed, dir, offset);
+        let scope = scope_at_offset(ctx, offset);
         return Some(statement_context_from_scope(scope));
     }
 
     // skip missing declarator initializer slots
-    if missing_declarator_value_at_cursor(parsed, source, offset) {
+    if missing_declarator_value_at_cursor(ctx, source, offset) {
         return None;
     }
 
     // check block based statement gaps first
-    if let Some(scope) = statement_position_from_block(parsed, dir, offset) {
+    if let Some(scope) = statement_position_from_block(ctx, offset) {
         return Some(statement_context_from_scope(Some(scope)));
     }
 
-    // fall back to token-based statement boundaries
-    if let Some(token) = previous_significant_token(parsed, offset)
+    // recover token based statement boundaries
+    if let Some(token) = previous_significant_token(ctx, offset)
         && matches!(
             token.token.ty,
             dir::TokenType::Semicolon | dir::TokenType::OpenBrace | dir::TokenType::CloseBrace
         )
     {
-        let scope = scope_at_offset(parsed, dir, offset);
+        let scope = scope_at_offset(ctx, offset);
         return Some(statement_context_from_scope(scope));
     }
 
@@ -427,13 +374,9 @@ fn statement_context_from_scope(scope: Option<ScopeAtOffset>) -> CompletionConte
 }
 
 /// Resolve a statement position inside a block expression.
-fn statement_position_from_block(
-    parsed: SourceQueryContext<'_>,
-    dir: DirQueryContext<'_>,
-    offset: u32,
-) -> Option<ScopeAtOffset> {
+fn statement_position_from_block(ctx: DirQueryContext<'_>, offset: u32) -> Option<ScopeAtOffset> {
     // resolve enclosing spans at the cursor boundary
-    let mut enclosing = enclosing_spans_with_previous(parsed, offset);
+    let mut enclosing = enclosing_spans_with_previous(ctx, offset);
     enclosing.sort_by_key(|enc| enc.length);
 
     // bail out when there are no spans
@@ -443,8 +386,8 @@ fn statement_position_from_block(
 
     // scan for the nearest block that opens one statement position
     for enc in &enclosing {
-        if block_statement_position(parsed, enc, offset).is_some() {
-            return scope_from_block_span(parsed, dir, enc.idx, offset);
+        if block_statement_position(ctx, enc, offset).is_some() {
+            return scope_from_block_span(ctx, enc.idx, offset);
         }
     }
 
@@ -456,23 +399,23 @@ fn statement_position_from_block(
 // ================================================================================
 
 /// Detect whether the cursor is in a type position.
-fn detect_type_position(parsed: SourceQueryContext<'_>, source: &str, offset: u32) -> bool {
+fn detect_type_position(ctx: DirQueryContext<'_>, source: &str, offset: u32) -> bool {
     // resolve enclosing spans from innermost to outermost
-    let enclosing = enclosing_spans_with_previous(parsed, offset);
+    let enclosing = enclosing_spans_with_previous(ctx, offset);
 
     // check for type side spans that contain the cursor
-    if offset_is_in_source_type_side_span(parsed, offset) {
+    if offset_is_in_source_type_side_span(ctx, offset) {
         return true;
     }
 
     // check enclosing expressions that are known type expressions
     for enc in &enclosing {
-        if parsed.tree().get_node_type(enc.idx) != dir::NodeType::Expression {
+        if ctx.tree().get_node_type(enc.idx) != dir::NodeType::Expression {
             continue;
         }
 
         let expr_id = dir::LocalNodeId::<dir::Expression>::new(enc.idx);
-        let expr = parsed.tree().get(expr_id);
+        let expr = ctx.tree().get(expr_id);
 
         if is_type_expression(expr) {
             return true;
@@ -480,21 +423,21 @@ fn detect_type_position(parsed: SourceQueryContext<'_>, source: &str, offset: u3
     }
 
     // check type declarations for their value expression spans
-    if is_type_declaration_value_position(parsed, &enclosing, offset) {
+    if is_type_declaration_value_position(ctx, &enclosing, offset) {
         return true;
     }
 
     // avoid treating object literal values as type positions
-    if is_inside_object_literal_expression(parsed, offset) {
+    if is_inside_object_literal_expression(ctx, offset) {
         return false;
     }
 
-    token_suggests_type_position(parsed, source, offset)
+    token_suggests_type_position(ctx, source, offset)
 }
 
 /// Check whether the preceding token still suggests a type position.
-fn token_suggests_type_position(parsed: SourceQueryContext<'_>, source: &str, offset: u32) -> bool {
-    let Some(token) = previous_significant_token(parsed, offset) else {
+fn token_suggests_type_position(ctx: DirQueryContext<'_>, source: &str, offset: u32) -> bool {
+    let Some(token) = previous_significant_token(ctx, offset) else {
         return false;
     };
 
@@ -516,7 +459,7 @@ fn token_suggests_type_position(parsed: SourceQueryContext<'_>, source: &str, of
 
 /// Check whether the cursor is inside a type declaration value expression.
 fn is_type_declaration_value_position(
-    parsed: SourceQueryContext<'_>,
+    ctx: DirQueryContext<'_>,
     enclosing: &[EnclosingSpan],
     offset: u32,
 ) -> bool {
@@ -525,18 +468,18 @@ fn is_type_declaration_value_position(
 
     // scan enclosing declarations for type and value declarations
     for enc in enclosing {
-        if parsed.tree().get_node_type(enc.idx) != dir::NodeType::Declaration {
+        if ctx.tree().get_node_type(enc.idx) != dir::NodeType::Declaration {
             continue;
         }
 
         let declaration_id = dir::LocalNodeId::<dir::Declaration>::new(enc.idx);
-        let declaration = parsed.tree().get(declaration_id);
+        let declaration = ctx.tree().get(declaration_id);
 
         let dir::Declaration::Type(declaration) = declaration else {
             continue;
         };
 
-        let span = parsed.tree().source_map.get(declaration.value.id);
+        let span = ctx.tree().source_map.get(declaration.value.id);
         if span.contains(offset) || span.contains(previous_offset) {
             return true;
         }

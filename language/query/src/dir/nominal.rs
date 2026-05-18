@@ -1,11 +1,8 @@
 use destack_dir as dir;
 use destack_dir::{Expression, GlobalNodeIdAny, GlobalSymbolId, Resolution};
-use destack_workspace::{Repository, Revision};
 
 use super::{expression_symbol_target, is_type_symbol};
-use crate::core::{
-    DirQueryContext, NominalEntry, NominalRelation, QueryContext, with_query_context_for_module,
-};
+use crate::core::{DirQueryContext, ModuleQueryContext, NominalEntry, NominalRelation};
 
 /// Return the recorded symbol target for one member access.
 pub(crate) fn member_access_symbol_target(
@@ -17,7 +14,6 @@ pub(crate) fn member_access_symbol_target(
 
 /// Return the nominal type symbol named by one type expression.
 pub(crate) fn resolve_nominal_symbol_from_type_expression(
-    repository: &Repository,
     dir: DirQueryContext<'_>,
     expression_id: dir::LocalNodeId<Expression>,
 ) -> Option<GlobalSymbolId> {
@@ -31,13 +27,13 @@ pub(crate) fn resolve_nominal_symbol_from_type_expression(
         | Expression::MoveOf { right, .. }
         | Expression::Maybe { left: right, .. }
         | Expression::Must { left: right, .. } => {
-            return resolve_nominal_symbol_from_type_expression(repository, dir, *right);
+            return resolve_nominal_symbol_from_type_expression(dir, *right);
         }
         Expression::Parenthesized { expression } => {
-            return resolve_nominal_symbol_from_type_expression(repository, dir, *expression);
+            return resolve_nominal_symbol_from_type_expression(dir, *expression);
         }
         Expression::Instantiation { left, .. } => {
-            return resolve_nominal_symbol_from_type_expression(repository, dir, *left);
+            return resolve_nominal_symbol_from_type_expression(dir, *left);
         }
         Expression::Member { .. } => {
             if let Some(symbol_id) = member_access_symbol_target(dir, expression_id) {
@@ -48,7 +44,7 @@ pub(crate) fn resolve_nominal_symbol_from_type_expression(
     }
 
     if let Some(target_symbol) = expression_symbol_target(dir, expression_id)
-        && symbol_is_type_symbol(repository, dir.revision(), target_symbol)
+        && symbol_is_type_symbol(dir, target_symbol)
     {
         return Some(target_symbol);
     }
@@ -57,7 +53,9 @@ pub(crate) fn resolve_nominal_symbol_from_type_expression(
 }
 
 /// Build nominal index entries for one module.
-pub(crate) fn build_nominal_relations_for_module(ctx: &QueryContext<'_>) -> Vec<NominalEntry> {
+pub(crate) fn build_nominal_relations_for_module(
+    ctx: &ModuleQueryContext<'_>,
+) -> Vec<NominalEntry> {
     let mut entries = Vec::new();
 
     // collect direct nominal edges from stored lineages
@@ -83,21 +81,15 @@ pub(crate) fn build_nominal_relations_for_module(ctx: &QueryContext<'_>) -> Vec<
 }
 
 /// Check whether a symbol represents a nominal type symbol.
-fn symbol_is_type_symbol(
-    repository: &Repository,
-    revision: Revision,
-    symbol_id: GlobalSymbolId,
-) -> bool {
-    with_query_context_for_module(repository, revision, symbol_id.module_id, |ctx| {
-        if symbol_id.local_id.id >= ctx.dir().symbols().symbol_count() {
-            return false;
-        }
+fn symbol_is_type_symbol(dir: DirQueryContext<'_>, symbol_id: GlobalSymbolId) -> bool {
+    let Some(ctx) = dir.module_context(symbol_id.module_id) else {
+        return false;
+    };
 
-        let symbols = ctx.dir().symbols();
-        let symbol = symbols.get_symbol(symbol_id.local_id);
-        is_type_symbol(symbol.form)
-    })
-    .unwrap_or(false)
+    let symbols = ctx.dir().symbols();
+    let symbol = symbols.get_symbol(symbol_id.local_id);
+
+    is_type_symbol(symbol.form)
 }
 
 /// Return one unambiguous symbol target from a recorded expression resolution.
