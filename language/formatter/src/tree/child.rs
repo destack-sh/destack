@@ -198,7 +198,7 @@ pub(crate) fn expression_chain_has_separator_comment(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    let chain = chain_nodes(context.tree, expression_id);
+    let chain = chain_nodes(context, expression_id);
     if chain.len() <= 1 {
         return false;
     }

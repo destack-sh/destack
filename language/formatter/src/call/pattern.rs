@@ -121,7 +121,7 @@ pub(crate) fn call_should_route_to_chain(
     left: LocalNodeId<Expression>,
     arguments: &[LocalNodeId<Argument>],
 ) -> bool {
-    if !chain_has_call_like_expression(context.tree, node_id) {
+    if !chain_has_call_like_expression(context, node_id) {
         return false;
     }
 

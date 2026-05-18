@@ -502,5 +502,5 @@ fn postfix_expression_should_route_to_chain(
     context: &DestackFormatContext<'_>,
     left_id: LocalNodeId<Expression>,
 ) -> bool {
-    chain_has_call_like_expression(context.tree, left_id)
+    chain_has_call_like_expression(context, left_id)
 }

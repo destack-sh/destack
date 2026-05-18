@@ -822,19 +822,12 @@ fn parenthesized_wrapper_required_by_parent(
         || expression_is_call_like_callee(context, parent_expression_id, parent_child_id)
 }
 
-/// Return whether one instantiation wrapper is required by a postfix parent.
-fn parenthesized_instantiation_wrapper_required_by_parent(
+/// Return whether one explicit wrapper is required by a postfix parent.
+fn parenthesized_postfix_wrapper_required_by_parent(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    if !matches!(
-        context.tree.get(expression_id),
-        Expression::Instantiation { .. }
-    ) {
-        return false;
-    }
-
     let Some((parent_id, parent_type, parent_child_id)) =
         effective_expression_parent(context, node_id)
     else {
@@ -847,7 +840,11 @@ fn parenthesized_instantiation_wrapper_required_by_parent(
     let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
     let parent_expression = context.tree.get(parent_expression_id);
 
-    instantiation_wrapper_is_semantic_in_parent(parent_expression, parent_child_id)
+    postfix_wrapper_is_semantic_in_parent(
+        context.tree.get(expression_id),
+        parent_expression,
+        parent_child_id,
+    )
 }
 
 /// Return whether one node came from a skipped transparent wrapper.
@@ -861,8 +858,20 @@ fn expression_has_transparent_wrapper(
         .is_some()
 }
 
-/// Return whether one instantiation wrapper changes postfix parsing.
-fn instantiation_wrapper_is_semantic_in_parent(
+/// Return whether one expression is a callable selection.
+fn expression_is_callable_selection(child_expression: &Expression) -> bool {
+    match child_expression {
+        Expression::Member { .. } | Expression::PrivateMember { .. } | Expression::Index { .. } => {
+            true
+        }
+        Expression::QualifiedReference { path, .. } => path.segments.len() > 1,
+        _ => false,
+    }
+}
+
+/// Return whether one wrapper changes postfix parsing.
+fn postfix_wrapper_is_semantic_in_parent(
+    child_expression: &Expression,
     parent_expression: &Expression,
     parent_child_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -871,10 +880,18 @@ fn instantiation_wrapper_is_semantic_in_parent(
             left,
             generic_arguments,
             ..
-        } => *left == parent_child_id && !generic_arguments.is_empty(),
+        } if *left == parent_child_id => {
+            expression_is_callable_selection(child_expression)
+                || (!generic_arguments.is_empty()
+                    && matches!(child_expression, Expression::Instantiation { .. }))
+        }
         Expression::Member { left, .. }
         | Expression::PrivateMember { left, .. }
-        | Expression::Index { left, .. } => *left == parent_child_id,
+        | Expression::Index { left, .. }
+            if *left == parent_child_id =>
+        {
+            matches!(child_expression, Expression::Instantiation { .. })
+        }
         _ => false,
     }
 }
@@ -887,9 +904,6 @@ pub(crate) fn transparent_wrapper_needs_parentheses_in_parent(
     if !expression_has_transparent_wrapper(context, node_id) {
         return false;
     }
-    if !matches!(context.tree.get(node_id), Expression::Instantiation { .. }) {
-        return false;
-    }
 
     let Some((parent_id, parent_type)) = context.parent(node_id) else {
         return false;
@@ -900,7 +914,7 @@ pub(crate) fn transparent_wrapper_needs_parentheses_in_parent(
 
     let parent_expression = context.tree.get(LocalNodeId::<Expression>::new(parent_id));
 
-    instantiation_wrapper_is_semantic_in_parent(parent_expression, node_id)
+    postfix_wrapper_is_semantic_in_parent(context.tree.get(node_id), parent_expression, node_id)
 }
 
 /// Return whether one expression needs derived parentheses in its parent.
@@ -1165,8 +1179,8 @@ pub(crate) fn parenthesized_expression_needs_preserved_wrapper(
         return false;
     }
 
-    // instantiation wrappers distinguish callee type arguments from outer type arguments
-    if parenthesized_instantiation_wrapper_required_by_parent(context, node_id, expression_id) {
+    // postfix wrappers can carry parse meaning
+    if parenthesized_postfix_wrapper_required_by_parent(context, node_id, expression_id) {
         return true;
     }
 
