@@ -1,7 +1,7 @@
 use destack_core::StringId;
 use destack_dir::{
     Block, BlockContext, BlockForm, Declaration, Expression, FunctionDeclaration, FunctionForm,
-    Keyword, LocalNodeId, NodeType, TokenType, YieldCardinality,
+    Keyword, LocalNodeId, NodeType, TokenSpan, TokenType, YieldCardinality,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
@@ -809,15 +809,21 @@ impl Parser {
         Ok(expression_id)
     }
 
+    /// Return true when one token ends a bare label form.
+    #[inline]
+    fn token_ends_label_statement(&self, token: TokenSpan) -> bool {
+        token.token.is_on_new_line
+            || matches!(
+                token.token.ty,
+                TokenType::Semicolon | TokenType::CloseBrace | TokenType::End
+            )
+    }
+
     /// Return true when the token after the current identifier ends a bare label form.
     #[inline]
     fn next_token_ends_label_statement(&mut self) -> bool {
-        let next_token = self.next_token();
-        next_token.token.is_on_new_line
-            || matches!(
-                next_token.token.ty,
-                TokenType::Semicolon | TokenType::CloseBrace | TokenType::End
-            )
+        let token = self.next_token();
+        self.token_ends_label_statement(token)
     }
 
     /// Eat a break expression.
@@ -825,50 +831,54 @@ impl Parser {
     /// Examples:
     /// ```
     /// break
-    /// break :label
     /// break label
-    /// break :label 15
+    /// break (value)
+    /// break label: value
     /// ```
     pub fn eat_break(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.span_start();
         self.eat_keyword(Keyword::Break)?;
 
-        // label and value:
-        // 1. `:identifier` → colon-prefixed label, optionally followed by value
-        // 2. `identifier` at statement stop → bare label
-        // 3. Otherwise → trailing value expression
+        // no operand after a statement boundary
         let can_insert_semicolon = self.can_insert_semicolon();
-        let (label, label_span, value_id) =
-            if !can_insert_semicolon && self.peek_is(TokenType::Colon) {
-                // colon-prefixed label: break :label [value]
-                self.bump(); // eat colon
+        let (label, label_span, value_id) = if can_insert_semicolon {
+            (None, None, None)
+        }
+        // identifier-headed forms are labels, not unlabeled values
+        else if self.peek_is(TokenType::Identifier) {
+            let next_token = self.next_token();
+
+            // labeled value: break label: value
+            if self.language.is_destack()
+                && !next_token.token.is_on_new_line
+                && next_token.token.ty == TokenType::Colon
+            {
                 let (label, label_span) = self.eat_identifier_with_span()?;
-                let value_id = if self.language.is_destack()
-                    && !self.can_insert_semicolon()
-                    && !self.is_any_stop()
-                {
-                    let value_id = self.eat_expression_not_in_position()?;
-                    Some(value_id)
-                } else {
-                    None
-                };
-                (Some(label), Some(label_span), value_id)
+                self.bump(); // eat colon
+                let value_id = self.eat_expression_not_in_position()?;
+                (Some(label), Some(label_span), Some(value_id))
             }
             // bare label: break label
-            else if !can_insert_semicolon
-                && self.peek_is(TokenType::Identifier)
-                && self.next_token_ends_label_statement()
-            {
+            else if self.token_ends_label_statement(next_token) {
                 let (label, label_span) = self.eat_identifier_with_span()?;
                 (Some(label), Some(label_span), None)
             }
-            // trailing value: break value
-            else if self.language.is_destack() && !can_insert_semicolon && !self.is_any_stop() {
-                let value_id = self.eat_expression_not_in_position()?;
-                (None, None, Some(value_id))
-            } else {
-                (None, None, None)
-            };
+            // unlabeled values must be parenthesized
+            else {
+                return Err(ParseError::unexpected(self.peek()?.span));
+            }
+        }
+        // trailing value: break (value)
+        else if self.language.is_destack() && self.peek_is(TokenType::OpenParenthesis) {
+            let value_id = self.eat_expression_not_in_position()?;
+            (None, None, Some(value_id))
+        }
+        // other trailing tokens are invalid operands
+        else if !self.is_any_stop() {
+            return Err(ParseError::unexpected(self.peek()?.span));
+        } else {
+            (None, None, None)
+        };
 
         // break
         let break_id = self.insert_node(
@@ -889,25 +899,20 @@ impl Parser {
     /// Examples:
     /// ```
     /// continue
-    /// continue :label
     /// continue label
     /// ```
     pub fn eat_continue(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.span_start();
         self.eat_keyword(Keyword::Continue)?;
 
-        // label parsing:
-        // 1. `:identifier` → colon-prefixed label
-        // 2. `identifier` at statement stop → bare label
-        let (label, label_span) = if self.peek_is(TokenType::Colon) {
-            // colon-prefixed label: continue :label
-            self.bump(); // eat colon
-            let (label, label_span) = self.eat_identifier_with_span()?;
-            (Some(label), Some(label_span))
+        // bare label: continue label
+        let (label, label_span) = if self.can_insert_semicolon() {
+            (None, None)
         } else if self.peek_is(TokenType::Identifier) && self.next_token_ends_label_statement() {
-            // bare label: continue label
             let (label, label_span) = self.eat_identifier_with_span()?;
             (Some(label), Some(label_span))
+        } else if !self.is_any_stop() {
+            return Err(ParseError::unexpected(self.peek()?.span));
         } else {
             (None, None)
         };
@@ -1235,7 +1240,7 @@ mod tests {
 
     #[test]
     fn test_break_with_label() {
-        let mut test = TestParser::new("break :label");
+        let mut test = TestParser::new("break label");
         let mut parser = test.prepare();
         let break_id = parser.eat_break().unwrap();
         assert_node!(parser.tree, break_id, Expression::Break { label, value } => {
@@ -1252,7 +1257,7 @@ mod tests {
 
     #[test]
     fn test_break_with_label_and_value() {
-        let mut test = TestParser::new("break :label 17");
+        let mut test = TestParser::new("break label: 17");
         let mut parser = test.prepare();
         let break_id = parser.eat_break().unwrap();
         assert_node!(parser.tree, break_id, Expression::Break { label, value } => {
@@ -1263,13 +1268,15 @@ mod tests {
     }
 
     #[test]
-    fn test_break_with_value() {
-        let mut test = TestParser::new("break 15");
+    fn test_break_with_parenthesized_identifier_value() {
+        let mut test = TestParser::new("break (value)");
         let mut parser = test.prepare();
         let break_id = parser.eat_break().unwrap();
         assert_node!(parser.tree, break_id, Expression::Break { label: None, value } => {
             assert!(value.is_some());
-            assert_node!(parser.tree, value.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(15)));
+            assert_node!(parser.tree, value.unwrap(), Expression::Parenthesized { expression } => {
+                assert_expression_path!(parser, parser.tree.get(*expression), "value");
+            });
         });
     }
 
@@ -1284,7 +1291,7 @@ mod tests {
 
     #[test]
     fn test_continue_with_label() {
-        let mut test = TestParser::new("continue :label");
+        let mut test = TestParser::new("continue label");
         let mut parser = test.prepare();
         let continue_id = parser.eat_continue().unwrap();
         assert_node!(parser.tree, continue_id, Expression::Continue { label } => {
@@ -1299,18 +1306,7 @@ mod tests {
     }
 
     #[test]
-    fn test_break_js_style_label() {
-        let mut test = TestParser::new("break foo;");
-        let mut parser = test.prepare();
-        let break_id = parser.eat_break().unwrap();
-        assert_node!(parser.tree, break_id, Expression::Break { label, value } => {
-            assert_string!(parser, label.unwrap(), "foo");
-            assert!(value.is_none());
-        });
-    }
-
-    #[test]
-    fn test_break_js_style_label_newline() {
+    fn test_break_label_before_newline() {
         let mut test = TestParser::new("break foo\n");
         let mut parser = test.prepare();
         let break_id = parser.eat_break().unwrap();
@@ -1321,17 +1317,7 @@ mod tests {
     }
 
     #[test]
-    fn test_continue_js_style_label() {
-        let mut test = TestParser::new("continue foo;");
-        let mut parser = test.prepare();
-        let continue_id = parser.eat_continue().unwrap();
-        assert_node!(parser.tree, continue_id, Expression::Continue { label } => {
-            assert_string!(parser, label.unwrap(), "foo");
-        });
-    }
-
-    #[test]
-    fn test_continue_js_style_label_newline() {
+    fn test_continue_label_before_newline() {
         let mut test = TestParser::new("continue foo\n");
         let mut parser = test.prepare();
         let continue_id = parser.eat_continue().unwrap();
