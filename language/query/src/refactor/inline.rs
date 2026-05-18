@@ -364,7 +364,8 @@ fn collect_pattern_bindings(
         }
         dir::Pattern::Must(inner)
         | dir::Pattern::BorrowOf { right: inner, .. }
-        | dir::Pattern::MoveOf { right: inner, .. } => {
+        | dir::Pattern::MoveOf { right: inner, .. }
+        | dir::Pattern::DereferenceOf { right: inner } => {
             collect_pattern_bindings(ctx, dir_tree, *inner, bindings);
         }
         dir::Pattern::Tuple { fields }
@@ -445,7 +446,8 @@ fn pattern_access_path(
         }
         dir::Pattern::Must(inner)
         | dir::Pattern::BorrowOf { right: inner, .. }
-        | dir::Pattern::MoveOf { right: inner, .. } => {
+        | dir::Pattern::MoveOf { right: inner, .. }
+        | dir::Pattern::DereferenceOf { right: inner } => {
             pattern_access_path(ctx, strings, dir_tree, *inner, target_symbol)
         }
         dir::Pattern::Object { fields } | dir::Pattern::TaggedObject { fields, .. } => {

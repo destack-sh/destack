@@ -413,7 +413,8 @@ fn rename_pattern_binding_name(
         dir::Pattern::Assign { pattern, .. }
         | dir::Pattern::Must(pattern)
         | dir::Pattern::BorrowOf { right: pattern, .. }
-        | dir::Pattern::MoveOf { right: pattern, .. } => {
+        | dir::Pattern::MoveOf { right: pattern, .. }
+        | dir::Pattern::DereferenceOf { right: pattern } => {
             rename_pattern_binding_name(ctx, strings, dir_tree, *pattern, target_symbol)
         }
         dir::Pattern::Tuple { .. }

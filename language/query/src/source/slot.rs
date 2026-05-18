@@ -604,7 +604,8 @@ fn collect_pattern_binding_names(
         }
         dir::Pattern::Must(right)
         | dir::Pattern::BorrowOf { right, .. }
-        | dir::Pattern::MoveOf { right, .. } => {
+        | dir::Pattern::MoveOf { right, .. }
+        | dir::Pattern::DereferenceOf { right } => {
             collect_pattern_binding_names(parsed_tree, *right, names);
         }
         dir::Pattern::Tuple { fields }

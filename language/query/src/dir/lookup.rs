@@ -861,7 +861,8 @@ fn pattern_symbol_at_offset(
         }
         Pattern::Must(inner)
         | Pattern::BorrowOf { right: inner, .. }
-        | Pattern::MoveOf { right: inner, .. } => {
+        | Pattern::MoveOf { right: inner, .. }
+        | Pattern::DereferenceOf { right: inner } => {
             pattern_symbol_at_offset(ctx, dir_tree, *inner, offset)
         }
         Pattern::TypeExpression { .. } => None,
