@@ -154,7 +154,7 @@ fn test_parse_mapped_type() {
 /// Parse mapped types in generic type arguments with readonly removal.
 #[test]
 fn test_parse_type_mapped_expression_in_generic_arguments() {
-    let mut test = TestParser::new("type T = Promise<{ -readonly [P in keyof T]: T[P] }>");
+    let mut test = TestParser::new("type T = Promise<type { -readonly [P in keyof T]: T[P] }>");
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {

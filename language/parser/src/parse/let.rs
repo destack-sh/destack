@@ -1029,7 +1029,7 @@ const x =
             r###"
 const registry: Map<
   string,
-  Set<{count: number}>
+  Set<type {count: number}>
 > = new Map()
 "###,
         );
@@ -1050,24 +1050,24 @@ const registry: Map<
                     assert_string!(parser, *name, "registry");
                 });
 
-                // Map<string, Set<{count: number}>>
+                // Map<string, Set<type {count: number}>>
                 assert_node!(parser.tree, ty.unwrap(), TypeExpression::Reference { path, generic_arguments } => {
                     // Map
                     assert_path!(parser, *path, "Map");
 
-                    // <string, Set<{count: number}>>
+                    // <string, Set<type {count: number}>>
                     assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                         // string
                             assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::String });
                     });
 
                     assert_node!(parser.tree, generic_arguments[1], GenericArgument::Type { value } => {
-                        // Set<{count: number}>
+                        // Set<type {count: number}>
                             assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
                                 // Set
                                 assert_path!(parser, *path, "Set");
 
-                                // <{count: number}>
+                                // <type {count: number}>
                                 assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                                         assert_node!(parser.tree, *value, TypeExpression::Object { members: properties } => {
                                             assert_eq!(properties.len(), 1);

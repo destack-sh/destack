@@ -154,12 +154,31 @@ impl Parser {
         let speculative_start_idx = self.tree.next_id();
         let parsed_type_expression =
             self.with_flags(context, |parser| parser.eat_type_expression());
-        let prefers_type_expression =
-            parsed_type_expression.is_ok() && self.current_token_ends_generic_argument();
+        let type_expression_id = parsed_type_expression.ok();
+        let prefers_type_expression = type_expression_id.is_some_and(|type_expression_id| {
+            self.generic_argument_type_is_implicit(type_expression_id)
+        }) && self.current_token_ends_generic_argument();
 
         self.restore(speculative_start, speculative_start_idx);
 
         prefers_type_expression
+    }
+
+    /// Return whether one type argument can omit its marker.
+    fn generic_argument_type_is_implicit(
+        &self,
+        type_expression_id: LocalNodeId<TypeExpression>,
+    ) -> bool {
+        // typescript keeps ordinary type argument inference
+        if !self.language.is_destack() {
+            return true;
+        }
+
+        // destack object shaped type arguments need an explicit marker
+        !matches!(
+            self.tree.get(type_expression_id),
+            TypeExpression::Object { .. } | TypeExpression::Mapped { .. }
+        )
     }
 
     /// Eat one mixed generic argument node.
@@ -2065,9 +2084,9 @@ mod tests {
     use destack_dir::{
         Argument, Asynchrony, ClassDeclaration, CommentKind, Declaration, Decorator,
         DecoratorPosition, Expression, FunctionDeclaration, FunctionRole, GenericArgument,
-        GenericParameter, IfForm, IntegerType, Keyword, Member, Name, NodeType, Parameter, Pattern,
-        PatternField, ScalarLiteral, TokenType, TupleElement, TypeExpression, TypeLiteral,
-        Visibility,
+        GenericParameter, IfForm, IntegerType, Key, Keyword, Member, Name, NodeType, Parameter,
+        Pattern, PatternField, Property, ScalarLiteral, TokenType, TupleElement, TypeExpression,
+        TypeLiteral, Visibility,
     };
     use destack_source::{LanguageType, NodeSpanBoundary, NodeSpanType};
 
@@ -2617,6 +2636,38 @@ mod tests {
         assert_node!(parser.tree, arguments[0], GenericArgument::Type { value } => {
             assert_node!(parser.tree, *value, TypeExpression::Object { members } => {
                 assert!(members.is_empty());
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_generic_arguments_object_literal_stays_value_in_type_context() {
+        // <{ name: "alpha"; count: 1 }>
+        let mut test = TestParser::new_with_language(
+            r#"<{ name: "alpha"; count: 1 }>"#,
+            LanguageType::Destack,
+        );
+        let mut parser = test.prepare();
+        parser.flags.set_in_type(true);
+        let arguments = parser.eat_generic_arguments().unwrap();
+
+        test.assert_no_errors(&parser);
+        assert_eq!(arguments.len(), 1);
+        assert_node!(parser.tree, arguments[0], GenericArgument::Value { value } => {
+            assert_node!(parser.tree, *value, Expression::ObjectExpression { properties, .. } => {
+                assert_eq!(properties.len(), 2);
+
+                assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
+                    assert_string!(parser, *name, "name");
+                    assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(value)) => {
+                        assert_string!(parser, *value, "alpha");
+                    });
+                });
+
+                assert_node!(parser.tree, properties[1], Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
+                    assert_string!(parser, *name, "count");
+                    assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+                });
             });
         });
     }
