@@ -195,7 +195,7 @@ impl<'a> ScriptLinker<'a> {
                 continue;
             }
 
-            self.ensure_module_profile(module_id)?;
+            self.ensure_target_profile(module_id)?;
             let module = self.module(module_id);
             let profile_id = self.profile_id_for_module(module_id)?;
 

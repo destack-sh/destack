@@ -6,7 +6,7 @@ use destack_artifact::{
     ArtifactKey, ArtifactPayload, ArtifactStore, ArtifactVersion, DirBound, DirExported,
     DirImported, DirParsed, MemoryCacheStore,
 };
-use destack_source::{DiagnosticCollection, FileContent, MemoryFileSystem, ModuleId};
+use destack_source::{DiagnosticCollection, FileContent, MemoryFileSystem, ModuleId, TargetId};
 use destack_workspace::{Edit, HostEnvironment, ProviderError, Ref, Repository, Revision};
 
 use crate::tests::snapshot::{DirSnapshotBuilder, DirSnapshotSet, render_diagnostics};
@@ -249,10 +249,12 @@ impl TestCompiler {
             .to_string();
         let dir_parsed = parse_module(module.as_ref(), repository, revision);
 
-        // resolve effective profile
+        // resolve explicit test profile
+        let target_id = TargetId::new(module.package_id, "default");
         let profile = repository
-            .module_profile(revision, module.id)
+            .target_profile(revision, target_id)
             .expect("test module profile should resolve")
+            .expect("test module profile should exist")
             .id();
 
         Some(TestModule {
