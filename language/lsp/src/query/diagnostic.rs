@@ -107,9 +107,6 @@ pub fn code_action_kind_to_lsp(kind: query::CodeActionKind) -> lsp::CodeActionKi
         query::CodeActionKind::RefactorInline => lsp::CodeActionKind::REFACTOR_INLINE,
         query::CodeActionKind::RefactorRewrite => lsp::CodeActionKind::REFACTOR_REWRITE,
         query::CodeActionKind::Source => lsp::CodeActionKind::SOURCE,
-        query::CodeActionKind::SourceOrganizeImports => {
-            lsp::CodeActionKind::SOURCE_ORGANIZE_IMPORTS
-        }
         query::CodeActionKind::SourceFixAll => lsp::CodeActionKind::SOURCE_FIX_ALL,
     }
 }
