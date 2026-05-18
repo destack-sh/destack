@@ -1,8 +1,6 @@
-use std::collections::BTreeSet;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
-use destack_artifact::ArtifactKey;
 use destack_session::{FileUpdate as SessionFileUpdate, Session};
 use destack_source::{
     FileContentId, FileWatchEvent, FileWatchEventKind, TextChange, Uri, apply_text_changes,
@@ -402,54 +400,10 @@ impl LanguageService {
         let revision = session.revision(session.head())?;
         let mut updates = self.file_updates(session, revision, updates)?;
 
-        // realize diagnostics for touched modules
-        self.provide_changed_modules(session, revision, &updates)?;
+        // attach diagnostics after the source revision is sealed
         self.attach_diagnostics(session, revision, &mut updates)?;
 
         Ok(LanguageServiceResult::from(updates))
-    }
-
-    /// Provide diagnostics-producing artifacts for updated modules.
-    fn provide_changed_modules(
-        &self,
-        session: &Session,
-        revision: Revision,
-        updates: &[FileUpdate],
-    ) -> Result<(), LanguageServiceError> {
-        // collect live modules touched by the update
-        let repository = session.repository();
-        let mut module_ids = BTreeSet::new();
-
-        for update in updates {
-            if update.is_removed {
-                continue;
-            }
-
-            if let Some(module_id) = update.module_id {
-                module_ids.insert(module_id);
-            }
-        }
-
-        let mut artifact_keys = Vec::new();
-
-        // check each touched module at its current default profile
-        for module_id in module_ids {
-            let profile = repository
-                .module_profile(revision, module_id)
-                .map_err(LanguageServiceError::from)?;
-            let profile_id = profile.id();
-
-            artifact_keys.push(ArtifactKey::dir_checked(module_id, profile_id));
-        }
-
-        // config only updates do not force module fanout
-        if artifact_keys.is_empty() {
-            return Ok(());
-        }
-
-        session
-            .provide(revision, &artifact_keys)
-            .map_err(LanguageServiceError::from)
     }
 
     /// Convert session file updates into service file updates.

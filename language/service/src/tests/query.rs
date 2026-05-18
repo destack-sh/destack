@@ -1,7 +1,9 @@
-use crate::LanguageServiceError;
+use std::path::Path;
+
 use crate::tests::harness::TestLanguageService;
 use destack_query as query;
-use destack_workspace::Revision;
+use destack_source::{ModuleId, ProfileId, Span, TargetId};
+use destack_workspace::{Repository, RepositoryError, Revision};
 
 /// Resolve document symbols through workspace queries.
 #[test]
@@ -12,17 +14,21 @@ fn test_read_query_returns_document_symbols() {
 }
 "#;
     let path = test.write_text("main.ds", source);
-    let uri = test.uri_for_path(&path);
 
     let _ = test.apply_text(&path, source);
+    let profile_id = query_profile(&test, &path);
 
     let response = test
         .service
-        .read_query(
-            &path,
-            query::QueryRequest::DocumentSymbols(query::DocumentSymbolsRequest { uri }),
-        )
+        .read_file_query(&path, profile_id, |module, _, _| {
+            Ok(Some(query::QueryRequest::DocumentSymbols(
+                query::DocumentSymbolsRequest { module },
+            )))
+        })
         .expect("expected query response");
+    let Some((_, _, response)) = response else {
+        panic!("expected document symbols query response");
+    };
 
     let query::QueryResponse::DocumentSymbols(document_symbols) = response.response else {
         panic!("expected document symbols response")
@@ -49,23 +55,28 @@ const msg: string = greet("World", "Hello");
 const msg = greet("World", "Hello");
 "#;
     let path = test.write_text("main.ds", source_a);
-    let uri = test.uri_for_path(&path);
 
     let _ = test.apply_text(&path, source_a);
     let _ = test.apply_text(&path, source_b);
+    let profile_id = query_profile(&test, &path);
 
     // query the full file so the binding and call-site hints are both in range
     let response = test
         .service
-        .read_query(
-            &path,
-            query::QueryRequest::InlayHints(query::InlayHintsRequest {
-                uri,
-                start: 0,
-                end: source_b.len() as u32,
-            }),
-        )
+        .read_file_query(&path, profile_id, |module, file_id, _| {
+            Ok(Some(query::QueryRequest::InlayHints(
+                query::InlayHintsRequest {
+                    range: query::QueryRange {
+                        module,
+                        span: Span::new(file_id, 0, source_b.len() as u32),
+                    },
+                },
+            )))
+        })
         .expect("expected inlay hints query response");
+    let Some((_, _, response)) = response else {
+        panic!("expected inlay hints query response");
+    };
     let query::QueryResponse::InlayHints(query::InlayHintsResponse { hints }) = response.response
     else {
         panic!("expected inlay hints query response payload");
@@ -124,6 +135,7 @@ fn test_write_query_requires_matching_revision() {
             &path,
             Revision::NULL,
             query::QueryRequest::RenameFiles(query::RenameFilesRequest {
+                profile_ids: Vec::new(),
                 renames: Vec::new(),
             }),
         )
@@ -140,39 +152,13 @@ fn test_write_query_requires_matching_revision() {
             &path,
             current_revision,
             query::QueryRequest::RenameFiles(query::RenameFilesRequest {
+                profile_ids: Vec::new(),
                 renames: Vec::new(),
             }),
         )
         .expect("expected mutating query with matching revision");
 }
 
-/// Reject write queries on the read query API.
-#[test]
-fn test_read_query_rejects_write_request() {
-    let test = TestLanguageService::new("service_read_mode_mismatch");
-    let source = "export const value = 1;\n";
-    let path = test.write_text("main.ds", source);
-
-    let _ = test.apply_text(&path, source);
-
-    let error = test
-        .service
-        .read_query(
-            &path,
-            query::QueryRequest::RenameFiles(query::RenameFilesRequest {
-                renames: Vec::new(),
-            }),
-        )
-        .expect_err("expected read mode mismatch");
-    assert!(matches!(
-        error,
-        LanguageServiceError::QueryModeMismatch {
-            expected: query::QueryExecutionMode::Read,
-            actual: query::QueryExecutionMode::Write,
-            ..
-        }
-    ));
-}
 /// Resolve cross-module references for exported symbols.
 #[test]
 fn test_read_query_finds_cross_module_references() {
@@ -181,11 +167,11 @@ fn test_read_query_finds_cross_module_references() {
     let main_source = "import { ping } from \"./lib.ds\";\nping();\n";
     let lib_path = test.write_text("lib.ds", lib_source);
     let main_path = test.write_text("main.ds", main_source);
-    let lib_uri = test.uri_for_path(&lib_path);
 
     // apply file updates for both files
     let _ = test.apply_text(&lib_path, lib_source);
     let _ = test.apply_text(&main_path, main_source);
+    let profile_id = query_profile(&test, &lib_path);
 
     // query references from the exported symbol definition
     let ping_offset = lib_source
@@ -193,24 +179,30 @@ fn test_read_query_finds_cross_module_references() {
         .unwrap_or_else(|| panic!("expected 'ping' in lib source")) as u32;
     let response = test
         .service
-        .read_query(
-            &lib_path,
-            query::QueryRequest::FindReferences(query::FindReferencesRequest {
-                uri: lib_uri,
-                offset: ping_offset,
-                include_declaration: true,
-            }),
-        )
+        .read_file_query(&lib_path, profile_id, |module, file_id, _| {
+            Ok(Some(query::QueryRequest::FindReferences(
+                query::FindReferencesRequest {
+                    position: query::QueryPosition {
+                        module,
+                        file_id,
+                        offset: ping_offset,
+                    },
+                    include_declaration: true,
+                },
+            )))
+        })
         .expect("expected references query response");
-    let query::QueryResponse::FindReferences(query::FindReferencesResponse { result }) =
+    let Some((_, _, response)) = response else {
+        panic!("expected references query response");
+    };
+    let query::QueryResponse::FindReferences(query::FindReferencesResponse { references }) =
         response.response
     else {
         panic!("expected references query response payload");
     };
-    let result = result.expect("expected references query result");
 
     // assert all three references: definition, import specifier, and call site
-    assert_eq!(result.references.len(), 3);
+    assert_eq!(references.len(), 3);
 }
 
 /// Rename exported functions across module boundaries.
@@ -221,7 +213,6 @@ fn test_write_query_renames_cross_module_symbol() {
     let main_source = "import { greet } from \"./lib.ds\";\nconst output = greet(\"Ada\");\n";
     let lib_path = test.write_text("lib.ds", lib_source);
     let main_path = test.write_text("main.ds", main_source);
-    let lib_uri = test.uri_for_path(&lib_path);
 
     // apply file updates for both files
     let _ = test.apply_text(&lib_path, lib_source);
@@ -235,24 +226,70 @@ fn test_write_query_renames_cross_module_symbol() {
         .service
         .revision_at(&lib_path)
         .expect("expected revision for rename");
+    let profile_id = query_profile(&test, &lib_path);
     let response = test
         .service
-        .write_query(
-            &lib_path,
-            revision,
-            query::QueryRequest::Rename(query::RenameRequest {
-                uri: lib_uri,
+        .read_file(&lib_path, |repository, file_id, _file, revision| {
+            let Some(module_id) = repository.module_id_for_file(revision, file_id)? else {
+                panic!("expected module for lib file");
+            };
+
+            Ok(query::QueryPosition {
+                module: query::QueryModule {
+                    module_id,
+                    profile_id,
+                },
+                file_id,
                 offset: greet_offset,
-                new_name: "salute".to_string(),
-            }),
-        )
+            })
+        })
+        .and_then(|position| {
+            test.service.write_query(
+                &lib_path,
+                revision,
+                query::QueryRequest::Rename(query::RenameRequest {
+                    position,
+                    new_name: "salute".to_string(),
+                }),
+            )
+        })
         .expect("expected rename query response");
-    let query::QueryResponse::Rename(query::RenameResponse { result }) = response.response else {
+    let query::QueryResponse::Rename(query::RenameResponse { edit }) = response.response else {
         panic!("expected rename query response payload");
     };
-    let result = result.expect("expected rename query result");
+    let edit = edit.expect("expected rename query edit");
 
     // assert scope: two files touched, three symbol edits total
-    assert_eq!(result.edits.file_count(), 2);
-    assert_eq!(result.edits.total_edits(), 3);
+    assert_eq!(edit.file_count(), 2);
+    assert_eq!(edit.total_edits(), 3);
+}
+
+/// Return the explicit query profile used by service query tests.
+fn query_profile(test: &TestLanguageService, path: &Path) -> ProfileId {
+    test.service
+        .read_file(path, |repository, file_id, _file, revision| {
+            let Some(module_id) = repository.module_id_for_file(revision, file_id)? else {
+                panic!("expected module for query file");
+            };
+
+            query_profile_for_module(repository, revision, module_id)
+        })
+        .expect("expected query profile")
+}
+
+/// Return the explicit built-in target profile for a module.
+fn query_profile_for_module(
+    repository: &Repository,
+    revision: Revision,
+    module_id: ModuleId,
+) -> Result<ProfileId, RepositoryError> {
+    let module = repository
+        .module(revision, module_id)?
+        .unwrap_or_else(|| panic!("expected module for query profile"));
+    let target_id = TargetId::new(module.package_id, "default");
+    let profile = repository
+        .target_profile(revision, target_id)?
+        .unwrap_or_else(|| panic!("expected built-in default target profile"));
+
+    Ok(profile.id())
 }
