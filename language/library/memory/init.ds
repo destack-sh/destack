@@ -7,7 +7,7 @@ export newtype MaybeUninit<T> = intrinsic;
 export extension<T> of MaybeUninit<T> implements Default {
     /// Create initialized storage for `value`.
     @intrinsic("memory.init.new")
-    static new(value: ^T): MaybeUninit<T>;
+    static new(value: T): MaybeUninit<T>;
 
     /// Create uninitialized storage for `T`.
     @intrinsic("memory.init.uninit")
@@ -25,7 +25,7 @@ export extension<T> of MaybeUninit<T> implements Default {
 
     /// Initialize this storage with `value`.
     @intrinsic("memory.init.write")
-    write(this: &exclusive MaybeUninit<T>, value: ^T): &exclusive T;
+    write(this: &exclusive MaybeUninit<T>, value: T): &exclusive T;
 
     /// Return a raw pointer to the storage.
     @intrinsic("memory.init.asPointer")
@@ -53,12 +53,12 @@ export extension<T> of MaybeUninit<T> implements Default {
     /// Move initialized storage out as `T`.
     @unsafe
     @intrinsic("memory.init.assumeInit")
-    assumeInit(this: ^MaybeUninit<T>): ^T;
+    assumeInit(this: ^MaybeUninit<T>): T;
 
     /// Copy initialized storage out without ending this storage.
     @unsafe
     @intrinsic("memory.init.assumeInitRead")
-    assumeInitRead(this: &MaybeUninit<T>): ^T;
+    assumeInitRead(this: &MaybeUninit<T>): T;
 
     /// Drop initialized storage in place.
     @unsafe

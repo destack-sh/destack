@@ -13,10 +13,25 @@ struct Point {
     x: int32;
 }
 
-Managed<Point> satisfies Form<Point, "managed", "ambient">;
+Managed<Point> satisfies Managed<Point>;
 ```
 
-### local and shared rewrite space
+### forms compose without erasing payloads
+
+Ownership forms preserve the payload form.
+
+```ds
+struct Cell {
+    value: int32;
+}
+
+Owned<Borrowed<Cell, "static">> satisfies Owned<Borrowed<Cell, "static">>;
+Borrowed<Owned<Cell>, "static"> satisfies Borrowed<Owned<Cell>, "static">;
+BaseOf<Owned<Borrowed<Cell, "static">>> satisfies Cell;
+PayloadOf<Owned<Borrowed<Cell, "static">>> satisfies Borrowed<Cell, "static">;
+```
+
+### local and shared place values
 
 `local T` and `shared T` are surface forms for concrete placement.
 
@@ -25,8 +40,8 @@ struct Cell {
     value: int32;
 }
 
-local Cell satisfies WithSpace<Cell, "local">;
-shared Cell satisfies WithSpace<Cell, "shared">;
+local Cell satisfies Placed<Cell, "local">;
+shared Cell satisfies Placed<Cell, "shared">;
 ```
 
 ### owned placement forms commute
@@ -44,17 +59,17 @@ shared ^Cell satisfies ^shared Cell;
 shared ^Cell satisfies WithSpace<^Cell, "shared">;
 ```
 
-### Local and Ambient rewrite placement
+### Local and Ambient rebase placement
 
-`Local<T>` and `Ambient<T>` are just named helpers for `WithPlace`.
+`Local<T>` and `Ambient<T>` are named helpers for placement.
 
 ```ds
 struct Cell {
     value: int32;
 }
 
-Local<Cell> satisfies WithSpace<Cell, "local">;
-Ambient<shared Cell> satisfies WithPlace<shared Cell, "ambient">;
+Local<Cell> satisfies Placed<Cell, "local">;
+Ambient<shared Cell> satisfies Placed<Cell, "ambient">;
 ```
 
 ## accessors
@@ -100,9 +115,9 @@ SpaceOf<Cell | local Cell | shared Cell> satisfies "local" | "shared";
 PlaceIn<Cell | local Cell | shared Cell, "local"> satisfies "local" | "shared";
 ```
 
-### OwnershipOf extracts explicit ownership
+### OwnershipOf extracts outer ownership
 
-`OwnershipOf<T>` returns the ownership carried by a qualified type.
+`OwnershipOf<T>` returns the outer ownership carried by a qualified type.
 
 ```ds
 struct Cell {
@@ -110,6 +125,8 @@ struct Cell {
 }
 
 OwnershipOf<^Cell> satisfies "owned";
+OwnershipOf<Owned<Borrowed<Cell, "static">>> satisfies "owned";
+OwnershipOf<Borrowed<Owned<Cell>, "static">> satisfies "borrowed";
 OwnershipOr<Cell, "managed"> satisfies "managed";
 ```
 
@@ -125,7 +142,7 @@ function check<L: Lifetime>(value: Borrowed<int32, L>): void {
 
 ### AccessOf extracts access
 
-All forms carry their access mode.
+Borrowed and readonly forms carry access.
 
 ```ds
 struct Cell {
@@ -149,9 +166,9 @@ function check<L: Lifetime>(
 
 ## rewrites
 
-### WithSpace preserves ownership and access
+### WithSpace rebases placement
 
-Changing placement does not change ownership or access.
+Changing placement removes any existing placement and preserves the rest of the form.
 
 ```ds
 struct Cell {
@@ -160,11 +177,13 @@ struct Cell {
 
 OwnershipOf<WithSpace<^Cell, "shared">> satisfies "owned";
 AccessOf<WithSpace<^readonly Cell, "shared">> satisfies "readonly";
+PayloadOf<WithSpace<^Cell, "shared">> satisfies ^Cell;
+WithSpace<shared ^Cell, "local"> satisfies Placed<^Cell, "local">;
 ```
 
-### WithOwnership preserves placement and access
+### WithOwnership adds ownership
 
-Changing ownership does not change placement or access.
+Changing ownership wraps the existing form.
 
 ```ds
 struct Cell {
@@ -173,22 +192,23 @@ struct Cell {
 
 SpaceOf<WithOwnership<shared Cell, "owned">> satisfies "shared";
 AccessOf<WithOwnership<readonly Cell, "owned">> satisfies "readonly";
-WithOwnership<readonly Cell, "owned"> satisfies ^readonly Cell;
+WithOwnership<readonly Cell, "owned"> satisfies Owned<readonly Cell>;
 ```
 
-### WithLifetime preserves base, place and access
+### WithLifetime preserves payload and access
 
-Changing a borrow lifetime leaves the other axes alone.
+Changing a borrow lifetime leaves the payload and access alone.
 
 ```ds
 function check<A: Lifetime, B: Lifetime>(value: ExclusiveBorrowed<shared int32, A>): void {
     WithLifetime<typeof value, B> satisfies ExclusiveBorrowed<shared int32, B>;
+    LifetimeOf<Owned<Borrowed<int32, A>>> satisfies A;
 }
 ```
 
-### WithAccess preserves base and place
+### WithAccess projects borrow access
 
-Changing access leaves the other axes alone.
+Changing access leaves the payload and placement alone.
 
 ```ds
 function check<L: Lifetime>(value: Borrowed<shared int32, L>): void {
@@ -198,9 +218,9 @@ function check<L: Lifetime>(value: Borrowed<shared int32, L>): void {
 }
 ```
 
-### WithBase preserves axes
+### WithBase preserves composed forms
 
-Changing the base type leaves the form axes alone.
+Changing the base type leaves the composed form alone.
 
 ```ds
 struct Cell {

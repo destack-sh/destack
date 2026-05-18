@@ -4,12 +4,14 @@ import { Dereference } from "destack:ops";
 import { Atomic } from "destack:sync";
 import { AllocationError } from "../allocator.ds";
 import { Clone, Default, Unpin, Zeroable } from "../capability.ds";
+import { Owned } from "../form.ds";
 import { MaybeUninit } from "../init.ds";
 import { Pin } from "../pin.ds";
 import { Weak } from "./weak.ds";
 
-/// Reference-counted allocation for shared storage.
-export struct ArcAllocation<T> {
+/// Reference-counted heap block for shared storage.
+@languageItem("memory.arc.ArcInner")
+export struct ArcInner<T> {
     /// The strong reference count.
     strong: Atomic<usize>;
 
@@ -23,9 +25,10 @@ export struct ArcAllocation<T> {
 extension<T> of Arc<T> implements Unpin {}
 
 /// Shared reference-counted ownership.
+@languageItem("memory.arc.Arc")
 export struct Arc<T> {
-    /// The allocation.
-    allocation: *ArcAllocation<T>;
+    /// The inner block.
+    inner: *ArcInner<Owned<T>>;
 }
 
 extension<T> of Arc<T> implements Clone, Dereference, As<T>, Borrow<T> {
@@ -90,7 +93,7 @@ extension<T> of Arc<T> implements Clone, Dereference, As<T>, Borrow<T> {
         todo("Arc.clone")
     }
 
-    /// Create a weak handle to the same allocation.
+    /// Create a weak handle to the same block.
     downgrade(): Weak<T> {
         todo("Arc.downgrade")
     }
@@ -100,7 +103,7 @@ extension<T> of Arc<T> implements Clone, Dereference, As<T>, Borrow<T> {
         todo("Arc.isUnique")
     }
 
-    /// Return whether this handle points to the same allocation as `other`.
+    /// Return whether this handle points to the same block as `other`.
     ptrEq(other: Arc<T>): boolean {
         todo("Arc.ptrEq")
     }

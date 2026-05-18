@@ -1,17 +1,18 @@
 import { todo } from "destack:error";
-import { Arc } from "./arc.ds";
-import { ArcAllocation } from "./arc.ds";
+import { Owned } from "../form.ds";
+import { Arc, ArcInner } from "./arc.ds";
 
 /// Weak shared reference-counted handle.
+@languageItem("memory.arc.Weak")
 export struct Weak<T> {
-    /// The allocation.
-    allocation?: *ArcAllocation<T>;
+    /// The inner block.
+    inner?: *ArcInner<Owned<T>>;
 }
 
 extension<T> of Weak<T> {
-    /// Create a weak handle without an allocation.
+    /// Create an empty weak handle.
     static new(): Weak<T> {
-        Weak { allocation: undefined }
+        Weak { inner: undefined }
     }
 
     /// Create a weak handle from a raw value pointer.
@@ -35,7 +36,7 @@ extension<T> of Weak<T> {
         todo("Weak.intoRaw")
     }
 
-    /// Return whether this weak handle points to the same allocation as `other`.
+    /// Return whether this weak handle points to the same block as `other`.
     ptrEq(other: Weak<T>): boolean {
         todo("Weak.ptrEq")
     }

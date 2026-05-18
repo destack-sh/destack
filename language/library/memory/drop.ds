@@ -14,15 +14,15 @@ export newtype ManuallyDrop<T> = intrinsic;
 export extension<T> of ManuallyDrop<T> {
     /// Wrap `value` without scheduling its destructor.
     @intrinsic("memory.manuallyDrop.new")
-    static new(value: ^T): ManuallyDrop<T>;
+    static new(value: T): ManuallyDrop<T>;
 
     /// Move the wrapped value out.
     @intrinsic("memory.manuallyDrop.intoInner")
-    intoInner(this: ^ManuallyDrop<T>): ^T;
+    intoInner(this: ^ManuallyDrop<T>): T;
 
     /// Move the wrapped value out through an exclusive borrow.
     @intrinsic("memory.manuallyDrop.take")
-    take(this: &exclusive ManuallyDrop<T>): ^T;
+    take(this: &exclusive ManuallyDrop<T>): T;
 
     /// Borrow the wrapped value.
     @intrinsic("memory.manuallyDrop.asReference")

@@ -611,6 +611,24 @@ define_language_items! {
     memory {
         /// `destack:memory/form`.
         form {
+            /// Default managed form.
+            Managed => (Newtype, "memory/form", "Managed"),
+
+            /// Unique ownership form.
+            Owned => (Newtype, "memory/form", "Owned"),
+
+            /// Borrowed access form.
+            Borrowed => (Newtype, "memory/form", "Borrowed"),
+
+            /// Unsafe raw pointer form.
+            Raw => (Newtype, "memory/form", "Raw"),
+
+            /// Placement form.
+            Placed => (Newtype, "memory/form", "Placed"),
+
+            /// Readonly form.
+            Readonly => (Newtype, "memory/form", "Readonly"),
+
             /// Unique traced heap handle.
             Unique => (Newtype, "memory/form", "Unique"),
 
@@ -661,6 +679,30 @@ define_language_items! {
         cell {
             /// Unsafe interior mutable storage.
             UnsafeCell => (Newtype, "memory/cell/cell", "UnsafeCell"),
+        }
+
+        /// `destack:memory/rc`.
+        rc {
+            /// Local reference-counted heap block.
+            RcInner => (Struct, "memory/rc/rc", "RcInner"),
+
+            /// Local reference-counted ownership.
+            Rc => (Struct, "memory/rc/rc", "Rc"),
+
+            /// Weak local reference-counted handle.
+            RcWeak => (Struct, "memory/rc/weak", "Weak"),
+        }
+
+        /// `destack:memory/arc`.
+        arc {
+            /// Shared reference-counted heap block.
+            ArcInner => (Struct, "memory/arc/arc", "ArcInner"),
+
+            /// Shared reference-counted ownership.
+            Arc => (Struct, "memory/arc/arc", "Arc"),
+
+            /// Weak shared reference-counted handle.
+            ArcWeak => (Struct, "memory/arc/weak", "Weak"),
         }
     }
 

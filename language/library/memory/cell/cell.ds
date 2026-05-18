@@ -22,7 +22,7 @@ export extension<T> of UnsafeCell<T> {
     }
 
     /// Move out the stored value.
-    intoInner(this: ^UnsafeCell<T>): ^T {
+    intoInner(this: ^UnsafeCell<T>): T {
         todo("UnsafeCell.intoInner")
     }
 }
@@ -71,7 +71,7 @@ export extension<T> of Cell<T> {
     }
 
     /// Move out the stored value.
-    intoInner(this: ^Cell<T>): ^T {
+    intoInner(this: ^Cell<T>): T {
         todo("Cell.intoInner")
     }
 }

@@ -16,18 +16,33 @@ export type Ownership = "managed" | "owned" | "borrowed" | "raw";
 /// Access mode for qualified storage.
 export type Access = "readonly" | "mutable" | "exclusive";
 
-/// Canonical qualified storage form.
-export newtype Form<
-    T,
-    O: Ownership = "managed",
-    P: Place = "ambient",
-    L: Lifetime = never,
-    A: Access = "mutable",
-> = intrinsic;
+/// Default managed form for exactly `T`.
+@languageItem("memory.Managed")
+export newtype Managed<T> = intrinsic;
 
-/// Unique traced heap handle for `T`.
+/// Unique ownership form for exactly `T`.
+@languageItem("memory.Owned")
+export newtype Owned<T> = intrinsic;
+
+/// Borrowed access form for exactly `T`.
+@languageItem("memory.Borrowed")
+export newtype Borrowed<T, L: Lifetime, A: Access = "mutable"> = intrinsic;
+
+/// Unsafe raw pointer form for exactly `T`.
+@languageItem("memory.Raw")
+export newtype Raw<T> = intrinsic;
+
+/// Placement form for exactly `T`.
+@languageItem("memory.Placed")
+export newtype Placed<T, P: Place> = intrinsic;
+
+/// Readonly form for exactly `T`.
+@languageItem("memory.Readonly")
+export newtype Readonly<T> = intrinsic;
+
+/// Unique traced heap handle containing exactly `T`.
 ///
-/// `Unique<T>` owns one heap allocation and is the low-level storage handle behind types such as `Box<T>`.
+/// `Unique<T>` is the low-level storage handle behind types such as `Box<T>`.
 /// It is compiler-known because tracing, drop, and move checking must understand the handle.
 @languageItem("memory.Unique")
 export newtype Unique<T> = intrinsic;
@@ -39,25 +54,11 @@ export newtype Unique<T> = intrinsic;
 @languageItem("memory.Any")
 export newtype Any<T> = intrinsic;
 
-/// Managed/default value form for `T` in the ambient place.
-export type Managed<T> = Form<BaseOf<T>, "managed", PlaceOr<T, "ambient">>;
-
-/// Borrowed access to `T` within lifetime `L`.
-export type Borrowed<T, L: Lifetime> = Form<BaseOf<T>, "borrowed", PlaceOr<T, "ambient">, L>;
-
 /// Readonly borrowed access to `T` within lifetime `L`.
-export type ReadonlyBorrowed<T, L: Lifetime> =
-    Form<BaseOf<T>, "borrowed", PlaceOr<T, "ambient">, L, "readonly">;
+export type ReadonlyBorrowed<T, L: Lifetime> = Borrowed<T, L, "readonly">;
 
 /// Exclusive borrowed access to `T` within lifetime `L`.
-export type ExclusiveBorrowed<T, L: Lifetime> =
-    Form<BaseOf<T>, "borrowed", PlaceOr<T, "ambient">, L, "exclusive">;
-
-/// Unsafe raw pointer to `T`.
-export type Raw<T> = Form<BaseOf<T>, "raw", PlaceOr<T, "ambient">>;
-
-/// Owned value form for `T`.
-export type Owned<T> = Form<BaseOf<T>, "owned", PlaceOr<T, "ambient">>;
+export type ExclusiveBorrowed<T, L: Lifetime> = Borrowed<T, L, "exclusive">;
 
 /// Rebase `T` into the shared space.
 export type Shared<T> = WithPlace<T, "shared">;
@@ -65,51 +66,74 @@ export type Shared<T> = WithPlace<T, "shared">;
 /// Rebase `T` into the local space.
 export type Local<T> = WithPlace<T, "local">;
 
-/// Rebase `T` into the ambient space.
+/// Rebase `T` into the ambient place.
 export type Ambient<T> = WithPlace<T, "ambient">;
+
+/// Extract the payload under the outermost memory form.
+export type PayloadOf<T> =
+    T extends Managed<infer U> ? U :
+    T extends Owned<infer U> ? U :
+    T extends Borrowed<infer U, infer L, infer A> ? U :
+    T extends Raw<infer U> ? U :
+    T extends Placed<infer U, infer P> ? U :
+    T extends Readonly<infer U> ? U :
+    T;
 
 /// Extract the unqualified base type of `T`.
 export type BaseOf<T> =
-    T extends Form<infer U, infer O, infer P, infer L, infer A> ? U :
+    T extends Managed<infer U> ? BaseOf<U> :
+    T extends Owned<infer U> ? BaseOf<U> :
+    T extends Borrowed<infer U, infer L, infer A> ? BaseOf<U> :
+    T extends Raw<infer U> ? BaseOf<U> :
+    T extends Placed<infer U, infer P> ? BaseOf<U> :
+    T extends Readonly<infer U> ? BaseOf<U> :
     T;
 
-/// Extract the explicit ownership of `T`.
+/// Replace the unqualified base type of `Q` with `T`.
+export type WithBase<Q, T> =
+    Q extends Managed<infer U> ? Managed<WithBase<U, T>> :
+    Q extends Owned<infer U> ? Owned<WithBase<U, T>> :
+    Q extends Borrowed<infer U, infer L, infer A> ? Borrowed<WithBase<U, T>, L, A> :
+    Q extends Raw<infer U> ? Raw<WithBase<U, T>> :
+    Q extends Placed<infer U, infer P> ? Placed<WithBase<U, T>, P> :
+    Q extends Readonly<infer U> ? Readonly<WithBase<U, T>> :
+    T;
+
+/// Extract the outer ownership form of `T`.
 export type OwnershipOf<T> =
-    T extends Form<infer U, infer O, infer P, infer L, infer A> ? O :
+    T extends Placed<infer U, infer P> ? OwnershipOf<U> :
+    T extends Readonly<infer U> ? OwnershipOf<U> :
+    T extends Managed<infer U> ? "managed" :
+    T extends Owned<infer U> ? "owned" :
+    T extends Borrowed<infer U, infer L, infer A> ? "borrowed" :
+    T extends Raw<infer U> ? "raw" :
     never;
-
-/// Extract the placement of `T`.
-export type PlaceOf<T> =
-    T extends Form<infer U, infer O, infer P, infer L, infer A> ? P :
-    "ambient";
-
-/// Extract the explicit concrete space of `T`.
-export type SpaceOf<T> =
-    PlaceOf<T> extends infer P ?
-        P extends Space ? P : never :
-    never;
-
-/// Extract the borrow lifetime of `T`.
-export type LifetimeOf<T> =
-    T extends Form<infer U, infer O, infer P, infer L, infer A> ?
-        O extends "borrowed" ? L : never :
-    never;
-
-/// Extract the access mode of `T`.
-export type AccessOf<T> =
-    T extends Form<infer U, infer O, infer P, infer L, infer A> ?
-        A :
-    "mutable";
 
 /// Extract the ownership of `T`, or fall back to `D`.
 export type OwnershipOr<T, D: Ownership> =
     OwnershipOf<T> extends never ? D :
     OwnershipOf<T>;
 
+/// Extract the placement of `T`.
+export type PlaceOf<T> =
+    T extends Placed<infer U, infer P> ? P :
+    T extends Managed<infer U> ? PlaceOf<U> :
+    T extends Owned<infer U> ? PlaceOf<U> :
+    T extends Borrowed<infer U, infer L, infer A> ? PlaceOf<U> :
+    T extends Raw<infer U> ? PlaceOf<U> :
+    T extends Readonly<infer U> ? PlaceOf<U> :
+    "ambient";
+
 /// Extract the placement of `T`, or fall back to `D`.
 export type PlaceOr<T, D: Place> =
     PlaceOf<T> extends never ? D :
     PlaceOf<T>;
+
+/// Extract the explicit concrete space of `T`.
+export type SpaceOf<T> =
+    PlaceOf<T> extends infer P ?
+        P extends Space ? P : never :
+    never;
 
 /// Extract the explicit concrete space of `T`, or fall back to `D`.
 export type SpaceOr<T, D: Space> =
@@ -123,6 +147,26 @@ export type PlaceIn<T, S: Space> =
         P extends Space ? P :
         never :
     never;
+
+/// Extract the borrow lifetime of `T`.
+export type LifetimeOf<T> =
+    T extends Placed<infer U, infer P> ? LifetimeOf<U> :
+    T extends Readonly<infer U> ? LifetimeOf<U> :
+    T extends Borrowed<infer U, infer L, infer A> ? L :
+    T extends Managed<infer U> ? LifetimeOf<U> :
+    T extends Owned<infer U> ? LifetimeOf<U> :
+    T extends Raw<infer U> ? LifetimeOf<U> :
+    never;
+
+/// Extract the access mode of `T`.
+export type AccessOf<T> =
+    T extends Readonly<infer U> ? "readonly" :
+    T extends Borrowed<infer U, infer L, infer A> ? A :
+    T extends Placed<infer U, infer P> ? AccessOf<U> :
+    T extends Managed<infer U> ? AccessOf<U> :
+    T extends Owned<infer U> ? AccessOf<U> :
+    T extends Raw<infer U> ? AccessOf<U> :
+    "mutable";
 
 /// Return whether `T` is managed.
 export type IsManaged<T> =
@@ -154,45 +198,46 @@ export type IsSharedIn<T, S: Space> =
     PlaceIn<T, S> extends "shared" ? true :
     false;
 
-/// Reformulate `Q` with base type `T`.
-export type WithBase<Q, T> =
-    Form<
-        T,
-        OwnershipOr<Q, "managed">,
-        PlaceOr<Q, "ambient">,
-        LifetimeOf<Q>,
-        AccessOf<Q>
-    >;
-
-/// Reformulate `Q` with ownership `O`.
+/// Add ownership form `O` around `Q`.
 export type WithOwnership<Q, O: Ownership, L = LifetimeOf<Q>> =
-    O extends "borrowed" ?
-        Form<BaseOf<Q>, O, PlaceOr<Q, "ambient">, L, AccessOf<Q>> :
-        Form<BaseOf<Q>, O, PlaceOr<Q, "ambient">, never, AccessOf<Q>>;
-
-/// Reformulate `Q` with placement `P`.
-export type WithPlace<Q, P: Place> =
-    Form<
-        BaseOf<Q>,
-        OwnershipOr<Q, "managed">,
-        P,
-        LifetimeOf<Q>,
-        AccessOf<Q>
-    >;
-
-/// Reformulate `Q` in space `S`.
-export type WithSpace<Q, S: Space> =
-    WithPlace<Q, S>;
-
-/// Reformulate borrowed `Q` with lifetime `L`.
-export type WithLifetime<Q, L: Lifetime> =
-    OwnershipOr<Q, "managed"> extends "borrowed" ?
-        Form<BaseOf<Q>, "borrowed", PlaceOr<Q, "ambient">, L, AccessOf<Q>> :
+    O extends "managed" ? Managed<Q> :
+    O extends "owned" ? Owned<Q> :
+    O extends "borrowed" ? Borrowed<Q, L, AccessOf<Q>> :
+    O extends "raw" ? Raw<Q> :
     never;
 
-/// Reformulate `Q` with access mode `A`.
+/// Remove placement forms from `Q`.
+type WithoutPlace<Q> =
+    Q extends Placed<infer U, infer P> ? WithoutPlace<U> :
+    Q extends Managed<infer U> ? Managed<WithoutPlace<U>> :
+    Q extends Owned<infer U> ? Owned<WithoutPlace<U>> :
+    Q extends Borrowed<infer U, infer L, infer A> ? Borrowed<WithoutPlace<U>, L, A> :
+    Q extends Raw<infer U> ? Raw<WithoutPlace<U>> :
+    Q extends Readonly<infer U> ? Readonly<WithoutPlace<U>> :
+    Q;
+
+/// Place `Q` in `P`.
+export type WithPlace<Q, P: Place> = Placed<WithoutPlace<Q>, P>;
+
+/// Place `Q` in concrete space `S`.
+export type WithSpace<Q, S: Space> = WithPlace<Q, S>;
+
+/// Reborrow `Q` with lifetime `L`.
+export type WithLifetime<Q, L: Lifetime> =
+    Q extends Borrowed<infer U, infer QL, infer A> ? Borrowed<U, L, A> :
+    Q extends Placed<infer U, infer P> ? Placed<WithLifetime<U, L>, P> :
+    Q extends Readonly<infer U> ? Readonly<WithLifetime<U, L>> :
+    never;
+
+/// Reborrow `Q` with access mode `A`.
 export type WithAccess<Q, A: Access> =
-    Form<BaseOf<Q>, OwnershipOr<Q, "managed">, PlaceOr<Q, "ambient">, LifetimeOf<Q>, A>;
+    Q extends Borrowed<infer U, infer L, infer QA> ? Borrowed<U, L, A> :
+    Q extends Placed<infer U, infer P> ? Placed<WithAccess<U, A>, P> :
+    Q extends Owned<infer U> ? Owned<WithAccess<U, A>> :
+    Q extends Managed<infer U> ? Managed<WithAccess<U, A>> :
+    Q extends Raw<infer U> ? Raw<WithAccess<U, A>> :
+    A extends "readonly" ? Readonly<Q> :
+    Q;
 
 /// Rebase each field of `T` into managed form.
 export type ManagedFields<T> = {
