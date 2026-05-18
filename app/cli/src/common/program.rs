@@ -7,7 +7,7 @@ use destack_daemon::protocol::ConfigPatch;
 use destack_session::{Session, open_repository_from_fs};
 use destack_source::{FileSystem, IndentStyle, LineEnding, PhysicalFileSystem};
 use destack_workspace::{
-    FormatterOptions, HostEnvironment, LintPreset, LintSeverity, LinterOptions, Ref, Repository,
+    Environment, FormatterOptions, LintPreset, LintSeverity, LinterOptions, Ref, Repository,
 };
 
 use crate::pipeline::daemon::config_patches_from_program;
@@ -304,12 +304,9 @@ impl ProgramArgs {
         });
 
         // discover and import the repository in one step
-        let mut repository = open_repository_from_fs(
-            workspace_root,
-            fs.clone(),
-            HostEnvironment::capture_process(),
-        )
-        .expect("failed to import repository from file system");
+        let mut repository =
+            open_repository_from_fs(workspace_root, fs.clone(), Environment::capture_process())
+                .expect("failed to import repository from file system");
 
         // prefer in memory cache stores for test file systems
         if has_fs_override {

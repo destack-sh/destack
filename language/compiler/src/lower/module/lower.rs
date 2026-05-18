@@ -7,7 +7,9 @@ use destack_artifact::{
 };
 use destack_core::StringPool;
 use destack_source::{ModuleId, TargetId};
-use destack_workspace::{CheckFailurePolicy, Module, ProfileId, ProviderContext, Target};
+use destack_workspace::{
+    CheckFailurePolicy, Mode, Module, ProfileId, ProviderContext, Target, has_mode,
+};
 use indexmap::IndexSet;
 
 use crate::{Compiler, CompilerError, CompilerResult, LowerError, LowerResult};
@@ -183,7 +185,8 @@ impl<'a> ModuleLowerer<'a> {
         let target_config = Self::target_config_for_module(compiler, context, module, target)?;
 
         // resolve runtime check policies
-        let debug = compiler.profile(context.revision(), profile).env.debug;
+        let profile_config = compiler.profile(context.revision(), profile);
+        let debug = has_mode(&profile_config.key.modes, Mode::DEBUG);
         let runtime_checks = RuntimeCheckConfig::from_target(&target_config, debug);
         let binding_abi_lowering = target_config.emit.is_native();
 

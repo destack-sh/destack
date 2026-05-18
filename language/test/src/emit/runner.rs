@@ -15,7 +15,7 @@ use destack_linter::Linter;
 use destack_query::Query;
 use destack_session::Session;
 use destack_source::{FileSystem, PhysicalFileSystem, TargetId};
-use destack_workspace::{HostEnvironment, Ref, Repository, Target};
+use destack_workspace::{Environment, Ref, Repository, Target};
 
 use super::assert::compare_directory;
 use super::discover::{SOURCE_EXTENSIONS, discover_emit_cases, discover_source_files};
@@ -146,7 +146,7 @@ fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
         test.path.clone(),
         Arc::new(MemoryCacheStore::new()),
         fs,
-        HostEnvironment::capture_process(),
+        Environment::capture_process(),
     ));
     let actual_root = emit_actual_root(test);
 

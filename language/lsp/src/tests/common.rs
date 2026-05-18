@@ -4,7 +4,7 @@ use std::sync::Arc;
 use destack_artifact::DiskCacheStore;
 use destack_lsp_server::UriExt;
 use destack_source::{File, FileId, FileSystem, FileType, PhysicalFileSystem, Span, Uri};
-use destack_workspace::{Edit as RepositoryEdit, HostEnvironment, Ref, Repository, Revision};
+use destack_workspace::{Edit as RepositoryEdit, Environment, Ref, Repository, Revision};
 
 use crate::query::common::{
     byte_span_to_range, byte_to_utf16_position, position_to_byte, span_to_location,
@@ -23,7 +23,7 @@ fn test_repository() -> Repository {
         PathBuf::from("."),
         Arc::new(DiskCacheStore::new()),
         file_system,
-        HostEnvironment::capture_process(),
+        Environment::capture_process(),
     )
 }
 

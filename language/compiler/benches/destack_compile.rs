@@ -5,7 +5,7 @@ use destack_compiler::Compiler;
 use destack_linter::Linter;
 use destack_session::Session;
 use destack_source::{FileSystem, FileType, ModuleId, PhysicalFileSystem, TargetId, glob};
-use destack_workspace::{Edit, HostEnvironment, Ref, Repository, Revision};
+use destack_workspace::{Edit, Environment, Ref, Repository, Revision};
 use pprof::ProfilerGuard;
 use pprof::flamegraph::Options as FlamegraphOptions;
 use std::fs;
@@ -123,7 +123,7 @@ fn build_workspace(
         workspace_root.clone(),
         Arc::new(DiskCacheStore::new()),
         file_system,
-        HostEnvironment::capture_process(),
+        Environment::capture_process(),
     ));
 
     // materialize modules into the workspace revision

@@ -11,7 +11,7 @@ use destack_source::{
     DiagnosticSeverity, File, FileContent, FileId, FileSystem, FileType, LanguageType,
     MemoryFileSystem, ModuleId, Uri,
 };
-use destack_workspace::{HostEnvironment, Repository, Revision};
+use destack_workspace::{Environment, Repository, Revision};
 
 use crate::core::{
     module_artifact_diagnostics, module_id_for_path, profile_id_for_builtin_default_target,
@@ -158,7 +158,7 @@ impl SharedConformanceEnvironment {
             cwd.clone(),
             Arc::new(MemoryCacheStore::new()),
             fs.clone(),
-            HostEnvironment::capture_process(),
+            Environment::capture_process(),
         ));
         Self {
             repository,

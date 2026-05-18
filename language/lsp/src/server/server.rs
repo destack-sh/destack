@@ -20,7 +20,7 @@ use destack_source::{
     BatchEdit, File, FileId, FileSystem, FileWatchEvent, FileWatchEventKind, ModuleId,
     OverlayFileSystem, PhysicalFileSystem, ProfileId, Span, TargetId,
 };
-use destack_workspace::{HostEnvironment, Repository, Revision};
+use destack_workspace::{Environment, Repository, Revision};
 use serde::{Deserialize, Serialize};
 use serde_json::{from_value, to_value};
 use tokio::sync::Notify;
@@ -941,7 +941,7 @@ impl LanguageServer for DestackLanguageServer {
         let repository = open_repository_from_fs(
             cwd.clone(),
             overlay_fs.clone(),
-            HostEnvironment::capture_process(),
+            Environment::capture_process(),
         )
         .map_err(|error| {
             tracing::error!("lsp.initialize.repository_import_failed: {error}");

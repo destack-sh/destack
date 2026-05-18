@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use destack_artifact::DiskCacheStore;
 use destack_source::{File, FileId, FileSystem, FileType, Uri};
-use destack_workspace::{DestackFile, HostEnvironment, Ref, Repository, RepositoryError};
+use destack_workspace::{DestackFile, Environment, Ref, Repository, RepositoryError};
 
 use super::reload::{RELOAD_EXCLUDED_DIRECTORY_NAMES, is_reload_path};
 use super::{FileSystemSource, RepositorySource, RepositorySourceFilter};
@@ -14,7 +14,7 @@ use crate::SessionError;
 pub fn open_repository_from_fs(
     path: PathBuf,
     fs: Arc<dyn FileSystem>,
-    environment: HostEnvironment,
+    environment: Environment,
 ) -> Result<Repository, SessionError> {
     let root = find_source_root_from_fs(fs.as_ref(), &path)?;
 

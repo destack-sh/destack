@@ -7,7 +7,7 @@ use destack_artifact::{
     DirImported, DirParsed, MemoryCacheStore,
 };
 use destack_source::{DiagnosticCollection, FileContent, MemoryFileSystem, ModuleId, TargetId};
-use destack_workspace::{Edit, HostEnvironment, ProviderError, Ref, Repository, Revision};
+use destack_workspace::{Edit, Environment, ProviderError, Ref, Repository, Revision};
 
 use crate::tests::snapshot::{DirSnapshotBuilder, DirSnapshotSet, render_diagnostics};
 
@@ -96,7 +96,7 @@ impl TestCompiler {
             PathBuf::new(),
             Arc::new(MemoryCacheStore::new()),
             Arc::new(MemoryFileSystem::new()),
-            HostEnvironment::default(),
+            Environment::default(),
         ));
         let reference = Ref::for_workspace_root(repository.workspace_root());
         let revision = repository

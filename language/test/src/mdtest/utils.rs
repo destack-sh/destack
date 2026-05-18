@@ -11,7 +11,7 @@ use destack_linter::Linter;
 use destack_query::Query;
 use destack_session::Session;
 use destack_source::{FileSystem, MemoryFileSystem, ModuleId, TargetId};
-use destack_workspace::{HostEnvironment, Mode, Profile, Ref, Repository, Revision};
+use destack_workspace::{Environment, Mode, Profile, Ref, Repository, Revision};
 
 use crate::core::{CaseResult, discover_file_cases, load_expected_failures};
 
@@ -184,11 +184,7 @@ pub fn select_profile_for_mdtest(
 
     // return the resolved profile
     if key != base_profile.key {
-        let profile = repository
-            .profile_from_key(revision, key)
-            .unwrap_or_else(|error| panic!("failed to resolve profile: {error}"));
-
-        (profile, load_libraries)
+        (Profile::from_key(key), load_libraries)
     } else {
         ((*base_profile).clone(), load_libraries)
     }
@@ -298,7 +294,7 @@ pub fn setup_test_environment(test: &MdTestCase) -> (Arc<Repository>, PathBuf, P
         cwd.clone(),
         Arc::new(MemoryCacheStore::new()),
         fs,
-        HostEnvironment::capture_process(),
+        Environment::capture_process(),
     ));
 
     // delegate to repository based setup
