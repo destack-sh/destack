@@ -27,28 +27,28 @@ pub fn inlay_hint_to_lsp(file: &File, hint: &query::InlayHint) -> Option<lsp::In
 pub fn code_lens_to_lsp(file: &File, lens: &query::CodeLens) -> lsp::CodeLens {
     let range = byte_span_to_range(file, lens.range);
     let suffix = |count: usize| if count == 1 { "" } else { "s" };
-    let command = match &lens.data {
-        query::CodeLensData::References { count } => Some(lsp::Command {
+    let command = match &lens.action {
+        query::CodeLensAction::References { count } => Some(lsp::Command {
             title: format!("{count} reference{}", suffix(*count)),
             command: "destack.showReferences".to_string(),
             arguments: None,
         }),
-        query::CodeLensData::Implementations { count } => Some(lsp::Command {
+        query::CodeLensAction::Implementations { count } => Some(lsp::Command {
             title: format!("{count} implementation{}", suffix(*count)),
             command: "destack.showImplementations".to_string(),
             arguments: None,
         }),
-        query::CodeLensData::RunTest { test_name } => Some(lsp::Command {
+        query::CodeLensAction::RunTest { test_name } => Some(lsp::Command {
             title: format!("▶ Run {test_name}"),
             command: "destack.runTest".to_string(),
             arguments: Some(vec![serde_json::Value::String(test_name.clone())]),
         }),
-        query::CodeLensData::DebugTest { test_name } => Some(lsp::Command {
+        query::CodeLensAction::DebugTest { test_name } => Some(lsp::Command {
             title: format!("🐛 Debug {test_name}"),
             command: "destack.debugTest".to_string(),
             arguments: Some(vec![serde_json::Value::String(test_name.clone())]),
         }),
-        query::CodeLensData::Custom {
+        query::CodeLensAction::Custom {
             title,
             command,
             arguments,
