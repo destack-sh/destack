@@ -46,7 +46,7 @@ impl Parser {
     ///
     /// for (const x in zeds.iter()) a: {
     ///     if (y > 5) {
-    ///         continue :a
+    ///         continue a
     ///     }
     ///     y = 2
     /// }
@@ -295,9 +295,9 @@ impl Parser {
     ///     y = 2
     /// }
     ///
-    /// while (y < 10) l: {
+    /// l: while (y < 10) {
     ///     y = 2
-    ///     break :l
+    ///     break l
     /// }
     ///
     /// do {
