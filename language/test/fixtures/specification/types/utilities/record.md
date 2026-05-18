@@ -16,7 +16,7 @@ ok satisfies Flags;
 ### record rejects invalid key types
 
 ```ds
-type Bad = Record<{ name: string }, boolean>;
+type Bad = Record<type { name: string }, boolean>;
 ```
 
 - contains: not assignable

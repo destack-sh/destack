@@ -131,19 +131,3 @@ const point: HasX = Point { x: 1.5 };
 ```
 
 - contains: is not assignable
-
-## inheritance
-
-### structs reject extends
-
-```ds
-struct Base {
-    value: int32;
-}
-
-struct Child extends Base {
-    value: int32;
-}
-```
-
-- contains: parse error

@@ -119,7 +119,7 @@ let bad: ElementOf<string[]> = 1;
 ```ds
 type ValueOf<T> = T extends { value: infer U } ? U : never;
 
-let ok: ValueOf<{ value: boolean }> = true;
+let ok: ValueOf<type { value: boolean }> = true;
 ok satisfies boolean;
 ```
 
@@ -130,7 +130,7 @@ Property inference rejects incompatible values.
 ```ds
 type ValueOf<T> = T extends { value: infer U } ? U : never;
 
-let bad: ValueOf<{ value: boolean }> = 1;
+let bad: ValueOf<type { value: boolean }> = 1;
 ```
 
 - contains: not assignable
@@ -142,8 +142,8 @@ Repeated `infer` bindings merge inferred candidates.
 ```ds
 type Both<T> = T extends { a: infer U; b: infer U } ? U : "no";
 
-let ok: Both<{ a: string; b: string }> = "ok";
-let ok2: Both<{ a: string; b: int32 }> = 1;
+let ok: Both<type { a: string; b: string }> = "ok";
+let ok2: Both<type { a: string; b: int32 }> = 1;
 ok2 satisfies string | number;
 ```
 
@@ -154,7 +154,7 @@ Merged inferences reject incompatible values.
 ```ds
 type Both<T> = T extends { a: infer U; b: infer U } ? U : "no";
 
-let bad: Both<{ a: string; b: int32 }> = true;
+let bad: Both<type { a: string; b: int32 }> = true;
 ```
 
 - contains: not assignable
@@ -343,10 +343,10 @@ Union patterns merge inferred candidates.
 ```ds
 type Right<T> = T extends { a: infer U } | { b: infer U } ? U : "no";
 
-let okA: Right<{ a: string }> = "ok";
-let okB: Right<{ b: int32 }> = 1;
-let okBoth: Right<{ a: string; b: int32 }> = "ok";
-let okNone: Right<{ c: boolean }> = "no";
+let okA: Right<type { a: string }> = "ok";
+let okB: Right<type { b: int32 }> = 1;
+let okBoth: Right<type { a: string; b: int32 }> = "ok";
+let okNone: Right<type { c: boolean }> = "no";
 ```
 
 ### union branch bindings reject incompatible values
@@ -356,7 +356,7 @@ Union patterns reject incompatible values.
 ```ds
 type Right<T> = T extends { a: infer U } | { b: infer U } ? U : "no";
 
-let bad: Right<{ a: string; b: int32 }> = true;
+let bad: Right<type { a: string; b: int32 }> = true;
 ```
 
 - contains: not assignable
@@ -368,7 +368,7 @@ Unmatched unions reject the true branch.
 ```ds
 type Right<T> = T extends { a: infer U } | { b: infer U } ? U : "no";
 
-let badNone: Right<{ c: boolean }> = "ok";
+let badNone: Right<type { c: boolean }> = "ok";
 ```
 
 - contains: not assignable
@@ -521,7 +521,7 @@ ok satisfies 1;
 ```ds
 type SearchValue<T> = T extends { [K in "query"]: infer Query } ? Query : never;
 
-let ok: SearchValue<{ query: string }> = "ok";
+let ok: SearchValue<type { query: string }> = "ok";
 ok satisfies string;
 ```
 
@@ -532,7 +532,7 @@ Mapped key inference rejects incompatible assignments.
 ```ds
 type SearchValue<T> = T extends { [K in "query"]: infer Query } ? Query : never;
 
-let bad: SearchValue<{ query: string }> = 1;
+let bad: SearchValue<type { query: string }> = 1;
 ```
 
 - contains: not assignable
@@ -548,6 +548,6 @@ type Nested<T> = T extends { value: unknown }
         : never
     : never;
 
-let ok: Nested<{ value: { inner: int32 } }> = 1;
+let ok: Nested<type { value: { inner: int32 } }> = 1;
 ok satisfies int32;
 ```

@@ -51,7 +51,7 @@ Recursive mapped aliases report recursion.
 ```ds
 type Remap<T> = { [K in keyof T]: Remap<T[K]> };
 
-declare let value: Remap<{ name: string }>;
+declare let value: Remap<type { name: string }>;
 ```
 
 - contains: recursive

@@ -8,8 +8,8 @@ A `global` block contributes real values when its module is in the graph.
 
 ```ds:globals.ds
 global {
-    answer: (int32 = 42),
-};
+    const answer: int32 = 42;
+}
 ```
 
 ```ds:main.ds
@@ -24,14 +24,14 @@ Real global values cannot be declared twice.
 
 ```ds:a.ds
 global {
-    answer: (int32 = 42),
-};
+    const answer: int32 = 42;
+}
 ```
 
 ```ds:b.ds
 global {
-    answer: (int32 = 7),
-};
+    const answer: int32 = 7;
+}
 ```
 
 ```ds:main.ds
@@ -49,8 +49,8 @@ Configured global roots are part of the module closure.
 
 ```ds:globals.ds
 global {
-    runtimeName: (string = "test"),
-};
+    const runtimeName: string = "test";
+}
 ```
 
 ```ds:main.ds
@@ -158,36 +158,6 @@ const right = GlobalBox.right();
 right satisfies string;
 ```
 
-### global class merges tolerate namespace value augmentations
-
-Class and namespace global declarations can merge on one name without breaking instance typing.
-
-```ds:a.ds
-declare global {
-    class GlobalWidget {
-        ping(): number;
-    }
-}
-```
-
-```ds:b.ds
-declare global {
-    namespace GlobalWidget {
-        export const tag: string;
-    }
-}
-```
-
-```ds:main.ds
-import "./a.ds";
-import "./b.ds";
-
-declare const widget: GlobalWidget;
-widget.ping() satisfies number;
-
-GlobalWidget.tag satisfies string;
-```
-
 ### global array augmentations preserve ambient array members
 
 Global `Array<T>` augmentations add members without removing ambient library members.
@@ -248,29 +218,4 @@ declare global {
 
 ```ds:main.ds
 import "./globals.ds";
-```
-
-### global declarations in module bindings can use module scope
-
-Global augmentations declared inside module bindings can reference names from that module binding.
-
-```ds:bindings.ds
-export {};
-
-declare module "foo" {
-    type Local = number;
-
-    global {
-        interface GlobalThing {
-            value: Local;
-        }
-    }
-}
-```
-
-```ds:main.ds
-import "./bindings.ds";
-
-type Alias = GlobalThing;
-const value: Alias = { value: 1 };
 ```

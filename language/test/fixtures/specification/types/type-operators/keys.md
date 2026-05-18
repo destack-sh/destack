@@ -74,7 +74,7 @@ const right: Keys = "right";
 
 ```ds
 type Keys<T: { a: number }> = keyof T;
-type Actual = Keys<{ a: number; b: string }>;
+type Actual = Keys<type { a: number; b: string }>;
 
 const key: Actual = "b";
 key satisfies "a" | "b";

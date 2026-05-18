@@ -39,7 +39,7 @@ if (type.kind == "reference") {
 Structural object types reflect through DIR object fields.
 
 ```ds
-const type = Type.of<{ name: string; age?: uint }>();
+const type = Type.of<type { name: string; age?: uint }>();
 
 if (type.kind == "object") {
     (type) satisfies dir.ObjectType;

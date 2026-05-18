@@ -44,7 +44,7 @@ interface EventShape<T> {
 
 class Bus<T> implements EventShape<T> {}
 
-declare const handlers: Bus<{ ready: boolean; message: string }>.Handlers;
+declare const handlers: Bus<type { ready: boolean; message: string }>.Handlers;
 
 handlers satisfies { "on-ready": boolean; "on-message": string };
 ```

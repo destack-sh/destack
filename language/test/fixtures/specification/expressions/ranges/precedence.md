@@ -25,7 +25,7 @@ range satisfies Range<int>;
 ### newline ends an open-ended range
 
 ```ds
-const from = 1..
+const from = 1..;
 const to = ..10;
 
 from satisfies RangeFrom<int>;

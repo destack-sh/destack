@@ -231,5 +231,5 @@ struct Payload {
     value: int32;
 }
 
-WithBase<shared (^readonly Cell), Payload> satisfies shared (^readonly Payload);
+WithBase<shared ^readonly Cell, Payload> satisfies shared ^readonly Payload;
 ```

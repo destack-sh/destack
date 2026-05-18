@@ -9,7 +9,7 @@ Mapped types iterate over static key unions.
 ```ds
 type Flags<T: { a: number }> = { [K in keyof T]: boolean };
 
-type Actual = Flags<{ a: number; b: string }>;
+type Actual = Flags<type { a: number; b: string }>;
 
 const ok: Actual = { a: true, b: false };
 ok satisfies Actual;
@@ -22,7 +22,7 @@ type Prefix<T> = {
     [K in keyof T as `get${Capitalize<K & string>}`]: T[K];
 };
 
-type Accessors = Prefix<{ name: string; age: int32 }>;
+type Accessors = Prefix<type { name: string; age: int32 }>;
 type Values = Accessors["getName" | "getAge"];
 
 const name: Values = "Ada";
@@ -36,7 +36,7 @@ type Prefix<T> = {
     [K in keyof T as `get${Capitalize<K & string>}`]: T[K];
 };
 
-type Accessors = Prefix<{ name: string }>;
+type Accessors = Prefix<type { name: string }>;
 type Missing = Accessors["name"];
 ```
 
@@ -49,7 +49,7 @@ type Missing = Accessors["name"];
 ```ds
 type Optional<T> = { [K in keyof T]?: T[K] };
 
-type Values = Optional<{ name: string }>["name"];
+type Values = Optional<type { name: string }>["name"];
 
 const missing: Values = undefined;
 ```
@@ -59,7 +59,7 @@ const missing: Values = undefined;
 ```ds
 type Optional<T> = { [K in keyof T]?: T[K] };
 
-type Values = Optional<{ name: string }>["name"];
+type Values = Optional<type { name: string }>["name"];
 
 const bad: Values = 1;
 ```
@@ -78,7 +78,7 @@ export type Box<T> = Optional<T>;
 ```ds:main.ds
 import { Box } from "./library.ds";
 
-type Name = Box<{ name: string }>["name"];
+type Name = Box<type { name: string }>["name"];
 
 const ok: Name = "Ada";
 const missing: Name = undefined;

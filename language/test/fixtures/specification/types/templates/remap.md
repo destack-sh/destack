@@ -52,7 +52,7 @@ type HandlerMap<T> = {
     [K in keyof T as `on-${K}`]: T[K];
 };
 
-type Value = HandlerMap<{ name: string }>["on-name"];
+type Value = HandlerMap<type { name: string }>["on-name"];
 
 declare const value: Value;
 value satisfies string;
@@ -90,7 +90,7 @@ type HandlerMap<T> = {
 const handlers = {
     "on-open": true,
     "on-close": false,
-} satisfies HandlerMap<{ open: boolean; close: boolean }>;
+} satisfies HandlerMap<type { open: boolean; close: boolean }>;
 
 handlers["on-open"] satisfies boolean;
 ```

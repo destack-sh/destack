@@ -324,7 +324,7 @@ declare function ready(): Promise<void>;
 async function read(packet: shared ^Packet): Promise<int32> {
     let id = &readonly packet.id;
     await ready();
-    id satisfies shared (&readonly int32);
+    id satisfies shared &readonly int32;
     return *id;
 }
 ```

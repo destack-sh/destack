@@ -77,8 +77,7 @@ class Widget {
 }
 
 @noManaged
-function take(value: Widget): void {
-}
+function take(value: Widget): void {}
 ```
 
 - contains: managed memory is disabled

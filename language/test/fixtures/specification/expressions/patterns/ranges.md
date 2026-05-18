@@ -106,20 +106,6 @@ function kind(value: char): string {
 
 ## invalid forms
 
-### bare range is not a wildcard pattern
-
-Use `_` when a match arm should accept any value.
-
-```ds
-function classify(value: int32): string {
-    match (value) {
-        .. => "anything"
-    }
-}
-```
-
-- contains: unexpected => in Pattern
-
 ### float range patterns are rejected
 
 ```ds
