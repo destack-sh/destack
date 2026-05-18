@@ -1535,14 +1535,16 @@ Essentially, `TreeTag` generalises `jsxFactory` and `TreeTagBuilder` generalises
  - Uppercase or qualified tags resolve as value tags through normal value lookup and the `TreeTag` interface.
  - Lowercase unqualified tags resolve as intrinsic tags through the active `TreeTagBuilder`.
 
-The active `TreeTagBuilder` comes from the compiler / target / profile options by default, but can be locally overridden with `module { ... }`.
+The active `TreeTagBuilder` comes from the compiler / target / profile options by default, but can be locally overridden with module metadata.
 
 ```ds
 import { HtmlTree } from "destack:ui/html";
 
 module {
-    tree: HtmlTree;
+    const tree = HtmlTree;
 }
+
+import.meta.tree satisfies TreeTagBuilder;
 ```
 
 
@@ -1655,18 +1657,29 @@ Usually, we would configure this with the compiler / target / profile options, b
 
 ```ds
 import { HtmlTree } from "destack:ui/html";
+import { Clone, Debug } from "destack:decorator";
 
+@noHeap
 module {
-    tree: HtmlTree;
-    derive: [Debug, Clone];
-
-    noHeap: true;
-    noRuntime: true;
+    const tree = HtmlTree;
+    const derive = [Debug, Clone];
+    const product = "editor";
 }
 ```
 
-Every member value in the `module { ... }` block must be a static term, so imported providers and regular static term logic are permitted.
-It should be noted that the configuration is - as the name implies - local to the specific module, and does not affect any other modules outside the current file.
+Decorators on `module` apply rules to the _whole_ source module, and declarations inside `module` define readonly module metadata available through `import.meta`:
+
+```ds
+module {
+    const role = "server";
+    const labels = {
+        feature: ["search", "billing"],
+    };
+}
+
+import.meta.role satisfies "server";
+import.meta.labels.feature satisfies readonly ["search", "billing"];
+```
 
 ### Globals
 
@@ -2506,7 +2519,7 @@ Chained like `user.test.browser.ds` behave as "and" gates on all conditions, tha
 
 ### Import Meta
 
-`import.meta` exposes module and profile metadata during static and comptime evaluation.
+`import.meta` exposes profile metadata and current module metadata during static and comptime evaluation.
 
 | Field | Description | Type | Examples |
 |-------|-------------|------|----------|
@@ -2518,12 +2531,12 @@ Chained like `user.test.browser.ds` behave as "and" gates on all conditions, tha
 | `import.meta.host` | target host environment | `Host` | `"browser"`, `"native"`, `"wasi"` |
 | `import.meta.target` | target family and ABI | `Target` | `{ family: "unix", arch: "x64", abi: "gnu" }` |
 | `import.meta.targetName` | active build target name | `string | undefined` | `"web"`, `"native"` |
-| `import.meta.product` | active deliverable product name | `string | undefined` | `"app"`, `"server"` |
+| `import.meta.product` | active deliverable product name | `Product | undefined` | `"app"`, `"server"` |
 | `import.meta.runtime` | semantic runtime | `Runtime` | `"destack"`, `"js"` |
-| `import.meta.modes` | active source graph modes | `readonly string[]` | `["test"]`, `["dev", "lint"]` |
-| `import.meta.roles` | active source graph roles | `readonly string[]` | `["server"]`, `["client"]` |
-| `import.meta.features` | active source graph features | `readonly string[]` | `["checkout"]`, `["renderer"]` |
-| `import.meta.tags` | active source graph tags | `readonly string[]` | `["preview"]`, `["internal"]` |
+| `import.meta.modes` | active source graph modes | `readonly Mode[]` | `["test"]`, `["dev", "lint"]` |
+| `import.meta.roles` | active source graph roles | `readonly Role[]` | `["server"]`, `["client"]` |
+| `import.meta.features` | active source graph features | `readonly Feature[]` | `["checkout"]`, `["renderer"]` |
+| `import.meta.tags` | active source graph tags | `readonly Tag[]` | `["preview"]`, `["internal"]` |
 | `import.meta.debug` | `debug` mode shorthand | `bool` | `true`, `false` |
 | `import.meta.dev` | `dev` mode shorthand | `bool` | `true`, `false` |
 | `import.meta.prod` | `prod` mode shorthand | `bool` | `true`, `false` |
@@ -2531,6 +2544,9 @@ Chained like `user.test.browser.ds` behave as "and" gates on all conditions, tha
 | `import.meta.bench` | `bench` mode shorthand | `bool` | `true`, `false` |
 | `import.meta.lint` | `lint` mode shorthand | `bool` | `true`, `false` |
 | `import.meta.env` | configured build environment | `{ readonly [key: string]: string | bool | number }` | `{ NODE_ENV: "production", FEATURE_X: true }` |
+| `import.meta.tree` | current module tree tag builder | `TreeTagBuilder | undefined` | `HtmlTree` |
+| `import.meta.derive` | current module auto derive providers | `readonly Macro<unknown>[]` | `[Clone, Debug]` |
+| `import.meta.labels` | current module labels | `{ readonly [key: string]: unknown }` | `{ feature: ["checkout"] }` |
 
 ### Data Modules
 

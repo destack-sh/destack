@@ -1,53 +1,65 @@
-# Module Settings
+# Module Declarations
 
-## local policy
+## rules
 
-### module block tightens memory policy
+### module decorators tighten memory policy
 
-The body is checked as a static module record.
+Module decorators apply to the current source module.
 
 ```ds
-module {
-    noManaged: true,
-    noHeap: true,
-};
+@noManaged
+@noHeap
+module {}
 
 function read(value: &[uint8]): uint8 {
     return value[0];
 }
 ```
 
-### module block tightens runtime policy
+### module decorators tighten runtime policy
 
-Runtime capability policy can also be tightened locally.
+Runtime capability policy can be tightened locally.
 
 ```ds
-module {
-    noRuntime: true,
-    noExceptions: true,
-    noImplicitDynamicDispatch: true,
-};
+@noRuntime
+@noImplicitDynamicDispatch
+module {}
 
 function read(value: int32): int32 {
     return value;
 }
 ```
 
-## local providers
+## metadata
 
-### module block selects tree and derive providers
+### module metadata selects providers
 
-Provider settings can reference imports because they are static terms.
+Module metadata declarations are static terms.
 
 ```ds
 import { HtmlTree } from "destack:ui/html";
+import { Clone, Debug } from "destack:decorator";
 
 module {
-    tree: HtmlTree,
-    derive: [Debug, Clone],
-};
+    const tree = HtmlTree;
+    const derive = [Debug, Clone];
+}
 
 struct User {
     name: string;
 }
+```
+
+### module metadata is visible through import.meta
+
+```ds
+module {
+    const role = "server";
+    const labels = {
+        feature: ["search"],
+    };
+}
+
+import.meta.role satisfies "server";
+import.meta.labels.feature satisfies readonly ["search"];
 ```
