@@ -7,7 +7,7 @@ use destack_query as query;
 use destack_source::{
     FileId, FileSystem, ModuleId, PackageId, PhysicalFileSystem, ProfileId, Span,
 };
-use destack_workspace::{Edit as RepositoryEdit, HostEnvironment, Ref, Repository, Revision};
+use destack_workspace::{Edit as RepositoryEdit, Environment, Ref, Repository, Revision};
 
 use crate::query::navigation::{outgoing_call_to_lsp, workspace_symbol_to_lsp};
 
@@ -46,7 +46,7 @@ fn test_repository() -> Repository {
         PathBuf::from("."),
         Arc::new(DiskCacheStore::new()),
         file_system,
-        HostEnvironment::capture_process(),
+        Environment::capture_process(),
     )
 }
 

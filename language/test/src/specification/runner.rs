@@ -9,7 +9,7 @@ use destack_parser::source_colorizer;
 use destack_source::{
     DiagnosticSeverity, File, FileType, MemoryFileSystem, ModuleId, PrintOptions, TargetId, Uri,
 };
-use destack_workspace::{HostEnvironment, Repository, Revision, parse_jsonc_file};
+use destack_workspace::{Environment, Repository, Revision, parse_jsonc_file};
 use serde_json::json;
 
 use crate::core::print::color;
@@ -161,7 +161,7 @@ fn run_specification_test(test: &MdTestCase) -> CaseResult {
             cwd,
             Arc::new(MemoryCacheStore::new()),
             fs.clone(),
-            HostEnvironment::capture_process(),
+            Environment::capture_process(),
         ));
         crate::mdtest::setup_test_environment_with_repository(test, repository, fs, root)
     };

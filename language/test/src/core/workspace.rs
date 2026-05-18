@@ -11,7 +11,7 @@ use destack_source::{
     DiagnosticCollection, FileContent, FileSystem, MemoryFileSystem, ModuleId, ProfileId, TargetId,
 };
 use destack_workspace::{
-    Edit, FormatterOptions, HostEnvironment, LinterOptions, Ref, Repository, Revision,
+    Edit, Environment, FormatterOptions, LinterOptions, Ref, Repository, Revision,
 };
 use serde_json::{Map, Value, json};
 
@@ -39,7 +39,7 @@ impl SharedMemoryWorkspace {
             root.clone(),
             Arc::new(MemoryCacheStore::new()),
             fs.clone(),
-            HostEnvironment::capture_process(),
+            Environment::capture_process(),
         ));
         materialize_workspace_root(repository.clone(), &root);
 
@@ -88,7 +88,7 @@ pub fn open_repository_with_options(
         root,
         Arc::new(MemoryCacheStore::new()),
         fs,
-        HostEnvironment::capture_process(),
+        Environment::capture_process(),
     ));
     let root = repository.workspace_root().to_path_buf();
     materialize_workspace_root(repository.clone(), &root);

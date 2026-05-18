@@ -8,7 +8,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use destack_artifact::MemoryCacheStore;
 use destack_daemon::WatchPolicy;
 use destack_source::{FileSystem, MemoryFileSystem, MemoryFileWatcher};
-use destack_workspace::{Edit, HostEnvironment, Ref, Repository, Revision};
+use destack_workspace::{Edit, Environment, Ref, Repository, Revision};
 use serde_json::{Value, json};
 
 use crate::common::{InputArgs, ProgramArgs};
@@ -39,7 +39,7 @@ impl TestProgram {
             root.clone(),
             Arc::new(MemoryCacheStore::new()),
             fs.clone(),
-            HostEnvironment::capture_process(),
+            Environment::capture_process(),
         ));
 
         // return the test harness

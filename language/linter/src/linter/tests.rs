@@ -25,7 +25,7 @@ use destack_source::{
     print_diff,
 };
 use destack_workspace::{
-    Edit as RepositoryEdit, HostEnvironment, LintCategory, LintSeverity, LinterOptions, Module,
+    Edit as RepositoryEdit, Environment, LintCategory, LintSeverity, LinterOptions, Module,
     Profile, ProviderContext, ProviderError, Ref, Repository, Revision,
 };
 use parking_lot::Mutex;
@@ -719,7 +719,7 @@ impl TestProgram {
         let fs = Arc::new(OverlayFileSystem::with_inner(Arc::new(
             PhysicalFileSystem::new(),
         )));
-        let environment = HostEnvironment::capture_process();
+        let environment = Environment::capture_process();
 
         let repository = Arc::new(
             open_repository_from_fs(cwd.clone(), fs.clone(), environment.clone())
@@ -751,7 +751,7 @@ impl TestProgram {
             environment.key_all(),
             ProfileFlags::default(),
         );
-        let profile = Profile::from_key(profile_key, &environment);
+        let profile = Profile::from_key(profile_key);
 
         // compiler and runner
         let compiler = Arc::new(Compiler::new(repository.clone()));
