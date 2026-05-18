@@ -201,22 +201,14 @@ impl LanguageService {
             .map_err(LanguageServiceError::from)
     }
 
-    /// Execute a callback with repository and compiler handles while holding the root head lock.
-    pub fn with_exclusive_root<T, F>(
+    /// Return repository and compiler handles for one root.
+    pub fn root_handles(
         &self,
         root: &Path,
-        callback: F,
-    ) -> Result<T, LanguageServiceError>
-    where
-        F: FnOnce(Arc<Repository>, Arc<Compiler>) -> T,
-    {
+    ) -> Result<(Arc<Repository>, Arc<Compiler>), LanguageServiceError> {
         let session = self.session(root)?;
-        let _head_guard = session.lock_head();
 
-        Ok(callback(
-            session.repository().clone(),
-            session.compiler().clone(),
-        ))
+        Ok((session.repository(), session.compiler()))
     }
 
     /// Build one session for a root.

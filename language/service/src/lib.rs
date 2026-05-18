@@ -1,9 +1,9 @@
 pub mod service;
 
 pub use service::{
-    DiagnosticSnapshot, FileChange, FileImage, FileUpdate, FileUpdateKind, LanguageService,
+    DiagnosticView, FileChange, FileImage, FileUpdate, FileUpdateKind, LanguageService,
     LanguageServiceError, LanguageServiceMessage, LanguageServiceMessageKind,
-    LanguageServiceResult, QueryResult, TextChange, TextPosition, TextRange,
+    LanguageServiceResult, QueryResult, QueryRevision, TextChange, TextPosition, TextRange,
 };
 
 #[cfg(test)]
