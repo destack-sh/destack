@@ -97,7 +97,7 @@ Exclusive borrowed access uses `Dereference<"exclusive">`.
 
 ```ds
 struct Ref<T> {
-    value: T
+    value: T;
 }
 
 extension<T> of Ref<T> implements Dereference<"exclusive"> {
@@ -122,7 +122,7 @@ Mutable dereference is not exclusive dereference.
 
 ```ds
 struct Ref<T> {
-    value: T
+    value: T;
 }
 
 extension<T> of Ref<T> implements Dereference<"mutable"> {

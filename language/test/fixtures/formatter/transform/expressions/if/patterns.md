@@ -46,6 +46,22 @@ if (let Point { x, y } = value) {
 }
 ```
 
+### if let dereference pattern
+
+Dereference prefixes stay attached to the pattern head.
+
+```ds
+if (let *Point { x, y } = point) { x + y } else { 0 }
+```
+
+```ds expected
+if (let *Point { x, y } = point) {
+    x + y
+} else {
+    0
+}
+```
+
 ### if let else if chain
 
 Else-if chains expand consistently when one branch expands.
