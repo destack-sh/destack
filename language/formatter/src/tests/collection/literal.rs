@@ -28,6 +28,18 @@ fn test_format_string_literal_escapes_embedded_target_quote() {
     );
 }
 
+/// Destack strings should not use character literal quotes.
+#[test]
+fn test_format_destack_string_literal_keeps_double_quotes() {
+    assert_format_roundtrip_with_file_type(
+        r#""say \"hello\"""#,
+        r#""say \"hello\"""#,
+        FileType::Destack,
+        |p| p.parse_expression(),
+        DestackFormatOptions::default(),
+    );
+}
+
 /// Template literals with interpolation should stay stable.
 #[test]
 fn test_format_template_literal_one_interpolation() {
