@@ -1122,6 +1122,11 @@ impl Compiler {
                 self.build_union_check(state, match_id, value, &patterns, scope)
             }
 
+            // stack access patterns need ownership-aware lowering
+            Pattern::DereferenceOf { .. } => Err(ElaborateError::UnsupportedConstruct {
+                anchor: state.module_id.into(),
+            }),
+
             // transparent wrappers recurse to their inner pattern
             Pattern::Must(inner)
             | Pattern::BorrowOf { right: inner, .. }
