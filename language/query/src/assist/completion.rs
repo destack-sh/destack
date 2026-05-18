@@ -6,24 +6,24 @@ use std::sync::Arc;
 
 use destack_dir as dir;
 use destack_dir::{FloatType, IntegerType, Keyword, SymbolForm, SymbolSpace};
-use destack_source::{Edit, File, FileId, FileType, Loader, ModuleId, PackageId, Uri};
-use destack_workspace::{Module, Repository, Revision};
+use destack_source::{Edit, File, FileType, Loader, ModuleId, PackageId};
 use serde::{Deserialize, Serialize};
 
 use super::{CompletionContext, CompletionInput, CursorToken, completion_input_at_offset};
 use crate::core::{
-    ImportSortKey, MatchKind, MatchQuality, QueryContext, import_sort_key, import_sort_text,
-    match_quality, query_context, query_context_for_profile, repository_import_relevance,
+    ImportSortKey, MatchKind, MatchQuality, ModuleQueryContext, QueryPosition,
+    WorkspaceQueryContext, import_sort_key, import_sort_text, match_quality,
+    repository_import_relevance,
 };
 use crate::dir::{
-    ImportEditSpace, MemberInfo, MemberKind, MemberName, build_import_display_path,
-    build_import_edits, doc_text_for_symbol, get_canonical_symbol, matches_export_space_filter,
+    ImportEditSpace, MemberCandidate, MemberKind, MemberName, build_import_display_path,
+    build_import_edits, doc_text_for_symbol, matches_export_space_filter,
     matches_import_clause_space_filter, module_name_from_path, parameter_names_for_symbol,
     resolve_extension_members_for_symbol, resolve_reference_members, resolve_type_members,
     search_importable_symbols, visible_symbols,
 };
 use crate::format::format_local_type;
-use crate::source::{current_initializer_binding_names, get_module_by_file_id};
+use crate::source::current_initializer_binding_names;
 // sort order priorities: lower = higher priority in completion list
 const SORT_LOCAL_SYMBOL: u32 = 10;
 const SORT_BUILTIN: u32 = 20;
@@ -317,10 +317,8 @@ pub enum CompletionTrigger {
 /// Request completion items at a cursor position.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CompletionRequest {
-    /// The document URI.
-    pub uri: Uri,
-    /// The byte offset in the document.
-    pub offset: u32,
+    /// The queried position.
+    pub position: QueryPosition,
     /// The trigger that initiated completion.
     pub trigger: CompletionTrigger,
     /// Whether to include auto import completions.
@@ -337,47 +335,39 @@ pub struct CompletionResponse {
 }
 
 /// The repository-bound builder for completion candidates.
-struct CompletionBuilder<'a> {
-    /// The shared workspace repository.
-    repository: &'a Repository,
-    /// The current revision.
-    revision: Revision,
+struct CompletionBuilder<'ctx, 'repo> {
+    /// The focused query context.
+    ctx: &'ctx ModuleQueryContext<'repo>,
+    /// The workspace query context.
+    workspace: &'ctx WorkspaceQueryContext<'repo>,
     /// The current file being completed.
-    file_id: FileId,
+    source_file: Option<Arc<File>>,
 }
 
-impl<'a> CompletionBuilder<'a> {
+impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
     /// Build one completion builder.
-    fn new(repository: &'a Repository, revision: Revision, file_id: FileId) -> Self {
+    fn new(
+        ctx: &'ctx ModuleQueryContext<'repo>,
+        workspace: &'ctx WorkspaceQueryContext<'repo>,
+    ) -> Self {
+        let source_file = ctx
+            .repository()
+            .file(ctx.revision(), ctx.file_id())
+            .ok()
+            .flatten();
+
         Self {
-            repository,
-            revision,
-            file_id,
+            ctx,
+            workspace,
+            source_file,
         }
     }
 
-    /// Return the current file snapshot.
-    fn source_file(&self) -> Option<Arc<File>> {
-        self.repository
-            .file(self.revision, self.file_id)
-            .ok()
-            .flatten()
-    }
+    /// Return the canonical dependency target for one symbol.
+    fn canonical_symbol(&self, symbol_id: dir::GlobalSymbolId) -> Option<dir::GlobalSymbolId> {
+        let ctx = self.ctx.module_context(symbol_id.module_id)?;
 
-    /// Return the current module snapshot for the focused file.
-    fn current_module(&self) -> Option<Arc<Module>> {
-        get_module_by_file_id(self.repository, self.revision, self.file_id)
-    }
-
-    /// Build one query context for the focused file.
-    fn current_query_context(&self) -> Option<QueryContext<'_>> {
-        let module = self.current_module()?;
-        query_context(self.repository, self.revision, module.id)
-    }
-
-    /// Build one query context for one module id.
-    fn query_context_for_module(&self, module_id: ModuleId) -> Option<QueryContext<'_>> {
-        query_context(self.repository, self.revision, module_id)
+        Some(ctx.canonical_symbol(symbol_id))
     }
 
     /// Collect the raw completion candidates for one context.
@@ -486,18 +476,14 @@ impl<'a> CompletionBuilder<'a> {
 
     /// Collect completion labels excluded at one cursor offset.
     fn completion_excluded_labels(&self, offset: u32) -> HashSet<String> {
-        let Some(source_file) = self.source_file() else {
+        let Some(source_file) = self.source_file.as_ref() else {
             return HashSet::new();
         };
         let source = source_file.text();
 
-        let Some(ctx) = self.current_query_context() else {
-            return HashSet::new();
-        };
-
-        current_initializer_binding_names(ctx.source(), source, offset)
+        current_initializer_binding_names(self.ctx.dir(), source, offset)
             .into_iter()
-            .map(|name| ctx.source().strings().get(name).to_string())
+            .map(|name| self.ctx.dir().strings().get(name).to_string())
             .collect()
     }
 
@@ -506,7 +492,7 @@ impl<'a> CompletionBuilder<'a> {
         &self,
         symbol_id: dir::GlobalSymbolId,
     ) -> Option<CompletionValueShape> {
-        let ctx = self.query_context_for_module(symbol_id.module_id)?;
+        let ctx = self.ctx.module_context(symbol_id.module_id)?;
         let types = ctx.dir().types();
         let symbols = ctx.dir().symbols();
         let type_id = types.symbol_type_id(symbols, symbol_id)?;
@@ -537,7 +523,7 @@ impl<'a> CompletionBuilder<'a> {
         &self,
         symbol_id: dir::GlobalSymbolId,
     ) -> Option<dir::GlobalSymbolId> {
-        let ctx = self.query_context_for_module(symbol_id.module_id)?;
+        let ctx = self.ctx.module_context(symbol_id.module_id)?;
         let types = ctx.dir().types();
         let symbols = ctx.dir().symbols();
         let type_id = types.symbol_type_id(symbols, symbol_id)?;
@@ -553,16 +539,12 @@ impl<'a> CompletionBuilder<'a> {
     ) -> Option<dir::GlobalSymbolId> {
         let symbol_id = types.get_type(type_id).symbol()?;
 
-        Some(get_canonical_symbol(
-            self.repository,
-            self.revision,
-            symbol_id,
-        ))
+        self.canonical_symbol(symbol_id)
     }
 
     /// Return related nominal type symbols from one symbol.
     fn type_symbols_for_symbol(&self, symbol_id: dir::GlobalSymbolId) -> Vec<dir::GlobalSymbolId> {
-        let Some(ctx) = self.query_context_for_module(symbol_id.module_id) else {
+        let Some(ctx) = self.ctx.module_context(symbol_id.module_id) else {
             return Vec::new();
         };
         let types = ctx.dir().types();
@@ -613,7 +595,9 @@ impl<'a> CompletionBuilder<'a> {
 
         if let dir::Type::Reference(reference) = ty {
             let symbol = reference.symbol;
-            let canonical_symbol = get_canonical_symbol(self.repository, self.revision, symbol);
+            let Some(canonical_symbol) = self.canonical_symbol(symbol) else {
+                return;
+            };
             if seen_symbols.insert(canonical_symbol) {
                 symbols.push(canonical_symbol);
             }
@@ -645,7 +629,7 @@ impl<'a> CompletionBuilder<'a> {
 
     /// Format a type detail string for a symbol's declared or inferred type.
     fn format_symbol_form_detail(&self, symbol_id: dir::GlobalSymbolId) -> Option<String> {
-        let ctx = self.query_context_for_module(symbol_id.module_id)?;
+        let ctx = self.ctx.module_context(symbol_id.module_id)?;
 
         let symbols = ctx.dir().symbols();
         let types = ctx.dir().types();
@@ -653,13 +637,7 @@ impl<'a> CompletionBuilder<'a> {
         let declaration = symbol.declaration?;
         let type_id = types.get_declared_or_inferred_type_id(declaration)?;
 
-        Some(format_local_type(
-            type_id,
-            types,
-            self.repository,
-            self.revision,
-            ctx.dir().strings(),
-        ))
+        Some(format_local_type(type_id, types, &ctx))
     }
 
     /// Attach documentation to a completion when the backing symbol has docs.
@@ -668,8 +646,10 @@ impl<'a> CompletionBuilder<'a> {
         completion: Completion,
         symbol_id: dir::GlobalSymbolId,
     ) -> Completion {
-        let symbol_id = get_canonical_symbol(self.repository, self.revision, symbol_id);
-        let documentation = doc_text_for_symbol(self.repository, self.revision, symbol_id);
+        let Some(symbol_id) = self.canonical_symbol(symbol_id) else {
+            return completion;
+        };
+        let documentation = doc_text_for_symbol(self.ctx, symbol_id);
         let Some(documentation) = documentation else {
             return completion;
         };
@@ -680,7 +660,7 @@ impl<'a> CompletionBuilder<'a> {
     /// Build a completion item from a resolved member entry.
     fn completion_for_member(
         &self,
-        member: MemberInfo,
+        member: MemberCandidate,
         types: Option<&dir::TypeTable<'_>>,
         is_extension_member: bool,
     ) -> Option<Completion> {
@@ -719,19 +699,11 @@ impl<'a> CompletionBuilder<'a> {
                 completion =
                     completion.with_type_symbols(self.type_symbols_for_type(types, member_type_id));
 
-                if let Some(ctx) = self.current_query_context() {
-                    let type_text = format_local_type(
-                        member_type_id,
-                        types,
-                        self.repository,
-                        self.revision,
-                        ctx.dir().strings(),
-                    );
-                    completion = completion.with_detail(type_text);
-                }
+                let type_text = format_local_type(member_type_id, types, self.ctx);
+                completion = completion.with_detail(type_text);
             }
         }
-        // otherwise fall back to the backing symbol
+        // otherwise enrich from the backing symbol
         else if let Some(symbol_id) = member.symbol_id {
             if let Some(value_shape) = self.value_shape_for_symbol(symbol_id) {
                 completion = completion.with_value_shape(value_shape);
@@ -755,8 +727,7 @@ impl<'a> CompletionBuilder<'a> {
         // methods prefer callable insertion text
         if member.kind == MemberKind::Method
             && let Some(symbol_id) = member.symbol_id
-            && let Some(param_names) =
-                get_function_param_names(self.repository, self.revision, symbol_id)
+            && let Some(param_names) = get_function_param_names(self.ctx, symbol_id)
         {
             let (snippet, is_snippet) = generate_call_snippet(&completion.label, &param_names);
             completion = completion.with_insert_text(snippet);
@@ -779,24 +750,10 @@ impl<'a> CompletionBuilder<'a> {
     ) -> Vec<Completion> {
         let mut results = Vec::new();
 
-        // resolve the current module context once
-        let Some(ctx) = self.current_query_context() else {
-            return Vec::new();
-        };
-        let current_module_id = ctx.module_id();
-
         // prefer direct type members first
         if let Some(type_id) = receiver_type {
-            let types = ctx.dir().types();
-            let symbols = ctx.dir().symbols();
-            let members = resolve_type_members(
-                types,
-                symbols,
-                type_id,
-                self.repository,
-                self.revision,
-                current_module_id,
-            );
+            let types = self.ctx.dir().types();
+            let members = resolve_type_members(self.ctx, self.workspace, type_id);
 
             for member in members {
                 let Some(completion) = self.completion_for_member(member, Some(types), false)
@@ -812,14 +769,9 @@ impl<'a> CompletionBuilder<'a> {
             }
         }
 
-        // then fall back to resolved reference members
+        // then resolve reference members
         if let Some(symbol_id) = receiver_symbol {
-            let members = resolve_reference_members(
-                symbol_id,
-                self.repository,
-                self.revision,
-                current_module_id,
-            );
+            let members = resolve_reference_members(self.ctx, self.workspace, symbol_id);
             for member in members {
                 let Some(completion) = self.completion_for_member(member, None, false) else {
                     continue;
@@ -835,12 +787,8 @@ impl<'a> CompletionBuilder<'a> {
 
         // extension members are last and stay marked for ranking
         if let Some(symbol_id) = receiver_symbol {
-            let extension_members = resolve_extension_members_for_symbol(
-                self.repository,
-                self.revision,
-                symbol_id,
-                current_module_id,
-            );
+            let extension_members =
+                resolve_extension_members_for_symbol(self.ctx, self.workspace, symbol_id);
             let mut seen_names: HashSet<String> = results
                 .iter()
                 .map(|completion| completion.label.clone())
@@ -876,20 +824,8 @@ impl<'a> CompletionBuilder<'a> {
 
         // prefer contextual object fields when a target type exists
         if let Some(type_id) = contextual_type {
-            let Some(ctx) = self.current_query_context() else {
-                return results;
-            };
-            let types = ctx.dir().types();
-            let symbols = ctx.dir().symbols();
-            let current_module_id = ctx.module_id();
-            let members = resolve_type_members(
-                types,
-                symbols,
-                type_id,
-                self.repository,
-                self.revision,
-                current_module_id,
-            );
+            let types = self.ctx.dir().types();
+            let members = resolve_type_members(self.ctx, self.workspace, type_id);
 
             for member in members {
                 if member.kind != MemberKind::Field {
@@ -910,16 +846,8 @@ impl<'a> CompletionBuilder<'a> {
                     .with_sort_order(5)
                     .as_contextual();
 
-                if let Some(member_type_id) = member.type_id
-                    && let Some(ctx) = self.current_query_context()
-                {
-                    let type_text = format_local_type(
-                        member_type_id,
-                        types,
-                        self.repository,
-                        self.revision,
-                        ctx.dir().strings(),
-                    );
+                if let Some(member_type_id) = member.type_id {
+                    let type_text = format_local_type(member_type_id, types, self.ctx);
                     completion = completion.with_detail(type_text);
                 }
 
@@ -930,10 +858,7 @@ impl<'a> CompletionBuilder<'a> {
 
         // then offer visible value names for ad hoc object literals
         if let Some(scope_id) = scope_id {
-            let Some(ctx) = self.current_query_context() else {
-                return results;
-            };
-            let symbols = ctx.dir().symbols();
+            let symbols = self.ctx.dir().symbols();
             let mark = scope_mark.unwrap_or(dir::LocalScopeMark::end());
 
             for visible in visible_symbols(symbols, scope_id, mark, Some(SymbolSpace::Value)) {
@@ -941,7 +866,7 @@ impl<'a> CompletionBuilder<'a> {
                     continue;
                 };
 
-                let name = ctx.dir().strings().get(name_id).to_string();
+                let name = self.ctx.dir().strings().get(name_id).to_string();
                 if excluded_labels.contains(&name) {
                     continue;
                 }
@@ -972,12 +897,8 @@ impl<'a> CompletionBuilder<'a> {
         scope_id: Option<dir::LocalScopeId>,
         scope_mark: Option<dir::LocalScopeMark>,
     ) -> Vec<Completion> {
-        // start from the current semantic module when possible
-        let Some(ctx) = self.current_query_context() else {
-            return primitive_type_completions();
-        };
-        let symbols = ctx.dir().symbols();
-        let dir_tree = ctx.dir().view();
+        let symbols = self.ctx.dir().symbols();
+        let dir_tree = self.ctx.dir().view();
 
         let mut results = Vec::new();
         let mut seen_names = HashSet::new();
@@ -989,27 +910,24 @@ impl<'a> CompletionBuilder<'a> {
             }
 
             let global_id = dir::GlobalSymbolId {
-                module_id: ctx.module_id(),
+                module_id: self.ctx.module_id(),
                 local_id: symbol_id,
             };
-            let canonical_id = get_canonical_symbol(self.repository, self.revision, global_id);
+            let Some(canonical_id) = self.canonical_symbol(global_id) else {
+                return symbol.form;
+            };
             if canonical_id == global_id {
                 return symbol.form;
             }
 
-            let Some(ctx) = query_context_for_profile(
-                self.repository,
-                self.revision,
-                canonical_id.module_id,
-                ctx.profile_id(),
-            ) else {
+            let Some(ctx) = self.ctx.module_context(canonical_id.module_id) else {
                 return symbol.form;
             };
             let canonical_symbol = ctx.dir().symbols().get_symbol(canonical_id.local_id);
             canonical_symbol.form
         };
 
-        let visible_scope_id = scope_id.unwrap_or(ctx.dir().namespace_scope());
+        let visible_scope_id = scope_id.unwrap_or(self.ctx.dir().namespace_scope());
         let mark = scope_mark.unwrap_or(dir::LocalScopeMark::end());
 
         // collect visible type-space names first
@@ -1018,7 +936,7 @@ impl<'a> CompletionBuilder<'a> {
                 continue;
             };
 
-            let name = ctx.dir().strings().get(name_id).to_string();
+            let name = self.ctx.dir().strings().get(name_id).to_string();
             if !seen_names.insert(name.clone()) {
                 continue;
             }
@@ -1028,7 +946,7 @@ impl<'a> CompletionBuilder<'a> {
                 .with_sort_order(SORT_LOCAL_SYMBOL)
                 .as_local();
             let symbol_id = dir::GlobalSymbolId {
-                module_id: ctx.module_id(),
+                module_id: self.ctx.module_id(),
                 local_id: visible.id,
             };
 
@@ -1037,7 +955,7 @@ impl<'a> CompletionBuilder<'a> {
 
         // then include exported dependency items in the same type space
         for (item_id, _) in dir_tree.iter_nodes_of_type::<dir::DependencyItem>() {
-            let Some(symbol_id) = ctx.dir().symbol_for_node(item_id.into()) else {
+            let Some(symbol_id) = self.ctx.dir().symbol_for_node(item_id.into()) else {
                 continue;
             };
 
@@ -1050,7 +968,7 @@ impl<'a> CompletionBuilder<'a> {
                 continue;
             };
 
-            let name = ctx.dir().strings().get(name_id).to_string();
+            let name = self.ctx.dir().strings().get(name_id).to_string();
             if !seen_names.insert(name.clone()) {
                 continue;
             }
@@ -1060,39 +978,11 @@ impl<'a> CompletionBuilder<'a> {
                 .with_sort_order(SORT_LOCAL_SYMBOL)
                 .as_local();
             let symbol_id = dir::GlobalSymbolId {
-                module_id: ctx.module_id(),
+                module_id: self.ctx.module_id(),
                 local_id: symbol_id,
             };
 
             results.push(self.attach_completion_documentation(completion, symbol_id));
-        }
-
-        // partial dir still falls back to source declarations for local types
-        if results.is_empty() {
-            for declaration_id in ctx.source().tree().iter_nodes::<dir::Declaration>() {
-                let declaration = ctx.source().tree().get(declaration_id);
-                let kind = match declaration {
-                    dir::Declaration::Class { .. } => CompletionKind::Class,
-                    dir::Declaration::Struct { .. } => CompletionKind::Struct,
-                    dir::Declaration::Interface { .. } => CompletionKind::Interface,
-                    dir::Declaration::Enum { .. } => CompletionKind::Enum,
-                    dir::Declaration::Type { .. } => CompletionKind::TypeParameter,
-                    _ => continue,
-                };
-
-                let Some(name) = declaration.name() else {
-                    continue;
-                };
-                let name = ctx.source().strings().get(name.string()).to_string();
-                if !seen_names.insert(name.clone()) {
-                    continue;
-                }
-                results.push(
-                    Completion::new(name, kind)
-                        .with_sort_order(SORT_LOCAL_SYMBOL)
-                        .as_local(),
-                );
-            }
         }
 
         // primitive types are always available
@@ -1109,20 +999,16 @@ impl<'a> CompletionBuilder<'a> {
         excluded_labels: &HashSet<String>,
         include_keywords: bool,
     ) -> Vec<Completion> {
-        // degraded contexts fall back to plain keyword completions
-        let Some(ctx) = self.current_query_context() else {
-            return keyword_completions();
-        };
-        let module_id = ctx.module_id();
+        let module_id = self.ctx.module_id();
 
         let mut results = Vec::new();
 
         // snapshot the visible value-space symbols before building completions
         let symbols_to_process: Vec<(dir::LocalSymbolId, String, SymbolForm)> = {
-            let symbols = ctx.dir().symbols();
+            let symbols = self.ctx.dir().symbols();
             let mut symbols_to_process = Vec::new();
             let mut seen_names = HashSet::new();
-            let scope_id = scope_id.unwrap_or(ctx.dir().namespace_scope());
+            let scope_id = scope_id.unwrap_or(self.ctx.dir().namespace_scope());
             let mark = scope_mark.unwrap_or(dir::LocalScopeMark::end());
 
             for visible in visible_symbols(symbols, scope_id, mark, Some(SymbolSpace::Value)) {
@@ -1130,7 +1016,7 @@ impl<'a> CompletionBuilder<'a> {
                     continue;
                 };
 
-                let name = ctx.dir().strings().get(name_id).to_string();
+                let name = self.ctx.dir().strings().get(name_id).to_string();
                 if excluded_labels.contains(&name) {
                     continue;
                 }
@@ -1166,8 +1052,7 @@ impl<'a> CompletionBuilder<'a> {
             completion = completion.with_type_symbols(self.type_symbols_for_symbol(symbol_id));
 
             if symbol_form == SymbolForm::Function
-                && let Some(param_names) =
-                    get_function_param_names(self.repository, self.revision, symbol_id)
+                && let Some(param_names) = get_function_param_names(self.ctx, symbol_id)
             {
                 let (snippet, is_snippet) = generate_call_snippet(&name, &param_names);
                 completion = completion.with_insert_text(snippet);
@@ -1195,11 +1080,7 @@ impl<'a> CompletionBuilder<'a> {
         scope_mark: Option<dir::LocalScopeMark>,
         excluded_labels: &HashSet<String>,
     ) -> Vec<Completion> {
-        // degraded contexts cannot classify constructable values
-        let Some(ctx) = self.current_query_context() else {
-            return Vec::new();
-        };
-        let symbols = ctx.dir().symbols();
+        let symbols = self.ctx.dir().symbols();
 
         let mut results = Vec::new();
         let mut seen = HashSet::new();
@@ -1217,7 +1098,7 @@ impl<'a> CompletionBuilder<'a> {
                     continue;
                 };
 
-                let name = ctx.dir().strings().get(name_id).to_string();
+                let name = self.ctx.dir().strings().get(name_id).to_string();
                 if excluded_labels.contains(&name) {
                     continue;
                 }
@@ -1231,7 +1112,7 @@ impl<'a> CompletionBuilder<'a> {
                     .with_sort_order(SORT_LOCAL_SYMBOL)
                     .as_local();
                 let symbol_id = dir::GlobalSymbolId {
-                    module_id: ctx.module_id(),
+                    module_id: self.ctx.module_id(),
                     local_id: visible.id,
                 };
                 let completion = if let Some(value_shape) = self.value_shape_for_symbol(symbol_id) {
@@ -1252,7 +1133,7 @@ impl<'a> CompletionBuilder<'a> {
             }
         }
 
-        // fall back to all active constructable symbols when scope lookup is empty
+        // scan all active constructable symbols when scope lookup is empty
         if results.is_empty() {
             for symbol_id in symbols.symbol_ids() {
                 let symbol = symbols.get_symbol(symbol_id);
@@ -1263,7 +1144,7 @@ impl<'a> CompletionBuilder<'a> {
                 let Some(name_id) = symbol.name() else {
                     continue;
                 };
-                let name = ctx.dir().strings().get(name_id).to_string();
+                let name = self.ctx.dir().strings().get(name_id).to_string();
                 if excluded_labels.contains(&name) {
                     continue;
                 }
@@ -1277,7 +1158,7 @@ impl<'a> CompletionBuilder<'a> {
                     .with_sort_order(SORT_LOCAL_SYMBOL)
                     .as_local();
                 let symbol_id = dir::GlobalSymbolId {
-                    module_id: ctx.module_id(),
+                    module_id: self.ctx.module_id(),
                     local_id: symbol_id,
                 };
                 let completion = if let Some(value_shape) = self.value_shape_for_symbol(symbol_id) {
@@ -1343,7 +1224,13 @@ impl<'a> CompletionBuilder<'a> {
             return Vec::new();
         }
 
-        let Some(module) = self.current_module() else {
+        let Some(module) = self
+            .ctx
+            .repository()
+            .module(self.ctx.revision(), self.ctx.module_id())
+            .ok()
+            .flatten()
+        else {
             return Vec::new();
         };
         let current_module_id = Some(module.id);
@@ -1351,8 +1238,7 @@ impl<'a> CompletionBuilder<'a> {
 
         let mut results = Vec::new();
         let mut seen: HashSet<(ModuleId, dir::LocalSymbolId)> = HashSet::new();
-        let exports =
-            search_importable_symbols(self.repository, self.revision, prefix, current_module_id);
+        let exports = search_importable_symbols(self.workspace, prefix, current_module_id);
 
         // turn indexed export matches into importable completions
         for export in exports {
@@ -1396,9 +1282,8 @@ impl<'a> CompletionBuilder<'a> {
         scope_mark: Option<dir::LocalScopeMark>,
         space_filter: Option<SymbolSpace>,
     ) -> Option<HashSet<String>> {
-        let ctx = self.current_query_context()?;
-        let symbols = ctx.dir().symbols();
-        let scope_id = scope_id.unwrap_or(ctx.dir().namespace_scope());
+        let symbols = self.ctx.dir().symbols();
+        let scope_id = scope_id.unwrap_or(self.ctx.dir().namespace_scope());
         let mark = scope_mark.unwrap_or(dir::LocalScopeMark::end());
 
         let mut names = HashSet::new();
@@ -1407,7 +1292,7 @@ impl<'a> CompletionBuilder<'a> {
                 continue;
             };
 
-            names.insert(ctx.dir().strings().get(name_id).to_string());
+            names.insert(self.ctx.dir().strings().get(name_id).to_string());
         }
 
         Some(names)
@@ -1428,24 +1313,16 @@ impl<'a> CompletionBuilder<'a> {
         import_form: ImportEditSpace,
         results: &mut Vec<Completion>,
     ) {
-        let display_path =
-            build_import_display_path(self.repository, self.revision, self.file_id, module_path);
-        let import_edits = build_import_edits(
-            self.repository,
-            self.revision,
-            self.file_id,
-            export_name,
-            &display_path,
-            import_form,
-        );
+        let display_path = build_import_display_path(self.ctx, module_path);
+        let import_edits = build_import_edits(self.ctx, export_name, &display_path, import_form);
         if import_edits.is_empty() {
             return;
         }
 
         let Some(relevance) = repository_import_relevance(
-            self.repository,
-            self.revision,
-            self.file_id,
+            self.ctx.repository(),
+            self.ctx.revision(),
+            self.ctx.file_id(),
             current_package_id,
             prefix,
             export_name,
@@ -1493,7 +1370,7 @@ impl<'a> CompletionBuilder<'a> {
             return Vec::new();
         };
 
-        let Some(ctx) = self.query_context_for_module(module_id) else {
+        let Some(ctx) = self.ctx.module_context(module_id) else {
             return Vec::new();
         };
         let symbols = ctx.dir().symbols();
@@ -1535,13 +1412,13 @@ impl<'a> CompletionBuilder<'a> {
 
         if partial.starts_with("./") || partial.starts_with("../") {
             let path = self
-                .source_file()
-                .and_then(|source_file| source_file.path.clone());
-            let path = path.as_ref();
+                .source_file
+                .as_ref()
+                .and_then(|source_file| source_file.path.as_deref());
             if let Some(path) = path
                 && let Some(base_dir) = path.parent()
             {
-                results.extend(complete_relative_path(self.repository, base_dir, partial));
+                results.extend(complete_relative_path(self.ctx, base_dir, partial));
             }
         } else if partial.is_empty() {
             results.push(
@@ -1556,13 +1433,9 @@ impl<'a> CompletionBuilder<'a> {
                     .with_sort_order(6)
                     .as_contextual(),
             );
-            results.extend(complete_package_names(self.repository, self.revision, ""));
+            results.extend(complete_package_names(self.ctx, ""));
         } else {
-            results.extend(complete_package_names(
-                self.repository,
-                self.revision,
-                partial,
-            ));
+            results.extend(complete_package_names(self.ctx, partial));
         }
 
         results
@@ -1580,15 +1453,13 @@ impl<'a> CompletionBuilder<'a> {
 
 /// Get completions at the given position.
 pub fn completions(
-    repository: &Repository,
-    revision: Revision,
-    file: FileId,
+    ctx: &ModuleQueryContext<'_>,
+    workspace: &WorkspaceQueryContext<'_>,
     offset: u32,
     trigger: CompletionTrigger,
 ) -> Vec<Completion> {
-    let CompletionInput { context, token } =
-        completion_input_at_offset(repository, revision, file, offset);
-    let builder = CompletionBuilder::new(repository, revision, file);
+    let CompletionInput { context, token } = completion_input_at_offset(ctx, offset);
+    let builder = CompletionBuilder::new(ctx, workspace);
     let completions = builder.completion_candidates(offset, trigger, &context, token.as_ref());
 
     filter_and_rank_completions(completions, &context, token.as_ref())
@@ -1620,11 +1491,10 @@ fn generate_call_snippet(name: &str, param_names: &[String]) -> (String, bool) {
 
 /// Get parameter names from a function symbol declaration.
 fn get_function_param_names(
-    repository: &Repository,
-    revision: Revision,
+    ctx: &ModuleQueryContext<'_>,
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<Vec<String>> {
-    let param_names = parameter_names_for_symbol(repository, revision, symbol_id)?;
+    let param_names = parameter_names_for_symbol(ctx, symbol_id)?;
 
     if param_names.is_empty() {
         return None;
@@ -1912,7 +1782,7 @@ fn keyword_snippet(keyword: Keyword) -> Option<&'static str> {
 
 /// Complete relative import paths by listing directory contents.
 fn complete_relative_path(
-    repository: &Repository,
+    ctx: &ModuleQueryContext<'_>,
     base_dir: &std::path::Path,
     partial: &str,
 ) -> Vec<Completion> {
@@ -1922,7 +1792,7 @@ fn complete_relative_path(
         (base_dir.to_path_buf(), partial)
     };
 
-    let Ok(entries) = repository.file_system().read_dir(&directory) else {
+    let Ok(entries) = ctx.repository().file_system().read_dir(&directory) else {
         return vec![];
     };
 
@@ -1940,7 +1810,7 @@ fn complete_relative_path(
                 return None;
             }
 
-            let meta = repository.file_system().metadata(entry).ok()?;
+            let meta = ctx.repository().file_system().metadata(entry).ok()?;
             if meta.is_directory {
                 Some(
                     Completion::new(format!("{name}/"), CompletionKind::Folder)
@@ -1967,15 +1837,17 @@ fn complete_relative_path(
 }
 
 /// Complete package names from the registry.
-fn complete_package_names(
-    repository: &Repository,
-    revision: Revision,
-    prefix: &str,
-) -> Vec<Completion> {
+fn complete_package_names(ctx: &ModuleQueryContext<'_>, prefix: &str) -> Vec<Completion> {
     let mut results = Vec::new();
     let mut seen_packages = HashSet::new();
 
-    for module_id in repository.module_ids(revision).ok().unwrap_or_default() {
+    let repository = ctx.repository();
+    let revision = ctx.revision();
+    let Ok(module_ids) = repository.module_ids(revision) else {
+        return results;
+    };
+
+    for module_id in module_ids {
         let Some(module) = repository.module(revision, module_id).ok().flatten() else {
             continue;
         };

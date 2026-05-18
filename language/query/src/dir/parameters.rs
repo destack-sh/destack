@@ -4,15 +4,14 @@ use destack_core::StringPool;
 use destack_dir::{
     Declaration, GlobalSymbolId, LocalNodeId, LocalTypeId, Member, NodeType, Parameter,
 };
-use destack_workspace::{Repository, Revision};
 
-use crate::core::{QueryContext, SourceQueryContext, query_context};
+use crate::core::{DirQueryContext, ModuleQueryContext};
 
-use super::{doc_strings_for_node_or_enclosing, get_canonical_symbol, parse_param_docs};
+use super::{doc_strings_for_node_or_enclosing, parse_param_docs};
 
 /// Parameter names and documentation collected from a declaration.
 #[derive(Debug, Clone, Default)]
-pub(crate) struct ParameterData {
+pub(crate) struct ParameterList {
     /// The parameter display names in declared order.
     pub names: Vec<String>,
     /// Documentation keyed by parameter name.
@@ -66,12 +65,11 @@ pub(crate) fn parameter_display_names(
 
 /// Get parameter names for a function symbol.
 pub(crate) fn parameter_names_for_symbol(
-    repository: &Repository,
-    revision: Revision,
+    ctx: &ModuleQueryContext<'_>,
     symbol_id: GlobalSymbolId,
 ) -> Option<Vec<String>> {
-    // collect parameter data for the symbol declaration
-    let data = parameter_data_for_symbol(repository, revision, symbol_id)?;
+    // collect parameter list for the symbol declaration
+    let data = parameter_list_for_symbol(ctx, symbol_id)?;
 
     if data.names.is_empty() {
         return None;
@@ -81,21 +79,19 @@ pub(crate) fn parameter_names_for_symbol(
 }
 
 /// Collect parameter names and docs for a function or method symbol.
-pub(crate) fn parameter_data_for_symbol(
-    repository: &Repository,
-    revision: Revision,
+pub(crate) fn parameter_list_for_symbol(
+    ctx: &ModuleQueryContext<'_>,
     symbol_id: GlobalSymbolId,
-) -> Option<ParameterData> {
-    let ctx = query_context(repository, revision, symbol_id.module_id)?;
-    parameter_data_for_symbol_with_context(repository, ctx, symbol_id)
+) -> Option<ParameterList> {
+    let ctx = ctx.module_context(symbol_id.module_id)?;
+    parameter_list_for_symbol_with_context(&ctx, symbol_id)
 }
 
 /// Collect parameter names and docs from one ready query context.
-fn parameter_data_for_symbol_with_context(
-    repository: &Repository,
-    ctx: QueryContext<'_>,
+fn parameter_list_for_symbol_with_context(
+    ctx: &ModuleQueryContext<'_>,
     symbol_id: GlobalSymbolId,
-) -> Option<ParameterData> {
+) -> Option<ParameterList> {
     // read the symbol declaration
     let global_node_id = {
         let symbols = ctx.dir().symbols();
@@ -104,13 +100,14 @@ fn parameter_data_for_symbol_with_context(
     };
 
     // resolve the source text for doc parsing
-    let source_file = repository
+    let source_file = ctx
+        .repository()
         .file(ctx.revision(), ctx.file_id())
         .ok()
         .flatten()?;
     let source = source_file.text();
 
-    // resolve parameter data based on the declaration node type
+    // resolve parameter list based on the declaration node type
     let dir_tree = ctx.dir().view();
     match global_node_id.local_id.ty {
         // collect parameters from function declarations
@@ -122,14 +119,14 @@ fn parameter_data_for_symbol_with_context(
             };
 
             let source_node_id = dir_tree.get_source(declaration_id);
-            let docs = parameter_doc_map(ctx.source(), source, source_node_id);
+            let docs = parameter_doc_map(ctx.dir(), source, source_node_id);
             let names = parameter_display_names(
                 ctx.dir().strings(),
                 dir_tree,
                 &declaration.signature.parameters,
             );
 
-            Some(ParameterData { names, docs })
+            Some(ParameterList { names, docs })
         }
 
         // collect parameters from method members
@@ -139,11 +136,11 @@ fn parameter_data_for_symbol_with_context(
             let signature = member.signature()?;
 
             let source_node_id = dir_tree.get_source(member_id);
-            let docs = parameter_doc_map(ctx.source(), source, source_node_id);
+            let docs = parameter_doc_map(ctx.dir(), source, source_node_id);
             let names =
                 parameter_display_names(ctx.dir().strings(), dir_tree, &signature.parameters);
 
-            Some(ParameterData { names, docs })
+            Some(ParameterList { names, docs })
         }
 
         _ => None,
@@ -152,13 +149,12 @@ fn parameter_data_for_symbol_with_context(
 
 /// Resolve the expected-parameter hint for one active argument.
 pub(crate) fn expected_parameter_hint_for_symbol(
-    repository: &Repository,
-    revision: Revision,
+    ctx: &ModuleQueryContext<'_>,
     symbol_id: GlobalSymbolId,
     parameter_index: usize,
 ) -> Option<ExpectedParameterHint> {
     // read the target module and build a query context
-    let ctx = query_context(repository, revision, symbol_id.module_id)?;
+    let ctx = ctx.module_context(symbol_id.module_id)?;
 
     // read the symbol declaration
     let global_node_id = {
@@ -177,20 +173,20 @@ pub(crate) fn expected_parameter_hint_for_symbol(
                 return None;
             };
 
-            declaration.signature.parameters.clone()
+            declaration.signature.parameters.as_slice()
         }
         NodeType::Member => {
             let member_id = global_node_id.local_id.try_into_typed().ok()?;
             let member = dir_tree.get::<Member>(member_id);
             let signature = member.signature()?;
 
-            signature.parameters.clone()
+            signature.parameters.as_slice()
         }
         _ => return None,
     };
 
     // resolve the active parameter node
-    let parameter_id = resolve_expected_parameter_id(dir_tree, &parameters, parameter_index)?;
+    let parameter_id = resolve_expected_parameter_id(dir_tree, parameters, parameter_index)?;
     let parameter = dir_tree.get::<Parameter>(parameter_id);
     let name = Some(parameter_display_name(ctx.dir().strings(), parameter));
 
@@ -205,9 +201,8 @@ pub(crate) fn expected_parameter_hint_for_symbol(
         .types()
         .get_type(type_id)
         .symbol()
-        .map(|symbol_id| get_canonical_symbol(repository, ctx.revision(), symbol_id));
-    let type_symbols =
-        collect_expected_type_symbols(repository, ctx.revision(), ctx.dir().types(), type_id);
+        .map(|symbol_id| ctx.canonical_symbol(symbol_id));
+    let type_symbols = collect_expected_type_symbols(&ctx, type_id);
     let (prefers_callable, prefers_constructable) =
         expected_value_shape(ctx.dir().types(), type_id);
 
@@ -222,9 +217,7 @@ pub(crate) fn expected_parameter_hint_for_symbol(
 
 /// Collect nominal type symbols that should contribute to expected-type ranking.
 fn collect_expected_type_symbols(
-    repository: &Repository,
-    revision: Revision,
-    types: &destack_dir::TypeTable<'_>,
+    ctx: &ModuleQueryContext<'_>,
     type_id: LocalTypeId,
 ) -> Vec<GlobalSymbolId> {
     let mut symbols = Vec::new();
@@ -232,9 +225,8 @@ fn collect_expected_type_symbols(
     let mut seen_symbols = HashSet::new();
 
     collect_expected_type_symbols_inner(
-        repository,
-        revision,
-        types,
+        ctx,
+        ctx.dir().types(),
         type_id,
         &mut seen_types,
         &mut seen_symbols,
@@ -246,8 +238,7 @@ fn collect_expected_type_symbols(
 
 /// Collect nominal symbols from one declared parameter type.
 fn collect_expected_type_symbols_inner(
-    repository: &Repository,
-    revision: Revision,
+    ctx: &ModuleQueryContext<'_>,
     types: &destack_dir::TypeTable<'_>,
     type_id: LocalTypeId,
     seen_types: &mut HashSet<LocalTypeId>,
@@ -264,15 +255,14 @@ fn collect_expected_type_symbols_inner(
     // direct nominal references
     if let destack_dir::Type::Reference(reference) = ty {
         let symbol = reference.symbol;
-        let canonical_symbol = get_canonical_symbol(repository, revision, symbol);
+        let canonical_symbol = ctx.canonical_symbol(symbol);
         if seen_symbols.insert(canonical_symbol) {
             symbols.push(canonical_symbol);
         }
 
         if let Some(target_type_id) = types.get_alias_target_type_id(symbol) {
             collect_expected_type_symbols_inner(
-                repository,
-                revision,
+                ctx,
                 types,
                 target_type_id,
                 seen_types,
@@ -289,8 +279,7 @@ fn collect_expected_type_symbols_inner(
         destack_dir::Type::Union(union) => {
             for &element_id in &union.elements {
                 collect_expected_type_symbols_inner(
-                    repository,
-                    revision,
+                    ctx,
                     types,
                     element_id,
                     seen_types,
@@ -302,8 +291,7 @@ fn collect_expected_type_symbols_inner(
         destack_dir::Type::Intersection(intersection) => {
             for &element_id in &intersection.elements {
                 collect_expected_type_symbols_inner(
-                    repository,
-                    revision,
+                    ctx,
                     types,
                     element_id,
                     seen_types,
@@ -314,8 +302,7 @@ fn collect_expected_type_symbols_inner(
         }
         destack_dir::Type::Value(value) => {
             collect_expected_type_symbols_inner(
-                repository,
-                revision,
+                ctx,
                 types,
                 value.value,
                 seen_types,
@@ -363,7 +350,7 @@ fn expected_value_shape(types: &destack_dir::TypeTable<'_>, type_id: LocalTypeId
 
 /// Collect @param documentation from a declaration's doc comments.
 pub(crate) fn parameter_doc_map(
-    parsed: SourceQueryContext<'_>,
+    ctx: DirQueryContext<'_>,
     source: &str,
     source_node_id: u32,
 ) -> HashMap<String, String> {
@@ -371,13 +358,13 @@ pub(crate) fn parameter_doc_map(
     let mut param_docs = HashMap::new();
 
     // gather docs on the node or enclosing nodes
-    let doc_strings = doc_strings_for_node_or_enclosing(parsed, source, source_node_id);
+    let doc_strings = doc_strings_for_node_or_enclosing(ctx, source, source_node_id);
 
     // parse @param tags from collected docs
     for doc_text in doc_strings {
         param_docs.extend(parse_param_docs(&doc_text));
     }
 
-    // return the parsed parameter docs
+    // return collected parameter docs
     param_docs
 }

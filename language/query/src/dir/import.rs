@@ -7,16 +7,13 @@ use destack_dir::{
 };
 use destack_source::{Edit, FileId, PathExt, Span};
 
-use super::{dependency_symbol_target, get_canonical_symbol};
+use super::dependency_symbol_target;
 use crate::core::path::{normalize_separators, relative_path};
 use crate::core::{
-    DirQueryContext, SourceQueryContext, modules_referencing_symbol, query_context,
-    query_context_for_profile,
+    DirQueryContext, ModuleQueryContext, WorkspaceQueryContext, modules_referencing_symbol,
 };
 use crate::format::ImportGroup;
-use crate::source::get_module_by_file_id;
 use destack_dir as dir;
-use destack_workspace::{Repository, Revision};
 
 /// Information about an existing import in the file.
 #[derive(Debug, Clone)]
@@ -116,12 +113,11 @@ fn dependency_item_key(item: &DependencyItem) -> Option<StringId> {
 
 /// Resolve the local alias text for explicit import aliases.
 pub(crate) fn resolve_local_import_alias_name(
-    repository: &Repository,
-    revision: Revision,
+    ctx: &ModuleQueryContext<'_>,
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<String> {
     // resolve query context for the symbol module
-    let ctx = query_context(repository, revision, symbol_id.module_id)?;
+    let ctx = ctx.module_context(symbol_id.module_id)?;
 
     // read the symbol declaration
     let declaration = {
@@ -146,16 +142,14 @@ pub(crate) fn resolve_local_import_alias_name(
 /// Collect default import aliases whose imported default export resolves to one symbol.
 #[allow(dead_code)]
 pub(crate) fn collect_default_import_alias_symbols_for_export(
-    repository: &Repository,
-    revision: Revision,
-    profile_id: destack_source::ProfileId,
+    ctx: &ModuleQueryContext<'_>,
+    workspace: &WorkspaceQueryContext<'_>,
     canonical_id: dir::GlobalSymbolId,
 ) -> Vec<dir::GlobalSymbolId> {
     let mut symbols = Vec::new();
 
-    for module_id in modules_referencing_symbol(repository, revision, profile_id, canonical_id) {
-        let Some(ctx) = query_context_for_profile(repository, revision, module_id, profile_id)
-        else {
+    for module_id in modules_referencing_symbol(workspace, canonical_id) {
+        let Some(ctx) = ctx.module_context(module_id) else {
             continue;
         };
         let dir = ctx.dir();
@@ -173,7 +167,7 @@ pub(crate) fn collect_default_import_alias_symbols_for_export(
                 continue;
             }
 
-            if get_canonical_symbol(repository, revision, symbol_id) != canonical_id {
+            if dir.canonical_symbol(symbol_id) != canonical_id {
                 continue;
             }
 
@@ -186,7 +180,6 @@ pub(crate) fn collect_default_import_alias_symbols_for_export(
 
 /// Check whether a symbol is a local import alias for a canonical target.
 pub(crate) fn is_dependency_alias_for_target(
-    repository: &Repository,
     dir: DirQueryContext<'_>,
     symbol_id: dir::GlobalSymbolId,
     canonical_target: dir::GlobalSymbolId,
@@ -234,7 +227,7 @@ pub(crate) fn is_dependency_alias_for_target(
     let Some(target_symbol) = dependency_symbol_target(dir, item_id) else {
         return false;
     };
-    let target_canonical = get_canonical_symbol(repository, dir.revision(), target_symbol);
+    let target_canonical = dir.canonical_symbol(target_symbol);
     target_canonical == canonical_target
 }
 
@@ -304,7 +297,7 @@ fn dependency_item_default_import_alias_name(
 
 /// Resolve the brace span for an import clause.
 pub(crate) fn import_clause_brace_span(
-    source: SourceQueryContext<'_>,
+    source: DirQueryContext<'_>,
     import_span: Span,
     target_span: Option<Span>,
 ) -> Option<(Span, Span)> {
@@ -316,7 +309,7 @@ pub(crate) fn import_clause_brace_span(
 
 /// Resolve the bounds for an import clause, even when the closing brace is missing.
 pub(crate) fn import_clause_bounds(
-    source: SourceQueryContext<'_>,
+    source: DirQueryContext<'_>,
     import_span: Span,
     target_span: Option<Span>,
 ) -> Option<ImportClauseBounds> {
@@ -408,26 +401,14 @@ pub(crate) fn module_specifier_in_expression(
     }
 }
 
-/// Collect existing imports from a file's source DIR.
-pub(crate) fn collect_existing_imports(
-    repository: &Repository,
-    revision: Revision,
-    file_id: FileId,
-) -> Vec<ExistingImport> {
-    // get module for this file
-    let Some(module) = get_module_by_file_id(repository, revision, file_id) else {
-        return Vec::new();
-    };
-    let Some(ctx) = query_context(repository, revision, module.id) else {
-        return Vec::new();
-    };
-
+/// Collect existing imports from one source query surface.
+fn collect_existing_imports_from_source(source: DirQueryContext<'_>) -> Vec<ExistingImport> {
     // prepare the import collection
     let mut imports = Vec::new();
 
     // iterate over import expressions in the source DIR
-    for node_id in ctx.source().tree().iter_nodes::<Expression>() {
-        let expr = ctx.source().tree().get(node_id);
+    for node_id in source.tree().iter_nodes::<Expression>() {
+        let expr = source.tree().get(node_id);
 
         if let Expression::Import {
             target,
@@ -437,14 +418,14 @@ pub(crate) fn collect_existing_imports(
         } = expr
         {
             // resolve import path, span, and form
-            let path = ctx.source().strings().get(*target).to_string();
-            let span = ctx.source().tree().source_map.get(node_id.id);
+            let path = source.strings().get(*target).to_string();
+            let span = source.tree().source_map.get(node_id.id);
             let is_type_only = *form == DependencyForm::Type;
             let items = items.as_deref().unwrap_or(&[]);
 
             // check if it's a namespace import
             let is_namespace = items.iter().any(|item_id| {
-                let item = ctx.source().tree().get(*item_id);
+                let item = source.tree().get(*item_id);
                 dependency_item_binding(item) == Some(DependencyBinding::Namespace)
             });
 
@@ -452,22 +433,21 @@ pub(crate) fn collect_existing_imports(
             let specifiers: Vec<String> = items
                 .iter()
                 .filter_map(|item_id| {
-                    let item = ctx.source().tree().get(*item_id);
+                    let item = source.tree().get(*item_id);
                     if dependency_item_binding(item) == Some(DependencyBinding::Namespace) {
                         return None;
                     }
 
-                    dependency_item_key(item).map(|id| ctx.source().strings().get(id).to_string())
+                    dependency_item_key(item).map(|id| source.strings().get(id).to_string())
                 })
                 .collect();
 
             // find closing brace position by scanning tokens
-            let target_span = ctx.source().tree().source_map.get_main(node_id.id);
+            let target_span = source.tree().source_map.get_main(node_id.id);
             let closing_brace_pos = if is_namespace {
                 None
             } else {
-                import_clause_brace_span(ctx.source(), span, target_span)
-                    .map(|(_, close)| close.start)
+                import_clause_brace_span(source, span, target_span).map(|(_, close)| close.start)
             };
 
             imports.push(ExistingImport {
@@ -494,15 +474,14 @@ pub(crate) fn collect_existing_imports(
 /// If there's an existing import from the same path, merges into it.
 /// Otherwise, inserts a new import at the appropriate position based on import groups.
 pub(crate) fn build_import_edits(
-    repository: &Repository,
-    revision: Revision,
-    file_id: FileId,
+    ctx: &ModuleQueryContext<'_>,
     symbol_name: &str,
     import_path: &str,
     import_form: ImportEditSpace,
 ) -> Vec<Edit> {
     // collect existing imports for the file
-    let existing_imports = collect_existing_imports(repository, revision, file_id);
+    let file_id = ctx.file_id();
+    let existing_imports = collect_existing_imports_from_source(ctx.dir());
 
     // check if there's already an import from this path
     if let Some(existing) = existing_imports.iter().find(|i| i.path == import_path) {
@@ -556,27 +535,23 @@ pub(crate) fn build_import_edits(
 /// Build a display path for an import.
 ///
 /// Tries to compute a relative path from the current file to the target module.
-pub(crate) fn build_import_display_path(
-    repository: &Repository,
-    revision: Revision,
-    file_id: FileId,
-    module_path: &str,
-) -> String {
-    build_import_display_path_with_options(repository, revision, file_id, module_path, true)
+pub(crate) fn build_import_display_path(ctx: &ModuleQueryContext<'_>, module_path: &str) -> String {
+    build_import_display_path_with_options(ctx, module_path, true)
 }
 
 /// Build a display path for an import with optional extension stripping.
 ///
 /// Tries to compute a relative path from the current file to the target module.
 pub(crate) fn build_import_display_path_with_options(
-    repository: &Repository,
-    revision: Revision,
-    file_id: FileId,
+    ctx: &ModuleQueryContext<'_>,
     module_path: &str,
     strip_extension: bool,
 ) -> String {
+    let repository = ctx.repository();
+    let revision = ctx.revision();
+
     // resolve the source file path
-    let Some(source_file) = repository.file(revision, file_id).ok().flatten() else {
+    let Some(source_file) = repository.file(revision, ctx.file_id()).ok().flatten() else {
         return module_path.to_string();
     };
     let Some(source_path) = source_file.path.as_ref() else {
@@ -590,13 +565,9 @@ pub(crate) fn build_import_display_path_with_options(
 
     // prefer package-name specifiers for external package targets
     let target_path = std::path::Path::new(module_path);
-    if let Some(display_path) = build_external_package_display_path(
-        repository,
-        revision,
-        source_path,
-        target_path,
-        strip_extension,
-    ) {
+    if let Some(display_path) =
+        build_external_package_display_path(ctx, source_path, target_path, strip_extension)
+    {
         return display_path;
     }
 
@@ -621,12 +592,14 @@ pub(crate) fn build_import_display_path_with_options(
 
 /// Build one package-name display path for an external package target.
 fn build_external_package_display_path(
-    repository: &Repository,
-    revision: Revision,
+    ctx: &ModuleQueryContext<'_>,
     source_path: &Path,
     target_path: &Path,
     strip_extension: bool,
 ) -> Option<String> {
+    let repository = ctx.repository();
+    let revision = ctx.revision();
+
     // resolve the owning package for the target path
     let target_package = repository
         .module_ids(revision)

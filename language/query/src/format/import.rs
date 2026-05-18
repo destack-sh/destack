@@ -41,58 +41,6 @@ impl ImportGroup {
     }
 }
 
-/// One import declaration key for ordering.
-#[derive(Debug, Clone, Copy)]
-pub struct ImportDeclarationKey<'a> {
-    /// The import target string.
-    pub target: &'a str,
-    /// Whether this declaration is a side effect only import.
-    pub is_side_effect: bool,
-}
-
-/// Categorize one import target path into a group.
-pub fn categorize_import(target: &str) -> ImportGroup {
-    ImportGroup::from_path(target)
-}
-
-/// Compare two import targets by canonical declaration order.
-pub fn compare_import_targets(left: &str, right: &str) -> Ordering {
-    match categorize_import(left).cmp(&categorize_import(right)) {
-        Ordering::Equal => left.cmp(right),
-        ordering => ordering,
-    }
-}
-
-/// Return declaration indices ordered by canonical import order.
-///
-/// Side effect imports preserve source order and stay above regular imports.
-pub fn sort_import_declaration_indices(keys: &[ImportDeclarationKey<'_>]) -> Vec<usize> {
-    let mut side_effect_indices = Vec::new();
-    let mut regular_indices = Vec::new();
-
-    // split side effect and regular imports
-    for (index, key) in keys.iter().enumerate() {
-        if key.is_side_effect {
-            side_effect_indices.push(index);
-        } else {
-            regular_indices.push(index);
-        }
-    }
-
-    // sort regular imports by canonical target order
-    regular_indices.sort_by(|left, right| {
-        let left_target = keys[*left].target;
-        let right_target = keys[*right].target;
-        compare_import_targets(left_target, right_target)
-    });
-
-    // side effects first, then sorted regular imports
-    let mut result = Vec::with_capacity(keys.len());
-    result.extend(side_effect_indices);
-    result.extend(regular_indices);
-    result
-}
-
 /// Return dependency items sorted by space and configured key order.
 pub fn sort_dependency_items(
     items: &[LocalNodeId<DependencyItem>],
@@ -114,7 +62,7 @@ pub fn sort_dependency_items(
             _ => {}
         }
 
-        // alias key first when present, then fallback to item name
+        // alias key first when present, then item name
         let left_key = dependency_item_key(left_item)
             .map(|string_id| strings.get(string_id))
             .unwrap_or("");
@@ -206,99 +154,5 @@ fn natural_cmp(left: &str, right: &str) -> Ordering {
                 }
             }
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// Order import groups by builtin, package, alias, then relative.
-    #[test]
-    fn test_import_group_ordering() {
-        // compare group ordering
-        assert!(ImportGroup::Builtin < ImportGroup::Package);
-        assert!(ImportGroup::Package < ImportGroup::Alias);
-        assert!(ImportGroup::Alias < ImportGroup::Relative);
-    }
-
-    /// Categorize import targets by builtin, package, alias, and relative groups.
-    #[test]
-    fn test_categorize_import() {
-        // compare import categories
-        assert_eq!(ImportGroup::from_path("node:fs"), ImportGroup::Builtin);
-        assert_eq!(ImportGroup::from_path("bun:test"), ImportGroup::Builtin);
-        assert_eq!(ImportGroup::from_path("react"), ImportGroup::Package);
-        assert_eq!(ImportGroup::from_path("@org/pkg"), ImportGroup::Package);
-        assert_eq!(ImportGroup::from_path("lodash"), ImportGroup::Package);
-        assert_eq!(ImportGroup::from_path("@/utils"), ImportGroup::Alias);
-        assert_eq!(ImportGroup::from_path("~/lib"), ImportGroup::Alias);
-        assert_eq!(ImportGroup::from_path("#internal"), ImportGroup::Alias);
-        assert_eq!(ImportGroup::from_path("./local"), ImportGroup::Relative);
-        assert_eq!(ImportGroup::from_path("../parent"), ImportGroup::Relative);
-    }
-
-    /// Keep side effect imports stable and ahead of sorted regular imports.
-    #[test]
-    fn test_sort_import_declaration_indices_preserves_side_effect_order() {
-        let keys = vec![
-            ImportDeclarationKey {
-                target: "./side_b",
-                is_side_effect: true,
-            },
-            ImportDeclarationKey {
-                target: "zod",
-                is_side_effect: false,
-            },
-            ImportDeclarationKey {
-                target: "./side_a",
-                is_side_effect: true,
-            },
-            ImportDeclarationKey {
-                target: "axios",
-                is_side_effect: false,
-            },
-        ];
-
-        // keep side effects stable and sort regular imports
-        let order = sort_import_declaration_indices(&keys);
-        assert_eq!(order, vec![0, 2, 3, 1]);
-    }
-
-    /// Sort regular imports by canonical group then lexical target.
-    #[test]
-    fn test_sort_import_declaration_indices_groups_then_targets() {
-        let keys = vec![
-            ImportDeclarationKey {
-                target: "./local",
-                is_side_effect: false,
-            },
-            ImportDeclarationKey {
-                target: "@/alias",
-                is_side_effect: false,
-            },
-            ImportDeclarationKey {
-                target: "react",
-                is_side_effect: false,
-            },
-            ImportDeclarationKey {
-                target: "node:fs",
-                is_side_effect: false,
-            },
-        ];
-
-        // order by import group, then target
-        let order = sort_import_declaration_indices(&keys);
-        assert_eq!(order, vec![3, 2, 1, 0]);
-    }
-
-    /// Compare import targets by group priority before lexical order.
-    #[test]
-    fn test_compare_import_targets_uses_group_priority() {
-        // compare target ordering across groups
-        assert_eq!(compare_import_targets("node:fs", "react"), Ordering::Less);
-        assert_eq!(compare_import_targets("react", "@/utils"), Ordering::Less);
-        assert_eq!(compare_import_targets("@/utils", "./local"), Ordering::Less);
-        assert_eq!(compare_import_targets("alpha", "beta"), Ordering::Less);
     }
 }

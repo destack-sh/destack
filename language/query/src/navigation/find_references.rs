@@ -1,52 +1,47 @@
-use destack_source::{FileId, Span, Uri};
-use destack_workspace::{Repository, Revision};
+use destack_source::Span;
 use serde::{Deserialize, Serialize};
 
-use crate::core::{modules_referencing_symbol, query_context, query_context_for_profile};
-use crate::dir::{
-    ReferenceCollectionOptions, collect_symbol_references_in_context, find_symbol_at_offset,
-    get_canonical_symbol, get_symbol_definition_span, get_symbol_local_definition_span,
-    resolve_local_import_alias_name, resolve_symbol_name,
+use crate::core::{
+    ModuleQueryContext, QueryModule, QueryPosition, QueryTarget, WorkspaceQueryContext,
+    modules_referencing_symbol,
 };
-use crate::source::sort_and_dedup_spans;
+use crate::dir::{
+    SymbolReferenceSearch, find_symbol_at_offset, resolve_local_import_alias_name,
+    symbol_definition_span, symbol_local_definition_span, symbol_references,
+};
 use destack_dir::GlobalSymbolId;
 
-/// Result of a find references query.
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
-pub struct ReferencesResult {
-    /// All reference locations.
-    pub references: Vec<Span>,
-    /// Whether the definition is included in the results.
-    pub include_declaration: bool,
+/// Role of one reference occurrence.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ReferenceRole {
+    /// Declaration occurrence.
+    Declaration,
+    /// Read occurrence.
+    Read,
+    /// Write occurrence.
+    Write,
+    /// Type occurrence.
+    Type,
+    /// Import occurrence.
+    Import,
+    /// Export occurrence.
+    Export,
 }
 
-impl ReferencesResult {
-    /// Create an empty result.
-    pub fn empty() -> Self {
-        Self {
-            references: Vec::new(),
-            include_declaration: false,
-        }
-    }
-
-    /// Whether any references were found.
-    pub fn is_empty(&self) -> bool {
-        self.references.is_empty()
-    }
-
-    /// Number of references found.
-    pub fn len(&self) -> usize {
-        self.references.len()
-    }
+/// One symbol reference occurrence.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Reference {
+    /// The referenced source target.
+    pub target: QueryTarget,
+    /// The reference role.
+    pub role: ReferenceRole,
 }
 
 /// Request find references at a cursor position.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FindReferencesRequest {
-    /// The document URI.
-    pub uri: Uri,
-    /// The byte offset in the document.
-    pub offset: u32,
+    /// The queried position.
+    pub position: QueryPosition,
     /// Whether to include the declaration in results.
     pub include_declaration: bool,
 }
@@ -54,86 +49,86 @@ pub struct FindReferencesRequest {
 /// Response payload for find references queries.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FindReferencesResponse {
-    /// References result, if any.
-    pub result: Option<ReferencesResult>,
+    /// Reference occurrences.
+    pub references: Vec<Reference>,
 }
 
 /// Find all references to the symbol at the given position.
 ///
 /// Optionally includes the declaration in the results.
 pub fn find_references(
-    repository: &Repository,
-    revision: Revision,
-    file: FileId,
+    ctx: &ModuleQueryContext<'_>,
+    workspace: &WorkspaceQueryContext<'_>,
     offset: u32,
     include_declaration: bool,
-) -> Option<ReferencesResult> {
+) -> Vec<Reference> {
     // find the symbol at offset
-    let symbol_at = find_symbol_at_offset(repository, revision, file, offset)?;
-    let profile_id =
-        query_context(repository, revision, symbol_at.symbol_id.module_id)?.profile_id();
-
-    // preserve local import aliases as local reference targets
-    let (target_symbol, declaration_span, target_name) = if let Some(local_alias_name) =
-        resolve_local_import_alias_name(repository, revision, symbol_at.symbol_id)
-    {
-        let declaration_span = include_declaration
-            .then(|| {
-                get_symbol_local_definition_span(repository, revision, symbol_at.symbol_id).or_else(
-                    || get_symbol_definition_span(repository, revision, symbol_at.symbol_id),
-                )
-            })
-            .flatten();
-
-        (
-            symbol_at.symbol_id,
-            declaration_span,
-            Some(local_alias_name),
-        )
-    } else {
-        let canonical_id = get_canonical_symbol(repository, revision, symbol_at.symbol_id);
-        let canonical_name = resolve_symbol_name(repository, revision, canonical_id);
-        let declaration_span = include_declaration
-            .then(|| {
-                get_symbol_definition_span(repository, revision, canonical_id).or_else(|| {
-                    get_symbol_local_definition_span(repository, revision, canonical_id)
-                })
-            })
-            .flatten();
-
-        (canonical_id, declaration_span, canonical_name)
+    let Some(symbol_at) = find_symbol_at_offset(ctx, offset) else {
+        return Vec::new();
     };
 
+    // preserve local import aliases as local reference targets
+    let (target_symbol, declaration_span, target_name) =
+        if let Some(local_alias_name) = resolve_local_import_alias_name(ctx, symbol_at.symbol_id) {
+            let declaration_span = include_declaration
+                .then(|| {
+                    symbol_local_definition_span(ctx, symbol_at.symbol_id)
+                        .or_else(|| symbol_definition_span(ctx, symbol_at.symbol_id))
+                })
+                .flatten();
+
+            (
+                symbol_at.symbol_id,
+                declaration_span,
+                Some(local_alias_name),
+            )
+        } else {
+            let canonical_id = ctx.canonical_symbol(symbol_at.symbol_id);
+            let canonical_name = ctx.symbol_name(canonical_id);
+            let declaration_span = include_declaration
+                .then(|| {
+                    symbol_definition_span(ctx, canonical_id).or_else(|| {
+                        let target_ctx = ctx.module_context(canonical_id.module_id)?;
+                        symbol_local_definition_span(&target_ctx, canonical_id)
+                    })
+                })
+                .flatten();
+
+            (canonical_id, declaration_span, canonical_name)
+        };
+
     // search all modules for references to that symbol
-    let references = find_references_to_symbol(
-        repository,
-        revision,
-        profile_id,
+    let spans = find_references_to_symbol(
+        ctx,
+        workspace,
         target_symbol,
         declaration_span,
         target_name.as_deref(),
     );
+    let references = spans
+        .into_iter()
+        .map(|(module, span, role)| Reference {
+            target: QueryTarget::span(module, span).with_symbol(target_symbol),
+            role,
+        })
+        .collect();
 
-    Some(ReferencesResult {
-        references,
-        include_declaration,
-    })
+    references
 }
 
 /// Find all references to a symbol across all modules.
 fn find_references_to_symbol(
-    repository: &Repository,
-    revision: Revision,
-    profile_id: destack_source::ProfileId,
+    ctx: &ModuleQueryContext<'_>,
+    workspace: &WorkspaceQueryContext<'_>,
     canonical_id: GlobalSymbolId,
     declaration_span: Option<Span>,
     target_name: Option<&str>,
-) -> Vec<Span> {
+) -> Vec<(QueryModule, Span, ReferenceRole)> {
     // initialize the reference list
     let mut references = Vec::new();
 
     // configure reference collection for find references behavior
-    let reference_options = ReferenceCollectionOptions {
+    let reference_search = SymbolReferenceSearch {
         include_expressions: true,
         include_members: true,
         include_dependencies: true,
@@ -142,40 +137,42 @@ fn find_references_to_symbol(
         use_dependency_name_spans: true,
         target_name,
         require_target_name_match: false,
-        limit_to_file: None,
+        limit_file: None,
     };
 
     // collect references across candidate modules only
-    for module_id in modules_referencing_symbol(repository, revision, profile_id, canonical_id) {
-        let Some(ctx) = query_context_for_profile(repository, revision, module_id, profile_id)
-        else {
+    for module_id in modules_referencing_symbol(workspace, canonical_id) {
+        let Some(module_ctx) = ctx.module_context(module_id) else {
             continue;
         };
 
         // collect and append references for this module
-        let spans = collect_symbol_references_in_context(
-            repository,
-            ctx.source(),
-            ctx.dir(),
-            canonical_id,
-            reference_options,
+        let spans = symbol_references(module_ctx.dir(), canonical_id, reference_search);
+        let module = module_ctx.query_module();
+        references.extend(
+            spans
+                .into_iter()
+                .map(|span| (module, span, ReferenceRole::Read)),
         );
-        references.extend(spans);
     }
 
     // normalize ordering and remove duplicates
-    sort_and_dedup_spans(&mut references);
+    references.sort_by_key(|(_, span, _)| (span.file, span.start, span.end));
+    references.dedup();
     prune_overlapping_spans(&mut references);
-    sort_reference_spans(repository, revision, &mut references);
+    sort_reference_spans(ctx, &mut references);
 
     // place the declaration first when requested
     if let Some(decl_span) = declaration_span {
-        references.retain(|span| {
+        references.retain(|(_, span, _)| {
             !(span.file == decl_span.file
                 && span.start == decl_span.start
                 && span.end == decl_span.end)
         });
-        references.insert(0, decl_span);
+        references.insert(
+            0,
+            (ctx.query_module(), decl_span, ReferenceRole::Declaration),
+        );
     }
 
     // return the final reference list
@@ -183,50 +180,56 @@ fn find_references_to_symbol(
 }
 
 /// Remove overlapping spans by keeping the most specific span at each overlap.
-fn prune_overlapping_spans(spans: &mut Vec<Span>) {
-    if spans.len() < 2 {
+fn prune_overlapping_spans(references: &mut Vec<(QueryModule, Span, ReferenceRole)>) {
+    if references.len() < 2 {
         return;
     }
 
-    let mut filtered = Vec::with_capacity(spans.len());
-    for span in spans.iter().copied() {
-        let Some(last_span) = filtered.last_mut() else {
-            filtered.push(span);
+    let mut filtered = Vec::with_capacity(references.len());
+    for reference in references.iter().copied() {
+        let Some(last_reference) = filtered.last_mut() else {
+            filtered.push(reference);
             continue;
         };
+        let span = reference.1;
+        let last_span = &mut last_reference.1;
 
         if !last_span.intersects(span) {
-            filtered.push(span);
+            filtered.push(reference);
             continue;
         }
 
         if span.len() < last_span.len()
             || (span.len() == last_span.len() && span.start >= last_span.start)
         {
-            *last_span = span;
+            *last_reference = reference;
         }
     }
 
-    *spans = filtered;
+    *references = filtered;
 }
 
 /// Sort reference spans by stable file location.
-fn sort_reference_spans(repository: &Repository, revision: Revision, spans: &mut [Span]) {
-    spans.sort_by(|left, right| {
-        let left_key = reference_span_sort_key(repository, revision, *left);
-        let right_key = reference_span_sort_key(repository, revision, *right);
+fn sort_reference_spans(
+    ctx: &ModuleQueryContext<'_>,
+    references: &mut [(QueryModule, Span, ReferenceRole)],
+) {
+    references.sort_by(|left, right| {
+        let left_key = reference_span_sort_key(ctx, left.1);
+        let right_key = reference_span_sort_key(ctx, right.1);
 
         left_key.cmp(&right_key)
     });
 }
 
 /// Build a stable sort key for a reference span.
-fn reference_span_sort_key(
-    repository: &Repository,
-    revision: Revision,
-    span: Span,
-) -> (String, u32, u32, u128) {
-    let Some(file) = repository.file(revision, span.file).ok().flatten() else {
+fn reference_span_sort_key(ctx: &ModuleQueryContext<'_>, span: Span) -> (String, u32, u32, u128) {
+    let Some(file) = ctx
+        .repository()
+        .file(ctx.revision(), span.file)
+        .ok()
+        .flatten()
+    else {
         return (String::new(), span.start, span.end, span.file.0);
     };
 
@@ -234,11 +237,11 @@ fn reference_span_sort_key(
     let file_key = if !file.name.is_empty() {
         file.name.clone()
     }
-    // otherwise fall back to canonical paths
+    // otherwise compare canonical paths
     else if let Some(path) = file.path.as_ref() {
         path.to_string_lossy().to_string()
     }
-    // otherwise fall back to the uri string
+    // otherwise compare uri strings
     else {
         file.uri.to_string()
     };

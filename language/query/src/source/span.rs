@@ -1,25 +1,12 @@
-use std::collections::HashSet;
-use std::sync::Arc;
-
-use super::SourceQueryContext;
+use super::DirQueryContext;
 use destack_dir as dir;
 use destack_dir::LocalNodeIdAny;
-use destack_source::{EnclosingSpan, File, FileId, Span};
-use destack_workspace::{Module, Repository, Revision};
-
-/// Get a module by FileId.
-pub(crate) fn get_module_by_file_id(
-    repository: &Repository,
-    revision: Revision,
-    file_id: FileId,
-) -> Option<Arc<Module>> {
-    let module_id = repository.module_id_for_file(revision, file_id).ok()??;
-    repository.module(revision, module_id).ok().flatten()
-}
+use destack_source::{EnclosingSpan, File, Span};
+use std::collections::HashSet;
 
 /// Get the span of a DIR node using one DIR tree.
 pub(crate) fn get_node_tree_span(
-    parsed: SourceQueryContext<'_>,
+    ctx: DirQueryContext<'_>,
     dir: dir::View<'_>,
     dir_node_id: LocalNodeIdAny,
 ) -> Span {
@@ -27,12 +14,12 @@ pub(crate) fn get_node_tree_span(
     let source_node_id = dir.get_source_any(dir_node_id);
 
     // get the span from source map
-    parsed.source_map().get(source_node_id)
+    ctx.source_map().get(source_node_id)
 }
 
 /// Get the main span of a DIR node using one DIR tree.
 pub(crate) fn get_node_tree_main_span(
-    parsed: SourceQueryContext<'_>,
+    ctx: DirQueryContext<'_>,
     dir: dir::View<'_>,
     dir_node_id: LocalNodeIdAny,
 ) -> Span {
@@ -40,72 +27,59 @@ pub(crate) fn get_node_tree_main_span(
     let source_node_id = dir.get_source_any(dir_node_id);
 
     // try to get the main span first (e.g., identifier span for declarations)
-    parsed.source_map().get_main_or_enclosing(source_node_id)
+    ctx.source_map().get_main_or_enclosing(source_node_id)
 }
 
 /// Resolve the span for a DIR node within a query context.
 pub(crate) fn span_for_dir_node(
-    parsed: SourceQueryContext<'_>,
+    ctx: DirQueryContext<'_>,
     dir: dir::View<'_>,
     node_id: LocalNodeIdAny,
 ) -> Span {
     // resolve the source span for the node
     let source_id = dir.get_source_any(node_id);
-    let source_span = parsed.source_map().get(source_id);
+    let source_span = ctx.source_map().get(source_id);
 
-    Span::new(parsed.file_id(), source_span.start, source_span.end)
+    Span::new(ctx.file_id(), source_span.start, source_span.end)
 }
 
 /// Resolve the span for a DIR node when its source id is present in the source map.
 pub(crate) fn try_span_for_dir_node(
-    parsed: SourceQueryContext<'_>,
+    ctx: DirQueryContext<'_>,
     dir: dir::View<'_>,
     node_id: LocalNodeIdAny,
 ) -> Option<Span> {
     // resolve the source span when the source id is still valid
     let source_id = dir.get_source_any(node_id);
-    let source_span = parsed.source_map().try_get(source_id)?;
+    let source_span = ctx.source_map().try_get(source_id)?;
 
-    Some(Span::new(
-        parsed.file_id(),
-        source_span.start,
-        source_span.end,
-    ))
+    Some(Span::new(ctx.file_id(), source_span.start, source_span.end))
 }
 
 /// Resolve the main span for a DIR node when available.
 pub(crate) fn main_span_for_dir_node(
-    parsed: SourceQueryContext<'_>,
+    ctx: DirQueryContext<'_>,
     dir: dir::View<'_>,
     node_id: LocalNodeIdAny,
 ) -> Option<Span> {
     // resolve the source span for the node
     let source_id = dir.get_source_any(node_id);
-    let source_span = parsed.source_map().get_main(source_id)?;
+    let source_span = ctx.source_map().get_main(source_id)?;
 
-    Some(Span::new(
-        parsed.file_id(),
-        source_span.start,
-        source_span.end,
-    ))
+    Some(Span::new(ctx.file_id(), source_span.start, source_span.end))
 }
 
 /// Resolve the main or enclosing span for a DIR node.
 pub(crate) fn main_or_enclosing_span_for_dir_node(
-    parsed: SourceQueryContext<'_>,
+    ctx: DirQueryContext<'_>,
     dir: dir::View<'_>,
     node_id: LocalNodeIdAny,
 ) -> Span {
     // resolve the source span for the node
     let source_id = dir.get_source_any(node_id);
-    let source_span = parsed.source_map().get_main_or_enclosing(source_id);
+    let source_span = ctx.source_map().get_main_or_enclosing(source_id);
 
-    Span::new(parsed.file_id(), source_span.start, source_span.end)
-}
-
-/// Check whether a span fully contains another span.
-pub(crate) fn span_contains_span(parent: Span, child: Span) -> bool {
-    parent.start <= child.start && parent.end >= child.end
+    Span::new(ctx.file_id(), source_span.start, source_span.end)
 }
 
 /// Resolve the line start for the given offset.
@@ -155,12 +129,12 @@ pub(crate) fn extract_string_literal_prefix(source: &str, span: Span, offset: u3
 
 /// Collect enclosing spans and sort from innermost to outermost.
 pub(crate) fn sorted_enclosing_spans(
-    parsed: SourceQueryContext<'_>,
+    ctx: DirQueryContext<'_>,
     start: u32,
     end: u32,
 ) -> Vec<EnclosingSpan> {
     // collect enclosing spans from the source map
-    let mut enclosing = parsed.source_map().get_enclosing_spans(start, end);
+    let mut enclosing = ctx.source_map().get_enclosing_spans(start, end);
 
     // sort by span length so innermost spans come first
     enclosing.sort_by_key(|span| span.length);
@@ -170,7 +144,7 @@ pub(crate) fn sorted_enclosing_spans(
 
 /// Collect and sort enclosing spans for a set of probe offsets.
 pub(crate) fn enclosing_spans_at_offsets(
-    parsed: SourceQueryContext<'_>,
+    ctx: DirQueryContext<'_>,
     offsets: impl IntoIterator<Item = u32>,
 ) -> Vec<EnclosingSpan> {
     let mut enclosing = Vec::new();
@@ -178,7 +152,7 @@ pub(crate) fn enclosing_spans_at_offsets(
 
     // gather the enclosing spans for each probe offset
     for offset in offsets {
-        let spans = parsed.source_map().get_enclosing_spans(offset, offset);
+        let spans = ctx.source_map().get_enclosing_spans(offset, offset);
         for span in spans {
             if seen.insert(span.idx) {
                 enclosing.push(span);
@@ -194,7 +168,7 @@ pub(crate) fn enclosing_spans_at_offsets(
 
 /// Collect enclosing spans at the cursor and previous byte.
 pub(crate) fn enclosing_spans_with_previous(
-    parsed: SourceQueryContext<'_>,
+    ctx: DirQueryContext<'_>,
     offset: u32,
 ) -> Vec<EnclosingSpan> {
     let mut offsets = vec![offset];
@@ -202,7 +176,7 @@ pub(crate) fn enclosing_spans_with_previous(
         offsets.push(offset - 1);
     }
 
-    enclosing_spans_at_offsets(parsed, offsets)
+    enclosing_spans_at_offsets(ctx, offsets)
 }
 /// Find the span for a string literal matching the provided text inside an enclosing span.
 pub(crate) fn string_literal_span_in_enclosing(

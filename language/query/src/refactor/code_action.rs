@@ -2,22 +2,22 @@
 
 use std::collections::HashSet;
 
-use destack_dir as dir;
 use destack_source::{
-    Applicability, BatchEdit, Diagnostic, DiagnosticLabel, Edit, FileEdit, FileId, Span, Uri,
+    Applicability, BatchEdit, Diagnostic, DiagnosticLabel, Edit, FileEdit, FileId, Span,
 };
-use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 
 use super::{extract_function, extract_variable, inline_symbol};
 use crate::assist::{CompletionContext, completion_input_at_offset};
-use crate::core::{import_sort_key, query_context, repository_import_relevance};
+use crate::core::{
+    ModuleQueryContext, QueryRange, WorkspaceQueryContext, import_sort_key,
+    repository_import_relevance,
+};
 use crate::dir::{
     ImportEditSpace, build_import_display_path, build_import_edits, matches_export_space_filter,
     search_importable_symbols,
 };
-use crate::format::{ImportDeclarationKey, categorize_import, sort_import_declaration_indices};
-use crate::source::{get_module_by_file_id, is_simple_identifier, token_at_offset};
+use crate::source::{is_simple_identifier, token_at_offset};
 use destack_dir::SymbolSpace;
 
 /// Kind of code action.
@@ -35,8 +35,6 @@ pub enum CodeActionKind {
     RefactorRewrite,
     /// Source organization (imports, etc.).
     Source,
-    /// Organize imports.
-    SourceOrganizeImports,
     /// Fix all issues of a type.
     SourceFixAll,
 }
@@ -119,12 +117,8 @@ pub struct CodeActionContext {
 /// Request code actions for a range in a document.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CodeActionsRequest {
-    /// The document URI.
-    pub uri: Uri,
-    /// The start byte offset in the document.
-    pub start: u32,
-    /// The end byte offset in the document.
-    pub end: u32,
+    /// The queried range.
+    pub range: QueryRange,
     /// The code action context.
     pub context: CodeActionContext,
 }
@@ -140,13 +134,14 @@ pub struct CodeActionsResponse {
 ///
 /// Includes quick fixes from diagnostics and available refactorings.
 pub fn code_actions(
-    repository: &Repository,
-    revision: Revision,
-    file: FileId,
+    ctx: &ModuleQueryContext<'_>,
+    workspace: &WorkspaceQueryContext<'_>,
     range: Span,
     diagnostics: &[Diagnostic],
     context: &CodeActionContext,
 ) -> Vec<CodeAction> {
+    let file = ctx.file_id();
+
     // start with an empty action list
     let mut actions = Vec::new();
 
@@ -154,13 +149,10 @@ pub fn code_actions(
     collect_diagnostic_fixes(diagnostics, file, range, &mut actions);
 
     // collect auto import quick fixes for unresolved symbols
-    collect_auto_import_actions(repository, revision, file, range, diagnostics, &mut actions);
-
-    // collect organize imports action
-    collect_organize_imports_action(repository, revision, file, &mut actions);
+    collect_auto_import_actions(ctx, workspace, range, diagnostics, &mut actions);
 
     // collect refactor actions
-    collect_refactor_actions(repository, revision, file, range, &mut actions);
+    collect_refactor_actions(ctx, workspace, range, &mut actions);
 
     // filter by requested kinds when specified
     if !context.only.is_empty() {
@@ -183,186 +175,57 @@ pub fn code_actions(
 
 /// Collect refactor actions for a range.
 fn collect_refactor_actions(
-    repository: &Repository,
-    revision: Revision,
-    file: FileId,
+    ctx: &ModuleQueryContext<'_>,
+    workspace: &WorkspaceQueryContext<'_>,
     range: Span,
     actions: &mut Vec<CodeAction>,
 ) {
     // inline at the cursor start
-    if let Some(result) = inline_symbol(repository, revision, file, range.start)
-        && !result.is_empty()
+    if let Some(edit) = inline_symbol(ctx, workspace, range.start)
+        && !edit.is_empty()
     {
         actions.push(CodeAction::refactor(
             "Inline symbol",
             CodeActionKind::RefactorInline,
-            result.edits,
+            edit,
         ));
     }
 
     // extract function for non empty selections
     if range.start < range.end
-        && let Some(result) = extract_function(repository, revision, file, range, "extracted")
-        && !result.is_empty()
+        && let Some(edit) = extract_function(ctx, range, "extracted")
+        && !edit.is_empty()
     {
         actions.push(CodeAction::refactor(
             "Extract function",
             CodeActionKind::RefactorExtract,
-            result.edits,
+            edit,
         ));
     }
 
     // extract constant for non empty selections
     if range.start < range.end
-        && let Some(result) = extract_variable(repository, revision, file, range, "extracted")
-        && !result.is_empty()
+        && let Some(edit) = extract_variable(ctx, range, "extracted")
+        && !edit.is_empty()
     {
         actions.push(CodeAction::refactor(
             "Extract constant",
             CodeActionKind::RefactorExtract,
-            result.edits,
+            edit,
         ));
     }
 }
 
-/// Collect organize imports actions for a file.
-fn collect_organize_imports_action(
-    repository: &Repository,
-    revision: Revision,
-    file: FileId,
-    actions: &mut Vec<CodeAction>,
-) {
-    // resolve the module and query context
-    let module = get_module_by_file_id(repository, revision, file);
-    let Some(module) = module else {
-        return;
-    };
-    let ctx = query_context(repository, revision, module.id);
-    let Some(ctx) = ctx else {
-        return;
-    };
-
-    // resolve the file text for slicing
-    let Some(source_file) = repository.file(revision, file).ok().flatten() else {
-        return;
-    };
-    let source = source_file.text();
-
-    // collect top level import expressions in order
-    let mut imports: Vec<(Span, String, bool, String)> = Vec::new();
-
-    for expr_id in ctx.source().roots() {
-        // stop once we hit the first non import expression after imports
-        let expr = ctx.source().tree().get(*expr_id);
-        let target = match expr {
-            dir::Expression::Import { target, items, .. } => Some((*target, items.is_none())),
-            _ => None,
-        };
-
-        let Some((target, is_side_effect)) = target else {
-            if !imports.is_empty() {
-                break;
-            }
-            continue;
-        };
-
-        // resolve the import span and raw text
-        let span = ctx.source().tree().source_map.get(expr_id.id);
-        let text = source
-            .get(span.start as usize..span.end as usize)
-            .unwrap_or("")
-            .trim_end()
-            .to_string();
-
-        // resolve the import target for sorting
-        let target_text = ctx.source().strings().get(target).to_string();
-
-        // store the import entry for sorting
-        imports.push((span, target_text, is_side_effect, text));
-    }
-
-    // skip when there is nothing to organize
-    if imports.len() < 2 {
-        return;
-    }
-
-    // build canonical declaration keys and stable sorted order
-    let declaration_keys: Vec<_> = imports
-        .iter()
-        .map(|(_, target, is_side_effect, _)| ImportDeclarationKey {
-            target: target.as_str(),
-            is_side_effect: *is_side_effect,
-        })
-        .collect();
-    let order = sort_import_declaration_indices(&declaration_keys);
-
-    // compute replacement span bounds for the contiguous import block
-    let block_start = imports.first().map(|entry| entry.0.start).unwrap_or(0);
-    let block_end = imports
-        .last()
-        .map(|entry| entry.0.end)
-        .unwrap_or(block_start);
-
-    // build the replacement span
-    let block_span = Span::new(file, block_start, block_end);
-
-    // rebuild import block in canonical order with group spacing
-    let mut replacement = String::new();
-    for (position, import_index) in order.iter().copied().enumerate() {
-        let (_, target, is_side_effect, text) = &imports[import_index];
-        if !replacement.is_empty() {
-            replacement.push('\n');
-        }
-        replacement.push_str(text);
-
-        // add a blank line between side effect and regular groups, and across path groups
-        if let Some(next_index) = order.get(position + 1).copied() {
-            let (_, next_target, next_is_side_effect, _) = &imports[next_index];
-            let needs_blank = !*next_is_side_effect
-                && (*is_side_effect || categorize_import(target) != categorize_import(next_target));
-            if needs_blank {
-                replacement.push('\n');
-            }
-        }
-    }
-
-    // skip when the block is already canonical
-    let source = source_file.text();
-    let current_block = source
-        .get(block_start as usize..block_end as usize)
-        .unwrap_or_default();
-    if replacement == current_block {
-        return;
-    }
-
-    // build the edit batch for the code action
-    let mut file_edit = FileEdit::new(file);
-    file_edit.push(Edit::replace(block_span, replacement));
-
-    let mut batch_edit = BatchEdit::new();
-    batch_edit.files.push(file_edit);
-
-    // register the organize imports action
-    let action = CodeAction::refactor(
-        "Organize Imports",
-        CodeActionKind::SourceOrganizeImports,
-        batch_edit,
-    );
-    actions.push(action);
-}
-
 /// Collect auto import actions for unresolved symbol diagnostics.
 fn collect_auto_import_actions(
-    repository: &Repository,
-    revision: Revision,
-    file: FileId,
+    ctx: &ModuleQueryContext<'_>,
+    workspace: &WorkspaceQueryContext<'_>,
     range: Span,
     diagnostics: &[Diagnostic],
     actions: &mut Vec<CodeAction>,
 ) {
-    // resolve the current module for import exclusions
-    let exclude_module_id =
-        get_module_by_file_id(repository, revision, file).map(|module| module.id);
+    let file = ctx.file_id();
+    let exclude_module_id = Some(ctx.module_id());
 
     // scan diagnostics for unresolved symbol codes in the owning repository
     for diagnostic in diagnostics {
@@ -383,16 +246,14 @@ fn collect_auto_import_actions(
         }
 
         // extract the missing symbol name from the diagnostic span
-        let Some(symbol_name) = missing_symbol_name(repository, revision, diagnostic) else {
+        let Some(symbol_name) = missing_symbol_name(ctx, diagnostic) else {
             continue;
         };
 
-        let space_filter =
-            auto_import_form_filter_for_offset(repository, revision, file, diagnostic_span.start);
+        let space_filter = auto_import_form_filter_for_offset(ctx, diagnostic_span.start);
         collect_auto_import_actions_for_symbol(
-            repository,
-            revision,
-            file,
+            ctx,
+            workspace,
             &symbol_name,
             exclude_module_id,
             space_filter,
@@ -402,15 +263,13 @@ fn collect_auto_import_actions(
     }
 
     // allow token-driven auto-imports when diagnostics are unavailable
-    if let Some(symbol_name) = token_at_offset(repository, revision, file, range.start)
+    if let Some(symbol_name) = token_at_offset(ctx, range.start)
         && is_simple_identifier(&symbol_name)
     {
-        let space_filter =
-            auto_import_form_filter_for_offset(repository, revision, file, range.start);
+        let space_filter = auto_import_form_filter_for_offset(ctx, range.start);
         collect_auto_import_actions_for_symbol(
-            repository,
-            revision,
-            file,
+            ctx,
+            workspace,
             &symbol_name,
             exclude_module_id,
             space_filter,
@@ -422,22 +281,24 @@ fn collect_auto_import_actions(
 
 /// Collect auto import actions for a missing symbol name.
 fn collect_auto_import_actions_for_symbol(
-    repository: &Repository,
-    revision: Revision,
-    file: FileId,
+    ctx: &ModuleQueryContext<'_>,
+    workspace: &WorkspaceQueryContext<'_>,
     symbol_name: &str,
     exclude_module_id: Option<destack_source::ModuleId>,
     space_filter: Option<SymbolSpace>,
     diagnostic_code: Option<&str>,
     actions: &mut Vec<CodeAction>,
 ) {
+    let repository = ctx.repository();
+    let revision = ctx.revision();
+    let file = ctx.file_id();
+
     // search exported symbols for exact name matches
-    let Some(current_module) = get_module_by_file_id(repository, revision, file) else {
+    let Some(current_module) = repository.module(revision, ctx.module_id()).ok().flatten() else {
         return;
     };
     let current_package_id = Some(current_module.package_id);
-    let mut candidates =
-        search_importable_symbols(repository, revision, symbol_name, exclude_module_id);
+    let mut candidates = search_importable_symbols(workspace, symbol_name, exclude_module_id);
     candidates.retain(|export| {
         export.name == symbol_name && matches_export_space_filter(export.space, space_filter)
     });
@@ -454,7 +315,7 @@ fn collect_auto_import_actions_for_symbol(
         };
 
         // build an import path relative to the current file
-        let display_path = build_import_display_path(repository, revision, file, module_path);
+        let display_path = build_import_display_path(ctx, module_path);
 
         // skip duplicate module path entries
         if !seen_paths.insert(display_path.clone()) {
@@ -492,14 +353,7 @@ fn collect_auto_import_actions_for_symbol(
         let import_form = ImportEditSpace::for_auto_import(space_filter, export.space);
 
         // build import edits and skip already imported symbols
-        let import_edits = build_import_edits(
-            repository,
-            revision,
-            file,
-            symbol_name,
-            &display_path,
-            import_form,
-        );
+        let import_edits = build_import_edits(ctx, symbol_name, &display_path, import_form);
         if import_edits.is_empty() {
             continue;
         }
@@ -537,13 +391,11 @@ fn collect_auto_import_actions_for_symbol(
 
 /// Resolve the auto import space filter for an offset.
 fn auto_import_form_filter_for_offset(
-    repository: &Repository,
-    revision: Revision,
-    file: FileId,
+    ctx: &ModuleQueryContext<'_>,
     offset: u32,
 ) -> Option<SymbolSpace> {
     // detect the completion context at the cursor
-    let context = completion_input_at_offset(repository, revision, file, offset);
+    let context = completion_input_at_offset(ctx, offset);
 
     // choose import visibility based on type position
     match context.context {
@@ -553,23 +405,22 @@ fn auto_import_form_filter_for_offset(
 }
 
 /// Resolve a missing symbol name from a diagnostic.
-fn missing_symbol_name(
-    repository: &Repository,
-    revision: Revision,
-    diagnostic: &Diagnostic,
-) -> Option<String> {
-    missing_symbol_name_from_label(repository, revision, diagnostic.primary_label())
+fn missing_symbol_name(ctx: &ModuleQueryContext<'_>, diagnostic: &Diagnostic) -> Option<String> {
+    missing_symbol_name_from_label(ctx, diagnostic.primary_label())
 }
 
 /// Resolve a missing symbol name from a diagnostic label.
 fn missing_symbol_name_from_label(
-    repository: &Repository,
-    revision: Revision,
+    ctx: &ModuleQueryContext<'_>,
     label: &DiagnosticLabel,
 ) -> Option<String> {
     // read the source text for the span
     let span = label.span;
-    let file = repository.file(revision, span.file).ok().flatten()?;
+    let file = ctx
+        .repository()
+        .file(ctx.revision(), span.file)
+        .ok()
+        .flatten()?;
     if file.content_id() != label.content {
         return None;
     }
@@ -660,8 +511,7 @@ fn code_action_kind_rank(kind: CodeActionKind) -> u8 {
         CodeActionKind::RefactorInline => 3,
         CodeActionKind::RefactorRewrite => 4,
         CodeActionKind::Source => 5,
-        CodeActionKind::SourceOrganizeImports => 6,
-        CodeActionKind::SourceFixAll => 7,
+        CodeActionKind::SourceFixAll => 6,
     }
 }
 

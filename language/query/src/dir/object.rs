@@ -1,23 +1,22 @@
 use destack_core::StringPool;
 use destack_dir as dir;
-use destack_workspace::Repository;
 
 use super::{ScopeAtOffset, expression_scope_at_offset};
-use crate::core::{DirQueryContext, SourceQueryContext};
+use crate::core::DirQueryContext;
 use crate::source::sorted_enclosing_spans;
 
 /// Describes the cursor position inside one object literal.
 #[derive(Debug, Clone)]
 pub(crate) enum ObjectLiteralCursorContext {
     /// The cursor is in one object literal key position.
-    Key(ObjectLiteralContextInfo),
+    Key(ObjectLiteralKeyContext),
     /// The cursor is in one object literal value position.
     Value(ScopeAtOffset),
 }
 
-/// Contextual information for one object literal completion site.
+/// Object literal key completion context.
 #[derive(Debug, Clone)]
-pub(crate) struct ObjectLiteralContextInfo {
+pub(crate) struct ObjectLiteralKeyContext {
     /// The object expression node id.
     pub object_node: dir::LocalNodeIdAny,
     /// The contextual type when one is available.
@@ -30,13 +29,11 @@ pub(crate) struct ObjectLiteralContextInfo {
 
 /// Resolve object literal cursor information at one offset.
 pub(crate) fn object_literal_cursor_context(
-    parsed: SourceQueryContext<'_>,
-    dir: DirQueryContext<'_>,
+    ctx: DirQueryContext<'_>,
     offset: u32,
-    _repository: &Repository,
 ) -> Option<ObjectLiteralCursorContext> {
     // resolve enclosing spans from innermost to outermost
-    let enclosing = sorted_enclosing_spans(parsed, offset, offset);
+    let enclosing = sorted_enclosing_spans(ctx, offset, offset);
 
     // bail out early when there are no enclosing spans
     if enclosing.is_empty() {
@@ -44,9 +41,9 @@ pub(crate) fn object_literal_cursor_context(
     }
 
     // resolve dir tree and types for object literal analysis
-    let dir_tree = dir.view();
-    let types = dir.types();
-    let parsed_tree = parsed.tree();
+    let dir_tree = ctx.view();
+    let types = ctx.types();
+    let parsed_tree = ctx.tree();
 
     // look for an object expression under the cursor
     for enc in &enclosing {
@@ -74,7 +71,7 @@ pub(crate) fn object_literal_cursor_context(
             continue;
         };
         let dir_expr: &dir::Expression = dir_tree.get(dir_expr_id);
-        let scope = expression_scope_at_offset(parsed, dir, dir_expr_id, offset);
+        let scope = expression_scope_at_offset(ctx, dir_expr_id, offset);
 
         // property values stay in value position inside the surrounding expression scope
         if !is_key_position {
@@ -86,10 +83,10 @@ pub(crate) fn object_literal_cursor_context(
             _ => continue,
         };
 
-        let existing_fields = extract_object_property_names(dir_tree, properties, dir.strings());
-        let contextual_type = contextual_object_type(dir, types, dir_node_id);
+        let existing_fields = extract_object_property_names(dir_tree, properties, ctx.strings());
+        let contextual_type = contextual_object_type(ctx, types, dir_node_id);
 
-        return Some(ObjectLiteralCursorContext::Key(ObjectLiteralContextInfo {
+        return Some(ObjectLiteralCursorContext::Key(ObjectLiteralKeyContext {
             object_node: dir_node_id,
             contextual_type,
             existing_fields,
@@ -101,12 +98,9 @@ pub(crate) fn object_literal_cursor_context(
 }
 
 /// Check if the cursor is inside an object literal expression.
-pub(crate) fn is_inside_object_literal_expression(
-    parsed: SourceQueryContext<'_>,
-    offset: u32,
-) -> bool {
+pub(crate) fn is_inside_object_literal_expression(ctx: DirQueryContext<'_>, offset: u32) -> bool {
     // resolve enclosing spans from innermost to outermost
-    let enclosing = sorted_enclosing_spans(parsed, offset, offset);
+    let enclosing = sorted_enclosing_spans(ctx, offset, offset);
 
     // bail out early when there are no enclosing spans
     if enclosing.is_empty() {
@@ -115,12 +109,12 @@ pub(crate) fn is_inside_object_literal_expression(
 
     // scan enclosing expressions for object literal nodes
     for enc in &enclosing {
-        if parsed.tree().get_node_type(enc.idx) != dir::NodeType::Expression {
+        if ctx.tree().get_node_type(enc.idx) != dir::NodeType::Expression {
             continue;
         }
 
         let expr_id = dir::LocalNodeId::<dir::Expression>::new(enc.idx);
-        let expr = parsed.tree().get(expr_id);
+        let expr = ctx.tree().get(expr_id);
 
         if matches!(expr, dir::Expression::ObjectExpression { .. }) {
             return true;
@@ -163,11 +157,11 @@ pub(crate) fn is_object_literal_key_position(
 
 /// Resolve one recorded contextual object type.
 fn contextual_object_type(
-    dir: DirQueryContext<'_>,
+    ctx: DirQueryContext<'_>,
     types: &dir::TypeTable<'_>,
     node_id: dir::LocalNodeIdAny,
 ) -> Option<dir::LocalTypeId> {
-    let global_node_id = node_id.into_global(dir.module_id());
+    let global_node_id = node_id.into_global(ctx.module_id());
     types.contextual_object_type_id(global_node_id)
 }
 
@@ -238,7 +232,7 @@ fn is_object_literal_value_position(
         }
     }
 
-    // fall back to property spans outside keys
+    // use property spans outside keys
     for property_id in properties {
         let span = parsed_tree.source_map.get(property_id.id);
         if !span.contains(cursor) {

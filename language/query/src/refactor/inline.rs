@@ -2,82 +2,50 @@ use std::collections::{HashMap, HashSet};
 
 use destack_core::StringPool;
 use destack_dir::{self as dir, NodeVisitor};
-use destack_source::{BatchEdit, Edit, FileEdit, FileId, ModuleId, Span, Uri};
-use destack_workspace::{Repository, Revision};
+use destack_source::{BatchEdit, Edit, FileEdit, FileId, ModuleId, Span};
 use serde::{Deserialize, Serialize};
 
 use crate::core::{
-    QueryContext, modules_referencing_symbol, query_context, query_context_for_profile,
+    ModuleQueryContext, QueryPosition, WorkspaceQueryContext, modules_referencing_symbol,
 };
 use crate::dir::{
-    ReferenceCollectionOptions, collect_symbol_references_in_context, expression_symbol_target,
-    find_symbol_at_offset, get_canonical_symbol, get_member_access_name_span,
-    get_symbol_definition_span, member_key_name, resolve_symbol_name,
+    SymbolReferenceSearch, expression_symbol_target, find_symbol_at_offset,
+    get_member_access_name_span, member_key_name, symbol_definition_span, symbol_references,
 };
 use crate::source::{
-    get_module_by_file_id, is_simple_identifier, line_start_for_offset, main_span_for_dir_node,
-    span_for_dir_node,
+    is_simple_identifier, line_start_for_offset, main_span_for_dir_node, span_for_dir_node,
 };
 
 /// Request payload for inline refactor queries.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InlineRequest {
-    /// The document URI.
-    pub uri: Uri,
-    /// The byte offset in the document.
-    pub offset: u32,
+    /// The queried position.
+    pub position: QueryPosition,
 }
 
 /// Response payload for inline refactor queries.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InlineResponse {
-    /// Inline result, if available.
-    pub result: Option<InlineResult>,
-}
-
-/// Result of an inline refactor query.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct InlineResult {
-    /// All edits to apply.
-    pub edits: BatchEdit,
-}
-
-impl InlineResult {
-    /// Create an empty inline result.
-    pub fn empty() -> Self {
-        Self {
-            edits: BatchEdit::new(),
-        }
-    }
-
-    /// Create a result from a batch edit.
-    pub fn from_edits(edits: BatchEdit) -> Self {
-        Self { edits }
-    }
-
-    /// Whether there are any edits.
-    pub fn is_empty(&self) -> bool {
-        self.edits.is_empty()
-    }
+    /// Inline edit, if available.
+    pub edit: Option<BatchEdit>,
 }
 
 /// Inline the symbol at the given position.
 pub fn inline_symbol(
-    repository: &Repository,
-    revision: Revision,
-    file: FileId,
+    ctx: &ModuleQueryContext<'_>,
+    workspace: &WorkspaceQueryContext<'_>,
     offset: u32,
-) -> Option<InlineResult> {
-    // resolve the module and query context
-    let module = get_module_by_file_id(repository, revision, file)?;
-    let ctx = query_context(repository, revision, module.id)?;
+) -> Option<BatchEdit> {
+    let repository = ctx.repository();
+    let revision = ctx.revision();
+    let file = ctx.file_id();
 
     // find the symbol at the cursor
-    let symbol_at = find_symbol_at_offset(repository, revision, file, offset)?;
-    let canonical_id = get_canonical_symbol(repository, revision, symbol_at.symbol_id);
+    let symbol_at = find_symbol_at_offset(ctx, offset)?;
+    let canonical_id = ctx.canonical_symbol(symbol_at.symbol_id);
 
     // only inline symbols defined in this file
-    let definition_span = get_symbol_definition_span(repository, revision, canonical_id)?;
+    let definition_span = symbol_definition_span(ctx, canonical_id)?;
     if definition_span.file != file {
         return None;
     }
@@ -104,11 +72,11 @@ pub fn inline_symbol(
     // resolve the initializer expression
     let value_id = declarator_value(dir_tree, declarator_id, statement_id)?;
     let declarator = dir_tree.get::<dir::Declarator>(declarator_id);
-    let statement_span = span_for_dir_node(ctx.source(), dir_tree, statement_id.into());
+    let statement_span = span_for_dir_node(ctx.dir(), dir_tree, statement_id.into());
 
     // resolve the initializer text
     let source_file = repository.file(revision, file).ok().flatten()?;
-    let value_span = span_for_dir_node(ctx.source(), dir_tree, value_id.into());
+    let value_span = span_for_dir_node(ctx.dir(), dir_tree, value_id.into());
     let value_expression = dir_tree.get::<dir::Expression>(value_id);
     let value_text = source_file.span_str(value_span);
     let inline_base = format_inline_expression(value_text, value_expression);
@@ -117,13 +85,13 @@ pub fn inline_symbol(
     }
 
     // resolve destructuring paths for inline expressions
-    let binding_count = count_pattern_bindings(&ctx, dir_tree, declarator.pattern);
+    let binding_count = count_pattern_bindings(ctx, dir_tree, declarator.pattern);
     if binding_count != 1 {
         return None;
     }
 
     let access_path = pattern_access_path(
-        &ctx,
+        ctx,
         ctx.dir().strings(),
         dir_tree,
         declarator.pattern,
@@ -135,15 +103,15 @@ pub fn inline_symbol(
     }
 
     let mut edits_by_file: HashMap<FileId, Vec<Edit>> = HashMap::new();
-    let reference_name = resolve_symbol_name(repository, revision, canonical_id);
+    let reference_name = ctx.symbol_name(canonical_id);
     let reference_entries =
-        collect_inline_reference_entries(repository, &ctx, canonical_id, file, reference_name);
+        collect_inline_reference_entries(ctx, canonical_id, file, reference_name);
     if reference_entries.is_empty() {
         return None;
     }
 
     // refuse to inline when there are references outside the defining file
-    let reference_options = ReferenceCollectionOptions {
+    let reference_search = SymbolReferenceSearch {
         include_expressions: true,
         include_members: true,
         include_dependencies: true,
@@ -152,21 +120,13 @@ pub fn inline_symbol(
         use_dependency_name_spans: false,
         target_name: None,
         require_target_name_match: false,
-        limit_to_file: None,
+        limit_file: None,
     };
-    let profile_id = ctx.profile_id();
-    for module_id in modules_referencing_symbol(repository, revision, profile_id, canonical_id) {
-        let Some(ctx) = query_context_for_profile(repository, revision, module_id, profile_id)
-        else {
+    for module_id in modules_referencing_symbol(workspace, canonical_id) {
+        let Some(module_ctx) = ctx.module_context(module_id) else {
             continue;
         };
-        let spans = collect_symbol_references_in_context(
-            repository,
-            ctx.source(),
-            ctx.dir(),
-            canonical_id,
-            reference_options,
-        );
+        let spans = symbol_references(module_ctx.dir(), canonical_id, reference_search);
         if spans.iter().any(|span| span.file != file) {
             return None;
         }
@@ -179,21 +139,14 @@ pub fn inline_symbol(
     }
 
     // ensure the symbol is not reassigned
-    if symbol_is_assigned(&ctx, canonical_id) {
+    if symbol_is_assigned(ctx, canonical_id) {
         return None;
     }
 
     // avoid shadowing captured symbols in new contexts
-    let captured_symbols =
-        collect_captured_symbols(repository, &ctx, dir_tree, value_id, canonical_id)?;
+    let captured_symbols = collect_captured_symbols(ctx, dir_tree, value_id, canonical_id)?;
     if !captured_symbols.is_empty()
-        && !inline_shadow_safe(
-            repository,
-            &ctx,
-            dir_tree,
-            &reference_entries,
-            &captured_symbols,
-        )
+        && !inline_shadow_safe(ctx, dir_tree, &reference_entries, &captured_symbols)
     {
         return None;
     }
@@ -210,7 +163,7 @@ pub fn inline_symbol(
     }
 
     // remove the declaration statement or declarator
-    let declarator_spans = statement_declarator_spans(&ctx, dir_tree, statement_id)?;
+    let declarator_spans = statement_declarator_spans(ctx, dir_tree, statement_id)?;
     let removal_span = declarator_removal_span(
         source_file.text(),
         statement_span,
@@ -230,7 +183,7 @@ pub fn inline_symbol(
         batch_edit.push(file_edit);
     }
 
-    Some(InlineResult::from_edits(batch_edit))
+    Some(batch_edit)
 }
 
 /// Replacement strategy for an inline reference.
@@ -273,8 +226,7 @@ enum AccessSegment {
 
 /// Collect reference entries for the inline target symbol.
 fn collect_inline_reference_entries(
-    repository: &Repository,
-    ctx: &QueryContext<'_>,
+    ctx: &ModuleQueryContext<'_>,
     canonical_id: dir::GlobalSymbolId,
     file: FileId,
     reference_name: Option<String>,
@@ -291,7 +243,7 @@ fn collect_inline_reference_entries(
         let Some(target_symbol) = expression_symbol_target(ctx.dir(), expr_id) else {
             continue;
         };
-        let target_canonical = get_canonical_symbol(repository, ctx.revision(), target_symbol);
+        let target_canonical = ctx.canonical_symbol(target_symbol);
         if target_canonical != canonical_id {
             continue;
         }
@@ -332,7 +284,7 @@ fn collect_inline_reference_entries(
         let Some(target_symbol) = expression_symbol_target(ctx.dir(), *value) else {
             continue;
         };
-        let target_symbol = get_canonical_symbol(repository, ctx.revision(), target_symbol);
+        let target_symbol = ctx.canonical_symbol(target_symbol);
         if target_symbol != canonical_id {
             continue;
         }
@@ -352,12 +304,12 @@ fn collect_inline_reference_entries(
             continue;
         };
         let resolved_global = dir::GlobalSymbolId::new(ctx.module_id(), resolved_local);
-        let resolved_canonical = get_canonical_symbol(repository, ctx.revision(), resolved_global);
+        let resolved_canonical = ctx.canonical_symbol(resolved_global);
         if resolved_canonical != canonical_id {
             continue;
         }
 
-        let Some(span) = main_span_for_dir_node(ctx.source(), dir_tree, property_id.into()) else {
+        let Some(span) = main_span_for_dir_node(ctx.dir(), dir_tree, property_id.into()) else {
             continue;
         };
         if span.file != file {
@@ -380,7 +332,7 @@ fn collect_inline_reference_entries(
 
 /// Count the number of bindings in a pattern.
 fn count_pattern_bindings(
-    ctx: &QueryContext<'_>,
+    ctx: &ModuleQueryContext<'_>,
     dir_tree: dir::View<'_>,
     pattern_id: dir::LocalNodeId<dir::Pattern>,
 ) -> usize {
@@ -391,7 +343,7 @@ fn count_pattern_bindings(
 
 /// Collect binding symbols from a pattern.
 fn collect_pattern_bindings(
-    ctx: &QueryContext<'_>,
+    ctx: &ModuleQueryContext<'_>,
     dir_tree: dir::View<'_>,
     pattern_id: dir::LocalNodeId<dir::Pattern>,
     bindings: &mut HashSet<dir::LocalSymbolId>,
@@ -438,7 +390,7 @@ fn collect_pattern_bindings(
 
 /// Collect binding symbols from a pattern field.
 fn collect_pattern_bindings_field(
-    ctx: &QueryContext<'_>,
+    ctx: &ModuleQueryContext<'_>,
     dir_tree: dir::View<'_>,
     field_id: dir::LocalNodeId<dir::PatternField>,
     bindings: &mut HashSet<dir::LocalSymbolId>,
@@ -471,7 +423,7 @@ fn collect_pattern_bindings_field(
 
 /// Resolve the access path for a destructured binding.
 fn pattern_access_path(
-    ctx: &QueryContext<'_>,
+    ctx: &ModuleQueryContext<'_>,
     strings: &StringPool,
     dir_tree: dir::View<'_>,
     pattern_id: dir::LocalNodeId<dir::Pattern>,
@@ -527,7 +479,7 @@ fn pattern_access_path(
 
 /// Resolve access paths for object fields.
 fn pattern_access_path_object_fields(
-    ctx: &QueryContext<'_>,
+    ctx: &ModuleQueryContext<'_>,
     strings: &StringPool,
     dir_tree: dir::View<'_>,
     fields: &[dir::LocalNodeId<dir::PatternField>],
@@ -571,7 +523,7 @@ fn pattern_access_path_object_fields(
 
 /// Resolve access paths for tuple and array fields.
 fn pattern_access_path_indexed(
-    ctx: &QueryContext<'_>,
+    ctx: &ModuleQueryContext<'_>,
     strings: &StringPool,
     dir_tree: dir::View<'_>,
     fields: &[dir::LocalNodeId<dir::PatternField>],
@@ -697,12 +649,12 @@ fn key_name_key(key: &dir::Key) -> Option<dir::StaticKey> {
 
 /// Resolve the precise span for a reference expression.
 fn reference_span_for_expression(
-    ctx: &QueryContext<'_>,
+    ctx: &ModuleQueryContext<'_>,
     dir_tree: dir::View<'_>,
     expr_id: dir::LocalNodeId<dir::Expression>,
 ) -> Span {
-    let span = main_span_for_dir_node(ctx.source(), dir_tree, expr_id.into())
-        .unwrap_or_else(|| span_for_dir_node(ctx.source(), dir_tree, expr_id.into()));
+    let span = main_span_for_dir_node(ctx.dir(), dir_tree, expr_id.into())
+        .unwrap_or_else(|| span_for_dir_node(ctx.dir(), dir_tree, expr_id.into()));
 
     let Some(parent) = dir_tree.get_parent_for(expr_id) else {
         return span;
@@ -722,8 +674,7 @@ fn reference_span_for_expression(
         return span;
     }
 
-    let Some(name_span) = get_member_access_name_span(ctx.source(), ctx.dir(), parent_expr_id)
-    else {
+    let Some(name_span) = get_member_access_name_span(ctx.dir(), parent_expr_id) else {
         return span;
     };
     let receiver_end = name_span.start.saturating_sub(1);
@@ -734,7 +685,7 @@ fn reference_span_for_expression(
     }
 
     // recover receiver spans when direct mapping points at member names
-    let member_span = span_for_dir_node(ctx.source(), dir_tree, parent);
+    let member_span = span_for_dir_node(ctx.dir(), dir_tree, parent);
     if member_span.file == name_span.file && member_span.start < receiver_end {
         return Span::new(member_span.file, member_span.start, receiver_end);
     }
@@ -744,8 +695,7 @@ fn reference_span_for_expression(
 
 /// Collect captured symbols referenced inside the inline value.
 fn collect_captured_symbols(
-    repository: &Repository,
-    ctx: &QueryContext<'_>,
+    ctx: &ModuleQueryContext<'_>,
     dir_tree: dir::View<'_>,
     value_id: dir::LocalNodeId<dir::Expression>,
     inline_symbol: dir::GlobalSymbolId,
@@ -758,8 +708,7 @@ fn collect_captured_symbols(
     let raw_tree = dir_tree.tree();
     let expression = raw_tree.get::<dir::Expression>(value_id);
     let mut visitor = CapturedSymbolVisitor::new(
-        repository,
-        ctx.revision(),
+        ctx,
         ctx.dir().types(),
         symbols,
         ctx.module_id(),
@@ -786,8 +735,7 @@ fn collect_captured_symbols(
 
 /// Check whether inlining would introduce shadowing.
 fn inline_shadow_safe(
-    repository: &Repository,
-    ctx: &QueryContext<'_>,
+    ctx: &ModuleQueryContext<'_>,
     _dir_tree: dir::View<'_>,
     reference_entries: &[ReferenceEntry],
     captured_symbols: &[CapturedSymbol],
@@ -806,8 +754,7 @@ fn inline_shadow_safe(
                 return false;
             };
             let resolved_global = dir::GlobalSymbolId::new(ctx.module_id(), resolved_local);
-            let resolved_canonical =
-                get_canonical_symbol(repository, ctx.revision(), resolved_global);
+            let resolved_canonical = ctx.canonical_symbol(resolved_global);
             if resolved_canonical != captured.canonical_id {
                 return false;
             }
@@ -902,7 +849,7 @@ fn declarator_value(
 
 /// Resolve declarator spans for a let statement.
 fn statement_declarator_spans(
-    ctx: &QueryContext<'_>,
+    ctx: &ModuleQueryContext<'_>,
     dir_tree: dir::View<'_>,
     statement_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<Vec<(dir::LocalNodeId<dir::Declarator>, Span)>> {
@@ -915,7 +862,7 @@ fn statement_declarator_spans(
 
     let mut spans = Vec::with_capacity(declarators.len());
     for declarator_id in declarators {
-        let span = span_for_dir_node(ctx.source(), dir_tree, (*declarator_id).into());
+        let span = span_for_dir_node(ctx.dir(), dir_tree, (*declarator_id).into());
         spans.push((*declarator_id, span));
     }
 
@@ -1047,7 +994,7 @@ fn expression_has_side_effects(
 }
 
 /// Detect whether a symbol is assigned within a scope.
-fn symbol_is_assigned(ctx: &QueryContext<'_>, symbol_id: dir::GlobalSymbolId) -> bool {
+fn symbol_is_assigned(ctx: &ModuleQueryContext<'_>, symbol_id: dir::GlobalSymbolId) -> bool {
     // scan for assignments to this symbol
     let dir_tree = ctx.dir().view();
     for (_expr_id, expr) in dir_tree.iter_nodes_of_type::<dir::Expression>() {
@@ -1066,7 +1013,7 @@ fn symbol_is_assigned(ctx: &QueryContext<'_>, symbol_id: dir::GlobalSymbolId) ->
 
 /// Return the target symbol for one direct expression assignment target.
 fn expression_target_symbol(
-    ctx: &QueryContext<'_>,
+    ctx: &ModuleQueryContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<dir::GlobalSymbolId> {
     expression_symbol_target(ctx.dir(), expression_id)
@@ -1074,7 +1021,7 @@ fn expression_target_symbol(
 
 /// Return the target symbol for one assign pattern when it is a simple reference.
 fn assign_pattern_target_symbol(
-    ctx: &QueryContext<'_>,
+    ctx: &ModuleQueryContext<'_>,
     assign_pattern_id: dir::LocalNodeId<dir::AssignPattern>,
 ) -> Option<dir::GlobalSymbolId> {
     let dir_tree = ctx.dir().view();
@@ -1089,10 +1036,8 @@ fn assign_pattern_target_symbol(
 
 /// Visitor that collects symbols captured by an inline value.
 struct CapturedSymbolVisitor<'a> {
-    /// The repository for symbol lookups.
-    repository: &'a Repository,
-    /// The revision for semantic lookups.
-    revision: Revision,
+    /// The query context for symbol lookups.
+    ctx: &'a ModuleQueryContext<'a>,
     /// The checked type table.
     types: &'a dir::TypeTable<'a>,
     /// The symbol table for the current module.
@@ -1112,8 +1057,7 @@ struct CapturedSymbolVisitor<'a> {
 impl<'a> CapturedSymbolVisitor<'a> {
     /// Create a visitor for captured symbols.
     fn new(
-        repository: &'a Repository,
-        revision: Revision,
+        ctx: &'a ModuleQueryContext<'a>,
         types: &'a dir::TypeTable<'a>,
         symbols: &'a dir::BindingTable<'a>,
         module_id: ModuleId,
@@ -1122,8 +1066,7 @@ impl<'a> CapturedSymbolVisitor<'a> {
         has_unknown: &'a mut bool,
     ) -> Self {
         Self {
-            repository,
-            revision,
+            ctx,
             types,
             symbols,
             module_id,
@@ -1156,7 +1099,7 @@ impl dir::NodeVisitor for CapturedSymbolVisitor<'_> {
         let target_symbol = self.types.symbol_resolution(node_id);
 
         if let Some(target_symbol) = target_symbol {
-            let canonical = get_canonical_symbol(self.repository, self.revision, target_symbol);
+            let canonical = self.ctx.canonical_symbol(target_symbol);
             if canonical != self.inline_symbol {
                 if target_symbol.module_id != self.module_id {
                     *self.has_unknown = true;

@@ -1,0 +1,59 @@
+use destack_core::StringId;
+use destack_dir as dir;
+use destack_qir::AnnotationEntry;
+
+use crate::core::{DirQueryContext, ModuleQueryContext};
+
+/// Build annotation index entries for one module.
+pub(crate) fn build_annotation_candidates_for_module(
+    ctx: &ModuleQueryContext<'_>,
+) -> Vec<AnnotationEntry> {
+    let dir = ctx.dir();
+    let view = dir.view();
+    let mut entries = Vec::new();
+
+    // collect visible decorators by annotated target
+    for (target_id, decorator_ids) in view.get_all_decorators() {
+        let target_id = dir::LocalNodeIdAny {
+            id: target_id,
+            ty: view.get_node_type(target_id),
+        };
+        let target_id = target_id.into_global(dir.module_id());
+
+        for decorator_id in decorator_ids {
+            let decorator = view.get(decorator_id);
+            let name =
+                decorator_name_id(dir, decorator).map(|name| dir.strings().get(name).to_string());
+            let decorator_id = decorator_id.into_global_any(dir.module_id());
+
+            entries.push(AnnotationEntry {
+                name,
+                module_id: dir.module_id(),
+                decorator_id,
+                target_id,
+            });
+        }
+    }
+
+    entries
+}
+
+/// Resolve the last segment of a decorator name when it is path-like.
+fn decorator_name_id(ctx: DirQueryContext<'_>, decorator: &dir::Decorator) -> Option<StringId> {
+    let mut expression_id = decorator.expression;
+    loop {
+        match ctx.tree().get(expression_id) {
+            dir::Expression::Parenthesized { expression } => {
+                expression_id = *expression;
+            }
+            dir::Expression::Call { left, .. } => {
+                expression_id = *left;
+            }
+            dir::Expression::QualifiedReference { path, .. } => {
+                return path.segments.last().copied();
+            }
+            dir::Expression::Identifier { name } => return Some(*name),
+            _ => return None,
+        }
+    }
+}

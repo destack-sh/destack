@@ -1,37 +1,32 @@
 use destack_dir as dir;
 use destack_dir::{GlobalSymbolId, SymbolForm};
-use destack_source::{FileId, NodeSpanType, Span, Uri};
-use destack_workspace::{Repository, Revision};
+use destack_source::{NodeSpanType, Span};
 use serde::{Deserialize, Serialize};
 
 use crate::core::{
-    NominalRelation, SourceQueryContext, modules_referencing_symbol, nominal_relations_for_target,
-    query_context, query_context_for_profile,
+    DirQueryContext, ModuleQueryContext, NominalRelation, QueryModule, WorkspaceQueryContext,
+    modules_referencing_symbol, nominal_relations_for_target,
 };
-use crate::dir::{
-    ReferenceCollectionOptions, collect_symbol_references_in_context, get_canonical_symbol,
-    resolve_symbol_name,
-};
-use crate::source::get_module_by_file_id;
+use crate::dir::{SymbolReferenceSearch, symbol_references};
 
 /// A code lens (inline annotation with optional command).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CodeLens {
     /// The range this lens applies to.
     pub range: Span,
-    /// The lens data.
-    pub data: CodeLensData,
+    /// The lens action.
+    pub action: CodeLensAction,
 }
 
-/// The data/command for a code lens.
+/// The action for a code lens.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum CodeLensData {
-    /// Show reference count: "N references"
+pub enum CodeLensAction {
+    /// Show reference count.
     References {
         /// Number of references (excluding declaration).
         count: usize,
     },
-    /// Show implementation count: "N implementations"
+    /// Show implementation count.
     Implementations {
         /// Number of implementations.
         count: usize,
@@ -60,8 +55,8 @@ pub enum CodeLensData {
 /// Request code lenses for a document.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CodeLensesRequest {
-    /// The document URI.
-    pub uri: Uri,
+    /// The queried module.
+    pub module: QueryModule,
 }
 
 /// Request to resolve a code lens.
@@ -90,7 +85,7 @@ impl CodeLens {
     pub fn references(range: Span, count: usize) -> Self {
         Self {
             range,
-            data: CodeLensData::References { count },
+            action: CodeLensAction::References { count },
         }
     }
 
@@ -98,7 +93,7 @@ impl CodeLens {
     pub fn implementations(range: Span, count: usize) -> Self {
         Self {
             range,
-            data: CodeLensData::Implementations { count },
+            action: CodeLensAction::Implementations { count },
         }
     }
 
@@ -106,7 +101,7 @@ impl CodeLens {
     pub fn run_test(range: Span, test_name: impl Into<String>) -> Self {
         Self {
             range,
-            data: CodeLensData::RunTest {
+            action: CodeLensAction::RunTest {
                 test_name: test_name.into(),
             },
         }
@@ -114,24 +109,24 @@ impl CodeLens {
 
     /// Get the display title for this lens.
     pub fn title(&self) -> String {
-        match &self.data {
-            CodeLensData::References { count } => {
+        match &self.action {
+            CodeLensAction::References { count } => {
                 if *count == 1 {
                     "1 reference".to_string()
                 } else {
                     format!("{count} references")
                 }
             }
-            CodeLensData::Implementations { count } => {
+            CodeLensAction::Implementations { count } => {
                 if *count == 1 {
                     "1 implementation".to_string()
                 } else {
                     format!("{count} implementations")
                 }
             }
-            CodeLensData::RunTest { test_name } => format!("▶ Run {test_name}"),
-            CodeLensData::DebugTest { test_name } => format!("🐛 Debug {test_name}"),
-            CodeLensData::Custom { title, .. } => title.clone(),
+            CodeLensAction::RunTest { test_name } => format!("▶ Run {test_name}"),
+            CodeLensAction::DebugTest { test_name } => format!("🐛 Debug {test_name}"),
+            CodeLensAction::Custom { title, .. } => title.clone(),
         }
     }
 }
@@ -140,39 +135,35 @@ impl CodeLens {
 ///
 /// Code lenses appear as inline annotations above functions, classes, etc.
 /// Common uses: reference counts, "Run Test" buttons, implementation counts.
-pub fn code_lenses(repository: &Repository, revision: Revision, file: FileId) -> Vec<CodeLens> {
-    let Some(module) = get_module_by_file_id(repository, revision, file) else {
-        return Vec::new();
-    };
-    let Some(ctx) = query_context(repository, revision, module.id) else {
-        return Vec::new();
-    };
-    let parsed = ctx.source();
-    let module_id = ctx.module_id();
+pub fn code_lenses(
+    ctx: &ModuleQueryContext<'_>,
+    workspace: &WorkspaceQueryContext<'_>,
+) -> Vec<CodeLens> {
+    let dir = ctx.dir();
+    let module_id = dir.module_id();
     let mut lenses = Vec::new();
 
     // collect declarations and their info
     let declarations: Vec<_> = {
-        let dir_tree = ctx.dir().view();
-        let symbols = ctx.dir().symbols();
+        let dir_tree = dir.view();
+        let symbols = dir.symbols();
 
         dir_tree
             .iter_nodes_of_type::<dir::Declaration>()
             .into_iter()
             .filter_map(
                 |(decl_id, decl): (dir::LocalNodeId<dir::Declaration>, &dir::Declaration)| {
-                    let symbol_id = ctx.dir().symbol_for_node(decl_id.into())?;
+                    let symbol_id = dir.symbol_for_node(decl_id.into())?;
                     let global_symbol_id = GlobalSymbolId {
                         module_id,
                         local_id: symbol_id,
                     };
                     let source_node_id = dir_tree.get_source(decl_id);
-                    let main_span = ctx
-                        .source()
+                    let main_span = dir
                         .tree()
                         .get_side_span_by_id(source_node_id, NodeSpanType::Main);
-                    let name = resolve_symbol_name(repository, revision, global_symbol_id);
-                    let is_test = has_decorator_named(parsed, source_node_id, "test");
+                    let name = dir.symbol_name(global_symbol_id);
+                    let is_test = has_decorator_named(dir, source_node_id, "test");
                     let symbol_form = symbols.get_symbol(symbol_id).form;
                     Some((
                         decl.clone(),
@@ -194,7 +185,7 @@ pub fn code_lenses(repository: &Repository, revision: Revision, file: FileId) ->
 
         // count references for functions/methods
         if matches!(declaration, dir::Declaration::Function { .. }) {
-            let ref_count = count_references(repository, revision, global_symbol_id);
+            let ref_count = count_references(ctx, workspace, global_symbol_id);
             if ref_count > 0 {
                 lenses.push(CodeLens::references(span, ref_count));
             }
@@ -209,7 +200,7 @@ pub fn code_lenses(repository: &Repository, revision: Revision, file: FileId) ->
 
         // count implementations for interfaces
         if symbol_form == SymbolForm::Interface {
-            let impl_count = count_implementations(repository, revision, global_symbol_id);
+            let impl_count = count_implementations(ctx, workspace, global_symbol_id);
             if impl_count > 0 {
                 lenses.push(CodeLens::implementations(span, impl_count));
             }
@@ -217,7 +208,7 @@ pub fn code_lenses(repository: &Repository, revision: Revision, file: FileId) ->
 
         // count subclasses for classes
         if symbol_form == SymbolForm::Class {
-            let subclass_count = count_subclasses(repository, revision, global_symbol_id);
+            let subclass_count = count_subclasses(ctx, workspace, global_symbol_id);
             if subclass_count > 0 {
                 lenses.push(CodeLens::implementations(span, subclass_count));
             }
@@ -239,37 +230,32 @@ fn code_lens_key(lens: &CodeLens) -> (u32, u32, u8, String) {
     (
         lens.range.start,
         lens.range.end,
-        code_lens_kind_rank(&lens.data),
+        code_lens_kind_rank(&lens.action),
         title,
     )
 }
 
 /// Rank code lens kinds for stable ordering.
-fn code_lens_kind_rank(data: &CodeLensData) -> u8 {
-    match data {
-        CodeLensData::References { .. } => 0,
-        CodeLensData::Implementations { .. } => 1,
-        CodeLensData::RunTest { .. } => 2,
-        CodeLensData::DebugTest { .. } => 3,
-        CodeLensData::Custom { .. } => 4,
+fn code_lens_kind_rank(action: &CodeLensAction) -> u8 {
+    match action {
+        CodeLensAction::References { .. } => 0,
+        CodeLensAction::Implementations { .. } => 1,
+        CodeLensAction::RunTest { .. } => 2,
+        CodeLensAction::DebugTest { .. } => 3,
+        CodeLensAction::Custom { .. } => 4,
     }
 }
 
 /// Count references to a symbol across all modules.
 fn count_references(
-    repository: &Repository,
-    revision: Revision,
+    ctx: &ModuleQueryContext<'_>,
+    workspace: &WorkspaceQueryContext<'_>,
     symbol_id: GlobalSymbolId,
 ) -> usize {
-    let canonical_id = get_canonical_symbol(repository, revision, symbol_id);
-    let Some(profile_id) =
-        query_context(repository, revision, symbol_id.module_id).map(|ctx| ctx.profile_id())
-    else {
-        return 0;
-    };
-    let reference_name = resolve_symbol_name(repository, revision, canonical_id);
+    let canonical_id = ctx.canonical_symbol(symbol_id);
+    let reference_name = ctx.symbol_name(canonical_id);
 
-    let reference_options = ReferenceCollectionOptions {
+    let reference_search = SymbolReferenceSearch {
         include_expressions: true,
         include_members: true,
         include_dependencies: true,
@@ -278,23 +264,16 @@ fn count_references(
         use_dependency_name_spans: true,
         target_name: reference_name.as_deref(),
         require_target_name_match: false,
-        limit_to_file: None,
+        limit_file: None,
     };
 
     let mut count = 0;
-    for module_id in modules_referencing_symbol(repository, revision, profile_id, canonical_id) {
-        let Some(ctx) = query_context_for_profile(repository, revision, module_id, profile_id)
-        else {
+    for module_id in modules_referencing_symbol(workspace, canonical_id) {
+        let Some(module_ctx) = ctx.module_context(module_id) else {
             continue;
         };
 
-        let spans = collect_symbol_references_in_context(
-            repository,
-            ctx.source(),
-            ctx.dir(),
-            canonical_id,
-            reference_options,
-        );
+        let spans = symbol_references(module_ctx.dir(), canonical_id, reference_search);
         count += spans.len();
     }
 
@@ -303,18 +282,13 @@ fn count_references(
 
 /// Count implementations of an interface across all modules.
 fn count_implementations(
-    repository: &Repository,
-    revision: Revision,
+    ctx: &ModuleQueryContext<'_>,
+    workspace: &WorkspaceQueryContext<'_>,
     symbol_id: GlobalSymbolId,
 ) -> usize {
-    let canonical_id = get_canonical_symbol(repository, revision, symbol_id);
-    let Some(profile_id) =
-        query_context(repository, revision, symbol_id.module_id).map(|ctx| ctx.profile_id())
-    else {
-        return 0;
-    };
+    let canonical_id = ctx.canonical_symbol(symbol_id);
 
-    nominal_relations_for_target(repository, revision, profile_id, canonical_id)
+    nominal_relations_for_target(workspace, canonical_id)
         .into_iter()
         .filter(|entry| entry.relation == NominalRelation::Implements)
         .count()
@@ -322,33 +296,28 @@ fn count_implementations(
 
 /// Count subclasses of a class across all modules.
 fn count_subclasses(
-    repository: &Repository,
-    revision: Revision,
+    ctx: &ModuleQueryContext<'_>,
+    workspace: &WorkspaceQueryContext<'_>,
     symbol_id: GlobalSymbolId,
 ) -> usize {
-    let canonical_id = get_canonical_symbol(repository, revision, symbol_id);
-    let Some(profile_id) =
-        query_context(repository, revision, symbol_id.module_id).map(|ctx| ctx.profile_id())
-    else {
-        return 0;
-    };
+    let canonical_id = ctx.canonical_symbol(symbol_id);
 
-    nominal_relations_for_target(repository, revision, profile_id, canonical_id)
+    nominal_relations_for_target(workspace, canonical_id)
         .into_iter()
         .filter(|entry| entry.relation == NominalRelation::Extends)
         .count()
 }
 
 /// Check whether a node has a decorator with the given name.
-fn has_decorator_named(parsed: SourceQueryContext<'_>, node_id: u32, name: &str) -> bool {
+fn has_decorator_named(ctx: DirQueryContext<'_>, node_id: u32, name: &str) -> bool {
     // scan annotations attached to the node
-    if decorator_on_node(parsed, node_id, name) {
+    if decorator_on_node(ctx, node_id, name) {
         return true;
     }
 
-    // fall back to enclosing nodes for annotations attached higher up
-    let span = parsed.source_map().get_main_or_enclosing(node_id);
-    let mut enclosing = parsed
+    // use enclosing nodes for annotations attached higher up
+    let span = ctx.source_map().get_main_or_enclosing(node_id);
+    let mut enclosing = ctx
         .source_map()
         .get_enclosing_spans(span.start, span.end.saturating_sub(1));
     enclosing.sort_by_key(|entry| entry.length);
@@ -357,7 +326,7 @@ fn has_decorator_named(parsed: SourceQueryContext<'_>, node_id: u32, name: &str)
         if entry.idx == node_id {
             continue;
         }
-        if decorator_on_node(parsed, entry.idx, name) {
+        if decorator_on_node(ctx, entry.idx, name) {
             return true;
         }
     }
@@ -366,15 +335,15 @@ fn has_decorator_named(parsed: SourceQueryContext<'_>, node_id: u32, name: &str)
 }
 
 /// Check whether a decorator is attached directly to a node.
-fn decorator_on_node(parsed: SourceQueryContext<'_>, node_id: u32, name: &str) -> bool {
+fn decorator_on_node(ctx: DirQueryContext<'_>, node_id: u32, name: &str) -> bool {
     // scan decorators attached to the node
-    let decorators = parsed.tree().get_decorators(node_id);
+    let decorators = ctx.tree().get_decorators(node_id);
     for decorator_id in decorators {
-        let decorator = parsed.tree().get::<dir::Decorator>(decorator_id);
-        let Some(decorator_name_id) = decorator_name_id(parsed, decorator) else {
+        let decorator = ctx.tree().get::<dir::Decorator>(decorator_id);
+        let Some(decorator_name_id) = decorator_name_id(ctx, decorator) else {
             continue;
         };
-        let decorator_name = parsed.strings().get(decorator_name_id);
+        let decorator_name = ctx.strings().get(decorator_name_id);
         if decorator_name == name {
             return true;
         }
@@ -385,12 +354,12 @@ fn decorator_on_node(parsed: SourceQueryContext<'_>, node_id: u32, name: &str) -
 
 /// Resolve the last segment of a decorator name when it is path-like.
 fn decorator_name_id(
-    parsed: SourceQueryContext<'_>,
+    ctx: DirQueryContext<'_>,
     decorator: &dir::Decorator,
 ) -> Option<destack_core::StringId> {
     let mut expression_id = decorator.expression;
     loop {
-        match parsed.tree().get(expression_id) {
+        match ctx.tree().get(expression_id) {
             dir::Expression::Parenthesized { expression } => {
                 expression_id = *expression;
             }

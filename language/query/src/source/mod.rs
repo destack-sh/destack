@@ -5,7 +5,7 @@ mod slot;
 mod span;
 mod statement;
 
-pub(crate) use crate::core::SourceQueryContext;
+pub(crate) use crate::core::DirQueryContext;
 pub(crate) use cursor::*;
 pub(crate) use identifier::*;
 pub(crate) use lexical::*;

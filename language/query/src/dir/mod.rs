@@ -1,3 +1,4 @@
+mod annotation;
 mod call;
 mod container;
 mod declaration;
@@ -18,6 +19,7 @@ mod scope;
 mod symbol;
 mod visible;
 
+pub(crate) use annotation::*;
 pub(crate) use call::*;
 pub(crate) use container::*;
 pub(crate) use declaration::*;
@@ -35,6 +37,5 @@ pub(crate) use object::*;
 pub(crate) use parameters::*;
 pub(crate) use references::*;
 pub(crate) use scope::*;
-pub use symbol::resolve_global_symbol_id;
 pub(crate) use symbol::*;
 pub(crate) use visible::*;

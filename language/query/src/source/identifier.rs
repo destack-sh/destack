@@ -1,9 +1,7 @@
 use destack_dir as dir;
 use destack_dir::TokenType;
-use destack_source::FileId;
-use destack_workspace::{Repository, Revision};
 
-use crate::core::{SourceQueryContext, with_source_query_for_file};
+use crate::core::{DirQueryContext, ModuleQueryContext};
 
 /// Check whether a character can start an identifier.
 pub(crate) fn is_identifier_start(ch: char) -> bool {
@@ -16,17 +14,12 @@ pub(crate) fn is_identifier_continue(ch: char) -> bool {
 }
 
 /// Extract the identifier token at a given offset.
-pub(crate) fn token_at_offset(
-    repository: &Repository,
-    revision: Revision,
-    file_id: FileId,
-    offset: u32,
-) -> Option<String> {
+pub(crate) fn token_at_offset(ctx: &ModuleQueryContext<'_>, offset: u32) -> Option<String> {
     // resolve the token text at the cursor
-    let token_text = token_text_at_offset(repository, revision, file_id, offset)?;
+    let token_text = token_text_at_offset(ctx, offset)?;
 
     // ensure the token is an identifier
-    let token = token_span_at_offset(repository, revision, file_id, offset)?;
+    let token = token_span_at_offset(ctx.dir(), offset)?;
     if token.token.ty != TokenType::Identifier {
         return None;
     }
@@ -35,16 +28,16 @@ pub(crate) fn token_at_offset(
 }
 
 /// Extract the non-trivia token text at a given offset.
-pub(crate) fn token_text_at_offset(
-    repository: &Repository,
-    revision: Revision,
-    file_id: FileId,
-    offset: u32,
-) -> Option<String> {
+pub(crate) fn token_text_at_offset(ctx: &ModuleQueryContext<'_>, offset: u32) -> Option<String> {
     // find the token at the cursor
-    let token = token_span_at_offset(repository, revision, file_id, offset)?;
+    let token = token_span_at_offset(ctx.dir(), offset)?;
+
     // read the source content
-    let file = repository.file(revision, file_id).ok().flatten()?;
+    let file = ctx
+        .repository()
+        .file(ctx.revision(), ctx.file_id())
+        .ok()
+        .flatten()?;
     let content = file.text();
     if content.is_empty() {
         return None;
@@ -59,27 +52,15 @@ pub(crate) fn token_text_at_offset(
 
 /// Find the non-trivia token span that contains the offset.
 pub(crate) fn token_span_at_offset(
-    repository: &Repository,
-    revision: Revision,
-    file_id: FileId,
-    offset: u32,
-) -> Option<dir::TokenSpan> {
-    with_source_query_for_file(repository, revision, file_id, |parsed| {
-        token_span_at_offset_in_source(parsed, offset)
-    })?
-}
-
-/// Find the token span that contains the offset.
-fn token_span_at_offset_in_source(
-    parsed: SourceQueryContext<'_>,
+    ctx: DirQueryContext<'_>,
     offset: u32,
 ) -> Option<dir::TokenSpan> {
     // track the last token starting before the offset
     let mut candidate = None;
 
     // walk tokens in order to find the containing span
-    for token in parsed.tokens() {
-        if token.span.file != parsed.file_id() {
+    for token in ctx.tokens() {
+        if token.span.file != ctx.file_id() {
             continue;
         }
 

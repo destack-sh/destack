@@ -1,10 +1,9 @@
+use crate::core::QueryModule;
 use destack_dir as dir;
 use destack_dir::{Declaration, TokenType};
-use destack_source::{FileId, Uri};
-use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 
-use crate::core::{with_query_context_for_file, with_source_query_for_file};
+use crate::core::ModuleQueryContext;
 
 /// Kind of folding range.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -63,8 +62,8 @@ impl FoldingRange {
 /// Request folding ranges for a document.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FoldingRangesRequest {
-    /// The document URI.
-    pub uri: Uri,
+    /// The queried module.
+    pub module: QueryModule,
 }
 
 /// Response payload for folding ranges queries.
@@ -75,155 +74,58 @@ pub struct FoldingRangesResponse {
 }
 
 /// Get folding ranges for a file.
-///
-/// Returns foldable regions for:
-/// - Function bodies
-/// - Class/struct/interface/enum bodies
-/// - Namespace blocks
-pub fn folding_ranges(
-    repository: &Repository,
-    revision: Revision,
-    file: FileId,
-) -> Vec<FoldingRange> {
-    // prefer using dir aware ranges when available
-    if let Some(ranges) = folding_ranges_with_dir(repository, revision, file) {
-        return ranges;
+pub fn folding_ranges(ctx: &ModuleQueryContext<'_>) -> Vec<FoldingRange> {
+    let Some(source_file) = ctx
+        .repository()
+        .file(ctx.revision(), ctx.file_id())
+        .ok()
+        .flatten()
+    else {
+        return Vec::new();
+    };
+    let dir_tree = ctx.dir().view();
+    let mut ranges = Vec::new();
+
+    // collect declaration body ranges
+    for (declaration_id, declaration) in dir_tree.iter_nodes_of_type::<Declaration>() {
+        let should_fold = matches!(
+            declaration,
+            Declaration::Function { .. }
+                | Declaration::Class { .. }
+                | Declaration::Struct { .. }
+                | Declaration::Interface { .. }
+                | Declaration::Enum { .. }
+                | Declaration::Global { .. }
+                | Declaration::Extension { .. }
+        );
+        if !should_fold {
+            continue;
+        }
+
+        let source_node_id = dir_tree.get_source(declaration_id);
+        let span = ctx.dir().tree().source_map.get(source_node_id);
+        let Some((start_line, _)) = source_file.get_position(span.start) else {
+            continue;
+        };
+        let Some((end_line, _)) = source_file.get_position(span.end) else {
+            continue;
+        };
+
+        if end_line > start_line {
+            ranges.push(FoldingRange::new(start_line, end_line));
+        }
     }
 
-    // fall back to parsed only folding ranges
-    folding_ranges_with_parsed(repository, revision, file)
-}
+    // collect comment block ranges
+    add_comment_folding_ranges(&mut ranges, ctx.dir().side_tokens(), &source_file);
 
-/// Build folding ranges using the DIR context when available.
-fn folding_ranges_with_dir(
-    repository: &Repository,
-    revision: Revision,
-    file: FileId,
-) -> Option<Vec<FoldingRange>> {
-    with_query_context_for_file(repository, revision, file, |ctx| {
-        // resolve the source file and dir tree
-        let Some(source_file) = repository.file(revision, ctx.file_id()).ok().flatten() else {
-            return Vec::new();
-        };
-        let dir_tree = ctx.dir().view();
+    // order and deduplicate ranges
+    ranges.sort_by_key(|range| (range.start_line, range.end_line));
+    ranges.dedup_by(|left, right| {
+        left.start_line == right.start_line && left.end_line == right.end_line
+    });
 
-        // collect folding ranges from declarations
-        let mut ranges = Vec::new();
-
-        // iterate through all declarations and create folding ranges
-        for (decl_id, declaration) in dir_tree.iter_nodes_of_type::<Declaration>() {
-            // only fold declarations with foldable bodies
-            let should_fold = matches!(
-                declaration,
-                Declaration::Function { .. }
-                    | Declaration::Class { .. }
-                    | Declaration::Struct { .. }
-                    | Declaration::Interface { .. }
-                    | Declaration::Enum { .. }
-                    | Declaration::Global { .. }
-                    | Declaration::Extension { .. }
-            );
-            if !should_fold {
-                continue;
-            }
-
-            // resolve the declaration span
-            let source_node_id = dir_tree.get_source(decl_id);
-            let span = ctx.source().tree().source_map.get(source_node_id);
-
-            // convert the span to line numbers
-            let Some((start_line, _)) = source_file.get_position(span.start) else {
-                continue;
-            };
-            let Some((end_line, _)) = source_file.get_position(span.end) else {
-                continue;
-            };
-
-            // skip single line declarations
-            if end_line > start_line {
-                ranges.push(FoldingRange::new(start_line, end_line));
-            }
-        }
-
-        // collect folding ranges for comment blocks
-        add_comment_folding_ranges(&mut ranges, ctx.source().side_tokens(), &source_file);
-
-        // sort ranges by start and end line
-        ranges.sort_by_key(|range| (range.start_line, range.end_line));
-
-        // drop duplicate folding ranges
-        ranges.dedup_by(|left, right| {
-            left.start_line == right.start_line && left.end_line == right.end_line
-        });
-        ranges
-    })
-}
-
-/// Build folding ranges from the source DIR when DIR is unavailable.
-fn folding_ranges_with_parsed(
-    repository: &Repository,
-    revision: Revision,
-    file: FileId,
-) -> Vec<FoldingRange> {
-    with_source_query_for_file(repository, revision, file, |parsed| {
-        // resolve the source file
-        let Some(source_file) = repository.file(revision, file).ok().flatten() else {
-            return Vec::new();
-        };
-
-        // collect folding ranges from declarations
-        let mut ranges = Vec::new();
-
-        // iterate through all declarations and create folding ranges
-        for declaration_id in parsed.tree().iter_nodes::<dir::Declaration>() {
-            let declaration = parsed.tree().get(declaration_id);
-
-            // only fold declarations with foldable bodies
-            let should_fold = matches!(
-                declaration,
-                dir::Declaration::Function { .. }
-                    | dir::Declaration::Class { .. }
-                    | dir::Declaration::Struct { .. }
-                    | dir::Declaration::Interface { .. }
-                    | dir::Declaration::Enum { .. }
-                    | dir::Declaration::Global { .. }
-                    | dir::Declaration::Extension { .. }
-            );
-            if !should_fold {
-                continue;
-            }
-
-            // resolve the declaration span
-            let span = parsed.source_map().get(declaration_id.id);
-
-            // convert the span to line numbers
-            let Some((start_line, _)) = source_file.get_position(span.start) else {
-                continue;
-            };
-            let Some((end_line, _)) = source_file.get_position(span.end) else {
-                continue;
-            };
-
-            // skip single line declarations
-            if end_line > start_line {
-                ranges.push(FoldingRange::new(start_line, end_line));
-            }
-        }
-
-        // collect folding ranges for comment blocks
-        add_comment_folding_ranges(&mut ranges, parsed.side_tokens(), &source_file);
-
-        // sort ranges by start and end line
-        ranges.sort_by_key(|range| (range.start_line, range.end_line));
-
-        // drop duplicate folding ranges
-        ranges.dedup_by(|left, right| {
-            left.start_line == right.start_line && left.end_line == right.end_line
-        });
-
-        ranges
-    })
-    .unwrap_or_default()
+    ranges
 }
 
 /// Add comment folding ranges for the given token stream.

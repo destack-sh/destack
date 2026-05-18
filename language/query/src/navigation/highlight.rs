@@ -1,11 +1,9 @@
-use destack_source::{FileId, Span, Uri};
-use destack_workspace::{Repository, Revision};
+use destack_source::Span;
 use serde::{Deserialize, Serialize};
 
-use crate::core::with_query_context_for_file;
+use crate::core::{ModuleQueryContext, QueryPosition};
 use crate::dir::{
-    ReferenceCollectionOptions, collect_symbol_references_in_context, find_symbol_at_offset,
-    get_canonical_symbol, get_symbol_definition_span,
+    SymbolReferenceSearch, find_symbol_at_offset, symbol_definition_span, symbol_references,
 };
 use crate::source::sort_and_dedup_spans;
 
@@ -59,10 +57,8 @@ impl DocumentHighlight {
 /// Request highlights at a cursor position.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DocumentHighlightRequest {
-    /// The document URI.
-    pub uri: Uri,
-    /// The byte offset in the document.
-    pub offset: u32,
+    /// The queried position.
+    pub position: QueryPosition,
 }
 
 /// Response payload for document highlight queries.
@@ -75,60 +71,39 @@ pub struct DocumentHighlightResponse {
 /// Highlight all occurrences of the symbol at the given position in the document.
 ///
 /// Only highlights within the same file (for cross file, use find_references).
-pub fn document_highlights(
-    repository: &Repository,
-    revision: Revision,
-    file: FileId,
-    offset: u32,
-) -> Vec<DocumentHighlight> {
-    // find the symbol at offset
-    let Some(symbol_at) = find_symbol_at_offset(repository, revision, file, offset) else {
+pub fn document_highlights(ctx: &ModuleQueryContext<'_>, offset: u32) -> Vec<DocumentHighlight> {
+    let Some(symbol_at) = find_symbol_at_offset(ctx, offset) else {
         return Vec::new();
     };
 
-    // get canonical symbol and resolve imports
-    let canonical_id = get_canonical_symbol(repository, revision, symbol_at.symbol_id);
+    let canonical_id = ctx.canonical_symbol(symbol_at.symbol_id);
+    let mut highlights = Vec::new();
 
-    with_query_context_for_file(repository, revision, file, |ctx| {
-        // initialize highlight collection
-        let mut highlights = Vec::new();
+    // add definition highlight when it belongs to this file
+    if let Some(definition_span) = symbol_definition_span(ctx, canonical_id)
+        && definition_span.file == ctx.file_id()
+    {
+        highlights.push(DocumentHighlight::write(definition_span));
+    }
 
-        // check if the definition is in this file, add as write highlight
-        if let Some(definition_span) =
-            get_symbol_definition_span(repository, revision, canonical_id)
-            && definition_span.file == ctx.file_id()
-        {
-            highlights.push(DocumentHighlight::write(definition_span));
-        }
+    // collect reference highlights inside the current file
+    let reference_search = SymbolReferenceSearch {
+        include_expressions: true,
+        include_members: true,
+        include_dependencies: true,
+        include_namespace_receivers: false,
+        skip_dependency_aliases: false,
+        use_dependency_name_spans: true,
+        target_name: None,
+        require_target_name_match: false,
+        limit_file: Some(ctx.file_id()),
+    };
+    let mut reference_spans = symbol_references(ctx.dir(), canonical_id, reference_search);
+    sort_and_dedup_spans(&mut reference_spans);
 
-        // collect reference spans within the current file
-        let reference_options = ReferenceCollectionOptions {
-            include_expressions: true,
-            include_members: true,
-            include_dependencies: true,
-            include_namespace_receivers: false,
-            skip_dependency_aliases: false,
-            use_dependency_name_spans: true,
-            target_name: None,
-            require_target_name_match: false,
-            limit_to_file: Some(ctx.file_id()),
-        };
+    for span in reference_spans {
+        highlights.push(DocumentHighlight::read(span));
+    }
 
-        let mut reference_spans = collect_symbol_references_in_context(
-            repository,
-            ctx.source(),
-            ctx.dir(),
-            canonical_id,
-            reference_options,
-        );
-        sort_and_dedup_spans(&mut reference_spans);
-
-        // convert reference spans into read highlights
-        for span in reference_spans {
-            highlights.push(DocumentHighlight::read(span));
-        }
-
-        highlights
-    })
-    .unwrap_or_default()
+    highlights
 }

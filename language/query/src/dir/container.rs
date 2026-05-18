@@ -1,19 +1,17 @@
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_dir::{GlobalSymbolId, LocalNodeIdAny, NodeType};
-use destack_workspace::{Repository, Revision};
 
-use crate::core::query_context;
+use crate::core::ModuleQueryContext;
 use crate::dir::declaration_name;
 
 /// Resolve the container name for a symbol when it belongs to a type scope.
 pub(crate) fn container_name_for_symbol(
-    repository: &Repository,
-    revision: Revision,
+    ctx: &ModuleQueryContext<'_>,
     symbol_id: GlobalSymbolId,
 ) -> Option<String> {
     // read the module query context
-    let ctx = query_context(repository, revision, symbol_id.module_id)?;
+    let ctx = ctx.module_context(symbol_id.module_id)?;
 
     // read the symbol scope owner
     let symbols = ctx.dir().symbols();

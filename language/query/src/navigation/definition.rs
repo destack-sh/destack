@@ -1,160 +1,162 @@
 use destack_dir as dir;
-use destack_source::{FileId, NodeSpanRegion, NodeSpanType, Span, Uri};
-use destack_workspace::{Repository, Revision};
+use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 use serde::{Deserialize, Serialize};
 
-use crate::core::{QueryContext, query_context};
+use crate::core::{ModuleQueryContext, QueryPosition, QueryTarget};
 use crate::dir::{
     SymbolAtOffset, binding_symbol_at_offset, dependency_symbol_target, find_symbol_at_offset,
-    get_canonical_symbol, get_symbol_definition_span, get_symbol_local_definition_span,
-    semantic_target_symbol_at_offset, type_definition_span_for_symbol,
+    semantic_target_symbol_at_offset, symbol_definition_span, symbol_local_definition_span,
+    type_definition_span,
 };
-use crate::source::{get_module_by_file_id, get_node_tree_main_span};
+use crate::source::get_node_tree_main_span;
 use destack_dir::{DependencyItem, Expression, GlobalNodeIdAny, NodeType, Resolution};
-/// Result of a goto definition query.
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
-pub struct DefinitionResult {
-    /// The definition location(s).
-    /// Multiple locations for overloaded symbols or partial definitions.
-    pub locations: Vec<Span>,
+
+/// Relationship between a navigation origin and target.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum NavigationRelation {
+    /// Declaration target.
+    Declaration,
+    /// Definition target.
+    Definition,
+    /// Type definition target.
+    TypeDefinition,
+    /// Implementation target.
+    Implementation,
 }
 
-impl DefinitionResult {
-    /// Create an empty result.
-    pub fn empty() -> Self {
-        Self {
-            locations: Vec::new(),
-        }
+/// One navigation target.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct NavigationTarget {
+    /// The target location and resolved identity.
+    pub target: QueryTarget,
+    /// The relationship to the query origin.
+    pub relation: NavigationRelation,
+}
+
+impl NavigationTarget {
+    /// Create a navigation target from a source span.
+    pub fn span(ctx: &ModuleQueryContext<'_>, span: Span, relation: NavigationRelation) -> Self {
+        let module = ctx.query_module();
+        let target = QueryTarget::span(module, span);
+        Self { target, relation }
     }
 
-    /// Create a result with a single span.
-    pub fn single(span: Span) -> Self {
-        Self {
-            locations: vec![span],
-        }
-    }
+    /// Return this navigation target with a symbol id.
+    pub fn with_symbol(mut self, symbol_id: dir::GlobalSymbolId) -> Self {
+        self.target = self.target.with_symbol(symbol_id);
 
-    /// Whether any definitions were found.
-    pub fn is_empty(&self) -> bool {
-        self.locations.is_empty()
+        self
     }
 }
 
 /// Request goto definition at a cursor position.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GotoDefinitionRequest {
-    /// The document URI.
-    pub uri: Uri,
-    /// The byte offset in the document.
-    pub offset: u32,
+    /// The queried position.
+    pub position: QueryPosition,
 }
 
 /// Response payload for goto definition queries.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GotoDefinitionResponse {
-    /// Definition locations, if any.
-    pub result: Option<DefinitionResult>,
+    /// Definition targets.
+    pub targets: Vec<NavigationTarget>,
 }
 
 /// Request goto declaration at a cursor position.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GotoDeclarationRequest {
-    /// The document URI.
-    pub uri: Uri,
-    /// The byte offset in the document.
-    pub offset: u32,
+    /// The queried position.
+    pub position: QueryPosition,
 }
 
 /// Response payload for goto declaration queries.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GotoDeclarationResponse {
-    /// Declaration locations, if any.
-    pub result: Option<DefinitionResult>,
+    /// Declaration targets.
+    pub targets: Vec<NavigationTarget>,
 }
 
 /// Request goto type definition at a cursor position.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GotoTypeDefinitionRequest {
-    /// The document URI.
-    pub uri: Uri,
-    /// The byte offset in the document.
-    pub offset: u32,
+    /// The queried position.
+    pub position: QueryPosition,
 }
 
 /// Response payload for goto type definition queries.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GotoTypeDefinitionResponse {
-    /// Type definition locations, if any.
-    pub result: Option<DefinitionResult>,
+    /// Type definition targets.
+    pub targets: Vec<NavigationTarget>,
 }
 
 /// Find the definition of the symbol at the given position.
 ///
 /// Returns the location(s) where the symbol is defined.
 /// For imports, follows to the original definition.
-pub fn goto_definition(
-    repository: &Repository,
-    revision: Revision,
-    file: FileId,
-    offset: u32,
-) -> Option<DefinitionResult> {
+pub fn goto_definition(ctx: &ModuleQueryContext<'_>, offset: u32) -> Vec<NavigationTarget> {
     // resolve import-specifier definitions before generic symbol lookup
-    if let Some(span) = resolve_import_definition_at_offset(repository, revision, file, offset) {
-        return Some(DefinitionResult::single(span));
+    if let Some(span) = resolve_import_definition_at_offset(ctx, offset) {
+        return vec![NavigationTarget::span(
+            ctx,
+            span,
+            NavigationRelation::Definition,
+        )];
     }
 
     // find the symbol at the offset
-    let symbol_at = find_symbol_at_offset(repository, revision, file, offset)?;
+    let Some(symbol_at) = find_symbol_at_offset(ctx, offset) else {
+        return Vec::new();
+    };
 
     // prefer overload declaration spans when call resolution selected a concrete signature
-    if let Some(span) =
-        overload_definition_span_for_call_site(repository, revision, file, &symbol_at)
-    {
-        return Some(DefinitionResult::single(span));
+    if let Some(span) = overload_definition_span_for_call_site(ctx, &symbol_at) {
+        return vec![NavigationTarget::span(
+            ctx,
+            span,
+            NavigationRelation::Definition,
+        )];
     }
 
     // get the definition span
     let symbol_id =
-        semantic_target_symbol_at_offset(repository, revision, file, offset, &symbol_at)
-            .unwrap_or(symbol_at.symbol_id);
-    let span = get_symbol_definition_span(repository, revision, symbol_id)?;
+        semantic_target_symbol_at_offset(ctx, offset, &symbol_at).unwrap_or(symbol_at.symbol_id);
+    let Some(ctx) = ctx.module_context(symbol_id.module_id) else {
+        return Vec::new();
+    };
+    let Some(span) = symbol_definition_span(&ctx, symbol_id) else {
+        return Vec::new();
+    };
 
-    Some(DefinitionResult::single(span))
+    vec![NavigationTarget::span(&ctx, span, NavigationRelation::Definition).with_symbol(symbol_id)]
 }
 
 /// Resolve a definition span when the cursor is on an import dependency item.
-fn resolve_import_definition_at_offset(
-    repository: &Repository,
-    revision: Revision,
-    file: FileId,
-    offset: u32,
-) -> Option<Span> {
-    // resolve the module and query context for this file
-    let module = get_module_by_file_id(repository, revision, file)?;
-    let ctx = query_context(repository, revision, module.id)?;
-    let parsed = ctx.source();
-    let dir_tree = ctx.dir().view();
+fn resolve_import_definition_at_offset(ctx: &ModuleQueryContext<'_>, offset: u32) -> Option<Span> {
+    let dir = ctx.dir();
+    let dir_tree = dir.view();
 
     // scan dependency items and select the one at the cursor
     for item_id in dir_tree.iter_node_ids_of_type::<DependencyItem>() {
         // resolve the main declaration span for coarse overlap checks
-        let fallback_span = get_node_tree_main_span(ctx.source(), ctx.dir().view(), item_id.into());
+        let item_span = get_node_tree_main_span(dir, dir.view(), item_id.into());
 
         // skip items that do not cover the cursor
-        if !fallback_span.contains(offset) {
+        if !item_span.contains(offset) {
             continue;
         }
 
         // resolve side spans for imported-name and alias positions
         let source_id = dir_tree.get_source(item_id);
-        let imported_name_span = parsed
+        let imported_name_span = dir
             .tree()
             .get_side_span_by_id(source_id, NodeSpanType::Region(NodeSpanRegion::Type))
-            .map(|span| Span::new(ctx.file_id(), span.start, span.end));
-        let local_alias_span = parsed
+            .map(|span| Span::new(dir.file_id(), span.start, span.end));
+        let local_alias_span = dir
             .tree()
             .get_side_span_by_id(source_id, NodeSpanType::Main)
-            .map(|span| Span::new(ctx.file_id(), span.start, span.end));
+            .map(|span| Span::new(dir.file_id(), span.start, span.end));
 
         // only resolve definition targets from the imported name or local alias
         let is_symbol_span = imported_name_span.is_some_and(|span| span.contains(offset))
@@ -163,9 +165,9 @@ fn resolve_import_definition_at_offset(
             continue;
         }
 
-        let target_symbol = dependency_symbol_target(ctx.dir(), item_id)?;
+        let target_symbol = dependency_symbol_target(dir, item_id)?;
 
-        return get_symbol_definition_span(repository, revision, target_symbol);
+        return symbol_definition_span(ctx, target_symbol);
     }
 
     None
@@ -175,49 +177,54 @@ fn resolve_import_definition_at_offset(
 ///
 /// For imports, returns the import statement location.
 /// For locals, same as goto_definition.
-pub fn goto_declaration(
-    repository: &Repository,
-    revision: Revision,
-    file: FileId,
-    offset: u32,
-) -> Option<DefinitionResult> {
+pub fn goto_declaration(ctx: &ModuleQueryContext<'_>, offset: u32) -> Vec<NavigationTarget> {
     // find the symbol at offset
-    let symbol_at = find_symbol_at_offset(repository, revision, file, offset)?;
-    let symbol_id = binding_symbol_at_offset(repository, revision, file, offset, &symbol_at)
-        .unwrap_or(symbol_at.symbol_id);
+    let Some(symbol_at) = find_symbol_at_offset(ctx, offset) else {
+        return Vec::new();
+    };
+    let symbol_id =
+        binding_symbol_at_offset(ctx, offset, &symbol_at).unwrap_or(symbol_at.symbol_id);
 
     // get the declaration span
-    let span = get_symbol_local_definition_span(repository, revision, symbol_id)?;
+    let Some(ctx) = ctx.module_context(symbol_id.module_id) else {
+        return Vec::new();
+    };
+    let Some(span) = symbol_local_definition_span(&ctx, symbol_id) else {
+        return Vec::new();
+    };
 
-    Some(DefinitionResult::single(span))
+    vec![NavigationTarget::span(&ctx, span, NavigationRelation::Declaration).with_symbol(symbol_id)]
 }
 
 /// Find the type definition of the symbol at the given position.
 ///
 /// For a variable, returns the location of its type's definition.
 /// For a type, returns the type itself.
-pub fn goto_type_definition(
-    repository: &Repository,
-    revision: Revision,
-    file: FileId,
-    offset: u32,
-) -> Option<DefinitionResult> {
+pub fn goto_type_definition(ctx: &ModuleQueryContext<'_>, offset: u32) -> Vec<NavigationTarget> {
     // find the symbol at the offset
-    let symbol_at = find_symbol_at_offset(repository, revision, file, offset)?;
-    let symbol_id = binding_symbol_at_offset(repository, revision, file, offset, &symbol_at)
-        .unwrap_or(symbol_at.symbol_id);
+    let Some(symbol_at) = find_symbol_at_offset(ctx, offset) else {
+        return Vec::new();
+    };
+    let symbol_id =
+        binding_symbol_at_offset(ctx, offset, &symbol_at).unwrap_or(symbol_at.symbol_id);
 
     // use the canonical symbol when it resolves to a type
-    let canonical_id = get_canonical_symbol(repository, revision, symbol_id);
-    if let Some(span) = type_definition_span_for_symbol(repository, revision, canonical_id) {
-        return Some(DefinitionResult::single(span));
+    let Some(ctx) = ctx.module_context(symbol_id.module_id) else {
+        return Vec::new();
+    };
+    let canonical_id = ctx.canonical_symbol(symbol_id);
+    if let Some(span) = type_definition_span(&ctx, canonical_id) {
+        return vec![
+            NavigationTarget::span(&ctx, span, NavigationRelation::TypeDefinition)
+                .with_symbol(canonical_id),
+        ];
     }
 
-    // get the module to access type table
-    let ctx = query_context(repository, revision, symbol_id.module_id)?;
-
-    if let Some(span) = type_definition_span_for_symbol(repository, revision, symbol_id) {
-        return Some(DefinitionResult::single(span));
+    if let Some(span) = type_definition_span(&ctx, symbol_id) {
+        return vec![
+            NavigationTarget::span(&ctx, span, NavigationRelation::TypeDefinition)
+                .with_symbol(symbol_id),
+        ];
     }
 
     // for non-type symbols (variables, parameters, etc.), look up their value type
@@ -228,18 +235,25 @@ pub fn goto_type_definition(
         if let Some(type_id) = types.get_value_type_id(symbol_id) {
             resolve_nominal_type_symbol(types, type_id)
         }
-        // otherwise fall back to declared or inferred type
+        // otherwise use the declared or inferred type
         else {
             let node_id = symbol_at.node_id.into_global(symbol_id.module_id);
-            let type_id = types.get_declared_or_inferred_type_id(node_id)?;
+            let Some(type_id) = types.get_declared_or_inferred_type_id(node_id) else {
+                return Vec::new();
+            };
             resolve_nominal_type_symbol(types, type_id)
         }
     };
     if let Some(type_symbol) = resolved_type_symbol {
-        let span = get_symbol_definition_span(repository, revision, type_symbol)?;
-        return Some(DefinitionResult::single(span));
+        let Some(span) = symbol_definition_span(&ctx, type_symbol) else {
+            return Vec::new();
+        };
+        return vec![
+            NavigationTarget::span(&ctx, span, NavigationRelation::TypeDefinition)
+                .with_symbol(type_symbol),
+        ];
     }
-    None
+    Vec::new()
 }
 
 /// Resolve the nominal symbol for a possibly wrapped type.
@@ -287,9 +301,7 @@ fn resolve_nominal_type_symbol(
 
 /// Resolve an overload definition span for the selected call site candidate.
 fn overload_definition_span_for_call_site(
-    repository: &Repository,
-    revision: Revision,
-    file: FileId,
+    ctx: &ModuleQueryContext<'_>,
     symbol_at: &SymbolAtOffset,
 ) -> Option<Span> {
     // require a local expression node at the cursor
@@ -299,9 +311,6 @@ fn overload_definition_span_for_call_site(
 
     let expression_id: dir::LocalNodeId<Expression> = symbol_at.node_id.try_into().ok()?;
 
-    // resolve the query context for this file
-    let module = get_module_by_file_id(repository, revision, file)?;
-    let ctx = query_context(repository, revision, module.id)?;
     let dir_tree = ctx.dir().view();
 
     // require a call/new parent where this expression is the callee
@@ -320,7 +329,7 @@ fn overload_definition_span_for_call_site(
     }
 
     // resolve the selected call candidate signature
-    let (target_symbol, parameters) = {
+    {
         let types = ctx.dir().types();
         let node_id = GlobalNodeIdAny {
             module_id: ctx.module_id(),
@@ -328,31 +337,29 @@ fn overload_definition_span_for_call_site(
         };
         let resolution = types.resolution(node_id)?;
         match resolution {
-            Resolution::Dispatch(dir::DispatchResolution::Static { target, .. }) => Some((
-                get_canonical_symbol(repository, revision, target.symbol),
-                target.signature.as_ref()?.parameters.clone(),
-            )),
+            Resolution::Dispatch(dir::DispatchResolution::Static { target, .. }) => {
+                let target_symbol = ctx.canonical_symbol(target.symbol);
+                let parameters = target.signature.as_ref()?.parameters.as_slice();
+
+                // only match declaration signatures within the target symbol module
+                if target_symbol.module_id != ctx.module_id() {
+                    return None;
+                }
+
+                overload_declaration_span_for_signature(ctx, target_symbol, parameters)
+            }
             _ => None,
         }
-    }?;
-
-    // only match declaration signatures within the target symbol module
-    if target_symbol.module_id != ctx.module_id() {
-        return None;
     }
-
-    overload_declaration_span_for_signature(repository, revision, target_symbol, &parameters)
 }
 
 /// Resolve an overload declaration span by matching parameter type ids.
 fn overload_declaration_span_for_signature(
-    repository: &Repository,
-    revision: Revision,
+    ctx: &ModuleQueryContext<'_>,
     symbol_id: dir::GlobalSymbolId,
     parameter_types: &[dir::LocalTypeId],
 ) -> Option<Span> {
-    // read the symbol context and declaration
-    let ctx = query_context(repository, revision, symbol_id.module_id)?;
+    // read the symbol declaration
     let declaration = {
         let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(symbol_id.local_id);
@@ -366,24 +373,16 @@ fn overload_declaration_span_for_signature(
 
     // find the declaration whose parameter type ids match the resolved signature
     for declaration in declarations {
-        let Some(declaration_parameter_types) =
-            declaration_parameter_type_ids(&ctx, declaration.local_id)
+        let Some(is_match) =
+            declaration_parameter_type_ids_match(ctx, declaration.local_id, parameter_types)
         else {
             continue;
         };
-
-        if declaration_parameter_types.len() != parameter_types.len() {
-            continue;
-        }
-
-        if declaration_parameter_types
-            .iter()
-            .zip(parameter_types.iter())
-            .all(|(left, right)| left == right)
-        {
+        if is_match {
+            let dir = ctx.dir();
             return Some(get_node_tree_main_span(
-                ctx.source(),
-                ctx.dir().view(),
+                dir,
+                dir.view(),
                 declaration.local_id,
             ));
         }
@@ -392,11 +391,12 @@ fn overload_declaration_span_for_signature(
     None
 }
 
-/// Resolve declared parameter type ids for a declaration or method member.
-fn declaration_parameter_type_ids(
-    ctx: &QueryContext<'_>,
+/// Return whether a declaration has matching parameter type ids.
+fn declaration_parameter_type_ids_match(
+    ctx: &ModuleQueryContext<'_>,
     declaration_id: dir::LocalNodeIdAny,
-) -> Option<Vec<dir::LocalTypeId>> {
+    parameter_types: &[dir::LocalTypeId],
+) -> Option<bool> {
     let dir_tree = ctx.dir().view();
     let types = ctx.dir().types();
 
@@ -407,23 +407,28 @@ fn declaration_parameter_type_ids(
             let dir::Declaration::Function(declaration) = declaration else {
                 return None;
             };
-            declaration.signature.parameters.clone()
+            declaration.signature.parameters.as_slice()
         }
         NodeType::Member => {
             let member_id = declaration_id.try_into().ok()?;
             let member = dir_tree.get::<dir::Member>(member_id);
             let signature = member.signature()?;
-            signature.parameters.clone()
+            signature.parameters.as_slice()
         }
         _ => return None,
     };
 
-    let mut parameter_types = Vec::with_capacity(parameters.len());
-    for parameter_id in parameters {
-        let global_parameter_id = parameter_id.into_global_any(ctx.module_id());
-        let type_id = types.get_declared_type_id(global_parameter_id)?;
-        parameter_types.push(type_id);
+    if parameters.len() != parameter_types.len() {
+        return Some(false);
     }
 
-    Some(parameter_types)
+    for (parameter_id, expected_type_id) in parameters.iter().zip(parameter_types.iter()) {
+        let global_parameter_id = parameter_id.into_global_any(ctx.module_id());
+        let type_id = types.get_declared_type_id(global_parameter_id)?;
+        if type_id != *expected_type_id {
+            return Some(false);
+        }
+    }
+
+    Some(true)
 }
