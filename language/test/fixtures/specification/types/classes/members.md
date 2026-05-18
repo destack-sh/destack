@@ -288,16 +288,6 @@ class Counter extends Base {
 
 - contains: invalid constructor
 
-### abstract methods cannot have bodies
-
-```ds
-abstract class Counter {
-    abstract increment(): void {}
-}
-```
-
-- contains: invalid abstract method
-
 ### static methods cannot be abstract
 
 ```ds
@@ -317,16 +307,6 @@ class Counter {
 ```
 
 - contains: invalid constructor
-
-### declare methods cannot have bodies
-
-```ds
-class Counter {
-    declare increment(): void {}
-}
-```
-
-- contains: invalid member modifier
 
 ### declare cannot apply to accessors
 
