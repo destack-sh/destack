@@ -179,16 +179,16 @@ if (let UserId(value = missing_default) = id) {
 - contains: missing symbol
 
 
-### if (let ...) object newtype patterns need tags
+### if (let ...) object newtype patterns unwrap object payloads
 
-Object newtypes require tagged object patterns.
+Object newtypes use the newtype wrapper pattern around an object pattern.
 
 ```ds
 newtype Config = { debug: boolean };
 
 declare const config: Config;
 
-if (let Config { debug } = config) {
+if (let Config({ debug }) = config) {
     debug satisfies boolean;
 }
 ```

@@ -29,13 +29,13 @@ y satisfies float32;
 
 ## object newtypes
 
-### object newtype patterns bind fields
+### object newtype patterns unwrap object payloads
 
-Object newtypes use tagged object patterns.
+Object newtypes use the newtype wrapper pattern around an object pattern.
 
 ```ds
 newtype Config = { debug: boolean };
 
-let Config { debug } = Config({ debug: true });
+let Config({ debug }) = Config({ debug: true });
 debug satisfies boolean;
 ```

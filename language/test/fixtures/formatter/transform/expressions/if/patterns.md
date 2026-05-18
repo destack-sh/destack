@@ -104,20 +104,20 @@ if (let Result.Ok(Point { x: /* x */ x, y: /* y */ y }) = value) {
 }
 ```
 
-### if let nested tagged object pattern
+### if let nested newtype object pattern
 
-Nested tagged object patterns break inside the parenthesized condition when needed.
+Nested newtype object patterns break inside the parenthesized condition when needed.
 
 ```ds line-width=80
-if (let Shape.Line { start: Point { x, y }, end } = shape) { x + y } else { 0 }
+if (let Shape.Line({ start: Point { x, y }, end }) = shape) { x + y } else { 0 }
 ```
 
 ```ds expected
 if (
-    let Shape.Line {
+    let Shape.Line({
         start: Point { x, y },
         end,
-    } = shape
+    }) = shape
 ) {
     x + y
 } else {
