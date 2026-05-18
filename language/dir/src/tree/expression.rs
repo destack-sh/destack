@@ -307,21 +307,22 @@ pub enum Expression {
         cases: Vec<LocalNodeId<MatchCase>>,
     },
 
-    /// A Break is break statement.
-    /// If a value is provided, a label must also be provided (to avoid ambiguity).
+    /// A break statement.
+    /// Unlabeled values use parentheses to avoid label ambiguity.
     ///
     /// Examples:
     /// ```
     /// break
     /// break label
-    /// break label 17
+    /// break (value)
+    /// break label: value
     /// ```
     Break {
         label: Option<StringId>,
         value: Option<LocalNodeId<Expression>>,
     },
 
-    /// A Continue is continue statement.
+    /// A continue statement.
     ///
     /// Examples:
     /// ```
