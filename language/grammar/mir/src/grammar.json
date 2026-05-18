@@ -23,11 +23,19 @@
         },
         {
           "type": "SYMBOL",
+          "name": "declaration_keyword"
+        },
+        {
+          "type": "SYMBOL",
           "name": "function_keyword"
         },
         {
           "type": "SYMBOL",
           "name": "terminator_keyword"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "type_keyword"
         },
         {
           "type": "SYMBOL",
@@ -48,6 +56,14 @@
         {
           "type": "SYMBOL",
           "name": "block_identifier"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "local_identifier"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "function_identifier"
         },
         {
           "type": "SYMBOL",
@@ -115,59 +131,257 @@
       "type": "STRING",
       "value": "function"
     },
-    "terminator_keyword": {
-      "type": "CHOICE",
-      "members": [
-        {
-          "type": "STRING",
-          "value": "return"
-        },
-        {
-          "type": "STRING",
-          "value": "jump"
-        },
-        {
-          "type": "STRING",
-          "value": "branch"
-        },
-        {
-          "type": "STRING",
-          "value": "switch"
-        },
-        {
-          "type": "STRING",
-          "value": "yield"
-        },
-        {
-          "type": "STRING",
-          "value": "check"
-        },
-        {
-          "type": "STRING",
-          "value": "unreachable"
+    "declaration_keyword": {
+      "type": "TOKEN",
+      "content": {
+        "type": "PREC",
+        "value": 2,
+        "content": {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "STRING",
+              "value": "external"
+            },
+            {
+              "type": "STRING",
+              "value": "export"
+            },
+            {
+              "type": "STRING",
+              "value": "global"
+            },
+            {
+              "type": "STRING",
+              "value": "type"
+            },
+            {
+              "type": "STRING",
+              "value": "block"
+            },
+            {
+              "type": "STRING",
+              "value": "local"
+            }
+          ]
         }
-      ]
+      }
+    },
+    "terminator_keyword": {
+      "type": "TOKEN",
+      "content": {
+        "type": "PREC",
+        "value": 2,
+        "content": {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "STRING",
+              "value": "return"
+            },
+            {
+              "type": "STRING",
+              "value": "jump"
+            },
+            {
+              "type": "STRING",
+              "value": "branch"
+            },
+            {
+              "type": "STRING",
+              "value": "switch"
+            },
+            {
+              "type": "STRING",
+              "value": "yield"
+            },
+            {
+              "type": "STRING",
+              "value": "check"
+            },
+            {
+              "type": "STRING",
+              "value": "trap.abort"
+            },
+            {
+              "type": "STRING",
+              "value": "trap.panic"
+            },
+            {
+              "type": "STRING",
+              "value": "unreachable"
+            },
+            {
+              "type": "STRING",
+              "value": "call"
+            },
+            {
+              "type": "STRING",
+              "value": "tailCall"
+            },
+            {
+              "type": "STRING",
+              "value": "call.indirect"
+            },
+            {
+              "type": "STRING",
+              "value": "tailCall.indirect"
+            },
+            {
+              "type": "STRING",
+              "value": "call.class"
+            },
+            {
+              "type": "STRING",
+              "value": "tailCall.class"
+            },
+            {
+              "type": "STRING",
+              "value": "call.interface"
+            },
+            {
+              "type": "STRING",
+              "value": "tailCall.interface"
+            }
+          ]
+        }
+      }
+    },
+    "type_keyword": {
+      "type": "TOKEN",
+      "content": {
+        "type": "PREC",
+        "value": 2,
+        "content": {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "STRING",
+              "value": "void"
+            },
+            {
+              "type": "STRING",
+              "value": "boolean"
+            },
+            {
+              "type": "STRING",
+              "value": "ref"
+            },
+            {
+              "type": "STRING",
+              "value": "vector"
+            },
+            {
+              "type": "STRING",
+              "value": "tensor"
+            },
+            {
+              "type": "STRING",
+              "value": "tensorView"
+            },
+            {
+              "type": "STRING",
+              "value": "space"
+            },
+            {
+              "type": "STRING",
+              "value": "struct"
+            },
+            {
+              "type": "STRING",
+              "value": "newtype"
+            },
+            {
+              "type": "STRING",
+              "value": "slice"
+            },
+            {
+              "type": "STRING",
+              "value": "unique"
+            },
+            {
+              "type": "STRING",
+              "value": "nullable"
+            },
+            {
+              "type": "STRING",
+              "value": "any"
+            },
+            {
+              "type": "STRING",
+              "value": "isize"
+            },
+            {
+              "type": "STRING",
+              "value": "usize"
+            },
+            {
+              "type": "STRING",
+              "value": "typeDescriptor"
+            },
+            {
+              "type": "STRING",
+              "value": "typeId"
+            },
+            {
+              "type": "PATTERN",
+              "value": "(?:int|uint|float)(?:8|16|32|64|128|256)"
+            },
+            {
+              "type": "PATTERN",
+              "value": "[iuf](?:8|16|32|64|128)"
+            }
+          ]
+        }
+      }
     },
     "memory_keyword": {
-      "type": "CHOICE",
-      "members": [
-        {
-          "type": "STRING",
-          "value": "managed"
-        },
-        {
-          "type": "STRING",
-          "value": "borrowed"
-        },
-        {
-          "type": "STRING",
-          "value": "owned"
-        },
-        {
-          "type": "STRING",
-          "value": "raw"
+      "type": "TOKEN",
+      "content": {
+        "type": "PREC",
+        "value": 2,
+        "content": {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "STRING",
+              "value": "managed"
+            },
+            {
+              "type": "STRING",
+              "value": "borrowed"
+            },
+            {
+              "type": "STRING",
+              "value": "owned"
+            },
+            {
+              "type": "STRING",
+              "value": "raw"
+            },
+            {
+              "type": "STRING",
+              "value": "copy"
+            },
+            {
+              "type": "STRING",
+              "value": "readonly"
+            },
+            {
+              "type": "STRING",
+              "value": "const"
+            },
+            {
+              "type": "STRING",
+              "value": "shared"
+            },
+            {
+              "type": "STRING",
+              "value": "gpu"
+            }
+          ]
         }
-      ]
+      }
     },
     "arrow": {
       "type": "STRING",
@@ -182,12 +396,41 @@
       "value": "v[0-9]+"
     },
     "block_identifier": {
-      "type": "PATTERN",
-      "value": "block[0-9]+"
+      "type": "TOKEN",
+      "content": {
+        "type": "PREC",
+        "value": 2,
+        "content": {
+          "type": "PATTERN",
+          "value": "(?:block|entry|bb|b)[0-9]+"
+        }
+      }
+    },
+    "local_identifier": {
+      "type": "TOKEN",
+      "content": {
+        "type": "PREC",
+        "value": 2,
+        "content": {
+          "type": "PATTERN",
+          "value": "local[0-9]+"
+        }
+      }
+    },
+    "function_identifier": {
+      "type": "TOKEN",
+      "content": {
+        "type": "PREC",
+        "value": 2,
+        "content": {
+          "type": "PATTERN",
+          "value": "function[0-9]+"
+        }
+      }
     },
     "number_literal": {
       "type": "PATTERN",
-      "value": "[+-]?\\d(?:[\\d_]*\\d)?(?:\\.(?:\\d(?:[\\d_]*\\d)?))?(?:[eE][+-]?\\d(?:[\\d_]*\\d)?)?(?:[iu](?:8|16|32|64|128))?"
+      "value": "[+-]?\\d(?:[\\d_]*\\d)?(?:\\.(?:\\d(?:[\\d_]*\\d)?))?(?:[eE][+-]?\\d(?:[\\d_]*\\d)?)?(?:(?:int|uint|float)(?:8|16|32|64|128|256)|[iuf](?:8|16|32|64|128))?"
     },
     "string_literal": {
       "type": "TOKEN",

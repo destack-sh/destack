@@ -1,0 +1,27 @@
+==================================
+Unknown token fallback
+==================================
+
+function @unknown() -> void {
+block0:
+    ?maybe
+    return
+}
+
+
+---
+
+(source_file
+  (function_keyword)
+  (symbol_identifier)
+  (punctuation)
+  (punctuation)
+  (arrow)
+  (type_keyword)
+  (punctuation)
+  (block_identifier)
+  (punctuation)
+  (unknown)
+  (identifier)
+  (terminator_keyword)
+  (punctuation))

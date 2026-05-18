@@ -1,0 +1,40 @@
+==================================
+Function with block and return
+==================================
+
+function @fib(v0: i64) -> i64 {
+block0(v0: i64):
+    v1: i64 = iconst 2i64
+    return v1
+}
+
+
+---
+
+(source_file
+  (function_keyword)
+  (symbol_identifier)
+  (punctuation)
+  (ssa_identifier)
+  (punctuation)
+  (type_keyword)
+  (punctuation)
+  (arrow)
+  (type_keyword)
+  (punctuation)
+  (block_identifier)
+  (punctuation)
+  (ssa_identifier)
+  (punctuation)
+  (type_keyword)
+  (punctuation)
+  (punctuation)
+  (ssa_identifier)
+  (punctuation)
+  (type_keyword)
+  (operator)
+  (identifier)
+  (number_literal)
+  (terminator_keyword)
+  (ssa_identifier)
+  (punctuation))

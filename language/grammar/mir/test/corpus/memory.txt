@@ -1,0 +1,76 @@
+==================================
+Memory qualifiers and memory ops
+==================================
+
+function @memory(v0: i64) -> void {
+block0(v0: i64):
+    v1: slice<i64> = new.slice i64, v0
+    v2: ref<borrowed i64> = element.addr v1, v0
+    v3: ref<owned i64> = raw.alloc i64
+    store v2, v0
+    raw.free v3
+    return
+}
+
+
+---
+
+(source_file
+  (function_keyword)
+  (symbol_identifier)
+  (punctuation)
+  (ssa_identifier)
+  (punctuation)
+  (type_keyword)
+  (punctuation)
+  (arrow)
+  (type_keyword)
+  (punctuation)
+  (block_identifier)
+  (punctuation)
+  (ssa_identifier)
+  (punctuation)
+  (type_keyword)
+  (punctuation)
+  (punctuation)
+  (ssa_identifier)
+  (punctuation)
+  (type_keyword)
+  (operator)
+  (type_keyword)
+  (operator)
+  (operator)
+  (identifier)
+  (type_keyword)
+  (punctuation)
+  (ssa_identifier)
+  (ssa_identifier)
+  (punctuation)
+  (type_keyword)
+  (operator)
+  (memory_keyword)
+  (type_keyword)
+  (operator)
+  (operator)
+  (identifier)
+  (ssa_identifier)
+  (punctuation)
+  (ssa_identifier)
+  (ssa_identifier)
+  (punctuation)
+  (type_keyword)
+  (operator)
+  (memory_keyword)
+  (type_keyword)
+  (operator)
+  (operator)
+  (identifier)
+  (type_keyword)
+  (identifier)
+  (ssa_identifier)
+  (punctuation)
+  (ssa_identifier)
+  (identifier)
+  (ssa_identifier)
+  (terminator_keyword)
+  (punctuation))
