@@ -1,5 +1,7 @@
+import { Borrow, From } from "destack:convert";
 import { todo } from "destack:error";
 import { Default, MaybeUninit, Unique } from "destack:memory";
+import { StringSlice } from "./slice.ds";
 
 /// Mutable UTF-8 string builder with growable backing storage.
 export class StringBuilder {
@@ -13,7 +15,7 @@ export class StringBuilder {
     capacity: usize = 0;
 }
 
-extension of StringBuilder implements Default {
+extension of StringBuilder implements Default, From<string>, From<&readonly StringSlice> {
     /// Create an empty string builder.
     static new(): StringBuilder {
         todo("StringBuilder.new")
@@ -22,6 +24,16 @@ extension of StringBuilder implements Default {
     /// Create the default string builder.
     static default(): StringBuilder {
         StringBuilder.new()
+    }
+
+    /// Create a string builder from owned text.
+    static from(value: string): StringBuilder {
+        StringBuilder.from(value.borrow())
+    }
+
+    /// Create a string builder from borrowed text.
+    static from(value: &readonly StringSlice): StringBuilder {
+        todo("StringBuilder.from")
     }
 
     /// Get the initialized byte length.
@@ -49,8 +61,13 @@ extension of StringBuilder implements Default {
         todo("StringBuilder.reserveExact")
     }
 
-    /// Append text.
+    /// Append owned text.
     append(this: &exclusive StringBuilder, value: string): void {
+        this.append(value.borrow())
+    }
+
+    /// Append borrowed text.
+    append(this: &exclusive StringBuilder, value: &readonly StringSlice): void {
         todo("StringBuilder.append")
     }
 
