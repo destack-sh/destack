@@ -22,13 +22,13 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
     };
 
     // run the query
-    let result = query::goto_implementation(&session.repository, session.revision, file_id, offset);
-
-    let Some(result) = result else {
-        return CaseResult::Failed {
-            message: "goto_implementation returned None".to_string(),
-        };
-    };
+    let ctx = session.module_context(file_id);
+    let workspace = session.workspace_context();
+    let targets = query::goto_implementation(&ctx, &workspace, offset);
+    let locations = targets
+        .iter()
+        .map(|target| target.target.span)
+        .collect::<Vec<_>>();
 
     let expected_content = exp.content.trim();
 
@@ -37,34 +37,33 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
         return CaseResult::Failed {
             message: format!(
                 "goto_implementation expectation is empty, got {} locations",
-                result.locations.len()
+                locations.len()
             ),
         };
     }
 
     // allow explicit empty expectations
     if expected_content == "<none>" {
-        return if result.locations.is_empty() {
+        return if locations.is_empty() {
             CaseResult::Passed
         } else {
             CaseResult::Failed {
                 message: format!(
                     "goto_implementation expected no locations, got {}",
-                    result.locations.len(),
+                    locations.len(),
                 ),
             }
         };
     }
 
     // validate invariants before comparisons
-    if let Err(message) = validate_implementation_invariants(session, &result.locations) {
+    if let Err(message) = validate_implementation_invariants(session, &locations) {
         return CaseResult::Failed { message };
     }
 
     // compare against a protocol shaped snapshot when structured
     if looks_like_span_snapshot(expected_content, &["range="]) {
-        let actual_snapshot = result
-            .locations
+        let actual_snapshot = locations
             .iter()
             .map(|span| format_span_for_session(session, *span))
             .collect::<Vec<_>>()

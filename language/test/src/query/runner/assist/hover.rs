@@ -33,7 +33,8 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     };
 
     // run the hover query once
-    let result = query::hover(&session.repository, session.revision, file_id, offset);
+    let ctx = session.module_context(file_id);
+    let result = query::hover(&ctx, offset);
 
     // normalize the expected content
     let expected_text = exp.content.trim();

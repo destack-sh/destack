@@ -28,7 +28,8 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
     };
 
     // compute the destack snapshot for the primary file
-    let symbols = query::document_symbols(&session.repository, session.revision, session.file_id);
+    let ctx = session.primary_module_context();
+    let symbols = query::document_symbols(&ctx);
     let source = source_for_file(session, session.file_id);
     let snapshot = format_symbols_snapshot(&symbols, source, 0).join("\n");
 

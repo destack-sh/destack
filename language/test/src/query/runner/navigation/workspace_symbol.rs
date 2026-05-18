@@ -26,7 +26,8 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
     };
     let query_str = query_str.trim_matches('"');
 
-    let symbols = query::workspace_symbols(&session.repository, session.revision, query_str, 1000);
+    let workspace = session.workspace_context();
+    let symbols = query::workspace_symbols(&workspace, query_str, 1000);
     let source_symbols = symbols.as_slice();
 
     let expected = exp.content.trim();
@@ -100,25 +101,28 @@ fn validate_workspace_symbol_invariants(
     // ensure ranges are within known sources
     for symbol in symbols {
         // resolve the file for the symbol
-        let Some(file) = file_for(session, symbol.file) else {
-            errors.push(format!("workspace symbol file {:?} not found", symbol.file));
+        let Some(file) = file_for(session, symbol.target.span.file) else {
+            errors.push(format!(
+                "workspace symbol file {:?} not found",
+                symbol.target.span.file
+            ));
             continue;
         };
         let source_len = u32::try_from(file.source.len()).unwrap_or(u32::MAX);
 
         // validate the span order
-        if symbol.range.start > symbol.range.end {
+        if symbol.target.span.start > symbol.target.span.end {
             errors.push(format!(
                 "{}: symbol '{}' has invalid range {:?}",
-                file.name, symbol.name, symbol.range
+                file.name, symbol.name, symbol.target.span
             ));
         }
 
         // validate span bounds
-        if symbol.range.end > source_len {
+        if symbol.target.span.end > source_len {
             errors.push(format!(
                 "{}: symbol '{}' range end {} exceeds source length {}",
-                file.name, symbol.name, symbol.range.end, source_len
+                file.name, symbol.name, symbol.target.span.end, source_len
             ));
         }
     }
@@ -128,9 +132,9 @@ fn validate_workspace_symbol_invariants(
         for right in symbols.iter().skip(index + 1) {
             if left.name == right.name
                 && left.kind == right.kind
-                && left.file == right.file
-                && left.range.start == right.range.start
-                && left.range.end == right.range.end
+                && left.target.span.file == right.target.span.file
+                && left.target.span.start == right.target.span.start
+                && left.target.span.end == right.target.span.end
             {
                 errors.push(format!("duplicate workspace symbol {left:?}"));
             }
@@ -165,12 +169,12 @@ fn format_workspace_symbol_snapshot(
 fn format_workspace_symbol_line(session: &QueryTestSession, symbol: &WorkspaceSymbol) -> String {
     // resolve the symbol kind and file name for the snapshot line
     let kind = symbol_kind_name(symbol.kind);
-    let file_name = file_for(session, symbol.file)
+    let file_name = file_for(session, symbol.target.span.file)
         .map(|file| file.name.as_str())
         .unwrap_or("<unknown>");
 
     // format the symbol range as line and column data
-    let range = format_span(session, symbol.range);
+    let range = format_span(session, symbol.target.span);
     if let Some(container) = &symbol.container {
         return format!(
             "{}({kind}) file={file_name} range={range} container={container}",

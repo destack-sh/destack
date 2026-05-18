@@ -1,5 +1,5 @@
 use destack_query as query;
-use destack_query::{CodeLens, CodeLensData};
+use destack_query::{CodeLens, CodeLensAction};
 use destack_source::Span;
 
 use crate::core::CaseResult;
@@ -29,7 +29,9 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
     };
 
     // run the code lens query once for the primary file
-    let lenses = query::code_lenses(&session.repository, session.revision, session.file_id);
+    let ctx = session.primary_module_context();
+    let workspace = session.workspace_context();
+    let lenses = query::code_lenses(&ctx, &workspace);
 
     run_with_expectation(session, exp, &lenses)
 }
@@ -52,7 +54,9 @@ pub fn run_resolve(
         };
     }
 
-    let lenses = query::code_lenses(&session.repository, session.revision, session.file_id);
+    let ctx = session.primary_module_context();
+    let workspace = session.workspace_context();
+    let lenses = query::code_lenses(&ctx, &workspace);
     if lenses.is_empty() {
         return if content == "<none>" {
             CaseResult::Passed
@@ -266,7 +270,7 @@ fn format_lens_snapshot(session: &QueryTestSession, lenses: &[CodeLens]) -> Vec<
 /// Format a single code lens snapshot line.
 fn format_lens_line(session: &QueryTestSession, lens: &CodeLens) -> String {
     let range = format_span_for_session(session, lens.range);
-    let kind = lens_kind_name(&lens.data);
+    let kind = lens_kind_name(&lens.action);
     let title = lens.title();
 
     format!("{range} kind={kind} title={title}")
@@ -303,29 +307,29 @@ fn lens_key(lens: &CodeLens) -> (u32, u32, u8, String) {
     (
         lens.range.start,
         lens.range.end,
-        lens_kind_rank(&lens.data),
+        lens_kind_rank(&lens.action),
         title,
     )
 }
 
 /// Convert a code lens kind into a snapshot friendly name.
-fn lens_kind_name(data: &CodeLensData) -> &'static str {
-    match data {
-        CodeLensData::References { .. } => "references",
-        CodeLensData::Implementations { .. } => "implementations",
-        CodeLensData::RunTest { .. } => "run_test",
-        CodeLensData::DebugTest { .. } => "debug_test",
-        CodeLensData::Custom { .. } => "custom",
+fn lens_kind_name(action: &CodeLensAction) -> &'static str {
+    match action {
+        CodeLensAction::References { .. } => "references",
+        CodeLensAction::Implementations { .. } => "implementations",
+        CodeLensAction::RunTest { .. } => "run_test",
+        CodeLensAction::DebugTest { .. } => "debug_test",
+        CodeLensAction::Custom { .. } => "custom",
     }
 }
 
 /// Rank code lens kinds for stable ordering checks.
-fn lens_kind_rank(data: &CodeLensData) -> u8 {
-    match data {
-        CodeLensData::References { .. } => 0,
-        CodeLensData::Implementations { .. } => 1,
-        CodeLensData::RunTest { .. } => 2,
-        CodeLensData::DebugTest { .. } => 3,
-        CodeLensData::Custom { .. } => 4,
+fn lens_kind_rank(action: &CodeLensAction) -> u8 {
+    match action {
+        CodeLensAction::References { .. } => 0,
+        CodeLensAction::Implementations { .. } => 1,
+        CodeLensAction::RunTest { .. } => 2,
+        CodeLensAction::DebugTest { .. } => 3,
+        CodeLensAction::Custom { .. } => 4,
     }
 }

@@ -19,7 +19,8 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
     };
 
     // run the query for the current file
-    let links = query::document_links(&session.repository, session.revision, session.file_id);
+    let ctx = session.primary_module_context();
+    let links = query::document_links(&ctx);
 
     // require nonempty expectations so failures are explicit
     let expected_content = exp.content.trim();
@@ -78,7 +79,8 @@ pub fn run_resolve(
         };
     }
 
-    let links = query::document_links(&session.repository, session.revision, session.file_id);
+    let ctx = session.primary_module_context();
+    let links = query::document_links(&ctx);
     if links.is_empty() {
         return if content == "<none>" {
             CaseResult::Passed

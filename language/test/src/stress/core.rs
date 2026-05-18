@@ -4,7 +4,8 @@ use std::sync::Arc;
 
 use destack_artifact::ArtifactKey;
 use destack_compiler::Compiler;
-use destack_source::{Edit, FileId, Span};
+use destack_query::{self as query, ModuleQueryContext, WorkspaceQueryContext};
+use destack_source::{Edit, FileId, ModuleId, ProfileId, Span};
 use destack_workspace::{Ref, Repository, Revision};
 use serde::Deserialize;
 
@@ -204,6 +205,10 @@ pub(super) struct StressWorkspace {
     file_ids_by_path: HashMap<String, FileId>,
     /// The relative paths keyed by file id.
     file_paths_by_id: HashMap<FileId, String>,
+    /// The query profiles included in this stress workspace.
+    profile_ids: Vec<ProfileId>,
+    /// The selected query profile keyed by module.
+    profile_by_module: HashMap<ModuleId, ProfileId>,
 }
 
 impl StressRecipe {
@@ -232,8 +237,8 @@ impl StressWorkspace {
         let root = workspace.allocate_root(label);
         let repository = workspace.repository();
 
-        let (revision, file_ids_by_path, file_paths_by_id) =
-            compile_and_index_stress_project(&repository, &root, &project)?;
+        let (revision, file_ids_by_path, file_paths_by_id, profile_by_module, profile_ids) =
+            materialize_stress_project(&repository, &root, &project)?;
 
         Ok(Self {
             repository,
@@ -242,6 +247,8 @@ impl StressWorkspace {
             root_path: root,
             file_ids_by_path,
             file_paths_by_id,
+            profile_ids,
+            profile_by_module,
         })
     }
 
@@ -295,6 +302,90 @@ impl StressWorkspace {
     pub(super) fn validate_edit(&self, edit: &Edit) -> Result<(), String> {
         self.validate_span(edit.span)
     }
+
+    /// Return the query context for one generated file.
+    pub(super) fn module_context(&self, file_id: FileId) -> Result<ModuleQueryContext<'_>, String> {
+        let module_id = self
+            .repository
+            .module_id_for_file(self.revision, file_id)
+            .map_err(|error| format!("failed to resolve stress module for file: {error}"))?
+            .ok_or_else(|| format!("missing stress module for file {file_id:?}"))?;
+        let profile_id = self
+            .profile_by_module
+            .get(&module_id)
+            .copied()
+            .ok_or_else(|| format!("missing stress profile for module {module_id:?}"))?;
+        self.require_artifacts(&[
+            ArtifactKey::dir_checked(module_id, profile_id),
+            ArtifactKey::global_environment(profile_id),
+        ])?;
+
+        query::module_query_context(
+            self.repository.as_ref(),
+            self.revision,
+            module_id,
+            profile_id,
+        )
+        .ok_or_else(|| format!("missing stress module query context for {module_id:?}"))
+    }
+
+    /// Return the workspace query context for this stress workspace.
+    pub(super) fn workspace_context(&self) -> Result<WorkspaceQueryContext<'_>, String> {
+        let mut indexes = Vec::with_capacity(self.profile_ids.len());
+
+        for profile_id in &self.profile_ids {
+            let key = ArtifactKey::workspace_query_index(*profile_id);
+            self.require_artifact(key.clone())?;
+            let version = self
+                .repository
+                .artifact_version(self.revision, &key)
+                .map_err(|error| format!("failed to resolve stress workspace index: {error}"))?
+                .ok_or_else(|| format!("missing stress workspace index for {profile_id:?}"))?;
+            let index = self
+                .repository
+                .artifact_store()
+                .workspace_query_index(&version)
+                .ok_or_else(|| {
+                    format!("missing stress workspace index payload for {profile_id:?}")
+                })?;
+
+            indexes.push((*profile_id, index));
+        }
+
+        query::workspace_query_context(self.repository.as_ref(), self.revision, indexes)
+            .ok_or_else(|| "missing stress workspace query context".to_string())
+    }
+
+    /// Require one artifact in this stress revision.
+    fn require_artifact(&self, key: ArtifactKey) -> Result<(), String> {
+        self.require_artifacts(&[key])
+    }
+
+    /// Require artifacts in this stress revision.
+    fn require_artifacts(&self, keys: &[ArtifactKey]) -> Result<(), String> {
+        let mut missing_keys = Vec::new();
+        for key in keys {
+            let version = self
+                .repository
+                .artifact_version(self.revision, key)
+                .map_err(|error| format!("failed to read stress artifact version: {error}"))?;
+            if version.is_none() {
+                missing_keys.push(key.clone());
+            }
+        }
+        if missing_keys.is_empty() {
+            return Ok(());
+        }
+
+        let compiler = Arc::new(Compiler::new(self.repository.clone()));
+        let revision =
+            provide_workspace_artifacts(self.repository.clone(), compiler, &missing_keys);
+        if revision != self.revision {
+            return Err("stress artifact provider changed the source revision".to_string());
+        }
+
+        Ok(())
+    }
 }
 
 /// Return the shared directory for generated stress project recipes.
@@ -307,14 +398,21 @@ fn default_true() -> bool {
     true
 }
 
-/// Compile and index one generated stress project.
-fn compile_and_index_stress_project(
+/// Materialize one generated stress project.
+fn materialize_stress_project(
     repository: &Arc<Repository>,
     root: &Path,
     project: &StressProject,
-) -> Result<(Revision, HashMap<String, FileId>, HashMap<FileId, String>), String> {
-    let compiler = Arc::new(Compiler::new(repository.clone()));
-
+) -> Result<
+    (
+        Revision,
+        HashMap<String, FileId>,
+        HashMap<FileId, String>,
+        HashMap<ModuleId, ProfileId>,
+        Vec<ProfileId>,
+    ),
+    String,
+> {
     // materialize every generated source into the active repository revision first
     for file in &project.files {
         let file_path = root.join(&file.path);
@@ -337,24 +435,18 @@ fn compile_and_index_stress_project(
     module_ids.sort();
     module_ids.dedup();
 
-    // enqueue the full query substrate for each module
-    let mut artifact_keys = Vec::new();
+    // select one explicit profile for every stress module
+    let mut profile_by_module = HashMap::new();
     let mut profile_ids = HashSet::new();
     for module_id in &module_ids {
         let profile = profile_id_for_builtin_default_target(repository, revision, *module_id);
+        profile_by_module.insert(*module_id, profile);
         profile_ids.insert(profile);
-        artifact_keys.push(ArtifactKey::DirChecked {
-            module: *module_id,
-            profile,
-        });
-        artifact_keys.push(ArtifactKey::module_query_index(*module_id, profile));
     }
 
-    for profile in profile_ids {
-        artifact_keys.push(ArtifactKey::workspace_query_index(profile));
-    }
-
-    let revision = provide_workspace_artifacts(repository.clone(), compiler, &artifact_keys);
+    let mut profile_ids = profile_ids.into_iter().collect::<Vec<_>>();
+    profile_ids.sort();
+    profile_ids.dedup();
 
     let mut file_ids_by_path = HashMap::new();
     let mut file_paths_by_id = HashMap::new();
@@ -367,7 +459,13 @@ fn compile_and_index_stress_project(
         file_ids_by_path.insert(path, module.file_id);
     }
 
-    Ok((revision, file_ids_by_path, file_paths_by_id))
+    Ok((
+        revision,
+        file_ids_by_path,
+        file_paths_by_id,
+        profile_by_module,
+        profile_ids,
+    ))
 }
 
 /// Return the current workspace revision for one repository.

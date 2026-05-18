@@ -49,9 +49,9 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
 
     // require nonempty expectations so failures are explicit
     let content = exp.content.trim();
+    let ctx = session.module_context(file_id);
     if content.is_empty() {
-        let highlights =
-            query::document_highlights(&session.repository, session.revision, file_id, offset);
+        let highlights = query::document_highlights(&ctx, offset);
         return CaseResult::Failed {
             message: format!(
                 "document_highlight expectation is empty at '{}', got {} highlights",
@@ -62,8 +62,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     }
 
     // run the highlight query once for all expectation modes
-    let highlights =
-        query::document_highlights(&session.repository, session.revision, file_id, offset);
+    let highlights = query::document_highlights(&ctx, offset);
 
     // validate invariants before any comparisons
     if let Err(message) = validate_highlight_invariants(session, file_id, &highlights) {

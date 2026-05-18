@@ -2,7 +2,7 @@ use destack_query as query;
 use destack_query::{CodeAction, CodeActionKind};
 use destack_source::{Edit, FileEdit, FileId, Span};
 
-use crate::core::{CaseResult, module_artifact_diagnostics, profile_id_for_builtin_default_target};
+use crate::core::{CaseResult, module_artifact_diagnostics};
 use crate::query::runner::position::resolve_query_position;
 use crate::query::runner::snapshot::{
     compare_snapshot_lines, looks_like_snapshot, parse_snapshot_top_directive,
@@ -47,14 +47,9 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     // run the query for the resolved span
     let context = parsed_expectation.context;
     let diagnostics = diagnostics_for_file(session, range.file);
-    let actions = query::code_actions(
-        &session.repository,
-        session.revision,
-        range.file,
-        range,
-        &diagnostics,
-        &context,
-    );
+    let ctx = session.module_context(range.file);
+    let workspace = session.workspace_context();
+    let actions = query::code_actions(&ctx, &workspace, range, &diagnostics, &context);
 
     // validate invariants before comparing against expectations
     if let Err(message) = validate_code_action_invariants(session, &actions) {
@@ -201,9 +196,6 @@ fn parse_code_action_kind(kind_name: &str) -> Result<CodeActionKind, String> {
         "refactor_inline" => Ok(CodeActionKind::RefactorInline),
         "refactor_rewrite" => Ok(CodeActionKind::RefactorRewrite),
         "source" => Ok(CodeActionKind::Source),
-        "source_organize_imports" | "source_organizeimports" => {
-            Ok(CodeActionKind::SourceOrganizeImports)
-        }
         "source_fix_all" | "source_fixall" => Ok(CodeActionKind::SourceFixAll),
         _ => Err(format!(
             "unknown code action kind in 'only:' directive: '{kind_name}'"
@@ -240,8 +232,7 @@ fn diagnostics_for_file(
     else {
         return Vec::new();
     };
-    let profile_id =
-        profile_id_for_builtin_default_target(&session.repository, session.revision, module_id);
+    let profile_id = session.module_profile_id(module_id);
 
     module_artifact_diagnostics(&session.repository, session.revision, module_id, profile_id)
         .iter()
@@ -405,8 +396,7 @@ fn code_action_kind_rank(kind: CodeActionKind) -> u8 {
         CodeActionKind::RefactorInline => 3,
         CodeActionKind::RefactorRewrite => 4,
         CodeActionKind::Source => 5,
-        CodeActionKind::SourceOrganizeImports => 6,
-        CodeActionKind::SourceFixAll => 7,
+        CodeActionKind::SourceFixAll => 6,
     }
 }
 
@@ -419,7 +409,6 @@ fn code_action_kind_name(kind: CodeActionKind) -> &'static str {
         CodeActionKind::RefactorInline => "refactor_inline",
         CodeActionKind::RefactorRewrite => "refactor_rewrite",
         CodeActionKind::Source => "source",
-        CodeActionKind::SourceOrganizeImports => "source_organize_imports",
         CodeActionKind::SourceFixAll => "source_fix_all",
     }
 }

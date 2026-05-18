@@ -33,7 +33,8 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     };
 
     // run the signature help query once
-    let result = query::signature_help(&session.repository, session.revision, file_id, offset);
+    let ctx = session.module_context(file_id);
+    let result = query::signature_help(&ctx, offset);
 
     let expected_sig = exp.content.trim();
 

@@ -50,8 +50,9 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     }
 
     // prepare call hierarchy item
-    let item =
-        query::prepare_call_hierarchy(&session.repository, session.revision, file_id, offset);
+    let ctx = session.module_context(file_id);
+    let workspace = session.workspace_context();
+    let item = query::call_hierarchy_item(&ctx, offset);
 
     // allow "<none>" to assert that no hierarchy item exists at all
     if expected == "<none>" && item.is_none() {
@@ -72,8 +73,8 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
 
     // dispatch by direction
     match direction {
-        "incoming" => run_incoming_expectation(session, &item, expected, &exp.target),
-        "outgoing" => run_outgoing_expectation(session, &item, expected, &exp.target),
+        "incoming" => run_incoming_expectation(session, &workspace, &item, expected, &exp.target),
+        "outgoing" => run_outgoing_expectation(session, &workspace, &item, expected, &exp.target),
         _ => CaseResult::Failed {
             message: format!(
                 "call_hierarchy direction '{direction}' is invalid, expected incoming or outgoing"
@@ -85,12 +86,13 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
 /// Run incoming call hierarchy expectations.
 fn run_incoming_expectation(
     session: &QueryTestSession,
+    workspace: &query::WorkspaceQueryContext<'_>,
     item: &CallHierarchyItem,
     expected: &str,
     target: &str,
 ) -> CaseResult {
     // run the incoming calls query
-    let calls = query::incoming_calls(&session.repository, session.revision, item);
+    let calls = query::incoming_calls(workspace, item);
 
     // validate invariants before comparisons
     if let Err(message) = validate_incoming_invariants(session, &calls) {
@@ -161,12 +163,13 @@ fn run_incoming_expectation(
 /// Run outgoing call hierarchy expectations.
 fn run_outgoing_expectation(
     session: &QueryTestSession,
+    workspace: &query::WorkspaceQueryContext<'_>,
     item: &CallHierarchyItem,
     expected: &str,
     target: &str,
 ) -> CaseResult {
     // run the outgoing calls query
-    let calls = query::outgoing_calls(&session.repository, session.revision, item);
+    let calls = query::outgoing_calls(workspace, item);
 
     // validate invariants before comparisons
     if let Err(message) = validate_outgoing_invariants(session, item, &calls) {
@@ -260,8 +263,10 @@ fn format_call_line(
     item: &CallHierarchyItem,
     ranges: &[Span],
 ) -> String {
-    let range = format_span_for_session(session, item.range);
-    let selection = format_span_for_session(session, item.selection_range);
+    let range = item_range(item);
+    let selection = item_selection_range(item);
+    let range = format_span_for_session(session, range);
+    let selection = format_span_for_session(session, selection);
     let kind = call_kind_name(item.kind);
     let calls = format_call_ranges(session, ranges);
 
@@ -332,7 +337,7 @@ fn validate_incoming_invariants(
         validate_item_collect_errors(session, &call.from, &mut errors);
         validate_call_ranges(
             session,
-            call.from.file,
+            item_range(&call.from).file,
             &call.from.name,
             &call.from_ranges,
             &mut errors,
@@ -365,7 +370,7 @@ fn validate_outgoing_invariants(
         validate_item_collect_errors(session, &call.to, &mut errors);
         validate_call_ranges(
             session,
-            item.file,
+            item_range(item).file,
             &call.to.name,
             &call.from_ranges,
             &mut errors,
@@ -391,26 +396,22 @@ fn validate_item_collect_errors(
     item: &CallHierarchyItem,
     errors: &mut Vec<String>,
 ) {
-    let source = source_for_file(session, item.file);
+    let range = item_range(item);
+    let selection = item_selection_range(item);
+    let source = source_for_file(session, range.file);
     let source_len = u32::try_from(source.len()).unwrap_or(u32::MAX);
 
     // validate the item range bounds
-    validate_span_bounds(&item.name, "range", item.range, source_len, errors);
+    validate_span_bounds(&item.name, "range", range, source_len, errors);
 
     // validate the selection range bounds
-    validate_span_bounds(
-        &item.name,
-        "selection",
-        item.selection_range,
-        source_len,
-        errors,
-    );
+    validate_span_bounds(&item.name, "selection", selection, source_len, errors);
 
     // ensure the selection stays within the full range
-    if item.selection_range.start < item.range.start || item.selection_range.end > item.range.end {
+    if selection.start < range.start || selection.end > range.end {
         errors.push(format!(
             "{}: selection {:?} is outside range {:?}",
-            item.name, item.selection_range, item.range
+            item.name, selection, range
         ));
     }
 }
@@ -509,15 +510,28 @@ fn validate_span_bounds(
 
 /// Build a stable ordering key for a call hierarchy item.
 fn item_key(item: &CallHierarchyItem) -> (u128, u32, u32, u32, u32, u8, String) {
+    let range = item_range(item);
+    let selection = item_selection_range(item);
+
     (
-        item.file.0,
-        item.range.start,
-        item.range.end,
-        item.selection_range.start,
-        item.selection_range.end,
+        range.file.0,
+        range.start,
+        range.end,
+        selection.start,
+        selection.end,
         call_kind_rank(item.kind),
         item.name.clone(),
     )
+}
+
+/// Return the full source range for a call hierarchy item.
+fn item_range(item: &CallHierarchyItem) -> Span {
+    item.target.span
+}
+
+/// Return the primary selection range for a call hierarchy item.
+fn item_selection_range(item: &CallHierarchyItem) -> Span {
+    item.target.selection_span.unwrap_or(item.target.span)
 }
 
 /// Build a stable ordering key for a span.

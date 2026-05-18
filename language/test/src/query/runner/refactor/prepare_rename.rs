@@ -31,7 +31,8 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     let offset = marker.span.start;
 
     // run prepare rename at the resolved position
-    let result = query::prepare_rename(&session.repository, session.revision, file_id, offset);
+    let ctx = session.module_context(file_id);
+    let result = query::rename_target(&ctx, offset);
 
     let content = exp.content.trim();
 
