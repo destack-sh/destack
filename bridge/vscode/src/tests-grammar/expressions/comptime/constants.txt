@@ -1,0 +1,40 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / comptime / constants / comptime values initialize const declarations
+const scale = comptime 3;
+
+function apply(value: int32): int32 {
+    value * scale
+}
+
+apply(4) satisfies int32;
+
+// expressions / comptime / constants / comptime values keep exact values
+const count = comptime 2 + 2;
+count satisfies 4;
+
+// expressions / comptime / constants / comptime values appear in runtime expressions
+const count = comptime 2 + 2;
+const values = [1, 2, 3, 4];
+
+values[count - 1] satisfies int32;
+
+// expressions / comptime / constants / comptime values set fixed array lengths
+const width = comptime 4;
+type Lane = [uint8; width];
+
+const lane: Lane = [1, 2, 3, 4];
+lane satisfies [uint8; 4];
+
+// expressions / comptime / constants / comptime values select static conditionals
+const width = comptime if (true) { 8 } else { 4 };
+type Lane = [uint8; width];
+
+const lane: Lane = [1, 2, 3, 4, 5, 6, 7, 8];
+lane satisfies [uint8; 8];
+
+// expressions / comptime / constants / comptime values reject runtime dependencies
+function width(value: int32): int32 {
+    const result = comptime value + 1;
+    result
+}

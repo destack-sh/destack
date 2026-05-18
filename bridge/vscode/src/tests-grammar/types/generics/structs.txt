@@ -1,0 +1,59 @@
+// SYNTAX TEST "source.ds"
+
+// types / generics / structs / structs accept explicit type arguments
+struct Box<T> {
+    value: T;
+}
+
+declare function makeBox(): Box<number>;
+
+let value: Box<number> = makeBox();
+value satisfies Box<number>;
+
+// types / generics / structs / structs reject type argument mismatches
+struct Box<T: number> {
+    value: T;
+}
+
+declare function makeBox(): Box<number>;
+
+let value: Box<string> = makeBox();
+
+// types / generics / structs / structs accept static value arguments
+struct Buffer<T, comptime N: number> {
+    value: T;
+}
+
+declare function makeBuffer(): Buffer<string, 4>;
+
+let buffer: Buffer<string, 4> = makeBuffer();
+buffer satisfies Buffer<string, 4>;
+
+// types / generics / structs / structs reject static value argument mismatches
+struct Buffer<T, comptime N: number> {
+    value: T;
+}
+
+declare function makeBuffer(): Buffer<string, 4>;
+
+let buffer: Buffer<string, true> = makeBuffer();
+
+// types / generics / structs / structs accept default type parameters
+struct Box<T = number> {
+    value: T;
+}
+
+declare function makeBox(): Box;
+
+let value: Box = makeBox();
+value satisfies Box<number>;
+
+// types / generics / structs / structs accept default static values
+struct Buffer<T, comptime N: number = 4> {
+    value: T;
+}
+
+declare function makeBuffer(): Buffer<string>;
+
+let buffer: Buffer<string> = makeBuffer();
+buffer satisfies Buffer<string, 4>;

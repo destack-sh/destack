@@ -1,0 +1,45 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / functions / callable / function values satisfy callable interfaces
+interface Fn {
+    (value: string): number;
+}
+
+const parse = (value: string): number => 1;
+parse satisfies Fn;
+
+// expressions / functions / callable / incompatible returns are not assignable
+interface Fn {
+    (value: string): number;
+}
+
+const parse = (value: string): string => value;
+parse satisfies Fn;
+
+// expressions / functions / callable / call signature object types accept function values
+const fn = (): number => 1;
+fn satisfies { (): number };
+
+// expressions / functions / callable / call signature object types reject incompatible returns
+const fn = (): string => "no";
+fn satisfies { (): number };
+
+// expressions / functions / callable / callable interfaces satisfy call signature object types
+interface Fn {
+    (): number;
+}
+
+const fn: Fn = (): number => 1;
+fn satisfies { (): number };
+
+// expressions / functions / callable / function assignment rejects narrow parameters
+interface FnWide {
+    (value: string | number): void;
+}
+
+interface FnNarrow {
+    (value: string): void;
+}
+
+function narrow(value: string): void {}
+let wide: FnWide = narrow;

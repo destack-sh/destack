@@ -1,0 +1,28 @@
+// SYNTAX TEST "source.ds"
+
+// types / classes / overrides / overrides require override
+class Base {
+    greet(): void {}
+}
+
+class Derived extends Base {
+    greet(): void {}
+}
+
+// types / classes / overrides / override marks intentional overrides
+class Base {
+    greet(): void {}
+}
+
+class Derived extends Base {
+    override greet(): void {}
+}
+
+// types / classes / overrides / overrides require compatible methods
+class Base {
+    greet(value: string): void {}
+}
+
+class Derived extends Base {
+    override greet(value: number): void {}
+}

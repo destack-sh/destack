@@ -1,0 +1,37 @@
+// SYNTAX TEST "source.ds"
+
+// runtime / modules / modes / active mode files share the base module
+export const base = "user";
+
+// runtime / modules / modes / active mode files share the base module
+export const testName = `${base}.test`;
+
+// runtime / modules / modes / active mode files share the base module
+import { base, testName } from "./user";
+
+base satisfies "user";
+testName satisfies "user.test";
+
+// runtime / modules / modes / inactive mode files are ignored
+export const base = "user";
+
+// runtime / modules / modes / inactive mode files are ignored
+export const debugName = `${base}.dev`;
+
+// runtime / modules / modes / inactive mode files are ignored
+import { base } from "./user";
+
+base satisfies "user";
+
+// runtime / modules / modes / import meta exposes active modes
+const modes = import.meta.modes;
+modes satisfies readonly string[];
+
+// runtime / modules / modes / builtin mode shorthands follow modes
+import.meta.modes satisfies readonly string[];
+import.meta.debug satisfies boolean;
+import.meta.dev satisfies boolean;
+import.meta.prod satisfies boolean;
+import.meta.test satisfies boolean;
+import.meta.bench satisfies boolean;
+import.meta.lint satisfies boolean;

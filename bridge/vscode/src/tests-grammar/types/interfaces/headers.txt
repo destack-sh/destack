@@ -1,0 +1,29 @@
+// SYNTAX TEST "source.ds"
+
+// types / interfaces / headers / default export interfaces must be named
+export default interface {
+    value: number;
+}
+
+// types / interfaces / headers / named default export interfaces are allowed
+export default interface Config {
+    value: number;
+}
+
+// types / interfaces / headers / interfaces may extend multiple parents
+interface Named {
+    name: string;
+}
+
+interface Timestamped {
+    updatedAt: int64;
+}
+
+interface Entity extends Named, Timestamped {
+    id: int64;
+}
+
+declare const entity: Entity;
+entity.name satisfies string;
+entity.updatedAt satisfies int64;
+entity.id satisfies int64;

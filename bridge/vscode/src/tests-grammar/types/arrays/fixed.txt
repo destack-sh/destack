@@ -1,0 +1,35 @@
+// SYNTAX TEST "source.ds"
+
+// types / arrays / fixed / fixed arrays are assignable to dynamic arrays
+let fixed: [int32; 3] = [1, 2, 3];
+let dynamic: int32[] = fixed;
+
+// types / arrays / fixed / dynamic arrays are not assignable to fixed arrays
+let dynamic: int32[] = [1, 2, 3];
+let fixed: [int32; 3] = dynamic;
+
+// types / arrays / fixed / fixed arrays require compatible element types
+let fixed: [int32; 2] = [1, 2];
+let dynamic: string[] = fixed;
+
+// types / arrays / fixed / fixed arrays are usable in function arguments
+function take(values: int32[]): int32[] {
+    return values;
+}
+let fixed: [int32; 2] = [1, 2];
+let dynamic = take(fixed);
+
+// types / arrays / fixed / fixed arrays with equal lengths are assignable
+let source: [int32; 2] = [1, 2];
+let target: [int32; 2] = source;
+
+// types / arrays / fixed / fixed arrays with different lengths are not assignable
+let source: [int32; 2] = [1, 2];
+let target: [int32; 3] = source;
+
+// types / arrays / fixed / FixedArray is an alias for fixed arrays
+const lane: FixedArray<int32, 2> = [1, 2];
+lane satisfies [int32; 2];
+
+// types / arrays / fixed / FixedArray keeps the declared length
+const lane: FixedArray<int32, 2> = [1, 2, 3];

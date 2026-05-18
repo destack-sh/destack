@@ -1,0 +1,68 @@
+// SYNTAX TEST "source.ds"
+
+// types / generics / modifiers / mapped modifiers can remove readonly and optional markers
+interface Person {
+    readonly name: string;
+    age?: number;
+}
+
+type MutableRequired<T> = { -readonly [K in keyof T]-?: T[K] };
+
+const bad: MutableRequired<Person> = {};
+
+// types / generics / modifiers / mapped readonly modifiers prevent mutation
+type Frozen<T> = { readonly [K in keyof T]: T[K] };
+
+const value: Frozen<{ a: number }> = { a: 1 };
+value.a = 2;
+
+// types / generics / modifiers / key remapping to never removes keys
+interface Shape {
+    a: number;
+    b: string;
+}
+
+type WithoutA<T> = { [K in keyof T as K extends "a" ? never : K]: T[K] };
+
+const ok: WithoutA<Shape> = { b: "x" };
+const bad: WithoutA<Shape> = { a: 1, b: "x" };
+
+// types / generics / modifiers / key remap collisions merge value types
+interface Shape {
+    a: number;
+    b: string;
+}
+
+type Merge<T> = { [K in keyof T as "value"]: T[K] };
+
+const bad: Merge<Shape> = { value: true };
+
+// types / generics / modifiers / key remapping supports template literal keys
+interface Shape {
+    a: number;
+    b: string;
+}
+
+type Prefixed<T> = {
+    [K in keyof T as K extends string ? `get_${K}` : never]: () => T[K];
+};
+
+const ok: Prefixed<Shape> = {
+    get_a: () => 1,
+    get_b: () => "ok",
+};
+
+// types / generics / modifiers / key remapping template keys reject mismatched fields
+interface Shape {
+    a: number;
+    b: string;
+}
+
+type Prefixed<T> = {
+    [K in keyof T as K extends string ? `get_${K}` : never]: () => T[K];
+};
+
+const bad: Prefixed<Shape> = {
+    get_a: () => "no",
+    get_b: () => "ok",
+};

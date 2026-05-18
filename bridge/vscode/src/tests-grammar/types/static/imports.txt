@@ -1,0 +1,9 @@
+// SYNTAX TEST "source.ds"
+
+// types / static / imports / imports cannot refine exports
+export declare const N: uint;
+
+// types / static / imports / imports cannot refine exports
+import { N } from "./a.ds";
+
+N satisfies 3;

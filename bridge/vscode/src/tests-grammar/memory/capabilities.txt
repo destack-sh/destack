@@ -1,0 +1,40 @@
+// SYNTAX TEST "source.ds"
+
+// memory / capabilities / copy requires capability
+function duplicate<T: Copy>(value: T): (T, T) {
+    return (value, value);
+}
+
+struct NotCopy {
+    value: int32;
+}
+
+duplicate(NotCopy { value: 1 });
+
+// memory / capabilities / clone requires capability
+function cloneValue<T: Clone>(value: T): T {
+    return value.clone();
+}
+
+struct NotClone {
+    value: int32;
+}
+
+cloneValue(NotClone { value: 1 });
+
+// memory / capabilities / shared does not imply sync
+struct Cell {
+    value: int32;
+}
+
+function requiresSync<T: Sync>(value: T): void {}
+
+let cell: shared Cell = Cell { value: 1 };
+requiresSync(cell);
+
+// memory / capabilities / worker transfer can require send
+function postToWorker<T: Send>(value: T): void {}
+
+class NotSend {}
+
+postToWorker(new NotSend());

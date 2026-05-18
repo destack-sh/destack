@@ -1,0 +1,4 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / operators / logical not / logical not yields boolean
+let value: boolean = !true;

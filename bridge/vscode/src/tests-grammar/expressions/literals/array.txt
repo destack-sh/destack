@@ -1,0 +1,67 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / literals / array / array of numbers
+const x = [1, 2, 3];
+x satisfies number[];
+
+// expressions / literals / array / array of strings
+const x = ["a", "b", "c"];
+x satisfies string[];
+
+// expressions / literals / array / empty array
+const x = [];
+x satisfies unknown[];
+
+// expressions / literals / array / mixed array
+const x = [1, "two", true];
+x satisfies (number | string | boolean)[];
+
+// expressions / literals / array / contextual array literal
+const values: number[] = [1, 2, 3];
+values satisfies number[];
+
+// expressions / literals / array / contextual array literal mismatch
+const values: number[] = [1, "two"];
+
+// expressions / literals / array / contextual array literal via alias
+type Numbers = number[];
+
+const values: Numbers = [1, 2, 3];
+values satisfies number[];
+
+// expressions / literals / array / contextual array literal alias mismatch
+type Numbers = number[];
+
+const values: Numbers = [1, "two"];
+
+// expressions / literals / array / contextual array spread literal
+const values: number[] = [...[1, 2]];
+values satisfies number[];
+
+// expressions / literals / array / contextual array spread literal mismatch
+const values: number[] = [...[1, "two"]];
+
+// expressions / literals / array / Array<T> matches array syntax
+const values: Array<number> = [1, 2, 3];
+values satisfies number[];
+
+// expressions / literals / array / array syntax matches Array<T>
+const values: number[] = [1, 2, 3];
+values satisfies Array<number>;
+
+// expressions / literals / array / array spread preserves element types
+const base = [1, 2];
+const values = [...base, 3];
+values satisfies number[];
+
+// expressions / literals / array / index access returns element type
+const values = [1, 2, 3];
+let value: number = values[0];
+
+// expressions / literals / array / array length resolves
+const values = [1, 2, 3];
+values.length satisfies int32;
+
+// expressions / literals / array / array push checks element types
+const values: number[] = [1, 2, 3];
+values.push("no");

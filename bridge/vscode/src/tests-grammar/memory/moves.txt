@@ -1,0 +1,178 @@
+// SYNTAX TEST "source.ds"
+
+// memory / moves / use after move is rejected
+struct Data {
+    value: int32;
+}
+
+function consume(value: ^Data): void {
+    value.value;
+}
+
+function run(): void {
+    let data = ^Data { value: 1 };
+    consume(data);
+    data.value;
+}
+
+// memory / moves / moved value is allowed when not used again
+struct Data {
+    value: int32;
+}
+
+function consume(value: ^Data): void {
+    value.value;
+}
+
+function run(): void {
+    let data = ^Data { value: 1 };
+    consume(data);
+}
+
+// memory / moves / move in branch is rejected
+struct Data {
+    value: int32;
+}
+
+function consume(value: ^Data): void {
+    value.value;
+}
+
+function run(flag: boolean): void {
+    let data = ^Data { value: 1 };
+    if (flag) {
+        consume(data);
+    }
+    data.value;
+}
+
+// memory / moves / moving twice is rejected
+struct Data {
+    value: int32;
+}
+
+function consume(value: ^Data): void {
+    value.value;
+}
+
+function run(): void {
+    let data = ^Data { value: 1 };
+    consume(data);
+    consume(data);
+}
+
+// memory / moves / move while borrowed is rejected
+struct Data {
+    value: int32;
+}
+
+struct Container {
+    data: Data;
+}
+
+function consume(value: ^Container): void {
+    value.data.value;
+}
+
+function run(): void {
+    let container = ^Container { data: Data { value: 1 } };
+    let borrow = &container.data;
+    consume(container);
+    borrow.value;
+}
+
+// memory / moves / borrow after move is rejected
+struct Data {
+    value: int32;
+}
+
+struct Container {
+    data: Data;
+}
+
+function consume(value: ^Container): void {
+    value.data.value;
+}
+
+function run(): void {
+    let container = ^Container { data: Data { value: 1 } };
+    consume(container);
+    let borrow = &container.data;
+    borrow.value;
+}
+
+// memory / moves / field moves keep siblings available
+class File {}
+
+struct Pair {
+    left: ^File;
+    right: ^File;
+}
+
+declare function openFile(path: string): ^File;
+declare function close(file: ^File): void;
+
+function run(): void {
+    let pair = ^Pair {
+        left: openFile("left.txt"),
+        right: openFile("right.txt"),
+    };
+
+    close(pair.left);
+    pair.right satisfies ^File;
+}
+
+// memory / moves / partial moves reject whole value use
+class File {}
+
+struct Pair {
+    left: ^File;
+    right: ^File;
+}
+
+declare function openFile(path: string): ^File;
+declare function close(file: ^File): void;
+declare function archive(pair: ^Pair): void;
+
+function run(): void {
+    let pair = ^Pair {
+        left: openFile("left.txt"),
+        right: openFile("right.txt"),
+    };
+
+    close(pair.left);
+    archive(pair);
+}
+
+// memory / moves / assignment restores moved fields
+class File {}
+
+struct Pair {
+    left: ^File;
+    right: ^File;
+}
+
+declare function openFile(path: string): ^File;
+declare function close(file: ^File): void;
+declare function archive(pair: ^Pair): void;
+
+function run(): void {
+    let pair = ^Pair {
+        left: openFile("left.txt"),
+        right: openFile("right.txt"),
+    };
+
+    close(pair.left);
+    pair.left = openFile("new-left.txt");
+    archive(pair);
+}
+
+// memory / moves / variable element moves may overlap
+class File {}
+
+declare function close(file: ^File): void;
+
+function run(files: [^File; 2], index: uint): void {
+    close(files[index]);
+    close(files[0]);
+}

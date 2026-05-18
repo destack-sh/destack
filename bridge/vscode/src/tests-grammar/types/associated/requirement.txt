@@ -1,0 +1,88 @@
+// SYNTAX TEST "source.ds"
+
+// types / associated / requirement / implementations inherit type defaults
+interface Stream<T> {
+    type Item = T;
+    next(): this.Item;
+}
+
+class Counter implements Stream<int32> {
+    value: int32;
+
+    next(): this.Item {
+        this.value
+    }
+}
+
+declare const item: Counter.Item;
+item satisfies int32;
+
+// types / associated / requirement / implementations can override type defaults
+class DecodeError {}
+class JsonError {}
+class User {}
+
+declare function parseJson(raw: string): Result<User, JsonError>;
+
+interface Decoder {
+    type Error = DecodeError;
+    decode(raw: string): Result<User, this.Error>;
+}
+
+class JsonDecoder implements Decoder {
+    type Error = JsonError;
+
+    decode(raw: string): Result<User, this.Error> {
+        parseJson(raw)
+    }
+}
+
+declare const error: JsonDecoder.Error;
+error satisfies JsonError;
+
+// types / associated / requirement / required type members need implementations
+interface Iterator {
+    type Item;
+    next(): Option<this.Item>;
+}
+
+class Empty implements Iterator {}
+
+// types / associated / requirement / implementations inherit constant defaults
+interface RegisterBlock {
+    comptime const Width: uint = 4;
+    type Bytes = [uint8; this.Width];
+}
+
+struct Status implements RegisterBlock {}
+
+declare const bytes: Status.Bytes;
+bytes satisfies [uint8; 4];
+
+// types / associated / requirement / implementations can override constant defaults
+interface RegisterBlock {
+    comptime const Width: uint = 4;
+    type Bytes = [uint8; this.Width];
+}
+
+struct WideRegister implements RegisterBlock {
+    comptime const Width: uint = 16;
+}
+
+declare const bytes: WideRegister.Bytes;
+bytes satisfies [uint8; 16];
+
+// types / associated / requirement / extensions can provide requirements
+interface Window<T> {
+    comptime const Rows: uint;
+    type Slice = [T; this.Rows];
+}
+
+struct Data<T> {}
+
+extension<T> of Data<T> implements Window<T> {
+    comptime const Rows: uint = 16;
+}
+
+declare const slice: Data<uint8>.Slice;
+slice satisfies [uint8; 16];

@@ -1,0 +1,123 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / errors / maybe / ? opens Try success
+declare function read(): Result<int, Error>;
+
+function main(): Result<int, Error> {
+    const value = read()?;
+    value satisfies int;
+    return Result.ok(value);
+}
+
+// expressions / errors / maybe / ? opens one Try layer
+declare function read(): Result<Result<int, Error>, Error>;
+
+function main(): Result<Result<int, Error>, Error> {
+    const value = read()?;
+    value satisfies Result<int, Error>;
+    return Result.ok(value);
+}
+
+// expressions / errors / maybe / ? propagates nullish success values
+declare function read(): Result<int | null | undefined, Error | null> | undefined;
+
+function main(): Result<int, Error | null | undefined> {
+    const value = read()?;
+    value satisfies int;
+    return Result.ok(value);
+}
+
+// expressions / errors / maybe / ? propagates nullish values
+declare function read(): string | null;
+
+function main(): string | null {
+    const value = read()?;
+    value satisfies string;
+    return value;
+}
+
+// expressions / errors / maybe / ? propagates nullable Results
+declare function read(): Result<int, Error> | null | undefined;
+
+function main(): Result<int, Error | null | undefined> {
+    const value = read()?;
+    value satisfies int;
+    return Result.ok(value);
+}
+
+// expressions / errors / maybe / ? joins Result unions
+struct MissingError {
+    message: string;
+}
+
+extension of MissingError implements Error {
+    display(): string {
+        this.message
+    }
+}
+
+struct BadError {
+    message: string;
+}
+
+extension of BadError implements Error {
+    display(): string {
+        this.message
+    }
+}
+
+declare function read(): Result<int, MissingError> | Result<string, BadError>;
+
+function main(): Result<int | string, MissingError | BadError> {
+    const value = read()?;
+    value satisfies int | string;
+    return Result.ok(value);
+}
+
+// expressions / errors / maybe / ? works with Try implementors
+struct Maybe<T, E> {
+    branchValue: TryBranch<T, E>;
+}
+
+extension<T, E> of Maybe<T, E> implements Try {
+    type Value = T;
+    type Failure = E;
+
+    static fromValue(value: T): Maybe<T, E> {
+        Maybe { branchValue: TryContinue { kind: "continue", value } }
+    }
+
+    branch(): TryBranch<T, E> {
+        this.branchValue
+    }
+}
+
+declare function read(): Maybe<int, Error>;
+
+function main(): Result<int, Error> {
+    const value = read()?;
+    value satisfies int;
+    return Result.ok(value);
+}
+
+// expressions / errors / maybe / ? needs a compatible return type
+declare function read(): Result<int, Error>;
+
+function main(): int {
+    const value = read()?;
+    return value;
+}
+
+// expressions / errors / maybe / ? rejects plain values
+function main(): Result<int, Error> {
+    const value = "nope"?;
+    return Result.ok(0);
+}
+
+// expressions / errors / maybe / mixed Try unions need narrowing
+declare function read(): Result<int, Error> | string | null;
+
+function main(): Result<int, Error> {
+    const value = read()?;
+    return Result.ok(value);
+}

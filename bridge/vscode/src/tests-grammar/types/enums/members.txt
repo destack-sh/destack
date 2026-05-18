@@ -1,0 +1,28 @@
+// SYNTAX TEST "source.ds"
+
+// types / enums / members / enum instances expose methods
+enum Status {
+    Active = 1,
+    Inactive = 2,
+
+    isActive(): boolean {
+        match (this) {
+            Status.Active => true
+            _ => false
+        }
+    }
+}
+
+const value = Status.Active.isActive();
+value satisfies boolean;
+
+// types / enums / members / enum statics expose values
+enum Status {
+    Active = 1,
+    Inactive = 2,
+
+    static Default = Status.Active;
+}
+
+const value = Status.Default;
+value satisfies Status;

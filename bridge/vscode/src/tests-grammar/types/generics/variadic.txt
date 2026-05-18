@@ -1,0 +1,31 @@
+// SYNTAX TEST "source.ds"
+
+// types / generics / variadic / variadic tuple tail extraction preserves literal heads
+type Head<T: readonly unknown[]> = T extends readonly (infer H, ...unknown[]) ? H : never;
+
+declare const value: Head<readonly ("a", "b", "c")>;
+value satisfies "a";
+
+// types / generics / variadic / variadic tuple concat preserves const tuple precision
+declare function concat<T: readonly unknown[], U: readonly unknown[]>(a: T, b: U): (...T, ...U);
+
+const value = concat([1, 2] as const, ["x"] as const);
+value[0] satisfies 1;
+value[2] satisfies "x";
+
+// types / generics / variadic / variadic tuple concat widens mutable arrays
+declare function concat<T: readonly unknown[], U: readonly unknown[]>(a: T, b: U): (...T, ...U);
+
+let left = [1, 2];
+let right = ["x"];
+const value = concat(left, right);
+
+value[0] satisfies 1;
+
+// types / generics / variadic / rest parameter inference preserves tuple element ordering
+declare function collect<T: readonly unknown[]>(...values: T): T;
+
+const value = collect("a", 1, true);
+value[0] satisfies "a";
+value[1] satisfies 1;
+value[2] satisfies true;

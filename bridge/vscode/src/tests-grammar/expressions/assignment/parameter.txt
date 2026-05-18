@@ -1,0 +1,18 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / assignment / parameter / parameter bindings are mutable
+function bump(x: number): void {
+    x = 2;
+    x satisfies number;
+}
+
+// expressions / assignment / parameter / parameter assignments enforce declared types
+function bump(x: number): void {
+    x = "no";
+}
+
+// expressions / assignment / parameter / parameter bindings allow compound assignment
+function bump(x: number): number {
+    x += 2;
+    x
+}

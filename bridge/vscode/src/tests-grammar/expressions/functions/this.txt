@@ -1,0 +1,34 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / functions / this / functions reject implicit this
+function counter() {
+    this;
+}
+
+// expressions / functions / this / explicit this parameters provide receiver types
+function counter(this: { value: number }) {
+    this.value satisfies number;
+}
+
+// expressions / functions / this / methods provide implicit this
+class Counter {
+    value: number = 0;
+
+    add(value: number): number {
+        return this.value + value;
+    }
+}
+
+// expressions / functions / this / method lambdas capture this
+class Counter {
+    value: number = 0;
+
+    make(): () => number {
+        return () => this.value;
+    }
+}
+
+// expressions / functions / this / non-member lambdas reject implicit this
+function make() {
+    return () => this;
+}

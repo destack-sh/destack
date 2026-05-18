@@ -1,0 +1,20 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / patterns / newtypes / scalar newtype patterns bind values
+newtype UserId = int64;
+
+let UserId(value) = UserId(42);
+value satisfies int64;
+
+// expressions / patterns / newtypes / tuple newtype patterns bind fields
+newtype Point = (float32, float32);
+
+let Point(x, y) = Point(1.0, 2.0);
+x satisfies float32;
+y satisfies float32;
+
+// expressions / patterns / newtypes / object newtype patterns bind fields
+newtype Config = { debug: boolean };
+
+let Config { debug } = Config({ debug: true });
+debug satisfies boolean;

@@ -1,0 +1,86 @@
+// SYNTAX TEST "source.ds"
+
+// memory / rc / Rc can create weak handles
+import * as rc from "destack:memory/rc";
+
+struct User {
+    name: string;
+}
+
+let owner = rc.Rc.new(^User { name: "Ada" });
+let weak = owner.downgrade();
+let upgraded = weak.upgrade();
+
+upgraded satisfies rc.Rc<User> | undefined;
+
+// memory / rc / Rc can build cyclic ownership
+import * as rc from "destack:memory/rc";
+
+struct Node {
+    parent: rc.Weak<Node>;
+}
+
+let node = rc.Rc.newCyclic((self) => ^Node { parent: self });
+
+node satisfies rc.Rc<Node>;
+
+// memory / rc / Rc can expose unique access
+import * as rc from "destack:memory/rc";
+
+struct User {
+    name: string;
+}
+
+let owner = rc.Rc.new(^User { name: "Ada" });
+let user = owner.getExclusive();
+
+user satisfies &exclusive User | undefined;
+
+// memory / rc / Rc can recover unique ownership
+import { type Result } from "destack:error";
+import * as rc from "destack:memory/rc";
+
+struct User {
+    name: string;
+}
+
+let owner = rc.Rc.new(^User { name: "Ada" });
+let result = owner.tryUnwrap();
+
+result satisfies Result<^User, rc.Rc<User>>;
+
+// memory / rc / Arc can create weak handles
+import * as arc from "destack:memory/arc";
+
+struct User {
+    name: string;
+}
+
+let owner = arc.Arc.new(^User { name: "Ada" });
+let weak = owner.downgrade();
+let upgraded = weak.upgrade();
+
+upgraded satisfies arc.Arc<User> | undefined;
+
+// memory / rc / Arc can build cyclic ownership
+import * as arc from "destack:memory/arc";
+
+struct Node {
+    parent: arc.Weak<Node>;
+}
+
+let node = arc.Arc.newCyclic((self) => ^Node { parent: self });
+
+node satisfies arc.Arc<Node>;
+
+// memory / rc / Arc can pin shared owners
+import { type Pin } from "destack:memory";
+import * as arc from "destack:memory/arc";
+
+struct User {
+    name: string;
+}
+
+let owner = arc.Arc.pin(^User { name: "Ada" });
+
+owner satisfies Pin<arc.Arc<User>>;

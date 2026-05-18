@@ -1,0 +1,77 @@
+// SYNTAX TEST "source.ds"
+
+// types / structs / construction / tagged literals construct structs
+struct Counter {
+    value: int32;
+
+    increment(): Counter {
+        Counter { value: this.value + 1 }
+    }
+}
+
+const counter = Counter { value: 1 };
+const next = counter.increment();
+next satisfies Counter;
+
+// types / structs / construction / tagged literals expose methods
+struct Counter {
+    value: int32;
+
+    increment(): Counter {
+        Counter { value: this.value + 1 }
+    }
+}
+
+const value = (Counter { value: 1 }).increment().value;
+value satisfies int32;
+
+// types / structs / construction / tagged literals require fields
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+const point = Point { x: 1 };
+
+// types / structs / construction / tagged literals reject extra fields
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+const point = Point { x: 1, y: 2, z: 3 };
+
+// types / structs / construction / structs reject new
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+const point = new Point(1, 2);
+
+// types / structs / construction / struct methods can mutate fields
+struct Counter {
+    value: int32;
+
+    increment(): int32 {
+        this.value = this.value + 1;
+        this.value
+    }
+}
+
+let counter = Counter { value: 1 };
+const next = counter.increment();
+next satisfies int32;
+
+// types / structs / construction / object literals do not construct structs
+struct Counter {
+    value: int32;
+}
+
+const counter: Counter = { value: 1 };
+
+// types / structs / construction / structs embed fields
+struct Derived {
+    ...Base;
+    extra: int32;
+}

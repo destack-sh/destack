@@ -1,0 +1,23 @@
+// SYNTAX TEST "source.ds"
+
+// types / utilities / parameters / parameters extracts argument types
+type Args = Parameters<(name: string, count: number) => boolean>;
+
+const ok: Args = ("Ada", 1);
+ok satisfies (string, number);
+
+// types / utilities / parameters / parameters rejects wrong argument types
+type Args = Parameters<(name: string, count: number) => boolean>;
+
+const bad: Args = ("Ada", "one");
+
+// types / utilities / parameters / parameters preserves optional parameters
+type Args = Parameters<(name: string, count?: number) => boolean>;
+
+const ok: Args = ("Ada",);
+const ok2: Args = ("Ada", 1);
+
+// types / utilities / parameters / parameters preserves rest parameters
+type Args = Parameters<(name: string, ...flags: boolean[]) => void>;
+
+const ok: Args = ("Ada", true, false);

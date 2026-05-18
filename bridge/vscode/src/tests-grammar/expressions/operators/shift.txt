@@ -1,0 +1,100 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / operators / shift / shift left yields the left numeric type
+const value = 1 << 2;
+value satisfies int32;
+
+// expressions / operators / shift / shift right yields the left numeric type
+const value = 8 >> 1;
+value satisfies int32;
+
+// expressions / operators / shift / unsigned shift right yields the left numeric type
+const value = 8 >>> 1;
+value satisfies int32;
+
+// expressions / operators / shift / shift left dispatches to ShiftLeft
+struct Bits {
+    value: int;
+}
+
+extension of Bits implements ShiftLeft<Bits> {
+    type Output = Bits;
+
+    shiftLeft(other: Bits): this.Output {
+        return this;
+    }
+}
+
+declare function getBits(): Bits;
+
+const left = getBits();
+const right = getBits();
+
+const value = left << right;
+value satisfies Bits;
+
+// expressions / operators / shift / shift right dispatches to ShiftRight
+struct Bits {
+    value: int;
+}
+
+extension of Bits implements ShiftRight<Bits> {
+    type Output = Bits;
+
+    shiftRight(other: Bits): this.Output {
+        return this;
+    }
+}
+
+declare function getBits(): Bits;
+
+const left = getBits();
+const right = getBits();
+
+const value = left >> right;
+value satisfies Bits;
+
+// expressions / operators / shift / unsigned shift right dispatches to ShiftRightUnsigned
+struct Bits {
+    value: int;
+}
+
+extension of Bits implements ShiftRightUnsigned<Bits> {
+    type Output = Bits;
+
+    shiftRightUnsigned(other: Bits): this.Output {
+        return this;
+    }
+}
+
+declare function getBits(): Bits;
+
+const left = getBits();
+const right = getBits();
+
+const value = left >>> right;
+value satisfies Bits;
+
+// expressions / operators / shift / shift requires the right operand type
+struct Bits {
+    value: int;
+}
+struct OtherBits {
+    value: int;
+}
+
+extension of Bits implements ShiftLeft<Bits> {
+    type Output = Bits;
+
+    shiftLeft(other: Bits): this.Output {
+        return this;
+    }
+}
+
+declare function getBits(): Bits;
+declare function getOtherBits(): OtherBits;
+
+const left = getBits();
+const right = getOtherBits();
+
+left << right;

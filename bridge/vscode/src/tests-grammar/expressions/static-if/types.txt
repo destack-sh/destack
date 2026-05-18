@@ -1,0 +1,14 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / static if / types / when false, @if removes type aliases
+@if(false)
+type Hidden = MissingType;
+
+type Visible = number;
+
+// expressions / static if / types / when true, @if includes type aliases
+@if(true)
+type Visible = number;
+
+declare const value: Visible;
+value satisfies number;

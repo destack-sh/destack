@@ -1,0 +1,104 @@
+// SYNTAX TEST "source.ds"
+
+// types / generics / mapped / mapped types build object fields
+type Flags<T> = { [K in keyof T]: boolean };
+
+interface Person {
+    name: string;
+    age: number;
+}
+
+const ok: Flags<Person> = { name: true, age: false };
+
+// types / generics / mapped / mapped types reject incompatible field types
+type Flags<T> = { [K in keyof T]: boolean };
+
+interface Person {
+    name: string;
+    age: number;
+}
+
+const bad: Flags<Person> = { name: true, age: "no" };
+
+// types / generics / mapped / mapped types support optional modifiers
+type Optional<T> = { [K in keyof T]?: T[K] };
+
+interface Person {
+    name: string;
+    age: number;
+}
+
+const ok: Optional<Person> = {};
+const ok2: Optional<Person> = { name: "Ada" };
+
+// types / generics / mapped / mapped types reject incompatible optional fields
+type Optional<T> = { [K in keyof T]?: T[K] };
+
+interface Person {
+    name: string;
+    age: number;
+}
+
+const bad: Optional<Person> = { name: "Ada", age: "no" };
+
+// types / generics / mapped / mapped types can remove optional modifiers
+type RequiredKeys<T> = { [K in keyof T]-?: T[K] };
+
+interface Person {
+    name?: string;
+}
+
+const bad: RequiredKeys<Person> = {};
+
+// types / generics / mapped / mapped types can remap keys
+type Renamed<T> = { [K in keyof T as "value"]: T[K] };
+
+interface Person {
+    name: string;
+    age: number;
+}
+
+const ok: Renamed<Person> = { value: "Ada" };
+const ok2: Renamed<Person> = { value: 1 };
+
+// types / generics / mapped / mapped types reject incompatible remapped values
+type Renamed<T> = { [K in keyof T as "value"]: T[K] };
+
+interface Person {
+    name: string;
+    age: number;
+}
+
+const bad: Renamed<Person> = { value: true };
+
+// types / generics / mapped / mapped types add readonly modifiers
+type Frozen<T> = { readonly [K in keyof T]: T[K] };
+
+interface Person {
+    name: string;
+    age: number;
+}
+
+const frozen: Frozen<Person> = { name: "Ada", age: 42 };
+const bad: Person = frozen;
+
+// types / generics / mapped / mapped types remove readonly modifiers
+type Frozen<T> = { readonly [K in keyof T]: T[K] };
+type Mutable<T> = { -readonly [K in keyof T]: T[K] };
+
+interface Person {
+    name: string;
+    age: number;
+}
+
+const ok: Mutable<Person> = { name: "Ada", age: 42 };
+
+// types / generics / mapped / mapped types remove optional modifiers
+type Optional<T> = { [K in keyof T]?: T[K] };
+type Required<T> = { [K in keyof T]-?: T[K] };
+
+interface Person {
+    name: string;
+}
+
+const bad: Required<Optional<Person>> = {};

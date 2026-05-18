@@ -1,0 +1,64 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / errors / result / constructors return Result
+const ok: Result<int, string> = Result.ok(1);
+const err: Result<int, string> = Result.err("no");
+
+ok satisfies Result<int, string>;
+err satisfies Result<int, string>;
+
+// expressions / errors / result / variants require wrapping
+const value: Result<int, string> = Ok { value: 1 };
+
+// expressions / errors / result / patterns narrow result variants
+const value: Result<int, string> = Result.ok(1);
+
+match (value) {
+    Ok { value } => value satisfies int
+    Err { error } => error satisfies string
+}
+
+// expressions / errors / result / match folds variants
+const value: Result<int, string> = Result.ok(1);
+
+const label = value.match({
+    ok: (number) => `ok:${number}`,
+    err: (error) => `err:${error}`,
+});
+
+label satisfies string;
+
+// expressions / errors / result / tap keeps the original Result
+declare function logValue(value: int): void;
+declare function logError(error: string): void;
+
+const value: Result<int, string> = Result.ok(1);
+const out = value.tap(logValue).tapErr(logError);
+
+out satisfies Result<int, string>;
+
+// expressions / errors / result / AsyncResult wraps Promise Result
+newtype NetworkError = string;
+
+declare function request(): Promise<string>;
+declare function recover(error: unknown): NetworkError;
+
+const value = AsyncResult.fromPromise(request(), recover);
+
+value satisfies AsyncResult<string, NetworkError>;
+
+// expressions / errors / result / async failures can be propagated
+newtype NetworkError = string;
+newtype DecodeError = string;
+struct User {
+    name: string;
+}
+
+declare function request(): AsyncResult<string, NetworkError>;
+declare function decode(raw: string): Result<User, DecodeError>;
+
+async function load(): AsyncResult<User, NetworkError | DecodeError> {
+    const raw = (await request())?;
+    const user = decode(raw)?;
+    return Result.ok(user);
+}

@@ -1,0 +1,20 @@
+// SYNTAX TEST "source.ds"
+
+// types / utilities / constructor parameters / ConstructorParameters extracts constructor arguments
+class User {
+    constructor(name: string, age: number) {}
+}
+
+type Args = ConstructorParameters<typeof User>;
+
+const ok: Args = ("Ada", 42);
+ok satisfies (string, number);
+
+// types / utilities / constructor parameters / ConstructorParameters rejects wrong argument types
+class User {
+    constructor(name: string, age: number) {}
+}
+
+type Args = ConstructorParameters<typeof User>;
+
+const bad: Args = ("Ada", "old");

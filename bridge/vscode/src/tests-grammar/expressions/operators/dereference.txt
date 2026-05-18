@@ -1,0 +1,177 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / operators / dereference / readonly dereference
+struct Ref<T> {
+    value: T;
+}
+
+extension<T> of Ref<T> implements Dereference<"readonly"> {
+    type Output = &T;
+
+    dereference(): &readonly T {
+        &readonly this.value
+    }
+}
+
+declare function getRef(): Ref<int32>;
+
+const value = *getRef();
+value satisfies &readonly int32;
+
+// expressions / operators / dereference / missing dereference
+struct Ref<T> {
+    value: T;
+}
+
+declare function getRef(): Ref<int32>;
+
+const value = *getRef();
+
+// expressions / operators / dereference / mutable dereference
+struct Ref<T> {
+    value: T;
+}
+
+extension<T> of Ref<T> implements Dereference<"mutable"> {
+    type Output = &T;
+
+    dereference(): &T {
+        &this.value
+    }
+}
+
+declare function getRef(): Ref<int32>;
+
+let value = getRef();
+*value = 2;
+
+// expressions / operators / dereference / readonly dereference rejects assignment
+struct Ref<T> {
+    value: T;
+}
+
+extension<T> of Ref<T> implements Dereference<"readonly"> {
+    type Output = &T;
+
+    dereference(): &readonly T {
+        &readonly this.value
+    }
+}
+
+declare function getRef(): Ref<int32>;
+
+let value = getRef();
+*value = 2;
+
+// expressions / operators / dereference / exclusive dereference
+struct Ref<T> {
+    value: T
+}
+
+extension<T> of Ref<T> implements Dereference<"exclusive"> {
+    type Output = &T;
+
+    dereference(): &exclusive T {
+        &exclusive this.value
+    }
+}
+
+declare function getRef(): Ref<int32>;
+
+let value = getRef();
+let inner = &exclusive *value;
+
+inner satisfies &exclusive int32;
+
+// expressions / operators / dereference / mutable dereference rejects exclusive borrow
+struct Ref<T> {
+    value: T
+}
+
+extension<T> of Ref<T> implements Dereference<"mutable"> {
+    type Output = &T;
+
+    dereference(): &T {
+        &this.value
+    }
+}
+
+declare function getRef(): Ref<int32>;
+
+let value = getRef();
+let inner = &exclusive *value;
+
+// expressions / operators / dereference / lookup checks wrapper first
+struct User {
+    name: string;
+    age: int32;
+}
+
+struct Slot<T> {
+    value: T;
+
+    name(): "slot" {
+        "slot"
+    }
+}
+
+extension<T> of Slot<T> implements Dereference<"readonly"> {
+    type Output = &T;
+
+    dereference(): &readonly T {
+        &readonly this.value
+    }
+}
+
+declare function getUser(): Slot<User>;
+
+const user = getUser();
+const name = user.name();
+const age = user.age;
+
+name satisfies "slot";
+age satisfies int32;
+
+// expressions / operators / dereference / mutation uses mutable dereference
+struct User {
+    name: string;
+}
+
+struct Slot<T> {
+    value: T;
+}
+
+extension<T> of Slot<T> implements Dereference<"mutable"> {
+    type Output = &T;
+
+    dereference(): &T {
+        &this.value
+    }
+}
+
+declare function getUser(): Slot<User>;
+
+let user = getUser();
+user.name = "Ada";
+
+// expressions / operators / dereference / readonly mutation
+struct User {
+    name: string;
+}
+
+struct Rc<T> {
+    value: T;
+}
+
+extension<T> of Rc<T> implements Dereference<"readonly"> {
+    type Output = &T;
+
+    dereference(): &readonly T {
+        &readonly this.value
+    }
+}
+
+declare function getUser(): Rc<User>;
+
+let user = getUser();
+user.name = "Ada";

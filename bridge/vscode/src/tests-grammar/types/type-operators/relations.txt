@@ -1,0 +1,97 @@
+// SYNTAX TEST "source.ds"
+
+// types / type operators / relations / extends accepts assignable types
+type IsNumber = int32 extends number;
+
+const ok: IsNumber = true;
+
+// types / type operators / relations / extends rejects false for assignable types
+type IsNumber = int32 extends number;
+
+const bad: IsNumber = false;
+
+// types / type operators / relations / extends rejects incompatible types
+type IsString = string extends int32;
+
+const ok: IsString = false;
+
+// types / type operators / relations / extends rejects true for incompatible types
+type IsString = string extends int32;
+
+const bad: IsString = true;
+
+// types / type operators / relations / implements accepts explicit conformance
+interface Drawable {
+    draw(): void;
+}
+
+struct DrawnPoint implements Drawable {
+    x: int32;
+
+    draw(): void {}
+}
+
+type IsDrawable = DrawnPoint implements Drawable;
+
+const ok: IsDrawable = true;
+
+// types / type operators / relations / implements rejects false for conformance
+interface Drawable {
+    draw(): void;
+}
+
+struct DrawnPoint implements Drawable {
+    x: int32;
+
+    draw(): void {}
+}
+
+type IsDrawable = DrawnPoint implements Drawable;
+
+const bad: IsDrawable = false;
+
+// types / type operators / relations / implements rejects missing conformance
+interface Drawable {
+    draw(): void;
+}
+
+struct PlainPoint {
+    x: int32;
+}
+
+type IsDrawable = PlainPoint implements Drawable;
+
+const ok: IsDrawable = false;
+
+// types / type operators / relations / implements rejects true without conformance
+interface Drawable {
+    draw(): void;
+}
+
+struct PlainPoint {
+    x: int32;
+}
+
+type IsDrawable = PlainPoint implements Drawable;
+
+const bad: IsDrawable = true;
+
+// types / type operators / relations / unknown does not extend concrete types
+type IsUnknown = unknown extends string;
+
+const ok: IsUnknown = false;
+
+// types / type operators / relations / all types extend unknown
+type IsAssignable = string extends unknown;
+
+const ok: IsAssignable = true;
+
+// types / type operators / relations / never extends all types
+type IsNever = never extends string;
+
+const ok: IsNever = true;
+
+// types / type operators / relations / concrete types do not extend never
+type IsNever = string extends never;
+
+const ok: IsNever = false;

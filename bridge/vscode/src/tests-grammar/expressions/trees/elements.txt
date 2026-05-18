@@ -1,0 +1,36 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / trees / elements / tree elements are expressions
+declare const A: unknown;
+
+let node = <A />;
+node;
+
+// expressions / trees / elements / tree elements accept attributes
+declare const A: unknown;
+
+let node = <A value={1} />;
+node;
+
+// expressions / trees / elements / tree elements accept children
+declare const A: unknown;
+
+let node = <A>{1}</A>;
+node;
+
+// expressions / trees / elements / tree elements reject duplicate attributes
+declare const A: unknown;
+
+const node = <A value={1} value={2} />;
+node;
+
+// expressions / trees / elements / tree elements support nested children
+declare const A: unknown;
+declare const B: unknown;
+
+const node = (
+    <A>
+        <B value={1} />
+    </A>
+);
+node;

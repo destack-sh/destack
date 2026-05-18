@@ -1,0 +1,30 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / comptime / expression / comptime expressions yield value types
+const value: int32 = comptime 1 + 2;
+value satisfies int32;
+
+// expressions / comptime / expression / comptime expressions keep exact values
+const value = comptime 1 + 2;
+value satisfies 3;
+
+// expressions / comptime / expression / comptime block yields last expression type
+const value: int32 = comptime {
+    let base = 3;
+    base + 2
+};
+value satisfies int32;
+
+// expressions / comptime / expression / comptime expressions call functions with static inputs
+function add(a: int, b: int): int {
+    a + b
+}
+
+const value = comptime add(1, 2);
+value satisfies 3;
+
+// expressions / comptime / expression / comptime expressions reject runtime inputs
+function compute(value: int): int {
+    const result = comptime value + 1;
+    result
+}

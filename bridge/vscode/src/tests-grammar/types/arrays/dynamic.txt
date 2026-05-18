@@ -1,0 +1,60 @@
+// SYNTAX TEST "source.ds"
+
+// types / arrays / dynamic / dynamic arrays accept compatible element types
+let source: int32[] = [1, 2, 3];
+let target: int32[] = source;
+
+// types / arrays / dynamic / dynamic arrays reject incompatible element types
+let source: int32[] = [1, 2, 3];
+let target: string[] = source;
+
+// types / arrays / dynamic / packed arrays are explicit
+let values: PackedArray<int32> = PackedArray.from([1, 2, 3]);
+
+values satisfies PackedArray<int32>;
+
+// types / arrays / dynamic / dynamic arrays convert to packed arrays explicitly
+let stable: Array<int32> = [1, 2, 3];
+let packed: PackedArray<int32> = stable.into();
+
+packed satisfies PackedArray<int32>;
+
+// types / arrays / dynamic / packed arrays convert to dynamic arrays explicitly
+let packed: PackedArray<int32> = PackedArray.from([1, 2, 3]);
+let stable: Array<int32> = packed.into();
+
+stable satisfies Array<int32>;
+
+// types / arrays / dynamic / accessors preserve receiver access
+let values: Array<int32> = [1, 2, 3];
+
+values.first() satisfies int32 | undefined;
+(&values).first() satisfies &int32 | undefined;
+(&readonly values).first() satisfies &readonly int32 | undefined;
+(&exclusive values).first() satisfies &exclusive int32 | undefined;
+
+// types / arrays / dynamic / dynamic array indexing yields the element type
+let values: int32[] = [1, 2, 3];
+
+const first = values[0];
+first satisfies int32;
+
+// types / arrays / dynamic / dynamic array indexing rejects incompatible element expectations
+let values: int32[] = [1, 2, 3];
+
+const first: string = values[0];
+
+// types / arrays / dynamic / dynamic arrays satisfy compatible function parameters
+function take(values: int32[]): int32[] {
+    values
+}
+
+const result = take([1, 2, 3]);
+result satisfies int32[];
+
+// types / arrays / dynamic / dynamic arrays reject incompatible function parameters
+function take(values: string[]): string[] {
+    values
+}
+
+take([1, 2, 3]);

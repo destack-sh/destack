@@ -1,0 +1,20 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / static if / functions / when false, @if removes function declarations
+@if(false)
+function hidden(): MissingType {
+    return missingSymbol;
+}
+
+function visible(): number {
+    return 1;
+}
+
+// expressions / static if / functions / when true, @if includes function declarations
+@if(true)
+function add(left: number, right: number): number {
+    return left + right;
+}
+
+const total = add(1, 2);
+total satisfies number;

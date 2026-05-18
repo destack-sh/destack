@@ -1,0 +1,19 @@
+// SYNTAX TEST "source.ds"
+
+// types / enums / nominal / imported enums with matching members remain distinct
+export enum Status {
+    Active = 1,
+    Inactive = 2,
+}
+
+// types / enums / nominal / imported enums with matching members remain distinct
+export enum Status {
+    Active = 1,
+    Inactive = 2,
+}
+
+// types / enums / nominal / imported enums with matching members remain distinct
+import { Status as LeftStatus } from "./left.ds";
+import { Status as RightStatus } from "./right.ds";
+
+const value: LeftStatus = RightStatus.Active;

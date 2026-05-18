@@ -1,0 +1,28 @@
+// SYNTAX TEST "source.ds"
+
+// types / static / associated / associated types pass through aliases
+class Segment<Row> {
+    type Lane = Row extends string ? [uint8; 8] : [uint8; 4];
+}
+
+class Packet<Row> {
+    type Part = Segment<Row>;
+    type Lane = this.Part.Lane;
+}
+
+declare const lane: Packet<string>.Lane;
+lane satisfies [uint8; 8];
+
+// types / static / associated / generic associated types accept computed values
+interface Storage {
+    type Page<comptime N: uint>;
+}
+
+struct InlineStorage implements Storage {
+    type Page<comptime N: uint> = [uint8; N];
+}
+
+type DoublePage<S: Storage, comptime N: uint> = S.Page<N * 2>;
+
+declare const page: DoublePage<InlineStorage, 4>;
+page satisfies [uint8; 8];

@@ -1,0 +1,16 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / functions / returns / block bodies reject missing returns
+function example(value: number): number {
+    if (value > 0) {
+        return value;
+    }
+}
+
+// expressions / functions / returns / tail expressions satisfy return types
+function example(value: number): number {
+    if (value > 0) {
+        return value;
+    }
+    value + 1
+}

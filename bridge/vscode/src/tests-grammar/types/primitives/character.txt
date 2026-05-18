@@ -1,0 +1,17 @@
+// SYNTAX TEST "source.ds"
+
+// types / primitives / character / character literals satisfy character
+let value: char = 'a';
+
+// types / primitives / character / character does not widen to string
+let value: string = 'a';
+
+// types / primitives / character / string literals do not satisfy character
+let value: char = "a";
+
+// types / primitives / character / character values are not assignable to numbers
+let value: int32 = 'a';
+
+// types / primitives / character / character values satisfy character unions
+let value: char | string = 'a';
+value satisfies char | string;

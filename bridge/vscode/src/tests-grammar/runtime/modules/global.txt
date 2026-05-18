@@ -1,0 +1,189 @@
+// SYNTAX TEST "source.ds"
+
+// runtime / modules / global / imported global blocks contribute values
+global {
+    answer: (int32 = 42),
+};
+
+// runtime / modules / global / imported global blocks contribute values
+import "./globals.ds";
+
+answer satisfies int32;
+
+// runtime / modules / global / duplicate global values are rejected
+global {
+    answer: (int32 = 42),
+};
+
+// runtime / modules / global / duplicate global values are rejected
+global {
+    answer: (int32 = 7),
+};
+
+// runtime / modules / global / duplicate global values are rejected
+import "./a.ds";
+import "./b.ds";
+
+answer satisfies int32;
+
+// runtime / modules / global / configured global roots are visible without imports
+global {
+    runtimeName: (string = "test"),
+};
+
+// runtime / modules / global / configured global roots are visible without imports
+runtimeName satisfies string;
+
+// runtime / modules / global / global declarations are visible when imported
+declare global {
+    interface GlobalThing {
+        value: number;
+    }
+}
+
+// runtime / modules / global / global declarations are visible when imported
+import "./globals.ds";
+
+type Alias = GlobalThing;
+
+// runtime / modules / global / global declarations are not visible without import
+declare global {
+    interface GlobalThing {
+        value: number;
+    }
+}
+
+// runtime / modules / global / global declarations are not visible without import
+type Alias = GlobalThing;
+
+// runtime / modules / global / global declarations merge across imports
+declare global {
+    interface GlobalThing {
+        value: number;
+    }
+}
+
+// runtime / modules / global / global declarations merge across imports
+declare global {
+    interface GlobalThing {
+        label: string;
+    }
+}
+
+// runtime / modules / global / global declarations merge across imports
+import "./a.ds";
+import "./b.ds";
+
+const thing: GlobalThing = { value: 1, label: "ok" };
+thing.label satisfies string;
+
+// runtime / modules / global / global class static members merge across imports
+declare global {
+    class GlobalBox {
+        static left(): number;
+    }
+}
+
+// runtime / modules / global / global class static members merge across imports
+declare global {
+    class GlobalBox {
+        static right(): string;
+    }
+}
+
+// runtime / modules / global / global class static members merge across imports
+import "./a.ds";
+import "./b.ds";
+
+const left = GlobalBox.left();
+left satisfies number;
+
+const right = GlobalBox.right();
+right satisfies string;
+
+// runtime / modules / global / global class merges tolerate namespace value augmentations
+declare global {
+    class GlobalWidget {
+        ping(): number;
+    }
+}
+
+// runtime / modules / global / global class merges tolerate namespace value augmentations
+declare global {
+    namespace GlobalWidget {
+        export const tag: string;
+    }
+}
+
+// runtime / modules / global / global class merges tolerate namespace value augmentations
+import "./a.ds";
+import "./b.ds";
+
+declare const widget: GlobalWidget;
+widget.ping() satisfies number;
+
+GlobalWidget.tag satisfies string;
+
+// runtime / modules / global / global array augmentations preserve ambient array members
+declare global {
+    interface Array<T> {
+        first(): T | undefined;
+    }
+}
+
+const values = [1, 2, 3];
+values.length satisfies number;
+values.first() satisfies number | undefined;
+
+// runtime / modules / global / global declarations do not conflict with module declarations
+export {};
+
+declare class Iterator<T> {
+    next(value?: T): T;
+}
+
+interface IteratorConstructor {
+    from<T>(value: T): Iterator<T>;
+}
+
+declare global {
+    let Iterator: IteratorConstructor;
+}
+
+// runtime / modules / global / global declarations do not conflict with module declarations
+import "./globals.ds";
+
+// runtime / modules / global / global augmentations do not conflict with module declarations
+export {};
+
+declare abstract class Iterator<T> {
+    next(value?: T): T;
+}
+
+declare global {
+    let Iterator: {
+        new <T>(): Iterator<T>;
+    };
+}
+
+// runtime / modules / global / global augmentations do not conflict with module declarations
+import "./globals.ds";
+
+// runtime / modules / global / global declarations in module bindings can use module scope
+export {};
+
+declare module "foo" {
+    type Local = number;
+
+    global {
+        interface GlobalThing {
+            value: Local;
+        }
+    }
+}
+
+// runtime / modules / global / global declarations in module bindings can use module scope
+import "./bindings.ds";
+
+type Alias = GlobalThing;
+const value: Alias = { value: 1 };

@@ -1,0 +1,27 @@
+// SYNTAX TEST "source.ds"
+
+// memory / statics / shared const places the binding cell in shared space
+class Registry {}
+
+shared const registry: Registry = new Registry();
+registry satisfies shared Registry;
+
+// memory / statics / ordinary const keeps the binding local
+class Registry {}
+
+const registry: Registry = new Registry();
+registry satisfies Registry;
+
+// memory / statics / module const borrows have static lifetime
+const score: int32 = 7;
+
+let scoreRef = &readonly score;
+
+scoreRef satisfies ReadonlyBorrowed<int32, "static">;
+scoreRef satisfies &readonly int32;
+
+// memory / statics / shared value type keeps the binding local
+class Registry {}
+
+const registry: shared Registry = new Registry();
+registry satisfies shared Registry;

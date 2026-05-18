@@ -1,0 +1,13 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / static if / bindings / when false, @if removes const declarations
+@if(false)
+const hidden = missingSymbol;
+
+const visible = 1;
+
+// expressions / static if / bindings / when true, @if includes const declarations
+@if(true)
+const value = 1;
+
+value satisfies number;

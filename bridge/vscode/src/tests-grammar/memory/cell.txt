@@ -1,0 +1,35 @@
+// SYNTAX TEST "source.ds"
+
+// memory / cell / cell supports interior mutation
+import { Cell } from "destack:memory/cell";
+
+let cell = Cell.new(1);
+let shared = &readonly cell;
+
+shared.set(2);
+
+// memory / cell / cell get requires copyable values
+import { Cell } from "destack:memory/cell";
+
+let cell = Cell.new(1);
+let value = cell.get();
+
+value satisfies int32;
+
+// memory / cell / ref cell guards release through using
+import { RefCell } from "destack:memory/cell";
+
+let cell = RefCell.new(1);
+
+using value = cell.borrowExclusive();
+*value = 2;
+
+// memory / cell / overlapping exclusive ref cell borrows are runtime failures
+import { RefCell } from "destack:memory/cell";
+
+let cell = RefCell.new(1);
+
+using first = cell.borrowExclusive();
+let second = cell.tryBorrowExclusive();
+
+second satisfies undefined;

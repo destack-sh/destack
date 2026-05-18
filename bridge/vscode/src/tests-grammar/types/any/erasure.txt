@@ -1,0 +1,87 @@
+// SYNTAX TEST "source.ds"
+
+// types / any / erasure / interface parameters specialize by default
+newtype interface Writer {
+    write(bytes: [uint8]): uint;
+}
+
+struct Buffer implements Writer {
+    write(bytes: [uint8]): uint {
+        bytes.length
+    }
+}
+
+declare const bytes: [uint8];
+
+function write(writer: Writer): uint {
+    writer.write(bytes)
+}
+
+write(Buffer {}) satisfies uint;
+
+// types / any / erasure / explicit generic parameters use the same model
+newtype interface Writer {
+    write(bytes: [uint8]): uint;
+}
+
+struct Buffer implements Writer {
+    write(bytes: [uint8]): uint {
+        bytes.length
+    }
+}
+
+declare const bytes: [uint8];
+
+function write<W: Writer>(writer: W): uint {
+    writer.write(bytes)
+}
+
+write(Buffer {}) satisfies uint;
+
+// types / any / erasure / any stores an erased interface value
+newtype interface Writer {
+    write(bytes: [uint8]): uint;
+}
+
+struct Logger {
+    writer: Any<Writer>;
+}
+
+declare const bytes: [uint8];
+declare const logger: Logger;
+
+logger.writer.write(bytes) satisfies uint;
+
+// types / any / erasure / generic aggregates keep concrete field layout
+newtype interface Writer {
+    write(bytes: [uint8]): uint;
+}
+
+struct Buffer implements Writer {
+    write(bytes: [uint8]): uint {
+        bytes.length
+    }
+}
+
+struct Logger<W: Writer> {
+    writer: W;
+}
+
+const logger = Logger<Buffer> { writer: Buffer {} };
+logger.writer satisfies Buffer;
+
+// types / any / erasure / empty any uses an explicit anonymous type argument
+declare const value: Any<type {}>;
+value satisfies Any<type {}>;
+
+// types / any / erasure / unknown is not erased any
+newtype interface Writer {
+    write(bytes: [uint8]): uint;
+}
+
+declare const bytes: [uint8];
+declare const writer: Any<Writer>;
+declare const opaque: unknown;
+
+writer.write(bytes) satisfies uint;
+opaque.write(bytes);

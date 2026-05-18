@@ -1,0 +1,45 @@
+// SYNTAX TEST "source.ds"
+
+// types / primitives / scalars / number accepts numeric literals
+const value: number = 42;
+value satisfies number;
+
+// types / primitives / scalars / const numeric literals keep exact values
+const value = 42;
+value satisfies 42;
+value satisfies number;
+value satisfies int;
+
+// types / primitives / scalars / let numeric literals widen to number
+let value = 42;
+value satisfies number;
+
+// types / primitives / scalars / let numeric literals do not keep exact values
+let value = 42;
+value satisfies 42;
+
+// types / primitives / scalars / numeric literals fit integer contexts
+const value: int = 42;
+value satisfies int;
+
+// types / primitives / scalars / numeric literals fit float contexts
+const value: float32 = 42;
+value satisfies float32;
+
+// types / primitives / scalars / string accepts string literals
+const value: string = "hello";
+value satisfies string;
+
+// types / primitives / scalars / string literals infer literal strings
+const value = "hello";
+value satisfies "hello";
+value satisfies string;
+
+// types / primitives / scalars / boolean accepts boolean literals
+const value: boolean = true;
+value satisfies boolean;
+
+// types / primitives / scalars / boolean literals infer literal booleans
+const value = true;
+value satisfies true;
+value satisfies boolean;

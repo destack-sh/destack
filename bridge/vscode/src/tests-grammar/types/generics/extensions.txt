@@ -1,0 +1,102 @@
+// SYNTAX TEST "source.ds"
+
+// types / generics / extensions / extension type parameters
+struct Box<T> {
+    value: T;
+}
+
+extension<T> of Box<T> {
+    get(): T {
+        return this.value;
+    }
+}
+
+declare function makeBox(): Box<number>;
+
+const boxed = makeBox();
+boxed.get() satisfies number;
+
+// types / generics / extensions / extension static value parameters
+struct Buffer<T, comptime N: number> {
+    value: T;
+}
+
+extension<T, comptime N: number> of Buffer<T, N> {
+    get(): T {
+        return this.value;
+    }
+}
+
+declare function makeBuffer(): Buffer<string, 4>;
+
+const buffer = makeBuffer();
+buffer.get() satisfies string;
+
+// types / generics / extensions / extension generic parameters map by target argument order
+struct Pair<A, B> {
+    left: A;
+    right: B;
+}
+
+extension<Left, Right> of Pair<Right, Left> {
+    swap(): Pair<Left, Right> {
+        return Pair<Left, Right> {
+            left: this.right,
+            right: this.left,
+        };
+    }
+}
+
+declare function makePair(): Pair<number, string>;
+
+const pair = makePair();
+pair.swap() satisfies Pair<string, number>;
+
+// types / generics / extensions / extension static value parameters use defaults
+struct Buffer<T, comptime N: number = 4> {
+    value: T;
+}
+
+extension<T, comptime N: number> of Buffer<T, N> {
+    get(): T {
+        return this.value;
+    }
+}
+
+declare function makeBuffer(): Buffer<string>;
+
+const buffer = makeBuffer();
+buffer.get() satisfies string;
+
+// types / generics / extensions / extension generic parameter mismatch rejects incompatible calls
+struct Buffer<T, comptime N: number> {
+    value: T;
+}
+
+extension<T, comptime N: number> of Buffer<T, N> {
+    requireSize(value: [T; N]): [T; N] {
+        return value;
+    }
+}
+
+declare function makeBuffer(): Buffer<uint8, 4>;
+
+const buffer = makeBuffer();
+buffer.requireSize([1, 2, 3, 4]);
+buffer.requireSize([1, 2]);
+
+// types / generics / extensions / extension defaults keep concrete member types
+struct Registry<T, comptime N: number = 2> {
+    value: T;
+}
+
+extension<T, comptime N: number> of Registry<T, N> {
+    pair(): (T, T) {
+        (this.value, this.value)
+    }
+}
+
+declare function makeRegistry(): Registry<string>;
+
+const registry = makeRegistry();
+registry.pair() satisfies (string, string);

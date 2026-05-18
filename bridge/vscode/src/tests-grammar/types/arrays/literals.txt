@@ -1,0 +1,26 @@
+// SYNTAX TEST "source.ds"
+
+// types / arrays / literals / let array literals infer widened element arrays
+let values = [1, 2, 3];
+values satisfies number[];
+
+// types / arrays / literals / const array literals infer widened element arrays without const assertions
+const values = [1, 2, 3];
+values satisfies number[];
+
+// types / arrays / literals / fixed array annotations accept matching literal lengths
+const pair: [int32; 2] = [1, 2];
+pair satisfies [int32; 2];
+
+// types / arrays / literals / fixed array annotations reject mismatched literal lengths
+const pair: [int32; 2] = [1, 2, 3];
+
+// types / arrays / literals / nested fixed array annotations accept matching nested lengths
+const matrix: [[int32; 2]; 2] = [
+    [1, 2],
+    [3, 4],
+];
+matrix satisfies [[int32; 2]; 2];
+
+// types / arrays / literals / nested fixed array annotations reject mismatched nested lengths
+const matrix: [[int32; 2]; 2] = [[1, 2], [3]];

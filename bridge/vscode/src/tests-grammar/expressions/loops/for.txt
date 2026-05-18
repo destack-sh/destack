@@ -1,0 +1,29 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / loops / for / for yields void
+let value: void = for (let i = 0; i < 1; i++) {
+    i;
+};
+
+// expressions / loops / for / for is not assignable to number
+let value: number = for (let i = 0; i < 1; i++) {
+    i;
+};
+
+// expressions / loops / for / for allows continue in the loop body
+for (let i = 0; i < 3; i++) {
+    if (i == 1) {
+        continue;
+    }
+}
+
+// expressions / loops / for / for allows break in the loop body
+for (let i = 0; i < 3; i++) {
+    if (i == 1) {
+        break;
+    }
+}
+
+// expressions / loops / for / for loop initializer bindings do not escape loop scope
+for (let i = 0; i < 1; i++) {}
+i satisfies int32;

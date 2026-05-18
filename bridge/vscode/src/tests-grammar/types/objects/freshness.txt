@@ -1,0 +1,28 @@
+// SYNTAX TEST "source.ds"
+
+// types / objects / freshness / direct object literals preserve discriminant freshness for excess checks
+type Ready = { kind: "ready"; payload: string };
+
+declare const use_ready: (value: Ready) => void;
+
+use_ready({ kind: "ready", payload: "ok", extra: true });
+
+// types / objects / freshness / variable indirection drops freshness for excess checks
+type Ready = { kind: "ready"; payload: string };
+
+declare const use_ready: (value: Ready) => void;
+
+const input = { kind: "ready" as const, payload: "ok", extra: true };
+use_ready(input);
+
+// types / objects / freshness / const assertions preserve nested literal members through wrappers
+declare function pass<T>(value: T): T;
+
+const config = pass({ env: { mode: "dev" } } as const);
+config.env.mode satisfies "dev";
+
+// types / objects / freshness / mutable wrappers widen nested literal members
+declare function pass<T>(value: T): T;
+
+let config = pass({ env: { mode: "dev" } });
+config.env.mode satisfies "dev";

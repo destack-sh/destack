@@ -1,0 +1,245 @@
+// SYNTAX TEST "source.ds"
+
+public
+// <- keyword.other.modifier.ds
+
+protected
+// <- keyword.other.modifier.ds
+
+private
+// <- keyword.other.modifier.ds
+
+readonly
+// <- keyword.other.modifier.ds
+
+mut
+// <- keyword.other.modifier.ds
+
+static
+// <- keyword.other.modifier.ds
+
+final
+// <- keyword.other.modifier.ds
+
+accessor
+// <- keyword.other.modifier.ds
+
+default
+// <- keyword.other.modifier.ds
+
+abstract
+// <- keyword.other.modifier.ds
+
+override
+// <- keyword.other.modifier.ds
+
+self
+// <- keyword.other.context.ds
+
+this
+// <- keyword.other.context.ds
+
+super
+// <- keyword.other.context.ds
+
+package
+// <- keyword.other.context.ds
+
+import
+// <- keyword.declaration.import.ds
+
+import type Foo from "bar"
+// <- keyword.declaration.import.ds
+//     ^^^^ keyword.declaration.type.ds
+
+export
+// <- keyword.declaration.import.ds
+
+export type { Foo }
+// <- keyword.declaration.import.ds
+//     ^^^^ keyword.declaration.type.ds
+
+from
+// <- keyword.declaration.import.ds
+
+with
+// <- keyword.declaration.import.ds
+
+const
+// <- keyword.declaration.type.ds
+
+let
+// <- keyword.declaration.type.ds
+
+module
+// <- keyword.declaration.type.ds
+
+global
+// <- keyword.declaration.type.ds
+
+namespace
+// <- keyword.declaration.type.ds
+
+type
+// <- keyword.declaration.type.ds
+
+newtype
+// <- keyword.declaration.type.ds
+
+struct
+// <- keyword.declaration.type.ds
+
+class
+// <- keyword.declaration.type.ds
+
+enum
+// <- keyword.declaration.type.ds
+
+union
+// <- keyword.declaration.type.ds
+
+interface
+// <- keyword.declaration.type.ds
+
+function
+// <- keyword.declaration.type.ds
+
+extension
+// <- keyword.declaration.type.ds
+
+declare
+// <- keyword.declaration.type.ds
+
+constructor
+// <- keyword.declaration.type.ds
+
+new
+// <- keyword.operator.new.ds
+
+where
+// <- keyword.operator.type.ds
+
+asserts
+// <- keyword.operator.type.ds
+
+using
+// <- keyword.operator.type.ds
+
+provides
+// <- keyword.operator.type.ds
+
+comptime
+// <- keyword.other.comptime.ds
+
+keyof
+// <- keyword.operator.type.unary.ds
+
+typeof
+// <- keyword.operator.type.unary.ds
+
+infer
+// <- keyword.operator.type.unary.ds
+
+any
+// <- keyword.other.type.ds
+
+never
+// <- keyword.other.type.ds
+
+if
+// <- keyword.control.conditional.ds
+
+else
+// <- keyword.control.conditional.ds
+
+match
+// <- keyword.control.conditional.ds
+
+switch
+// <- keyword.control.conditional.ds
+
+case
+// <- keyword.control.conditional.ds
+
+do
+// <- keyword.control.loop.ds
+
+while
+// <- keyword.control.loop.ds
+
+for
+// <- keyword.control.loop.ds
+
+loop
+// <- keyword.control.loop.ds
+
+assert
+// <- keyword.control.flow.ds
+
+break
+// <- keyword.control.flow.ds
+
+continue
+// <- keyword.control.flow.ds
+
+debugger
+// <- keyword.control.flow.ds
+
+return
+// <- keyword.control.flow.ds
+
+yield
+// <- keyword.control.flow.ds
+
+goto
+// <- keyword.control.flow.ds
+
+try
+// <- keyword.control.exception.ds
+
+catch
+// <- keyword.control.exception.ds
+
+catch match (error) { }
+// <- keyword.control.exception.ds
+//    ^^^^^ keyword.control.conditional.ds
+
+throw
+// <- keyword.control.exception.ds
+
+finally
+// <- keyword.control.exception.ds
+
+async
+// <- keyword.control.async.ds
+
+await
+// <- keyword.control.async.ds
+
+get
+// <- keyword.other.accessor.ds
+
+set
+// <- keyword.other.accessor.ds
+
+move
+// <- keyword.other.accessor.ds
+
+if let Some(value) = maybe
+// <- keyword.control.conditional.ds
+// ^^^ keyword.declaration.type.ds
+
+await using resource = open()
+// <- keyword.control.async.ds
+//    ^^^^^ keyword.operator.type.ds
+
+extension of Vector2 { }
+// <- keyword.declaration.type.ds
+//        ^^ keyword.declaration.type.ds
+
+newtype interface Add<T> { }
+// <- keyword.declaration.type.ds
+//      ^^^^^^^^^ keyword.declaration.type.ds
+
+comptime {
+// <- keyword.other.comptime.ds

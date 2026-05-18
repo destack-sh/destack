@@ -1,0 +1,34 @@
+// SYNTAX TEST "source.ds"
+
+// types / convert / try / TryFrom returns Result
+struct ParseIdError {
+    message: string;
+}
+
+newtype UserId = string;
+
+extension of UserId implements TryFrom<string, ParseIdError> {
+    static tryFrom(value: string): Result<UserId, ParseIdError> {
+        return Result.ok(UserId(value));
+    }
+}
+
+const id = UserId.tryFrom("u_123")?;
+id satisfies UserId;
+
+// types / convert / try / TryInto is provided by TryFrom
+struct ParseIdError {
+    message: string;
+}
+
+newtype UserId = string;
+
+extension of UserId implements TryFrom<string, ParseIdError> {
+    static tryFrom(value: string): Result<UserId, ParseIdError> {
+        return Result.ok(UserId(value));
+    }
+}
+
+const source = "u_123";
+const id: UserId = source.tryInto()?;
+id satisfies UserId;

@@ -1,0 +1,16 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / patterns / wildcard / wildcard binding discards a value
+let _ = 1;
+
+// expressions / patterns / wildcard / wildcard does not introduce a binding
+let _ = 1;
+_ satisfies number;
+
+// expressions / patterns / wildcard / wildcard discards tuple positions
+let (_, value) = (1, "ok");
+value satisfies string;
+
+// expressions / patterns / wildcard / wildcard discards object fields
+let { id: _, name } = { id: 1, name: "Ada" };
+name satisfies string;

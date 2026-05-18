@@ -1,0 +1,29 @@
+// SYNTAX TEST "source.ds"
+
+// types / primitives / object / object to object
+const x: object = {} as object;
+
+// types / primitives / object / object literal to object
+const x: object = { a: 1, b: "hello" };
+
+// types / primitives / object / array to object
+const x: object = [1, 2, 3];
+
+// types / primitives / object / function to object
+const fn = () => {};
+const x: object = fn;
+
+// types / primitives / object / number not assignable to object
+const x: object = 42;
+
+// types / primitives / object / string not assignable to object
+const x: object = "hello";
+
+// types / primitives / object / boolean not assignable to object
+const x: object = true;
+
+// types / primitives / object / null not assignable to object
+const x: object = null;
+
+// types / primitives / object / undefined not assignable to object
+const x: object = undefined;

@@ -1,0 +1,44 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / patterns / object / object patterns bind fields
+let { x, y } = { x: 1, y: 2 };
+x satisfies number;
+y satisfies number;
+
+// expressions / patterns / object / struct object patterns need tags
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+let Point { x, y } = Point { x: 1, y: 2 };
+x satisfies int32;
+y satisfies int32;
+
+// expressions / patterns / object / bare object patterns reject structs
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+let point = Point { x: 1, y: 2 };
+let { x, y } = point;
+
+// expressions / patterns / object / object destructuring requires an initializer
+const { x }: { x: number };
+
+// expressions / patterns / object / object defaults fill absent fields
+let { name = "Ada" } = {};
+name satisfies string;
+
+// expressions / patterns / object / object defaults bind aliases
+let { name: displayName = "Ada" } = {};
+displayName satisfies string;
+
+// expressions / patterns / object / object rest binds tails
+let { id, ...rest } = { id: 1, name: "Ada", active: true };
+id satisfies number;
+rest satisfies { name: string; active: boolean };
+
+// expressions / patterns / object / object rest is last
+let { ...rest, id } = { id: 1, name: "Ada" };

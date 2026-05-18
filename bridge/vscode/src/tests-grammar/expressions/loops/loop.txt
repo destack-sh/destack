@@ -1,0 +1,34 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / loops / loop / loop yields void
+let value: void = loop {
+    break;
+};
+
+// expressions / loops / loop / loop is not assignable to number
+let value: number = loop {
+    break;
+};
+
+// expressions / loops / loop / labeled loop break is allowed
+let value: void = outer: loop {
+    break :outer;
+};
+
+// expressions / loops / loop / loop break values determine the result type
+let value: number = loop {
+    break 1;
+};
+
+// expressions / loops / loop / loop break values are required to satisfy the target type
+let value: string = loop {
+    break 1;
+};
+
+// expressions / loops / loop / loop breaks without values contribute void
+let value: number | void = loop {
+    if (true) {
+        break 1;
+    }
+    break;
+};

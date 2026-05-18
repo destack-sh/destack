@@ -1,0 +1,247 @@
+// SYNTAX TEST "source.ds"
+
+// types / generics / literals / generic inference preserves const literal precision
+declare function id<T>(value: T): T;
+
+const value = "ready";
+const result = id(value);
+
+result satisfies "ready";
+
+// types / generics / literals / generic inference widens let literal sources
+declare function id<T>(value: T): T;
+
+let value = "ready";
+let result = id(value);
+
+result satisfies string;
+
+// types / generics / literals / generic inference does not restore literals from widened let sources
+declare function id<T>(value: T): T;
+
+let value = "ready";
+let result = id(value);
+
+result satisfies "ready";
+
+// types / generics / literals / imported generic inference preserves const literal precision
+export function id<T>(value: T): T {
+    return value;
+}
+
+// types / generics / literals / imported generic inference preserves const literal precision
+import { id } from "./helper.ds";
+
+const value = "ready";
+const result = id(value);
+
+result satisfies "ready";
+
+// types / generics / literals / imported generic inference widens let literal sources
+export function id<T>(value: T): T {
+    return value;
+}
+
+// types / generics / literals / imported generic inference widens let literal sources
+import { id } from "./helper.ds";
+
+let value = "ready";
+let result = id(value);
+
+result satisfies string;
+
+// types / generics / literals / imported generic inference from let does not restore literal precision
+export function id<T>(value: T): T {
+    return value;
+}
+
+// types / generics / literals / imported generic inference from let does not restore literal precision
+import { id } from "./helper.ds";
+
+let value = "ready";
+let result = id(value);
+
+result satisfies "ready";
+
+// types / generics / literals / renamed re-export generic inference preserves const literal precision
+export function id<T>(value: T): T {
+    return value;
+}
+
+// types / generics / literals / renamed re-export generic inference preserves const literal precision
+export { id as identity } from "./helper.ds";
+
+// types / generics / literals / renamed re-export generic inference preserves const literal precision
+import { identity } from "./index.ds";
+
+const value = "ready";
+const result = identity(value);
+
+result satisfies "ready";
+
+// types / generics / literals / export-star generic inference keeps let widening
+export function id<T>(value: T): T {
+    return value;
+}
+
+// types / generics / literals / export-star generic inference keeps let widening
+export * from "./helper.ds";
+
+// types / generics / literals / export-star generic inference keeps let widening
+import { id } from "./index.ds";
+
+let value = "ready";
+const result = id(value);
+
+result satisfies string;
+
+// types / generics / literals / namespace import generic inference preserves const ternary literal unions
+export function id<T>(value: T): T {
+    return value;
+}
+
+// types / generics / literals / namespace import generic inference preserves const ternary literal unions
+import * as api from "./helper.ds";
+
+const value = true ? "api" : "admin";
+const result = api.id(value);
+
+result satisfies "api" | "admin";
+
+// types / generics / literals / namespace import generic inference keeps let ternary widening
+export function id<T>(value: T): T {
+    return value;
+}
+
+// types / generics / literals / namespace import generic inference keeps let ternary widening
+import * as api from "./helper.ds";
+
+let value = true ? "api" : "admin";
+const result = api.id(value);
+
+result satisfies string;
+
+// types / generics / literals / generic inference preserves const ternary literal unions
+declare function id<T>(value: T): T;
+
+const value = true ? "api" : "admin";
+const result = id(value);
+
+result satisfies "api" | "admin";
+
+// types / generics / literals / generic inference widens let ternary literal unions
+declare function id<T>(value: T): T;
+
+let value = true ? "api" : "admin";
+let result = id(value);
+
+result satisfies string;
+
+// types / generics / literals / generic inference from let ternary unions does not keep literal unions
+declare function id<T>(value: T): T;
+
+let value = true ? "api" : "admin";
+let result = id(value);
+
+result satisfies "api" | "admin";
+
+// types / generics / literals / constrained generic inference keeps const literal precision
+declare function choose<T: "dev" | "prod">(value: T): T;
+
+const mode = "dev";
+const result = choose(mode);
+
+result satisfies "dev";
+
+// types / generics / literals / constrained generic inference rejects widened let literals
+declare function choose<T: "dev" | "prod">(value: T): T;
+
+let mode = "dev";
+choose(mode);
+
+// types / generics / literals / constrained generic inference keeps const ternary literal unions
+declare function choose<T: "dev" | "prod">(value: T): T;
+
+const mode = true ? "dev" : "prod";
+const result = choose(mode);
+
+result satisfies "dev" | "prod";
+
+// types / generics / literals / constrained generic inference rejects widened let ternary literals
+declare function choose<T: "dev" | "prod">(value: T): T;
+
+let mode = true ? "dev" : "prod";
+choose(mode);
+
+// types / generics / literals / constrained generic inference keeps const object discriminants
+declare function select<T: { kind: "a" | "b" }>(value: T): T;
+
+const value = { kind: "a" as const, payload: 1 };
+const result = select(value);
+
+result.kind satisfies "a";
+
+// types / generics / literals / constrained generic inference rejects widened object discriminants
+declare function select<T: { kind: "a" | "b" }>(value: T): T;
+
+let value = { kind: "a", payload: 1 };
+select(value);
+
+// types / generics / literals / constrained template inference keeps const span literals
+declare function parse<T: "users" | "posts">(value: `id:${T}`): T;
+
+const value = "id:users";
+const result = parse(value);
+
+result satisfies "users";
+
+// types / generics / literals / constrained template inference rejects widened let strings
+declare function parse<T: "users" | "posts">(value: `id:${T}`): T;
+
+let value = "id:users";
+parse(value);
+
+// types / generics / literals / constrained calls do not change later let bindings
+declare function as_lit<T: string>(value: T): T;
+
+const seed = "users";
+const kept = as_lit(seed);
+let widened = seed;
+
+kept satisfies "users";
+widened satisfies string;
+
+// types / generics / literals / later let bindings do not regain literals
+declare function as_lit<T: string>(value: T): T;
+
+const seed = "users";
+const kept = as_lit(seed);
+let widened = seed;
+
+widened satisfies "users";
+
+// types / generics / literals / imported constrained calls keep local widening
+export function as_lit<T: string>(value: T): T {
+    return value;
+}
+
+// types / generics / literals / imported constrained calls keep local widening
+import { as_lit } from "./lib.ds";
+
+const seed = "users";
+const kept = as_lit(seed);
+let widened = seed;
+
+kept satisfies "users";
+widened satisfies string;
+
+// types / generics / literals / parameter defaults are widened sources
+declare function as_lit<T: string>(value: T): T;
+
+function read(mode = "users") {
+    const kept = as_lit(mode);
+    let widened = mode;
+
+    kept satisfies string;
+    widened satisfies string;
+}

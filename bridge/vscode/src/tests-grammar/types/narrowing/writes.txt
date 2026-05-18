@@ -1,0 +1,69 @@
+// SYNTAX TEST "source.ds"
+
+// types / narrowing / writes / assignment invalidates a prior null check narrow
+let value: string | null = "ok";
+
+if (value != null) {
+    value satisfies string;
+    value = null;
+    value satisfies string;
+}
+
+// types / narrowing / writes / assignment invalidates discriminant member availability
+type Ready = { kind: "ready"; payload: string };
+type Idle = { kind: "idle" };
+
+let box: { state: Ready | Idle } = { state: { kind: "ready", payload: "ok" } };
+
+if (box.state.kind == "ready") {
+    box.state.payload satisfies string;
+    box.state = { kind: "idle" };
+}
+
+box.state.payload;
+
+// types / narrowing / writes / loop back-edges rejoin and widen narrowed locals
+let value: "a" | "b" = "a";
+
+while (true) {
+    if (value == "a") {
+        value = "b";
+        break;
+    }
+
+    break;
+}
+
+value satisfies "a";
+
+// types / narrowing / writes / branch joins preserve only intersection of branch guarantees
+let value: string | int32 = "ok";
+
+if (true) {
+    value = "next";
+} else {
+    value = 1;
+}
+
+value satisfies string;
+
+// types / narrowing / writes / writes through aliases invalidate discriminant narrows
+type Ready = { kind: "ready"; payload: string };
+type Idle = { kind: "idle" };
+
+let box: { state: Ready | Idle } = { state: { kind: "ready", payload: "ok" } };
+let alias = box;
+
+if (box.state.kind == "ready") {
+    alias.state = { kind: "idle" };
+    box.state.payload;
+}
+
+// types / narrowing / writes / index writes invalidate prior tuple element narrows
+let pair: (string | null, int32) = ("ok", 1);
+
+if (pair[0] != null) {
+    pair[0] satisfies string;
+    pair[0] = null;
+    pair[0] satisfies string;
+}

@@ -1,7 +1,5 @@
 # Grammar Fixtures
 
-This folder is organized by syntax feature.
+This folder mirrors `language/test/fixtures/specification` for syntax-bearing `.ds` fixtures.
 
-The base fixtures cover bindings, builtins, comments, definitions, functions, keywords, literals, operators, trees, and types.
-
-The focused fixtures cover annotations, comptime, control flow, exports, imports, inheritance, members, modules, parameters, and disambiguation.
+The `lexical` and `disambiguation` roots are editor-only additions that do not have semantic specification counterparts.

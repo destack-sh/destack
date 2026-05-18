@@ -1,0 +1,33 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / functions / generator / yield values satisfy the declared yield type
+function* gen(): Generator<int32, unknown, unknown> {
+    yield 1;
+}
+
+// expressions / functions / generator / yield values reject mismatched types
+function* gen(): Generator<int32, unknown, unknown> {
+    yield "no";
+}
+
+// expressions / functions / generator / yield expressions use the next type
+function* gen(): Generator<int32, string, boolean> {
+    let next_value: boolean = yield 1;
+    return "done";
+}
+
+// expressions / functions / generator / yield expression type mismatch is reported
+function* gen(): Generator<int32, string, boolean> {
+    let next_value: number = yield 1;
+    return "done";
+}
+
+// expressions / functions / generator / generator return values satisfy the return type
+function* gen(): Generator<int32, string, unknown> {
+    return "done";
+}
+
+// expressions / functions / generator / generator return values reject mismatched types
+function* gen(): Generator<int32, string, unknown> {
+    return 1;
+}
