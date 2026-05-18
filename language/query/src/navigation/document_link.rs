@@ -112,12 +112,9 @@ pub fn document_links(ctx: &ModuleQueryContext<'_>) -> Vec<DocumentLink> {
         };
 
         let node_id = expression_id.into_global_any(ctx.module_id());
-        let Some(dir::DependencyResolution::Module(dependency_target)) =
+        let Some(dir::DependencyResolution::Module(target_module_id)) =
             ctx.dir().types().dependency_resolution(node_id)
         else {
-            continue;
-        };
-        let dir::DependencyTarget::Module(target_module_id) = dependency_target else {
             continue;
         };
         let Some(target_module) = ctx

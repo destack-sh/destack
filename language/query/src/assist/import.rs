@@ -109,7 +109,7 @@ fn resolved_import_target_module(
             && dependency.loader.is_none()
     })?;
 
-    dependency.target.module_id()
+    dependency.target
 }
 
 /// Import clause completion context.

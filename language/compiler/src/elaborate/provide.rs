@@ -27,10 +27,10 @@ impl Compiler {
             patch: dir::Patch::new(&parsed.tree, "elaborate"),
             bindings: Arc::new(dir::BindingSegment::from_base(&materialized.bindings)),
             types: Arc::new(dir::TypeSegment::from_base(&materialized.types)),
-            captures: Arc::new(dir::CaptureSegment::new()),
+            captures: Arc::new(dir::CaptureSegment::new(module)),
             layouts: Arc::new(dir::LayoutSegment::new(module)),
             roots: materialized.roots.clone(),
-            guards: dir::GuardTable::new(),
+            guards: dir::GuardTable::new(module),
         };
 
         Ok(ArtifactPayload::DirElaborated(elaborated))

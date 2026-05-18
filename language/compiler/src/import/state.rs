@@ -36,7 +36,7 @@ impl<'a> ImportState<'a> {
             module,
             strings,
             view,
-            dependencies: dir::DependencySegment::new(),
+            dependencies: dir::DependencySegment::new(module.id),
             diagnostics: Vec::new(),
         }
     }

@@ -194,7 +194,7 @@ fn module_dependency_edges(imported: &DirImported, exported: &DirExported) -> Ve
     for dependency in imported.dependencies.iter() {
         push_module_edge(
             &mut edges,
-            Some(dependency.target),
+            dependency.target,
             dependency_relation(dependency.relation),
             Some(dependency.specifier),
             dependency.loader,
@@ -205,7 +205,7 @@ fn module_dependency_edges(imported: &DirImported, exported: &DirExported) -> Ve
     for export in exported.exports.star_exports() {
         push_module_edge(
             &mut edges,
-            Some(export.target),
+            export.target,
             ModuleRelation::ReExport,
             None,
             None,
@@ -229,12 +229,12 @@ fn dependency_relation(relation: dir::DependencyRelation) -> ModuleRelation {
 /// Push one concrete module edge when the target is a module.
 fn push_module_edge(
     edges: &mut Vec<ModuleEdge>,
-    target: Option<dir::DependencyTarget>,
+    target: Option<ModuleId>,
     relation: ModuleRelation,
     specifier: Option<StringId>,
     loader: Option<destack_source::Loader>,
 ) {
-    let Some(dir::DependencyTarget::Module(module_id)) = target else {
+    let Some(module_id) = target else {
         return;
     };
 

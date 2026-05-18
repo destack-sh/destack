@@ -1,19 +1,25 @@
+use destack_source::ModuleId;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::GlobalNodeIdAny;
 
 /// Elaborated type guard checks.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GuardTable {
+    /// The module id of the guard table.
+    pub module_id: ModuleId,
     /// Runtime guard entry by guard node.
     pub entry_by_node: IndexMap<GlobalNodeIdAny, GuardEntry>,
 }
 
 impl GuardTable {
     /// Create an empty guard table.
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(module_id: ModuleId) -> Self {
+        Self {
+            module_id,
+            entry_by_node: IndexMap::new(),
+        }
     }
 
     /// Set the guard entry for a node.

@@ -801,14 +801,12 @@ fn namespace_import_aliases_for_module(
 
             let local_symbol = ctx.symbol_for_node(item_id.into())?;
             let node_id = item_id.into_global_any(ctx.module_id());
-            let target_module_id = ctx
-                .types()
-                .dependency_resolution(node_id)
-                .and_then(|resolution| match resolution {
+            let target_module_id = ctx.types().dependency_resolution(node_id).and_then(
+                |resolution| match resolution {
                     dir::DependencyResolution::Module(target) => Some(*target),
                     dir::DependencyResolution::Symbol(_) => None,
-                })
-                .and_then(|target| target.module_id())?;
+                },
+            )?;
             if target_module_id != module_id {
                 return None;
             }

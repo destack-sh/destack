@@ -1,13 +1,16 @@
 use std::sync::Arc;
 
+use destack_source::ModuleId;
 use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
 
 use crate::{GlobalSymbolId, SegmentView, StringId};
 
 /// Cumulative captures for one DIR module.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct CaptureTable<'a> {
+    /// The module id of the capture table.
+    pub module_id: ModuleId,
     /// The ordered capture table segments.
     segments: SegmentView<'a, CaptureSegment>,
 }
@@ -15,9 +18,9 @@ pub struct CaptureTable<'a> {
 impl CaptureTable<'static> {
     /// Create a capture table from ordered segments.
     pub fn from_segments(segments: Vec<Arc<CaptureSegment>>) -> Self {
-        Self {
-            segments: SegmentView::from_segments(segments),
-        }
+        let segments = SegmentView::from_segments(segments);
+
+        Self::from_view(segments)
     }
 
     /// Create a capture table from one segment.
@@ -29,7 +32,23 @@ impl CaptureTable<'static> {
 impl<'a> CaptureTable<'a> {
     /// Create a capture table from a segment view.
     pub fn from_view(segments: SegmentView<'a, CaptureSegment>) -> Self {
-        Self { segments }
+        let first = segments
+            .first()
+            .unwrap_or_else(|| panic!("capture table needs at least one segment"));
+        let module_id = first.module_id;
+
+        // require a single module owner
+        for segment in segments.iter() {
+            assert_eq!(
+                segment.module_id, module_id,
+                "capture table segment belongs to a different module"
+            );
+        }
+
+        Self {
+            module_id,
+            segments,
+        }
     }
 
     /// Create a capture table by appending a borrowed tail segment.
@@ -70,16 +89,21 @@ impl<'a> CaptureTable<'a> {
 }
 
 /// Captures added by one DIR phase.
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CaptureSegment {
+    /// The module id of the capture segment.
+    pub module_id: ModuleId,
     /// Capture for each function symbol.
     pub capture_by_function: IndexMap<GlobalSymbolId, Capture>,
 }
 
 impl CaptureSegment {
     /// Create an empty capture segment.
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(module_id: ModuleId) -> Self {
+        Self {
+            module_id,
+            capture_by_function: IndexMap::new(),
+        }
     }
 
     /// Store capture for a function symbol.

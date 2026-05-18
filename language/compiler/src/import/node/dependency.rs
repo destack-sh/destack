@@ -124,15 +124,10 @@ impl Compiler {
         expression_id: dir::LocalNodeId<dir::Expression>,
         specifier: dir::StringId,
         loader: Option<Loader>,
-    ) -> CompilerResult<dir::DependencyTarget> {
+    ) -> CompilerResult<Option<ModuleId>> {
         let specifier_text = state.strings().get(specifier).to_string();
         let specifier_text = specifier_text.as_str();
         let anchor = state.anchor_node(expression_id.id)?;
-
-        // preserve explicit host modules
-        if is_protocol_specifier(specifier_text) {
-            return Ok(dir::DependencyTarget::External(specifier));
-        }
 
         // reject non relative module specifiers
         let specifier_parts = if is_relative_specifier(specifier_text) {
@@ -143,7 +138,7 @@ impl Compiler {
                 target: specifier_text.to_string(),
             });
 
-            return Ok(dir::DependencyTarget::Unresolved);
+            return Ok(None);
         };
 
         // reject local query and fragment syntax
@@ -153,14 +148,14 @@ impl Compiler {
                 target: specifier_text.to_string(),
             });
 
-            return Ok(dir::DependencyTarget::Unresolved);
+            return Ok(None);
         }
 
         // look up local modules
         let Some(matches) =
             self.candidate_dependencies(state, &anchor, specifier_parts.path(), loader)?
         else {
-            return Ok(dir::DependencyTarget::Unresolved);
+            return Ok(None);
         };
 
         match matches.as_slice() {
@@ -171,7 +166,7 @@ impl Compiler {
                     target: specifier_text.to_string(),
                 });
 
-                Ok(dir::DependencyTarget::Unresolved)
+                Ok(None)
             }
 
             // exactly one module matched
@@ -196,19 +191,19 @@ impl Compiler {
                         target: specifier_text.to_string(),
                     });
 
-                    return Ok(dir::DependencyTarget::Unresolved);
+                    return Ok(None);
                 }
 
                 // accept same-package local modules
                 if module.package_id == state.module.package_id {
-                    Ok(dir::DependencyTarget::Module(*module_id))
+                    Ok(Some(*module_id))
                 } else {
                     state.push_diagnostic(ImportError::CrossPackageImport {
                         anchor,
                         target: specifier_text.to_string(),
                     });
 
-                    Ok(dir::DependencyTarget::Unresolved)
+                    Ok(None)
                 }
             }
 
@@ -226,7 +221,7 @@ impl Compiler {
                     candidates,
                 });
 
-                Ok(dir::DependencyTarget::Unresolved)
+                Ok(None)
             }
         }
     }
@@ -319,16 +314,4 @@ impl Compiler {
 /// Return true when a module specifier names a local relative path.
 fn is_relative_specifier(specifier: &str) -> bool {
     specifier.starts_with("./") || specifier.starts_with("../")
-}
-
-/// Return true when a module specifier uses an explicit protocol.
-fn is_protocol_specifier(specifier: &str) -> bool {
-    let Some((scheme, _)) = specifier.split_once(':') else {
-        return false;
-    };
-
-    !scheme.is_empty()
-        && scheme.chars().all(|character| {
-            character.is_ascii_alphanumeric() || matches!(character, '+' | '-' | '.')
-        })
 }
