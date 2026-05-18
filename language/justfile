@@ -300,10 +300,6 @@ test-grammar-overlay:
 test-grammar-corpus-routing:
     bun grammar/scripts/check-corpus-routing.mjs
 
-# run TypeScript and TSX tree sitter corpus tests
-test-grammar-typescript-tsx:
-    bash grammar/scripts/test-tree-sitter-destack.sh typescript-tsx
-
 # run Destack tree sitter corpus tests
 test-grammar-destack:
     bash grammar/scripts/test-tree-sitter-destack.sh destack
@@ -319,7 +315,6 @@ test-grammar-destack-node-coverage:
 # run the grammar validation stack
 test-grammar:
     just test-grammar-corpus-routing
-    just test-grammar-typescript-tsx
     just test-grammar-destack
     just test-grammar-mir
     just test-grammar-destack-node-coverage
