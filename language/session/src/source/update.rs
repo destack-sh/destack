@@ -14,7 +14,7 @@ impl Session {
         path: &Path,
         update: FileChange,
     ) -> Result<Vec<FileUpdate>, SessionError> {
-        let _mutation_guard = self.enter_mutation();
+        let _head_guard = self.lock_head();
         let repository = self.repository();
         let before = self.revision(reference)?;
         let edit = Self::edit_for_file(repository.as_ref(), path, update);

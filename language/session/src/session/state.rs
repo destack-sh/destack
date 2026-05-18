@@ -6,7 +6,7 @@ use destack_compiler::Compiler;
 use destack_linter::Linter;
 use destack_query::Query;
 use destack_workspace::Repository;
-use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use parking_lot::{Mutex, MutexGuard};
 
 use crate::SessionError;
 use crate::executor::{RunId, Task};
@@ -23,8 +23,8 @@ pub(crate) struct SessionState {
     linter: Arc<Linter>,
     /// Query provider for this root.
     query: Arc<Query>,
-    /// Serialize query and mutation access per root.
-    mutation_lock: RwLock<()>,
+    /// Serialize moves of the session head ref.
+    head_lock: Mutex<()>,
     /// Optional outer session event handler.
     event_handler: Option<SessionEventHandler>,
     /// Monotonic ids for session runs.
@@ -59,20 +59,15 @@ impl SessionState {
             compiler,
             linter,
             query,
-            mutation_lock: RwLock::new(()),
+            head_lock: Mutex::new(()),
             event_handler,
             next_run_id: AtomicU32::new(1),
         }
     }
 
-    /// Enter a coherent read section for this session.
-    pub(crate) fn enter_query(&self) -> RwLockReadGuard<'_, ()> {
-        self.mutation_lock.read()
-    }
-
-    /// Enter a mutation section for this session.
-    pub(crate) fn enter_mutation(&self) -> RwLockWriteGuard<'_, ()> {
-        self.mutation_lock.write()
+    /// Lock updates to the session head ref.
+    pub(crate) fn lock_head(&self) -> MutexGuard<'_, ()> {
+        self.head_lock.lock()
     }
 
     /// Return the repository for this session.
