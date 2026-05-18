@@ -4,7 +4,7 @@ use clap::{CommandFactory, Parser};
 
 use crate::{
     bench, build, cache, check, clean, completions, config, console, daemon, doc, doctor, eval,
-    explain, fmt, info, init, lint, lsp, query, repl, run, targets, task, test, update, version,
+    explain, fmt, info, init, lint, lsp, repl, run, targets, task, test, update, version,
 };
 
 #[cfg(feature = "dev")]
@@ -14,7 +14,7 @@ use crate::command::dev::{VersionCommands, release, stats, version as dev_versio
 use crate::command::{
     BenchArgs, BuildArgs, CacheArgs, CheckArgs, CleanArgs, CompletionsArgs, ConfigArgs, DaemonArgs,
     DocArgs, DoctorArgs, EvalArgs, ExplainArgs, FmtArgs, InfoArgs, InitArgs, LintArgs, LspArgs,
-    QueryArgs, ReplArgs, RunArgs, TargetsArgs, TaskArgs, TestArgs, UpdateArgs, VersionArgs,
+    ReplArgs, RunArgs, TargetsArgs, TaskArgs, TestArgs, UpdateArgs, VersionArgs,
 };
 use crate::common::TracingArgs;
 
@@ -127,9 +127,6 @@ pub enum Command {
     /// Start the daemon service (for CLI integration).
     Daemon(DaemonArgs),
 
-    /// Execute root queries.
-    Query(QueryArgs),
-
     /// Start a REPL session.
     Repl(ReplArgs),
 
@@ -166,7 +163,6 @@ impl Command {
             Self::Task(args) => task::run(&args),
             Self::Lsp(args) => lsp::run(&args),
             Self::Daemon(args) => daemon::run(&args),
-            Self::Query(args) => query::run(&args),
             Self::Repl(args) => repl::run(&args),
             #[cfg(feature = "dev")]
             Self::Dev(subcommand) => match subcommand {
