@@ -44,20 +44,6 @@ impl LanguageService {
             })
     }
 
-    /// Return whether one path belongs to one configured root.
-    pub(super) fn path_in_root(&self, path: &Path, root: &Path) -> bool {
-        // accept direct path containment first
-        if path.starts_with(root) {
-            return true;
-        }
-
-        // compare normalized paths for symlinked roots and files
-        let path = Self::normalized_path(path);
-        let root = Self::normalized_path(root);
-
-        path.starts_with(root)
-    }
-
     /// Resolve the root whose current revision tracks a path.
     pub(super) fn tracked_root(
         &self,
@@ -215,7 +201,7 @@ impl LanguageService {
             .map_err(LanguageServiceError::from)
     }
 
-    /// Execute a callback with repository and compiler handles while holding the root mutation lock.
+    /// Execute a callback with repository and compiler handles while holding the root head lock.
     pub fn with_exclusive_root<T, F>(
         &self,
         root: &Path,
@@ -225,7 +211,7 @@ impl LanguageService {
         F: FnOnce(Arc<Repository>, Arc<Compiler>) -> T,
     {
         let session = self.session(root)?;
-        let _mutation_guard = session.enter_mutation();
+        let _head_guard = session.lock_head();
 
         Ok(callback(
             session.repository().clone(),

@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 
-use destack_query::{QueryExecutionMode, QueryMethodId};
 use destack_session::SessionError;
 use destack_workspace::{RepositoryError, Revision};
 
@@ -33,26 +32,12 @@ pub enum LanguageServiceError {
         /// The validation failure detail.
         detail: String,
     },
-    /// The query execution mode does not match the called API.
-    QueryModeMismatch {
-        /// The query method identifier.
-        method: QueryMethodId,
-        /// The expected query execution mode.
-        expected: QueryExecutionMode,
-        /// The actual query execution mode.
-        actual: QueryExecutionMode,
-    },
     /// The query expected revision does not match the current revision.
     StaleRevision {
         /// The caller expected revision.
         expected: Revision,
         /// The current revision.
         current: Revision,
-    },
-    /// Query artifacts are not ready.
-    QueryNotReady {
-        /// The failure detail.
-        detail: String,
     },
     /// Repository work failed inside the service.
     Repository(RepositoryError),
@@ -99,24 +84,11 @@ impl std::fmt::Display for LanguageServiceError {
                     path.display()
                 )
             }
-            LanguageServiceError::QueryModeMismatch {
-                method,
-                expected,
-                actual,
-            } => {
-                write!(
-                    formatter,
-                    "query mode mismatch for {method:?}: expected {expected:?}, actual {actual:?}"
-                )
-            }
             LanguageServiceError::StaleRevision { expected, current } => {
                 write!(
                     formatter,
                     "stale query revision: expected {expected}, current {current}"
                 )
-            }
-            LanguageServiceError::QueryNotReady { detail } => {
-                write!(formatter, "query indexes are not ready: {detail}")
             }
             LanguageServiceError::Repository(error) => {
                 write!(formatter, "repository error: {error}")
