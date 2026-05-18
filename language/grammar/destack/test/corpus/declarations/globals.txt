@@ -1,6 +1,6 @@
 =======================================
 Global namespace declarations
-:language(typescript)
+:language(destack)
 =======================================
 
 declare global {
@@ -10,4 +10,5 @@ declare global {
 
 (program
   (ambient_declaration
-    (statement_block)))
+    (global_declaration
+      (statement_block))))

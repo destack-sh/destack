@@ -1,6 +1,6 @@
 ===========================================
 Method declarations with keywords as names
-:language(typescript)
+:language(destack)
 ===========================================
 
 class Foo {
@@ -36,7 +36,7 @@ class Foo {
 
 =======================================
 Classes with method signatures
-:language(typescript)
+:language(destack)
 =======================================
 
 class Foo {
@@ -122,7 +122,7 @@ class Foo {
 
 =======================================
 Classes with property names as strings or numbers
-:language(typescript)
+:language(destack)
 =======================================
 
 class Foo {
@@ -175,7 +175,7 @@ class Foo {
 
 =======================================
 Classes with methods with and without trailing semicolons on one line
-:language(typescript)
+:language(destack)
 =======================================
 
 class Foo<Bar> extends Baz { bar = 5; static one(a) { return a; }; two(b) { return b; } three(c) { return c; } }
@@ -222,7 +222,7 @@ class Foo<Bar> extends Baz { bar = 5; static one(a) { return a; }; two(b) { retu
 
 =======================================
 Classes with static blocks
-:language(typescript)
+:language(destack)
 =======================================
 
 class Foo {
@@ -259,7 +259,7 @@ class Foo {
 
 =======================================
 Abstract classes
-:language(typescript)
+:language(destack)
 =======================================
 
 abstract class Foo {
@@ -335,7 +335,7 @@ abstract class Foo {
 
 =======================================
 Classes with generic parameters
-:language(typescript)
+:language(destack)
 =======================================
 
 class A<
@@ -363,15 +363,16 @@ class D extends A<
     (type_identifier)
     (class_heritage
       (extends_clause
-        (identifier)
-        (type_arguments
-          (type_identifier)
-          (type_identifier))))
+        (instantiation_expression
+          (identifier)
+          (type_arguments
+            (type_identifier)
+            (type_identifier)))))
     (class_body)))
 
 =======================================
-Classes with extensions
-:language(typescript)
+Classes with heritage expressions
+:language(destack)
 =======================================
 
 class A extends B<C>(D) implements C {}
@@ -416,14 +417,15 @@ export class A extends B<C, D> implements C {}
     (type_identifier)
     (class_heritage
       (extends_clause
-        (call_expression
-          (identifier)
+        (instantiation_expression
+          (call_expression
+            (identifier)
+            (type_arguments
+              (type_identifier))
+            (arguments
+              (identifier)))
           (type_arguments
-            (type_identifier))
-          (arguments
-            (identifier)))
-        (type_arguments
-          (type_identifier)))
+            (type_identifier))))
       (implements_clause
         (type_identifier)))
     (class_body))
@@ -432,14 +434,15 @@ export class A extends B<C, D> implements C {}
       (type_identifier)
       (class_heritage
         (extends_clause
-          (call_expression
-            (identifier)
+          (instantiation_expression
+            (call_expression
+              (identifier)
+              (type_arguments
+                (type_identifier))
+              (arguments
+                (identifier)))
             (type_arguments
-              (type_identifier))
-            (arguments
-              (identifier)))
-          (type_arguments
-            (type_identifier)))
+              (type_identifier))))
         (implements_clause
           (type_identifier)))
       (class_body)))
@@ -448,17 +451,55 @@ export class A extends B<C, D> implements C {}
       (type_identifier)
       (class_heritage
         (extends_clause
-          (identifier)
-          (type_arguments
-            (type_identifier)
-            (type_identifier)))
+          (instantiation_expression
+            (identifier)
+            (type_arguments
+              (type_identifier)
+              (type_identifier))))
         (implements_clause
           (type_identifier)))
       (class_body))))
 
+=======================================
+Extension declarations
+:language(destack)
+=======================================
+
+extension of Vector2 {
+}
+
+export extension UserUtils of User {
+}
+
+extension<T> of Box<T> implements Dereference {
+}
+
+---
+
+(program
+  (extension_declaration
+    (type_identifier)
+    (class_body))
+  (export_statement
+    (extension_declaration
+      (type_identifier)
+      (type_identifier)
+      (class_body)))
+  (extension_declaration
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (type_identifier)))
+    (implements_clause
+      (type_identifier))
+    (class_body)))
+
 ==========================================================================
 Semicolon is not automatically inserted for method definitions with a body
-:language(typescript)
+:language(destack)
 ==========================================================================
 
 class Foo {
@@ -481,7 +522,7 @@ class Foo {
 
 =====================
 Override modifier
-:language(typescript)
+:language(destack)
 =====================
 
 abstract class Foo {
@@ -517,7 +558,7 @@ class Bar extends Foo {
 
 ==================================
 Super
-:language(typescript)
+:language(destack)
 ==================================
 
 class A extends B {
@@ -575,8 +616,8 @@ class A extends B {
                 property: (property_identifier)))))))))
 
 ========
-Abstract
-:language(typescript)
+Abstract constructor types
+:language(destack)
 ========
 
 type Foo<T> = abstract new () => T;

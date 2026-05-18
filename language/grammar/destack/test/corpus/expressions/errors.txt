@@ -1,6 +1,6 @@
 ==================================================
 Exception handling
-:language(typescript)
+:language(destack)
 ==================================================
 
 try {}
@@ -19,3 +19,46 @@ finally {}
       body: (statement_block))
     finalizer: (finally_clause
       body: (statement_block))))
+
+=======================================
+Match statement patterns
+:language(destack)
+=======================================
+
+match (value) {
+  Some(x) => x;
+  Rectangle { width, height } => width;
+  Result.Ok => 1;
+}
+
+---
+
+(program
+  (match_statement
+    (identifier)
+    (match_arm
+      (match_pattern
+        (match_constructor_pattern
+          (identifier)
+          (match_pattern
+            (identifier))))
+      (expression_statement
+        (identifier)))
+    (match_arm
+      (match_pattern
+        (match_struct_pattern
+          (identifier)
+          (match_object_pattern
+            (match_object_pattern_property
+              (property_identifier))
+            (match_object_pattern_property
+              (property_identifier)))))
+      (expression_statement
+        (identifier)))
+    (match_arm
+      (match_pattern
+        (match_member_pattern
+          (identifier)
+          (identifier)))
+      (expression_statement
+        (number)))))

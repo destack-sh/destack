@@ -1,6 +1,6 @@
 =================================
 Type casts
-:language(typescript)
+:language(destack)
 =================================
 
 foo as any as Array<number>
@@ -31,7 +31,7 @@ bar satisfies number[]
 
 ==================================
 As expressions
-:language(typescript)
+:language(destack)
 ==================================
 
 h as `hello`
@@ -61,24 +61,24 @@ T as {} & { [t: T]: T } & { [g: G]: G }
     (as_expression
       (identifier)
       (intersection_type
+        (object_type)
         (intersection_type
-          (object_type)
           (object_type
             (index_signature
               (identifier)
               (type_identifier)
               (type_annotation
-                (type_identifier)))))
-        (object_type
-          (index_signature
-            (identifier)
-            (type_identifier)
-            (type_annotation
-              (type_identifier))))))))
+                (type_identifier))))
+          (object_type
+            (index_signature
+              (identifier)
+              (type_identifier)
+              (type_annotation
+                (type_identifier)))))))))
 
 ==================================
 Satisfies expressions
-:language(typescript)
+:language(destack)
 ==================================
 
 h satisfies `hello`
@@ -108,29 +108,27 @@ T satisfies {} & { [t: T]: T } & { [g: G]: G }
     (satisfies_expression
       (identifier)
       (intersection_type
+        (object_type)
         (intersection_type
-          (object_type)
           (object_type
             (index_signature
               (identifier)
               (type_identifier)
               (type_annotation
-                (type_identifier)))))
-        (object_type
-          (index_signature
-            (identifier)
-            (type_identifier)
-            (type_annotation
-              (type_identifier))))))))
+                (type_identifier))))
+          (object_type
+            (index_signature
+              (identifier)
+              (type_identifier)
+              (type_annotation
+                (type_identifier)))))))))
 
 ==================================
 Typeof expressions
-:language(typescript)
+:language(destack)
 ==================================
 
 typeof class {} === "function";
-
-typeof module === "object" && typeof module.exports === "object"
 
 ---
 
@@ -141,25 +139,11 @@ typeof module === "object" && typeof module.exports === "object"
         (class
           (class_body)))
       (string
-        (string_fragment))))
-  (expression_statement
-    (binary_expression
-      (binary_expression
-        (unary_expression
-          (identifier))
-        (string
-          (string_fragment)))
-      (binary_expression
-        (unary_expression
-          (member_expression
-            (identifier)
-            (property_identifier)))
-        (string
-          (string_fragment))))))
+        (string_fragment)))))
 
 =====================================
 The 'less than' operator
-:language(typescript)
+:language(destack)
 =====================================
 
 i < foo.length;
@@ -190,7 +174,7 @@ i < string.length;
 
 =====================================
 Subscript expressions in if statements
-:language(typescript)
+:language(destack)
 =====================================
 
 if ( foo ) {
@@ -213,36 +197,9 @@ if ( foo ) {
             (property_identifier))
           (arguments))))))
 
-==========================
-Type assertions
-:language(typescript)
-==========================
-
-<A>b;
-<C<D>>e.f;
-
----
-
-(program
-  (expression_statement
-    (type_assertion
-      (type_arguments
-        (type_identifier))
-      (identifier)))
-  (expression_statement
-    (type_assertion
-      (type_arguments
-        (generic_type
-          (type_identifier)
-          (type_arguments
-            (type_identifier))))
-      (member_expression
-        (identifier)
-        (property_identifier)))))
-
 =======================================
 Non-null assertion operator
-:language(typescript)
+:language(destack)
 =======================================
 
 const repository = foo++!
@@ -252,8 +209,7 @@ const repository = foo++!
 (program
   (lexical_declaration
     (variable_declarator
-      (destack_if_let_pattern
-        (identifier))
+      (identifier)
       (non_null_expression
         (update_expression
           (identifier))))))

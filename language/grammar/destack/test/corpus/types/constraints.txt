@@ -1,6 +1,6 @@
 =======================================
-Flow type parameter constraint syntax
-:language(typescript)
+Type parameter colon constraints
+:language(destack)
 =======================================
 
 type HandlerFunction<T: Element> = void
@@ -19,7 +19,7 @@ type HandlerFunction<T: Element> = void
 
 ==================================
 Extends
-:language(typescript)
+:language(destack)
 ==================================
 
 type Foo<T extends abstract new (...args: any) => any> = T;

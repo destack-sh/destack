@@ -1,6 +1,6 @@
 ==================================
 Ambient exports
-:language(typescript)
+:language(destack)
 ==================================
 
 export default function point(x: number, y: number) {

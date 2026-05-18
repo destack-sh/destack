@@ -1,6 +1,6 @@
 ==================================
 Generic calls
-:language(typescript)
+:language(destack)
 ==================================
 
 f<T>(x)
@@ -18,7 +18,7 @@ f<T>(x)
 
 ==================================
 Instantiation expressions
-:language(typescript)
+:language(destack)
 ==================================
 
 const makeHammerBox = makeBox<Hammer>;
@@ -30,24 +30,21 @@ const ErrorMap = Map<string, Error>;
 (program
   (lexical_declaration
     (variable_declarator
-      (destack_if_let_pattern
-        (identifier))
+      (identifier)
       (instantiation_expression
         (identifier)
         (type_arguments
           (type_identifier)))))
   (lexical_declaration
     (variable_declarator
-      (destack_if_let_pattern
-        (identifier))
+      (identifier)
       (instantiation_expression
         (identifier)
         (type_arguments
           (predefined_type)))))
   (lexical_declaration
     (variable_declarator
-      (destack_if_let_pattern
-        (identifier))
+      (identifier)
       (instantiation_expression
         (identifier)
         (type_arguments
@@ -56,7 +53,7 @@ const ErrorMap = Map<string, Error>;
 
 ==================================
 Functions with typed parameters
-:language(typescript)
+:language(destack)
 ==================================
 
 function greeter(person: string) {
@@ -176,7 +173,7 @@ function foo<const T, const U extends string>(x: T, y: U) {
 
 ==================================
 New object with type arguments
-:language(typescript)
+:language(destack)
 ==================================
 
 const lines = new Array<DiffLine>()
@@ -186,8 +183,7 @@ const lines = new Array<DiffLine>()
 (program
   (lexical_declaration
     (variable_declarator
-      (destack_if_let_pattern
-        (identifier))
+      (identifier)
       (new_expression
         (identifier)
         (type_arguments
@@ -196,7 +192,7 @@ const lines = new Array<DiffLine>()
 
 ===================================================
 Function calls with array and tuple type arguments
-:language(typescript)
+:language(destack)
 ===================================================
 
 a.b<[C]>();
@@ -226,7 +222,7 @@ a<C.D[]>();
 
 =========================================================
 Function calls with optional chaining and type arguments
-:language(typescript)
+:language(destack)
 =========================================================
 
 A?.<B>();
@@ -237,14 +233,13 @@ A?.<B>();
   (expression_statement
     (call_expression
       (identifier)
-      (optional_chain)
       (type_arguments
         (type_identifier))
       (arguments))))
 
 ==================================
 Arrow functions and generators with call signatures
-:language(typescript)
+:language(destack)
 ==================================
 
 <A>(amount, interestRate, duration): number => 2
@@ -310,7 +305,7 @@ function* foo<A>(amount, interestRate, duration): number {
 
 ==================================
 Arrow function with parameter named async
-:language(typescript)
+:language(destack)
 ==================================
 
 const x = async => async;
@@ -320,15 +315,14 @@ const x = async => async;
 (program
   (lexical_declaration
     (variable_declarator
-      (destack_if_let_pattern
-        (identifier))
+      (identifier)
       (arrow_function
         (identifier)
         (identifier)))))
 
 ==================
 Function signature
-:language(typescript)
+:language(destack)
 ==================
 
 export default function foo(): bar
@@ -345,7 +339,7 @@ export default function foo(): bar
 
 =============================================================
 Ambiguity between function signature and function declaration
-:language(typescript)
+:language(destack)
 =============================================================
 
 function foo()
@@ -410,7 +404,7 @@ function foo(): () => { [key: foo]: bar } {}
 
 ====================================================================================
 Ambiguity between function signature and function declaration: comments and newlines
-:language(typescript)
+:language(destack)
 ====================================================================================
 
 function foo()
@@ -448,7 +442,7 @@ function foo()
 
 ======================================
 Functions with destructured parameters
-:language(typescript)
+:language(destack)
 ======================================
 
 let foo: ({a}: Foo) => number
@@ -471,7 +465,7 @@ let foo: ({a}: Foo) => number
 
 =======================================
 Assertion functions checking a value
-:language(typescript)
+:language(destack)
 =======================================
 
 function f(x: any): asserts x {
@@ -494,7 +488,7 @@ function f(x: any): asserts x {
 
 =======================================
 Assertion functions checking a type
-:language(typescript)
+:language(destack)
 =======================================
 
 function f(x: any): asserts x is number {

@@ -1,6 +1,6 @@
 ==================================
 Ternary expression
-:language(typescript)
+:language(destack)
 ==================================
 
 a ? function(){ return true } : b;

@@ -1,6 +1,6 @@
 ==================================
 Typeof types
-:language(typescript)
+:language(destack)
 ==================================
 
 declare class Linter {
@@ -22,7 +22,7 @@ declare class Linter {
 
 ==================================
 Index type queries
-:language(typescript)
+:language(destack)
 ==================================
 
 export type Extracted = keyof Pick<Base, "id">
@@ -44,7 +44,7 @@ export type Extracted = keyof Pick<Base, "id">
 
 =======================================
 Type query and index type query types
-:language(typescript)
+:language(destack)
 =======================================
 
 type T = keyof Person;
@@ -132,7 +132,7 @@ type T = typeof array[number];
 
 ============================
 typeof in generic arguments
-:language(typescript)
+:language(destack)
 ============================
 
 type T = Foo<Bar<typeof bar>>
@@ -181,7 +181,7 @@ type T = Foo<Bar<typeof bar["baz"]>>
 
 =========================
 Typeof instantiation expressions
-:language(typescript)
+:language(destack)
 =========================
 
 // This is a special construct, different from both "typeof (f<T>)" and
@@ -203,7 +203,7 @@ type T = typeof f<T>;
 
 =========================
 Typeof this
-:language(typescript)
+:language(destack)
 =========================
 
 class A {

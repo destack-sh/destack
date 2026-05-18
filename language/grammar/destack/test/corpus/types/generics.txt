@@ -1,6 +1,6 @@
 =======================================
 Generic types
-:language(typescript)
+:language(destack)
 =======================================
 
 class A<
@@ -35,35 +35,38 @@ class F extends G, H<T> {}
     (type_identifier)
     (class_heritage
       (extends_clause
-        (identifier)
-        (type_arguments
-          (type_identifier)
-          (type_identifier))))
-    (class_body))
-  (class_declaration
-    (type_identifier)
-    (class_heritage
-      (extends_clause
-        (call_expression
+        (instantiation_expression
           (identifier)
-          (arguments))
-        (type_arguments
-          (type_identifier)
-          (type_identifier))))
+          (type_arguments
+            (type_identifier)
+            (type_identifier)))))
+    (class_body))
+  (class_declaration
+    (type_identifier)
+    (class_heritage
+      (extends_clause
+        (instantiation_expression
+          (call_expression
+            (identifier)
+            (arguments))
+          (type_arguments
+            (type_identifier)
+            (type_identifier)))))
     (class_body))
   (class_declaration
     (type_identifier)
     (class_heritage
       (extends_clause
         (identifier)
-        (identifier)
-        (type_arguments
-          (type_identifier))))
+        (instantiation_expression
+          (identifier)
+          (type_arguments
+            (type_identifier)))))
     (class_body)))
 
 =======================================
 Nested type arguments
-:language(typescript)
+:language(destack)
 =======================================
 
 interface X {
@@ -112,7 +115,7 @@ var y: Map<number, Promise<Map<bool, Map<Foo, Bar>>>>
 
 =======================================
 Mapped types
-:language(typescript)
+:language(destack)
 =======================================
 
 export type NoInfer<T> = T & { [K in keyof T]: T[K] };
@@ -141,7 +144,7 @@ export type NoInfer<T> = T & { [K in keyof T]: T[K] };
 
 ==================================
 Mapped type 'as' clauses
-:language(typescript)
+:language(destack)
 ==================================
 
 type A<B> = { [B in keyof C & string as `get${Capitalize<P>}`]: () => A[B] };

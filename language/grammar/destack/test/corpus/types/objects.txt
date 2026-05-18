@@ -1,6 +1,6 @@
 ==================================
 Property signatures with accessibility modifiers
-:language(typescript)
+:language(destack)
 ==================================
 
 export interface IAppState {
@@ -10,7 +10,6 @@ export interface IAppState {
 export class CloningRepository {
   public readonly id = CloningRepositoryID++
 }
-
 
 ---
 
@@ -39,7 +38,7 @@ export class CloningRepository {
 
 =================================
 Accessibility modifiers as pair keywords
-:language(typescript)
+:language(destack)
 =================================
 
 x = { name, description, private: private_ }
@@ -59,7 +58,7 @@ x = { name, description, private: private_ }
 
 =======================================
 Object types
-:language(typescript)
+:language(destack)
 =======================================
 
 let person: {name: string, age: number};
@@ -127,7 +126,7 @@ type T = { -readonly [K in keyof T]: any }
 
 =======================================
 Object types with call signatures
-:language(typescript)
+:language(destack)
 =======================================
 
 let MyFunction: {
@@ -156,7 +155,7 @@ let MyFunction: {
 
 ====================================================
 Index signatures
-:language(typescript)
+:language(destack)
 ====================================================
 
 type Foo = {
@@ -183,7 +182,7 @@ type Foo = {
 
 ====================================================
 Object types with automatic semicolon insertion
-:language(typescript)
+:language(destack)
 ====================================================
 
 type Something = {
@@ -216,7 +215,7 @@ type Something = {
 
 ==========================================================
 Automatic semicolon disabled before return type
-:language(typescript)
+:language(destack)
 ==========================================================
 
 function f(): any {
@@ -260,28 +259,3 @@ f
       (expression_statement
         (string
           (string_fragment))))))
-
-=======================================
-Flow exact object types
-:language(typescript)
-=======================================
-
-type BrowserStats = {|
-  url: string,
-  ms: number
-|}
-
----
-
-(program
-  (type_alias_declaration
-    (type_identifier)
-    (object_type
-      (property_signature
-        (property_identifier)
-        (type_annotation
-          (predefined_type)))
-      (property_signature
-        (property_identifier)
-        (type_annotation
-          (predefined_type))))))

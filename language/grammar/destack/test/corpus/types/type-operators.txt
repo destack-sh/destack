@@ -1,6 +1,6 @@
 =======================================
-Flow Union types
-:language(typescript)
+Union types
+:language(destack)
 =======================================
 
 type U = number | string;
@@ -33,8 +33,8 @@ type Z = | "foo";
           (string_fragment))))))
 
 =======================================
-Flow Intersection types
-:language(typescript)
+Intersection types
+:language(destack)
 =======================================
 
 type BrowserStats$ResourceTiming = number & string;
@@ -50,7 +50,7 @@ type BrowserStats$ResourceTiming = number & string;
 
 =======================================
 Lookup types
-:language(typescript)
+:language(destack)
 =======================================
 
 type K1 = Foo[bar]
@@ -78,11 +78,10 @@ type K1 = Foo['bar' | 'baz']
 
 ==================================
 Conditional types
-:language(typescript)
+:language(destack)
 ==================================
 
 type T = X extends Y ? Z : Y
-type T = X extends ?Y ? ?X : Y
 type F<T, X, Y> = ((t: T) => X extends Y ? X : Y) extends ((t: T) => X extends Y ? Y : X) ? X : Y
 type F<T, X, Y> = (t: T) => X extends Y ? X : Y extends (t: T) => X extends Y ? Y : X ? X : Y
 type T<X, Y> = T extends X<infer Y> ? Y : X
@@ -99,15 +98,6 @@ type T<X> = T extends { x: infer X extends number } ? X : never;
       (type_identifier)
       (type_identifier)
       (type_identifier)
-      (type_identifier)))
-  (type_alias_declaration
-    (type_identifier)
-    (conditional_type
-      (type_identifier)
-      (flow_maybe_type
-        (type_identifier))
-      (flow_maybe_type
-        (type_identifier))
       (type_identifier)))
   (type_alias_declaration
     (type_identifier)
@@ -161,24 +151,24 @@ type T<X> = T extends { x: infer X extends number } ? X : never;
           (type_annotation
             (type_identifier))))
       (conditional_type
+        (type_identifier)
+        (type_identifier)
+        (type_identifier)
         (conditional_type
           (type_identifier)
+          (function_type
+            (formal_parameters
+              (required_parameter
+                (identifier)
+                (type_annotation
+                  (type_identifier))))
+            (conditional_type
+              (type_identifier)
+              (type_identifier)
+              (type_identifier)
+              (type_identifier)))
           (type_identifier)
-          (type_identifier)
-          (type_identifier))
-        (function_type
-          (formal_parameters
-            (required_parameter
-              (identifier)
-              (type_annotation
-                (type_identifier))))
-          (conditional_type
-            (type_identifier)
-            (type_identifier)
-            (type_identifier)
-            (type_identifier)))
-        (type_identifier)
-        (type_identifier))))
+          (type_identifier)))))
   (type_alias_declaration
     (type_identifier)
     (type_parameters
@@ -242,7 +232,7 @@ type T<X> = T extends { x: infer X extends number } ? X : never;
 
 =========================
 Indexed Access Precedence
-:language(typescript)
+:language(destack)
 =========================
 
 // These should generate the same AST aside from the parenthesized_type node

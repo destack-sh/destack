@@ -1,6 +1,6 @@
 ===========================================================
 Classes with decorator calls that have type arguments
-:language(typescript)
+:language(destack)
 ===========================================================
 
 class Foo {
@@ -28,7 +28,7 @@ class Foo {
 
 =======================================
 Classes with decorators
-:language(typescript)
+:language(destack)
 =======================================
 
 @baz @bam class Foo {
@@ -99,7 +99,7 @@ Classes with decorators
 
 =======================================
 Decorator with parenthesized expression
-:language(typescript)
+:language(destack)
 =======================================
 
 class C {

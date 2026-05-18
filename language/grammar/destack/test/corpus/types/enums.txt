@@ -1,6 +1,6 @@
 =======================================
 Enum declarations
-:language(typescript)
+:language(destack)
 =======================================
 
 enum Test {

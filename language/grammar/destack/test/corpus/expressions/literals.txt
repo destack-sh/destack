@@ -1,6 +1,6 @@
 ==================================
 Array with empty elements
-:language(typescript)
+:language(destack)
 ==================================
 
 [, a, , b, , , , s, , , ]
@@ -16,7 +16,7 @@ Array with empty elements
 
 ====================================
 Objects with reserved words as keys
-:language(typescript)
+:language(destack)
 ====================================
 
 {
@@ -56,3 +56,18 @@ Objects with reserved words as keys
       (pair
         key: (property_identifier)
         value: (number)))))
+
+=======================================
+Tuple expression
+:language(destack)
+=======================================
+
+(x, y);
+
+---
+
+(program
+  (expression_statement
+    (tuple_expression
+      (identifier)
+      (identifier))))

@@ -1,6 +1,6 @@
 ==================================
 Type predicate and predefined types
-:language(typescript)
+:language(destack)
 ==================================
 
 function isFish(pet: Fish): pet is Fish {

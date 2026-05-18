@@ -1,6 +1,6 @@
 ==================================
 Template literal types
-:language(typescript)
+:language(destack)
 ==================================
 
 type A<B, C> = `${B}${C}`;
