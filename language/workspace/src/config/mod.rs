@@ -15,6 +15,7 @@ mod profile;
 mod role;
 mod runtime;
 mod target;
+mod task;
 mod vendor;
 
 pub use cache::*;
@@ -34,4 +35,5 @@ pub use profile::*;
 pub use role::*;
 pub use runtime::*;
 pub use target::*;
+pub use task::*;
 pub use vendor::*;

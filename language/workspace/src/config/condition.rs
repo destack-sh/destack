@@ -5,7 +5,7 @@ use destack_source::matches as glob_matches;
 use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
 
-use super::DependencyMap;
+use super::Dependency;
 
 /// Active source graph and runtime selection conditions.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -82,7 +82,7 @@ pub struct Condition {
     /// Condition names included before this condition.
     pub extends: Vec<String>,
     /// Dependencies enabled by this condition.
-    pub dependencies: DependencyMap,
+    pub dependencies: IndexMap<String, Dependency>,
 }
 
 /// Named condition declarations from `destack.json`.

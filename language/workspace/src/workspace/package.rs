@@ -5,7 +5,7 @@ use destack_source::{FileId, PackageId, TargetId, Uri};
 use im::OrdMap;
 use indexmap::IndexMap;
 
-use crate::config::{DependencyMap, Target, Vendor};
+use crate::config::{Dependency, Target, Vendor};
 
 /// The ownership kind for a package.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -32,9 +32,9 @@ pub struct Package {
     /// The package version.
     pub version: Option<String>,
     /// Package dependencies enabled for all modes.
-    pub dependencies: DependencyMap,
+    pub dependencies: IndexMap<String, Dependency>,
     /// Package dependencies enabled by source graph mode.
-    pub mode_dependencies: IndexMap<String, DependencyMap>,
+    pub mode_dependencies: IndexMap<String, IndexMap<String, Dependency>>,
     /// Vendored dependency resolution options.
     pub vendoring: Vendor,
     /// The `destack.json` file id when present.
@@ -50,7 +50,7 @@ impl Package {
     }
 
     /// Return dependencies enabled by the active source graph modes.
-    pub fn dependencies_for_modes(&self, modes: &[String]) -> DependencyMap {
+    pub fn dependencies_for_modes(&self, modes: &[String]) -> IndexMap<String, Dependency> {
         let mut dependencies = self.dependencies.clone();
 
         for mode in modes {

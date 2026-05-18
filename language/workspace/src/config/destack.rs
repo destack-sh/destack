@@ -8,9 +8,10 @@ use serde::Deserialize;
 use serde_json::Value;
 
 use crate::config::{
-    CompilerOptions, ConditionCatalog, ConditionGate, DependencyMap, DiagnosticPolicy,
-    FormatterOptions, LinterOptions, Policy, Product, ProfileOptions, RuntimeOptions, Target,
-    Vendor, builtin_modes, builtin_roles, parse_jsonc_file, validate_dependency_map,
+    CompilerOptions, ConditionCatalog, ConditionGate, ConditionalDependencies, Dependency,
+    DiagnosticPolicy, FormatterOptions, LinterOptions, PackagePatch, Policy, Product,
+    ProfileOptions, Registry, RuntimeOptions, Target, Task, Vendor, builtin_modes, builtin_roles,
+    parse_jsonc_file, validate_dependency_map,
 };
 
 /// Destack configuration document.
@@ -48,7 +49,15 @@ pub struct Destack {
     /// Glob patterns for files to exclude.
     pub exclude: Vec<String>,
     /// Package dependencies.
-    pub dependencies: DependencyMap,
+    pub dependencies: IndexMap<String, Dependency>,
+    /// Dependencies enabled by condition predicates.
+    pub conditional_dependencies: Vec<ConditionalDependencies>,
+    /// Package dependency overrides.
+    pub overrides: IndexMap<String, Dependency>,
+    /// Package patch files.
+    pub patches: IndexMap<String, PackagePatch>,
+    /// Package registries.
+    pub registries: IndexMap<String, Registry>,
     /// Vendored dependency resolution declaration.
     pub vendoring: Vendor,
     /// Compiler configuration.
@@ -69,6 +78,8 @@ pub struct Destack {
     pub profiles: IndexMap<String, ProfileOptions>,
     /// Named source graph conditions.
     pub conditions: ConditionCatalog,
+    /// Named toolchain and shell tasks.
+    pub tasks: IndexMap<String, Task>,
     /// Default target for the package.
     pub default_target: Option<String>,
     /// Default product for the package.
@@ -311,12 +322,15 @@ impl DestackFile {
 
                 for (key, child_value) in child {
                     let merged_value = if let Some(parent_value) = merged.get(key) {
-                        if key == "policy" {
-                            Self::merge_policy_json(parent_value, child_value)
-                        } else if key == "dependencies" {
-                            Self::merge_dependency_json(parent_value, child_value)
-                        } else {
-                            Self::merge_json(parent_value, child_value)
+                        match key.as_str() {
+                            "policy" => Self::merge_policy_json(parent_value, child_value),
+                            "dependencies" | "overrides" => {
+                                Self::merge_dependency_json(parent_value, child_value)
+                            }
+                            "conditionalDependencies" => {
+                                Self::merge_array_json(parent_value, child_value)
+                            }
+                            _ => Self::merge_json(parent_value, child_value),
                         }
                     } else {
                         child_value.clone()
@@ -326,6 +340,20 @@ impl DestackFile {
                 }
 
                 Value::Object(merged)
+            }
+            _ => child.clone(),
+        }
+    }
+
+    /// Append arrays when both declarations define them.
+    fn merge_array_json(parent: &Value, child: &Value) -> Value {
+        match (parent, child) {
+            (Value::Array(parent), Value::Array(child)) => {
+                let mut merged = Vec::with_capacity(parent.len() + child.len());
+                merged.extend(parent.iter().cloned());
+                merged.extend(child.iter().cloned());
+
+                Value::Array(merged)
             }
             _ => child.clone(),
         }
