@@ -1,0 +1,9 @@
+/// Concrete memory space tag kind.
+export type Space = "local" | "shared" | "static" | "frame";
+
+/// Placement tag kind for qualified storage.
+export type Place = "ambient" | Space;
+
+/// Placement form for exactly `T`.
+@languageItem("memory.Placed")
+export newtype Placed<T, P: Place> = intrinsic;

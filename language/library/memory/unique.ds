@@ -1,0 +1,15 @@
+import { Borrowed } from "./borrow.ds";
+import { Owned } from "./owned.ds";
+
+/// Unique traced heap handle containing exactly `T`.
+///
+/// `Unique<T>` is the low-level storage handle behind types such as `Box<T>`.
+/// It is compiler-known because tracing, drop, and move checking must understand the handle.
+@languageItem("memory.Unique")
+export newtype Unique<T> = intrinsic;
+
+extension<T> of Unique<Owned<T>> {
+    /// Leak this allocation and borrow it for static lifetime.
+    @intrinsic("memory.unique.leak")
+    leak(this: Unique<Owned<T>>): Borrowed<T, "static">;
+}

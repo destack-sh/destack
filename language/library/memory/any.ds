@@ -1,0 +1,6 @@
+/// Erased runtime value for interface constraint `T`.
+///
+/// `Any<T>` stores an erased value pointer and dispatch table.
+/// It is compiler-known because static interface constraints are specialized by default, while `Any<T>` explicitly requests runtime erasure.
+@languageItem("memory.Any")
+export newtype Any<T> = intrinsic;

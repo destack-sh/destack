@@ -18,7 +18,7 @@ export extension<T> of ManuallyDrop<T> {
 
     /// Move the wrapped value out.
     @intrinsic("memory.manuallyDrop.intoInner")
-    intoInner(this: ^ManuallyDrop<T>): T;
+    intoInner(this: ManuallyDrop<T>): T;
 
     /// Move the wrapped value out through an exclusive borrow.
     @intrinsic("memory.manuallyDrop.take")
@@ -38,7 +38,7 @@ export extension<T> of ManuallyDrop<T> {
 
     /// Drop the wrapped value.
     @intrinsic("memory.manuallyDrop.dropInner")
-    dropInner(this: ^ManuallyDrop<T>): void;
+    dropInner(this: ManuallyDrop<T>): void;
 }
 
 export extension<T> of ManuallyDrop<T> implements Default

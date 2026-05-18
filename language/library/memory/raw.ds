@@ -1,3 +1,7 @@
+/// Unsafe raw pointer form for exactly `T`.
+@languageItem("memory.Raw")
+export newtype Raw<T> = intrinsic;
+
 /// Return a well-aligned dangling raw pointer.
 @intrinsic("memory.ptr.dangling")
 export declare function dangling<T>(): *T;

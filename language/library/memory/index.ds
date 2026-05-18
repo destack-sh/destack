@@ -1,20 +1,35 @@
 export {
     StaticLifetime,
     Lifetime,
+} from "./lifetime.ds";
+export {
+    Access,
+    Readonly,
+} from "./access.ds";
+export {
     Space,
     Place,
-    Ownership,
-    Access,
+    Placed,
+} from "./place.ds";
+export {
     Managed,
+} from "./managed.ds";
+export {
     Owned,
+} from "./owned.ds";
+export {
     Borrowed,
     ReadonlyBorrowed,
     ExclusiveBorrowed,
-    Raw,
-    Placed,
-    Readonly,
+} from "./borrow.ds";
+export {
     Unique,
+} from "./unique.ds";
+export {
     Any,
+} from "./any.ds";
+export {
+    Ownership,
     Shared,
     Local,
     Ambient,
@@ -50,7 +65,7 @@ export {
     SharedFields,
     LocalFields,
     AmbientFields,
-} from "./form.ds";
+} from "./type.ds";
 export { Box } from "./box.ds";
 export {
     AllocationLayout,
@@ -65,12 +80,14 @@ export { Pin } from "./pin.ds";
 export { Drop, ManuallyDrop, drop, forget } from "./drop.ds";
 export { Dispose, AsyncDispose } from "./dispose.ds";
 export { Phantom } from "./phantom.ds";
+export { Cow, CowBorrowed, CowOwned, MaybeOwned } from "./cow/cow.ds";
 export * as arena from "./arena";
 export * as arc from "./arc";
 export * as cell from "./cell";
 export * as cow from "./cow";
 export * as rc from "./rc";
 export {
+    Raw,
     asExclusive,
     asReadonlyReference,
     asReference,

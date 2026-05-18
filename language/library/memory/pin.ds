@@ -23,7 +23,7 @@ export extension<T> of Pin<T> implements Dereference<"readonly">, As<T>, Borrow<
     }
 
     /// Move out the pinned root when it is movable.
-    intoInner(this: ^Pin<T>): T
+    intoInner(this: Pin<T>): T
     where T implements Unpin {
         todo("Pin.intoInner")
     }

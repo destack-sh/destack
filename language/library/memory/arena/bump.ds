@@ -5,7 +5,7 @@ import {
     AllocationLayout,
     Allocator,
 } from "../allocator.ds";
-import { Space } from "../form.ds";
+import { Space } from "../place.ds";
 
 /// Bump allocator in space `S`.
 export struct Bump<S: Space = "local"> {

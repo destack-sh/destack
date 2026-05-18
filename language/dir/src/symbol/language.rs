@@ -634,31 +634,52 @@ define_language_items! {
 
     /// Memory types.
     memory {
-        /// `destack:memory/form`.
-        form {
+        /// `destack:memory/managed`.
+        managed {
             /// Default managed form.
-            Managed => (Newtype, "memory/form", "Managed"),
+            Managed => (Newtype, "memory/managed", "Managed"),
+        }
 
+        /// `destack:memory/owned`.
+        owned {
             /// Unique ownership form.
-            Owned => (Newtype, "memory/form", "Owned"),
+            Owned => (Newtype, "memory/owned", "Owned"),
+        }
 
+        /// `destack:memory/borrow`.
+        borrow {
             /// Borrowed access form.
-            Borrowed => (Newtype, "memory/form", "Borrowed"),
+            Borrowed => (Newtype, "memory/borrow", "Borrowed"),
+        }
 
+        /// `destack:memory/raw`.
+        raw {
             /// Unsafe raw pointer form.
-            Raw => (Newtype, "memory/form", "Raw"),
+            Raw => (Newtype, "memory/raw", "Raw"),
+        }
 
+        /// `destack:memory/place`.
+        place {
             /// Placement form.
-            Placed => (Newtype, "memory/form", "Placed"),
+            Placed => (Newtype, "memory/place", "Placed"),
+        }
 
+        /// `destack:memory/access`.
+        access {
             /// Readonly form.
-            Readonly => (Newtype, "memory/form", "Readonly"),
+            Readonly => (Newtype, "memory/access", "Readonly"),
+        }
 
+        /// `destack:memory/unique`.
+        unique {
             /// Unique traced heap handle.
-            Unique => (Newtype, "memory/form", "Unique"),
+            Unique => (Newtype, "memory/unique", "Unique"),
+        }
 
+        /// `destack:memory/any`.
+        any {
             /// Erased runtime value.
-            Any => (Newtype, "memory/form", "Any"),
+            Any => (Newtype, "memory/any", "Any"),
         }
 
         /// `destack:memory/drop`.

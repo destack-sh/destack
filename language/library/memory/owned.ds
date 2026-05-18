@@ -1,0 +1,11 @@
+import { Managed } from "./managed.ds";
+
+/// Unique ownership form for exactly `T`.
+@languageItem("memory.Owned")
+export newtype Owned<T> = intrinsic;
+
+extension<T> of Owned<T> {
+    /// Move this owned value into managed storage.
+    @intrinsic("memory.owned.manage")
+    manage(this: ^T): Managed<T>;
+}

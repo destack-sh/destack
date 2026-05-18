@@ -3,7 +3,7 @@ import { As, Borrow } from "destack:convert";
 import { Dereference } from "destack:ops";
 import { AllocationError } from "../allocator.ds";
 import { Clone, Default, Unpin, Zeroable } from "../capability.ds";
-import { Owned } from "../form.ds";
+import { Owned } from "../owned.ds";
 import { MaybeUninit } from "../init.ds";
 import { Pin } from "../pin.ds";
 import { Weak } from "./weak.ds";
@@ -118,17 +118,17 @@ extension<T> of Rc<T> implements Clone, Dereference, As<T>, Borrow<T> {
     }
 
     /// Move the value out when this is the only strong handle.
-    intoInner(this: ^Rc<T>): ^T | undefined {
+    intoInner(this: Rc<T>): ^T | undefined {
         todo("Rc.intoInner")
     }
 
     /// Move the value out when this is the only strong handle.
-    tryUnwrap(this: ^Rc<T>): Result<^T, Rc<T>> {
+    tryUnwrap(this: Rc<T>): Result<^T, Rc<T>> {
         todo("Rc.tryUnwrap")
     }
 
     /// Move the value out or clone it when shared.
-    unwrapOrClone(this: ^Rc<T>): ^T
+    unwrapOrClone(this: Rc<T>): ^T
     where T implements Clone {
         todo("Rc.unwrapOrClone")
     }
@@ -139,7 +139,7 @@ extension<T> of Rc<T> implements Clone, Dereference, As<T>, Borrow<T> {
     }
 
     /// Move this handle into a raw value pointer.
-    intoRaw(this: ^Rc<T>): *T {
+    intoRaw(this: Rc<T>): *T {
         todo("Rc.intoRaw")
     }
 
