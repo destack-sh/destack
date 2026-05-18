@@ -16,6 +16,12 @@ block4:
 block5:
     return v0
 block6:
+    panic
+block7:
+    panic.resume
+block8:
+    trap.abort
+block9:
     unreachable
 }
 
@@ -98,6 +104,15 @@ block6:
   (punctuation)
   (terminator_keyword)
   (ssa_identifier)
+  (block_identifier)
+  (punctuation)
+  (terminator_keyword)
+  (block_identifier)
+  (punctuation)
+  (terminator_keyword)
+  (block_identifier)
+  (punctuation)
+  (terminator_keyword)
   (block_identifier)
   (punctuation)
   (terminator_keyword)

@@ -5,7 +5,7 @@ Call instruction families
 function @calls(v0: i64, v1: i64, v2: (i64, i64) -> i64) -> i64 {
 block0(v0: i64, v1: i64, v2: (i64, i64) -> i64):
     v3: i64 = call @callee(v0, v1) -> (i64, i64) -> i64
-    v4: i64 = call.virtual @iface.add(v0, v1) -> (i64, i64) -> i64
+    v4: i64 = call.class @Class.add(v0, v1) -> (i64, i64) -> i64
     v5: i64 = call.interface @iface.mul(v0, v1) -> (i64, i64) -> i64
     v6: i64 = call.indirect v2(v4, v5) -> (i64, i64) -> i64
     return v6
@@ -83,7 +83,7 @@ block0(v0: i64, v1: i64, v2: (i64, i64) -> i64):
   (punctuation)
   (type_keyword)
   (operator)
-  (identifier)
+  (terminator_keyword)
   (symbol_identifier)
   (punctuation)
   (ssa_identifier)

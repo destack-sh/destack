@@ -25,6 +25,9 @@
           "include": "#block-reference"
         },
         {
+          "include": "#type"
+        },
+        {
           "include": "#instruction"
         },
         {
@@ -35,9 +38,6 @@
         },
         {
           "include": "#variable"
-        },
-        {
-          "include": "#type"
         },
         {
           "include": "#number"
@@ -120,7 +120,7 @@
       "patterns": [
         {
           "name": "keyword.operator.instruction.dsmir",
-          "match": "\\b(local\\.set|store|raw\\.drop|stack\\.drop|assume|tensor\\.store|tensor\\.fill|tensor\\.copy|call(?:\\.(?:virtual|interface|indirect))?|invoke(?:\\.(?:virtual|interface|indirect))?|tailCall(?:\\.(?:virtual|interface|indirect))?|trap\\.(?:abort|panic)|raw\\.free|intrinsic\\.[A-Za-z_][A-Za-z0-9_.]*)\\b"
+          "match": "\\b(local\\.set|local\\.get|local\\.address|function\\.address|callable\\.environment|global\\.address|store|load|drop|free|pin|unpin|raw\\.drop|stack\\.drop|assume|tensor\\.store|tensor\\.fill|tensor\\.copy|call(?:\\.(?:interface|indirect|class))?|tailCall(?:\\.(?:interface|indirect|class))?|raw\\.alloc|raw\\.free|intrinsic\\.[A-Za-z_][A-Za-z0-9_.]*)\\b"
         },
         {
           "name": "keyword.operator.instruction.dsmir",
@@ -132,7 +132,11 @@
       "patterns": [
         {
           "name": "keyword.control.flow.dsmir",
-          "match": "\\b(?:return|jump|branch|switch|yield|check|throw|catch|unreachable)\\b"
+          "match": "\\b(?:return|jump|branch|switch|yield|check|panic\\.resume|panic|trap\\.abort|unreachable)\\b"
+        },
+        {
+          "name": "keyword.declaration.dsmir",
+          "match": "\\b(?:external|export|global|type|block|local)\\b"
         },
         {
           "name": "keyword.operator.arrow.dsmir",
@@ -140,7 +144,7 @@
         },
         {
           "name": "keyword.other.memory.dsmir",
-          "match": "\\b(?:managed|borrowed|owned|raw|readonly)\\b"
+          "match": "\\b(?:managed|borrowed|owned|raw|copy|readonly|const|shared|gpu)\\b"
         },
         {
           "name": "keyword.declaration.function.dsmir",
@@ -159,6 +163,14 @@
     "variable": {
       "patterns": [
         {
+          "name": "entity.name.function.dsmir",
+          "match": "\\bfunction\\d+\\b"
+        },
+        {
+          "name": "variable.other.local.dsmir",
+          "match": "\\blocal\\d+\\b"
+        },
+        {
           "name": "variable.other.ssa.dsmir",
           "match": "\\bv\\d+\\b"
         }
@@ -168,7 +180,7 @@
       "patterns": [
         {
           "name": "support.type.dsmir",
-          "match": "\\b(?:i\\d+|u\\d+|f\\d+|int\\d+|uint\\d+|float\\d+|boolean|void|isize|usize|typeDescriptor|typeId|ref\\??|slice|tensorRef\\??|tensor|vector|fn|closure|addressSpace)\\b"
+          "match": "\\b(?:i\\d+|u\\d+|f\\d+|int\\d+|uint\\d+|float\\d+|boolean|bool|void|isize|usize|typeDescriptor|typeId|ref\\??|slice|tensorView|tensorRef\\??|tensor|vector|space|struct|newtype|unique|nullable|any|fn|closure|addressSpace)\\b"
         }
       ]
     },
