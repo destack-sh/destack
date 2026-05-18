@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use destack_artifact::{ArtifactFailure, ArtifactKey, DiagnosticError};
 use destack_source::{FileId, ModuleId, PackageId};
-use destack_workspace::RepositoryError;
+use destack_workspace::{Ref, RepositoryError, Revision};
 
 use crate::SourceError;
 
@@ -30,6 +30,15 @@ pub enum SessionError {
     PackageNotTracked {
         /// The missing package id.
         package_id: PackageId,
+    },
+    /// The session ref changed before an update could publish.
+    StaleRevision {
+        /// The ref that changed.
+        reference: Ref,
+        /// The expected base revision.
+        expected: Revision,
+        /// The current revision.
+        current: Revision,
     },
     /// The worker count is not usable.
     InvalidWorkerCount {
@@ -72,6 +81,16 @@ impl std::fmt::Display for SessionError {
             }
             SessionError::PackageNotTracked { package_id } => {
                 write!(formatter, "package not tracked: {package_id:?}")
+            }
+            SessionError::StaleRevision {
+                reference,
+                expected,
+                current,
+            } => {
+                write!(
+                    formatter,
+                    "session ref {reference:?} changed from {expected:?} to {current:?}"
+                )
             }
             SessionError::InvalidWorkerCount { worker_count } => {
                 write!(formatter, "invalid session worker count: {worker_count}")
