@@ -4,8 +4,8 @@ use destack_artifact::{ArtifactKey, DiskCacheStore};
 use destack_compiler::Compiler;
 use destack_linter::Linter;
 use destack_session::Session;
-use destack_source::{FileSystem, FileType, ModuleId, PhysicalFileSystem, glob};
-use destack_workspace::{Edit, HostEnvironment, Ref, Repository};
+use destack_source::{FileSystem, FileType, ModuleId, PhysicalFileSystem, TargetId, glob};
+use destack_workspace::{Edit, HostEnvironment, Ref, Repository, Revision};
 use pprof::ProfilerGuard;
 use pprof::flamegraph::Options as FlamegraphOptions;
 use std::fs;
@@ -178,7 +178,7 @@ fn build_workspace(
 }
 
 /// Return the current workspace revision for one compiler repository.
-fn current_workspace_revision(compiler: &Compiler) -> destack_workspace::Revision {
+fn current_workspace_revision(compiler: &Compiler) -> Revision {
     let reference = Ref::for_workspace_root(compiler.repository.workspace_root());
 
     compiler
@@ -194,10 +194,17 @@ fn run_compile(session: &Session, compiler: &Compiler, modules: &[ModuleId], mod
 
     // collect root artifacts
     for module_id in modules.iter().copied() {
+        let module = compiler
+            .repository
+            .module(revision, module_id)
+            .unwrap_or_else(|error| panic!("failed to resolve benchmark module: {error}"))
+            .unwrap_or_else(|| panic!("missing benchmark module {module_id:?}"));
+        let target_id = TargetId::new(module.package_id, "default");
         let profile_id = compiler
             .repository
-            .module_profile(revision, module_id)
+            .target_profile(revision, target_id)
             .unwrap_or_else(|error| panic!("failed to resolve benchmark profile: {error}"))
+            .unwrap_or_else(|| panic!("missing benchmark profile for target {target_id:?}"))
             .id();
 
         // choose the root for this module

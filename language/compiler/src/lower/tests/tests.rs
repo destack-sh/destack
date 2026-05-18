@@ -290,7 +290,7 @@ type String {
         index: usize,
     ) -> Option<dir::LocalTypeId> {
         // load the dir module state
-        let profile = self.default_profile_id(module_id);
+        let profile = self.profile_id();
         let dir = self.artifact_dir(module_id, profile);
         let tree = &dir.tree;
         let types = &dir.types;

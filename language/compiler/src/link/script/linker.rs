@@ -112,7 +112,7 @@ impl<'a> ScriptLinker<'a> {
     }
 
     /// Ensure one linked module resolves under the current target profile.
-    pub(crate) fn ensure_module_profile(&self, module_id: ModuleId) -> LinkResult<()> {
+    pub(crate) fn ensure_target_profile(&self, module_id: ModuleId) -> LinkResult<()> {
         let _ = self.profile_id_for_module(module_id)?;
 
         Ok(())

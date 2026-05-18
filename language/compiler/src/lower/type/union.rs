@@ -4,6 +4,7 @@ use {destack_dir as dir, destack_mir as mir};
 use destack_artifact::DiagnosticAnchor;
 use destack_core::{StringId, StringPool};
 use destack_query::format::format_unique_symbol_qualified_name;
+use destack_query::module_query_context;
 use destack_source::ModuleId;
 
 use super::{FieldInput, FieldLayoutKind, LayoutPolicy, TypeLowerer};
@@ -823,7 +824,7 @@ impl TypeLowerer<'_> {
                 strings.get(left).cmp(&strings.get(right))
             }
             (dir::SymbolKey::Unique(left), dir::SymbolKey::Unique(right)) => {
-                self.compare_unique_symbol_keys(left, right, strings)
+                self.compare_unique_symbol_keys(left, right)
             }
             (dir::SymbolKey::Registry(_), dir::SymbolKey::Unique(_)) => Ordering::Less,
             (dir::SymbolKey::Unique(_), _) => Ordering::Greater,
@@ -835,18 +836,9 @@ impl TypeLowerer<'_> {
         &self,
         left: dir::GlobalSymbolId,
         right: dir::GlobalSymbolId,
-        strings: &StringPool,
     ) -> std::cmp::Ordering {
-        // build qualified names for unique symbols
-        let revision = self.context.revision();
-        let left_name =
-            format_unique_symbol_qualified_name(left, &self.compiler.repository, revision, strings);
-        let right_name = format_unique_symbol_qualified_name(
-            right,
-            &self.compiler.repository,
-            revision,
-            strings,
-        );
+        let left_name = self.unique_symbol_qualified_name(left);
+        let right_name = self.unique_symbol_qualified_name(right);
 
         // prefer qualified ordering with a stable fallback
         match (left_name, right_name) {
@@ -855,6 +847,18 @@ impl TypeLowerer<'_> {
             (None, Some(_)) => std::cmp::Ordering::Greater,
             (None, None) => left.cmp(&right),
         }
+    }
+
+    /// Return the qualified name for one unique symbol.
+    fn unique_symbol_qualified_name(&self, symbol_id: dir::GlobalSymbolId) -> Option<String> {
+        let context = module_query_context(
+            self.compiler.repository.as_ref(),
+            self.context.revision(),
+            symbol_id.module_id,
+            self.profile,
+        )?;
+
+        format_unique_symbol_qualified_name(symbol_id, &context)
     }
 }
 

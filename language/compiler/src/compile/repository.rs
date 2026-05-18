@@ -132,14 +132,6 @@ impl Compiler {
         Ok(module_ids)
     }
 
-    /// Resolve the default profile id for one module in one revision.
-    pub(crate) fn default_profile_id(&self, revision: Revision, module_id: ModuleId) -> ProfileId {
-        self.repository
-            .module_profile(revision, module_id)
-            .unwrap_or_else(|error| panic!("failed to resolve default profile: {error}"))
-            .id()
-    }
-
     /// Resolve the target profile id for one module in one revision.
     pub(crate) fn target_profile_id(
         &self,
@@ -151,17 +143,6 @@ impl Compiler {
             .module_target_profile(revision, module_id, *target_id)
             .unwrap_or_else(|error| panic!("failed to resolve target profile: {error}"))
             .map(|profile| profile.id())
-    }
-
-    /// Resolve the target profile id for one module, or fall back to the default profile.
-    pub(crate) fn target_profile_id_or_default(
-        &self,
-        revision: Revision,
-        module_id: ModuleId,
-        target_id: &TargetId,
-    ) -> ProfileId {
-        self.target_profile_id(revision, module_id, target_id)
-            .unwrap_or_else(|| self.default_profile_id(revision, module_id))
     }
 
     /// Return the module id for one path in a sealed revision.

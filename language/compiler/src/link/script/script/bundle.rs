@@ -1,6 +1,6 @@
 use destack_artifact::ScriptOutput;
 use destack_codegen_js as js;
-use destack_source::{ModuleId, PackageId, Span, TargetId};
+use destack_source::{ModuleId, PackageId, ProfileId, Span, TargetId};
 use destack_workspace::{ProviderContext, Target};
 
 use super::super::ModuleSet;
@@ -49,7 +49,7 @@ impl Compiler {
         target: &Target,
         target_id: &TargetId,
         package_id: PackageId,
-        profile_id: destack_source::ProfileId,
+        profile_id: ProfileId,
         context: &dyn ProviderContext,
     ) -> LinkResult<Option<js::LocalNodeIdAny>> {
         let is_internal = self.is_internal_script_dependency(
@@ -206,7 +206,7 @@ impl Compiler {
         target: &Target,
         target_id: &TargetId,
         package_id: PackageId,
-        profile_id: destack_source::ProfileId,
+        profile_id: ProfileId,
         context: &dyn ProviderContext,
     ) -> LinkResult<Option<js::LocalNodeIdAny>> {
         let statement = script.tree.get(statement_id).clone();
@@ -284,7 +284,7 @@ impl Compiler {
         target: &Target,
         target_id: &TargetId,
         package_id: PackageId,
-        profile_id: destack_source::ProfileId,
+        profile_id: ProfileId,
         context: &dyn ProviderContext,
     ) -> LinkResult<js::Module> {
         let mut module = script.module.clone();
@@ -386,8 +386,15 @@ impl Compiler {
         package_id: PackageId,
         context: &dyn ProviderContext,
     ) -> LinkResult<js::Module> {
-        let profile_id =
-            self.target_profile_id_or_default(context.revision(), module_id, target_id);
+        let Some(profile_id) = self.target_profile_id(context.revision(), module_id, target_id)
+        else {
+            return Err(LinkError::InvalidTarget {
+                anchor: package_id.into(),
+                package: package_id,
+                target: *target_id,
+                message: format!("missing profile for module {module_id:?} target {target_id:?}"),
+            });
+        };
 
         self.rewrite_module(
             module_id, script, module_set, target, target_id, package_id, profile_id, context,
