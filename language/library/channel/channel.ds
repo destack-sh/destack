@@ -1,4 +1,5 @@
 import { AsyncResult, Error, Result } from "destack:error";
+import { MaybeOwned } from "destack:memory";
 
 /// Channel send failure kind.
 export enum SendErrorKind {
@@ -29,7 +30,7 @@ export struct SendError<T> {
 
 extension<T> of SendError<T> implements Error {
     /// Format this error for users.
-    display(): string {
+    display(): MaybeOwned<string> {
         "channel send failed"
     }
 }
@@ -45,7 +46,7 @@ export struct ReceiveError {
 
 extension of ReceiveError implements Error {
     /// Format this error for users.
-    display(): string {
+    display(): MaybeOwned<string> {
         "channel receive failed"
     }
 }

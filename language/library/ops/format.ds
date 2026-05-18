@@ -1,13 +1,15 @@
+import { MaybeOwned } from "destack:memory";
+
 /// Interface for user-facing string representation.
 @languageItem("ops.Display")
 export newtype interface Display {
     /// Return a user-facing string representation.
-    display(this: &readonly this): string;
+    display(this: &readonly this): MaybeOwned<string>;
 }
 
 /// Interface for developer-facing string representation.
 @languageItem("ops.Debug")
 export newtype interface Debug {
     /// Return a developer-facing string representation.
-    debug(this: &readonly this): string;
+    debug(this: &readonly this): MaybeOwned<string>;
 }

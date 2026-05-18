@@ -1,5 +1,6 @@
 import { Iterable } from "destack:iter";
 import { Json } from "destack:json";
+import { MaybeOwned } from "destack:memory";
 import { Equal } from "destack:ops";
 import { Error, panic, todo } from "destack:error";
 
@@ -20,7 +21,7 @@ export struct AssertionError {
 
 extension of AssertionError implements Error {
     /// Format this assertion failure for users.
-    display(): string {
+    display(): MaybeOwned<string> {
         this.message
     }
 }

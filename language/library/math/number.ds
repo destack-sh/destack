@@ -1,4 +1,5 @@
 import { todo } from "destack:error";
+import { MaybeOwned } from "destack:memory";
 
 /// Number locale formatting options.
 export type NumberFormatOptions = {
@@ -103,27 +104,27 @@ export class Number {
     static readonly NaN: number = NaN;
 
     /// Return this number as a string.
-    toString(this: &readonly number, radix?: number): string {
+    toString(this: &readonly number, radix?: number): MaybeOwned<string> {
         todo("Number.toString")
     }
 
     /// Return this number in fixed-point notation.
-    toFixed(this: &readonly number, fractionDigits?: number): string {
+    toFixed(this: &readonly number, fractionDigits?: number): MaybeOwned<string> {
         todo("Number.toFixed")
     }
 
     /// Return this number in exponential notation.
-    toExponential(this: &readonly number, fractionDigits?: number): string {
+    toExponential(this: &readonly number, fractionDigits?: number): MaybeOwned<string> {
         todo("Number.toExponential")
     }
 
     /// Return this number with the requested precision.
-    toPrecision(this: &readonly number, precision?: number): string {
+    toPrecision(this: &readonly number, precision?: number): MaybeOwned<string> {
         todo("Number.toPrecision")
     }
 
     /// Return this number as a locale-aware string.
-    toLocaleString(this: &readonly number, locales?: string | string[], options?: NumberFormatOptions): string {
+    toLocaleString(this: &readonly number, locales?: string | string[], options?: NumberFormatOptions): MaybeOwned<string> {
         todo("Number.toLocaleString")
     }
 

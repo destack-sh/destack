@@ -1,3 +1,6 @@
+import { todo } from "destack:error";
+import { MaybeOwned } from "destack:memory";
+
 /// Symbol creation description.
 export type SymbolDescription = string | number;
 
@@ -14,7 +17,7 @@ export class Symbol {
     }
 
     /// Return the registry key for `value`.
-    static keyFor(value: symbol): string | undefined {
+    static keyFor(value: symbol): MaybeOwned<string> | undefined {
         todo("Symbol.keyFor")
     }
 }

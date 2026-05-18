@@ -1,5 +1,6 @@
 import { Bytes } from "destack:bytes";
 import { Error, Result, todo } from "destack:error";
+import { MaybeOwned } from "destack:memory";
 
 /// Byte decoding failure.
 export struct DecodeError {
@@ -12,7 +13,7 @@ export struct DecodeError {
 
 extension of DecodeError implements Error {
     /// Format this error for users.
-    display(): string {
+    display(): MaybeOwned<string> {
         this.message
     }
 }

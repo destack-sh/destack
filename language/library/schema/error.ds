@@ -1,4 +1,5 @@
 import { Error } from "destack:error";
+import { MaybeOwned } from "destack:memory";
 
 /// Path segment inside a validated value.
 export type PathSegment = string | usize;
@@ -48,7 +49,7 @@ export struct ValidationError {
 
 extension of ValidationError implements Error {
     /// Format this validation error for users.
-    display(): string {
+    display(): MaybeOwned<string> {
         "schema validation failed"
     }
 }
