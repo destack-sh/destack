@@ -152,9 +152,7 @@ impl Parser {
             return true;
         }
 
-        is_label_expression
-            || self.flags.is_in_module_directive()
-            || (is_in_statement_position && is_label_block)
+        is_label_expression || (is_in_statement_position && is_label_block)
     }
 
     /// Eat one labeled expression shell after the caller accepted `identifier:`.
@@ -385,6 +383,11 @@ impl Parser {
             if has_lambda_follow {
                 return self.eat_expression_in_scope();
             }
+        }
+
+        // decorator prefixes keep statement mode for declaration dispatch
+        if token_type == TokenType::At {
+            return self.eat_expression_in_scope();
         }
 
         // non identifier starts parse outside statement mode

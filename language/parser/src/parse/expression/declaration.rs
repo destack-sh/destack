@@ -468,15 +468,15 @@ impl Parser {
             self.bump(); // eat shared
         }
 
-        // module directive declaration
-        let can_parse_module_directive = self.language.is_destack()
+        // module declaration
+        let can_parse_module = self.language.is_destack()
             && self.flags.is_in_statement_position()
             && header.export.is_none()
             && !header.is_ambient
             && self.is_module_identifier()
             && self.next_token_type() == TokenType::OpenBrace;
-        if can_parse_module_directive {
-            let module_id = self.eat_module_directive(start)?;
+        if can_parse_module {
+            let module_id = self.eat_module(start)?;
             let expression_id = self.insert_node(
                 Expression::Declaration(module_id),
                 self.get_span_from(start),

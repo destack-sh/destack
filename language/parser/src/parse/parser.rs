@@ -152,7 +152,6 @@ impl ParserFlags {
     const ALLOW_PRIVATE_HASH_KEY_FLAG: u32 = 1 << 27;
     const DISALLOW_AMBIGUOUS_TREE_LITERAL_FLAG: u32 = 1 << 28;
     const DISALLOW_TYPE_CONDITIONAL_FLAG: u32 = 1 << 29;
-    const IN_MODULE_DIRECTIVE_FLAG: u32 = 1 << 30;
 
     #[inline]
     const fn has_flag(self, flag: u32) -> bool {
@@ -236,12 +235,6 @@ impl ParserFlags {
     #[inline]
     pub(crate) const fn is_in_statement_context(self) -> bool {
         self.has_flag(Self::IN_STATEMENT_CONTEXT_FLAG)
-    }
-
-    /// Return whether the parser is inside a module directive body.
-    #[inline]
-    pub(crate) const fn is_in_module_directive(self) -> bool {
-        self.has_flag(Self::IN_MODULE_DIRECTIVE_FLAG)
     }
 
     #[inline]
@@ -579,12 +572,6 @@ impl ParserFlags {
     #[inline]
     pub(crate) fn with_statement_context(self, enabled: bool) -> Self {
         self.with_flag(Self::IN_STATEMENT_CONTEXT_FLAG, enabled)
-    }
-
-    /// Set `in_module_directive` to the given value.
-    #[inline]
-    pub(crate) fn with_module_directive(self, enabled: bool) -> Self {
-        self.with_flag(Self::IN_MODULE_DIRECTIVE_FLAG, enabled)
     }
 
     /// Set `in_before_block` to the given value.
@@ -952,10 +939,6 @@ impl ParserFlags {
         flags.set_disallow_ambiguous_tree_literal(self.is_disallow_ambiguous_tree_literal());
         flags.set_in_declare_context(self.is_in_declare_context());
         flags.set_in_statement_context(self.is_in_statement_context());
-        flags.set_flag(
-            Self::IN_MODULE_DIRECTIVE_FLAG,
-            self.is_in_module_directive(),
-        );
         flags
     }
 }
@@ -1011,12 +994,6 @@ impl Parser {
     #[inline]
     pub(crate) fn current_token_is_on_new_line(&self) -> bool {
         self.current_token.token.is_on_new_line
-    }
-
-    /// Return true when the previous token started after a line break.
-    #[inline]
-    pub(crate) fn previous_token_is_on_new_line(&self) -> bool {
-        self.last_consumed_token.token.is_on_new_line
     }
 
     /// Return true when comments appear between the previous token and current token.
