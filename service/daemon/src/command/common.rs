@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use destack_source::FileType;
-use destack_workspace::{RuntimeOptionsJson, Target};
+use destack_workspace::Target;
 use serde::{Deserialize, Serialize};
 
 pub use destack_workspace::ConfigPatch;
@@ -93,8 +93,6 @@ pub struct CommonCommandOptions {
     pub target: Option<String>,
     /// Optional target overrides.
     pub target_overrides: Option<CommandTargetOverrides>,
-    /// Optional runtime overrides.
-    pub runtime_overrides: Option<RuntimeOptionsJson>,
     /// Optional profile name override.
     pub profile: Option<String>,
     /// Optional environment overrides.

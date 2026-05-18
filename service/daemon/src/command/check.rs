@@ -61,7 +61,7 @@ impl CommandContext<'_> {
             .map_err(|error| error.to_string())?;
         self.apply_diagnostic_suggestions(revision, &diagnostics, &options.lint_options)?;
         let exit_code = diagnostics.get_status_code();
-        let profile_count = self.default_profile_count(revision, &modules)?;
+        let profile_count = self.selected_profile_count(revision, &modules)?;
 
         Ok(CommandOutcome::new(
             diagnostics,
@@ -98,7 +98,7 @@ impl CommandContext<'_> {
             .map_err(|error| error.to_string())?;
         self.apply_diagnostic_suggestions(revision, &diagnostics, options)?;
         let exit_code = diagnostics.get_status_code();
-        let profile_count = self.default_profile_count(revision, &modules)?;
+        let profile_count = self.selected_profile_count(revision, &modules)?;
 
         Ok(CommandOutcome::new(
             diagnostics,
@@ -116,7 +116,7 @@ impl CommandContext<'_> {
         module_id: ModuleId,
         lint_enabled: bool,
     ) -> CommandResult<ArtifactKey> {
-        let profile = self.module_profile_id(revision, module_id)?;
+        let profile = self.selected_profile_id(revision, module_id)?;
 
         if lint_enabled {
             return Ok(ArtifactKey::module_linted(module_id, profile));

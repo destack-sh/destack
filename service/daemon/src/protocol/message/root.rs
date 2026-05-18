@@ -93,15 +93,6 @@ pub struct FileUpdateRequest {
     pub update: FileUpdate,
 }
 
-/// Request to prepare query artifacts for a path within a root.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct PrepareQueryRequest {
-    /// Root handle.
-    pub handle: RootHandleId,
-    /// Path to prepare.
-    pub path: PathBuf,
-}
-
 /// Response to a file update.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FileUpdateResponse {
@@ -111,17 +102,6 @@ pub struct FileUpdateResponse {
     pub updates: Vec<DaemonUpdateRecord>,
     /// Messages produced by the change.
     pub messages: Vec<DaemonMessageRecord>,
-}
-
-/// Response to a prepare-query request.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct PrepareQueryResponse {
-    /// Root handle.
-    pub handle: RootHandleId,
-    /// Whether query artifacts are ready after preparation.
-    pub query_ready: bool,
-    /// Optional readiness detail when query artifacts are not ready.
-    pub detail: Option<String>,
 }
 
 /// File update payload.

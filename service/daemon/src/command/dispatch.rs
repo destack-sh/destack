@@ -110,60 +110,57 @@ impl Daemon {
         common: &CommonCommandOptions,
         payload: &CommandPayload,
     ) -> CommandResult<DaemonCommandResult> {
-        // serialize command execution against the root session
-        self.language_service
-            .with_exclusive_root(root, |repository, compiler| {
-                // gather shared context
-                let mut output = CommandOutputBuffer::default();
-                let mut context = CommandContext::new(
-                    self,
-                    root.to_path_buf(),
-                    repository.clone(),
-                    compiler.clone(),
-                    common,
-                    &mut output,
-                )?;
+        let (repository, compiler) = self.language_service.root_handles(root).map_err(|error| {
+            DaemonCommandError::internal(format!("root repository routing failed: {error}"))
+        })?;
 
-                // execute the requested command
-                let result = match payload {
-                    CommandPayload::Check(options) => context.run_check_command(options)?,
-                    CommandPayload::Lint(options) => context.run_lint_command(options)?,
-                    CommandPayload::Build(options) => context.run_build_command(options)?,
-                    CommandPayload::Run(options) => context.execute_run_command(options)?,
-                    CommandPayload::Test(options) => context.run_test_command(options)?,
-                    CommandPayload::Format(options) => context.run_format_command(root, options)?,
-                    CommandPayload::Doc(options) => context.run_doc_command(options)?,
-                    CommandPayload::Bench(options) => context.run_bench_command(options)?,
-                    CommandPayload::Info(options) => context.run_info_command(options)?,
-                    CommandPayload::Config(options) => context.run_config_command(options)?,
-                    CommandPayload::Targets(options) => context.run_targets_command(options)?,
-                    CommandPayload::Cache(options) => context.run_cache_command(options)?,
-                    CommandPayload::Doctor(options) => context.run_doctor_command(options)?,
-                    CommandPayload::Task(options) => context.run_task_command(options)?,
-                    CommandPayload::Repl(options) => context.run_repl_command(options)?,
-                    CommandPayload::Clean(options) => context.run_clean_command(root, options)?,
-                };
+        // gather shared context
+        let mut output = CommandOutputBuffer::default();
+        let mut context = CommandContext::new(
+            self,
+            root.to_path_buf(),
+            repository,
+            compiler,
+            common,
+            &mut output,
+        )?;
 
-                // finalize command output
-                let data = result.data.clone();
-                let exit_code = result.exit_code;
-                let success = exit_code == 0;
-                let revision = context.revision()?;
+        // execute the requested command
+        let result = match payload {
+            CommandPayload::Check(options) => context.run_check_command(options)?,
+            CommandPayload::Lint(options) => context.run_lint_command(options)?,
+            CommandPayload::Build(options) => context.run_build_command(options)?,
+            CommandPayload::Run(options) => context.execute_run_command(options)?,
+            CommandPayload::Test(options) => context.run_test_command(options)?,
+            CommandPayload::Format(options) => context.run_format_command(root, options)?,
+            CommandPayload::Doc(options) => context.run_doc_command(options)?,
+            CommandPayload::Bench(options) => context.run_bench_command(options)?,
+            CommandPayload::Info(options) => context.run_info_command(options)?,
+            CommandPayload::Config(options) => context.run_config_command(options)?,
+            CommandPayload::Targets(options) => context.run_targets_command(options)?,
+            CommandPayload::Cache(options) => context.run_cache_command(options)?,
+            CommandPayload::Doctor(options) => context.run_doctor_command(options)?,
+            CommandPayload::Task(options) => context.run_task_command(options)?,
+            CommandPayload::Repl(options) => context.run_repl_command(options)?,
+            CommandPayload::Clean(options) => context.run_clean_command(root, options)?,
+        };
 
-                Ok(DaemonCommandResult {
-                    revision,
-                    success,
-                    exit_code,
-                    diagnostics: result.diagnostics.iter().cloned().collect(),
-                    output: output.chunks,
-                    data,
-                    module_count: result.module_count,
-                    profile_count: result.profile_count,
-                    target_count: result.target_count,
-                })
-            })
-            .map_err(|error| {
-                DaemonCommandError::internal(format!("root repository routing failed: {error}"))
-            })?
+        // finalize command output
+        let data = result.data.clone();
+        let exit_code = result.exit_code;
+        let success = exit_code == 0;
+        let revision = context.revision()?;
+
+        Ok(DaemonCommandResult {
+            revision,
+            success,
+            exit_code,
+            diagnostics: result.diagnostics.iter().cloned().collect(),
+            output: output.chunks,
+            data,
+            module_count: result.module_count,
+            profile_count: result.profile_count,
+            target_count: result.target_count,
+        })
     }
 }
