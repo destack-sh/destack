@@ -10,15 +10,10 @@ export default function run(): void {}
 export { ImportedUser as User };
 // <- keyword.declaration.import.ds
 
-// declarations / modules / namespaces modules and globals
-namespace App.Core {
+// declarations / modules / metadata and globals
+module {
 // <- keyword.declaration.type.ds
-    export const version = "1";
-}
-
-module VirtualConfig {
-// <- keyword.declaration.type.ds
-    export const enabled: boolean;
+    const enabled = true;
 }
 
 global {

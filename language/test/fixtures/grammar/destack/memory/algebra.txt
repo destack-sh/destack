@@ -9,3 +9,16 @@ let owner: shared ^Packet = ^Packet.create();
 type Base = BaseOf<shared ^Packet>;
 
 type Reborrowed = WithAccess<&Packet, "exclusive">;
+
+SpaceOf<shared Packet> satisfies "shared";
+//      ^^^^^^ keyword.other.modifier.ds
+//                     ^^^^^^^^^ keyword.operator.type.binary.ds
+
+PlaceOf<Packet | local Packet | shared Packet> satisfies "ambient" | "local" | "shared";
+//               ^^^^^ keyword.other.modifier.ds
+//                              ^^^^^^ keyword.other.modifier.ds
+//                                             ^^^^^^^^^ keyword.operator.type.binary.ds
+
+WithAccess<&Packet, "exclusive"> satisfies &exclusive Packet;
+//                               ^^^^^^^^^ keyword.operator.type.binary.ds
+//                                          ^^^^^^^^^ keyword.other.modifier.ds

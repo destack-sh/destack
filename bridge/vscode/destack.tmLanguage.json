@@ -52,6 +52,10 @@
           }
         },
         {
+          "name": "keyword.operator.postfix.ds",
+          "match": "(?x)(?<=[\\w\\]\\)])\\?(?![?.])"
+        },
+        {
           "include": "#type-reference"
         },
         {
@@ -233,6 +237,10 @@
               "name": "keyword.operator.postfix.ds"
             }
           }
+        },
+        {
+          "name": "keyword.operator.postfix.ds",
+          "match": "(?x)(?<=[\\w\\]\\)])\\?(?![?.])"
         },
         {
           "name": "keyword.operator.postfix.ds",

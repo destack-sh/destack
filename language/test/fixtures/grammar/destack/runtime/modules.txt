@@ -4,10 +4,17 @@
 const runtime = import.meta.runtime;
 //              ^^^^^^ keyword.declaration.import.ds
 
-module Runtime {
+module {
 // <- keyword.declaration.type.ds
-    export const mode = "dev";
+    const role = "server";
+    const labels = {
+        feature: ["search", "billing"],
+    };
 }
+
+import.meta.role satisfies "server";
+//          ^^^^ variable.other.member.ds
+//               ^^^^^^^^^ keyword.operator.type.binary.ds
 
 // runtime / modules / binary and text dependencies
 import data from "./schema.json" with { type: "json" };
