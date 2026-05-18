@@ -7,7 +7,7 @@ use destack_linter::Linter;
 use destack_query::Query;
 use destack_source::ModuleId;
 use destack_workspace::{Ref, Repository, Revision};
-use parking_lot::{RwLockReadGuard, RwLockWriteGuard};
+use parking_lot::MutexGuard;
 
 use crate::executor::Executor;
 use crate::{FileSystemSource, RepositorySource, RepositorySourceFilter, SessionError};
@@ -118,14 +118,9 @@ impl Session {
         &self.cwd
     }
 
-    /// Enter a coherent read section for this session.
-    pub fn enter_query(&self) -> RwLockReadGuard<'_, ()> {
-        self.state.enter_query()
-    }
-
-    /// Enter a mutation section for this session.
-    pub fn enter_mutation(&self) -> RwLockWriteGuard<'_, ()> {
-        self.state.enter_mutation()
+    /// Lock updates to the session head ref.
+    pub fn lock_head(&self) -> MutexGuard<'_, ()> {
+        self.state.lock_head()
     }
 
     /// Return the repository for this session.
@@ -179,7 +174,7 @@ impl Session {
         reference: &Ref,
         path: &Path,
     ) -> Result<ModuleId, SessionError> {
-        let _mutation_guard = self.enter_mutation();
+        let _head_guard = self.lock_head();
         let repository = self.repository();
         let revision = self.revision(reference)?;
 

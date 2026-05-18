@@ -29,7 +29,7 @@ pub(crate) fn is_reload_path(path: &Path) -> bool {
 impl Session {
     /// Reload filesystem source files into one ref.
     pub fn reload_from_fs(&self, reference: &Ref) -> Result<Vec<FileUpdate>, SessionError> {
-        let _mutation_guard = self.enter_mutation();
+        let _head_guard = self.lock_head();
         let repository = self.repository();
         let before = self.revision(reference)?;
 

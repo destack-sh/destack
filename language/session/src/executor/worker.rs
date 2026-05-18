@@ -42,8 +42,7 @@ impl Worker {
                 }
             }
 
-            // execute claimed work under the session read gate
-            let _query_guard = self.session.enter_query();
+            // execute claimed work for the pinned task revision
             if let Err(error) = self.provide_task(run.as_ref(), task) {
                 run.abort(error);
                 self.scheduler.notify();
