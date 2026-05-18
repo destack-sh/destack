@@ -465,7 +465,7 @@ Additionally, classes may be marked `final` to prevent downstream classes from e
 
 ```ds
 final class PacketHeader {
-    length: uint32;
+    length: uint32 = 0;
 }
 ```
 
@@ -958,9 +958,6 @@ TypeScript has pattern based destructuring for arguments and assignment-like exp
 | Dereference | `*Point { x, y }` | dereference the selected place before matching |
 | Guard | `pattern if (condition)` | require an extra boolean condition |
 
-Object-backed newtypes still use the wrapper pattern around the object pattern.
-`Config({ debug })` unwraps a `Config` newtype, while `Config { debug }` is reserved for nominal struct and variant object patterns.
-
 For exhaustive pattern matching, Destack supports the `match` expression:
 
 ```ds
@@ -1039,17 +1036,21 @@ if (value is string) {
 
 ### Loops
 
-For convenience and clarity, Destack supports `loop` as the explicit infinite loop form.
-Like other loops, it can produce a value through `break <value>`.
+For convenience and clarity, Destack supports `loop` as the explicit infinite loop form, and like other expressions, loops can produce a value through `break`.
 
 ```ds
 const line = loop {
     const input = readInput();
     if (input == "quit") {
-        break "done";
+        break ("done");
     }
     process(input);
 };
+
+let status = outer: loop {
+    break outer: "done";
+};
+status satisfies "done";
 ```
 
 ### Using
