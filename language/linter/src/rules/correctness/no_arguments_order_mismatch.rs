@@ -449,7 +449,8 @@ fn pattern_name_hint(
         dir::Pattern::Binding { name, .. } => Some(*name),
         dir::Pattern::Must(inner)
         | dir::Pattern::BorrowOf { right: inner, .. }
-        | dir::Pattern::MoveOf { right: inner, .. } => pattern_name_hint(tree, *inner),
+        | dir::Pattern::MoveOf { right: inner, .. }
+        | dir::Pattern::DereferenceOf { right: inner } => pattern_name_hint(tree, *inner),
         _ => None,
     }
 }
