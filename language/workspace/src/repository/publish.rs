@@ -1,6 +1,7 @@
 use std::path::Path;
 use std::sync::Arc;
 
+use dashmap::mapref::entry::Entry;
 use destack_source::{FileContent, FileId, FileType};
 use im::OrdMap;
 
@@ -30,6 +31,39 @@ impl Repository {
         self.prune_unreachable();
 
         Ok(revision)
+    }
+
+    /// Advance one ref when it still points at the expected revision.
+    pub fn advance_ref(
+        &self,
+        reference: &Ref,
+        from: Revision,
+        to: Revision,
+    ) -> Result<bool, RepositoryError> {
+        let did_advance = match self.refs.entry(reference.clone()) {
+            // reject stale base revisions
+            Entry::Occupied(entry) if *entry.get() != from => false,
+
+            // publish the requested revision
+            Entry::Occupied(mut entry) => {
+                let _revision = self.revision(to)?;
+                entry.insert(to);
+                true
+            }
+
+            // missing refs are repository state errors
+            Entry::Vacant(_entry) => {
+                return Err(RepositoryError::MissingRef {
+                    reference: reference.clone(),
+                });
+            }
+        };
+
+        if did_advance {
+            self.prune_unreachable();
+        }
+
+        Ok(did_advance)
     }
 
     /// Fork one base revision with edits and publish one anonymous revision.
