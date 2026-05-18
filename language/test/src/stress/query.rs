@@ -248,7 +248,7 @@ fn run_query_stress(case: &Case) -> CaseResult {
 fn normalize_query_hover(
     workspace: &StressWorkspace,
     file_path: &str,
-    hover: &query::HoverInfo,
+    hover: &query::Hover,
 ) -> Result<NormalizedQuickInfo, String> {
     let range = hover
         .range

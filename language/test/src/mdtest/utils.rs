@@ -10,7 +10,7 @@ use destack_compiler::Compiler;
 use destack_linter::Linter;
 use destack_query::Query;
 use destack_session::Session;
-use destack_source::{FileSystem, MemoryFileSystem, ModuleId};
+use destack_source::{FileSystem, MemoryFileSystem, ModuleId, TargetId};
 use destack_workspace::{HostEnvironment, Mode, Profile, Ref, Repository, Revision};
 
 use crate::core::{CaseResult, discover_file_cases, load_expected_failures};
@@ -127,10 +127,16 @@ pub fn select_profile_for_mdtest(
     test: &MdTestCase,
     default_load_libraries: bool,
 ) -> (Profile, bool) {
-    // load base profile state
+    // load explicit base profile state
+    let module = repository
+        .module(revision, module_id)
+        .unwrap_or_else(|error| panic!("failed to resolve mdtest module: {error}"))
+        .unwrap_or_else(|| panic!("missing mdtest module {module_id:?}"));
+    let target_id = TargetId::new(module.package_id, "default");
     let base_profile = repository
-        .module_profile(revision, module_id)
-        .unwrap_or_else(|error| panic!("failed to resolve default profile: {error}"));
+        .target_profile(revision, target_id)
+        .unwrap_or_else(|error| panic!("failed to resolve mdtest profile: {error}"))
+        .unwrap_or_else(|| panic!("missing mdtest profile for target {target_id:?}"));
     let overrides = parse_mdtest_profile_overrides(test);
     let lib_override = parse_mdtest_libs(test);
 

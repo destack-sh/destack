@@ -2,7 +2,7 @@ use destack_query as query;
 use destack_query::{CodeAction, CodeActionKind};
 use destack_source::{Edit, FileEdit, FileId, Span};
 
-use crate::core::{CaseResult, default_profile_id_for_module, module_artifact_diagnostics};
+use crate::core::{CaseResult, module_artifact_diagnostics, profile_id_for_builtin_default_target};
 use crate::query::runner::position::resolve_query_position;
 use crate::query::runner::snapshot::{
     compare_snapshot_lines, looks_like_snapshot, parse_snapshot_top_directive,
@@ -241,7 +241,7 @@ fn diagnostics_for_file(
         return Vec::new();
     };
     let profile_id =
-        default_profile_id_for_module(&session.repository, session.revision, module_id);
+        profile_id_for_builtin_default_target(&session.repository, session.revision, module_id);
 
     module_artifact_diagnostics(&session.repository, session.revision, module_id, profile_id)
         .iter()

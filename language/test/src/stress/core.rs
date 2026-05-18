@@ -9,7 +9,7 @@ use destack_workspace::{Ref, Repository, Revision};
 use serde::Deserialize;
 
 use crate::core::{
-    SharedMemoryWorkspace, default_profile_id_for_module, module_id_for_path,
+    SharedMemoryWorkspace, module_id_for_path, profile_id_for_builtin_default_target,
     provide_workspace_artifacts, write_workspace_text_file,
 };
 
@@ -341,7 +341,7 @@ fn compile_and_index_stress_project(
     let mut artifact_keys = Vec::new();
     let mut profile_ids = HashSet::new();
     for module_id in &module_ids {
-        let profile = default_profile_id_for_module(repository, revision, *module_id);
+        let profile = profile_id_for_builtin_default_target(repository, revision, *module_id);
         profile_ids.insert(profile);
         artifact_keys.push(ArtifactKey::DirChecked {
             module: *module_id,

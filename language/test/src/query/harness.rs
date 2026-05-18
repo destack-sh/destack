@@ -10,7 +10,7 @@ use destack_workspace::{ProfileId, Ref, Repository, Revision};
 
 use super::{TestMarkers, parse_markers};
 use crate::core::{
-    SharedMemoryWorkspace, default_profile_id_for_module, module_id_for_path,
+    SharedMemoryWorkspace, module_id_for_path, profile_id_for_builtin_default_target,
     provide_workspace_artifacts, write_workspace_text_file,
 };
 use crate::mdtest::{MdTestCase, select_profile_for_mdtest};
@@ -489,9 +489,9 @@ fn compile_and_index_query_modules(
     };
 
     for module_id in &module_ids {
-        let default_profile = default_profile_id_for_module(repository, revision, *module_id);
+        let profile = profile_id_for_builtin_default_target(repository, revision, *module_id);
         let profiles = profiles_by_module.entry(*module_id).or_default();
-        profiles.insert(default_profile);
+        profiles.insert(profile);
 
         if let Some(profile) = extra_profile {
             profiles.insert(profile);
