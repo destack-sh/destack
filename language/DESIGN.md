@@ -235,17 +235,12 @@ newtype interface Add<T = this> {
 Nominal interfaces require **explicit `implements`** declarations - structural compatibility alone doesn't satisfy the constraint, unlike for regular `interface`.
 Newtype interfaces are used for explicit behavioral traits like operator interfaces (e.g., `Add`, `Compare`), and for capability traits (e.g., `Send`, `Sync`, `Copy`, and `Clone`).
 
-### Any
+### Representation
 
-All type constraints - structural and nominal `interface`s, `type`s, whatever - are represented internally as _static_ value constraints by default, and thus any bare `T` of an `interface` or `type` becomes an implicit generic parameter that is monomorphized on application (similar to Rust's `impl T`).
-For example, consider the following representation-equivalent `Writer` interfaces:
+Structural and nominal `interface`s / `type`s are represented as transparent value constraints: any bare `T` of an `interface` or `type` becomes an implicit generic parameter in its declaration that is then substituted ("monomorphized") on application (similar to Rust's `impl T`).
+Thta means the following interface-like declarations have same structure:
 
 ```ds
-// regular interface
-interface Writer {
-    write(bytes: [uint8]): Result<uint, Error>;
-}
-
 // nominal interface
 newtype interface Writer {
     write(bytes: [uint8]): Result<uint, Error>;
@@ -262,7 +257,8 @@ newtype Writer = {
 }
 ```
 
-The following two functions are conceptually equivalent:
+Type constraints like `type` and `interface` are transparent and give the compiler a lot of optimization freedom in specialising methods and types.
+For example, the following functions declarations are representationally equivalent but specialise for concrete `Writer` implementations:
 
 ```ds
 // use Writer as a regular parameter type, no explicit generics
@@ -276,8 +272,13 @@ function write<T: Writer>(writer: T, bytes: [uint8]): Result<uint, Error> {
 }
 ```
 
-This is generally great for performance in a `type`-heavy language like TypeScript, and it works extra well because we always compile statically from source.
-When explicit _runtime_ indirection is desired, Destack also provides an intrinsic `Any<T>` wrapper as the explicit erased runtime value satisfying some `T`:
+The `newtype` alias, however, defines a new value type (whose representation is defined by a type expression), and thus its representation is not substituted later.
+Specifically, this means `newtype Shape = Rectangle | Circle` creates a concrete tagged union layout, while `type Shape = Rectangle | Circle` creates a structural union layout.
+
+### Any
+
+Interfaces being implicit static parameters is generally great for performance in a `type`-heavy language like TypeScript, and it works especially well because we always compile statically from source.
+However, sometimes explicit _runtime_ indirection is desired, and Destack also provides an intrinsic `Any<T>` wrapper as the explicit erased runtime value satisfying some `T`:
 
 ```ds
 // just like the function, this Logger is implicitly generic over Writer
@@ -295,6 +296,8 @@ struct LoggerFor {
     writer: Any<Writer>;
 }
 ```
+
+In general, contract and transparent shapes give the checker room to specialize ordinary TypeScript-looking code, while value declarations, runtime joins, and `Any<T>` are the points where the program asks for a stable representation.
 
 ### Extensions
 
@@ -1229,8 +1232,9 @@ padded satisfies Vector2;
 
 #### Interfaces
 
-As discussed in Types, structural interfaces keep normal TypeScript shape checking and mostly work exactly as expected: exact fields use offsets, methods use function targets, and adapted properties use generated accessors.
-The internal "itab" table that maps this (commonly also called a "witness table") is generated automatically, and because it's a structural interface, writing `implements` on a structural interface is just an explicit check.
+As discussed in Types, structural interfaces keep normal TypeScript shape checking and mostly work exactly as expected: bare structural interface types as transparent constraints, so `point: PointLike` behaves like an implicit `T: PointLike` parameter and is specialized for the concrete argument type.
+Because structural interfaces are satisfied by shape, writing `implements` on one is only an explicit declaration-site check.
+Erased interface values are spelled explicitly with `Any<T>`.
 
 ```ds
 interface PointLike {
@@ -1286,8 +1290,8 @@ read(counts, "apples") satisfies int32 | undefined;
 
 #### Unions
 
-Union receivers are resolved per variant, and every variant must expose the member (otherwise it is an error).
-If all variants resolve to the same implementation (i.e. function location) the call is static; otherwise the result type is the union of the selected return types.
+Union receivers - the member being dispatched on - are resolved per variant, and every variant must expose that member.
+If all variants resolve to the same implementation, the call is static; otherwise the result type is the union of the selected return types and the compiler emits dynamic checks to dispatch on the right member at runtime.
 
 ```ds
 struct TcpStream {
