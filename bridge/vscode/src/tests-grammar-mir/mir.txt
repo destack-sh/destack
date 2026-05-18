@@ -9,8 +9,8 @@ function fib(v0: int64): int64 {
 
 bb0(v0: int64):
 // <- entity.name.label.dsmir
-//   ^^ variable.other.ssa.dsmir
-//       ^^^^^ support.type.dsmir
+//  ^^ variable.other.ssa.dsmir
+//      ^^^^^ support.type.dsmir
 
     v1: int64 = const 2int64
 //  ^^ variable.other.ssa.dsmir
@@ -36,10 +36,10 @@ bb0(v0: int64):
 
     v6: slice<(int64, int64) -> int64> = new.slice (int64, int64) -> int64, v5
 //      ^^^ support.type.dsmir
-//                                                   ^^^^^^^^^ keyword.operator.instruction.dsmir
+//                                       ^^^^^^^^^ keyword.operator.instruction.dsmir
 
     v7: int64 = const -1int64
-//                   ^^^^^^^ constant.numeric.dsmir
+//                    ^^^^^^^ constant.numeric.dsmir
 
     call print(v0)
 //  ^^^^ keyword.operator.instruction.dsmir

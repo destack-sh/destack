@@ -22,6 +22,9 @@
           "include": "#block-label"
         },
         {
+          "include": "#block-reference"
+        },
+        {
           "include": "#instruction"
         },
         {
@@ -83,8 +86,33 @@
     "block-label": {
       "patterns": [
         {
+          "name": "meta.block.label.dsmir",
+          "begin": "(?m)^([A-Za-z_][\\w.#]*)(?=\\s*(?:\\([^\\n)]*\\))?:)",
+          "beginCaptures": {
+            "1": {
+              "name": "entity.name.label.dsmir"
+            }
+          },
+          "end": ":(?=\\s*$)",
+          "patterns": [
+            {
+              "include": "#variable"
+            },
+            {
+              "include": "#type"
+            },
+            {
+              "include": "#number"
+            }
+          ]
+        }
+      ]
+    },
+    "block-reference": {
+      "patterns": [
+        {
           "name": "entity.name.label.dsmir",
-          "match": "(?m)^[ \\t]*[A-Za-z_][\\w.#]*(?=\\s*(?:\\([^\\n)]*\\))?:)"
+          "match": "\\b(?:bb|block|entry|b)\\d+\\b"
         }
       ]
     },
@@ -140,7 +168,7 @@
       "patterns": [
         {
           "name": "support.type.dsmir",
-          "match": "\\b(?:int\\d+|uint\\d+|float\\d+|boolean|void|isize|usize|typeDescriptor|typeId|ref\\??|tensorRef\\??|tensor|vector|fn|closure|addressSpace)\\b"
+          "match": "\\b(?:i\\d+|u\\d+|f\\d+|int\\d+|uint\\d+|float\\d+|boolean|void|isize|usize|typeDescriptor|typeId|ref\\??|slice|tensorRef\\??|tensor|vector|fn|closure|addressSpace)\\b"
         }
       ]
     },
