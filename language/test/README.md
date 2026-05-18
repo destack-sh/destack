@@ -18,7 +18,6 @@ The language suite taxonomy is:
 | Suite | Family | Gate | Location | Purpose |
 |-------|--------|------|----------|---------|
 | **Unit** | Correctness | Quick | crate local tests | Internal invariants and focused logic |
-| **Smoke** | Correctness | Quick | `fixtures/smoke/` | Broad sanity checks for parser and compiler flows |
 | **Emit** | Correctness | Standalone | `fixtures/emit/` | Emitted output matches curated snapshots |
 | **Specification** | Correctness | Quick | `fixtures/specification/` | First-party language semantics and diagnostics |
 | **Conformance** | Conformance | Mixed | `fixtures/conformance/` | External parser and formatter corpora used as regression inputs, not product compatibility targets |
@@ -77,7 +76,6 @@ just full
 
 # core suites
 just test-unit
-just test-smoke
 just test-emit
 just test-specification
 just test-query
