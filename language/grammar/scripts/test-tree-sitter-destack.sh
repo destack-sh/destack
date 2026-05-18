@@ -30,23 +30,12 @@ generate_dialect() {
 	)
 }
 
-test_typescript_tsx() {
-	generate_dialect "typescript"
-	generate_dialect "tsx"
-
-	# run the shared TypeScript and TSX corpus
-	(
-		cd "${package_directory}"
-		bunx "${tree_sitter_cli}" test --rebuild
-	)
-}
-
 test_destack() {
 	generate_dialect "destack"
 
 	# run the destack specific corpus
 	(
-		cd "${package_directory}/destack"
+		cd "${package_directory}"
 		bunx "${tree_sitter_cli}" test --rebuild
 	)
 }
@@ -55,16 +44,13 @@ main() {
 	local mode="${1:-}"
 
 	if [[ -z "${mode}" ]]; then
-		echo "usage: $0 <typescript-tsx|destack>" >&2
+		echo "usage: $0 <destack>" >&2
 		exit 1
 	fi
 
 	ensure_dependencies
 
 	case "${mode}" in
-	"typescript-tsx")
-		test_typescript_tsx
-		;;
 	"destack")
 		test_destack
 		;;
