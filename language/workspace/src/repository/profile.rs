@@ -6,8 +6,8 @@ use im::OrdMap;
 
 use crate::repository::key::profile_key_for_target;
 use crate::{
-    CompilerOptions, ConditionSet, Destack, DestackFile, HostEnvironment, ProfileEnvironment,
-    ProfileOptions, Repository, RepositoryError, Revision, Target,
+    CompilerOptions, ConditionSet, Destack, DestackFile, Environment, ProfileOptions, Repository,
+    RepositoryError, Revision, Target,
 };
 
 /// One resolved semantic profile.
@@ -17,21 +17,14 @@ pub struct Profile {
     pub key: ProfileKey,
     /// The active source graph conditions.
     pub conditions: ConditionSet,
-    /// The resolved environment values.
-    pub env: ProfileEnvironment,
 }
 
 impl Profile {
     /// Build one resolved semantic profile from one canonical key.
-    pub fn from_key(key: ProfileKey, environment: &HostEnvironment) -> Self {
-        let env = ProfileEnvironment::from_key(&key, environment);
+    pub fn from_key(key: ProfileKey) -> Self {
         let conditions = conditions_from_key(&key);
 
-        Self {
-            key,
-            conditions,
-            env,
-        }
+        Self { key, conditions }
     }
 
     /// Return the deterministic profile id for this profile.
@@ -89,7 +82,7 @@ impl Repository {
             &target,
             &compiler_options,
             config.as_deref().map(|config| &config.destack),
-            &revision_state.host,
+            &revision_state.environment,
             product.as_deref(),
             product_role.as_deref(),
         );
@@ -170,17 +163,6 @@ impl Repository {
         Ok(profiles.keys().copied().collect())
     }
 
-    /// Build one resolved profile from one canonical key in one revision.
-    pub fn profile_from_key(
-        &self,
-        revision: Revision,
-        key: ProfileKey,
-    ) -> Result<Profile, RepositoryError> {
-        let revision_state = self.revision(revision)?;
-
-        Ok(Profile::from_key(key, &revision_state.host))
-    }
-
     /// Return the exact revision-scoped profile for one module and profile id when present.
     pub fn module_profile_by_id(
         &self,
@@ -253,11 +235,12 @@ impl Repository {
         target: &Target,
         compiler_options: &CompilerOptions,
         config: Option<&Destack>,
-        environment: &HostEnvironment,
+        environment: &Environment,
         product: Option<&str>,
         product_role: Option<&str>,
     ) -> Arc<Profile> {
-        let profile_config = Self::profile_options_for_target(target, compiler_options, config);
+        let profile_config =
+            Self::profile_options_for_target(target, compiler_options, config, environment);
         let key = profile_key_for_target(
             target_name,
             target,
@@ -269,7 +252,7 @@ impl Repository {
             product_role,
         );
 
-        Arc::new(Profile::from_key(key, environment))
+        Arc::new(Profile::from_key(key))
     }
 
     /// Return the active product role when the target belongs to the selected product.
@@ -292,12 +275,13 @@ impl Repository {
         target: &'a Target,
         compiler_options: &'a CompilerOptions,
         config: Option<&'a Destack>,
+        environment: &'a Environment,
     ) -> Option<&'a ProfileOptions> {
         let config = config?;
-        let profile_name = target
+        let profile_name = environment.selection.profile.as_ref().or(target
             .profile
             .as_ref()
-            .or(compiler_options.profile.as_ref())?;
+            .or(compiler_options.profile.as_ref()))?;
 
         config.profiles.get(profile_name)
     }

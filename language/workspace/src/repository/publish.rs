@@ -80,7 +80,7 @@ impl Repository {
         let files = self.apply_edits(files, edits)?;
         let revision = Arc::new(RevisionState::new(
             Arc::new(files),
-            Arc::clone(&base_revision.host),
+            Arc::clone(&base_revision.environment),
         ));
         let revision_id = revision.revision();
 

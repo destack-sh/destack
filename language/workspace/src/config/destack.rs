@@ -9,9 +9,8 @@ use serde_json::Value;
 
 use crate::config::{
     CompilerOptions, ConditionCatalog, ConditionGate, DependencyMap, DiagnosticPolicy,
-    EnvironmentOptions, FormatterOptions, LinterOptions, Policy, Product, ProfileOptions,
-    RuntimeOptions, Target, Vendor, builtin_modes, builtin_roles, parse_jsonc_file,
-    validate_dependency_map,
+    FormatterOptions, LinterOptions, Policy, Product, ProfileOptions, RuntimeOptions, Target,
+    Vendor, builtin_modes, builtin_roles, parse_jsonc_file, validate_dependency_map,
 };
 
 /// Destack configuration document.
@@ -66,8 +65,6 @@ pub struct Destack {
     pub targets: IndexMap<String, Target>,
     /// Deliverable products.
     pub products: IndexMap<String, Product>,
-    /// Named reusable toolchain and runtime environments.
-    pub environments: IndexMap<String, EnvironmentOptions>,
     /// Named profiles for semantic configuration.
     pub profiles: IndexMap<String, ProfileOptions>,
     /// Named source graph conditions.
