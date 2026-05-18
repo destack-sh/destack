@@ -21,6 +21,112 @@ finally {}
       body: (statement_block))))
 
 =======================================
+Try propagation expression continuations
+:language(destack)
+=======================================
+
+const text = encode()? satisfies string;
+const total = encode()? + 1;
+const ok = encode()? && ready;
+const cast = encode()? as string;
+const coalesce = encode()? ?? fallback;
+const call = encode()?();
+const index = encode()?[0];
+const member = (encode()?).field;
+const arg = f(encode()?, ready ? left : right);
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (satisfies_expression
+        (try_propagation_expression
+          (call_expression
+            (identifier)
+            (arguments)))
+        (predefined_type))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (binary_expression
+        (try_propagation_expression
+          (call_expression
+            (identifier)
+            (arguments)))
+        (number))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (binary_expression
+        (try_propagation_expression
+          (call_expression
+            (identifier)
+            (arguments)))
+        (identifier))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (as_expression
+        (try_propagation_expression
+          (call_expression
+            (identifier)
+            (arguments)))
+        (predefined_type))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (binary_expression
+        (try_propagation_expression
+          (call_expression
+            (identifier)
+            (arguments)))
+        (identifier))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (call_expression
+        (try_propagation_expression
+          (call_expression
+            (identifier)
+            (arguments)))
+        (arguments))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (subscript_expression
+        (try_propagation_expression
+          (call_expression
+            (identifier)
+            (arguments)))
+        (number))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (member_expression
+        (parenthesized_expression
+          (try_propagation_expression
+            (call_expression
+              (identifier)
+              (arguments))))
+        (property_identifier))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (call_expression
+        (identifier)
+        (arguments
+          (try_propagation_expression
+            (call_expression
+              (identifier)
+              (arguments)))
+          (ternary_expression
+            (identifier)
+            (identifier)
+            (identifier)))))))
+
+=======================================
 Match statement patterns
 :language(destack)
 =======================================

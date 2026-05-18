@@ -9,6 +9,39 @@ JSON.stringify(value)? satisfies string;
 //                   ^ keyword.operator.postfix.ds
 //                     ^^^^^^^^^ keyword.operator.type.binary.ds
 
+const text = encode()? satisfies string;
+//                   ^ keyword.operator.postfix.ds
+//                     ^^^^^^^^^ keyword.operator.type.binary.ds
+
+const total = encode()? + 1;
+//                    ^ keyword.operator.postfix.ds
+//                      ^ keyword.operator.addition.ds
+
+const ok = encode()? && ready;
+//                 ^ keyword.operator.postfix.ds
+//                   ^^ keyword.operator.boolean.ds
+
+const cast = encode()? as string;
+//                   ^ keyword.operator.postfix.ds
+//                     ^^ keyword.operator.type.binary.ds
+
+const coalesce = encode()? ?? fallback;
+//                       ^ keyword.operator.postfix.ds
+//                         ^^ keyword.operator.boolean.ds
+
+const call = encode()?();
+//                   ^ keyword.operator.postfix.ds
+
+const index = encode()?[0];
+//                    ^ keyword.operator.postfix.ds
+
+const member = (encode()?).field;
+//                      ^ keyword.operator.postfix.ds
+
+const arg = f(encode()?, ready ? left : right);
+//                    ^ keyword.operator.postfix.ds
+//                             ^ keyword.operator.ternary.ds
+
 const value = maybe ?? fallback;
 //                  ^^ keyword.operator.boolean.ds
 
