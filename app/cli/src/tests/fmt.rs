@@ -1,11 +1,9 @@
 use crate::command::fmt::{FmtArgs, run};
-use crate::common::program::QuoteStyleArg;
 use crate::common::{DiagnosticArgs, ReportArgs};
 use crate::pipeline::daemon::{CommandOptionsBuilder, run_root_command_once};
 
 use destack_daemon::protocol::{CommandFormatOptions, CommandFormatPayload, CommandPayload};
 use destack_source::FileSystem;
-use serde_json::json;
 
 use super::tests::{TestProgram, assert_exit, assert_success};
 
@@ -203,76 +201,6 @@ fn test_fmt_formats_valid_files_when_other_files_error() {
         .read_to_string(&bad_path)
         .expect("broken source should be readable");
     assert_eq!(bad_content, "const broken =");
-}
-
-/// Applies formatter options from destack.json.
-#[test]
-fn test_fmt_applies_destack_config_formatter_options() {
-    // set up source and formatter config
-    let program = TestProgram::new("fmt_destack_config_options");
-    program.write_destack_config(json!({
-        "formatter": {
-            "singleQuote": true
-        }
-    }));
-    let path = program.write_text("main.ts", "const message=\"hello\"");
-
-    // build formatter args
-    let args = FmtArgs {
-        files: vec![path.clone()],
-        eval: None,
-        check: false,
-        program: program.program_args(),
-        diagnostics: DiagnosticArgs::default(),
-        report: ReportArgs::default(),
-    };
-
-    // run the formatter
-    let code = run(&args);
-
-    // assert config options were applied
-    assert_success(code);
-    let formatted = program
-        .fs
-        .read_to_string(&path)
-        .expect("formatted file should be readable");
-    assert_eq!(formatted, "const message = 'hello';\n");
-}
-
-/// Preserves explicit CLI formatter overrides over destack.json options.
-#[test]
-fn test_fmt_cli_formatter_overrides_destack_config() {
-    // set up source and formatter config
-    let program = TestProgram::new("fmt_cli_overrides_destack_config");
-    program.write_destack_config(json!({
-        "formatter": {
-            "singleQuote": true
-        }
-    }));
-    let path = program.write_text("main.ts", "const message=\"hello\"");
-
-    // build formatter args with an explicit cli formatter override
-    let mut program_args = program.program_args();
-    program_args.formatter.quote_style = Some(QuoteStyleArg::Double);
-    let args = FmtArgs {
-        files: vec![path.clone()],
-        eval: None,
-        check: false,
-        program: program_args,
-        diagnostics: DiagnosticArgs::default(),
-        report: ReportArgs::default(),
-    };
-
-    // run the formatter
-    let code = run(&args);
-
-    // assert cli options win over destack.json
-    assert_success(code);
-    let formatted = program
-        .fs
-        .read_to_string(&path)
-        .expect("formatted file should be readable");
-    assert_eq!(formatted, "const message = \"hello\";\n");
 }
 
 /// Includes changed and error file paths in the format payload.

@@ -117,13 +117,11 @@ fn target_profile_id(
     let profile = repository
         .module_target_profile(revision, module_id, target_id)
         .map_err(|error| CliError::message(error.to_string()))?;
-    let profile = if let Some(profile) = profile {
-        profile
-    } else {
-        repository
-            .module_profile(revision, module_id)
-            .map_err(|error| CliError::message(error.to_string()))?
-    };
+    let profile = profile.ok_or_else(|| {
+        CliError::message(format!(
+            "target {target_id:?} is not available for {module_id:?}"
+        ))
+    })?;
 
     Ok(profile.id())
 }

@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_workspace::{DestackDeclaration, Repository, Revision, Workspace};
+use destack_workspace::{DestackFile, Repository, Revision, Workspace};
 
 use crate::common::ProgramArgs;
 use crate::error::{CliError, CliResult};
@@ -84,9 +84,9 @@ pub fn load_destack_config(
     repository: &Repository,
     revision: Revision,
     path: &Path,
-) -> CliResult<DestackDeclaration> {
+) -> CliResult<DestackFile> {
     repository
-        .inherited_destack_config_for_path(revision, path)
+        .inherited_destack_for_path(revision, path)
         .map_err(|error| CliError::message(format!("failed to load {}: {error}", path.display())))?
         .ok_or_else(|| CliError::message(format!("destack.json not found: {}", path.display())))
 }
@@ -144,7 +144,7 @@ pub fn load_destack_config_for_program(
     repository: &Repository,
     revision: Revision,
     cwd: &Path,
-) -> CliResult<DestackDeclaration> {
+) -> CliResult<DestackFile> {
     let path = resolve_destack_config_path(program_args, repository, revision, cwd)?;
     load_destack_config(repository, revision, &path)
 }
@@ -159,7 +159,7 @@ pub fn default_target_for_program(
     // honor explicit config paths
     if program_args.config.is_some() {
         let config = load_destack_config_for_program(program_args, repository, revision, cwd)?;
-        return Ok(config.default_target);
+        return Ok(config.default_target.clone());
     }
 
     // fall back to auto discovery when present
@@ -167,7 +167,7 @@ pub fn default_target_for_program(
         return Ok(None);
     };
     let config = load_destack_config(repository, revision, &path)?;
-    Ok(config.default_target)
+    Ok(config.default_target.clone())
 }
 
 /// Resolve the default target from repository config.
@@ -194,7 +194,7 @@ pub fn load_destack_config_for_path(
     repository: &Repository,
     revision: Revision,
     path: &Path,
-) -> CliResult<DestackDeclaration> {
+) -> CliResult<DestackFile> {
     // resolve the config path from the directory
     let destack_config_path = find_destack_config(repository, revision, path)
         .ok_or_else(|| CliError::message("destack.json not found"))?;
@@ -207,7 +207,7 @@ pub fn load_destack_config_for_path(
 pub fn load_workspace_configs(
     repository: &Repository,
     revision: Revision,
-) -> CliResult<Vec<DestackDeclaration>> {
+) -> CliResult<Vec<DestackFile>> {
     // collect unique config paths
     let mut configs = BTreeMap::new();
     let package_paths = repository
