@@ -1,4 +1,5 @@
 import { Error } from "destack:error";
+import { MaybeOwned } from "destack:memory";
 
 /// JSON error category.
 export enum JsonErrorKind {
@@ -36,7 +37,7 @@ export struct JsonError {
 
 extension of JsonError implements Error {
     /// Format this error for users.
-    display(): string {
+    display(): MaybeOwned<string> {
         this.message
     }
 }

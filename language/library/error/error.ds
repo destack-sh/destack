@@ -1,10 +1,10 @@
-import { Any } from "destack:memory";
+import { Any, MaybeOwned } from "destack:memory";
 
 /// Recoverable failure protocol.
 @languageItem("error.Error")
 export newtype interface Error {
     /// Format this error for users.
-    display(): string;
+    display(): MaybeOwned<string>;
 
     /// Return the underlying cause.
     source(): Any<Error> | undefined {

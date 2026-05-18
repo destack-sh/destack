@@ -1,4 +1,5 @@
 import { todo } from "destack:error";
+import { MaybeOwned } from "destack:memory";
 import { Instant } from "./instant.ds";
 import { PlainDate } from "./plain-date.ds";
 import { PlainDateTime } from "./plain-date-time.ds";
@@ -31,6 +32,6 @@ export function plainTimeISO(timeZone?: TimeZoneLike): PlainTime {
 }
 
 /// Return the current system time-zone identifier.
-export function timeZoneId(): string {
+export function timeZoneId(): MaybeOwned<string> {
     todo("Temporal.Now.timeZoneId")
 }

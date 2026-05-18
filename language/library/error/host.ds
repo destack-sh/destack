@@ -1,3 +1,4 @@
+import { MaybeOwned } from "destack:memory";
 import { Error } from "./error.ds";
 
 /// Error code returned by host bindings.
@@ -497,7 +498,7 @@ export newtype HostError = {
 
 extension of HostError implements Error {
     /// Format this error for users.
-    display(): string {
+    display(): MaybeOwned<string> {
         this.message ?? "host error"
     }
 }

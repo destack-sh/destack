@@ -1,4 +1,5 @@
 import { todo } from "destack:error";
+import { MaybeOwned } from "destack:memory";
 import { Omit } from "destack:types";
 import { Duration, DurationLike } from "./duration.ds";
 import { DateTimeFormatOptions, DifferenceOptions, InstantToStringOptions, RoundTo } from "./option.ds";
@@ -86,17 +87,17 @@ export class Instant {
     }
 
     /// Return a locale-aware string.
-    toLocaleString(locales?: LocalesArgument, options?: DateTimeFormatOptions): string {
+    toLocaleString(locales?: LocalesArgument, options?: DateTimeFormatOptions): MaybeOwned<string> {
         todo("Instant.toLocaleString")
     }
 
     /// Return a JSON string.
-    toJSON(): string {
+    toJSON(): MaybeOwned<string> {
         todo("Instant.toJSON")
     }
 
     /// Return an ISO string.
-    toString(options?: InstantToStringOptions): string {
+    toString(options?: InstantToStringOptions): MaybeOwned<string> {
         todo("Instant.toString")
     }
 

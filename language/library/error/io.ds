@@ -1,4 +1,4 @@
-import { Any } from "destack:memory";
+import { Any, MaybeOwned } from "destack:memory";
 import { Error } from "./error.ds";
 import { todo } from "./panic.ds";
 
@@ -65,7 +65,7 @@ export struct IoError {
 
 extension of IoError implements Error {
     /// Format this error for users.
-    display(): string {
+    display(): MaybeOwned<string> {
         this.message ?? "I/O error"
     }
 
@@ -89,7 +89,7 @@ export struct PathError {
 
 extension of PathError implements Error {
     /// Format this error for users.
-    display(): string {
+    display(): MaybeOwned<string> {
         todo("PathError.display")
     }
 

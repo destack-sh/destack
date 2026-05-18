@@ -1,4 +1,5 @@
 import { todo } from "destack:error";
+import { MaybeOwned } from "destack:memory";
 
 /// Named regular expression capture groups.
 export type RegExpGroups = {
@@ -59,17 +60,17 @@ export class RegExp {
     lastIndex: number = 0;
 
     /// Escape text so it can be used as a literal regular expression pattern.
-    static escape(text: string): string {
+    static escape(text: string): ^string {
         todo("RegExp.escape")
     }
 
     /// The source pattern.
-    get source(): string {
+    get source(): MaybeOwned<string> {
         todo("RegExp.source")
     }
 
     /// The flags used to compile the pattern.
-    get flags(): string {
+    get flags(): MaybeOwned<string> {
         todo("RegExp.flags")
     }
 
@@ -129,7 +130,7 @@ export class RegExp {
     }
 
     /// Return the literal regular expression spelling.
-    toString(this: &readonly RegExp): string {
+    toString(this: &readonly RegExp): MaybeOwned<string> {
         todo("RegExp.toString")
     }
 }

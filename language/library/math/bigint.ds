@@ -1,5 +1,5 @@
 import { todo } from "destack:error";
-import { MaybeUninit, Unique } from "destack:memory";
+import { MaybeOwned, MaybeUninit, Unique } from "destack:memory";
 import {
     Add,
     And,
@@ -125,12 +125,12 @@ extension of BigInt implements
     }
 
     /// Return this integer as a string.
-    toString(this: &readonly bigint, radix?: number): string {
+    toString(this: &readonly bigint, radix?: number): MaybeOwned<string> {
         todo("BigInt.toString")
     }
 
     /// Return this integer as a locale-aware string.
-    toLocaleString(this: &readonly bigint, locales?: string | string[], options?: NumberFormatOptions): string {
+    toLocaleString(this: &readonly bigint, locales?: string | string[], options?: NumberFormatOptions): MaybeOwned<string> {
         todo("BigInt.toLocaleString")
     }
 

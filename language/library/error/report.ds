@@ -1,4 +1,4 @@
-import { Any } from "destack:memory";
+import { Any, MaybeOwned } from "destack:memory";
 import { Error } from "./error.ds";
 import { todo } from "./panic.ds";
 
@@ -30,7 +30,7 @@ extension of Report {
 
 extension of Report implements Error {
     /// Format this report for users.
-    display(): string {
+    display(): MaybeOwned<string> {
         todo("Report.display")
     }
 

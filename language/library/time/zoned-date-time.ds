@@ -1,4 +1,5 @@
 import { todo } from "destack:error";
+import { MaybeOwned } from "destack:memory";
 import { Duration, DurationLike } from "./duration.ds";
 import { Instant } from "./instant.ds";
 import { PlainDate, CalendarLike } from "./plain-date.ds";
@@ -60,7 +61,7 @@ export class ZonedDateTime {
     }
 
     /// Calendar era.
-    get era(): string | undefined {
+    get era(): MaybeOwned<string> | undefined {
         todo("ZonedDateTime.era")
     }
 
@@ -80,7 +81,7 @@ export class ZonedDateTime {
     }
 
     /// Calendar month code.
-    get monthCode(): string {
+    get monthCode(): MaybeOwned<string> {
         todo("ZonedDateTime.monthCode")
     }
 
@@ -120,12 +121,12 @@ export class ZonedDateTime {
     }
 
     /// Time-zone identifier.
-    get timeZoneId(): string {
+    get timeZoneId(): MaybeOwned<string> {
         todo("ZonedDateTime.timeZoneId")
     }
 
     /// Calendar identifier.
-    get calendarId(): string {
+    get calendarId(): MaybeOwned<string> {
         todo("ZonedDateTime.calendarId")
     }
 
@@ -185,7 +186,7 @@ export class ZonedDateTime {
     }
 
     /// Offset string.
-    get offset(): string {
+    get offset(): MaybeOwned<string> {
         todo("ZonedDateTime.offset")
     }
 
@@ -312,17 +313,17 @@ export class ZonedDateTime {
     }
 
     /// Return a locale-aware string.
-    toLocaleString(locales?: LocalesArgument, options?: DateTimeFormatOptions): string {
+    toLocaleString(locales?: LocalesArgument, options?: DateTimeFormatOptions): MaybeOwned<string> {
         todo("ZonedDateTime.toLocaleString")
     }
 
     /// Return a JSON string.
-    toJSON(): string {
+    toJSON(): MaybeOwned<string> {
         todo("ZonedDateTime.toJSON")
     }
 
     /// Return an ISO string.
-    toString(options?: ZonedDateTimeToStringOptions): string {
+    toString(options?: ZonedDateTimeToStringOptions): MaybeOwned<string> {
         todo("ZonedDateTime.toString")
     }
 

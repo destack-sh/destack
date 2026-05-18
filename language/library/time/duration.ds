@@ -1,4 +1,5 @@
 import { todo } from "destack:error";
+import { MaybeOwned } from "destack:memory";
 import {
     DurationArithmeticOptions,
     DurationFormatOptions,
@@ -160,17 +161,17 @@ export class Duration {
     }
 
     /// Return a locale-aware string.
-    toLocaleString(locales?: LocalesArgument, options?: DurationFormatOptions): string {
+    toLocaleString(locales?: LocalesArgument, options?: DurationFormatOptions): MaybeOwned<string> {
         todo("Duration.toLocaleString")
     }
 
     /// Return a JSON string.
-    toJSON(): string {
+    toJSON(): MaybeOwned<string> {
         todo("Duration.toJSON")
     }
 
     /// Return an ISO string.
-    toString(options?: ToStringPrecisionOptions): string {
+    toString(options?: ToStringPrecisionOptions): MaybeOwned<string> {
         todo("Duration.toString")
     }
 

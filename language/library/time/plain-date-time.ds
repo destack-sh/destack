@@ -1,4 +1,5 @@
 import { todo } from "destack:error";
+import { MaybeOwned } from "destack:memory";
 import { Duration, DurationLike } from "./duration.ds";
 import { CalendarLike, PlainDate } from "./plain-date.ds";
 import { PlainTime, PlainTimeLike } from "./plain-time.ds";
@@ -76,7 +77,7 @@ export class PlainDateTime {
     }
 
     /// Calendar era.
-    get era(): string | undefined {
+    get era(): MaybeOwned<string> | undefined {
         todo("PlainDateTime.era")
     }
 
@@ -96,7 +97,7 @@ export class PlainDateTime {
     }
 
     /// Calendar month code.
-    get monthCode(): string {
+    get monthCode(): MaybeOwned<string> {
         todo("PlainDateTime.monthCode")
     }
 
@@ -136,7 +137,7 @@ export class PlainDateTime {
     }
 
     /// Calendar identifier.
-    get calendarId(): string {
+    get calendarId(): MaybeOwned<string> {
         todo("PlainDateTime.calendarId")
     }
 
@@ -278,17 +279,17 @@ export class PlainDateTime {
     }
 
     /// Return a locale-aware string.
-    toLocaleString(locales?: LocalesArgument, options?: DateTimeFormatOptions): string {
+    toLocaleString(locales?: LocalesArgument, options?: DateTimeFormatOptions): MaybeOwned<string> {
         todo("PlainDateTime.toLocaleString")
     }
 
     /// Return a JSON string.
-    toJSON(): string {
+    toJSON(): MaybeOwned<string> {
         todo("PlainDateTime.toJSON")
     }
 
     /// Return an ISO string.
-    toString(options?: CalendarTypeToStringOptions): string {
+    toString(options?: CalendarTypeToStringOptions): MaybeOwned<string> {
         todo("PlainDateTime.toString")
     }
 
