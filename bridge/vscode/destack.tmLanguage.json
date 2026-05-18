@@ -40,6 +40,18 @@
           "include": "#binding"
         },
         {
+          "name": "keyword.operator.try.ds",
+          "match": "\\?(?=\\s*;)"
+        },
+        {
+          "match": "(?x)([\\w\\]\\)])(\\?(?![?.]))",
+          "captures": {
+            "2": {
+              "name": "keyword.operator.postfix.ds"
+            }
+          }
+        },
+        {
           "include": "#type-reference"
         },
         {
@@ -159,12 +171,16 @@
           "match": "\\b(?:const|let|module|global|namespace|type|newtype|struct|class|enum|union|interface|function|extension|declare|constructor)\\b"
         },
         {
+          "name": "keyword.control.using.ds",
+          "match": "\\busing\\b"
+        },
+        {
           "name": "keyword.operator.new.ds",
           "match": "\\bnew\\b"
         },
         {
           "name": "keyword.operator.type.ds",
-          "match": "\\b(?:where|asserts|using|provides)\\b"
+          "match": "\\b(?:where|asserts|provides)\\b"
         },
         {
           "name": "keyword.other.comptime.ds",
@@ -203,8 +219,24 @@
     "operator": {
       "patterns": [
         {
+          "name": "keyword.operator.try.ds",
+          "match": "\\?(?=\\s*;)"
+        },
+        {
+          "name": "keyword.operator.ternary.ds",
+          "match": "(?x)\\?(?=\\s*(?:[$A-Za-z_(]|[0-9]))"
+        },
+        {
+          "match": "(?x)([\\w\\]\\)])(\\?(?![?.]))",
+          "captures": {
+            "2": {
+              "name": "keyword.operator.postfix.ds"
+            }
+          }
+        },
+        {
           "name": "keyword.operator.postfix.ds",
-          "match": "(?x)(?<=\\w|\\]|\\))(?:\\+\\+|--|!(?![=])|\\?(?![?.]))"
+          "match": "(?x)(?<=\\w|\\]|\\))(?:\\+\\+|--|!(?![=]))"
         },
         {
           "name": "keyword.operator.prefix.ds",
@@ -1742,7 +1774,7 @@
           "begin": "(?x)\\bfor\\s*\\(\\s*(?:await\\s+)?(using)\\s+([$A-Za-z_][$A-Za-z0-9_]*)(?=\\s+\\b(?:of|in)\\b)",
           "beginCaptures": {
             "1": {
-              "name": "keyword.operator.type.ds"
+              "name": "keyword.control.using.ds"
             },
             "2": {
               "name": "variable.other.binding.ds"
@@ -1771,9 +1803,12 @@
         },
         {
           "name": "meta.binding.destack.for.in.ds",
-          "match": "(?x)\\bfor\\s+([$A-Za-z_][$A-Za-z0-9_]*)(?=\\s+\\bin\\b)",
+          "match": "(?x)\\b(for)\\s+([$A-Za-z_][$A-Za-z0-9_]*)(?=\\s+\\bin\\b)",
           "captures": {
             "1": {
+              "name": "keyword.control.loop.ds"
+            },
+            "2": {
               "name": "variable.other.binding.ds"
             }
           }
