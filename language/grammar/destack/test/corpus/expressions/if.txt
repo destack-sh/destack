@@ -17,3 +17,108 @@ a ? function(){ return true } : b;
           (return_statement
             (true))))
       (identifier))))
+
+==================================
+Ternary expression with satisfies prefix
+:language(destack)
+==================================
+
+ok ? satisfiesValue : fallback;
+
+---
+
+(program
+  (expression_statement
+    (ternary_expression
+      (identifier)
+      (identifier)
+      (identifier))))
+
+==================================
+Ternary expression with object body
+:language(destack)
+==================================
+
+ok ? { value: 1 } : fallback;
+
+---
+
+(program
+  (expression_statement
+    (ternary_expression
+      condition: (identifier)
+      consequence: (object
+        (pair
+          key: (property_identifier)
+          value: (number)))
+      alternative: (identifier))))
+
+==================================
+Ternary expression with literal bodies
+:language(destack)
+==================================
+
+ok ? [left] : right;
+ok ? "left" : right;
+ok ? `left` : right;
+
+---
+
+(program
+  (expression_statement
+    (ternary_expression
+      (identifier)
+      (array
+        (identifier))
+      (identifier)))
+  (expression_statement
+    (ternary_expression
+      (identifier)
+      (string
+        (string_fragment))
+      (identifier)))
+  (expression_statement
+    (ternary_expression
+      (identifier)
+      (template_string
+        (string_fragment))
+      (identifier))))
+
+==================================
+Nested ternary expression
+:language(destack)
+==================================
+
+ok ? left ? inner : middle : right;
+
+---
+
+(program
+  (expression_statement
+    (ternary_expression
+      (identifier)
+      (ternary_expression
+        (identifier)
+        (identifier)
+        (identifier))
+      (identifier))))
+
+==================================
+Ternary expression in arguments
+:language(destack)
+==================================
+
+select(ok ? left : right, fallback);
+
+---
+
+(program
+  (expression_statement
+    (call_expression
+      (identifier)
+      (arguments
+        (ternary_expression
+          (identifier)
+          (identifier)
+          (identifier))
+        (identifier)))))
